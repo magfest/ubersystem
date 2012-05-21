@@ -44,10 +44,11 @@ django.conf.settings.configure(
 
 appconf = {
     "/": {
+        "tools.proxy.on": True,
         "tools.staticdir.root": os.getcwd()
     },
     "/static": {
-        "tools.staticdir.on":  True,
+        "tools.staticdir.on": True,
         "tools.staticdir.dir": "static"
     }
 }

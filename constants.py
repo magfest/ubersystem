@@ -17,6 +17,7 @@ class State:
     AUTO_EMAILS = False
     
     AT_THE_CON = False
+    POST_CON = False
     UBER_SHUT_DOWN = False
     HIDE_SCHEDULE = True
     
