@@ -1,0 +1,6 @@
+An admin account has been created for you ({{ account.name }}) on the MAGFest ubersystem at {{ state.URL_BASE }}/
+
+The email address we used is: {{ account.email }}
+Your password is: {{ password|safe }}
+
+You may change your password after logging in.

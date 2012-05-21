@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %} Unpaid Attendees {% endblock %}
+{% block content %}
+
+<h2> Payment reminders sent to <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a> </h2>
+
+{% for contact in attendee.contacts %}
+    <h3> {{ contact.when }} </h3>
+    <div style="font-family:courier">{{ contact.email|linebreaksbr }}</div>
+{% endfor %}
+
+{% endblock %}

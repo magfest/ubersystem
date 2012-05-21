@@ -1,0 +1,57 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+    <title>MAGFest - Money</title>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+    <script type="text/javascript" src="../static/date.js"></script>
+</head>
+<body>
+
+<br/>
+
+<script type="text/javascript">
+    var graphs = [
+        [
+            {{ m6_lookup|jsonize }}, 
+            {{ m6_coords|jsonize }}, 
+            "{{ m6_date }}" 
+        ],
+        [
+            {{ m7_lookup|jsonize }}, 
+            {{ m7_coords|jsonize }},
+            "{{ m7_date }}" 
+        ],
+        [
+            {{ m8_lookup|jsonize }}, 
+            {{ m8_coords|jsonize }},
+            "{{ m8_date }}" 
+        ],
+        [
+            {{ m9_lookup|jsonize }}, 
+            {{ m9_coords|jsonize }},
+            "{{ m9_date }}" 
+        ],
+        [
+            {{ m10_lookup|jsonize }}, 
+            {{ m10_coords|jsonize }},
+            "{{ m10_date }}" 
+        ]
+    ];
+</script>
+
+<script type="text/javascript" src="../static/magcharts.js"></script>
+
+<div id="graph" style="width:100%"></div>
+
+<br/><hr><br/>
+
+<div id="graph2" style="width:100%"></div>
+
+<br/>
+
+<div id='table_div'></div>
+
+</body>
+</html>
+

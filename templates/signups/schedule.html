@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Your Shifts{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<script type="text/javascript">
+    $(document).ready(function(){
+        $("sup[@title]").cluetip({splitTitle: "~~~"});
+    });
+</script>
+
+<div style="text-align:center">
+    <span style="font-size:16pt ; font-weight:bold">Shifts signed up for by {{ attendee.full_name }}</span>
+    <br/>
+    <span style="font-size:12pt ; font-style:italic">(If you are not {{ attendee.full_name }}, <a href="login">log in here</a>.)</span>
+    <br/> <br/>
+    <table width="100%" style="text-align:center">
+    <tr>
+        <td width="50%"> {% popup_link "../static/stafferComps.html" "See What You Get For Volunteering" %} </td>
+        <td width="50%"> <a href="../schedule/">View the MAGFest Schedule</a> </td>
+    </tr>
+    </table>
+    <br/>
+    <a href="possible">Click Here</a> to sign up for more shifts; you are currently signed up for {{ attendee.weighted_hours }} weighted hours.
+</div>
+
+<br/>
+
+{% if attendee.shift_set.count %}
+    <table width="95%" align="center">
+    <tr style="font-weight:bold ; vertical-align:bottom">
+        <td> Job </td>
+        <td> Department </td>
+        <td> Start Time </td>
+        <td> Duration </td>
+        <td> Weight{% popup_link "../static/weightDesc.html" %} </td>
+        <td></td>
+    </tr>
+    {% for shift in attendee.signups %}
+        <tr style="vertical-align:bottom">
+            <td>
+                {{ shift.job.name }}
+                {% if shift.job.description %}
+                    <sup style="color:blue" title="{{ shift.job.name }}~~~{{ shift.job.description }}">?</sup>
+                {% endif %}
+            </td>
+            <td> {{ shift.job.get_location_display }}</td>
+            <td> {% hour_day shift.job.start_time %} </td>
+            <td> {{ shift.job.duration }} hours{% if shift.job.extra15 %}, 15 minutes {% endif %} </td>
+            <td> x{{ shift.job.weight }}</td>
+            <form method="post" action="drop">
+            <input type="hidden" name="shift_id" value="{{ shift.id }}" />
+            <td> <input type="submit" value="Drop Shift" /> </td>
+            </form>
+        </tr>
+    {% endfor %}
+    </table>
+{% endif %}
+
+{% endblock %}

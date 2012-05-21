@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Attendee History - {{ attendee.full_name }}{% endblock %}
+{% block content %}
+
+{% include "registration/menu.html" %}
+
+<table class="list">
+<tr class="header">
+    <td>What</td>
+    <td>When</td>
+    <td>Who</td>
+    <td>Changes</td>
+</tr>
+{% for tracked in changes %}
+    <tr>
+        <td style="white-space:nowrap">{{ tracked.get_action_display }}</td>
+        <td style="white-space:nowrap">{{ tracked.when }}</td>
+        <td style="white-space:nowrap">{{ tracked.who }}</td>
+        <td>{{ tracked.data }}</td>
+    </tr>
+{% endfor %}
+
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block backlink %}{% endblock %}
+{% block title %}Homepage{% endblock %}
+{% block content %}
+
+<style type="text/css">
+    div.indent {
+        text-indent: 20px;
+    }
+    div.heading {
+        margin-top:  20px;
+        font-weight: bold;
+        font-size:   14pt;
+    }
+</style>
+
+<h2> MAGFest Ubersystem Administration </h2>
+
+<div class="indent"> Welcome to the MAGFest Ubersystem.  You may access the following areas: </div>
+
+{% if HAS_ACCOUNTS_ACCESS %}
+    <div class="heading"> Administrative Accounts </div>
+    <div class="indent">Add new accounts and set which sections of the ubersystem
+        each administrator can access. </div>
+    <ul>
+        <li> <a href="../accounts/">Manage Accounts</a> </li>
+        <li> <a href="../accounts/feed">Feed of Database Changes</a> </li>
+    </ul>
+{% endif %}
+
+{% if HAS_PEOPLE_ACCESS %}
+    <div class="heading"> People </div>
+    <div class="indent"> Manage the people coming to and working for MAGFest. </div>
+    <ul>
+        <li> <a href="../registration/">Attendees</a> </li>
+        <li> <a href="../groups/">Groups</a> </li>
+        <li> <a href="../registration/staffers">Staffers</a> </li>
+        <li> <a href="../jobs/">Jobs</a> </li>
+        {% if AT_THE_CON %}
+            <li> <a href="../registration/merch">Merch</a> </li>
+        {% endif %}
+    </ul>
+{% endif %}
+
+{% if HAS_STUFF_ACCESS %}
+    <div class="heading"> Events </div>
+    <div class="indent"> Track what's on our schedule and assign inventory and jobs to events as needed. </div>
+    <ul>
+        <li> <a href="../schedule/">Schedule</a> </li>
+    </ul>
+{% endif %}
+
+{% if HAS_MONEY_ACCESS %}
+    <div class="heading"> Money </div>
+    <div class="indent"> Balance the money MAGFest has acquired and spent. </div>
+    <ul> <li> <a href="../budget/">Budget</a> </li> </ul>
+    {% if state.POST_CON %}
+        <ul> <li> <a href="../budget/mpoints">M-Point usage</a> </li> </ul>
+    {% endif %}
+    <ul> <li> <a href="../budget/graphs">Budget Graphs</a> </li> </ul>
+    <ul> <li> <a href="../budget/graphs3">Budget Graphs (all magfests side by side)</a> </li> </ul>
+    <ul> <li> <a href="../summary">Registration Summary</a> </li> </ul>
+{% endif %}
+
+{% if HAS_CHALLENGES_ACCESS %}
+    <div class="heading"> Challenges </div>
+    <div class="indent"> Track the games and winners at the Challenges Booth. </div>
+    <ul> <li> <a href="../challenges/">Challenges</a> </li> </ul>
+{% endif %}
+
+<div class="heading"> Your Account </div>
+<ul>
+    <li> <a href="change_password">Change Password</a> </li>
+    <li> <a href="logout">Logout</a> </li>
+</ul>
+
+<br/>
+
+{% endblock %}

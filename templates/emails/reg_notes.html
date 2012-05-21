@@ -1,0 +1,15 @@
+{% if attendee.staffing %}
+    <br/> <br/>
+    Thanks for signing up as a volunteer!  After we receive your payment you'll be assigned to a department and
+    we'll email you with will instructions about how to sign up for shifts.
+{% endif %}
+
+{% if attendee.age_group == UNDER_18 %}
+    <br/> <br/>
+    Because you are under 18, you must bring a signed and notarized parental permission
+    to be granted admission to MAGFest.  You may download the permission slip 
+    <a href="{{ CONSENT_FORM_URL }}">by clicking here</a>.
+    <br/> <br/>
+    You may <a href="{{ state.URL_BASE }}/preregistration/confirm?id={{ attendee.id|obfuscated }}">click here</a>
+    to edit your info if you are over 18 and entered that age by mistake.
+{% endif %}

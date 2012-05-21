@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}MPoint Uses{% endblock %}
+{% block content %}
+
+<h2> M-Points Collected at Regdesk </h2>
+
+<table class="list">
+<tr class="header">
+    <td>Total</td>
+    <td>Group</td>
+    <td>Breakdown</td>
+</tr>
+{% for total,group,mpus in all %}
+    <tr bgcolor="{% cycle #ffffff,#eeeeee %}">
+        <td>${{ total }}</td>
+        <td>
+            {% if group %}
+                <a href="../groups/form?id={{ group.id }}">{{ group.name }}</a>
+            {% else %}
+                No Group
+            {% endif %}
+        <td style="text-align:left">
+            <ul>
+                {% for mpu in mpus %}
+                    <li>
+                        ${{ mpu.amount }} from 
+                        {% if mpu.attendee %}
+                            <a href="../registration/form?id={{ mpu.attendee.id }}">{{ mpu.attendee.full_name }}</a>
+                        {% else %}
+                            {{ mpu.identifier }}
+                        {% endif %}
+                        at {{ mpu.when }}
+                    </li>
+                {% endfor %}
+            </ul>
+        </td>
+    </tr>
+{% endfor %}
+</table>
+
+{% endblock %}

@@ -1,0 +1,9 @@
+<schedule>
+    {% for place, events in schedule %}
+        <place name="{{ place }}">
+            {% for event in events %}
+                <event name="{{ event.name }}" start="{{ event.start_time|date:"Y-m-d H:i:s" }}" half_hours="{{ event.duration }}">{{ event.description|default:"NO DESCRIPTION" }}</event>
+            {% endfor %}
+        </place>
+    {% endfor %}
+</schedule>

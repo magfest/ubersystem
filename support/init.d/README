@@ -1,0 +1,4 @@
+uber-init.d is a script suitable to be popped in /etc/init.d/
+
+it's kind of shitty though, but it works
+-Dom

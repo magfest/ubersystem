@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Registration Stats{% endblock %}
+{% block content %}
+
+<b>Attendees checked in:</b> {{ checkin_count }}
+<br/>
+<b>Attendees with free badges who didn't show up:</b> {{ free_noshows }}
+<br/>
+<b>Attendees who paid and didn't show up:</b> {{ paid_noshows }}
+<br/>
+<b>Total Registrations:</b> {{ total_count }}
+<table style="width:auto ; border-spacing:0px">
+<tr>
+    <td></td>
+    <td><u>Badge Type</u></td>
+    <td><u>Paid Badges</u></td>
+    <td><u>Unpaid Badges</u></td>
+    <td><u>All Badges</u></td>
+</tr>
+{% for desc,total,unpaid,paid in badge_counts %}
+    <tr>
+        <td> <ul><li></li></ul> </td>
+        <td> <i>{{ desc }}</i> </td>
+        <td align="center"> {{ paid }} </td>
+        <td align="center"> {{ unpaid }} </td>
+        <td align="center"> {{ total }} </td>
+    </tr>
+{% endfor %}
+</table>
+
+<br/>
+
+<b>Affiliates</b>
+<table style="width:auto ; border-spacing:0px ; margin-left:15px">
+<tr>
+    <td><u>Affiliate</u></td>
+    <td><u>Paid Badges</u></td>
+    <td><u>Unpaid Badges</u></td>
+</tr>
+{% for aff,paid_count,unpaid_count in aff_counts %}
+    {% if paid_count or unpaid_count %}
+        <tr>
+            <td>{{ aff }}</td>
+            <td align="center">{{ paid_count }}</td>
+            <td align="center">{{ unpaid_count }}</td>
+        </tr>
+    {% endif %}
+{% endfor %}
+</table>
+
+<br/>
+
+<b>Paid</b>
+<ul style="margin-top:0px">
+    {% for desc,count in paid_counts %}
+        <li> <i>{{ desc }}:</i> {{ count }} </li>
+    {% endfor %}
+</ul>
+Of the "paid by group" badges,
+<br/> {{ paid_group }} were from groups that actually gave us money, and
+<br/>{{ free_group }} were from groups that we didn't charge.
+
+<br/> <br/>
+
+<b>Interests of non-unpaid attendees</b>
+<ul style="margin-top:0px">
+    {% for desc,count in interests %}
+        <li> <i>{{ desc }}:</i> {{ count }} </li>
+    {% endfor %}
+</ul>
+
+<br/>
+
+<b>Attendee ages</b>
+<ul style="margin-top:0px">
+    {% for desc,count in age_counts %}
+        <li> <i>{{ desc }}:</i> {{ count }} </li>
+    {% endfor %}
+</ul>
+
+{% endblock %}

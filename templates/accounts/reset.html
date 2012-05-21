@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Password Reset{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<h2> Forgot Your Password? </h2>
+
+Enter your email address to have a new password generated and emailed to you.
+This password will be valid for 7 days; you should change it as soon as you log in.
+Your old password will still work in the meantime, in case you remember it before then.
+
+<br/> <br/>
+
+<form method="post" action="reset">
+
+<b>Email Address:</b>
+&nbsp;&nbsp;&nbsp;&nbsp;
+<input class="focus" type="text" name="email" value="{{ email|default:"" }}" />
+&nbsp;&nbsp;&nbsp;&nbsp;
+<input type="submit" value="Send Reminder" />
+
+</form>
+
+{% endblock %}

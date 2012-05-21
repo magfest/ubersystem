@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Recently Sent Reminder Emails{% endblock %}
+{% block content %}
+{% with 1 as page %}
+    {% include "emails/menu.html" %}
+{% endwith %}
+
+<table class="list">
+<tr class="header">
+    <td>Sent</td>
+    <td>Reminder</td>
+    <td>Recipient</td>
+</tr>
+{% for email in emails %}
+    <tr>
+        <td>{{ email.when }}</td>
+        <td>{{ email.subject }}</td>
+        <td>
+            {{ email.dest }}
+            (<a href="sent?dest={{ email.dest }}">{{ email.count }} email{{ email.count|pluralize }}</a>)
+        </td>
+    </tr>
+{% endfor %}
+</table>
+
+{% endblock %}

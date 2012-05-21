@@ -1,0 +1,7 @@
+{{ attendee.first_name }},
+
+You've been added to the MAGFest registration database, but we don't have all of your personal information.  To ensure that you can pick up your badge with no hassles at our registration desk, please fill out the rest of your info at {{ state.URL_BASE }}/preregistration/confirm?id={{ attendee.id|obfuscated }}
+
+Please let us know if you have any questions.
+
+{{ REGDESK_EMAIL_SIGNATURE }}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Staffer Summary{% endblock %}
+{% block content %}
+
+{% include "jobs/main_menu.html" %}
+
+<table style="text-align:center ; font-weight:bold">
+<tr>
+    <td width="33%">{{ staffers|length }} Staffers</td>
+    <td width="33%">{{ total_signups }} Shift-Hours Signed Up For</td>
+    <td width="33%">{{ total_existing }} Shift-Hours Exist</td>
+</tr>
+</table>
+
+<br/>
+<span style="font-size:14pt ; font-weight:bold"> Staffers Assigned to This Area</span>
+(<a href="mailto:eli@courtwright.org?bcc={{ emails }}">email these staffers</a>)<b>:</b>
+<br/> <br/>
+
+<table>
+{% for staffer, weighted_hours in staffers %}
+    <tr>
+        <td> <ul><li></li></ul> </td>
+        <td> <a href="../staffing/shifts?id={{ staffer.id }}">{{ staffer.full_name }}</a>{% if staffer.multiply_assigned %}*{% endif %}: </td>
+        <td> &nbsp;&nbsp;&nbsp;&nbsp; signed up for {{ weighted_hours }} shift-hours in this area </td>
+    </tr>
+{% endfor %}
+</table>
+
+<br/> <br/>
+<div style="margin-left:10px">
+    *: <i>Staffers marked with an asterix are assigned to multiple locations</i>
+</div>
+
+{% endblock %}

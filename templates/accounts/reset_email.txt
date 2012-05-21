@@ -1,0 +1,5 @@
+You ({{ name }}) requested a password reset for your MAGFest admin account.
+
+Your new password is: {{ password|safe }}
+
+This password will only be valid for 7 days; you should manually change your password the next time you log into the website.

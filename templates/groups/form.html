@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Group Form{% endblock %}
+{% block content %}
+
+<h2> Group Info </h2>
+
+<form method="post" action="form">
+<input type="hidden" name="id" value="{{ group.id }}" />
+
+<table>
+<tr>
+    <td width="25%"> <b><nobr>Name of Group:</nobr></b> </td>
+    <td width="75%"> <input class="focus" type="text" name="name" value="{{ group.name }}" /> </td>
+</tr>
+<tr>
+    <td> <b>Tables:</b> </td>
+    <td>
+        <select name="tables">
+            {% int_options 0 10 group.tables %}
+        </select>
+    </td>
+</tr>
+<tr>
+    <td> <b>Badges:</b> </td>
+    <td>
+        <select name="badges">
+            {% int_options 0 MAX_GROUP_SIZE group.badges_purchased %}
+        </select>
+    </td>
+</tr>
+<tr>
+    <td> <b><nobr>Amount Paid:</nobr></b> </td>
+    <td> $<input type="text" style="width:4em" name="amount_paid" value="{{ group.amount_paid }}" /> </td>
+</tr>
+<tr>
+    <td> <b><nobr>Amount Owed:</nobr></b> </td>
+    <td>
+        $<input type="text" style="width:4em" name="amount_owed" value="{{ group.amount_owed }}" />
+        <input type="checkbox" name="auto_recalc" value="1" {% if group.auto_recalc %}checked{% endif %} />
+        Automatically recalculate this number.
+    </td>
+</tr>
+<tr>
+    <td> <b><nobr>Can Add Badges:</nobr></b> </td>
+    <td>
+        <input type="checkbox" name="can_add" value="1" {% if group.can_add %}checked{% endif %} />
+        Allow this group to add badges
+    </td>
+</tr>
+<tr>
+    <td valign="top"> <b><nobr>Admin Notes:</nobr></b> </td>
+    <td> <textarea name="admin_notes" rows="3" style="width:66%">{{ group.admin_notes|default:"" }}</textarea> </td>
+</tr>
+</table>
+
+<br/>
+
+<div style="margin-left:25%">
+    <input type="submit" value="Upload Info" />
+</div>
+
+</form>
+
+{% if group.id %}
+    <br/>
+    <div style="margin-left:25%">
+        <form method="post" action="delete" />
+            <input type="hidden" name="id" value="{{ group.id }}" />
+            <input type="submit" value="Delete Group" />
+        </form>
+    </div>
+{% endif %}
+
+{% if group.id and group.attendee_set.count %}
+    <hr/>
+    <h3> Badges: &nbsp; <a style="font-size:10pt" href="../preregistration/group_members?id={{ group.id|obfuscated }}">Link for group leader</a> </h3>
+    <table style="width:auto">
+    {% for attendee in group.attendee_set.all %}
+        <tr>
+            <td> <ul><li></li></ul> </td>
+            <td> <a href="../registration/form?id={{ attendee.id }}&return_to=../groups/form?id={{ group.id }}">{{ attendee.full_name }}</a> </td>
+            <td>
+                <i>
+                    (paid => {{ attendee.get_paid_display }}, &nbsp;&nbsp;
+                     badge => {{ attendee.badge }})
+                </i>
+            </td>
+        </tr>
+    {% endfor %}
+    </table>
+{% endif %}
+
+{% add_max_lengths Group %}
+
+{% endblock %}

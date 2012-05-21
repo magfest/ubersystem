@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}
+    {% if attendee.placeholder %}
+        Finalize Your MAGFest Registration
+    {% else %}
+        Update Your MAGFest Registration
+    {% endif %}
+{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<form method="post" action="confirm">
+<input type="hidden" name="id" value="{{ attendee.id|obfuscated }}" />
+
+<table width="100%" cellspacing="5" cellpadding="5">
+<tr>
+    <td width="25%"> <b><nobr>Name:</nobr></b> </td>
+    <td width="75%">{{ attendee.full_name }}</td>
+</tr>
+{% if attendee.badge_type == STAFF_BADGE or attendee.badge_type == SUPPORTER_BADGE %}
+    <tr>
+        <td>Name Printed on Badge:</td>
+        <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" /> </td>
+    </tr>
+{% endif %}
+{% include "preregistration/age_and_staffing.html" %}
+<tr>
+    <td> <b>Email Address:</b> </td>
+    <td> <input type="text" name="email" value="{{ attendee.email }}" class="focus" /> </td>
+</tr>
+<tr>
+    <td> <b>Postal Code:</b> </td>
+    <td>
+        <input type="text" name="zip_code" value="{{ attendee.zip_code }}" />
+        {% checkbox international attendee %} I'm coming from outside the US.
+    </td>
+</tr>
+<tr>
+    <td> <b><nobr>Emergency Contact</nobr> <nobr>Phone Number:</nobr></b> </td>
+    <td>
+        <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" />
+        <i>The person we should call if something happens to you.</i>
+    </td>
+</tr>
+<tr>
+    <td> <i>Your</i> Phone Number: </td>
+    <td> <input type="text" name="phone" value="{{ attendee.phone }}" /> </td>
+</tr>
+<tr>
+    <td> <nobr>What interests you?</nobr> </td>
+    <td> {% checkgroup "interests" INTEREST_OPTS attendee.interests %} </td>
+</tr>
+<tr>
+    <td></td>
+    <td> <input type="submit" value="{% if attendee.placeholder %}Register{% else %}Update My Info{% endif %}" /> </td>
+</tr>
+</table>
+
+</form>
+
+{% if attendee.paid == NOT_PAID %}
+    <div style="text-align:center">
+        <h3> You still need to pay for your badge! </h3>
+        {% paypal_button attendee %}
+        <b><i>Total</i>:</b> ${{ attendee.total_cost }} <br/>
+        <font size="-1">(Reminder: you can {% popup_link "../static/noPaypal.html" "pay with a credit/debit card" %} through Paypal even without a Paypal account.)</font>
+    </div>
+{% endif %}
+
+{% add_max_lengths Attendee %}
+
+{% endblock %}

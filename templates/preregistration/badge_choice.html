@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Choose a Badge Type{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<style type="text/css">
+    table.badges {
+        border-spacing: 0px;
+        border-collapse: collapse;
+    }
+    table.badges td {
+        padding: 5px;
+        border: 1px solid black;
+    }
+</style>
+
+<script type="text/javascript">
+    $(document).ready(function(){
+        $("tr").show();
+        $("#noscript").hide();
+        if( $(":radio:checked").size() === 0 )
+            $(":submit").attr("disabled", true);
+        
+        $(":radio").click(function(){
+            $(":submit").attr("disabled", false);
+        });
+        
+        $("td:first-child").contents().andSelf().mouseover(function(event){
+            $(event.target).find(":radio").focus();
+        }).click(function(event){
+            if( event.target.nodeName == "TD" )
+                $(event.target).find(":radio").click();
+            else
+                $(event.target).siblings(":radio").click();
+        }).css("cursor", "default");
+    });
+</script>
+
+<div style="text-align:center">
+    <i>
+        <a href="check">Click Here</a>
+        <nobr>if you already registered but haven't paid</nobr>
+        <nobr><b>OR</b> if you staffed last year and want to confirm that you are already registered.</nobr>
+    </i>
+</div>
+
+<h2 style="margin-top:10px"> Choose a Badge </h2>
+<form method="post" action="index">
+<input type="hidden" name="id" value="None" />
+
+<table class="badges">
+<tr>
+    <td>
+        <input type="radio" name="badge_type" value="{{ ATTENDEE_BADGE }}" />
+        <b>Attendee:</b> &nbsp; ${{ state.BADGE_PRICE }}
+    </td>
+    <td>
+        <ul>
+            <li> All-access, four-day pass </li>
+            {% if datetime.now.month == state.PRICE_BUMP.month %}
+                <li style="color:red"> Price goes up to ${{ LATE_BADGE_PRICE }} at 11:59pm on {{ state.PRICE_BUMP|datetime:"%A, %b %e" }} </li>
+            {% endif %}
+            {% if state.BADGE_PRICE == LATE_BADGE_PRICE %}
+                <li style="color:red"> Preregistration closes at 11:59pm on Sunday, December 23. </li>
+            {% endif %}
+        </ul>
+    </td>
+    <td> {% popup_link "../static/attendees.html" "Details" %} </td>
+</tr>
+<tr style="display:none">
+{% if state.SUP_REG_OPEN %}
+    <td>
+        <input type="radio" name="badge_type" value="{{ SUPPORTER_BADGE }}" />
+        <b>Supporter:</b> &nbsp; ${{ SUPPORTER_BADGE_PRICE }}</b>
+    </td>
+    <td>
+        <ul>
+            <li> All attendee benefits, plus: </li>
+            <li> a tshirt and bag full of cool swag </li>
+            {% if datetime.now.month == 11 %}
+                <li style="color:red"> Supporter preregistration closes at 11:59pm on Sunday, December 2. </li>
+            {% endif %}
+        </ul>
+    </td>
+    <td> {% popup_link "../static/supporters.html" "Details" %} </td>
+{% else %}
+    <td> &nbsp;&nbsp;&nbsp;&nbsp; <b>Supporter</b> </td>
+    <td colspan="2" style="color:red">
+        <ul><li>The deadline for Supporter registration has passed, but you can still register as a regular attendee.</li></ul>
+    </td>
+{% endif %}
+</tr>
+<tr style="display:none">
+    <td colspan="3" style="border:0">&nbsp;</td>
+</tr>
+<tr style="display:none">
+{% if state.GROUP_REG_OPEN %}
+    <td> <input type="radio" name="badge_type" value="{{ PSEUDO_GROUP_BADGE }}" /> <b>Group</b> </td>
+    <td>
+        <ul>
+            <li> Save money when you register eight or more people at once </li>
+            <li> ${{ state.GROUP_PRICE }} per person </li>
+            {% if datetime.now.month == state.PRICE_BUMP.month %}
+                <li style="color:red"> Price goes up to ${{ LATE_GROUP_PRICE }} at 11:59pm on {{ state.PRICE_BUMP|datetime:"%A, %b %e" }} </li>
+            {% endif %}
+            {% if state.GROUP_PRICE == LATE_GROUP_PRICE %}
+                <li style="color:red"> Group preregistration closes at 11:59pm on Sunday, December 23. </li>
+            {% endif %}
+        </ul>
+    </td>
+    <td> {% popup_link "../static/groups.html" "Details" %} </td>
+{% else %}
+    <td> &nbsp;&nbsp;&nbsp;&nbsp; <b>Group</b> </td>
+    <td colspan="2" style="color:red">
+        <ul><li>The deadline for Group registration has passed, but you can still register as a regular attendee.</li></ul>
+    </td>
+{% endif %}
+</tr>
+<tr style="display:none">
+    <td colspan="3" style="border:0">&nbsp;</td>
+</tr>
+<tr style="display:none">
+    <td>
+        {% if state.DEALER_REG_OPEN %}
+            <input type="radio" name="badge_type" value="{{ DEALER_BADGE }}" />
+        {% else %}
+            &nbsp;&nbsp;&nbsp;&nbsp;
+        {% endif %}
+        <b>Dealer</b>
+    </td>
+    {% if state.DEALER_REG_OPEN %}
+        <td>
+            <ul>
+                <li> ${{ DEALER_BADGE_PRICE }} per badge </li>
+                <li> {{ TABLE_PRICES }} </li>
+            </ul>
+        </td>
+        <td> {% popup_link "../static/dealers.html" "Details" %} </td>
+    {% else %}
+        <td colspan="2" style="color: red">
+            <ul>
+                <!--<li> Dealer registration is not yet open and will open on August 1. </li>-->
+                <li> Dealer registration is now closed. </li>
+                <li> Please email <a href="mailto:marketplace@magfest.org">marketplace@magfest.org</a> to be put on the waiting list. </li>
+            </ul>
+        </td>
+    {% endif %}
+</tr>
+</table>
+
+<div id="noscript" style="color:red ; margin-top:15px">
+    Warning: You must have Javascript turned on in order to preregister for anything
+    other than a single Attendee badge.  If you wish to preregister as a Group, Dealer,
+    or Supporter, then please enable Javascript and reload this page.
+</div>
+
+<br/>
+
+<input type="submit" value="Continue to Preregistration Form" />
+
+</form>
+
+{% endblock %}

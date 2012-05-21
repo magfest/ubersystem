@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Register Group Member{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<form method="post" action="register_group_member">
+<input type="hidden" name="id" value="{{ attendee.id|obfuscated }}" />
+
+<table width="100%" cellspacing="5" cellpadding="5">
+<tr>
+    <td width="25%"> <b><nobr>First and Last Name:</nobr></b> </td>
+    <td width="75%">
+        <input type="text" style="width:10em" name="first_name" value="{{ attendee.first_name }}" class="focus" />
+        <input type="text" style="width:15em" name="last_name"  value="{{ attendee.last_name }}" />
+    </td>
+</tr>
+{% include "preregistration/age_and_staffing.html" %}
+<tr>
+    <td> <b>Email Address:</b> </td>
+    <td> <input type="text" name="email" value="{{ attendee.email }}" /> </td>
+</tr>
+<tr>
+    <td> <b>Postal Code:</b> </td>
+    <td>
+        <input type="text" name="zip_code" value="{{ attendee.zip_code }}" />
+        <input type="checkbox" name="international" value="1" {% if attendee.international %}checked{% endif %} />
+        I'm coming from outside the US.
+    </td>
+</tr>
+<tr>
+    <td> <b><nobr>Emergency Contact</nobr> <nobr>Phone Number:</nobr></b> </td>
+    <td>
+        <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" />
+        <i>The person we should call if something happens to you.</i>
+    </td>
+</tr>
+<tr>
+    <td> <i>Your</i> Phone Number: </td>
+    <td> <input type="text" name="phone" value="{{ attendee.phone }}" /> </td>
+</tr>
+<tr>
+    <td> <nobr>What interests you?</nobr> </td>
+    <td> {% checkgroup "interests" INTEREST_OPTS attendee.interests %} </td>
+</tr>
+<tr>
+    <td> <nobr>How did you</nobr> <nobr>find MAGFest?</nobr> </td>
+    <td> <input type="text" name="found_how" value="{{ attendee.found_how }}" /> </td>
+</tr>
+<tr>
+    <td> Comments: </td>
+    <td> <input type="text" name="comments" value="{{ attendee.comments }}" />  </td>
+</tr>
+<tr>
+    <td> <nobr>Keep Me Updated:</nobr> </td>
+    <td>
+        <input type="checkbox" name="can_spam" value="1" {% if attendee.can_spam %}checked{% endif %} />
+        Send me emails relating to MAGFest in future years. &nbsp;&nbsp;
+        <span class="popup">{% popup_link "../static/privacy.html" "View Our Privacy Policy" %}</span>
+    </td>
+</tr>
+<tr>
+    <td></td>
+    <td> <input type="submit" value="Claim This Badge" /> </td>
+</tr>
+</table>
+
+</form>
+
+{% add_max_lengths Attendee %}
+
+{% endblock %}

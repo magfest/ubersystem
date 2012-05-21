@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}How do our attendees find us?{% endblock %}
+{% block content %}
+
+<table class="list">
+<tr class="header">
+    <td>M8</td>
+    <td>M7</td>
+    <td>M6</td>
+</tr>
+<tr style="vertical-align:top ; text-align:left">
+    <td><ul>{% for found_how in m8 %}<li>{{ found_how }}</li>{% endfor %}</ul></td>
+    <td><ul>{% for found_how in m7 %}<li>{{ found_how }}</li>{% endfor %}</ul></td>
+    <td><ul>{% for found_how in m6 %}<li>{{ found_how }}</li>{% endfor %}</ul></td>
+</tr>
+</table>
+
+{% endblock %}

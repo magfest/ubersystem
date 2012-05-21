@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Recent At-the-Door Registrations{% endblock %}
+{% block content %}
+
+{% if checked_in %}
+    <a href="undo_new_checkin?id={{ checked_in }}">Undo</a>
+{% endif %}
+
+<script type="text/javascript">
+    var UNASSIGNED = {{ unassigned|jsonize }};
+    function groupChosen(group) {
+        var $group = $(group);
+        var $link = $group.prev("a");
+        var $badgeNum = $group.nextAll(":text");
+        var $unassigned = $group.nextAll("select");
+        if( $group.val() == "" ) {
+            $link.hide();
+            $unassigned.hide();
+        }
+        else {
+            $link.show().attr("href", "../groups/form?id=" + $group.val());
+            $unassigned.show().empty();
+            $.each(UNASSIGNED[$group.val()], function(id, badge) {
+                $unassigned.append('<option value="' + id + '">' + badge + '</option>');
+            });
+        }
+        $badgeNum.focus();
+    }
+</script>
+
+<h2> Recent At-the-Door Registrations </h2>
+
+<div style="text-align:center">
+    <a href="index">Click Here</a> to view the preregistered and checked in attendee list
+</div>
+
+<br/>
+
+<table class="list">
+<tr class="header">
+    <td align="left">Name</td>
+    <td>Badge Type</td>
+    <td>Age</td>
+    <td>Paid</td>
+    <td>Emergency #</td>
+    <td>Badge</td>
+    <td></td>
+</tr>
+{% for attendee in recent %}
+    <tr>
+        <td align="left"><a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a></td>
+        <td>{{ attendee.get_badge_type_display }}</td>
+        <td>{{ attendee.get_age_group_display }}</td>
+        <td>
+            {% if attendee.paid == HAS_PAID %}
+                paid
+            {% else %}
+                <form method="post" action="mark_as_paid">
+                <input type="hidden" name="id" value="{{ attendee.id }}" />
+                <input type="submit" value="Mark as Paid" />
+                </form>
+            {% endif %}
+        </td>
+        <form method="post" action="new_checkin">
+        <td> <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" size="12" /> </td>
+        <td>
+            <a href="" style="display:none">View</a>
+            <select name="group" onChange="groupChosen(this)">
+                <option value="">No Group</option>
+                {% options groups %}
+            </select>
+            &nbsp;&nbsp;&nbsp;&nbsp;
+            <select name="link_to" style="display:none"></select>
+            &nbsp;&nbsp;&nbsp;&nbsp;
+            <input type="text" name="badge_num" size="3" />
+        </td>
+        <td>
+            <input type="hidden" name="id" value="{{ attendee.id }}" />
+            <input type="submit" value="Check In" />
+        </td>
+        </form>
+    </tr>
+{% endfor %}
+</table>
+
+{% endblock %}

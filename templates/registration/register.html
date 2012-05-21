@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}At-the-Door Registration{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<script type="text/javascript">
+    $(function(){
+        $("#message").css("float", null);
+    });
+    window.setTimeout(function(){ $("#message").hide(); }, 10000);
+    
+    function showOrHide() {
+        $("#underage")[$("[name=age_group]").val() == {{ UNDER_18 }} ? "show" : "hide"]();
+    }
+    $(showOrHide);
+</script>
+
+<form method="post" action="register">
+<input type="hidden" name="id" value="{{ attendee.id }}" />
+<table width="100%" cellspacing="5" cellpadding="5">
+<tr>
+    <td width="25%" style="font-weight:bold"> <nobr>First and Last Name:</nobr> </td>
+    <td width="75%">
+        <input class="focus" type="text" style="width:10em" name="first_name" value="{{ attendee.first_name }}" />
+        <input type="text" style="width:10em" name="last_name"  value="{{ attendee.last_name }}"  />
+    </td>
+</tr>
+<tr>
+    <td style="font-weight:bold"> Badge Type </td>
+    <td>
+        <select name="badge_type">
+            <option value="{{ ATTENDEE_BADGE }}">Full Weekend Pass (${{ BADGE_PRICE }})</option>
+            <option value="{{ ONE_DAY_BADGE }}">Single Day Pass (${{ ONEDAY_BADGE_PRICE }})</option>
+        </select>
+    </td>
+</tr>
+<tr>
+    <td style="font-weight:bold"> <nobr>Emergency Contact</nobr> <nobr>Phone Number:</nobr> </td>
+    <td> <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" /> </td>
+</tr>
+<tr>
+    <td style="font-weight: bold"> <nobr>Age:</nobr> </td>
+    <td>
+        <select name="age_group" onChange="showOrHide()">
+            <option value="">Choose a category</option>
+            {% options PREREG_AGE_GROUP_OPTS attendee.age_group %}
+        </select>
+        <span id="underage" style="color:red ; display:none">Attendees under 18 <b>MUST</b> have a parental consent form signed to receive a badge.</span>
+    </td>
+</tr>
+<tr>
+    <td> Zip Code: </td>
+    <td>
+        <input type="text" name="zip_code" value="{{ attendee.zip_code }}" />
+        <input type="checkbox" name="international" value="1" {% if attendee.international %}checked{% endif %} />
+        I'm from outside the US.
+    </td>
+</tr>
+<tr>
+    <td> Email Address: </td>
+    <td> <input type="text" name="email" value="{{ attendee.email }}" /> </td>
+</tr>
+<tr>
+    <td> <nobr>How did you</nobr> <nobr>find MAGFest?</nobr> </td>
+    <td> <input type="text" name="found_how" value="{{ attendee.found_how }}" style="width:80%" /> </td>
+</tr>
+<tr>
+    <td> <nobr>What are you</nobr> <nobr>interested in</nobr> <nobr>at MAGFest?</nobr> </td>
+    <td>
+        <nobr><input type="checkbox" onClick="$(':checkbox[name=interests]').attr('checked',this.checked)" /> Everything</nobr>
+        {% checkgroup "interests" INTEREST_OPTS attendee.interests %}
+    </td>
+</tr>
+</table>
+<br/>
+<div style="margin-left:25%">
+    <input type="submit" value="Register" />
+</div>
+</form>
+
+<b>* bolded fields are required</b>
+
+{% add_max_lengths Attendee %}
+
+{% endblock %}

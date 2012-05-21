@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Challenges{% endblock %}
+{% block content %}
+
+{% if success_id %}
+<form method="post" action="undo">
+<input type="hidden" name="success_id" value="{{ success_id }}" />
+<input type="submit" value="Undo" />
+</form>
+{% endif %}
+
+<h3> Record a Success: </h3>
+<form method="post" action="record_success">
+<input type="hidden" name="id" value="None" />
+
+<select name="badge_type">
+    {% options BADGE_OPTS %}
+</select>
+
+#<input class="focus" type="text" style="width:4em" name="badge_num" />
+
+<select name="challenge_id">
+    {% options challenges %}
+</select>
+
+<select name="level">
+    {% options LEVEL_OPTS %}
+</select>
+
+<input type="submit" value="Record" />
+</form>
+
+{% if not AT_THE_CON %}
+    <br/><a href="form">Add a new Challenge</a>
+{% endif %}
+
+<br/> <hr/>
+
+<h3> Current Rankings as of {% now "fA D" %}: (<a href="by_successes">list by completions</a>)</h3>
+<ol>
+{% for points,identifier,badge_type,badge_num in rankings %}
+    <li> &nbsp;&nbsp;&nbsp;&nbsp; {{ points }} point{{ points|pluralize }}: <a href="by_attendee?badge_type={{ badge_type }}&badge_num={{ badge_num }}">{{ identifier }}</a> </li>
+{% endfor %}
+</ol>
+
+{% endblock %}

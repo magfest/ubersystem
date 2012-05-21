@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Attendee Admin{% endblock %}}
+{% block content %}
+
+<table>
+{% for attendee in attendees %}
+    <tr>
+        <td> {{ attendee.registered }} </td>
+        <td> <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a> </td>
+        <td>
+            {{ attendee.get_badge_type_display }}
+            {% if attendee.badge_type == DEALER_BADGE %}
+                ({{ attendee.group.name }})
+            {% endif %}
+        </td>
+        <td> paid: {{ attendee.get_paid_display }} </td>
+    </tr>
+{% endfor %}
+</table>
+
+{% endblock %}

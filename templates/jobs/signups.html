@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Shifts{% endblock %}
+{% block content %}
+
+{% include "jobs/main_menu.html" %}
+
+<script type="text/javascript">
+    function setStatus(shiftId, status) {
+        var $status = $(status);
+        $.post("set_worked", {id: shiftId, worked: $status.val()}, function(result) {
+            $status.parent().empty().append("<i>" + result + "</i> &nbsp; " +
+                                            "<a href='undo_worked?id=" + shiftId + "'>Undo</a>");
+        });
+    }
+</script>
+
+<table>
+{% for job,assigned,available,assigned_count in jobs %}
+    <tr>
+        <td> <a name="{{ job.id }}"></a><b>{% timespan job %}:</b> </td>
+        <td> <a href="form?id={{ job.id }}"><b>{{ job.name }}{% if job.restricted %}*{% endif %}</b></a> </td>
+        <td> <nobr>({{ job.shift_set.count }}/{{ job.slots }} slots filled)</nobr> </td>
+        {% if job.slots != assigned_count %}
+            {% if available %}
+                <form method="post" action="assign_from_list">
+                <td>
+                    <input type="hidden" name="job_id" value="{{ job.id }}" />
+                    <select name="staffer_id">
+                        {% for staffer in available %}
+                            <option value="{{ staffer.id }}">{{ staffer.full_name }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="submit" value="Assign" />
+                </td>
+                </form>
+            {% else %}
+                <td><i>(no extra available staffers)</i></td>
+            {% endif %}
+        {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <td colspan="4">
+            <table style="width:auto">
+            {% for staffer in assigned %}
+                <tr>
+                    <td> <ul><li></li></ul> </td>
+                    <td> <a href="../registration/shifts?id={{ staffer.id }}">{{ staffer.full_name }}</a>&nbsp;&nbsp; </td>
+                    <td>
+                        {% if staffer.shift.worked %}
+                            <i>{{ staffer.shift.get_worked_display }}</i>
+                        {% else %}
+                            <select onChange="setStatus({{ staffer.shift.id }}, this)">
+                                {% options WORKED_OPTS staffer.shift.worked %}
+                            </select>
+                        {% endif %}
+                    </td>
+                    <form method="post" action="unassign_from_list">
+                    <td>
+                        <input type="hidden" name="id" value="{{ staffer.shift.id }}" />
+                        <input type="submit" value="Unassign" />
+                    </td>
+                    </form>
+                </tr>
+            {% endfor %}
+            </table>
+            <br/>
+        </td>
+    </tr>
+{% endfor %}
+</table>
+
+{% endblock %}

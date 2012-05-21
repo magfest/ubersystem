@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Inventory Requirements{% endblock %}
+{% block content %}
+
+{% with 2 as page %}
+    {% include "schedule/menu.html" %}
+{% endwith %}
+
+<table width="100%">
+<tr style="vertical-align:top">
+<td width="66%">
+    <h3> Inventory Assigned to '{{ event.name }}' </h3>
+    
+    {% if not event.assigneditem_set.count %}
+        <div style="text-align:center ; font-style:italic">
+            <br/> no inventory assigned to this event
+        </div>
+    {% endif %}
+    
+    <table>
+    {% for assigned in event.assigneditem_set.all %}
+        <tr>
+            <td> <ul><li></li></ul> </td>
+            <td>
+                <a href="../inventory/form?id={{ assigned.item.id }}">{{ assigned.item.name }}</a> (quantity: {{ assigned.quantity }})
+            </td>
+            <form method="post" action="unassign">
+            <td>
+                <input type="hidden" name="id" value="{{ event.id }}" />
+                <input type="hidden" name="todelete" value="{{ assigned.id }}" />
+                <input type="submit" value="Unassign" />
+            </td>
+            </form>
+        </tr>
+    {% endfor %}
+    </table>
+</td>
+<td width="33%" align="center">
+    {% with event.item_opts_html as item_opts_html %}
+        {% if item_opts_html %}
+            <h3> Assign Inventory </h3>
+            <form method="post" action="assign">
+            <input type="hidden" name="id" value="{{ event.id }}" />
+            <table width="100%">
+            <tr>
+                <td> Item to Assign: </td>
+                <td>
+                    <select name="item_id">
+                        {{ event.item_opts_html }}
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <td> How Many? </td>
+                <td>
+                    <select name="quantity">
+                        {{ event.quantity_opts_html }}
+                    </select>
+                </td>
+            </tr>
+            </table>
+            <br/>
+            <input type="submit" value="Assign Item to this Event" />
+            </form>
+        {% endif %}
+    {% endwith %}
+</td>
+</tr>
+</table>
+
+<br/> <hr/>
+
+<h3> What's needed that's not yet in our inventory? </h3>
+<form method="post" action="set_needed">
+<input type="hidden" name="id" value="{{ event.id }}" />
+<div style="margin-left:10% ; width:90%">
+    <textarea class="focus" name="needed" rows="8" style="width:66%">{{ event.needed }}</textarea>
+    <br/> <br/>
+    <input type="submit" value="Upload Requirements" />
+</div>
+</form>
+
+{% endblock %}

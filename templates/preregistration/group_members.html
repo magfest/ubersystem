@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Group Members{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<h2> Members of "{{ group.name }}" </h2>
+
+<div style="margin:15px">
+    {% if group.amount_paid != group.amount_owed %}
+        You may use this link to pay the ${{ group.amount_unpaid }} you owe for this group:
+        {% paypal_button group %}
+    {% endif %}
+    
+    {% if group.unregistered_badges %}
+        Some of your badges are not yet assigned to a specific person.  If you assign these
+        badges now (using the links below) then it will take much less time for their owners
+        to pick them up at the convention.
+        <br/> <br/>
+    {% endif %}
+    If someone who has registered can't make it, you may use the "This person isn't coming"
+    button next to their entry on the list below to unset their badge, which may then be
+    assigned to someone else.
+</div>
+
+<br/> <b>Here are the badges for your group:</b>
+<table style="width:auto">
+{% for attendee in group.attendee_set.all %}
+    <tr>
+        <td> <ul style="padding-right:0px"><li></li></ul> </td>
+        {% if attendee.first_name %}
+            <td>
+                {{ attendee.full_name }}
+                &nbsp;&nbsp;&nbsp;&nbsp;
+            </td>
+            <td>
+                <a href="mailto:{{ attendee.email }}">{{ attendee.email }}</a>
+                &nbsp;&nbsp;&nbsp;&nbsp;
+            </td>
+            <td>
+                zip code: {{ attendee.zip_code }}
+                &nbsp;&nbsp;&nbsp;&nbsp;
+            </td>
+            <td>
+                {% if not forloop.first and attendee.badge_type in CAN_UNSET %}
+                    <form method="post" action="unset_group_member">
+                    <input type="hidden" name="id" value="{{ attendee.id|obfuscated }}" />
+                    <input type="submit" value="This person isn't coming" />
+                    </form>
+                {% endif %}
+            </td>
+        {% else %}
+            <td> <a style="font-size:10pt" href="register_group_member?id={{ attendee.id|obfuscated }}">Register someone for this badge</a>: </td>
+            <td colspan="3"> {{ attendee.badge }} </td>
+        {% endif %}
+    </tr>
+{% endfor %}
+</table>
+
+<br/>
+
+{% if group.can_add %}
+    <div id="add" style="display:none">
+        <form method="post" action="add_group_members">
+        Enter a number of group members to add:
+        <input type="hidden" name="id" value="{{ group.id|obfuscated }}" />
+        <select name="count">
+            {% int_options 1 10 %}
+        </select>
+        <input type="submit" value="Add Members to Group">
+        </form>
+    </div>
+    <script type="text/javascript">
+        $(function(){
+            $("body").append(
+                $('<a style="cursor:pointer">Click here to add more members to your group.</a>').click(function(e){
+                    $(e.target).hide();
+                    $("#add").show();
+                }));
+        });
+    </script>
+{% endif %}
+
+{% endblock %}

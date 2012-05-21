@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block title %}Preregistration{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<script type="text/javascript">
+    function badgeChanged() {
+        var badge_type = parseInt($("[name=badge_type]:checked").val());
+        if( badge_type === {{ PSEUDO_DEALER_BADGE }} || badge_type === {{ PSEUDO_GROUP_BADGE }} ) {
+            $(".single").hide();
+            $(".multiple").show();
+            $.focus("name");
+            setVisible(".group",  badge_type !== {{ PSEUDO_DEALER_BADGE }});
+            setVisible(".dealer", badge_type === {{ PSEUDO_DEALER_BADGE }});
+        } else {
+            $(".multiple,.group,.dealer").hide();
+            $(".single").show();
+            $.focus("first_name");
+        }
+        setVisible(".supporter", badge_type === {{ SUPPORTER_BADGE }});
+        
+        var badges = $.field("badges")[0].options;
+        if( badge_type === {{ PSEUDO_GROUP_BADGE }} && badges[0].value == 1 ) {
+            badges.length = 1 + {{ MAX_GROUP_SIZE }};
+            for(var i = {{ MAX_DEALERS }}; i <= {{ MAX_GROUP_SIZE }}; i++)
+                badges[i] = new Option(i, i);
+            badges[0] = badges[1] = badges[2] = badges[3] = badges[4] = badges[5] = badges[6] = null;
+        } else if( badge_type != {{ PSEUDO_GROUP_BADGE }} && badges[0].value != 1 ) {
+            badges.length = {{ MAX_DEALERS }};
+            for(var i = 1; i <= {{ MAX_DEALERS }}; i++)
+                badges[i-1] = new Option(i, i);
+        }
+        affChanged(true);
+    }
+    
+    function affChanged(triggered) {
+        var newAff = $.field("aff_select")[0].selectedIndex === 0;
+        setVisible("#affdiv", newAff);
+        if (!newAff)
+            $.field("aff_text").val("");
+        else if (!triggered)
+            $.focus("aff_text");
+    }
+    
+    $(document).ready(function(){
+        $("#noscript").hide();
+        $("#only_script").show();
+        
+        badgeChanged();
+        affChanged(true);
+        
+        $(":radio").click(badgeChanged);
+        
+        $("form").submit(function(){
+            $(":submit").attr("value", "Uploading Preregistration...").attr("disabled", true);
+        })
+    });
+</script>
+
+<div style="position:absolute ; top:10px ; right:10px ; padding-left:5px ; padding-bottom:5px ; font-style:italic ; text-align:center ; border-left:1px solid black ; border-bottom:1px solid black ; font-size:10pt">
+    <nobr><a href="check">Click Here</a> if you staffed last year or</nobr> <br/>
+    <nobr>you've already registered but not paid.</nobr>
+</div>
+
+<form method="post" action="index">
+<input type="hidden" name="id" value="None" />
+
+<table width="100%" cellspacing="5" cellpadding="5">
+<tr>
+    <td width="25%" valign="top"> <b>Badge:</b> </td>
+    <td width="75%">
+        {% radio "badge_type" ATTENDEE_BADGE attendee.badge_type %}
+        Attendee (${{ state.BADGE_PRICE }})
+        <div id="only_script" style="display:none">
+            {% if state.SUP_REG_OPEN %}
+                {% radio "badge_type" SUPPORTER_BADGE attendee.badge_type %}
+                Supporter (${{ SUPPORTER_BADGE_PRICE }}) &nbsp; <span class="popup">{% popup_link "../static/supporters.html" "What's a Supporter?" %}</span>
+                <br/>
+            {% endif %}
+            
+            {% if state.DEALER_REG_OPEN %}
+                {% radio "badge_type" PSEUDO_DEALER_BADGE attendee.badge_type %}
+                Dealer &nbsp; <span class="popup">{% popup_link "../static/dealers.html" "Dealer Arrangements" %}</span>
+                <br/>
+            {% endif %}
+            
+            {% if state.GROUP_REG_OPEN %}
+                {% radio "badge_type" PSEUDO_GROUP_BADGE attendee.badge_type %}
+                Group &nbsp; <span class="popup">{% popup_link "../static/groups.html" "How Group Registration Works" %}</span>
+            {% endif %}
+        </div>
+        <div id="noscript" style="color:red">
+            <br/>
+            Warning: You must have Javascript turned on in order to preregister for anything
+            other than a single Attendee badge.  If you wish to preregister as a Group, Dealer,
+            Supporter, or Supporter then please enable Javascript and reload this page.
+        </div>
+    </td>
+</tr>
+<tr class="multiple" style="display:none">
+    <td>
+        <span class="group"><b><nobr>Group Name:</nobr></b></span>
+        <span class="dealer"><b><nobr>Business Name:</nobr></b></span>
+    </td>
+    <td> <input type="text" name="name" value="{{ group.name }}" /> </td>
+</tr>
+<tr class="dealer" style="display:none">
+    <td> <b>Tables:</b> </td>
+    <td>
+        <select name="tables">
+            {% int_options 1 MAX_TABLES group.tables %}
+        </select> ({{ TABLE_PRICES }}) &nbsp;&nbsp;
+        <nobr>[<i>You may <a href="mailto:marketplace@magfest.org">send an email</a> to request more than {{ MAX_TABLES }} tables.</i>]</nobr>
+    </td>
+</tr>
+<tr class="multiple" style="display:none">
+    <td> <b>Badges:</b> </td>
+    <td>
+        <select name="badges">
+            {% int_options 1 MAX_DEALERS badges %}
+        </select>
+        <span class="dealer">(${{ DEALER_BADGE_PRICE }} each) &nbsp;&nbsp; <nobr>[<i>The number of people working your table.</i>]</nobr></span>
+        <span class="group">(${{ state.GROUP_PRICE }} each)</span>
+    </td>
+</tr>
+<tr>
+    <td> <b><nobr>First and Last Name:</nobr></b> </td>
+    <td>
+        <input type="text" style="width:10em" name="first_name" value="{{ attendee.first_name }}" class="focus" />
+        <input type="text" style="width:15em" name="last_name"  value="{{ attendee.last_name }}" />
+    </td>
+</tr>
+<tr class="supporter" style="display:none">
+    <td> <b>Name Printed on Badge: </td>
+    <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" /> </td>
+</tr>
+<tr class="supporter" style="display:none">
+    <td valign="top"> <b>Affiliate:</b> </td>
+    <td>
+        <select name="aff_select" onChange="affChanged()">
+            <option value="">---Other---</option>
+            <option value="" {% if not attendee.affiliate %}selected{% endif %}>I don't care about this</option>
+            {% options affiliates attendee.affiliate %}
+        </select>
+        &nbsp; <span class="popup">{% popup_link "../static/affiliates.html" "What's an affiliate?" %}
+        <div id="affdiv">
+            <br/> <input type="text" name="aff_text" value="{{ attendee.affiliate|default:"" }}" />
+        </div>
+    </td>
+</tr>
+{% include "preregistration/age_and_staffing.html" %}
+<tr>
+    <td> <b>Email Address:</b> </td>
+    <td> <input type="text" name="email" value="{{ attendee.email }}" /> </td>
+</tr>
+<tr>
+    <td> <b>Postal Code:</b> </td>
+    <td>
+        <table style="border-spacing:0px ; width:auto"> <tr>
+            <td style="padding:0px"> <input type="text" name="zip_code" value="{{ attendee.zip_code }}" /> </td>
+            <td style="padding-left:15px"> {% checkbox international attendee %} I'm coming from outside the US. </td>
+        </tr> </table>
+    </td>
+</tr>
+<tr>
+    <td> <b><nobr>Emergency Contact</nobr> <nobr>Phone Number:</nobr></b> </td>
+    <td>
+        <table style="border-spacing:0px ; width:auto">
+        <tr>
+            <td style="padding:0px">
+                <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" />
+            </td>
+            <td style="padding-left:15px">
+                <i>The person we should call if something happens to you.</i>
+            </td>
+        </tr>
+        </table>
+    </td>
+</tr>
+<tr>
+    <td> <i>Your</i> Phone Number: </td>
+    <td> <input type="text" name="phone" value="{{ attendee.phone }}" /> </td>
+</tr>
+<tr>
+    <td> <nobr>What interests you?</nobr> </td>
+    <td> {% checkgroup "interests" INTEREST_OPTS attendee.interests %} </td>
+</tr>
+<tr>
+    <td> <nobr>How did you</nobr> <nobr>find MAGFest?</nobr> </td>
+    <td> <input type="text" name="found_how" value="{{ attendee.found_how }}" /> </td>
+</tr>
+<tr>
+    <td> <nobr>Comments:</nobr> </td>
+    <td> <input type="text" name="comments" value="{{ attendee.comments }}" />  </td>
+</tr>
+<tr>
+    <td> <nobr>Keep Me Updated:</nobr> </td>
+    <td>
+        {% checkbox can_spam attendee %} Send me emails relating to MAGFest in future years. &nbsp;&nbsp;
+        <span class="popup">{% popup_link "../static/privacy.html" "View Our Privacy Policy" %}</span>
+    </td>
+</tr>
+<tr>
+    <td></td>
+    <td> <input type="submit" value="Preregister" /> </td>
+</tr>
+</table>
+
+</form>
+
+{% add_max_lengths Attendee %}
+
+{% include "preregistration/disclaimers.html" %}
+
+{% endblock %}

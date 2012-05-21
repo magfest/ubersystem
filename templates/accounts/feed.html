@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Recent Changes{% endblock %}
+{% block content %}
+
+<h2>Feed of Database Actions</h2>
+{% pages page count %}
+
+<table class="list">
+<tr class="header">
+    <td>When</td>
+    <td>Who</td>
+    <td>Table</td>
+    <td>Which</td>
+    <td>Action</td>
+    <td>Changes</td>
+</tr>
+{% for tracked in feed %}
+    <tr>
+        <td style="white-space:nowrap">{{ tracked.when }}</td>
+        <td style="white-space:nowrap">{{ tracked.who }}</td>
+        <td style="white-space:nowrap">{{ tracked.model }}</td>
+        <td style="white-space:nowrap">{{ tracked.which }}</td>
+        <td style="white-space:nowrap">{{ tracked.get_action_display }}</td>
+        <td>{{ tracked.data }}</td>
+    </tr>
+{% endfor %}
+
+{% endblock %}

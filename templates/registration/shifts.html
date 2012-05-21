@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Staffing Shifts - {{ attendee.full_name }}{% endblock %}
+{% block content %}
+
+{% include "registration/menu.html" %}
+
+<script type="text/javascript">
+    function setStatus(shiftId, status) {
+        var $status = $(status);
+        $.post("../jobs/set_worked", {id: shiftId, worked: $status.val()}, function(result) {
+            $status.parent().empty().append("<i>" + result + "</i> &nbsp; " +
+                                            "<a href='../jobs/undo_worked?id=" + shiftId + "'>Undo</a>");
+        });
+    }
+</script>
+
+<br/>
+<table width="100%">
+<tr>
+    <td width="50%">
+        {% if attendee.possible %}
+            <form method="post" action="assign">
+            <input type="hidden" name="staffer_id" value="{{ attendee.id }}" />
+            <b>Add a Shift:</b>
+            <select name="job_id">
+                {% options attendee.possible_opts %}
+            </select>
+            <input type="submit" value="Assign" />
+            </form>
+        {% else %}
+            <i> No additional shifts are available. </i>
+        {% endif %}
+    </td>
+    <td width="50%" align="right">
+        <form method="post" action="update_nonshift">
+        <input type="hidden" name="id" value="{{ attendee.id }}" />
+        <b>Non-shift hours:</b>
+        <input type="text" class="focus" name="nonshift_hours" value="{{ attendee.nonshift_hours }}" style="width:2em" />
+        <input type="submit" value="Update" />
+        </form>
+    </td>
+</tr>
+</table>
+
+<br/><br/>
+
+{% if attendee.shift_set.count %}
+    <b> Shifts signed up for by {{ attendee.full_name }} ({{ attendee.weighted_hours }} hours): </b>
+    <br/> <br/>
+    <table width="95%" align="center">
+    <tr style="font-weight:bold">
+        <td>Job</td>
+        <td>Dept</td>
+        <td>Start</td>
+        <td>Hours</td>
+        <td>Status</td>
+        <td></td>
+    </tr>
+    {% for shift in attendee.signups %}
+        <tr>
+            <td><a href="../jobs/form?id={{ shift.job.id }}">{{ shift.job.name }}</a></td>
+            <td><a href="../jobs/index?location={{ shift.job.location }}">{{ shift.job.get_location_display }}</a></td>
+            <td>{% hour_day shift.job.start_time %}</td>
+            <td>{{ shift.job.duration }} (x{{ shift.job.weight }})</td>
+            <td>
+                {% if shift.worked %}
+                    <i>{{ shift.get_worked_display }}</i>
+                {% else %}
+                    <select onChange="setStatus({{ shift.id }}, this)">
+                        {% options WORKED_OPTS shift.worked %}
+                    </select>
+                {% endif %}
+            </td>
+            <form method="post" action="unassign">
+            <input type="hidden" name="shift_id" value="{{ shift.id }}" />
+            <td> <input type="submit" value="Unassign" /> </td>
+            </form>
+        </tr>
+    {% endfor %}
+    </table>
+{% else %}
+    <i>{{ attendee.full_name }} is not signed up for any shifts.</i>
+{% endif %}
+
+<form method="post" action="update_notes">
+<input type="hidden" name="id" value="{{ attendee.id }}" />
+<br/> <b>Admin Notes:</b> <br/>
+<textarea name="admin_notes" rows="4" style="margin-left:10px ; margin-top:5px ; width:80%">{{ attendee.admin_notes }}</textarea>
+<br/> <input style="margin-left:10px ; margin-top:5px" type="submit" value="Update Admin Notes" />
+</form>
+
+{% endblock %}

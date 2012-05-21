@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Staffing Admin{% endblock %}
+{% block content %}
+
+<h2> Staffers </h2>
+
+<table class="list">
+<tr class="header">
+    <td align="left"> <a href="index?order={{ order.first_name }}">Name</a> </td>
+    <td> <a href="staffers?order={{ order.paid }}">Paid</a> </td>
+    <td> <a href="staffers?order={{ order.assigned }}">Assigned To</a> </td>
+    <td> <a href="staffers?order={{ order.weighted_hours }}">Hours</a> </td>
+    {% if state.AT_THE_CON or state.POST_CON %}
+        <td> <a href="staffers?order={{ order.hours_worked }}">Worked</a> </td>
+    {% endif %}
+    {% if state.AT_THE_CON %}
+        <td> <a href="staffers?order={{ order.checked_in }}"><nobr>Checked In</nobr></a> </td>
+    {% endif %}
+</tr>
+{% for attendee in staffers %}
+    <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
+        <td style="text-align:left"> <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a> </td>
+        <td>{{ attendee.get_paid_display }}</td>
+        <td style="text-align:left">
+            <ul>
+                {% for dept in attendee.assigned_display %}
+                    <li>{{ dept }}</li>
+                {% empty %}
+                    <span style="color:red">No assignments</span>
+                {% endfor %}
+            </ul>
+        </td>
+        <td> <a href="shifts?id={{ attendee.id }}">{{ attendee.weighted_hours }}</a> </td>
+        {% if state.AT_THE_CON or state.POST_CON %}
+            <td> <a href="shifts?id={{ attendee.id }}">{{ attendee.worked_hours }}</a> </td>
+        {% endif %}
+        {% if state.AT_THE_CON %}
+            <td>{{ attendee.checked_in|yesno:"Checked In,Not Checked In" }}</td>
+        {% endif %}
+    </tr>
+{% endfor %}
+</table>
+
+{% endblock %}

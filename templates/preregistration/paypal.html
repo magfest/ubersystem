@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Paypal Link{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<h2> Paypal Link for {{ attendee.full_name }} </h2>
+
+{% if attendee.paid %}
+    You have already paid for your badge.  We'll see you at MAGFest!
+{% else %}
+    <br/>
+    <div style="text-align:center">
+        {% paypal_button attendee %}
+        <b><i>Total</i>:</b> ${{ attendee.total_cost }} <br/>
+        <font size="-1">(Reminder: you can {% popup_link "../static/noPaypal.html" "pay with a credit/debit card" %} through Paypal even without a Paypal account.)</font>
+    </div>
+{% endif %}
+
+{% endblock %}

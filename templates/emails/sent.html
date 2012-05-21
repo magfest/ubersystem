@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Sent Emails{% endblock %}
+{% block content %}
+
+<h2>Emails Sent to {{ emails.0.rcpt_name }} ({{ emails.0.dest }})</h2>
+
+<div style="text-align:center"><a href="index">Go Back</a></div>
+
+{% for email in emails  %}
+    <h3> {{ email.subject }} ({{ email.when }}) </h3>
+    <pre>{{ email.body }}</pre>
+{% endfor %}
+
+{% endblock %}

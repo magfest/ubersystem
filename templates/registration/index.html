@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+{% block title %}Attendee Admin{% endblock %}
+{% block backlink %}
+    <span style="float:right ; margin-top:5px ; margin-right:5px">
+        <a id="backlink" href="../accounts/homepage">Return Home</a>
+    </span>
+{% endblock%}
+{% block message %}
+    
+<style type="text/css">
+    body { margin:0px ; padding:0px }
+    a.closer {
+        border: 2px solid black;
+        padding-left: 4px;
+        padding-right: 4px;
+        text-decoration: none;
+        font-family: Arial,Helvetica,sans-serif;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    table.list {
+        width: 98%;
+        margin-left: 1%;
+        margin-right: 1%;
+        border-spacing: 0px;
+        border: 1px solid black;
+        border-collapse: separate;
+    }
+</style>
+
+<div id="top" style="display:none">
+    <table style="width:100% ; background:orange ; margin-bottom:5px ; position:fixed">
+    <tr>
+        <td style="width:auto"></td>
+        <td style="width:30px">
+            <a onClick="hideTop()" class="closer">x</a>
+        </td>
+    </tr>
+    </table>
+    <br/><br/>
+</div>
+
+<span id="message" style="float:left ; color:red ; margin-top:4px ; margin-left:4px">
+{% if attendee %}
+    <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a> {{ message }}
+{% else %}
+    {{ message }}
+{% endif %}
+</span>
+
+{% endblock %}
+{% block content %}
+
+<script type="text/javascript">
+<!--
+    var $highlit = null;
+    function highlight($tr) {
+        if( $highlit )
+            $highlit.css("border", "1px solid black");
+        
+        $highlit = $tr.children("td").css("border-top", "3px solid green").css("border-bottom", "3px solid green");
+        $highlit.filter(":first").css("border-left", "3px solid green");
+        $highlit.filter(":last").css("border-right", "3px solid green");
+        
+        if( $tr.find("select").val() == "{{ AGE_UNKNOWN }}" )
+            $tr.find("select").parents("td").css("border", "3px solid red");
+        if( $tr.find("td:nth(3)").text() == "no" )
+            $tr.find("td:nth(3)").css("border", "3px solid red");
+        
+        var badge_num = $tr.find(":text").val();
+        if( badge_num && !badge_num.match(/^\d+$/) )
+            $tr.find(":text").parents("td").css("border", "3px solid red");
+    }
+    
+    function showTop(message) {
+        $("#top").show("fast").find("td:first").html(message);
+    }
+    function hideTop() {
+        $("#top").hide("fast");
+    }
+    
+    function recordSale() {
+        $.post("record_sale", {
+                id:      "None",
+                what:    $("#what_select").val() || $("#what_text").val() || "",
+                cash:    $("#store_cash").val(),
+                mpoints: 0
+            }, function(json) {
+                $("#message").html(json.message);
+                if( json.success ) {
+                    $("#message").append(' &nbsp; <a href="#" onClick="undoSale(' + json.id + ') ; return false">Undo</a>');
+                }
+            }, "json");
+    }
+    function undoSale(id) {
+        $.post("undo_sale", {"id": id}, function(message) {
+            $("#message").html(message);
+        });
+    }
+    function showOrHideWhatText(page_loading) {
+        $("#store_mpoints").val("0");
+        if( $("#what_select").val() == "" ) {
+            $("#what_text").show().focus();
+            $("#store_cash").val("");
+        }
+        else {
+            var prices = {{ FEE_PRICES|safe }};
+            $("#what_text").val("").hide();
+            $("#store_cash").val( prices[$("#what_select").val()] );
+            if( !page_loading )
+                $("#store_amount").focus();
+        }
+    }
+    
+    function recordMPointUsage() {
+        $.post("record_mpoint_usage", {id:         "None",
+                                       badge_num:  $("#badge_num").val(),
+                                       amount:     $("#amount").val()},
+                function(json) {
+                    $("#message").html(json.message);
+                    if( json.success ) {
+                        $("#badge_num,#amount").val("");
+                        $("#badge_num").focus();
+                        $("#message").append(' &nbsp; <a href="#" onClick="undoMPointUsage(' + json.id + ')">Undo</a>');
+                    }
+                },
+                "json");
+    }
+    function undoMPointUsage(id) {
+        $.post("undo_mpoint_usage", {"id": id}, function(s) {
+            $("#message").html(s);
+        });
+    }
+    
+    function recordMPointExchange() {
+        $.post("record_mpoint_exchange", {
+                id:         "None",
+                badge_num:  $("#ex_badge_num").val(),
+                mpoints:    $("#ex_mpoints").val()
+            }, function(json) {
+                $("#message").html(json.message);
+                if( json.success ) {
+                    $("#ex_badge_num,#ex_mpoints").val("");
+                    $("#message").append(' &nbsp; <a href="#" onClick="undoMPointExchange(' + json.id + ')">Undo</a>');
+                }
+           }, "json");
+    }
+    function undoMPointExchange(id) {
+        $.post("undo_mpoint_exchange", {"id": id}, function(s) {
+            $("#message").html(s);
+        });
+    }
+    
+    function check_in(id) {
+        if( $("#age_" + id).val() == {{ AGE_UNKNOWN }} ) {
+            alert("You may not check someone in without confirming their age.");
+            return;
+        }
+        $.post("check_in", {id: id,
+                            age_group: $("#age_" + id).val(),
+                            badge_num: $("#num_" + id).val() || ""},
+                function(json) {
+                    var message = json.message;
+                    if( json.success ) {
+                        message += ' &nbsp; <a href="#" onClick="undoCheckin('+id+','+json.pre_paid+','+json.pre_amount+','+json.pre_badge+') ; return false">Undo</a>';
+                        $("#paid_" + id).html(json.paid);
+                        $("#cin_" + id).html(json.checked_in);
+                        $("#age_" + id).parent().html(json.age_group);
+                        $("#num_" + id).parent().html(json.badge);
+                    }
+                    showTop(message);
+                    if( json.increment )
+                        $("#checkin_count").html(1 + parseInt($("#checkin_count").html()));
+                },
+                "json");
+    }
+    function undoCheckin(id, pre_paid, pre_amount, pre_badge) {
+        $.post("undo_checkin", {id: id,
+                                pre_paid: pre_paid,
+                                pre_amount: pre_amount,
+                                pre_badge: pre_badge},
+                function(s) {
+                    var sep = location.href.indexOf("?")==-1 ? "?" : "&";
+                    location.href += sep + "message=" + encodeURIComponent(s);
+        });
+    }
+    
+    $(function(){
+        $("#message").ajaxError(function(){
+            showTop("Oh noes - the web server is down or something!!!!!");
+        });
+        
+        showOrHideWhatText(true);
+        
+        $("#badge_num,#amount").keypress(function(e){
+            if( (e.keyCode || e.which) == 13 )  // ENTER
+                recordMPointUsage();
+        });
+        $("#ex_badge_num,#ex_mpoints,#cash").keypress(function(e){
+            if( (e.keyCode || e.which) == 13 )  // ENTER
+                recordMPointExchange();
+        });
+        
+        {% if state.AT_THE_CON %}
+            $(".num").keypress(function(e){
+                if( (e.keyCode || e.which) == 13 )  // ENTER
+                    check_in( e.target.id.split("_")[1] );
+            }).keyup(function(e){
+                highlight( $(e.target).parents("tr") );
+            });
+            $("table.list").find(":text,:submit,select").focus(function(e){
+                highlight( $(e.target).parents("tr") );
+            });
+            $(".list tr:not(.header) td").click(function(event){
+                highlight( $(event.target).parents("tr") );
+            });
+        {% endif %}
+    });
+-->
+</script>
+
+<br/>
+<form method="get" action="index" style="text-align:center">
+<input type="hidden" name="show"  value="{{ show }}"  />
+<input type="hidden" name="order" value="{{ order }}" />
+<b>Search:</b> <input class="focus" type="text" name="search_text" style="width:15em" value="{{ search_text }}" />
+</form>
+
+{% if state.AT_THE_CON %}
+    <table width="100%">
+    <tr style="text-align:center ; font-weight:bold">
+        <td width="33%"> {{ attendee_count }} Attendee{{ attendee_count|pluralize }} </td>
+        <td width="33%"> <span id="checkin_count">{{ checkin_count }}</span> Checked In </td>
+        <td width="33%"> <a href="#" onClick="$('#transactions').toggle('fast'); return false;">Record Fee / MPoint Exchange</a> </td>
+    </tr>
+    </table>
+{% endif %}
+
+<div id="transactions" style="display:none ; text-align:center ; margin-top:5px ; padding:10px ; background:lightgray">
+<table>
+<tr>
+    <td>Record a Fee: </td>
+    <td>
+        <select id="what_select" onChange="showOrHideWhatText()">
+            {% options FEE_ITEMS %}
+            <option value="">Other...</option>
+        </select>
+        <input type="text" id="what_text" size="20" maxlength="50" />
+    </td>
+    <td> Money: $<input type="text" id="store_cash" size="2" /> </td>
+    <td> <input type="submit" id="record_sale" value="Record Sale" onClick="recordSale()" />
+</td>
+<tr> <td colspan="4"> ---OR--- </td> </tr>
+<tr>
+    <td> MPoints exchanged for cash: </td>
+    <td> Badge num: <input type="text" id="badge_num" size="2" /> </td>
+    <td> exchanged $<input type="text" id="amount" size="2" /> </td>
+    <td> <input type="submit" id="record_mpu" value="Record Exchange" onClick="recordMPointUsage()" /> </td>
+</tr>
+<tr> <td colspan="4"> ---OR--- </td> </tr>
+<tr>
+    <td> Last year's MPoints turned in: </td>
+    <td> Badge num: <input type="text" id="ex_badge_num" size="2" /> </td>
+    <td> exchanged <input type="text" id="ex_mpoints" size="2" /> MPoints </td>
+    <td> <input type="submit" id="record_mpe" value="Record Exchange" onClick="recordMPointExchange()" /> </td>
+</tr>
+</table>
+</div>
+
+<div style="text-align:center">
+    <br/>
+    <div style="font-size:18pt ; font-weight:bold">
+        {% if search_results %}
+            Attendee Search Results
+        {% else %}
+            Attendees
+        {% endif %}
+    </div>
+    {% if search_results %}
+        <br/> <a href="index?show={{ show }}&order={{ order }}">Click here</a> to view full attendee list instead of only search results
+    {% else %}
+        {% if show == "some" %}
+            {% for pagenum in pages %}
+                {% if pagenum == page %}
+                    {{ pagenum }}
+                {% else %}
+                    <a href="index?order={{ order }}&show={{ show }}&page={{ pagenum }}">{{ pagenum }}</a>
+                {% endif %}
+            {% endfor %}
+            &nbsp; <a href="index?order={{ order }}&show=all">All</a>
+        {% else %}
+            <a href="index?order={{ order }}&show=some">Show Partial Results</a>
+        {% endif %}
+    {% endif %}
+    <br/> <br/>
+    <a href="form?id=None">Add an attendee</a>
+    {% if state.AT_THE_CON %}
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <a href="new">View Recent At-the-Door Registrations</a>
+    {% endif %}
+</div>
+
+<br/>
+
+<table class="list">
+<tr class="header">
+    <td align="left"> <a href="index?show={{ show }}&order={{ order.last_name }}">Name</a> </td>
+    <td> <a href="index?show={{ show }}&order={{ order.badge_num }}">Badge</a> </td>
+    <td> <a href="index?show={{ show }}&order={{ order.paid }}">Paid</a> </td>
+    <td> <a href="index?show={{ show }}&order={{ order.age_group }}">Age</a> </td>
+    {% if state.AT_THE_CON %}
+        <td> <a href="index?show={{ show }}&order={{ order.checked_in }}"><nobr>Checked In</nobr></a> </td>
+    {% endif %}
+</tr>
+{% for attendee in attendees %}
+    <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
+        <td id="name_{{ attendee.id }}" style="text-align:left">
+            <a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a>
+            {% if attendee.group %}
+                <br/> <a style="font-size:8pt" href="../groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
+            {% endif %}
+        </td>
+        <td><nobr>
+            {% if state.AT_THE_CON and not attendee.badge_num %}
+                {{ attendee.get_badge_type_display }}
+                #<input class="num" id="num_{{ attendee.id }}" type="text" size="3" />
+            {% else %}
+                {{ attendee.badge }}
+            {% endif %}
+        </nobr></td>
+        <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.get_paid_display }}</nobr></td>
+        {% if attendee.checked_in or not state.AT_THE_CON %}
+            <td> <nobr>{{ attendee.get_age_group_display }}</nobr> </td>
+            {% if state.AT_THE_CON %}
+                <td> {{ attendee.checked_in|time:"fA"|lower }} {{ attendee.checked_in|date:"D" }} </td>
+            {% endif %}
+        {% else %}
+            <td>
+                <select id="age_{{ attendee.id }}" onChange="highlight($(this).parents('tr'))">
+                    {% options AGE_GROUP_OPTS attendee.age_group %}
+                </select>
+            </td>
+            <td id="cin_{{ attendee.id }}">
+                <input type="submit" value="Check In" onClick="check_in({{ attendee.id }})" />
+            </td>
+        {% endif %}
+    </tr>
+{% endfor %}
+</table>
+
+{% endblock %}

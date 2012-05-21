@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Job Form{% endblock %}
+{% block content %}
+
+{% include "jobs/job_menu.html" %}
+
+<script type="text/javascript">
+<!--
+    function blank() {
+        var defaults = {
+            name: "",
+            description: "",
+            duration: 1,
+            slots: 1,
+            weight: 1.0
+        };
+        $.each(defaults, function(name,value){
+            $("[name=" + name + "]").val(value);
+        });
+        $("[name=restricted],[name=extra15]").attr("checked", false);
+        return false;
+    }
+    
+    function showAndHideRows() {
+        var location = $("[name=event_loc]")[0];
+        if( location.selectedIndex==0 )
+        {
+            $("#start_time,#duration").show();
+            $("#event_row").hide();
+        }
+        else
+        {
+            $("#start_time,#duration").hide();
+            $("#event_row").show();
+            
+            var eventOpts = $("[name=event_id]")[0].options;
+            var newOpts = events[ $("[name=event_loc]").val() ];
+            while( eventOpts.length>0 )
+                eventOpts[0] = null;
+            for(var j=0; j<newOpts.length; j++)
+                eventOpts[j] = newOpts[j];
+            
+            setEventLink();
+        }
+    }
+    
+    function setEventLink() {
+        $("#eventlink")[0].href = "../schedule/form?id=" + $("[name=event_id]").val();
+    }
+    
+    $(document).ready(function(){
+        events = {};
+        var opt = null;
+        {% for location,event_list in events %}
+            events[{{ location }}] = [];
+            {% for event in event_list %}
+                opt = new Option("({% timespan event %}): {{ event.name }}",
+                                 "{{ event.id }}",
+                                 {% if event.id == job.event.id %}
+                                     true
+                                 {% else %}
+                                     false
+                                 {% endif %}
+                                );
+                events[{{ location }}][{{ forloop.counter0 }}] = opt;
+            {% endfor %}
+        {% endfor %}
+        
+        var locOpts = $("[name=event_loc]")[0].options;
+        for(var j=locOpts.length-1; j>0; j-=1) {
+            if( !events[locOpts[j].value] )
+                locOpts[j] = null;
+        }
+        
+        showAndHideRows();
+    });
+// -->
+</script>
+
+{% if defaults %}
+    <i>Note: To help you enter the same job at multiple times, this form has been filled in
+        using the values of the last shift you created in this location.
+        <a href="" onClick="return blank();">Click here</a> to undo these defaults and start
+        with a blank form.</i>
+{% endif %}
+
+<form method="post" action="form">
+<input type="hidden" name="id" value="{{ job.id }}" />
+<input type="hidden" name="from_schedule" value="{{ from_schedule }}" />
+
+<table>
+<tr>
+    <td width="25%"> <b>Job Name:</b> </td>
+    <td width="75%"> <input class="focus" type="text" name="name" value="{{ job.name }}" /> </td>
+</tr>
+<tr>
+    <td> Description <i>(Optional)</i>: </td>
+    <td> <input type="text" name="description" value="{{ job.description }}" /> </td>
+</tr>
+<tr>
+    <td> Event:</td>
+    <td>
+        <select name="event_loc" onChange="showAndHideRows()">
+            <option value="">This job isn't associated with an event</options>
+            {% options EVENT_LOC_OPTS job.event.location %}
+        </select>
+    </td>
+</tr>
+<tr id="event_row" style="display:none">
+    <td></td>
+    <td>
+        <select name="event_id" onChange="setEventLink()"></select>
+        <a id="eventlink" href="">View Event</a> 
+    </td>
+</tr>
+<tr id="start_time">
+    <td> <b>Start Time:</b> </td>
+    <td>
+        <select name="start_time">
+            {% options START_TIME_OPTS job.start_time %}
+        </select>
+    </td>
+</tr>
+<tr id="duration">
+    <td> <b>Duration:</b> </td>
+    <td>
+        <select name="duration">
+            {% options DURATION_OPTS job.duration %}
+        </select>
+    </td>
+</tr>
+<tr>
+    <td> <b>Extra 15{% popup_link "../static/extra15.html" %}</b> </td>
+    <td> {% checkbox extra15 job %} Yes </td>
+</tr>
+<tr>
+    <td> <b>Slots:</b> </td>
+    <td>
+        <select name="slots">
+            {% int_options 1 10 job.slots %}
+        </select>
+        {% if job.id %}({{ job.shift_set.count }} filled){% endif %}
+    </td>
+</tr>
+<tr>
+    <td> <b>Location:</b> </td>
+    <td>
+        <select name="location">
+            {% options JOB_LOC_OPTS job.location %}
+        </select>
+    </td>
+</tr>
+<tr>
+    <td> <b>Weight:{% popup_link "../static/weightDesc.html" %}</b> </td>
+    <td>
+        <select name="weight">
+            {% options WEIGHT_OPTS job.weight %}
+        </select>
+    </td>
+</tr>
+<tr>
+    <td> <b>Restricted:{% popup_link "../static/trustDesc.html" %}</b> </td>
+    <td> {% checkbox restricted job %} Yes </td>
+</tr>
+<tr>
+    <td></td>
+    <td> <input type="submit" value="Upload" />
+</tr>
+</table>
+
+</form>
+
+{% if job.id %}
+    <form method="post" action="delete">
+    <input type="hidden" name="id" value="{{ job.id }}" />
+    <table width="100%" cellspacing="5" cellpadding="5">
+    <tr>
+        <td width="25%"></td>
+        <td width="75%"> <input type="submit" value="Delete" /> </td>
+    </tr>
+    </table>
+    </form>
+{% endif %}
+
+{% add_max_lengths Job %}
+
+{% endblock %}

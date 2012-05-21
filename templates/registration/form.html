@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+{% block title %}Attendee Form - {{ attendee.full_name }}{% endblock %}
+{% block content %}
+
+{% include "registration/menu.html" %}
+
+<script type="text/javascript">
+    function isPreassignedBadgeType(badge_type) {
+        return $.inArray(parseInt(badge_type), [{{ STAFF_BADGE }}, {{ SUPPORTER_BADGE }}]) >= 0;
+    }
+    
+    function setGroupLink() {
+        var group = $.val("group_opt");
+        if( group == "" )
+            $("#group_link").hide();
+        else
+            $("#group_link").attr("href", "../groups/form?id=" + group).show();
+    }
+    
+    var unassigned = {{ unassigned|jsonize }};
+    function groupWarning() {
+        var groupID = $.val("group_opt");
+        if( groupID && "{{ attendee.id }}" == "None" && unassigned[groupID] > 0 )
+            $("#unassigned").show("slow");
+        else
+            $("#unassigned").hide("fast");
+    }
+    
+    function setAmountPaid(focus) {
+        {% if not attendee.id %}
+            var amount = {{ state.BADGE_PRICE }};
+            if( $.val("badge_type") === {{ SUPPORTER_BADGE }} )
+                amount = {{ SUPPORTER_BADGE_PRICE }};
+            else if( $.val("badge_type") >= {{ ONE_DAY_BADGE }} )
+                amount = {{ ONEDAY_BADGE_PRICE }};
+            
+            if( $.val("paid") === {{ HAS_PAID }} )
+                $.field("amount_paid").val(amount);
+            else if( $.val("paid") === {{ NOT_PAID }} )
+                $.field("amount_paid").val(0);
+        {% endif %}
+        
+        if( focus )
+            $.focus("amount_paid");
+    }
+    
+    function showOrHideAmounts(focus) {
+        var paid = $.val("paid");
+        setVisible("#amount_paid", paid !== {{ NEED_NOT_PAY }} && paid !== {{ PAID_BY_GROUP }});
+        setVisible("#amount_refunded", paid === {{ REFUNDED }});
+        setAmountPaid(focus);
+    }
+    
+    function boldOrRegular() {
+        if( $.field("placeholder").is(":checked") ) {
+            $(".maybe_bold").css("font-weight", "normal");
+            $(".full_name").css("font-weight", "bold");
+        } else {
+            var form = document.forms[0];
+            if( form.group_opt.selectedIndex > 0 )
+                $(".maybe_bold").css("font-weight", "normal");
+            else {
+                $(".maybe_bold").css("font-weight", "bold");
+                {% if state.AT_THE_CON %}
+                    $("#email").css("font-weight", "normal");
+                {% endif %}
+            }
+        }
+    }
+    
+    function setPreassigned() {
+        if( $.field("placeholder").is(":checked") ) {
+            $.field("age_group").val("{{ OVER_21 }}");
+            $.field("paid").val("{{ NEED_NOT_PAY }}");
+            showOrHideAmounts();
+        }
+    }
+    
+    function setBadgeMessage() {
+        if( isPreassignedBadgeType($.val("badge_type")) )
+            $("#badge_message").text("(next available badge number)");
+        else
+            $("#badge_message").text("");
+    }
+    
+    $(document).ready(function(){
+        $.field("placeholder").click(boldOrRegular).click(setPreassigned);
+        setBadgeMessage();
+        boldOrRegular();
+        setGroupLink();
+        showOrHideAmounts();
+        {% if state.AT_THE_CON and not attendee.id %}
+            $.field("paid").val({{ HAS_PAID }});
+            $.field("amount_paid").val({{ BADGE_PRICE }});
+        {% endif %}
+    });
+</script>
+
+<form method="post" action="form">
+<input type="hidden" name="id" value="{{ attendee.id }}" />
+<input type="hidden" name="return_to" value="{{ return_to }}" />
+<table width="100%" cellspacing="5" cellpadding="5">
+{% if not state.AT_THE_CON %}
+    <tr>
+        <td width="25%"> <b>Placeholder:</b> </td>
+        <td width="75%">
+            {% checkbox placeholder attendee %} This attendee needs to
+            {% if attendee.id %}
+                <a href="../preregistration/confirm?id={{ attendee.id|obfuscated }}">register themself</a>
+            {% else %}
+                register themself
+            {% endif %}
+        </td>
+    </tr>
+{% endif %}
+<tr>
+    <td width="25%"> <b>Badge:<b> </td>
+    <td width="75%">
+        {% if attendee.id %}
+            {{ attendee.badge }}
+            {% if attendee.group %}(<a href="../groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>){% endif %}
+            &nbsp;&nbsp; [<a href="change_badge?id={{ attendee.id }}">Change</a>]
+            {% if attendee.staffer %}
+                &nbsp;&nbsp; (<a href="../staffing/form?id={{ attendee.staffer.id }}">Staffing Info</a>)
+            {% endif %}
+        {% else %}
+            <select name="badge_type" onChange="boldOrRegular(); setBadgeMessage()">
+                {% options BADGE_OPTS attendee.badge_type %}
+            </select>
+            {% if state.AT_THE_CON %}
+                #<input class="focus" type="text" style="width:4em" name="badge_num" value='{{ attendee.badge_num|default:"" }}' />
+            {% else %}
+                <span id="badge_message" style="font-style:italic"></span>
+            {% endif %}
+        {% endif %}
+        &nbsp;&nbsp;
+        <select name="ribbon">
+            {% options RIBBON_OPTS attendee.ribbon %}
+        </select>
+    </td>
+</tr>
+{% if attendee.badge_type == SUPPORTER_BADGE %}
+    <tr>
+        <td> Affiliate: </td>
+        <td> <input type="text" name="affiliate" value="{{ attendee.affiliate|default:"" }}" /> </td>
+    </tr>
+{% endif %}
+<tr>
+    <td> Group: </td>
+    <td>
+        <select name="group_opt" onChange="boldOrRegular() ; setGroupLink() ; groupWarning()">
+            <option value="">Choose a group, if applicable</option>
+            {% options group_opts attendee.group.id %}
+        </select>
+        &nbsp; <a id="group_link" href="">View this Group's Page</a>
+        <div id="unassigned" style="display:none ; color:red">
+            Warning: This group has at least one unassigned badge.  Are you sure you want this to be a new attendee and not just fill in the data for one of this group's badges?
+        </div>
+    </td>
+</tr>
+<tr>
+    <td class="maybe_bold full_name"> <nobr>First and Last Name:</nobr> </td>
+    <td>
+        <input class="focus" type="text" style="width:10em" name="first_name" value="{{ attendee.first_name }}" />
+        <input type="text" style="width:10em" name="last_name"  value="{{ attendee.last_name }}"  />
+    </td>
+</tr>
+{% if attendee.badge_type == STAFF_BADGE or attendee.badge_type == SUPPORTER_BADGE %}
+    <tr>
+        <td>Printed on Badge:</td>
+        <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" /> </td>
+    </tr>
+{% endif %}
+<tr>
+    <td class="maybe_bold"> Zip Code: </td>
+    <td>
+        <input type="text" name="zip_code" value="{{ attendee.zip_code }}" />
+        {% checkbox international attendee %} Attendee is from outside the US.
+    </td>
+</tr>
+<tr>
+    <td class="maybe_bold" id="email"> Email Address: </td>
+    <td> <input type="text" name="email" value="{{ attendee.email }}" /> </td>
+</tr>
+<tr>
+    <td class="maybe_bold"> <nobr>Emergency Contact</nobr> <nobr>Phone Number:</nobr> </td>
+    <td> <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" /> </td>
+</tr>
+<tr>
+    <td> <nobr>{% bold_if state.AT_THE_CON %}Age as of MAGFest:{% end_bold_if %}</nobr> </td>
+    <td>
+        <select name="age_group">
+            {% options AGE_GROUP_OPTS attendee.age_group %}
+        </select>
+    </td>
+</tr>
+<tr>
+    <td valign="top"> Staffing </td>
+    <td>
+        {% checkbox staffing attendee %} This attendee is staffing <br/>
+        {% checkbox trusted attendee %} Trusted {% popup_link "../static/trustDesc.html" %}
+    </td>
+</tr>
+<tr>
+    <td valign="top"> Requested Depts </td>
+    <td> {% checkgroup "requested_depts" JOB_INTEREST_OPTS attendee.requested_depts %} </td>
+</tr>
+<tr>
+    <td valign="top"> Assigned Depts </td>
+    <td> {% checkgroup "assigned_depts" JOB_LOC_OPTS attendee.assigned_depts %} </td>
+</tr>
+<tr>
+    <td> <nobr>How did they</nobr> <nobr>find MAGFest?</nobr> </td>
+    <td> <input type="text" name="found_how" value="{{ attendee.found_how }}" style="width:80%" /> </td>
+</tr>
+{% if AT_THE_CON and attendee.id %}
+    <tr>
+        <td> Received Merch </td>
+        <td> {% checkbox got_merch attendee %} Yes </td>
+    </tr>
+    <tr>
+        <td> Signed Up </td>
+        <td> <i>{{ attendee.registered }}</i> </td>
+    </tr>
+{% endif %}
+<tr>
+    <td> Interested In: </td>
+    <td>
+        <nobr><input type="checkbox" onClick="$(':checkbox[name=interests]').attr('checked',this.checked)" /> All</nobr>
+        {% checkgroup "interests" INTEREST_OPTS attendee.interests %}
+    </td>
+</tr>
+<tr>
+    <td> <nobr>Personal Phone Number:</nobr> </td>
+    <td> <input type="text" name="phone" value="{{ attendee.phone }}" /> </td>
+</tr>
+<tr>
+    <td> Attendee Comments: </td>
+    <td> <input type="text" name="comments" value="{{ attendee.comments }}" style="width:80%" />  </td>
+</tr>
+<tr>
+    <td> Paid: </td>
+    <td>
+        <select name="paid" onChange="showOrHideAmounts(true)">
+            {% options PAID_OPTS attendee.paid %}
+        </select>
+        &nbsp;&nbsp;&nbsp;
+        <span id="amount_paid">
+            $<input type="text" style="width:4em" name="amount_paid" value="{{ attendee.amount_paid }}" />
+        </span>
+        &nbsp;&nbsp;&nbsp;
+        <span id="amount_refunded">
+            $<input type="text" style="width:4em" name="amount_refunded" value="{{ attendee.amount_refunded }}" />
+        </span>
+        {% if attendee.id and not attendee.paid %}
+            (<a href="../preregistration/paypal?id={{ attendee.id|obfuscated }}">${{ attendee.total_cost }} owed</a>)
+        {% endif %}
+    </td>
+</tr>
+<tr>
+    <td> Extra Merch: </td>
+    <td> <input type="text" name="extra_swag" value="{{ attendee.extra_swag }}" style="width:80%" /> </td>
+</tr>
+<tr>
+    <td> Special Regdesk Instructions: </td>
+    <td> <input type="text" name="regdesk_info" value="{{ attendee.regdesk_info }}" style="width:80%" /> </td>
+</tr>
+<tr>
+    <td> Can Spam: </td>
+    <td> {% checkbox can_spam attendee %} Yes </td>
+</tr>
+<tr>
+    <td valign="top"> Admin Notes: </td>
+    <td> <textarea name="admin_notes" rows="3" style="width:66%">{{ attendee.admin_notes }}</textarea> </td>
+</tr>
+</table>
+<br/>
+<div style="margin-left:25%">
+    <input type="submit" value="Upload Info" />
+</div>
+</form>
+
+{% if attendee.id %}
+    <div style="margin-left:25%">
+        <form method="post" action="delete" onSubmit="return confirm('Are you sure you want to delete this attendee?');" />
+            <input type="hidden" name="id" value="{{ attendee.id }}" />
+            <br/><input type="submit" value="Delete Attendee" />
+        </form>
+    </div>
+{% endif %}
+
+{% add_max_lengths Attendee %}
+
+{% endblock %}

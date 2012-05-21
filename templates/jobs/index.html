@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Shifts{% endblock %}
+{% block content %}
+
+{% include "jobs/main_menu.html" %}
+
+<table class="calendar">
+{% for curr_dt,prev_dt,jobs in times %}
+    <tr>
+        <td>
+            <nobr>{{ curr_dt|date:"gA"|lower }} {{ curr_dt|date:"D" }}</nobr>
+            <br/> <br/>
+            <nobr><a href="form?id=None&location={{ location }}&start_time={{ curr_dt|date:"Y-m-d H:i:s" }}">Add Shift</a></nobr>
+            <a name="{{ prev_dt|date:"Y-m-d H:i:s" }}"></a>
+        </td>
+        {% for job in jobs %}
+            <td rowspan="{{ job.duration }}">
+                <nobr> <a href="form?id={{ job.id }}"><b>{{ job.name }}{% if job.restricted %}*{% endif %}</b></a> </nobr>
+                <br/> <br/>
+                <nobr> Weight: x{{ job.weight }}{% if job.extra15 %}*{% endif %} </nobr>
+                <br/>
+                <nobr> {{ job.shift_set.count }}/{{ job.slots }} Staffers <a href="staffers_by_job?id={{ job.id }}">Signed Up</a>
+            </td>
+        {% endfor %}
+    </tr>
+{% endfor %}
+</table>
+
+{% endblock %}

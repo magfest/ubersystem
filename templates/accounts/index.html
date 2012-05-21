@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Accounts{% endblock %}
+{% block content %}
+
+<h2> Accounts </h2>
+
+<table class="list">
+<tr class="header">
+    <td> <a href="index?order={{ order.name }}">Name</a> </td>
+    <td> <a href="index?order={{ order.email }}">Email</a> </td>
+    <td> Access </td>
+    <td> Delete </td>
+</tr>
+{% for account in accounts %}
+    <tr id="{{ account.email|idize }}" bgcolor="{% cycle #FFFFFF,#EEEEEE %}">
+        <td> <nobr>{{ account.name }}</nobr> </td>
+        <td> <a href="mailto:{{ account.email }}">{{ account.email }}</a> </td>
+        <td align="left">
+            <form class="update" method="post" action="update">
+            <input type="hidden" name="id" value="{{ account.id }}" />
+            <table><tr>
+                <td> {% checkgroup "access" ACCESS_OPTS account.access %} </td>
+                <td> <input type="submit" value="Update" /> </td>
+            </tr></table>
+            </form>
+        </td>
+        <td align="center"> 
+            <form class="delete" method="post" action="delete">
+            <input type="hidden" name="id" value="{{ account.id }}" />
+            <input type="submit" value="Delete" />
+            </form>
+        </td>
+    </tr>
+{% endfor %}
+</table>
+
+<br/>
+
+<h3> New Account </h3>
+<form id="new_admin" method="post" action="update">
+<input type="hidden" name="id" value="None" />
+<table>
+<tr>
+    <td width="25%"> <b>Full Name:</b> </td>
+    <td width="75%"> <input class="focus" type="text" name="name" /> </td>
+</tr>
+<tr>
+    <td> <b>Email:</b> </td>
+    <td> <input type="text" name="email" /> </td>
+</tr>
+{% if AT_THE_CON %}
+    <tr>
+        <td> <b>Password:</b> </td>
+        <td> <input type="password" name="password" /> </td>
+    </tr>
+{% endif %}
+<tr>
+    <td> <b>Access:</b> </td>
+    <td> {% checkgroup "access" ACCESS_OPTS %} </td>
+</tr>
+<tr>
+    <td></td>
+    <td> <input type="submit" value="Create Account" /> </td> 
+</tr>
+</table>
+</form>
+
+{% endblock %}

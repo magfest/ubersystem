@@ -1,0 +1,9 @@
+{{ attendee.first_name }},
+
+Thanks for volunteering to help run MAGFest!  You've been added to our registration database, but we don't have all of your personal information.  To ensure that you can pick up your badge with no hassles at our registration desk, please fill out the rest of your info at {{ state.URL_BASE }}/preregistration/confirm?id={{ attendee.id|obfuscated }}
+
+After entering the rest of your information, we'll assign you to the appropriate department and you'll be able to sign up for shifts.
+
+Please let us know if you have any questions.
+
+{{ STOPS_EMAIL_SIGNATURE }}
