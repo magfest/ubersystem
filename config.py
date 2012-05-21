@@ -30,14 +30,16 @@ cherrypy.config.update({
 django.conf.settings.configure(
     TEMPLATE_DEBUG = True,
     TEMPLATE_DIRS  = ["templates","static"],
-
-    DATABASE_ENGINE   = "mysql",
-    DATABASE_HOST     = "localhost",
-    DATABASE_NAME     = DBNAME,
-    DATABASE_USER     = DBUSER,
-    DATABASE_PASSWORD = DBNAME,
-    
-    DEBUG = DEV_BOX,
+    DATABASES = {
+        "default": {
+            "ENGINE":   "django.db.backends.mysql",
+            "HOST":     "localhost",
+            "NAME":     DBNAME,
+            "USER":     DBUSER,
+            "PASSWORD": DBNAME
+        }
+    },
+    DEBUG = DEV_BOX
 )
 
 appconf = {
