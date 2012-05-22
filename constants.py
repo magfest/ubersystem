@@ -66,6 +66,10 @@ class State:
             if reg_open:
                 types.append(badge_type)
         return types
+    
+    @property
+    def SHIFTS_AVAILABLE(self):
+        return datetime.now() > self.SHIFTS_CREATED
 
 state = State()
 
@@ -75,8 +79,8 @@ DEALER_BADGE_PRICE    = 30
 TABLE_PRICES          = "$125 for the first table, $200 for each additional table"
 
 ADMIN_EMAIL = "Eli Courtwright <eli@courtwright.org>"
-REGDESK_EMAIL = ADMIN_EMAIL
-STAFF_EMAIL = ADMIN_EMAIL
+REGDESK_EMAIL = "Victoria Earl <magfest-regdesk@googlegroups.com>"
+STAFF_EMAIL = "Jack Boyd <stops@magfest.org>"
 REG_EMAILS = [ADMIN_EMAIL]
 PAYMENT_BCC = [ADMIN_EMAIL]
 
@@ -90,8 +94,8 @@ else:
     PAYPAL_ACTION = "https://www.paypal.com/cgi-bin/webscr"
 
 REGDESK_EMAIL_SIGNATURE = """\
- - Eli Courtwright,
-Registration Database Administrator"""
+ - Victoria Earl,
+MAGFest Registration Chair"""
 
 STOPS_EMAIL_SIGNATURE = """\
  - Jack Boyd,

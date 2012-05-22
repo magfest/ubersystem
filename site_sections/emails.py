@@ -61,7 +61,8 @@ Reminder(Group, "Your MAGFest Dealer registration has been approved!", "dealer_a
 Reminder(Attendee, "MAGFest payment received", "attendee_confirmation.html",
          lambda a: a.paid == HAS_PAID and a.amount_paid == a.total_cost)
 
-Reminder(Group, "MAGFest group payment received", "group_confirmation.html", lambda g: g.amount_paid == g.total_cost)
+Reminder(Group, "MAGFest group payment received", "group_confirmation.html",
+         lambda g: g.tables == 0 and g.amount_paid == g.total_cost)
 
 Reminder(Attendee, "MAGFest Badge Confirmation", "badge_confirmation.txt",
          lambda a: a.placeholder and a.first_name and a.last_name and a.email
@@ -89,7 +90,7 @@ Reminder(Attendee, "MAGFest shifts available", "shifts_available.txt",
 
 Reminder(Attendee, "Reminder to sign up for MAGFest shifts", "shift_reminder.txt",
          lambda a: state.SHIFTS_AVAILABLE and state.PREREG_OPEN and a.takes_shifts and not a.hours
-                                          and max(a.registered, state.SHIFTS_OPENED) < datetime.now() - timedelta(days = 30),
+                                          and max(a.registered, state.SHIFTS_CREATED) < datetime.now() - timedelta(days = 30),
          sender = STAFF_EMAIL)
 
 Reminder(Attendee, "Last chance to sign up for MAGFest shifts", "shift_reminder.txt",
