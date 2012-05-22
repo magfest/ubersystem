@@ -58,6 +58,10 @@ Reminder(Group, "Your MAGFest Dealer registration has been approved!", "dealer_a
          lambda g: g.tables and g.approved)
          # TODO: ask Danielle whether she'd prefer for automated Dealer emails to come from marketplace@magfest.org
 
+Reminder(Attendee, "MAGFest payment received", "attendee_confirmation.html",
+         lambda a: a.paid == HAS_PAID and a.amount_paid == a.total_cost)
+
+Reminder(Group, "MAGFest group payment received", "group_confirmation.html", lambda g: g.amount_paid == g.total_cost)
 
 Reminder(Attendee, "MAGFest Badge Confirmation", "badge_confirmation.txt",
          lambda a: a.placeholder and a.first_name and a.last_name and a.email

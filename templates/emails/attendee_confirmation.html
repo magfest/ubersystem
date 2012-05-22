@@ -1,0 +1,12 @@
+<html>
+<head></head>
+<body>
+
+You ({{ attendee.full_name }}) have preregistered for MAGFest and your payment of ${{ attendee.amount_paid }}
+has been received.  Simply bring a photo ID to MAGFest and you should have no trouble picking up your badge
+at our registration desk.
+
+{% include "emails/reg_notes.html" %}
+
+</body>
+</html>
