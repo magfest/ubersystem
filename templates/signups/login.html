@@ -9,28 +9,35 @@
     {% popup_link "../static/howToStaff.html" "How do I volunteer?" %}
 </div>
 
-<form method="post" action="login">
-<table width="100%" style="text-align:center">
-<tr style="font-weight:bold">
-    <td width="33%">
-        First and Last Name: <br/>
-        <input class="focus" type="text" style="width:75%" name="full_name" value="{{ full_name }}" />
-    </td>
-    <td width="33%">
-        Email Address: <br/>
-        <input type="text" style="width:75%" name="email" value="{{ email }}" />
-    </td>
-    <td width="33%">
-        Zip Code: <br/>
-        <input type="text" style="width:75%" name="zip_code" value="{{ zip_code }}" />
-    </td>
-</tr>
-<tr>
-    <td colspan="3">
-        <br/> <input type="submit" value="Login" />
-    </td>
-</tr>
-</table>
-</form>
+{% if state.SHIFTS_AVAILABLE %}
+    <form method="post" action="login">
+    <table width="100%" style="text-align:center">
+    <tr style="font-weight:bold">
+        <td width="33%">
+            First and Last Name: <br/>
+            <input class="focus" type="text" style="width:75%" name="full_name" value="{{ full_name }}" />
+        </td>
+        <td width="33%">
+            Email Address: <br/>
+            <input type="text" style="width:75%" name="email" value="{{ email }}" />
+        </td>
+        <td width="33%">
+            Zip Code: <br/>
+            <input type="text" style="width:75%" name="zip_code" value="{{ zip_code }}" />
+        </td>
+    </tr>
+    <tr>
+        <td colspan="3">
+            <br/> <input type="submit" value="Login" />
+        </td>
+    </tr>
+    </table>
+    </form>
+{% else %}
+    <div style="text-align:center ; margin-top:25px ; font-style:italic">
+        Shifts are not yet available.  If you are signed up as a volunteer, you will be emailed when shifts
+        become available.  Thanks so much for volunteering!
+    </div>
+{% endif %}
 
 {% endblock %}
