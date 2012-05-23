@@ -105,13 +105,30 @@ def get_badge_type(badge_num):
         return None, "{0!r} is not a valid integer".format(badge_num)
 
 
-# TODO: send_emails?
+def send_delete_email(model):
+    if isinstance(model, Attendee)
+        subject = "Your MAGFest preregistration has been deleted"
+        body = render("emails/attendee_deleted.txt", {"attendee": model})
+    else:
+        subject = "Your MAGFest group preregistration has been deleted"
+        body = render("emails/group_deleted.txt", {"group": model})
+    
+    try:
+        send_email(REGDESK_EMAIL, model.email, subject, body)
+        Email.objects.create(fk_tab = model.__class__.__name__, fk_id = model.id,
+                             subject = subject, dest = model.email, body = body)
+    except:
+        log.error("unable to send unpaid deletion notification to {}", model.email, exc_info = True)
+
+
 def delete_unpaid():
     for attendee in Attendee.objects.filter(paid = NOT_PAID):
         if datetime.now() > attendee.payment_deadline:
+            send_delete_email(attendee)
             attendee.delete()
     
     for group in Group.objects.filter(tables = 0, amount_paid = 0, amount_owed__gt = 0):
         if datetime.now() > group.payment_deadline:
+            send_delete_email(group)
             group.attendee_set.all().delete()
             group.delete()
