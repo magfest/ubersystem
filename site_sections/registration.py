@@ -83,7 +83,8 @@ class Root:
         }
     
     def form(self, message="", return_to="", **params):
-        attendee = get_model(Attendee, params, bools=["international","placeholder","got_merch"], checkgroups=["interests"])
+        attendee = get_model(Attendee, params, bools = ["international","placeholder","got_merch","can_spam"],
+                                               checkgroups = ["interests"])
         if "first_name" in params:
             attendee.group = None if not params["group_opt"] else Group.objects.get(id = params["group_opt"])
             

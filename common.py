@@ -64,7 +64,7 @@ def listify(x):
 
 
 def get_model(klass, params, bools=[], checkgroups=[], restricted=False):
-    model = klass() if params["id"]=="None" else klass.objects.get(id=params["id"])
+    model = klass() if params["id"] == "None" else klass.objects.get(id = params["id"])
     
     for field in klass._meta.fields:
         if restricted and field.name in klass.restricted:
@@ -78,7 +78,7 @@ def get_model(klass, params, bools=[], checkgroups=[], restricted=False):
             if isinstance(params[field.name], list):
                 value = ",".join(params[field.name])
             elif isinstance(params[field.name], bool):
-                value = params[field.name]
+                value = bool(int(params[field.name]))
             else:
                 value = str(params[field.name]).strip()
             
@@ -95,7 +95,7 @@ def get_model(klass, params, bools=[], checkgroups=[], restricted=False):
     if cherrypy.request.method.upper() == "POST":
         for field in klass._meta.fields:
             if field.name in bools:
-                setattr(model, field.name, (field.name in params and params[field.name]))
+                setattr(model, field.name, field.name in params and bool(int(params[field.name])))
             elif field.name in checkgroups and field.name not in params:
                 setattr(model, field.name, "")
     
