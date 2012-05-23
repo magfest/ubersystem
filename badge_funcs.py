@@ -106,7 +106,7 @@ def get_badge_type(badge_num):
 
 
 def send_delete_email(model):
-    if isinstance(model, Attendee)
+    if isinstance(model, Attendee):
         subject = "Your MAGFest preregistration has been deleted"
         body = render("emails/attendee_deleted.txt", {"attendee": model})
     else:

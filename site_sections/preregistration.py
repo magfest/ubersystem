@@ -172,6 +172,11 @@ class Root:
             body = cherrypy.request.rfile.read()
             log.debug("paypal callback: {}", body)
             params = dict(tup for tup in parse_qsl(body))
+        except:
+            log.error("invalid invocation of paypal callback", exc_info = True)
+            return "error"
+        
+        try:
             payment_error = check_payment(body)
             if payment_error:
                 send_callback_email("Paypal callback unverified", dict(params, payment_error = payment_error))

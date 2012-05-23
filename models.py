@@ -272,9 +272,9 @@ class Attendee(MagModel):
             return SUPPORTER_BADGE_PRICE
         elif self.badge_type == ONE_DAY_BADGE:
             return ONEDAY_BADGE_PRICE
-        elif self.registered < state.PRICE_BUMP:
+        elif datetime.now() < state.PRICE_BUMP:
             return EARLY_BADGE_PRICE
-        elif self.registered < state.EPOCH:
+        elif datetime.now() < state.EPOCH:
             return LATE_BADGE_PRICE
         else:
             return DOOR_BADGE_PRICE

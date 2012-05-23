@@ -5,6 +5,8 @@ from site_sections import preregistration
 from urllib import urlencode
 from StringIO import StringIO
 
+import requests
+
 class TestGetModel(TestUber):
     def with_params(self, model=Attendee, **kwargs):
         return get_model(model, dict(kwargs, id = "None"))
@@ -40,12 +42,11 @@ class TestPaypalCallback(TestUber):
         TestUber.tearDown(self)
     
     def callback(self, cost=None, item_number=None, status="completed"):
-        cherrypy.request.rfile = StringIO(urlencode({
+        return requests.post(state.URL_BASE + "/preregistration/callback", data = {
             PAYPAL_STATUS: status,
             PAYPAL_ITEM: item_number or self.attendee_id,
             PAYPAL_COST: str(cost or state.BADGE_PRICE)
-        }.items()))
-        return main.root.preregistration.callback()
+        }).text
     
     def id(self, model):
         return ("a" if isinstance(model, Attendee) else "g") + str(model.id)
@@ -164,3 +165,20 @@ class TestGroupPrice(TestUber):
             attendee.save()
         self.group.save()
         self.assertEqual(self.group.amount_owed, 4 * EARLY_GROUP_PRICE + 4 * LATE_GROUP_PRICE)
+
+
+class TestAttendeePrice(TestUber):
+    def test_all(self):
+        self.assertEqual(SUPPORTER_BADGE_PRICE, Attendee(badge_type = SUPPORTER_BADGE).total_cost)
+        
+        state.PRICE_BUMP = datetime.now() + timedelta(days = 1)
+        self.assertEqual(EARLY_BADGE_PRICE, Attendee(badge_type = ATTENDEE_BADGE).total_cost)
+        
+        state.PRICE_BUMP = datetime.now() - timedelta(days = 1)
+        self.assertEqual(LATE_BADGE_PRICE, Attendee(badge_type = ATTENDEE_BADGE).total_cost)
+        
+        state.EPOCH = datetime.now()
+        self.assertEqual(DOOR_BADGE_PRICE, Attendee(badge_type = ATTENDEE_BADGE).total_cost)
+
+
+

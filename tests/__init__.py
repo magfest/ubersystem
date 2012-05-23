@@ -4,15 +4,28 @@ from creates import classes
 from unittest import TestCase
 from subprocess import check_call
 
+def tearDownModule():
+    cherrypy.engine.exit()
+    for fname in glob("sessions/session-*"):
+        os.remove(fname)
+
 class TestUber(TestCase):
     @classmethod
     def setUpClass(cls):
         command = "python creates.py | mysql -h localhost -u {TEST_USER} --password={TEST_PASS} {TEST_DB}".format(**globals())
         check_call(command, shell=True)
         cls.email = "magfestubersystem-{}@mailinator.com".format(randrange(100000))
+        cherrypy.engine.start()
+        cherrypy.engine.wait(cherrypy.engine.states.STARTED)
+    
+    @classmethod
+    def tearDownClass(cls):
+        cherrypy.engine.stop()
+        cherrypy.engine.wait(cherrypy.engine.states.STOPPED)
     
     def setUp(self):
-        self.prev_state = {k:v for k,v in state.__dict__.items() if re.match("^[_A-Z]+$", k)}
+        self.prev_state = {k:v for k,v in State.__dict__.items()
+                               if not isinstance(v, property) and re.match("^[_A-Z]+$", k)}
         state.HOSTNAME = "localhost:{}".format(PORT)
     
     def tearDown(self):

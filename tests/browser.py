@@ -42,14 +42,14 @@ class TestBrowser(TestUber):
     @classmethod
     def setUpClass(cls):
         super(TestBrowser, cls).setUpClass()
-        cherrypy.engine.start()
         cls.wd = webdriver.Firefox()
     
     @classmethod
     def tearDownClass(cls):
-        cherrypy.engine.stop()
-        cls.wd.quit()
-        super(TestBrowser, cls).tearDownClass()
+        try:
+            cls.wd.quit()
+        finally:
+            super(TestBrowser, cls).tearDownClass()
     
     def setUp(self):
         TestUber.setUp(self)
@@ -495,10 +495,6 @@ class TestPreregCheck(TestBrowser):
 
 class TestGroupAdmin(TestBrowser):
     links = ["Groups", "Add a group"]
-    
-    def tearDown(self):
-        TestBrowser.tearDown(self)
-        Group.objects.all().delete()
     
     def test_required(self):
         self.submit(message = "is a required field")
