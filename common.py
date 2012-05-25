@@ -158,6 +158,8 @@ def send_email(source, dest, subject, body, format = "text", cc = [], bcc = []):
             format = format,
             return_path = source
         )
+    else:
+        log.error("email sending turned off, so unable to send {}", locals())
 
 
 # this is here instead of in badge_funcs.py for import simplicity

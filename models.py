@@ -534,9 +534,9 @@ class Email(MagModel):
 
 class Tracking(MagModel):
     when   = DateTimeField(auto_now_add = True)
-    who    = CharField(max_length = 50)
-    which  = CharField(max_length = 50)
-    model  = CharField(max_length = 50)
+    who    = CharField(max_length = 75)
+    which  = CharField(max_length = 75)
+    model  = CharField(max_length = 25)
     fk_id  = IntegerField()
     action = IntegerField(choices = TRACKING_OPTS)
     data   = TextField()
@@ -588,17 +588,19 @@ class Tracking(MagModel):
             data = data,
         )
 
+Tracking.UNTRACKED = [Tracking, Email]
+
 @receiver(pre_save)
 def update_hook(sender, instance, **kwargs):
-    if instance.id is not None and sender is not Tracking:
+    if instance.id is not None and sender not in Tracking.UNTRACKED:
         Tracking.track(UPDATED, instance)
 
 @receiver(post_save)
 def create_hook(sender, instance, created, **kwargs):
-    if created and sender is not Tracking:
+    if created and sender not in Tracking.UNTRACKED:
         Tracking.track(CREATED, instance)
 
 @receiver(pre_delete)
 def delete_hook(sender, instance, **kwargs):
-    if sender is not Tracking:
+    if sender not in Tracking.UNTRACKED:
         Tracking.track(DELETED, instance)

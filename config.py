@@ -57,6 +57,7 @@ LOGGING_LEVELS = {
     "": INFO,
     "cherrypy.access": INFO,
     "cherrypy.error": DEBUG,
+    "django.db.backends": INFO,
 }
 for logger,level in LOGGING_LEVELS.items():
     logging.getLogger(logger).setLevel(level)

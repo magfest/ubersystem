@@ -51,7 +51,7 @@ Reminder(Group, "Reminder to pay for your MAGFest group", "group_payment_reminde
                                  and g.registered < datetime.now() - timedelta(days = 7))
 
 Reminder(Group, "Last chance to pay for your MAGFest group", "group_payment_reminder.txt",
-         lambda a: g.tables == 0 and g.amount_owed > 0 and g.amount_paid == 0
+         lambda g: g.tables == 0 and g.amount_owed > 0 and g.amount_paid == 0
                                  and g.registered < datetime.now() - timedelta(days = 12))
 
 Reminder(Group, "Your MAGFest Dealer registration has been approved!", "dealer_approved.txt",
