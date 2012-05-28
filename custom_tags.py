@@ -224,16 +224,20 @@ class pages(template.Node):
         self.page, self.count = Variable(page), Variable(count)
     
     def render(self, context):
-        page = self.page.resolve(context)
+        page = int(self.page.resolve(context))
         count = self.count.resolve(context)
         pages = []
         for pagenum in range(1, int(math.ceil(count / 100)) + 1):
             if pagenum == page:
                 pages.append(pagenum)
             else:
-                path = cherrypy.request.request_line.split()[1].split("/")[-1]
-                path = re.sub(r"page=\d+", "page={}".format(pagenum), path)
-                pages.append('<a href="{}">{}</a>'.format("", pagenum))
+                path = cherrypy.request.request_line.split()[1].split("/")[-1]  # TODO: don't parse the entire request line
+                page_qs = "page={}".format(pagenum)
+                if "page=" in path:
+                    path = re.sub(r"page=\d+", page_qs, path)
+                else:
+                    path += ("&" if "?" in path else "?") + page_qs
+                pages.append('<a href="{}">{}</a>'.format(path, pagenum))
         return "Page: " + " ".join(map(str, pages))
 
 def extract_fields(what):

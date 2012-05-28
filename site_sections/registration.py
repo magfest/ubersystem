@@ -79,7 +79,8 @@ class Root:
         
         return {
             "message":  message,
-            "staffers": staffers
+            "staffers": staffers,
+            "order":    Order(order)
         }
     
     def form(self, message="", return_to="", **params):

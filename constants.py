@@ -13,7 +13,7 @@ EARLY_GROUP_PRICE = 30
 LATE_GROUP_PRICE  = 35
 
 class State:
-    SEND_EMAILS = True
+    SEND_EMAILS = False
     AUTO_EMAILS = False
     
     AT_THE_CON = False
@@ -344,10 +344,12 @@ LEVEL_VALUES = {
 CREATED = 0
 UPDATED = 1
 DELETED = 2
+AUTO_BADGE_SHIFT = 3
 TRACKING_OPTS = (
     (CREATED, "created"),
     (UPDATED, "updated"),
     (DELETED, "deleted"),
+    (AUTO_BADGE_SHIFT, "automatic badge-shift"),
 )
 
 EMAIL_RE = re.compile("^[_A-Za-z0-9-]+(\\.[_A-Za-z0-9-+]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*(\\.[_A-Za-z0-9-]+)$")

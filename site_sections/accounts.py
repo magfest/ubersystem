@@ -87,11 +87,11 @@ class Root:
         }
     
     def feed(self, page = "1"):
-        page = int(page)
+        feed = Tracking.objects.exclude(action = AUTO_BADGE_SHIFT).order_by("-id")
         return {
             "page": page,
-            "count": Tracking.objects.count(),
-            "feed": get_page(page, Tracking.objects.order_by("-id"))
+            "count": feed.count(),
+            "feed": get_page(page, feed)
         }
     
     def update(self, password="", **params):

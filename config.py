@@ -63,4 +63,6 @@ for logger,level in LOGGING_LEVELS.items():
     logging.getLogger(logger).setLevel(level)
 
 log = logging.getLogger()
-log.addHandler(logging.FileHandler("uber.log"))
+handler = logging.FileHandler("uber.log")
+handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+log.addHandler(handler)

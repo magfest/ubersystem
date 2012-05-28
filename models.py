@@ -8,10 +8,32 @@ def __repr__(self):
     display = getattr(self, "display", "name" if hasattr(self, "name") else "id")
     return "<{}>".format(" ".join(str(getattr(self, field)) for field in listify(display)))
 
+def field_repr(self, name):
+    val = getattr(self, name)
+    [field] = [f for f in self._meta.fields if f.name == name]
+    s = repr(val)
+    if field.choices:
+        return repr(dict(field.choices)[val])
+    elif isinstance(field, CommaSeparatedIntegerField):     # TODO: standardize naming convention to make this automatic
+        opts = dict({
+            "access": ACCESS_OPTS,
+            "interests": INTEREST_OPTS,
+            "requested_depts": JOB_INTEREST_OPTS,
+            "assigned_depts": JOB_LOC_OPTS,
+        }[name])
+        return repr(val and ",".join(opts[int(opt)] for opt in val.split(",")))
+    elif isinstance(val, long):
+        return s[:-1]
+    elif isinstance(val, unicode):
+        return s[1:]
+    else:
+        return s
+
 class MagModelMeta(base.ModelBase):
     def __new__(cls, name, bases, attrs):
         attrs["Meta"] = type("Meta", (), {"app_label": "", "db_table": name})
         attrs["__repr__"] = __repr__
+        attrs["field_repr"] = field_repr
         if name in ["Group", "Attendee"]:
             attrs["payment_deadline"] = payment_deadline
         return base.ModelBase.__new__(cls, name, (Model,), attrs)
@@ -115,7 +137,7 @@ class Group(MagModel):
             self.amount_owed = self.total_cost
         super(Group, self).save(*args, **kwargs)
     
-    @cached_property
+    @property
     def email(self):
         return self.leader.email
     
@@ -230,6 +252,8 @@ class Attendee(MagModel):
         
         if self.staffing and self.badge_type == ATTENDEE_BADGE and self.ribbon == NO_RIBBON:
             self.ribbon = VOLUNTEER_RIBBON
+        elif self.staffing and self.badge_type == STAFF_BADGE and self.ribbon == VOLUNTEER_RIBBON:
+            self.ribbon = NO_RIBBON
         
         if self.badge_type == STAFF_BADGE or self.ribbon == VOLUNTEER_RIBBON:
             self.staffing = True
@@ -288,18 +312,17 @@ class Attendee(MagModel):
         return self.ribbon == DEALER_RIBBON
     
     @property
-    def full_name(self):
+    def unassigned_name(self):
         if self.group and self.is_unassigned:
             return "[Unassigned {self.badge}]".format(self = self)
-        else:
-            return "{self.first_name} {self.last_name}".format(self = self)
+    
+    @property
+    def full_name(self):
+        return self.unassigned_name or "{self.first_name} {self.last_name}".format(self = self)
     
     @property
     def last_first(self):
-        if self.group and self.is_unassigned:
-            return "[Unassigned {self.badge}]".format(self = self)
-        else:
-            return "{self.last_name}, {self.first_name}".format(self = self)
+        return self.unassigned_name or "{self.last_name}, {self.first_name}".format(self = self)
     
     @property
     def badge(self):
@@ -542,37 +565,30 @@ class Tracking(MagModel):
     data   = TextField()
     
     @classmethod
-    def repr(self, x):
-        s = repr(x)
-        if isinstance(x, long):
-            return s[:-1]
-        elif isinstance(x, unicode):
-            return s[1:]
-        else:
-            return s
-    
-    @classmethod
     def values(cls, instance):
         return {field.name: getattr(instance, field.name) for field in instance._meta.fields}
     
     @classmethod
     def format(cls, values):
-        return ", ".join("{}={}".format(k, cls.repr(v)) for k,v in values.items())
+        return ", ".join("{}={}".format(k, v) for k,v in values.items())
     
     @classmethod
     def track(cls, action, instance):
         if action == CREATED:
-            data = cls.format(cls.values(instance))
+            values = cls.values(instance)
+            data = cls.format({k: instance.field_repr(k) for k in values})
         elif action == UPDATED:
             curr = cls.values(instance)
-            orig = cls.values(instance.__class__.objects.get(id = instance.id))
-            diff = {name: "{} -> {}".format(cls.repr(orig[name]), cls.repr(val))
-                    for name,val in curr.items() if val != orig[name]}
+            orig = instance.__class__.objects.get(id = instance.id)
+            diff = {name: '"{} -> {}"'.format(orig.field_repr(name), instance.field_repr(name))
+                    for name,val in curr.items() if val != getattr(orig, name)}
             data = cls.format(diff)
-            if not data:
+            if len(diff) == 1 and "badge_num" in diff:
+                action = AUTO_BADGE_SHIFT
+            elif not data:
                 return
         else:
-            data = ""
+            data = "id={}".format(instance.id)
         
         try:
             who = Account.objects.get(id = cherrypy.session.get("account_id")).name

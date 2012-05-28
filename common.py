@@ -184,7 +184,7 @@ def affiliates(exclude={"paid":NOT_PAID}):
 
 
 def get_page(page, queryset):
-    return queryset[(page - 1) * 100 : page * 100]
+    return queryset[(int(page) - 1) * 100 : int(page) * 100]
 
 
 
