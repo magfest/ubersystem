@@ -78,7 +78,7 @@ def get_model(klass, params, bools=[], checkgroups=[], restricted=False):
             if isinstance(params[field.name], list):
                 value = ",".join(params[field.name])
             elif isinstance(params[field.name], bool):
-                value = bool(int(params[field.name]))
+                value = params[field.name]
             else:
                 value = str(params[field.name]).strip()
             

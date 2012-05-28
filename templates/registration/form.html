@@ -197,6 +197,8 @@
 <tr>
     <td valign="top"> Staffing </td>
     <td>
+        <!-- TODO: disable staffing checkbox when someone has a staff badge (and volunteer ribbon?) -->
+        <!-- TODO: disable trusted checkbox unless attendee is staffing -->
         {% checkbox staffing attendee %} This attendee is staffing <br/>
         {% checkbox trusted attendee %} Trusted {% popup_link "../static/trustDesc.html" %}
     </td>
