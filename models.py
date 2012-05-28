@@ -9,8 +9,8 @@ def __repr__(self):
     return "<{}>".format(" ".join(str(getattr(self, field)) for field in listify(display)))
 
 def field_repr(self, name):
-    val = getattr(self, name)
     [field] = [f for f in self._meta.fields if f.name == name]
+    val = getattr(self, name)
     s = repr(val)
     if field.choices:
         return repr(dict(field.choices)[val])
@@ -489,6 +489,10 @@ class Shift(MagModel):
     job      = ForeignKey(Job)
     attendee = ForeignKey(Attendee)
     worked   = IntegerField(choices = WORKED_OPTS, default = SHIFT_UNMARKED)
+    
+    @property
+    def name(self):
+        return "{self.attendee.full_name}'s {self.job.name!r} shift".format(self = self)
 
 
 
@@ -560,6 +564,7 @@ class Tracking(MagModel):
     who    = CharField(max_length = 75)
     which  = CharField(max_length = 75)
     model  = CharField(max_length = 25)
+    links  = CharField(max_length = 25)
     fk_id  = IntegerField()
     action = IntegerField(choices = TRACKING_OPTS)
     data   = TextField()
@@ -590,6 +595,12 @@ class Tracking(MagModel):
         else:
             data = "id={}".format(instance.id)
         
+        links = ", ".join(
+            "{}({})".format(field.rel.to.__name__, getattr(instance, field.attname))
+            for field in instance._meta.fields
+            if isinstance(field, ForeignKey) and getattr(instance, field.name)
+        )
+        
         try:
             who = Account.objects.get(id = cherrypy.session.get("account_id")).name
         except:
@@ -599,6 +610,7 @@ class Tracking(MagModel):
             model = instance.__class__.__name__,
             which = repr(instance),
             who = who,
+            links = links,
             fk_id = instance.id,
             action = action,
             data = data,

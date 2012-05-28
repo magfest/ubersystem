@@ -24,9 +24,11 @@ class TestUber(TestCase):
         cherrypy.engine.wait(cherrypy.engine.states.STOPPED)
     
     def setUp(self):
+        print("TestUber.setUp()")
         self.prev_state = {k:v for k,v in State.__dict__.items()
                                if not isinstance(v, property) and re.match("^[_A-Z]+$", k)}
         state.HOSTNAME = "localhost:{}".format(PORT)
+        self.addCleanup(lambda: __import__("sys").stdout.write("cleanup lambda?!\n"))
     
     def tearDown(self):
         for k,v in self.prev_state.items():

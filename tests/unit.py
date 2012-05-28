@@ -181,16 +181,17 @@ class TestAttendeePrice(TestUber):
         self.assertEqual(DOOR_BADGE_PRICE, Attendee(badge_type = ATTENDEE_BADGE).total_cost)
 
 
-class TestUnpaidProgression(TestUber):
+class TestPaymentProgression(TestUber):
     def setUp(self):
         TestUber.setUp(self)
         state.SEND_EMAILS = False
         state.AUTO_EMAILS = True
     
-    def make_group(self):
-        group = TestUber.make_group(self)
+    def make_group(self, **params):
+        group = TestUber.make_group(self, **params)
         self.make_attendee(group = group, paid = PAID_BY_GROUP)
         assign_group_badges(group, 10)
+        return group
     
     def assert_progress(self, days_ago, email_count):
         for model in [Attendee, Group]:
@@ -206,7 +207,7 @@ class TestUnpaidProgression(TestUber):
         else:
             self.assertNotEqual(0, Attendee.objects.count() + Group.objects.count())
     
-    def test_sequence(self):
+    def test_unpaid(self):
         for maker in [self.make_attendee, self.make_group]:
             maker()
             self.assert_progress(0, 0)
@@ -215,3 +216,13 @@ class TestUnpaidProgression(TestUber):
             self.assert_progress(13, 2)
             self.assert_progress(15, 3)
             Email.objects.all().delete()
+    
+    def test_paid_attendee(self):
+        self.make_attendee(paid = HAS_PAID, amount_paid = state.BADGE_PRICE)
+        self.assert_progress(15, 1)
+        self.assertIn("payment received", Email.objects.get().subject)
+    
+    def test_paid_group(self):
+        self.make_group(amount_paid = 10 * state.GROUP_PRICE)
+        self.assert_progress(15, 1)
+        self.assertIn("payment received", Email.objects.get().subject)
