@@ -157,7 +157,7 @@ class Root:
         }
         return render("preregistration/form.html", data)
     
-    if not DEV_BOX and PREREG_NOT_OPEN_YET:
+    if not DEV_BOX and state.PREREG_NOT_OPEN_YET:
         def index(self, message="", *args, **params):
             return """
                 <html><head></head><body style="color:red ; text-align:center">
