@@ -77,12 +77,12 @@ Reminder(Attendee, "MAGFest Panelist Badge Confirmation", "panelist_confirmation
 
 Reminder(Attendee, "MAGFest Volunteer Badge Confirmation", "volunteer_confirmation.txt",
          lambda a: a.placeholder and a.first_name and a.last_name and a.email and a.staffing
-                                 and a.registered.date() > state.STAFFERS_IMPORTED,
+                                 and a.registered > state.STAFFERS_IMPORTED,
          sender = STAFF_EMAIL)
 
 Reminder(Attendee, "Want to staff MAGFest again?", "imported_staffer.txt",
          lambda a: a.placeholder and a.first_name and a.last_name and a.email and a.staffing
-                                 and a.registered.date() <= state.STAFFERS_IMPORTED,
+                                 and a.registered <= state.STAFFERS_IMPORTED,
          sender = STAFF_EMAIL)
 
 Reminder(Attendee, "MAGFest shifts available", "shifts_available.txt",
