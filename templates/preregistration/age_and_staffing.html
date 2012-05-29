@@ -35,7 +35,7 @@
 <tr class="staffing">
     <td> <nobr><b>Want to Volunteer?</b></nobr> </td>
     <td>
-        <input type="checkbox" name="staffing" onClick="staffingClicked()" /> Sign me up! &nbsp;
+        <input type="checkbox" name="staffing" value="1" {% if attendee.staffing %}checked{% endif %} onClick="staffingClicked()" /> Sign me up! &nbsp;
         <span class="popup">{% popup_link "../static/stafferComps.html" "What do I get for volunteering?" %}</span>
     </td>
 </td>
