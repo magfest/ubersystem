@@ -28,11 +28,12 @@ class State:
     DEALER_REG_OPEN = True
     ETCHED_BADGES_ORDERED = False
     
-    SHIFTS_CREATED = datetime(2012, 10, 1)
-    PRICE_BUMP     = datetime(2012, 10, 31, 23, 59)
-    UBER_TAKEDOWN  = datetime(2013, 12, 30, 23, 59)
-    EPOCH          = datetime(2013, 1, 3, 10)
-    ESCHATON       = datetime(2013, 1, 6, 22)
+    STAFFERS_IMPORTED = datetime(2012, 5, 29)
+    SHIFTS_CREATED    = datetime(2012, 10, 1)
+    PRICE_BUMP        = datetime(2012, 10, 31, 23, 59)
+    UBER_TAKEDOWN     = datetime(2013, 12, 30, 23, 59)
+    EPOCH             = datetime(2013, 1, 3, 10)
+    ESCHATON          = datetime(2013, 1, 6, 22)
     
     PATH     = "/magfest"
     HOSTNAME = "magfestubersystem.com"

@@ -10,6 +10,7 @@ class Reminder:
     def __str__(self):
         return "<Email: subject={!r}>".format(self.subject)
     
+    # TODO: pre-query everything to make this fast with a single up-front time... but make sure it gets updated appropriately
     def prev(self, x):
         prev = list(Email.objects.filter(fk_tab=x.__class__.__name__, fk_id=x.id, subject=self.subject).order_by("when"))
         return prev[-1] if prev else None
@@ -76,12 +77,12 @@ Reminder(Attendee, "MAGFest Panelist Badge Confirmation", "panelist_confirmation
 
 Reminder(Attendee, "MAGFest Volunteer Badge Confirmation", "volunteer_confirmation.txt",
          lambda a: a.placeholder and a.first_name and a.last_name and a.email and a.staffing
-                                 and a.registered.date() > STAFFERS_IMPORTED,
+                                 and a.registered.date() > state.STAFFERS_IMPORTED,
          sender = STAFF_EMAIL)
 
 Reminder(Attendee, "Want to staff MAGFest again?", "imported_staffer.txt",
          lambda a: a.placeholder and a.first_name and a.last_name and a.email and a.staffing
-                                 and a.registered.date() <= STAFFERS_IMPORTED,
+                                 and a.registered.date() <= state.STAFFERS_IMPORTED,
          sender = STAFF_EMAIL)
 
 Reminder(Attendee, "MAGFest shifts available", "shifts_available.txt",
