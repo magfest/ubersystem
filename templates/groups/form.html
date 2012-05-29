@@ -14,19 +14,15 @@
 </tr>
 <tr>
     <td> <b>Tables:</b> </td>
-    <td>
-        <select name="tables">
-            {% int_options 0 10 group.tables %}
-        </select>
-    </td>
+    <td> <select name="tables">{% int_options 0 10 group.tables %}</select> </td>
 </tr>
 <tr>
     <td> <b>Badges:</b> </td>
-    <td>
-        <select name="badges">
-            {% int_options 0 MAX_GROUP_SIZE group.badges_purchased %}
-        </select>
-    </td>
+    <td> <select name="badges">{% int_options 0 MAX_GROUP_SIZE group.badges_purchased %}</select> </td>
+</tr>
+<tr {% if attendee.id and not attendee.tables %}style="display:none"{% endif %}>
+    <td> <b>Approved</b> </td>
+    <td> {% checkbox approved group %} Approved (only relevant for dealers) </td>
 </tr>
 <tr>
     <td> <b><nobr>Amount Paid:</nobr></b> </td>
@@ -36,16 +32,12 @@
     <td> <b><nobr>Amount Owed:</nobr></b> </td>
     <td>
         $<input type="text" style="width:4em" name="amount_owed" value="{{ group.amount_owed }}" />
-        <input type="checkbox" name="auto_recalc" value="1" {% if group.auto_recalc %}checked{% endif %} />
-        Automatically recalculate this number.
+        {% checkbox auto_recalc group %} Automatically recalculate this number.
     </td>
 </tr>
 <tr>
     <td> <b><nobr>Can Add Badges:</nobr></b> </td>
-    <td>
-        <input type="checkbox" name="can_add" value="1" {% if group.can_add %}checked{% endif %} />
-        Allow this group to add badges
-    </td>
+    <td> {% checkbox can_add group %} Allow this group to add badges </td>
 </tr>
 <tr>
     <td valign="top"> <b><nobr>Admin Notes:</nobr></b> </td>

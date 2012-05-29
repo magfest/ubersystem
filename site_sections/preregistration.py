@@ -127,8 +127,8 @@ class Root:
                 if attendee.badge_type in [PSEUDO_DEALER_BADGE, PSEUDO_GROUP_BADGE]:
                     if attendee.badge_type == PSEUDO_GROUP_BADGE:
                         group.tables = 0
-                        group.approved = False
                     else:
+                        group.approved = False
                         attendee.ribbon = DEALER_RIBBON
                     
                     group.save()
@@ -212,7 +212,7 @@ class Root:
             if matching.count():
                 message = "You are registered!"
                 a = matching[0]
-                if a.placeholder or a.paid == NOT_PAID or (a.paid == PAID_BY_GROUP and a.group.amount_paid != a.group.amount_owed):
+                if a.placeholder or a.paid == NOT_PAID or (a.paid == PAID_BY_GROUP and a.group.amount_paid != a.group.amount_owed and a.group.approved):
                     attendee = matching[0]
             else:
                 message = "No attendee matching that name and zip code is in the database (try nicknames before giving up)"

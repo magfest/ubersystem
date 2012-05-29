@@ -17,7 +17,7 @@ class Root:
                 PasswordReset.objects.filter(generated__lt = datetime.now() - timedelta(days=7)).delete()
                 if not valid_password(params["password"], account):
                     message = "Incorrect password"
-            except:
+            except Account.DoesNotExist:
                 message = "No account exists for that email address"
             
             if not message:

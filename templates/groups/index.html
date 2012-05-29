@@ -34,17 +34,25 @@
 
 <table class="list">
 <tr class="header">
-    <td width="30%" style="text-align:left"> <a class="sortlink" href="index?show={{ show }}&order={{ order.name }}">Name</a> </td>
-    <td width="10%"> <a href="index?show={{ show }}&order={{ order.badges }}">Badges</a>{% popup_link "../static/badgeCounts.html" %} </td>
-    <td width="10%"> <a href="index?show={{ show }}&order={{ order.tables }}">Tables</a> </td>
-    <td width="10%"> <a href="index?show={{ show }}&order={{ order.amount_owed }}">Owed</a> </td>
-    <td width="10%"> <a href="index?show={{ show }}&order={{ order.amount_paid }}">Paid</a> </td>
+    <td width="25%" style="text-align:left"> <a class="sortlink" href="index?show={{ show }}&order={{ order.name }}">Name</a> </td>
+    <td width="15%"> <a href="index?show={{ show }}&order={{ order.badges }}">Badges</a>{% popup_link "../static/badgeCounts.html" %} </td>
+    <td width="15%"> <a href="index?show={{ show }}&order={{ order.tables }}">Tables</a> </td>
+    <td width="15%"> <a href="index?show={{ show }}&order={{ order.approved }}">Approved</a> </td>
+    <td width="15%"> <a href="index?show={{ show }}&order={{ order.amount_owed }}">Owed</a> </td>
+    <td width="15%"> <a href="index?show={{ show }}&order={{ order.amount_paid }}">Paid</a> </td>
 </tr>
 {% for group in groups %}
     <tr bgcolor="{% cycle #FFFFFF,#EEEEEE %}">
         <td style="text-align:left"> <a href="form?id={{ group.id }}">{{ group.name|default:"?????" }}</a> </td>
         <td> {{ group.badges_purchased }} / {{ group.badges }} </td>
         <td> {{ group.tables }} </td>
+        <td>
+            {% if group.tables %}
+                {{ group.approved|yesno:"approved,unapproved" }}
+            {% else %}
+                n/a
+            {% endif %}
+        </td>
         <td> ${{ group.amount_owed }} </td>
         <td> ${{ group.amount_paid }} </td>
     </tr>

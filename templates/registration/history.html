@@ -4,8 +4,11 @@
 
 {% include "registration/menu.html" %}
 
+<h2> {{ attendee.full_name }} changelog </h2>
+
 <table class="list">
 <tr class="header">
+    <td>Which</td>
     <td>What</td>
     <td>When</td>
     <td>Who</td>
@@ -13,6 +16,7 @@
 </tr>
 {% for tracked in changes %}
     <tr>
+        <td style="white-space:nowrap">{{ tracked.model }}</td>
         <td style="white-space:nowrap">{{ tracked.get_action_display }}</td>
         <td style="white-space:nowrap">{{ tracked.when }}</td>
         <td style="white-space:nowrap">{{ tracked.who }}</td>
