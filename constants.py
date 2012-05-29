@@ -85,7 +85,7 @@ STAFF_EMAIL = "Jack Boyd <stops@magfest.org>"
 REG_EMAILS = [ADMIN_EMAIL]
 PAYMENT_BCC = [ADMIN_EMAIL]
 
-CONSENT_FORM_URL  = state.URL_BASE + "/static/MXMinorConsentForm.pdf"
+CONSENT_FORM_URL  = state.URL_BASE + "/static/MinorConsentForm.pdf"
 
 PAYPAL_RETURN_URL = "http://magfest.org/prereg-complete"
 if DEV_BOX:
