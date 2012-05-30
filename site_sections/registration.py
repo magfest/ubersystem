@@ -115,7 +115,7 @@ class Root:
                 message = check(attendee)
             
             if not message:
-                message = change_badge(attendee, params["newnum"] if preassigned else 0)
+                message = change_badge(attendee)
                 raise HTTPRedirect("form?id={}&message={}", attendee.id, message)
         
         return {
