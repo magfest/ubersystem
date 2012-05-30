@@ -69,8 +69,8 @@ class Root:
             "attendees":      attendees,
             "order":          Order(order),
             "attendee_count": total_count,
-            "checkin_count":  Attendee.objects.exclude(checked_in__isnull=True).count(),
-            "attendee":       Attendee.objects.get(id=uploaded_id) if uploaded_id else None
+            "checkin_count":  Attendee.objects.exclude(checked_in__isnull = True).count(),
+            "attendee":       Attendee.objects.get(id = uploaded_id) if uploaded_id else None
         }
     
     def staffers(self, message="", order="first_name"):

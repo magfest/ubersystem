@@ -242,9 +242,9 @@ class TestBadgeChange(TestUber):
         finally:
             TestUber.tearDown(self)
     
-    def change_badge(self, attendee, new_type, new_num = "", expected_num = None):
-        attendee.badge_type = new_type
-        change_badge(attendee, new_num)
+    def change_badge(self, attendee, new_type, new_num = 0, expected_num = None):
+        attendee.badge_type, attendee.badge_num = new_type, new_num
+        change_badge(attendee)
         self.assertEqual(Attendee.objects.get(id = attendee.id).badge_num, new_num if expected_num is None else expected_num)
     
     def assert_ranges(self, staff_badges, supporter_badges):
@@ -313,6 +313,11 @@ class TestInternalBadgeChange(TestBadgeChange):
     
     def test_middle_down(self):
         self.change_badge(self.staff_four, STAFF_BADGE, 2)
+    
+    def test_self_assignment(self):
+        self.change_badge(self.staff_one,   STAFF_BADGE, 1)
+        self.change_badge(self.staff_three, STAFF_BADGE, 3)
+        self.change_badge(self.staff_five,  STAFF_BADGE, 5)
 
 class TestPreassignedBadgeDeletion(TestBadgeChange):
     end_ranges = ([1,2,3,4], [600,601,602,603,604])
