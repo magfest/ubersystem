@@ -6,11 +6,13 @@ if sys.argv[0].endswith("nosetests") or "TESTING" in os.environ:
     PORT = 1234
     AUTORELOAD = False
     DBUSER, DBPASS, DBNAME = TEST_DB, TEST_USER, TEST_PASS
-    state.HOSTNAME = "localhost:{}".format(PORT)
 else:
     PORT = 4321
     AUTORELOAD = True
     DBUSER, DBPASS, DBNAME = ["m11"] * 3
+
+if DEV_BOX:
+    state.HOSTNAME = "localhost:{}".format(PORT)
 
 cherrypy.config.update({
     "engine.autoreload.on": AUTORELOAD,

@@ -41,7 +41,7 @@
                 &nbsp;&nbsp;&nbsp;&nbsp;
             </td>
             <td>
-                {% if not forloop.first and attendee.badge_type in CAN_UNSET %}
+                {% if attendee != group.leader %}
                     <form method="post" action="unset_group_member">
                     <input type="hidden" name="id" value="{{ attendee.id|obfuscated }}" />
                     <input type="submit" value="This person isn't coming" />

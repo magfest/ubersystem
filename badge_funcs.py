@@ -9,7 +9,7 @@ def next_badge_num(badge_type):
 
 def change_badge(attendee, new_num):
     with BADGE_LOCK:
-        old_num = attendee.badge_num
+        old_num = int(attendee.badge_num)
         old_type = Attendee.objects.get(id = attendee.id).badge_type
         new_num = int(new_num) if str(new_num).isdigit() else maxint
         out_of_range = check_range(new_num, attendee.badge_type)
@@ -30,12 +30,12 @@ def change_badge(attendee, new_num):
             attendee.badge_num = 0
             attendee.save()
             if old_num != 0:
-                shift_badges(old_type, old_num, down=True)
+                shift_badges(old_type, old_num, down = True)
             
             next = next_badge_num(attendee.badge_type)
             if new_num <= next:
                 attendee.badge_num = new_num
-                shift_badges(attendee.badge_type, new_num, down=False)
+                shift_badges(attendee.badge_type, new_num, down = False)
                 attendee.save()
             else:
                 attendee.badge_num = next

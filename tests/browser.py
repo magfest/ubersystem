@@ -156,13 +156,13 @@ class TestBrowser(TestUber):
         e = self.wait_for(css_selector, context, *args, **kwargs)
         e.click()
         if e.tag_name == "input":
-            e.send_keys(Keys.LEFT * 25 + Keys.DELETE * 25 + text)
+            e.send_keys(Keys.LEFT * 25 + Keys.DELETE * 25 + str(text))
         elif e.tag_name == "select":
             e.click()
-            self.find_with_text(text, "option", context = e).click()
+            self.find_with_text(str(text), "option", context = e).click()
     
     def select(self, text, css_selector, context=None, *args, **kwargs):
-        self.send_keys(str(text) + "\n", css_selector, context, *args, **kwargs)
+        self.send_keys(text, css_selector, context, *args, **kwargs)
     
     def check(self, target, args, kwargs):
         if hasattr(target, "__call__"):
@@ -329,7 +329,7 @@ class TestAddAttendee(TestBrowser):
     def test_group_required(self):
         g = self.make_group()
         self.wd.refresh()
-        self.select(g.name + "\n", "group_opt")
+        self.select(g.name, "group_opt")
         self.submit(page = "index", message = "has been uploaded")
     
     def test_success(self):
@@ -352,7 +352,7 @@ class TestAddAttendeeAtTheCon(TestBrowser):
     
     def test_required(self):
         self.submit(message = "Badge Number")
-        self.enter_fields("badge_num")
+        self.enter_fields(badge_num = next_badge_num(ATTENDEE_BADGE))
         self.submit(message = "First Name and Last Name")
         self.enter_fields("first_name", "last_name")
         self.submit(message = "age")
@@ -523,7 +523,7 @@ class TestGroupAdmin(TestBrowser):
         self.test_dealer(badges = 2)
         self.assertEqual(2, Attendee.objects.count())
         self.click_link("Test Group")
-        self.enter_fields(badges = "0\n1")      # TODO: fix select to make this unnecessary
+        self.enter_fields(badges = 1)
         self.submit("index", text = "Upload")
         self.assertEqual(1, Attendee.objects.count())
     
@@ -559,7 +559,7 @@ class TestGroupAdmin(TestBrowser):
 
 class TestGroupAssignments(TestBrowser):
     def setUp(self):
-        self.group = Group.objects.create(name = "Test Group", tables = 0)
+        self.group = self.make_group()
         self.make_attendee(group = self.group)
         assign_group_badges(self.group, 10)
         self.start_page = state.URL_BASE + "/preregistration/group_members?id=" + obfuscate(self.group.id)
@@ -569,13 +569,13 @@ class TestGroupAssignments(TestBrowser):
         self.wait_for_text("Register someone for this badge", "a").click()
         self.enter_fields(*self.ATTENDEE_REQUIRED)
         self.submit(message = "Badge registered successfully")
-        self.find_with_text("Test test_", "td")
+        self.find_with_text("Test " + self._testMethodName, "td")
     
     def test_unassign(self):
         self.test_assign()
-        self.find_with_value("This person isn't coming", "input").click()
+        self.wait_for_value("This person isn't coming", "input").click()
         self.assert_message("Attendee unset")
-        self.assertRaises(Exception, self.find_with_text, "Test test_", "td")
+        self.assertRaises(Exception, self.find_with_text, "Test " + self._testMethodName, "td")
 
 
 class TestPrereg(TestBrowser):
@@ -670,7 +670,7 @@ def exit():
     finally:
         sys.exit(0)
 
-class Test(TestLogin):
+class Test(TestGroupAssignments):
     def __init__(self):
         unittest.TestCase.__init__(self, "__init__")
         self.setUpClass()
