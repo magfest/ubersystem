@@ -27,19 +27,17 @@ def change_badge(attendee, new_num):
             attendee.badge_num = new_num
             attendee.save()
         else:
-            attendee.badge_num = 0
-            attendee.save()
             if old_num != 0:
-                shift_badges(old_type, old_num, down = True)
+                shift_badges(old_type, old_num, down = True, exclude = attendee.id)
             
             next = next_badge_num(attendee.badge_type)
             if new_num <= next:
                 attendee.badge_num = new_num
-                shift_badges(attendee.badge_type, new_num, down = False)
-                attendee.save()
+                shift_badges(attendee.badge_type, new_num, down = False, exclude = attendee.id)
             else:
                 attendee.badge_num = next
-                attendee.save()
+            
+            attendee.save()
         
         if state.AT_THE_CON or new_num <= next or new_num == maxint:
             return "Badge updated"
@@ -47,14 +45,15 @@ def change_badge(attendee, new_num):
             return "That badge number was too high, so the next available badge was assigned instead"
 
 
-def shift_badges(badge_type, badge_num, down):
+def shift_badges(badge_type, badge_num, down, exclude):
     if state.AT_THE_CON:
         return
     
     with BADGE_LOCK:
         shift = -1 if down else 1
         order = "badge_num" if down else "-badge_num"
-        for attendee in Attendee.objects.filter(badge_type=badge_type, badge_num__gte=badge_num).exclude(badge_num=0).order_by(order):
+        for attendee in Attendee.objects.filter(badge_type = badge_type, badge_num__gte = badge_num) \
+                                        .exclude(badge_num = 0).exclude(id = exclude).order_by(order):
             attendee.badge_num += shift
             attendee.save()
 

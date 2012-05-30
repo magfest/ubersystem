@@ -284,7 +284,7 @@ class Attendee(MagModel):
         with BADGE_LOCK:
             badge_num = Attendee.objects.get(id = self.id).badge_num
             super(Attendee, self).delete(*args, **kwargs)
-            badge_funcs.shift_badges(self.badge_type, badge_num, down=True)
+            badge_funcs.shift_badges(self.badge_type, badge_num, down = True, exclude = self.id)
     
     @classmethod
     def staffers(cls):
