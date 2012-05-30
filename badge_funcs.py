@@ -9,6 +9,7 @@ def next_badge_num(badge_type):
 
 def change_badge(attendee):
     with BADGE_LOCK:
+        new = attendee.badge_num
         old = Attendee.objects.get(id = attendee.id)
         out_of_range = check_range(attendee.badge_num, attendee.badge_type)
         if out_of_range:
@@ -21,6 +22,13 @@ def change_badge(attendee):
             existing = Attendee.objects.filter(badge_type = attendee.badge_type, badge_num = attendee.badge_num)
             if existing and attendee.badge_num:
                 return "That badge number already belongs to {!r}".format(existing[0].full_name)
+        elif old.badge_num and old.badge_type == attendee.badge_type:
+            next = next_badge_num(attendee.badge_type) - 1
+            attendee.badge_num = min(attendee.badge_num or maxint, next)
+            if old.badge_num < attendee.badge_num:
+                shift_badges(old, down = True, until = attendee.badge_num)
+            else:
+                shift_badges(attendee, down = False, until = old.badge_num)
         else:
             if old.badge_num:
                 shift_badges(old, down = True)
@@ -32,7 +40,7 @@ def change_badge(attendee):
                 attendee.badge_num = next
         
         attendee.save()
-        if state.AT_THE_CON:    # or new_num <= next
+        if state.AT_THE_CON or new <= next:
             return "Badge updated"
         else:
             return "That badge number was too high, so the next available badge was assigned instead"
@@ -45,7 +53,7 @@ def shift_badges(attendee, down, until = maxint):
     with BADGE_LOCK:
         shift = -1 if down else 1
         for a in Attendee.objects.filter(badge_type = attendee.badge_type, badge_num__gte = attendee.badge_num) \
-                                 .exclude(badge_num = 0).exclude(id = attendee.id).exclude(badge_num__gt = maxint):
+                                 .exclude(badge_num = 0).exclude(id = attendee.id).exclude(badge_num__gt = until):
             a.badge_num += shift
             a.save()
 
