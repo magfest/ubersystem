@@ -670,7 +670,7 @@ def exit():
     finally:
         sys.exit(0)
 
-class Test(TestPrereg):
+class Test(TestLogin):
     def __init__(self):
         unittest.TestCase.__init__(self, "__init__")
         self.setUpClass()

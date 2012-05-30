@@ -6,6 +6,7 @@ if sys.argv[0].endswith("nosetests") or "TESTING" in os.environ:
     PORT = 1234
     AUTORELOAD = False
     DBUSER, DBPASS, DBNAME = TEST_DB, TEST_USER, TEST_PASS
+    state.HOSTNAME = "localhost:{}".format(PORT)
 else:
     PORT = 4321
     AUTORELOAD = True
@@ -45,6 +46,7 @@ django.conf.settings.configure(
 appconf = {
     "/": {
         "tools.proxy.on": True,
+        "tools.proxy.base": "http://{}".format(state.HOSTNAME),
         "tools.staticdir.root": os.getcwd()
     },
     "/static": {
