@@ -588,7 +588,7 @@ class Tracking(MagModel):
             diff = {name: '"{} -> {}"'.format(orig.field_repr(name), instance.field_repr(name))
                     for name,val in curr.items() if val != getattr(orig, name)}
             data = cls.format(diff)
-            if len(diff) == 1 and "badge_num" in diff:
+            if len(diff) == 1 and "badge_num" in diff:  # TODO: check for badge number only being different by 1
                 action = AUTO_BADGE_SHIFT
             elif not data:
                 return
@@ -601,6 +601,7 @@ class Tracking(MagModel):
             if isinstance(field, ForeignKey) and getattr(instance, field.name)
         )
         
+        # TODO: make "paypal callback" one of the who options
         try:
             who = Account.objects.get(id = cherrypy.session.get("account_id")).name
         except:
