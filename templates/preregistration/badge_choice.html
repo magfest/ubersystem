@@ -57,7 +57,7 @@
     <td>
         <ul>
             <li> All-access, four-day pass </li>
-            {% if datetime.now.month == state.PRICE_BUMP.month %}
+            {% if now < state.PRICE_BUMP %}
                 <li style="color:red"> Price goes up to ${{ LATE_BADGE_PRICE }} at 11:59pm on {{ state.PRICE_BUMP|datetime:"%A, %b %e" }} </li>
             {% endif %}
             {% if state.BADGE_PRICE == LATE_BADGE_PRICE %}
@@ -77,7 +77,7 @@
         <ul>
             <li> All attendee benefits, plus: </li>
             <li> a tshirt and bag full of cool swag </li>
-            {% if datetime.now.month == 11 %}
+            {% if now.month == 11 or now.month == 12 %}
                 <li style="color:red"> Supporter preregistration closes at 11:59pm on Sunday, December 2. </li>
             {% endif %}
         </ul>
@@ -100,7 +100,7 @@
         <ul>
             <li> Save money when you register eight or more people at once </li>
             <li> ${{ state.GROUP_PRICE }} per person </li>
-            {% if datetime.now.month == state.PRICE_BUMP.month %}
+            {% if now < state.PRICE_BUMP %}
                 <li style="color:red"> Price goes up to ${{ LATE_GROUP_PRICE }} at 11:59pm on {{ state.PRICE_BUMP|datetime:"%A, %b %e" }} </li>
             {% endif %}
             {% if state.GROUP_PRICE == LATE_GROUP_PRICE %}

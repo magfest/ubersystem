@@ -28,11 +28,14 @@ def show_queries(func):
 
 
 constant_fields = {attrname: attr for attrname,attr in constants.__dict__.items() if re.match("^[_A-Z0-9]*$",attrname)}
-def render(template, data=None):
+def render(template, data = None):
     data = {} if data is None else data
     data.update(constant_fields)
-    data["state"] = state
-    data["PAGE"] = cherrypy.request.path_info.split("/")[-1]
+    data.update({
+        "state": state,
+        "now":   datetime.now(),
+        "PAGE":  cherrypy.request.path_info.split("/")[-1]
+    })
     
     from models import Account
     access = Account.access_set()
