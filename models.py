@@ -601,11 +601,15 @@ class Tracking(MagModel):
             if isinstance(field, ForeignKey) and getattr(instance, field.name)
         )
         
-        # TODO: make "paypal callback" one of the who options
         try:
             who = Account.objects.get(id = cherrypy.session.get("account_id")).name
         except:
-            who = current_thread().name if current_thread().daemon else "non-admin"
+            if current_thread().daemon:
+                who = current_thread().name
+            elif cherrypy.request.path_info.endswith("/preregistration/callback"):
+                who = "Paypal callback"
+            else:
+                who = "non-admin"
         
         return Tracking.objects.create(
             model = instance.__class__.__name__,

@@ -139,6 +139,10 @@ class TestPaypalCallback(TestUber):
                                    item_number = ",".join([self.attendee_id, self.group_id]),
                                    cost = self.group.amount_owed + self.attendee.total_cost + 10)
         self.assert_paid(True, self.attendee, self.group)
+    
+    def test_callback_tracking(self):
+        self.test_attendee_success()
+        self.assertEqual("Paypal callback", Tracking.objects.order_by("-id")[0].who)
 
 
 class TestGroupPrice(TestUber):
