@@ -41,9 +41,10 @@ class TestPaypalCallback(TestUber):
             setattr(preregistration, func, getattr(self, func))
         TestUber.tearDown(self)
     
-    def callback(self, cost=None, item_number=None, status="completed"):
+    def callback(self, cost=None, item_number=None, status="completed", reason=""):
         return requests.post(state.URL_BASE + "/preregistration/callback", data = {
             PAYPAL_STATUS: status,
+            PAYPAL_REASON: reason,
             PAYPAL_ITEM: item_number or self.attendee_id,
             PAYPAL_COST: str(cost or state.BADGE_PRICE)
         }).text
@@ -81,7 +82,15 @@ class TestPaypalCallback(TestUber):
         self.assert_paid(False, self.attendee)
     
     def test_attendee_incomplete(self):
-        self.assert_callback("ok", "Paypal callback incomplete", status = "pending")
+        self.assert_callback("ok", "Paypal callback incomplete: pending", status = "pending")
+        self.assert_paid(False, self.attendee)
+    
+    def test_attendee_payment_review(self):
+        self.assert_callback("ok", "Paypal callback incomplete: pending payment review", status = "pending", reason = "paymentreview")
+        self.assert_paid(False, self.attendee)
+    
+    def test_attendee_reversed(self):
+        self.assert_callback("ok", "Paypal callback incomplete: reversed", status = "Reversed")
         self.assert_paid(False, self.attendee)
     
     def test_attendee_underpaid(self):

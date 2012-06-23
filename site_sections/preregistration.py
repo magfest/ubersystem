@@ -178,10 +178,14 @@ class Root:
         
         try:
             payment_error = check_payment(body)
+            status = params.get(PAYPAL_STATUS, "").lower()
             if payment_error:
                 send_callback_email("Paypal callback unverified", dict(params, payment_error = payment_error))
-            elif params[PAYPAL_STATUS].lower() != "completed":
-                send_callback_email("Paypal callback incomplete", params)
+            elif status != "completed":
+                subject = "Paypal callback incomplete: " + status
+                if status == "pending" and params.get(PAYPAL_REASON, "").lower() == "paymentreview":
+                    subject += " payment review"
+                send_callback_email(subject, params)
             else:
                 ids = parse_ids(params.get(PAYPAL_ITEM, ""))
                 if not ids or ids["unknown"]:

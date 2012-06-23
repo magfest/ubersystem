@@ -364,3 +364,4 @@ DEFAULT_AFFILIATES    = ["OC ReMix", "The Shizz", "ScrewAttack", "Empire Arcadia
 PAYPAL_ITEM = "item_number"
 PAYPAL_COST = "mc_gross"
 PAYPAL_STATUS = "payment_status"
+PAYPAL_REASON = "pending_reason"
