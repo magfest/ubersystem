@@ -1,9 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Recently Sent Reminder Emails{% endblock %}
 {% block content %}
-{% with 1 as page %}
-    {% include "emails/menu.html" %}
-{% endwith %}
 
 <table class="list">
 <tr class="header">
@@ -15,10 +12,7 @@
     <tr>
         <td>{{ email.when }}</td>
         <td>{{ email.subject }}</td>
-        <td>
-            {{ email.dest }}
-            (<a href="sent?dest={{ email.dest }}">{{ email.count }} email{{ email.count|pluralize }}</a>)
-        </td>
+        <td><a href="sent?dest={{ email.dest }}">{{ email.dest }}</a></td>
     </tr>
 {% endfor %}
 </table>

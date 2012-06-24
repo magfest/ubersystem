@@ -8,7 +8,7 @@
 
 {% for email in emails  %}
     <h3> {{ email.subject }} ({{ email.when }}) </h3>
-    <pre>{{ email.body }}</pre>
+    <div style="font-family:courier">{{ email.html }}</div>
 {% endfor %}
 
 {% endblock %}

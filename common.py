@@ -13,6 +13,7 @@ from urllib import quote
 from pprint import pformat
 from urllib2 import urlopen
 from functools import wraps
+from xml.dom import minidom
 from random import randrange
 from itertools import groupby
 from urlparse import parse_qsl

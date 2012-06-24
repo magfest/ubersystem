@@ -124,9 +124,11 @@ class Root:
         }
     
     def history(self, id):
+        attendee = Attendee.objects.get(id = id)
         Tracking.objects.filter(links__contains = "Attendee({})".format(id))
         return {
-            "attendee": Attendee.objects.get(id = id),
+            "attendee": attendee,
+            "emails":   Email.objects.filter(dest = attendee.email).order_by("when"),
             "changes":  Tracking.objects.filter(Q(model = "Attendee", fk_id = id)
                                               | Q(links__contains = "Attendee({})".format(id))).order_by("when")
         }

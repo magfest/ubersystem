@@ -23,5 +23,13 @@
         <td>{{ tracked.data }}</td>
     </tr>
 {% endfor %}
+</table>
+
+<h2> Automated Emails </h2>
+
+{% for email in emails  %}
+    <h3> {{ email.subject }} ({{ email.when }}) </h3>
+    <div style="font-family:courier">{{ email.html }}</div>
+{% endfor %}
 
 {% endblock %}

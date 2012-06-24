@@ -556,7 +556,12 @@ class Email(MagModel):
         else:
             return self.fk.full_name
     
-    count = 0   # TODO: replace this with something more efficient
+    @property
+    def html(self):
+        if "<body>" in self.body:
+            return SafeString(self.body.split("<body>")[1].split("</body>")[0])
+        else:
+            return SafeString(self.body.replace("\n", "<br/>"))
 
 
 class Tracking(MagModel):
