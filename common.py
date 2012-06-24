@@ -147,7 +147,7 @@ def hour_day_format(dt):
 
 
 def send_email(source, dest, subject, body, format = "text", cc = [], bcc = []):
-    if state.SEND_EMAILS:
+    if state.SEND_EMAILS and (not DEV_BOX or dest.endswith("mailinator.com")):
         SESConnection(AWS_ACCESS_KEY_ID, AWS_SECRET_KEY).send_email(
             subject = subject,
             body = body,
