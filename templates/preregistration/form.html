@@ -6,6 +6,7 @@
 <script type="text/javascript">
     function badgeChanged() {
         var badge_type = parseInt($("[name=badge_type]:checked").val());
+        $("#phone").css("font-weight", badge_type === {{ PSEUDO_DEALER_BADGE }} ? "bold" : "normal");
         if( badge_type === {{ PSEUDO_DEALER_BADGE }} || badge_type === {{ PSEUDO_GROUP_BADGE }} ) {
             $(".single").hide();
             $(".multiple").show();
@@ -18,6 +19,8 @@
             $.focus("first_name");
         }
         setVisible(".supporter", badge_type === {{ SUPPORTER_BADGE }});
+        setVisible(".staffing",  badge_type !== {{ PSEUDO_DEALER_BADGE }});
+        staffingClicked(true);
         
         var badges = $.field("badges")[0].options;
         if( badge_type === {{ PSEUDO_GROUP_BADGE }} && badges[0].value == 1 ) {
@@ -123,10 +126,42 @@
         <span class="group">(${{ state.GROUP_PRICE }} each)</span>
     </td>
 </tr>
+<tr class="dealer" style="display: none">
+    <td valign="top">
+        <b>Address</b>
+        <br/> <i>For tax purposes</i>
+    </td>
+    <td> <textarea name="address" rows="3" cols="30">{{ group.address }}</textarea> </td>
+</tr>
+<tr class="dealer" style="display: none">
+    <td valign="top">
+        <b>What do you sell?</b>
+        <br/> <i>Please be detailed.</i>
+    </td>
+    <td> <textarea name="wares" rows="3" cols="30">{{ group.wares }}</textarea> </td>
+</tr>
+<tr class="dealer" style="display: none">
+    <td> <b>Website URL</b> </td>
+    <td> <input type="text" name="website" value="{{ group.website }}" size="40" /> </td>
+</tr>
+<tr class="dealer" style="display: none">
+    <td>
+        <b>Brief Description</b>
+        <br/> <i>We put approved vendor URLs and descriptions on our website.</i>
+    </td>
+    <td> <textarea name="description" rows="3" cols="30">{{ group.description }}</textarea> </td>
+</tr>
+<tr class="dealer" style="display: none">
+    <td>
+        <b>Special Needs / Requests</b>
+        <br/> <i>No guarantees that we can accommodate any requests.</i>
+    </td>
+    <td> <textarea name="special_needs" rows="3" cols="30">{{ group.special_needs }}</textarea> </td>
+</tr>
 <tr>
     <td> <b><nobr>First and Last Name:</nobr></b> </td>
     <td>
-        <input type="text" style="width:10em" name="first_name" value="{{ attendee.first_name }}" class="focus" />
+        <input type="text" style="width:10em" name="first_name" value="{{ attendee.first_name }}" />
         <input type="text" style="width:15em" name="last_name"  value="{{ attendee.last_name }}" />
     </td>
 </tr>
@@ -178,7 +213,7 @@
     </td>
 </tr>
 <tr>
-    <td> <i>Your</i> Phone Number: </td>
+    <td id="phone"> <i>Your</i> Phone Number: </td>
     <td> <input type="text" name="phone" value="{{ attendee.phone }}" /> </td>
 </tr>
 <tr>

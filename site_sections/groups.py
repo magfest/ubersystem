@@ -27,7 +27,7 @@ class Root:
         }
     
     def form(self, message="", **params):
-        group = get_model(Group, params, bools=["auto_recalc","can_add","approved"])
+        group = get_model(Group, params, bools=["auto_recalc","can_add"])
         if "name" in params:
             message = check(group)
             if not message:
@@ -39,6 +39,20 @@ class Root:
             "message": message,
             "group":   group
         }
+    
+    def unapprove(self, id, action, email):
+        assert action in ["waitlisted", "rejected"]
+        group = Group.objects.get(id = id)
+        subject = "Your MAGFest Dealer registration has been " + action
+        Email.objects.create(fk_tab = "Group", fk_id = group.id, dest = group.email, subject = subject, body = email)
+        send_email(MARKETPLACE_EMAIL, group.email, subject, email)
+        if action == "waitlisted":
+            group.status = WAITLISTED
+            group.save()
+        else:
+            group.attendee_set.all().delete()
+            group.delete()
+        return "ok"
     
     def delete(self, id):
         group = Group.objects.get(id=id)

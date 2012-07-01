@@ -1,8 +1,10 @@
 from common import *
 
-def check_age(attendee):
+def check_prereg_reqs(attendee):
     if attendee.age_group == AGE_UNKNOWN:
         return "You must select an age category"
+    elif attendee.badge_type == PSEUDO_DEALER_BADGE and not attendee.phone:
+        return "Your phone number is required"
 
 def check_payment(qs):
     resp = urlopen(PAYPAL_ACTION + "?cmd=_notify-validate&" + qs).read().lower()
@@ -11,8 +13,17 @@ def check_payment(qs):
 
 def check_tables(attendee, group, params):
     if attendee.badge_type == PSEUDO_DEALER_BADGE and group.tables < int(params["badges"]) // 3:
-        message = "You must get 1 table per 3 badges"
+        return "You must get 1 table per 3 badges"
 
+def check_dealer(group):
+    if not group.address:
+        return "Dealers are required to provide an address for tax purposes"
+    elif not group.wares:
+        return "You must provide a detail explanation of what you sell for us to evaluate your submission"
+    elif not group.website:
+        return "Please enter your business' website address"
+    elif not group.description:
+        return "Please provide a brief description of your business for our website's Confirmed Vendors page"
 
 
 def cost_and_names(preregs):
@@ -119,16 +130,17 @@ class Root:
         if "first_name" in params:
             assert attendee.badge_type in state.PREREG_BADGE_TYPES, "No hacking allowed!"
             
-            message = check(attendee) or check_age(attendee)
+            message = check(attendee) or check_prereg_reqs(attendee)
             if not message and attendee.badge_type in [PSEUDO_DEALER_BADGE, PSEUDO_GROUP_BADGE]:
                 message = check(group) or check_tables(attendee, group, params)
+            if not message and attendee.badge_type == PSEUDO_DEALER_BADGE:
+                message = check_dealer(group)
             
             if not message:
                 if attendee.badge_type in [PSEUDO_DEALER_BADGE, PSEUDO_GROUP_BADGE]:
                     if attendee.badge_type == PSEUDO_GROUP_BADGE:
                         group.tables = 0
                     else:
-                        group.approved = False
                         attendee.ribbon = DEALER_RIBBON
                     
                     group.save()
@@ -146,7 +158,7 @@ class Root:
                 message = send_prereg_emails(attendee)
                 raise HTTPRedirect("index?message={}", message)
         else:
-            attendee.can_spam = True    # only defaults to true for this form
+            attendee.can_spam = True    # only defaults to true for these forms
         
         data = {
             "message":    message,
@@ -251,7 +263,7 @@ class Root:
                 attendee.save()
                 raise HTTPRedirect("group_members?id={}&message={}", obfuscate(attendee.group.id), "Badge registered successfully")
         else:
-            attendee.can_spam = True    # only defaults to true for this form
+            attendee.can_spam = True    # only defaults to true for these forms
         
         return {
             "attendee": attendee,

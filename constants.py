@@ -28,12 +28,13 @@ class State:
     DEALER_REG_OPEN = True
     ETCHED_BADGES_ORDERED = False
     
-    STAFFERS_IMPORTED = datetime(2012, 5, 29)
-    SHIFTS_CREATED    = datetime(2012, 10, 1)
-    PRICE_BUMP        = datetime(2012, 10, 31, 23, 59)
-    UBER_TAKEDOWN     = datetime(2013, 12, 30, 23, 59)
-    EPOCH             = datetime(2013, 1, 3, 10)
-    ESCHATON          = datetime(2013, 1, 6, 22)
+    STAFFERS_IMPORTED  = datetime(2012, 5, 29)
+    SHIFTS_CREATED     = datetime(2012, 10, 1)
+    PRICE_BUMP         = datetime(2012, 10, 31, 23, 59)
+    DEALER_PAYMENT_DUE = datetime(2012, 11, 30, 23, 59)
+    UBER_TAKEDOWN      = datetime(2013, 12, 30, 23, 59)
+    EPOCH              = datetime(2013, 1, 3, 10)
+    ESCHATON           = datetime(2013, 1, 6, 22)
     
     PATH     = "/magfest"
     HOSTNAME = "magfestubersystem.com"
@@ -77,11 +78,13 @@ state = State()
 SUPPORTER_BADGE_PRICE = 100
 ONEDAY_BADGE_PRICE    = 40
 DEALER_BADGE_PRICE    = 30
-TABLE_PRICES          = "$125 for the first table, $200 for each additional table"
+TABLE_PRICES          = "$120 for the first table, $160 for the second table, $200 for each additional table"
 
 ADMIN_EMAIL = "Eli Courtwright <eli@courtwright.org>"
 REGDESK_EMAIL = "Victoria Earl <regdesk@magfest.org>"
 STAFF_EMAIL = "Jack Boyd <stops@magfest.org>"
+#MARKETPLACE_EMAIL = "Danielle Pomfrey <marketplace@magfest.org>"   # TODO: get Danielle to approve this email address
+MARKETPLACE_EMAIL = ADMIN_EMAIL
 REG_EMAILS = [ADMIN_EMAIL]
 PAYMENT_BCC = [ADMIN_EMAIL]
 
@@ -351,6 +354,15 @@ TRACKING_OPTS = (
     (UPDATED, "updated"),
     (DELETED, "deleted"),
     (AUTO_BADGE_SHIFT, "automatic badge-shift"),
+)
+
+UNAPPROVED = 0
+WAITLISTED = 1
+APPROVED   = 2
+STATUS_OPTS = (
+    (UNAPPROVED, "Pending Approval"),
+    (WAITLISTED, "Waitlisted"),
+    (APPROVED,   "Approved"),
 )
 
 EMAIL_RE = re.compile("^[_A-Za-z0-9-]+(\\.[_A-Za-z0-9-+]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*(\\.[_A-Za-z0-9-]+)$")

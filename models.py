@@ -120,22 +120,31 @@ class Event(MagModel):
 
 
 class Group(MagModel):
-    name        = CharField(max_length = 50)
-    tables      = IntegerField()
-    amount_paid = IntegerField(default = 0)
-    amount_owed = IntegerField(default = 0)
-    approved    = BooleanField(default = True)
-    auto_recalc = BooleanField(default = True)
-    can_add     = BooleanField(default = False)
-    admin_notes = TextField()
-    registered  = DateTimeField(auto_now_add = True)
+    name          = CharField(max_length = 50)
+    tables        = IntegerField()
+    address       = TextField()
+    website       = CharField(max_length = 255)
+    wares         = TextField()
+    description   = TextField()
+    special_needs = TextField()
+    amount_paid   = IntegerField(default = 0)
+    amount_owed   = IntegerField(default = 0)
+    status        = IntegerField(default = UNAPPROVED, choices = STATUS_OPTS)
+    auto_recalc   = BooleanField(default = True)
+    can_add       = BooleanField(default = False)
+    admin_notes   = TextField()
+    registered    = DateTimeField(auto_now_add = True)
     
-    restricted = ["amount_paid","amount_owed","auto_recalc","admin_notes","lockable"]
+    restricted = ["amount_paid","amount_owed","auto_recalc","admin_notes","lockable","status"]
     
     def save(self, *args, **kwargs):
         if self.auto_recalc:
             self.amount_owed = self.total_cost
         super(Group, self).save(*args, **kwargs)
+    
+    @property
+    def is_dealer(self):
+        return bool(self.tables and (self.amount_paid or self.amount_owed))
     
     @property
     def email(self):
@@ -162,7 +171,11 @@ class Group(MagModel):
     
     @property
     def table_cost(self):
-        return (125 + 200 * (self.tables - 1)) if self.tables else 0
+        return {
+            0: 0,
+            1: 120,
+            2: 120 + 160
+        }.get(self.tables, 120 + 160 + 200 * (self.tables - 2))
     
     @property
     def badge_cost(self):

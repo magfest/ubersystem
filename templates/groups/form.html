@@ -2,6 +2,32 @@
 {% block title %}Group Form{% endblock %}
 {% block content %}
 
+<script type="text/javascript">
+    function unapprove(action) {
+        if (!$.val("email")) {
+            $("#setstatus").prepend('<div style="color:red">You must enter an email message.</div>');
+        } else {
+            $.post("unapprove", {
+                id: {{ group.id }},
+                action: action,
+                email: $.val("email")
+            }, function(resp) {
+                if (action == "rejected") {
+                    window.location = "index?message=Group+rejected";
+                } else {
+                    $("#status").text("Waitlisted");
+                }
+            });
+        }
+    }
+    
+    $(function() {
+        {% if not group.id %}
+            $.field("status").find("[value={{ UNAPPROVED }}]").text("n/a (not a paid Dealer)");
+        {% endif %}
+    });
+</script>
+
 <h2> Group Info </h2>
 
 <form method="post" action="form">
@@ -20,10 +46,6 @@
     <td> <b>Badges:</b> </td>
     <td> <select name="badges">{% int_options 0 MAX_GROUP_SIZE group.badges_purchased %}</select> </td>
 </tr>
-<tr {% if attendee.id and not attendee.tables %}style="display:none"{% endif %}>
-    <td> <b>Approved</b> </td>
-    <td> {% checkbox approved group %} Approved (only relevant for dealers) </td>
-</tr>
 <tr>
     <td> <b><nobr>Amount Paid:</nobr></b> </td>
     <td> $<input type="text" style="width:4em" name="amount_paid" value="{{ group.amount_paid }}" /> </td>
@@ -39,9 +61,54 @@
     <td> <b><nobr>Can Add Badges:</nobr></b> </td>
     <td> {% checkbox can_add group %} Allow this group to add badges </td>
 </tr>
+{% if not group.id %}
+<tr>
+    <td> <b>Status</b> </td>
+    <td> <select name="status">{% options STATUS_OPTS group.status %}</select> </td>
+</tr>
+{% endif %}
+{% if group.is_dealer %}
+    <tr>
+        <td valign="top"> <b>Status</b> </td>
+        <td id="status">
+            {{ group.get_status_display }} <br/>
+            {% if group.status != APPROVED %}
+                <input type="checkbox" name="status" value="{{ APPROVED }}" /> Approved <br/>
+                <a href="#" onClick="$('#setstatus').toggle(); return false;">Waitlist or Reject</a> <br/>
+                <div id="setstatus" style="display:none">
+                    Enter an email message to be sent along with the notification: <br/>
+                    (The email subject will be "Your MAGFest Dealer registration has been [approved | waitlisted]")
+                    <textarea name="email", rows="5" cols="50"></textarea> <br/>
+                    <button onClick="unapprove('waitlisted'); return false;">Waitlist</button>
+                    <button onClick="unapprove('rejected'); return false;">Reject</button>
+                </div>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <td valign="top"> <b>What do they sell?</b> </td>
+        <td> <textarea rows="3" cols="30" name="wares">{{ group.wares }}</textarea>
+    </tr>
+    <tr>
+        <td> <b>Website Address</b> </td>
+        <td> <input type="text" name="website" value="{{ group.website }}" />
+    </tr>
+    <tr>
+        <td valign="top"> <b>Description</b> </td>
+        <td> <textarea rows="3" cols="30" name="description">{{ group.description }}</textarea>
+    </tr>
+    <tr>
+        <td valign="top"> <b>Special Requests</b> </td>
+        <td> <textarea rows="3" cols="30" name="special_needs">{{ group.special_needs }}</textarea>
+    </tr>
+    <tr>
+        <td valign="top"> <b>Address</b> </td>
+        <td> <textarea rows="3" cols="30" name="address">{{ group.address }}</textarea>
+    </tr>
+{% endif %}
 <tr>
     <td valign="top"> <b><nobr>Admin Notes:</nobr></b> </td>
-    <td> <textarea name="admin_notes" rows="3" style="width:66%">{{ group.admin_notes|default:"" }}</textarea> </td>
+    <td> <textarea name="admin_notes" rows="3" style="width:66%">{{ group.admin_notes }}</textarea> </td>
 </tr>
 </table>
 

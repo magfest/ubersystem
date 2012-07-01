@@ -9,11 +9,10 @@ $.field = function(field) {
 
 $.val = function(field) {
     var val = $.field(field).val();
-    try {
-        return val == "" ? val : parseInt(val);
-    } catch(ex) {
-        return val;
+    if ($.field(field).is(":radio")) {
+        val = $.field(field).filter(":checked").val();
     }
+    return val.match(/^\W*\d+\W*$/) ? parseInt(val) : val;
 };
 
 $.focus = function(field) {

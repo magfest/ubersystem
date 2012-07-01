@@ -55,15 +55,31 @@ Reminder(Group, "Last chance to pay for your MAGFest group", "group_payment_remi
          lambda g: g.tables == 0 and g.amount_owed > 0 and g.amount_paid == 0
                                  and g.registered < datetime.now() - timedelta(days = 12))
 
-Reminder(Group, "Your MAGFest Dealer registration has been approved!", "dealer_approved.html",
-         lambda g: g.tables and g.approved)
-         # TODO: ask Danielle whether she'd prefer for automated Dealer emails to come from marketplace@magfest.org
+Reminder(Group, "Reminder to pay for your MAGFest Dealer registration", "dealer_payment_reminder.txt",
+         lambda g: g.is_dealer and g.amount_owed > 0 and g.amount_paid == 0
+                               and g.registered < datetime.now() - timedelta(days = 21))
+
+Reminder(Group, "Your MAGFest Dealer registration is due in one week", "dealer_payment_reminder.txt",
+         lambda g: g.is_dealer and g.amount_owed > 0 and g.amount_paid == 0
+                               and state.DEALER_PAYMENT_DUE < datetime.now() + timedelta(days = 7))
+
+Reminder(Group, "Last chance to pay for your MAGFest Dealer registration", "dealer_payment_reminder.txt",
+         lambda g: g.is_dealer and g.amount_owed > 0 and g.amount_paid == 0
+                               and state.DEALER_PAYMENT_DUE < datetime.now() + timedelta(days = 2))
+
+
+
+Reminder(Group, "Your MAGFest Dealer registration has been approved", "dealer_approved.html",
+         lambda g: g.is_dealer and g.status == APPROVED,
+         sender = MARKETPLACE_EMAIL)
 
 Reminder(Attendee, "MAGFest payment received", "attendee_confirmation.html",
          lambda a: a.paid == HAS_PAID and a.amount_paid == a.total_cost)
 
 Reminder(Group, "MAGFest group payment received", "group_confirmation.html",
-         lambda g: g.tables == 0 and g.amount_paid == g.total_cost)
+         lambda g: g.amount_paid == g.total_cost)
+
+
 
 Reminder(Attendee, "MAGFest Badge Confirmation", "badge_confirmation.txt",
          lambda a: a.placeholder and a.first_name and a.last_name and a.email
@@ -100,12 +116,14 @@ Reminder(Attendee, "Last chance to sign up for MAGFest shifts", "shift_reminder.
          sender = STAFF_EMAIL)
 
 
+
 Reminder(Group, "Reminder to pre-assign MAGFest group badges", "group_preassign_reminder.txt",
-         lambda g: state.GROUP_REG_OPEN and g.tables == 0 and g.unregistered_badges > 0
+         lambda g: state.GROUP_REG_OPEN and not g.is_dealer and g.unregistered_badges
                                         and g.registered < datetime.now() - timedelta(days = 30))
 
 Reminder(Group, "Last chance to pre-assign MAGFest group badges", "group_preassign_reminder.txt",
-         lambda g: not state.GROUP_REG_OPEN and g.approved and g.unregistered_badges > 0)
+         lambda g: not state.GROUP_REG_OPEN and g.unregistered_badges and (not g.is_dealer or g.status == APPROVED))
+
 
 
 Reminder(Attendee, "MAGFest parental consent form reminder", "under_18_reminder.txt",
