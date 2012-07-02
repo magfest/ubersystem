@@ -7,6 +7,7 @@
         if (!$.val("email")) {
             $("#setstatus").prepend('<div style="color:red">You must enter an email message.</div>');
         } else {
+            $("button").attr("disabled", true);
             $.post("unapprove", {
                 id: {{ group.id }},
                 action: action,
