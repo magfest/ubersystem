@@ -201,7 +201,7 @@ def daemonize(func, name="DaemonTask", interval=300, threads=1):
                 sleep(interval)
     
     for i in range(threads):
-        t = Thread(target = wrapped)
+        t = Thread(target = wrapped, name = name)
         t.daemon = True
         t.start()
 
