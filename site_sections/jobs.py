@@ -54,41 +54,28 @@ class Root:
             "total_signups":  sum(weighted_hours(s, location) for s in staffers)
         }
     
-    def form(self, message="", from_schedule="", **params):
-        if not from_schedule and params["id"] == "None" and "event_loc" not in params:
+    def form(self, message="", **params):
+        if params["id"] == "None" and cherrypy.request.method != "POST":
             defaults = cherrypy.session.get("job_defaults", defaultdict(dict))[params["location"]]
             params.update(defaults)
         
         job = get_model(Job, params, bools=["restricted","extra15"])
-        if job.event:
-            job.start_time = job.event.start_time
-            job.duration   = job.event.duration
-        
-        if "event_loc" in params:
+        if cherrypy.request.method == "POST":
             message = check(job)
             if not message:
                 job.save()
                 
-                if not from_schedule and params["id"]=="None":
+                if params["id"] == "None":
                     defaults = cherrypy.session.get("job_defaults", defaultdict(dict))
                     defaults[params["location"]] = {field: getattr(job,field) for field in JOB_DEFAULTS}
                     cherrypy.session["job_defaults"] = defaults
                 
-                if from_schedule:
-                    raise HTTPRedirect("../schedule/jobs?id={}&message={}", job.event.id, "Job created")
-                else:
-                    raise HTTPRedirect("index?location={}#{}", job.location, job.start_time)
-        
-        events = defaultdict(list)
-        for event in Event.objects.order_by("start_time"):
-            events[event.location].append(event)
+                raise HTTPRedirect("index?location={}#{}", job.location, job.start_time)
         
         return {
-            "message":       message,
-            "job":           job,
-            "events":        events.items(),
-            "from_schedule": from_schedule,
-            "defaults":      "defaults" in locals() and defaults
+            "job":      job,
+            "message":  message,
+            "defaults": "defaults" in locals() and defaults
         }
     
     def staffers_by_job(self, id, message = ""):

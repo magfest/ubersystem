@@ -18,69 +18,14 @@
             $("[name=" + name + "]").val(value);
         });
         $("[name=restricted],[name=extra15]").attr("checked", false);
-        return false;
     }
-    
-    function showAndHideRows() {
-        var location = $("[name=event_loc]")[0];
-        if( location.selectedIndex==0 )
-        {
-            $("#start_time,#duration").show();
-            $("#event_row").hide();
-        }
-        else
-        {
-            $("#start_time,#duration").hide();
-            $("#event_row").show();
-            
-            var eventOpts = $("[name=event_id]")[0].options;
-            var newOpts = events[ $("[name=event_loc]").val() ];
-            while( eventOpts.length>0 )
-                eventOpts[0] = null;
-            for(var j=0; j<newOpts.length; j++)
-                eventOpts[j] = newOpts[j];
-            
-            setEventLink();
-        }
-    }
-    
-    function setEventLink() {
-        $("#eventlink")[0].href = "../schedule/form?id=" + $("[name=event_id]").val();
-    }
-    
-    $(document).ready(function(){
-        events = {};
-        var opt = null;
-        {% for location,event_list in events %}
-            events[{{ location }}] = [];
-            {% for event in event_list %}
-                opt = new Option("({% timespan event %}): {{ event.name }}",
-                                 "{{ event.id }}",
-                                 {% if event.id == job.event.id %}
-                                     true
-                                 {% else %}
-                                     false
-                                 {% endif %}
-                                );
-                events[{{ location }}][{{ forloop.counter0 }}] = opt;
-            {% endfor %}
-        {% endfor %}
-        
-        var locOpts = $("[name=event_loc]")[0].options;
-        for(var j=locOpts.length-1; j>0; j-=1) {
-            if( !events[locOpts[j].value] )
-                locOpts[j] = null;
-        }
-        
-        showAndHideRows();
-    });
 // -->
 </script>
 
 {% if defaults %}
     <i>Note: To help you enter the same job at multiple times, this form has been filled in
-        using the values of the last shift you created in this location.
-        <a href="" onClick="return blank();">Click here</a> to undo these defaults and start
+        using the values of the last shift you created in this location. <br/>
+        <a href="#" onClick="blank(); return false;">Click here</a> to undo these defaults and start
         with a blank form.</i>
 {% endif %}
 
@@ -98,22 +43,6 @@
     <td> <input type="text" name="description" value="{{ job.description }}" /> </td>
 </tr>
 <tr>
-    <td> Event:</td>
-    <td>
-        <select name="event_loc" onChange="showAndHideRows()">
-            <option value="">This job isn't associated with an event</options>
-            {% options EVENT_LOC_OPTS job.event.location %}
-        </select>
-    </td>
-</tr>
-<tr id="event_row" style="display:none">
-    <td></td>
-    <td>
-        <select name="event_id" onChange="setEventLink()"></select>
-        <a id="eventlink" href="">View Event</a> 
-    </td>
-</tr>
-<tr id="start_time">
     <td> <b>Start Time:</b> </td>
     <td>
         <select name="start_time">
@@ -121,7 +50,7 @@
         </select>
     </td>
 </tr>
-<tr id="duration">
+<tr>
     <td> <b>Duration:</b> </td>
     <td>
         <select name="duration">

@@ -16,41 +16,9 @@ def account_misc(account):
 
 item_required = [("name","'What is it?'")]
 
-def item_quantity(item):
-    if item.id and item.need > item.total:
-        return "You cannot reduce the quantity by that much because then MAGFest would only have %i and there are %i needed at one time." % (item.total, item.need)
-    return ""
-
 
 
 event_required = [("name","Event Name")]
-
-def event_shifts(event):
-    if event.id is None:
-        return None
-    
-    new_half_hours = event.half_hours
-    old_half_hours = Event.objects.get(id=event.id).half_hours
-    if old_half_hours == new_half_hours:
-        return None
-    
-    for job in event.job_set.all():
-        for shift in job.shift_set.select_related():
-            if new_half_hours.intersection(shift.attendee.hours - old_half_hours):
-                return "Error: moving this event causes a time conflict with staffer '%s' working one of this event's shifts" % shift.attendee.full_name
-
-
-
-borroweditem_required = [("source","Source")]
-
-def assigneditem_quantity(ai):
-    if ai.quantity > ai.item.total:
-        return "Error: MAGFest only has %i of the '%s' item." % (ai.item.total, ai.item.name)
-    
-    for hour in ai.event.hours:
-        unassigned = ai.item.total - ai.item.event_quantities[hour]
-        if ai.quantity > unassigned:
-            return "Error: We have %i '%s' item(s) available during this event and you asked for %i." % (unassigned, ai.item.name, ai.quantity)
 
 
 
@@ -169,7 +137,7 @@ def success_existing(success):
 challenge_required = [("game","Game")]
 
 def challenge_exists(challenge):
-    if not challenge.normal and not challenge.hard and not challenge.expert:
+    if not challenge.normal and not challenge.hard and not challenge.expert and not challenge.unfair:
         return "You must select at least one difficulty level"
 
 

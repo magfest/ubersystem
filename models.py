@@ -104,7 +104,7 @@ class Payment(MagModel):
 
 
 class Event(MagModel):
-    location    = IntegerField(choices=EVENT_LOC_OPTS)
+    location    = IntegerField(choices = EVENT_LOC_OPTS)
     start_time  = DateTimeField()
     duration    = IntegerField()
     name        = CharField(max_length = 99)
@@ -453,7 +453,6 @@ class Attendee(MagModel):
 
 
 class Job(MagModel):
-    event       = ForeignKey(Event, null = True)
     name        = CharField(max_length = 100)
     description = CharField(max_length = 100)
     location    = IntegerField(choices = JOB_LOC_OPTS)
@@ -472,8 +471,8 @@ class Job(MagModel):
         return hours
     
     def no_overlap(self, attendee):
-        before = self.start_time - timedelta(hours=1)
-        after  = self.start_time + timedelta(hours=self.duration)
+        before = self.start_time - timedelta(hours = 1)
+        after  = self.start_time + timedelta(hours = self.duration)
         return (not self.hours.intersection(attendee.hours)
             and (before not in attendee.hour_map
                 or not attendee.hour_map[before].extra15
