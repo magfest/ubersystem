@@ -2,7 +2,7 @@ from common import *
 
 @property
 def payment_deadline(self):
-    return datetime.combine((self.registered + timedelta(days = 14)).date(), time(11, 59))
+    return datetime.combine((self.registered + timedelta(days = 14)).date(), time(23, 59))
 
 def __repr__(self):
     display = getattr(self, "display", "name" if hasattr(self, "name") else "id")
@@ -104,8 +104,8 @@ class Payment(MagModel):
 
 
 class Event(MagModel):
-    location    = IntegerField(choices = EVENT_LOC_OPTS)
-    start_time  = DateTimeField()
+    location    = IntegerField(choices = EVENT_LOC_OPTS, null = True)
+    start_time  = DateTimeField(null = True)
     duration    = IntegerField()
     name        = CharField(max_length = 99)
     description = TextField()

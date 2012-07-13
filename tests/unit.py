@@ -228,6 +228,11 @@ class TestPaymentProgression(TestUber):
             self.assert_progress(15, 3)
             Email.objects.all().delete()
     
+    def test_payment_deadline(self):
+        self.make_attendee()
+        Attendee.objects.update(registered = datetime.now() - timedelta(days = 14))
+        self.assertEqual(Attendee.objects.get().payment_deadline, datetime.combine(datetime.now().date(), time(23, 59)))
+    
     def test_paid_attendee(self):
         self.make_attendee(paid = HAS_PAID, amount_paid = state.BADGE_PRICE)
         self.assert_progress(15, 1)
