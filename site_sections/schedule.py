@@ -184,3 +184,46 @@ class Root:
     def delete(self, id):
         event = Event.objects.filter(id=id).delete()
         raise HTTPRedirect("index?message={}", "Event successfully deleted")
+    
+    def events(self, location, **params):
+        cherrypy.response.headers["Content-Type"] = "application/json"
+        if int(location) == 99:
+            return json.dumps([{
+                "name": "_blank"
+            }, {
+                "duration": 2,
+                "name": "Hello World!"
+            }, {
+                "duration": 1,
+                "name": "Hello Kitty!"
+            }, {
+                "duration": 2,
+                "name": "Goodbye World!"
+            }])
+        elif int(location) == 98:
+            return json.dumps([{
+                "duration": 1,
+                "name": "Music"
+            }, {
+                "name": "_blank"
+            }, {
+                "duration": 3,
+                "name": "Gaming"
+            }, {
+                "duration": 1,
+                "name": "Festival"
+            }])
+        else:
+            events = defaultdict(lambda: {"name": "_blank"})
+            for event in Event.objects.filter(location = location):
+                events[event.start_time] = {
+                    "name":        event.name,
+                    "description": event.description,
+                    "duration":    event.duration
+                }
+                for i in range(1, event.duration):
+                    events[event.start_time + timedelta(minutes = 30 * i)] = None
+            return json.dumps([events[when] for when,_ in START_TIME_OPTS if events[when]])
+    
+    def testing(self):
+        return {}

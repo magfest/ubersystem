@@ -6,6 +6,11 @@ def datetime(dt, fmt):
     return " ".join(dt.strftime(fmt).split())
 
 @register.filter
+def timestamp(dt):
+    import time
+    return str(int(time.mktime(dt.timetuple())))
+
+@register.filter
 def jsonize(x):
     return SafeString( json.dumps(x) )
 

@@ -14,7 +14,7 @@ LATE_GROUP_PRICE  = 35
 
 class State:
     SEND_EMAILS = True
-    AUTO_EMAILS = True
+    AUTO_EMAILS = False
     
     AT_THE_CON = False
     POST_CON = False
