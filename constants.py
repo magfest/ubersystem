@@ -106,11 +106,11 @@ STOPS_EMAIL_SIGNATURE = """\
 MAGFest Staffing Coordinator"""
 
 CON_LENGTH      = (state.ESCHATON - state.EPOCH).days * 24 + (state.ESCHATON - state.EPOCH).seconds // 3600
-START_TIME_OPTS = [(dt,dt.strftime("%I %p %a")) for dt in (state.EPOCH + timedelta(hours=i) for i in range(CON_LENGTH))]
-DURATION_OPTS   = [(i, "%i hour%s"%(i,("s" if i>1 else ""))) for i in range(1,8)]
+START_TIME_OPTS = [(dt, dt.strftime("%I %p %a")) for dt in (state.EPOCH + timedelta(hours = i) for i in range(CON_LENGTH))]
+DURATION_OPTS   = [(i, "%i hour%s"%(i,("s" if i > 1 else ""))) for i in range(1,8)]
 EVENT_START_TIME_OPTS = [(dt, dt.strftime("%I %p %a") if not dt.minute else dt.strftime("%I:%M %a"))
-                         for dt in (state.EPOCH + timedelta(minutes = i * 30) for i in range(2 * CON_LENGTH))]
-EVENT_DURATION_OPTS = [(i, "%.1f hour%s" % (i/2, "s" if i!=2 else "")) for i in range(1, 19)]
+                         for dt in [state.EPOCH + timedelta(minutes = i * 30) for i in range(2 * CON_LENGTH)]]
+EVENT_DURATION_OPTS = [(i, "%.1f hour%s" % (i/2, "s" if i != 2 else "")) for i in range(1, 19)]
 
 EVENT_LOC_OPTS = (
     (0, "Panels 1"),

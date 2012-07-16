@@ -1,0 +1,147 @@
+<!doctype html>
+<html>
+    <head>
+        <title>MAGFest - Schedule</title>
+        <link rel="stylesheet" type="text/css" href="../static/extjs/resources/css/ext-all.css" />
+        <script type="text/javascript" src="../static/extjs/ext-all-dev.js"></script>
+        <script type="text/javascript">
+            var epoch = 1000 * {{ state.EPOCH|timestamp }};
+            var rowToTime = function(i) {
+                return Ext.Date.format(new Date(epoch + 1000 * 60 * 30 * i), "D H:ia");
+            };
+            
+            var createForm = function() {
+                Ext.create("Ext.window.Window", {
+                    title: "Create an Event",
+                    items: [{
+                        xtype: "form",
+                        url: "create",
+                        items: [{
+                            xtype: "textfield",
+                            name: "name",
+                            fieldLabel: "Event Name"
+                        }, {
+                            xtype: "textarea",
+                            name: "description",
+                            fieldLabel: "Description"
+                        }],
+                        buttons: [{
+                            text: "Cancel",
+                            handler: function() {
+                                this.up("window").close();
+                            }
+                        }, {
+                            text: "Create",
+                            formBind: true,
+                            disabled: true,
+                            handler: function() {
+                                console.log("form submitted");
+                            }
+                        }]
+                    }]
+                }).show();
+            }
+            
+            var ScheduleGrid = function(locationName, locationId) {
+                var showContextMenu = function(grid, record, item, rowIndex, event) {
+                    console.log("contextmenu", record, item, rowIndex, event);
+                    event.preventDefault();
+                    var el = Ext.fly(item);
+                    var menu = record.get("name") == "_blank" ? App.blankMenu : App.eventMenu;
+                    menu.showAt(el.getX() + 10, el.getY() + 10);
+                };
+                return {
+                    xtype: "gridpanel",
+                    selModel: {mode: "MULTI"},
+                    width: 100,
+                    columns: [{
+                        flex: 1,
+                        text: locationName,
+                        dataIndex: "name",
+                        renderer: function(value, metaData, record, rowIndex) {
+                            if (value == "_blank") {
+                                return '<div style="height: 50px">&nbsp;</div>';
+                            } else {
+                                var height = 50 + 57 * (record.get("duration") - 1);
+                                return '<div style="height: ' + height + 'px">' + value + '</div>';
+                            }
+                        }
+                    }],
+                    store: Ext.create("Ext.data.JsonStore", {
+                        autoLoad: true,
+                        fields: ["name", "duration"],
+                        proxy: {
+                            type: "ajax",
+                            autoLoad: true,
+                            url: "events",
+                            extraParams: {location: locationId}
+                        }
+                    }),
+                    listeners: {
+                        itemcontextmenu: showContextMenu,
+                        itemdblclick: showContextMenu
+                    }
+                };
+            };
+            Ext.namespace("App");
+            Ext.Loader.setConfig({enabled: true});
+            Ext.onReady(function() {
+                App.viewport = Ext.create("Ext.container.Viewport", {
+                    layout: "hbox",
+                    items: [
+                        {
+                            xtype: "gridpanel",
+                            disableSelection: true,
+                            width: 100,
+                            store: {
+                                fields: ["startTime"],
+                                data: [{% for dt,formatted in START_TIME_OPTS %}[{{ forloop.counter0 }}],{% endfor %}]
+                            },
+                            columns: [{
+                                flex: 1,
+                                dataIndex: "startTime",
+                                renderer: function(value, metaData, record, rowIndex) {
+                                    return '<div style="height: 50px">' + rowToTime(rowIndex) + '</div>';
+                                }
+                            }]
+                        },
+                        {% for loc,desc in EVENT_LOC_OPTS %}
+                            ScheduleGrid("{{ desc }}", {{ loc }}),
+                        {% endfor %}
+                    ]
+                });
+                App.eventMenu = Ext.create("Ext.menu.Menu", {
+                    plain: true,
+                    items: [{
+                        text: "Edit",
+                        handler: function(menu, item, event) {
+                            console.log("Edit clicked");
+                        }
+                    }]
+                });
+                App.blankMenu = Ext.create("Ext.menu.Menu", {
+                    plain: true,
+                    items: [{
+                        text: "Move an event here",
+                        handler: function(menu, item, event) {
+                            console.log("Move clicked");
+                        }
+                    }]
+                });
+            });
+        </script>
+        <style type="text/css">
+            .x-grid-table {
+                border-collapse: collapse;
+            }
+            .x-grid-row .x-grid-cell {
+                border: 1px solid black
+            }
+            .x-panel .x-grid-body {
+                border: 0px;
+            }
+        </style>
+    </head>
+    <body>
+    </body>
+</html>
