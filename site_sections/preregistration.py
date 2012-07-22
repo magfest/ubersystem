@@ -241,9 +241,12 @@ class Root:
             "zip_code":   params.get("zip_code",   "")
         }
     
-    def paypal(self, id):
+    def paypal(self, id, amount = None):
         attendee = Attendee.objects.get(id = unobfuscate(id))
-        return {"attendee": attendee}
+        return {
+            "attendee": attendee,
+            "amount":   amount or attendee.total_cost
+        }
     
     def group_members(self, id, message=""):
         group = Group.objects.get(id = unobfuscate(id))

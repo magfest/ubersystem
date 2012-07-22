@@ -279,6 +279,7 @@ class paypal_button(template.Node):
         if not ids:
             ids     = self.ids.resolve(context)
             names   = what
+        if self.amount is not None:
             amount = self.amount.resolve(context)
         
         return """
