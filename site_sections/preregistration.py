@@ -152,8 +152,11 @@ class Root:
                 else:
                     attendee.save()
                 
-                if not attendee.group or not attendee.group.tables:
+                if not attendee.group or not attendee.group.is_dealer:
                     cherrypy.session.setdefault("preregs", []).append(attendee.id)
+                else:
+                    send_email(MARKETPLACE_EMAIL, MARKETPLACE_EMAIL, "Dealer application received",
+                               render("emails/dealer_reg_notification.txt", {"group": group}))
                 
                 message = send_prereg_emails(attendee)
                 raise HTTPRedirect("index?message={}", message)

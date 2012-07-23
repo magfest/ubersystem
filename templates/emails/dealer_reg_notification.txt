@@ -1,0 +1,2 @@
+"{{ group.name }}" has just applied for a Dealer registration:
+{{ state.URL_BASE }}/groups/form?id={{ group.id }}

@@ -70,6 +70,10 @@
 {% endif %}
 {% if group.is_dealer %}
     <tr>
+        <td> <b>Phone Number</b> </td>
+        <td> {{ group.leader.phone }} </td>
+    </tr>
+    <tr>
         <td valign="top"> <b>Status</b> </td>
         <td id="status">
             {{ group.get_status_display }} <br/>
