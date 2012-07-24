@@ -267,11 +267,10 @@ def paypal_url(what):
 
 @tag
 class paypal_button(template.Node):
-    def __init__(self, what, ids=None, amount=None):
-        self.what = Variable(what)
-        if ids:
-            self.ids = Variable(ids)
-            self.amount = Variable(amount)
+    def __init__(self, what, ids = None, amount = None):
+        self.what   = Variable(what)
+        self.ids    = ids and Variable(ids)
+        self.amount = amount and Variable(amount)
 
     def render(self, context):
         what = self.what.resolve(context)
