@@ -39,10 +39,12 @@ def cost_and_names(preregs):
 
 def send_prereg_emails(attendee):
     try:
+        sender = REGDESK_EMAIL
         subject = "MAGFest Preregistration"
         message = "Your preregistration will be complete when you pay below"
         if attendee.group:
             if attendee.group.tables:
+                sender = MARKETPLACE_EMAIL
                 template = "dealer_email.html"
                 subject = "MAGFest Dealer Request Submitted"
                 message = "Your dealer request has been submitted, we'll email you after your submission is reviewed"
@@ -51,7 +53,7 @@ def send_prereg_emails(attendee):
         else:
             template = "attendee_email.html"
         body = render("emails/" + template, {"attendee": attendee})
-        send_email(REGDESK_EMAIL, attendee.email, subject, body, format = "html")
+        send_email(sender, attendee.email, subject, body, format = "html")
         Email.objects.create(fk_tab="Attendee", fk_id=attendee.id, subject=subject, dest=attendee.email, body=body)
         return message
     except:
