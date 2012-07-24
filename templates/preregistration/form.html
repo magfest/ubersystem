@@ -136,18 +136,21 @@
 <tr class="dealer" style="display: none">
     <td valign="top">
         <b>What do you sell?</b>
-        <br/> <i>Please be detailed.</i>
+        <br/> <i>Please be detailed; include a link to view your wares if possible.</i>
     </td>
     <td> <textarea name="wares" rows="3" cols="30">{{ group.wares }}</textarea> </td>
 </tr>
 <tr class="dealer" style="display: none">
     <td> <b>Website URL</b> </td>
-    <td> <input type="text" name="website" value="{{ group.website }}" size="40" /> </td>
+    <td>
+        <input type="text" name="website" value="{{ group.website }}" size="40" />
+        <i>The one you want us to link on our Confirmed Dealers page, or</i> n/a
+    </td>
 </tr>
 <tr class="dealer" style="display: none">
     <td>
         <b>Brief Description</b>
-        <br/> <i>We put approved vendor URLs and descriptions on our website.</i>
+        <br/> <i>For our website; please keep to one sentence.</i>
     </td>
     <td> <textarea name="description" rows="3" cols="30">{{ group.description }}</textarea> </td>
 </tr>
