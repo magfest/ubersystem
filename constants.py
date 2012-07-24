@@ -83,8 +83,7 @@ TABLE_PRICES          = "$120 for the first table, $160 for the second table, $2
 ADMIN_EMAIL = "Eli Courtwright <eli@courtwright.org>"
 REGDESK_EMAIL = "Victoria Earl <regdesk@magfest.org>"
 STAFF_EMAIL = "Jack Boyd <stops@magfest.org>"
-#MARKETPLACE_EMAIL = "Danielle Pomfrey <marketplace@magfest.org>"   # TODO: get Danielle to approve this email address
-MARKETPLACE_EMAIL = ADMIN_EMAIL
+MARKETPLACE_EMAIL = "Danielle Pomfrey <marketplace@magfest.org>"
 REG_EMAILS = [ADMIN_EMAIL]
 PAYMENT_BCC = [ADMIN_EMAIL]
 
