@@ -264,7 +264,7 @@ class Root:
         params["id"] = unobfuscate(params["id"])
         attendee = get_model(Attendee, params, bools = ["staffing","can_spam","international"], restricted = True)
         if "first_name" in params:
-            message = check(attendee) or check_age(attendee)
+            message = check(attendee) or check_prereg_reqs(attendee)
             if not message and not params["first_name"]:
                 message = "First and Last Name are required fields"
             if not message:
@@ -298,7 +298,7 @@ class Root:
         
         if "email" in params:
             attendee.placeholder = False
-            message = check(attendee) or check_age(attendee)
+            message = check(attendee) or check_prereg_reqs(attendee)
             if not message:
                 attendee.save()
                 if placeholder:
