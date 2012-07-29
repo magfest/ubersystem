@@ -3,11 +3,18 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
+<h2> Volunteer Checklist for {{ attendee.full_name }} </h2>
+
+<div style="font-style:italic ; text-align:center">
+    If you aren't {{ attendee.full_name }}, <a href="login">click here</a> to log in as yourself.
+</div>
+
+<br/> Thanks for volunteering to help out at MAGFest.  The following is a list of things you need to do as soon as possible.
+
 <style type="text/css">
     ol li { margin-bottom: 10px; }
 </style>
-
-<ol style="font-size: 16pt">
+<ol>
     <li>
         {% checked_if not attendee.placeholder %}
         {% if attendee.placeholder %}
@@ -34,7 +41,7 @@
             {% else %}
                 Tell us
             {% endif %}
-            whether you want hotel room space.
+            whether you want hotel room space no later than <b>11:59pm on {{ state.ROOM_DEADLINE|datetime:"%A, %B %d" }}</b>.
         </li>
     {% endif %}
     <li>

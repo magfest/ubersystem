@@ -20,7 +20,7 @@ def remove_newlines(string):
 
 @register.filter
 def time_day(dt):
-    return SafeString("<nobr>%s %s</nobr>" % (dt.strftime("%I:%M%p").lstrip("0").lower(), dt.strftime("%a")))
+    return SafeString("<nobr>{} {}</nobr>".format(dt.strftime("%I:%M%p").lstrip("0").lower(), dt.strftime("%a")))
 
 @register.filter
 def idize(s):
