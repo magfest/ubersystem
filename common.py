@@ -47,7 +47,7 @@ from django.dispatch import receiver
 from django.utils.safestring import SafeString
 from django.db.models.signals import pre_save, post_save, pre_delete
 from django.template import loader, Context, Variable, TemplateSyntaxError
-from django.db.models import Q, Avg, Sum, Count, Model, ForeignKey, BooleanField, CharField, TextField, IntegerField, FloatField, DateField, DateTimeField, CommaSeparatedIntegerField
+from django.db.models import Q, Avg, Sum, Count, Model, ForeignKey, OneToOneField, BooleanField, CharField, TextField, IntegerField, FloatField, DateField, DateTimeField, CommaSeparatedIntegerField
 
 
 class HTTPRedirect(cherrypy.HTTPRedirect):
@@ -65,14 +65,14 @@ def listify(x):
 
 
 def get_model(klass, params, bools=[], checkgroups=[], restricted=False):
-    model = klass() if params["id"] == "None" else klass.objects.get(id = params["id"])
+    model = klass() if params.get("id", "None") == "None" else klass.objects.get(id = params["id"])
     
     for field in klass._meta.fields:
         if restricted and field.name in klass.restricted:
             continue
         
         id_param = field.name + "_id"
-        if isinstance(field, ForeignKey) and id_param in params:
+        if isinstance(field, (ForeignKey, OneToOneField)) and id_param in params:
             setattr(model, id_param, params[id_param])
         
         elif field.name in params and field.name != "id":

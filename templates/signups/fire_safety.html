@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Fire Safety Training{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<h2> Fire Safety Certification </h2>
+
+The state of Maryland requires all Magfest staff to complete an online training course
+from the Maryland fire marshal on crowd/fire safety.  There's no test; you just read
+through some slides.  At the end, you are presented with a certificate, which contains
+your certification number.
+
+<br/> <br/>
+
+Complete the course at
+<a target="_blank" href="http://firemarshal.state.md.us/crowdmanager/">http://firemarshal.state.md.us/crowdmanager/</a>
+and then enter your certification number below.  {% popup_link ../static/fire_cert_example.png "Click here" %}
+to see an example certificate so you'll know where to look for the certification number.
+
+<br/> <br/>
+
+<form method="post" action="fire_safety">
+Certification Number: <input type="text" class="focus" name="fire_safety_cert" value="{{ fire_safety_cert }}" />
+<input type="submit" value="Submit Certification" />
+</form>
+
+{% add_max_lengths Attendee %}
+
+{% endblock %}

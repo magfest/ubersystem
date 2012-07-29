@@ -291,7 +291,7 @@ class Root:
         assign_group_badges(group, group.badges + int(count))
         raise HTTPRedirect("group_members?id={}&message={}", id, "The requested badges have been added to your group; you must pay for them using the Paypal link below to prevent them from being deleted before the start of MAGFest")
     
-    def confirm(self, message="", **params):
+    def confirm(self, message = "", return_to = "confirm", **params):
         params["id"] = unobfuscate(params["id"])
         attendee = get_model(Attendee, params, bools = ["staffing","international"], restricted = True)
         placeholder = attendee.placeholder
@@ -302,10 +302,12 @@ class Root:
             if not message:
                 attendee.save()
                 if placeholder:
-                    message = "You have been registered.  You may use this page to update your registration anytime."
+                    message = "Your registeration has been confirmed."
                 else:
-                    message = "Your info has been updated."
-                raise HTTPRedirect("confirm?id={}&message={}", obfuscate(attendee.id), message)
+                    message = "Your information has been updated."
+                
+                page = ("confirm?id={}&" + obfuscate(attendee.id)) if return_to == "confirm" else (return_to + "?")
+                raise HTTPRedirect(page + "message={}", message)
         
         attendee.placeholder = placeholder
         if not message and attendee.placeholder:
@@ -314,6 +316,7 @@ class Root:
             message = "You are already registered but you may update your information with this form."
         
         return {
-            "attendee": attendee,
-            "message":  message
+            "return_to": return_to,
+            "attendee":  attendee,
+            "message":   message
         }

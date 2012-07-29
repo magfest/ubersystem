@@ -14,7 +14,7 @@ LATE_GROUP_PRICE  = 35
 
 class State:
     SEND_EMAILS = True
-    AUTO_EMAILS = False
+    AUTO_EMAILS = True
     
     AT_THE_CON = False
     POST_CON = False
@@ -367,6 +367,17 @@ STATUS_OPTS = (
     (UNAPPROVED, "Pending Approval"),
     (WAITLISTED, "Waitlisted"),
     (APPROVED,   "Approved"),
+)
+
+MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY = range(7)
+NIGHTS_OPTS = (
+    (MONDAY,    "Mon"),
+    (TUESDAY,   "Tue"),
+    (WEDNESDAY, "Wed"),
+    (THURSDAY,  "Thu"),
+    (FRIDAY,    "Fri"),
+    (SATURDAY,  "Sat"),
+    (SUNDAY,    "Sun"),
 )
 
 EMAIL_RE = re.compile("^[_A-Za-z0-9-]+(\\.[_A-Za-z0-9-+]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*(\\.[_A-Za-z0-9-]+)$")

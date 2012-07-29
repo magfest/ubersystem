@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Volunteer Checklist{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<style type="text/css">
+    ol li { margin-bottom: 10px; }
+</style>
+
+<ol style="font-size: 16pt">
+    <li>
+        {% checked_if not attendee.placeholder %}
+        {% if attendee.placeholder %}
+            <a href="../preregistration/confirm?return_to=../signups/index&id={{ attendee.id|obfuscated }}">Confirm</a>
+        {% else %}
+            Confirm
+        {% endif %}
+        you are coming to MAGFest.
+    </li>
+    <li>
+        {% checked_if attendee.fire_safety_cert %}
+        {% if not attendee.placeholder and not attendee.fire_safety_cert %}
+            <a href="fire_safety">Certify yourself</a>
+        {% else %}
+            Certify yourself
+        {% endif %}
+        with fire safety training.
+    </li>
+    {% if attendee.badge_type == STAFF_BADGE %}
+        <li>
+            {% checked_if attendee.hotelrequests %}
+            {% if not attendee.placeholder and attendee.fire_safety_cert and not attendee.hotelrequests %}
+                <a href="hotel_requests">Tell us</a>
+            {% else %}
+                Tell us
+            {% endif %}
+            whether you want hotel room space.
+        </li>
+    {% endif %}
+    <li>
+        {% checked_if attendee.shifts %}
+        {% if attendee.shift_prereqs_complete %}
+            <a href="possible">Sign up</a>
+        {% else %}
+            Sign up
+        {% endif %}
+        for shifts.
+    </li>
+</ol>
+
+{% endblock %}

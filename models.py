@@ -14,8 +14,9 @@ def field_repr(self, name):
     s = repr(val)
     if field.choices:
         return repr(dict(field.choices)[val])
-    elif isinstance(field, CommaSeparatedIntegerField):     # TODO: standardize naming convention to make this automatic
+    elif isinstance(field, CommaSeparatedIntegerField): # TODO: standardize naming convention to make this automatic
         opts = dict({
+            "nights": NIGHTS_OPTS,
             "access": ACCESS_OPTS,
             "interests": INTEREST_OPTS,
             "requested_depts": JOB_INTEREST_OPTS,
@@ -235,11 +236,12 @@ class Attendee(MagModel):
     
     badge_printed_name = CharField(max_length = 30, default = "")
     
-    staffing        = BooleanField(default = False)
-    requested_depts = CommaSeparatedIntegerField(max_length = 50)
-    assigned_depts  = CommaSeparatedIntegerField(max_length = 50)
-    trusted         = BooleanField(default = False)
-    nonshift_hours  = IntegerField(default = 0)
+    staffing         = BooleanField(default = False)
+    fire_safety_cert = CharField(max_length = 50, default = "")
+    requested_depts  = CommaSeparatedIntegerField(max_length = 50)
+    assigned_depts   = CommaSeparatedIntegerField(max_length = 50)
+    trusted          = BooleanField(default = False)
+    nonshift_hours   = IntegerField(default = 0)
     
     display = "full_name"
     restricted = ["group","admin_notes","badge_num","ribbon","regdesk_info","extra_merch","got_merch","paid","amount_paid","amount_refunded","assigned_depts","trusted","nonshift_hours"]
@@ -450,6 +452,32 @@ class Attendee(MagModel):
     def worked_hours(self):
         wh = sum((shift.job.real_duration * shift.job.weight for shift in self.worked_shifts), 0.0)
         return wh + self.nonshift_hours
+    
+    @property
+    def shift_prereqs_complete(self):
+        return not self.placeholder  \
+           and self.fire_safety_cert \
+           and (self.badge_type != STAFF_BADGE or self.hotel_nights is not None)
+    
+    @cached_property
+    def hotel_nights(self):
+        try:
+            return self.hotelrequests.nights.split(",")
+        except:
+            return None
+
+class HotelRequests(MagModel):
+    attendee           = OneToOneField(Attendee)
+    nights             = CommaSeparatedIntegerField(max_length = 50)
+    wanted_roommates   = TextField()
+    unwanted_roommates = TextField()
+    special_needs      = TextField()
+    approved           = BooleanField(default = False)
+    
+    restricted = ["approved"]
+    
+    def __repr__(self):
+        return "<{self.attendee.full_name} Hotel Requests>".format(self = self)
 
 
 class Job(MagModel):

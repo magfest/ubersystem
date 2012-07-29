@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Hotel Requests{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<h2> Hotel Room Space </h2>
+
+You are eligible for space in one of the hotel rooms we purchase for our volunteers.
+If you accept, you'll be assigned into a room with 3 - 4 other volunteers.  We
+require that all volunteers accepting hotel room space work at least 30 weighted
+hours.  If you don't want hotel room space, you can decline it using the button
+at the bottom of this page.
+
+<br/> </br>
+
+<form method="post" action="hotel_requests">
+<input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
+<table>
+<tr>
+    <td valign="top"><b><nobr>Which Nights?</nobr></b></td>
+    <td>
+        MAGFest runs from {{ state.EPOCH|datetime:"%A, %B %d" }} through {{ state.ESCHATON|datetime:"%A, %B %d" }},
+        so by default you're eligible for rooms on Thursday, Friday, and Saturday nights.
+        Let us know if you're interested in helping with setup and teardown, and if we
+        haven't already selected enough volunteers to help, you'll be approved for the
+        extra night(s). <br/>
+        <input type="checkbox" name="nights" value="{{ WEDNESDAY }}" /> I'm willing to help set up on Wednesday <br/>
+        <input type="checkbox" name="nights" value="{{ THURSDAY }}" checked /> Thursday <br/>
+        <input type="checkbox" name="nights" value="{{ FRIDAY }}"   checked /> Friday   <br/>
+        <input type="checkbox" name="nights" value="{{ SATURDAY }}" checked /> Saturday <br/>
+        <input type="checkbox" name="nights" value="{{ SUNDAY }}" /> I'm willing to help tear down on Sunday/Monday
+    </td>
+</tr>
+<tr>
+    <td valign="top"><b>Roommate Requests</b></td>
+    <td>
+        List any volunteers you'd like to room with (one per line): <br/>
+        <textarea name="wanted_roommates" rows="3" cols="30"></textarea>
+    </td>
+</tr>
+<tr>
+    <td valign="top"><b>Roommate <nobr>Anti-Requests</nobr></b></td>
+    <td>
+        List any volunteers you <b>DON'T</b> want to room with (one per line): <br/>
+        <textarea name="unwanted_roommates" rows="3" cols="30"></textarea>
+    </td>
+</tr>
+<tr>
+    <td valign="top"><b>Other Requests</b></td>
+    <td> <textarea name="special_needs" rows="3" cols="30"></textarea> </td>
+</tr>
+<tr>
+    <td></td>
+    <td>
+        <input type="submit" value="Submit Requests" /> <br/> <br/>
+        <input type="submit" name="decline" value="I decline hotel room space" />
+    </td>
+</tr>
+</table>
+</form>
+
+{% endblock %}

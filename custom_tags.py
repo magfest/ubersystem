@@ -188,8 +188,8 @@ class timespan(template.Node):
 @tag
 class popup_link(template.Node):
     def __init__(self, href, text='"<sup>?</sup>"'):
-        self.href = href[1:-1]
-        self.text = text[1:-1]
+        self.href = href.strip('"')
+        self.text = text.strip('"')
     
     def render(self, context):
         return """
@@ -335,6 +335,21 @@ class checkbox(template.Node):
         inst = self.inst.resolve(context)
         checked = "checked" if getattr(inst, self.name) else ""
         return '<input type="checkbox" name="{}" value="1" {} />'.format(self.name, checked)
+
+@tag
+class checked_if(template.Node):
+    def __init__(self, *args):
+        self.negated = len(args) > 1
+        self.cond = Variable(args[-1])
+    
+    def render(self, context):
+        try:
+            cond = self.cond.resolve(context)
+        except:
+            cond = False
+        checked = self.negated and not cond or not self.negated and cond
+        image = "checked" if checked else "unchecked"
+        return '<img src="../static/checkbox_{}.png" style="vertical-align:top ; margin-right:5px" height="20" width="20" />'.format(image)
 
 @register.tag("bold_if")
 def do_bold_if(parser, token):

@@ -12,18 +12,59 @@ def get_attendee(full_name, email, zip_code):
 
 @all_renderable(SIGNUPS)
 class Root:
-    def index(self):
-        raise HTTPRedirect("possible")  # TODO: which page should be the default?
-    
-    def schedule(self, message=""):
+    def index(self, message = ""):
         return {
             "message": message,
             "attendee": Attendee.objects.get(id = cherrypy.session["staffer_id"])
         }
     
-    def possible(self, message=""):
+    def fire_safety(self, message = "", fire_safety_cert = None):
+        attendee = Attendee.objects.get(id = cherrypy.session["staffer_id"])
+        if fire_safety_cert is not None:
+            if not re.match(r"^\d{5}\.\d{7}$", fire_safety_cert):
+                message = "That is not a valid certification number"
+            else:
+                attendee.fire_safety_cert = fire_safety_cert
+                attendee.save()
+                raise HTTPRedirect("index?message={}", "Your fire safety certification has been received")
+        
         return {
             "message": message,
+            "attendee": attendee,
+            "fire_safety_cert": fire_safety_cert or ""
+        }
+    
+    def hotel_requests(self, message = "", decline = None, **params):
+        attendee = Attendee.objects.get(id = cherrypy.session["staffer_id"])
+        requests = get_model(HotelRequests, params, checkgroups = ["nights"], restricted = True)
+        if "attendee_id" in params:
+            if decline:
+                HotelRequests.objects.create(attendee = attendee, nights = "")
+                raise HTTPRedirect("index?message={}", "We've recorded that you've declined hotel room space")
+            else:
+                requests.save()
+                nondefault = set(map(int, requests.nights.split(","))) - {THURSDAY, FRIDAY, SATURDAY}
+                if nondefault:
+                    days = " / ".join(NIGHTS_OPTS[day] for day in sorted(nondefault))
+                    message = "Your hotel room request has been submitted.  We'll let you know whether your offer to help on {} is accepted, and who your roommates will be, in the first week of December.".format(days)
+                else:
+                    message = "You've accepted hotel room space for Thursday / Friday / Saturday.  We'll let you know your roommates in the first week of December."
+                raise HTTPRedirect("index?message={}", message)
+        
+        return {
+            "message":  message,
+            "attendee": attendee
+        }
+    
+    def schedule(self, message = ""):
+        return {
+            "message":  message,
+            "attendee": Attendee.objects.get(id = cherrypy.session["staffer_id"])
+        }
+    
+    def possible(self, message = ""):
+        return {
+            "message":  message,
             "attendee": Attendee.objects.get(id = cherrypy.session["staffer_id"])
         }
     
