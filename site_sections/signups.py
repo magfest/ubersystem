@@ -21,7 +21,7 @@ class Root:
     def fire_safety(self, message = "", fire_safety_cert = None):
         attendee = Attendee.objects.get(id = cherrypy.session["staffer_id"])
         if fire_safety_cert is not None:
-            if not re.match(r"^\d{5}\.\d{10}$", fire_safety_cert):
+            if not re.match(r"^\d{5}\.\d{9,10}$", fire_safety_cert):
                 message = "That is not a valid certification number"
             else:
                 attendee.fire_safety_cert = fire_safety_cert
