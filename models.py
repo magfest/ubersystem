@@ -459,6 +459,13 @@ class Attendee(MagModel):
            and self.fire_safety_cert \
            and (self.badge_type != STAFF_BADGE or self.hotel_nights is not None)
     
+    @property
+    def hotel_requests(self):
+        try:
+            return self.hotelrequests
+        except:
+            return None
+    
     @cached_property
     def hotel_nights(self):
         try:
@@ -475,6 +482,13 @@ class HotelRequests(MagModel):
     approved           = BooleanField(default = False)
     
     restricted = ["approved"]
+    
+    def __getattr__(self, name):
+        day = getattr(constants, name.upper())
+        if day not in dict(NIGHTS_OPTS):
+            raise AttributeError()
+        else:
+            return day in map(int, self.nights.split(","))
     
     def __repr__(self):
         return "<{self.attendee.full_name} Hotel Requests>".format(self = self)

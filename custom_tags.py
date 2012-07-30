@@ -328,13 +328,15 @@ class nav_menu(template.Node):
 
 @tag
 class checkbox(template.Node):
-    def __init__(self, name, inst):
-        self.name, self.inst = name, Variable(inst)
+    def __init__(self, name, inst, value = None, checked = None):
+        self.name, self.inst, self.value, self.checked = name, Variable(inst), value, checked
     
     def render(self, context):
         inst = self.inst.resolve(context)
-        checked = "checked" if getattr(inst, self.name) else ""
-        return '<input type="checkbox" name="{}" value="1" {} />'.format(self.name, checked)
+        value = Variable(self.value).resolve(context) if self.value else "1"
+        cond = Variable(self.checked).resolve(context) if self.checked else getattr(inst, self.name)
+        checked = "checked" if cond else ""
+        return '<input type="checkbox" name="{}" value="{}" {} />'.format(self.name, value, checked)
 
 @tag
 class checked_if(template.Node):

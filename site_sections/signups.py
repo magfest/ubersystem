@@ -39,7 +39,8 @@ class Root:
         requests = get_model(HotelRequests, params, checkgroups = ["nights"], restricted = True)
         if "attendee_id" in params:
             if decline or not requests.nights:
-                HotelRequests.objects.create(attendee = attendee, nights = "")
+                requests.nights = ""
+                requests.save()
                 raise HTTPRedirect("index?message={}", "We've recorded that you've declined hotel room space")
             else:
                 requests.save()
@@ -50,9 +51,12 @@ class Root:
                 else:
                     message = "You've accepted hotel room space for Thursday / Friday / Saturday.  We'll let you know your roommates in the first week of December."
                 raise HTTPRedirect("index?message={}", message)
+        else:
+            requests = attendee.hotel_requests or requests
         
         return {
             "message":  message,
+            "requests": requests,
             "attendee": attendee
         }
     
