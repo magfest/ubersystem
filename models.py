@@ -488,7 +488,7 @@ class HotelRequests(MagModel):
         if day not in dict(NIGHTS_OPTS):
             raise AttributeError()
         else:
-            return day in map(int, self.nights.split(","))
+            return str(day) in self.nights.split(",")
     
     def __repr__(self):
         return "<{self.attendee.full_name} Hotel Requests>".format(self = self)
