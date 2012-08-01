@@ -233,7 +233,7 @@ class Root:
             if matching.count():
                 message = "You are registered!"
                 a = matching[0]
-                if a.placeholder or a.paid == NOT_PAID or (a.paid == PAID_BY_GROUP and a.group.amount_paid != a.group.amount_owed and a.group.approved):
+                if a.placeholder or a.paid == NOT_PAID or (a.paid == PAID_BY_GROUP and a.group.amount_paid != a.group.amount_owed):
                     attendee = matching[0]
             else:
                 message = "No attendee matching that name and zip code is in the database (try nicknames before giving up)"
