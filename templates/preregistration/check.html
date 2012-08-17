@@ -10,14 +10,14 @@
         {% if not attendee.group or attendee.group.amount_owed %}
             <div style="color:red">
                 {% if attendee.is_dealer and attendee.group.status != APPROVED %}
-                    However, your request for space in our Marketplace has not been approved; you will be contacted as soon as your registration is approved or rejected.
+                    However, your request for space in our Marketplace has not been approved; you will be contacted as soon as your registration is approved or declined.
                 {% else %}
                     However, you are marked as not having paid.
                     <br/> If you've already paid, please contact <a href="mailto:{{ REGDESK_EMAIL }}">{{ REGDESK_EMAIL }}</a>
                     <br/> If you haven't paid, please pay using Paypal now:
                     {% if attendee.group %}
                         {% paypal_button attendee.group %}
-                    {% else %}
+                    {% else %}re
                         {% paypal_button attendee %}
                     {% endif %}
                 {% endif %}

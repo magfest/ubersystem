@@ -41,7 +41,7 @@ class Root:
         }
     
     def unapprove(self, id, action, email):
-        assert action in ["waitlisted", "rejected"]
+        assert action in ["waitlisted", "declined"]
         group = Group.objects.get(id = id)
         subject = "Your MAGFest Dealer registration has been " + action
         Email.objects.create(fk_tab = "Group", fk_id = group.id, dest = group.email, subject = subject, body = email)

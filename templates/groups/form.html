@@ -13,8 +13,8 @@
                 action: action,
                 email: $.val("email")
             }, function(resp) {
-                if (action == "rejected") {
-                    window.location = "index?message=Group+rejected";
+                if (action == "declined") {
+                    window.location = "index?message=Group+declined";
                 } else {
                     $("#status").text("Waitlisted");
                 }
@@ -82,10 +82,10 @@
                 <a href="#" onClick="$('#setstatus').toggle(); return false;">Waitlist or Reject</a> <br/>
                 <div id="setstatus" style="display:none">
                     Enter an email message to be sent along with the notification: <br/>
-                    (The email subject will be "Your MAGFest Dealer registration has been [waitlisted | rejected]")
+                    (The email subject will be "Your MAGFest Dealer registration has been [waitlisted | declined]")
                     <textarea name="email", rows="5" cols="50"></textarea> <br/>
                     <button onClick="unapprove('waitlisted'); return false;">Waitlist</button>
-                    <button onClick="unapprove('rejected'); return false;">Reject</button>
+                    <button onClick="unapprove('declined'); return false;">Reject</button>
                 </div>
             {% endif %}
         </td>
