@@ -12,7 +12,7 @@ def field_repr(self, name):
     [field] = [f for f in self._meta.fields if f.name == name]
     val = getattr(self, name)
     s = repr(val)
-    if field.choices:
+    if field.choices and val is not None:
         return repr(dict(field.choices)[val])
     elif isinstance(field, CommaSeparatedIntegerField): # TODO: standardize naming convention to make this automatic
         opts = dict({
@@ -135,12 +135,15 @@ class Group(MagModel):
     can_add       = BooleanField(default = False)
     admin_notes   = TextField()
     registered    = DateTimeField(auto_now_add = True)
+    approved      = DateTimeField(null = True)
     
-    restricted = ["amount_paid","amount_owed","auto_recalc","admin_notes","lockable","status"]
+    restricted = ["amount_paid","amount_owed","auto_recalc","admin_notes","lockable","status","approved"]
     
     def save(self, *args, **kwargs):
         if self.auto_recalc:
             self.amount_owed = self.total_cost
+        if self.status == APPROVED and not self.approved:
+            self.approved = datetime.now()
         super(Group, self).save(*args, **kwargs)
     
     @property
@@ -492,6 +495,10 @@ class HotelRequests(MagModel):
     
     def __repr__(self):
         return "<{self.attendee.full_name} Hotel Requests>".format(self = self)
+
+#class AssignedPanelist(MagModel):
+#    attendee = ForeignKey(Attendee)
+#    event = ForeignKey(Event)
 
 
 class Job(MagModel):
