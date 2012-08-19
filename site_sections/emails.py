@@ -56,17 +56,17 @@ Reminder(Group, "Last chance to pay for your MAGFest group", "group_payment_remi
                                  and g.registered < datetime.now() - timedelta(days = 12))
 
 Reminder(Group, "Reminder to pay for your MAGFest Dealer registration", "dealer_payment_reminder.txt",
-         lambda g: g.is_dealer and g.amount_owed > 0 and g.amount_paid == 0
-                               and g.registered < datetime.now() - timedelta(days = 21),
+         lambda g: g.is_dealer and g.status == APPROVED and g.amount_owed > 0 and g.amount_paid == 0
+                               and g.registered < datetime.now() - timedelta(days = 30),
          sender = MARKETPLACE_EMAIL)
 
 Reminder(Group, "Your MAGFest Dealer registration is due in one week", "dealer_payment_reminder.txt",
-         lambda g: g.is_dealer and g.amount_owed > 0 and g.amount_paid == 0
+         lambda g: g.is_dealer and g.status == APPROVED and g.amount_owed > 0 and g.amount_paid == 0
                                and state.DEALER_PAYMENT_DUE < datetime.now() + timedelta(days = 7),
          sender = MARKETPLACE_EMAIL)
 
 Reminder(Group, "Last chance to pay for your MAGFest Dealer registration", "dealer_payment_reminder.txt",
-         lambda g: g.is_dealer and g.amount_owed > 0 and g.amount_paid == 0
+         lambda g: g.is_dealer and g.status == APPROVED and g.amount_owed > 0 and g.amount_paid == 0
                                and state.DEALER_PAYMENT_DUE < datetime.now() + timedelta(days = 2),
          sender = MARKETPLACE_EMAIL)
 
