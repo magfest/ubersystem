@@ -7,8 +7,10 @@
 
 <div style="margin:15px">
     {% if group.amount_paid != group.amount_owed %}
-        You may use this link to pay the ${{ group.amount_unpaid }} you owe for this group:
-        {% paypal_button group %}
+        {% if group.status == APPROVED or not group.is_dealer %}
+            You may use this link to pay the ${{ group.amount_unpaid }} you owe for this group:
+            {% paypal_button group %}
+        {% endif %}
     {% endif %}
     
     {% if group.unregistered_badges %}
