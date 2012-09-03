@@ -35,7 +35,7 @@ class State:
     DEALER_PAYMENT_DUE = datetime(2012, 11, 30, 23, 59)
     ROOM_DEADLINE      = datetime(2012, 11, 30, 23, 59)
     UBER_TAKEDOWN      = datetime(2013, 12, 30, 23, 59)
-    EPOCH              = datetime(2013,  1,  3, 10)
+    EPOCH              = datetime(2013,  1,  3,  8)
     ESCHATON           = datetime(2013,  1,  6, 22)
     
     PATH     = "/magfest"
