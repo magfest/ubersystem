@@ -69,8 +69,12 @@ class Root:
 
             # only need the date from the newest magfest. ignore the others
             date = raw_data[newest_magfest][day][1]
-            #row.append(date.strftime("%Y-%m-%d"))
-            row.append(date)
+
+            # magfestubersystem.com likes this one better
+            row.append(date.strftime("%Y-%m-%d"))
+            
+            # courtwright.org likes this one better
+            #row.append(date)
 
             for magfest_data in raw_data:
                 # should be the same day offset
