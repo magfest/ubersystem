@@ -131,10 +131,15 @@
     {% if state.DEALER_REG_OPEN %}
         <td>
             <ul>
+                {% if state.DEALER_REG_FULL %}
+                    <li style="color:red"> Dealer registration is closed; submitting an application will put you on our waitlist. </li>
+                {% endif %}
                 <li> Apply to be a Dealer with this form, you'll be emailed a confirmation with a payment link if you are approved. </li>
                 <li> ${{ DEALER_BADGE_PRICE }} per badge </li>
                 <li> {{ TABLE_PRICES }} </li>
-                <li style="color:red"> Dealer registration closes on September 1, or whenever we run out of space. </li>
+                {% if not state.DEALER_REG_FULL %}
+                    <li style="color:red"> Dealer registration closes on September 1, or whenever we run out of space. </li>
+                {% endif %}
             </ul>
         </td>
         <td> {% popup_link "../static/dealers.html" "Details" %} </td>

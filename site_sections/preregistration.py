@@ -47,7 +47,10 @@ def send_prereg_emails(attendee):
                 sender = MARKETPLACE_EMAIL
                 template = "dealer_email.html"
                 subject = "MAGFest Dealer Request Submitted"
-                message = "Your dealer request has been submitted, we'll email you after your submission is reviewed"
+                if state.DEALER_REG_FULL:
+                    message = "Although dealer registration is closed, your dealer request has been added to our waitlist"
+                else:
+                    message = "Your dealer request has been submitted, we'll email you after your submission is reviewed"
             else:
                 template = "group_email.html"
         else:
@@ -143,6 +146,7 @@ class Root:
                     if attendee.badge_type == PSEUDO_GROUP_BADGE:
                         group.tables = 0
                     else:
+                        group.status = WAITLISTED if state.DEALER_REG_FULL else UNAPPROVED
                         attendee.ribbon = DEALER_RIBBON
                     
                     group.save()
