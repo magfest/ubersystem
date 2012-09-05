@@ -18,22 +18,28 @@ function drawChart() {
     // not zero
     var newest_magfest_index = attendance_data[0].length - 1;
     var current_total = -1;
-    for (var day = attendance_data.length-1; day >= 0; day--)
+    for (var day = attendance_data.length-1; day >= 1; day--)
     {
         var total_attendance = attendance_data[day][newest_magfest_index]
 
-        if (current_total == -1)
-        {
-            current_total = total_attendance;
-            continue;
-        }
-
-
-        if (total_attendance != current_total)
+        if (total_attendance != attendance_data[day-1][newest_magfest_index])
             break;
 
         // it's unchanged, so remove this value and keep searching backwards
         attendance_data[day][newest_magfest_index] = null; // total_attendance
+    }
+
+    // remove any zero attendance days at the start of the data for
+    // each year. starting from 1 on each of these to skip non-numeric data
+    for (var year = 1; year < attendance_data[day].length; ++year)
+    {
+        for (var day = 1; day < attendance_data.length; ++day)
+        {
+            if (attendance_data[day][year] != 0)
+                break;
+            
+            attendance_data[day][year] = null;
+        }
     }
 
     // -------------------------------------
@@ -57,7 +63,8 @@ function drawChart() {
     table.draw(
 		data, 
 		{
-			showRowNumber: false
+			showRowNumber: false,
+            width: 1000
 		}
 	);
 }
