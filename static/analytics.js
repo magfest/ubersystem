@@ -1,7 +1,7 @@
 // Dominic Cerquetti, Magfest ubersystem, Aug 2012
 // show some stats about our registration numbers in neato google charts form.
 
-google.load("visualization", "1", {packages:["corechart"]});
+google.load("visualization", "1", {packages:["corechart", "table"]});
 google.setOnLoadCallback(drawChart);
 
 function drawChart() {
@@ -41,6 +41,8 @@ function drawChart() {
     // -------------------------------------
 
     var data = google.visualization.arrayToDataTable(attendance_data);
+	
+	// draw the graph
     var chart = new google.visualization.LineChart(document.getElementById('graph'));
     chart.draw(
         data,
@@ -49,5 +51,14 @@ function drawChart() {
             title: 'Magfest attendance by year [days til start of magfest]'
         }
     );
+	
+	// draw the table breakdown below it
+	var table = new google.visualization.Table(document.getElementById('table_div'));
+    table.draw(
+		data, 
+		{
+			showRowNumber: false
+		}
+	);
 }
 
