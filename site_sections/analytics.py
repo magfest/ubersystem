@@ -9,6 +9,10 @@
 # to work correctly. (mainly, dates and magfest event numbers
 # need to be updated)
 
+# NOTE: when upgrading years, you will need to double check all the
+# databases VIEWs to make sure they are pointing at the right 
+# tables.
+
 from common import *
 
 
@@ -28,45 +32,14 @@ def generate_attendance_by_day_graph_data(magfest_year_to_query):
 
     return results
 
-"""
-    atts = list(Attendee.objects.values()) # TODO
-    start = min(x["registered"].date() for x in atts)
-    end = max(x["registered"].date() for x in atts)
-
-    days, regs = defaultdict(int), defaultdict(int)
-    for x in atts + groups:
-        days[x["registered"].date()] += x["amount_paid"]
-
-    total = 0
-    sums = {}
-    day = start
-    while day <= end:
-        total += days[day]
-        sums[day.strftime("%Y-%m-%d")] = total
-        day += timedelta(days=1)
-    return sums
-
-
-
-
-data[which_day][0] = "Mar 14 2012"
-data[which_day][1] = (mag6 data)
-data[which_day][2] = (mag7 data)
-data[which_day][3] = (mag8 data)
-data[which_day][4] = (mag9 data)
-data[which_day][5] = (mag10 data)
-data[which_day][6] = (mag11 data)
-
-day = data[day]
-
-day[0] = date
-day[1] = mag6 data
-day[2] = mag7 data
-"""
-
 
 @all_renderable(PEOPLE)
 class Root:
+    def index(self):
+        return {
+            "test": "test"
+        }
+
     def analytics_graph_by_attendance(self):
         starting_magfest_year = 6
         ending_magfest_year = 11
@@ -96,7 +69,8 @@ class Root:
 
             # only need the date from the newest magfest. ignore the others
             date = raw_data[newest_magfest][day][1]
-            row.append(date.strftime("%Y-%m-%d"))
+            #row.append(date.strftime("%Y-%m-%d"))
+            row.append(date)
 
             for magfest_data in raw_data:
                 # should be the same day offset
@@ -113,49 +87,3 @@ class Root:
             "attendance_data": graph_data
         }
 
-
-
-
-
-
-
-
-
-
-#        q = 0
-"""
-        # turn absolute date/times into relative days til magfest (0 thru 365)
-        for magfest_data in attendance_data:
-
-
-
-
-        # put it in a format that the graphing data wants to see
-        chart_data = []
-        index_of_cumulative_attendance = 2
-        for day in range(0, 365):
-            day_data = []
-
-            day_data.append("jan 90th 2012") # TODO
-
-            for magfest_data in attendance_data:
-                # if q == 0:
-                #    q = 1
-                #    print attendance_data[year]
-                # [[datetime.date(2007, 5, 14), 2L, 2L], ... ]
-
-                for day in magfest_data:
-                    date = day[0]
-                    amount_that_day = day[1]
-                    total_so_far = day[2]
-
-                #day_data.append(
-                #    attendance_data[year]
-                #                   [index_of_cumulative_attendance][thisone])
-
-            chart_data.append(day_data)
-
-        return {
-            "chart_data": chart_data
-        }
-        """
