@@ -57,11 +57,40 @@ function drawChart() {
             title: 'Magfest attendance by year [days til start of magfest]'
         }
     );
+
+    // add the % change to the data for the second table
+    attendance_data[0].push("% change last year -> this");
+    for (var day = 1; day < attendance_data.length; ++day)
+    {
+        // Percent change = [(Vpresent-Vpast)/Vpast] * 100
+        var len = attendance_data[day].length;
+        var presentyear = attendance_data[day][len-1];
+        var lastyear = attendance_data[day][len-2];
+
+        if (presentyear == null || lastyear == null)
+        {
+            attendance_data[day].push(null);
+            continue;
+        }
+
+        var pctchange = (presentyear - lastyear) / lastyear * 100;
+
+        // the first couple entries are CRAZY. just ignore.
+        if (pctchange >= 100)
+        {
+            attendance_data[day].push(null);
+            continue;
+        }
+
+        attendance_data[day].push(pctchange.toFixed(2) + "%");
+    }
+
+    var data2 = google.visualization.arrayToDataTable(attendance_data);
 	
 	// draw the table breakdown below it
 	var table = new google.visualization.Table(document.getElementById('table_div'));
     table.draw(
-		data, 
+		data2, 
 		{
 			showRowNumber: false,
             width: 1000
