@@ -4,4 +4,4 @@ Thanks again for registering as a Dealer for this year's MAGFest.  Our records i
 
 You can use the Paypal button (or credit/debit even if you don't have a Paypal account) on your group's page to pay the ${{ group.amount_owed }} that you owe: {{ state.URL_BASE }}/preregistration/group_members?id={{ group.id|obfuscated }}
 
-{{ REGDESK_EMAIL_SIGNATURE }}
+{{ MARKETPLACE_EMAIL_SIGNATURE }}
