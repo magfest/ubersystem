@@ -5,87 +5,16 @@
         <link rel="stylesheet" type="text/css" href="../static/extjs/resources/css/ext-all.css" />
         <script type="text/javascript" src="../static/extjs/ext-all-dev.js"></script>
         <script type="text/javascript">
-            var epoch = 1000 * {{ state.EPOCH|timestamp }};
-            var rowToTime = function(i) {
-                return Ext.Date.format(new Date(epoch + 1000 * 60 * 30 * i), "D H:ia");
-            };
-            
-            var createForm = function() {
-                Ext.create("Ext.window.Window", {
-                    title: "Create an Event",
-                    items: [{
-                        xtype: "form",
-                        url: "create",
-                        items: [{
-                            xtype: "textfield",
-                            name: "name",
-                            fieldLabel: "Event Name"
-                        }, {
-                            xtype: "textarea",
-                            name: "description",
-                            fieldLabel: "Description"
-                        }],
-                        buttons: [{
-                            text: "Cancel",
-                            handler: function() {
-                                this.up("window").close();
-                            }
-                        }, {
-                            text: "Create",
-                            formBind: true,
-                            disabled: true,
-                            handler: function() {
-                                console.log("form submitted");
-                            }
-                        }]
-                    }]
-                }).show();
-            }
-            
-            var ScheduleGrid = function(locationName, locationId) {
-                var showContextMenu = function(grid, record, item, rowIndex, event) {
-                    console.log("contextmenu", record, item, rowIndex, event);
-                    event.preventDefault();
-                    var el = Ext.fly(item);
-                    var menu = record.get("name") == "_blank" ? App.blankMenu : App.eventMenu;
-                    menu.showAt(el.getX() + 10, el.getY() + 10);
-                };
-                return {
-                    xtype: "gridpanel",
-                    selModel: {mode: "MULTI"},
-                    width: 100,
-                    columns: [{
-                        flex: 1,
-                        text: locationName,
-                        dataIndex: "name",
-                        renderer: function(value, metaData, record, rowIndex) {
-                            if (value == "_blank") {
-                                return '<div style="height: 50px">&nbsp;</div>';
-                            } else {
-                                var height = 50 + 57 * (record.get("duration") - 1);
-                                return '<div style="height: ' + height + 'px">' + value + '</div>';
-                            }
-                        }
-                    }],
-                    store: Ext.create("Ext.data.JsonStore", {
-                        autoLoad: true,
-                        fields: ["name", "duration"],
-                        proxy: {
-                            type: "ajax",
-                            autoLoad: true,
-                            url: "events",
-                            extraParams: {location: locationId}
-                        }
-                    }),
-                    listeners: {
-                        itemcontextmenu: showContextMenu,
-                        itemdblclick: showContextMenu
-                    }
-                };
-            };
             Ext.namespace("App");
-            Ext.Loader.setConfig({enabled: true});
+            Ext.Loader.setConfig({
+                enabled: true,
+                paths: {"App": "js/App"}
+            });
             Ext.onReady(function() {
+                App.epoch = 1000 * {{ state.EPOCH|timestamp }};
+                App.rowToTime = function(i) {
+                    return Ext.Date.format(new Date(App.epoch + 1000 * 60 * 30 * i), "D H:ia");
+                };
                 App.viewport = Ext.create("Ext.container.Viewport", {
                     layout: "hbox",
                     items: [
@@ -101,12 +30,16 @@
                                 flex: 1,
                                 dataIndex: "startTime",
                                 renderer: function(value, metaData, record, rowIndex) {
-                                    return '<div style="height: 50px">' + rowToTime(rowIndex) + '</div>';
+                                    return '<div style="height: 50px">' + App.rowToTime(rowIndex) + '</div>';
                                 }
                             }]
                         },
                         {% for loc,desc in EVENT_LOC_OPTS %}
-                            ScheduleGrid("{{ desc }}", {{ loc }}),
+                            Ext.create("App.ScheduleGrid", {
+                                locationId: {{ loc }},
+                                locationName: "{{ desc }}"
+                            })
+                            {% if not forloop.last %},{% endif %}
                         {% endfor %}
                     ]
                 });
@@ -124,18 +57,56 @@
                     items: [{
                         text: "Move an event here",
                         handler: function(menu, item, event) {
-                            console.log("Move clicked");
+                            Ext.create("Ext.window.Window", {
+                                title: "Select an Event",
+                                items: [{
+                                    xtype: "combobox",
+                                    allowBlank: false,
+                                    editable: false,
+                                    store: Ext.create("Ext.data.JsonStore", {
+                                        fields: ["id", "full_name"],
+                                        proxy: {
+                                            type: "ajax",
+                                            url: "available_events",
+                                            reader: {
+                                                type: "json",
+                                                root: "events",
+                                                idProperty: "id"
+                                            }
+                                        }
+                                    })
+                                }],
+                                buttons: [{
+                                    text: "Cancel",
+                                    handler: function() {
+                                        this.up("window").close();
+                                    }
+                                }, {
+                                    text: "Move",
+                                    formBind: true,
+                                    disabled: true,
+                                    handler: function(btn) {
+                                        
+                                    }
+                                }]
+                            }).show();
                         }
                     }]
                 });
             });
         </script>
         <style type="text/css">
+            .eventform .x-panel-body {
+                padding: 5px;
+            }
             .x-grid-table {
-                border-collapse: collapse;
+                /* border-collapse: collapse; */
             }
             .x-grid-row .x-grid-cell {
-                border: 1px solid black
+                border: 1px solid black;
+            }
+            .x-grid-row .x-grid-cell .x-grid-cell-inner {
+                padding: 0px;
             }
             .x-panel .x-grid-body {
                 border: 0px;

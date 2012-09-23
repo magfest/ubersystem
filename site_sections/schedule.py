@@ -84,7 +84,6 @@ class Root:
         return render("schedule/schedule.tsv", {
             "schedule": sorted(schedule.items(), key=lambda tup: EVENT_LOCS.index(tup[1][0].location))
         })
-
     
     @unrestricted
     def now(self, when=None):
@@ -187,43 +186,61 @@ class Root:
     
     def events(self, location, **params):
         cherrypy.response.headers["Content-Type"] = "application/json"
-        if int(location) == 99:
-            return json.dumps([{
-                "name": "_blank"
-            }, {
-                "duration": 2,
-                "name": "Hello World!"
-            }, {
-                "duration": 1,
-                "name": "Hello Kitty!"
-            }, {
-                "duration": 2,
-                "name": "Goodbye World!"
-            }])
-        elif int(location) == 98:
-            return json.dumps([{
-                "duration": 1,
-                "name": "Music"
-            }, {
-                "name": "_blank"
-            }, {
-                "duration": 3,
-                "name": "Gaming"
-            }, {
-                "duration": 1,
-                "name": "Festival"
-            }])
+        events = defaultdict(lambda: {"name": "_blank"})
+        for event in Event.objects.filter(location = location):
+            events[event.start_time] = {
+                "name":        event.name,
+                "description": event.description,
+                "duration":    event.duration
+            }
+            for i in range(1, event.duration):
+                events[event.start_time + timedelta(minutes = 30 * i)] = None
+        return json.dumps([events[when] for when,_ in START_TIME_OPTS if events[when]])
+    
+    def panelists(self, **params):
+        return json.dumps({"panelists": [
+            {
+                "id": a.id,
+                "full_name": a.full_name
+            } for a in Attendee.objects.filter(ribbon = PANELIST_RIBBON).order_by("first_name", "last_name")
+        ]})
+    
+    def panelists(self, **params):
+        return json.dumps([
+            {
+                "id": a.id,
+                "full_name": a.full_name
+            } for a in Attendee.objects.filter(ribbon = PANELIST_RIBBON).order_by("first_name", "last_name")
+        ])
+    
+    def available_events(self, **params):
+        return json.dumps({"events": [
+            
+        ]})
+    
+    def event(self, panelists = [], **params):
+        event = get_model(Event, params)
+        message = check(event)
+        if message:
+            return json.dumps({
+                "success": False,
+                "msg": message
+            })
         else:
-            events = defaultdict(lambda: {"name": "_blank"})
-            for event in Event.objects.filter(location = location):
-                events[event.start_time] = {
-                    "name":        event.name,
-                    "description": event.description,
-                    "duration":    event.duration
-                }
-                for i in range(1, event.duration):
-                    events[event.start_time + timedelta(minutes = 30 * i)] = None
-            return json.dumps([events[when] for when,_ in START_TIME_OPTS if events[when]])
+            event.save()
+            event.assignedpanelist_set.all().delete()
+            for attendee_id in listify(panelists):
+                AssignedPanelist.objects.create(attendee_id = attendee_id, event = event)
+            
+            return json.dumps({
+                "success": True,
+                "msg": "Event Uploaded"
+            })
     
     def testing(self):
         return {}
+    
+    def js(self, *path, **params):
+        cherrypy.response.headers["Content-Type"] = "text/javascript"
+        fname = os.path.join("schedule", "js", *path)
+        return render(fname, {})
