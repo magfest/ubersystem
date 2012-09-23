@@ -17,8 +17,9 @@ def show_queries(func):
     @wraps(func)
     def queries(self, *args, **kwargs):
         connection.queries[:] = []
+        args = [arg for arg in args if arg != "querylog"]
         try:
-            return func(self, **kwargs)
+            return func(self, *args, **kwargs)
         finally:
             if "querylog" in args:
                 cherrypy.response.headers["Content-type"] = "text/plain"
