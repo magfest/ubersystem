@@ -1,0 +1,32 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+    <title>MAGFest - Analytics: Attendance Graph</title>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+    <script type="text/javascript" src="../static/date.js"></script>
+</head>
+<body>
+
+<script type="text/javascript">
+    var attendance_data = {{ attendance_data|jsonize }};
+</script>
+
+<script type="text/javascript" src="../static/analytics.js"></script>
+
+<h1>Magfest Analytics.</h1>
+
+<hr>
+
+This graph shows PAID attendance only.  Does not count staff, dealers, guest, bands, etc.<p>
+
+<div id="graph" style="width:100%"></div>
+
+<br/>
+
+<div id='table_div'></div>
+
+</body>
+</html>
+
+<br/>
