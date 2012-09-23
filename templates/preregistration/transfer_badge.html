@@ -1,24 +1,26 @@
 {% extends "base.html" %}
-{% block title %}
-    {% if attendee.placeholder %}
-        Finalize Your MAGFest Registration
-    {% else %}
-        Update Your MAGFest Registration
-    {% endif %}
-{% endblock %}
 {% block backlink %}{% endblock %}
+{% block title %}Tranfer Your MAGFest Registration{% endblock %}
 {% block content %}
 
-<form method="post" action="confirm">
+<h2> Transfer {{ old.full_name }}'s Registration </h2>
+
+By filling out this form, you will be transferring {{ old.full_name }}'s MAGFest registration
+to someone else.  {{ old.full_name }} will no longer have a paid MAGFest badge waiting at
+our Registration Desk; that will belong to whomever the badge is transferred.
+
+<form method="POST" action="transfer_badge">
 <input type="hidden" name="id" value="{{ attendee.id|obfuscated }}" />
-<input type="hidden" name="return_to" value="{{ return_to }}" />
 
 <table width="100%" cellspacing="5" cellpadding="5">
 <tr>
     <td width="25%"> <b><nobr>Name:</nobr></b> </td>
-    <td width="75%">{{ attendee.full_name }}</td>
+    <td width="75%">
+        <input type="text" style="width:10em" name="first_name" value="{{ attendee.first_name }}" class="focus" />
+        <input type="text" style="width:15em" name="last_name"  value="{{ attendee.last_name }}" />
+    </td>
 </tr>
-{% if attendee.badge_type == STAFF_BADGE or attendee.badge_type == SUPPORTER_BADGE %}
+{% if attendee.badge_type == SUPPORTER_BADGE %}
     <tr>
         <td>Name Printed on Badge:</td>
         <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" /> </td>
@@ -53,26 +55,11 @@
 </tr>
 <tr>
     <td></td>
-    <td> <input type="submit" value="{% if attendee.placeholder %}Register{% else %}Update My Info{% endif %}" /> </td>
+    <td> <input type="submit" value="Transfer this Badge" /> </td>
 </tr>
 </table>
 
 </form>
-
-{% if attendee.paid == NOT_PAID %}
-    <div style="text-align:center">
-        <h3> You still need to pay for your badge! </h3>
-        {% paypal_button attendee %}
-        <b><i>Total</i>:</b> ${{ attendee.total_cost }} <br/>
-        <font size="-1">(Reminder: you can {% popup_link "../static/noPaypal.html" "pay with a credit/debit card" %} through Paypal even without a Paypal account.)</font>
-    </div>
-{% endif %}
-{% if not attendee.placeholder and attendee.paid == HAS_PAID %}
-    <form method="GET" action="transfer_badge" style="margin-left:25%">
-    <input type="hidden" name="id" value="{{ attendee.id|obfuscated }}" />
-    <input type="submit" value="Transfer my Badge" />
-    </form>
-{% endif %}
 
 {% add_max_lengths Attendee %}
 

@@ -148,7 +148,12 @@ def hour_day_format(dt):
 
 
 def send_email(source, dest, subject, body, format = "text", cc = [], bcc = []):
-    if state.SEND_EMAILS and (not DEV_BOX or dest.endswith("mailinator.com")):
+    dest, cc, bcc = map(listify, [dest, cc, bcc])
+    if DEV_BOX:
+        for xs in [dest, cc, bcc]:
+            xs[:] = [email for email in xs if email.endswith("mailinator.com")]
+    
+    if state.SEND_EMAILS and dest:
         SESConnection(AWS_ACCESS_KEY_ID, AWS_SECRET_KEY).send_email(
             subject = subject,
             body = body,

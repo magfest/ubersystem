@@ -295,6 +295,32 @@ class Root:
         assign_group_badges(group, group.badges + int(count))
         raise HTTPRedirect("group_members?id={}&message={}", id, "The requested badges have been added to your group; you must pay for them using the Paypal link below to prevent them from being deleted before the start of MAGFest")
     
+    def transfer_badge(self, message = "", **params):
+        params["id"] = unobfuscate(params["id"])
+        old = Attendee.objects.get(id = params["id"])
+        attendee = get_model(Attendee, params, bools = ["staffing","international"], restricted = True)
+        
+        if "first_name" in params:
+            message = check(attendee) or check_prereg_reqs(attendee)
+            if not message:
+                attendee.save()
+                subject, body = "MAGFest Registration Transferred", render("emails/transfer_badge.txt", {"new": attendee, "old": old})
+                Email.objects.create(fk_tab="Attendee", fk_id=attendee.id, dest=old.email, subject=subject, body=body)
+                try:
+                    send_email(REGDESK_EMAIL, [old.email, attendee.email, REGDESK_EMAIL], subject, body)
+                except:
+                    log.error("unable to send badge change email", exc_info = True)
+                raise HTTPRedirect("confirm?id={}&message={}", obfuscate(attendee.id), "Your registration has been transferred")
+        else:
+            for attr in ["first_name","last_name","email","zip_code","international","ec_phone","phone","interests","age_group","staffing","requested_depts"]:
+                setattr(attendee, attr, getattr(Attendee(), attr))
+        
+        return {
+            "old":      old,
+            "attendee": attendee,
+            "message":  message
+        }
+    
     def confirm(self, message = "", return_to = "confirm", **params):
         params["id"] = unobfuscate(params["id"])
         attendee = get_model(Attendee, params, bools = ["staffing","international"], restricted = True)

@@ -1,0 +1,7 @@
+{{ old.first_name }} and {{ new.first_name }},
+
+Our records indicate that {{ old.full_name }} ({{ old.email }}) has transferred their MAGFest {{ old.get_badge_type_display }} registration to {{ new.full_name }} ({{ new.email }}).  So {{ old.full_name }} no longer has a paid registration, and {{ new.full_name }} should have no trouble picking up their badge at our registration desk.
+
+If this has happened in error, please contact {{ REGDESK_EMAIL }}.
+
+{{ REGDESK_EMAIL_SIGNATURE }}
