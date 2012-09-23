@@ -310,7 +310,7 @@ class Root:
                 else:
                     message = "Your information has been updated."
                 
-                page = ("confirm?id={}&" + obfuscate(attendee.id)) if return_to == "confirm" else (return_to + "?")
+                page = ("confirm?id=" + obfuscate(attendee.id) + "&") if return_to == "confirm" else (return_to + "?")
                 raise HTTPRedirect(page + "message={}", message)
         
         attendee.placeholder = placeholder
