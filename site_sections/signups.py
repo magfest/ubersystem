@@ -80,13 +80,27 @@ class Root:
         Shift.objects.filter(id=shift_id, attendee = cherrypy.session["staffer_id"]).delete()
         raise HTTPRedirect("schedule?message={}", "Shift dropped")
     
+    def volunteer(self, id, requested_depts = "", message = "Select which departments interest you as a volunteer."):
+        attendee = Attendee.objects.get(id = id)
+        if requested_depts:
+            attendee.staffing = True
+            attendee.requested_depts = ",".join(listify(requested_depts))
+            attendee.save()
+            raise HTTPRedirect("login?message={}", "Thanks for signing up as a volunteer; you'll be emailed as soon as you are assigned to one or more departments.")
+        
+        return {
+            "message": message,
+            "attendee": attendee,
+            "requested_depts": requested_depts
+        }
+    
     @unrestricted
     def login(self, message="", full_name="", email="", zip_code=""):
         if full_name or email or zip_code:
             try:
                 attendee = get_attendee(full_name, email, zip_code)
                 if not attendee.staffing:
-                    message = "You are not signed up as a volunteer!  Email {} if you are interested in volunteering.".format(STAFF_EMAIL)
+                    message = SafeString('You are not signed up as a volunteer.  <a href="volunteer?id={}">Click Here</a> to sign up.'.format(attendee.id))
                 elif not attendee.assigned:
                     message = "You have not been assigned to any departmemts; an admin must assign you to a department before you can log in"
             except:

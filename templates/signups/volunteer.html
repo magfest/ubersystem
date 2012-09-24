@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Sign up to Volunteer{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<h2> Sign up to Volunteer </h2>
+
+<form method="post" action="volunteer" style="text-align:center">
+<input type="hidden" name="id" value="{{ attendee.id }}" />
+{% checkgroup "requested_depts" JOB_INTEREST_OPTS requested_depts %}
+<br/><br/> <input type="submit" value="Volunteer for These Departments" />
+</form>
+
+{% endblock %}
