@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Hotel Requests{% endblock %}}
+{% block content %}
+
+<script type="text/javascript">
+    function setApproved(approved, id, btn) {
+        var $td = $(btn).parent("td");
+        $td.find("button").attr("disabled", true);
+        $.getJSON("approve", {id: id, approved: approved}, function(resp) {
+            $td.text(approved);
+            $td.siblings(".nights").text(resp.nights);
+        });
+    }
+</script>
+
+<h2> Hotel Requests </h2>
+
+<table class="list">
+<tr class="header">
+    <td>Staffer Name</td>
+    <td>Departments</td>
+    <td>Roommate Requests</td>
+    <td>Roommate Anti-requests</td>
+    <td>Special Needs</td>
+    <td>Requested Nights</td>
+    <td>Extra Nights</td>
+</tr>
+{% for request in requests %}
+    <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
+        <td><a href="form?id={{ request.attendee.id }}">{{ request.attendee.full_name }}</a></td>
+        <td>{{ request.attendee.assigned_display|join:" / " }}</td>
+        <td>{{ request.wanted_roommates }}</td>
+        <td>{{ request.unwanted_roommates }}</td>
+        <td>{{ request.special_needs }}</td>
+        <td class="nights">{{ request.attendee.hotel_nights|join:" / " }}</td>
+        <td>
+            {% if not request.WEDNESDAY and not request.SUNDAY %}
+                n/a
+            {% else %}
+                {% if request.approved %}
+                    approved
+                {% else %}
+                    <button onClick="setApproved('approved', {{ request.id }}, this)">Approve</button>
+                    <button onClick="setApproved('n/a',      {{ request.id }}, this)">Reject</button>
+                {% endif %}
+            {% endif %}
+        </td>
+    </tr>
+{% endfor %}
+</table>
+
+{% endblock %}

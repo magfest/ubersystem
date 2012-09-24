@@ -472,7 +472,7 @@ class Attendee(MagModel):
     @cached_property
     def hotel_nights(self):
         try:
-            return self.hotelrequests.nights.split(",")
+            return [dict(NIGHTS_OPTS)[night] for night in map(int, self.hotelrequests.nights.split(","))]
         except:
             return None
 

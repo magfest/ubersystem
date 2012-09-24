@@ -77,7 +77,7 @@
     }
     
     function setBadgeMessage() {
-        if ($.field("badge_type").length && isPreassignedBadgeType($.val("badge_type"))) {
+        if ($.field("badge_type") && isPreassignedBadgeType($.val("badge_type"))) {
             $("#badge_message").text("(next available badge number)");
         } else {
             $("#badge_message").text("");

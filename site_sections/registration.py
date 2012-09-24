@@ -409,3 +409,15 @@ class Root:
         shift = Shift.objects.get(id=shift_id)
         shift.delete()
         raise HTTPRedirect("shifts?id={}&message={}", shift.attendee.id, "Staffer unassigned from shift")
+    
+    def hotel_requests(self, message = ""):
+        return {"requests": HotelRequests.objects.order_by("attendee__first_name", "attendee__last_name")}
+    
+    def approve(self, id, approved):
+        hr = HotelRequests.objects.get(id = id)
+        if approved == "approved":
+            hr.approved = True
+        else:
+            hr.nights = ",".join(night for night in hr.nights.split(",") if int(night) in {THURSDAY,FRIDAY,SATURDAY})
+        hr.save()
+        return json.dumps({"nights": " / ".join(hr.attendee.hotel_nights)})
