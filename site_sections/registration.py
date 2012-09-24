@@ -245,14 +245,6 @@ class Root:
     def recent(self):
         return {"attendees": Attendee.objects.order_by("-registered")}
     
-    def unpaid(self, message=""):
-        cutoff = datetime.now() - timedelta(days = 7)
-        unpaid = Attendee.objects.filter(paid=NOT_PAID, registered__lt=cutoff).order_by("-registered")
-        return {
-            "unpaid":  unpaid,
-            "message": message 
-        }
-    
     def merch(self, message=""):
         return {"message": message}
     
