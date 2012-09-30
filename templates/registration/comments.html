@@ -10,8 +10,8 @@
 </tr>
 {% for attendee in attendees %}
     <tr>
-        <td><a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a></td>
-        <td>{{ attendee.registered }}</td>
+        <td><nobr><a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a></nobr></td>
+        <td><nobr>{{ attendee.registered }}</nobr></td>
         <td>{{ attendee.comments }}</td>
     </tr>
 {% endfor %}
