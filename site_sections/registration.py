@@ -307,8 +307,11 @@ class Root:
                 "attendee": attendee
             }
     
-    def comments(self):
-        return {"attendees": Attendee.objects.exclude(comments = "").order_by("last_name", "first_name")}
+    def comments(self, order = "last_name"):
+        return {
+            "order": Order(order),
+            "attendees": Attendee.objects.exclude(comments = "").order_by(order)
+        }
     
     def new(self, message="", checked_in=""):
         groups = []

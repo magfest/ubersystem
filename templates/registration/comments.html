@@ -4,12 +4,14 @@
 
 <table class="list">
 <tr class="header">
-    <td>Name</td>
+    <td><a href="comments?order={{ order.last_name }}">Name</a></td>
+    <td><a href="comments?order={{ order.registered }}">Registered</a></td>
     <td>Comments</td>
 </tr>
 {% for attendee in attendees %}
     <tr>
         <td><a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a></td>
+        <td>{{ attendee.registered }}</td>
         <td>{{ attendee.comments }}</td>
     </tr>
 {% endfor %}
