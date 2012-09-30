@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Attendee Comments{% endblock %}}
+{% block content %}
+
+<table class="list">
+<tr class="header">
+    <td>Name</td>
+    <td>Comments</td>
+</tr>
+{% for attendee in attendees %}
+    <tr>
+        <td><a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a></td>
+        <td>{{ attendee.comments }}</td>
+    </tr>
+{% endfor %}
+</table>
+
+{% endblock %}
