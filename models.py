@@ -158,8 +158,7 @@ class Group(MagModel):
     def leader(self):
         for a in self.attendee_set.order_by("id"):
             if a.email:
-                break
-        return a
+                return a
     
     @property
     def badges_purchased(self):
