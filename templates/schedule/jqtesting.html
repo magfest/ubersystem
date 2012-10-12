@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Schedule{% endblock %}
+{% block content %}
+
+<style type="text/css">
+    .highlight {
+        background: yellow;
+    }
+    #schedule thead {
+        text-align: center;
+    }
+    #schedule tbody td:hover {
+        background: yellow;
+    }
+    #schedule, #schedule tbody tr {
+        border-spacing: 0px 0px;
+        border-collapse: collapse;
+    }
+    #schedule tbody td {
+        padding: 0px;
+        text-align: center;
+    }
+    td.box {
+        border-top: 1px solid black;
+        border-left: 1px solid black;
+        border-right: 1px solid black;
+        border-bottom: 1px solid black;
+    }
+    td.top {
+        border-top: 1px solid black;
+        border-left: 1px solid black;
+        border-right: 1px solid black;
+    }
+    td.bottom {
+        border-left: 1px solid black;
+        border-right: 1px solid black;
+        border-bottom: 1px solid black;
+    }
+    td.middle {
+        border-left: 1px solid black;
+        border-right: 1px solid black;
+    }
+</style>
+
+<script type="text/javascript">
+    var SLOT_COUNT = {{ CON_LENGTH }} * 2;
+    var LOCS = {{ EVENT_LOC_OPTS|jsonize }};
+    var ASSIGNED = {{ assigned|jsonize }};
+    var UNASSIGNED = {{ unassigned|jsonize }};
+    
+    var $cell = function(loc, slot) {
+        return $("#row" + slot + " .loc" + loc);
+    };
+    var $cells = function(event) {
+        var $xs = $();
+        for(var i=0; i<event.duration; i++) {
+            $xs = $xs.add($cell(event.location, event.start_slot + i));
+        }
+        return $xs;
+    };
+    
+    var shortestIndex = function(xs) {
+        var pos = 0, shortest = xs[0];
+        $.each(xs, function(i,s) {
+            if (s.length < shortest.length) {
+                pos = i;
+                shortest = s;
+            }
+        });
+        return pos;
+    };
+    var splitName = function(event) {
+        var xs = event.name.split(/\W+/);
+        while (xs.length > event.duration || (xs.length > 1 && xs[shortestIndex(xs)].length <= 3)) {
+            var i = shortestIndex(xs);
+            var shortest = xs.splice(i, 1)[0];
+            if (xs[i] && (!xs[i-1] || xs[i].length < xs[i-1].length)) {
+                xs[i] = shortest + " " + xs[i];
+            } else {
+                xs[i-1] += " " + shortest;
+            }
+        }
+        return xs;
+    };
+    
+    var renderEvent = function(event) {
+        var name = splitName(event);
+        $cells(event).each(function(i,td){
+            $(td).data("event", event)
+                 .text(name[i] || "")
+                 .attr("title", event.name)
+                 .addClass(event.duration == 1 ? "box" : i==0 ? "top" : i==(event.duration - 1) ? "bottom" : "middle");
+        });
+    };
+    var RENDER_CHUNK = 50;
+    var renderEvents = function(startIndex) {
+        var stopIndex = (startIndex || 0) + RENDER_CHUNK;
+        for(var i = startIndex || 0; i < stopIndex; i++) {
+            var event = ASSIGNED[i];
+            if (!event)
+                return;
+            renderEvent(event);
+        }
+        setTimeout(function() { renderEvents(stopIndex); }, 10);
+    };
+    
+    $(function(){
+        var $schedule = $("#schedule");
+        var $schedBody = $schedule.find("tbody");
+        var $emptyRow = $("<tr/>");
+        $.each(LOCS, function(i,loc) {
+            $emptyRow.append( $("<td/>").addClass("loc" + loc[0]).html("&nbsp;") );
+            $schedule.find("thead tr").append( $("<td/>").text(loc[1]) );
+        });
+        for(var i=0; i<SLOT_COUNT; i++) {
+            $schedBody.append($emptyRow.clone().attr("id", "row" + i));
+        }
+        $schedBody.on("mouseenter mouseleave", "td", function(e) {
+            var event = $(e.target).data("event");
+            if (event) {
+                $cells(event)[e.type == "mouseenter" ? "addClass" : "removeClass"]("highlight");
+            }
+        });
+        renderEvents();
+    });
+</script>
+
+<table width="100%" id="schedule" cellspacing="0" cellpadding="0">
+    <thead><tr></tr></thead>
+    <tbody></tbody>
+</table>
+
+{% endblock %}

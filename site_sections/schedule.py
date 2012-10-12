@@ -215,7 +215,7 @@ class Root:
     
     def available_events(self, **params):
         return json.dumps({"events": [
-            
+            {"id": e.id, "name": e.name, "duration": e.duration} for e in Event.objects.all()
         ]})
     
     def event(self, panelists = [], **params):
@@ -230,7 +230,8 @@ class Root:
             event.save()
             event.assignedpanelist_set.all().delete()
             for attendee_id in listify(panelists):
-                AssignedPanelist.objects.create(attendee_id = attendee_id, event = event)
+                if attendee_id:
+                    AssignedPanelist.objects.create(attendee_id = attendee_id, event = event)
             
             return json.dumps({
                 "success": True,
@@ -244,3 +245,10 @@ class Root:
         cherrypy.response.headers["Content-Type"] = "text/javascript"
         fname = os.path.join("schedule", "js", *path)
         return render(fname, {})
+    
+    def jqtesting(self):
+        dump = lambda e: {attr: getattr(e, attr) for attr in ["name","duration","start_slot","location","description"]}
+        return {
+            "assigned": map(dump, Event.objects.filter(location__isnull = False).order_by("start_time")),
+            "unassigned": map(dump, Event.objects.filter(location__isnull = True))
+        }

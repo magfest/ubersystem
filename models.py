@@ -117,6 +117,11 @@ class Event(MagModel):
         for i in range(self.duration):
             half_hours.add(self.start_time + timedelta(minutes = 30 * i))
         return half_hours
+    
+    @property
+    def start_slot(self):
+        if self.start_time:
+            return int((self.start_time - state.EPOCH).total_seconds() / (60 * 30))
 
 
 
@@ -494,11 +499,14 @@ class HotelRequests(MagModel):
     
     def __repr__(self):
         return "<{self.attendee.full_name} Hotel Requests>".format(self = self)
-
-#class AssignedPanelist(MagModel):
-#    attendee = ForeignKey(Attendee)
-#    event = ForeignKey(Event)
-
+"""
+class AssignedPanelist(MagModel):
+    attendee = ForeignKey(Attendee)
+    event = ForeignKey(Event)
+    
+    def __repr__(self):
+        return "<{self.attendee.full_name} panelisting {self.event.name}>".format(self = self)
+"""
 
 class Job(MagModel):
     name        = CharField(max_length = 100)
@@ -627,7 +635,7 @@ class Email(MagModel):
 class Tracking(MagModel):
     when   = DateTimeField(auto_now_add = True)
     who    = CharField(max_length = 75)
-    which  = CharField(max_length = 75)
+    which  = CharField(max_length = 125)
     model  = CharField(max_length = 25)
     links  = CharField(max_length = 25)
     fk_id  = IntegerField()

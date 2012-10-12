@@ -285,7 +285,7 @@ JOB_LOC_OPTS = (
     (9, "LAN"),
     (MARKETPLACE, "Marketplace"),
     (11, "Merchandise"),
-    (12, "On-Call"),
+    (12, "Stand-Ins"),
     (13, "Regdesk"),
     (14, "Security"),
     (15, "Tabletop"),

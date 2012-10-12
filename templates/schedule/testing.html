@@ -57,39 +57,10 @@
                     items: [{
                         text: "Move an event here",
                         handler: function(menu, item, event) {
-                            Ext.create("Ext.window.Window", {
-                                title: "Select an Event",
-                                items: [{
-                                    xtype: "combobox",
-                                    allowBlank: false,
-                                    editable: false,
-                                    store: Ext.create("Ext.data.JsonStore", {
-                                        fields: ["id", "full_name"],
-                                        proxy: {
-                                            type: "ajax",
-                                            url: "available_events",
-                                            reader: {
-                                                type: "json",
-                                                root: "events",
-                                                idProperty: "id"
-                                            }
-                                        }
-                                    })
-                                }],
-                                buttons: [{
-                                    text: "Cancel",
-                                    handler: function() {
-                                        this.up("window").close();
-                                    }
-                                }, {
-                                    text: "Move",
-                                    formBind: true,
-                                    disabled: true,
-                                    handler: function(btn) {
-                                        
-                                    }
-                                }]
-                            }).show();
+                            gMenu = menu;
+                            gItem = item;
+                            gEvent = event;
+                            Ext.create("App.EventMover", {});
                         }
                     }]
                 });
