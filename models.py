@@ -102,8 +102,6 @@ class Payment(MagModel):
 
 
 
-
-
 class Event(MagModel):
     location    = IntegerField(choices = EVENT_LOC_OPTS, null = True)
     start_time  = DateTimeField(null = True)

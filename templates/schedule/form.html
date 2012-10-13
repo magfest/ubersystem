@@ -1,11 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Schedule{% endblock %}
 {% block content %}
-{% with 1 as page %}
-    {% include "schedule/menu.html" %}
-{% endwith %}
-
-<br/>
 
 <form method="post" action="form">
 <input type="hidden" name="id" value="{{ event.id }}" />

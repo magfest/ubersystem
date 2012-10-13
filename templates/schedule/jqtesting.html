@@ -3,11 +3,14 @@
 {% block content %}
 
 <style type="text/css">
-    .highlight {
-        background: yellow;
+    .context-menu-item {
+        padding: 2px 2px 2px 7px;
     }
+    .highlight, .clicked { background: yellow; }
+    .selected:not(.highlight) { background: red; }
     #schedule thead {
         text-align: center;
+        vertical-align: center;
     }
     #schedule tbody td:hover {
         background: yellow;
@@ -46,7 +49,14 @@
     var SLOT_COUNT = {{ CON_LENGTH }} * 2;
     var LOCS = {{ EVENT_LOC_OPTS|jsonize }};
     var ASSIGNED = {{ assigned|jsonize }};
-    var UNASSIGNED = {{ unassigned|jsonize }};
+    
+    var swapProps = function(x, y) {
+        $.each($.makeArray(arguments).slice(2), function(i,name) {
+            var temp = x[name];
+            x[name] = y[name];
+            y[name] = temp;
+        });
+    };
     
     var $cell = function(loc, slot) {
         return $("#row" + slot + " .loc" + loc);
@@ -70,7 +80,7 @@
         return pos;
     };
     var splitName = function(event) {
-        var xs = event.name.split(/\W+/);
+        var xs = event.name.split(/\s+/);
         while (xs.length > event.duration || (xs.length > 1 && xs[shortestIndex(xs)].length <= 3)) {
             var i = shortestIndex(xs);
             var shortest = xs.splice(i, 1)[0];
@@ -83,37 +93,142 @@
         return xs;
     };
     
-    var renderEvent = function(event) {
-        var name = splitName(event);
-        $cells(event).each(function(i,td){
-            $(td).data("event", event)
-                 .text(name[i] || "")
-                 .attr("title", event.name)
-                 .addClass(event.duration == 1 ? "box" : i==0 ? "top" : i==(event.duration - 1) ? "bottom" : "middle");
+    var clearEvents = function() {
+        $.each(arguments, function(i,event) {
+            $cells(event).removeData("event")
+                         .text("")
+                         .removeAttr("title")
+                         .removeClass("box top middle bottom");
         });
     };
-    var RENDER_CHUNK = 50;
-    var renderEvents = function(startIndex) {
+    var renderEvents = function() {
+        $.each(arguments, function(_,event){
+            var name = splitName(event);
+            $cells(event).each(function(i,td){
+                $(td).data("event", event)
+                     .text(name[i] || "")
+                     .attr("title", event.name)
+                     .addClass(event.duration == 1 ? "box" : i==0 ? "top" : i==(event.duration - 1) ? "bottom" : "middle");
+            });
+        });
+    };
+    var RENDER_CHUNK = 200;
+    var renderAll = function(startIndex) {
         var stopIndex = (startIndex || 0) + RENDER_CHUNK;
         for(var i = startIndex || 0; i < stopIndex; i++) {
             var event = ASSIGNED[i];
             if (!event)
                 return;
-            renderEvent(event);
+            renderEvents(event);
         }
-        setTimeout(function() { renderEvents(stopIndex); }, 10);
+        setTimeout(function() { renderAll(stopIndex); }, 10);
+    };
+    
+    var selectedEvent = null;
+    var clearSelected = function() {
+        if (selectedEvent) {
+            $cells(selectedEvent).removeClass("selected");
+        }
+    };
+    var menuActions = {
+        edit: function(event) {
+            window.location = "form?id=" + event.id;
+        },
+        create: function($td) {
+            window.location = "form?id=None";
+        },
+        move: function(event) {
+            clearSelected();
+            $cells(event).addClass("selected");
+            selectedEvent = event;
+        },
+        moveHere: function($td) {
+            var params = {
+                id: selectedEvent.id,
+                location: $td.data("location"),
+                start_slot: $td.parent("tr").data("slot")
+            };
+            $.post("move", params, function(resp) {
+                if (resp.error) {
+                    alert(resp.error);
+                } else {
+                    clearSelected();
+                    clearEvents(selectedEvent);
+                    $.extend(selectedEvent, params);
+                    renderEvents(selectedEvent);
+                    selectedEvent = null;
+                }
+            }, "json");
+        },
+        swap: function(event) {
+            $.post("swap", {id1: event.id, id2: selectedEvent.id}, function(resp) {
+                if (resp.error) {
+                    alert(resp.error);
+                } else {
+                    clearSelected();
+                    clearEvents(event, selectedEvent);
+                    swapProps(event, selectedEvent, "location", "start_slot");
+                    renderEvents(event, selectedEvent);
+                    selectedEvent = null;
+                }
+            }, "json");
+        }
+    };
+    var setUpMenu = function() {
+        $.contextMenu({
+            autoHide: true,
+            trigger: "left",
+            selector: "#schedule tbody td",
+            build: function($td, e) {
+                var event = $td.data("event");
+                var $box = event ? $cells(event) : $td;
+                $box.addClass("clicked");
+                $(document.body).one("contextmenu:hide", function(e) {
+                    $box.removeClass("clicked");
+                });
+                var emptyItems = {
+                    create: {name: "Create New Event"}
+                };
+                var eventItems = {
+                    edit: {name: "Edit"},
+                    move: {name: "Move"}
+                };
+                if (selectedEvent) {
+                    emptyItems.moveHere = {name: "Move '" + selectedEvent.name + "' here"};
+                    if (event && event.id != selectedEvent.id) {
+                        eventItems.swap = {name: "Swap with '" + selectedEvent.name + "'"};
+                    }
+                }
+                return {
+                    callback: function(menuItem, opts) {
+                        var action = menuActions[menuItem];
+                        if (action) {
+                            action(event || $td);
+                        }
+                    },
+                    items: event ? eventItems : emptyItems
+                };
+            }
+        });
     };
     
     $(function(){
         var $schedule = $("#schedule");
+        var $schedHead = $schedule.find("thead tr");
         var $schedBody = $schedule.find("tbody");
         var $emptyRow = $("<tr/>");
         $.each(LOCS, function(i,loc) {
-            $emptyRow.append( $("<td/>").addClass("loc" + loc[0]).html("&nbsp;") );
-            $schedule.find("thead tr").append( $("<td/>").text(loc[1]) );
+            $schedHead.append($("<td/>").text(loc[1]));
+            $emptyRow.append(
+                $("<td/>").data("location", loc[0])
+                          .addClass("loc" + loc[0])
+                          .html("&nbsp;"));
         });
-        for(var i=0; i<SLOT_COUNT; i++) {
-            $schedBody.append($emptyRow.clone().attr("id", "row" + i));
+        for(var i = 0; i < SLOT_COUNT; i++) {
+            $schedBody.append(
+                $emptyRow.clone(true)
+                         .data("slot", i)
+                         .attr("id", "row" + i));
         }
         $schedBody.on("mouseenter mouseleave", "td", function(e) {
             var event = $(e.target).data("event");
@@ -121,7 +236,8 @@
                 $cells(event)[e.type == "mouseenter" ? "addClass" : "removeClass"]("highlight");
             }
         });
-        renderEvents();
+        setUpMenu();
+        renderAll();
     });
 </script>
 

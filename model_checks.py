@@ -20,6 +20,16 @@ item_required = [("name","'What is it?'")]
 
 event_required = [("name","Event Name")]
 
+def event_overlaps(event, other_event_id = None):
+    existing = {}
+    for e in Event.objects.filter(location = event.location).exclude(id = event.id).exclude(id = other_event_id):
+        for hh in e.half_hours:
+            existing[hh] = e.name
+
+    for hh in event.half_hours:
+        if hh in existing:
+            return "'{}' overlaps with the time/duration you specified for '{}'".format(existing[hh], event.name)
+
 
 
 group_required = [("name","Group Name")]

@@ -28,6 +28,15 @@ def show_queries(func):
 
 
 
+def ajax(func):
+    @wraps(func)
+    def returns_json(self, *args, **kwargs):
+        cherrypy.response.headers["Content-Type"] = "application/json"
+        return json.dumps(func(self, *args, **kwargs))
+    return returns_json
+
+
+
 constant_fields = {attrname: attr for attrname,attr in constants.__dict__.items() if re.match("^[_A-Z0-9]*$",attrname)}
 def render(template, data = None):
     data = {} if data is None else data

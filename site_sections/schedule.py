@@ -120,135 +120,40 @@ class Root:
             message = check(event)
             if not message:
                 event.save()
-                for job in event.job_set.all():
-                    job.start_time = event.start_time
-                    job.duration = event.duration
-                    job.save()
-                raise HTTPRedirect("index#{}", event.start_time - timedelta(minutes=30))
+                raise HTTPRedirect("jqtesting#{}", event.start_time - timedelta(minutes=30))
         
         return {
             "message": message,
             "event":   event
         }
     
-    def inventory(self, id, message=""):
-        event = Event.objects.get(id=id)
-        return {
-            "message":       message,
-            "event":         event
-        }
-    
-    def assign(self, id, item_id, quantity, location=None, event_id=None):
-        item = Item.objects.get(id=item_id)
-        event = Event.objects.get(id=id)
-        
-        existing = event.assigneditem_set.filter(item=item)
-        existing.delete()
-        
-        tosave = AssignedItem()
-        tosave.item = item
-        tosave.event = event
-        tosave.quantity = int(quantity)
-        
-        message = check(tosave)
-        if message:
-            if existing:
-                existing[0].save()
-            raise HTTPRedirect("inventory?id={}&message={}", id, message)
-        
-        tosave.save()
-        raise HTTPRedirect("inventory?id={}&message{}", id, "Assignment uploaded")
-    
-    def unassign(self, id, todelete):
-        AssignedItem.objects.filter(id=todelete).delete()
-        raise HTTPRedirect("inventory?id={}&message={}", id, "Item unassigned")
-    
-    def set_needed(self, id, needed):
-        event = Event.objects.get(id=id)
-        event.needed = needed.strip()
-        event.save()
-        raise HTTPRedirect("inventory?id={}&message={}", id, "Requirements updated")
-    
-    def jobs(self, id, message=""):
-        return {
-            "message":  message,
-            "event":    Event.objects.get(id=id)
-        }
-    
-    def remove_job(self, job_id):
-        job = Job.objects.get(id=job_id)
-        job.delete()
-        raise HTTPRedirect("jobs?id={}&message={}", job.event.id, "Job deleted")
-    
     def delete(self, id):
         event = Event.objects.filter(id=id).delete()
         raise HTTPRedirect("index?message={}", "Event successfully deleted")
     
-    def events(self, location, **params):
-        cherrypy.response.headers["Content-Type"] = "application/json"
-        events = defaultdict(lambda: {"name": "_blank"})
-        for event in Event.objects.filter(location = location):
-            events[event.start_time] = {
-                "name":        event.name,
-                "description": event.description,
-                "duration":    event.duration
-            }
-            for i in range(1, event.duration):
-                events[event.start_time + timedelta(minutes = 30 * i)] = None
-        return json.dumps([events[when] for when,_ in START_TIME_OPTS if events[when]])
-    
-    def panelists(self, **params):
-        return json.dumps({"panelists": [
-            {
-                "id": a.id,
-                "full_name": a.full_name
-            } for a in Attendee.objects.filter(ribbon = PANELIST_RIBBON).order_by("first_name", "last_name")
-        ]})
-    
-    def panelists(self, **params):
-        return json.dumps([
-            {
-                "id": a.id,
-                "full_name": a.full_name
-            } for a in Attendee.objects.filter(ribbon = PANELIST_RIBBON).order_by("first_name", "last_name")
-        ])
-    
-    def available_events(self, **params):
-        return json.dumps({"events": [
-            {"id": e.id, "name": e.name, "duration": e.duration} for e in Event.objects.all()
-        ]})
-    
-    def event(self, panelists = [], **params):
-        event = get_model(Event, params)
-        message = check(event)
-        if message:
-            return json.dumps({
-                "success": False,
-                "msg": message
-            })
-        else:
+    @ajax
+    def move(self, id, location, start_slot):
+        event = Event.objects.get(id = id)
+        event.location = int(location)
+        event.start_time = state.EPOCH + timedelta(minutes = 30 * int(start_slot))
+        resp = {"error": check(event)}
+        if not resp["error"]:
             event.save()
-            event.assignedpanelist_set.all().delete()
-            for attendee_id in listify(panelists):
-                if attendee_id:
-                    AssignedPanelist.objects.create(attendee_id = attendee_id, event = event)
-            
-            return json.dumps({
-                "success": True,
-                "msg": "Event Uploaded"
-            })
+        return resp
     
-    def testing(self):
-        return {}
-    
-    def js(self, *path, **params):
-        cherrypy.response.headers["Content-Type"] = "text/javascript"
-        fname = os.path.join("schedule", "js", *path)
-        return render(fname, {})
+    @ajax
+    def swap(self, id1, id2):
+        e1, e2 = Event.objects.get(id = id1), Event.objects.get(id = id2)
+        (e1.location,e1.start_time),(e2.location,e2.start_time) = (e2.location,e2.start_time),(e1.location,e1.start_time)
+        resp = {"error": model_checks.event_overlaps(e1, e2.id) or model_checks.event_overlaps(e2, e1.id)}
+        if not resp["error"]:
+            e1.save()
+            e2.save()
+        return resp
     
     def jqtesting(self):
-        dump = lambda e: {attr: getattr(e, attr) for attr in ["name","duration","start_slot","location","description"]}
+        to_json = lambda e: {attr: getattr(e, attr) for attr in ["id","name","duration","start_slot","location","description"]}
         return {
-            "assigned": map(dump, Event.objects.filter(location__isnull = False).order_by("start_time")),
-            "unassigned": map(dump, Event.objects.filter(location__isnull = True))
+            "assigned": map(to_json, Event.objects.filter(location__isnull = False).order_by("start_time")),
+            "unassigned": map(to_json, Event.objects.filter(location__isnull = True))
         }
