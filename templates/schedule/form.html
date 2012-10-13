@@ -2,6 +2,37 @@
 {% block title %}Schedule{% endblock %}
 {% block content %}
 
+<script type="text/javascript">
+    var panelists = {{ panelists|jsonize }};
+    
+    var $panelists = $("<select/>").attr("name", "panelists").css("margin-right", "10px");
+    $.each(panelists, function(id,name) {
+        $panelists.append( $("<option/>").attr("value", id).text(name) );
+    });
+    
+    var removePanelist = function(event) {
+        event.preventDefault();
+        $(event.target).parent("div").remove();
+    };
+    var addPanelist = function(id) {
+        $("#add").after(
+            $("<div/>").css("padding-top", "5px")
+                       .append(
+                            $panelists.clone()
+                                      .val(id || $panelists.val()))
+                       .append(
+                            $("<a/>").attr("href", "#")
+                                     .text("Remove Panelist")
+                                     .click(removePanelist)));
+    };
+    
+    $(function(){
+        $.each({{ assigned|jsonize }}, function(i,id) {
+            addPanelist(id);
+        });
+    });
+</script>
+
 <form method="post" action="form">
 <input type="hidden" name="id" value="{{ event.id }}" />
 
@@ -26,7 +57,6 @@
     <td><b>Duration:</b></td>
     <td>
         <select name="duration">
-            <!-- {% int_options 1 7 event.duration %} -->
             {% options EVENT_DURATION_OPTS event.duration %}
         </select>
     </td>
@@ -34,6 +64,12 @@
 <tr>
     <td><b>Event Name:</b></td>
     <td> <input class="focus" type="text" name="name" value="{{ event.name }}" /> </td>
+</tr>
+<tr>
+    <td valign="top">Panelists</td>
+    <td>
+        <a id="add" href="#" onClick="addPanelist(); return false">Add a Panelist</a>
+    </td>
 </tr>
 <tr>
     <td valign="top">Description:</td>

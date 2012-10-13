@@ -497,14 +497,14 @@ class HotelRequests(MagModel):
     
     def __repr__(self):
         return "<{self.attendee.full_name} Hotel Requests>".format(self = self)
-"""
+
 class AssignedPanelist(MagModel):
     attendee = ForeignKey(Attendee)
     event = ForeignKey(Event)
     
     def __repr__(self):
         return "<{self.attendee.full_name} panelisting {self.event.name}>".format(self = self)
-"""
+
 
 class Job(MagModel):
     name        = CharField(max_length = 100)

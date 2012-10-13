@@ -113,18 +113,23 @@ class Root:
             "upcoming": upcoming
         }
     
-    def form(self, message="", **params):
+    def form(self, message="", panelists=[], **params):
         event = get_model(Event, params)
         
         if "name" in params:
             message = check(event)
             if not message:
                 event.save()
+                event.assignedpanelist_set.all().delete()
+                for id in set(listify(panelists)):
+                    AssignedPanelist.objects.create(event_id = event.id, attendee_id = id)
                 raise HTTPRedirect("jqtesting#{}", event.start_time - timedelta(minutes=30))
         
         return {
             "message": message,
-            "event":   event
+            "event":   event,
+            "assigned": [ap.attendee_id for ap in event.assignedpanelist_set.order_by("-attendee__first_name")],
+            "panelists": {a.id: a.full_name for a in Attendee.objects.filter(ribbon = PANELIST_RIBBON).order_by("first_name")}
         }
     
     def delete(self, id):
