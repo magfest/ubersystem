@@ -13,7 +13,13 @@
         text-align: center;
         vertical-align: center;
     }
-    #schedule tbody td:hover {
+    #schedule thead td {
+        white-space: nowrap;
+    }
+    #schedule tbody td.time {
+        white-space: nowrap;
+    }
+    #schedule tbody td:not(.time):hover {
         background: yellow;
     }
     #schedule, #schedule tbody tr {
@@ -51,6 +57,8 @@
     var LOCS = {{ EVENT_LOC_OPTS|jsonize }};
     var ASSIGNED = {{ assigned|jsonize }};
     
+    var EPOCH = Date.parse("{{ state.EPOCH|datetime:"%Y-%m-%d %H:%M:%S" }}");
+    
     var swapProps = function(x, y) {
         $.each($.makeArray(arguments).slice(2), function(i,name) {
             var temp = x[name];
@@ -67,6 +75,15 @@
             d[x] = true;
         });
         return deduped;
+    };
+    var formatDate = function(slot) {
+        var d = new Date(EPOCH).addMinutes(30 * slot);
+        var s = (d.getHours() == 0 || d.getHours() == 12) && d.getMinutes() == 0 ? d.toString("ddd ") : "";
+        if (d.getMinutes()) {
+            return ""; //return s + (parseInt(d.toString("h")) || 12) + ":" + d.getMinutes();
+        } else {
+            return s + (parseInt(d.toString("h")) || 12) + d.toString("tt").toLowerCase();
+        }
     };
     
     var $cell = function(loc, slot) {
@@ -235,7 +252,7 @@
         $.contextMenu({
             autoHide: true,
             trigger: "left",
-            selector: "#schedule tbody td",
+            selector: "#schedule tbody td:not(.time)",
             build: function($td, e) {
                 var event = $td.data("event");
                 var $box = event ? $cells(event) : $td;
@@ -288,7 +305,10 @@
             $schedBody.append(
                 $emptyRow.clone(true)
                          .data("slot", i)
-                         .attr("id", "row" + i));
+                         .attr("id", "row" + i)
+                         .prepend(
+                            $("<td/>").text(formatDate(i))
+                                      .addClass("time")));
         }
         $schedBody.on("mouseenter mouseleave", "td", function(e) {
             var event = $(e.target).data("event");
@@ -302,7 +322,7 @@
 </script>
 
 <table width="100%" id="schedule" cellspacing="0" cellpadding="0">
-    <thead><tr></tr></thead>
+    <thead><tr><td></td></tr></thead>
     <tbody></tbody>
 </table>
 
