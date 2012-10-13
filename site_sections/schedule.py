@@ -157,7 +157,7 @@ class Root:
         return resp
     
     def jqtesting(self):
-        to_json = lambda e: {attr: getattr(e, attr) for attr in ["id","name","duration","start_slot","location","description"]}
+        to_json = lambda e: {attr: getattr(e, attr) for attr in ["id","name","duration","start_slot","location","description","panelists"]}
         return {
             "assigned": map(to_json, Event.objects.filter(location__isnull = False).order_by("start_time")),
             "unassigned": map(to_json, Event.objects.filter(location__isnull = True))

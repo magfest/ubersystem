@@ -110,6 +110,10 @@ class Event(MagModel):
     description = TextField()
     
     @property
+    def panelists(self):
+        return {ap.attendee.id: ap.attendee.full_name for ap in self.assignedpanelist_set.select_related()}
+    
+    @property
     def half_hours(self):
         half_hours = set()
         for i in range(self.duration):

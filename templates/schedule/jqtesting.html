@@ -7,7 +7,8 @@
         padding: 2px 2px 2px 7px;
     }
     .highlight, .clicked { background: yellow; }
-    .selected:not(.highlight) { background: red; }
+    .selected:not(.highlight) { background: orange; }
+    .conflict:not(.highlight):not(.selected) { background: red; }
     #schedule thead {
         text-align: center;
         vertical-align: center;
@@ -57,6 +58,16 @@
             y[name] = temp;
         });
     };
+    var dedup = function(xs) {
+        var deduped = [], d = {};
+        $.each(xs, function(i, x) {
+            if (d[x] === undefined) {
+                deduped.push(x);
+            }
+            d[x] = true;
+        });
+        return deduped;
+    };
     
     var $cell = function(loc, slot) {
         return $("#row" + slot + " .loc" + loc);
@@ -93,12 +104,51 @@
         return xs;
     };
     
+    var CHECK_CHUNK = SLOT_COUNT;
+    var markConflicts = function(startIndex) {
+        var stopIndex = (startIndex || 0) + CHECK_CHUNK;
+        for(var slot = startIndex || 0; slot < stopIndex && slot < SLOT_COUNT; slot++) {
+            var panelists = {};
+            $("#row" + slot + " td").each(function(i, td) {
+                var event = $(td).data("event");
+                if (event) {
+                    $.each(event.panelists, function(id, name) {
+                        panelists[id] = panelists[id] || {name: name, events: []};
+                        panelists[id].events.push(event);
+                    });
+                }
+            });
+            $.each(panelists, function(id, panelist) {
+                if (panelist.events.length > 1) {
+                    var names = $.map(panelist.events, function(event) { return "'" + event.name + "'"; }).join(" and ");
+                    $.each(panelist.events, function(i,event) {
+                        var warning = panelist.name + " is assigned to " + names;
+                        $cells(event).addClass("conflict").each(function(i,td){
+                            var warnings = $(td).data("warnings") || [];
+                            warnings.push(warning);
+                            $(td).data("warnings", warnings);
+                        });
+                    });
+                }
+            });
+        };
+        if (stopIndex < SLOT_COUNT) {
+            setTimeout(function() { markConflicts(stopIndex); }, 10);
+        }
+    };
+    var checkConflicts = function() {
+        $.each(ASSIGNED, function(i, event) {
+            $cells(event).removeClass("conflict");
+        });
+        markConflicts();
+    };
+    
     var clearEvents = function() {
         $.each(arguments, function(i,event) {
             $cells(event).removeData("event")
                          .text("")
                          .removeAttr("title")
-                         .removeClass("box top middle bottom");
+                         .removeClass("box top middle bottom conflict");
         });
     };
     var renderEvents = function() {
@@ -117,8 +167,10 @@
         var stopIndex = (startIndex || 0) + RENDER_CHUNK;
         for(var i = startIndex || 0; i < stopIndex; i++) {
             var event = ASSIGNED[i];
-            if (!event)
+            if (!event) {
+                checkConflicts();
                 return;
+            }
             renderEvents(event);
         }
         setTimeout(function() { renderAll(stopIndex); }, 10);
@@ -142,6 +194,9 @@
             $cells(event).addClass("selected");
             selectedEvent = event;
         },
+        showWarnings: function(event) {
+            alert(dedup($cells(event).data("warnings")).join("\n"));
+        },
         moveHere: function($td) {
             var params = {
                 id: selectedEvent.id,
@@ -157,6 +212,7 @@
                     $.extend(selectedEvent, params);
                     renderEvents(selectedEvent);
                     selectedEvent = null;
+                    checkConflicts();
                 }
             }, "json");
         },
@@ -170,6 +226,7 @@
                     swapProps(event, selectedEvent, "location", "start_slot");
                     renderEvents(event, selectedEvent);
                     selectedEvent = null;
+                    checkConflicts();
                 }
             }, "json");
         }
@@ -198,6 +255,9 @@
                     if (event && event.id != selectedEvent.id) {
                         eventItems.swap = {name: "Swap with '" + selectedEvent.name + "'"};
                     }
+                }
+                if (event && $td.data("warnings")) {
+                    eventItems.showWarnings = {name: "Show Conflicts"};
                 }
                 return {
                     callback: function(menuItem, opts) {
