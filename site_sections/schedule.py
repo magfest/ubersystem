@@ -128,7 +128,7 @@ class Root:
             "message": message,
             "event":   event,
             "assigned": [ap.attendee_id for ap in event.assignedpanelist_set.order_by("-attendee__first_name")],
-            "panelists": {a.id: a.full_name for a in Attendee.objects.filter(Q(ribbon = PANELIST_RIBBON) | Q(badge_type = GUEST_BADGE)).order_by("first_name")}
+            "panelists": [(a.id, a.full_name) for a in Attendee.objects.filter(Q(ribbon = PANELIST_RIBBON) | Q(badge_type = GUEST_BADGE)).order_by("first_name")]
         }
     
     def delete(self, id):

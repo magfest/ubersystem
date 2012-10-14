@@ -6,8 +6,8 @@
     var panelists = {{ panelists|jsonize }};
     
     var $panelists = $("<select/>").attr("name", "panelists").css("margin-right", "10px");
-    $.each(panelists, function(id,name) {
-        $panelists.append( $("<option/>").attr("value", id).text(name) );
+    $.each(panelists, function(i,p) {
+        $panelists.append( $("<option/>").attr("value", p[0]).text(p[1]) );
     });
     
     var removePanelist = function(event) {
