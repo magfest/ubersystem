@@ -54,9 +54,7 @@
 
 <script type="text/javascript">
     var SLOT_COUNT = {{ CON_LENGTH }} * 2;
-    var LOCS = {{ EVENT_LOC_OPTS|jsonize }};
-    var ASSIGNED = {{ assigned|jsonize }};
-    
+    var EVENTS = {{ events|jsonize }};
     var EPOCH = Date.parse("{{ state.EPOCH|datetime:"%Y-%m-%d %H:%M:%S" }}");
     
     var swapProps = function(x, y) {
@@ -139,7 +137,7 @@
                 if (panelist.events.length > 1) {
                     var names = $.map(panelist.events, function(event) { return "'" + event.name + "'"; }).join(" and ");
                     $.each(panelist.events, function(i,event) {
-                        var warning = panelist.name + " is assigned to " + names;
+                        var warning = panelist.name + " is assigned to " + names + ".";
                         $cells(event).addClass("conflict").each(function(i,td){
                             var warnings = $(td).data("warnings") || [];
                             warnings.push(warning);
@@ -150,21 +148,25 @@
             });
         };
         if (stopIndex < SLOT_COUNT) {
-            setTimeout(function() { markConflicts(stopIndex); }, 10);
-        }
+            setTimeout(function() { markConflicts(stopIndex); }, 1);
+        } //else console.log(new Date(), new Date().getMilliseconds(), "all conflicts marked");
     };
+    var conflictsMarked = false;
     var checkConflicts = function() {
-        $.each(ASSIGNED, function(i, event) {
-            $cells(event).removeClass("conflict");
-        });
+        if (conflictsMarked) {
+            $.each(EVENTS, function(i, event) {
+                $cells(event).removeClass("conflict");
+            });
+        }
+        //console.log(new Date(), new Date().getMilliseconds(), "previous conflicts cleared");
         markConflicts();
+        conflictsMarked = true;
     };
     
     var clearEvents = function() {
         $.each(arguments, function(i,event) {
             $cells(event).removeData("event")
                          .text("")
-                         .removeAttr("title")
                          .removeClass("box top middle bottom conflict");
         });
     };
@@ -174,23 +176,28 @@
             $cells(event).each(function(i,td){
                 $(td).data("event", event)
                      .text(name[i] || "")
-                     .attr("title", event.name)
                      .addClass(event.duration == 1 ? "box" : i==0 ? "top" : i==(event.duration - 1) ? "bottom" : "middle");
             });
         });
     };
-    var RENDER_CHUNK = 200;
+    var RENDER_CHUNK = 999;
     var renderAll = function(startIndex) {
-        var stopIndex = (startIndex || 0) + RENDER_CHUNK;
-        for(var i = startIndex || 0; i < stopIndex; i++) {
-            var event = ASSIGNED[i];
-            if (!event) {
-                checkConflicts();
-                return;
-            }
-            renderEvents(event);
+        startIndex = startIndex || 0;
+        var stopIndex = startIndex + RENDER_CHUNK;
+        renderEvents.apply(null, EVENTS.slice(startIndex, stopIndex));
+        if (EVENTS[stopIndex]) {
+            setTimeout(function() { renderAll(stopIndex); }, 1);
+        } else {
+            //console.log(new Date(), new Date().getMilliseconds(), "events rendered");
+            setTimeout(scrollToHash, 1);
+            setTimeout(checkConflicts, 2); //checkConflicts();
         }
-        setTimeout(function() { renderAll(stopIndex); }, 10);
+    };
+    var scrollToHash = function() {
+        if (location.hash) {
+            var top = $("#row" + location.hash.substr(1)).position().top;
+            $(document.body).scrollTop(top);
+        }
     };
     
     var selectedEvent = null;
@@ -204,7 +211,9 @@
             window.location = "form?id=" + event.id;
         },
         create: function($td) {
-            window.location = "form?id=None";
+            var slot = $td.parent("tr").data("slot");
+            var startTime = new Date(EPOCH).addMinutes(30 * slot).toString("yyyy-MM-dd HH:mm:ss");
+            window.location = "form?id=None&location=" + $td.data("location") + "&start_time=" + startTime;
         },
         move: function(event) {
             clearSelected();
@@ -290,11 +299,12 @@
     };
     
     $(function(){
+        //console.log(new Date(), new Date().getMilliseconds(), "document.onReady");
         var $schedule = $("#schedule");
         var $schedHead = $schedule.find("thead tr");
         var $schedBody = $schedule.find("tbody");
         var $emptyRow = $("<tr/>");
-        $.each(LOCS, function(i,loc) {
+        $.each({{ EVENT_LOC_OPTS|jsonize }}, function(i,loc) {
             $schedHead.append($("<td/>").text(loc[1]));
             $emptyRow.append(
                 $("<td/>").data("location", loc[0])
@@ -317,6 +327,7 @@
             }
         });
         setUpMenu();
+        //console.log(new Date(), new Date().getMilliseconds(), "empty table initialized");
         renderAll();
     });
 </script>

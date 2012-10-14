@@ -115,7 +115,6 @@ class Root:
     
     def form(self, message="", panelists=[], **params):
         event = get_model(Event, params)
-        
         if "name" in params:
             message = check(event)
             if not message:
@@ -123,18 +122,18 @@ class Root:
                 event.assignedpanelist_set.all().delete()
                 for id in set(listify(panelists)):
                     AssignedPanelist.objects.create(event_id = event.id, attendee_id = id)
-                raise HTTPRedirect("jqtesting#{}", event.start_time - timedelta(minutes=30))
+                raise HTTPRedirect("jqtesting#{}", event.start_slot and (event.start_slot - 1))
         
         return {
             "message": message,
             "event":   event,
             "assigned": [ap.attendee_id for ap in event.assignedpanelist_set.order_by("-attendee__first_name")],
-            "panelists": {a.id: a.full_name for a in Attendee.objects.filter(ribbon = PANELIST_RIBBON).order_by("first_name")}
+            "panelists": {a.id: a.full_name for a in Attendee.objects.filter(Q(ribbon = PANELIST_RIBBON) | Q(badge_type = GUEST_BADGE)).order_by("first_name")}
         }
     
     def delete(self, id):
         event = Event.objects.filter(id=id).delete()
-        raise HTTPRedirect("index?message={}", "Event successfully deleted")
+        raise HTTPRedirect("jqtesting?message={}", "Event successfully deleted")
     
     @ajax
     def move(self, id, location, start_slot):
@@ -156,9 +155,18 @@ class Root:
             e2.save()
         return resp
     
-    def jqtesting(self):
-        to_json = lambda e: {attr: getattr(e, attr) for attr in ["id","name","duration","start_slot","location","description","panelists"]}
+    def jqtesting(self, message=""):
+        panelists = defaultdict(dict)
+        for ap in AssignedPanelist.objects.select_related():
+            panelists[ap.event.id][ap.attendee.id] = ap.attendee.full_name
+        
+        events = []
+        for e in Event.objects.order_by("start_time"):
+            d = {attr: getattr(e, attr) for attr in ["id","name","duration","start_slot","location","description"]}
+            d["panelists"] = panelists[e.id]
+            events.append(d)
+        
         return {
-            "assigned": map(to_json, Event.objects.filter(location__isnull = False).order_by("start_time")),
-            "unassigned": map(to_json, Event.objects.filter(location__isnull = True))
+            "events":  events,
+            "message": message
         }
