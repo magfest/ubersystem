@@ -80,6 +80,7 @@ class Root:
         Shift.objects.filter(id=shift_id, attendee = cherrypy.session["staffer_id"]).delete()
         raise HTTPRedirect("schedule?message={}", "Shift dropped")
     
+    @unrestricted
     def volunteer(self, id, requested_depts = "", message = "Select which departments interest you as a volunteer."):
         attendee = Attendee.objects.get(id = id)
         if requested_depts:
