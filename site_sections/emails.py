@@ -114,7 +114,7 @@ Reminder(Attendee, "Reminder to sign up for MAGFest shifts", "shift_reminder.txt
          sender = STAFF_EMAIL)
 
 Reminder(Attendee, "Last chance to sign up for MAGFest shifts", "shift_reminder.txt",
-         lambda a: state.SHIFTS_AVAILABLE and state.PREREG_OPEN and a.takes_shifts and not a.hours
+         lambda a: state.SHIFTS_AVAILABLE and not state.PREREG_CLOSED and a.takes_shifts and not a.hours
                                           and datetime.now() > state.EPOCH - timedelta(days = 10),
          sender = STAFF_EMAIL)
 
