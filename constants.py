@@ -317,6 +317,17 @@ WORKED_OPTS = (
     (SHIFT_UNWORKED, "Staffer didn't show up")
 )
 
+UNRATED     = 0
+RATED_BAD   = 1
+RATED_GOOD  = 2
+RATED_GREAT = 3
+RATING_OPTS = (
+    (UNRATED,     "Shift Unrated"),
+    (RATED_BAD,   "Staffer performed poorly"),
+    (RATED_GOOD,  "Staffer performed well"),
+    (RATED_GREAT, "Staffer went above and beyond")
+)
+
 CREATE_AND_ASSOC    = 1
 ASSOC_WITH_EXISTING = 2
 

@@ -155,7 +155,7 @@ class Group(MagModel):
     
     @property
     def email(self):
-        return self.leader.email
+        return self.leader and self.leader.email
     
     @cached_property
     def leader(self):
@@ -555,6 +555,7 @@ class Shift(MagModel):
     job      = ForeignKey(Job)
     attendee = ForeignKey(Attendee)
     worked   = IntegerField(choices = WORKED_OPTS, default = SHIFT_UNMARKED)
+    #rating   = IntegerField(choices = RATING_OPTS, default = UNRATED)
     
     @property
     def name(self):
