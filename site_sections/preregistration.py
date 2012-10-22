@@ -71,7 +71,7 @@ cherrypy.tools.keep_body = cherrypy.Tool('before_request_body', keep_body)
 
 
 def send_callback_email(subject, params):
-    send_email(REGDESK_EMAIL, REG_EMAILS, subject, repr(params))
+    send_email(REGDESK_EMAIL, REGDESK_EMAIL, subject, repr(params))
 
 def parse_ids(item_num):
     ids = defaultdict(list)
