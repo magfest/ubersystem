@@ -9,7 +9,7 @@ def weighted_hours(staffer, location):
 
 @all_renderable(PEOPLE)
 class Root:
-    def index(self, location = "0"):
+    def index(self, location = "1"):
         jobs = defaultdict(list)
         for job in Job.objects.filter(location = location):
             jobs[job.start_time if not job.start_time.minute else job.start_time - timedelta(minutes = 30)].append(job)
