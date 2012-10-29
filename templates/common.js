@@ -52,16 +52,18 @@ var setupRatingClickHandler = function() {
         var shift = $img.parent().data("shift");
         var rating = $img.data("rating");
         var comment = "";
-        while (!comment && RATINGS[rating].prompt) {
+        while (comment === "" && RATINGS[rating].prompt) {
             comment = prompt(RATINGS[rating].prompt);
         }
-        $.post("../jobs/rate", {shift_id: shift.id, rating: rating, comment: comment}, function(json) {
-            $img.parent().find("img").each(function(){
-                var r = $(this).data("rating");
-                $(this).attr("title", comment)
-                       .attr("src", RATINGS[r][r === rating]);
-            });
-        }, "json");
+        if (comment !== null ) {
+            $.post("../jobs/rate", {shift_id: shift.id, rating: rating, comment: comment}, function(json) {
+                $img.parent().find("img").each(function(){
+                    var r = $(this).data("rating");
+                    $(this).attr("title", comment)
+                           .attr("src", RATINGS[r][r === rating]);
+                });
+            }, "json");
+        }
     });
 };
 var setStatus = function(shiftId, status) {
