@@ -142,50 +142,54 @@ class Root:
             raise HTTPRedirect("index?message={}", "Attendee deleted, but badge " + attendee.badge + " is still available to be assigned to someone else")
         raise HTTPRedirect("index?message={}", "Attendee deleted")
     
+    @ajax
     def record_mpoint_usage(self, **params):
         params["badge_type"], _ = get_badge_type(params["badge_num"])
         mpu = get_model(MPointUse, params)
         message = check(mpu)
         if message:
-            return json.dumps({"success":False, "message":message})
+            return {"success":False, "message":message}
         else:
             mpu.save()
             message = "{0.identifier} marked for {0.amount} MPoints {1}".format(mpu, mpu.get_use_display())
-            return json.dumps({"id":mpu.id, "success":True, "message":message})
+            return {"id":mpu.id, "success":True, "message":message}
     
     def undo_mpoint_usage(self, id):
         MPointUse.objects.get(id=id).delete()
         return "MPoint usage deleted"
     
+    @ajax
     def record_mpoint_exchange(self, **params):
         params["badge_type"], _ = get_badge_type(params["badge_num"])
         mpe = get_model(MPointExchange, params)
         message = check(mpe)
         if message:
-            return json.dumps({"success":False, "message":message})
+            return {"success":False, "message":message}
         else:
             mpe.save()
             message = "{0.identifier} exchanged {0.mpoints} of last year's MPoints".format(mpe)
-            return json.dumps({"id":mpe.id, "success":True, "message":message})
+            return {"id":mpe.id, "success":True, "message":message}
     
     def undo_mpoint_exchange(self, id):
         MPointExchange.objects.get(id=id).delete()
         return "MPoint exchange deleted"
     
+    @ajax
     def record_sale(self, **params):
         sale = get_model(Sale, params)
         message = check(sale)
         if message:
-            return json.dumps({"success":False, "message":message})
+            return {"success":False, "message":message}
         else:
             sale.save()
             message = "{0} sold for ${1} and {2} MPoints".format(sale.what, sale.cash, sale.mpoints)
-            return json.dumps({"id":sale.id, "success":True, "message":message})
+            return {"id":sale.id, "success":True, "message":message}
     
     def undo_sale(self, id):
         Sale.objects.get(id=id).delete()
         return "Sale deleted"
     
+    @ajax
     def check_in(self, id, badge_num, age_group):
         attendee = Attendee.objects.get(id=id)
         pre_paid = attendee.paid
@@ -223,7 +227,7 @@ class Root:
                 else:
                     message += "<br/> This staffer is not signed up for hours; tell them to talk to a department head ASAP"
         
-        return json.dumps({
+        return {
             "success":    success,
             "message":    message,
             "increment":  increment,
@@ -234,7 +238,7 @@ class Root:
             "pre_amount": pre_amount,
             "pre_badge":  pre_badge,
             "checked_in": attendee.checked_in and hour_day_format(attendee.checked_in)
-        })
+        }
     
     def undo_checkin(self, id, pre_paid, pre_amount, pre_badge):
         a = Attendee.objects.get(id = id)
@@ -248,6 +252,7 @@ class Root:
     def merch(self, message=""):
         return {"message": message}
     
+    @ajax
     def give_merch(self, badge_num):
         success = False
         if not (badge_num.isdigit() and 0 < int(badge_num) < 99999):
@@ -268,11 +273,11 @@ class Root:
                     attendee.got_merch = True
                     attendee.save()
         
-        return json.dumps({
+        return {
             "success": success,
             "message": message,
             "badge_num": badge_num
-        })
+        }
     
     def take_back_merch(self, badge_num):
         attendee = Attendee.objects.get(badge_num = badge_num)
@@ -319,6 +324,7 @@ class Root:
         for a in Attendee.objects.filter(first_name="", group__isnull=False).select_related("group"):
             groups.append((a.group.id, a.group.name or "BLANK"))
             unassigned[a.group.id][a.id] = a.badge + ("" if a.ribbon==NO_RIBBON else " [{}]".format(a.get_ribbon_display()))
+        
         return {
             "message":    message,
             "checked_in": checked_in,
@@ -419,6 +425,7 @@ class Root:
     def hotel_requests(self, message = ""):
         return {"requests": HotelRequests.objects.order_by("attendee__first_name", "attendee__last_name")}
     
+    @ajax
     def approve(self, id, approved):
         hr = HotelRequests.objects.get(id = id)
         if approved == "approved":
@@ -426,4 +433,4 @@ class Root:
         else:
             hr.nights = ",".join(night for night in hr.nights.split(",") if int(night) in {THURSDAY,FRIDAY,SATURDAY})
         hr.save()
-        return json.dumps({"nights": " / ".join(hr.attendee.hotel_nights)})
+        return {"nights": " / ".join(hr.attendee.hotel_nights)}

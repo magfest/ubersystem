@@ -555,7 +555,8 @@ class Shift(MagModel):
     job      = ForeignKey(Job)
     attendee = ForeignKey(Attendee)
     worked   = IntegerField(choices = WORKED_OPTS, default = SHIFT_UNMARKED)
-    #rating   = IntegerField(choices = RATING_OPTS, default = UNRATED)
+    rating   = IntegerField(choices = RATING_OPTS, default = UNRATED)
+    comment  = CharField(max_length = 255)
     
     @property
     def name(self):

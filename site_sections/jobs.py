@@ -27,11 +27,10 @@ class Root:
         staffers = [a for a in Attendee.staffers() if int(location) in a.assigned]
         
         assigned = defaultdict(list)
-        for shift in Shift.objects.filter(job__location = location).select_related():
+        shifts = Shift.objects.filter(job__location = location).select_related()
+        for shift in shifts:
             shift.attendee.shift = shift                # TODO: figure out why we're doing this (efficiency?)
             assigned[shift.job].append(shift.attendee)
-        
-        print(assigned)
         
         jobs = []
         for job in Job.objects.filter(location = location).order_by("start_time","duration"):
@@ -41,7 +40,9 @@ class Root:
         
         return {
             "location": location,
-            "jobs":     jobs
+            "jobs":     jobs,
+            "shifts":   {shift.id: {attr: getattr(shift, attr) for attr in ["id","worked","rating","comment"]}
+                         for shift in shifts}
         }
     
     def staffers(self, location="0"):
@@ -126,3 +127,10 @@ class Root:
         shift.worked = SHIFT_UNMARKED
         shift.save()
         raise HTTPRedirect(cherrypy.request.headers["Referer"])
+    
+    @ajax
+    def rate(self, shift_id, rating, comment = ""):
+        shift = Shift.objects.get(id = shift_id)
+        shift.rating, shift.comment = int(rating), comment
+        shift.save()
+        return {}
