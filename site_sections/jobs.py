@@ -41,8 +41,7 @@ class Root:
         return {
             "location": location,
             "jobs":     jobs,
-            "shifts":   {shift.id: {attr: getattr(shift, attr) for attr in ["id","worked","rating","comment"]}
-                         for shift in shifts}
+            "shifts":   Shift.serialize(shifts)
         }
     
     def staffers(self, location="0"):

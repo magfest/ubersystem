@@ -4,74 +4,8 @@
 
 {% include "jobs/main_menu.html" %}
 
-<style type="text/css">
-    .rating img {
-        margin-left: 25px;
-        cursor: pointer;
-    }
-</style>
 <script type="text/javascript">
-    var setStatus = function(shiftId, status) {
-        var $status = $(status);
-        $.post("set_worked", {id: shiftId, worked: $status.val()}, function(result) {
-            $status.parent().empty().append("<i>" + result + "</i> &nbsp; " +
-                                            "<a href='undo_worked?id=" + shiftId + "'>Undo</a>");
-            if ($status.val() == {{ SHIFT_WORKED }}) {
-                renderRating(shiftId);
-            }
-        });
-    }
-    
-    var RATINGS = {
-        {{ RATED_GOOD }}: {
-            false: "../static/" + "check_blank.png",
-            true:  "../static/" + "check_filled.png"
-        },
-        {{ RATED_BAD }}: {
-            prompt: "Please explain how this volunteer performed poorly:",
-            false: "../static/" + "lookofdisapproval.jpg",
-            true:  "../static/" + "lookofdisapproval_selected.jpg"
-        },
-        {{ RATED_GREAT }}: {
-            prompt: "Please explain how this volunteer went above and beyond:",
-            false: "../static/" + "aplus_blank.jpg",
-            true:  "../static/" + "aplus_filled.jpg"
-        }
-    };
     var SHIFTS = {{ shifts|jsonize }};
-    var renderRating = function(shiftId) {
-        var shift = SHIFTS[shiftId];
-        var $td = $("#rating" + shiftId).addClass("rating").data("shift", shift);
-        $.each([{{ RATED_GOOD }}, {{ RATED_BAD }}, {{ RATED_GREAT }}], function(i, rating) {
-            $td.append(
-                $("<img/>").attr("src", RATINGS[rating][shift.rating == rating])
-                           .attr("title", shift.comment)
-                           .data("rating", rating));
-        });
-    };
-    var setupRatingClickHandler = function() {
-        $(document.body).on("click", "td.rating img", function(event) {
-            var $img = $(event.target);
-            var shift = $img.parent().data("shift");
-            var rating = $img.data("rating");
-            var saveRating = function() {
-                $.post("rate", {shift_id: shift.id, rating: rating, comment: comment}, function(json) {
-                    $img.parent().find("img").each(function(){
-                        var r = $(this).data("rating");
-                        $(this).attr("src", RATINGS[r][r === rating])
-                               .attr("title", comment);
-                    });
-                }, "json");
-            };
-            var comment = "";
-            while (!comment && RATINGS[rating].prompt) {
-                comment = prompt(RATINGS[rating].prompt);
-            }
-            if (comment !== null) {
-                saveRating();
-            }
-        });
-    };
     $(setupRatingClickHandler);
 </script>
 

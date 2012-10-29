@@ -79,3 +79,8 @@ table.list table td {
 span.popup {
     font-size: 10px;
 }
+
+.rating img {
+    margin-left: 25px;
+    cursor: pointer;
+}

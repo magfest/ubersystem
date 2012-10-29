@@ -16,6 +16,10 @@ else:
     class Root:
         def index(self):
             return render("index.html")
+        
+        def common_js(self):
+            cherrypy.response.headers["Content-Type"] = "text/javascript"
+            return render("common.js")
     
     root = Root()
     sections = [path.split("/")[1][:-3] for path in glob("site_sections/*.py") if "__init__" not in path]

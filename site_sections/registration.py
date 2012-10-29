@@ -392,10 +392,12 @@ class Root:
         raise HTTPRedirect("new?message={}", "Attendee un-checked-in but still marked as paid")
     
     def shifts(self, id, shift_id="", message=""):
+        attendee = Attendee.objects.get(id = id)
         return {
             "message":  message,
             "shift_id": shift_id,
-            "attendee": Attendee.objects.get(id = id)
+            "attendee": attendee,
+            "shifts":   Shift.serialize(attendee.shift_set.all())
         }
     
     def update_nonshift(self, id, nonshift_hours):

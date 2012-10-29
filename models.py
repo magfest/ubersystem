@@ -558,6 +558,11 @@ class Shift(MagModel):
     rating   = IntegerField(choices = RATING_OPTS, default = UNRATED)
     comment  = CharField(max_length = 255)
     
+    @classmethod
+    def serialize(cls, shifts):
+        return {shift.id: {attr: getattr(shift, attr) for attr in ["id","worked","rating","comment"]}
+                           for shift in shifts}
+    
     @property
     def name(self):
         return "{self.attendee.full_name}'s {self.job.name!r} shift".format(self = self)

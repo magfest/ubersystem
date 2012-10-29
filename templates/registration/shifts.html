@@ -2,17 +2,12 @@
 {% block title %}Staffing Shifts - {{ attendee.full_name }}{% endblock %}
 {% block content %}
 
-{% include "registration/menu.html" %}
-
 <script type="text/javascript">
-    function setStatus(shiftId, status) {
-        var $status = $(status);
-        $.post("../jobs/set_worked", {id: shiftId, worked: $status.val()}, function(result) {
-            $status.parent().empty().append("<i>" + result + "</i> &nbsp; " +
-                                            "<a href='../jobs/undo_worked?id=" + shiftId + "'>Undo</a>");
-        });
-    }
+    var SHIFTS = {{ shifts|jsonize }};
+    $(setupRatingClickHandler);
 </script>
+
+{% include "registration/menu.html" %}
 
 <br/>
 <table width="100%">
@@ -75,6 +70,10 @@
             <input type="hidden" name="shift_id" value="{{ shift.id }}" />
             <td> <input type="submit" value="Unassign" /> </td>
             </form>
+            <td id="rating{{ shift.id }}"></td>
+            {% if shift.worked == SHIFT_WORKED %}
+                <script type="text/javascript">renderRating({{ shift.id }});</script>
+            {% endif %}
         </tr>
     {% endfor %}
     </table>
