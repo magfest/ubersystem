@@ -202,6 +202,10 @@ class Group(MagModel):
     @property
     def amount_unpaid(self):
         return self.amount_owed - self.amount_paid
+    
+    @property
+    def can_add_badges(self):
+        return self.can_add or (not self.is_dealer and self.total_cost and not self.amount_paid)
 
 
 

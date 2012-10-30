@@ -60,21 +60,19 @@
 
 <br/>
 
-{% if group.can_add %}
+{% if group.can_add_badges %}
     <div id="add" style="display:none">
         <form method="post" action="add_group_members">
         Enter a number of group members to add:
         <input type="hidden" name="id" value="{{ group.id|obfuscated }}" />
-        <select name="count">
-            {% int_options 1 10 %}
-        </select>
+        <select name="count">{% int_options 1 10 %}</select>
         <input type="submit" value="Add Members to Group">
         </form>
     </div>
     <script type="text/javascript">
         $(function(){
             $("body").append(
-                $('<a style="cursor:pointer">Click here to add more members to your group.</a>').click(function(e){
+                $('<a style="cursor:pointer">Click here to add more members to your group{% if not group.can_add and not group.amount_paid %} (after you pay you will be unable to add more badges){% endif %}.</a>').click(function(e){
                     $(e.target).hide();
                     $("#add").show();
                 }));
