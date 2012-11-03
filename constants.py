@@ -291,6 +291,7 @@ JOB_LOC_OPTS = (
     (14, "Security"),
     (15, "Tabletop"),
     (16, "Tech Ops"),
+    (17, "Staffing Ops"),
 )
 DEPT_CHAIRS = {     # TODO: fill in the rest of these
     CONCERT:  "Big Mat (at the Concert Room)",
