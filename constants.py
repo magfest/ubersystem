@@ -29,7 +29,7 @@ class State:
     ETCHED_BADGES_ORDERED = False
     
     STAFFERS_IMPORTED   = datetime(2012,  5, 29)
-    SHIFTS_CREATED      = datetime(2013, 10,  1)
+    SHIFTS_CREATED      = datetime(2012, 11,  3)
     PRICE_BUMP          = datetime(2012, 11,  4, 23, 59)
     DEALER_REG_START    = datetime(2012,  7, 27, 11, 59)
     DEALER_REG_DEADLINE = datetime(2012,  9,  3, 11, 59)

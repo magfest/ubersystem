@@ -1,11 +1,13 @@
 {{ attendee.first_name }},
 
-Thanks for signing up to volunteer at MAGFest!  You're currently assigned to the {{ attendee.assigned_display|join_and }} department{{ attendee.assigned_display|pluralize }}, but let us know if you'd also like to work in any other departments.
+Thanks for signing up to volunteer at MAGFest!  You're currently assigned to the {{ attendee.assigned_display|join_and }} department{{ attendee.multiply_assigned|pluralize }}, but let us know if you'd also like to work in any other departments.
 
-You can sign up for shifts at {{ state.URL_BASE }}/signups/login and if you have trouble logging in, you can verify/update your personal information at {{ state.URL_BASE }}/preregistration/confirm?id={{ staffer.attendee.id|obfuscated }}
+You can sign up for shifts at {{ state.URL_BASE }}/signups/login and if you have trouble logging in, you can verify/update your personal information at {{ state.URL_BASE }}/preregistration/confirm?id={{ attendee.id|obfuscated }}
 
 You can add / drop / change your shifts anytime until 11:59pm on {{ state.UBER_TAKEDOWN|datetime:"%A, %b %e" }}.
 
 Please let us know if you have any questions.
 
 {{ STOPS_EMAIL_SIGNATURE }}
+
+{% if attendee.ribbon == DEPT_HEAD_RIBBON %}PS: Since you're a department head, you probably don't need to sign up for shifts, so you can probably ignore this automated email.{% endif %}

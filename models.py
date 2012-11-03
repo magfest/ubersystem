@@ -390,9 +390,7 @@ class Attendee(MagModel):
     
     @property
     def takes_shifts(self):
-        return (self.staffing and not self.placeholder
-                              and self.ribbon != DEPT_HEAD_RIBBON
-                              and set(self.assigned) - {CONCERT, MARKETPLACE})
+        return self.staffing and set(self.assigned) - {CONCERT, MARKETPLACE}
     
     @property
     def assigned(self):
@@ -466,7 +464,7 @@ class Attendee(MagModel):
     def shift_prereqs_complete(self):
         return not self.placeholder  \
            and self.fire_safety_cert \
-           and (self.badge_type != STAFF_BADGE or self.hotel_nights is not None)
+           and (self.badge_type != STAFF_BADGE or self.hotel_requests is not None)
     
     @property
     def hotel_requests(self):
