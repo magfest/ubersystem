@@ -386,7 +386,7 @@ class Attendee(MagModel):
     
     @property
     def multiply_assigned(self):
-        return "," in self.assigned
+        return len(self.assigned) > 1
     
     @property
     def takes_shifts(self):
