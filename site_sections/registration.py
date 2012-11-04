@@ -74,13 +74,18 @@ class Root:
         }
     
     def staffers(self, message="", order="first_name"):
-        order_by = [order, "last_name"] if order.endswith("first_name") else [order]
-        staffers = Attendee.objects.filter(staffing = True).order_by(*order_by)
+        shifts = defaultdict(list)
+        for shift in Shift.objects.select_related():
+            shifts[shift.attendee].append(shift)
+        
+        staffers = list(Attendee.objects.filter(staffing = True))
+        for staffer in staffers:
+            staffer._shifts = shifts[staffer]
         
         return {
             "message":  message,
-            "staffers": staffers,
-            "order":    Order(order)
+            "order":    Order(order),
+            "staffers": sorted(staffers, key = lambda a: getattr(a, order.lstrip("-")), reverse = order.startswith("-"))
         }
     
     def form(self, message="", return_to="", **params):
