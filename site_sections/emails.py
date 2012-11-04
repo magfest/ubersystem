@@ -35,7 +35,7 @@ class Reminder:
         if state.AUTO_EMAILS:
             for rem in Reminder.instances:
                 for x in models[rem.model]:
-                    if rem.should_send(x):
+                    if x.email and rem.should_send(x):
                         rem.send(x, raise_errors = raise_errors)
 
 
