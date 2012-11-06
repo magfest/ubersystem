@@ -10,13 +10,17 @@ class Reminder:
     def __str__(self):
         return "<Email: subject={!r}>".format(self.subject)
     
-    # TODO: pre-query everything to make this fast with a single up-front time... but make sure it gets updated appropriately
-    def prev(self, x):
-        prev = list(Email.objects.filter(fk_tab=x.__class__.__name__, fk_id=x.id, subject=self.subject).order_by("when"))
-        return prev[-1] if prev else None
+    def prev(self, x, all_sent = None):
+        if all_sent:
+            return all_sent.get((x.__class__.__name__, x.id, self.subject))
+        else:
+            try:
+                return Email.objects.get(fk_tab=x.__class__.__name__, fk_id=x.id, subject=self.subject)
+            except:
+                return None
     
-    def should_send(self, x):
-        return not self.prev(x) and self.filter(x)
+    def should_send(self, x, all_sent = None):
+        return not self.prev(x, all_sent) and self.filter(x)
     
     def send(self, x, raise_errors = True):
         try:
@@ -32,10 +36,11 @@ class Reminder:
     @staticmethod
     def send_all(raise_errors = False):
         models = {m: list(m.objects.select_related()) for m in [Attendee, Group]}
+        all_sent = {(e.fk_tab, e.fk_id, e.subject): e for e in Email.objects.all()}
         if state.AUTO_EMAILS:
             for rem in Reminder.instances:
                 for x in models[rem.model]:
-                    if x.email and rem.should_send(x):
+                    if x.email and rem.should_send(x, all_sent):
                         rem.send(x, raise_errors = raise_errors)
 
 
