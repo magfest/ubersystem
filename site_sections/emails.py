@@ -99,6 +99,8 @@ Reminder(Attendee, "MAGFest Volunteer Badge Confirmation", "volunteer_confirmati
                                  and a.registered.date() > state.STAFFERS_IMPORTED.date(),
          sender = STAFF_EMAIL)
 
+
+
 Reminder(Attendee, "Want to staff MAGFest again?", "imported_staffer.txt",
          lambda a: a.placeholder and a.first_name and a.last_name and a.email and a.staffing
                                  and a.registered.date() <= state.STAFFERS_IMPORTED.date(),
@@ -116,6 +118,20 @@ Reminder(Attendee, "Reminder to sign up for MAGFest shifts", "shift_reminder.txt
 Reminder(Attendee, "Last chance to sign up for MAGFest shifts", "shift_reminder.txt",
          lambda a: state.SHIFTS_AVAILABLE and not state.PREREG_CLOSED and a.takes_shifts and not a.hours
                                           and datetime.now() > state.EPOCH - timedelta(days = 10),
+         sender = STAFF_EMAIL)
+
+Reminder(Attendee, "Want volunteer hotel room space at MAGFest?", "hotel_rooms.txt",
+         lambda a: state.SHIFTS_AVAILABLE and a.hotel_eligible and datetime.now() < state.ROOM_DEADLINE,
+         sender = STAFF_EMAIL)
+
+Reminder(Attendee, "Reminder to sign up for MAGFest hotel room space", "hotel_reminder.txt",
+         lambda a: state.SHIFTS_AVAILABLE and a.hotel_eligible
+                                          and state.ROOM_DEADLINE - timedelta(days = 14) < datetime.now() < state.ROOM_DEADLINE,
+         sender = STAFF_EMAIL)
+
+Reminder(Attendee, "Last chance to sign up for MAGFest hotel room space", "hotel_reminder.txt",
+         lambda a: state.SHIFTS_AVAILABLE and a.hotel_eligible
+                                          and state.ROOM_DEADLINE - timedelta(days = 2) < datetime.now() < state.ROOM_DEADLINE,
          sender = STAFF_EMAIL)
 
 

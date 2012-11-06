@@ -467,6 +467,10 @@ class Attendee(MagModel):
            and (self.badge_type != STAFF_BADGE or self.hotel_requests is not None)
     
     @property
+    def hotel_eligible(self):
+        return self.badge_type == STAFF_BADGE and self.assigned != [CONCERT] and self.assigned != [MARKETPLACE]
+    
+    @property
     def hotel_requests(self):
         try:
             return self.hotelrequests
