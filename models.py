@@ -482,7 +482,7 @@ class Attendee(MagModel):
         try:
             return [dict(NIGHTS_OPTS)[night] for night in map(int, self.hotelrequests.nights.split(","))]
         except:
-            return None
+            return []
 
 class HotelRequests(MagModel):
     attendee           = OneToOneField(Attendee)
