@@ -94,7 +94,10 @@ class options(template.Node):
                 default = ""
         
         results = []
-        for val,desc in options:
+        for opt in options:
+            if len(listify(opt)) == 1:
+                opt = [opt, opt]
+            val, desc = opt
             selected = "selected" if str(val)==str(default) else ""
             val  = str(val).replace('"',  "&quot;").replace("\n", "")
             desc = str(desc).replace('"', "&quot;").replace("\n", "")

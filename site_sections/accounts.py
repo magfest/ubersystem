@@ -86,9 +86,16 @@ class Root:
             "accounts": Account.objects.order_by(order)
         }
     
-    def feed(self, page = "1"):
+    def feed(self, page = "1", who = "", what = ""):
         feed = Tracking.objects.exclude(action = AUTO_BADGE_SHIFT).order_by("-id")
+        if who:
+            feed = feed.filter(who = who)
+        if what:
+            feed = feed.filter(Q(data__icontains = what) | Q(which__icontains = what))
         return {
+            "who": who,
+            "what": what,
+            "who_opts": Tracking.objects.values_list("who", flat=True).order_by("who").distinct(),
             "page": page,
             "count": feed.count(),
             "feed": get_page(page, feed)

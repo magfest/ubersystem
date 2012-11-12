@@ -3,6 +3,26 @@
 {% block content %}
 
 <h2>Feed of Database Actions</h2>
+
+<form method="get" action="feed" style="text-align:center">
+    Search by who did it:
+    <select name="who" onChange="$(this).parents('form').submit()">
+        <option value="">{% if who %}Show all{% else %}Choose an admin{% endif %}</option>
+        {% options who_opts who %}
+    </select>
+    
+    &nbsp;&nbsp;&nbsp;&nbsp;
+    
+    <i>and/or</i>
+    
+    &nbsp;&nbsp;&nbsp;&nbsp;
+    
+    Search by keyword:
+    <input type="text" name="what" value="{{ what }}" />
+</form>
+
+<br/>
+
 {% pages page count %}
 
 <table class="list">
