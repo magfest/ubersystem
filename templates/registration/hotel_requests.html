@@ -29,8 +29,8 @@
     <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
         <td><a href="form?id={{ request.attendee.id }}">{{ request.attendee.full_name }}</a></td>
         <td>{{ request.attendee.assigned_display|join:" / " }}</td>
-        <td>{{ request.wanted_roommates }}</td>
-        <td>{{ request.unwanted_roommates }}</td>
+        <td>{{ request.wanted_roommates|linebreaksbr }}</td>
+        <td>{{ request.unwanted_roommates|linebreaksbr }}</td>
         <td>{{ request.special_needs }}</td>
         <td class="nights">{{ request.attendee.hotel_nights|join:" / " }}</td>
         <td>
