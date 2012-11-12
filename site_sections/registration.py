@@ -73,21 +73,6 @@ class Root:
             "attendee":       Attendee.objects.get(id = uploaded_id) if uploaded_id else None
         }
     
-    def staffers(self, message="", order="first_name"):
-        shifts = defaultdict(list)
-        for shift in Shift.objects.select_related():
-            shifts[shift.attendee].append(shift)
-        
-        staffers = list(Attendee.objects.filter(staffing = True))
-        for staffer in staffers:
-            staffer._shifts = shifts[staffer]
-        
-        return {
-            "message":  message,
-            "order":    Order(order),
-            "staffers": sorted(staffers, key = lambda a: getattr(a, order.lstrip("-")), reverse = order.startswith("-"))
-        }
-    
     def form(self, message="", return_to="", **params):
         attendee = get_model(Attendee, params, checkgroups = ["interests"],
                              bools = ["staffing","trusted","international","placeholder","got_merch","can_spam"])
@@ -429,8 +414,31 @@ class Root:
         shift.delete()
         raise HTTPRedirect("shifts?id={}&message={}", shift.attendee.id, "Staffer unassigned from shift")
     
+    def staffers(self, message="", order="first_name"):
+        shifts = defaultdict(list)
+        for shift in Shift.objects.select_related():
+            shifts[shift.attendee].append(shift)
+        
+        staffers = list(Attendee.objects.filter(staffing = True))
+        for staffer in staffers:
+            staffer._shifts = shifts[staffer]
+        
+        return {
+            "order": Order(order),
+            "message": message,
+            "staffer_count": len(staffers),
+            "total_hours": sum(j.weighted_hours * j.slots for j in Job.objects.all()),
+            "taken_hours": sum(s.job.weighted_hours for s in Shift.objects.select_related()),
+            "staffers": sorted(staffers, key = lambda a: getattr(a, order.lstrip("-")), reverse = order.startswith("-"))
+        }
+    
     def hotel_requests(self, message = ""):
-        return {"requests": HotelRequests.objects.order_by("attendee__first_name", "attendee__last_name")}
+        requests = HotelRequests.objects.order_by("attendee__first_name", "attendee__last_name")
+        return {
+            "staffer_count": Attendee.objects.filter(badge_type = STAFF_BADGE).count(),
+            "declined_count": requests.filter(nights = "").count(),
+            "requests": requests.exclude(nights = "")
+        }
     
     @ajax
     def approve(self, id, approved):
