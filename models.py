@@ -626,7 +626,10 @@ class Email(MagModel):
     
     @cached_property
     def fk(self):
-        return globals()[self.fk_tab].objects.get(id = self.fk_id)
+        try:
+            return globals()[self.fk_tab].objects.get(id = self.fk_id)
+        except:
+            return None
     
     @property
     def rcpt_name(self):

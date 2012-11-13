@@ -31,6 +31,7 @@ cherrypy.tree.mount(root, state.PATH, appconf)
 
 if __name__=="__main__":
     daemonize(Reminder.send_all, name = "EmailReminderTask")
-    daemonize(delete_unpaid, name = "UnpaidDeletionTask")
+    daemonize(delete_unpaid,     name = "UnpaidDeletionTask")
+    daemonize(detect_duplicates, name = "DuplicateReminder")
     cherrypy.engine.start()
     cherrypy.engine.block()

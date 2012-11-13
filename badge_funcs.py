@@ -131,3 +131,17 @@ def delete_unpaid():
             send_delete_email(group)
             group.attendee_set.all().delete()
             group.delete()
+
+
+def detect_duplicates():
+    subject = "Duplicates Report for " + datetime.now().strftime("%Y-%m-%d")
+    if not Email.objects.filter(subject = subject):
+        grouped = defaultdict(list)
+        for a in Attendee.objects.exclude(first_name = "").order_by("registered"):
+            grouped[a.full_name, a.email].append(a)
+        
+        dupes = {k:v for k,v in grouped.items() if len(v) > 1}
+        if dupes:
+            body = render("emails/duplicates.html", {"dupes": sorted(dupes.items())})
+            send_email(ADMIN_EMAIL, REGDESK_EMAIL, subject, body, format = "html")
+            Email.objects.create(fk_tab = "n/a", fk_id = 0, subject = subject, body = body, dest = REGDESK_EMAIL)

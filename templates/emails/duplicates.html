@@ -1,0 +1,14 @@
+<html>
+<head></head>
+<body>
+    <h3>{{ dupes|length }} people have duplicate registrations</h3>
+    {% for ident, attendees in dupes %}
+        {{ ident.0 }} ({{ ident.1 }}) has {{ attendees|length }} registrations:
+        <ul style="margin-top:0px ; margin-bottom:10px">
+            {% for attendee in attendees %}
+                <li><a href="{{ state.URL_BASE }}/registration/form?id={{ attendee.id }}">{{ attendee.get_badge_type_display }}</a> [{{ attendee.get_paid_display }}] ({{ attendee.registered|datetime:"%Y-%m-%d" }})</li>
+            {% endfor %}
+        </ul>
+    {% endfor %}
+</body>
+</html>

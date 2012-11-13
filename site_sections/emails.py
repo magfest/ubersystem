@@ -159,8 +159,14 @@ class Root:
     def index(self):
         raise HTTPRedirect("by_sent")
     
-    def by_sent(self):
-        return {"emails": Email.objects.order_by("-when")}
+    def by_sent(self, page = "1"):
+        emails = Email.objects.order_by("-when")
+        return {
+            "page": page,
+            "emails": emails,
+            "count": emails.count(),
+            "feed": get_page(page, emails)
+        }
     
     def sent(self, **params):
         return {"emails": Email.objects.filter(**params).order_by("when")}
