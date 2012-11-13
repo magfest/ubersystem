@@ -97,6 +97,11 @@ class TestPaypalCallback(TestUber):
         self.assert_callback("ok", "Paypal callback with non-matching payment", cost = 10)
         self.assert_paid(True, self.attendee)
     
+    def test_attendee_duplicate(self):
+        self.assert_callback("ok", "Paypal callback payments marked")
+        self.assert_paid(True, self.attendee)
+        self.assert_callback("ok", "Paypal callback with non-matching payment", cost = 40)
+    
     def test_attendee_overpaid(self):
         self.assert_callback("ok", "Paypal callback with non-matching payment", cost = 100)
         self.assert_paid(True, self.attendee)

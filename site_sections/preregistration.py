@@ -98,6 +98,9 @@ def mark_attendee_paid(id):
     if attendee.paid in [NOT_PAID, NEED_NOT_PAY]:
         attendee.paid = HAS_PAID
     attendee.save()
+    if amount_paid_before == attendee.total_cost:
+        Tracking.objects.create(model = "Attendee", fk_id = id, who = "Paypal callback", action = UPDATED, links = "",
+                                which = repr(attendee), data = "amount_paid ='{0} -> {0}'".format(attendee.total_cost))
     return max(attendee.total_cost - amount_paid_before, 0)
 
 def get_prereg_ids(preregs):
