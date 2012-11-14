@@ -265,6 +265,7 @@ JOB_INTEREST_OPTS = (
     (1, "Arcade"),
     (2, "Challenges Booth"),
     (3, "Consoles"),
+    (10,"Events"),
     (4, "Food Prep"),
     (5, "Jam Space"),
     (6, "LAN"),
