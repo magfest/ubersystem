@@ -21,7 +21,7 @@
 {% for staffer, weighted_hours in staffers %}
     <tr>
         <td> <ul><li></li></ul> </td>
-        <td> <a href="../registration/shifts?id={{ staffer.id }}">{{ staffer.full_name }}</a>{% if staffer.multiply_assigned %}*{% endif %}: </td>
+        <td> <a href="../registration/shifts?id={{ staffer.id }}">{{ staffer.full_name }}</a>{% if staffer.trusted %} <font size="-1">[T]</font>{% endif %}{% if staffer.multiply_assigned %}*{% endif %}: </td>
         <td> &nbsp;&nbsp;&nbsp;&nbsp; signed up for {{ weighted_hours }} shift-hours in this area </td>
     </tr>
 {% endfor %}
@@ -29,7 +29,8 @@
 
 <br/> <br/>
 <div style="margin-left:10px">
-    *: <i>Staffers marked with an asterix are assigned to multiple locations</i>
+    *: <i>Staffers marked with an asterix are assigned to multiple locations</i> <br/>
+    [T]: <i>Staffers marked with a "T" are trusted
 </div>
 
 {% endblock %}
