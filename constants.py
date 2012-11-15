@@ -128,16 +128,18 @@ EVENT_START_TIME_OPTS = [(dt, dt.strftime("%I %p %a") if not dt.minute else dt.s
 EVENT_DURATION_OPTS = [(i, "%.1f hour%s" % (i/2, "s" if i != 2 else "")) for i in range(1, 19)]
 
 EVENT_LOC_OPTS = (
-    (0, "Panels 1"),
-    (1, "Panels 2"),
-    (2, "Panels 3"),
-    (8, "Panels 4"),
-    (9, "Panels 5"),
-    (3, "Console"),
-    (4, "Arcade"),
-    (5, "Video"),
-    (6, "Tabletop"),
-    (7, "Music")
+    (0,  "Panels 1"),
+    (1,  "Panels 2"),
+    (2,  "Panels 3"),
+    (8,  "Panels 4"),
+    (9,  "Panels 5"),
+    (10, "Autographs"),
+    (3,  "Console"),
+    (4,  "Arcade"),
+    (5,  "Games on Film"),
+    (6,  "Tabletop 1"),
+    (11, "Tabletop 2"),
+    (7,  "Music"),
 )
 EVENT_LOCS = [loc for loc,desc in EVENT_LOC_OPTS]
 EVENT_BOOKED = {"colspan": 0}
