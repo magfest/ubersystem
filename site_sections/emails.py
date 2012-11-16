@@ -167,9 +167,8 @@ class Root:
         emails = Email.objects.order_by("-when")
         return {
             "page": page,
-            "emails": emails,
-            "count": emails.count(),
-            "feed": get_page(page, emails)
+            "emails": get_page(page, emails),
+            "count": emails.count()
         }
     
     def sent(self, **params):
