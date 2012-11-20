@@ -25,13 +25,13 @@ class State:
     PREREG_NOT_OPEN_YET = True
     SUP_REG_OPEN = True
     GROUP_REG_OPEN = True
-    DEALER_REG_OPEN = False
     ETCHED_BADGES_ORDERED = False
     
     STAFFERS_IMPORTED   = datetime(2012,  5, 29)
     SHIFTS_CREATED      = datetime(2012, 11,  3)
     PRICE_BUMP          = datetime(2012, 11,  4, 23, 59)
     DEALER_REG_START    = datetime(2012,  7, 27, 11, 59)
+    DEALER_REG_SHUTDOWN = datetime(2012, 11, 19, 11, 59)
     DEALER_REG_DEADLINE = datetime(2012,  9,  3, 11, 59)
     DEALER_PAYMENT_DUE  = datetime(2012, 11, 30, 23, 59)
     ROOM_DEADLINE       = datetime(2012, 12,  1, 23, 59)
@@ -49,7 +49,7 @@ class State:
     
     @property
     def DEALER_REG_OPEN(self):
-        return datetime.now() > self.DEALER_REG_START
+        return self.DEALER_REG_START < datetime.now() < self.DEALER_REG_SHUTDOWN
     
     @property
     def BADGE_PRICE(self):
