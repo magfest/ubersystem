@@ -390,7 +390,7 @@ class Attendee(MagModel):
     
     @property
     def takes_shifts(self):
-        return self.staffing and set(self.assigned) - {CONCERT, MARKETPLACE}
+        return self.staffing and set(self.assigned) - {CONCERT, CON_OPS, MARKETPLACE}
     
     @property
     def assigned(self):

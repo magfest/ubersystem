@@ -276,13 +276,14 @@ JOB_INTEREST_OPTS = (
     (9, "Tabletop"),
 )
 CONCERT = 3
+CON_OPS = 5
 MARKETPLACE = 10
 JOB_LOC_OPTS = (
     (1, "Arcade"),
     (2, "Challenges"),
     (CONCERT, "Concert"),
     (4, "Consoles"),
-    (5, "Con Ops"),
+    (CON_OPS, "Con Ops"),
     (6, "Events"),
     (7, "Food Prep"),
     (8, "Jam Space"),
