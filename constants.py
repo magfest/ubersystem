@@ -25,7 +25,7 @@ class State:
     PREREG_NOT_OPEN_YET = True
     SUP_REG_OPEN = True
     GROUP_REG_OPEN = True
-    DEALER_REG_OPEN = True
+    DEALER_REG_OPEN = False
     ETCHED_BADGES_ORDERED = False
     
     STAFFERS_IMPORTED   = datetime(2012,  5, 29)
