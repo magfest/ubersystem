@@ -130,12 +130,12 @@ Reminder(Attendee, "Want volunteer hotel room space at MAGFest?", "hotel_rooms.t
          sender = STAFF_EMAIL)
 
 Reminder(Attendee, "Reminder to sign up for MAGFest hotel room space", "hotel_reminder.txt",
-         lambda a: state.SHIFTS_AVAILABLE and a.hotel_eligible
+         lambda a: state.SHIFTS_AVAILABLE and a.hotel_eligible and not a.hotel_requests
                                           and state.ROOM_DEADLINE - timedelta(days = 14) < datetime.now() < state.ROOM_DEADLINE,
          sender = STAFF_EMAIL)
 
 Reminder(Attendee, "Last chance to sign up for MAGFest hotel room space", "hotel_reminder.txt",
-         lambda a: state.SHIFTS_AVAILABLE and a.hotel_eligible
+         lambda a: state.SHIFTS_AVAILABLE and a.hotel_eligible and not a.hotel_requests
                                           and state.ROOM_DEADLINE - timedelta(days = 2) < datetime.now() < state.ROOM_DEADLINE,
          sender = STAFF_EMAIL)
 
