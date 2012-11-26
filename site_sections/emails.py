@@ -139,8 +139,14 @@ Reminder(Attendee, "Last chance to sign up for MAGFest hotel room space", "hotel
                                           and a.registered < state.ROOM_DEADLINE - timedelta(days = 2) < datetime.now() < state.ROOM_DEADLINE,
          sender = STAFF_EMAIL)
 
+
+
 Reminder(Attendee, "Details on Saturday MAGFest Staff Meeting", "staff_meeting.txt",
-         lambda a: a.staffing and datetime.now() < datetime(2012, 11, 17, 18),
+         lambda a: a.staffing and datetime(2012, 11, 11) < datetime.now() < datetime(2012, 11, 17, 18),
+         sender = STAFF_EMAIL)
+
+Reminder(Attendee, "Hotel reminder for MAGFest department heads", "dept_head_rooms.txt",
+         lambda a: a.ribbon == DEPT_HEAD_RIBBON and state.ROOM_DEADLINE - timedelta(days = 9) < datetime.now() < state.ROOM_DEADLINE,
          sender = STAFF_EMAIL)
 
 
