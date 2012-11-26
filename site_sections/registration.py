@@ -447,6 +447,13 @@ class Root:
             "staffers": sorted(staffers, key = lambda a: getattr(a, order.lstrip("-")), reverse = order.startswith("-"))
         }
     
+    def hotel_eligible(self):
+        by_dept = defaultdict(list)
+        for attendee in Attendee.objects.filter(badge_type = STAFF_BADGE).order_by("first_name","last_name"):
+            for dept in attendee.assigned_display:
+                by_dept[dept].append(attendee)
+        return {"by_dept": sorted(by_dept.items())}
+    
     def hotel_requests(self, message = ""):
         requests = HotelRequests.objects.order_by("attendee__first_name", "attendee__last_name")
         return {

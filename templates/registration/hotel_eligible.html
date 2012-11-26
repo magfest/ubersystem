@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Hotel Eligible Staffers{% endblock %}}
+{% block content %}
+
+<h2>Hotel Eligible Staffers by Department</h2>
+
+{% for department,staffers in by_dept %}
+    <h3>{{ department }}</h3>
+    <table style="width:auto ; margin-left:25px">
+    {% for attendee in staffers %}
+        <tr>
+            <td><a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a></td>
+            <td>{% if not attendee.hotel_requests %}<b>[HAS NOT REQUESTED HOTEL SPACE]</b>{% endif %}</td>
+        </tr>
+    {% endfor %}
+    </table>
+{% endfor %}
+
+{% endblock %}
