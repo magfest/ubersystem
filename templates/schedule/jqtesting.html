@@ -14,7 +14,7 @@
         vertical-align: center;
     }
     #schedule thead td {
-        white-space: nowrap;
+        border-right: 1px solid black;
     }
     #schedule tbody td.time {
         white-space: nowrap;
@@ -305,7 +305,9 @@
         var $schedBody = $schedule.find("tbody");
         var $emptyRow = $("<tr/>");
         $.each({{ EVENT_LOC_OPTS|jsonize }}, function(i,loc) {
-            $schedHead.append($("<td/>").text(loc[1]));
+            $schedHead.append(
+                $("<td/>").text(loc[1])
+                          .css("white-space", loc[1].indexOf("Tabletop") === 0 ? "wrap" : "nowrap"));
             $emptyRow.append(
                 $("<td/>").data("location", loc[0])
                           .addClass("loc" + loc[0])

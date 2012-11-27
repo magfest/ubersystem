@@ -133,12 +133,14 @@ EVENT_LOC_OPTS = (
     (2,  "Panels 3"),
     (8,  "Panels 4"),
     (9,  "Panels 5"),
+    (13, "Panels 6"),
     (10, "Autographs"),
     (3,  "Console"),
     (4,  "Arcade"),
     (5,  "Games on Film"),
-    (6,  "Tabletop 1"),
-    (11, "Tabletop 2"),
+    (6,  "Tabletop (Tournaments)"),
+    (11, "Tabletop (Free Play)"),
+    (12, "Tabletop (CCG)"),
     (7,  "Music"),
 )
 EVENT_LOCS = [loc for loc,desc in EVENT_LOC_OPTS]
