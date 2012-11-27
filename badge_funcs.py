@@ -137,8 +137,9 @@ def detect_duplicates():
     subject = "Duplicates Report for " + datetime.now().strftime("%Y-%m-%d")
     if not Email.objects.filter(subject = subject):
         grouped = defaultdict(list)
-        for a in Attendee.objects.exclude(first_name = "").order_by("registered"):
-            grouped[a.full_name, a.email].append(a)
+        for a in Attendee.objects.exclude(first_name = "").order_by("registered").select_related("group"):
+            if not a.group or a.group.status != WAITLISTED:
+                grouped[a.full_name, a.email].append(a)
         
         dupes = {k:v for k,v in grouped.items() if len(v) > 1}
         if dupes:

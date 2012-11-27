@@ -6,7 +6,19 @@
         {{ ident.0 }} ({{ ident.1 }}) has {{ attendees|length }} registrations:
         <ul style="margin-top:0px ; margin-bottom:10px">
             {% for attendee in attendees %}
-                <li><a href="{{ state.URL_BASE }}/registration/form?id={{ attendee.id }}">{{ attendee.get_badge_type_display }}</a> [{{ attendee.get_paid_display }}] ({{ attendee.registered|datetime:"%Y-%m-%d" }})</li>
+                <li>
+                    <a href="{{ state.URL_BASE }}/registration/form?id={{ attendee.id }}">{{ attendee.get_badge_type_display }}</a>
+                    [{{ attendee.get_paid_display }}]
+                    {% if attendee.group %}
+                        (<a href="{{ state.URL_BASE }}/groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
+                        {% if attendee.group.amount_owed == attendee.group.amount_paid %}
+                            has paid)
+                        {% else %}
+                            has not paid)
+                        {% endif %}
+                    {% endif %}
+                    {{ attendee.registered|datetime:"%Y-%m-%d" }}
+                </li>
             {% endfor %}
         </ul>
     {% endfor %}
