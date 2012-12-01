@@ -23,6 +23,7 @@
             Confirm
         {% endif %}
         you are coming to MAGFest.
+	{% if not attendee.placeholder %}(you can still <a href="../preregistration/confirm?return_to=../signups/index&id={{ attendee.id|obfuscated }}">edit your info</a>){% endif %}
     </li>
     <li>
         {% checked_if attendee.fire_safety_cert %}
