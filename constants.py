@@ -82,6 +82,10 @@ class State:
         return datetime.now() > self.SHIFTS_CREATED
     
     @property
+    def ROOMS_AVAILABLE(self):
+        return datetime.now() < state.ROOM_DEADLINE
+    
+    @property
     def DEALER_REG_FULL(self):
         return datetime.now() > self.DEALER_REG_DEADLINE
 

@@ -35,18 +35,29 @@
         with fire safety training.
     </li>
     {% if attendee.badge_type == STAFF_BADGE %}
-        <li>
-            {% checked_if attendee.hotelrequests %}
-            {% if not attendee.placeholder and attendee.fire_safety_cert and not attendee.hotelrequests %}
-                <a href="hotel_requests">Tell us</a>
-            {% else %}
-                Tell us
-            {% endif %}
-            whether you want hotel room space no later than <b>11:59pm on {{ state.ROOM_DEADLINE|datetime:"%A, %B %d" }}</b>
-            {% if attendee.hotelrequests %}
-                (you may <a href="hotel_requests">edit your request</a> until then).
-            {% endif %}
-        </li>
+        {% if state.ROOMS_AVAILABLE %}
+            <li>
+                {% checked_if attendee.hotelrequests %}
+                {% if not attendee.placeholder and attendee.fire_safety_cert and not attendee.hotelrequests %}
+                    <a href="hotel_requests">Tell us</a>
+                {% else %}
+                    Tell us
+                {% endif %}
+                whether you want hotel room space no later than <b>11:59pm on {{ state.ROOM_DEADLINE|datetime:"%A, %B %d" }}</b>
+                {% if attendee.hotelrequests %}
+                    (you may <a href="hotel_requests">edit your request</a> until then).
+                {% endif %}
+            </li>
+        {% else %}
+            <li>
+                {% checked_if attendee.hotelrequests %}
+                {% if attendee.hotelrequests %}
+                    Thanks for filling out the hotel space request form before the deadline.
+                {% else %}
+                    You didn't fill out the hotel request form before the deadline.
+                {% endif %}
+            </li>
+        {% endif %}
     {% endif %}
     <li>
         {% checked_if attendee.shifts %}

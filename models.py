@@ -464,7 +464,7 @@ class Attendee(MagModel):
     def shift_prereqs_complete(self):
         return not self.placeholder  \
            and self.fire_safety_cert \
-           and (self.badge_type != STAFF_BADGE or self.hotel_requests is not None)
+           and (self.badge_type != STAFF_BADGE or self.hotel_requests is not None or not state.ROOMS_AVAILABLE)
     
     @property
     def hotel_eligible(self):
