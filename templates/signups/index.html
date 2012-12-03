@@ -34,7 +34,7 @@
         {% endif %}
         with fire safety training.
     </li>
-    {% if attendee.badge_type == STAFF_BADGE %}
+    {% if attendee.badge_type == STAFF_BADGE and attendee.registered < state.ROOM_DEADLINE %}
         {% if state.ROOMS_AVAILABLE %}
             <li>
                 {% checked_if attendee.hotelrequests %}
