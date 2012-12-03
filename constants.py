@@ -280,6 +280,7 @@ JOB_INTEREST_OPTS = (
     (7, "Security"),
     (8, "Regdesk"),
     (9, "Tabletop"),
+    (10, "Video Room"),
 )
 CONCERT = 3
 CON_OPS = 5
@@ -296,12 +297,13 @@ JOB_LOC_OPTS = (
     (9, "LAN"),
     (MARKETPLACE, "Marketplace"),
     (11, "Merchandise"),
-    (12, "Staff Support"),
     (13, "Regdesk"),
     (14, "Security"),
+    (12, "Staff Support"),
+    (17, "Staffing Ops"),
     (15, "Tabletop"),
     (16, "Tech Ops"),
-    (17, "Staffing Ops"),
+    (18, "Video Room"),
 )
 DEPT_CHAIRS = {     # TODO: fill in the rest of these
     CONCERT:  "Big Mat (at the Concert Room)",
