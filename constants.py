@@ -23,7 +23,7 @@ class State:
     
     PREREG_CLOSED = False
     PREREG_NOT_OPEN_YET = True
-    SUP_REG_OPEN = True
+    SUP_REG_OPEN = False
     GROUP_REG_OPEN = True
     ETCHED_BADGES_ORDERED = False
     
