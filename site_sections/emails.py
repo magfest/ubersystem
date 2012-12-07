@@ -149,6 +149,10 @@ Reminder(Attendee, "Hotel reminder for MAGFest department heads", "dept_head_roo
          lambda a: a.ribbon == DEPT_HEAD_RIBBON and state.ROOM_DEADLINE - timedelta(days = 9) < datetime.now() < state.ROOM_DEADLINE,
          sender = STAFF_EMAIL)
 
+Reminder(Attendee, "Last chance for Department Heads to get Staff badges for your people", "dept_head_badges.txt",
+         lambda a: a.ribbon == DEPT_HEAD_RIBBON and state.STAFF_BADGE_DEADLINE - timedelta(days = 7) < datetime.now() < state.STAFF_BADGE_DEADLINE,
+         sender = STAFF_EMAIL)
+
 
 
 Reminder(Group, "Reminder to pre-assign MAGFest group badges", "group_preassign_reminder.txt",

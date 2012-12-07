@@ -27,18 +27,19 @@ class State:
     GROUP_REG_OPEN = True
     ETCHED_BADGES_ORDERED = False
     
-    STAFFERS_IMPORTED   = datetime(2012,  5, 29)
-    SHIFTS_CREATED      = datetime(2012, 11,  3)
-    PRICE_BUMP          = datetime(2012, 11,  4, 23, 59)
-    DEALER_REG_START    = datetime(2012,  7, 27, 11, 59)
-    DEALER_REG_SHUTDOWN = datetime(2012, 11, 19, 11, 59)
-    DEALER_REG_DEADLINE = datetime(2012,  9,  3, 11, 59)
-    DEALER_PAYMENT_DUE  = datetime(2012, 11, 30, 23, 59)
-    ROOM_DEADLINE       = datetime(2012, 12,  1, 23, 59)
-    PREREG_TAKEDOWN     = datetime(2012, 12, 26, 11, 59)
-    UBER_TAKEDOWN       = datetime(2013, 12, 30, 23, 59)
-    EPOCH               = datetime(2013,  1,  3,  8)
-    ESCHATON            = datetime(2013,  1,  6, 22)
+    STAFFERS_IMPORTED    = datetime(2012,  5, 29)
+    SHIFTS_CREATED       = datetime(2012, 11,  3)
+    PRICE_BUMP           = datetime(2012, 11,  4, 23, 59)
+    DEALER_REG_START     = datetime(2012,  7, 27, 11, 59)
+    DEALER_REG_SHUTDOWN  = datetime(2012, 11, 19, 11, 59)
+    DEALER_REG_DEADLINE  = datetime(2012,  9,  3, 11, 59)
+    DEALER_PAYMENT_DUE   = datetime(2012, 11, 30, 23, 59)
+    ROOM_DEADLINE        = datetime(2012, 12,  1, 23, 59)
+    STAFF_BADGE_DEADLINE = datetime(2012, 12,  9, 23, 59)
+    PREREG_TAKEDOWN      = datetime(2012, 12, 26, 11, 59)
+    UBER_TAKEDOWN        = datetime(2013, 12, 30, 23, 59)
+    EPOCH                = datetime(2013,  1,  3,  8)
+    ESCHATON             = datetime(2013,  1,  6, 22)
     
     PATH     = "/magfest"
     HOSTNAME = "magfestubersystem.com"
