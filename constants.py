@@ -280,7 +280,8 @@ JOB_INTEREST_OPTS = (
     (7, "Security"),
     (8, "Regdesk"),
     (9, "Tabletop"),
-    (10, "Video Room"),
+    (12, "Tech Ops"),
+    (11, "Video Room"),
 )
 CONCERT = 3
 CON_OPS = 5
