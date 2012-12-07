@@ -49,10 +49,17 @@ class Account(MagModel):
     access = CommaSeparatedIntegerField(max_length = 50)
     
     @staticmethod
-    def access_set(id=None):
+    def is_nick():
+        try:
+            return Account.objects.get(id = cherrypy.session.get("account_id")).name == "Nick Marinelli"
+        except:
+            return False
+    
+    @staticmethod
+    def access_set(id = None):
         try:
             id = id or cherrypy.session.get("account_id")
-            return set(int(a) for a in Account.objects.get(id=id).access.split(","))
+            return {int(a) for a in Account.objects.get(id=id).access.split(",")}
         except:
             return set()
 

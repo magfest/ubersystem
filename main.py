@@ -30,8 +30,9 @@ else:
 cherrypy.tree.mount(root, state.PATH, appconf)
 
 if __name__=="__main__":
+    cherrypy.engine.start()
+    cherrypy.engine.wait(cherrypy.engine.states.STARTED)
     daemonize(Reminder.send_all, name = "EmailReminderTask")
     daemonize(delete_unpaid,     name = "UnpaidDeletionTask")
     daemonize(detect_duplicates, name = "DuplicateReminder")
-    cherrypy.engine.start()
     cherrypy.engine.block()

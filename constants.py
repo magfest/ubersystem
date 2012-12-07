@@ -290,7 +290,7 @@ JOB_LOC_OPTS = (
     (2, "Challenges"),
     (CONCERT, "Concert"),
     (4, "Consoles"),
-    (CON_OPS, "Con Ops"),
+    (CON_OPS, "Fest Ops"),
     (6, "Events"),
     (7, "Food Prep"),
     (8, "Jam Space"),

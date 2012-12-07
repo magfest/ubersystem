@@ -53,7 +53,10 @@ def render(template, data = None):
         if getattr(constants, acctype) in access:
             data["HAS_" + acctype + "_ACCESS"] = True
     
-    return loader.get_template(template).render( Context(data) )
+    rendered = loader.get_template(template).render( Context(data) )
+    if not state.AT_THE_CON and Account.is_nick():
+        rendered = rendered.replace("Fest", "Con")
+    return rendered
 
 
 

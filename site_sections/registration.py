@@ -454,6 +454,27 @@ class Root:
                 by_dept[dept].append(attendee)
         return {"by_dept": sorted(by_dept.items())}
     
+    def hotel_ordered(self):
+        reqs = [hr for hr in HotelRequests.objects.select_related() if hr.nights]
+        
+        names = {}
+        for hr in reqs:
+            names.setdefault(hr.attendee.last_name.lower(), set()).add(hr.attendee)
+        
+        lookup = defaultdict(set)
+        for xs in names.values():
+            for attendee in xs:
+                lookup[attendee] = xs
+        
+        for req in reqs:
+            for word in req.wanted_roommates.lower().replace(",", "").split():
+                try:
+                    combined = lookup[list(names[word])[0]] | lookup[req.attendee]
+                    for attendee in combined:
+                        lookup[attendee] = combined
+                except:
+                    pass
+    
     def hotel_requests(self, message = ""):
         requests = HotelRequests.objects.order_by("attendee__first_name", "attendee__last_name")
         return {
