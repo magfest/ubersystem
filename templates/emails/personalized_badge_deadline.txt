@@ -1,0 +1,5 @@
+{{ attendee.first_name }},
+
+We're ordering customized MAGFest badges next week, so you should double-check what you've told us to print on your badge.  You can edit what you want printed on your badge at {{ state.URL_BASE }}/preregistration/confirm?id={{ attendee.id|obfuscated }} until 11:59pm on {{ state.STAFF_BADGE_DEADLINE|datetime:"%A, %b %e" }}.
+
+{{ REGDESK_EMAIL_SIGNATURE }}

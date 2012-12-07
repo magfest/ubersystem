@@ -143,6 +143,9 @@ Reminder(Attendee, "Last chance to personalize your MAGFest badge", "personalize
          lambda a: a.badge_type == STAFF_BADGE and a.placeholder and state.STAFF_BADGE_DEADLINE - timedelta(days = 7) < datetime.now() < state.STAFF_BADGE_DEADLINE,
          sender = STAFF_EMAIL)
 
+Reminder(Attendee, "Personalized MAGFest badges will be ordered next week", "personalized_badge_deadline.txt",
+         lambda a: a.badge_type in [STAFF_BADGE, SUPPORTER_BADGE] and not a.placeholder and state.STAFF_BADGE_DEADLINE - timedelta(days = 7) < datetime.now() < state.STAFF_BADGE_DEADLINE)
+
 
 
 Reminder(Attendee, "Details on Saturday MAGFest Staff Meeting", "staff_meeting.txt",
