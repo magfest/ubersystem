@@ -421,7 +421,7 @@ EMAIL_RE = re.compile("^[_A-Za-z0-9-]+(\\.[_A-Za-z0-9-+]+)*@[A-Za-z0-9-]+(\\.[A-
 
 MAX_TABLES  = 4
 MAX_DEALERS = 3 * MAX_TABLES
-MAX_GROUP_SIZE = 50
+MAX_GROUP_SIZE = 100
 
 DEFAULT_AFFILIATES    = ["OC ReMix", "The Shizz", "ScrewAttack", "Empire Arcadia", "Yu-Gi-Oh Abridged"]
 
