@@ -139,6 +139,10 @@ Reminder(Attendee, "Last chance to sign up for MAGFest hotel room space", "hotel
                                           and a.registered < state.ROOM_DEADLINE - timedelta(days = 2) < datetime.now() < state.ROOM_DEADLINE,
          sender = STAFF_EMAIL)
 
+Reminder(Attendee, "Last chance to personalize your MAGFest badge", "personalized_badge_reminder.txt",
+         lambda a: a.badge_type == STAFF_BADGE and a.placeholder and state.STAFF_BADGE_DEADLINE - timedelta(days = 7) < datetime.now() < state.STAFF_BADGE_DEADLINE,
+         sender = STAFF_EMAIL)
+
 
 
 Reminder(Attendee, "Details on Saturday MAGFest Staff Meeting", "staff_meeting.txt",
