@@ -76,3 +76,10 @@ var setStatus = function(shiftId, status) {
         }
     });
 };
+
+function showTop(message) {
+    $("#top").show("fast").find("td:first").html(message);
+}
+function hideTop() {
+    $("#top").hide("fast");
+}

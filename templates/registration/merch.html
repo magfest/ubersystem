@@ -3,6 +3,11 @@
 {% block content %}
 
 <script type="text/javascript">
+    var $shirtOpts = $("<select/>").attr("id", "shirt");
+    $.each({{ SHIRT_OPTS|jsonize }}, function(i,size) {
+        $shirtOpts.append($("<option/>").val(size[0]).text(size[1]));
+    });
+    
     function recordSale() {
         $.post("record_sale", {
                 id:      "None",
@@ -11,7 +16,7 @@
                 mpoints: $("#store_mpoints").val()
             }, function(json) {
                 $("#message").html(json.message);
-                if( json.success ) {
+                if (json.success) {
                     $("#message").append(' &nbsp; <a href="#" onClick="undoSale(' + json.id + ') ; return false">Undo</a>');
                 }
             }, "json");
@@ -36,17 +41,25 @@
         }
     }
     
-    function giveMerch() {
-        $.post("give_merch", {badge_num: $("#badge_num").val()}, function(json) {
+    function giveMerch(id, shirtSize) {
+        $("#give button").attr("disabled", true);
+        $.post("give_merch", {id: id, shirt_size: shirtSize || null}, function(json) {
+            $("#give").html("");
             $("#badge_num").val("");
             $("#message").html(json.message);
-            if( json.success ) {
-                $("#message").append(' &nbsp; <a href="#" onClick="takeBackMerch(' + json.badge_num + ') ; return false">Undo</a>');
+            if (json.success) {
+                $("#message")
+                    .append(" &nbsp; ")
+                    .append(
+                        $('<a href="#">Undo</a>').click(function(){
+                            takeBackMerch(id);
+                            return false;
+                         }));
             }
         }, "json");
     }
-    function takeBackMerch(badge_num) {
-        $.post("take_back_merch", {badge_num: badge_num}, function(message) {
+    function takeBackMerch(id) {
+        $.post("take_back_merch", {id: id}, function(message) {
             $("#message").html(message);
         });
     }
@@ -61,16 +74,31 @@
             if( (e.keyCode || e.which) == 13 )  // ENTER
                 recordSale();
         });
-        $("#badge_num").keypress(function(e){
-            if( (e.keyCode || e.which) == 13 )  // ENTER
-                giveMerch();
+        $("#swag").on("submit", function(e){
+            $("#give,#message").html("");
+            $.post("check_merch", {badge_num: $("#badge_num").val()}, function(resp) {
+                if (!resp.id) {
+                    $("#message").html(resp.message);
+                } else {
+                    $("#give").html(resp.message + "<br/>");
+                    if (resp.tshirt) {
+                        $("#give").append("Choose a shirt size:").append($shirtOpts);
+                    }
+                    $("#give").append(
+                        $("<button>Give Merch</button>").click(function() {
+                            giveMerch(resp.id, $("#shirt").val());
+                            return false;
+                        }));
+                }
+            }, "json");
+            return false;
         });
     });
 </script>
 
 <table>
 <tr>
-    <td>Record a Sale: </td>
+    <td> Record a Sale: </td>
     <td>
         <select id="what_select" onChange="showOrHideWhatText()">
             {% options STORE_ITEMS %}
@@ -84,10 +112,18 @@
 </td>
 <tr> <td colspan="4"> ---OR--- </td> </tr>
 <tr>
-    <td>Give Merch</td>
-    <td> Badge Number: <input type="text" id="badge_num" size="3" /> </td>
-    <td> <input type="submit" id="give_merch" value="Give" onClick="giveMerch()" />
+    <td> Give Merch </td>
+    <td colspan="2">
+        <form id="swag">
+        Badge Number: <input type="number" id="badge_num" min="1" max="99999" />
+        <input type="submit" id="give_merch" value="Check Merch" />
+        </form>
+    </td>
+    <td colspan="2"></td>
+</tr>
+<tr>
     <td></td>
+    <td id="give" colspan="4" style="color:red"></td>
 </tr>
 </table>
 

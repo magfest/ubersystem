@@ -9,15 +9,6 @@
     
 <style type="text/css">
     body { margin:0px ; padding:0px }
-    a.closer {
-        border: 2px solid black;
-        padding-left: 4px;
-        padding-right: 4px;
-        text-decoration: none;
-        font-family: Arial,Helvetica,sans-serif;
-        font-weight: bold;
-        cursor: pointer;
-    }
     table.list {
         width: 98%;
         margin-left: 1%;
@@ -27,18 +18,6 @@
         border-collapse: separate;
     }
 </style>
-
-<div id="top" style="display:none">
-    <table style="width:100% ; background:orange ; margin-bottom:5px ; position:fixed">
-    <tr>
-        <td style="width:auto"></td>
-        <td style="width:30px">
-            <a onClick="hideTop()" class="closer">x</a>
-        </td>
-    </tr>
-    </table>
-    <br/><br/>
-</div>
 
 <span id="message" style="float:left ; color:red ; margin-top:4px ; margin-left:4px">
 {% if attendee %}
@@ -70,13 +49,6 @@
         var badge_num = $tr.find(":text").val();
         if( badge_num && !badge_num.match(/^\d+$/) )
             $tr.find(":text").parents("td").css("border", "3px solid red");
-    }
-    
-    function showTop(message) {
-        $("#top").show("fast").find("td:first").html(message);
-    }
-    function hideTop() {
-        $("#top").hide("fast");
     }
     
     function recordSale() {

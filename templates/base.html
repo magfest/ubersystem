@@ -21,7 +21,19 @@
     </script>
 </head>
 <body>
-
+{% block top %}
+    <div id="top" style="display:none">
+        <table style="width:100% ; background:orange ; margin-bottom:5px ; position:fixed">
+        <tr>
+            <td style="width:auto"></td>
+            <td style="width:30px">
+                <a onClick="hideTop()" class="closer">x</a>
+            </td>
+        </tr>
+        </table>
+        <br/><br/>
+    </div>
+{% endblock %}
 {% block message %}<span id="message" style="float:left ; color:red">{{ message }}</span>{% endblock %}
 {% block backlink %}<span style="float:right"><a id="backlink" href="../accounts/homepage">Return Home</a></span>{% endblock %}
 <br/>

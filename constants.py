@@ -230,6 +230,19 @@ FEE_PRICES = (
 FEE_ITEMS = [(item,item) for item,price in FEE_PRICES]
 FEE_PRICES = dict(FEE_PRICES)
 
+SHIRT_OPTS = (
+    (1, "small"),
+    (2, "medium"),
+    (3, "large"),
+    (4, "x-large"),
+    (5, "xx-large"),
+    (6, "xxx-large"),
+    (7, "small (female)"),
+    (8, "medium (female)"),
+    (9, "large (female)"),
+    (10, "x-large (female)"),
+)
+
 INTEREST_OPTS = (
     (1, "consoles"),
     (2, "arcade"),

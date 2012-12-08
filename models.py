@@ -13,7 +13,7 @@ def field_repr(self, name):
     val = getattr(self, name)
     s = repr(val)
     if field.choices and val is not None:
-        return repr(dict(field.choices)[val])
+        return repr(dict(field.choices)[int(val)])
     elif isinstance(field, CommaSeparatedIntegerField): # TODO: standardize naming convention to make this automatic
         opts = dict({
             "nights": NIGHTS_OPTS,
@@ -50,10 +50,14 @@ class Account(MagModel):
     
     @staticmethod
     def is_nick():
+        return Account.admin_name() == "Nick Marinelli"
+    
+    @staticmethod
+    def admin_name():
         try:
-            return Account.objects.get(id = cherrypy.session.get("account_id")).name == "Nick Marinelli"
+            return Account.objects.get(id = cherrypy.session.get("account_id")).name
         except:
-            return False
+            return None
     
     @staticmethod
     def access_set(id = None):
@@ -375,12 +379,18 @@ class Attendee(MagModel):
         return (", " if len(xs) > 2 else " ").join(xs)
     
     @property
+    def tshirt(self):
+        return self.badge_type in [STAFF_BADGE, SUPPORTER_BADGE] or self.worked_hours >= 6
+    
+    @property
     def merch(self):
         merch = []
         if self.badge_type == SUPPORTER_BADGE:
-            merch.extend(["a tshirt", "a supporter pack", "a $10 M-Point coin"])
+            merch.extend(["a supporter pack", "a $10 M-Point coin"])
+        if self.tshirt:
+            merch.append("a tshirt")
         if self.extra_merch:
-            stuff.append(self.extra_merch)
+            merch.append(self.extra_merch)
         return self.comma_and(merch)
     
     @property

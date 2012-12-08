@@ -211,7 +211,7 @@ class Root:
             increment = True
             
             message += "{0.full_name} checked in as {0.badge} with {0.accoutrements}".format(attendee)
-            if attendee.is_staffer:
+            if attendee.staffing:
                 if attendee.weighted_hours:
                     message += "<br/> Please give this staffer their schedule"
                 else:
@@ -243,8 +243,8 @@ class Root:
         return {"message": message}
     
     @ajax
-    def give_merch(self, badge_num):
-        success = False
+    def check_merch(self, badge_num):
+        id = tshirt = None
         if not (badge_num.isdigit() and 0 < int(badge_num) < 99999):
             message = "Invalid badge number"
         else:
@@ -254,26 +254,52 @@ class Root:
             else:
                 attendee = results[0]
                 if not attendee.merch:
-                    message = "{} has no merch".format(attendee.full_name)
+                    message = "{a.full_name} ({a.badge}) has no merch".format(a = attendee)
                 elif attendee.got_merch:
-                    message = "{} already got {}".format(attendee.full_name, attendee.merch)
+                    message = "{a.full_name} ({a.badge}) already got {a.merch}".format(a = attendee)
                 else:
-                    message = "Give {} {}".format(attendee.full_name, attendee.merch)
-                    success = True
-                    attendee.got_merch = True
-                    attendee.save()
-        
+                    id, tshirt = attendee.id, attendee.tshirt
+                    message = "{a.full_name} ({a.badge}) has not yet received {a.merch}".format(a = attendee)
         return {
-            "success": success,
-            "message": message,
-            "badge_num": badge_num
+            "id": id,
+            "tshirt": tshirt,
+            "message": message
         }
     
-    def take_back_merch(self, badge_num):
-        attendee = Attendee.objects.get(badge_num = badge_num)
+    @ajax
+    def give_merch(self, id, shirt_size):
+        success = False
+        attendee = Attendee.objects.get(id = id)
+        if not attendee.merch:
+            message = "{} has no merch".format(attendee.full_name)
+        elif attendee.got_merch:
+            message = "{} already got {}".format(attendee.full_name, attendee.merch)
+        else:
+            message = "{} is now marked as having received {}".format(attendee.full_name, attendee.merch)
+            attendee.got_merch = True
+            attendee.save()
+            if shirt_size and shirt_size.isdigit():
+                Tracking.objects.create(
+                    fk_id = id,
+                    model = "Attendee",
+                    which = repr(attendee),
+                    who = Account.admin_name(),
+                    action = CREATED,
+                    data = "shirt => " + dict(SHIRT_OPTS)[int(shirt_size)]
+                )
+            success = True
+        
+        return {
+            "id": id,
+            "success": success,
+            "message": message
+        }
+    
+    def take_back_merch(self, id):
+        attendee = Attendee.objects.get(id = id)
         attendee.got_merch = False
         attendee.save()
-        return "{} merch handout canceled".format(attendee.full_name)
+        return "{a.full_name} ({a.badge}) merch handout canceled".format(a = attendee)
     
     if state.AT_THE_CON or DEV_BOX:
         @unrestricted

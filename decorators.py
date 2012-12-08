@@ -54,7 +54,7 @@ def render(template, data = None):
             data["HAS_" + acctype + "_ACCESS"] = True
     
     rendered = loader.get_template(template).render( Context(data) )
-    if not state.AT_THE_CON and Account.is_nick():
+    if not state.AT_THE_CON and Account.admin_name() == "Nick Marinelli":
         rendered = rendered.replace("Fest", "Con")
     return rendered
 
