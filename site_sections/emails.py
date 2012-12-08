@@ -75,6 +75,10 @@ Reminder(Group, "Last chance to pay for your MAGFest Dealer registration", "deal
                                and state.DEALER_PAYMENT_DUE < datetime.now() + timedelta(days = 2),
          sender = MARKETPLACE_EMAIL)
 
+Reminder(Group, "MAGFest Dealer waitlist has been exhausted", "dealer_waitlist_closing.txt",
+         lambda g: state.DEALER_WAITLIST_CLOSED and g.is_dealer and g.status == WAITLISTED,
+         sender = MARKETPLACE_EMAIL)
+
 
 
 Reminder(Group, "Your MAGFest Dealer registration has been approved", "dealer_approved.html",
