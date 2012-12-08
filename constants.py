@@ -90,6 +90,10 @@ class State:
     @property
     def DEALER_REG_FULL(self):
         return datetime.now() > self.DEALER_REG_DEADLINE
+    
+    @property
+    def CUSTOM_BADGES_ORDERED(self):
+        return datetime.now() > self.STAFF_BADGE_DEADLINE
 
 state = State()
 
@@ -168,12 +172,11 @@ BADGE_OPTS = (
     (STAFF_BADGE,     "Staff"),
     (GUEST_BADGE,     "Guest"),
     (SUPPORTER_BADGE, "Supporter"),
-    (DORSAI_BADGE,    "Dorsai"),
     (ONE_DAY_BADGE,   "One Day"),
 )
 PSEUDO_GROUP_BADGE  = 101 # people registering in groups will get attendee badges
 PSEUDO_DEALER_BADGE = 102 # dealers get attendee badges with a ribbon
-BADGE_RANGES = {     # these may overlap, but shouldn't
+BADGE_RANGES = {          # these may overlap, but shouldn't
     STAFF_BADGE:     [1, 299],
     DORSAI_BADGE:    [300, 399],
     SUPPORTER_BADGE: [600, 999],
