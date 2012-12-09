@@ -1,5 +1,6 @@
 import os
 import re
+import csv
 import sys
 import json
 import math
@@ -15,6 +16,7 @@ from urllib2 import urlopen
 from functools import wraps
 from xml.dom import minidom
 from random import randrange
+from StringIO import StringIO
 from itertools import groupby
 from urlparse import parse_qsl
 from time import sleep, mktime

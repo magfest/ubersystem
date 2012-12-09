@@ -500,6 +500,21 @@ class Root:
                         lookup[attendee] = combined
                 except:
                     pass
+        
+        grouped = {frozenset(group) for group in lookup.values()}
+        cherrypy.response.headers["Content-Type"] = "text/csv"
+        cherrypy.response.headers["Content-Disposition"] = "attachment; filename=hotel.csv"
+        out = StringIO()
+        writer = csv.writer(out)
+        writer.writerow(["Name","Email","Phone","Nights","Roomate Requests","Roomate Anti-Requests","Special Needs"])
+        for group in grouped:
+            for i in range(3):
+                writer.writerow([])
+            for a in group:
+                hr = a.hotel_requests
+                writer.writerow([a.full_name, a.email, a.phone, " / ".join(a.hotel_nights),
+                                 hr.wanted_roommates, hr.unwanted_roommates, hr.special_needs])
+        return out.getvalue()
     
     def hotel_requests(self, message = ""):
         requests = HotelRequests.objects.order_by("attendee__first_name", "attendee__last_name")
