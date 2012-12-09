@@ -177,12 +177,11 @@ BADGE_OPTS = (
 PSEUDO_GROUP_BADGE  = 101 # people registering in groups will get attendee badges
 PSEUDO_DEALER_BADGE = 102 # dealers get attendee badges with a ribbon
 BADGE_RANGES = {          # these may overlap, but shouldn't
-    STAFF_BADGE:     [1, 299],
-    DORSAI_BADGE:    [300, 399],
-    SUPPORTER_BADGE: [600, 999],
+    STAFF_BADGE:     [1, 499],
+    SUPPORTER_BADGE: [500, 999],
     GUEST_BADGE:     [1000, 1999],
-    ATTENDEE_BADGE:  [2000, 7999],
-    ONE_DAY_BADGE:   [9000, 9999],
+    ATTENDEE_BADGE:  [2000, 9999],
+    ONE_DAY_BADGE:   [10000, 10999],
 }
 NO_RIBBON        = 0
 VOLUNTEER_RIBBON = 1
