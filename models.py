@@ -279,8 +279,12 @@ class Attendee(MagModel):
             if not state.AT_THE_CON:
                 if self.paid == NOT_PAID or self.badge_type not in PREASSIGNED_BADGE_TYPES:
                     self.badge_num = 0
-                elif self.paid != NOT_PAID and not self.badge_num and self.badge_type in PREASSIGNED_BADGE_TYPES:
-                    self.badge_num = badge_funcs.next_badge_num(self.badge_type)
+                elif self.badge_type in PREASSIGNED_BADGE_TYPES and not self.badge_num:
+                    if state.CUSTOM_BADGES_ORDERED:
+                        self.ribbon = VOLUNTEER_RIBBON if self.badge_type == STAFF_BADGE else self.ribbon
+                        self.badge_type, self.badge_num = ATTENDEE_BADGE, 0
+                    elif self.paid != NOT_PAID:
+                        self.badge_num = badge_funcs.next_badge_num(self.badge_type)
         
         if self.badge_type != SUPPORTER_BADGE:
             self.affiliate = ""
@@ -319,7 +323,8 @@ class Attendee(MagModel):
         with BADGE_LOCK:
             badge_num = Attendee.objects.get(id = self.id).badge_num
             super(Attendee, self).delete(*args, **kwargs)
-            badge_funcs.shift_badges(self, down = True)
+            if self.badge_type not in PREASSIGNED_BADGE_TYPES or not state.CUSTOM_BADGES_ORDERED:
+                badge_funcs.shift_badges(self, down = True)
     
     @classmethod
     def staffers(cls):
