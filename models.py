@@ -170,21 +170,25 @@ class Group(MagModel):
     
     @cached_property
     def leader(self):
-        for a in self.attendee_set.order_by("id"):
+        for a in sorted(self.attendees, key = lambda a: a.id):
             if a.email:
                 return a
     
+    @cached_property
+    def attendees(self):
+        return list(self.attendee_set.all())
+    
     @property
     def badges_purchased(self):
-        return self.attendee_set.filter(paid = PAID_BY_GROUP).count()
+        return len([a for a in self.attendees if a.paid == PAID_BY_GROUP])
     
     @property
     def badges(self):
-        return self.attendee_set.count()
+        return len(self.attendees)
     
     @property
     def unregistered_badges(self):
-        return self.attendee_set.filter(first_name = "").count()
+        return len([a for a in self.attendees if not a.first_name])
     
     @property
     def table_cost(self):
@@ -197,13 +201,14 @@ class Group(MagModel):
     @property
     def badge_cost(self):
         total = 0
-        for attendee in self.attendee_set.filter(paid = PAID_BY_GROUP):
-            if attendee.ribbon == DEALER_RIBBON:
-                total += DEALER_BADGE_PRICE
-            elif attendee.registered <= state.PRICE_BUMP:
-                total += EARLY_GROUP_PRICE
-            else:
-                total += LATE_GROUP_PRICE
+        for attendee in self.attendees:
+            if a.paid == PAID_BY_GROUP:
+                if attendee.ribbon == DEALER_RIBBON:
+                    total += DEALER_BADGE_PRICE
+                elif attendee.registered <= state.PRICE_BUMP:
+                    total += EARLY_GROUP_PRICE
+                else:
+                    total += LATE_GROUP_PRICE
         return total
     
     @property
@@ -338,7 +343,7 @@ class Attendee(MagModel):
             return ONEDAY_BADGE_PRICE
         elif datetime.now() < state.PRICE_BUMP:
             return EARLY_BADGE_PRICE
-        elif datetime.now() < state.EPOCH:
+        elif not state.AT_THE_CON:
             return LATE_BADGE_PRICE
         else:
             return DOOR_BADGE_PRICE
@@ -353,7 +358,7 @@ class Attendee(MagModel):
     
     @property
     def unassigned_name(self):
-        if self.group and self.is_unassigned:
+        if self.group_id and self.is_unassigned:
             return "[Unassigned {self.badge}]".format(self = self)
     
     @property

@@ -9,21 +9,27 @@ class Root:
             "groups": {"tables": 0}
         }[show]
         
+        groups = sorted(Group.objects.filter(**which),
+                        reverse = "-" in order,
+                        key = lambda g: [getattr(g, order.strip("-")), g.tables])
+        by_id = {g.id: g for g in groups}
+        for g in groups:
+            g._attendees = []
+        for a in Attendee.objects.filter(group_id__isnull = False).all():
+            by_id[a.group_id]._attendees.append(a)
+        
         return {
             "message": message,
-            "groups":  sorted(Group.objects.filter(**which),
-                              reverse=("-" in order),
-                              key=lambda g: [getattr(g, order.strip("-")), g.tables]),
+            "groups":  groups,
             "order":   Order(order),
             "show":    show,
-            
-            "total_badges":    Attendee.objects.filter(group__isnull=False).count(),
-            "tabled_badges":   Attendee.objects.filter(group__tables__gt=0).count(),
-            "untabled_badges": Attendee.objects.filter(group__tables=0).count(),
+            "total_badges":    Attendee.objects.filter(group__isnull = False).count(),
+            "tabled_badges":   Attendee.objects.filter(group__tables__gt = 0).count(),
+            "untabled_badges": Attendee.objects.filter(group__tables = 0).count(),
             "total_groups":    Group.objects.count(),
-            "tabled_groups":   Group.objects.filter(tables__gt=0).count(),
-            "untabled_groups": Group.objects.filter(tables=0).count(),
-            "tables":          Group.objects.aggregate(tables=Sum("tables"))["tables"]
+            "tabled_groups":   Group.objects.filter(tables__gt = 0).count(),
+            "untabled_groups": Group.objects.filter(tables = 0).count(),
+            "tables":          Group.objects.aggregate(tables = Sum("tables"))["tables"]
         }
     
     def form(self, message="", **params):

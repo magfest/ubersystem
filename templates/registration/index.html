@@ -295,7 +295,11 @@
         <td><nobr>
             {% if state.AT_THE_CON and not attendee.badge_num %}
                 {{ attendee.get_badge_type_display }}
-                #<input class="num" id="num_{{ attendee.id }}" type="text" size="3" />
+                {% if attendee.is_unassigned %}
+                    <input type="hidden" id="num_{{ attendee.id }}" />
+                {% else %}
+                    #<input class="num" id="num_{{ attendee.id }}" type="text" size="3" />
+                {% endif %}
             {% else %}
                 {{ attendee.badge }}
             {% endif %}
@@ -313,7 +317,7 @@
                 </select>
             </td>
             <td id="cin_{{ attendee.id }}">
-                <input type="submit" value="Check In" onClick="check_in({{ attendee.id }})" />
+                <input type="submit" value="Check In" onClick="check_in({{ attendee.id }})" {% if attendee.is_unassigned %}disabled{% endif %} />
             </td>
         {% endif %}
     </tr>

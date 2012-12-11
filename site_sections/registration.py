@@ -335,23 +335,20 @@ class Root:
         }
     
     def new(self, message="", checked_in=""):
-        groups = []
-        unassigned = defaultdict(dict)
+        groups = set()
         for a in Attendee.objects.filter(first_name="", group__isnull=False).select_related("group"):
-            groups.append((a.group.id, a.group.name or "BLANK"))
-            unassigned[a.group.id][a.id] = a.badge + ("" if a.ribbon==NO_RIBBON else " [{}]".format(a.get_ribbon_display()))
+            groups.add((a.group.id, a.group.name or "BLANK"))
         
         return {
             "message":    message,
             "checked_in": checked_in,
-            "next_badge": next_badge_num(ATTENDEE_BADGE),
-            "groups":     sorted(set(groups), key = lambda tup: tup[1]),
-            "unassigned": dict(unassigned),
+            "groups":     sorted(groups, key = lambda tup: tup[1]),
             "recent":     Attendee.objects.filter(badge_num=0, registered__gte = datetime.now() - timedelta(minutes=90))
+                                          .exclude(first_name = "")
                                           .order_by("registered")
         }
     
-    def new_checkin(self, id, badge_num, link_to="", ec_phone="", message="", group="ignored"):
+    def new_checkin(self, id, badge_num, ec_phone="", message="", group=""):
         checked_in = ""
         attendee = Attendee.objects.get(id=id)
         existing = list(Attendee.objects.filter(badge_num = badge_num))
@@ -361,30 +358,28 @@ class Root:
             badge_type, message = get_badge_type(badge_num)
             attendee.badge_type = badge_type
             attendee.badge_num = badge_num
-            if link_to:
-                target = list(Attendee.objects.filter(id = link_to).select_related("group"))
-                if not target or not target[0].is_unassigned:
-                    message = "That badge has already been assigned by another station, please try again"
-                else:
-                    for attr in ["group","paid","amount_paid","ribbon"]:
-                        setattr(attendee, attr, getattr(target[0], attr))
-                    
-                    if "(Single Days)" in attendee.group.name:
-                        if attendee.badge_type == ATTENDEE_BADGE:
-                            attendee.paid, attendee.amount_paid = HAS_PAID, 30
-                        elif attendee.badge_type == ONE_DAY_BADGE:
-                            attendee.paid = PAID_BY_GROUP
-                    
-                    target[0].delete()
+            if group:
+                group = Group.objects.get(id = group)
+                with BADGE_LOCK:
+                    available = [a for a in group.attendee_set.filter(first_name = "")]
+                    matching = [a for a in available if a.badge_type == badge_type]
+                    if not available:
+                        message = "The last badge for that group has already been assigned by another station"
+                    elif not matching:
+                        message = "Badge #{} is a {} badge, but {} has no badges of that type".format(badge_num, attendee.get_badge_type_display(), group.name)
+                    else:
+                        for attr in ["group","paid","amount_paid","ribbon"]:
+                            setattr(attendee, attr, getattr(matching[0], attr))
+                        matching[0].delete()
             else:
                 attendee.paid = HAS_PAID
-                attendee.amount_paid = attendee.badge_cost
+                attendee.amount_paid = attendee.total_cost
         
         if not message:
             attendee.ec_phone = ec_phone
             attendee.checked_in = datetime.now()
             attendee.save()
-            message = "{0.full_name} checked in as {0.badge} with {0.accoutrements}".format(attendee)
+            message = "{a.full_name} checked in as {a.badge} with {a.accoutrements}".format(a = attendee)
             checked_in = attendee.id
         
         raise HTTPRedirect("new?message={}&checked_in={}", message, checked_in)
@@ -392,7 +387,7 @@ class Root:
     def mark_as_paid(self, id):
         attendee = Attendee.objects.get(id = id)
         attendee.paid = HAS_PAID
-        attendee.amount_paid = attendee.badge_cost
+        attendee.amount_paid = attendee.total_cost
         attendee.save()
         raise HTTPRedirect("new?message={}", "Attendee marked as paid")
     
@@ -400,7 +395,7 @@ class Root:
         attendee = Attendee.objects.get(id = id)
         if attendee.group:
             unassigned = Attendee.objects.create(group = attendee.group, paid = PAID_BY_GROUP, badge_type = attendee.badge_type, ribbon = attendee.ribbon)
-            unassigned.registered = datetime(2012,1,1)
+            unassigned.registered = datetime(state.EPOCH.year, 1, 1)
             unassigned.save()
         attendee.badge_num = 0
         attendee.checked_in = attendee.group = None

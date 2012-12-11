@@ -7,7 +7,7 @@ DEV_BOX = True
 
 EARLY_BADGE_PRICE = 40
 LATE_BADGE_PRICE  = 45
-DOOR_BADGE_PRICE  = 55
+DOOR_BADGE_PRICE  = 60
 
 EARLY_GROUP_PRICE = 30
 LATE_GROUP_PRICE  = 35
@@ -98,7 +98,7 @@ class State:
 state = State()
 
 SUPPORTER_BADGE_PRICE = 100
-ONEDAY_BADGE_PRICE    = 40
+ONEDAY_BADGE_PRICE    = 35
 DEALER_BADGE_PRICE    = 30
 TABLE_PRICES          = "$120 for the first table, $160 for the second table, $200 for each additional table"
 

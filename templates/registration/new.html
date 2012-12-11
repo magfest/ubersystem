@@ -12,17 +12,10 @@
         var $group = $(group);
         var $link = $group.prev("a");
         var $badgeNum = $group.nextAll(":text");
-        var $unassigned = $group.nextAll("select");
-        if( $group.val() == "" ) {
+        if ($group.val() == "") {
             $link.hide();
-            $unassigned.hide();
-        }
-        else {
+        } else {
             $link.show().attr("href", "../groups/form?id=" + $group.val());
-            $unassigned.show().empty();
-            $.each(UNASSIGNED[$group.val()], function(id, badge) {
-                $unassigned.append('<option value="' + id + '">' + badge + '</option>');
-            });
         }
         $badgeNum.focus();
     }
@@ -70,9 +63,7 @@
                 {% options groups %}
             </select>
             &nbsp;&nbsp;&nbsp;&nbsp;
-            <select name="link_to" style="display:none"></select>
-            &nbsp;&nbsp;&nbsp;&nbsp;
-            <input type="text" name="badge_num" size="3" />
+            <input type="text" name="badge_num" size="4" />
         </td>
         <td>
             <input type="hidden" name="id" value="{{ attendee.id }}" />
