@@ -51,7 +51,7 @@
         <td>Status</td>
         <td></td>
     </tr>
-    {% for shift in attendee.signups %}
+    {% for shift in attendee.shifts %}
         <tr>
             <td><a href="../jobs/form?id={{ shift.job.id }}">{{ shift.job.name }}</a></td>
             <td><a href="../jobs/index?location={{ shift.job.location }}">{{ shift.job.get_location_display }}</a></td>

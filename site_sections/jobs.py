@@ -10,13 +10,20 @@ def weighted_hours(staffer, location):
 @all_renderable(PEOPLE)
 class Root:
     def index(self, location = "1"):
+        by_id = {}
         jobs = defaultdict(list)
         for job in Job.objects.filter(location = location):
+            by_id[job.id] = job
             jobs[job.start_time if not job.start_time.minute else job.start_time - timedelta(minutes = 30)].append(job)
+        
+        for job in by_id.values():
+            job._shifts = []
+        for shift in Shift.objects.filter(job__location = location):
+            by_id[shift.job_id]._shifts.append(shift)
         
         times = [state.EPOCH + timedelta(hours = i) for i in range(CON_LENGTH)]
         times = [(t, (times[i+1] if i + 1 < len(times) else None),
-                     sorted(jobs.get(t, []), reverse=True, key = lambda j: j.name))
+                  sorted(jobs.get(t, []), reverse = True, key = lambda j: j.name))
                  for i,t in enumerate(times)]
         return {
             "location": location,
@@ -24,19 +31,22 @@ class Root:
         }
     
     def signups(self, location = "0"):
-        staffers = [a for a in Attendee.staffers() if int(location) in a.assigned]
-        
-        assigned = defaultdict(list)
         shifts = Shift.objects.filter(job__location = location).select_related()
-        for shift in shifts:
-            shift.attendee.shift = shift                # TODO: figure out why we're doing this (efficiency?)
-            assigned[shift.job].append(shift.attendee)
         
-        jobs = []
-        for job in Job.objects.filter(location = location).order_by("start_time","duration"):
-            available = [s for s in staffers if (not job.restricted or s.trusted)
-                                                and not job.hours.intersection(s.hours)]
-            jobs.append( (job, assigned[job], available, len(assigned[job])) )
+        by_job, by_attendee = defaultdict(list), defaultdict(list)
+        for shift in shifts:
+            by_job[shift.job].append(shift)
+            by_attendee[shift.attendee].append(shift)
+        
+        attendees = [a for a in Attendee.staffers() if int(location) in a.assigned]
+        for attendee in attendees:
+            attendee._shifts = by_attendee[attendee]
+        
+        jobs = list(Job.objects.filter(location = location).order_by("start_time","duration"))
+        for job in jobs:
+            job._shifts = by_job[job]
+            job._available_staffers = [s for s in attendees if (not job.restricted or s.trusted)
+                                                            and not job.hours.intersection(s.hours)]
         
         return {
             "location": location,
@@ -45,13 +55,20 @@ class Root:
         }
     
     def staffers(self, location="0"):
-        staffers = [s for s in Attendee.staffers() if int(location) in s.assigned]
+        attendees = {}
+        for attendee in Attendee.staffers():
+            if int(location) in attendee.assigned:
+                attendee._shifts = []
+                attendees[attendee.id] = attendee
+        for shift in Shift.objects.filter(job__location = location).select_related():
+            attendees[shift.attendee_id]._shifts.append(shift)
+        attendees = attendees.values()
         return {
             "location":       location,
-            "emails":         ",".join(s.email for s in staffers),
-            "staffers":       [(s,weighted_hours(s, location)) for s in staffers],
+            "attendees":      attendees,
+            "emails":         ",".join(a.email for a in attendees),
             "total_existing": sum(j.slots * j.weighted_hours for j in Job.objects.filter(location = location)),
-            "total_signups":  sum(weighted_hours(s, location) for s in staffers)
+            "total_signups":  sum(attendee.weighted_hours for attendee in attendees)
         }
     
     def form(self, message="", **params):
@@ -79,9 +96,17 @@ class Root:
         }
     
     def staffers_by_job(self, id, message = ""):
+        attendees = {a.id: a for a in Attendee.staffers()}
+        for attendee in attendees.values():
+            attendee._shifts = []
+        for shift in Shift.objects.select_related():
+            attendees[shift.attendee_id]._shifts.append(shift)
+        
+        job = Job.objects.get(id = id)
+        job._all_staffers = sorted(attendees.values(), key = lambda a: a.full_name)
         return {
-            "message": message,
-            "job":     Job.objects.get(id = id)
+            "job":     job,
+            "message": message
         }
     
     def delete(self, id):

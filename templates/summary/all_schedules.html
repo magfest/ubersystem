@@ -45,7 +45,7 @@
             <td>Weight</td>
             <td>Worked</td>
         </tr>
-        {% for shift in staffer.signups %}
+        {% for shift in staffer.shifts %}
             <tr>
                 <td>{{ shift.job.name|escape }}</td>
                 <td>{{ shift.job.get_location_display }}</td>

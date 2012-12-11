@@ -206,7 +206,7 @@ class must_contact(template.Node):
     
     def render(self, context):
         staffer = self.staffer.resolve(context)
-        locations = [s.job.location for s in staffer.signups]
+        locations = [s.job.location for s in staffer.shifts]
         return "<br/>".join(set(DEPT_CHAIRS.get(dept,"") for dept in locations))
 
 @tag

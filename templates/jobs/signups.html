@@ -10,19 +10,19 @@
 </script>
 
 <table>
-{% for job,assigned,available,assigned_count in jobs %}
+{% for job in jobs %}
     <tr>
         <td> <a name="{{ job.id }}"></a><b>{% timespan job %}:</b> </td>
         <td> <a href="form?id={{ job.id }}"><b>{{ job.name }}{% if job.restricted %}*{% endif %}</b></a> </td>
-        <td> <nobr>({{ job.shift_set.count }}/{{ job.slots }} slots filled)</nobr> </td>
-        {% if job.slots != assigned_count %}
-            {% if available %}
+        <td> <nobr>({{ job.shifts|length }}/{{ job.slots }} slots filled)</nobr> </td>
+        {% if job.shifts|length < job.slots %}
+            {% if job.available_staffers %}
                 <form method="post" action="assign_from_list">
                 <td>
                     <input type="hidden" name="job_id" value="{{ job.id }}" />
                     <select name="staffer_id">
-                        {% for staffer in available %}
-                            <option value="{{ staffer.id }}">{{ staffer.full_name }}</option>
+                        {% for attendee in job.available_staffers %}
+                            <option value="{{ attendee.id }}">{{ attendee.full_name }}</option>
                         {% endfor %}
                     </select>
                     <input type="submit" value="Assign" />
@@ -37,28 +37,28 @@
     <tr>
         <td colspan="4">
             <table style="width:auto">
-            {% for staffer in assigned %}
+            {% for shift in job.shifts %}
                 <tr>
                     <td> <ul><li></li></ul> </td>
-                    <td> <a href="../registration/shifts?id={{ staffer.id }}">{{ staffer.full_name }}</a>&nbsp;&nbsp; </td>
+                    <td> <a href="../registration/shifts?id={{ shift.attendee.id }}">{{ shift.attendee.full_name }}</a>&nbsp;&nbsp; </td>
                     <td>
-                        {% if staffer.shift.worked %}
-                            <i>{{ staffer.shift.get_worked_display }}</i>
+                        {% if shift.worked %}
+                            <i>{{ shift.get_worked_display }}</i>
                         {% else %}
-                            <select onChange="setStatus({{ staffer.shift.id }}, this)">
-                                {% options WORKED_OPTS staffer.shift.worked %}
+                            <select onChange="setStatus({{ shift.id }}, this)">
+                                {% options WORKED_OPTS shift.worked %}
                             </select>
                         {% endif %}
                     </td>
                     <form method="post" action="unassign_from_list">
                     <td>
-                        <input type="hidden" name="id" value="{{ staffer.shift.id }}" />
+                        <input type="hidden" name="id" value="{{ shift.id }}" />
                         <input type="submit" value="Unassign" />
                     </td>
                     </form>
-                    <td id="rating{{ staffer.shift.id }}"></td>
+                    <td id="rating{{ shift.id }}"></td>
                     {% if staffer.shift.worked == SHIFT_WORKED %}
-                        <script type="text/javascript">renderRating({{ staffer.shift.id }});</script>
+                        <script type="text/javascript">renderRating({{ shift.id }});</script>
                     {% endif %}
                 </tr>
             {% endfor %}

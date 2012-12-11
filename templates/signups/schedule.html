@@ -36,7 +36,7 @@
         <td> Weight{% popup_link "../static/weightDesc.html" %} </td>
         <td></td>
     </tr>
-    {% for shift in attendee.signups %}
+    {% for shift in attendee.shifts %}
         <tr style="vertical-align:bottom">
             <td>
                 {{ shift.job.name }}

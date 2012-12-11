@@ -202,7 +202,7 @@ class Group(MagModel):
     def badge_cost(self):
         total = 0
         for attendee in self.attendees:
-            if a.paid == PAID_BY_GROUP:
+            if attendee.paid == PAID_BY_GROUP:
                 if attendee.ribbon == DEALER_RIBBON:
                     total += DEALER_BADGE_PRICE
                 elif attendee.registered <= state.PRICE_BUMP:
@@ -427,21 +427,21 @@ class Attendee(MagModel):
     def assigned_display(self):
         return [dict(JOB_LOC_OPTS)[loc] for loc in self.assigned]
     
-    @property
-    def signups(self):
-        return self.shift_set.select_related().order_by("job__start_time")
+    @cached_property
+    def shifts(self):
+        return list(self.shift_set.select_related().order_by("job__start_time"))
     
     @cached_property
     def hours(self):
         all_hours = set()
-        for shift in self.shift_set.select_related():
+        for shift in self.shifts:
             all_hours.update(shift.job.hours)
         return all_hours
     
     @cached_property
     def hour_map(self):
         all_hours = {}
-        for shift in self.shift_set.select_related():
+        for shift in self.shifts:
             for hour in shift.job.hours:
                 all_hours[hour] = shift.job
         return all_hours
@@ -452,8 +452,13 @@ class Attendee(MagModel):
         if not self.assigned:
             return []
         else:
-            return [job for job in Job.objects.filter(location__in = self.assigned).order_by("start_time")
-                        if job.slots > job.shift_set.count()
+            jobs = {job.id: job for job in Job.objects.filter(location__in = self.assigned)}
+            for job in jobs.values():
+                job._shifts = []
+            for shift in Shift.objects.filter(job__location__in = self.assigned).select_related():
+                jobs[shift.job_id]._shifts.append(shift)
+            return [job for job in sorted(jobs.values(), key = lambda j: j.start_time)
+                        if job.slots > len(job.shifts)
                            and job.no_overlap(self)
                            and (not job.restricted or self.trusted)]
     
@@ -463,7 +468,7 @@ class Attendee(MagModel):
     
     @property
     def possible_and_current(self):
-        all = [s.job for s in self.signups]
+        all = [s.job for s in self.shifts]
         for job in all:
             job.already_signed_up = True
         all.extend(self.possible)
@@ -475,7 +480,7 @@ class Attendee(MagModel):
     
     @cached_property
     def worked_shifts(self):
-        return list(self.shift_set.filter(worked=SHIFT_WORKED).select_related())
+        return [shift for shift in self.shifts if shift.worked == SHIFT_WORKED]
     
     @cached_property
     def weighted_hours(self):
@@ -550,6 +555,10 @@ class Job(MagModel):
     restricted  = BooleanField(default = False)
     extra15     = BooleanField(default = False)
     
+    @cached_property
+    def shifts(self):
+        return list(self.shift_set.select_related())
+    
     @property
     def hours(self):
         hours = set()
@@ -568,14 +577,17 @@ class Job(MagModel):
                 or not self.extra15
                 or self.location == attendee.hour_map[after].location))
     
-    # TODO: make this efficient
+    @cached_property
+    def all_staffers(self):
+        return list(Attendee.objects.order_by("last_name","first_name"))
+    
     @cached_property
     def available_staffers(self):
-        return [s for s in Attendee.objects.order_by("last_name","first_name")
+        return [s for s in self.all_staffers
                 if self.location in s.assigned
                    and self.no_overlap(s)
                    and (s.trusted or not self.restricted)]
-        
+    
     @property
     def real_duration(self):
         return self.duration + (0.25 if self.extra15 else 0)

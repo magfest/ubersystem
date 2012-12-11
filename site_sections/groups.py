@@ -16,7 +16,8 @@ class Root:
         for g in groups:
             g._attendees = []
         for a in Attendee.objects.filter(group_id__isnull = False).all():
-            by_id[a.group_id]._attendees.append(a)
+            if a.group_id in by_id:
+                by_id[a.group_id]._attendees.append(a)
         
         return {
             "message": message,

@@ -6,41 +6,39 @@
 
 <br/>
 
-{% with job.shift_set.select_related as shifts %}
-    {% if job.slots != shifts.count %}
-        {% if job.available_staffers %}
-            <form method="post" action="assign_from_job">
-            <input type="hidden" name="job_id" value="{{ job.id }}" />
-            <b>Assign Staffer:</b>
-            <select name="staffer_id">
-                {% for staffer in job.available_staffers %}
-                    <option value="{{ staffer.id }}">{{ staffer.full_name }}</option>
-                {% endfor %}
-            </select>
-            <input type="submit" value="Assign" />
-            </form>
-        {% else %}
-            <b>No staffers are available for this shift</b> <br/> <br/>
-        {% endif %}
-    {% endif %}
-    <br/>
-    {% if shifts %}
-        <b> This job has {{ job.slots }} slot{{ job.slots|pluralize }} and {{ shifts.count }} staffer{{ shifts.count|pluralize:" is,s are" }} signed up: </b>
-        <table style="width:auto">
-        {% for shift in shifts %}
-            <tr>
-                <td> <ul><li></li></ul> </td>
-                <td> <a href="../registration/shifts?id={{ shift.attendee.id }}">{{ shift.attendee.full_name }}</a> </td>
-                <form method="post" action="unassign_from_job">
-                <input type="hidden" name="id" value="{{ shift.id }}" />
-                <td> <input type="submit" value="Unassign" /> </td>
-                </form>
-            </li>
-        {% endfor %}
-        </table>
+{% if job.shifts|length < job.slots %}
+    {% if job.available_staffers %}
+        <form method="post" action="assign_from_job">
+        <input type="hidden" name="job_id" value="{{ job.id }}" />
+        <b>Assign Staffer:</b>
+        <select name="staffer_id">
+            {% for attendee in job.available_staffers %}
+                <option value="{{ attendee.id }}">{{ attendee.full_name }}</option>
+            {% endfor %}
+        </select>
+        <input type="submit" value="Assign" />
+        </form>
     {% else %}
-        <b> No staffers are currently signed up for this shift, which has {{ job.slots }} slot{{ job.slots|pluralize }} </b>
+        <b>No staffers are available for this shift</b> <br/> <br/>
     {% endif %}
-{% endwith %}
+{% endif %}
+<br/>
+{% if job.shifts %}
+    <b> This job has {{ job.slots }} slot{{ job.slots|pluralize }} and {{ job.shifts|length }} staffer{{ job.shifts|length|pluralize:" is,s are" }} signed up: </b>
+    <table style="width:auto">
+    {% for shift in job.shifts %}
+        <tr>
+            <td> <ul><li></li></ul> </td>
+            <td> <a href="../registration/shifts?id={{ shift.attendee.id }}">{{ shift.attendee.full_name }}</a> </td>
+            <form method="post" action="unassign_from_job">
+            <input type="hidden" name="id" value="{{ shift.id }}" />
+            <td> <input type="submit" value="Unassign" /> </td>
+            </form>
+        </li>
+    {% endfor %}
+    </table>
+{% else %}
+    <b> No staffers are currently signed up for this shift, which has {{ job.slots }} slot{{ job.slots|pluralize }} </b>
+{% endif %}
 
 {% endblock %}
