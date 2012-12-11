@@ -153,7 +153,8 @@ EVENT_LOC_OPTS = (
     (6,  "Tabletop (Tournaments)"),
     (11, "Tabletop (Free Play)"),
     (12, "Tabletop (CCG)"),
-    (7,  "Music"),
+    (7,  "Concerts"),
+    (17, "Chiptunes"),
 )
 EVENT_LOCS = [loc for loc,desc in EVENT_LOC_OPTS]
 EVENT_BOOKED = {"colspan": 0}
