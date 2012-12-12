@@ -2,7 +2,8 @@ from common import *
 
 @property
 def payment_deadline(self):
-    return datetime.combine((self.registered + timedelta(days = 14)).date(), time(23, 59))
+    return min(state.UBER_TAKEDOWN - timedelta(days = 1),
+               datetime.combine((self.registered + timedelta(days = 14)).date(), time(23, 59)))
 
 def __repr__(self):
     display = getattr(self, "display", "name" if hasattr(self, "name") else "id")
@@ -154,6 +155,7 @@ class Group(MagModel):
     restricted = ["amount_paid","amount_owed","auto_recalc","admin_notes","lockable","status","approved"]
     
     def save(self, *args, **kwargs):
+        self.__dict__.pop("_attendees", None)
         if self.auto_recalc:
             self.amount_owed = self.total_cost
         if self.status == APPROVED and not self.approved:

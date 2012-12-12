@@ -172,6 +172,7 @@ class TestGroupPrice(TestUber):
     def test_all_postbump(self):
         state.PRICE_BUMP = datetime.now() - timedelta(days = 1)
         assign_group_badges(self.group, 8)
+        print([a.paid for a in self.group.attendee_set.all()], self.group.total_cost, self.group.amount_owed)
         self.assertEqual(self.group.amount_owed, 8 * LATE_GROUP_PRICE)
     
     def test_mixed(self):
@@ -195,7 +196,7 @@ class TestAttendeePrice(TestUber):
         state.PRICE_BUMP = datetime.now() - timedelta(days = 1)
         self.assertEqual(LATE_BADGE_PRICE, Attendee(badge_type = ATTENDEE_BADGE).total_cost)
         
-        state.EPOCH = datetime.now()
+        state.AT_THE_CON = True
         self.assertEqual(DOOR_BADGE_PRICE, Attendee(badge_type = ATTENDEE_BADGE).total_cost)
 
 
@@ -252,6 +253,7 @@ class TestPaymentProgression(TestUber):
 class TestBadgeChange(TestUber):
     def setUp(self):
         TestUber.setUp(self)
+        state.STAFF_BADGE_DEADLINE = datetime.now() + timedelta(days = 1)
         for badge_type in [STAFF_BADGE, SUPPORTER_BADGE]:
             for i,last_name in enumerate(["one","two","three","four","five"]):
                 a = self.make_attendee(first_name = dict(BADGE_OPTS)[badge_type], last_name = last_name,
@@ -275,7 +277,7 @@ class TestBadgeChange(TestUber):
         self.assertEqual(supporter_badges, [a.badge_num for a in Attendee.objects.filter(badge_type = SUPPORTER_BADGE).order_by("badge_num")])
 
 class TestPreassignedBadgeChange(TestBadgeChange):
-    end_ranges = ([1,2,3,4,5,6], [600,601,602,603])
+    end_ranges = ([1,2,3,4,5,6], [500,501,502,503])
     
     def test_end_to_next(self):
         self.change_badge(self.supporter_five, STAFF_BADGE, expected_num = 6)
@@ -302,7 +304,7 @@ class TestPreassignedBadgeChange(TestBadgeChange):
         self.change_badge(self.supporter_one, STAFF_BADGE, expected_num = 6)
 
 class TestInternalBadgeChange(TestBadgeChange):
-    end_ranges = ([1,2,3,4,5], [600,601,602,603,604])
+    end_ranges = ([1,2,3,4,5], [500,501,502,503,504])
     
     def test_beginning_to_end(self):
         self.change_badge(self.staff_one, STAFF_BADGE, 5)
@@ -343,7 +345,7 @@ class TestInternalBadgeChange(TestBadgeChange):
         self.change_badge(self.staff_five,  STAFF_BADGE, 5)
 
 class TestPreassignedBadgeDeletion(TestBadgeChange):
-    end_ranges = ([1,2,3,4], [600,601,602,603,604])
+    end_ranges = ([1,2,3,4], [500,501,502,503,504])
     
     def test_delete_first(self):
         self.staff_one.delete()
