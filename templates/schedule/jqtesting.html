@@ -305,9 +305,12 @@
         var $schedBody = $schedule.find("tbody");
         var $emptyRow = $("<tr/>");
         $.each({{ EVENT_LOC_OPTS|jsonize }}, function(i,loc) {
-            $schedHead.append(
-                $("<td/>").text(loc[1])
-                          .css("white-space", loc[1].indexOf("Tabletop") === 0 ? "wrap" : "nowrap"));
+            if (loc[1].indexOf("(") >= 0) {
+                loc[1] = loc[1].replace("(", "<nobr>(").replace(")", ")</nobr>");
+            } else {
+                loc[1] = "<nobr>" + loc[1] + "</nobr>";
+            }
+            $schedHead.append( $("<td/>").html(loc[1]) );
             $emptyRow.append(
                 $("<td/>").data("location", loc[0])
                           .addClass("loc" + loc[0])
