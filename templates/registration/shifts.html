@@ -40,7 +40,7 @@
 <br/><br/>
 
 {% if attendee.shift_set.count %}
-    <b> Shifts signed up for by {{ attendee.full_name }} ({{ attendee.weighted_hours }} hours): </b>
+    <b> Shifts signed up for by {{ attendee.full_name }} ({{ attendee.weighted_hours }} weighted hours, {{ attendee.hours|length|add:attendee.nonshift_hours }} actual hours): </b>
     <br/> <br/>
     <table width="95%" align="center">
     <tr style="font-weight:bold">
