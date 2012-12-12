@@ -20,7 +20,7 @@ our Registration Desk; that will belong to whomever the badge is transferred.
         <input type="text" style="width:15em" name="last_name"  value="{{ attendee.last_name }}" />
     </td>
 </tr>
-{% if attendee.badge_type == SUPPORTER_BADGE %}
+{% if attendee.badge_type == SUPPORTER_BADGE and not state.CUSTOM_BADGES_ORDERED %}
     <tr>
         <td>Name Printed on Badge:</td>
         <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" /> </td>
