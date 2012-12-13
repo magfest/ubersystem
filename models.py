@@ -162,6 +162,17 @@ class Group(MagModel):
             self.approved = datetime.now()
         super(Group, self).save(*args, **kwargs)
     
+    @staticmethod
+    def everyone():
+        attendees = Attendee.objects.select_related("group")
+        groups = {g.id: g for g in Group.objects.all()}
+        for g in groups.values():
+            g._attendees = []
+        for a in Attendee.objects.filter(group__isnull = False).select_related("group"):
+            if a.group:
+                groups[a.group_id]._attendees.append(a)
+        return attendees, groups.values()
+    
     @property
     def is_dealer(self):
         return bool(self.tables and (self.amount_paid or self.amount_owed))

@@ -35,7 +35,8 @@ class Reminder:
     
     @staticmethod
     def send_all(raise_errors = False):
-        models = {m: list(m.objects.select_related()) for m in [Attendee, Group]}
+        attendees, groups = Group.everyone()
+        models = {Attendee: attendees, Group: groups}
         all_sent = {(e.fk_tab, e.fk_id, e.subject): e for e in Email.objects.all()}
         if state.AUTO_EMAILS:
             for rem in Reminder.instances:
