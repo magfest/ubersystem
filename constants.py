@@ -106,6 +106,7 @@ ADMIN_EMAIL = "Eli Courtwright <eli@courtwright.org>"
 REGDESK_EMAIL = "Victoria Earl <regdesk@magfest.org>"
 STAFF_EMAIL = "Jack Boyd <stops@magfest.org>"
 MARKETPLACE_EMAIL = "Danielle Pomfrey <marketplace@magfest.org>"
+PANELS_EMAIL = "panels@magfest.org"
 REG_EMAILS = [ADMIN_EMAIL]
 PAYMENT_BCC = [ADMIN_EMAIL]
 

@@ -155,3 +155,23 @@ def detect_duplicates():
             body = render("emails/duplicates.html", {"dupes": sorted(dupes.items())})
             send_email(ADMIN_EMAIL, REGDESK_EMAIL, subject, body, format = "html")
             Email.objects.create(fk_tab = "n/a", fk_id = 0, subject = subject, body = body, dest = REGDESK_EMAIL)
+
+
+def check_placeholders():
+    emails = {
+        STAFF_EMAIL: Q(staffing = True),
+        PANELS_EMAIL: Q(badge_type = GUEST_BADGE) | Q(ribbon = PANELIST_RIBBON),
+        REGDESK_EMAIL: ~(Q(staffing = True) | Q(badge_type = GUEST_BADGE) | Q(ribbon = PANELIST_RIBBON))
+    }
+    for dest,query in emails.items():
+        email = [s for s in dest.split() if "@" in s][0].strip("<>").split("@")[0].title()
+        subject = email + " Placeholder Badge Report for " + datetime.now().strftime("%Y-%m-%d")
+        if not Email.objects.filter(subject = subject):
+            placeholders = list(Attendee.objects.filter(query, placeholder = True,
+                                                        registered__lt = datetime.now() - timedelta(days = 3))
+                                        .order_by("registered","first_name","last_name")
+                                        .select_related("group"))
+            if placeholders:
+                body = render("emails/placeholders.html", {"placeholders": placeholders})
+                send_email(ADMIN_EMAIL, dest, subject, body, format = "html")
+                Email.objects.create(fk_tab = "n/a", fk_id = 0, subject = subject, body = body, dest = dest)

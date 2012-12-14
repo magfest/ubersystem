@@ -1,3 +1,6 @@
+# TODO: less repitition for attendees/groups and attendees/jobs/shifts
+# TODO: less repitition for sending email and saving Email objects
+
 import os
 import re
 import csv

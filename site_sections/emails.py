@@ -102,7 +102,7 @@ Reminder(Attendee, "MAGFest Badge Confirmation", "badge_confirmation.txt",
 Reminder(Attendee, "MAGFest Panelist Badge Confirmation", "panelist_confirmation.txt",
          lambda a: a.placeholder and a.first_name and a.last_name and a.email
                                  and (a.badge_type == GUEST_BADGE or a.ribbon == PANELIST_RIBBON),
-         sender = "panels@magfest.org")
+         sender = PANELS_EMAIL)
 
 Reminder(Attendee, "MAGFest Volunteer Badge Confirmation", "volunteer_confirmation.txt",
          lambda a: a.placeholder and a.first_name and a.last_name and a.email and a.staffing
