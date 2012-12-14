@@ -95,19 +95,27 @@ Reminder(Group, "MAGFest group payment received", "group_confirmation.html",
 
 
 Reminder(Attendee, "MAGFest Badge Confirmation", "badge_confirmation.txt",
-         lambda a: a.placeholder and a.first_name and a.last_name and a.email
+         lambda a: a.placeholder and a.first_name and a.last_name
                                  and a.badge_type not in [GUEST_BADGE, STAFF_BADGE]
                                  and a.ribbon not in [PANELIST_RIBBON, VOLUNTEER_RIBBON])
 
 Reminder(Attendee, "MAGFest Panelist Badge Confirmation", "panelist_confirmation.txt",
-         lambda a: a.placeholder and a.first_name and a.last_name and a.email
+         lambda a: a.placeholder and a.first_name and a.last_name
                                  and (a.badge_type == GUEST_BADGE or a.ribbon == PANELIST_RIBBON),
          sender = PANELS_EMAIL)
 
 Reminder(Attendee, "MAGFest Volunteer Badge Confirmation", "volunteer_confirmation.txt",
-         lambda a: a.placeholder and a.first_name and a.last_name and a.email and a.staffing
+         lambda a: a.placeholder and a.first_name and a.last_name and a.staffing
                                  and a.registered.date() > state.STAFFERS_IMPORTED.date(),
          sender = STAFF_EMAIL)
+
+Reminder(Attendee, "MAGFest Badge Confirmation Reminder", "confirmation_reminder.txt",
+         lambda a: a.placeholder and a.first_name and a.last_name
+                                 and a.registered < datetime.now() - timedelta(days = 7))
+
+Reminder(Attendee, "Last Chance to Accept Your MAGFest Badge", "confirmation_reminder.txt",
+         lambda a: a.placeholder and a.first_name and a.last_name
+                                 and state.PLACEHOLDER_DEADLINE - timedelta(days = 7) < datetime.now() < state.PLACEHOLDER_DEADLINE)
 
 
 

@@ -1,5 +1,8 @@
 # TODO: less repitition for attendees/groups and attendees/jobs/shifts
 # TODO: less repitition for sending email and saving Email objects
+# TODO: method for sending a reminder but not after a deadline
+# TODO: template tag or something for deadline formatting
+# TODO: default format value for datetime filter
 
 import os
 import re
