@@ -118,9 +118,12 @@ class Root:
         Tracking.objects.filter(links__contains = "Attendee({})".format(id))
         return {
             "attendee": attendee,
-            "emails":   Email.objects.filter(dest = attendee.email).order_by("when"),
+            "emails":   Email.objects.filter(Q(dest = attendee.email) 
+                                           | Q(fk_tab = "Attendee", fk_id = id))
+                                     .order_by("when"),
             "changes":  Tracking.objects.filter(Q(model = "Attendee", fk_id = id)
-                                              | Q(links__contains = "Attendee({})".format(id))).order_by("when")
+                                              | Q(links__contains = "Attendee({})".format(id)))
+                                        .order_by("when")
         }
     
     def delete(self, id):
