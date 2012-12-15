@@ -504,13 +504,13 @@ class Root:
         cherrypy.response.headers["Content-Disposition"] = "attachment; filename=hotel.csv"
         out = StringIO()
         writer = csv.writer(out)
-        writer.writerow(["Name","Email","Phone","Nights","Roomate Requests","Roomate Anti-Requests","Special Needs"])
+        writer.writerow(["Name","Email","Phone","Nights","Departments","Roomate Requests","Roomate Anti-Requests","Special Needs"])
         for group in grouped:
             for i in range(3):
                 writer.writerow([])
             for a in group:
                 hr = a.hotel_requests
-                writer.writerow([a.full_name, a.email, a.phone, " / ".join(a.hotel_nights),
+                writer.writerow([a.full_name, a.email, a.phone, " / ".join(a.hotel_nights), " / ".join(a.assigned_display),
                                  hr.wanted_roommates, hr.unwanted_roommates, hr.special_needs])
         return out.getvalue()
     
