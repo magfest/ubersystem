@@ -129,6 +129,10 @@ class Event(MagModel):
         return half_hours
     
     @property
+    def minutes(self):
+        return self.duration * 30
+    
+    @property
     def start_slot(self):
         if self.start_time:
             return int((self.start_time - state.EPOCH).total_seconds() / (60 * 30))
