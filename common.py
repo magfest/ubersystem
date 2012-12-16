@@ -3,6 +3,7 @@
 # TODO: method for sending a reminder but not after a deadline
 # TODO: template tag or something for deadline formatting
 # TODO: default format value for datetime filter
+# TODO: room ordering prioritizes groupings based on same nights
 
 import os
 import re
