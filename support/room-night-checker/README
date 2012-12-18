@@ -1,0 +1,9 @@
+Some scripts that Dom wrote that live OUTSIDE ubersystem to check for room
+night availability at the Mariott by screen scraping.
+
+Eventually, these should be integrated with uber, for now it's good enough.
+
+email-hotel-reports.py is meant to be run from CRON
+check_hotel_room_block_availability.py is meant to be run from a CGI script on apache
+
+-Dom
