@@ -612,6 +612,10 @@ class Job(MagModel):
     @property
     def weighted_hours(self):
         return self.weight * self.real_duration
+    
+    @property
+    def total_hours(self):
+        return self.weighted_hours * self.slots
 
 class Shift(MagModel):
     job      = ForeignKey(Job)

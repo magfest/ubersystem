@@ -60,15 +60,21 @@ class Root:
             if int(location) in attendee.assigned:
                 attendee._shifts = []
                 attendees[attendee.id] = attendee
+        jobs = list(Job.objects.filter(location = location))
+        shifts = list(Shift.objects.filter(job__location = location).select_related())
         for shift in Shift.objects.filter(job__location = location).select_related():
             attendees[shift.attendee_id]._shifts.append(shift)
         attendees = attendees.values()
         return {
-            "location":       location,
-            "attendees":      attendees,
-            "emails":         ",".join(a.email for a in attendees),
-            "total_existing": sum(j.slots * j.weighted_hours for j in Job.objects.filter(location = location)),
-            "total_signups":  sum(attendee.weighted_hours for attendee in attendees)
+            "location":           location,
+            "attendees":          attendees,
+            "emails":             ",".join(a.email for a in attendees),
+            "regular_total":      sum(j.total_hours for j in jobs if not j.restricted),
+            "restricted_total":   sum(j.total_hours for j in jobs if j.restricted),
+            "all_total":          sum(j.total_hours for j in jobs),
+            "regular_signups":    sum(s.job.weighted_hours for s in shifts if not s.job.restricted),
+            "restricted_signups": sum(s.job.weighted_hours for s in shifts if s.job.restricted),
+            "all_signups":        sum(s.job.weighted_hours for s in shifts)
         }
     
     def form(self, message="", **params):
