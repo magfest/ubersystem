@@ -164,3 +164,20 @@ class Root:
         shift.rating, shift.comment = int(rating), comment
         shift.save()
         return {}
+    
+    def summary(self):
+        all_jobs = list(Job.objects.all())
+        all_shifts = list(Shift.objects.select_related())
+        locations = {}
+        for loc,name in JOB_LOC_OPTS:
+            jobs = [j for j in all_jobs if j.location == loc]
+            shifts = [s for s in all_shifts if s.job.location == loc]
+            locations[name] = {
+                "regular_total":      sum(j.total_hours for j in jobs if not j.restricted),
+                "restricted_total":   sum(j.total_hours for j in jobs if j.restricted),
+                "all_total":          sum(j.total_hours for j in jobs),
+                "regular_signups":    sum(s.job.weighted_hours for s in shifts if not s.job.restricted),
+                "restricted_signups": sum(s.job.weighted_hours for s in shifts if s.job.restricted),
+                "all_signups":        sum(s.job.weighted_hours for s in shifts)
+            }
+        return {"locations": sorted(locations.items(), key = lambda loc: loc[1]["regular_signups"] - loc[1]["regular_total"])}
