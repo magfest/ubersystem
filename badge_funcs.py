@@ -151,6 +151,15 @@ def detect_duplicates():
                 grouped[a.full_name, a.email].append(a)
         
         dupes = {k:v for k,v in grouped.items() if len(v) > 1}
+        
+        for who,attendees in dupes.items():
+            paid = [a for a in attendees if a.paid == HAS_PAID]
+            unpaid = [a for a in attendees if a.paid == NOT_PAID]
+            if len(paid) == 1 and len(attendees) == 1 + len(unpaid):
+                for a in unpaid:
+                    a.delete()
+                del dupes[who]
+        
         if dupes:
             body = render("emails/duplicates.html", {"dupes": sorted(dupes.items())})
             send_email(ADMIN_EMAIL, REGDESK_EMAIL, subject, body, format = "html")
