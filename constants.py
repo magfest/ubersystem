@@ -21,7 +21,7 @@ class State:
     UBER_SHUT_DOWN = False
     HIDE_SCHEDULE = False
     
-    PREREG_CLOSED = False
+    PREREG_CLOSED = True
     PREREG_NOT_OPEN_YET = True
     SUP_REG_OPEN = False
     GROUP_REG_OPEN = True
