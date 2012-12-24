@@ -190,6 +190,17 @@ class Root:
                 </body></html>
             """
     
+    if not DEV_BOX and state.PREREG_CLOSED:
+        def index(self, message="", *args, **params):
+            return """
+                <html><head></head><body style="color:red ; text-align:center">
+                    <h2>Preregistration has closed.</h2>
+                    We'll see everyone on January 3 - 6.
+                    Full weekend passes will be available at the door for $60,
+                    and single day passes will be $35.
+                </body></html>
+            """
+    
     @cherrypy.tools.keep_body()
     def callback(self):
         try:
