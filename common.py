@@ -4,6 +4,8 @@
 # TODO: template tag or something for deadline formatting
 # TODO: default format value for datetime filter
 # TODO: room ordering prioritizes groupings based on same nights
+# TODO: MPointUse needs a better name, and is confusing with MPointExchange
+# TODO: jsonify undo ajax methods
 
 import os
 import re

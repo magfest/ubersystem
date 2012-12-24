@@ -136,15 +136,19 @@ class Root:
         raise HTTPRedirect("index?message={}", "Attendee deleted")
     
     @ajax
-    def record_mpoint_usage(self, **params):
-        params["badge_type"], _ = get_badge_type(params["badge_num"])
-        mpu = get_model(MPointUse, params)
+    def record_mpoint_usage(self, badge_num, amount):
+        try:
+            attendee = Attendee.objects.get(badge_num = badge_num)
+        except:
+            return {"success":False, "message":"No one has badge number {}".format(badge_num)}
+        
+        mpu = MPointUse(attendee = attendee, amount = amount)
         message = check(mpu)
         if message:
             return {"success":False, "message":message}
         else:
             mpu.save()
-            message = "{0.identifier} marked for {0.amount} MPoints {1}".format(mpu, mpu.get_use_display())
+            message = "{mpu.attendee.full_name} exchanged {mpu.amount} MPoints for cash".format(mpu = mpu)
             return {"id":mpu.id, "success":True, "message":message}
     
     def undo_mpoint_usage(self, id):
@@ -152,15 +156,19 @@ class Root:
         return "MPoint usage deleted"
     
     @ajax
-    def record_mpoint_exchange(self, **params):
-        params["badge_type"], _ = get_badge_type(params["badge_num"])
-        mpe = get_model(MPointExchange, params)
+    def record_mpoint_exchange(self, badge_num, mpoints):
+        try:
+            attendee = Attendee.objects.get(badge_num = badge_num)
+        except:
+            return {"success":False, "message":"No one has badge number {}".format(badge_num)}
+        
+        mpe = MPointExchange(attendee = attendee, mpoints = mpoints)
         message = check(mpe)
         if message:
             return {"success":False, "message":message}
         else:
             mpe.save()
-            message = "{0.identifier} exchanged {0.mpoints} of last year's MPoints".format(mpe)
+            message = "{mpe.attendee.full_name} exchanged {mpe.mpoints} of last year's MPoints".format(mpe = mpe)
             return {"id":mpe.id, "success":True, "message":message}
     
     def undo_mpoint_exchange(self, id):
@@ -175,7 +183,7 @@ class Root:
             return {"success":False, "message":message}
         else:
             sale.save()
-            message = "{0} sold for ${1} and {2} MPoints".format(sale.what, sale.cash, sale.mpoints)
+            message = "{sale.what} sold for ${sale.cash}".format(sale = sale)
             return {"id":sale.id, "success":True, "message":message}
     
     def undo_sale(self, id):

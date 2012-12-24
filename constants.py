@@ -16,7 +16,7 @@ class State:
     SEND_EMAILS = True
     AUTO_EMAILS = True
     
-    AT_THE_CON = False
+    AT_THE_CON = True
     POST_CON = False
     UBER_SHUT_DOWN = False
     HIDE_SCHEDULE = False
@@ -228,7 +228,7 @@ STORE_PRICES = (                # start as a tuple to preserve order for STORE_I
 STORE_ITEMS = [(item,item) for item,price in STORE_PRICES]
 STORE_PRICES = dict(STORE_PRICES)
 FEE_PRICES = (
-    ("Badge Replacement",    55),
+    ("Badge Replacement",    60),
     ("Wristband Replacement", 5),
 )
 FEE_ITEMS = [(item,item) for item,price in FEE_PRICES]

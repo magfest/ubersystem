@@ -8,37 +8,26 @@
         $shirtOpts.append($("<option/>").val(size[0]).text(size[1]));
     });
     
-    function recordSale() {
-        $.post("record_sale", {
-                id:      "None",
-                what:    $("#what_select").val() || $("#what_text").val() || "",
-                cash:    $("#store_cash").val(),
-                mpoints: $("#store_mpoints").val()
+    function recordMPointExchange() {
+        $.post("record_mpoint_exchange", {
+                badge_num:  $("#ex_badge_num").val(),
+                mpoints:    $("#ex_mpoints").val()
             }, function(json) {
                 $("#message").html(json.message);
                 if (json.success) {
-                    $("#message").append(' &nbsp; <a href="#" onClick="undoSale(' + json.id + ') ; return false">Undo</a>');
+                    $("#ex_badge_num,#ex_mpoints").val("");
+                    $("#message").append(' &nbsp; ').append(
+                        $('<a href="#">Undo</a>').click(function(){
+                            undoMPointExchange(json.id);
+                            return false;
+                        }));
                 }
-            }, "json");
+           }, "json");
     }
-    function undoSale(id) {
-        $.post("undo_sale", {"id": id}, function(message) {
-            $("#message").html(message);
+    function undoMPointExchange(id) {
+        $.post("undo_mpoint_exchange", {"id": id}, function(s) {
+            $("#message").html(s);
         });
-    }
-    function showOrHideWhatText(page_loading) {
-        $("#store_mpoints").val("0");
-        if( $("#what_select").val() == "" ) {
-            $("#what_text").show().focus();
-            $("#store_cash").val("");
-        }
-        else {
-            var prices = {{ STORE_PRICES|safe }};
-            $("#what_text").val("").hide();
-            $("#store_cash").val( prices[$("#what_select").val()] );
-            if( !page_loading )
-                $("#store_amount").focus();
-        }
     }
     
     function giveMerch(id, shirtSize) {
@@ -69,11 +58,11 @@
             showTop("Oh noes - the web server is down or something!!!!!");
         });
         
-        showOrHideWhatText(true);
-        $("#what_text,#store_amount").keypress(function(e){
+        $("#ex_badge_num,#ex_mpoints,#cash").keypress(function(e){
             if( (e.keyCode || e.which) == 13 )  // ENTER
-                recordSale();
+                recordMPointExchange();
         });
+        
         $("#swag").on("submit", function(e){
             $("#give,#message").html("");
             $.post("check_merch", {badge_num: $("#badge_num").val()}, function(resp) {
@@ -98,18 +87,11 @@
 
 <table>
 <tr>
-    <td> Record a Sale: </td>
-    <td>
-        <select id="what_select" onChange="showOrHideWhatText()">
-            {% options STORE_ITEMS %}
-            <option value="">Other...</option>
-        </select>
-        <input type="text" id="what_text" size="20" maxlength="50" />
-    </td>
-    <td> Money: $<input type="text" id="store_cash" size="2" /> </td>
-    <td> MPoints: <input type="text" id="store_mpoints" size="2" /> </td>
-    <td> <input type="submit" id="record_sale" value="Record Sale" onClick="recordSale()" />
-</td>
+    <td> Last year's MPoints turned in: </td>
+    <td> Badge num: <input type="number" id="ex_badge_num" min="1" max="99999" /> </td>
+    <td> exchanged <input type="number" id="ex_mpoints" min="1" max="9999" /> MPoints </td>
+    <td> <input type="submit" id="record_mpe" value="Record Exchange" onClick="recordMPointExchange()" /> </td>
+</tr>
 <tr> <td colspan="4"> ---OR--- </td> </tr>
 <tr>
     <td> Give Merch </td>

@@ -155,10 +155,8 @@ def challenge_exists(challenge):
 checkin_required = [("name","What is it?")]
 checkin_badge = success_badge
 
-mpointuse_badge  = success_badge
 mpointuse_amount = money_amount
 
-mpointexchange_badge = success_badge
 def mpointexchange_numbers(mpe):
     if not str(mpe.mpoints).isdigit():
         return "MPoints must be a positive integer"
