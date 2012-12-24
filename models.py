@@ -257,6 +257,7 @@ class Attendee(MagModel):
     interests   = CommaSeparatedIntegerField(max_length = 50)
     found_how   = CharField(max_length = 100)
     comments    = CharField(max_length = 255)
+    for_review  = TextField()
     admin_notes = TextField()
     
     badge_num  = IntegerField(default = 0)

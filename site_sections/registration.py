@@ -531,3 +531,6 @@ class Root:
             hr.nights = ",".join(night for night in hr.nights.split(",") if int(night) in {THURSDAY,FRIDAY,SATURDAY})
         hr.save()
         return {"nights": " / ".join(hr.attendee.hotel_nights)}
+    
+    def review(self):
+        return {"attendees": Attendee.objects.exclude(for_review = "").order_by("first_name","last_name")}
