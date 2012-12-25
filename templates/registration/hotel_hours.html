@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Unfilled Hotel Requirements{% endblock %}
+{% block content %}
+
+<h2> {{ staffers|length }} Staffers With Hotel Space Who Need More Hours </h2>
+
+<table class="list">
+<tr class="header">
+    <td> Staffer Name </td>
+    <td> Departments </td>
+    <td> Room Nights </td>
+    <td> Hours </td>
+</tr>
+{% for attendee in staffers %}
+    <tr>
+        <td> <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a> </td>
+        <td> {{ attendee.assigned_display|join:" / " }} </td>
+        <td> {{ attendee.hotel_nights|join:" / " }} </td>
+        <td> {{ attendee.weighted_hours }} </td>
+    </tr>
+{% endfor %}
+</table>
+
+{% endblock %}

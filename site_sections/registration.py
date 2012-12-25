@@ -522,13 +522,18 @@ class Root:
                                  hr.wanted_roommates, hr.unwanted_roommates, hr.special_needs])
         return out.getvalue()
     
-    def hotel_requests(self, message = ""):
+    def hotel_requests(self):
         requests = HotelRequests.objects.order_by("attendee__first_name", "attendee__last_name")
         return {
             "staffer_count": Attendee.objects.filter(badge_type = STAFF_BADGE).count(),
             "declined_count": requests.filter(nights = "").count(),
             "requests": requests.exclude(nights = "")
         }
+    
+    def hotel_hours(self):
+        staffers = list(Attendee.objects.filter(badge_type = STAFF_BADGE).order_by("first_name","last_name"))
+        staffers = [s for s in staffers if s.hotel_shifts_required and s.weighted_hours < 30]
+        return {"staffers": staffers}
     
     @ajax
     def approve(self, id, approved):

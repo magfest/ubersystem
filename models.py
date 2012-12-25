@@ -517,6 +517,12 @@ class Attendee(MagModel):
            and (self.badge_type != STAFF_BADGE or self.hotel_requests is not None or not state.ROOMS_AVAILABLE)
     
     @property
+    def hotel_shifts_required(self):
+        return self.hotel_nights and self.ribbon != DEPT_HEAD_RIBBON \
+           and set(self.assigned) - {MARKETPLACE, STOPS, CON_OPS, CONCERT} \
+           and self.assigned != [ARCADE]
+    
+    @property
     def hotel_eligible(self):
         return self.badge_type == STAFF_BADGE and self.assigned != [CONCERT] and self.assigned != [MARKETPLACE]
     

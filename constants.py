@@ -307,11 +307,14 @@ JOB_INTEREST_OPTS = (
     (12, "Tech Ops"),
     (11, "Video Room"),
 )
+ARCADE = 1
 CONCERT = 3
 CON_OPS = 5
 MARKETPLACE = 10
+MERCH = 11
+STOPS = 17
 JOB_LOC_OPTS = (
-    (1, "Arcade"),
+    (ARCADE, "Arcade"),
     (2, "Challenges"),
     (CONCERT, "Concert"),
     (4, "Consoles"),
@@ -321,11 +324,11 @@ JOB_LOC_OPTS = (
     (8, "Jam Space"),
     (9, "LAN"),
     (MARKETPLACE, "Marketplace"),
-    (11, "Merchandise"),
+    (MERCH, "Merchandise"),
     (13, "Regdesk"),
     (14, "Security"),
     (12, "Staff Support"),
-    (17, "Staffing Ops"),
+    (STOPS, "Staffing Ops"),
     (15, "Tabletop"),
     (16, "Tech Ops"),
     (18, "Video Room"),
