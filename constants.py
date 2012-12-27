@@ -199,10 +199,10 @@ RIBBON_OPTS = (
     (NO_RIBBON,        "no ribbon"),
     (VOLUNTEER_RIBBON, "Volunteer"),
     (DEPT_HEAD_RIBBON, "Department Head"),
-    (PRESS_RIBBON,     "Press"),
+    (PRESS_RIBBON,     "Camera"),
     (PANELIST_RIBBON,  "Panelist"),
-    (DEALER_RIBBON,    "Dealer"),
-    (BAND_RIBBON,      "Band"),
+    (DEALER_RIBBON,    "Shopkeep"),
+    (BAND_RIBBON,      "Rock Star"),
 )
 PREASSIGNED_BADGE_TYPES = [STAFF_BADGE, SUPPORTER_BADGE]
 CAN_UNSET = [ATTENDEE_BADGE]
