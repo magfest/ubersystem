@@ -138,6 +138,8 @@ Reminder(Attendee, "Last chance to sign up for MAGFest shifts", "shift_reminder.
                                           and datetime.now() > state.EPOCH - timedelta(days = 10),
          sender = STAFF_EMAIL)
 
+
+
 Reminder(Attendee, "Want volunteer hotel room space at MAGFest?", "hotel_rooms.txt",
          lambda a: state.SHIFTS_AVAILABLE and a.hotel_eligible and datetime.now() < state.ROOM_DEADLINE,
          sender = STAFF_EMAIL)
@@ -151,6 +153,12 @@ Reminder(Attendee, "Last chance to sign up for MAGFest hotel room space", "hotel
          lambda a: state.SHIFTS_AVAILABLE and a.hotel_eligible and not a.hotel_requests
                                           and a.registered < state.ROOM_DEADLINE - timedelta(days = 2) < datetime.now() < state.ROOM_DEADLINE,
          sender = STAFF_EMAIL)
+
+Reminder(Attendee, "Reminder to meet your MAGFest hotel room requirements", "hotel_hours.txt",
+         lambda a: a.hotel_shifts_required and a.weighted_hours < 30 and state.UBER_TAKEDOWN - timedelta(days = 5) < datetime.now(),
+         sender = STAFF_EMAIL)
+
+
 
 Reminder(Attendee, "Last chance to personalize your MAGFest badge", "personalized_badge_reminder.txt",
          lambda a: a.badge_type == STAFF_BADGE and a.placeholder and state.STAFF_BADGE_DEADLINE - timedelta(days = 7) < datetime.now() < state.STAFF_BADGE_DEADLINE,

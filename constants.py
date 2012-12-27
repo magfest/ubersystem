@@ -39,7 +39,7 @@ class State:
     STAFF_BADGE_DEADLINE = datetime(2012, 12,  9, 23, 59)
     PREREG_TAKEDOWN      = datetime(2012, 12, 26, 23, 59)
     PLACEHOLDER_DEADLINE = datetime(2012, 12, 28, 23, 59)
-    UBER_TAKEDOWN        = datetime(2013, 12, 30, 23, 59)
+    UBER_TAKEDOWN        = datetime(2012, 12, 30, 23, 59)
     
     EPOCH                = datetime(2013,  1,  3,  8)
     ESCHATON             = datetime(2013,  1,  6, 22)
