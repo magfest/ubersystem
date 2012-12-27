@@ -2,7 +2,7 @@ from common import *
 
 @property
 def payment_deadline(self):
-    return min(state.UBER_TAKEDOWN - timedelta(days = 1),
+    return min(state.UBER_TAKEDOWN - timedelta(days = 2),
                datetime.combine((self.registered + timedelta(days = 14)).date(), time(23, 59)))
 
 def __repr__(self):
