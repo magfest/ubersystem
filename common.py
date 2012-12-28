@@ -6,6 +6,7 @@
 # TODO: room ordering prioritizes groupings based on same nights
 # TODO: MPointUse needs a better name, and is confusing with MPointExchange
 # TODO: jsonify undo ajax methods
+# TODO: make all payment reminders based on due date instead of registration date
 
 import os
 import re
