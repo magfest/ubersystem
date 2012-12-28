@@ -238,7 +238,7 @@ class Group(MagModel):
     
     @property
     def can_add_badges(self):
-        return self.can_add or (not self.is_dealer and self.total_cost and not self.amount_paid)
+        return self.can_add or (not self.is_dealer and self.amount_owed and not self.amount_paid)
 
 
 
