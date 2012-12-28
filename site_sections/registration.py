@@ -9,7 +9,7 @@ def check_everything(attendee):
     if state.AT_THE_CON and attendee.id is None:
         if isinstance(attendee.badge_num, str) or attendee.badge_num < 0:
             return "Invalid badge number"
-        elif attendee.id is None and Attendee.objects.filter(badge_type=attendee.badge_type, badge_num=attendee.badge_num).count():
+        elif attendee.id is None and attendee.badge_num != 0 and Attendee.objects.filter(badge_type=attendee.badge_type, badge_num=attendee.badge_num).count():
             return "Another attendee already exists with that badge number"
     
     if attendee.is_dealer and not attendee.group:
@@ -30,10 +30,17 @@ def unassigned_counts():
                                        .annotate(unassigned=Count("id"))}
 
 def search(text):
-    q = Q()
-    for attr in ["first_name","last_name","badge_num","email","comments","admin_notes","group__name"]:
-        q |= Q(**{attr + "__icontains": text})
-    return Attendee.objects.filter(q)
+    terms = text.split()
+    if len(terms) == 2:
+        first, last = terms
+        if first.endswith(","):
+            last, first = first.strip(","), last
+        return Attendee.objects.filter(first_name__icontains = first, last_name__icontains = last)
+    else:
+        q = Q()
+        for attr in ["first_name","last_name","badge_num","email","comments","admin_notes","group__name"]:
+            q |= Q(**{attr + "__icontains": text})
+        return Attendee.objects.filter(q)
 
 @all_renderable(PEOPLE)
 class Root:
@@ -73,12 +80,14 @@ class Root:
             "attendee":       Attendee.objects.get(id = uploaded_id) if uploaded_id else None
         }
     
-    def form(self, message="", return_to="", **params):
+    def form(self, message="", return_to="", omit_badge="", **params):
         attendee = get_model(Attendee, params, checkgroups = ["interests"],
                              bools = ["staffing","trusted","international","placeholder","got_merch","can_spam"])
         if "first_name" in params:
             attendee.group = None if not params["group_opt"] else Group.objects.get(id = params["group_opt"])
             
+            if state.AT_THE_CON and omit_badge:
+                attendee.badge_num = 0
             message = check_everything(attendee)
             if not message:
                 attendee.save()
@@ -86,12 +95,14 @@ class Root:
                 if return_to:
                     raise HTTPRedirect(return_to + "&message={}", "Attendee data uploaded")
                 else:
-                    raise HTTPRedirect("index?uploaded_id={}&message={}", attendee.id, "has been uploaded")
+                    raise HTTPRedirect("index?uploaded_id={}&message={}&search_text={}", attendee.id, "has been uploaded",
+                        "{} {}".format(attendee.first_name, attendee.last_name) if state.AT_THE_CON else "")
         
         return {
             "message":    message,
             "attendee":   attendee,
             "return_to":  return_to,
+            "omit_badge": omit_badge,
             "group_opts": [(b.id, b.name) for b in Group.objects.order_by("name")],
             "unassigned": unassigned_counts()
         }

@@ -97,6 +97,11 @@
     });
 </script>
 
+{% if state.AT_THE_CON %}
+    <div style="display:none">
+        <input type="checkbox" name="placeholder" /> TODO: this is a big hack, figure this out
+    </div>
+{% endif %}
 <form method="post" action="form">
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
@@ -138,6 +143,9 @@
         <select name="ribbon">
             {% options RIBBON_OPTS attendee.ribbon %}
         </select>
+        {% if state.AT_THE_CON and not attendee.badge_num %}
+            <br/> <input type="checkbox" name="omit_badge" value="yes" {% if omit_badge %}checked{% endif %} /> Omit badge number
+        {% endif %}
     </td>
 </tr>
 {% if attendee.badge_type == SUPPORTER_BADGE %}

@@ -41,7 +41,7 @@
 </tr>
 {% for attendee in recent %}
     <tr>
-        <td align="left"><a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a></td>
+        <td align="left"><a href="form?return_to=new%3f&id={{ attendee.id }}">{{ attendee.full_name }}</a></td>
         <td>{{ attendee.get_badge_type_display }}</td>
         <td>{{ attendee.get_age_group_display }}</td>
         <td>

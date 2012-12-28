@@ -40,7 +40,7 @@ class Root:
             if not message:
                 message = assign_group_badges(group, params["badges"])
                 if not message:
-                    raise HTTPRedirect("index?message={}", "Group info uploaded")
+                    raise HTTPRedirect("form?id={}&message={}", group.id, "Group info uploaded")
         
         return {
             "message": message,

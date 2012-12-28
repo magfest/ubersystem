@@ -139,7 +139,8 @@ Reminder(Attendee, "Last chance to sign up for MAGFest shifts", "shift_reminder.
          sender = STAFF_EMAIL)
 
 Reminder(Attendee, "Still want to volunteer at MAGFest?", "volunteer_check.txt",
-         lambda a: a.ribbon == VOLUNTEER_RIBBON and a.weighted_hours == 0 and datetime.now() > state.UBER_TAKEDOWN - timedelta(days = 5),
+         lambda a: a.ribbon == VOLUNTEER_RIBBON and a.weighted_hours == 0 and a.paid != NOT_PAID
+               and datetime.now() > state.UBER_TAKEDOWN - timedelta(days = 5),
          sender = STAFF_EMAIL)
 
 
