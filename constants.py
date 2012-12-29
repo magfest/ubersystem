@@ -183,9 +183,9 @@ PSEUDO_DEALER_BADGE = 102 # dealers get attendee badges with a ribbon
 BADGE_RANGES = {          # these may overlap, but shouldn't
     STAFF_BADGE:     [1, 499],
     SUPPORTER_BADGE: [500, 999],
-    GUEST_BADGE:     [1000, 1999],
-    ATTENDEE_BADGE:  [2000, 9999],
-    ONE_DAY_BADGE:   [10000, 10999],
+    GUEST_BADGE:     [1000, 1250],
+    ATTENDEE_BADGE:  [2000, 9500],
+    ONE_DAY_BADGE:   [10000, 11000],
 }
 NO_RIBBON        = 0
 VOLUNTEER_RIBBON = 1
