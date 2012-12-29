@@ -137,14 +137,16 @@ class Root:
                                         .order_by("when")
         }
     
-    def delete(self, id):
+    def delete(self, id, return_to = "index?"):
         attendee = Attendee.objects.get(id=id)
         attendee.delete()
+        message = "Attendee deleted"
         if attendee.group:
             Attendee.objects.create(group = attendee.group, paid = attendee.paid,
                                     badge_type = attendee.badge_type, badge_num = attendee.badge_num)
-            raise HTTPRedirect("index?message={}", "Attendee deleted, but badge " + attendee.badge + " is still available to be assigned to someone else")
-        raise HTTPRedirect("index?message={}", "Attendee deleted")
+            message = "Attendee deleted, but badge " + attendee.badge + " is still available to be assigned to someone else"
+        
+        raise HTTPRedirect(return_to + ("" if return_to[-1] == "?" else "&") + "message={}", message)
     
     @ajax
     def record_mpoint_usage(self, badge_num, amount):
