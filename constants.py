@@ -246,10 +246,11 @@ SHIRT_OPTS = (
     (10, "x-large (female)"),
 )
 
+LAN_ROOM = 3
 INTEREST_OPTS = (
     (1, "consoles"),
     (2, "arcade"),
-    (3, "LAN"),
+    (LAN_ROOM, "LAN"),
     (4, "music"),
     (5, "guests/panels"),
     (6, "videos"),

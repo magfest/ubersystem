@@ -7,6 +7,8 @@
 # TODO: MPointUse needs a better name, and is confusing with MPointExchange
 # TODO: jsonify undo ajax methods
 # TODO: make all payment reminders based on due date instead of registration date
+# TODO: better conventions for comma-separated fields
+# TODO: csrf protection
 
 import os
 import re

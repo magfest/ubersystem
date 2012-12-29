@@ -430,6 +430,10 @@ class Attendee(MagModel):
         return self.comma_and(stuff)
     
     @property
+    def interests_list(self):
+        return map(int, self.interests.split(",")) if self.interests else []
+    
+    @property
     def multiply_assigned(self):
         return len(self.assigned) > 1
     

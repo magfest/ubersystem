@@ -201,6 +201,11 @@ Reminder(Attendee, "MAGFest parental consent form reminder", "under_18_reminder.
          lambda a: a.age_group == UNDER_18 and datetime.now() > state.EPOCH - timedelta(days = 7))
 
 
+
+Reminder(Attendee, "MAGFest XI LAN Information -- Important! Please Read!", "lan_room.html",
+         lambda a: LAN_ROOM in a.interests_list, sender = "lan@magfest.org")
+
+
 @all_renderable(PEOPLE)
 class Root:
     def index(self):
