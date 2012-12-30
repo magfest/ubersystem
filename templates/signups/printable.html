@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ attendee.full_name}}'s Schedules{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<h2> {{ attendee.full_name }}'s Printable Schedule </h2>
+
+<div style="text-align:center ; font-style:italic">
+    <a href="login">Click here</a> to log in as someone else.
+</div>
+
+<br/> Our database has gone offline to be moved to MAGFest, but you can still print your schedule below: <br/> <br/>
+
+{% include "signups/printable_schedule.html" %}
+
+{% endblock %}

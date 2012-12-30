@@ -48,4 +48,4 @@ class Root:
         }
     
     def all_schedules(self):
-        return {"staffers": Staffer.objects.exclude(attendee__isnull=True).order_by("last_name","first_name").select_related()}
+        return {"staffers": Attendee.objects.filter(staffing = True).order_by("last_name","first_name")}

@@ -7,26 +7,11 @@
 {% endblock %}
 {% block content %}
 
-<script type="text/javascript">/*
+<script type="text/javascript">
     $(document).ready(function(){
-        {% if HAS_STUFF_ACCESS %}
-            $(".schedule").mouseover(function(event) {
-                var params = event.target.id.split(",");
-                event.target.style.background = "lightyellow";
-                window.status = "form?id="+params[0] + "&location="+params[1] + "&start_time="+params[2];
-            });
-            $(".schedule").mouseout(function(event) {
-                event.target.style.background = "white";
-                window.status = "";
-            });
-            $(".schedule").click(function(event) {
-                var params = event.target.id.split(",");
-                window.location = "form?id="+params[0] + "&location="+params[1] + "&start_time="+params[2];
-            });
-        {% endif %}
         $("td[title]").cluetip({splitTitle: "~~~", width: 450});
     });
-*/</script>
+</script>
 
 <style type="text/css">
     td { padding: 2px }

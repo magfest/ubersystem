@@ -3,12 +3,13 @@ from common import *
 # TODO: make UBER_SHUT_DOWN testable, since right not it's only checked at import time
 
 if state.UBER_SHUT_DOWN:
-    import site_sections.schedule
+    import site_sections.schedule, site_sections.signups
     @all_renderable()
     class Root:
         def default(self, *args, **kwargs):
             return render("closed.html")
         
+        signups = site_sections.signups.Root()
         schedule = site_sections.schedule.Root()
     root = Root()
 else:

@@ -181,3 +181,18 @@ class Root:
                 "all_signups":        sum(s.job.weighted_hours for s in shifts)
             }
         return {"locations": sorted(locations.items(), key = lambda loc: loc[1]["regular_signups"] - loc[1]["regular_total"])}
+    
+    def all_shifts(self):
+        writer = StringIO()
+        out = csv.writer(writer)
+        for loc,name in JOB_LOC_OPTS:
+            out.writerow([name])
+            for shift in Shift.objects.filter(job__location = loc).order_by("job__start_time","job__name").select_related():
+                out.writerow([shift.job.start_time.strftime("%I%p %a").lstrip("0"),
+                              "{} hours".format(shift.job.real_duration),
+                              shift.job.name,
+                              shift.attendee.full_name])
+            out.writerow([])
+        cherrypy.response.headers["Content-Type"] = "application/csv"
+        cherrypy.response.headers["Content-Disposition"] = "attachment; filename=shifts.csv"
+        return writer.getvalue()

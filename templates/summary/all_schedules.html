@@ -3,64 +3,12 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-{% for staffer in staffers %}
-    {% if staffer.weighted_hours %}
+{% for attendee in staffers %}
+    {% if attendee.weighted_hours %}
         <div style="page-break-after:always">
-        <h2 align="center">{{ staffer.full_name }}'s Shift Schedule</h2>
+        <h2 align="center">{{ attendee.full_name }}'s Shift Schedule</h2>
         
-        You are signed up for {{ staffer.weighted_hours }} hours (after weighting)
-        
-        <br/> <br/>
-        After working each shift, make sure you get the location chair to mark in our
-        database that you worked your shift, or if you are working in an area without
-        network access, get the department head to initial under the <b>Worked</b>
-        column below.  If your shifts are not marked as worked,
-        we'll think you didn't show up and you won't
-        {% if staffer.attendee.paid != NEED_NOT_PAY %}
-            get your shirt and/or badge refund, plus you won't
-        {% endif %}
-        get a free badge or free hotel room space next year.
-        
-        <br/><br/>
-        There is an attached sheet for tracking hours which aren't part of a regular shift.
-        For example, if you work during a time when you are not
-        scheduled, or show up especially early to a shift, or work long after your shift
-        ended, then you can have the department head mark down these hours so that you
-        will get credit for them.
-        
-        <br/> <br/>
-        <i>You should talk to the following Department Chair(s) as soon as possible:</i>
-        <div style="margin-left:5% ; font-weight:bold">
-            {% must_contact staffer %}
-        </div>
-        
-        <br/> <br/>
-        
-        <table width="95%" align="center">
-        <tr style="font-weight:bold">
-            <td>Job</td>
-            <td>Dept</td>
-            <td>Start</td>
-            <td>Hours</td>
-            <td>Weight</td>
-            <td>Worked</td>
-        </tr>
-        {% for shift in staffer.shifts %}
-            <tr>
-                <td>{{ shift.job.name|escape }}</td>
-                <td>{{ shift.job.get_location_display }}</td>
-                <td>{{ shift.job.start_time|time:"gA"|lower }} {{ shift.job.start_time|date:"D" }}</td>
-                <td>{{ shift.job.duration }}</td>
-                <td>(x{{ shift.job.weight }})</td>
-                <td>__________</td>
-            </tr>
-            {% if shift.job.description %}
-                <tr>
-                    <td colspan="5" align="center" valign="top" style="padding-top:0px"><i>{{ shift.job.description }}</i><br/><br/></td>
-                </tr>
-            {% endif %}
-        {% endfor %}
-        </table>
+        {% include "signups/printable_schedule.html" %}
         
         </div>
     {% endif %}

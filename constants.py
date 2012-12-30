@@ -340,8 +340,24 @@ JOB_LOC_OPTS = (
     (18, "Video Room"),
 )
 DEPT_CHAIRS = {     # TODO: fill in the rest of these
-    CONCERT:  "Big Mat (at the Concert Room)",
+    ARCADE: "",
+    2: "",
+    CONCERT: "Big Mat (at the Concert Room)",
+    4: "",
+    CON_OPS: "",
+    6: "",
+    7: "",
+    8: "",
+    9: "",
     MARKETPLACE: "Danielle Pomfrey (in the Marketplace)",
+    MERCH: "",
+    13: "",
+    14: "",
+    12: "",
+    STOPS: "",
+    15: "",
+    16: "",
+    18: "",
 }
 JOB_PAGE_OPTS = (
     ("index",    "Calendar View"),
