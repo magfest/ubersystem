@@ -207,7 +207,8 @@ class must_contact(template.Node):
     def render(self, context):
         staffer = self.staffer.resolve(context)
         locations = [s.job.location for s in staffer.shifts]
-        return "<br/>".join(set(DEPT_CHAIRS.get(dept,"") for dept in locations))
+        dept_names = dict(JOB_LOC_OPTS)
+        return "<br/>".join({"{} ({})".format(DEPT_CHAIRS[dept], dept_names[dept]) for dept in locations})
 
 @tag
 class add_max_lengths(template.Node):

@@ -1,18 +1,26 @@
 You are signed up for {{ attendee.weighted_hours }} hours (after weighting)
 
 <br/> <br/>
-After working each shift, make sure you get the location chair to mark in our
-database that you worked your shift, or if you are working in an area without
-network access, get the department head to initial under the <b>Worked</b>
-column below.  If your shifts are not marked as worked,
-we'll think you didn't show up and you won't
+After working each shift, make sure you get a department chair to initial under the <b>Worked</b> column below.
+If your shifts are not marked as worked, you won't
 {% if attendee.paid != NEED_NOT_PAY %}
     get your shirt and/or badge refund, plus you won't
 {% endif %}
 get a free badge or free hotel room space next year.
 
+{% if attendee.badge_type == STAFF_BADGE %}
+    <br/><br/>
+    Free food is available for Staffers in Suite #____, and your Staff badge also grants you entry to the Galaxy Cafe to purchase cheap food.  The Gaylord requests that we only use this cafeteria during these times:
+    <ul>
+        <li>Breakfast: 7 - 9am</li>
+        <li>Lunch:  1 - 3pm</li>
+        <li>Dinner: 7 - 9pm</li>
+    </ul>
+    <b>DIRECTIONS TO THE GALAXY CAFE GO HERE</b>
+{% endif %}
+
 <br/> <br/>
-<i>You should talk to the following Department Chair(s) as soon as possible:</i>
+<i>You should report to a Department Chair for each department you're working before the start of your first shift:</i>
 <div style="margin-left:5% ; font-weight:bold">
     {% must_contact attendee %}
 </div>
