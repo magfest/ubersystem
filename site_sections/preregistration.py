@@ -364,3 +364,6 @@ class Root:
             "attendee":  attendee,
             "message":   message
         }
+
+if state.UBER_SHUT_DOWN:
+    Root = type("Root", (), {"index": Root.index.im_func})

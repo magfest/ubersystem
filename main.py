@@ -1,9 +1,11 @@
 from common import *
 
+# TODO: open source DaemonTask and use it properly with cherrypy engine hooks
 # TODO: make UBER_SHUT_DOWN testable, since right not it's only checked at import time
+# TODO: more elegant importing for uber shutdown
 
 if state.UBER_SHUT_DOWN:
-    import site_sections.schedule, site_sections.signups
+    import site_sections.schedule, site_sections.signups, site_sections.preregistration
     @all_renderable()
     class Root:
         def default(self, *args, **kwargs):
@@ -11,6 +13,7 @@ if state.UBER_SHUT_DOWN:
         
         signups = site_sections.signups.Root()
         schedule = site_sections.schedule.Root()
+        preregistration = site_sections.preregistration.Root()
     root = Root()
 else:
     @all_renderable()
