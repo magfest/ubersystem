@@ -40,8 +40,9 @@
                 $.field("amount_paid").val(0);
         {% endif %}
         
-        if( focus )
+        if (focus) {
             $.focus("amount_paid");
+        }
     }
     
     function showOrHideAmounts(focus) {
@@ -72,8 +73,8 @@
         if( $.field("placeholder").is(":checked") ) {
             $.field("age_group").val("{{ OVER_21 }}");
             $.field("paid").val("{{ NEED_NOT_PAY }}");
-            showOrHideAmounts();
         }
+        showOrHideAmounts();
     }
     
     function setBadgeMessage() {
@@ -92,7 +93,7 @@
         showOrHideAmounts();
         {% if state.AT_THE_CON and not attendee.id %}
             $.field("paid").val({{ HAS_PAID }});
-            $.field("amount_paid").val({{ BADGE_PRICE }});
+            $.field("amount_paid").val({{ state.BADGE_PRICE }});
         {% endif %}
     });
 </script>
