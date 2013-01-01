@@ -20,14 +20,13 @@ get a free badge or free hotel room space next year.
 {% endif %}
 
 <br/> <br/>
-<i>You should report to a Department Chair for each department you're working before the start of your first shift:</i>
-<div style="margin-left:5% ; font-weight:bold">
-    {% must_contact attendee %}
-</div>
-
-<br/> <br/>
-
 {% if attendee.shifts %}
+    <i>You should report to a Department Chair for each department you're working before the start of your first shift:</i>
+    <div style="margin-left:5% ; font-weight:bold">
+        {% must_contact attendee %}
+    </div>
+
+    <br/> <br/>
     <table width="95%" align="center">
     <tr style="font-weight:bold">
         <td>Job</td>

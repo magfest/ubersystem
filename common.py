@@ -9,6 +9,7 @@
 # TODO: make all payment reminders based on due date instead of registration date
 # TODO: better conventions for comma-separated fields
 # TODO: csrf protection
+# TODO: decorator for downloading attachments
 
 import os
 import re

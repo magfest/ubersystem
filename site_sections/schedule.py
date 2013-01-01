@@ -85,6 +85,30 @@ class Root:
             "schedule": sorted(schedule.items(), key=lambda tup: EVENT_LOCS.index(tup[1][0].location))
         })
     
+    def panels(self):
+        cherrypy.response.headers["Content-Type"] = "application/csv"
+        cherrypy.response.headers["Content-Disposition"] = "attachment; filename=panels.csv"
+        sio = StringIO()
+        out = csv.writer(sio)
+        out.writerow(["Panel","Time","Duration","Room","Description","Panelists"])
+        for event in sorted(list(Event.objects.order_by("start_time")), key = lambda e: (e.start_time, e.get_location_display)):
+            if "Panel" in event.get_location_display() or "Autograph" in event.get_location_display():
+                out.writerow([event.name,
+                              event.start_time.strftime("%I%p %a").lstrip("0"),
+                              "{} minutes".format(event.minutes),
+                              event.get_location_display(),
+                              event.description,
+                              " / ".join(ap.attendee.full_name for ap in event.assignedpanelist_set.order_by("attendee__first_name"))])
+        return sio.getvalue()
+    
+    def panelists(self):
+        cherrypy.response.headers["Content-Type"] = "application/csv"
+        cherrypy.response.headers["Content-Disposition"] = "attachment; filename=panelists.csv"
+        sio = StringIO()
+        out = csv.writer(sio)
+        out.writerow(["Panelist","Panels"])
+        return sio.getvalue()
+    
     @unrestricted
     def now(self, when=None):
         if when:
