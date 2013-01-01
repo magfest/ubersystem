@@ -293,7 +293,8 @@ class Attendee(MagModel):
         import badge_funcs
         
         if self.ribbon == DEPT_HEAD_RIBBON:
-            self.badge_type = STAFF_BADGE
+            if not state.CUSTOM_BADGES_ORDERED:
+                self.badge_type = STAFF_BADGE
             self.staffing = self.trusted = True
             if self.paid == NOT_PAID:
                 self.paid = NEED_NOT_PAY
