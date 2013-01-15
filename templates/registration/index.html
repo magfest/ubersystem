@@ -273,6 +273,9 @@
                 {% else %}
                     #<input class="num" id="num_{{ attendee.id }}" type="text" size="3" />
                 {% endif %}
+                {% if attendee.ribbon != NO_RIBBON %}
+                    ({{ attendee.get_ribbon_display }})
+                {% endif %}
             {% else %}
                 {{ attendee.badge }}
             {% endif %}

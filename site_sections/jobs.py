@@ -54,6 +54,30 @@ class Root:
             "shifts":   Shift.serialize(shifts)
         }
     
+    def everywhere(self, message=""):
+        shifts = list(Shift.objects.select_related())
+        
+        by_job, by_attendee = defaultdict(list), defaultdict(list)
+        for shift in shifts:
+            by_job[shift.job].append(shift)
+            by_attendee[shift.attendee].append(shift)
+        
+        attendees = Attendee.staffers()
+        for attendee in attendees:
+            attendee._shifts = by_attendee[attendee]
+        
+        jobs = [job for job in Job.objects.filter(restricted = False).order_by("start_time","duration")
+                if datetime.now() < job.start_time + timedelta(hours = job.duration)]
+        for job in jobs:
+            job._shifts = by_job[job]
+            job._available_staffers = [s for s in attendees if not job.hours.intersection(s.hours)]
+        
+        return {
+            "message":  message,
+            "jobs":     jobs,
+            "shifts":   Shift.serialize(shifts)
+        }
+    
     def staffers(self, location="0"):
         attendees = {}
         for attendee in Attendee.staffers():
@@ -125,6 +149,10 @@ class Root:
         message = assign(staffer_id, job_id) or "Staffer assigned to shift"
         raise HTTPRedirect("staffers_by_job?id={}&message={}", job_id, message)
     
+    def assign_from_everywhere(self, job_id, staffer_id):
+        message = assign(staffer_id, job_id) or "Staffer assigned to shift"
+        raise HTTPRedirect("everywhere?message={}", message)
+    
     def assign_from_list(self, job_id, staffer_id):
         location = Job.objects.get(id = job_id).location
         message = assign(staffer_id, job_id)
@@ -142,6 +170,11 @@ class Root:
         shift = Shift.objects.get(id=id)
         shift.delete()
         raise HTTPRedirect("signups?location={}#{}", shift.job.location, shift.job.id)
+    
+    def unassign_from_everywhere(self, id):
+        shift = Shift.objects.get(id=id)
+        shift.delete()
+        raise HTTPRedirect("everywhere?#{}", shift.job.id)
     
     def set_worked(self, id, worked):
         try:

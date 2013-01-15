@@ -10,6 +10,9 @@
 # TODO: better conventions for comma-separated fields
 # TODO: csrf protection
 # TODO: decorator for downloading attachments
+# TODO: root-level redirector to /magfest
+# TODO: weighted hours which are NOT worked should be listed in red on the shifts page hour total
+# TODO: badge number searches are exact and bring up the attendee form even at the con
 
 import os
 import re
