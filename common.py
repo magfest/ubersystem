@@ -13,6 +13,7 @@
 # TODO: root-level redirector to /magfest
 # TODO: weighted hours which are NOT worked should be listed in red on the shifts page hour total
 # TODO: badge number searches are exact and bring up the attendee form even at the con
+# TODO: subclasses like StopsReminder and RegReminder and DealerReminder for email reminders
 
 import os
 import re

@@ -1,0 +1,26 @@
+{{ attendee.first_name }},
+
+As a department head of {{ attendee.assigned_display.0 }}, we need you to review your department's shifts to make sure that everyone got properly marked, which you can do at {{ state.URL_BASE }}/jobs/signups?location={{ attendee.assigned_depts }}
+
+
+Although we've entered the shifts from the paper schedules, there are three main types of unmarked shifts:
+
+1) Sunday shifts - a bunch of these are still unmarked for most departments
+
+2) Shifts added at the con - your printed schedules didn't include at-the-door volunteers we assigned to open shifts
+
+3) Non-shift hours - if you know that someone worked a lot outside of their regular shifts, please indicate this using the "Non-shift hours" field on their volunteer page in Uber.
+
+
+There's also a cool new rating system; after a shift is marked as worked, you can record the performance of the volunteer for that shift:
+
+CHECKMARK: the volunteer performed the job well
+
+LOOK OF DISAPPROVAL: the shift was technically worked, but the performance was sub-par
+
+A+: the volunteer went above and beyond, in attitude or competence or extra work, etc
+
+
+So please visit {{ state.URL_BASE }}/jobs/signups?id={{ attendee.assigned_depts }} before the awesomeness that was MAGFest 11 fades into an even blurrier haze than it already has!
+
+{{ STOPS_EMAIL_SIGNATURE }}

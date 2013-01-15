@@ -206,6 +206,10 @@ Reminder(Attendee, "MAGFest XI LAN Information -- Important! Please Read!", "lan
          lambda a: LAN_ROOM in a.interests_list, sender = "lan@magfest.org")
 
 
+Reminder(Attendee, "MAGFest staffers need to be marked and rated", "postcon_hours.txt",
+         lambda a: state.POST_CON and a.ribbon == DEPT_HEAD_RIBBON and len(a.assigned) == 1,
+         sender = STAFF_EMAIL)
+
 @all_renderable(PEOPLE)
 class Root:
     def index(self):
