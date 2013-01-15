@@ -81,14 +81,13 @@ class Root:
     def staffers(self, location="0"):
         attendees = {}
         for attendee in Attendee.staffers():
-            if int(location) in attendee.assigned:
-                attendee._shifts = []
-                attendees[attendee.id] = attendee
+            attendee._shifts = []
+            attendees[attendee.id] = attendee
         jobs = list(Job.objects.filter(location = location))
         shifts = list(Shift.objects.filter(job__location = location).select_related())
         for shift in Shift.objects.filter(job__location = location).select_related():
             attendees[shift.attendee_id]._shifts.append(shift)
-        attendees = attendees.values()
+        attendees = [a for a in attendees.values() if a._shifts or int(location) in a.assigned]
         return {
             "location":           location,
             "attendees":          attendees,
