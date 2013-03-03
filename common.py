@@ -26,21 +26,20 @@ import logging
 import warnings
 import traceback
 from glob import glob
-from sys import maxint
-from urllib import quote
+from io import StringIO
 from pprint import pformat
-from urllib2 import urlopen
 from functools import wraps
 from xml.dom import minidom
 from random import randrange
-from StringIO import StringIO
 from itertools import groupby
-from urlparse import parse_qsl
 from time import sleep, mktime
+from urllib.request import urlopen
 from collections import defaultdict
+from urllib.parse import quote, parse_qsl
 from datetime import date, time, datetime, timedelta
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
 from threading import Thread, RLock, local, current_thread
+
 
 import logging_unterpolation
 logging_unterpolation.patch_logging()
@@ -52,7 +51,6 @@ with warnings.catch_warnings():
 import bcrypt
 import cherrypy
 import django.conf
-from Crypto.Cipher import DES
 from boto.ses.connection import SESConnection
 
 import constants

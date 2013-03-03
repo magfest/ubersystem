@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Shifts{% endblock %}
+{% block content %}
+
+<script type="text/javascript">
+    var SHIFTS = {{ shifts|jsonize }};
+    $(setupRatingClickHandler);
+</script>
+
+<h2> All Jobs With Unfilled Shifts </h2>
+
+<table>
+{% for job in jobs %}
+    {% if job.shifts|length < job.slots %}
+        <tr>
+            <td> <a name="{{ job.id }}"></a><b>{% timespan job %}:</b> </td>
+            <td> <a href="form?id={{ job.id }}"><b>{{ job.name }}{% if job.restricted %}*{% endif %}</b></a> </td>
+            <td> <nobr>({{ job.shifts|length }}/{{ job.slots }} slots filled)</nobr> </td>
+                {% if job.available_staffers %}
+                    <form method="post" action="assign_from_everywhere">
+                    <td>
+                        <input type="hidden" name="job_id" value="{{ job.id }}" />
+                        <select name="staffer_id">
+                            {% for attendee in job.available_staffers %}
+                                <option value="{{ attendee.id }}">{{ attendee.full_name }}</option>
+                            {% endfor %}
+                        </select>
+                        <input type="submit" value="Assign" />
+                    </td>
+                    </form>
+                {% else %}
+                    <td><i>(no extra available staffers)</i></td>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td colspan="4">
+                <table style="width:auto">
+                {% for shift in job.shifts %}
+                    <tr>
+                        <td> <ul><li></li></ul> </td>
+                        <td> <a href="../registration/shifts?id={{ shift.attendee.id }}">{{ shift.attendee.full_name }}</a>&nbsp;&nbsp; </td>
+                        <td>
+                            {% if shift.worked %}
+                                <i>{{ shift.get_worked_display }}</i>
+                            {% else %}
+                                <select onChange="setStatus({{ shift.id }}, this)">
+                                    {% options WORKED_OPTS shift.worked %}
+                                </select>
+                            {% endif %}
+                        </td>
+                        <form method="post" action="unassign_from_everywhere">
+                        <td>
+                            <input type="hidden" name="id" value="{{ shift.id }}" />
+                            <input type="submit" value="Unassign" />
+                        </td>
+                        </form>
+                        <td id="rating{{ shift.id }}"></td>
+                        {% if staffer.shift.worked == SHIFT_WORKED %}
+                            <script type="text/javascript">renderRating({{ shift.id }});</script>
+                        {% endif %}
+                    </tr>
+                {% endfor %}
+                </table>
+                <br/>
+            </td>
+        </tr>
+    {% endif %}
+{% endfor %}
+</table>
+
+{% endblock %}

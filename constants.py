@@ -187,6 +187,7 @@ BADGE_RANGES = {          # these may overlap, but shouldn't
     ATTENDEE_BADGE:  [2000, 9500],
     ONE_DAY_BADGE:   [10000, 11000],
 }
+MAX_BADGE = max(xs[1] for xs in BADGE_RANGES.values())
 NO_RIBBON        = 0
 VOLUNTEER_RIBBON = 1
 DEPT_HEAD_RIBBON = 2

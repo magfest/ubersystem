@@ -33,7 +33,7 @@ def change_badge(attendee):
                 return "That badge number already belongs to {!r}".format(existing[0].full_name)
         elif old.badge_num and old.badge_type == attendee.badge_type:
             next = next_badge_num(attendee.badge_type) - 1
-            attendee.badge_num = min(attendee.badge_num or maxint, next)
+            attendee.badge_num = min(attendee.badge_num or MAX_BADGE, next)
             if old.badge_num < attendee.badge_num:
                 shift_badges(old, down = True, until = attendee.badge_num)
             else:
@@ -55,7 +55,7 @@ def change_badge(attendee):
             return "That badge number was too high, so the next available badge was assigned instead"
 
 
-def shift_badges(attendee, down, until = maxint):
+def shift_badges(attendee, down, until = MAX_BADGE):
     if state.AT_THE_CON:
         return
     

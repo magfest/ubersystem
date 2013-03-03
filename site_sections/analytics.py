@@ -44,7 +44,7 @@ class Root:
         starting_magfest_year = 6
         ending_magfest_year = 11
 
-        print "starting query"
+        print("starting query")
 
         # collect raw data for each year
         raw_data = []
@@ -54,7 +54,7 @@ class Root:
                 generate_attendance_by_day_graph_data(which_magfest)
             )
 
-        print "done query, processing data"
+        print("done query, processing data")
 
         # make it be in a sane format that we can deal with in google charts
         graph_data = []
@@ -85,7 +85,7 @@ class Root:
 
             graph_data.append(row)
 
-        print "done processing, rendering..."
+        print("done processing, rendering...")
 
         return {
             "attendance_data": graph_data

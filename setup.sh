@@ -1,8 +1,13 @@
 rm -rfv env
-python2.7 -m virtualenv --no-site-packages --distribute env
+python3.3 -m venv env
+source ./env/bin/activate
 
-./env/bin/pip install --upgrade distribute
-for pydep in mysql-python py-bcrypt pycrypto Django cherrypy nose selenium boto logging_unterpolation requests
+# distribute doesn't come with venv, need to copy over distribute_setup.py
+# MySQL needs to use the special github version for Python 3
+# Django 1.5 isn't out yet
+# boto needs the neo branch in the github repo
+
+for pydep in py3k-bcrypt nose selenium logging_unterpolation requests
 do
-    ./env/bin/pip install $pydep
+    ./env/bin/easy_install $pydep
 done
