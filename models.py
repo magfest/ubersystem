@@ -1,53 +1,58 @@
 from common import *
 
-@property
-def payment_deadline(self):
-    return min(state.UBER_TAKEDOWN - timedelta(days = 2),
-               datetime.combine((self.registered + timedelta(days = 14)).date(), time(23, 59)))
+class MultiChoiceField(CommaSeparatedIntegerField):
+    def __init__(self, *args, **kwargs):
+        self._choices = kwargs.pop("choices")
+        max_length = kwargs.pop("max_length", 50)
+        CommaSeparatedIntegerField.__init__(self, *args, max_length = max_length, **kwargs)
 
-def __repr__(self):
-    display = getattr(self, "display", "name" if hasattr(self, "name") else "id")
-    return "<{}>".format(" ".join(str(getattr(self, field)) for field in listify(display)))
-
-def field_repr(self, name):
-    [field] = [f for f in self._meta.fields if f.name == name]
-    val = getattr(self, name)
-    s = repr(val)
-    if field.choices and val is not None:
-        return repr(dict(field.choices)[int(val)])
-    elif isinstance(field, CommaSeparatedIntegerField): # TODO: standardize naming convention to make this automatic
-        opts = dict({
-            "nights": NIGHTS_OPTS,
-            "access": ACCESS_OPTS,
-            "interests": INTEREST_OPTS,
-            "requested_depts": JOB_INTEREST_OPTS,
-            "assigned_depts": JOB_LOC_OPTS,
-        }[name])
-        return repr(val and ",".join(opts[int(opt)] for opt in val.split(",")))
-    elif isinstance(val, long):
-        return s[:-1]
-    elif isinstance(val, unicode):
-        return s[1:]
-    else:
-        return s
+class MagModelBase(Model):
+    class Meta:
+        abstract = True
+        app_label = ""
+    
+    def field_repr(self, name):
+        [field] = [f for f in self._meta.fields if f.name == name]
+        val = getattr(self, name)
+        s = repr(val)
+        if field.choices and val is not None:
+            return repr(dict(field.choices)[int(val)])
+        elif isinstance(field, MultiChoiceField):
+            opts = dict(field.options)
+            return repr(val and ",".join(opts[int(opt)] for opt in val.split(",")))
+        elif isinstance(val, int):
+            return s[:-1]
+        elif isinstance(val, str):
+            return s[1:]
+        else:
+            return s
+    
+    def __repr__(self):
+        display = getattr(self, "display", "name" if hasattr(self, "name") else "id")
+        return "<{}>".format(" ".join(str(getattr(self, field)) for field in listify(display)))
 
 class MagModelMeta(base.ModelBase):
     def __new__(cls, name, bases, attrs):
-        attrs["Meta"] = type("Meta", (), {"app_label": "", "db_table": name})
-        attrs["__repr__"] = __repr__
-        attrs["field_repr"] = field_repr
-        if name in ["Group", "Attendee"]:
-            attrs["payment_deadline"] = payment_deadline
-        return base.ModelBase.__new__(cls, name, (Model,), attrs)
+        if "Meta" not in attrs:
+            attrs["Meta"] = type("Meta", (), {"app_label": "", "db_table": name})
+        return base.ModelBase.__new__(cls, name, (MagModelBase,), attrs)
 
 MagModel = type.__new__(MagModelMeta, "MagModel", (), {})
+
+
+class TakesPaymentMixin(object):
+    @property
+    def payment_deadline(self):
+        return min(state.UBER_TAKEDOWN - timedelta(days = 2),
+                   datetime.combine((self.registered + timedelta(days = 14)).date(), time(23, 59)))
+
 
 
 class Account(MagModel):
     name   = CharField(max_length = 50)
     email  = CharField(max_length = 50)
     hashed = CharField(max_length = 128)
-    access = CommaSeparatedIntegerField(max_length = 50)
+    access = MultiChoiceField(choices = ACCESS_OPTS)
     
     @staticmethod
     def is_nick():
@@ -149,8 +154,8 @@ class Group(MagModel):
     special_needs = TextField()
     amount_paid   = IntegerField(default = 0)
     amount_owed   = IntegerField(default = 0)
-    status        = IntegerField(default = UNAPPROVED, choices = STATUS_OPTS)
     auto_recalc   = BooleanField(default = True)
+    status        = IntegerField(default = UNAPPROVED, choices = STATUS_OPTS)
     can_add       = BooleanField(default = False)
     admin_notes   = TextField()
     registered    = DateTimeField(auto_now_add = True)
@@ -254,7 +259,7 @@ class Attendee(MagModel):
     email         = CharField(max_length = 50)
     age_group     = IntegerField(default = AGE_UNKNOWN, choices = AGE_GROUP_OPTS)
     
-    interests   = CommaSeparatedIntegerField(max_length = 50)
+    interests   = MultiChoiceField(choices = INTEREST_OPTS)
     found_how   = CharField(max_length = 100)
     comments    = CharField(max_length = 255)
     for_review  = TextField()
@@ -281,8 +286,8 @@ class Attendee(MagModel):
     
     staffing         = BooleanField(default = False)
     fire_safety_cert = CharField(max_length = 50, default = "")
-    requested_depts  = CommaSeparatedIntegerField(max_length = 50)
-    assigned_depts   = CommaSeparatedIntegerField(max_length = 50)
+    requested_depts  = MultiChoiceField(choices = JOB_INTEREST_OPTS)
+    assigned_depts   = MultiChoiceField(choices = JOB_LOC_OPTS)
     trusted          = BooleanField(default = False)
     nonshift_hours   = IntegerField(default = 0)
     
@@ -547,7 +552,7 @@ class Attendee(MagModel):
 
 class HotelRequests(MagModel):
     attendee           = OneToOneField(Attendee)
-    nights             = CommaSeparatedIntegerField(max_length = 50)
+    nights             = MultiChoiceField(choices = NIGHTS_OPTS)
     wanted_roommates   = TextField()
     unwanted_roommates = TextField()
     special_needs      = TextField()
@@ -796,3 +801,4 @@ def create_hook(sender, instance, created, **kwargs):
 def delete_hook(sender, instance, **kwargs):
     if sender not in Tracking.UNTRACKED:
         Tracking.track(DELETED, instance)
+

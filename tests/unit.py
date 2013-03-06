@@ -2,8 +2,8 @@ from common import *
 from tests import TestUber
 from site_sections import preregistration
 
-from urllib import urlencode
-from StringIO import StringIO
+from io import StringIO
+from urllib.parse import urlencode
 
 import requests
 

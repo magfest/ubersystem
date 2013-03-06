@@ -9,7 +9,7 @@ if sys.argv[0].endswith("nosetests") or "TESTING" in os.environ:
 else:
     PORT = 4321
     AUTORELOAD = True
-    DBUSER, DBPASS, DBNAME = ["m11"] * 3
+    DBUSER, DBPASS, DBNAME = ["m12"] * 3
 
 if DEV_BOX:
     state.HOSTNAME = "localhost:{}".format(PORT)

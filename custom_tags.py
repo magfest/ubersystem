@@ -27,10 +27,6 @@ def idize(s):
     return re.sub("\W+", "_", str(s)).strip("_")
 
 @register.filter
-def obfuscated(id):
-    return obfuscate(id)
-
-@register.filter
 def maybe_red(amount, comp):
     if amount >= comp:
         return SafeString('<span style="color:red ; font-weight:bold">{}</span>'.format(amount))

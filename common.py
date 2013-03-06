@@ -74,7 +74,7 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
         cherrypy.HTTPRedirect.__init__(self, page.format(*args, **kwargs))
     
     def quote(self, s):
-        return quote(s) if isinstance(s, basestring) else str(s)
+        return quote(s) if isinstance(s, str) else str(s)
 
 
 def listify(x):
@@ -217,7 +217,7 @@ def daemonize(func, name="DaemonTask", interval=300, threads=1):
             try:
                 func()
             except:
-                log.warn("ignoring unexpected error in background thread {!r}", current_thread().name, exc_info = True)
+                log.warning("ignoring unexpected error in background thread {!r}", current_thread().name, exc_info = True)
             
             if interval:
                 sleep(interval)
@@ -226,15 +226,6 @@ def daemonize(func, name="DaemonTask", interval=300, threads=1):
         t = Thread(target = wrapped, name = name)
         t.daemon = True
         t.start()
-
-
-def obfuscate(id):
-    binary = DES.new(OBFUSCATION_KEY, DES.MODE_ECB).encrypt("{0:08}".format(id))
-    return "".join("{0:02x}".format(ord(s)) for s in binary)
-
-def unobfuscate(id):
-    binary = "".join(chr(int(id[i:i+2],16)) for i in range(0,len(id),2))
-    return int(DES.new(OBFUSCATION_KEY, DES.MODE_ECB).decrypt(binary))
 
 
 # These imports are last so they can import everything from this module.  Don't move or reorder them.

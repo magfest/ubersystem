@@ -67,7 +67,7 @@ class Root:
             attendees = attendees[-100 + 100*page : 100*page]
         
         return {
-            "message":        message if isinstance(message, basestring) else message[-1],
+            "message":        message if isinstance(message, str) else message[-1],
             "show":           show,
             "page":           page,
             "pages":          pages,
