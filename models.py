@@ -3,8 +3,14 @@ from common import *
 class MultiChoiceField(CommaSeparatedIntegerField):
     def __init__(self, *args, **kwargs):
         self._choices = kwargs.pop("choices")
-        max_length = kwargs.pop("max_length", 50)
-        CommaSeparatedIntegerField.__init__(self, *args, max_length = max_length, **kwargs)
+        kwargs.setdefault("max_length", 255)
+        CommaSeparatedIntegerField.__init__(self, *args, **kwargs)
+
+class UuidField(CharField):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("max_length", 32)
+        kwargs.setdefault("default", lambda: uuid4().hex)
+        CharField.__init__(self, *args, **kwargs)
 
 class MagModelBase(Model):
     class Meta:
@@ -18,7 +24,7 @@ class MagModelBase(Model):
         if field.choices and val is not None:
             return repr(dict(field.choices)[int(val)])
         elif isinstance(field, MultiChoiceField):
-            opts = dict(field.options)
+            opts = dict(field.choices)
             return repr(val and ",".join(opts[int(opt)] for opt in val.split(",")))
         elif isinstance(val, int):
             return s[:-1]
@@ -145,6 +151,7 @@ class Event(MagModel):
 
 
 class Group(MagModel):
+    secret_id     = UuidField()
     name          = CharField(max_length = 50)
     tables        = IntegerField()
     address       = TextField()
@@ -248,6 +255,7 @@ class Group(MagModel):
 
 
 class Attendee(MagModel):
+    secret_id     = UuidField()
     group         = ForeignKey(Group, null = True)
     placeholder   = BooleanField(default = False)
     first_name    = CharField(max_length = 25)

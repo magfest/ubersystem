@@ -1,7 +1,7 @@
 from __future__ import division
 from common import *
 
-from secret_settings import OBFUSCATION_KEY, AWS_ACCESS_KEY_ID, AWS_SECRET_KEY
+from secret_settings import AWS_ACCESS_KEY_ID, AWS_SECRET_KEY
 
 DEV_BOX = True
 
@@ -97,6 +97,14 @@ class State:
         return datetime.now() > self.STAFF_BADGE_DEADLINE
 
 state = State()
+
+def enum(**kwargs):
+    xs = []
+    for name,desc in kwargs.items():
+        val = hash(name) & 0xFFFFFFFF
+        globals()[name] = val
+        xs.append((name, val))
+    return xs
 
 SUPPORTER_BADGE_PRICE = 100
 ONEDAY_BADGE_PRICE    = 35
@@ -281,6 +289,15 @@ PAYMENT_TYPE_OPTS = (
     (BANK_PAYMENT,   "Bank"),
     (PAYPAL_PAYMENT, "Paypal"),
     (CASH_PAYMENT,   "Cash")
+)
+
+ACCESS_OPTS = enum(
+    ACCOUNTS = "Account Management",
+    PEOPLE = "Registration and Staffing",
+    STUFF = "Inventory and Scheduling",
+    MONEY = "Budget",
+    CHALLENGES = "Challenges",
+    CHECKINS = "Checkins",
 )
 
 ACCOUNTS   = 1
