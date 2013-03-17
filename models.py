@@ -2,9 +2,10 @@ from common import *
 
 class MultiChoiceField(CommaSeparatedIntegerField):
     def __init__(self, *args, **kwargs):
-        self._choices = kwargs.pop("choices")
+        choices = kwargs.pop("choices")
         kwargs.setdefault("max_length", 255)
         CommaSeparatedIntegerField.__init__(self, *args, **kwargs)
+        self._choices = choices
 
 class UuidField(CharField):
     def __init__(self, *args, **kwargs):
@@ -21,11 +22,11 @@ class MagModelBase(Model):
         [field] = [f for f in self._meta.fields if f.name == name]
         val = getattr(self, name)
         s = repr(val)
-        if field.choices and val is not None:
-            return repr(dict(field.choices)[int(val)])
-        elif isinstance(field, MultiChoiceField):
+        if isinstance(field, MultiChoiceField):
             opts = dict(field.choices)
-            return repr(val and ",".join(opts[int(opt)] for opt in val.split(",")))
+            return repr("" if not val else ",".join(opts[int(opt)] for opt in val.split(",")))
+        elif field.choices and val is not None:
+            return repr(dict(field.choices)[int(val)])
         elif isinstance(val, int):
             return s[:-1]
         elif isinstance(val, str):

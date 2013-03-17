@@ -103,7 +103,7 @@ def enum(**kwargs):
     for name,desc in kwargs.items():
         val = hash(name) & 0xFFFFFFFF
         globals()[name] = val
-        xs.append((name, val))
+        xs.append((val, desc))
     return xs
 
 SUPPORTER_BADGE_PRICE = 100
@@ -147,25 +147,25 @@ EVENT_START_TIME_OPTS = [(dt, dt.strftime("%I %p %a") if not dt.minute else dt.s
                          for dt in [state.EPOCH + timedelta(minutes = i * 30) for i in range(2 * CON_LENGTH)]]
 EVENT_DURATION_OPTS = [(i, "%.1f hour%s" % (i/2, "s" if i != 2 else "")) for i in range(1, 19)]
 
-EVENT_LOC_OPTS = (
-    (0,  "Panels 1"),
-    (1,  "Panels 2"),
-    (2,  "Panels 3"),
-    (8,  "Panels 4"),
-    (9,  "Panels 5"),
-    (13, "Panels 6"),
-    (10, "Autographs"),
-    (5,  "Games on Film"),
-    (3,  "Console (NGA Tournaments)"),
-    (14, "Console (Attendee Tournaments)"),
-    (15, "Consoles (Stage Tournaments)"),
-    (4,  "Arcade"),
-    (18, "LAN"),
-    (6,  "Tabletop (Tournaments)"),
-    (11, "Tabletop (Free Play)"),
-    (12, "Tabletop (CCG)"),
-    (7,  "Concerts"),
-    (17, "Chiptunes"),
+EVENT_LOC_OPTS = enum(
+    PANELS_1 = "Panels 1",
+    PANELS_2 = "Panels 2",
+    PANELS_3 = "Panels 3",
+    PANELS_4 = "Panels 4",
+    PANELS_5 = "Panels 5",
+    PANELS_6 = "Panels 6",
+    AUTOGRAPHS = "Autographs",
+    GAMES_ON_FILM = "Games on Film",
+    CONSOLE_NGA = "Console (NGA Tournaments)",
+    CONSOLE_ATTENDEE = "Console (Attendee Tournaments)",
+    CONSOLE_STAGE = "Console (Stage Tournaments)",
+    ARCADE = "Arcade",
+    LAN = "LAN",
+    TABLETOP_TOURNAMENTS = "Tabletop (Tournaments)",
+    TABLETOP_FREEPLAY = "Tabletop (Free Play)",
+    TABLETOP_CCG = "Tabletop (CCG)",
+    CONCERTS = "Concerts",
+    CHIPTUNES = "Chiptunes",
 )
 EVENT_LOCS = [loc for loc,desc in EVENT_LOC_OPTS]
 EVENT_BOOKED = {"colspan": 0}
@@ -173,18 +173,12 @@ EVENT_OPEN   = {"colspan": 1}
 
 BADGE_LOCK = RLock()
 
-ATTENDEE_BADGE  = 0
-STAFF_BADGE     = 1
-GUEST_BADGE     = 2
-SUPPORTER_BADGE = 3
-ONE_DAY_BADGE   = 4
-DORSAI_BADGE    = 5
-BADGE_OPTS = (
-    (ATTENDEE_BADGE,  "Attendee"),
-    (STAFF_BADGE,     "Staff"),
-    (GUEST_BADGE,     "Guest"),
-    (SUPPORTER_BADGE, "Supporter"),
-    (ONE_DAY_BADGE,   "One Day"),
+BADGE_OPTS = enum(
+    ATTENDEE_BADGE  = "Attendee",
+    STAFF_BADGE     = "Staff",
+    GUEST_BADGE     = "Guest",
+    SUPPORTER_BADGE = "Supporter",
+    ONE_DAY_BADGE   = "One Day"
 )
 PSEUDO_GROUP_BADGE  = 101 # people registering in groups will get attendee badges
 PSEUDO_DEALER_BADGE = 102 # dealers get attendee badges with a ribbon
@@ -196,36 +190,25 @@ BADGE_RANGES = {          # these may overlap, but shouldn't
     ONE_DAY_BADGE:   [10000, 11000],
 }
 MAX_BADGE = max(xs[1] for xs in BADGE_RANGES.values())
-NO_RIBBON        = 0
-VOLUNTEER_RIBBON = 1
-DEPT_HEAD_RIBBON = 2
-PRESS_RIBBON     = 3
-PANELIST_RIBBON  = 4
-DEALER_RIBBON    = 5
-BAND_RIBBON      = 6
-RIBBON_OPTS = (
-    (NO_RIBBON,        "no ribbon"),
-    (VOLUNTEER_RIBBON, "Volunteer"),
-    (DEPT_HEAD_RIBBON, "Department Head"),
-    (PRESS_RIBBON,     "Camera"),
-    (PANELIST_RIBBON,  "Panelist"),
-    (DEALER_RIBBON,    "Shopkeep"),
-    (BAND_RIBBON,      "Rock Star"),
+
+RIBBON_OPTS = enum(
+    NO_RIBBON        = "no ribbon",
+    VOLUNTEER_RIBBON = "Volunteer",
+    DEPT_HEAD_RIBBON = "Department Head",
+    PRESS_RIBBON     = "Camera",
+    PANELIST_RIBBON  = "Panelist",
+    DEALER_RIBBON    = "Shopkeep",
+    BAND_RIBBON      = "Rock Star"
 )
 PREASSIGNED_BADGE_TYPES = [STAFF_BADGE, SUPPORTER_BADGE]
 CAN_UNSET = [ATTENDEE_BADGE]
 
-NOT_PAID      = 0
-HAS_PAID      = 1
-NEED_NOT_PAY  = 2
-REFUNDED      = 3
-PAID_BY_GROUP = 4
-PAID_OPTS = (
-    (NOT_PAID,      "no"),
-    (HAS_PAID,      "yes"),
-    (NEED_NOT_PAY,  "doesn't need to"),
-    (REFUNDED,      "paid and refunded"),
-    (PAID_BY_GROUP, "paid by group")
+PAID_OPTS = enum(
+    NOT_PAID      = "no",
+    HAS_PAID      = "yes",
+    NEED_NOT_PAY  = "doesn't need to",
+    REFUNDED      = "paid and refunded",
+    PAID_BY_GROUP = "paid by group"
 )
 
 STORE_PRICES = (                # start as a tuple to preserve order for STORE_ITEMS
@@ -261,121 +244,103 @@ SHIRT_OPTS = (
     (10, "x-large (female)"),
 )
 
-LAN_ROOM = 3
-INTEREST_OPTS = (
-    (1, "consoles"),
-    (2, "arcade"),
-    (LAN_ROOM, "LAN"),
-    (4, "music"),
-    (5, "guests/panels"),
-    (6, "videos"),
-    (7, "tabletop games"),
-    (8, "dealers"),
-    (9, "tournaments"),
+INTEREST_OPTS = enum(
+    CONSOLE     = "consoles",
+    ARCADE      = "arcade",
+    LAN         = "LAN",
+    MUSIC       = "music",
+    PANELS      = "guests/panels",
+    VIDEO_ROOM  = "videos",
+    TABLETOP    = "tabletop games",
+    MARKETPLACE = "dealers",
+    TOURNAMENTS = "tournaments"
 )
 
-DEBIT  = 1
-CREDIT = 2
-BUDGET_TYPE_OPTS = (
-    (DEBIT,  "expense"),
-    (CREDIT, "revenue")
+BUDGET_TYPE_OPTS = enum(
+    DEBIT  = "expense",
+    CREDIT = "revenue"
 )
 MAGFEST_FUNDS = 1
 
-BANK_PAYMENT   = 1
-PAYPAL_PAYMENT = 2
-CASH_PAYMENT   = 3
-PAYMENT_TYPE_OPTS = (
-    (BANK_PAYMENT,   "Bank"),
-    (PAYPAL_PAYMENT, "Paypal"),
-    (CASH_PAYMENT,   "Cash")
+PAYMENT_TYPE_OPTS = enum(
+    BANK_PAYMENT   = "Bank",
+    PAYPAL_PAYMENT = "Paypal",
+    CASH_PAYMENT   = "Cash"
 )
 
 ACCESS_OPTS = enum(
-    ACCOUNTS = "Account Management",
-    PEOPLE = "Registration and Staffing",
-    STUFF = "Inventory and Scheduling",
-    MONEY = "Budget",
+    ACCOUNTS   = "Account Management",
+    PEOPLE     = "Registration and Staffing",
+    STUFF      = "Inventory and Scheduling",
+    MONEY      = "Budget",
     CHALLENGES = "Challenges",
-    CHECKINS = "Checkins",
+    CHECKINS   = "Checkins",
 )
 
-ACCOUNTS   = 1
-PEOPLE     = 2
-STUFF      = 3
-MONEY      = 4
-CHALLENGES = 5
-CHECKINS   = 6
-ACCESS_OPTS = (
-    (ACCOUNTS,   "Account Management"),
-    (PEOPLE,     "Registration and Staffing"),
-    (STUFF,      "Inventory and Scheduling"),
-    (MONEY,      "Budget"),
-    (CHALLENGES, "Challenges"),
-    (CHECKINS,   "Checkins")
+ACCESS_OPTS = enum(
+    ACCOUNTS   = "Account Management",
+    PEOPLE     = "Registration and Staffing",
+    STUFF      = "Inventory and Scheduling",
+    MONEY      = "Budget",
+    CHALLENGES = "Challenges",
+    CHECKINS   = "Checkins"
 )
 SIGNUPS = 100 # not an admin access level, so handled separately
 
-JOB_INTEREST_OPTS = (
-    (0, "Anything"),
-    (1, "Arcade"),
-    (2, "Challenges Booth"),
-    (3, "Consoles"),
-    (10,"Events"),
-    (4, "Food Prep"),
-    (5, "Jam Space"),
-    (6, "LAN"),
-    (7, "Security"),
-    (8, "Regdesk"),
-    (9, "Tabletop"),
-    (12, "Tech Ops"),
-    (11, "Video Room"),
+JOB_INTEREST_OPTS = enum(
+    ANYTHING   = "Anything",
+    ARCADE     = "Arcade",
+    CHALLENGES = "Challenges Booth",
+    CONSOLES   = "Consoles",
+    EVENTS     = "Events",
+    FOOD_PREP  = "Food Prep",
+    JAMSPACE   = "Jam Space",
+    LAN        = "LAN",
+    SECURITY   = "Security",
+    REGDESK    = "Regdesk",
+    TABLETOP   = "Tabletop",
+    TECHOPS    = "Tech Ops",
+    VIDEO_ROOM = "Video Room",
 )
-ARCADE = 1
-CONCERT = 3
-CON_OPS = 5
-MARKETPLACE = 10
-MERCH = 11
-STOPS = 17
-JOB_LOC_OPTS = (
-    (ARCADE, "Arcade"),
-    (2, "Challenges"),
-    (CONCERT, "Concert"),
-    (4, "Consoles"),
-    (CON_OPS, "Fest Ops"),
-    (6, "Events"),
-    (7, "Food Prep"),
-    (8, "Jam Space"),
-    (9, "LAN"),
-    (MARKETPLACE, "Marketplace"),
-    (MERCH, "Merchandise"),
-    (13, "Regdesk"),
-    (14, "Security"),
-    (12, "Staff Support"),
-    (STOPS, "Staffing Ops"),
-    (15, "Tabletop"),
-    (16, "Tech Ops"),
-    (18, "Video Room"),
+JOB_LOC_OPTS = enum(
+    ARCADE        = "Arcade",
+    CHALLENGES    = "Challenges",
+    CONCERT       = "Concert",
+    CONSOLE       = "Consoles",
+    CON_OPS       = "Fest Ops",
+    PANELS        = "Events",
+    FOOD_PREP     = "Food Prep",
+    JAMSPACE      = "Jam Space",
+    LAN           = "LAN",
+    MARKETPLACE   = "Marketplace",
+    MERCH         = "Merchandise",
+    REGDESK       = "Regdesk",
+    SECURITY      = "Security",
+    STAFF_SUPPORT = "Staff Support",
+    STOPS         = "Staffing Ops",
+    TABLETOP      = "Tabletop",
+    TECHOPS       = "Tech Ops",
+    VIDEO_ROOM    = "Video Room",
 )
 DEPT_CHAIRS = {
-    ARCADE: "Ethan O'Toole, Tony Majors, Scott Schreiber, and Buffett",
-    2: "Ryon Sumner and Challenge Andy",
-    CONCERT: "James Pettigrew, Karen Lambey, and Matthew Stanford",
-    4: "Michael Ridgaway, Bunny Smith, and Orvie Thumel",
-    CON_OPS: "Aaron Churchill",
-    6: "Carla Vorhees and Tim MacNeil",
-    7: "Ben Seburn and David Lansdell",
-    8: "Dan Kim and Ryan Meier",
-    9: "Cleon Chick, Alex Cutlip, and Greg Cotton",
-    MARKETPLACE: "Danielle Pomfrey",
-    MERCH: "Ryan Nichols and Jeff Rosen",
-    13: "Victoria Earl, Bob Earl, William Burghart, and Antigonut Jarrett",
-    14: "Rene Gobeyn and Steve Simmons",
-    12: "Eli Courtwright and Jack Boyd",
-    STOPS: "Eli Courtwright and Jack Boyd",
-    15: "Richard Mackay, Will Mackay, and Devon Courtwright",
-    16: "Matthew Reid and Will Henson",
-    18: "Gabriel Ricard",
+    ARCADE:        "Ethan O'Toole, Tony Majors, Scott Schreiber, and Buffett",
+    CHALLENGES:    "Ryon Sumner and Challenge Andy",
+    CONCERT:       "James Pettigrew, Karen Lambey, and Matthew Stanford",
+    CONSOLE:       "Michael Ridgaway, Bunny Smith, and Orvie Thumel",
+    CON_OPS:       "Aaron Churchill",
+    PANELS:        "Carla Vorhees and Tim MacNeil",
+    FOOD_PREP:     "Ben Seburn and David Lansdell",
+    JAMSPACE:      "Dan Kim and Ryan Meier",
+    LAN:           "Cleon Chick, Alex Cutlip, and Greg Cotton",
+    MARKETPLACE:   "Danielle Pomfrey",
+    MERCH:         "Ryan Nichols and Jeff Rosen",
+    REGDESK:       "Victoria Earl, Bob Earl, William Burghart, and Antigonut Jarrett",
+    SECURITY:      "Rene Gobeyn and Steve Simmons",
+    STAFF_SUPPORT: "Eli Courtwright and Jack Boyd",
+    STOPS:         "Eli Courtwright and Jack Boyd",
+    TABLETOP:      "Richard Mackay, Will Mackay, and Devon Courtwright",
+    TECHOPS:       "Matthew Reid and Will Henson",
+    VIDEO_ROOM:    "Gabriel Ricard",
 }
 JOB_PAGE_OPTS = (
     ("index",    "Calendar View"),
@@ -390,44 +355,30 @@ WEIGHT_OPTS = (
 )
 JOB_DEFAULTS = ["name","description","duration","slots","weight","restricted","extra15"]
 
-SHIFT_UNMARKED = 0
-SHIFT_WORKED   = 1
-SHIFT_UNWORKED = 2
-WORKED_OPTS = (
-    (SHIFT_UNMARKED, "SELECT A STATUS"),
-    (SHIFT_WORKED,   "This shift was worked"),
-    (SHIFT_UNWORKED, "Staffer didn't show up")
+WORKED_OPTS = enum(
+    SHIFT_UNMARKED = "SELECT A STATUS",
+    SHIFT_WORKED   = "This shift was worked",
+    SHIFT_UNWORKED = "Staffer didn't show up"
 )
 
-UNRATED     = 0
-RATED_BAD   = 1
-RATED_GOOD  = 2
-RATED_GREAT = 3
-RATING_OPTS = (
-    (UNRATED,     "Shift Unrated"),
-    (RATED_BAD,   "Staffer performed poorly"),
-    (RATED_GOOD,  "Staffer performed well"),
-    (RATED_GREAT, "Staffer went above and beyond")
+RATING_OPTS = enum(
+    UNRATED     = "Shift Unrated",
+    RATED_BAD   = "Staffer performed poorly",
+    RATED_GOOD  = "Staffer performed well",
+    RATED_GREAT = "Staffer went above and beyond"
 )
 
-CREATE_AND_ASSOC    = 1
-ASSOC_WITH_EXISTING = 2
-
-AGE_UNKNOWN       = 0
-UNDER_18          = 1
-BETWEEN_18_AND_21 = 2
-OVER_21           = 3
-AGE_GROUP_OPTS = (
-    (AGE_UNKNOWN,       "unknown"),
-    (UNDER_18,          "under 18"),
-    (BETWEEN_18_AND_21, "18, 19, or 20"),
-    (OVER_21,           "21 or over")
+AGE_GROUP_OPTS = enum(
+    AGE_UNKNOWN       = "unknown",
+    UNDER_18          = "under 18",
+    BETWEEN_18_AND_21 = "18, 19, or 20",
+    OVER_21           = "21 or over"
 )
-PREREG_AGE_GROUP_OPTS = (
-    (AGE_UNKNOWN,       "How old are you?"),
-    (UNDER_18,          "under 18"),
-    (BETWEEN_18_AND_21, "18, 19, or 20"),
-    (OVER_21,           "21 or over")
+PREREG_AGE_GROUP_OPTS = enum(
+    AGE_UNKNOWN       = "How old are you?",
+    UNDER_18          = "under 18",
+    BETWEEN_18_AND_21 = "18, 19, or 20",
+    OVER_21           = "21 or over"
 )
 WRISTBAND_COLORS = {
     UNDER_18: "red",
@@ -435,15 +386,11 @@ WRISTBAND_COLORS = {
     OVER_21: "green"
 }
 
-NORMAL = 0
-HARD   = 1
-EXPERT = 2
-UNFAIR = 3
-LEVEL_OPTS = (
-    (NORMAL, "Normal"),
-    (HARD,   "Hard"),
-    (EXPERT, "Expert"),
-    (UNFAIR, "Unfair"),
+LEVEL_OPTS = enum(
+    NORMAL = "Normal",
+    HARD   = "Hard",
+    EXPERT = "Expert",
+    UNFAIR = "Unfair"
 )
 LEVEL_VALUES = {
     NORMAL: 1,
@@ -452,35 +399,27 @@ LEVEL_VALUES = {
     UNFAIR: 5,
 }
 
-CREATED = 0
-UPDATED = 1
-DELETED = 2
-AUTO_BADGE_SHIFT = 3
-TRACKING_OPTS = (
-    (CREATED, "created"),
-    (UPDATED, "updated"),
-    (DELETED, "deleted"),
-    (AUTO_BADGE_SHIFT, "automatic badge-shift"),
+TRACKING_OPTS = enum(
+    CREATED = "created",
+    UPDATED = "updated",
+    DELETED = "deleted",
+    AUTO_BADGE_SHIFT = "automatic badge-shift"
 )
 
-UNAPPROVED = 0
-WAITLISTED = 1
-APPROVED   = 2
-STATUS_OPTS = (
-    (UNAPPROVED, "Pending Approval"),
-    (WAITLISTED, "Waitlisted"),
-    (APPROVED,   "Approved"),
+STATUS_OPTS = enum(
+    UNAPPROVED = "Pending Approval",
+    WAITLISTED = "Waitlisted",
+    APPROVED   = "Approved"
 )
 
-MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY = range(7)
-NIGHTS_OPTS = (
-    (MONDAY,    "Mon"),
-    (TUESDAY,   "Tue"),
-    (WEDNESDAY, "Wed"),
-    (THURSDAY,  "Thu"),
-    (FRIDAY,    "Fri"),
-    (SATURDAY,  "Sat"),
-    (SUNDAY,    "Sun"),
+NIGHTS_OPTS = enum(
+    MONDAY    = "Mon",
+    TUESDAY   = "Tue",
+    WEDNESDAY = "Wed",
+    THURSDAY  = "Thu",
+    FRIDAY    = "Fri",
+    SATURDAY  = "Sat",
+    SUNDAY    = "Sun"
 )
 
 EMAIL_RE = re.compile("^[_A-Za-z0-9-]+(\\.[_A-Za-z0-9-+]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*(\\.[_A-Za-z0-9-]+)$")
