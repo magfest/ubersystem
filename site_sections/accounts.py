@@ -4,7 +4,7 @@ def randstring():
     return "".join(chr(randrange(33,127)) for i in range(8))
 
 def valid_password(password, account):
-    all_hashed = [account.hashed] + list(account.passwordreset_set.values_list("hashed", flat=True))
+    all_hashed = [account.hashed] + [pr.hashed for pr in account.passwordreset_set.all()]
     return any(bcrypt.hashpw(password, hashed) == hashed for hashed in all_hashed)
 
 @all_renderable(ACCOUNTS)
@@ -22,6 +22,7 @@ class Root:
             
             if not message:
                 cherrypy.session["account_id"] = account.id
+                cherrypy.session["csrf_token"] = uuid4().hex
                 raise HTTPRedirect("homepage")
         
         return {
@@ -37,7 +38,7 @@ class Root:
     
     @unrestricted
     def logout(self):
-        cherrypy.session["account_id"] = None
+        cherrypy.session["account_id"] = cherrypy.session["csrf_token"] = None
         raise HTTPRedirect("login?message={}", "You have been logged out")
     
     @unrestricted

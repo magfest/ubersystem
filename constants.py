@@ -1,4 +1,3 @@
-from __future__ import division
 from common import *
 
 from secret_settings import AWS_ACCESS_KEY_ID, AWS_SECRET_KEY
@@ -101,7 +100,7 @@ state = State()
 def enum(**kwargs):
     xs = []
     for name,desc in kwargs.items():
-        val = hash(name) & 0xFFFFFFFF
+        val = int(sha512(name.encode()).hexdigest()[:7], 16)
         globals()[name] = val
         xs.append((val, desc))
     return xs

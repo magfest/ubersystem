@@ -1,5 +1,6 @@
-# TODO: less repitition for attendees/groups and attendees/jobs/shifts
+# TODO: csrf protection
 # TODO: less repitition for sending email and saving Email objects
+# TODO: less repitition for attendees/groups and attendees/jobs/shifts
 # TODO: method for sending a reminder but not after a deadline
 # TODO: template tag or something for deadline formatting
 # TODO: default format value for datetime filter
@@ -7,13 +8,10 @@
 # TODO: MPointUse needs a better name, and is confusing with MPointExchange
 # TODO: jsonify undo ajax methods
 # TODO: make all payment reminders based on due date instead of registration date
-# TODO: better conventions for comma-separated fields
-# TODO: csrf protection
 # TODO: decorator for downloading attachments
 # TODO: root-level redirector to /magfest
 # TODO: weighted hours which are NOT worked should be listed in red on the shifts page hour total
 # TODO: badge number searches are exact and bring up the attendee form even at the con
-# TODO: subclasses like StopsReminder and RegReminder and DealerReminder for email reminders
 
 import os
 import re
@@ -29,14 +27,15 @@ from glob import glob
 from uuid import uuid4
 from io import StringIO
 from pprint import pformat
+from hashlib import sha512
 from functools import wraps
 from xml.dom import minidom
 from random import randrange
 from itertools import groupby
 from time import sleep, mktime
 from urllib.request import urlopen
-from collections import defaultdict
 from urllib.parse import quote, parse_qsl
+from collections import defaultdict, OrderedDict
 from datetime import date, time, datetime, timedelta
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
 from threading import Thread, RLock, local, current_thread
@@ -82,8 +81,11 @@ def listify(x):
     return x if isinstance(x, (list,tuple,set,frozenset)) else [x]
 
 
-def get_model(klass, params, bools=[], checkgroups=[], restricted=False):
-    model = klass() if params.get("id", "None") == "None" else klass.objects.get(id = params["id"])
+def get_model(klass, params, bools=[], checkgroups=[], restricted=False, ignore_csrf = False):
+    id = params.pop("id", "None")
+    model = klass() if id == "None" else klass.objects.get(id = id)
+    
+    assert not params or cherrypy.request.method == "POST", "POST required"
     
     for field in klass._meta.fields:
         if restricted and field.name in klass.restricted:
@@ -117,6 +119,10 @@ def get_model(klass, params, bools=[], checkgroups=[], restricted=False):
                 setattr(model, field.name, field.name in params and bool(int(params[field.name])))
             elif field.name in checkgroups and field.name not in params:
                 setattr(model, field.name, "")
+        
+        if not ignore_csrf:
+            assert "csrf_token" in params, "CSRF token not found"
+            assert params["csrf_token"] == cherrypy.session["csrf_token"], "CSRF token does not match session"
     
     return model
 

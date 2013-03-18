@@ -195,6 +195,10 @@ class Group(MagModel):
         return bool(self.tables and (self.amount_paid or self.amount_owed))
     
     @property
+    def is_unpaid(self):
+        return self.amount_owed > 0 and self.amount_paid == 0
+    
+    @property
     def email(self):
         return self.leader and self.leader.email
     

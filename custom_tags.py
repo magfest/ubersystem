@@ -353,6 +353,13 @@ class checked_if(template.Node):
         image = "checked" if checked else "unchecked"
         return '<img src="../static/checkbox_{}.png" style="vertical-align:top ; margin-right:5px" height="20" width="20" />'.format(image)
 
+
+@tag
+class csrf_token(template.Node):
+    def render(self, context):
+        return '<input type="hidden" name="csrf_token" value="{}" />'.format(cherrypy.session["csrf_token"])
+
+
 @register.tag("bold_if")
 def do_bold_if(parser, token):
     [cond] = token.split_contents()[1:]

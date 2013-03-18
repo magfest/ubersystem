@@ -44,14 +44,14 @@ def render(template, data = None):
     data.update({
         "state": state,
         "now":   datetime.now(),
+        "CSRF":  cherrypy.session.get("csrf_token"),
         "PAGE":  cherrypy.request.path_info.split("/")[-1]
     })
     
     from models import Account
     access = Account.access_set()
     for acctype in ["ACCOUNTS","PEOPLE","STUFF","MONEY","CHALLENGES","CHECKINS"]:
-        if getattr(constants, acctype) in access:
-            data["HAS_" + acctype + "_ACCESS"] = True
+        data["HAS_" + acctype + "_ACCESS"] = getattr(constants, acctype) in access
     
     rendered = loader.get_template(template).render( Context(data) )
     if not state.AT_THE_CON and Account.admin_name() == "Nick Marinelli":
