@@ -103,7 +103,7 @@ def enum(**kwargs):
         val = int(sha512(name.encode()).hexdigest()[:7], 16)
         globals()[name] = val
         xs.append((val, desc))
-    return xs
+    return sorted(xs, key = lambda tup: tup[1])
 
 SUPPORTER_BADGE_PRICE = 100
 ONEDAY_BADGE_PRICE    = 35

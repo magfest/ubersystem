@@ -27,10 +27,6 @@ class MagModelBase(Model):
             return repr("" if not val else ",".join(opts[int(opt)] for opt in val.split(",")))
         elif field.choices and val is not None:
             return repr(dict(field.choices)[int(val)])
-        elif isinstance(val, int):
-            return s[:-1]
-        elif isinstance(val, str):
-            return s[1:]
         else:
             return s
     

@@ -121,8 +121,8 @@ def get_model(klass, params, bools=[], checkgroups=[], restricted=False, ignore_
                 setattr(model, field.name, "")
         
         if not ignore_csrf:
-            assert "csrf_token" in params, "CSRF token not found"
-            assert params["csrf_token"] == cherrypy.session["csrf_token"], "CSRF token does not match session"
+            assert "csrf_token" in params, "CSRF token missing"
+            assert params["csrf_token"] == cherrypy.session["csrf_token"], "CSRF token does not match"
     
     return model
 

@@ -32,6 +32,9 @@ def ajax(func):
     @wraps(func)
     def returns_json(self, *args, **kwargs):
         cherrypy.response.headers["Content-Type"] = "application/json"
+        csrf_token = kwargs.pop("csrf_token", None)
+        assert csrf_token is not None, "CSRF token missing"
+        assert csrf_token == cherrypy.session["csrf_token"], "CSRF token does not match"
         return json.dumps(func(self, *args, **kwargs))
     return returns_json
 
@@ -44,8 +47,8 @@ def render(template, data = None):
     data.update({
         "state": state,
         "now":   datetime.now(),
-        "CSRF":  cherrypy.session.get("csrf_token"),
-        "PAGE":  cherrypy.request.path_info.split("/")[-1]
+        "PAGE":  cherrypy.request.path_info.split("/")[-1],
+        "CSRF_TOKEN":  cherrypy.session.get("csrf_token")
     })
     
     from models import Account
