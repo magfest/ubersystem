@@ -1,11 +1,7 @@
-# TODO: less repitition for attendees/groups and attendees/jobs/shifts
 # TODO: room ordering prioritizes groupings based on same nights
 # TODO: MPointUse needs a better name, and is confusing with MPointExchange
-# TODO: jsonify undo ajax methods
 # TODO: make all payment reminders based on due date instead of registration date
-# TODO: decorator for downloading attachments
 # TODO: weighted hours which are NOT worked should be listed in red on the shifts page hour total
-# TODO: badge number searches are exact and bring up the attendee form even at the con
 
 import os
 import re
@@ -73,6 +69,12 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
 
 def listify(x):
     return x if isinstance(x, (list,tuple,set,frozenset)) else [x]
+
+def comma_and(xs):
+    if len(xs) > 1:
+        xs[-1] = "and " + xs[-1]
+    return (", " if len(xs) > 2 else " ").join(xs)
+    
 
 
 def get_model(klass, params, bools=[], checkgroups=[], allowed=[], restricted=False, ignore_csrf=False):

@@ -184,7 +184,7 @@ class Group(MagModel):
         for a in Attendee.objects.filter(group__isnull = False).select_related("group"):
             if a.group:
                 groups[a.group_id]._attendees.append(a)
-        return attendees, groups.values()
+        return list(attendees), list(groups.values())
     
     @property
     def is_dealer(self):
@@ -368,9 +368,9 @@ class Attendee(MagModel):
     def is_unpaid(self):
         return self.paid == NOT_PAID
     
-    @classmethod
-    def staffers(cls):
-        return cls.objects.filter(staffing = True).order_by("first_name","last_name")
+    @staticmethod
+    def staffers():
+        return Attendee.objects.filter(staffing = True).order_by("first_name","last_name")
     
     @property
     def total_cost(self):
@@ -420,11 +420,6 @@ class Attendee(MagModel):
         
         return badge
     
-    def comma_and(self, xs):
-        if len(xs) > 1:
-            xs[-1] = "and " + xs[-1]
-        return (", " if len(xs) > 2 else " ").join(xs)
-    
     @property
     def tshirt(self):
         return self.badge_type in [STAFF_BADGE, SUPPORTER_BADGE] or self.worked_hours >= 6
@@ -438,7 +433,7 @@ class Attendee(MagModel):
             merch.append("a tshirt")
         if self.extra_merch:
             merch.append(self.extra_merch)
-        return self.comma_and(merch)
+        return comma_and(merch)
     
     @property
     def accoutrements(self):
@@ -446,11 +441,7 @@ class Attendee(MagModel):
         stuff.append("a {} wristband".format(WRISTBAND_COLORS[self.age_group]))
         if self.regdesk_info:
             stuff.append(self.regdesk_info)
-        return self.comma_and(stuff)
-    
-    @property
-    def interests_list(self):
-        return map(int, self.interests.split(",")) if self.interests else []
+        return comma_and(stuff)
     
     @property
     def multiply_assigned(self):
@@ -459,6 +450,10 @@ class Attendee(MagModel):
     @property
     def takes_shifts(self):
         return self.staffing and set(self.assigned) - {CONCERT, CON_OPS, MARKETPLACE}
+    
+    @property
+    def interests_list(self):
+        return map(int, self.interests.split(",")) if self.interests else []
     
     @property
     def assigned(self):
@@ -509,33 +504,33 @@ class Attendee(MagModel):
     
     @property
     def possible_and_current(self):
-        all = [s.job for s in self.shifts]
+        jobs = [s.job for s in self.shifts]
         for job in all:
             job.already_signed_up = True
-        all.extend(self.possible)
-        return sorted(all, key=lambda j: j.start_time)
+        jobs.extend(self.possible)
+        return sorted(jobs, key=lambda j: j.start_time)
     
     @cached_property
     def shifts(self):
         return list(self.shift_set.select_related())
     
-    @cached_property
+    @property
     def worked_shifts(self):
         return [shift for shift in self.shifts if shift.worked == SHIFT_WORKED]
     
-    @cached_property
+    @property
     def weighted_hours(self):
         wh = sum((shift.job.real_duration * shift.job.weight for shift in self.shifts), 0.0)
         return wh + self.nonshift_hours
     
-    @cached_property
+    @property
     def worked_hours(self):
         wh = sum((shift.job.real_duration * shift.job.weight for shift in self.worked_shifts), 0.0)
         return wh + self.nonshift_hours
     
     @property
     def shift_prereqs_complete(self):
-        return not self.placeholder  \
+        return not self.placeholder \
            and self.fire_safety_cert \
            and (self.badge_type != STAFF_BADGE or self.hotel_requests is not None or not state.ROOMS_AVAILABLE)
     
@@ -559,7 +554,7 @@ class Attendee(MagModel):
     @cached_property
     def hotel_nights(self):
         try:
-            return [dict(NIGHTS_OPTS)[night] for night in map(int, self.hotelrequests.nights.split(","))]
+            return [dict(NIGHTS_OPTS)[night] for night in map(int, self.hotel_requests.nights.split(","))]
         except:
             return []
 
@@ -601,6 +596,27 @@ class Job(MagModel):
     slots       = IntegerField()
     restricted  = BooleanField(default = False)
     extra15     = BooleanField(default = False)
+    
+    @staticmethod
+    def everything(location = None):
+        shifts = Shift.objects.filter(**{"job__location": location} if location else {}).select_related()
+        
+        by_job, by_attendee = defaultdict(list), defaultdict(list)
+        for shift in shifts:
+            by_job[shift.job].append(shift)
+            by_attendee[shift.attendee].append(shift)
+        
+        attendees = [a for a in Attendee.staffers() if not location or int(location) in a.assigned]
+        for attendee in attendees:
+            attendee._shifts = by_attendee[attendee]
+        
+        jobs = list(Job.objects.filter(**{"location": location} if location else {}).order_by("start_time", "duration"))
+        for job in jobs:
+            job._shifts = by_job[job]
+            job._available_staffers = [s for s in attendees if (not job.restricted or s.trusted)
+                                                            and not job.hours.intersection(s.hours)]
+        
+        return job, shifts, attendees
     
     @cached_property
     def shifts(self):
@@ -790,10 +806,10 @@ class Tracking(MagModel):
         
         return Tracking.objects.create(
             model = instance.__class__.__name__,
+            fk_id = instance.id,
             which = repr(instance),
             who = who,
             links = links,
-            fk_id = instance.id,
             action = action,
             data = data,
         )
@@ -814,4 +830,3 @@ def create_hook(sender, instance, created, **kwargs):
 def delete_hook(sender, instance, **kwargs):
     if sender not in Tracking.UNTRACKED:
         Tracking.track(DELETED, instance)
-

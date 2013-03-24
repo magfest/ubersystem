@@ -28,6 +28,15 @@ def show_queries(func):
 
 
 
+def csrf_protected(func):
+    @wraps(func)
+    def protected(self, *args, csrf_token, **kwargs):
+        check_csrf(csrf_token)
+        return func(*args, **kwargs)
+    return protected
+
+
+
 def ajax(func):
     @wraps(func)
     def returns_json(self, *args, **kwargs):
@@ -36,6 +45,17 @@ def ajax(func):
         check_csrf(kwargs.pop("csrf_token", None))
         return json.dumps(func(self, *args, **kwargs))
     return returns_json
+
+
+
+def csv_file(func):
+    @wraps(func)
+    def csvout(self):
+        cherrypy.response.headers["Content-Type"] = "application/csv"
+        cherrypy.response.headers["Content-Disposition"] = "attachment; filename=" + func.__name__ + ".csv"
+        writer = StringIO()
+        func(self, csv.writer(writer))
+        return writer.getvalue()
 
 
 

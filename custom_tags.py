@@ -12,7 +12,7 @@ def timestamp(dt):
 
 @register.filter
 def jsonize(x):
-    return SafeString( json.dumps(x) )
+    return SafeString(json.dumps(x))
 
 @register.filter
 def remove_newlines(string):

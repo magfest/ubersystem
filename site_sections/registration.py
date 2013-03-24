@@ -58,7 +58,7 @@ class Root:
         
         if search_text and count == total_count:
             message = "No matches found"
-        elif search_text and not state.AT_THE_CON and count == 1:
+        elif search_text and count == 1 and (not state.AT_THE_CON or search_text.isdigit()):
             raise HTTPRedirect("form?id={}&message={}", attendees[0].id, "This attendee was the only search result")
         
         page = int(page)
@@ -137,6 +137,7 @@ class Root:
                                         .order_by("when")
         }
     
+    @csrf_protected
     def delete(self, id, return_to = "index?"):
         attendee = Attendee.objects.get(id=id)
         attendee.delete()
@@ -164,6 +165,7 @@ class Root:
             message = "{mpu.attendee.full_name} exchanged {mpu.amount} MPoints for cash".format(mpu = mpu)
             return {"id":mpu.id, "success":True, "message":message}
     
+    @ajax
     def undo_mpoint_usage(self, id):
         MPointUse.objects.get(id=id).delete()
         return "MPoint usage deleted"
@@ -184,6 +186,7 @@ class Root:
             message = "{mpe.attendee.full_name} exchanged {mpe.mpoints} of last year's MPoints".format(mpe = mpe)
             return {"id":mpe.id, "success":True, "message":message}
     
+    @ajax
     def undo_mpoint_exchange(self, id):
         MPointExchange.objects.get(id=id).delete()
         return "MPoint exchange deleted"
@@ -199,6 +202,7 @@ class Root:
             message = "{sale.what} sold for ${sale.cash}".format(sale = sale)
             return {"id":sale.id, "success":True, "message":message}
     
+    @ajax
     def undo_sale(self, id):
         Sale.objects.get(id=id).delete()
         return "Sale deleted"
@@ -254,6 +258,7 @@ class Root:
             "checked_in": attendee.checked_in and hour_day_format(attendee.checked_in)
         }
     
+    @csrf_protected
     def undo_checkin(self, id, pre_paid, pre_amount, pre_badge):
         a = Attendee.objects.get(id = id)
         a.checked_in, a.paid, a.amount_paid, a.badge_num = None, pre_paid, pre_amount, pre_badge
@@ -319,6 +324,7 @@ class Root:
             "message": message
         }
     
+    @ajax
     def take_back_merch(self, id):
         attendee = Attendee.objects.get(id = id)
         attendee.got_merch = False
@@ -408,6 +414,7 @@ class Root:
         
         raise HTTPRedirect("new?message={}&checked_in={}", message, checked_in)
     
+    @csrf_protected
     def mark_as_paid(self, id):
         attendee = Attendee.objects.get(id = id)
         attendee.paid = HAS_PAID
@@ -415,6 +422,7 @@ class Root:
         attendee.save()
         raise HTTPRedirect("new?message={}", "Attendee marked as paid")
     
+    @csrf_protected
     def undo_new_checkin(self, id):
         attendee = Attendee.objects.get(id = id)
         if attendee.group:
@@ -435,6 +443,7 @@ class Root:
             "shifts":   Shift.serialize(attendee.shift_set.all())
         }
     
+    @csrf_protected
     def update_nonshift(self, id, nonshift_hours):
         attendee = Attendee.objects.get(id = id)
         if not re.match("^[0-9]+$", nonshift_hours):
@@ -444,16 +453,19 @@ class Root:
         attendee.save()
         raise HTTPRedirect("shifts?id={}&message={}", attendee.id, "Non-shift hours updated")
     
+    @csrf_protected
     def update_notes(self, id, admin_notes):
         attendee = Attendee.objects.get(id = id)
         attendee.admin_notes = admin_notes
         attendee.save()
         raise HTTPRedirect("shifts?id={}&message={}", id, "Admin notes updated")
     
+    @csrf_protected
     def assign(self, staffer_id, job_id):
         message = assign(staffer_id, job_id) or "Shift added"
         raise HTTPRedirect("shifts?id={}&message={}", staffer_id, message)
     
+    @csrf_protected
     def unassign(self, shift_id):
         shift = Shift.objects.get(id=shift_id)
         shift.delete()
@@ -499,7 +511,8 @@ class Root:
                 by_dept[dept].append(attendee)
         return {"by_dept": sorted(by_dept.items())}
     
-    def hotel_ordered(self):
+    @csv_file
+    def hotel_ordered(self, out):
         reqs = [hr for hr in HotelRequests.objects.select_related() if hr.nights]
         
         names = {}
@@ -521,19 +534,14 @@ class Root:
                     pass
         
         grouped = {frozenset(group) for group in lookup.values()}
-        cherrypy.response.headers["Content-Type"] = "text/csv"
-        cherrypy.response.headers["Content-Disposition"] = "attachment; filename=hotel.csv"
-        out = StringIO()
-        writer = csv.writer(out)
-        writer.writerow(["Name","Email","Phone","Nights","Departments","Roomate Requests","Roomate Anti-Requests","Special Needs"])
+        out.writerow(["Name","Email","Phone","Nights","Departments","Roomate Requests","Roomate Anti-Requests","Special Needs"])
         for group in grouped:
             for i in range(3):
-                writer.writerow([])
+                out.writerow([])
             for a in group:
                 hr = a.hotel_requests
-                writer.writerow([a.full_name, a.email, a.phone, " / ".join(a.hotel_nights), " / ".join(a.assigned_display),
-                                 hr.wanted_roommates, hr.unwanted_roommates, hr.special_needs])
-        return out.getvalue()
+                out.writerow([a.full_name, a.email, a.phone, " / ".join(a.hotel_nights), " / ".join(a.assigned_display),
+                              hr.wanted_roommates, hr.unwanted_roommates, hr.special_needs])
     
     def hotel_requests(self):
         requests = HotelRequests.objects.order_by("attendee__first_name", "attendee__last_name")
