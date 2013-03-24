@@ -4,7 +4,7 @@ Thanks for signing up to volunteer at MAGFest!  You're currently assigned to the
 
 You can sign up for shifts at {{ state.URL_BASE }}/signups/login and if you have trouble logging in, you can verify/update your personal information at {{ state.URL_BASE }}/preregistration/confirm?id={{ attendee.id|obfuscated }}
 
-You can add / drop / change your shifts anytime until 11:59pm on {{ state.UBER_TAKEDOWN|datetime:"%A, %b %e" }}.
+You can add / drop / change your shifts anytime until {{ state.UBER_TAKEDOWN|datetime }}.
 
 Please let us know if you have any questions.
 

@@ -2,7 +2,7 @@ from __future__ import division
 from common import *
 
 @register.filter
-def datetime(dt, fmt):
+def datetime(dt, fmt = "11:59pm EST on %A, %b %e"):
     return " ".join(dt.strftime(fmt).split())
 
 @register.filter

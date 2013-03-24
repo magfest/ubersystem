@@ -1,6 +1,6 @@
 {{ group.leader.first_name }},
 
-Thanks again for pre-registering a group of {{ group.badges }} people to come to this year's MAGFest!  Our records indicate that your group registration ({{ group.name }}) is still unpaid, and if we do not receive payment by 11:59pm EST on {{ group.payment_deadline|datetime:"%A, %b %e" }} then it will be automatically deleted.
+Thanks again for pre-registering a group of {{ group.badges }} people to come to this year's MAGFest!  Our records indicate that your group registration ({{ group.name }}) is still unpaid, and if we do not receive payment by {{ group.payment_deadline|datetime }} then it will be automatically deleted.
 
 You can use the Paypal button (or credit/debit even if you don't have a Paypal account) on your group's page to pay the ${{ group.amount_owed }} that your group owes: {{ state.URL_BASE }}/preregistration/group_members?id={{ group.id|obfuscated }}
 

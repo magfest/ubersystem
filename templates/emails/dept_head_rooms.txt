@@ -1,6 +1,6 @@
 {{ attendee.first_name }},
 
-We're asking all department heads to double-check that people you want to get hotel room space are in Uber as being hotel eligible.  Anyone not signed up for hotel space by 11:59pm on {{ state.ROOM_DEADLINE|datetime:"%A, %b %e" }} won't get space in our staff rooms!
+We're asking all department heads to double-check that people you want to get hotel room space are in Uber as being hotel eligible.  Anyone not signed up for hotel space by {{ state.ROOM_DEADLINE|datetime }} won't get space in our staff rooms!
 
 You can see who in your department is currently eligible for hotel space at {{ state.URL_BASE }}/registration/hotel_eligible
 

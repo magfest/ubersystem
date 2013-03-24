@@ -43,7 +43,7 @@
                 {% else %}
                     Tell us
                 {% endif %}
-                whether you want hotel room space no later than <b>11:59pm on {{ state.ROOM_DEADLINE|datetime:"%A, %B %d" }}</b>
+                whether you want hotel room space no later than <b>{{ state.ROOM_DEADLINE|datetime }}</b>
                 {% if attendee.hotelrequests %}
                     (you may <a href="hotel_requests">edit your request</a> until then).
                 {% endif %}

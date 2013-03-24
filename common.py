@@ -1,15 +1,11 @@
-# TODO: csrf protection
-# TODO: less repitition for sending email and saving Email objects
 # TODO: less repitition for attendees/groups and attendees/jobs/shifts
 # TODO: method for sending a reminder but not after a deadline
 # TODO: template tag or something for deadline formatting
-# TODO: default format value for datetime filter
 # TODO: room ordering prioritizes groupings based on same nights
 # TODO: MPointUse needs a better name, and is confusing with MPointExchange
 # TODO: jsonify undo ajax methods
 # TODO: make all payment reminders based on due date instead of registration date
 # TODO: decorator for downloading attachments
-# TODO: root-level redirector to /magfest
 # TODO: weighted hours which are NOT worked should be listed in red on the shifts page hour total
 # TODO: badge number searches are exact and bring up the attendee form even at the con
 

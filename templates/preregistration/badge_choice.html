@@ -58,7 +58,7 @@
         <ul>
             <li> All-access, four-day pass </li>
             {% if now < state.PRICE_BUMP %}
-                <li style="color:red"> Price goes up to ${{ LATE_BADGE_PRICE }} at 11:59pm on {{ state.PRICE_BUMP|datetime:"%A, %b %e" }} </li>
+                <li style="color:red"> Price goes up to ${{ LATE_BADGE_PRICE }} at {{ state.PRICE_BUMP|datetime }} </li>
             {% endif %}
             {% if state.BADGE_PRICE == LATE_BADGE_PRICE %}
                 <li style="color:red"> Preregistration closes at 11:59pm on Sunday, December 23. </li>
@@ -101,7 +101,7 @@
             <li> Save money when you register eight or more people at once </li>
             <li> ${{ state.GROUP_PRICE }} per person </li>
             {% if now < state.PRICE_BUMP %}
-                <li style="color:red"> Price goes up to ${{ LATE_GROUP_PRICE }} at 11:59pm on {{ state.PRICE_BUMP|datetime:"%A, %b %e" }} </li>
+                <li style="color:red"> Price goes up to ${{ LATE_GROUP_PRICE }} at {{ state.PRICE_BUMP|datetime }} </li>
             {% endif %}
             {% if state.GROUP_PRICE == LATE_GROUP_PRICE %}
                 <li style="color:red"> Group preregistration closes at 11:59pm on Sunday, December 23. </li>

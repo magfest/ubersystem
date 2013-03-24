@@ -1,6 +1,6 @@
 {{ attendee.first_name }},
 
-You're eligible for a personalized Staff badge, but you haven't told us what you want printed on it!  If you don't fill out the form at {{ state.URL_BASE }}/preregistration/confirm?id={{ attendee.id|obfuscated }} by 11:59pm on {{ state.STAFF_BADGE_DEADLINE|datetime:"%A, %b %e" }} then you won't receive a personalized badge.
+You're eligible for a personalized Staff badge, but you haven't told us what you want printed on it!  If you don't fill out the form at {{ state.URL_BASE }}/preregistration/confirm?id={{ attendee.secret_id }} by {{ state.STAFF_BADGE_DEADLINE|datetime }} then you won't receive a personalized badge.
 
 {{ STOPS_EMAIL_SIGNATURE }}
 
