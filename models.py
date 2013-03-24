@@ -364,6 +364,10 @@ class Attendee(MagModel):
             if self.badge_type not in PREASSIGNED_BADGE_TYPES or not state.CUSTOM_BADGES_ORDERED:
                 badge_funcs.shift_badges(self, down = True)
     
+    @property
+    def is_unpaid(self):
+        return self.paid == NOT_PAID
+    
     @classmethod
     def staffers(cls):
         return cls.objects.filter(staffing = True).order_by("first_name","last_name")

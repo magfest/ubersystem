@@ -68,10 +68,10 @@ days_before = lambda days, dt: dt - timedelta(days = days) < datetime.now() < dt
 ### WARNING - changing the email subject line for a reminder causes ALL of those reminders to be re-sent
 
 Reminder(Attendee, "Reminder to pay for MAGFest", "attendee_payment_reminder.txt",
-         lambda a: days_after(7, a.registered) and a.paid == NOT_PAID)
+         lambda a: days_after(7, a.registered) and a.is_unpaid)
 
 Reminder(Attendee, "Last chance to pay for your MAGFest badge", "attendee_payment_reminder.txt",
-         lambda a: days_before(2, a.payment_deadline) and a.paid == NOT_PAID)
+         lambda a: days_before(2, a.payment_deadline) and a.is_unpaid)
 
 
 
@@ -119,7 +119,7 @@ Reminder(Attendee, "MAGFest Panelist Badge Confirmation", "panelist_confirmation
          sender = PANELS_EMAIL)
 
 StopsReminder("MAGFest Volunteer Badge Confirmation", "volunteer_confirmation.txt",
-         lambda a: a.placeholder and a.first_name and a.last_name and a.staffing
+         lambda a: a.placeholder and a.first_name and a.last_name
                                  and a.registered.date() > state.STAFFERS_IMPORTED.date())
 
 Reminder(Attendee, "MAGFest Badge Confirmation Reminder", "confirmation_reminder.txt",
@@ -131,7 +131,7 @@ Reminder(Attendee, "Last Chance to Accept Your MAGFest Badge", "confirmation_rem
 
 
 StopsReminder("Want to staff MAGFest again?", "imported_staffer.txt",
-         lambda a: a.placeholder and a.first_name and a.last_name and a.email and a.staffing
+         lambda a: a.placeholder and a.first_name and a.last_name and a.email
                                  and a.registered.date() <= state.STAFFERS_IMPORTED.date())
 
 StopsReminder("MAGFest shifts available", "shifts_available.txt",

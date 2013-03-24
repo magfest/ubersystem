@@ -244,15 +244,15 @@ SHIRT_OPTS = (
 )
 
 INTEREST_OPTS = enum(
-    CONSOLE     = "consoles",
-    ARCADE      = "arcade",
+    CONSOLE     = "Consoles",
+    ARCADE      = "Arcade",
     LAN         = "LAN",
-    MUSIC       = "music",
-    PANELS      = "guests/panels",
-    VIDEO_ROOM  = "videos",
-    TABLETOP    = "tabletop games",
-    MARKETPLACE = "dealers",
-    TOURNAMENTS = "tournaments"
+    MUSIC       = "Music",
+    PANELS      = "Guests/Panels",
+    VIDEO_ROOM  = "Videos",
+    TABLETOP    = "Tabletop games",
+    MARKETPLACE = "Dealers",
+    TOURNAMENTS = "Tournaments"
 )
 
 BUDGET_TYPE_OPTS = enum(
@@ -427,7 +427,7 @@ MAX_TABLES  = 4
 MAX_DEALERS = 3 * MAX_TABLES
 MAX_GROUP_SIZE = 100
 
-DEFAULT_AFFILIATES    = ["OC ReMix", "The Shizz", "ScrewAttack", "Empire Arcadia", "Yu-Gi-Oh Abridged"]
+DEFAULT_AFFILIATES = ["OC ReMix", "The Shizz", "ScrewAttack", "Empire Arcadia", "Yu-Gi-Oh Abridged"]
 
 PAYPAL_ITEM = "item_number"
 PAYPAL_COST = "mc_gross"

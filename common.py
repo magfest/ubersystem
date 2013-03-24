@@ -1,6 +1,4 @@
 # TODO: less repitition for attendees/groups and attendees/jobs/shifts
-# TODO: method for sending a reminder but not after a deadline
-# TODO: template tag or something for deadline formatting
 # TODO: room ordering prioritizes groupings based on same nights
 # TODO: MPointUse needs a better name, and is confusing with MPointExchange
 # TODO: jsonify undo ajax methods
