@@ -105,7 +105,7 @@ class Root:
             defaults = cherrypy.session.get("job_defaults", defaultdict(dict))[params["location"]]
             params.update(defaults)
         
-        job = get_model(Job, params, bools=["restricted","extra15"])
+        job = get_model(Job, params, allowed=["location","start_time"], bools=["restricted","extra15"])
         if cherrypy.request.method == "POST":
             message = check(job)
             if not message:

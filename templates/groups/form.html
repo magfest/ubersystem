@@ -36,6 +36,7 @@
 </div>
 
 <form method="post" action="form">
+{% csrf_token %}
 <input type="hidden" name="id" value="{{ group.id }}" />
 
 <table>
@@ -141,7 +142,7 @@
 
 {% if group.id and group.attendee_set.count %}
     <hr/>
-    <h3> Badges: &nbsp; <a style="font-size:10pt" href="../preregistration/group_members?id={{ group.id|obfuscated }}">Link for group leader</a> </h3>
+    <h3> Badges: &nbsp; <a style="font-size:10pt" href="../preregistration/group_members?id={{ group.secret_id }}">Link for group leader</a> </h3>
     <table style="width:auto">
     {% for attendee in group.attendee_set.all %}
         <tr>

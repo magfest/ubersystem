@@ -24,7 +24,7 @@
                         <br/> <i>Badge:</i> {{ attendee.get_badge_type_display }} (${{ attendee.total_cost }})
                         {% if attendee.age_group == UNDER_18 %}
                             <br/> You <b>MUST</b> bring a signed and notarized parental <nobr><a target="_blank" href="{{ CONSENT_FORM_URL }}">permission slip</a></nobr>
-                            <br/> (<a target="_blank" href="confirm?id={{ attendee.id|obfuscated }}">Click here</a> to edit your registration if you're over 18)
+                            <br/> (<a target="_blank" href="confirm?id={{ attendee.secret_id }}">Click here</a> to edit your registration if you're over 18)
                         {% endif %}
                         <br/>
                     </div>

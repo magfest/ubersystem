@@ -65,7 +65,7 @@ class Root:
         }
     
     @unrestricted
-    def change_password(self, message="", old_password=None, new_password=None):
+    def change_password(self, message="", old_password=None, new_password=None, csrf_token=None):
         if not cherrypy.session.get("account_id"):
             raise HTTPRedirect("login?message={}", "You are not logged in")
         
@@ -74,6 +74,7 @@ class Root:
             if not valid_password(old_password, account):
                 message = "Incorrect old password; please try again"
             else:
+                check_csrf(csrf_token)
                 account.hashed = bcrypt.hashpw(new_password, bcrypt.gensalt())
                 account.save()
                 raise HTTPRedirect("homepage?message={}", "Your password has been updated")

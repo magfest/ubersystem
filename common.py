@@ -81,11 +81,17 @@ def listify(x):
     return x if isinstance(x, (list,tuple,set,frozenset)) else [x]
 
 
-def get_model(klass, params, bools=[], checkgroups=[], restricted=False, ignore_csrf = False):
+def get_model(klass, params, bools=[], checkgroups=[], allowed=[], restricted=False, ignore_csrf=False):
+    params = params.copy()
     id = params.pop("id", "None")
-    model = klass() if id == "None" else klass.objects.get(id = id)
+    if id == "None":
+        model = klass()
+    elif str(id).isdigit():
+        model = klass.objects.get(id = id)
+    else:
+        model = klass.objects.get(secret_id = id)
     
-    assert not params or cherrypy.request.method == "POST", "POST required"
+    assert not {k for k in params if k not in allowed} or cherrypy.request.method == "POST", "POST required"
     
     for field in klass._meta.fields:
         if restricted and field.name in klass.restricted:
@@ -121,10 +127,13 @@ def get_model(klass, params, bools=[], checkgroups=[], restricted=False, ignore_
                 setattr(model, field.name, "")
         
         if not ignore_csrf:
-            assert "csrf_token" in params, "CSRF token missing"
-            assert params["csrf_token"] == cherrypy.session["csrf_token"], "CSRF token does not match"
+            check_csrf(params.get("csrf_token"))
     
     return model
+
+def check_csrf(csrf_token):
+    assert csrf_token, "CSRF token missing"
+    assert csrf_token == cherrypy.session["csrf_token"], "CSRF token does not match"
 
 def check(model):
     prefix = model.__class__.__name__.lower() + "_"
@@ -171,11 +180,15 @@ def hour_day_format(dt):
     return dt.strftime("%I%p ").strip("0").lower() + dt.strftime("%a")
 
 
-def send_email(source, dest, subject, body, format = "text", cc = [], bcc = []):
+def send_email(source, dest, subject, body, format = "text", cc = [], bcc = [], model = None):
     dest, cc, bcc = map(listify, [dest, cc, bcc])
     if DEV_BOX:
         for xs in [dest, cc, bcc]:
             xs[:] = [email for email in xs if email.endswith("mailinator.com")]
+    
+    if model:
+        fk = {"fk_id": 0, "model": "n/a"} if model == "n/a" else {"fk_id": model.id, "model": model.__class__.__name__}
+        Email.objects.create(subject = subject, dest = dest, body = body, **fk)
     
     if state.SEND_EMAILS and dest:
         SESConnection(AWS_ACCESS_KEY_ID, AWS_SECRET_KEY).send_email(

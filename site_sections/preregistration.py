@@ -56,8 +56,7 @@ def send_prereg_emails(attendee):
         else:
             template = "attendee_email.html"
         body = render("emails/" + template, {"attendee": attendee})
-        send_email(sender, attendee.email, subject, body, format = "html")
-        Email.objects.create(fk_tab="Attendee", fk_id=attendee.id, subject=subject, dest=attendee.email, body=body)
+        send_email(sender, attendee.email, subject, body, format = "html", model = attendee)
         return message
     except:
         log.warning("unable to send prereg confirmation email to {}", attendee.email, exc_info = True)
@@ -265,21 +264,20 @@ class Root:
         }
     
     def paypal(self, id, amount = None):
-        attendee = Attendee.objects.get(id = unobfuscate(id))
+        attendee = Attendee.objects.get(secret_id = id)
         return {
             "attendee": attendee,
             "amount":   amount or attendee.total_cost
         }
     
     def group_members(self, id, message=""):
-        group = Group.objects.get(id = unobfuscate(id))
+        group = Group.objects.get(secret_id = id)
         return {
             "group":   group,
             "message": message
         }
     
     def register_group_member(self, message="", **params):
-        params["id"] = unobfuscate(params["id"])
         attendee = get_model(Attendee, params, bools = ["staffing","can_spam","international"], restricted = True)
         if "first_name" in params:
             message = check(attendee) or check_prereg_reqs(attendee)
@@ -297,7 +295,7 @@ class Root:
         }
     
     def unset_group_member(self, id):
-        attendee = Attendee.objects.get(id = unobfuscate(id))
+        attendee = Attendee.objects.get(secret_id = id)
         for attr in ["first_name","last_name","email","zip_code","ec_phone","phone","interests","found_how","comments"]:
             setattr(attendee, attr, "")
         attendee.age_group = AGE_UNKNOWN
@@ -305,13 +303,12 @@ class Root:
         raise HTTPRedirect("group_members?id={}&message={}", obfuscate(attendee.group.id), "Attendee unset; you may now assign their badge to someone else")
     
     def add_group_members(self, id, count):
-        group = Group.objects.get(id = unobfuscate(id))
+        group = Group.objects.get(secret_id = id)
         assign_group_badges(group, group.badges + int(count))
         raise HTTPRedirect("group_members?id={}&message={}", id, "The requested badges have been added to your group; you must pay for them using the Paypal link below to prevent them from being deleted before the start of MAGFest")
     
     def transfer_badge(self, message = "", **params):
-        params["id"] = unobfuscate(params["id"])
-        old = Attendee.objects.get(id = params["id"])
+        old = Attendee.objects.get(secret_id = params["id"])
         attendee = get_model(Attendee, params, bools = ["staffing","international"], restricted = True)
         
         if "first_name" in params:
@@ -319,9 +316,8 @@ class Root:
             if not message:
                 attendee.save()
                 subject, body = "MAGFest Registration Transferred", render("emails/transfer_badge.txt", {"new": attendee, "old": old})
-                Email.objects.create(fk_tab="Attendee", fk_id=attendee.id, dest=old.email, subject=subject, body=body)
                 try:
-                    send_email(REGDESK_EMAIL, [old.email, attendee.email, REGDESK_EMAIL], subject, body)
+                    send_email(REGDESK_EMAIL, [old.email, attendee.email, REGDESK_EMAIL], subject, body, model = attendee)
                 except:
                     log.error("unable to send badge change email", exc_info = True)
                 raise HTTPRedirect("confirm?id={}&message={}", obfuscate(attendee.id), "Your registration has been transferred")
@@ -336,7 +332,6 @@ class Root:
         }
     
     def confirm(self, message = "", return_to = "confirm", **params):
-        params["id"] = unobfuscate(params["id"])
         attendee = get_model(Attendee, params, bools = ["staffing","international"], restricted = True)
         placeholder = attendee.placeholder
         

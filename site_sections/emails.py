@@ -15,7 +15,7 @@ class Reminder:
             return all_sent.get((x.__class__.__name__, x.id, self.subject))
         else:
             try:
-                return Email.objects.get(fk_tab=x.__class__.__name__, fk_id=x.id, subject=self.subject)
+                return Email.objects.get(model=x.__class__.__name__, fk_id=x.id, subject=self.subject)
             except:
                 return None
     
@@ -26,8 +26,7 @@ class Reminder:
         try:
             body = render("emails/" + self.template, {x.__class__.__name__.lower(): x})
             format = "text" if self.template.endswith(".txt") else "html"
-            send_email(self.sender, x.email, self.subject, body, format)
-            Email.objects.create(fk_tab=x.__class__.__name__, fk_id=x.id, subject=self.subject, dest=x.email, body=body)
+            send_email(self.sender, x.email, self.subject, body, format, model = x)
         except:
             log.error("error sending {!r} email to {}", self.subject, x.email, exc_info=True)
             if raise_errors:
@@ -37,7 +36,7 @@ class Reminder:
     def send_all(raise_errors = False):
         attendees, groups = Group.everyone()
         models = {Attendee: attendees, Group: groups}
-        all_sent = {(e.fk_tab, e.fk_id, e.subject): e for e in Email.objects.all()}
+        all_sent = {(e.model, e.fk_id, e.subject): e for e in Email.objects.all()}
         if state.AUTO_EMAILS:
             for rem in Reminder.instances.values():
                 for x in models[rem.model]:

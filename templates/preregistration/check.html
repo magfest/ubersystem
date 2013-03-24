@@ -5,7 +5,7 @@
 
 {% if attendee %}
     {% if attendee.placeholder %}
-        <div style="color:red">However, you must <a href="confirm?id={{ attendee.id|obfuscated }}">confirm your registration</a> or you will not be able to pick up your badge.</div>
+        <div style="color:red">However, you must <a href="confirm?id={{ attendee.secret_id }}">confirm your registration</a> or you will not be able to pick up your badge.</div>
     {% else %}
         {% if not attendee.group or attendee.group.amount_owed %}
             <div style="color:red">

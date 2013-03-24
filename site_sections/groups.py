@@ -51,8 +51,7 @@ class Root:
         assert action in ["waitlisted", "declined"]
         group = Group.objects.get(id = id)
         subject = "Your MAGFest Dealer registration has been " + action
-        Email.objects.create(fk_tab = "Group", fk_id = group.id, dest = group.email, subject = subject, body = email)
-        send_email(MARKETPLACE_EMAIL, group.email, subject, email)
+        send_email(MARKETPLACE_EMAIL, group.email, subject, email, model = group)
         if action == "waitlisted":
             group.status = WAITLISTED
             group.save()

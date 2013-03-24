@@ -32,6 +32,7 @@
 <form method="post" action="form">
 <input type="hidden" name="id" value="{{ job.id }}" />
 <input type="hidden" name="from_schedule" value="{{ from_schedule }}" />
+{% csrf_token %}
 
 <table>
 <tr>

@@ -18,6 +18,7 @@
         <td align="left">
             <form class="update" method="post" action="update">
             <input type="hidden" name="id" value="{{ account.id }}" />
+            {% csrf_token %}
             <table><tr>
                 <td> {% checkgroup "access" ACCESS_OPTS account.access %} </td>
                 <td> <input type="submit" value="Update" /> </td>
@@ -39,6 +40,7 @@
 <h3> New Account </h3>
 <form id="new_admin" method="post" action="update">
 <input type="hidden" name="id" value="None" />
+{% csrf_token %}
 <table>
 <tr>
     <td width="25%"> <b>Full Name:</b> </td>

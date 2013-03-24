@@ -4,7 +4,7 @@
 {% block content %}
 
 <form method="post" action="register_group_member">
-<input type="hidden" name="id" value="{{ attendee.id|obfuscated }}" />
+<input type="hidden" name="id" value="{{ attendee.secret_id }}" />
 
 <table width="100%" cellspacing="5" cellpadding="5">
 <tr>

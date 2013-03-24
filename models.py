@@ -702,7 +702,7 @@ class Sale(MagModel):
 
 class Email(MagModel):
     fk_id   = IntegerField()
-    fk_tab  = CharField(max_length = 50)
+    model   = CharField(max_length = 50)
     subject = CharField(max_length = 255)
     dest    = CharField(max_length = 100)
     when    = DateTimeField(auto_now_add = True)
@@ -713,13 +713,13 @@ class Email(MagModel):
     @cached_property
     def fk(self):
         try:
-            return globals()[self.fk_tab].objects.get(id = self.fk_id)
+            return globals()[self.model].objects.get(id = self.fk_id)
         except:
             return None
     
     @property
     def rcpt_name(self):
-        if self.fk_tab == "Group":
+        if self.model == "Group":
             return self.fk.leader.full_name
         else:
             return self.fk.full_name
@@ -733,12 +733,12 @@ class Email(MagModel):
 
 
 class Tracking(MagModel):
+    fk_id  = IntegerField()
+    model  = CharField(max_length = 25)
     when   = DateTimeField(auto_now_add = True)
     who    = CharField(max_length = 75)
     which  = CharField(max_length = 125)
-    model  = CharField(max_length = 25)
     links  = CharField(max_length = 25)
-    fk_id  = IntegerField()
     action = IntegerField(choices = TRACKING_OPTS)
     data   = TextField()
     

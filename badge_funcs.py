@@ -122,9 +122,7 @@ def send_delete_email(model):
         body = render("emails/group_deleted.txt", {"group": model})
     
     try:
-        send_email(REGDESK_EMAIL, model.email, subject, body)
-        Email.objects.create(fk_tab = model.__class__.__name__, fk_id = model.id,
-                             subject = subject, dest = model.email, body = body)
+        send_email(REGDESK_EMAIL, model.email, subject, body, model = model)
     except:
         log.error("unable to send unpaid deletion notification to {}", model.email, exc_info = True)
 
@@ -162,8 +160,7 @@ def detect_duplicates():
         
         if dupes:
             body = render("emails/duplicates.html", {"dupes": sorted(dupes.items())})
-            send_email(ADMIN_EMAIL, REGDESK_EMAIL, subject, body, format = "html")
-            Email.objects.create(fk_tab = "n/a", fk_id = 0, subject = subject, body = body, dest = REGDESK_EMAIL)
+            send_email(ADMIN_EMAIL, REGDESK_EMAIL, subject, body, format = "html", model = "n/a")
 
 
 def check_placeholders():
@@ -182,5 +179,4 @@ def check_placeholders():
                                         .select_related("group"))
             if placeholders:
                 body = render("emails/placeholders.html", {"placeholders": placeholders})
-                send_email(ADMIN_EMAIL, dest, subject, body, format = "html")
-                Email.objects.create(fk_tab = "n/a", fk_id = 0, subject = subject, body = body, dest = dest)
+                send_email(ADMIN_EMAIL, dest, subject, body, format = "html", model = "n/a")

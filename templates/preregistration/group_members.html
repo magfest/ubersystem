@@ -45,13 +45,13 @@
             <td>
                 {% if attendee != group.leader %}
                     <form method="post" action="unset_group_member">
-                    <input type="hidden" name="id" value="{{ attendee.id|obfuscated }}" />
+                    <input type="hidden" name="id" value="{{ attendee.secret_id }}" />
                     <input type="submit" value="This person isn't coming" />
                     </form>
                 {% endif %}
             </td>
         {% else %}
-            <td> <a style="font-size:10pt" href="register_group_member?id={{ attendee.id|obfuscated }}">Register someone for this badge</a>: </td>
+            <td> <a style="font-size:10pt" href="register_group_member?id={{ attendee.secret_id }}">Register someone for this badge</a>: </td>
             <td colspan="3"> {{ attendee.badge }} </td>
         {% endif %}
     </tr>
@@ -64,7 +64,7 @@
     <div id="add" style="display:none">
         <form method="post" action="add_group_members">
         Enter a number of group members to add:
-        <input type="hidden" name="id" value="{{ group.id|obfuscated }}" />
+        <input type="hidden" name="id" value="{{ group.secret_id }}" />
         <select name="count">{% int_options 1 10 %}</select>
         <input type="submit" value="Add Members to Group">
         </form>
