@@ -32,7 +32,7 @@ def csrf_protected(func):
     @wraps(func)
     def protected(self, *args, csrf_token, **kwargs):
         check_csrf(csrf_token)
-        return func(*args, **kwargs)
+        return func(self, *args, **kwargs)
     return protected
 
 
@@ -43,7 +43,7 @@ def ajax(func):
         cherrypy.response.headers["Content-Type"] = "application/json"
         assert cherrypy.request.method == "POST", "POST required"
         check_csrf(kwargs.pop("csrf_token", None))
-        return json.dumps(func(self, *args, **kwargs))
+        return json.dumps(func(self, *args, **kwargs)).encode("utf-8")
     return returns_json
 
 

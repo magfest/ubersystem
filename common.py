@@ -1,6 +1,5 @@
 # TODO: room ordering prioritizes groupings based on same nights
 # TODO: MPointUse needs a better name, and is confusing with MPointExchange
-# TODO: make all payment reminders based on due date instead of registration date
 # TODO: weighted hours which are NOT worked should be listed in red on the shifts page hour total
 
 import os

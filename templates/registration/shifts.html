@@ -15,6 +15,7 @@
     <td width="50%">
         {% if attendee.possible %}
             <form method="post" action="assign">
+            {% csrf_token %}
             <input type="hidden" name="staffer_id" value="{{ attendee.id }}" />
             <b>Add a Shift:</b>
             <select name="job_id">
@@ -28,6 +29,7 @@
     </td>
     <td width="50%" align="right">
         <form method="post" action="update_nonshift">
+        {% csrf_token %}
         <input type="hidden" name="id" value="{{ attendee.id }}" />
         <b>Non-shift hours:</b>
         <input type="text" class="focus" name="nonshift_hours" value="{{ attendee.nonshift_hours }}" style="width:2em" />
@@ -58,7 +60,7 @@
             <td>{% hour_day shift.job.start_time %}</td>
             <td>{{ shift.job.duration }} (x{{ shift.job.weight }})</td>
             <td>
-                {% if shift.worked %}
+                {% if shift.worked != SHIFT_UNMARKED %}
                     <i>{{ shift.get_worked_display }}</i>
                 {% else %}
                     <select onChange="setStatus({{ shift.id }}, this)">
@@ -67,6 +69,7 @@
                 {% endif %}
             </td>
             <form method="post" action="unassign">
+            {% csrf_token %}
             <input type="hidden" name="shift_id" value="{{ shift.id }}" />
             <td> <input type="submit" value="Unassign" /> </td>
             </form>
@@ -82,6 +85,7 @@
 {% endif %}
 
 <form method="post" action="update_notes">
+{% csrf_token %}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 <br/> <b>Admin Notes:</b> <br/>
 <textarea name="admin_notes" rows="4" style="margin-left:10px ; margin-top:5px ; width:80%">{{ attendee.admin_notes }}</textarea>

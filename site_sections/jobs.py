@@ -22,10 +22,11 @@ class Root:
             by_id[shift.job_id]._shifts.append(shift)
         
         jobs, shifts, attendees = Job.everything(location)
+        by_start = defaultdict(list)
+        for job in jobs:
+            by_start[job.start_time].append(job)
         times = [state.EPOCH + timedelta(hours = i) for i in range(CON_LENGTH)]
-        times = [(t, (times[i+1] if i + 1 < len(times) else None),
-                  sorted(jobs.get(t, []), reverse = True, key = lambda j: j.name))
-                 for i,t in enumerate(times)]
+        times = [(t, t + timedelta(hours = 1), by_start[t]) for i,t in enumerate(times)]
         return {
             "location": location,
             "times":    times

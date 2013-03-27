@@ -610,13 +610,13 @@ class Job(MagModel):
         for attendee in attendees:
             attendee._shifts = by_attendee[attendee]
         
-        jobs = list(Job.objects.filter(**{"location": location} if location else {}).order_by("start_time", "duration"))
+        jobs = list(Job.objects.filter(**{"location": location} if location else {}).order_by("start_time","duration","name"))
         for job in jobs:
             job._shifts = by_job[job]
             job._available_staffers = [s for s in attendees if (not job.restricted or s.trusted)
                                                             and not job.hours.intersection(s.hours)]
         
-        return job, shifts, attendees
+        return jobs, shifts, attendees
     
     @cached_property
     def shifts(self):
