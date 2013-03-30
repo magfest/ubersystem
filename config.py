@@ -35,7 +35,7 @@ django.conf.settings.configure(
     TEMPLATE_DIRS  = ["templates","static"],
     DATABASES = {
         "default": {
-            "ENGINE":   "django.db.backends.mysql",
+            "ENGINE":   "django.db.backends.postgresql_psycopg2",
             "HOST":     "localhost",
             "NAME":     DBNAME,
             "USER":     DBUSER,

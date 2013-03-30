@@ -11,14 +11,14 @@ class Style:
         return lambda text: text
 
 text = open("models.py").read()
-classes.sort(key = lambda c: text.index("class " + c.__name__))
+classes.sort(key = lambda c: text.index("class " + c.__name__ + "("))
 
 if __name__ == "__main__":
     if len(argv) > 1:
         classes = [c for c in classes if c.__name__ in argv[1:]]
     
     for model in reversed(classes):
-        print("DROP TABLE IF EXISTS `{}`;".format(model.__name__))
+        print('DROP TABLE IF EXISTS "{}";'.format(model.__name__))
     
     print("")
     for model in classes:
