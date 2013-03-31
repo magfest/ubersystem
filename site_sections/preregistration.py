@@ -294,6 +294,7 @@ class Root:
             "message":  message
         }
     
+    @csrf_protected
     def unset_group_member(self, id):
         attendee = Attendee.objects.get(secret_id = id)
         for attr in ["first_name","last_name","email","zip_code","ec_phone","phone","interests","found_how","comments"]:
@@ -302,6 +303,7 @@ class Root:
         attendee.save()
         raise HTTPRedirect("group_members?id={}&message={}", attendee.group.secret_id, "Attendee unset; you may now assign their badge to someone else")
     
+    @csrf_protected
     def add_group_members(self, id, count):
         group = Group.objects.get(secret_id = id)
         assign_group_badges(group, group.badges + int(count))
