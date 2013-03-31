@@ -23,6 +23,7 @@
 <h3>Budget Item Form</h3>
 
 <form method="post" action="form">
+{% csrf_token %}
 <input type="hidden" name="id" value="{{ money.id }}" />
 
 <table width="100%" cellspacing="5" cellpadding="5">
@@ -105,6 +106,7 @@
         <td width="15%"></td>
         <td width="85%">
             <form method="post" action="delete">
+            {% csrf_token %}
             <input type="hidden" name="id" value="{{ money.id }}" />
             <input type="submit" value="Delete from Budget" />
             </form>
@@ -128,6 +130,7 @@
                     <td> {{ payment.name }} </td>
                     <td>
                         <form method="post" action="delete_payment">
+                        {% csrf_token %}
                         &nbsp;&nbsp;&nbsp;&nbsp;
                         <input type="hidden" name="id" value="{{ payment.id }}" />
                         <input type="submit" value="Delete" />
@@ -140,6 +143,7 @@
         
         <h3> Add a payment: </h3>
         <form method="post" action="add_payment">
+        {% csrf_token %}
         <input type="hidden" name="id" value="None" />
         <input type="hidden" name="money_id" value="{{ money.id }}" />
         <table>

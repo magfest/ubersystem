@@ -4,6 +4,7 @@
 
 {% if success_id %}
 <form method="post" action="undo">
+{% csrf_token %}
 <input type="hidden" name="success_id" value="{{ success_id }}" />
 <input type="submit" value="Undo" />
 </form>
@@ -11,6 +12,7 @@
 
 <h3> Record a Success: </h3>
 <form method="post" action="record_success">
+{% csrf_token %}
 <input type="hidden" name="id" value="None" />
 
 <select name="badge_type">

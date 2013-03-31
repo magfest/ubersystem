@@ -10,6 +10,7 @@
 
 <h3> Record a Success: </h3>
 <form method="post" action="record_success">
+{% csrf_token %}
 <input type="hidden" name="id"         value="None" />
 <input type="hidden" name="badge_type" value="{{ badge_type }}" />
 <input type="hidden" name="badge_num"  value="{{ badge_num }}" />
@@ -42,6 +43,7 @@
         <td style="padding-right:30px"> {{ success.get_level_display }} </td>
         <form method="post" action="delete_successes">
         <td>
+            {% csrf_token %}
             <input type="hidden" name="succ_id" value="{{ success.id }}" />
             <input type="submit" value="Delete" />
         </td>

@@ -14,6 +14,7 @@ at the bottom of this page.
 <br/> </br>
 
 <form method="post" action="hotel_requests">
+{% csrf_token %}
 <input type="hidden" name="id" value="{{ requests.id }}" />
 <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
 <table>

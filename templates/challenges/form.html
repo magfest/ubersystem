@@ -5,6 +5,7 @@
 <h3> New Challenge: </h3>
 
 <form method="post" action="create">
+{% csrf_token %}
 <input type="hidden" name="id" value="None" />
 <table>
 <tr>
@@ -41,6 +42,7 @@
         
         <form method="post" action="update">
         <td>
+            {% csrf_token %}
             <input type="hidden" name="id" value="{{ challenge.id }}" />
             <input type="checkbox" name="normal" value="1" {% if challenge.normal %}checked{% endif %} />Normal
             <input type="checkbox" name="hard"   value="1" {% if challenge.hard %}checked{% endif %}   />Hard
@@ -53,6 +55,7 @@
         
         <form method="post" action="delete">
         <td>
+            {% csrf_token %}
             <input type="hidden" name="id" value="{{ challenge.id }}" />
             <input type="submit" value="Delete" />
         </td>

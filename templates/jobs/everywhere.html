@@ -19,6 +19,7 @@
                 {% if job.available_staffers %}
                     <form method="post" action="assign_from_everywhere">
                     <td>
+                        {% csrf_token %}
                         <input type="hidden" name="job_id" value="{{ job.id }}" />
                         <select name="staffer_id">
                             {% for attendee in job.available_staffers %}
@@ -51,6 +52,7 @@
                         </td>
                         <form method="post" action="unassign_from_everywhere">
                         <td>
+                            {% csrf_token %}
                             <input type="hidden" name="id" value="{{ shift.id }}" />
                             <input type="submit" value="Unassign" />
                         </td>

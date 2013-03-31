@@ -26,6 +26,7 @@
             </td>
             <form method="post" action="unassign">
             <td>
+                {% csrf_token %}
                 <input type="hidden" name="id" value="{{ event.id }}" />
                 <input type="hidden" name="todelete" value="{{ assigned.id }}" />
                 <input type="submit" value="Unassign" />
@@ -40,6 +41,7 @@
         {% if item_opts_html %}
             <h3> Assign Inventory </h3>
             <form method="post" action="assign">
+            {% csrf_token %}
             <input type="hidden" name="id" value="{{ event.id }}" />
             <table width="100%">
             <tr>
@@ -72,6 +74,7 @@
 
 <h3> What's needed that's not yet in our inventory? </h3>
 <form method="post" action="set_needed">
+{% csrf_token %}
 <input type="hidden" name="id" value="{{ event.id }}" />
 <div style="margin-left:10% ; width:90%">
     <textarea class="focus" name="needed" rows="8" style="width:66%">{{ event.needed }}</textarea>

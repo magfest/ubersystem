@@ -51,6 +51,7 @@
             <td> <i>Signed up</i> </td>
         {% else %}
             <form method="post" action="sign_up">
+            {% csrf_token %}
             <input type="hidden" name="job_id" value="{{ job.id }}" />
             <td> <input type="submit" value="Sign Up" /> </td>
             </form>

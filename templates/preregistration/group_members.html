@@ -45,6 +45,7 @@
             <td>
                 {% if attendee != group.leader %}
                     <form method="post" action="unset_group_member">
+                    {% csrf_token %}
                     <input type="hidden" name="id" value="{{ attendee.secret_id }}" />
                     <input type="submit" value="This person isn't coming" />
                     </form>
@@ -63,8 +64,9 @@
 {% if group.can_add_badges %}
     <div id="add" style="display:none">
         <form method="post" action="add_group_members">
-        Enter a number of group members to add:
+        {% csrf_token %}
         <input type="hidden" name="id" value="{{ group.secret_id }}" />
+        Enter a number of group members to add:
         <select name="count">{% int_options 1 10 %}</select>
         <input type="submit" value="Add Members to Group">
         </form>

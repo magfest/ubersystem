@@ -4,6 +4,7 @@
 
 <h3> Add a New Department </h3>
 <form method="post" action="upload_dept">
+{% csrf_token %}
 <input type="hidden" name="id" value="None" />
 <table style="width:auto">
 <tr>
@@ -29,6 +30,7 @@
         <td> {{ dept.name }} </td>
         <td>
             <form method="post" action="upload_dept">
+            {% csrf_token %}
             &nbsp;&nbsp;&nbsp;&nbsp;
             <input type="hidden" name="id" value="{{ dept.id }}" />
             <input type="hidden" name="name" value="{{ dept.name }}" />
@@ -39,6 +41,7 @@
         </td>
         <td>
             <form method="post" action="delete_dept">
+            {% csrf_token %}
             <input type="hidden" name="id" value="{{ dept.id }}" />
             <input type="submit" value="Delete" />
             </form>

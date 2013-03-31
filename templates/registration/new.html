@@ -49,6 +49,7 @@
                 paid
             {% else %}
                 <form method="post" action="mark_as_paid">
+                {% csrf_token %}
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
                 <input type="submit" value="Mark as Paid" />
                 </form>
@@ -66,6 +67,7 @@
             <input type="text" name="badge_num" size="4" />
         </td>
         <td>
+            {% csrf_token %}
             <input type="hidden" name="id" value="{{ attendee.id }}" />
             <input type="submit" value="Check In" />
         </td>

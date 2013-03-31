@@ -82,14 +82,13 @@ var setStatus = function(shiftId, status) {
 var $undoForm = function(path, params, linkText) {
     var $form = $('<form method="POST"></form>').attr("action", path);
     $.each($.extend(params, {csrf_token: csrf_token}), function(name, value) {
-        $form.append('<input type="hidden" />').attr("name", name).attr("value", value);
+        $('<input type="hidden" />').attr("name", name).attr("value", value).appendTo($form);
     });
-    $('<a href="#"></a>').text(linkText || "Undo").click(function(e) {
-        globE = e;
+    var $undoLink = $('<a href="#"></a>').text(linkText || "Undo").click(function(e) {
         e.preventDefault();
         $form.submit();
-    }).appendTo($form);
-    return $form;
+    });
+    return $().add($undoLink).add($form);
 };
 
 function showTop(message) {

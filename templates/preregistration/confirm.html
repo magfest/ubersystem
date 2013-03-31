@@ -10,6 +10,7 @@
 {% block content %}
 
 <form method="post" action="confirm">
+{% csrf_token %}
 <input type="hidden" name="id" value="{{ attendee.secret_id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
 

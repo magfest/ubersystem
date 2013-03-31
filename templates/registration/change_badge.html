@@ -31,6 +31,7 @@
 <h3 align="center"> Assign New Badge to {{ attendee.full_name }} </h3>
 
 <form method="post" action="change_badge">
+{% csrf_token %}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 
 <table>

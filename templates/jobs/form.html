@@ -102,6 +102,7 @@
 
 {% if job.id %}
     <form method="post" action="delete">
+    {% csrf_token %}
     <input type="hidden" name="id" value="{{ job.id }}" />
     <table width="100%" cellspacing="5" cellpadding="5">
     <tr>

@@ -9,6 +9,7 @@
 {% if job.shifts|length < job.slots %}
     {% if job.available_staffers %}
         <form method="post" action="assign_from_job">
+        {% csrf_token %}
         <input type="hidden" name="job_id" value="{{ job.id }}" />
         <b>Assign Staffer:</b>
         <select name="staffer_id">
@@ -31,6 +32,7 @@
             <td> <ul><li></li></ul> </td>
             <td> <a href="../registration/shifts?id={{ shift.attendee.id }}">{{ shift.attendee.full_name }}</a> </td>
             <form method="post" action="unassign_from_job">
+            {% csrf_token %}
             <input type="hidden" name="id" value="{{ shift.id }}" />
             <td> <input type="submit" value="Unassign" /> </td>
             </form>

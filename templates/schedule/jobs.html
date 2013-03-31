@@ -18,6 +18,7 @@
             <td> {{ job.shift_set.count }}/{{ job.slots }} shifts filled
             <td> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </td>
             <form method="post" action="remove_job">
+            {% csrf_token %}
             <input type="hidden" name="job_id" value="{{ job.id }}" />
             <td> <input type="submit" value="Delete" /> </td>
             </form>

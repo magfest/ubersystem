@@ -49,6 +49,7 @@
             <td> {{ shift.job.duration }} hours{% if shift.job.extra15 %}, 15 minutes {% endif %} </td>
             <td> x{{ shift.job.weight }}</td>
             <form method="post" action="drop">
+            {% csrf_token %}
             <input type="hidden" name="shift_id" value="{{ shift.id }}" />
             <td> <input type="submit" value="Drop Shift" /> </td>
             </form>

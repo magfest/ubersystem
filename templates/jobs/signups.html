@@ -18,6 +18,7 @@
         {% if job.shifts|length < job.slots %}
             {% if job.available_staffers %}
                 <form method="post" action="assign_from_list">
+                {% csrf_token %}
                 <td>
                     <input type="hidden" name="job_id" value="{{ job.id }}" />
                     <select name="staffer_id">

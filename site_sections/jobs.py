@@ -64,11 +64,13 @@ class Root:
         }
     
     def form(self, message="", **params):
+        defaults = {}
         if params["id"] == "None" and cherrypy.request.method != "POST":
             defaults = cherrypy.session.get("job_defaults", defaultdict(dict))[params["location"]]
             params.update(defaults)
         
-        job = get_model(Job, params, allowed=["location","start_time"], bools=["restricted","extra15"])
+        job = get_model(Job, params, bools=["restricted", "extra15"],
+                                     allowed=["location", "start_time"] + list(defaults.keys()))
         if cherrypy.request.method == "POST":
             message = check(job)
             if not message:
@@ -89,7 +91,7 @@ class Root:
     
     def staffers_by_job(self, id, message = ""):
         jobs, shifts, attendees = Job.everything()
-        [job] = [job for job in jobs if job.id == id]
+        [job] = [job for job in jobs if job.id == int(id)]
         job._all_staffers = attendees                       # TODO: is this needed?
         return {
             "job":     job,

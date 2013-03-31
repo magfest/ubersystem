@@ -16,6 +16,7 @@
 </script>
 
 <form method="post" action="register">
+{% csrf_token %}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 <table width="100%" cellspacing="5" cellpadding="5">
 <tr>

@@ -285,7 +285,7 @@ class Root:
                 message = "First and Last Name are required fields"
             if not message:
                 attendee.save()
-                raise HTTPRedirect("group_members?id={}&message={}", obfuscate(attendee.group.id), "Badge registered successfully")
+                raise HTTPRedirect("group_members?id={}&message={}", attendee.group.secret_id, "Badge registered successfully")
         else:
             attendee.can_spam = True    # only defaults to true for these forms
         
@@ -300,7 +300,7 @@ class Root:
             setattr(attendee, attr, "")
         attendee.age_group = AGE_UNKNOWN
         attendee.save()
-        raise HTTPRedirect("group_members?id={}&message={}", obfuscate(attendee.group.id), "Attendee unset; you may now assign their badge to someone else")
+        raise HTTPRedirect("group_members?id={}&message={}", attendee.group.secret_id, "Attendee unset; you may now assign their badge to someone else")
     
     def add_group_members(self, id, count):
         group = Group.objects.get(secret_id = id)
@@ -320,7 +320,7 @@ class Root:
                     send_email(REGDESK_EMAIL, [old.email, attendee.email, REGDESK_EMAIL], subject, body, model = attendee)
                 except:
                     log.error("unable to send badge change email", exc_info = True)
-                raise HTTPRedirect("confirm?id={}&message={}", obfuscate(attendee.id), "Your registration has been transferred")
+                raise HTTPRedirect("confirm?id={}&message={}", attendee.secret_id, "Your registration has been transferred")
         else:
             for attr in ["first_name","last_name","email","zip_code","international","ec_phone","phone","interests","age_group","staffing","requested_depts"]:
                 setattr(attendee, attr, getattr(Attendee(), attr))
@@ -345,7 +345,7 @@ class Root:
                 else:
                     message = "Your information has been updated."
                 
-                page = ("confirm?id=" + obfuscate(attendee.id) + "&") if return_to == "confirm" else (return_to + "?")
+                page = ("confirm?id=" + attendee.secret_id + "&") if return_to == "confirm" else (return_to + "?")
                 raise HTTPRedirect(page + "message={}", message)
         
         attendee.placeholder = placeholder
