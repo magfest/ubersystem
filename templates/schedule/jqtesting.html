@@ -226,6 +226,7 @@
         moveHere: function($td) {
             var params = {
                 id: selectedEvent.id,
+                csrf_token: csrf_token,
                 location: $td.data("location"),
                 start_slot: $td.parent("tr").data("slot")
             };
@@ -243,7 +244,7 @@
             }, "json");
         },
         swap: function(event) {
-            $.post("swap", {id1: event.id, id2: selectedEvent.id}, function(resp) {
+            $.post("swap", {id1: event.id, id2: selectedEvent.id, csrf_token: csrf_token}, function(resp) {
                 if (resp.error) {
                     alert(resp.error);
                 } else {
