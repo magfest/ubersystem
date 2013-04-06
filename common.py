@@ -29,18 +29,10 @@ from datetime import date, time, datetime, timedelta
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
 from threading import Thread, RLock, local, current_thread
 
-
-import logging_unterpolation
-logging_unterpolation.patch_logging()
-
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore", DeprecationWarning)
-    import MySQLdb
-
 import bcrypt
 import cherrypy
 import django.conf
-from boto.ses.connection import SESConnection
+from amazon_ses import AmazonSES, EmailMessage
 
 import constants
 from constants import *
@@ -54,6 +46,9 @@ from django.utils.safestring import SafeString
 from django.db.models.signals import pre_save, post_save, pre_delete
 from django.template import loader, Context, Variable, TemplateSyntaxError
 from django.db.models import Q, Avg, Sum, Count, Model, ForeignKey, OneToOneField, BooleanField, CharField, TextField, IntegerField, FloatField, DateField, DateTimeField, CommaSeparatedIntegerField
+
+import logging_unterpolation
+logging_unterpolation.patch_logging()
 
 
 class HTTPRedirect(cherrypy.HTTPRedirect):
@@ -186,15 +181,13 @@ def send_email(source, dest, subject, body, format = "text", cc = [], bcc = [], 
         Email.objects.create(subject = subject, dest = dest, body = body, **fk)
     
     if state.SEND_EMAILS and dest:
-        SESConnection(AWS_ACCESS_KEY_ID, AWS_SECRET_KEY).send_email(
-            subject = subject,
-            body = body,
+        message = EmailMessage(subject = subject, **{"bodyText" if format == "text" else "bodyHtml": body})
+        AmazonSES(AWS_ACCESS_KEY_ID, AWS_SECRET_KEY).sendEmail(
             source = source,
-            to_addresses = dest,
-            cc_addresses = cc,
-            bcc_addresses = bcc,
-            format = format,
-            return_path = source
+            toAddresses = dest,
+            ccAddresses = cc,
+            bccAddresses = bcc,
+            message = message
         )
     else:
         log.error("email sending turned off, so unable to send {}", locals())

@@ -139,7 +139,7 @@ class Root:
                 event.assignedpanelist_set.all().delete()
                 for id in set(listify(panelists)):
                     AssignedPanelist.objects.create(event_id = event.id, attendee_id = id)
-                raise HTTPRedirect("jqtesting#{}", event.start_slot and (event.start_slot - 1))
+                raise HTTPRedirect("edit#{}", event.start_slot and (event.start_slot - 1))
         
         return {
             "message": message,
@@ -150,7 +150,7 @@ class Root:
     
     def delete(self, id):
         event = Event.objects.filter(id=id).delete()
-        raise HTTPRedirect("jqtesting?message={}", "Event successfully deleted")
+        raise HTTPRedirect("edit?message={}", "Event successfully deleted")
     
     @ajax
     def move(self, id, location, start_slot):
@@ -172,7 +172,7 @@ class Root:
             e2.save()
         return resp
     
-    def jqtesting(self, message=""):
+    def edit(self, message=""):
         panelists = defaultdict(dict)
         for ap in AssignedPanelist.objects.select_related():
             panelists[ap.event.id][ap.attendee.id] = ap.attendee.full_name
