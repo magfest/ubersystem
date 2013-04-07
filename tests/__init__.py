@@ -1,8 +1,10 @@
-from common import *
-from creates import classes
-
+import os
+import sys
 from unittest import TestCase
 from subprocess import check_call
+
+from common import *
+from creates import classes
 
 def tearDownModule():
     cherrypy.engine.exit()
@@ -12,7 +14,7 @@ def tearDownModule():
 class TestUber(TestCase):
     @classmethod
     def setUpClass(cls):
-        command = "python creates.py | mysql -h localhost -u {TEST_USER} --password={TEST_PASS} {TEST_DB}".format(**globals())
+        command = "python creates.py | PGPASSWORD={TEST_PASS} psql --host=localhost --user={TEST_USER} {TEST_DB} >/dev/null 2>/dev/null".format(**globals())
         check_call(command, shell=True)
         cls.email = "magfestubersystem-{}@mailinator.com".format(randrange(100000))
         cherrypy.engine.start()

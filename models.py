@@ -822,6 +822,10 @@ def delete_hook(sender, instance, **kwargs):
     if sender not in Tracking.UNTRACKED:
         Tracking.track(DELETED, instance)
 
+
+def ismodel(x):
+    return getattr(x, "__base__", None) is MagModel
+
 for _model in list(globals().values()):
-    if getattr(_model, "__base__", None) is MagModel:
+    if ismodel(_model):
         _model._meta.db_table = _model.__name__

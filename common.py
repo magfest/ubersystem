@@ -68,7 +68,7 @@ def comma_and(xs):
     if len(xs) > 1:
         xs[-1] = "and " + xs[-1]
     return (", " if len(xs) > 2 else " ").join(xs)
-    
+
 
 
 def get_model(klass, params, bools=[], checkgroups=[], allowed=[], restricted=False, ignore_csrf=False):

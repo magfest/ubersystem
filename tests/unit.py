@@ -1,11 +1,12 @@
-from common import *
-from tests import TestUber
-from site_sections import preregistration
-
+import sys
 from io import StringIO
 from urllib.parse import urlencode
 
 import requests
+
+sys.path.append(".")
+from tests import *
+from site_sections import preregistration
 
 class TestGetModel(TestUber):
     def with_params(self, model=Attendee, **kwargs):

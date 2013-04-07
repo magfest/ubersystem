@@ -205,7 +205,7 @@ class Root:
         try:
             body = cherrypy.request.rfile.read()
             log.debug("paypal callback: {}", body)
-            params = dict(tup for tup in parse_qsl(body))
+            params = {k.decode(): v.decode() for k,v in parse_qsl(body)}
         except:
             log.error("invalid invocation of paypal callback", exc_info = True)
             return "error"

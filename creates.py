@@ -4,7 +4,7 @@ import models
 from sys import argv
 from django.db import connection
 
-classes = [m for m in models.__dict__.values() if isinstance(m, models.MagModelMeta) and m is not models.MagModel]
+classes = [m for m in models.__dict__.values() if ismodel(m)]
 
 class Style:
     def __getattr__(self, name):
