@@ -67,7 +67,7 @@ def render(template, data = None):
         "state": state,
         "now":   datetime.now(),
         "PAGE":  cherrypy.request.path_info.split("/")[-1],
-        "CSRF_TOKEN":  cherrypy.session.get("csrf_token")
+        "CSRF_TOKEN":  getattr(cherrypy, "session", {}).get("csrf_token")
     })
     
     from models import Account

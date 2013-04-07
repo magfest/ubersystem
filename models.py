@@ -13,7 +13,7 @@ class UuidField(CharField):
         kwargs.setdefault("default", lambda: uuid4().hex)
         CharField.__init__(self, *args, **kwargs)
 
-class MagModelBase(Model):
+class MagModel(Model):
     class Meta:
         abstract = True
         app_label = ""
@@ -33,15 +33,6 @@ class MagModelBase(Model):
     def __repr__(self):
         display = getattr(self, "display", "name" if hasattr(self, "name") else "id")
         return "<{}>".format(" ".join(str(getattr(self, field)) for field in listify(display)))
-
-class MagModelMeta(base.ModelBase):
-    def __new__(cls, name, bases, attrs):
-        if "Meta" not in attrs:
-            attrs["Meta"] = type("Meta", (), {"app_label": "", "db_table": name})
-        return base.ModelBase.__new__(cls, name, (MagModelBase,), attrs)
-
-MagModel = type.__new__(MagModelMeta, "MagModel", (), {})
-
 
 class TakesPaymentMixin(object):
     @property
@@ -147,7 +138,7 @@ class Event(MagModel):
 
 
 
-class Group(MagModel):
+class Group(MagModel, TakesPaymentMixin):
     secret_id     = UuidField()
     name          = CharField(max_length = 50)
     tables        = IntegerField()
@@ -255,7 +246,7 @@ class Group(MagModel):
 
 
 
-class Attendee(MagModel):
+class Attendee(MagModel, TakesPaymentMixin):
     secret_id     = UuidField()
     group         = ForeignKey(Group, null = True)
     placeholder   = BooleanField(default = False)
@@ -830,3 +821,7 @@ def create_hook(sender, instance, created, **kwargs):
 def delete_hook(sender, instance, **kwargs):
     if sender not in Tracking.UNTRACKED:
         Tracking.track(DELETED, instance)
+
+for _model in list(globals().values()):
+    if getattr(_model, "__base__", None) is MagModel:
+        _model._meta.db_table = _model.__name__

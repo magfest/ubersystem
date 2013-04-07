@@ -2,6 +2,6 @@
 
 Thanks again for registering as a Dealer for this year's MAGFest.  Our records indicate that your Dealer registration ({{ group.name }}) is still unpaid, and if we do not receive payment by {{ state.DEALER_PAYMENT_DUE|datetime }} then it will be deleted.
 
-You can use the Paypal button (or credit/debit even if you don't have a Paypal account) on your group's page to pay the ${{ group.amount_owed }} that you owe: {{ state.URL_BASE }}/preregistration/group_members?id={{ group.id|obfuscated }}
+You can use the Paypal button (or credit/debit even if you don't have a Paypal account) on your group's page to pay the ${{ group.amount_owed }} that you owe: {{ state.URL_BASE }}/preregistration/group_members?id={{ group.secret_id }}
 
 {{ MARKETPLACE_EMAIL_SIGNATURE }}

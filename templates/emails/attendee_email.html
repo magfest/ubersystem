@@ -4,7 +4,7 @@
 
 You ({{ attendee.full_name }}) have preregistered for MAGFest.
 If you haven't paid already, please use the Paypal button
-<a href="{{ state.URL_BASE }}/preregistration/paypal?id={{ attendee.id|obfuscated }}">on this page</a>
+<a href="{{ state.URL_BASE }}/preregistration/paypal?id={{ attendee.secret_id }}">on this page</a>
 to pay the ${{ attendee.total_cost }} you owe.
 You can use a credit or debit card with Paypal, even if you don't have a Paypal account.
 <b>If you do not pay within two weeks, your preregistration will be deleted.</b>

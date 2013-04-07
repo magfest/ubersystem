@@ -1,6 +1,6 @@
 {{ attendee.first_name }},
 
-You still haven't accepted the {{ attendee.get_badge_type_display }} badge{% if attendee.ribbon != NO_RIBBON %} with a {{ attendee.get_ribbon_display }} ribbon{% endif %} for this year's MAGFest.  We need to know whether you're coming, so please let us know by filling out the form at {{ state.URL_BASE }}/preregistration/confirm?id={{ attendee.id|obfuscated }}
+You still haven't accepted the {{ attendee.get_badge_type_display }} badge{% if attendee.ribbon != NO_RIBBON %} with a {{ attendee.get_ribbon_display }} ribbon{% endif %} for this year's MAGFest.  We need to know whether you're coming, so please let us know by filling out the form at {{ state.URL_BASE }}/preregistration/confirm?id={{ attendee.secret_id }}
 
 We're going to delete all un-accepted preregistrations at {{ state.PLACEHOLDER_DEADLINE|datetime }}, so please make sure to fill out the form before then.
 
