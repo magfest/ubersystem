@@ -34,7 +34,6 @@ import cherrypy
 import django.conf
 from amazon_ses import AmazonSES, EmailMessage
 
-import constants
 from constants import *
 from config import *
 
@@ -46,6 +45,9 @@ from django.utils.safestring import SafeString
 from django.db.models.signals import pre_save, post_save, pre_delete
 from django.template import loader, Context, Variable, TemplateSyntaxError
 from django.db.models import Q, Avg, Sum, Count, Model, ForeignKey, OneToOneField, BooleanField, CharField, TextField, IntegerField, FloatField, DateField, DateTimeField, CommaSeparatedIntegerField
+
+import stripe
+stripe.api_key = STRIPE_SECRET_KEY
 
 import logging_unterpolation
 logging_unterpolation.patch_logging()
@@ -174,7 +176,7 @@ def send_email(source, dest, subject, body, format = "text", cc = [], bcc = [], 
     dest, cc, bcc = map(listify, [dest, cc, bcc])
     if DEV_BOX:
         for xs in [dest, cc, bcc]:
-            xs[:] = [email for email in xs if email.endswith("mailinator.com")]
+            xs[:] = [email for email in xs if email.endswith("mailinator.com") or "eli@courtwright.org" in email]
     
     if model:
         fk = {"fk_id": 0, "model": "n/a"} if model == "n/a" else {"fk_id": model.id, "model": model.__class__.__name__}
@@ -204,6 +206,58 @@ def check_range(badge_num, badge_type):
         min_num, max_num = BADGE_RANGES[int(badge_type)]
         if not min_num <= badge_num <= max_num:
             return "{} badge numbers must fall within the range {} - {}".format(dict(BADGE_OPTS)[badge_type], min_num, max_num)
+
+
+
+class Charge:
+    def __init__(self, targets, amount=None, description=None):
+        self.targets = listify(targets)
+        self.amount = amount or self.total_cost
+        self.description = description or self.names
+    
+    @staticmethod
+    def get(payment_id):
+        charge = cherrypy.session.pop(payment_id)
+        charge.refresh()
+        return charge
+    
+    def refresh(self):
+        self.targets[:] = [t.__class__.objects.get(id=t.id) if t.id else t for t in self.targets]
+    
+    @property
+    def total_cost(self):
+        total = 0
+        for m in self.targets:
+            total += (m.group or m).total_cost
+        return 100 * total
+    
+    @property
+    def names(self):
+        names = []
+        for m in self.targets:
+            names.append(repr(m.group or m).strip("<>"))
+        return ", ".join(names)
+    
+    @property
+    def attendees(self):
+        return [m for m in self.targets if isinstance(m, Attendee)]
+    
+    @property
+    def groups(self):
+        return [m for m in self.targets if isinstance(m, Group)]
+    
+    def charge_cc(self, token):
+        try:
+            self.response = stripe.Charge.create(
+                card=token,
+                currency="usd",
+                amount=self.amount,
+                description=self.description
+            )
+        except stripe.CardError as e:
+            return "Your card was declined: " + str(e)
+        except stripe.StripeError as e:
+            return target.error("An unexpected problem occured while processing your card: " + str(e))
 
 
 

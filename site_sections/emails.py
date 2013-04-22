@@ -37,7 +37,7 @@ class Reminder:
         attendees, groups = Group.everyone()
         models = {Attendee: attendees, Group: groups}
         all_sent = {(e.model, e.fk_id, e.subject): e for e in Email.objects.all()}
-        if state.AUTO_EMAILS:
+        if state.SEND_EMAILS:
             for rem in Reminder.instances.values():
                 for x in models[rem.model]:
                     if x.email and rem.should_send(x, all_sent):

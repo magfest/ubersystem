@@ -26,16 +26,6 @@ def check_dealer(group):
         return "Please provide a brief description of your business for our website's Confirmed Vendors page"
 
 
-def cost_and_names(preregs):
-    total, names = 0, []
-    for attendee in preregs:
-        if attendee.paid == NOT_PAID:
-            total += attendee.total_cost
-            names.append(attendee.full_name)
-        elif attendee.group and attendee.group.amount_paid == 0:
-            total += attendee.group.total_cost
-            names.append(attendee.group.name)
-    return (total, ", ".join(names)) if len(names) > 1 else (0, [])
 
 def send_prereg_emails(attendee):
     try:
@@ -62,81 +52,34 @@ def send_prereg_emails(attendee):
         log.warning("unable to send prereg confirmation email to {}", attendee.email, exc_info = True)
         return message + ", but the automated confirmation email could not be sent."
 
-def keep_body():
-    if cherrypy.request.method == "POST":
-        cherrypy.request.process_request_body = False
-cherrypy.tools.keep_body = cherrypy.Tool('before_request_body', keep_body)
 
-
-
-def send_callback_email(subject, params):
-    send_email(REGDESK_EMAIL, REGDESK_EMAIL, subject, repr(params))
-
-def parse_ids(item_num):
-    ids = defaultdict(list)
-    for id in item_num.strip().split(","):
-        if re.match(r"a\d+", id):
-            ids["attendees"].append( int(id[1:]) )
-        elif re.match(r"g\d+", id):
-            ids["groups"].append( int(id[1:]) )
-        else:
-            ids["unknown"].append(id)
-    return ids
-
-def mark_group_paid(id):
-    group = Group.objects.get(id=id)
-    paid = group.amount_unpaid
-    group.amount_paid = group.amount_owed
-    group.save()
-    return paid
-
-def mark_attendee_paid(id):
-    attendee = Attendee.objects.get(id=id)
-    amount_paid_before = attendee.amount_paid
-    attendee.amount_paid = attendee.total_cost
-    if attendee.paid in [NOT_PAID, NEED_NOT_PAY]:
-        attendee.paid = HAS_PAID
-    attendee.save()
-    if amount_paid_before == attendee.total_cost:
-        Tracking.objects.create(model = "Attendee", fk_id = id, who = "Paypal callback", action = UPDATED, links = "",
-                                which = repr(attendee), data = "amount_paid ='{0} -> {0}'".format(attendee.total_cost))
-    return max(attendee.total_cost - amount_paid_before, 0)
-
-def get_prereg_ids(preregs):
-    ids = []
-    for attendee in preregs:
-        if attendee.group:
-            ids += ["g{}".format(attendee.group.id)]
-        else:
-            ids += ["a{}".format(attendee.id)]
-    return ",".join(ids)
 
 @all_renderable()
 class Root:
-    def index(self, message="", *args, **params):
-        if params.get("id") is None and "preregs" in cherrypy.session:
-            preregs = Attendee.objects.filter(id__in = cherrypy.session["preregs"])
-            if preregs:
-                data = {
-                    "ids": get_prereg_ids(preregs),
-                    "message": message,
-                    "preregs": preregs
-                }
-                data["total"], data["names"] = cost_and_names(preregs)
-                return render("preregistration/index.html", data)
-        
+    def index(self, message=""):
+        preregs = cherrypy.session.get("preregs")
+        if not preregs:
+            raise HTTPRedirect("badge_choice?message=", message)
+        else:
+            cherrypy.session["debug"] = "foo"
+            return {
+                "message": message,
+                "charge": Charge(preregs)
+            }
+    
+    def badge_choice(self, message=""):
+        return {"message": message}
+    
+    def form(self, message="", **params):
         if "badge_type" not in params:
-            if cherrypy.request.method == "POST":
-                message = "You must choose a badge type"
-            return render("preregistration/badge_choice.html", {"message": message})
+            raise HTTPRedirect("badge_choice?message={}", "You must select a badge type")
         
         params["id"] = "None"
         params["affiliate"] = params.get("aff_select") or params.get("aff_text") or ""
-        attendee = get_model(Attendee, params, bools = ["staffing","can_spam","international"], restricted = True)
-        group = get_model(Group, params, restricted = True)
+        attendee = get_model(Attendee, params, bools=["staffing","can_spam","international"], ignore_csrf=True, restricted=True)
+        group = get_model(Group, params, ignore_csrf=True, restricted=True)
         if "first_name" in params:
             assert attendee.badge_type in state.PREREG_BADGE_TYPES, "No hacking allowed!"
-            
             message = check(attendee) or check_prereg_reqs(attendee)
             if not message and attendee.badge_type in [PSEUDO_DEALER_BADGE, PSEUDO_GROUP_BADGE]:
                 message = check(group) or check_tables(attendee, group, params)
@@ -151,34 +94,64 @@ class Root:
                         group.status = WAITLISTED if state.DEALER_REG_FULL else UNAPPROVED
                         attendee.ribbon = DEALER_RIBBON
                     
-                    group.save()
                     attendee.badge_type = ATTENDEE_BADGE
                     attendee.paid = PAID_BY_GROUP
                     attendee.group = group
-                    attendee.save()
-                    assign_group_badges(group, params["badges"])
-                else:
-                    attendee.save()
+                    attendee._badge_count = params["badges"]
                 
-                if not attendee.group or not attendee.group.is_dealer:
-                    cherrypy.session.setdefault("preregs", []).append(attendee.id)
-                else:
+                if attendee.group and attendee.group.is_dealer:
+                    attendee.save()
+                    attendee.group.save()
+                    assign_group_badges(group, attendee._badge_count)
                     send_email(MARKETPLACE_EMAIL, MARKETPLACE_EMAIL, "Dealer application received",
                                render("emails/dealer_reg_notification.txt", {"group": group}))
+                else:
+                    cherrypy.session.setdefault("preregs", []).append(attendee)
                 
-                message = send_prereg_emails(attendee)
-                raise HTTPRedirect("index?message={}", message)
+                Tracking.track(UNPAID_PREREG, attendee)
+                
+                # TODO: duplicate check here, as well as banned list check here
+                raise HTTPRedirect("index")
         else:
             attendee.can_spam = True    # only defaults to true for these forms
         
-        data = {
+        return {
             "message":    message,
             "attendee":   attendee,
             "group":      group,
             "badges":     params.get("badges"),
             "affiliates": affiliates()
         }
-        return render("preregistration/form.html", data)
+    
+    @credit_card
+    def prereg_payment(self, payment_id, stripeToken):
+        charge = Charge.get(payment_id)
+        if not charge.total_cost:
+            message = "Your preregistration has already been paid for, so your credit card has not been charged"
+        elif charge.amount != charge.total_cost:
+            message = "Our preregistration price has gone up; please fill out the payment form again at the higher price"
+        else:
+            message = charge.charge_cc(stripeToken)
+        
+        if message:
+            raise HTTPRedirect("index?message={}", message)
+        
+        for attendee in charge.attendees:
+            attendee.paid = HAS_PAID
+            attendee.amount_paid = attendee.total_cost
+            attendee.save()
+        
+        # TODO: make this actually work
+        for group in charge.groups:
+            group.amount_paid = group.amount_owed
+            group.save()
+        
+        cherrypy.session.pop("preregs", None)
+        cherrypy.session.setdefault("paid_preregs", []).extend(charge.targets)
+        raise HTTPRedirect("payment_success")
+    
+    def payment_success(self):
+        return {"preregs": cherrypy.session["paid_preregs"]}
     
     if not DEV_BOX and state.PREREG_NOT_OPEN_YET:
         def index(self, message="", *args, **params):
@@ -199,47 +172,6 @@ class Root:
                     and single day passes will be $35.
                 </body></html>
             """
-    
-    @cherrypy.tools.keep_body()
-    def callback(self):
-        try:
-            body = cherrypy.request.rfile.read()
-            log.debug("paypal callback: {}", body)
-            params = {k.decode(): v.decode() for k,v in parse_qsl(body)}
-        except:
-            log.error("invalid invocation of paypal callback", exc_info = True)
-            return "error"
-        
-        try:
-            payment_error = check_payment(body)
-            status = params.get(PAYPAL_STATUS, "").lower()
-            if payment_error:
-                send_callback_email("Paypal callback unverified", dict(params, payment_error = payment_error))
-            elif status != "completed":
-                subject = "Paypal callback incomplete: " + status
-                if status == "pending" and params.get(PAYPAL_REASON, "").lower() == "paymentreview":
-                    subject += " payment review"
-                send_callback_email(subject, params)
-            else:
-                ids = parse_ids(params.get(PAYPAL_ITEM, ""))
-                if not ids or ids["unknown"]:
-                    send_callback_email("Paypal callback with unknown item number", params)
-                else:
-                    total_cost = 0
-                    for key,func in [("groups",mark_group_paid), ("attendees",mark_attendee_paid)]:
-                        for id in ids[key]:
-                            total_cost += func(id)
-                    if total_cost != float(params[PAYPAL_COST]):
-                        send_callback_email("Paypal callback with non-matching payment amount: {} != {}".format(total_cost, float(params[PAYPAL_COST])), params)
-                    else:
-                        send_callback_email("Paypal callback payments marked", params)
-        except:
-            error = traceback.format_exc() + "\n" + str(params)
-            log.error("unexpected paypal callback error: {}", error)
-            send_callback_email("Paypal callback error", error)
-            return "error"
-        else:
-            return "ok"
     
     def check(self, message="", **params):
         attendee = None

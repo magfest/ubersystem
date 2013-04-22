@@ -1,13 +1,11 @@
 rm -rfv env
 python3.3 -m venv env
 source ./env/bin/activate
+python distribute_setup.py
 
-# distribute doesn't come with venv, need to copy over distribute_setup.py
-# MySQL needs to use the special github version for Python 3
-# Django 1.5 isn't out yet
-# boto needs the neo branch in the github repo
-
-for pydep in py3k-bcrypt nose selenium logging_unterpolation requests
+for pydep in Django psycopg2 py3k-bcrypt logging_unterpolation requests nose readline
 do
     ./env/bin/easy_install $pydep
 done
+
+# need to install CherryPy and Stripe from development

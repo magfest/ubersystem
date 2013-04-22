@@ -101,25 +101,33 @@ class options(template.Node):
         return "\n".join(results)
 
 @tag
-class checkgroup(template.Node):
-    def __init__(self, name, options, defaults=None, newlines=None):
-        self.name     = name[1:-1]
-        self.options  = Variable(options)
-        self.defaults = Variable(defaults) if defaults else []
-        self.newlines = Variable(newlines) if newlines else []
+class checkbox(template.Node):
+    def __init__(self, field):
+        model, self.field_name = field.split(".")
+        self.model = Variable(model)
     
     def render(self, context):
-        options  = self.options.resolve(context)
-        defaults = self.defaults
-        if isinstance(defaults, Variable):
-            defaults = defaults.resolve(context).split(",")
-        newline = "<br/>" if self.newlines else ""
-        
+        model = self.model.resolve(context)
+        checked = "checked" if getattr(model, self.field_name) else ""
+        return '<input type="checkbox" name="{}" value="1" {} />'.format(self.field_name, checked)
+
+@tag
+class checkgroup(template.Node):
+    def __init__(self, field):
+        model, self.field_name = field.split(".")
+        self.model = Variable(model)
+    
+    def render(self, context):
+        model = self.model.resolve(context)
+        options = model.get_field(self.field_name).choices
+        defaults = getattr(model, self.field_name, None)
+        defaults = defaults.split(",") if defaults else []
         results = []
-        for num,desc in options:
+        for num, desc in options:
             checked = "checked" if str(num) in defaults else ""
-            results.append("""<nobr><input type="checkbox" name="%s" value="%s" %s /> %s</nobr>""" % (self.name, num, checked, desc))
-        return ("&nbsp;&nbsp;%s\n" % newline).join(results)
+            results.append('<nobr><input type="checkbox" name="{}" value="{}" {} /> {}</nobr>'
+                           .format(self.field_name, num, checked, desc))
+        return "&nbsp;&nbsp\n".join(results)
 
 @tag
 class int_options(template.Node):
@@ -253,47 +261,6 @@ def extract_fields(what):
     else:
         return None, None, None
 
-@register.filter
-def paypal_url(what):
-    ids, names, amount = extract_fields(what)
-    url = ("{action}?cmd=_xclick"
-           "&business=magfest.prereg@gmail.com"
-           "&amount={amount}"
-           "&item_name={names}"
-           "&item_number={ids}"
-           "&rm=2"
-           "&return={return_url}")
-    return SafeString(url.format(ids=ids, names=quote(names), amount=amount, action=PAYPAL_ACTION, return_url=quote(PAYPAL_RETURN_URL)))
-
-@tag
-class paypal_button(template.Node):
-    def __init__(self, what, ids = None, amount = None):
-        self.what   = Variable(what)
-        self.ids    = ids and Variable(ids)
-        self.amount = amount and Variable(amount)
-
-    def render(self, context):
-        what = self.what.resolve(context)
-        ids, names, amount = extract_fields(what)
-        if not ids:
-            ids     = self.ids.resolve(context)
-            names   = what
-        if self.amount is not None:
-            amount = self.amount.resolve(context)
-        
-        return """
-            <form target="_ppprereg" action="{action}" method="post">
-                <input type="hidden" name="cmd"         value="_xclick" />
-                <input type="hidden" name="business"    value="magfest.prereg@gmail.com" />
-                <input type="hidden" name="item_name"   value="MAGFest Prereg: {names}" />
-                <input type="hidden" name="item_number" value="{ids}" />
-                <input type="hidden" name="amount"      value="{amount}" />
-                <input type="hidden" name="return"      value="{return_url}" />
-                <input type="hidden" name="rm"          value="2" />
-                <input type="image"  name="submit" src="../static/paypal.gif" />
-            </form>
-        """.format(ids=ids, names=names, amount=amount, action=PAYPAL_ACTION, return_url=PAYPAL_RETURN_URL)
-
 @tag
 class nav_menu(template.Node):
     def __init__(self, inst, *items):
@@ -327,18 +294,6 @@ class nav_menu(template.Node):
         return "\n".join(items + ["</tr></table>"])
 
 @tag
-class checkbox(template.Node):
-    def __init__(self, name, inst, value = None, checked = None):
-        self.name, self.inst, self.value, self.checked = name, Variable(inst), value, checked
-    
-    def render(self, context):
-        inst = self.inst.resolve(context)
-        value = Variable(self.value).resolve(context) if self.value else "1"
-        cond = Variable(self.checked).resolve(context) if self.checked else getattr(inst, self.name)
-        checked = "checked" if cond else ""
-        return '<input type="checkbox" name="{}" value="{}" {} />'.format(self.name, value, checked)
-
-@tag
 class checked_if(template.Node):
     def __init__(self, *args):
         self.negated = len(args) > 1
@@ -358,6 +313,32 @@ class checked_if(template.Node):
 class csrf_token(template.Node):
     def render(self, context):
         return '<input type="hidden" name="csrf_token" value="{}" />'.format(cherrypy.session["csrf_token"])
+
+
+@tag
+class stripe_form(template.Node):
+    def __init__(self, action, charge):
+        self.action = action
+        self.charge = Variable(charge)
+    
+    def render(self, context):
+        payment_id = uuid4().hex
+        charge = self.charge.resolve(context)
+        cherrypy.session[payment_id] = charge
+        return """
+            <form method="post" action="{action}">
+                <input type="hidden" name="payment_id" value="{payment_id}" />
+                <script
+                    src="https://checkout.stripe.com/v2/checkout.js" class="stripe-button"
+                    data-key="{key}"
+                    data-amount="{charge.amount}"
+                    data-name="MAGFest Preregistration"
+                    data-description="{charge.description}"
+                    data-image="../static/maglogo.png">
+                </script>
+            </form>
+        """.format(action=self.action, payment_id=payment_id, key=STRIPE_PUBLIC_KEY, charge=charge)
+
 
 
 @register.tag("bold_if")

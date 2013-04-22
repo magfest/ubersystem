@@ -20,7 +20,7 @@
             <input type="hidden" name="id" value="{{ account.id }}" />
             {% csrf_token %}
             <table><tr>
-                <td> {% checkgroup "access" ACCESS_OPTS account.access %} </td>
+                <td> {% checkgroup account.access %} </td>
                 <td> <input type="submit" value="Update" /> </td>
             </tr></table>
             </form>
@@ -58,7 +58,7 @@
 {% endif %}
 <tr>
     <td> <b>Access:</b> </td>
-    <td> {% checkgroup "access" ACCESS_OPTS %} </td>
+    <td> {% checkgroup Account.access %} </td>
 </tr>
 <tr>
     <td></td>

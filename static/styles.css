@@ -94,3 +94,19 @@ span.popup {
     margin-left: 25px;
     cursor: pointer;
 }
+
+.charge {
+    width: auto;
+    border-spacing: 2px;
+    border: 1px solid black;
+    margin-left: auto;
+    margin-right: auto;
+}
+.charge thead {
+    font-weight: bold;
+    text-align: center;
+}
+.charge td {
+    padding: 10px;
+    border: 1px solid black;
+}

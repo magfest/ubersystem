@@ -1,6 +1,5 @@
 from common import *
 
-
 def cached_property(func):
     pname = "_" + func.__name__
     @property
@@ -10,7 +9,6 @@ def cached_property(func):
             setattr(self, pname, func(self, *args, **kwargs))
         return getattr(self, pname)
     return caching
-
 
 
 def show_queries(func):
@@ -27,25 +25,22 @@ def show_queries(func):
     return queries
 
 
-
 def csrf_protected(func):
     @wraps(func)
-    def protected(self, *args, csrf_token, **kwargs):
+    def protected(*args, csrf_token, **kwargs):
         check_csrf(csrf_token)
-        return func(self, *args, **kwargs)
+        return func(*args, **kwargs)
     return protected
-
 
 
 def ajax(func):
     @wraps(func)
-    def returns_json(self, *args, **kwargs):
+    def returns_json(*args, **kwargs):
         cherrypy.response.headers["Content-Type"] = "application/json"
         assert cherrypy.request.method == "POST", "POST required"
         check_csrf(kwargs.pop("csrf_token", None))
-        return json.dumps(func(self, *args, **kwargs)).encode("utf-8")
+        return json.dumps(func(*args, **kwargs)).encode("utf-8")
     return returns_json
-
 
 
 def csv_file(func):
@@ -56,13 +51,28 @@ def csv_file(func):
         writer = StringIO()
         func(self, csv.writer(writer))
         return writer.getvalue()
+    return csvout
 
 
+def credit_card(func):
+    @wraps(func)
+    def charge(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except HTTPRedirect:
+            raise
+        except:
+            # TODO: email eli a stacktrace and return a template
+            return traceback.format_exc()
+    return charge
 
-constant_fields = {attrname: attr for attrname,attr in constants.__dict__.items() if re.match("^[_A-Z0-9]*$",attrname)}
+
 def render(template, data = None):
-    data = {} if data is None else data
-    data.update(constant_fields)
+    import constants
+    from models import Account, all_models
+    data = data or {}
+    data.update({m.__name__: m for m in all_models()})
+    data.update({k: v for k,v in constants.__dict__.items() if re.match("^[_A-Z0-9]*$", k)})
     data.update({
         "state": state,
         "now":   datetime.now(),
@@ -70,7 +80,6 @@ def render(template, data = None):
         "CSRF_TOKEN":  getattr(cherrypy, "session", {}).get("csrf_token")
     })
     
-    from models import Account
     access = Account.access_set()
     for acctype in ["ACCOUNTS","PEOPLE","STUFF","MONEY","CHALLENGES","CHECKINS"]:
         data["HAS_" + acctype + "_ACCESS"] = getattr(constants, acctype) in access
@@ -79,7 +88,6 @@ def render(template, data = None):
     if not state.AT_THE_CON and Account.admin_name() == "Nick Marinelli":
         rendered = rendered.replace("Fest", "Con")
     return rendered
-
 
 
 def renderable(func):
@@ -135,11 +143,9 @@ class all_renderable:
         return klass
 
 
-
 register = template.Library()
 def tag(klass):
     @register.tag(klass.__name__)
     def tagged(parser, token):
         return klass(*token.split_contents()[1:])
     return klass
-

@@ -13,6 +13,8 @@ else:
 
 if DEV_BOX:
     state.HOSTNAME = "localhost:{}".format(PORT)
+    STRIPE_SECRET_KEY = "sk_test_CvvvyHs2XnU9giMYDCUnIpF4"
+    STRIPE_PUBLIC_KEY = "pk_test_t36jT3di98A0rnENDejBE1Vg"
 
 cherrypy.config.update({
     "engine.autoreload.on": AUTORELOAD,
@@ -22,6 +24,7 @@ cherrypy.config.update({
     "server.protocol_version": "HTTP/1.0",
     
     "log.screen": False,
+    "checker.check_skipped_app_config": False,
     
     "tools.sessions.on": True,
     "tools.sessions.path": state.PATH,

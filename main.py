@@ -36,7 +36,7 @@ class Redirector:
     def index(self):
         raise HTTPRedirect(state.PATH)
 
-cherrypy.tree.mount(Redirector(), "/", appconf)
+cherrypy.tree.mount(Redirector(), "/", {})
 cherrypy.tree.mount(root, state.PATH, appconf)
 
 if __name__=="__main__":

@@ -36,7 +36,7 @@ our Registration Desk; that will belong to whomever the badge is transferred.
     <td> <b>Postal Code:</b> </td>
     <td>
         <input type="text" name="zip_code" value="{{ attendee.zip_code }}" />
-        {% checkbox international attendee %} I'm coming from outside the US.
+        {% checkbox attendee.international %} I'm coming from outside the US.
     </td>
 </tr>
 <tr>
@@ -52,7 +52,7 @@ our Registration Desk; that will belong to whomever the badge is transferred.
 </tr>
 <tr>
     <td> <nobr>What interests you?</nobr> </td>
-    <td> {% checkgroup "interests" INTEREST_OPTS attendee.interests %} </td>
+    <td> {% checkgroup attendee.interests %} </td>
 </tr>
 <tr>
     <td></td>

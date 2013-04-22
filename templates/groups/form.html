@@ -60,12 +60,12 @@
     <td> <b><nobr>Amount Owed:</nobr></b> </td>
     <td>
         $<input type="text" style="width:4em" name="amount_owed" value="{{ group.amount_owed }}" />
-        {% checkbox auto_recalc group %} Automatically recalculate this number.
+        {% checkbox group.auto_recalc %} Automatically recalculate this number.
     </td>
 </tr>
 <tr>
     <td> <b><nobr>Can Add Badges:</nobr></b> </td>
-    <td> {% checkbox can_add group %} Allow this group to add badges </td>
+    <td> {% checkbox group.can_add %} Allow this group to add badges </td>
 </tr>
 {% if not group.id %}
 <tr>

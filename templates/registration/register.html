@@ -69,7 +69,7 @@
     <td> <nobr>What are you</nobr> <nobr>interested in</nobr> <nobr>at MAGFest?</nobr> </td>
     <td>
         <nobr><input type="checkbox" onClick="$(':checkbox[name=interests]').attr('checked',this.checked)" /> Everything</nobr>
-        {% checkgroup "interests" INTEREST_OPTS attendee.interests %}
+        {% checkgroup attendee.interests %}
     </td>
 </tr>
 </table>

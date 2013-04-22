@@ -18,8 +18,20 @@ class MagModel(Model):
         abstract = True
         app_label = ""
     
+    def presave_adjustments(self):
+        pass
+    
+    def save(self, *args, **kwargs):
+        self.presave_adjustments()
+        super(MagModel, self).save(*args, **kwargs)
+    
+    @classmethod
+    def get_field(cls, name):
+        [field] = [f for f in cls._meta.fields if f.name == name]
+        return field
+    
     def field_repr(self, name):
-        [field] = [f for f in self._meta.fields if f.name == name]
+        field = self.get_field(name)
         val = getattr(self, name)
         s = repr(val)
         if isinstance(field, MultiChoiceField):
@@ -158,13 +170,12 @@ class Group(MagModel, TakesPaymentMixin):
     
     restricted = ["amount_paid","amount_owed","auto_recalc","admin_notes","lockable","status","approved"]
     
-    def save(self, *args, **kwargs):
+    def presave_adjustments(self):
         self.__dict__.pop("_attendees", None)
         if self.auto_recalc:
             self.amount_owed = self.total_cost
         if self.status == APPROVED and not self.approved:
             self.approved = datetime.now()
-        super(Group, self).save(*args, **kwargs)
     
     @staticmethod
     def everyone():
@@ -294,7 +305,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     display = "full_name"
     restricted = ["group","admin_notes","badge_num","ribbon","regdesk_info","extra_merch","got_merch","paid","amount_paid","amount_refunded","assigned_depts","trusted","nonshift_hours"]
     
-    def save(self, *args, **kwargs):
+    def presave_adjustments(self):
         import badge_funcs
         
         if self.ribbon == DEPT_HEAD_RIBBON:
@@ -344,8 +355,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             value = getattr(self, attr)
             if value.isupper() or value.islower():
                 setattr(self, attr, value.title())
-        
-        super(Attendee, self).save(*args, **kwargs)
     
     def delete(self, *args, **kwargs):
         import badge_funcs
@@ -763,7 +772,7 @@ class Tracking(MagModel):
     
     @classmethod
     def track(cls, action, instance):
-        if action == CREATED:
+        if action in [CREATED, UNPAID_PREREG]:
             values = cls.values(instance)
             data = cls.format({k: instance.field_repr(k) for k in values})
         elif action == UPDATED:
@@ -797,7 +806,7 @@ class Tracking(MagModel):
         
         return Tracking.objects.create(
             model = instance.__class__.__name__,
-            fk_id = instance.id,
+            fk_id = 0 if action == UNPAID_PREREG else instance.id,
             which = repr(instance),
             who = who,
             links = links,
@@ -826,6 +835,8 @@ def delete_hook(sender, instance, **kwargs):
 def ismodel(x):
     return getattr(x, "__base__", None) is MagModel
 
-for _model in list(globals().values()):
-    if ismodel(_model):
-        _model._meta.db_table = _model.__name__
+def all_models():
+    return [m for m in globals().values() if ismodel(m)]
+
+for _model in all_models():
+    _model._meta.db_table = _model.__name__

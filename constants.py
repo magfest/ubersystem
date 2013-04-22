@@ -13,34 +13,33 @@ LATE_GROUP_PRICE  = 35
 
 class State:
     SEND_EMAILS = True
-    AUTO_EMAILS = True
     
     AT_THE_CON = False
     POST_CON = False
     UBER_SHUT_DOWN = False
     HIDE_SCHEDULE = False
     
-    PREREG_CLOSED = True
+    PREREG_CLOSED = False
     PREREG_NOT_OPEN_YET = True
-    SUP_REG_OPEN = False
+    SUP_REG_OPEN = True
     GROUP_REG_OPEN = True
-    DEALER_WAITLIST_CLOSED = True
+    DEALER_WAITLIST_CLOSED = False
     ETCHED_BADGES_ORDERED = False
     
-    STAFFERS_IMPORTED    = datetime(2012,  5, 29)
-    SHIFTS_CREATED       = datetime(2012, 11,  3)
-    PRICE_BUMP           = datetime(2012, 11,  4, 23, 59)
-    DEALER_REG_START     = datetime(2012,  7, 27, 11, 59)
-    DEALER_REG_SHUTDOWN  = datetime(2012, 11, 19, 11, 59)
-    DEALER_REG_DEADLINE  = datetime(2012,  9,  3, 11, 59)
-    DEALER_PAYMENT_DUE   = datetime(2012, 11, 30, 23, 59)
-    ROOM_DEADLINE        = datetime(2012, 12,  1, 23, 59)
-    STAFF_BADGE_DEADLINE = datetime(2012, 12,  9, 23, 59)
-    PREREG_TAKEDOWN      = datetime(2012, 12, 23, 23, 59)
-    PLACEHOLDER_DEADLINE = datetime(2012, 12, 30, 23, 59)
-    UBER_TAKEDOWN        = datetime(2012, 12, 30, 23, 59)
-    EPOCH                = datetime(2013,  1,  3,  8)
-    ESCHATON             = datetime(2013,  1,  6, 22)
+    STAFFERS_IMPORTED    = datetime(2013,  5, 29)
+    SHIFTS_CREATED       = datetime(2013, 11,  3)
+    PRICE_BUMP           = datetime(2013, 11,  4, 23, 59)
+    DEALER_REG_START     = datetime(2013,  7, 27, 11, 59)
+    DEALER_REG_SHUTDOWN  = datetime(2013, 11, 19, 11, 59)
+    DEALER_REG_DEADLINE  = datetime(2013,  9,  3, 11, 59)
+    DEALER_PAYMENT_DUE   = datetime(2013, 11, 30, 23, 59)
+    ROOM_DEADLINE        = datetime(2013, 12,  1, 23, 59)
+    STAFF_BADGE_DEADLINE = datetime(2013, 12,  9, 23, 59)
+    PREREG_TAKEDOWN      = datetime(2013, 12, 23, 23, 59)
+    PLACEHOLDER_DEADLINE = datetime(2013, 12, 30, 23, 59)
+    UBER_TAKEDOWN        = datetime(2013, 12, 30, 23, 59)
+    EPOCH                = datetime(2014,  1,  3,  8)
+    ESCHATON             = datetime(2014,  1,  6, 22)
     
     PATH     = "/magfest"
     HOSTNAME = "magfestubersystem.com"
@@ -402,6 +401,7 @@ TRACKING_OPTS = enum(
     CREATED = "created",
     UPDATED = "updated",
     DELETED = "deleted",
+    UNPAID_PREREG = "unpaid preregistration",
     AUTO_BADGE_SHIFT = "automatic badge-shift"
 )
 

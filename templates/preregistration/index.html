@@ -5,73 +5,48 @@
 
 <h2> MAGFest Preregistration </h2>
 
-<div style="text-align:center">
-    <nobr> <a href="index?id=None">Click here</a> to add another registration </nobr>
-    <nobr><i>(but don't forget to pay below)</i></nobr>
-</div>
+<table style="width:auto ; margin-left:auto ; margin-right: auto"><tr>
+    <td>{% stripe_form prereg_payment charge %}</td>
+    <td style="width:100px ; text-align:center">or</td>
+    <td>
+        <a href="badge_choice">
+            <button class="stripe-button-el">
+                <span class="display: block; min-height: 30px;">Add Another Prereg</span>
+            </button>
+        </a>
+    </td>
+</tr></table>
 
-{% if preregs %}
-    <br/> <hr width="66%" align="center" />
-    <h3 align="center"> The following preregistrations have occurred from this computer:</h3>
-    {% for attendee in preregs %}
-        {% if not attendee.group %}
-            <table width="100%">
-            <tr>
-                <td width="66%">
-                    <b><u>{{ attendee.full_name }}</u></b>
-                    <div style="margin-left:5ex">
-                        <i>Paid:</i> {{ attendee.get_paid_display }}
-                        <br/> <i>Badge:</i> {{ attendee.get_badge_type_display }} (${{ attendee.total_cost }})
-                        {% if attendee.age_group == UNDER_18 %}
-                            <br/> You <b>MUST</b> bring a signed and notarized parental <nobr><a target="_blank" href="{{ CONSENT_FORM_URL }}">permission slip</a></nobr>
-                            <br/> (<a target="_blank" href="confirm?id={{ attendee.secret_id }}">Click here</a> to edit your registration if you're over 18)
-                        {% endif %}
-                        <br/>
-                    </div>
-                </td>
-                <td width="33%">
-                    {% if attendee.paid == NOT_PAID %}
-                        {% paypal_button attendee %}
-                        <b><i>Total</i>:</b> ${{ attendee.total_cost }} <br/>
-                        <font size="-2">(Reminder: you can {% popup_link "../static/noPaypal.html" "pay with a credit/debit card" %} through Paypal even without a Paypal account.)</font>
-                    {% endif %}
-                </td>
-            </tr>
-            </table>
-        {% else %}
-            <table width="100%">
-            <tr>
-                <td width="66%">
-                    <b>{% if attendee.badge_type == DEALER_BADGE %}Dealer:{% else %}Group:{% endif %}
-                        <u> {{ attendee.group.name }} </u></b>
-                    <div style="margin-left:5ex">
-                        <i>Paid:</i> {% if not attendee.group.amount_paid %} No {% else %} Yes {% endif %}
-                        {% if attendee.group.tables %}
-                            <br/> <i>Tables:</i> {{ attendee.group.tables }} (${{ attendee.group.table_cost }})
-                        {% endif %}
-                        <br/> <i>Badges:</i> {{ attendee.group.attendee_set.count }} (${{ attendee.group.badge_cost }})
-                    </div>
-                </td>
-                <td width="33%">
-                    {% if not attendee.group.amount_paid %}
-                        {% paypal_button attendee.group %}
-                        <b><i>Total:</i></b> ${{ attendee.group.total_cost }}<br/>
-                        <font size="-2">(Reminder: you can {% popup_link "../static/noPaypal.html" "pay with a credit/debit card" %} through Paypal even without a Paypal account.)</font>
-                    {% endif %}
-                </td>
-            </tr>
-            </table>
-        {% endif %}
-        <br/> <br/>
-    {% endfor %}
-    {% if total %}
-        <div style="text-align:center">
-            <b><u>Pay For Everyone</u></b> <br/>
-            {% paypal_button names ids total %}
-            <b><i>Total:</i></b> ${{ total }}
-        </div>
-    {% endif %}
+<br/>
+
+<table class="charge">
+<thead><tr>
+    <td>Preregistration</td>
+    <td>Details</td>
+    <td>Price</td>
+</tr></thead>
+{% for attendee in charge.attendees %}
+    <tr>
+        <td>{{ attendee.full_name }}</td>
+        <td>Full weekend pass</td>
+        <td>${{ attendee.total_cost }}</td>
+     </tr>
+{% endfor %}
+{% for group in charge.groups %}
+    <tr>
+        <td>{{ prereg.name }}</td>
+        <td>{{ prereg.badges }}</td>
+        <td>${{ prereg.amount_owed }}</td>
+    </tr>
+{% endfor %}
+{% if charge.targets|length > 1 %}
+    <tr>
+        <td></td>
+        <td style="text-align:right ; padding-right:20px"><i>Total:</i></td>
+        <td><b>${{ charge.amount }}</b></td>
+    </tr>
 {% endif %}
+</table>
 
 {% include "preregistration/disclaimers.html" %}
 
