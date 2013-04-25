@@ -45,6 +45,7 @@ class MagModel(Model):
     def __repr__(self):
         display = getattr(self, "display", "name" if hasattr(self, "name") else "id")
         return "<{}>".format(" ".join(str(getattr(self, field)) for field in listify(display)))
+    __str__ = __repr__
 
 class TakesPaymentMixin(object):
     @property
@@ -177,6 +178,48 @@ class Group(MagModel, TakesPaymentMixin):
         if self.status == APPROVED and not self.approved:
             self.approved = datetime.now()
     
+    def prepare_prereg_badges(self, attendee, badges):
+        self._badges = int(badges)
+        self.preregisterer = attendee
+    
+    def assign_prereg_badges(self):
+        self.save()
+        self.preregisterer.group = self
+        self.preregisterer.save()
+        self.assign_badges(self.badges)
+    
+    def assign_badges(self, new_badge_count):
+        self.save()
+        ribbon = self.get_new_ribbon()
+        badge_type = self.get_new_badge_type()
+        new_badge_count = int(new_badge_count)
+        diff = new_badge_count - self.attendee_set.filter(paid = PAID_BY_GROUP).count()
+        if diff > 0:
+            for i in range(diff):
+                Attendee.objects.create(group=self, badge_type=badge_type, ribbon=ribbon, paid=PAID_BY_GROUP)
+        elif diff < 0:
+            floating = list(self.attendee_set.filter(paid=PAID_BY_GROUP, first_name="", last_name=""))
+            if len(floating) < abs(diff):
+                return "You can't reduce the number of badges for a group to below the number of assigned badges"
+            else:
+                for i in range(abs(diff)):
+                    floating[i].delete()
+        self.save()
+    
+    def get_new_badge_type(self):
+        if GUEST_BADGE in self.attendee_set.values_list("badge_type", flat=True):
+            return GUEST_BADGE
+        else:
+            return ATTENDEE_BADGE
+    
+    def get_new_ribbon(self):
+        ribbons = set(self.attendee_set.values_list("ribbon", flat=True))
+        for ribbon in [DEALER_RIBBON, BAND_RIBBON, NO_RIBBON]:
+            if ribbon in ribbons:
+                return ribbon
+        else:
+            return DEALER_RIBBON if self.is_dealer else NO_RIBBON
+    
     @staticmethod
     def everyone():
         attendees = Attendee.objects.select_related("group")
@@ -190,7 +233,7 @@ class Group(MagModel, TakesPaymentMixin):
     
     @property
     def is_dealer(self):
-        return bool(self.tables and (self.amount_paid or self.amount_owed))
+        return bool(self.tables and (not self.id or self.amount_paid or self.amount_owed))
     
     @property
     def is_unpaid(self):
@@ -214,7 +257,7 @@ class Group(MagModel, TakesPaymentMixin):
     def badges_purchased(self):
         return len([a for a in self.attendees if a.paid == PAID_BY_GROUP])
     
-    @property
+    @cached_property
     def badges(self):
         return len(self.attendees)
     
@@ -232,16 +275,19 @@ class Group(MagModel, TakesPaymentMixin):
     
     @property
     def badge_cost(self):
-        total = 0
-        for attendee in self.attendees:
-            if attendee.paid == PAID_BY_GROUP:
-                if attendee.ribbon == DEALER_RIBBON:
-                    total += DEALER_BADGE_PRICE
-                elif attendee.registered <= state.PRICE_BUMP:
-                    total += EARLY_GROUP_PRICE
-                else:
-                    total += LATE_GROUP_PRICE
-        return total
+        if not self.id:
+            return self.badges * state.GROUP_PRICE
+        else:
+            total = 0
+            for attendee in self.attendees:
+                if attendee.paid == PAID_BY_GROUP:
+                    if attendee.ribbon == DEALER_RIBBON:
+                        total += DEALER_BADGE_PRICE
+                    elif attendee.registered <= state.PRICE_BUMP:
+                        total += EARLY_GROUP_PRICE
+                    else:
+                        total += LATE_GROUP_PRICE
+            return total
     
     @property
     def total_cost(self):
@@ -391,7 +437,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @property
     def is_dealer(self):
-        return self.ribbon == DEALER_RIBBON
+        return self.ribbon == DEALER_RIBBON or self.badge_type == PSEUDO_DEALER_BADGE
     
     @property
     def unassigned_name(self):

@@ -59,9 +59,8 @@ class Root:
     def index(self, message=""):
         preregs = cherrypy.session.get("preregs")
         if not preregs:
-            raise HTTPRedirect("badge_choice?message=", message)
+            raise HTTPRedirect("badge_choice?message={}", message)
         else:
-            cherrypy.session["debug"] = "foo"
             return {
                 "message": message,
                 "charge": Charge(preregs)
@@ -90,25 +89,27 @@ class Root:
                 if attendee.badge_type in [PSEUDO_DEALER_BADGE, PSEUDO_GROUP_BADGE]:
                     if attendee.badge_type == PSEUDO_GROUP_BADGE:
                         group.tables = 0
+                        group.prepare_prereg_badges(attendee, params["badges"])
                     else:
                         group.status = WAITLISTED if state.DEALER_REG_FULL else UNAPPROVED
                         attendee.ribbon = DEALER_RIBBON
                     
                     attendee.badge_type = ATTENDEE_BADGE
                     attendee.paid = PAID_BY_GROUP
-                    attendee.group = group
-                    attendee._badge_count = params["badges"]
                 
-                if attendee.group and attendee.group.is_dealer:
+                if attendee.is_dealer:
+                    group.save()
+                    attendee.group = group
                     attendee.save()
-                    attendee.group.save()
-                    assign_group_badges(group, attendee._badge_count)
+                    group.assign_badges(params["badges"])
                     send_email(MARKETPLACE_EMAIL, MARKETPLACE_EMAIL, "Dealer application received",
                                render("emails/dealer_reg_notification.txt", {"group": group}))
+                    raise HTTPRedirect("dealer_confirmation?id={}", group.id)
                 else:
-                    cherrypy.session.setdefault("preregs", []).append(attendee)
-                
-                Tracking.track(UNPAID_PREREG, attendee)
+                    cherrypy.session.setdefault("preregs", []).append(group if group.badges else attendee)
+                    Tracking.track(UNPAID_PREREG, attendee)
+                    if group.badges:
+                        Tracking.track(UNPAID_PREREG, group)
                 
                 # TODO: duplicate check here, as well as banned list check here
                 raise HTTPRedirect("index")
@@ -141,17 +142,26 @@ class Root:
             attendee.amount_paid = attendee.total_cost
             attendee.save()
         
-        # TODO: make this actually work
         for group in charge.groups:
-            group.amount_paid = group.amount_owed
+            group.assign_prereg_badges()
+            group.amount_paid = group.total_cost
             group.save()
         
         cherrypy.session.pop("preregs", None)
-        cherrypy.session.setdefault("paid_preregs", []).extend(charge.targets)
-        raise HTTPRedirect("payment_success")
+        preregs = cherrypy.session.setdefault("paid_preregs", {})
+        preregs.setdefault("attendees", []).extend(charge.attendees)
+        preregs.setdefault("groups", []).extend(charge.groups)
+        raise HTTPRedirect("paid_preregs")
     
-    def payment_success(self):
-        return {"preregs": cherrypy.session["paid_preregs"]}
+    def paid_preregs(self):
+        preregs = cherrypy.session.get("paid_preregs")
+        if preregs:
+            return {"preregs": preregs}
+        else:
+            raise HTTPRedirect("index")
+    
+    def dealer_confirmation(self, id):
+        return {"group": Group.objects.get(id=id)}
     
     if not DEV_BOX and state.PREREG_NOT_OPEN_YET:
         def index(self, message="", *args, **params):
@@ -195,13 +205,6 @@ class Root:
             "zip_code":   params.get("zip_code",   "")
         }
     
-    def paypal(self, id, amount = None):
-        attendee = Attendee.objects.get(secret_id = id)
-        return {
-            "attendee": attendee,
-            "amount":   amount or attendee.total_cost
-        }
-    
     def group_members(self, id, message=""):
         group = Group.objects.get(secret_id = id)
         return {
@@ -238,7 +241,7 @@ class Root:
     @csrf_protected
     def add_group_members(self, id, count):
         group = Group.objects.get(secret_id = id)
-        assign_group_badges(group, group.badges + int(count))
+        group.assign_badges(group.badges + int(count))
         raise HTTPRedirect("group_members?id={}&message={}", id, "The requested badges have been added to your group; you must pay for them using the Paypal link below to prevent them from being deleted before the start of MAGFest")
     
     def transfer_badge(self, message = "", **params):

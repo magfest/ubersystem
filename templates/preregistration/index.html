@@ -34,16 +34,16 @@
 {% endfor %}
 {% for group in charge.groups %}
     <tr>
-        <td>{{ prereg.name }}</td>
-        <td>{{ prereg.badges }}</td>
-        <td>${{ prereg.amount_owed }}</td>
+        <td>{{ group.name }}</td>
+        <td>{{ group.badges }} badges</td>
+        <td>${{ group.total_cost }}</td>
     </tr>
 {% endfor %}
 {% if charge.targets|length > 1 %}
     <tr>
         <td></td>
         <td style="text-align:right ; padding-right:20px"><i>Total:</i></td>
-        <td><b>${{ charge.amount }}</b></td>
+        <td><b>${{ charge.dollar_amount }}</b></td>
     </tr>
 {% endif %}
 </table>

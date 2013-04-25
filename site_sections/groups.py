@@ -38,7 +38,7 @@ class Root:
         if "name" in params:
             message = check(group)
             if not message:
-                message = assign_group_badges(group, params["badges"])
+                message = group.assign_badges(params["badges"])
                 if not message:
                     raise HTTPRedirect("form?id={}&message={}", group.id, "Group info uploaded")
         

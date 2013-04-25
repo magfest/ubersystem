@@ -29,9 +29,17 @@
 <table width="100%" cellspacing="5" cellpadding="5">
 <tr>
     <td width="25%" valign="top"> <b>Badge:</b> </td>
-    <td width="75%">{{ attendee.get_badge_type_display }}</td>
+    <td width="75%">
+        {% if attendee.badge_type == PSEUDO_GROUP_BADGE %}
+            Group Registration
+        {% elif attendee.badge_type == PSEUDO_DEALER_BADGE %}
+            Dealer Application
+        {% else %}
+            {{ attendee.get_badge_type_display }}
+        {% endif %}
+    </td>
 </tr>
-{% if attendee.is_dealer or attendee.badge_type == GROUP_BADGE %}
+{% if attendee.is_dealer or attendee.badge_type == PSEUDO_GROUP_BADGE %}
     <tr>
         <td><b><nobr>{{ attendee.is_dealer|yesno:"Business,Group" }} Name:</nobr></b></td>
         <td> <input type="text" name="name" value="{{ group.name }}" /> </td>
@@ -48,16 +56,15 @@
         </td>
     </tr>
 {% endif %}
-{% if attendee.is_dealer or attendee.badge_type == GROUP_BADGE %}
+{% if attendee.is_dealer or attendee.badge_type == PSEUDO_GROUP_BADGE %}
     <tr>
         <td> <b>Badges:</b> </td>
         <td>
-            <select name="badges">
-                {% int_options 1 MAX_DEALERS badges %}
-            </select>
             {% if attendee.is_dealer %}
+                <select name="badges">{% int_options 1 MAX_DEALERS badges %}</select>
                 (${{ DEALER_BADGE_PRICE }} each) &nbsp;&nbsp; <nobr>[<i>The number of people working your table.</i>]</nobr>
             {% else %}
+                <select name="badges">{% int_options MIN_GROUP_SIZE MAX_GROUP_SIZE %}</select>
                 (${{ state.GROUP_PRICE }} each)
             {% endif %}
         </td>

@@ -132,19 +132,20 @@ class checkgroup(template.Node):
 @tag
 class int_options(template.Node):
     def __init__(self, minval, maxval, default="1"):
-        self.minval  = int(minval)
+        self.minval  = int(minval) if minval.isdigit() else Variable(minval)
         self.maxval  = int(maxval) if maxval.isdigit() else Variable(maxval)
         self.default = int(default) if default.isdigit() else Variable(default)
     
     def render(self, context):
-        maxval  = self.maxval  if isinstance(self.maxval,  int) else self.maxval.resolve(context)
+        minval = self.minval if isinstance(self.minval, int) else self.minval.resolve(context)
+        maxval = self.maxval if isinstance(self.maxval, int) else self.maxval.resolve(context)
         try:
             default = self.default if isinstance(self.default, int) else int(self.default.resolve(context))
         except:
             default = 1
         
         results = []
-        for i in range(self.minval, maxval+1):
+        for i in range(minval, maxval+1):
             selected = "selected" if i==default else ""
             results.append('<option value="{val}" {selected}>{val}</option>'.format(val=i, selected=selected))
         return "\n".join(results)

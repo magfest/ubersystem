@@ -67,42 +67,6 @@ def shift_badges(attendee, down, until = MAX_BADGE):
             a.save()
 
 
-def get_new_badge_type(group):
-    if GUEST_BADGE in group.attendee_set.values_list("badge_type", flat=True):
-        return GUEST_BADGE
-    else:
-        return ATTENDEE_BADGE
-
-def get_new_ribbon(group):
-    ribbons = set(group.attendee_set.values_list("ribbon", flat=True))
-    for ribbon in [DEALER_RIBBON, BAND_RIBBON, NO_RIBBON]:
-        if ribbon in ribbons:
-            return ribbon
-    else:
-        if group.tables and (group.amount_paid or group.amount_owed):
-            return DEALER_RIBBON
-        else:
-            return NO_RIBBON
-
-def assign_group_badges(group, new_badge_count):
-    group.save()
-    ribbon = get_new_ribbon(group)
-    badge_type = get_new_badge_type(group)
-    new_badge_count = int(new_badge_count)
-    diff = new_badge_count - group.attendee_set.filter(paid = PAID_BY_GROUP).count()
-    if diff > 0:
-        for i in range(diff):
-            Attendee.objects.create(group=group, badge_type=badge_type, ribbon=ribbon, paid=PAID_BY_GROUP)
-    elif diff < 0:
-        floating = list( group.attendee_set.filter(paid=PAID_BY_GROUP, first_name="", last_name="") )
-        if len(floating) < abs(diff):
-            return "You can't reduce the number of badges for a group to below the number of assigned badges"
-        else:
-            for i in range(abs(diff)):
-                floating[i].delete()
-    group.save()
-
-
 def get_badge_type(badge_num):
     try:
         for (badge_type, (lowest, highest)) in BADGE_RANGES.items():

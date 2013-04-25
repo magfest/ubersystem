@@ -29,7 +29,7 @@ class State:
     STAFFERS_IMPORTED    = datetime(2013,  5, 29)
     SHIFTS_CREATED       = datetime(2013, 11,  3)
     PRICE_BUMP           = datetime(2013, 11,  4, 23, 59)
-    DEALER_REG_START     = datetime(2013,  7, 27, 11, 59)
+    DEALER_REG_START     = datetime(2013,  1, 27, 11, 59)
     DEALER_REG_SHUTDOWN  = datetime(2013, 11, 19, 11, 59)
     DEALER_REG_DEADLINE  = datetime(2013,  9,  3, 11, 59)
     DEALER_PAYMENT_DUE   = datetime(2013, 11, 30, 23, 59)
@@ -38,8 +38,8 @@ class State:
     PREREG_TAKEDOWN      = datetime(2013, 12, 23, 23, 59)
     PLACEHOLDER_DEADLINE = datetime(2013, 12, 30, 23, 59)
     UBER_TAKEDOWN        = datetime(2013, 12, 30, 23, 59)
-    EPOCH                = datetime(2014,  1,  3,  8)
-    ESCHATON             = datetime(2014,  1,  6, 22)
+    EPOCH                = datetime(2014,  1,  2,  8)
+    ESCHATON             = datetime(2014,  1,  5, 22)
     
     PATH     = "/magfest"
     HOSTNAME = "magfestubersystem.com"
@@ -425,7 +425,7 @@ EMAIL_RE = re.compile("^[_A-Za-z0-9-]+(\\.[_A-Za-z0-9-+]+)*@[A-Za-z0-9-]+(\\.[A-
 
 MAX_TABLES  = 4
 MAX_DEALERS = 3 * MAX_TABLES
-MAX_GROUP_SIZE = 100
+MIN_GROUP_SIZE, MAX_GROUP_SIZE = 8, 100
 
 DEFAULT_AFFILIATES = ["OC ReMix", "The Shizz", "ScrewAttack", "Empire Arcadia", "Yu-Gi-Oh Abridged"]
 

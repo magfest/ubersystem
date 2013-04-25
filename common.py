@@ -228,14 +228,18 @@ class Charge:
     def total_cost(self):
         total = 0
         for m in self.targets:
-            total += (m.group or m).total_cost
+            total += m.total_cost
         return 100 * total
+    
+    @property
+    def dollar_amount(self):
+        return self.amount // 100
     
     @property
     def names(self):
         names = []
         for m in self.targets:
-            names.append(repr(m.group or m).strip("<>"))
+            names.append(repr(m).strip("<>"))
         return ", ".join(names)
     
     @property

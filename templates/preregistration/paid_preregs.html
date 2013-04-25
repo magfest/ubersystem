@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Preregistraton Successful{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<h2>Thanks for Preregistering!</h2>
+
+Thanks for preregistering for MAGFest!  The following preregistrations have been made from this computer:
+<br/><br/>
+<ul>
+{% for attendee in preregs.attendees %}
+    <li>{{ attendee.full_name }}</li>
+{% endfor %}
+{% for group in preregs.groups %}
+    <li> <b>{{ group.name }}</b> (<a href="group_members?id={{ group.secret_id }}">Click Here</a> to assign your group's badges) </li>
+{% endfor %}
+</ul>
+<br/>
+
+<a href="index">Click Here</a> to return to the main preregistration form.
+
+{% include "preregistration/disclaimers.html" %}
+
+{% endblock %}
