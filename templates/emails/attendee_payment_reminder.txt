@@ -2,6 +2,6 @@
 
 Thanks again for preregistering for MAGFest!  Our records indicate that your registration is currently unpaid, and if we do not receive payment by {{ attendee.payment_deadline|datetime }} then it will be automatically deleted.
 
-You may use the Paypal button (or credit/debit card even if you don't have a Paypal account) at the following URL to pay for your registration: {{ state.URL_BASE }}/preregistration/paypal?id={{ attendee.secret_id }}
+You may use the Paypal button (or credit/debit card even if you don't have a Paypal account) at the following URL to pay for your registration: {{ URL_BASE }}/preregistration/paypal?id={{ attendee.secret_id }}
 
 {{ REGDESK_EMAIL_SIGNATURE }}

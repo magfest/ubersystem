@@ -6,11 +6,6 @@ def check_prereg_reqs(attendee):
     elif attendee.badge_type == PSEUDO_DEALER_BADGE and not attendee.phone:
         return "Your phone number is required"
 
-def check_payment(qs):
-    resp = urlopen(PAYPAL_ACTION + "?cmd=_notify-validate&" + qs).read().lower()
-    if resp != "verified":
-        return "Paypal response {!r} != 'verified'".format(resp)
-
 def check_tables(attendee, group, params):
     if attendee.badge_type == PSEUDO_DEALER_BADGE and group.tables < int(params["badges"]) // 3:
         return "You must get 1 table per 3 badges"
@@ -75,8 +70,8 @@ class Root:
         
         params["id"] = "None"
         params["affiliate"] = params.get("aff_select") or params.get("aff_text") or ""
-        attendee = get_model(Attendee, params, bools=["staffing","can_spam","international"], ignore_csrf=True, restricted=True)
-        group = get_model(Group, params, ignore_csrf=True, restricted=True)
+        attendee = Attendee.get(params, bools=["staffing","can_spam","international"], ignore_csrf=True, restricted=True)
+        group = Group.get(params, ignore_csrf=True, restricted=True)
         if "first_name" in params:
             assert attendee.badge_type in state.PREREG_BADGE_TYPES, "No hacking allowed!"
             message = check(attendee) or check_prereg_reqs(attendee)
@@ -213,7 +208,7 @@ class Root:
         }
     
     def register_group_member(self, message="", **params):
-        attendee = get_model(Attendee, params, bools = ["staffing","can_spam","international"], restricted = True)
+        attendee = Attendee.get(params, bools=["staffing","can_spam","international"], restricted=True)
         if "first_name" in params:
             message = check(attendee) or check_prereg_reqs(attendee)
             if not message and not params["first_name"]:
@@ -246,7 +241,7 @@ class Root:
     
     def transfer_badge(self, message = "", **params):
         old = Attendee.objects.get(secret_id = params["id"])
-        attendee = get_model(Attendee, params, bools = ["staffing","international"], restricted = True)
+        attendee = Attendee.get(params, bools = ["staffing","international"], restricted = True)
         
         if "first_name" in params:
             message = check(attendee) or check_prereg_reqs(attendee)
@@ -269,7 +264,7 @@ class Root:
         }
     
     def confirm(self, message = "", return_to = "confirm", **params):
-        attendee = get_model(Attendee, params, bools = ["staffing","international"], restricted = True)
+        attendee = Attendee.get(params, bools = ["staffing","international"], restricted = True)
         placeholder = attendee.placeholder
         
         if "email" in params:

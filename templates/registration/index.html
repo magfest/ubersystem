@@ -153,7 +153,7 @@
                 recordMPointUsage();
         });
         
-        {% if state.AT_THE_CON %}
+        {% if AT_THE_CON %}
             $(".num").keypress(function(e){
                 if( (e.keyCode || e.which) == 13 )  // ENTER
                     check_in( e.target.id.split("_")[1] );
@@ -178,7 +178,7 @@
 <b>Search:</b> <input class="focus" type="text" name="search_text" style="width:15em" value="{{ search_text }}" />
 </form>
 
-{% if state.AT_THE_CON %}
+{% if AT_THE_CON %}
     <table width="100%">
     <tr style="text-align:center ; font-weight:bold">
         <td width="33%"> {{ attendee_count }} Attendee{{ attendee_count|pluralize }} </td>
@@ -239,7 +239,7 @@
     {% endif %}
     <br/> <br/>
     <a href="form?id=None">Add an attendee</a>
-    {% if state.AT_THE_CON %}
+    {% if AT_THE_CON %}
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <a href="new">View Recent At-the-Door Registrations</a>
     {% endif %}
@@ -253,7 +253,7 @@
     <td> <a href="index?show={{ show }}&order={{ order.badge_num }}">Badge</a> </td>
     <td> <a href="index?show={{ show }}&order={{ order.paid }}">Paid</a> </td>
     <td> <a href="index?show={{ show }}&order={{ order.age_group }}">Age</a> </td>
-    {% if state.AT_THE_CON %}
+    {% if AT_THE_CON %}
         <td> <a href="index?show={{ show }}&order={{ order.checked_in }}"><nobr>Checked In</nobr></a> </td>
     {% endif %}
 </tr>
@@ -266,7 +266,7 @@
             {% endif %}
         </td>
         <td><nobr>
-            {% if state.AT_THE_CON and not attendee.badge_num %}
+            {% if AT_THE_CON and not attendee.badge_num %}
                 {{ attendee.get_badge_type_display }}
                 {% if attendee.is_unassigned %}
                     <input type="hidden" id="num_{{ attendee.id }}" />
@@ -281,9 +281,9 @@
             {% endif %}
         </nobr></td>
         <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.get_paid_display }}</nobr></td>
-        {% if attendee.checked_in or not state.AT_THE_CON %}
+        {% if attendee.checked_in or not AT_THE_CON %}
             <td> <nobr>{{ attendee.get_age_group_display }}</nobr> </td>
-            {% if state.AT_THE_CON %}
+            {% if AT_THE_CON %}
                 <td> {{ attendee.checked_in|time:"fA"|lower }} {{ attendee.checked_in|date:"D" }} </td>
             {% endif %}
         {% else %}

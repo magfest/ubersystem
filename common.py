@@ -73,56 +73,6 @@ def comma_and(xs):
 
 
 
-def get_model(klass, params, bools=[], checkgroups=[], allowed=[], restricted=False, ignore_csrf=False):
-    params = params.copy()
-    id = params.pop("id", "None")
-    if id == "None":
-        model = klass()
-    elif str(id).isdigit():
-        model = klass.objects.get(id = id)
-    else:
-        model = klass.objects.get(secret_id = id)
-    
-    assert not {k for k in params if k not in allowed} or cherrypy.request.method == "POST", "POST required"
-    
-    for field in klass._meta.fields:
-        if restricted and field.name in klass.restricted:
-            continue
-        
-        id_param = field.name + "_id"
-        if isinstance(field, (ForeignKey, OneToOneField)) and id_param in params:
-            setattr(model, id_param, params[id_param])
-        
-        elif field.name in params and field.name != "id":
-            if isinstance(params[field.name], list):
-                value = ",".join(params[field.name])
-            elif isinstance(params[field.name], bool):
-                value = params[field.name]
-            else:
-                value = str(params[field.name]).strip()
-            
-            try:
-                if isinstance(field, IntegerField):
-                    value = int(float(value))
-                elif isinstance(field, DateTimeField):
-                    value = datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
-            except:
-                pass
-            
-            setattr(model, field.name, value)
-    
-    if cherrypy.request.method.upper() == "POST":
-        for field in klass._meta.fields:
-            if field.name in bools:
-                setattr(model, field.name, field.name in params and bool(int(params[field.name])))
-            elif field.name in checkgroups and field.name not in params:
-                setattr(model, field.name, "")
-        
-        if not ignore_csrf:
-            check_csrf(params.get("csrf_token"))
-    
-    return model
-
 def check_csrf(csrf_token):
     assert csrf_token, "CSRF token missing"
     assert csrf_token == cherrypy.session["csrf_token"], "CSRF token does not match"

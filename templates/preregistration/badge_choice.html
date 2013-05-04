@@ -51,15 +51,15 @@
 <tr>
     <td>
         <input type="radio" name="badge_type" value="{{ ATTENDEE_BADGE }}" />
-        <b>Attendee:</b> &nbsp; ${{ state.BADGE_PRICE }}
+        <b>Attendee:</b> &nbsp; ${{ BADGE_PRICE }}
     </td>
     <td>
         <ul>
             <li> All-access, four-day pass </li>
-            {% if now < state.PRICE_BUMP %}
-                <li style="color:red"> Price goes up to ${{ LATE_BADGE_PRICE }} at {{ state.PRICE_BUMP|datetime }} </li>
+            {% if now < PRICE_BUMP and now.month == PRICE_BUMP.month %}
+                <li style="color:red"> Price goes up to ${{ LATE_BADGE_PRICE }} at {{ PRICE_BUMP|datetime }} </li>
             {% endif %}
-            {% if state.BADGE_PRICE == LATE_BADGE_PRICE %}
+            {% if BADGE_PRICE == LATE_BADGE_PRICE %}
                 <li style="color:red"> Preregistration closes at 11:59pm on Sunday, December 23. </li>
             {% endif %}
         </ul>
@@ -67,42 +67,19 @@
     <td> {% popup_link "../static/attendees.html" "Details" %} </td>
 </tr>
 <tr style="display:none">
-{% if state.SUP_REG_OPEN %}
-    <td>
-        <input type="radio" name="badge_type" value="{{ SUPPORTER_BADGE }}" />
-        <b>Supporter:</b> &nbsp; ${{ SUPPORTER_BADGE_PRICE }}</b>
-    </td>
-    <td>
-        <ul>
-            <li> All attendee benefits, plus: </li>
-            <li> a tshirt and bag full of cool swag </li>
-            {% if now.month == 11 or now.month == 12 %}
-                <li style="color:red"> Supporter preregistration closes at 11:59pm on Sunday, December 2. </li>
-            {% endif %}
-        </ul>
-    </td>
-    <td> {% popup_link "../static/supporters.html" "Details" %} </td>
-{% else %}
-    <td> &nbsp;&nbsp;&nbsp;&nbsp; <b>Supporter</b> </td>
-    <td colspan="2" style="color:red">
-        <ul><li>The deadline for Supporter registration has passed, but you can still register as a regular attendee.</li></ul>
-    </td>
-{% endif %}
-</tr>
-<tr style="display:none">
     <td colspan="3" style="border:0">&nbsp;</td>
 </tr>
 <tr style="display:none">
-{% if state.GROUP_REG_OPEN %}
+{% if GROUP_REG_OPEN %}
     <td> <input type="radio" name="badge_type" value="{{ PSEUDO_GROUP_BADGE }}" /> <b>Group</b> </td>
     <td>
         <ul>
             <li> Save money when you register eight or more people at once </li>
-            <li> ${{ state.GROUP_PRICE }} per person </li>
-            {% if now < state.PRICE_BUMP %}
-                <li style="color:red"> Price goes up to ${{ LATE_GROUP_PRICE }} at {{ state.PRICE_BUMP|datetime }} </li>
+            <li> ${{ GROUP_PRICE }} per person </li>
+            {% if now < PRICE_BUMP %}
+                <li style="color:red"> Price goes up to ${{ LATE_GROUP_PRICE }} at {{ PRICE_BUMP|datetime }} </li>
             {% endif %}
-            {% if state.GROUP_PRICE == LATE_GROUP_PRICE %}
+            {% if GROUP_PRICE == LATE_GROUP_PRICE %}
                 <li style="color:red"> Group preregistration closes at 11:59pm on Sunday, December 23. </li>
             {% endif %}
         </ul>
@@ -120,23 +97,23 @@
 </tr>
 <tr style="display:none">
     <td>
-        {% if state.DEALER_REG_OPEN %}
+        {% if DEALER_REG_OPEN %}
             <input type="radio" name="badge_type" value="{{ PSEUDO_DEALER_BADGE }}" />
         {% else %}
             &nbsp;&nbsp;&nbsp;&nbsp;
         {% endif %}
         <b>Dealer</b>
     </td>
-    {% if state.DEALER_REG_OPEN %}
+    {% if DEALER_REG_OPEN %}
         <td>
             <ul>
-                {% if state.DEALER_REG_FULL %}
+                {% if DEALER_REG_FULL %}
                     <li style="color:red"> Dealer registration is closed; submitting an application will put you on our waitlist. </li>
                 {% endif %}
                 <li> Apply to be a Dealer with this form, you'll be emailed a confirmation with a payment link if you are approved. </li>
                 <li> ${{ DEALER_BADGE_PRICE }} per badge </li>
                 <li> {{ TABLE_PRICES }} </li>
-                {% if not state.DEALER_REG_FULL %}
+                {% if not DEALER_REG_FULL %}
                     <li style="color:red"> Dealer registration closes on September 1, or whenever we run out of space. </li>
                 {% endif %}
             </ul>

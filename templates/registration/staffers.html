@@ -19,10 +19,10 @@
     <td> <a href="staffers?order={{ order.paid }}">Paid</a> </td>
     <td> <a href="staffers?order={{ order.assigned_depts }}">Assigned To</a> </td>
     <td> <a href="staffers?order={{ order.weighted_hours }}">Hours</a> </td>
-    {% if state.AT_THE_CON or state.POST_CON %}
+    {% if AT_THE_CON or POST_CON %}
         <td> <a href="staffers?order={{ order.hours_worked }}">Worked</a> </td>
     {% endif %}
-    {% if state.AT_THE_CON %}
+    {% if AT_THE_CON %}
         <td> <a href="staffers?order={{ order.checked_in }}"><nobr>Checked In</nobr></a> </td>
     {% endif %}
 </tr>
@@ -41,10 +41,10 @@
             </ul>
         </td>
         <td> <a href="shifts?id={{ attendee.id }}">{{ attendee.weighted_hours }}</a> </td>
-        {% if state.AT_THE_CON or state.POST_CON %}
+        {% if AT_THE_CON or POST_CON %}
             <td> <a href="shifts?id={{ attendee.id }}">{{ attendee.worked_hours }}</a> </td>
         {% endif %}
-        {% if state.AT_THE_CON %}
+        {% if AT_THE_CON %}
             <td>{{ attendee.checked_in|yesno:"Checked In,Not Checked In" }}</td>
         {% endif %}
     </tr>

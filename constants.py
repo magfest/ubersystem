@@ -28,7 +28,7 @@ class State:
     
     STAFFERS_IMPORTED    = datetime(2013,  5, 29)
     SHIFTS_CREATED       = datetime(2013, 11,  3)
-    PRICE_BUMP           = datetime(2013, 11,  4, 23, 59)
+    PRICE_BUMP           = datetime(2013, 10, 31, 23, 59)
     DEALER_REG_START     = datetime(2013,  1, 27, 11, 59)
     DEALER_REG_SHUTDOWN  = datetime(2013, 11, 19, 11, 59)
     DEALER_REG_DEADLINE  = datetime(2013,  9,  3, 11, 59)
@@ -71,8 +71,7 @@ class State:
     @property
     def PREREG_BADGE_TYPES(self):
         types = [ATTENDEE_BADGE]
-        for reg_open,badge_type in [(self.SUP_REG_OPEN,    SUPPORTER_BADGE),
-                                    (self.DEALER_REG_OPEN, PSEUDO_DEALER_BADGE),
+        for reg_open,badge_type in [(self.DEALER_REG_OPEN, PSEUDO_DEALER_BADGE),
                                     (self.GROUP_REG_OPEN,  PSEUDO_GROUP_BADGE)]:
             if reg_open:
                 types.append(badge_type)
@@ -96,6 +95,17 @@ class State:
 
 state = State()
 
+DONATION_TIERS = {
+    5: "ribbon",
+    10: "button",
+    20: "tshirt",
+    40: "$0.0001 Mpoint",
+    60: "Supporter Level",
+    80: "pin",
+    100: "'Don't ask what I had to do to get this ribbon'",
+    120: "Tiara",
+}
+
 def enum(**kwargs):
     xs = []
     for name,desc in kwargs.items():
@@ -104,7 +114,6 @@ def enum(**kwargs):
         xs.append((val, desc))
     return sorted(xs, key = lambda tup: tup[1])
 
-SUPPORTER_BADGE_PRICE = 100
 ONEDAY_BADGE_PRICE    = 35
 DEALER_BADGE_PRICE    = 30
 TABLE_PRICES          = "$120 for the first table, $160 for the second table, $200 for each additional table"
@@ -175,14 +184,13 @@ BADGE_OPTS = enum(
     ATTENDEE_BADGE  = "Attendee",
     STAFF_BADGE     = "Staff",
     GUEST_BADGE     = "Guest",
-    SUPPORTER_BADGE = "Supporter",
     ONE_DAY_BADGE   = "One Day"
 )
 PSEUDO_GROUP_BADGE  = 101 # people registering in groups will get attendee badges
 PSEUDO_DEALER_BADGE = 102 # dealers get attendee badges with a ribbon
 BADGE_RANGES = {          # these may overlap, but shouldn't
     STAFF_BADGE:     [1, 499],
-    SUPPORTER_BADGE: [500, 999],
+    #SUPPORTER_BADGE: [500, 999],
     GUEST_BADGE:     [1000, 1250],
     ATTENDEE_BADGE:  [2000, 9500],
     ONE_DAY_BADGE:   [10000, 11000],
@@ -198,7 +206,7 @@ RIBBON_OPTS = enum(
     DEALER_RIBBON    = "Shopkeep",
     BAND_RIBBON      = "Rock Star"
 )
-PREASSIGNED_BADGE_TYPES = [STAFF_BADGE, SUPPORTER_BADGE]
+PREASSIGNED_BADGE_TYPES = [STAFF_BADGE]
 CAN_UNSET = [ATTENDEE_BADGE]
 
 PAID_OPTS = enum(

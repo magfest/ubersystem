@@ -65,7 +65,7 @@ class Root:
         if "." in params.get("amount", ""):
             params["amount"] = params["amount"][:params["amount"].index(".")]
 
-        money = get_model(Money, params, bools=["pledged","estimate","pre_con"])
+        money = Money.get(params, bools=["pledged","estimate","pre_con"])
         if "name" in params:
             message = check(money)
             if not message:
@@ -99,7 +99,7 @@ class Root:
         }
 
     def add_payment(self, **params):
-        payment = get_model(Payment, params)
+        payment = Payment.get(params)
         message = check(payment)
         if message:
             raise HTTPRedirect("form?id={}&message={}", payment.money_id, message)
@@ -123,7 +123,7 @@ class Root:
         }
 
     def upload_dept(self, **params):
-        dept = get_model(MoneyDept, params)
+        dept = MoneyDept.get(params)
         message = check(dept)
         if message:
             raise HTTPRedirect("depts?message={}", message)

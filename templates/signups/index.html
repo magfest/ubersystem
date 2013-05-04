@@ -34,8 +34,8 @@
         {% endif %}
         with fire safety training.
     </li>
-    {% if attendee.badge_type == STAFF_BADGE and attendee.registered < state.ROOM_DEADLINE %}
-        {% if state.ROOMS_AVAILABLE %}
+    {% if attendee.badge_type == STAFF_BADGE and attendee.registered < ROOM_DEADLINE %}
+        {% if ROOMS_AVAILABLE %}
             <li>
                 {% checked_if attendee.hotelrequests %}
                 {% if not attendee.placeholder and attendee.fire_safety_cert and not attendee.hotelrequests %}
@@ -43,7 +43,7 @@
                 {% else %}
                     Tell us
                 {% endif %}
-                whether you want hotel room space no later than <b>{{ state.ROOM_DEADLINE|datetime }}</b>
+                whether you want hotel room space no later than <b>{{ ROOM_DEADLINE|datetime }}</b>
                 {% if attendee.hotelrequests %}
                     (you may <a href="hotel_requests">edit your request</a> until then).
                 {% endif %}

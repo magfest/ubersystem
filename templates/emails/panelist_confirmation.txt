@@ -1,6 +1,6 @@
 {{ attendee.first_name }},
 
-Thanks for coming out to MAGFest as a Panelist!  We've added you to our registration database for your complementary badge, but we don't have all of your personal information.  To ensure that you can pick up your badge with no hassles at our registration desk, please fill out the rest of your info at {{ state.URL_BASE }}/preregistration/confirm?id={{ attendee.secret_id }} and then simply bring a photo ID to MAGFest.
+Thanks for coming out to MAGFest as a Panelist!  We've added you to our registration database for your complementary badge, but we don't have all of your personal information.  To ensure that you can pick up your badge with no hassles at our registration desk, please fill out the rest of your info at {{ URL_BASE }}/preregistration/confirm?id={{ attendee.secret_id }} and then simply bring a photo ID to MAGFest.
 
 Please let us know if you have any questions.
 

@@ -4,6 +4,6 @@ You're receiving space in one of our volunteer hotel rooms, which has a requirem
 
 Since you're working setup/teardown you don't need to sign up for hours in advance, but make sure that you know when you should show up and what's expected of you.  If you're unsure, please contact STOPS and/or your department head(s).{% endif %}
 
-You can log in to sign up for shifts at {{ state.URL_BASE }}/signups/login
+You can log in to sign up for shifts at {{ URL_BASE }}/signups/login
 
 {{ STOPS_EMAIL_SIGNATURE }}

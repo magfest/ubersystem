@@ -28,7 +28,7 @@
     
     function setAmountPaid(focus) {
         {% if not attendee.id %}
-            var amount = {{ state.BADGE_PRICE }};
+            var amount = {{ BADGE_PRICE }};
             if( $.val("badge_type") === {{ SUPPORTER_BADGE }} )
                 amount = {{ SUPPORTER_BADGE_PRICE }};
             else if( $.val("badge_type") >= {{ ONE_DAY_BADGE }} )
@@ -62,7 +62,7 @@
                 $(".maybe_bold").css("font-weight", "normal");
             else {
                 $(".maybe_bold").css("font-weight", "bold");
-                {% if state.AT_THE_CON %}
+                {% if AT_THE_CON %}
                     $("#email").css("font-weight", "normal");
                 {% endif %}
             }
@@ -91,14 +91,14 @@
         boldOrRegular();
         setGroupLink();
         showOrHideAmounts();
-        {% if state.AT_THE_CON and not attendee.id %}
+        {% if AT_THE_CON and not attendee.id %}
             $.field("paid").val({{ HAS_PAID }});
-            $.field("amount_paid").val({{ state.BADGE_PRICE }});
+            $.field("amount_paid").val({{ BADGE_PRICE }});
         {% endif %}
     });
 </script>
 
-{% if state.AT_THE_CON %}
+{% if AT_THE_CON %}
     <div style="display:none">
         <input type="checkbox" name="placeholder" /> TODO: this is a big hack, figure this out
     </div>
@@ -108,7 +108,7 @@
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
 <table width="100%" cellspacing="5" cellpadding="5">
-{% if not state.AT_THE_CON %}
+{% if not AT_THE_CON %}
     <tr>
         <td width="25%"> <b>Placeholder:</b> </td>
         <td width="75%">
@@ -135,7 +135,7 @@
             <select name="badge_type" onChange="boldOrRegular(); setBadgeMessage()">
                 {% options BADGE_OPTS attendee.badge_type %}
             </select>
-            {% if state.AT_THE_CON %}
+            {% if AT_THE_CON %}
                 #<input class="focus" type="text" style="width:4em" name="badge_num" value='{{ attendee.badge_num|default:"" }}' />
             {% else %}
                 <span id="badge_message" style="font-style:italic"></span>
@@ -145,7 +145,7 @@
         <select name="ribbon">
             {% options RIBBON_OPTS attendee.ribbon %}
         </select>
-        {% if state.AT_THE_CON and not attendee.badge_num %}
+        {% if AT_THE_CON and not attendee.badge_num %}
             <br/> <input type="checkbox" name="omit_badge" value="yes" {% if omit_badge %}checked{% endif %} /> Omit badge number
         {% endif %}
     </td>
@@ -179,7 +179,7 @@
 {% if attendee.badge_type == STAFF_BADGE or attendee.badge_type == SUPPORTER_BADGE %}
     <tr>
         <td>Printed on Badge:</td>
-        <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" {% if state.CUSTOM_BADGES_ORDERED %}readonly{% endif %} /> </td>
+        <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" {% if CUSTOM_BADGES_ORDERED %}readonly{% endif %} /> </td>
     </tr>
 {% endif %}
 <tr>
@@ -198,7 +198,7 @@
     <td> <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" /> </td>
 </tr>
 <tr>
-    <td> <nobr>{% bold_if state.AT_THE_CON %}Age as of MAGFest:{% end_bold_if %}</nobr> </td>
+    <td> <nobr>{% bold_if AT_THE_CON %}Age as of MAGFest:{% end_bold_if %}</nobr> </td>
     <td>
         <select name="age_group">
             {% options AGE_GROUP_OPTS attendee.age_group %}
@@ -282,7 +282,7 @@
     <td> Can Spam: </td>
     <td> {% checkbox attendee.can_spam %} Yes </td>
 </tr>
-{% if state.AT_THE_CON %}
+{% if AT_THE_CON %}
     <tr>
         <td valign="top"> Notes for Later Review: </td>
         <td> <textarea name="for_review" rows="3" style="width:66%">{{ attendee.for_review }}</textarea> </td>

@@ -6,10 +6,10 @@
     {% for attendee in placeholders %}
             <li>
                 {{ attendee.registered|datetime:"%Y-%m-%d" }}
-                <a href="{{ state.URL_BASE }}/registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a>
+                <a href="{{ URL_BASE }}/registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a>
                 [{{ attendee.badge }}]
                 {% if attendee.group %}
-                    (<a href="{{ state.URL_BASE }}/groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>)
+                    (<a href="{{ URL_BASE }}/groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>)
                 {% endif %}
             </li>
     {% endfor %}

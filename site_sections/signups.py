@@ -41,7 +41,7 @@ class Root:
         
         def hotel_requests(self, message = "", decline = None, **params):
             attendee = Attendee.objects.get(id = cherrypy.session["staffer_id"])
-            requests = get_model(HotelRequests, params, checkgroups = ["nights"], restricted = True)
+            requests = HotelRequests.get(params, checkgroups = ["nights"], restricted = True)
             if "attendee_id" in params:
                 if decline or not requests.nights:
                     requests.nights = ""

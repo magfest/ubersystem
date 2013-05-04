@@ -81,8 +81,8 @@ class Root:
         }
     
     def form(self, message="", return_to="", omit_badge="", **params):
-        attendee = get_model(Attendee, params, checkgroups = ["interests"],
-                             bools = ["staffing","trusted","international","placeholder","got_merch","can_spam"])
+        attendee = Attendee.get(params, checkgroups = ["interests"],
+                                bools = ["staffing","trusted","international","placeholder","got_merch","can_spam"])
         if "first_name" in params:
             attendee.group = None if not params["group_opt"] else Group.objects.get(id = params["group_opt"])
             
@@ -108,7 +108,7 @@ class Root:
         }
     
     def change_badge(self, message="", **params):
-        attendee = get_model(Attendee, dict(params, badge_num = params.get("newnum") or 0))
+        attendee = Attendee.get(dict(params, badge_num = params.get("newnum") or 0))
         
         if "badge_type" in params:
             preassigned = state.AT_THE_CON or attendee.badge_type in PREASSIGNED_BADGE_TYPES
@@ -193,7 +193,7 @@ class Root:
     
     @ajax
     def record_sale(self, **params):
-        sale = get_model(Sale, params)
+        sale = Sale.get(params)
         message = check(sale)
         if message:
             return {"success":False, "message":message}
@@ -335,7 +335,7 @@ class Root:
         @unrestricted
         def register(self, message="", **params):
             params["id"] = "None"
-            attendee = get_model(Attendee, params, bools=["international"], checkgroups=["interests"], restricted=True)
+            attendee = Attendee.get(params, bools=["international"], checkgroups=["interests"], restricted=True)
             if "first_name" in params:
                 if not attendee.first_name or not attendee.last_name:
                     message = "First and Last Name are required fields"

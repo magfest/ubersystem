@@ -131,7 +131,7 @@ class Root:
         }
     
     def form(self, message="", panelists=[], **params):
-        event = get_model(Event, params, allowed=["location", "start_time"])
+        event = Event.get(params, allowed=["location", "start_time"])
         if "name" in params:
             message = check(event)
             if not message:

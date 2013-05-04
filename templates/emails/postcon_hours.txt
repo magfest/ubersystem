@@ -1,6 +1,6 @@
 {{ attendee.first_name }},
 
-As a department head of {{ attendee.assigned_display.0 }}, we need you to review your department's shifts to make sure that everyone got properly marked, which you can do at {{ state.URL_BASE }}/jobs/signups?location={{ attendee.assigned_depts }}
+As a department head of {{ attendee.assigned_display.0 }}, we need you to review your department's shifts to make sure that everyone got properly marked, which you can do at {{ URL_BASE }}/jobs/signups?location={{ attendee.assigned_depts }}
 
 
 Although we've entered the shifts from the paper schedules, there are three main types of unmarked shifts:
@@ -21,6 +21,6 @@ LOOK OF DISAPPROVAL: the shift was technically worked, but the performance was s
 A+: the volunteer went above and beyond, in attitude or competence or extra work, etc
 
 
-So please visit {{ state.URL_BASE }}/jobs/signups?id={{ attendee.assigned_depts }} before the awesomeness that was MAGFest 11 fades into an even blurrier haze than it already has!
+So please visit {{ URL_BASE }}/jobs/signups?id={{ attendee.assigned_depts }} before the awesomeness that was MAGFest 11 fades into an even blurrier haze than it already has!
 
 {{ STOPS_EMAIL_SIGNATURE }}

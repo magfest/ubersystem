@@ -4,7 +4,7 @@
 
 <script type="text/javascript">
     function badgeTypeChanged() {
-        {% if not state.AT_THE_CON %}
+        {% if not AT_THE_CON %}
             var badge_type = parseInt($("[name=badge_type]").val());
             var radio = badge_type === {{ attendee.badge_type}} ? "manual" : "auto";
             $("[value=" + radio + "]").attr("checked", true);
@@ -48,7 +48,7 @@
     <td>
         <input type="radio" name="assign" value="manual" checked />
         Badge #<input class="focus" type="text" style="width:4em" name="newnum" />
-        {% if not state.AT_THE_CON %}
+        {% if not AT_THE_CON %}
             <br/> &nbsp;&nbsp;&nbsp;&nbsp; <i>or</i> <br/>
             <input type="radio" name="assign" value="auto" /> Next Available Badge
         {% endif %}

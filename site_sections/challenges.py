@@ -28,7 +28,7 @@ class Root:
         }
     
     def record_success(self, return_to="index?", **params):
-        success = get_model(Success, params)
+        success = Success.get(params)
         message = check(success)
         if message:
             raise HTTPRedirect(return_to + "message={}", message)
@@ -65,7 +65,7 @@ class Root:
         }
     
     def create(self, **params):
-        challenge = get_model(Challenge, params, bools=["normal","hard","expert"])
+        challenge = Challenge.get(params, bools=["normal","hard","expert"])
         message = check(challenge)
         if message:
             raise HTTPRedirect("form?message={}", message)
@@ -74,7 +74,7 @@ class Root:
         raise HTTPRedirect("form?message={}", "Challenge created")
     
     def update(self, **params):
-        get_model(Challenge, params, bools=["normal","hard","expert"]).save()
+        Challenge.get(params, bools=["normal","hard","expert"]).save()
         raise HTTPRedirect("form?message={}", "Challenge updated")
     
     def delete(self, id):

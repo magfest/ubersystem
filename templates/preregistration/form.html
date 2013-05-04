@@ -65,7 +65,7 @@
                 (${{ DEALER_BADGE_PRICE }} each) &nbsp;&nbsp; <nobr>[<i>The number of people working your table.</i>]</nobr>
             {% else %}
                 <select name="badges">{% int_options MIN_GROUP_SIZE MAX_GROUP_SIZE %}</select>
-                (${{ state.GROUP_PRICE }} each)
+                (${{ GROUP_PRICE }} each)
             {% endif %}
         </td>
     </tr>

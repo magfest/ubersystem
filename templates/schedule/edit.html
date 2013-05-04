@@ -55,7 +55,7 @@
 <script type="text/javascript">
     var SLOT_COUNT = {{ CON_LENGTH }} * 2;
     var EVENTS = {{ events|jsonize }};
-    var EPOCH = Date.parse("{{ state.EPOCH|datetime:"%Y-%m-%d %H:%M:%S" }}");
+    var EPOCH = Date.parse("{{ EPOCH|datetime:"%Y-%m-%d %H:%M:%S" }}");
     
     var swapProps = function(x, y) {
         $.each($.makeArray(arguments).slice(2), function(i,name) {

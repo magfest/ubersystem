@@ -46,6 +46,57 @@ class MagModel(Model):
         display = getattr(self, "display", "name" if hasattr(self, "name") else "id")
         return "<{}>".format(" ".join(str(getattr(self, field)) for field in listify(display)))
     __str__ = __repr__
+    
+    @classmethod
+    def get(cls, params, bools=[], checkgroups=[], allowed=[], restricted=False, ignore_csrf=False):
+        params = params.copy()
+        id = params.pop("id", "None")
+        if id == "None":
+            model = cls()
+        elif str(id).isdigit():
+            model = cls.objects.get(id = id)
+        else:
+            model = cls.objects.get(secret_id = id)
+
+        assert not {k for k in params if k not in allowed} or cherrypy.request.method == "POST", "POST required"
+
+        for field in cls._meta.fields:
+            if restricted and field.name in cls.restricted:
+                continue
+
+            id_param = field.name + "_id"
+            if isinstance(field, (ForeignKey, OneToOneField)) and id_param in params:
+                setattr(model, id_param, params[id_param])
+
+            elif field.name in params and field.name != "id":
+                if isinstance(params[field.name], list):
+                    value = ",".join(params[field.name])
+                elif isinstance(params[field.name], bool):
+                    value = params[field.name]
+                else:
+                    value = str(params[field.name]).strip()
+
+                try:
+                    if isinstance(field, IntegerField):
+                        value = int(float(value))
+                    elif isinstance(field, DateTimeField):
+                        value = datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+                except:
+                    pass
+
+                setattr(model, field.name, value)
+
+        if cherrypy.request.method.upper() == "POST":
+            for field in cls._meta.fields:
+                if field.name in bools:
+                    setattr(model, field.name, field.name in params and bool(int(params[field.name])))
+                elif field.name in checkgroups and field.name not in params:
+                    setattr(model, field.name, "")
+
+            if not ignore_csrf:
+                check_csrf(params.get("csrf_token"))
+
+        return model
 
 class TakesPaymentMixin(object):
     @property
@@ -337,6 +388,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     paid            = IntegerField(default = NOT_PAID, choices = PAID_OPTS)
     amount_paid     = IntegerField(default = 0)
+    amount_extra    = IntegerField(default = 0)
     amount_refunded = IntegerField(default = 0)
     
     badge_printed_name = CharField(max_length = 30, default = "")
@@ -410,26 +462,25 @@ class Attendee(MagModel, TakesPaymentMixin):
             if self.badge_type not in PREASSIGNED_BADGE_TYPES or not state.CUSTOM_BADGES_ORDERED:
                 badge_funcs.shift_badges(self, down = True)
     
-    @property
-    def is_unpaid(self):
-        return self.paid == NOT_PAID
-    
     @staticmethod
     def staffers():
         return Attendee.objects.filter(staffing = True).order_by("first_name","last_name")
     
     @property
     def total_cost(self):
-        if self.badge_type == SUPPORTER_BADGE:
-            return SUPPORTER_BADGE_PRICE
-        elif self.badge_type == ONE_DAY_BADGE:
-            return ONEDAY_BADGE_PRICE
+        if self.badge_type == ONE_DAY_BADGE:
+            cost = ONEDAY_BADGE_PRICE
         elif datetime.now() < state.PRICE_BUMP:
-            return EARLY_BADGE_PRICE
+            cost = EARLY_BADGE_PRICE
         elif not state.AT_THE_CON:
-            return LATE_BADGE_PRICE
+            cost = LATE_BADGE_PRICE
         else:
-            return DOOR_BADGE_PRICE
+            cost = DOOR_BADGE_PRICE
+        return cost + self.amount_extra
+    
+    @property
+    def is_unpaid(self):
+        return self.paid == NOT_PAID
     
     @property
     def is_unassigned(self):

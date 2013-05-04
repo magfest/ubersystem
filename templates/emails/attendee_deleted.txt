@@ -1,7 +1,7 @@
 {{ attendee.first_name }},
 
 Because it's been two weeks since you preregistered for MAGFest and we have still not received payment, your registration has been deleted.
-{% if not state.PREREG_CLOSED %}
+{% if not PREREG_CLOSED %}
 If we've made a mistake and have deleted your registration in error, please reply to this email and let us know and we'll consult our records and get everything sorted out.  Otherwise, when you are prepared to pay you may re-register at http://magfest.org/prereg
 {% endif %}
 {{ REGDESK_EMAIL_SIGNATURE }}

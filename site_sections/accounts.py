@@ -89,7 +89,7 @@ class Root:
         }
     
     def update(self, password="", **params):
-        account = get_model(Account, params, checkgroups=["access"])
+        account = Account.get(params, checkgroups=["access"])
         is_new = account.id is None
         if is_new:
             if state.AT_THE_CON:

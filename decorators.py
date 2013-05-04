@@ -73,8 +73,8 @@ def render(template, data = None):
     data = data or {}
     data.update({m.__name__: m for m in all_models()})
     data.update({k: v for k,v in constants.__dict__.items() if re.match("^[_A-Z0-9]*$", k)})
+    data.update({k: getattr(state, k) for k in dir(state) if re.match("^[_A-Z0-9]*$", k)})
     data.update({
-        "state": state,
         "now":   datetime.now(),
         "PAGE":  cherrypy.request.path_info.split("/")[-1],
         "CSRF_TOKEN":  getattr(cherrypy, "session", {}).get("csrf_token")

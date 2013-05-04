@@ -1,8 +1,8 @@
 {{ attendee.first_name }},
 
-You still haven't told us whether or not you want space in one of our volunteer hotel room at this year's MAGFest.  If you accept, you'll be assigned to a hotel room with 3 - 4 other volunteers.  You can accept or decline this offer as part of our volunteer checklist at {{ state.URL_BASE }}/signups/login
+You still haven't told us whether or not you want space in one of our volunteer hotel room at this year's MAGFest.  If you accept, you'll be assigned to a hotel room with 3 - 4 other volunteers.  You can accept or decline this offer as part of our volunteer checklist at {{ URL_BASE }}/signups/login
 
-If you don't sign up by {{ state.ROOM_DEADLINE|datetime }} then you will not receive hotel room space.
+If you don't sign up by {{ ROOM_DEADLINE|datetime }} then you will not receive hotel room space.
 
 All volunteers who receive hotel room space must sign up for at least 30 weighted hours worth of shifts, but you won't be charged any money.  Volunteers who help with setup or teardown before or after MAGFest do not need to sign up for 30 weighted hours in advance, because so much of their work consists of be non-shift hours.
 

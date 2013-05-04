@@ -34,7 +34,7 @@ class Root:
         }
     
     def form(self, message="", **params):
-        group = get_model(Group, params, bools=["auto_recalc","can_add"])
+        group = Group.get(params, bools=["auto_recalc","can_add"])
         if "name" in params:
             message = check(group)
             if not message:
@@ -60,12 +60,12 @@ class Root:
             group.delete()
         return "ok"
     
+    @csrf_protected
     def delete(self, id):
         group = Group.objects.get(id=id)
         if group.badges - group.unregistered_badges:
             raise HTTPRedirect("form?id={}&message={}", id, "You can't delete a group without first unassigning its badges.")
         
-        for attendee in group.attendee_set.all():
-            attendee.delete()
+        group.attendee_set.all().delete()
         group.delete()
         raise HTTPRedirect("index?message={}", "Group deleted")

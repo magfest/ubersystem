@@ -67,21 +67,6 @@ days_before = lambda days, dt: dt - timedelta(days = days) < datetime.now() < dt
 
 ### WARNING - changing the email subject line for a reminder causes ALL of those reminders to be re-sent
 
-Reminder(Attendee, "Reminder to pay for MAGFest", "attendee_payment_reminder.txt",
-         lambda a: days_after(7, a.registered) and a.is_unpaid)
-
-Reminder(Attendee, "Last chance to pay for your MAGFest badge", "attendee_payment_reminder.txt",
-         lambda a: days_before(2, a.payment_deadline) and a.is_unpaid)
-
-
-
-GroupReminder("Reminder to pay for your MAGFest group", "group_payment_reminder.txt",
-              lambda g: days_after(7, g.registered) and g.is_unpaid)
-
-GroupReminder("Last chance to pay for your MAGFest group", "group_payment_reminder.txt",
-              lambda g: days_before(2, g.payment_deadline) and g.is_unpaid)
-
-
 
 MarketplaceReminder("Reminder to pay for your MAGFest Dealer registration", "dealer_payment_reminder.txt",
                     lambda g: days_after(30, g.approved) and g.status == APPROVED and g.is_unpaid)
@@ -101,7 +86,7 @@ MarketplaceReminder("Your MAGFest Dealer registration has been approved", "deale
          lambda g: g.status == APPROVED)
 
 Reminder(Attendee, "MAGFest payment received", "attendee_confirmation.html",
-         lambda a: a.paid == HAS_PAID and a.amount_paid == a.total_cost)
+         lambda a: a.paid == HAS_PAID)
 
 Reminder(Group, "MAGFest group payment received", "group_confirmation.html",
          lambda g: g.amount_paid == g.total_cost)
@@ -196,11 +181,6 @@ Reminder(Group, "Last chance to pre-assign MAGFest group badges", "group_preassi
 Reminder(Attendee, "MAGFest parental consent form reminder", "under_18_reminder.txt",
          lambda a: a.age_group == UNDER_18 and datetime.now() > state.EPOCH - timedelta(days = 7))
 
-
-Reminder(Attendee, "MAGFest XI LAN Information -- Important! Please Read!", "lan_room.html",
-         lambda a: LAN in a.interests_list, sender = "lan@magfest.org")
-
-
 DeptHeadReminder("MAGFest staffers need to be marked and rated", "postcon_hours.txt",
                  lambda a: state.POST_CON and len(a.assigned) == 1)
 
@@ -210,7 +190,7 @@ class Root:
     def index(self):
         raise HTTPRedirect("by_sent")
     
-    def by_sent(self, page = "1"):
+    def by_sent(self, page="1"):
         emails = Email.objects.order_by("-when")
         return {
             "page": page,
