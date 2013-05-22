@@ -1,6 +1,5 @@
 from common import *
-
-from secret_settings import AWS_ACCESS_KEY_ID, AWS_SECRET_KEY
+from secret_settings import *
 
 DEV_BOX = True
 
@@ -97,6 +96,7 @@ state = State()
 
 SUPPORTER_LEVEL = 60
 DONATION_TIERS = {
+    0: "No thanks",
     5: "'Friend of MAGFest' ribbon",
     10: "button",
     20: "tshirt",
@@ -108,7 +108,7 @@ DONATION_TIERS = {
     150: "Supporter Season's Pass (if we even do this)",
     200: "Tiara"
 }
-DONATION_OPTS = sorted((amount,"${}: {}".format(amount,desc)) for amount,desc in DONATION_TIERS.items())
+DONATION_OPTS = sorted((amt, "${}: {}".format(amt,desc) if amt else desc) for amt,desc in DONATION_TIERS.items())
 
 def enum(**kwargs):
     decl_sort = kwargs.pop("_sort_by_declaration", False)
@@ -447,8 +447,3 @@ MIN_GROUP_SIZE, MAX_GROUP_SIZE = 8, 100
 DEFAULT_AFFILIATES = ["OC ReMix", "ScrewAttack",                                # got 26 and 12 supporters last year
                       "Destructoid", "Metroid Metal", "Lordkat",                # got 8 supporters last year
                       "8BitX Radio Network", "Channel Awesome", "The Megas"]    # got 7 supporters last year
-
-PAYPAL_ITEM = "item_number"
-PAYPAL_COST = "mc_gross"
-PAYPAL_STATUS = "payment_status"
-PAYPAL_REASON = "pending_reason"

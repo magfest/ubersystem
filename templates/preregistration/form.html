@@ -63,17 +63,18 @@
         {% endif %}
     </td>
 </tr>
-<tr>
-    <td><b>Want to kick in extra?</b></td>
-    <td>
-        <select name="amount_extra" style="width:50%" onChange="donationChanged()">
-            <option value="0">No thanks</option>
-            {% options DONATION_OPTS attendee.amount_extra %}
-        </select>
-        &nbsp;
-        <nobr>{% popup_link "../static/givingExtra.html" "Why do this?" %}</nobr>
-    </td>
-</tr>
+{% if attendee.badge_type == ATTENDEE_BADGE %}
+    <tr>
+        <td><b>Want to kick in extra?</b></td>
+        <td>
+            <select name="amount_extra" style="width:50%" onChange="donationChanged()">
+                {% options DONATION_OPTS attendee.amount_extra %}
+            </select>
+            &nbsp;
+            <nobr>{% popup_link "../static/givingExtra.html" "Why do this?" %}</nobr>
+        </td>
+    </tr>
+{% endif %}
 {% if attendee.is_dealer or attendee.badge_type == PSEUDO_GROUP_BADGE %}
     <tr>
         <td><b><nobr>{{ attendee.is_dealer|yesno:"Business,Group" }} Name:</nobr></b></td>
