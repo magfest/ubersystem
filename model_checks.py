@@ -69,8 +69,8 @@ def attendee_misc(attendee):
 def attendee_money(attendee):
     try:
         amount_paid = int(float(attendee.amount_paid))
-        if amount_paid < 0 or amount_paid > 2 * SUPPORTER_BADGE_PRICE:
-            return "Amount Paid must be within a reasonable range"
+        if amount_paid < 0:
+            return "Amount Paid cannot be less than zero"
     except:
         return "What you entered for Amount Paid ({}) wasn't even a number".format(attendee.amount_paid)
     

@@ -388,7 +388,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     paid            = IntegerField(default = NOT_PAID, choices = PAID_OPTS)
     amount_paid     = IntegerField(default = 0)
-    amount_extra    = IntegerField(default = 0)
+    amount_extra    = IntegerField(default = 0, choices = DONATION_OPTS)
     amount_refunded = IntegerField(default = 0)
     
     badge_printed_name = CharField(max_length = 30, default = "")
@@ -415,6 +415,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         
         with BADGE_LOCK:
             if not state.AT_THE_CON:
+                if self.amount_extra >= SUPPORTER_LEVEL and self.badge_type == ATTENDEE_BADGE and not state.CUSTOM_BADGES_ORDERED:
+                    self.badge_type = SUPPORTER_BADGE
+                
                 if self.paid == NOT_PAID or self.badge_type not in PREASSIGNED_BADGE_TYPES:
                     self.badge_num = 0
                 elif self.badge_type in PREASSIGNED_BADGE_TYPES and not self.badge_num:
@@ -424,7 +427,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                     elif self.paid != NOT_PAID:
                         self.badge_num = badge_funcs.next_badge_num(self.badge_type)
         
-        if self.badge_type != SUPPORTER_BADGE:
+        if not self.amount_extra:
             self.affiliate = ""
         
         if self.staffing and self.badge_type == ATTENDEE_BADGE and self.ribbon == NO_RIBBON:
@@ -520,6 +523,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def tshirt(self):
         return self.badge_type in [STAFF_BADGE, SUPPORTER_BADGE] or self.worked_hours >= 6
+    
+    @property
+    def donation_swag(self):
+        return [desc for amount,desc in sorted(DONATION_TIERS.items()) if self.amount_extra >= amount]
     
     @property
     def merch(self):

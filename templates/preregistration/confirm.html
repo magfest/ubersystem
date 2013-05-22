@@ -65,14 +65,6 @@
 
 </form>
 
-{% if attendee.paid == NOT_PAID %}
-    <div style="text-align:center">
-        <h3> You still need to pay for your badge! </h3>
-        {% paypal_button attendee %}
-        <b><i>Total</i>:</b> ${{ attendee.total_cost }} <br/>
-        <font size="-1">(Reminder: you can {% popup_link "../static/noPaypal.html" "pay with a credit/debit card" %} through Paypal even without a Paypal account.)</font>
-    </div>
-{% endif %}
 {% if not attendee.placeholder and attendee.paid == HAS_PAID %}
     <form method="GET" action="transfer_badge" style="margin-left:25%">
     <input type="hidden" name="id" value="{{ attendee.secret_id }}" />

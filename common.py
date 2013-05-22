@@ -216,9 +216,10 @@ class Charge:
 
 
 def affiliates(exclude={"paid":NOT_PAID}):
-    db = Attendee.objects.exclude(**exclude).values_list("affiliate", flat=True).distinct()
-    aff = DEFAULT_AFFILIATES + [a for a in db if a and a not in DEFAULT_AFFILIATES]
-    return [(a,a) for a in aff]
+    amounts = defaultdict(int, {a:-i for i,a in enumerate(DEFAULT_AFFILIATES)})
+    for aff,amt in Attendee.objects.exclude(Q(amount_extra=0) | Q(affiliate="")).values_list("affiliate","amount_extra"):
+        amounts[aff] += amt
+    return [(aff,aff) for aff,amt in sorted(amounts.items(), key=lambda tup: -tup[1])]
 
 
 

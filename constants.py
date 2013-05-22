@@ -95,28 +95,40 @@ class State:
 
 state = State()
 
+SUPPORTER_LEVEL = 60
 DONATION_TIERS = {
-    5: "ribbon",
+    5: "'Friend of MAGFest' ribbon",
     10: "button",
     20: "tshirt",
-    40: "$0.0001 Mpoint",
-    60: "Supporter Level",
+    40: "$10 in Mpoints",
+    SUPPORTER_LEVEL: "Supporter Package",
     80: "pin",
     100: "'Don't ask what I had to do to get this ribbon'",
-    120: "Tiara",
+    125: "$0.000000001 Mpoint coin",
+    150: "Supporter Season's Pass (if we even do this)",
+    200: "Tiara"
 }
+DONATION_OPTS = sorted((amount,"${}: {}".format(amount,desc)) for amount,desc in DONATION_TIERS.items())
 
 def enum(**kwargs):
+    decl_sort = kwargs.pop("_sort_by_declaration", False)
+    if decl_sort:
+        with open(__file__) as f:
+            lines = f.readlines()
+        def _line(tup):
+            for i,line in enumerate(lines):
+                if tup[0] in line:
+                    return i
     xs = []
     for name,desc in kwargs.items():
         val = int(sha512(name.encode()).hexdigest()[:7], 16)
         globals()[name] = val
-        xs.append((val, desc))
-    return sorted(xs, key = lambda tup: tup[1])
+        xs.append((name, val, desc))
+    return [x[1:] for x in sorted(xs, key = _line if decl_sort else lambda tup: tup[2])]
 
-ONEDAY_BADGE_PRICE    = 35
-DEALER_BADGE_PRICE    = 30
-TABLE_PRICES          = "$120 for the first table, $160 for the second table, $200 for each additional table"
+ONEDAY_BADGE_PRICE = 35
+DEALER_BADGE_PRICE = 30
+TABLE_PRICES       = "$120 for the first table, $160 for the second table, $200 for each additional table"
 
 ADMIN_EMAIL = "Eli Courtwright <eli@courtwright.org>"
 REGDESK_EMAIL = "Victoria Earl <regdesk@magfest.org>"
@@ -182,6 +194,7 @@ BADGE_LOCK = RLock()
 
 BADGE_OPTS = enum(
     ATTENDEE_BADGE  = "Attendee",
+    SUPPORTER_BADGE = "Supporter",
     STAFF_BADGE     = "Staff",
     GUEST_BADGE     = "Guest",
     ONE_DAY_BADGE   = "One Day"
@@ -190,7 +203,7 @@ PSEUDO_GROUP_BADGE  = 101 # people registering in groups will get attendee badge
 PSEUDO_DEALER_BADGE = 102 # dealers get attendee badges with a ribbon
 BADGE_RANGES = {          # these may overlap, but shouldn't
     STAFF_BADGE:     [1, 499],
-    #SUPPORTER_BADGE: [500, 999],
+    SUPPORTER_BADGE: [500, 999],
     GUEST_BADGE:     [1000, 1250],
     ATTENDEE_BADGE:  [2000, 9500],
     ONE_DAY_BADGE:   [10000, 11000],
@@ -206,7 +219,7 @@ RIBBON_OPTS = enum(
     DEALER_RIBBON    = "Shopkeep",
     BAND_RIBBON      = "Rock Star"
 )
-PREASSIGNED_BADGE_TYPES = [STAFF_BADGE]
+PREASSIGNED_BADGE_TYPES = [STAFF_BADGE, SUPPORTER_BADGE]
 CAN_UNSET = [ATTENDEE_BADGE]
 
 PAID_OPTS = enum(
@@ -375,17 +388,13 @@ RATING_OPTS = enum(
 )
 
 AGE_GROUP_OPTS = enum(
-    AGE_UNKNOWN       = "unknown",
-    UNDER_18          = "under 18",
-    BETWEEN_18_AND_21 = "18, 19, or 20",
-    OVER_21           = "21 or over"
-)
-PREREG_AGE_GROUP_OPTS = enum(
+    _sort_by_declaration = True,
     AGE_UNKNOWN       = "How old are you?",
     UNDER_18          = "under 18",
     BETWEEN_18_AND_21 = "18, 19, or 20",
     OVER_21           = "21 or over"
 )
+
 WRISTBAND_COLORS = {
     UNDER_18: "red",
     BETWEEN_18_AND_21: "blue",
@@ -435,7 +444,9 @@ MAX_TABLES  = 4
 MAX_DEALERS = 3 * MAX_TABLES
 MIN_GROUP_SIZE, MAX_GROUP_SIZE = 8, 100
 
-DEFAULT_AFFILIATES = ["OC ReMix", "The Shizz", "ScrewAttack", "Empire Arcadia", "Yu-Gi-Oh Abridged"]
+DEFAULT_AFFILIATES = ["OC ReMix", "ScrewAttack",                                # got 26 and 12 supporters last year
+                      "Destructoid", "Metroid Metal", "Lordkat",                # got 8 supporters last year
+                      "8BitX Radio Network", "Channel Awesome", "The Megas"]    # got 7 supporters last year
 
 PAYPAL_ITEM = "item_number"
 PAYPAL_COST = "mc_gross"

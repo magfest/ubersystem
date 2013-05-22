@@ -28,7 +28,14 @@
 {% for attendee in charge.attendees %}
     <tr>
         <td>{{ attendee.full_name }}</td>
-        <td>Full weekend pass</td>
+        <td>
+            <ul style="padding-left:15px">
+                <li>Full weekend pass</li>
+                {% for swag in attendee.donation_swag %}
+                    <li>{{ swag }}</li>
+                {% endfor %}
+            </ul>
+        </td>
         <td>${{ attendee.total_cost }}</td>
      </tr>
 {% endfor %}

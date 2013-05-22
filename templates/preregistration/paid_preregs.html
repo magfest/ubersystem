@@ -9,7 +9,12 @@ Thanks for preregistering for MAGFest!  The following preregistrations have been
 <br/><br/>
 <ul>
 {% for attendee in preregs.attendees %}
-    <li>{{ attendee.full_name }}</li>
+    <li>
+        {{ attendee.full_name }}
+        {% if attendee.donation_swag %}
+            ({{ attendee.donation_swag|join:", " }})
+        {% endif %}
+    </li>
 {% endfor %}
 {% for group in preregs.groups %}
     <li> <b>{{ group.name }}</b> (<a href="group_members?id={{ group.secret_id }}">Click Here</a> to assign your group's badges) </li>

@@ -36,14 +36,6 @@
     });
 </script>
 
-<div style="text-align:center">
-    <i>
-        <a href="check">Click Here</a>
-        <nobr>if you already registered but haven't paid</nobr>
-        <nobr><b>OR</b> if you staffed last year and want to confirm that you are already registered.</nobr>
-    </i>
-</div>
-
 <h2 style="margin-top:10px"> Choose a Badge </h2>
 <form method="post" action="form">
 
@@ -67,16 +59,13 @@
     <td> {% popup_link "../static/attendees.html" "Details" %} </td>
 </tr>
 <tr style="display:none">
-    <td colspan="3" style="border:0">&nbsp;</td>
-</tr>
-<tr style="display:none">
 {% if GROUP_REG_OPEN %}
     <td> <input type="radio" name="badge_type" value="{{ PSEUDO_GROUP_BADGE }}" /> <b>Group</b> </td>
     <td>
         <ul>
             <li> Save money when you register eight or more people at once </li>
             <li> ${{ GROUP_PRICE }} per person </li>
-            {% if now < PRICE_BUMP %}
+            {% if now < PRICE_BUMP and now.month == PRICE_BUMP.month %}
                 <li style="color:red"> Price goes up to ${{ LATE_GROUP_PRICE }} at {{ PRICE_BUMP|datetime }} </li>
             {% endif %}
             {% if GROUP_PRICE == LATE_GROUP_PRICE %}
@@ -91,9 +80,6 @@
         <ul><li>The deadline for Group registration has passed, but you can still register as a regular attendee.</li></ul>
     </td>
 {% endif %}
-</tr>
-<tr style="display:none">
-    <td colspan="3" style="border:0">&nbsp;</td>
 </tr>
 <tr style="display:none">
     <td>

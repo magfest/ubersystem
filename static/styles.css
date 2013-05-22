@@ -86,6 +86,23 @@ table.list table td {
     padding: 0;
 }
 
+table.form {
+    border-spacing: 5px;
+}
+table.form td:first-of-type {
+    width: 1px;
+    white-space: nowrap;
+}
+table.form td:last-of-type {
+    width: auto;
+    padding-left: 15px;
+    white-space: normal;
+}
+table.form tr.dealer td {
+    white-space: normal;
+    vertical-align: top;
+}
+
 span.popup {
     font-size: 10px;
 }

@@ -54,7 +54,7 @@ class Root:
     def index(self, message=""):
         preregs = cherrypy.session.get("preregs")
         if not preregs:
-            raise HTTPRedirect("badge_choice?message={}", message)
+            raise HTTPRedirect("badge_choice?message={}", message) if message else HTTPRedirect("badge_choice")
         else:
             return {
                 "message": message,
@@ -68,7 +68,7 @@ class Root:
         if "badge_type" not in params:
             raise HTTPRedirect("badge_choice?message={}", "You must select a badge type")
         
-        params["id"] = "None"
+        params["id"] = "None"   # security!
         params["affiliate"] = params.get("aff_select") or params.get("aff_text") or ""
         attendee = Attendee.get(params, bools=["staffing","can_spam","international"], ignore_csrf=True, restricted=True)
         group = Group.get(params, ignore_csrf=True, restricted=True)
@@ -177,29 +177,7 @@ class Root:
                     and single day passes will be $35.
                 </body></html>
             """
-    
-    def check(self, message="", **params):
-        attendee = None
-        if params.get("first_name"):
-            matching = Attendee.objects.filter(first_name__iexact=params["first_name"],
-                                               last_name__iexact=params["last_name"],
-                                               zip_code=params["zip_code"])
-            if matching.count():
-                message = "You are registered!"
-                a = matching[0]
-                if a.placeholder or a.paid == NOT_PAID or (a.paid == PAID_BY_GROUP and a.group.amount_paid != a.group.amount_owed):
-                    attendee = matching[0]
-            else:
-                message = "No attendee matching that name and zip code is in the database (try nicknames before giving up)"
         
-        return {
-            "message":    message,
-            "attendee":   attendee,
-            "first_name": params.get("first_name", ""),
-            "last_name":  params.get("last_name",  ""),
-            "zip_code":   params.get("zip_code",   "")
-        }
-    
     def group_members(self, id, message=""):
         group = Group.objects.get(secret_id = id)
         return {

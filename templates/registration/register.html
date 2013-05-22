@@ -44,7 +44,7 @@
     <td>
         <select name="age_group" onChange="showOrHide()">
             <option value="">Choose a category</option>
-            {% options PREREG_AGE_GROUP_OPTS attendee.age_group %}
+            {% options AGE_GROUP_OPTS attendee.age_group %}
         </select>
         <span id="underage" style="color:red ; display:none">Attendees under 18 <b>MUST</b> have a parental consent form signed to receive a badge.</span>
     </td>

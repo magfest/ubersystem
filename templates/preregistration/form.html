@@ -3,33 +3,57 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-{% comment %}
+<style type="text/css">
+    ul.select2-results {
+        max-height: 300px;
+    }
+    .supporter {
+        font-weight: bold;
+        font-size: 16pt;
+    }
+</style>
+
 <script type="text/javascript">
-    function affChanged(triggered) {
+    var affChanged = function(startup) {
         var newAff = $.field("aff_select")[0].selectedIndex === 0;
         setVisible("#affdiv", newAff);
         if (!newAff)
             $.field("aff_text").val("");
-        else if (!triggered)
+        else if (!startup)
             $.focus("aff_text");
-    }
+    };
+    var donationChanged = function() {
+        setVisible(".supporter-row", $.val("amount_extra") >= {{ SUPPORTER_LEVEL }});
+    };
     $(function(){
+        donationChanged();
         affChanged(true);
-        
+        var format = function(opt) {
+            if (opt.id == {{ SUPPORTER_LEVEL }}) {
+                return '<span class="supporter">' + opt.text + '</span>';
+            } else {
+                return opt.text;
+            }
+        };
+        $.field("amount_extra").select2({
+            formatResult: format,
+            formatSelection: function(opt) { return opt.text; },
+            minimumResultsForSearch: 99,
+            escapeMarkup: function(m) { return m; }
+        });
         $("form").submit(function(){
             $(":submit").attr("value", "Uploading Preregistration...").attr("disabled", true);
-        })
+        });
     });
 </script>
-{% endcomment %}
 
 <form method="post" action="form">
 <input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
 
-<table width="100%" cellspacing="5" cellpadding="5">
+<table class="form">
 <tr>
-    <td width="25%" valign="top"> <b>Badge:</b> </td>
-    <td width="75%">
+    <td><b>Badge:</b></td>
+    <td>
         {% if attendee.badge_type == PSEUDO_GROUP_BADGE %}
             Group Registration
         {% elif attendee.badge_type == PSEUDO_DEALER_BADGE %}
@@ -39,6 +63,17 @@
         {% endif %}
     </td>
 </tr>
+<tr>
+    <td><b>Want to kick in extra?</b></td>
+    <td>
+        <select name="amount_extra" style="width:50%" onChange="donationChanged()">
+            <option value="0">No thanks</option>
+            {% options DONATION_OPTS attendee.amount_extra %}
+        </select>
+        &nbsp;
+        <nobr>{% popup_link "../static/givingExtra.html" "Why do this?" %}</nobr>
+    </td>
+</tr>
 {% if attendee.is_dealer or attendee.badge_type == PSEUDO_GROUP_BADGE %}
     <tr>
         <td><b><nobr>{{ attendee.is_dealer|yesno:"Business,Group" }} Name:</nobr></b></td>
@@ -46,8 +81,8 @@
     </tr>
 {% endif %}
 {% if attendee.is_dealer %}
-    <tr>
-        <td> <b>Tables:</b> </td>
+    <tr class="dealer">
+        <td><b>Tables:</b></td>
         <td>
             <select name="tables">
                 {% int_options 1 MAX_TABLES group.tables %}
@@ -58,7 +93,7 @@
 {% endif %}
 {% if attendee.is_dealer or attendee.badge_type == PSEUDO_GROUP_BADGE %}
     <tr>
-        <td> <b>Badges:</b> </td>
+        <td><b>Badges:</b></td>
         <td>
             {% if attendee.is_dealer %}
                 <select name="badges">{% int_options 1 MAX_DEALERS badges %}</select>
@@ -71,19 +106,19 @@
     </tr>
 {% endif %}
 {% if attendee.is_dealer %}
-    <tr>
-        <td valign="top">
+    <tr class="dealer">
+        <td>
             <b>Address</b>
             <br/> <i>For tax purposes</i>
         </td>
-        <td> <textarea name="address" rows="3" cols="30">{{ group.address }}</textarea> </td>
+        <td> <textarea name="address" rows="4" cols="30">{{ group.address }}</textarea> </td>
     </tr>
-    <tr>
-        <td valign="top">
+    <tr class="dealer">
+        <td>
             <b>What do you sell?</b>
             <br/> <i>Please be detailed; include a link to view your wares if possible.</i>
         </td>
-        <td> <textarea name="wares" rows="3" cols="30">{{ group.wares }}</textarea> </td>
+        <td> <textarea name="wares" rows="4" cols="30">{{ group.wares }}</textarea> </td>
     </tr>
     <tr>
         <td> <b>Website URL</b> </td>
@@ -92,33 +127,33 @@
             <i>The one you want us to link on our Confirmed Dealers page, or</i> n/a
         </td>
     </tr>
-    <tr>
+    <tr class="dealer">
         <td>
             <b>Brief Description</b>
             <br/> <i>For our website; please keep to one sentence.</i>
         </td>
-        <td> <textarea name="description" rows="3" cols="30">{{ group.description }}</textarea> </td>
+        <td> <textarea name="description" rows="4" cols="30">{{ group.description }}</textarea> </td>
     </tr>
-    <tr>
+    <tr class="dealer">
         <td>
             <b>Special Needs / Requests</b>
             <br/> <i>No guarantees that we can accommodate any requests.</i>
         </td>
-        <td> <textarea name="special_needs" rows="3" cols="30">{{ group.special_needs }}</textarea> </td>
+        <td> <textarea name="special_needs" rows="4" cols="30">{{ group.special_needs }}</textarea> </td>
     </tr>
 {% endif %}
 <tr>
     <td> <b><nobr>First and Last Name:</nobr></b> </td>
     <td>
-        <input type="text" style="width:10em" name="first_name" value="{{ attendee.first_name }}" />
+        <input type="text" style="width:10em" name="first_name" value="{{ attendee.first_name }}" class="focus" />
         <input type="text" style="width:15em" name="last_name"  value="{{ attendee.last_name }}" />
     </td>
 </tr>
-<tr id="badge_printed_name" style="display:none">
+<tr class="supporter-row" style="display:none">
     <td> <b>Name Printed on Badge: </td>
     <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" /> </td>
 </tr>
-<tr id="affiliate" style="display:none">
+<tr class="supporter-row" style="display:none">
     <td valign="top"> <b>Affiliate:</b> </td>
     <td>
         <select name="aff_select" onChange="affChanged()">
@@ -126,7 +161,7 @@
             <option value="" {% if not attendee.affiliate %}selected{% endif %}>I don't care about this</option>
             {% options affiliates attendee.affiliate %}
         </select>
-        &nbsp; <span class="popup">{% popup_link "../static/affiliates.html" "What's an affiliate?" %}
+        &nbsp; <span class="popup">{% popup_link "../static/affiliates.html" "What's an affiliate?" %}</span>
         <div id="affdiv">
             <br/> <input type="text" name="aff_text" value="{{ attendee.affiliate|default:"" }}" />
         </div>
@@ -147,7 +182,7 @@
     </td>
 </tr>
 <tr>
-    <td> <b><nobr>Emergency Contact</nobr> <nobr>Phone Number:</nobr></b> </td>
+    <td> <b>Emergency Contact <br/> Phone Number:</b> </td>
     <td>
         <table style="border-spacing:0px ; width:auto">
         <tr>
@@ -166,19 +201,19 @@
     <td> <input type="text" name="phone" value="{{ attendee.phone }}" /> </td>
 </tr>
 <tr>
-    <td> <nobr>What interests you?</nobr> </td>
+    <td> What interests you? </td>
     <td> {% checkgroup attendee.interests %} </td>
 </tr>
 <tr>
-    <td> <nobr>How did you</nobr> <nobr>find MAGFest?</nobr> </td>
+    <td> How did you <br/> find MAGFest? </td>
     <td> <input type="text" name="found_how" value="{{ attendee.found_how }}" /> </td>
 </tr>
 <tr>
-    <td> <nobr>Comments:</nobr> </td>
+    <td> Comments: </td>
     <td> <input type="text" name="comments" value="{{ attendee.comments }}" />  </td>
 </tr>
 <tr>
-    <td> <nobr>Keep Me Updated:</nobr> </td>
+    <td> Keep Me Updated: </td>
     <td>
         {% checkbox attendee.can_spam %} Send me emails relating to MAGFest in future years. &nbsp;&nbsp;
         <span class="popup">{% popup_link "../static/privacy.html" "View Our Privacy Policy" %}</span>
