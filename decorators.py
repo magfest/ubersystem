@@ -76,9 +76,12 @@ def render(template, data = None):
     data.update({k: getattr(state, k) for k in dir(state) if re.match("^[_A-Z0-9]*$", k)})
     data.update({
         "now":   datetime.now(),
-        "PAGE":  cherrypy.request.path_info.split("/")[-1],
-        "CSRF_TOKEN":  getattr(cherrypy, "session", {}).get("csrf_token")
+        "PAGE":  cherrypy.request.path_info.split("/")[-1]
     })
+    try:
+        data["CSRF_TOKEN"] = cherrypy.session["csrf_token"]
+    except:
+        pass
     
     access = Account.access_set()
     for acctype in ["ACCOUNTS","PEOPLE","STUFF","MONEY","CHALLENGES","CHECKINS"]:
