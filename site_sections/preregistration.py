@@ -151,6 +151,7 @@ class Root:
             raise HTTPRedirect("index")
         
         return {
+            "duplicate": attendee,
             "attendee": orig[0]
         }
     
