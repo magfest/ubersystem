@@ -53,7 +53,7 @@ class DeptHeadReminder(Reminder):
 
 class GroupReminder(Reminder):
     def __init__(self, subject, template, filter):
-        Reminder.__init__(self, Group, subject, template, lambda g: not g.is_dealer and filter(a), REGDESK_EMAIL)
+        Reminder.__init__(self, Group, subject, template, lambda g: not g.is_dealer and filter(g), REGDESK_EMAIL)
 
 class MarketplaceReminder(Reminder):
     def __init__(self, subject, template, filter):

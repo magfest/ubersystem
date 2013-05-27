@@ -419,6 +419,7 @@ TRACKING_OPTS = enum(
     UPDATED = "updated",
     DELETED = "deleted",
     UNPAID_PREREG = "unpaid preregistration",
+    EDITED_PREREG = "edited_unpaid_prereg",
     AUTO_BADGE_SHIFT = "automatic badge-shift"
 )
 

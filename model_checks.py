@@ -60,7 +60,7 @@ def attendee_misc(attendee):
         if not re.compile("^[0-9]{5}$").match(attendee.zip_code):
             return "Enter a valid zip code"
         
-        if attendee.ec_phone[:1]!="+" and len(re.compile("[0-9]").findall(attendee.ec_phone))!=10:
+        if attendee.ec_phone[:1] != "+" and len(re.compile("[0-9]").findall(attendee.ec_phone)) != 10:
             return "Enter a 10-digit emergency contact number"
         
         if attendee.phone and attendee.phone[:1]!="+" and len(re.compile("[0-9]").findall(attendee.phone))!=10:

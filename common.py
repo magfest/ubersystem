@@ -15,6 +15,7 @@ import traceback
 from glob import glob
 from uuid import uuid4
 from io import StringIO
+from copy import deepcopy
 from pprint import pformat
 from hashlib import sha512
 from functools import wraps
@@ -209,9 +210,10 @@ class Charge:
                 description=self.description
             )
         except stripe.CardError as e:
-            return "Your card was declined: " + str(e)
+            return "Your card was declined with the following error from our processor: " + str(e)
         except stripe.StripeError as e:
-            return target.error("An unexpected problem occured while processing your card: " + str(e))
+            log.error("unexpected stripe error", exc_info=True)
+            return "An unexpected problem occured while processing your card: " + str(e)
 
 
 

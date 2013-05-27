@@ -20,8 +20,6 @@ def check_dealer(group):
     elif not group.description:
         return "Please provide a brief description of your business for our website's Confirmed Vendors page"
 
-
-
 def send_prereg_emails(attendee):
     try:
         sender = REGDESK_EMAIL
@@ -48,7 +46,6 @@ def send_prereg_emails(attendee):
         return message + ", but the automated confirmation email could not be sent."
 
 
-
 @all_renderable()
 class Root:
     def index(self, message=""):
@@ -64,14 +61,26 @@ class Root:
     def badge_choice(self, message=""):
         return {"message": message}
     
-    def form(self, message="", **params):
-        if "badge_type" not in params:
+    def form(self, message="", edit_id=None, **params):
+        if "badge_type" not in params and edit_id is None:
             raise HTTPRedirect("badge_choice?message={}", "You must select a badge type")
         
         params["id"] = "None"   # security!
         params["affiliate"] = params.get("aff_select") or params.get("aff_text") or ""
-        attendee = Attendee.get(params, bools=["staffing","can_spam","international"], ignore_csrf=True, restricted=True)
-        group = Group.get(params, ignore_csrf=True, restricted=True)
+        if edit_id is not None:
+            for model in cherrypy.session.setdefault("preregs", []):
+                if model.secret_id == edit_id:
+                    attendee, group = model.get_unsaved()
+                    attendee.apply(params, bools=["staffing","can_spam","international"])
+                    group.apply(params)
+                    params.setdefault("badges", group.badges)
+                    break
+            else:
+                raise HTTPRedirect("badge_choice?message={}", "That preregistration has already been finalized")
+        else:
+            attendee = Attendee.get(params, bools=["staffing","can_spam","international"], ignore_csrf=True, restricted=True)
+            group = Group.get(params, ignore_csrf=True, restricted=True)
+        
         if "first_name" in params:
             assert attendee.badge_type in state.PREREG_BADGE_TYPES, "No hacking allowed!"
             message = check(attendee) or check_prereg_reqs(attendee)
@@ -101,12 +110,21 @@ class Root:
                                render("emails/dealer_reg_notification.txt", {"group": group}))
                     raise HTTPRedirect("dealer_confirmation?id={}", group.id)
                 else:
-                    cherrypy.session.setdefault("preregs", []).append(group if group.badges else attendee)
-                    Tracking.track(UNPAID_PREREG, attendee)
+                    preregs = cherrypy.session.setdefault("preregs", [])
+                    if attendee not in preregs and group not in preregs:
+                        preregs.append(group if group.badges else attendee)
+                        Tracking.track(UNPAID_PREREG, attendee)
+                    else:
+                        Tracking.track(EDITED_PREREG, attendee)
+                    
                     if group.badges:
                         Tracking.track(UNPAID_PREREG, group)
                 
-                # TODO: duplicate check here, as well as banned list check here
+                if Attendee.objects.filter(first_name = attendee.first_name, last_name = attendee.last_name, email = attendee.email):
+                    raise HTTPRedirect("duplicate?id={}", group.secret_id if attendee.paid == PAID_BY_GROUP else attendee.secret_id)
+                
+                # TODO: banned list check here
+                
                 raise HTTPRedirect("index")
         else:
             attendee.can_spam = True    # only defaults to true for these forms
@@ -115,8 +133,25 @@ class Root:
             "message":    message,
             "attendee":   attendee,
             "group":      group,
+            "edit_id":    edit_id,
             "badges":     params.get("badges"),
             "affiliates": affiliates()
+        }
+    
+    def duplicate(self, id):
+        for m in cherrypy.session.setdefault("preregs", []):
+            if id == m.secret_id:
+                attendee, group = m.get_unsaved()
+                break
+        else:
+            raise HTTPRedirect("index")
+        
+        orig = Attendee.objects.filter(first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email)
+        if not orig:
+            raise HTTPRedirect("index")
+        
+        return {
+            "attendee": orig[0]
         }
     
     @credit_card
@@ -154,6 +189,10 @@ class Root:
             return {"preregs": preregs}
         else:
             raise HTTPRedirect("index")
+    
+    def delete(self, id):
+        cherrypy.session["preregs"] = [m for m in cherrypy.session.setdefault("preregs", []) if m.secret_id != id]
+        raise HTTPRedirect("index?message={}", "Preregistration deleted")
     
     def dealer_confirmation(self, id):
         return {"group": Group.objects.get(id=id)}

@@ -16,22 +16,14 @@
 
 <script type="text/javascript">
     $(document).ready(function(){
-        $("tr").show();
-        $("#noscript").hide();
-        if( $(":radio:checked").size() === 0 )
-            $(":submit").attr("disabled", true);
-        
-        $(":radio").click(function(){
-            $(":submit").attr("disabled", false);
-        });
-        
         $("td:first-child").contents().andSelf().mouseover(function(event){
             $(event.target).find(":radio").focus();
         }).click(function(event){
-            if( event.target.nodeName == "TD" )
+            if( event.target.nodeName == "TD" ) {
                 $(event.target).find(":radio").click();
-            else
+            } else {
                 $(event.target).siblings(":radio").click();
+            }
         }).css("cursor", "default");
     });
 </script>
@@ -42,7 +34,7 @@
 <table class="badges">
 <tr>
     <td>
-        <input type="radio" name="badge_type" value="{{ ATTENDEE_BADGE }}" />
+        <input type="radio" name="badge_type" value="{{ ATTENDEE_BADGE }}" checked />
         <b>Attendee:</b> &nbsp; ${{ BADGE_PRICE }}
     </td>
     <td>
@@ -58,7 +50,7 @@
     </td>
     <td> {% popup_link "../static/attendees.html" "Details" %} </td>
 </tr>
-<tr style="display:none">
+<tr>
 {% if GROUP_REG_OPEN %}
     <td> <input type="radio" name="badge_type" value="{{ PSEUDO_GROUP_BADGE }}" /> <b>Group</b> </td>
     <td>
@@ -81,46 +73,7 @@
     </td>
 {% endif %}
 </tr>
-<tr style="display:none">
-    <td>
-        {% if DEALER_REG_OPEN %}
-            <input type="radio" name="badge_type" value="{{ PSEUDO_DEALER_BADGE }}" />
-        {% else %}
-            &nbsp;&nbsp;&nbsp;&nbsp;
-        {% endif %}
-        <b>Dealer</b>
-    </td>
-    {% if DEALER_REG_OPEN %}
-        <td>
-            <ul>
-                {% if DEALER_REG_FULL %}
-                    <li style="color:red"> Dealer registration is closed; submitting an application will put you on our waitlist. </li>
-                {% endif %}
-                <li> Apply to be a Dealer with this form, you'll be emailed a confirmation with a payment link if you are approved. </li>
-                <li> ${{ DEALER_BADGE_PRICE }} per badge </li>
-                <li> {{ TABLE_PRICES }} </li>
-                {% if not DEALER_REG_FULL %}
-                    <li style="color:red"> Dealer registration closes on September 1, or whenever we run out of space. </li>
-                {% endif %}
-            </ul>
-        </td>
-        <td> {% popup_link "../static/dealers.html" "Details" %} </td>
-    {% else %}
-        <td colspan="2" style="color: red">
-            <ul>
-                <!--<li> Dealer registration is not yet open and will open in August. </li>-->
-                <li>Dealer registration has closed.</li>
-            </ul>
-        </td>
-    {% endif %}
-</tr>
 </table>
-
-<div id="noscript" style="color:red ; margin-top:15px">
-    Warning: You must have Javascript turned on in order to preregister for anything
-    other than a single Attendee badge.  If you wish to preregister as a Group, Dealer,
-    or Supporter, then please enable Javascript and reload this page.
-</div>
 
 <br/>
 

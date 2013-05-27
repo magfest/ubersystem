@@ -3,6 +3,17 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
+<script type="text/javascript">
+    $(function(){
+        $("form").on("click", "button", function() {
+            $("a[href=badge_choice]")
+                .attr("href", "#")
+                .find("button")
+                    .attr("disabled", true);
+        });
+    });
+</script>
+
 <h2> MAGFest Preregistration </h2>
 
 <table style="width:auto ; margin-left:auto ; margin-right: auto"><tr>
@@ -24,6 +35,7 @@
     <td>Preregistration</td>
     <td>Details</td>
     <td>Price</td>
+    <td></td>
 </tr></thead>
 {% for attendee in charge.attendees %}
     <tr>
@@ -37,6 +49,10 @@
             </ul>
         </td>
         <td>${{ attendee.total_cost }}</td>
+        <td>
+            <a href="form?edit_id={{ attendee.secret_id }}">Edit</a> /
+            <a href="delete?id={{ attendee.secret_id }}">Delete</a>
+        </td>
      </tr>
 {% endfor %}
 {% for group in charge.groups %}
@@ -44,6 +60,10 @@
         <td>{{ group.name }}</td>
         <td>{{ group.badges }} badges</td>
         <td>${{ group.total_cost }}</td>
+        <td>
+            <a href="form?edit_id={{ group.secret_id }}">Edit</a> /
+            <a href="delete?id={{ group.secret_id }}">Delete</a>
+        </td>
     </tr>
 {% endfor %}
 {% if charge.targets|length > 1 %}

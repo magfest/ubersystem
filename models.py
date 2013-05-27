@@ -47,6 +47,9 @@ class MagModel(Model):
         return "<{}>".format(" ".join(str(getattr(self, field)) for field in listify(display)))
     __str__ = __repr__
     
+    def __eq__(self, m):
+        return isinstance(m, self.__class__) and self.id == m.id and getattr(self, "secret_id") == getattr(m, "secret_id")
+    
     @classmethod
     def get(cls, params, bools=[], checkgroups=[], allowed=[], restricted=False, ignore_csrf=False):
         params = params.copy()
@@ -57,16 +60,20 @@ class MagModel(Model):
             model = cls.objects.get(id = id)
         else:
             model = cls.objects.get(secret_id = id)
-
-        assert not {k for k in params if k not in allowed} or cherrypy.request.method == "POST", "POST required"
-
-        for field in cls._meta.fields:
-            if restricted and field.name in cls.restricted:
+        
+        if not ignore_csrf:
+            assert not {k for k in params if k not in allowed} or cherrypy.request.method == "POST", "POST required"
+        model.apply(params, bools, checkgroups, allowed, restricted, ignore_csrf)
+        return model
+    
+    def apply(self, params, bools=[], checkgroups=[], allowed=[], restricted=True, ignore_csrf=True):
+        for field in self._meta.fields:
+            if restricted and field.name in self.restricted:
                 continue
 
             id_param = field.name + "_id"
             if isinstance(field, (ForeignKey, OneToOneField)) and id_param in params:
-                setattr(model, id_param, params[id_param])
+                setattr(self, id_param, params[id_param])
 
             elif field.name in params and field.name != "id":
                 if isinstance(params[field.name], list):
@@ -84,19 +91,17 @@ class MagModel(Model):
                 except:
                     pass
 
-                setattr(model, field.name, value)
+                setattr(self, field.name, value)
 
         if cherrypy.request.method.upper() == "POST":
-            for field in cls._meta.fields:
+            for field in self._meta.fields:
                 if field.name in bools:
-                    setattr(model, field.name, field.name in params and bool(int(params[field.name])))
+                    setattr(self, field.name, field.name in params and bool(int(params[field.name])))
                 elif field.name in checkgroups and field.name not in params:
-                    setattr(model, field.name, "")
+                    setattr(self, field.name, "")
 
             if not ignore_csrf:
                 check_csrf(params.get("csrf_token"))
-
-        return model
 
 class TakesPaymentMixin(object):
     @property
@@ -238,6 +243,11 @@ class Group(MagModel, TakesPaymentMixin):
         self.preregisterer.group = self
         self.preregisterer.save()
         self.assign_badges(self.badges)
+    
+    def get_unsaved(self):
+        attendee = deepcopy(self.preregisterer)
+        attendee.badge_type = PSEUDO_GROUP_BADGE
+        return attendee, self
     
     def assign_badges(self, new_badge_count):
         self.save()
@@ -464,6 +474,9 @@ class Attendee(MagModel, TakesPaymentMixin):
             super(Attendee, self).delete(*args, **kwargs)
             if self.badge_type not in PREASSIGNED_BADGE_TYPES or not state.CUSTOM_BADGES_ORDERED:
                 badge_funcs.shift_badges(self, down = True)
+    
+    def get_unsaved(self):
+        return self, Group()
     
     @staticmethod
     def staffers():
@@ -876,7 +889,7 @@ class Tracking(MagModel):
     
     @classmethod
     def track(cls, action, instance):
-        if action in [CREATED, UNPAID_PREREG]:
+        if action in [CREATED, UNPAID_PREREG, EDITED_PREREG]:
             values = cls.values(instance)
             data = cls.format({k: instance.field_repr(k) for k in values})
         elif action == UPDATED:
@@ -910,7 +923,7 @@ class Tracking(MagModel):
         
         return Tracking.objects.create(
             model = instance.__class__.__name__,
-            fk_id = 0 if action == UNPAID_PREREG else instance.id,
+            fk_id = 0 if action in [UNPAID_PREREG, EDITED_PREREG] else instance.id,
             which = repr(instance),
             who = who,
             links = links,

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}You are already registered{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<h2> You are already registered </h2>
+
+We already have a {{ attendee.full_name }} with email address {{ attendee.email }} in our database with a
+{% if attendee.paid == HAS_PAID or attendee.paid == PAID_BY_GROUP %}
+    paid
+{% elif attendee.paid == NEED_NOT_PAY %}
+    complementary
+{% elif attendee.paid == NOT_PAID %}
+    unpaid
+{% else %}
+    {{ attendee.get_paid_display }}
+{% endif %}
+{{ attendee.get_badge_type_display }}
+{% if attendee.ribbon != NO_RIBBON %}
+    ({{ attendee.get_ribbon_display }})
+{% endif %}
+badge{% if attendee.group %}
+    (with the group <a href="group_members?id={{ attendee.group.secret_id }}">{{ attendee.group.name }}</a>)
+{% endif %}.
+
+
+If you have any questions then please email <a href="regdesk@magfest.org">regdesk@magfest.org</a>.
+
+{% if attendee.badge_type == STAFF_BADGE and attendee.registered == STAFFERS_IMPORTED %}
+    <br/> <br/>
+    You were registered automatically for a complementary Staff badge as thanks for volunteering
+    last year.  You should have already received an email letting you know about this; if you didn't
+    then please email <a href="mailto:stops@magfest.org">stops@magfest.org</a> and let us know.
+{% endif %}
+
+<br/> <br/>
+
+If you're absolutely sure that this is someone else, you can continue and pay for this registration.
+
+<br/> <br/>
+
+<table style="width:auto" align="center"><tr>
+    <td><a href="index">I'm someone else, let me pay!</a></td>
+    <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>
+    <td><a href="delete?id={{ attendee.secret_id }}">Well never mind then!</a></td>
+</tr></table>
+
+{% endblock %}

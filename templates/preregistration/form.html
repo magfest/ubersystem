@@ -49,6 +49,9 @@
 
 <form method="post" action="form">
 <input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
+{% if edit_id %}
+    <input type="hidden" name="edit_id" value="{{ edit_id }}" />
+{% endif %}
 
 <table class="form">
 <tr>
@@ -100,7 +103,7 @@
                 <select name="badges">{% int_options 1 MAX_DEALERS badges %}</select>
                 (${{ DEALER_BADGE_PRICE }} each) &nbsp;&nbsp; <nobr>[<i>The number of people working your table.</i>]</nobr>
             {% else %}
-                <select name="badges">{% int_options MIN_GROUP_SIZE MAX_GROUP_SIZE %}</select>
+                <select name="badges">{% int_options MIN_GROUP_SIZE MAX_GROUP_SIZE badges %}</select>
                 (${{ GROUP_PRICE }} each)
             {% endif %}
         </td>
@@ -227,6 +230,8 @@
 </table>
 
 </form>
+
+<b>Bold fields are required</b>
 
 {% add_max_lengths Attendee %}
 
