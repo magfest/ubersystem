@@ -116,7 +116,7 @@ Reminder(Attendee, "Last Chance to Accept Your MAGFest Badge", "confirmation_rem
 
 
 StopsReminder("Want to staff MAGFest again?", "imported_staffer.txt",
-         lambda a: a.placeholder and a.first_name and a.last_name and a.email
+         lambda a: a.placeholder and a.badge_type == STAFF_BADGE 
                                  and a.registered.date() <= state.STAFFERS_IMPORTED.date())
 
 StopsReminder("MAGFest shifts available", "shifts_available.txt",
@@ -159,9 +159,6 @@ Reminder(Attendee, "Personalized MAGFest badges will be ordered next week", "per
          lambda a: days_before(7, state.STAFF_BADGE_DEADLINE) and a.badge_type in [STAFF_BADGE, SUPPORTER_BADGE] and not a.placeholder)
 
 
-
-StopsReminder("Details on Saturday MAGFest Staff Meeting", "staff_meeting.txt",
-              lambda a: days_before(7, datetime(2012, 11, 17)))
 
 DeptHeadReminder("Hotel reminder for MAGFest department heads", "dept_head_rooms.txt",
                  lambda a: days_before(7, state.ROOM_DEADLINE))

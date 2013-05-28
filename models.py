@@ -409,6 +409,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     assigned_depts   = MultiChoiceField(choices = JOB_LOC_OPTS)
     trusted          = BooleanField(default = False)
     nonshift_hours   = IntegerField(default = 0)
+    past_years       = TextField(default = "")
     
     display = "full_name"
     restricted = ["group","admin_notes","badge_num","ribbon","regdesk_info","extra_merch","got_merch","paid","amount_paid","amount_refunded","assigned_depts","trusted","nonshift_hours"]
@@ -650,6 +651,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         return not self.placeholder \
            and self.fire_safety_cert \
            and (self.badge_type != STAFF_BADGE or self.hotel_requests is not None or not state.ROOMS_AVAILABLE)
+    
+    @property
+    def past_years_json(self):
+        return {} if not self.past_years else json.loads(self.past_json)
     
     @property
     def hotel_shifts_required(self):

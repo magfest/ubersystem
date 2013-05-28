@@ -81,7 +81,7 @@
 {% if attendee.is_dealer or attendee.badge_type == PSEUDO_GROUP_BADGE %}
     <tr>
         <td><b><nobr>{{ attendee.is_dealer|yesno:"Business,Group" }} Name:</nobr></b></td>
-        <td> <input type="text" name="name" value="{{ group.name }}" /> </td>
+        <td> <input type="text" class="focus" name="name" value="{{ group.name }}" /> </td>
     </tr>
 {% endif %}
 {% if attendee.is_dealer %}

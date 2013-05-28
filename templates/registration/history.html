@@ -25,6 +25,16 @@
 {% endfor %}
 </table>
 
+{% if attendee.past_years %}
+    <h2> Past Years' Staffing </h2>
+    {% for year in attendee.past_years_json %}
+        <h3>{{ year.year }}</h3>
+        <b>{{ year.worked_hours }}</b> hours worked ({{ year.nonshift_hours }} of them were nonshift hours) <br/>
+        <b>{{ year.unworked_hours }}</b> hours unworked
+        
+    {% endfor %}
+{% endif %}
+
 <h2> Automated Emails </h2>
 
 {% for email in emails  %}

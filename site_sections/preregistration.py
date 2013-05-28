@@ -20,30 +20,18 @@ def check_dealer(group):
     elif not group.description:
         return "Please provide a brief description of your business for our website's Confirmed Vendors page"
 
-def send_prereg_emails(attendee):
+def get_unsaved(id, if_not_found = HTTPRedirect("index")):
+    for model in cherrypy.session.setdefault("preregs", []):
+        if model.secret_id == id:
+            return model.get_unsaved()
+    raise if_not_found
+
+def send_banned_email(attendee):
     try:
-        sender = REGDESK_EMAIL
-        subject = "MAGFest Preregistration"
-        message = "Your preregistration will be complete when you pay below"
-        if attendee.group:
-            if attendee.group.tables:
-                sender = MARKETPLACE_EMAIL
-                template = "dealer_email.html"
-                subject = "MAGFest Dealer Request Submitted"
-                if state.DEALER_REG_FULL:
-                    message = "Although dealer registration is closed, your dealer request has been added to our waitlist"
-                else:
-                    message = "Your dealer request has been submitted, we'll email you after your submission is reviewed"
-            else:
-                template = "group_email.html"
-        else:
-            template = "attendee_email.html"
-        body = render("emails/" + template, {"attendee": attendee})
-        send_email(sender, attendee.email, subject, body, format = "html", model = attendee)
-        return message
+        send_email(REGDESK_EMAIL, REGDESK_EMAIL, "Banned attendee registration",
+                   render("emails/banned_attendee.txt", {"attendee": attendee}), model = "n/a")
     except:
-        log.warning("unable to send prereg confirmation email to {}", attendee.email, exc_info = True)
-        return message + ", but the automated confirmation email could not be sent."
+        log.error("unable to send banned email about {}", attendee)
 
 
 @all_renderable()
@@ -68,15 +56,10 @@ class Root:
         params["id"] = "None"   # security!
         params["affiliate"] = params.get("aff_select") or params.get("aff_text") or ""
         if edit_id is not None:
-            for model in cherrypy.session.setdefault("preregs", []):
-                if model.secret_id == edit_id:
-                    attendee, group = model.get_unsaved()
-                    attendee.apply(params, bools=["staffing","can_spam","international"])
-                    group.apply(params)
-                    params.setdefault("badges", group.badges)
-                    break
-            else:
-                raise HTTPRedirect("badge_choice?message={}", "That preregistration has already been finalized")
+            attendee, group = get_unsaved(edit_id, if_not_found = HTTPRedirect("badge_choice?message={}", "That preregistration has already been finalized"))
+            attendee.apply(params, bools=["staffing","can_spam","international"])
+            group.apply(params)
+            params.setdefault("badges", group.badges)
         else:
             attendee = Attendee.get(params, bools=["staffing","can_spam","international"], ignore_csrf=True, restricted=True)
             group = Group.get(params, ignore_csrf=True, restricted=True)
@@ -114,16 +97,18 @@ class Root:
                     if attendee not in preregs and group not in preregs:
                         preregs.append(group if group.badges else attendee)
                         Tracking.track(UNPAID_PREREG, attendee)
+                        if group.badges:
+                            Tracking.track(UNPAID_PREREG, group)
                     else:
                         Tracking.track(EDITED_PREREG, attendee)
-                    
-                    if group.badges:
-                        Tracking.track(UNPAID_PREREG, group)
+                        if group.badges:
+                            Tracking.track(EDITED_PREREG, group)
                 
                 if Attendee.objects.filter(first_name = attendee.first_name, last_name = attendee.last_name, email = attendee.email):
                     raise HTTPRedirect("duplicate?id={}", group.secret_id if attendee.paid == PAID_BY_GROUP else attendee.secret_id)
                 
-                # TODO: banned list check here
+                if attendee.full_name in BANNED_ATTENDEES:
+                    raise HTTPRedirect("banned?id={}", group.secret_id if attendee.paid == PAID_BY_GROUP else attendee.secret_id)
                 
                 raise HTTPRedirect("index")
         else:
@@ -139,13 +124,7 @@ class Root:
         }
     
     def duplicate(self, id):
-        for m in cherrypy.session.setdefault("preregs", []):
-            if id == m.secret_id:
-                attendee, group = m.get_unsaved()
-                break
-        else:
-            raise HTTPRedirect("index")
-        
+        attendee, group = get_unsaved(id)
         orig = Attendee.objects.filter(first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email)
         if not orig:
             raise HTTPRedirect("index")
@@ -154,6 +133,10 @@ class Root:
             "duplicate": attendee,
             "attendee": orig[0]
         }
+    
+    def banned(self, id):
+        attendee, group = get_unsaved(id)
+        return {"attendee": attendee}
     
     @credit_card
     def prereg_payment(self, payment_id, stripeToken):
@@ -172,11 +155,15 @@ class Root:
             attendee.paid = HAS_PAID
             attendee.amount_paid = attendee.total_cost
             attendee.save()
+            if attendee.full_name in BANNED_ATTENDEES:
+                send_banned_email(attendee)
         
         for group in charge.groups:
             group.assign_prereg_badges()
             group.amount_paid = group.total_cost
             group.save()
+            if group.leader.full_name in BANNED_ATTENDEES:
+                send_banned_email(group.leader)
         
         cherrypy.session.pop("preregs", None)
         preregs = cherrypy.session.setdefault("paid_preregs", {})
@@ -233,6 +220,8 @@ class Root:
                 message = "First and Last Name are required fields"
             if not message:
                 attendee.save()
+                if attendee.full_name in BANNED_ATTENDEES:
+                    send_banned_email(attendee)
                 raise HTTPRedirect("group_members?id={}&message={}", attendee.group.secret_id, "Badge registered successfully")
         else:
             attendee.can_spam = True    # only defaults to true for these forms
@@ -270,6 +259,10 @@ class Root:
                     send_email(REGDESK_EMAIL, [old.email, attendee.email, REGDESK_EMAIL], subject, body, model = attendee)
                 except:
                     log.error("unable to send badge change email", exc_info = True)
+                
+                if attendee.full_name in BANNED_ATTENDEES:
+                    send_banned_email(attendee)
+                
                 raise HTTPRedirect("confirm?id={}&message={}", attendee.secret_id, "Your registration has been transferred")
         else:
             for attr in ["first_name","last_name","email","zip_code","international","ec_phone","phone","interests","age_group","staffing","requested_depts"]:

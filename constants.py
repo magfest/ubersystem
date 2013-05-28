@@ -318,7 +318,7 @@ JOB_INTEREST_OPTS = enum(
     SECURITY   = "Security",
     REGDESK    = "Regdesk",
     TABLETOP   = "Tabletop",
-    TECHOPS    = "Tech Ops",
+    TECH_OPS   = "Tech Ops",
     VIDEO_ROOM = "Video Room",
 )
 JOB_LOC_OPTS = enum(
@@ -338,7 +338,7 @@ JOB_LOC_OPTS = enum(
     STAFF_SUPPORT = "Staff Support",
     STOPS         = "Staffing Ops",
     TABLETOP      = "Tabletop",
-    TECHOPS       = "Tech Ops",
+    TECH_OPS      = "Tech Ops",
     VIDEO_ROOM    = "Video Room",
 )
 DEPT_CHAIRS = {
@@ -358,7 +358,7 @@ DEPT_CHAIRS = {
     STAFF_SUPPORT: "Eli Courtwright and Jack Boyd",
     STOPS:         "Eli Courtwright and Jack Boyd",
     TABLETOP:      "Richard Mackay, Will Mackay, and Devon Courtwright",
-    TECHOPS:       "Matthew Reid and Will Henson",
+    TECH_OPS:      "Matthew Reid and Will Henson",
     VIDEO_ROOM:    "Gabriel Ricard",
 }
 JOB_PAGE_OPTS = (
@@ -448,3 +448,7 @@ MIN_GROUP_SIZE, MAX_GROUP_SIZE = 8, 100
 DEFAULT_AFFILIATES = ["OC ReMix", "ScrewAttack",                                # got 26 and 12 supporters last year
                       "Destructoid", "Metroid Metal", "Lordkat",                # got 8 supporters last year
                       "8BitX Radio Network", "Channel Awesome", "The Megas"]    # got 7 supporters last year
+
+BANNED_ATTENDEES = {
+    "Mike Callahan", "Michael Callahan", "Mash Callahan"
+}

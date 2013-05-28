@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}You may be banned from MAGFest!{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<h2> You may be banned from MAGFest! </h2>
+
+Our list of banned people includes someone named <b>{{ attendee.full_name }}</b>.  Every banned attendee has
+been told they are banned, so if this is not a mistake then you should definitely know it.  However, if you
+just happen to have the same name as someone who has been banned, then go ahead and continue.  If we see someone
+on our banned list complete their registration then we'll contact you to validate that you're someone else.
+
+<br/> </br>
+
+<table style="width:auto" align="center"><tr>
+    <td><a href="index">I'm someone else, let me pay!</a></td>
+    <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>
+    <td><a href="delete?id={{ attendee.secret_id }}">Well never mind then!</a></td>
+</tr></table>
+
+{% endblock %}

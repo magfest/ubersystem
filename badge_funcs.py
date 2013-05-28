@@ -7,6 +7,7 @@ def next_badge_num(badge_type):
     else:
         return BADGE_RANGES[badge_type][0]
 
+
 def change_badge(attendee):
     with BADGE_LOCK:
         new = attendee.badge_num
@@ -91,19 +92,6 @@ def send_delete_email(model):
         log.error("unable to send unpaid deletion notification to {}", model.email, exc_info = True)
 
 
-def delete_unpaid():
-    for attendee in Attendee.objects.filter(paid = NOT_PAID):
-        if datetime.now() > attendee.payment_deadline:
-            send_delete_email(attendee)
-            attendee.delete()
-    
-    for group in Group.objects.filter(tables = 0, amount_paid = 0, amount_owed__gt = 0):
-        if datetime.now() > group.payment_deadline:
-            send_delete_email(group)
-            group.attendee_set.all().delete()
-            group.delete()
-
-
 def detect_duplicates():
     subject = "Duplicates Report for " + datetime.now().strftime("%Y-%m-%d")
     if not Email.objects.filter(subject = subject):
@@ -138,7 +126,7 @@ def check_placeholders():
         subject = email + " Placeholder Badge Report for " + datetime.now().strftime("%Y-%m-%d")
         if not Email.objects.filter(subject = subject):
             placeholders = list(Attendee.objects.filter(query, placeholder = True,
-                                                        registered__lt = datetime.now() - timedelta(days = 3))
+                                                        registered__lt = datetime.now() - timedelta(days = 30))
                                         .order_by("registered","first_name","last_name")
                                         .select_related("group"))
             if placeholders:

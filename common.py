@@ -124,20 +124,20 @@ def hour_day_format(dt):
 
 
 def send_email(source, dest, subject, body, format = "text", cc = [], bcc = [], model = None):
-    dest, cc, bcc = map(listify, [dest, cc, bcc])
+    to, cc, bcc = map(listify, [dest, cc, bcc])
     if DEV_BOX:
-        for xs in [dest, cc, bcc]:
+        for xs in [to, cc, bcc]:
             xs[:] = [email for email in xs if email.endswith("mailinator.com") or "eli@courtwright.org" in email]
     
     if model:
         fk = {"fk_id": 0, "model": "n/a"} if model == "n/a" else {"fk_id": model.id, "model": model.__class__.__name__}
         Email.objects.create(subject = subject, dest = dest, body = body, **fk)
     
-    if state.SEND_EMAILS and dest:
+    if state.SEND_EMAILS and to:
         message = EmailMessage(subject = subject, **{"bodyText" if format == "text" else "bodyHtml": body})
         AmazonSES(AWS_ACCESS_KEY_ID, AWS_SECRET_KEY).sendEmail(
             source = source,
-            toAddresses = dest,
+            toAddresses = to,
             ccAddresses = cc,
             bccAddresses = bcc,
             message = message
