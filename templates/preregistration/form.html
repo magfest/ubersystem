@@ -3,50 +3,6 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-<style type="text/css">
-    ul.select2-results {
-        max-height: 300px;
-    }
-    .supporter {
-        font-weight: bold;
-        font-size: 16pt;
-    }
-</style>
-
-<script type="text/javascript">
-    var affChanged = function(startup) {
-        var newAff = $.field("aff_select")[0].selectedIndex === 0;
-        setVisible("#affdiv", newAff);
-        if (!newAff)
-            $.field("aff_text").val("");
-        else if (!startup)
-            $.focus("aff_text");
-    };
-    var donationChanged = function() {
-        setVisible(".supporter-row", $.val("amount_extra") >= {{ SUPPORTER_LEVEL }});
-    };
-    $(function(){
-        donationChanged();
-        affChanged(true);
-        var format = function(opt) {
-            if (opt.id == {{ SUPPORTER_LEVEL }}) {
-                return '<span class="supporter">' + opt.text + '</span>';
-            } else {
-                return opt.text;
-            }
-        };
-        $.field("amount_extra").select2({
-            formatResult: format,
-            formatSelection: function(opt) { return opt.text; },
-            minimumResultsForSearch: 99,
-            escapeMarkup: function(m) { return m; }
-        });
-        $("form").submit(function(){
-            $(":submit").attr("value", "Uploading Preregistration...").attr("disabled", true);
-        });
-    });
-</script>
-
 <form method="post" action="form">
 <input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
 {% if edit_id %}
@@ -66,18 +22,6 @@
         {% endif %}
     </td>
 </tr>
-{% if attendee.badge_type == ATTENDEE_BADGE %}
-    <tr>
-        <td><b>Want to kick in extra?</b></td>
-        <td>
-            <select name="amount_extra" style="width:50%" onChange="donationChanged()">
-                {% options DONATION_OPTS attendee.amount_extra %}
-            </select>
-            &nbsp;
-            <nobr>{% popup_link "../static/givingExtra.html" "Why do this?" %}</nobr>
-        </td>
-    </tr>
-{% endif %}
 {% if attendee.is_dealer or attendee.badge_type == PSEUDO_GROUP_BADGE %}
     <tr>
         <td><b><nobr>{{ attendee.is_dealer|yesno:"Business,Group" }} Name:</nobr></b></td>
@@ -153,24 +97,7 @@
         <input type="text" style="width:15em" name="last_name"  value="{{ attendee.last_name }}" />
     </td>
 </tr>
-<tr class="supporter-row" style="display:none">
-    <td> <b>Name Printed on Badge: </td>
-    <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" /> </td>
-</tr>
-<tr class="supporter-row" style="display:none">
-    <td valign="top"> <b>Affiliate:</b> </td>
-    <td>
-        <select name="aff_select" onChange="affChanged()">
-            <option value="">---Other---</option>
-            <option value="" {% if not attendee.affiliate %}selected{% endif %}>I don't care about this</option>
-            {% options affiliates attendee.affiliate %}
-        </select>
-        &nbsp; <span class="popup">{% popup_link "../static/affiliates.html" "What's an affiliate?" %}</span>
-        <div id="affdiv">
-            <br/> <input type="text" name="aff_text" value="{{ attendee.affiliate|default:"" }}" />
-        </div>
-    </td>
-</tr>
+{% include "preregistration/extra.html" %}
 {% include "preregistration/age_and_staffing.html" %}
 <tr>
     <td> <b>Email Address:</b> </td>

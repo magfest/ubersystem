@@ -19,6 +19,9 @@
     <script type="text/javascript">
         $(function(){
             $(".focus:first").focus();
+            $("form.stripe").on("click", "button", function() {
+                $("a > .stripe-button-el").unwrap().attr("disabled", true).unwrap()
+            });
         });
     </script>
 </head>

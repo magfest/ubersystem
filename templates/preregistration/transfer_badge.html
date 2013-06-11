@@ -13,15 +13,15 @@ our Registration Desk; that will belong to whomever the badge is transferred.
 {% csrf_token %}
 <input type="hidden" name="id" value="{{ attendee.secret_id }}" />
 
-<table width="100%" cellspacing="5" cellpadding="5">
+<table class="form">
 <tr>
-    <td width="25%"> <b><nobr>Name:</nobr></b> </td>
-    <td width="75%">
+    <td> <b>Name:</b> </td>
+    <td>
         <input type="text" style="width:10em" name="first_name" value="{{ attendee.first_name }}" class="focus" />
         <input type="text" style="width:15em" name="last_name"  value="{{ attendee.last_name }}" />
     </td>
 </tr>
-{% if attendee.badge_type == SUPPORTER_BADGE and not CUSTOM_BADGES_ORDERED %}
+{% if attendee.personalized_badge and not CUSTOM_BADGES_ORDERED %}
     <tr>
         <td>Name Printed on Badge:</td>
         <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" /> </td>
@@ -40,7 +40,7 @@ our Registration Desk; that will belong to whomever the badge is transferred.
     </td>
 </tr>
 <tr>
-    <td> <b><nobr>Emergency Contact</nobr> <nobr>Phone Number:</nobr></b> </td>
+    <td> <b>Emergency Contact<br/>Phone Number:</b> </td>
     <td>
         <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" />
         <i>The person we should call if something happens to you.</i>

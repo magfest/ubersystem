@@ -319,6 +319,18 @@ class csrf_token(template.Node):
 
 
 @tag
+class stripe_button(template.Node):
+    def __init__(self, *label):
+        self.label = " ".join(label).strip('"')
+    
+    def render(self, context):
+        return """
+            <button class="stripe-button-el">
+                <span class="display: block; min-height: 30px;">{label}</span>
+            </button>
+        """.format(label = self.label)
+
+@tag
 class stripe_form(template.Node):
     def __init__(self, action, charge):
         self.action = action
@@ -329,7 +341,7 @@ class stripe_form(template.Node):
         charge = self.charge.resolve(context)
         cherrypy.session[payment_id] = charge
         return """
-            <form method="post" action="{action}">
+            <form class="stripe" method="post" action="{action}">
                 <input type="hidden" name="payment_id" value="{payment_id}" />
                 <script
                     src="https://checkout.stripe.com/v2/checkout.js" class="stripe-button"

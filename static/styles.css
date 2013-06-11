@@ -127,3 +127,11 @@ span.popup {
     padding: 10px;
     border: 1px solid black;
 }
+
+ul.select2-results {
+    max-height: 300px;
+}
+.select2-bolded {
+    font-weight: bold;
+    font-size: 16pt;
+}

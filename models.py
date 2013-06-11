@@ -357,10 +357,6 @@ class Group(MagModel, TakesPaymentMixin):
     @property
     def amount_unpaid(self):
         return self.amount_owed - self.amount_paid
-    
-    @property
-    def can_add_badges(self):
-        return self.can_add or (not self.is_dealer and self.amount_owed and not self.amount_paid)
 
 
 
@@ -388,6 +384,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     ribbon     = IntegerField(default = NO_RIBBON, choices = RIBBON_OPTS)
     
     affiliate    = CharField(max_length = 50, default = "")
+    shirt        = IntegerField(choices = SHIRT_OPTS)
     can_spam     = BooleanField(default = False)
     regdesk_info = CharField(max_length = 255, default = "")
     extra_merch  = CharField(max_length = 255, default = "")
@@ -426,7 +423,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         
         with BADGE_LOCK:
             if not state.AT_THE_CON:
-                if self.amount_extra >= SUPPORTER_LEVEL and self.badge_type == ATTENDEE_BADGE and not state.CUSTOM_BADGES_ORDERED:
+                if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE and not state.CUSTOM_BADGES_ORDERED:
                     self.badge_type = SUPPORTER_BADGE
                 
                 if self.paid == NOT_PAID or self.badge_type not in PREASSIGNED_BADGE_TYPES:
@@ -440,6 +437,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         
         if not self.amount_extra:
             self.affiliate = ""
+        
+        if self.amount_extra < SHIRT_LEVEL:
+            self.shirt = NO_SHIRT
         
         if self.staffing and self.badge_type == ATTENDEE_BADGE and self.ribbon == NO_RIBBON:
             self.ribbon = VOLUNTEER_RIBBON
@@ -485,7 +485,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @property
     def total_cost(self):
-        if self.badge_type == ONE_DAY_BADGE:
+        if self.paid == PAID_BY_GROUP:
+            cost = 0
+        elif self.badge_type == ONE_DAY_BADGE:
             cost = ONEDAY_BADGE_PRICE
         elif datetime.now() < state.PRICE_BUMP:
             cost = EARLY_BADGE_PRICE
@@ -494,6 +496,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         else:
             cost = DOOR_BADGE_PRICE
         return cost + self.amount_extra
+    
+    @property
+    def amount_unpaid(self):
+        return self.total_cost - self.amount_paid
     
     @property
     def is_unpaid(self):
@@ -537,6 +543,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def tshirt(self):
         return self.badge_type in [STAFF_BADGE, SUPPORTER_BADGE] or self.worked_hours >= 6
+    
+    @property
+    def personalized_badge(self):
+        return self.badge_type in [STAFF_BADGE, SUPPORTER_BADGE]
     
     @property
     def donation_swag(self):

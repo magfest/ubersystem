@@ -94,18 +94,20 @@ class State:
 
 state = State()
 
+SHIRT_LEVEL = 20
 SUPPORTER_LEVEL = 60
+SEASON_LEVEL = 150
 DONATION_TIERS = {
     0: "No thanks",
     5: "'Friend of MAGFest' ribbon",
     10: "button",
-    20: "tshirt",
+    SHIRT_LEVEL: "tshirt",
     40: "$10 in Mpoints",
     SUPPORTER_LEVEL: "Supporter Package",
     80: "pin",
     100: "'Don't ask what I had to do to get this ribbon'",
     125: "$0.000000001 Mpoint coin",
-    150: "Supporter Season's Pass (if we even do this)",
+    SEASON_LEVEL: "Supporter Season's Pass for 2014",
     200: "Tiara"
 }
 DONATION_OPTS = sorted((amt, "${}: {}".format(amt,desc) if amt else desc) for amt,desc in DONATION_TIERS.items())
@@ -250,7 +252,9 @@ FEE_PRICES = (
 FEE_ITEMS = [(item,item) for item,price in FEE_PRICES]
 FEE_PRICES = dict(FEE_PRICES)
 
+NO_SHIRT = 0
 SHIRT_OPTS = (
+    (NO_SHIRT, "no shirt"),
     (1, "small"),
     (2, "medium"),
     (3, "large"),
@@ -262,6 +266,7 @@ SHIRT_OPTS = (
     (9, "large (female)"),
     (10, "x-large (female)"),
 )
+PREREG_SHIRT_OPTS = SHIRT_OPTS[1:]
 
 INTEREST_OPTS = enum(
     CONSOLE     = "Consoles",

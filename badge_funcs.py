@@ -78,20 +78,6 @@ def get_badge_type(badge_num):
         return None, "{0!r} is not a valid integer".format(badge_num)
 
 
-def send_delete_email(model):
-    if isinstance(model, Attendee):
-        subject = "Your MAGFest preregistration has been deleted"
-        body = render("emails/attendee_deleted.txt", {"attendee": model})
-    else:
-        subject = "Your MAGFest group preregistration has been deleted"
-        body = render("emails/group_deleted.txt", {"group": model})
-    
-    try:
-        send_email(REGDESK_EMAIL, model.email, subject, body, model = model)
-    except:
-        log.error("unable to send unpaid deletion notification to {}", model.email, exc_info = True)
-
-
 def detect_duplicates():
     subject = "Duplicates Report for " + datetime.now().strftime("%Y-%m-%d")
     if not Email.objects.filter(subject = subject):

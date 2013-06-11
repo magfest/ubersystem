@@ -5,6 +5,8 @@ def check_prereg_reqs(attendee):
         return "You must select an age category"
     elif attendee.badge_type == PSEUDO_DEALER_BADGE and not attendee.phone:
         return "Your phone number is required"
+    elif attendee.amount_extra >= SHIRT_LEVEL and attendee.shirt == NO_SHIRT:
+        return "Your shirt size is required"
 
 def check_tables(attendee, group, params):
     if attendee.badge_type == PSEUDO_DEALER_BADGE and group.tables < int(params["badges"]) // 3:
@@ -185,26 +187,6 @@ class Root:
     def dealer_confirmation(self, id):
         return {"group": Group.objects.get(id=id)}
     
-    if not DEV_BOX and state.PREREG_NOT_OPEN_YET:
-        def index(self, message="", *args, **params):
-            return """
-                <html><head></head><body style="color:red ; text-align:center">
-                    <h2>Preregistration is not yet open.</h2>
-                    We will announce preregistration opening on magfest.org, check there for updates.
-                </body></html>
-            """
-    
-    if not DEV_BOX and state.PREREG_CLOSED:
-        def index(self, message="", *args, **params):
-            return """
-                <html><head></head><body style="color:red ; text-align:center">
-                    <h2>Preregistration has closed.</h2>
-                    We'll see everyone on January 3 - 6.
-                    Full weekend passes will be available at the door for $60,
-                    and single day passes will be $35.
-                </body></html>
-            """
-        
     def group_members(self, id, message=""):
         group = Group.objects.get(secret_id = id)
         return {
@@ -222,14 +204,44 @@ class Root:
                 attendee.save()
                 if attendee.full_name in BANNED_ATTENDEES:
                     send_banned_email(attendee)
-                raise HTTPRedirect("group_members?id={}&message={}", attendee.group.secret_id, "Badge registered successfully")
+                
+                if attendee.amount_unpaid:
+                    raise HTTPRedirect("group_extra_payment_form?id={}", attendee.secret_id)
+                else:
+                    raise HTTPRedirect("group_members?id={}&message={}", attendee.group.secret_id, "Badge registered successfully")
         else:
             attendee.can_spam = True    # only defaults to true for these forms
         
         return {
             "attendee": attendee,
-            "message":  message
+            "message":  message,
+            "affiliates": affiliates()
         }
+    
+    def group_extra_payment_form(self, id):
+        attendee = Attendee.objects.get(secret_id = id)
+        return {
+            "attendee": attendee,
+            "charge": Charge(attendee, description = "{} kicking in extra".format(attendee.full_name))
+        }
+    
+    def group_undo_extra_payment(self, id):
+        attendee = Attendee.objects.get(secret_id = id)
+        attendee.amount_extra -= attendee.amount_unpaid
+        attendee.save()
+        raise HTTPRedirect("group_members?id={}&message={}", attendee.group.secret_id, "Extra payment undone")
+    
+    @credit_card
+    def process_group_member_payment(self, payment_id, stripeToken):
+        charge = Charge.get(payment_id)
+        [attendee] = charge.attendees
+        message = charge.charge_cc(stripeToken)
+        if message:
+            raise HTTPRedirect("group_members?id={}&message={}", attendee.group.secret_id, message)
+        else:
+            attendee.amount_paid += charge.dollar_amount
+            attendee.save()
+            raise HTTPRedirect("group_members?id={}&message={}", attendee.group.secret_id, "Extra payment accepted")
     
     @csrf_protected
     def unset_group_member(self, id):
@@ -240,11 +252,34 @@ class Root:
         attendee.save()
         raise HTTPRedirect("group_members?id={}&message={}", attendee.group.secret_id, "Attendee unset; you may now assign their badge to someone else")
     
-    @csrf_protected
     def add_group_members(self, id, count):
         group = Group.objects.get(secret_id = id)
-        group.assign_badges(group.badges + int(count))
-        raise HTTPRedirect("group_members?id={}&message={}", id, "The requested badges have been added to your group; you must pay for them using the Paypal link below to prevent them from being deleted before the start of MAGFest")
+        if not group.can_add:
+            raise HTTPRedirect("group_members?id={}&message={}", group.secret_id, "This group cannot add badges")
+        
+        charge = Charge(group, amount = 100 * int(count) * state.GROUP_PRICE, description = "{} extra badges for {}".format(count, group.name))
+        charge.badges_to_add = int(count)
+        return {
+            "group": group,
+            "charge": charge
+        }
+    
+    @credit_card
+    def pay_for_extra_members(self, payment_id, stripeToken):
+        charge = Charge.get(payment_id)
+        [group] = charge.groups
+        if charge.dollar_amount != charge.badges_to_add * state.GROUP_PRICE:
+            message = "Our preregistration price has gone up since you tried to add the bagdes; please try again"
+        else:
+            message = charge.charge_cc(stripeToken)
+        
+        if message:
+            raise HTTPRedirect("group_members?id={}&message={}", group.secret_id, message)
+        else:
+            group.assign_badges(group.badges + charge.badges_to_add)
+            group.amount_paid += charge.dollar_amount
+            group.save()
+            raise HTTPRedirect("group_members?id={}&message={}", group.secret_id, "You payment has been accepted and the badges have been added to your group")
     
     def transfer_badge(self, message = "", **params):
         old = Attendee.objects.get(secret_id = params["id"])
@@ -276,8 +311,8 @@ class Root:
     
     def confirm(self, message = "", return_to = "confirm", **params):
         attendee = Attendee.get(params, bools = ["staffing","international"], restricted = True)
-        placeholder = attendee.placeholder
         
+        placeholder = attendee.placeholder
         if "email" in params:
             attendee.placeholder = False
             message = check(attendee) or check_prereg_reqs(attendee)
@@ -289,7 +324,13 @@ class Root:
                     message = "Your information has been updated."
                 
                 page = ("confirm?id=" + attendee.secret_id + "&") if return_to == "confirm" else (return_to + "?")
-                raise HTTPRedirect(page + "message={}", message)
+                if attendee.amount_unpaid:
+                    cherrypy.session["return_to"] = page
+                    raise HTTPRedirect("attendee_donation_form?id={}", attendee.secret_id)
+                else:
+                    raise HTTPRedirect(page + "message=", message)
+        elif attendee.amount_unpaid:
+            raise HTTPRedirect("attendee_donation_form?id={}", attendee.secret_id)
         
         attendee.placeholder = placeholder
         if not message and attendee.placeholder:
@@ -298,10 +339,59 @@ class Root:
             message = "You are already registered but you may update your information with this form."
         
         return {
-            "return_to": return_to,
-            "attendee":  attendee,
-            "message":   message
+            "return_to":  return_to,
+            "attendee":   attendee,
+            "message":    message,
+            "affiliates": affiliates()
         }
-
-if state.UBER_SHUT_DOWN:
-    Root = type("Root", (), {"index": Root.index.im_func})
+    
+    def attendee_donation_form(self, id):
+        attendee = Attendee.objects.get(secret_id = id)
+        return {
+            "attendee": attendee,
+            "charge": Charge(attendee, description = "{} kicking in extra".format(attendee.full_name))
+        }
+    
+    def undo_attendee_donation(self, id):
+        attendee = Attendee.objects.get(secret_id = id)
+        attendee.amount_extra = max(0, attendee.amount_extra - attendee.amount_unpaid)
+        attendee.save()
+        raise HTTPRedirect(cherrypy.session.pop("return_to", "confirm?id=" + id))
+    
+    def process_attendee_donation(self, payment_id, stripeToken):
+        charge = Charge.get(payment_id)
+        [attendee] = charge.attendees
+        message = charge.charge_cc(stripeToken)
+        return_to = cherrypy.session.pop("return_to", "confirm?id=" + attendee.secret_id + "&") + "message="
+        if message:
+            raise HTTPRedirect(return_to, message)
+        else:
+            attendee.amount_paid += charge.dollar_amount
+            attendee.save()
+            raise HTTPRedirect(return_to, "Your payment has been accepted, thanks so much!")
+    
+    def prereg_not_open_yet(self, *args, **kwargs):
+        return """
+            <html><head></head><body style="color:red ; text-align:center">
+                <h2>Preregistration is not yet open.</h2>
+                We will announce preregistration opening on magfest.org, check there for updates.
+            </body></html>
+        """
+    
+    def prereg_closed(self, *args, **kwargs):
+        return """
+            <html><head></head><body style="color:red ; text-align:center">
+                <h2>Preregistration has closed.</h2>
+                We'll see everyone on January 2 - 5.
+                Full weekend passes will be available at the door for $60,
+                and single day passes will be $35.
+            </body></html>
+        """
+    
+    def __getattribute__(self, name):
+        if not DEV_BOX and state.PREREG_NOT_OPEN_YET:
+            return object.__getattribute__(self, "prereg_not_open_yet")
+        elif not DEV_BOX and state.PREREG_CLOSED:
+            return object.__getattribute__(self, "prereg_closed")
+        else:
+            return object.__getattribute__(self, name)

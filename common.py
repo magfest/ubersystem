@@ -67,11 +67,11 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
 def listify(x):
     return x if isinstance(x, (list,tuple,set,frozenset)) else [x]
 
+
 def comma_and(xs):
     if len(xs) > 1:
         xs[-1] = "and " + xs[-1]
     return (", " if len(xs) > 2 else " ").join(xs)
-
 
 
 def check_csrf(csrf_token):
@@ -159,7 +159,6 @@ def check_range(badge_num, badge_type):
             return "{} badge numbers must fall within the range {} - {}".format(dict(BADGE_OPTS)[badge_type], min_num, max_num)
 
 
-
 class Charge:
     def __init__(self, targets, amount=None, description=None):
         self.targets = listify(targets)
@@ -177,10 +176,7 @@ class Charge:
     
     @property
     def total_cost(self):
-        total = 0
-        for m in self.targets:
-            total += m.total_cost
-        return 100 * total
+        return 100 * sum(m.amount_unpaid for m in self.targets)
     
     @property
     def dollar_amount(self):
@@ -188,10 +184,7 @@ class Charge:
     
     @property
     def names(self):
-        names = []
-        for m in self.targets:
-            names.append(repr(m).strip("<>"))
-        return ", ".join(names)
+        return ", ".join(repr(m).strip("<>") for m in self.targets)
     
     @property
     def attendees(self):
@@ -216,7 +209,6 @@ class Charge:
             return "An unexpected problem occured while processing your card: " + str(e)
 
 
-
 def affiliates(exclude={"paid":NOT_PAID}):
     amounts = defaultdict(int, {a:-i for i,a in enumerate(DEFAULT_AFFILIATES)})
     for aff,amt in Attendee.objects.exclude(Q(amount_extra=0) | Q(affiliate="")).values_list("affiliate","amount_extra"):
@@ -224,10 +216,8 @@ def affiliates(exclude={"paid":NOT_PAID}):
     return [(aff,aff) for aff,amt in sorted(amounts.items(), key=lambda tup: -tup[1])]
 
 
-
 def get_page(page, queryset):
     return queryset[(int(page) - 1) * 100 : int(page) * 100]
-
 
 
 def daemonize(func, name="DaemonTask", interval=300, threads=1):

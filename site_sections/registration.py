@@ -108,7 +108,7 @@ class Root:
         }
     
     def change_badge(self, message="", **params):
-        attendee = Attendee.get(dict(params, badge_num = params.get("newnum") or 0))
+        attendee = Attendee.get(dict(params, badge_num = params.get("newnum") or 0), allowed = ["badge_num"])
         
         if "badge_type" in params:
             preassigned = state.AT_THE_CON or attendee.badge_type in PREASSIGNED_BADGE_TYPES

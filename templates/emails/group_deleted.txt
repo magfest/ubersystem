@@ -1,7 +1,0 @@
-{{ group.leader.first_name }},
-
-Because it's been two weeks since you preregistered your group ({{ group.name }}) for MAGFest and we have still not received payment, your group and all badges assigned to it have been deleted.
-{% if GROUP_REG_OPEN %}
-If we've made a mistake and have deleted your registration in error, please reply to this email and let us know and we'll consult our records and get everything sorted out.  Otherwise, when you are prepared to pay you may re-register at http://magfest.org/prereg
-{% endif %}
-{{ REGDESK_EMAIL_SIGNATURE }}

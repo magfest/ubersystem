@@ -14,7 +14,8 @@
     {% endif %}
     If someone who has registered can't make it, you may use the "This person isn't coming"
     button next to their entry on the list below to unset their badge, which may then be
-    assigned to someone else.
+    assigned to someone else.  If someone has kicked in extra money, their badge may not
+    be unassigned, but may still be transferred to someone else.
 </div>
 
 <br/> <b>Here are the badges for your group:</b>
@@ -36,11 +37,17 @@
                 &nbsp;&nbsp;&nbsp;&nbsp;
             </td>
             <td>
-                {% if attendee != group.leader %}
+                {% if attendee != group.leader and not attendee.amount_extra %}
                     <form method="post" action="unset_group_member">
                     {% csrf_token %}
                     <input type="hidden" name="id" value="{{ attendee.secret_id }}" />
                     <input type="submit" value="This person isn't coming" />
+                    </form>
+                {% elif attendee.amount_extra %}
+                    <form method="get" action="transfer_badge">
+                    <input type="hidden" name="id" value="{{ attendee.secret_id }}" />
+                    <b> Kicked in an extra ${{ attendee.amount_extra }}! </b>
+                    <input type="submit" value="Transfer Registration" />
                     </form>
                 {% endif %}
             </td>
@@ -54,10 +61,9 @@
 
 <br/>
 
-{% if group.can_add_badges %}
+{% if group.can_add %}
     <div id="add" style="display:none">
-        <form method="post" action="add_group_members">
-        {% csrf_token %}
+        <form method="get" action="add_group_members">
         <input type="hidden" name="id" value="{{ group.secret_id }}" />
         Enter a number of group members to add:
         <select name="count">{% int_options 1 10 %}</select>

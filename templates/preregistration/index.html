@@ -3,29 +3,12 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-<script type="text/javascript">
-    $(function(){
-        $("form").on("click", "button", function() {
-            $("a[href=badge_choice]")
-                .attr("href", "#")
-                .find("button")
-                    .attr("disabled", true);
-        });
-    });
-</script>
-
 <h2> MAGFest Preregistration </h2>
 
 <table style="width:auto ; margin-left:auto ; margin-right: auto"><tr>
     <td>{% stripe_form prereg_payment charge %}</td>
     <td style="width:100px ; text-align:center">or</td>
-    <td>
-        <a href="badge_choice">
-            <button class="stripe-button-el">
-                <span class="display: block; min-height: 30px;">Add Another Prereg</span>
-            </button>
-        </a>
-    </td>
+    <td><a href="badge_choice">{% stripe_button "Add Another Prereg" %}</a></td>
 </tr></table>
 
 <br/>

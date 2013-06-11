@@ -9,27 +9,34 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
+<script type="text/javascript">
+    $(function(){
+        {% if attendee.personalized_badge %}
+            $(".badge-row").show();
+        {% endif %}
+        {% if attendee.amount_extra %}
+            setTimeout(function(){  // make sure this happens after jQuery.select2
+                $.field("amount_extra").find("option").each(function(){
+                    if ($(this).val() < {{ attendee.amount_extra }}) {
+                        $(this).remove();
+                    }
+                });
+            }, 1);
+        {% endif %}
+    });
+</script>
+
 <form method="post" action="confirm">
 {% csrf_token %}
 <input type="hidden" name="id" value="{{ attendee.secret_id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
 
-<table width="100%" cellspacing="5" cellpadding="5">
+<table class="form">
 <tr>
-    <td width="25%"> <b><nobr>Name:</nobr></b> </td>
-    <td width="75%">{{ attendee.full_name }}</td>
+    <td> <b><nobr>Name:</nobr></b> </td>
+    <td>{{ attendee.full_name }}</td>
 </tr>
-{% if attendee.badge_type == STAFF_BADGE or attendee.badge_type == SUPPORTER_BADGE %}
-    <tr>
-        <td valign="top">Name Printed on Badge:</td>
-        <td>
-            <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" {% if CUSTOM_BADGES_ORDERED %}readonly{% endif %} />
-            {% if CUSTOM_BADGES_ORDERED %}
-                <br/> <i>(custom badges have already been ordered, so you can no longer edit this)</i>
-            {% endif %}
-        </td>
-    </tr>
-{% endif %}
+{% include "preregistration/extra.html" %}
 {% include "preregistration/age_and_staffing.html" %}
 <tr>
     <td> <b>Email Address:</b> </td>
@@ -43,7 +50,7 @@
     </td>
 </tr>
 <tr>
-    <td> <b><nobr>Emergency Contact</nobr> <nobr>Phone Number:</nobr></b> </td>
+    <td> <b>Emergency Contact<br/>Phone Number:</b> </td>
     <td>
         <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" />
         <i>The person we should call if something happens to you.</i>
@@ -54,7 +61,7 @@
     <td> <input type="text" name="phone" value="{{ attendee.phone }}" /> </td>
 </tr>
 <tr>
-    <td> <nobr>What interests you?</nobr> </td>
+    <td> What interests you? </td>
     <td> {% checkgroup attendee.interests %} </td>
 </tr>
 <tr>
@@ -65,11 +72,13 @@
 
 </form>
 
-{% if not attendee.placeholder and attendee.paid == HAS_PAID %}
-    <form method="GET" action="transfer_badge" style="margin-left:25%">
-    <input type="hidden" name="id" value="{{ attendee.secret_id }}" />
-    <input type="submit" value="Transfer my Badge" />
-    </form>
+{% if not attendee.placeholder %}
+    {% if attendee.paid == HAS_PAID or attendee.paid == PAID_BY_GROUP %}
+        <form method="GET" action="transfer_badge" style="margin-left:25ex">
+        <input type="hidden" name="id" value="{{ attendee.secret_id }}" />
+        <input type="submit" value="Transfer my Badge" />
+        </form>
+    {% endif %}
 {% endif %}
 
 {% add_max_lengths Attendee %}
