@@ -31,16 +31,19 @@ class MagModel(Model):
         return field
     
     def field_repr(self, name):
-        field = self.get_field(name)
-        val = getattr(self, name)
-        s = repr(val)
-        if isinstance(field, MultiChoiceField):
-            opts = dict(field.choices)
-            return repr("" if not val else ",".join(opts[int(opt)] for opt in val.split(",")))
-        elif field.choices and val is not None:
-            return repr(dict(field.choices)[int(val)])
-        else:
-            return s
+        try:
+            field = self.get_field(name)
+            val = getattr(self, name)
+            s = repr(val)
+            if isinstance(field, MultiChoiceField):
+                opts = dict(field.choices)
+                return repr("" if not val else ",".join(opts[int(opt)] for opt in val.split(",")))
+            elif field.choices and val is not None:
+                return repr(dict(field.choices)[int(val)])
+            else:
+                return s
+        except Exception as e:
+            raise ValueError("error formatting {} ({!r})".format(name, val)) from e
     
     def __repr__(self):
         display = getattr(self, "display", "name" if hasattr(self, "name") else "id")
@@ -454,9 +457,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         if not self.staffing:
             self.requested_depts = self.assigned_depts = ""
         
-        if self.paid == NEED_NOT_PAY:
-            self.amount_paid = 0
-        
         if self.paid != REFUNDED:
             self.amount_refunded = 0
         
@@ -485,7 +485,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @property
     def total_cost(self):
-        if self.paid == PAID_BY_GROUP:
+        if self.paid in [PAID_BY_GROUP, NEED_NOT_PAY]:
             cost = 0
         elif self.badge_type == ONE_DAY_BADGE:
             cost = ONEDAY_BADGE_PRICE
@@ -664,7 +664,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @property
     def past_years_json(self):
-        return {} if not self.past_years else json.loads(self.past_json)
+        return [] if not self.past_years else json.loads(self.past_years)
     
     @property
     def hotel_shifts_required(self):

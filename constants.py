@@ -25,12 +25,12 @@ class State:
     DEALER_WAITLIST_CLOSED = False
     ETCHED_BADGES_ORDERED = False
     
-    STAFFERS_IMPORTED    = datetime(2013,  5, 29)
-    SHIFTS_CREATED       = datetime(2013, 11,  3)
+    STAFFERS_IMPORTED    = datetime(2013,  6, 12)
+    SHIFTS_CREATED       = datetime(2013,  9,  1)
     PRICE_BUMP           = datetime(2013, 10, 31, 23, 59)
-    DEALER_REG_START     = datetime(2013,  1, 27, 11, 59)
-    DEALER_REG_SHUTDOWN  = datetime(2013, 11, 19, 11, 59)
-    DEALER_REG_DEADLINE  = datetime(2013,  9,  3, 11, 59)
+    DEALER_REG_START     = datetime(2013,  8,  1, 11, 59)
+    DEALER_REG_DEADLINE  = datetime(2013,  9, 30, 11, 59)
+    DEALER_REG_SHUTDOWN  = datetime(2013, 10, 30, 11, 59)
     DEALER_PAYMENT_DUE   = datetime(2013, 11, 30, 23, 59)
     ROOM_DEADLINE        = datetime(2013, 12,  1, 23, 59)
     STAFF_BADGE_DEADLINE = datetime(2013, 12,  9, 23, 59)
@@ -315,8 +315,8 @@ JOB_INTEREST_OPTS = enum(
     ANYTHING   = "Anything",
     ARCADE     = "Arcade",
     CHALLENGES = "Challenges Booth",
-    CONSOLES   = "Consoles",
-    EVENTS     = "Events",
+    CONSOLE    = "Consoles",
+    PANELS     = "Panels",
     FOOD_PREP  = "Food Prep",
     JAMSPACE   = "Jam Space",
     LAN        = "LAN",
@@ -324,7 +324,7 @@ JOB_INTEREST_OPTS = enum(
     REGDESK    = "Regdesk",
     TABLETOP   = "Tabletop",
     TECH_OPS   = "Tech Ops",
-    VIDEO_ROOM = "Video Room",
+    VIDEO_ROOM = "Film Festival",
 )
 JOB_LOC_OPTS = enum(
     ARCADE        = "Arcade",

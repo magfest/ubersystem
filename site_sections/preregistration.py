@@ -362,7 +362,7 @@ class Root:
         charge = Charge.get(payment_id)
         [attendee] = charge.attendees
         message = charge.charge_cc(stripeToken)
-        return_to = cherrypy.session.pop("return_to", "confirm?id=" + attendee.secret_id + "&") + "message="
+        return_to = cherrypy.session.pop("return_to", "confirm?id=" + attendee.secret_id + "&") + "message={}"
         if message:
             raise HTTPRedirect(return_to, message)
         else:
