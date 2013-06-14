@@ -76,7 +76,9 @@ def comma_and(xs):
 
 def check_csrf(csrf_token):
     assert csrf_token, "CSRF token missing"
-    assert csrf_token == cherrypy.session["csrf_token"], "CSRF token does not match"
+    if csrf_token != cherrypy.session["csrf_token"]:
+        log.error("csrf tokens don't match: {!r} != {!r}", csrf_token, cherrypy.session["csrf_token"])
+        raise AssertionError("CSRF check failed")
 
 def check(model):
     prefix = model.__class__.__name__.lower() + "_"
