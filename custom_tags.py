@@ -313,7 +313,7 @@ class checked_if(template.Node):
 @tag
 class csrf_token(template.Node):
     def render(self, context):
-        if "csrf_token" not in cherrypy.session:
+        if not cherrypy.session.get("csrf_token"):
             cherrypy.session["csrf_token"] = uuid4().hex
         return '<input type="hidden" name="csrf_token" value="{}" />'.format(cherrypy.session["csrf_token"])
 

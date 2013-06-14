@@ -38,7 +38,8 @@ class Root:
     
     @unrestricted
     def logout(self):
-        cherrypy.session["account_id"] = cherrypy.session["csrf_token"] = None
+        for key in ["account_id", "csrf_token"]:
+            cherrypy.session.pop(key, None)
         raise HTTPRedirect("login?message={}", "You have been logged out")
     
     @unrestricted
