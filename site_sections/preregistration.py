@@ -328,7 +328,7 @@ class Root:
                     cherrypy.session["return_to"] = page
                     raise HTTPRedirect("attendee_donation_form?id={}", attendee.secret_id)
                 else:
-                    raise HTTPRedirect(page + "message=", message)
+                    raise HTTPRedirect(page + "message=" + message)
         elif attendee.amount_unpaid:
             raise HTTPRedirect("attendee_donation_form?id={}", attendee.secret_id)
         
