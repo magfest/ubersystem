@@ -11,7 +11,7 @@ Badges are not mailed out before the event, so your badge will be available for 
 
 {% if attendee.amount_extra %}
     <br/> <br/>
-    Your additional contribution of ${{ attendee.amount_extra }} provides you with these bonus items:
+    Your additional contribution of ${{ attendee.amount_extra }} provides you with these bonus items, which may be picked up at our merch booth:
     <ul>
     {% for swag in attendee.donation_swag %}
         <li>{{ swag }}</li>

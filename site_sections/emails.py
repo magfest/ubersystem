@@ -91,6 +91,9 @@ Reminder(Attendee, "MAGFest payment received", "attendee_confirmation.html",
 Reminder(Group, "MAGFest group payment received", "group_confirmation.html",
          lambda g: g.amount_paid == g.total_cost)
 
+Reminder(Attendee, "MAGFest extra payment received", "group_donation.txt",
+         lambda a: a.paid == PAID_BY_GROUP and a.amount_extra)
+
 
 
 Reminder(Attendee, "MAGFest Badge Confirmation", "badge_confirmation.txt",
