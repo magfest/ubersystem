@@ -25,7 +25,7 @@ class State:
     DEALER_WAITLIST_CLOSED = False
     ETCHED_BADGES_ORDERED = False
     
-    STAFFERS_IMPORTED    = datetime(2013,  6, 12)
+    STAFFERS_IMPORTED    = datetime(2013,  6, 18)
     SHIFTS_CREATED       = datetime(2013,  9,  1)
     PRICE_BUMP           = datetime(2013, 10, 31, 23, 59)
     DEALER_REG_START     = datetime(2013,  8,  1, 11, 59)
@@ -96,7 +96,7 @@ state = State()
 
 SHIRT_LEVEL = 20
 SUPPORTER_LEVEL = 60
-SEASON_LEVEL = 150
+SEASON_LEVEL = 160
 DONATION_TIERS = {
     0: "No thanks",
     5: "'Friend of MAGFest' ribbon",
@@ -106,11 +106,11 @@ DONATION_TIERS = {
     SUPPORTER_LEVEL: "Supporter Package",
     80: "pin",
     100: "'Don't ask what I had to do to get this ribbon'",
-    125: "$0.000000001 Mpoint coin",
-    SEASON_LEVEL: "Supporter Season's Pass for 2014",
+    120: "$0.000000001 Mpoint coin",
+    SEASON_LEVEL: "Season Supporter Pass for 2014",
     200: "Tiara"
 }
-DONATION_OPTS = sorted((amt, "${}: {}".format(amt,desc) if amt else desc) for amt,desc in DONATION_TIERS.items())
+DONATION_OPTS = sorted((amt, "+ ${}: {}".format(amt,desc) if amt else desc) for amt,desc in DONATION_TIERS.items())
 
 def enum(**kwargs):
     decl_sort = kwargs.pop("_sort_by_declaration", False)
@@ -133,10 +133,10 @@ DEALER_BADGE_PRICE = 30
 TABLE_PRICES       = "$120 for the first table, $160 for the second table, $200 for each additional table"
 
 ADMIN_EMAIL = "Eli Courtwright <eli@courtwright.org>"
-REGDESK_EMAIL = "Victoria Earl <regdesk@magfest.org>"
-STAFF_EMAIL = "Jack Boyd <stops@magfest.org>"
-MARKETPLACE_EMAIL = "Danielle Pomfrey <marketplace@magfest.org>"
-PANELS_EMAIL = "panels@magfest.org"
+REGDESK_EMAIL = "MAGFest Registration <regdesk@magfest.org>"
+STAFF_EMAIL = "MAGFest Staffing <stops@magfest.org>"
+MARKETPLACE_EMAIL = "MAGFest Marketplace <marketplace@magfest.org>"
+PANELS_EMAIL = "MAGFest Panels <panels@magfest.org>"
 REG_EMAILS = [ADMIN_EMAIL]
 PAYMENT_BCC = [ADMIN_EMAIL]
 

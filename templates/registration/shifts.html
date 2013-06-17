@@ -9,19 +9,34 @@
 
 {% include "registration/menu.html" %} <br/>
 
-{% if attendee.possible %}
-    <form method="post" action="assign">
-    {% csrf_token %}
-    <input type="hidden" name="staffer_id" value="{{ attendee.id }}" />
-    <b>Add a Shift:</b>
-    <select name="job_id">
-        {% options attendee.possible_opts %}
-    </select>
-    <input type="submit" value="Assign" />
-    </form>
-{% else %}
-    <i> No additional shifts are available. </i>
-{% endif %}
+<table width="100%">
+<tr>
+    <td width="50%">
+        {% if attendee.possible %}
+            <form method="post" action="assign">
+            {% csrf_token %}
+            <input type="hidden" name="staffer_id" value="{{ attendee.id }}" />
+            <b>Add a Shift:</b>
+            <select name="job_id">
+                {% options attendee.possible_opts %}
+            </select>
+            <input type="submit" value="Assign" />
+            </form>
+        {% else %}
+            <i> No additional shifts are available. </i>
+        {% endif %}
+    </td>
+    <td width="50%" align="right">
+        <form method="post" action="update_nonshift">
+        {% csrf_token %}
+        <input type="hidden" name="id" value="{{ attendee.id }}" />
+        <b>Non-shift hours:</b>
+        <input type="text" class="focus" name="nonshift_hours" value="{{ attendee.nonshift_hours }}" style="width:2em" />
+        <input type="submit" value="Update" />
+        </form>
+    </td>
+</tr>
+</table>
 
 <br/><br/>
 

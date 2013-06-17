@@ -59,6 +59,8 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
         args = [self.quote(s) for s in args]
         kwargs = {k:self.quote(v) for k,v in kwargs.items()}
         cherrypy.HTTPRedirect.__init__(self, page.format(*args, **kwargs))
+        if state.URL_BASE.startswith("https"):
+            self.urls[0] = self.urls[0].replace("http://", "https://")
     
     def quote(self, s):
         return quote(s) if isinstance(s, str) else str(s)

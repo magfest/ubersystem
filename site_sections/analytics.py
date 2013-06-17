@@ -41,53 +41,57 @@ class Root:
         }
 
     def analytics_graph_by_attendance(self):
-        starting_magfest_year = 6
-        ending_magfest_year = 11
+        try:
+            starting_magfest_year = 6
+            ending_magfest_year = 11
 
-        print("starting query")
+            print("starting query")
 
-        # collect raw data for each year
-        raw_data = []
-        for which_magfest in range(
-            starting_magfest_year, ending_magfest_year + 1):
-            raw_data.append(
-                generate_attendance_by_day_graph_data(which_magfest)
-            )
+            # collect raw data for each year
+            raw_data = []
+            for which_magfest in range(
+                starting_magfest_year, ending_magfest_year + 1):
+                raw_data.append(
+                    generate_attendance_by_day_graph_data(which_magfest)
+                )
 
-        print("done query, processing data")
+            print("done query, processing data")
 
-        # make it be in a sane format that we can deal with in google charts
-        graph_data = []
-        graph_data.append(["Date", "Magfest 6",
-            "Magfest 7", "Magfest 8", "Magfest 9", "Magfest 10", "Magfest 11"])
+            # make it be in a sane format that we can deal with in google charts
+            graph_data = []
+            graph_data.append(["Date", "Magfest 6",
+                "Magfest 7", "Magfest 8", "Magfest 9", "Magfest 10", "Magfest 11"])
 
-        newest_magfest = ending_magfest_year - starting_magfest_year
+            newest_magfest = ending_magfest_year - starting_magfest_year
 
-        # combine all the different magfest year data into one big array
-        for day in range(0, 365 + 1):
-            row = []
+            # combine all the different magfest year data into one big array
+            for day in range(0, 365 + 1):
+                row = []
 
-            # only need the date from the newest magfest. ignore the others
-            date = raw_data[newest_magfest][day][1]
+                # only need the date from the newest magfest. ignore the others
+                date = raw_data[newest_magfest][day][1]
 
-            # magfestubersystem.com likes this one better
-            row.append(date.strftime("%Y-%m-%d"))
-            
-            # courtwright.org likes this one better
-            #row.append(date)
+                # magfestubersystem.com likes this one better
+                row.append(date.strftime("%Y-%m-%d"))
 
-            for magfest_data in raw_data:
-                # should be the same day offset
-                assert magfest_data[day][0] == day
+                # courtwright.org likes this one better
+                #row.append(date)
 
-                total_attendance_that_day = magfest_data[day][3]
-                row.append(total_attendance_that_day)
+                for magfest_data in raw_data:
+                    # should be the same day offset
+                    assert magfest_data[day][0] == day
 
-            graph_data.append(row)
+                    total_attendance_that_day = magfest_data[day][3]
+                    row.append(total_attendance_that_day)
 
-        print("done processing, rendering...")
+                graph_data.append(row)
 
-        return {
-            "attendance_data": graph_data
-        }
+            print("done processing, rendering...")
 
+            return {
+                "attendance_data": graph_data
+            }
+        except:
+            from django.db import connection    # reset connection on transaction error
+            connection.close()
+            raise

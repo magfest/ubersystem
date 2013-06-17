@@ -114,7 +114,7 @@ class Root:
                 
                 raise HTTPRedirect("index")
         else:
-            attendee.can_spam = True    # only defaults to true for these forms
+            attendee.can_spam = edit_id is None     # only defaults to true for these forms
         
         return {
             "message":    message,
@@ -237,6 +237,8 @@ class Root:
         [attendee] = charge.attendees
         message = charge.charge_cc(stripeToken)
         if message:
+            attendee.amount_extra -= attendee.amount_unpaid
+            attendee.save()
             raise HTTPRedirect("group_members?id={}&message={}", attendee.group.secret_id, message)
         else:
             attendee.amount_paid += charge.dollar_amount
@@ -287,6 +289,8 @@ class Root:
         
         if "first_name" in params:
             message = check(attendee) or check_prereg_reqs(attendee)
+            if not message and (not params["first_name"] and not params["last_name"]):
+                message = "First and Last names are required."
             if not message:
                 attendee.save()
                 subject, body = "MAGFest Registration Transferred", render("emails/transfer_badge.txt", {"new": attendee, "old": old})
@@ -328,7 +332,7 @@ class Root:
                     cherrypy.session["return_to"] = page
                     raise HTTPRedirect("attendee_donation_form?id={}", attendee.secret_id)
                 else:
-                    raise HTTPRedirect(page + "message=", message)
+                    raise HTTPRedirect(page + "message=" + message)
         elif attendee.amount_unpaid:
             raise HTTPRedirect("attendee_donation_form?id={}", attendee.secret_id)
         

@@ -1,8 +1,7 @@
 {{ attendee.first_name }},
 
-Thanks for pre-registering for MAGFest.  Our records indicate that you are under the age of 18, and as such, you will need to bring a signed and notarized parental consent waiver.  If your parent or guardian is present to sign the waiver at our registration desk, then it does not need to be notarized.  You may find the waiver at {{ CONSENT_FORM_URL }}
+Thanks for pre-registering for MAGFest.  Our records indicate that you are under the age of 18, and as such, you will need a signed parental consent waiver. If a parent/guardian will be present at MAGFest, then they can sign the consent waiver when you pick up your badge at the registration desk. If a parent/guardian will not be at the event, the waiver may be brought pre-signed, however it MUST be notarized. We will not accept pre-signed waivers that are not notarized. You may find the waiver at {{ CONSENT_FORM_URL }}
 
 If you are actually over 18, you can update your age in our database at {{ URL_BASE }}/preregistration/confirm?id={{ attendee.secret_id  }} before {{ UBER_TAKEDOWN|datetime }}.  Or you can simply ignore this email, since we'll be checking photo IDs at our registration desk.
 
- - Eli Courtwright,
-Registration Database Administrator
+{{ REGDESK_EMAIL_SIGNATURE }}
