@@ -237,6 +237,8 @@ class Root:
         [attendee] = charge.attendees
         message = charge.charge_cc(stripeToken)
         if message:
+            attendee.amount_extra -= attendee.amount_unpaid
+            attendee.save()
             raise HTTPRedirect("group_members?id={}&message={}", attendee.group.secret_id, message)
         else:
             attendee.amount_paid += charge.dollar_amount
