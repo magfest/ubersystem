@@ -133,10 +133,10 @@ DEALER_BADGE_PRICE = 30
 TABLE_PRICES       = "$120 for the first table, $160 for the second table, $200 for each additional table"
 
 ADMIN_EMAIL = "Eli Courtwright <eli@courtwright.org>"
-REGDESK_EMAIL = "Victoria Earl <regdesk@magfest.org>"
-STAFF_EMAIL = "Jack Boyd <stops@magfest.org>"
-MARKETPLACE_EMAIL = "Danielle Pomfrey <marketplace@magfest.org>"
-PANELS_EMAIL = "panels@magfest.org"
+REGDESK_EMAIL = "MAGFest Registration <regdesk@magfest.org>"
+STAFF_EMAIL = "MAGFest Staffing <stops@magfest.org>"
+MARKETPLACE_EMAIL = "MAGFest Marketplace <marketplace@magfest.org>"
+PANELS_EMAIL = "MAGFest Panels <panels@magfest.org>"
 REG_EMAILS = [ADMIN_EMAIL]
 PAYMENT_BCC = [ADMIN_EMAIL]
 
