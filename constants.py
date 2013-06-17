@@ -96,7 +96,7 @@ state = State()
 
 SHIRT_LEVEL = 20
 SUPPORTER_LEVEL = 60
-SEASON_LEVEL = 150
+SEASON_LEVEL = 160
 DONATION_TIERS = {
     0: "No thanks",
     5: "'Friend of MAGFest' ribbon",
@@ -106,11 +106,11 @@ DONATION_TIERS = {
     SUPPORTER_LEVEL: "Supporter Package",
     80: "pin",
     100: "'Don't ask what I had to do to get this ribbon'",
-    125: "$0.000000001 Mpoint coin",
-    SEASON_LEVEL: "Supporter Season's Pass for 2014",
+    120: "$0.000000001 Mpoint coin",
+    SEASON_LEVEL: "Season Supporter Pass for 2014",
     200: "Tiara"
 }
-DONATION_OPTS = sorted((amt, "${}: {}".format(amt,desc) if amt else desc) for amt,desc in DONATION_TIERS.items())
+DONATION_OPTS = sorted((amt, "+ ${}: {}".format(amt,desc) if amt else desc) for amt,desc in DONATION_TIERS.items())
 
 def enum(**kwargs):
     decl_sort = kwargs.pop("_sort_by_declaration", False)
