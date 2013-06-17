@@ -287,6 +287,8 @@ class Root:
         
         if "first_name" in params:
             message = check(attendee) or check_prereg_reqs(attendee)
+            if not message and (not params["first_name"] and not params["last_name"]):
+                message = "First and Last names are required."
             if not message:
                 attendee.save()
                 subject, body = "MAGFest Registration Transferred", render("emails/transfer_badge.txt", {"new": attendee, "old": old})
