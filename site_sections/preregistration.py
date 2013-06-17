@@ -323,7 +323,7 @@ class Root:
             if not message:
                 attendee.save()
                 if placeholder:
-                    message = "Your registeration has been confirmed."
+                    message = "Your registration has been confirmed."
                 else:
                     message = "Your information has been updated."
                 
