@@ -36,7 +36,7 @@
 </script>
 
 {% if attendee.badge_type != PSEUDO_DEALER_BADGE and attendee.badge_type != PSEUDO_GROUP_BADGE %}
-    <tr>
+    <tr class="extra-row">
         <td><b>Want to kick in extra?</b></td>
         <td>
             <select name="amount_extra" style="width:50%" onChange="donationChanged()">
@@ -47,7 +47,7 @@
         </td>
     </tr>
 {% endif %}
-<tr class="badge-row" style="display:none">
+<tr class="badge-row extra-row" style="display:none">
     <td> <b>Name Printed on Badge:</b> </td>
     <td>
         <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" {% if CUSTOM_BADGES_ORDERED %}readonly{% endif %} />
@@ -56,7 +56,7 @@
         {% endif %}
     </td>
 </tr>
-<tr class="affiliate-row" style="display:none">
+<tr class="affiliate-row extra-row" style="display:none">
     <td valign="top"> <b>Affiliate:</b> </td>
     <td>
         <select name="aff_select" onChange="affChanged()">
@@ -70,7 +70,7 @@
         </div>
     </td>
 </tr>
-<tr class="shirt-row" style="display:none">
+<tr class="shirt-row extra-row" style="display:none">
     <td> <b>Shirt Size</b> </td>
     <td>
         <select name="shirt">
