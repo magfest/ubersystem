@@ -114,7 +114,7 @@ class Root:
                 
                 raise HTTPRedirect("index")
         else:
-            attendee.can_spam = True    # only defaults to true for these forms
+            attendee.can_spam = edit_id is None     # only defaults to true for these forms
         
         return {
             "message":    message,
