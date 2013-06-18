@@ -108,7 +108,10 @@ DONATION_TIERS = {
     100: "'Don't ask what I had to do to get this ribbon'",
     120: "$0.000000001 Mpoint coin",
     SEASON_LEVEL: "Season Supporter Pass for 2014",
-    200: "Tiara"
+    200: "Tiara",
+    300: "Pendant",
+    400: "Scepter",
+    500: "Robe and Wizard Hat"
 }
 DONATION_OPTS = sorted((amt, "+ ${}: {}".format(amt,desc) if amt else desc) for amt,desc in DONATION_TIERS.items())
 
