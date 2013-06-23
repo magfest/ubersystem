@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Affiliates{% endblock %}
+{% block content %}
+
+<h2>Affiliates</h2>
+
+<table style="width:auto ; text-align:center">
+<tr>
+    <td>Affiliate</td>
+    <td>Total</td>
+    <td>Count</td>
+    <td>Breakdown</td>
+</tr>
+{% for affiliate, totals in counts %}
+    <tr>
+        <td><b>{{ affiliate }}</b></td>
+        <td><nobr><b>${{ totals.total }}</b></nobr></td>
+        <td><nobr><b>{{ totals.tally }} attendee{{ totals.tally|pluralize }}</b></nobr></td>
+        <td>
+            <ul>
+            {% for amount, count in totals.sorted %}
+                <li>{{ count }} attendee{{ count|pluralize }} gave ${{ amount }}</li>
+            {% endfor %}
+            </ul>
+        </td>
+    </tr>
+{% endfor %}
+</table>
+
+{% endblock %}

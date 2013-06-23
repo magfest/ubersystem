@@ -21,19 +21,35 @@ class Root:
             "free_group":    attendees.filter(paid=PAID_BY_GROUP, group__amount_paid=0).count()
         }
     
+    def affiliates(self):
+        class AffiliateCounts:
+            def __init__(self):
+                self.tally, self.total = 0, 0
+                self.amounts = {}
+            
+            @property
+            def sorted(self):
+                return sorted(self.amounts.items())
+            
+            def count(self, amount):
+                self.tally += 1
+                self.total += amount
+                self.amounts[amount] = 1 + self.amounts.get(amount, 0)
+        
+        counts = defaultdict(AffiliateCounts)
+        for affiliate,amount in Attendee.objects.filter(amount_extra__gt=0).values_list("affiliate", "amount_extra"):
+            counts['everything combined'].count(amount)
+            counts[affiliate or 'no affiliate selected'].count(amount)
+        return {
+            'counts': sorted(counts.items(), key=lambda tup: -tup[1].total),
+            'registrations': Attendee.objects.exclude(paid=NEED_NOT_PAY).count()
+        }
+    
     def found_how(self):
         return {
             "m6": m6,
             "m7": m7,
             "m8": sorted(Attendee.objects.exclude(found_how="").values_list("found_how", flat=True), key=lambda s: s.lower())
-        }
-    
-    def possible_staffers(self):
-        exclude = [s.attendee.id for s in Staffer.objects.exclude(attendee__isnull=True)]
-        interested = Attendee.objects.filter(interests__contains=str(STAFFING)).exclude(id__in=exclude).order_by("last_name","first_name")
-        return {
-            "interested": interested,
-            "emails":     ",".join(attendee.email for attendee in interested)
         }
     
     def email_links(self):
