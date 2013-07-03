@@ -568,3 +568,9 @@ class Root:
     
     def review(self):
         return {"attendees": Attendee.objects.exclude(for_review = "").order_by("first_name","last_name")}
+    
+    def season_pass_tickets(self):
+        events = defaultdict(list)
+        for spt in SeasonPassTicket.objects.select_related().order_by("attendee__first_name"):
+            events[spt.slug].append(spt.attendee)
+        return {"events": dict(events)}

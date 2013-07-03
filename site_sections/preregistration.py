@@ -374,6 +374,22 @@ class Root:
             attendee.save()
             raise HTTPRedirect(return_to, "Your payment has been accepted, thanks so much!")
     
+    def event(self, slug, *, id, register=None):
+        attendee = Attendee.objects.get(secret_id = id)
+        event = SEASON_EVENTS[slug]
+        deadline_passed = datetime.now() > event["deadline"]
+        assert attendee.amount_extra >= SEASON_LEVEL
+        if register and not deadline_passed:
+            SeasonPassTicket.objects.get_or_create(attendee=attendee, slug=slug)
+            raise HTTPRedirect(slug + "?id={}", id)
+        
+        return {
+            "event": event,
+            "attendee": attendee,
+            "deadline_passed": deadline_passed,
+            "registered": slug in [spt.slug for spt in attendee.seasonpassticket_set.all()]
+        }
+    
     def prereg_not_open_yet(self, *args, **kwargs):
         return """
             <html><head></head><body style="color:red ; text-align:center">

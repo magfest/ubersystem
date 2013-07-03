@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+    <head>
+        <title>{{ event.name }}</title>
+        <link type="text/css" rel="stylesheet" href="../../static/styles.css" />
+    </head>
+    <body style="margin-left:20% ; margin-right:20%">
+        <h2>{{ event.name }}</h2>
+        {% if registered %}
+            You have successfully preregistered for your complementary, non-transferable ticket for 
+            <a href="{{ event.url }}">{{ event.name }}</a>.  We'll see you on {{ event.day|datetime:"%A, %B %e" }}
+            at {{ event.location }}.
+        {% elif deadline_passed %}
+             Unfortunately, the deadline for registering for {{ event.name }} has passed, but we'll definitely
+             keep you informed about other events as they approach!
+        {% else %}
+            Your MAGFest Season Supporter registration makes you eligible for a complementary, non-transferable ticket for
+            <a href="{{ event.url }}">{{ event.name }}</a>, which is coming up on {{ event.day|datetime:"%A, %B %e" }}
+            at {{ event.location }}.
+            To claim your ticket, just click the following button:
+            <br/> <br/>
+            <form method="post" action="{{ event.slug }}" style="text-align:center">
+            <input type="hidden" name="id" value="{{ attendee.secret_id }}" />
+            <input type="hidden" name="register" value="true" />
+            <input type="submit" value="I'm Definitely Coming!" />
+            </form>
+        {% endif %}
+    </body>
+</html>

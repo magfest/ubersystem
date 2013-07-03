@@ -3,8 +3,9 @@ from common import *
 class Reminder:
     instances = OrderedDict()
     
-    def __init__(self, model, subject, template, filter, sender=REGDESK_EMAIL):
+    def __init__(self, model, subject, template, filter, sender=REGDESK_EMAIL, extra_data=None):
         self.model, self.subject, self.template, self.filter, self.sender = model, subject, template, filter, sender
+        self.extra_data = extra_data or {}
         self.instances[subject] = self
     
     def __repr__(self):
@@ -24,7 +25,7 @@ class Reminder:
     
     def send(self, x, raise_errors = True):
         try:
-            body = render("emails/" + self.template, {x.__class__.__name__.lower(): x})
+            body = render("emails/" + self.template, dict({x.__class__.__name__.lower(): x}, **self.extra_data))
             format = "text" if self.template.endswith(".txt") else "html"
             send_email(self.sender, x.email, self.subject, body, format, model = x)
         except:
@@ -59,6 +60,13 @@ class MarketplaceReminder(Reminder):
     def __init__(self, subject, template, filter):
         Reminder.__init__(self, Group, subject, template, lambda g: g.is_dealer and filter(g), MARKETPLACE_EMAIL)
 
+class SeasonSupporterReminder(Reminder):
+    def __init__(self, event):
+        Reminder.__init__(self, Attendee,
+                                subject = "Claim your {} tickets with your MAGFest Season Pass".format(event['name']),
+                                template = "season_supporter_event_invite.txt",
+                                filter = lambda a: a.amount_extra >= SEASON_LEVEL and before(event['deadline']),
+                                extra_data = {'event': event})
 
 before = lambda dt: datetime.now() < dt
 days_after = lambda days, dt: datetime.now() > dt + timedelta(days = days)
@@ -183,6 +191,11 @@ Reminder(Attendee, "MAGFest parental consent form reminder", "under_18_reminder.
 
 DeptHeadReminder("MAGFest staffers need to be marked and rated", "postcon_hours.txt",
                  lambda a: state.POST_CON and len(a.assigned) == 1)
+
+
+
+for _event in SEASON_EVENTS.values():
+    SeasonSupporterReminder(_event)
 
 
 @all_renderable(PEOPLE)

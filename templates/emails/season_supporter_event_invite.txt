@@ -1,0 +1,9 @@
+{{ attendee.first_name }},
+
+As part of your 2014 Season Supporter package, you are eligible for complimentary admission to all 2013 and 2014 MAGFest events.  Our next event is {{ event.name }}, and it's coming up on {{ event.day|datetime:"%A, %b %e" }} at {{ event.location }}, which you can read more about at {{ event.url }}
+
+To claim your complementary badge, just visit {{ URL_BASE }}/preregistration/event/{{ event.slug }}?id={{ attendee.secret_id }}
+
+Remember that our events often sell out, so if you would like to attend this event, please RSVP no later than {{ event.deadline|datetime }} so that we can reserve a ticket for you.  Please note that your complimentary pass is only valid for you, and is not transferrable.  Thank you so much for your support, and we hope to see you there!
+
+{{ REGDESK_EMAIL_SIGNATURE }}

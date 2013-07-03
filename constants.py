@@ -460,3 +460,16 @@ DEFAULT_AFFILIATES = ["OC ReMix", "ScrewAttack",                                
 BANNED_ATTENDEES = {
     "Mike Callahan", "Michael Callahan", "Mash Callahan"
 }
+
+SEASON_EVENTS = {
+    "game_over_baltimore": {
+        "day": datetime(2013, 7, 7),
+        "deadline": datetime(2013, 7, 5, 23, 59),
+        "location": "The Metro Gallery in Baltimore, Maryland",
+        "url": "http://www.missiontix.com/events/product/17615/magfest-presents-game-over-baltimore-ii",
+    }
+}
+for _slug,_event in SEASON_EVENTS.items():
+    _event['slug'] = _slug
+    _event.setdefault('name', _slug.replace("_", " ").title())
+    _event.setdefault('deadline', datetime.combine((_event['day'] - timedelta(days = 7)).date(), time(23, 59)))

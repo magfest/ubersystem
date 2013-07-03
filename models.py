@@ -717,6 +717,10 @@ class AssignedPanelist(MagModel):
     def __repr__(self):
         return "<{self.attendee.full_name} panelisting {self.event.name}>".format(self = self)
 
+class SeasonPassTicket(MagModel):
+    attendee = ForeignKey(Attendee)
+    slug = CharField(max_length = 99)
+
 
 class Job(MagModel):
     name        = CharField(max_length = 100)
