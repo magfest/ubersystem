@@ -467,6 +467,11 @@ SEASON_EVENTS = {
         "deadline": datetime(2013, 7, 5, 23, 59),
         "location": "The Metro Gallery in Baltimore, Maryland",
         "url": "http://www.missiontix.com/events/product/17615/magfest-presents-game-over-baltimore-ii",
+    },
+    "magstock": {
+        "day": datetime(2013, 7, 26),
+        "location": "the Small Country Campground in Louisa, Virginia",
+        "url": "http://magstock.net/"
     }
 }
 for _slug,_event in SEASON_EVENTS.items():
