@@ -25,7 +25,7 @@ class State:
     DEALER_WAITLIST_CLOSED = False
     ETCHED_BADGES_ORDERED = False
     
-    STAFFERS_IMPORTED    = datetime(2013,  6, 18)
+    STAFFERS_IMPORTED    = datetime(2013,  7, 23)
     SHIFTS_CREATED       = datetime(2013,  9,  1)
     PRICE_BUMP           = datetime(2013, 10, 31, 23, 59)
     DEALER_REG_START     = datetime(2013,  8,  1, 11, 59)
