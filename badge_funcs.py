@@ -103,7 +103,7 @@ def detect_duplicates():
 
 def check_placeholders():
     emails = {
-        STAFF_EMAIL: Q(staffing = True),
+        #STAFF_EMAIL: Q(staffing = True),
         PANELS_EMAIL: Q(badge_type = GUEST_BADGE) | Q(ribbon = PANELIST_RIBBON),
         REGDESK_EMAIL: ~(Q(staffing = True) | Q(badge_type = GUEST_BADGE) | Q(ribbon = PANELIST_RIBBON))
     }
