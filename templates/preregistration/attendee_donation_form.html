@@ -3,19 +3,33 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-<h2> Extra Payment for {{ attendee.full_name }} </h2>
+{% if attendee.overridden_price %}
+    <h2> Badge Payment for {{ attendee.full_name }} </h2>
+    
+    You've registered for MAGFest at a discounted price of ${{ attendee.overridden_price }}{% if attendee.amount_extra %} and you've also kicked in ${{ attendee.amount_extra }}{% endif %}; your total outstanding balance is ${{ attendee.amount_unpaid }}.
+    
+    <table style="width:auto ; margin-left:auto ; margin-right: auto"><tr>
+        <td>{% stripe_form process_attendee_donation charge %}</td>
+        {% if attendee.amount_extra %}
+            <td style="width:100px ; text-align:center">or</td>
+            <td><a href="undo_attendee_donation?id={{ attendee.secret_id }}">{% stripe_button "Undo Extra Money" %}</a></td>
+        {% endif %}
+    </tr></table>
+{% else %}
+    <h2> Extra Payment for {{ attendee.full_name }} </h2>
 
-Thanks for offering to kick in ${{ charge.dollar_amount }} extra to help make MAGFest better.  As thanks, your total donation of ${{ attendee.amount_extra }} entitles you to the following:
-<ul>
-    {% for swag in attendee.donation_swag %}
-        <li>{{ swag }}</li>
-    {% endfor %}
-</ul>
+    Thanks for offering to kick in ${{ charge.dollar_amount }} extra to help make MAGFest better.  As thanks, your total donation of ${{ attendee.amount_extra }} entitles you to the following:
+    <ul>
+        {% for swag in attendee.donation_swag %}
+            <li>{{ swag }}</li>
+        {% endfor %}
+    </ul>
 
-<table style="width:auto ; margin-left:auto ; margin-right: auto"><tr>
-    <td>{% stripe_form process_attendee_donation charge %}</td>
-    <td style="width:100px ; text-align:center">or</td>
-    <td><a href="undo_attendee_donation?id={{ attendee.secret_id }}">{% stripe_button "Nevermind" %}</a></td>
-</tr></table>
+    <table style="width:auto ; margin-left:auto ; margin-right: auto"><tr>
+        <td>{% stripe_form process_attendee_donation charge %}</td>
+        <td style="width:100px ; text-align:center">or</td>
+        <td><a href="undo_attendee_donation?id={{ attendee.secret_id }}">{% stripe_button "Nevermind" %}</a></td>
+    </tr></table>
+{% endif %}
 
 {% endblock %}

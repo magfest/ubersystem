@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Discount a Badge{% endblock %}
+{% block content %}
+
+<h2> Create a Discounted Badge </h2>
+
+<form method="post" action="discount">
+{% csrf_token %}
+<table class="form">
+<tr>
+    <td> <b>First and Last Name:</b> </td>
+    <td>
+        <input class="focus" type="text" style="width:10em" name="first_name" />
+        <input type="text" style="width:10em" name="last_name" />
+    </td>
+</tr>
+<tr>
+    <td> Email Address: </td>
+    <td> <input type="text" name="email" />
+</tr>
+<tr>
+    <td> <b>Discounted Price:</b> </td>
+    <td> $<input type="text" name="overridden_price" size="4" /> </td>
+</tr>
+<tr>
+    <td></td>
+    <td> <input type="submit" value="Create" /> </td>
+</tr>
+</table>
+</form>
+
+<i>Bolded fields are required</i>
+
+{% endblock %}

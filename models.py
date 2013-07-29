@@ -396,10 +396,11 @@ class Attendee(MagModel, TakesPaymentMixin):
     registered = DateTimeField(auto_now_add = True)
     checked_in = DateTimeField(null = True)
     
-    paid            = IntegerField(default = NOT_PAID, choices = PAID_OPTS)
-    amount_paid     = IntegerField(default = 0)
-    amount_extra    = IntegerField(default = 0, choices = DONATION_OPTS)
-    amount_refunded = IntegerField(default = 0)
+    paid             = IntegerField(default = NOT_PAID, choices = PAID_OPTS)
+    overridden_price = IntegerField(default = None)
+    amount_paid      = IntegerField(default = 0)
+    amount_extra     = IntegerField(default = 0, choices = DONATION_OPTS)
+    amount_refunded  = IntegerField(default = 0)
     
     badge_printed_name = CharField(max_length = 30, default = "")
     
@@ -487,6 +488,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     def total_cost(self):
         if self.paid in [PAID_BY_GROUP, NEED_NOT_PAY]:
             cost = 0
+        elif self.overridden_price is not None:
+            cost = self.overridden_price
         elif self.badge_type == ONE_DAY_BADGE:
             cost = ONEDAY_BADGE_PRICE
         elif datetime.now() < state.PRICE_BUMP:

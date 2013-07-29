@@ -333,7 +333,7 @@ class Root:
                     raise HTTPRedirect("attendee_donation_form?id={}", attendee.secret_id)
                 else:
                     raise HTTPRedirect(page + "message=" + message)
-        elif attendee.amount_unpaid:
+        elif attendee.amount_unpaid and attendee.zip_code:  # don't skip to payment until the form is filled out
             raise HTTPRedirect("attendee_donation_form?id={}", attendee.secret_id)
         
         attendee.placeholder = placeholder
@@ -353,7 +353,7 @@ class Root:
         attendee = Attendee.objects.get(secret_id = id)
         return {
             "attendee": attendee,
-            "charge": Charge(attendee, description = "{} kicking in extra".format(attendee.full_name))
+            "charge": Charge(attendee, description = "{}{}".format(attendee.full_name, "" if attendee.overridden_price else " kicking in extra"))
         }
     
     def undo_attendee_donation(self, id):

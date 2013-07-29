@@ -574,3 +574,21 @@ class Root:
         for spt in SeasonPassTicket.objects.select_related().order_by("attendee__first_name"):
             events[spt.slug].append(spt.attendee)
         return {"events": dict(events)}
+    
+    def discount(self, message="", **params):
+        attendee = Attendee.get(params)
+        if "first_name" in params:
+            if not attendee.first_name or not attendee.last_name:
+                message = "First and Last Name are required"
+            elif not attendee.overridden_price:
+                message = "Discounted Price is required"
+            elif attendee.overridden_price > state.BADGE_PRICE:
+                message = "You can't create a discounted badge that actually costs more than the regular price!"
+            
+            if not message:
+                attendee.placeholder = True
+                attendee.badge_type = ATTENDEE_BADGE
+                attendee.save()
+                raise HTTPRedirect("../preregistration/confirm?id={}", attendee.secret_id)
+        
+        return {"message": message}
