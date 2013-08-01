@@ -472,6 +472,12 @@ SEASON_EVENTS = {
         "day": datetime(2013, 7, 26),
         "location": "the Small Country Campground in Louisa, Virginia",
         "url": "http://magstock.net/"
+    },
+    "bitgen": {
+        "day": datetime(2013, 8, 10),
+        "url": "http://bitgen.magfest.org/",
+        "location": "Rams Head Live in Baltimore",
+        "deadline": datetime(2013, 8, 8, 23, 59)
     }
 }
 for _slug,_event in SEASON_EVENTS.items():
