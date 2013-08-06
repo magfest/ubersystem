@@ -331,11 +331,11 @@ class Group(MagModel, TakesPaymentMixin):
     
     @property
     def table_cost(self):
-        return {
-            0: 0,
-            1: 120,
-            2: 120 + 160
-        }.get(self.tables, 120 + 160 + 200 * (self.tables - 2))
+        prices = {0: 0, 1: 125, 2: 175, 3: 225}
+        total = 0
+        for table in range(self.tables + 1):
+            total += prices.get(table, 300)
+        return total
     
     @property
     def badge_cost(self):

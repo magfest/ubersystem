@@ -191,6 +191,7 @@ class Root:
         group = Group.objects.get(secret_id = id)
         return {
             "group":   group,
+            "charge": Charge(group),
             "message": message
         }
     
@@ -230,6 +231,18 @@ class Root:
         attendee.amount_extra -= attendee.amount_unpaid
         attendee.save()
         raise HTTPRedirect("group_members?id={}&message={}", attendee.group.secret_id, "Extra payment undone")
+    
+    @credit_card
+    def process_group_payment(self, payment_id, stripeToken):
+        charge = Charge.get(payment_id)
+        [group] = charge.groups
+        message = charge.charge_cc(stripeToken)
+        if message:
+            raise HTTPRedirect("group_members?id={}&message={}", group.secret_id, message)
+        else:
+            group.amount_paid += charge.dollar_amount
+            group.save()
+            raise HTTPRedirect("group_members?id={}&message={}", group.secret_id, "Your payment has been accepted!")
     
     @credit_card
     def process_group_member_payment(self, payment_id, stripeToken):

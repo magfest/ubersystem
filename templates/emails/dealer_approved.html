@@ -2,9 +2,8 @@
 <head></head>
 <body>
 Your group ({{ group.name }}) has been approved as a MAGFest Dealer!
-You can pay the ${{ group.total_cost }} you owe using the Paypal button
+You can pay the ${{ group.total_cost }} you owe using the credit card button
 <a href="{{ URL_BASE }}/preregistration/group_members?id={{ group.secret_id }}">on this page</a>.
-You can use a credit or debit card with Paypal, even if you don't have a Paypal account.
 
 {% if group.unassigned_badges %}
     <br/> <br/>

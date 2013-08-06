@@ -18,24 +18,26 @@
         {% endif %}
     };
     $(function(){
-        donationChanged();
-        affChanged(true);
-        var format = function(opt) {
-            if (opt.id == {{ SUPPORTER_LEVEL }} || opt.id == {{ SEASON_LEVEL }}) {
-                return '<span class="select2-bolded">' + opt.text + '</span>';
-            } else {
-                return opt.text;
-            }
-        };
-        $.field("amount_extra").select2({
-            formatResult: format,
-            formatSelection: function(opt) { return opt.text; },
-            minimumResultsForSearch: 99,
-            escapeMarkup: function(m) { return m; }
-        });
-        $("form").submit(function(){
-            $(":submit").attr("value", "Uploading Preregistration...").attr("disabled", true);
-        });
+        if ($.field("amount_extra")) {
+            donationChanged();
+            affChanged(true);
+            var format = function(opt) {
+                if (opt.id == {{ SUPPORTER_LEVEL }} || opt.id == {{ SEASON_LEVEL }}) {
+                    return '<span class="select2-bolded">' + opt.text + '</span>';
+                } else {
+                    return opt.text;
+                }
+            };
+            $.field("amount_extra").select2({
+                formatResult: format,
+                formatSelection: function(opt) { return opt.text; },
+                minimumResultsForSearch: 99,
+                escapeMarkup: function(m) { return m; }
+            });
+            $("form").submit(function(){
+                $(":submit").attr("value", "Uploading Preregistration...").attr("disabled", true);
+            });
+        }
     });
 </script>
 

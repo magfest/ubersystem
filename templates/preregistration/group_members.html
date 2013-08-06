@@ -5,6 +5,12 @@
 
 <h2> Members of "{{ group.name }}" </h2>
 
+{% if group.amount_unpaid %}
+    <div style="text-align:center">
+        {% stripe_form process_group_payment charge %}
+    </div>
+{% endif %}
+
 <div style="margin:15px">
     {% if group.unregistered_badges %}
         Some of your badges are not yet assigned to a specific person.  If you assign these
@@ -61,7 +67,7 @@
 
 <br/>
 
-{% if group.can_add %}
+{% if group.can_add and not group.amount_unpaid %}
     <div id="add" style="display:none">
         <form method="get" action="add_group_members">
         <input type="hidden" name="id" value="{{ group.secret_id }}" />

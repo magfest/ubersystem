@@ -133,7 +133,7 @@ def enum(**kwargs):
 
 ONEDAY_BADGE_PRICE = 35
 DEALER_BADGE_PRICE = 30
-TABLE_PRICES       = "$120 for the first table, $160 for the second table, $200 for each additional table"
+TABLE_PRICES       = "$125 for the first table, $175 for the second table, $225 for the third table, $300 for the fourth table"
 
 ADMIN_EMAIL = "Eli Courtwright <eli@courtwright.org>"
 REGDESK_EMAIL = "MAGFest Registration <regdesk@magfest.org>"
