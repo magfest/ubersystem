@@ -134,6 +134,7 @@
     <br/>
     <div style="margin-left:25%">
         <form method="post" action="delete" />
+            {% csrf_token %}
             <input type="hidden" name="id" value="{{ group.id }}" />
             <input type="submit" value="Delete Group" />
         </form>

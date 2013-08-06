@@ -133,7 +133,7 @@ def send_email(source, dest, subject, body, format = "text", cc = [], bcc = [], 
         for xs in [to, cc, bcc]:
             xs[:] = [email for email in xs if email.endswith("mailinator.com") or "eli@courtwright.org" in email]
     
-    if model:
+    if model and dest:
         fk = {"fk_id": 0, "model": "n/a"} if model == "n/a" else {"fk_id": model.id, "model": model.__class__.__name__}
         Email.objects.create(subject = subject, dest = dest, body = body, **fk)
     
