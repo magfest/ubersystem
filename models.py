@@ -397,7 +397,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     checked_in = DateTimeField(null = True)
     
     paid             = IntegerField(default = NOT_PAID, choices = PAID_OPTS)
-    overridden_price = IntegerField(default = None)
+    overridden_price = IntegerField(default = None, null = True)
     amount_paid      = IntegerField(default = 0)
     amount_extra     = IntegerField(default = 0, choices = DONATION_OPTS)
     amount_refunded  = IntegerField(default = 0)
