@@ -152,7 +152,13 @@
 </tr>
 <tr>
     <td></td>
-    <td> <input type="submit" value="Preregister" /> </td>
+    <td>
+        {% if attendee.is_dealer %}
+            <input type="submit" value="Submit Application" />
+        {% else %}
+            <input type="submit" value="Preregister" />
+        {% endif %}
+    </td>
 </tr>
 </table>
 
