@@ -66,8 +66,10 @@ class Root:
             attendee = Attendee.get(params, bools=["staffing","can_spam","international"], ignore_csrf=True, restricted=True)
             group = Group.get(params, ignore_csrf=True, restricted=True)
         
+        if attendee.badge_type not in state.PREREG_BADGE_TYPES:
+            raise HTTPRedirect("badge_choice?message={}", "Dealer registration is not open" if attendee.is_dealer else "Invalid badge type")
+        
         if "first_name" in params:
-            assert attendee.badge_type in state.PREREG_BADGE_TYPES, "No hacking allowed!"
             message = check(attendee) or check_prereg_reqs(attendee)
             if not message and attendee.badge_type in [PSEUDO_DEALER_BADGE, PSEUDO_GROUP_BADGE]:
                 message = check(group) or check_tables(attendee, group, params)
