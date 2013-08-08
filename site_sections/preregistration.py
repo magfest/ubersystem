@@ -8,10 +8,6 @@ def check_prereg_reqs(attendee):
     elif attendee.amount_extra >= SHIRT_LEVEL and attendee.shirt == NO_SHIRT:
         return "Your shirt size is required"
 
-def check_tables(attendee, group, params):
-    if attendee.badge_type == PSEUDO_DEALER_BADGE and group.tables < int(params["badges"]) // 3:
-        return "You must get 1 table per 3 badges"
-
 def check_dealer(group):
     if not group.address:
         return "Dealers are required to provide an address for tax purposes"
@@ -72,7 +68,7 @@ class Root:
         if "first_name" in params:
             message = check(attendee) or check_prereg_reqs(attendee)
             if not message and attendee.badge_type in [PSEUDO_DEALER_BADGE, PSEUDO_GROUP_BADGE]:
-                message = check(group) or check_tables(attendee, group, params)
+                message = check(group)
             if not message and attendee.badge_type == PSEUDO_DEALER_BADGE:
                 message = check_dealer(group)
             

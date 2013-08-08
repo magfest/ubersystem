@@ -450,7 +450,7 @@ NIGHTS_OPTS = enum(
 EMAIL_RE = re.compile("^[_A-Za-z0-9-]+(\\.[_A-Za-z0-9-+]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*(\\.[_A-Za-z0-9-]+)$")
 
 MAX_TABLES  = 4
-MAX_DEALERS = 3 * MAX_TABLES
+MAX_DEALERS = 20
 MIN_GROUP_SIZE, MAX_GROUP_SIZE = 8, 100
 
 DEFAULT_AFFILIATES = ["OC ReMix", "ScrewAttack",                                # got 26 and 12 supporters last year
