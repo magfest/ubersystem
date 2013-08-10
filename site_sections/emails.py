@@ -77,13 +77,13 @@ days_before = lambda days, dt: dt - timedelta(days = days) < datetime.now() < dt
 
 
 MarketplaceReminder("Reminder to pay for your MAGFest Dealer registration", "dealer_payment_reminder.txt",
-                    lambda g: days_after(30, g.approved) and g.status == APPROVED and g.is_unpaid)
+                    lambda g: g.status == APPROVED and days_after(30, g.approved) and g.is_unpaid)
 
 MarketplaceReminder("Your MAGFest Dealer registration is due in one week", "dealer_payment_reminder.txt",
-                    lambda g: days_before(7, state.DEALER_PAYMENT_DUE) and g.status == APPROVED and g.is_unpaid)
+                    lambda g: g.status == APPROVED and days_before(7, state.DEALER_PAYMENT_DUE) and g.is_unpaid)
 
 MarketplaceReminder("Last chance to pay for your MAGFest Dealer registration", "dealer_payment_reminder.txt",
-                    lambda g: days_before(2, state.DEALER_PAYMENT_DUE) and g.status == APPROVED and g.is_unpaid)
+                    lambda g: g.status == APPROVED and days_before(2, state.DEALER_PAYMENT_DUE) and g.is_unpaid)
 
 MarketplaceReminder("MAGFest Dealer waitlist has been exhausted", "dealer_waitlist_closing.txt",
                     lambda g: state.DEALER_WAITLIST_CLOSED and g.status == WAITLISTED)
