@@ -345,7 +345,7 @@ class Root:
                 else:
                     raise HTTPRedirect(page + "message=" + message)
         elif attendee.amount_unpaid and attendee.zip_code:  # don't skip to payment until the form is filled out
-            raise HTTPRedirect("attendee_donation_form?id={}", attendee.secret_id)
+            raise HTTPRedirect("attendee_donation_form?id={}&message={}", attendee.secret_id, message)
         
         attendee.placeholder = placeholder
         if not message and attendee.placeholder:
@@ -360,9 +360,10 @@ class Root:
             "affiliates": affiliates()
         }
     
-    def attendee_donation_form(self, id):
+    def attendee_donation_form(self, id, message=""):
         attendee = Attendee.objects.get(secret_id = id)
         return {
+            "message": message,
             "attendee": attendee,
             "charge": Charge(attendee, description = "{}{}".format(attendee.full_name, "" if attendee.overridden_price else " kicking in extra"))
         }
@@ -382,6 +383,8 @@ class Root:
             raise HTTPRedirect(return_to, message)
         else:
             attendee.amount_paid += charge.dollar_amount
+            if attendee.amount_paid == attendee.total_cost:
+                attendee.paid = HAS_PAID
             attendee.save()
             raise HTTPRedirect(return_to, "Your payment has been accepted, thanks so much!")
     
