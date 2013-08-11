@@ -90,7 +90,7 @@ class Root:
                     attendee.save()
                     group.assign_badges(params["badges"])
                     send_email(MARKETPLACE_EMAIL, MARKETPLACE_EMAIL, "Dealer application received",
-                               render("emails/dealer_reg_notification.txt", {"group": group}))
+                               render("emails/dealer_reg_notification.txt", {"group": group}), model=group)
                     raise HTTPRedirect("dealer_confirmation?id={}", group.id)
                 else:
                     preregs = cherrypy.session.setdefault("preregs", [])
