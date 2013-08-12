@@ -1,6 +1,10 @@
 {% extends "./preregistration/preregbase.html" %}
 {% block title %}Group Members{% endblock %}
-{% block backlink %}{% endblock %}
+{% block backlink %}
+    {% if HAS_PEOPLE_ACCESS %}
+        <a href="../groups/" style="float:right">Return to Group List</a>
+    {% endif %}
+{% endblock %}
 {% block content %}
 
 <h2> Members of "{{ group.name }}" </h2>

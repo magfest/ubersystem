@@ -3,7 +3,7 @@
 {% block content %}
 
 <script type="text/javascript">
-    function unapprove(action) {
+    var unapprove = function(action) {
         if (!$.val("email")) {
             $("#setstatus").prepend('<div style="color:red">You must enter an email message.</div>');
         } else {
@@ -21,6 +21,12 @@
             });
         }
     }
+    
+    var showOrHideRedirect = function() {
+        var approve = $.field("status").is(":checked");
+        $.field("redirect").attr("checked", approve);
+        setVisible("#redirect", approve);
+    };
     
     $(function() {
         {% if not group.id %}
@@ -83,7 +89,10 @@
         <td id="status">
             {{ group.get_status_display }} <br/>
             {% if group.status != APPROVED %}
-                <input type="checkbox" name="status" value="{{ APPROVED }}" /> Approved <br/>
+                <input type="checkbox" name="status" value="{{ APPROVED }}" onClick="showOrHideRedirect()" /> Approved
+                <div id="redirect" style="display:none">
+                    <input type="checkbox" name="redirect" /> Redirect to Group page on submit
+                </div>
                 <a href="#" onClick="$('#setstatus').toggle(); return false;">Waitlist or Reject</a> <br/>
                 <div id="setstatus" style="display:none">
                     Enter an email message to be sent along with the notification: <br/>
@@ -126,6 +135,8 @@
 
 <div style="margin-left:25%">
     <input type="submit" value="Upload Info" />
+    &nbsp;&nbsp;&nbsp;&nbsp;
+    <a href="index">Return to Group List</a>
 </div>
 
 </form>
