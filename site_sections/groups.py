@@ -30,7 +30,10 @@ class Root:
             "total_groups":    Group.objects.count(),
             "tabled_groups":   Group.objects.filter(tables__gt = 0).count(),
             "untabled_groups": Group.objects.filter(tables = 0).count(),
-            "tables":          Group.objects.aggregate(tables = Sum("tables"))["tables"]
+            "tables":            Group.objects.aggregate(tables = Sum("tables"))["tables"],
+            "unapproved_tables": Group.objects.filter(status = UNAPPROVED).aggregate(tables = Sum("tables"))["tables"] or 0,
+            "waitlisted_tables": Group.objects.filter(status = WAITLISTED).aggregate(tables = Sum("tables"))["tables"] or 0,
+            "approved_tables":   Group.objects.filter(status = APPROVED).aggregate(tables = Sum("tables"))["tables"] or 0
         }
     
     def form(self, message="", **params):
