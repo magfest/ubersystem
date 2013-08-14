@@ -16,6 +16,11 @@ if DEV_BOX:
     STRIPE_SECRET_KEY = "sk_test_CvvvyHs2XnU9giMYDCUnIpF4"
     STRIPE_PUBLIC_KEY = "pk_test_t36jT3di98A0rnENDejBE1Vg"
 
+def _rollback():
+    from django.db import connection
+    connection._rollback()
+cherrypy.tools.rollback_on_error = cherrypy.Tool("after_error_response", _rollback)
+
 cherrypy.config.update({
     "engine.autoreload.on": AUTORELOAD,
     
@@ -52,7 +57,8 @@ appconf = {
     "/": {
         "tools.proxy.on": True,
         "tools.proxy.base": "http://{}".format(state.HOSTNAME),
-        "tools.staticdir.root": os.getcwd()
+        "tools.staticdir.root": os.getcwd(),
+        "tools.rollback_on_error.on": True
     },
     "/static": {
         "tools.staticdir.on": True,
