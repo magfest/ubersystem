@@ -29,7 +29,7 @@ class State:
     SHIFTS_CREATED       = datetime(2013,  9,  1)
     PRICE_BUMP           = datetime(2013, 10, 31, 23, 59)
     DEALER_REG_START     = datetime(2013,  8,  8, 11, 59)
-    DEALER_REG_DEADLINE  = datetime(2013,  9, 30, 11, 59)
+    DEALER_REG_DEADLINE  = datetime(2013,  8, 16, 11, 59)
     DEALER_REG_SHUTDOWN  = datetime(2013, 10, 30, 11, 59)
     DEALER_PAYMENT_DUE   = datetime(2013, 11, 30, 23, 59)
     ROOM_DEADLINE        = datetime(2013, 12,  1, 23, 59)
