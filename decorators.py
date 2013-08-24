@@ -89,7 +89,7 @@ def render(template, data = None):
     
     rendered = loader.get_template(template).render( Context(data) )
     if not state.AT_THE_CON and Account.admin_name() == "Nick Marinelli":
-        rendered = rendered.replace("Fest", "Con")
+        rendered = rendered.replace("festival", "convention").replace("Fest", "Con")
     return rendered
 
 
