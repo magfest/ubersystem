@@ -183,15 +183,15 @@
     </tr>
 {% endif %}
 <tr>
+    <td class="maybe_bold" id="email"> Email Address: </td>
+    <td> <input type="text" name="email" value="{{ attendee.email }}" /> </td>
+</tr>
+<tr>
     <td class="maybe_bold"> Zip Code: </td>
     <td>
         <input type="text" name="zip_code" value="{{ attendee.zip_code }}" />
         {% checkbox attendee.international %} Attendee is from outside the US.
     </td>
-</tr>
-<tr>
-    <td class="maybe_bold" id="email"> Email Address: </td>
-    <td> <input type="text" name="email" value="{{ attendee.email }}" /> </td>
 </tr>
 <tr>
     <td class="maybe_bold"> <nobr>Emergency Contact</nobr> <nobr>Phone Number:</nobr> </td>
