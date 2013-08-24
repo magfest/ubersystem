@@ -485,20 +485,23 @@ class Attendee(MagModel, TakesPaymentMixin):
         return Attendee.objects.filter(staffing = True).order_by("first_name","last_name")
     
     @property
-    def total_cost(self):
+    def badge_cost(self):
         if self.paid in [PAID_BY_GROUP, NEED_NOT_PAY]:
-            cost = 0
+            return 0
         elif self.overridden_price is not None:
-            cost = self.overridden_price
+            return self.overridden_price
         elif self.badge_type == ONE_DAY_BADGE:
-            cost = ONEDAY_BADGE_PRICE
+            return ONEDAY_BADGE_PRICE
         elif datetime.now() < state.PRICE_BUMP:
-            cost = EARLY_BADGE_PRICE
+            return EARLY_BADGE_PRICE
         elif not state.AT_THE_CON:
-            cost = LATE_BADGE_PRICE
+            return LATE_BADGE_PRICE
         else:
-            cost = DOOR_BADGE_PRICE
-        return cost + self.amount_extra
+            return DOOR_BADGE_PRICE
+    
+    @property
+    def total_cost(self):
+        return self.badge_cost + self.amount_extra
     
     @property
     def amount_unpaid(self):

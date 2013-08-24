@@ -3,10 +3,10 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-{% if attendee.overridden_price %}
+{% if attendee.paid == NOT_PAID or attendee.overridden_price %}
     <h2> Badge Payment for {{ attendee.full_name }} </h2>
     
-    You've registered for MAGFest at a discounted price of ${{ attendee.overridden_price }}{% if attendee.amount_extra %} and you've also kicked in ${{ attendee.amount_extra }}{% endif %}; your total outstanding balance is ${{ attendee.amount_unpaid }}.
+    You've registered for MAGFest at a {% if attendee.overridden_price %}discounted{% endif %} price of ${{ attendee.overridden_price|default:attendee.badge_cost }}{% if attendee.amount_extra %} and you've also kicked in ${{ attendee.amount_extra }}{% endif %}; your total outstanding balance is ${{ attendee.amount_unpaid }}.
     
     <table style="width:auto ; margin-left:auto ; margin-right: auto"><tr>
         <td>{% stripe_form process_attendee_donation charge %}</td>
