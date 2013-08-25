@@ -43,13 +43,15 @@
 
 {% if attendee.badge_type != PSEUDO_DEALER_BADGE and attendee.badge_type != PSEUDO_GROUP_BADGE %}
     <tr class="extra-row">
-        <td><b>Want to kick in extra?</b></td>
+        <td valign="top" style="padding-top:15px"><b>Want to kick in extra?</b></td>
         <td>
             <select name="amount_extra" style="width:50%" onChange="donationChanged()">
                 {% options DONATION_OPTS attendee.amount_extra %}
             </select>
             &nbsp;
             <nobr>{% popup_link "../static/givingExtra.html" "Why do this?" %}</nobr>
+            <br/>
+            <font size="-2">Each level includes all lower levels.</font>
         </td>
     </tr>
 {% endif %}
