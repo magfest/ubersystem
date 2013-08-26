@@ -40,10 +40,9 @@
     <td>
         <ul>
             <li> All-access, four-day pass </li>
-            {% if now < PRICE_BUMP and now.month == PRICE_BUMP.month %}
+            {% if now < PRICE_BUMP %}
                 <li style="color:red"> Price goes up to ${{ LATE_BADGE_PRICE }} at {{ PRICE_BUMP|datetime }} </li>
-            {% endif %}
-            {% if BADGE_PRICE == LATE_BADGE_PRICE %}
+            {% else %}
                 <li style="color:red"> Preregistration closes at 11:59pm on Sunday, December 23. </li>
             {% endif %}
         </ul>
@@ -57,10 +56,9 @@
         <ul>
             <li> Save money when you register eight or more people at once </li>
             <li> ${{ GROUP_PRICE }} per person </li>
-            {% if now < PRICE_BUMP and now.month == PRICE_BUMP.month %}
+            {% if now < PRICE_BUMP %}
                 <li style="color:red"> Price goes up to ${{ LATE_GROUP_PRICE }} at {{ PRICE_BUMP|datetime }} </li>
-            {% endif %}
-            {% if GROUP_PRICE == LATE_GROUP_PRICE %}
+            {% else %}
                 <li style="color:red"> Group preregistration closes at 11:59pm on Sunday, December 23. </li>
             {% endif %}
         </ul>
