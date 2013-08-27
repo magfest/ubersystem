@@ -4,10 +4,19 @@
 {% block content %}
 
 <h1>Magfest Analytics</h1>
-<b>Graphs</b><br/>
+<b>Graphs (takes a few seconds to load)</b><br/>
+<br/>
+
+<a href="analytics_graph_by_attendance">Attendance</a><br/>
+<iframe width='100%' height='600' frameborder='1' src='analytics_graph_by_attendance'></iframe>
+<br/><br/><br/>
+
+<a href="../graphs/graphs3">Income</a><br/>
+<iframe width='100%' height='600' frameborder='1' src='../graphs/graphs3'></iframe><br/>
+<br/><br/>
+
+
 <ul>
-	<li><a href="analytics_graph_by_attendance">Attendance</a></li>
-	<li><a href="../graphs/graphs3">Income</a></li>
 	<li><a href="https://www.google.com/analytics/web/#report/visitors-overview/a10066196w22067982p20259158/">Google Analytics (web traffic)</a></li>
 	<li><a href="../summary">Summary info</a> (registrations and badge breakdown)</li>
 </ul>
@@ -17,5 +26,12 @@
 	<li><a href="../graphs/graphs">graphs1 (income)</a></li>
 	<li><a href="../graphs/graphs2">graphs2 (income)</a></li>
 </ul>
+
+<br/><br/>
+
+<b>M11 hotel pickup report (must be updated manually) (double check dates)</b>
+<br/>
+
+<iframe width='1000' height='600' frameborder='1' src='https://docs.google.com/spreadsheet/pub?key=0AuQzNohZ0DDLdHozX29Ic0M2bzluRXJSOC13dHlzdmc&single=true&gid=2&output=html&widget=true'></iframe>
 
 {% endblock %}
