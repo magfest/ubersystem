@@ -73,13 +73,14 @@ function generateGraph1(reg_data)
 {
     var chart_data = new google.visualization.DataTable();
     // chart_data.addColumn('string', 'Days Til Mag');
-    chart_data.addColumn('string', 'Date (mag10)');
+    chart_data.addColumn('string', 'Date (mag12)');
     chart_data.addColumn('number', 'Magfest 6');
     chart_data.addColumn('number', 'Magfest 7');
     chart_data.addColumn('number', 'Magfest 8');
     chart_data.addColumn('number', 'Magfest 9');
     chart_data.addColumn('number', 'Magfest 10');
     chart_data.addColumn('number', 'Magfest 11');
+    chart_data.addColumn('number', 'Magfest 12');
 
     var num_years = reg_data.length;
 
@@ -122,6 +123,7 @@ function generateGraph1(reg_data)
     formatter.format(chart_data, 4);
     formatter.format(chart_data, 5);
     formatter.format(chart_data, 6);
+    formatter.format(chart_data, 7);
 
     var chart = new google.visualization.LineChart(document.getElementById('graph'));
     chart.draw(chart_data, {height: 600, title: 'Magfest income by year [days til start of magfest]'});
@@ -136,8 +138,8 @@ function generateGraph2(reg_data, start_day)
 
     var previous_cash = new Array(num_years);
 
-    var start_year = 5;
-    var end_year = 5;
+    var start_year = 6;
+    var end_year = 6;
 
     var chart_data2 = new google.visualization.DataTable();
     chart_data2.addColumn('string', 'Days Til Mag');
@@ -148,7 +150,7 @@ function generateGraph2(reg_data, start_day)
     //chart_data2.addColumn('number', 'Magfest 9');
     //chart_data2.addColumn('number', 'Magfest 10');
 
-    chart_data2.addColumn('number', 'Magfest 11');
+    chart_data2.addColumn('number', 'Magfest 12');
 
     for (var year = 0; year < num_years; ++year)
     {
