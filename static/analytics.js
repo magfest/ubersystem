@@ -60,6 +60,7 @@ function drawChart() {
 
     // add the % change to the data for the second table
     attendance_data[0].push("% change last year -> this");
+    var valid_percentages_found = false;
     for (var day = 1; day < attendance_data.length; ++day)
     {
         // Percent change = [(Vpresent-Vpast)/Vpast] * 100
@@ -76,12 +77,13 @@ function drawChart() {
         var pctchange = (presentyear - lastyear) / lastyear * 100;
 
         // the first couple entries are CRAZY. just ignore.
-        if (pctchange >= 100)
+        if (pctchange >= 100 && !valid_percentages_found)
         {
             attendance_data[day].push(null);
             continue;
         }
 
+        valid_percentages_found = true;
         attendance_data[day].push(pctchange.toFixed(2) + "%");
     }
 
