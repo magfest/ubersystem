@@ -13,10 +13,18 @@
 # databases VIEWs to make sure they are pointing at the right 
 # tables.
 
+# NOTE: as of 8/27/13 everything changed again and we're reading hardcoded
+# values from a file vs the database because we switched to postgres and
+# I don't feel like converting.  Here be dragons. I am not proud.
+
 from common import *
+import copy
 
+# imports the actual hardcoded graph data for previous magfest years
+# (yes, its hardcoded and not from the DB).
+from graph_data import *
 
-def generate_attendance_by_day_graph_data(magfest_year_to_query):
+def generate_attendance_by_day_graph_data(last_day_of_magfest):
 
     # doing a raw query instead of models because we're doing funky stuff.
     from django.db import connection
@@ -25,10 +33,22 @@ def generate_attendance_by_day_graph_data(magfest_year_to_query):
     # this is an EXTREMELY COMPLEX STORED PROCEDURE in mysql, you have to view
     # it in mysql query browser or something similar to keep your sanity.
     # it also requires all databases from m6 thru m11 to be present.
-    query = """CALL get_cumulative_attendance_by_year(%s)"""
+    query = """SELECT * FROM get_cumulative_attendance_by_year(%s)"""
 
-    cursor.execute(query, [magfest_year_to_query])
-    results = cursor.fetchall()
+    cursor.execute(query, [last_day_of_magfest])
+    raw_results = cursor.fetchall()
+    cursor.close()
+    results = [];
+
+    # compute cumulative sum of attendance per day.
+    # we used to do this inside SQL, but it's no good with postgres
+    # the stored proc creates the column, but it's zeroed out
+    attendance_so_far = 0;
+    for day_data in raw_results:
+        attendance_so_far += day_data[2]
+        results.append([day_data[0], day_data[1], day_data[2], attendance_so_far])
+
+    #print results
 
     return results
 
@@ -43,24 +63,33 @@ class Root:
     def analytics_graph_by_attendance(self):
         try:
             starting_magfest_year = 6
-            ending_magfest_year = 11
+            ending_magfest_year = 12
 
             print("starting query")
 
+            # if the previous databases worked, do this:
+            # ------------
             # collect raw data for each year
-            raw_data = []
-            for which_magfest in range(
-                starting_magfest_year, ending_magfest_year + 1):
-                raw_data.append(
-                    generate_attendance_by_day_graph_data(which_magfest)
-                )
+            #raw_data = []
+            #for which_magfest in range(
+            #    starting_magfest_year, ending_magfest_year + 1):
+            #    raw_data.append(
+            #        generate_attendance_by_day_graph_data(which_magfest)
+            #    )
+            # -------------
+
+            # for previous years, use cached data
+            raw_data = copy.deepcopy(raw_data_mag6_thru_mag11)
+            
+            # for this year, run the query
+            raw_data.append(generate_attendance_by_day_graph_data('2014-01-05'))
 
             print("done query, processing data")
 
             # make it be in a sane format that we can deal with in google charts
             graph_data = []
             graph_data.append(["Date", "Magfest 6",
-                "Magfest 7", "Magfest 8", "Magfest 9", "Magfest 10", "Magfest 11"])
+                "Magfest 7", "Magfest 8", "Magfest 9", "Magfest 10", "Magfest 11", "Magfest 12"])
 
             newest_magfest = ending_magfest_year - starting_magfest_year
 
