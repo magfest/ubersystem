@@ -122,3 +122,16 @@ class Root:
             "email":     email,
             "zip_code":  zip_code
         }
+    
+    @unrestricted
+    def angular(self):
+        jobs = [job.to_dict() for job in Job.objects.all()]
+        return open("templates/signups/angular.html").read().replace("<<JOBS>>", json.dumps(jobs))
+    
+    @unrestricted
+    def jobs(self):
+        return json.dumps([job.to_dict() for job in Job.objects.all()])
+    
+    @unrestricted
+    def templates(self, template):
+        return open("templates/signups/" + template).read()

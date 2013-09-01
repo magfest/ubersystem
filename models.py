@@ -760,6 +760,19 @@ class Job(MagModel):
         
         return jobs, shifts, attendees
     
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "duration": self.duration,
+            "location": self.location,
+            "weight": self.weight,
+            "extra15": self.extra15,
+            "location_display": self.get_location_display(),
+            "start_time": self.start_time.timestamp()
+        }
+    
     @cached_property
     def shifts(self):
         return list(self.shift_set.select_related())
