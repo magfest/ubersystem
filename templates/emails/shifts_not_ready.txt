@@ -1,6 +1,0 @@
-{{ attendee.first_name }},
-
-Sorry for the confusion, but we accidentally sent out some emails earlier tonight about shift{% if a.hotel_eligible %} and hotel room{% endif %} signups for MAGFest being available.  Those emails were supposed to go out on October 1 but they went out now (September 1) due to a typo on my part.  Sorry about the confusion, and please disregard those emails; you'll receive the real emails in a month when everything is set up properly.
-
-- Eli Courtwright,
-Volunteer Database Administrator

@@ -144,8 +144,6 @@ StopsReminder("Last chance to sign up for MAGFest shifts", "shift_reminder.txt",
 StopsReminder("Still want to volunteer at MAGFest?", "volunteer_check.txt",
               lambda a: days_before(5, state.UBER_TAKEDOWN) and a.ribbon == VOLUNTEER_RIBBON and a.weighted_hours == 0)
 
-StopsReminder("MAGFest shifts not actually ready yet!", "shifts_not_ready.txt", lambda a: True)
-
 
 StopsReminder("Want volunteer hotel room space at MAGFest?", "hotel_rooms.txt",
               lambda a: before(state.ROOM_DEADLINE) and state.SHIFTS_AVAILABLE and a.hotel_eligible)
