@@ -468,6 +468,11 @@ SEASON_EVENTS = {
         "location": "The Metro Gallery in Baltimore, Maryland",
         "url": "http://www.missiontix.com/events/product/17615/magfest-presents-game-over-baltimore-ii",
     },
+    "game_over_durham": {
+        "day": datetime(2013, 10, 4, 19, 30),
+        "location": "The Pinhook in Durham, North Carolina",
+        "url": "http://www.thepinhook.com/event/362215-mag-fest-game-over-durham/"
+    },
     "magstock": {
         "day": datetime(2013, 7, 26),
         "location": "the Small Country Campground in Louisa, Virginia",
