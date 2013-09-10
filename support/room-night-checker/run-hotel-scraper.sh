@@ -1,6 +1,19 @@
 #!/bin/bash
 
-cd /home/dom/hotel
+export ABSOLUTE_PATH=/home/dom/hotel
+
+if [ -e secret_settings.sh ]
+then
+	. secret_settings.sh
+else
+	export USER=CHANGEME
+	export PASS=CHANGEME
+	export API_URL=http://CHANGEME.COM/CHANGE/THIS.php
+fi
+
+# don't need to modify below this point
+
+cd $ABSOLUTE_PATH
 
 echo "writing all output to scraper-log.txt"
 
@@ -27,6 +40,6 @@ runit python run.py
 echo "uploading data...."
 
 # upload the data to the server
-runit curl --data-urlencode hotel_report_data@hotel-results.json -d 'username=8734784jh' -d 'password=8762$$34bab' http://bitgengamerfest.com/hotel/index.php 
+runit curl --data-urlencode hotel_report_data@hotel-results.json -d "username=$USER" -d "password=$PASS" $API_URL
 
 echo "done!"

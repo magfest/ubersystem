@@ -8,5 +8,8 @@ sessions/session-*
 secret_settings.py
 virtualenv.py
 ubersystem.nja
+
 support/room-night-checker/build
 support/room-night-checker/env
+support/room-night-checker/secret_settings.sh
+support/room-night-checker/scraper-log.txt
