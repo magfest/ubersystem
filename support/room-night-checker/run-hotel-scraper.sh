@@ -1,9 +1,11 @@
 #!/bin/bash
 
 export ABSOLUTE_PATH=/home/dom/hotel
+cd $ABSOLUTE_PATH
 
 if [ -e secret_settings.sh ]
 then
+	echo "using secret settings"
 	. secret_settings.sh
 else
 	export USER=CHANGEME
@@ -12,8 +14,6 @@ else
 fi
 
 # don't need to modify below this point
-
-cd $ABSOLUTE_PATH
 
 echo "writing all output to scraper-log.txt"
 
@@ -37,7 +37,7 @@ runit date
 # do the screen scraping
 runit python run.py
 
-echo "uploading data...."
+echo "uploading data to: " $API_URL
 
 # upload the data to the server
 runit curl --data-urlencode hotel_report_data@hotel-results.json -d "username=$USER" -d "password=$PASS" $API_URL
