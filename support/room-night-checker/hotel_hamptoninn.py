@@ -19,7 +19,18 @@ class HamptonInnHotelRoomChecker(HotelRoomChecker):
 
         browser.visit('http://hamptoninn.hilton.com/en/hp/groups/personalized/W/WASOXHX-MAG-20140101/index.jhtml')
 
-        time.sleep(1)
+        # wait for all javascript to load
+        loaded_javascript = False
+        num_seconds_to_wait = 15
+        while num_seconds_to_wait != 0:
+            loaded_javascript = browser.evaluate_script("typeof getDates === 'function'")
+            if loaded_javascript:
+                break
+            time.sleep(1)
+            --num_seconds_to_wait
+
+        if not loaded_javascript:
+            raise ValueError('javascript didnt load, Hampton Inn page')
 
         # go to next page
         browser.execute_script("getDates(document.forms['dateForm'].date0.value);")
