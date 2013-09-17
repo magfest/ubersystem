@@ -15,6 +15,8 @@ fi
 
 # don't need to modify below this point
 
+killall firefox
+
 echo "writing all output to scraper-log.txt"
 
 function runit {
