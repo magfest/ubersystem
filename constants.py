@@ -302,15 +302,7 @@ ACCESS_OPTS = enum(
     MONEY      = "Budget",
     CHALLENGES = "Challenges",
     CHECKINS   = "Checkins",
-)
-
-ACCESS_OPTS = enum(
-    ACCOUNTS   = "Account Management",
-    PEOPLE     = "Registration and Staffing",
-    STUFF      = "Inventory and Scheduling",
-    MONEY      = "Budget",
-    CHALLENGES = "Challenges",
-    CHECKINS   = "Checkins"
+    STATS      = "Analytics",
 )
 SIGNUPS = 100 # not an admin access level, so handled separately
 
