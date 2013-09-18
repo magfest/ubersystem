@@ -11,7 +11,7 @@ EARLY_GROUP_PRICE = 30
 LATE_GROUP_PRICE  = 35
 
 class State:
-    SEND_EMAILS = True
+    SEND_EMAILS = False
     
     AT_THE_CON = False
     POST_CON = False
@@ -327,6 +327,7 @@ JOB_LOC_OPTS = enum(
     CONCERT       = "Concert",
     CONSOLE       = "Consoles",
     CON_OPS       = "Fest Ops",
+    DISPATCH      = "Dispatch",
     PANELS        = "Events",
     FOOD_PREP     = "Food Prep",
     JAMSPACE      = "Jam Space",
@@ -334,6 +335,7 @@ JOB_LOC_OPTS = enum(
     MARKETPLACE   = "Marketplace",
     MERCH         = "Merchandise",
     REGDESK       = "Regdesk",
+    RESCUERS      = "Rescuers",
     SECURITY      = "Security",
     STAFF_SUPPORT = "Staff Support",
     STOPS         = "Staffing Ops",
