@@ -21,7 +21,10 @@ class Reminder:
                 return None
     
     def should_send(self, x, all_sent = None):
-        return not self.prev(x, all_sent) and self.filter(x)
+        try:
+            return not self.prev(x, all_sent) and self.filter(x)
+        except:
+            log.error("unexpected error", exc_info=True)
     
     def send(self, x, raise_errors = True):
         try:

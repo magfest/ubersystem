@@ -3,6 +3,8 @@ from secret_settings import *
 
 DEV_BOX = True
 
+YEAR = 12
+
 EARLY_BADGE_PRICE = 40
 LATE_BADGE_PRICE  = 45
 DOOR_BADGE_PRICE  = 60
