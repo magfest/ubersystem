@@ -2,19 +2,35 @@
 {% block title %}Volunteer Requests{% endblock %}
 {% block content %}
 
+<script>
+    $(document).ready(function() {
+        $(".email").hide();
+
+        $('#chkShowEmails').change(function() {
+            $(".email").toggle();
+        });
+    });
+</script>
+
+<input type="checkbox" id="chkShowEmails">Show emails</a>
+
 {% for department, assigned, requested in everything %}
     <h2> {{ department }} </h2>
     <table style="text-align:center"><tr>
-        <td valign="top">
-            <h4> Assigned </h4>
-            {% for attendee in assigned %}
-                <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a> <br/>
+        <td valign="top" width="50%">
+            <h4> Assigned </h4><br/>
+            {% for attendee in assigned|dictsort:"ribbon" %}
+            <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a> <span class="email">|{{ attendee.email }}</span>
+            {% if attendee.ribbon == DEPT_HEAD_RIBBON %}|[Dept Head]{% endif %}
+            <br/>
             {% endfor %}
         </td>
-        <td valign="top">
-            <h4> Requested </h4>
-            {% for attendee in requested %}
-                <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a> <br/>
+        <td valign="top" width="50%">
+            <h4> Requested </h4><br/>
+            {% for attendee in assigned|dictsort:"ribbon" %}
+            <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a> <span class="email">|{{ attendee.email }}</span>
+            {% if attendee.ribbon == DEPT_HEAD_RIBBON %}|[Dept Head]{% endif %}
+            <br/>
             {% endfor %}
         </td>
     </tr></table>
