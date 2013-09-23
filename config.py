@@ -12,7 +12,7 @@ else:
     DBUSER, DBPASS, DBNAME = ["m12"] * 3
 
 if DEV_BOX:
-    state.HOSTNAME = "dom-ubuntu-vm:{}".format(PORT)
+    state.HOSTNAME = "localhost:{}".format(PORT)
     STRIPE_SECRET_KEY = "sk_test_CvvvyHs2XnU9giMYDCUnIpF4"
     STRIPE_PUBLIC_KEY = "pk_test_t36jT3di98A0rnENDejBE1Vg"
 
