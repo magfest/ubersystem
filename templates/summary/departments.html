@@ -20,7 +20,7 @@
         <td valign="top" width="50%">
             <h4> Assigned </h4><br/>
             {% for attendee in assigned|dictsort:"ribbon" %}
-            <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a> <span class="email">|{{ attendee.email }}</span>
+            <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a><span class="email">|{{ attendee.email }}</span>
             {% if attendee.ribbon == DEPT_HEAD_RIBBON %}|[Dept Head]{% endif %}
             <br/>
             {% endfor %}
@@ -28,7 +28,7 @@
         <td valign="top" width="50%">
             <h4> Requested </h4><br/>
             {% for attendee in assigned|dictsort:"ribbon" %}
-            <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a> <span class="email">|{{ attendee.email }}</span>
+            <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a><span class="email">|{{ attendee.email }}</span>
             {% if attendee.ribbon == DEPT_HEAD_RIBBON %}|[Dept Head]{% endif %}
             <br/>
             {% endfor %}
