@@ -67,7 +67,7 @@ def credit_card(func):
     return charge
 
 
-def render(template, data = None):
+def renderable_data(data = None):
     import constants
     from models import Account, all_models
     data = data or {}
@@ -87,8 +87,13 @@ def render(template, data = None):
     for acctype in ["ACCOUNTS","PEOPLE","STUFF","MONEY","CHALLENGES","CHECKINS"]:
         data["HAS_" + acctype + "_ACCESS"] = getattr(constants, acctype) in access
     
+    return data
+
+def render(template, data = None):
+    from models import Account
+    data = renderable_data(data)
     rendered = loader.get_template(template).render( Context(data) )
-    if not state.AT_THE_CON and Account.admin_name() == "Nick Marinelli":
+    if not state.AT_THE_CON and Account.is_nick() and "emails" not in template and "history" not in template:
         rendered = rendered.replace("festival", "convention").replace("Fest", "Con")
     return rendered
 

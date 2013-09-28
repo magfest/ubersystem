@@ -8,6 +8,7 @@ import csv
 import sys
 import json
 import math
+import string
 import socket
 import logging
 import warnings
@@ -77,6 +78,8 @@ def comma_and(xs):
 
 
 def check_csrf(csrf_token):
+    if csrf_token is None:
+        csrf_token = cherrypy.request.headers.get("CSRF-Token")
     assert csrf_token, "CSRF token missing"
     if csrf_token != cherrypy.session["csrf_token"]:
         log.error("csrf tokens don't match: {!r} != {!r}", csrf_token, cherrypy.session["csrf_token"])

@@ -51,7 +51,7 @@ class MagModel(Model):
     __str__ = __repr__
     
     def __eq__(self, m):
-        return isinstance(m, self.__class__) and self.id == m.id and getattr(self, "secret_id") == getattr(m, "secret_id")
+        return isinstance(m, self.__class__) and self.id == m.id and getattr(self, "secret_id", None) == getattr(m, "secret_id", None)
     
     @classmethod
     def get(cls, params, bools=[], checkgroups=[], allowed=[], restricted=False, ignore_csrf=False):
@@ -122,7 +122,7 @@ class Account(MagModel):
     
     @staticmethod
     def is_nick():
-        return Account.admin_name() == "Nick Marinelli"
+        return Account.admin_name() in ["Nick Marinelli"]
     
     @staticmethod
     def admin_name():
@@ -639,7 +639,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def possible_and_current(self):
         jobs = [s.job for s in self.shifts]
-        for job in all:
+        for job in jobs:
             job.already_signed_up = True
         jobs.extend(self.possible)
         return sorted(jobs, key=lambda j: j.start_time)
@@ -769,8 +769,10 @@ class Job(MagModel):
             "location": self.location,
             "weight": self.weight,
             "extra15": self.extra15,
+            "weighted_hours": self.weighted_hours,
             "location_display": self.get_location_display(),
-            "start_time": self.start_time.timestamp()
+            "start_time": self.start_time.timestamp(),
+            "taken": any(cherrypy.session.get("staffer_id") == shift.attendee_id for shift in self.shift_set.all())
         }
     
     @cached_property
