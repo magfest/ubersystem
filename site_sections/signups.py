@@ -100,8 +100,8 @@ class Root:
                 "requested_depts": requested_depts
             }
          
-        def angular(self):
-            return ng_render("angular.html",
+        def shifts(self):
+            return ng_render("shifts.html",
                 jobs = self.jobs(),
                 name = self.staffer.full_name
             )
@@ -121,6 +121,7 @@ class Root:
             try:
                 Shift.objects.get(job_id=job_id, attendee=self.staffer).delete()
             except:
+
                 pass
             finally:
                 return {"jobs": json.loads(self.jobs())}

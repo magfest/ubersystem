@@ -1,0 +1,43 @@
+<div style="text-align:center">
+    <span style="font-size:16pt ; font-weight:bold">{{ name }}'s available shifts</span>
+    <br/>
+    <span style="font-size:12pt ; font-style:italic">(If you are not {{ name }}, <a href="login">log in here</a>.)</span>
+    <br/> <br/>
+    <table width="100%" style="text-align:center">
+    <tr>
+        <td ng-bind-html-unsafe="'../static/stafferComps.html' | popupLink:'See What You Get For Volunteering'"></td>
+        <td ng-if="!%__HIDE_SCHEDULE"> <a target="_blank" href="../schedule/">View the MAGFest Schedule</a> </td>
+    </tr>
+    </table>
+    <br/>
+    <a href="#/schedule">Click Here</a> to see the {{ weightedHours }} weighted hours worth of shifts you are signed up for.
+</div>
+
+
+<table width="95%" align="center">
+<tr style="font-weight:bold ; vertical-align:bottom">
+    <td> Job </td>
+    <td> Department </td>
+    <td> Start Time </td>
+    <td> Duration </td>
+    <td> Weight <span ng-bind-html-unsafe="'../static/weightDesc.html' | popupLink"></span> </td>
+    <td style="width:150px"></td>
+</tr>
+<tr ng-repeat="job in jobs" style="vertical-align:bottom">
+    <td>
+        {{ job.name }}
+        <sup ng-if="job.description" style="color:blue" title="{{ job.description }}">?</sup>
+    </td>
+    <td>{{ job.location_display }}</td>
+    <td>{{ job.start_time|hourDay }}</td>
+    <td>{{ job.duration }} hours<span ng-if="job.extra15">, 15 minutes</span></td>
+    <td>x{{ job.weight }}</td>
+    <td>
+        <span ng-if="job.taken">
+            Signed Up
+            <button ng-click="drop(job.id)">Drop</button>
+        </span>
+        <button ng-if="!job.taken" ng-click="signUp(job.id)">Sign Up</button>
+    </td>
+</tr>
+</table>
