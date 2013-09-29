@@ -690,6 +690,13 @@ class Attendee(MagModel, TakesPaymentMixin):
             return None
     
     @cached_property
+    def food_restrictions(self):
+        try:
+            return self.foodrestrictions
+        except:
+            return None
+    
+    @cached_property
     def hotel_nights(self):
         try:
             return [dict(NIGHTS_OPTS)[night] for night in map(int, self.hotel_requests.nights.split(","))]
@@ -707,6 +714,7 @@ class HotelRequests(MagModel):
     restricted = ["approved"]
     
     def __getattr__(self, name):
+        import constants
         day = getattr(constants, name.upper())
         if day not in dict(NIGHTS_OPTS):
             raise AttributeError()
@@ -715,6 +723,11 @@ class HotelRequests(MagModel):
     
     def __repr__(self):
         return "<{self.attendee.full_name} Hotel Requests>".format(self = self)
+
+class FoodRestrictions(MagModel):
+    attendee = OneToOneField(Attendee)
+    standard = MultiChoiceField(choices = FOOD_RESTRICTION_OPTS)
+    freeform = TextField()
 
 class AssignedPanelist(MagModel):
     attendee = ForeignKey(Attendee)

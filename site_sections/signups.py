@@ -52,6 +52,13 @@ class Root:
                 "fire_safety_cert": fire_safety_cert or ""
             }
         
+        def food_restrictions(self, message="", **params):
+            if params:
+                FoodRestrictions.get(dict(params, attendee_id = self.staffer.id), checkgroups = ["standard"]).save()
+                raise HTTPRedirect("index?message={}", "Your dietary restrictions have been recorded")
+            else:
+                return {}
+        
         def hotel_requests(self, message = "", decline = None, **params):
             attendee = self.staffer
             requests = HotelRequests.get(params, checkgroups = ["nights"], restricted = True)
@@ -78,26 +85,6 @@ class Root:
                 "attendee": attendee
             }
         
-        def schedule(self, message = ""):
-            return {
-                "message":  message,
-                "attendee": Attendee.objects.get(id = cherrypy.session["staffer_id"])
-            }
-        
-        def possible(self, message = ""):
-            return {
-                "message":  message,
-                "attendee": self.staffer
-            }
-        
-        def sign_up(self, job_id):
-            message = assign(self.staffer.id, job_id) or "Signup successful"
-            raise HTTPRedirect("possible?message={}", message)
-        
-        def drop(self, shift_id):
-            Shift.objects.filter(id=shift_id, attendee=self.staffer).delete()
-            raise HTTPRedirect("schedule?message={}", "Shift dropped")
-        
         @unrestricted
         def volunteer(self, id, requested_depts = "", message = "Select which departments interest you as a volunteer."):
             attendee = Attendee.objects.get(secret_id = id)
@@ -112,6 +99,35 @@ class Root:
                 "attendee": attendee,
                 "requested_depts": requested_depts
             }
+         
+        def angular(self):
+            return ng_render("angular.html",
+                jobs = self.jobs(),
+                name = self.staffer.full_name
+            )
+
+        def jobs(self):
+            return json.dumps([job.to_dict() for job in self.staffer.possible_and_current])
+
+        @ajax
+        def sign_up(self, job_id):
+            return {
+                "error": assign(self.staffer.id, job_id),
+                "jobs": json.loads(self.jobs())
+            }
+
+        @ajax
+        def drop(self, job_id):
+            try:
+                Shift.objects.get(job_id=job_id, attendee=self.staffer).delete()
+            except:
+                pass
+            finally:
+                return {"jobs": json.loads(self.jobs())}
+
+        def templates(self, template):
+            return ng_render(template)
+
     
     @unrestricted
     def login(self, message="", full_name="", email="", zip_code=""):
@@ -136,31 +152,3 @@ class Root:
             "email":     email,
             "zip_code":  zip_code
         }
-    
-    def angular(self):
-        return ng_render("angular.html",
-            jobs = self.jobs(),
-            name = self.staffer.full_name
-        )
-    
-    def jobs(self):
-        return json.dumps([job.to_dict() for job in self.staffer.possible_and_current])
-    
-    @ajax
-    def sign_up(self, job_id):
-        return {
-            "error": assign(self.staffer.id, job_id),
-            "jobs": json.loads(self.jobs())
-        }
-    
-    @ajax
-    def drop(self, job_id):
-        try:
-            Shift.objects.get(job_id=job_id, attendee=self.staffer).delete()
-        except:
-            pass
-        finally:
-            return {"jobs": json.loads(self.jobs())}
-    
-    def templates(self, template):
-        return ng_render(template)

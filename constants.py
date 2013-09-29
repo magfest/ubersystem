@@ -443,6 +443,12 @@ NIGHTS_OPTS = enum(
     SUNDAY    = "Sun"
 )
 
+FOOD_RESTRICTION_OPTS = enum(
+    VEGETARIAN = "Vegetarian",
+    VEGAN      = "Vegan",
+    GLUTEN     = "Cannot eat gluten"
+)
+
 EMAIL_RE = re.compile("^[_A-Za-z0-9-]+(\\.[_A-Za-z0-9-+]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*(\\.[_A-Za-z0-9-]+)$")
 
 MAX_TABLES  = 4
