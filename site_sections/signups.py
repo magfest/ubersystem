@@ -86,9 +86,10 @@ class Root:
             }
         
         @unrestricted
-        def volunteer(self, id, requested_depts = "", message = "Select which departments interest you as a volunteer."):
+        def volunteer(self, id, csrf_token = None, requested_depts = "", message = "Select which departments interest you as a volunteer."):
             attendee = Attendee.objects.get(secret_id = id)
             if requested_depts:
+                check_csrf(csrf_token)
                 attendee.staffing = True
                 attendee.requested_depts = ",".join(listify(requested_depts))
                 attendee.save()
