@@ -29,9 +29,7 @@
     function setAmountPaid(focus) {
         {% if not attendee.id %}
             var amount = {{ BADGE_PRICE }};
-            if( $.val("badge_type") === {{ SUPPORTER_BADGE }} )
-                amount = {{ SUPPORTER_BADGE_PRICE }};
-            else if( $.val("badge_type") >= {{ ONE_DAY_BADGE }} )
+            if( $.val("badge_type") == {{ ONE_DAY_BADGE }} )
                 amount = {{ ONEDAY_BADGE_PRICE }};
             
             if( $.val("paid") === {{ HAS_PAID }} )
@@ -269,13 +267,11 @@
         {% if attendee.id and not attendee.paid %}
             (<a href="../preregistration/paypal?id={{ attendee.secret_id }}">${{ attendee.total_cost }} owed</a>)
         {% endif %}
-        {% if attendee.id %}
-            &nbsp;&nbsp;&nbsp;
-            Kicked in extra:
-            <select name="amount_extra" onChange="showOrHideAmounts(true)">
-                {% options DONATION_OPTS attendee.amount_extra %}
-            </select>
-        {% endif %}
+        &nbsp;&nbsp;&nbsp;
+        Kicked in extra:
+        <select name="amount_extra" onChange="showOrHideAmounts(true)">
+            {% options DONATION_OPTS attendee.amount_extra %}
+        </select>
     </td>
 </tr>
 <tr>
