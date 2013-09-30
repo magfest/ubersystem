@@ -268,6 +268,13 @@
         {% if attendee.id and not attendee.paid %}
             (<a href="../preregistration/paypal?id={{ attendee.secret_id }}">${{ attendee.total_cost }} owed</a>)
         {% endif %}
+        {% if attendee.id %}
+            &nbsp;&nbsp;&nbsp;
+            Kicked in extra:
+            <select name="amount_extra">
+                {% options DONATION_OPTS attendee.amount_extra %}
+            </select>
+        {% endif %}
     </td>
 </tr>
 <tr>
