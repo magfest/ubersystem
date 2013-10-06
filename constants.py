@@ -332,6 +332,7 @@ JOB_LOC_OPTS = enum(
     DISPATCH      = "Dispatch",
     PANELS        = "Events",
     FOOD_PREP     = "Food Prep",
+    INDIE_GAMES   = "Indie Games",
     JAMSPACE      = "Jam Space",
     LAN           = "LAN",
     MARKETPLACE   = "Marketplace",
@@ -342,6 +343,7 @@ JOB_LOC_OPTS = enum(
     STAFF_SUPPORT = "Staff Support",
     STOPS         = "Staffing Ops",
     TABLETOP      = "Tabletop",
+    CCG_TABLETOP  = "Tabletop (CCG)",
     TECH_OPS      = "Tech Ops",
     VIDEO_ROOM    = "Video Room",
 )
