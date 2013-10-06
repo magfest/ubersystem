@@ -1,14 +1,5 @@
 from common import *
 
-# TODO: sanitize for XSS attacks; currently someone can only attack themselves, but still...
-def ng_render(fname, **kwargs):
-    class AngularTemplate(string.Template):
-        delimiter = "%__"
-    
-    with open(os.path.join("templates", "signups", fname)) as f:
-        data = {k: (str(v).lower() if v in [True, False] else v) for k, v in renderable_data(kwargs).items()}
-        return AngularTemplate(f.read()).substitute(**data)
-
 def get_attendee(full_name, email, zip_code):
     words = full_name.split()
     for i in range(1, len(words)):
@@ -100,12 +91,13 @@ class Root:
                 "attendee": attendee,
                 "requested_depts": requested_depts
             }
-         
+        
+        @ng_renderable
         def shifts(self):
-            return ng_render("shifts.html",
-                jobs = self.jobs(),
-                name = self.staffer.full_name
-            )
+            return {
+                "jobs": self.jobs(),
+                "name": self.staffer.full_name
+            }
 
         def jobs(self):
             return json.dumps([job.to_dict() for job in self.staffer.possible_and_current])
@@ -128,8 +120,7 @@ class Root:
                 return {"jobs": json.loads(self.jobs())}
 
         def templates(self, template):
-            return ng_render(template)
-
+            return ng_render(os.path.join("signups", template))
     
     @unrestricted
     def login(self, message="", full_name="", email="", zip_code=""):

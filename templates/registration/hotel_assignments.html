@@ -1,0 +1,60 @@
+<!doctype html>
+<html ng-app="hotel">
+<head>
+    <title>TODO: title</title>
+    <link rel="stylesheet" type="text/css" href="../static/styles.css" />
+    <script src="../static/date.js" type="text/javascript"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.1.5/angular.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.1.5/angular-resource.min.js"></script>
+    <script type="text/javascript">
+        angular.module("hotel", [])
+            .factory("Hotel", function($http) {
+                $http.defaults.headers.common = {"CSRF-Token": "%__CSRF_TOKEN"};
+                return {
+                    rooms: [],
+                    unassigned: [],
+                    _set: function(dst, src) {
+                        dst.splice.apply(dst, [0, dst.length].concat(src));
+                    },
+                    set: function(data) {
+                        this._set(this.rooms, data.rooms),
+                        this._set(this.unassigned, data.unassigned)
+                    }
+                };
+            })
+            .config(function($routeProvider){
+                $routeProvider
+                    .when('/', {controller: HotelController, templateUrl: 'ng_templates/hotel_schedule.html'})
+                    .otherwise({redirectTo:'/'});
+            });
+        
+        var HotelController = function($scope, $http, Hotel) {
+            $scope.rooms = Hotel.rooms;
+            $scope.unassigned = Hotel.unassigned;
+            Hotel.set(%__dump);
+            
+            var success = function(response) {
+                Hotel.set(response);
+            };
+            var error = function() {
+                alert("I AM ERROR");    // TODO: real error message
+            };
+            
+            $scope.addRoom = function(start, end) {
+                $http({
+                    method: "post",
+                    url: "add_room",
+                    params: {
+                        department: department,
+                        start: start,
+                        end: end
+                    }
+                }).success(success).error(error);
+            };
+        };
+    </script>
+</head>
+<body>
+    <div ng-view></div>
+</body>
+</html>

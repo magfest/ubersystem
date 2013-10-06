@@ -592,3 +592,51 @@ class Root:
                 raise HTTPRedirect("../preregistration/confirm?id={}", attendee.secret_id)
         
         return {"message": message}
+    
+    @ng_renderable
+    def hotel_assignments(self, department):
+        return {
+            "dump": hotel_dump(department),
+            "department": department,
+            "department_name": dict(JOB_LOC_OPTS)[int(department)]
+        }
+
+    def ng_templates(self, template):
+        return ng_render(os.path.join("registration", template))
+
+    @ajax
+    def create_room(self, department, start, end):
+        Room.objects.create(department=department, start=start, end=end)
+        return hotel_dump(department)
+    
+    @ajax
+    def delete_room(self, id):
+        Room.objects.get(id=id).delete()
+        return hotel_dump(department)
+    
+    @ajax
+    def assign_to_room(self, attendee_id, room_id):
+        RoomAssignment.objects.get_or_create(attendee_id=attendee_id, room_id=room_id)
+        return hotel_dump(Room.objects.get(id=room_id).department)
+
+
+def hotel_dump(department):
+    serialize = lambda attendee: {
+        "id": attendee.id,
+        "name": attendee.full_name,
+        "departments": attendee.assigned_display
+    }
+    rooms = [{
+        "id": room.id,
+        "start": room.get_start_display(),
+        "end": end.get_end_display(),
+        "attendees": [serialize(a) for a in rooms.attendee_set.order_by("first_name", "last_name")]
+    } for room in Room.objects.filter(roomassignment__attendee__assigned_depts__contains = department).order_by("id")]
+    all_assigned = [a["id"] for a in sum([r["attendees"] for r in rooms], [])]
+    return {
+        "rooms": rooms,
+        "unassigned": [serialize(a) for a in Attendee.objects.filter(hotelrequests__isnull=False,
+                                                                     assigned_depts__contains=department)
+                                                             .order_by("first_name", "last_name")
+                                    if a.id not in all_assigned]
+    }

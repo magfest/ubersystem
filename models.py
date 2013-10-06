@@ -702,6 +702,13 @@ class Attendee(MagModel, TakesPaymentMixin):
             return [dict(NIGHTS_OPTS)[night] for night in map(int, self.hotel_requests.nights.split(","))]
         except:
             return []
+    
+    @cached_property
+    def room_assignment(self):
+        try:
+            return self.roomassignment
+        except:
+            return None
 
 class HotelRequests(MagModel):
     attendee           = OneToOneField(Attendee)
@@ -739,6 +746,15 @@ class AssignedPanelist(MagModel):
 class SeasonPassTicket(MagModel):
     attendee = ForeignKey(Attendee)
     slug = CharField(max_length = 99)
+
+class Room(MagModel):
+    department = IntegerField(choices = JOB_LOC_OPTS)
+    start      = IntegerField(choices = NIGHTS_OPTS)
+    end        = IntegerField(choices = NIGHTS_OPTS)
+
+class RoomAssignment(MagModel):
+    room     = ForeignKey(Room)
+    attendee = OneToOneField(Attendee)
 
 
 class Job(MagModel):
