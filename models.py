@@ -587,11 +587,11 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @property
     def interests_list(self):
-        return map(int, self.interests.split(",")) if self.interests else []
+        return [int(i) for i in self.interests.split(",")] if self.interests else []
     
     @property
     def assigned(self):
-        return map(int, self.assigned_depts.split(",")) if self.assigned_depts else []
+        return [int(i) for i in self.assigned_depts.split(",")] if self.assigned_depts else []
     
     @property
     def assigned_display(self):
