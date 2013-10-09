@@ -345,7 +345,7 @@ JOB_LOC_OPTS = enum(
     TABLETOP      = "Tabletop",
     CCG_TABLETOP  = "Tabletop (CCG)",
     TECH_OPS      = "Tech Ops",
-    VIDEO_ROOM    = "Video Room",
+    VIDEO_ROOM    = "Games on Film",
 )
 DEPT_CHAIRS = {
     ARCADE:        "Ethan O'Toole, Tony Majors, Scott Schreiber, and Buffett",
