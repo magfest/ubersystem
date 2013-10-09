@@ -735,6 +735,16 @@ class FoodRestrictions(MagModel):
     attendee = OneToOneField(Attendee)
     standard = MultiChoiceField(choices = FOOD_RESTRICTION_OPTS)
     freeform = TextField()
+    
+    def __getattr__(self, name):
+        import constants
+        restriction = getattr(constants, name.upper())
+        if restriction not in dict(FOOD_RESTRICTION_OPTS):
+            raise AttributeError()
+        elif restriction == VEGETARIAN and str(VEGAN) in self.standard.split(","):
+            return False
+        else:
+            return str(restriction) in self.standard.split(",")
 
 class AssignedPanelist(MagModel):
     attendee = ForeignKey(Attendee)

@@ -65,3 +65,16 @@ class Root:
     
     def all_schedules(self):
         return {"staffers": Attendee.objects.filter(staffing = True).order_by("last_name","first_name")}
+    
+    def food_restrictions(self):
+        guests = Attendee.objects.filter(badge_type = GUEST_BADGE).count()
+        volunteers = [a for a in Attendee.objects.filter(staffing = True) if a.badge_type == STAFF_BADGE or a.weighted_hours]
+        return {
+            "guests": guests,
+            "volunteers": len(volunteers),
+            "notes": filter(bool, [getattr(a.food_restrictions, "freeform", "") for a in volunteers]),
+            "standard": {
+                category: len([a for a in volunteers if getattr(a.food_restrictions, category, False)])
+                for category in ["vegetarian", "vegan", "gluten"]
+            }
+        }
