@@ -8,6 +8,7 @@
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.1.5/angular.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.1.5/angular-resource.min.js"></script>
     <script type="text/javascript">
+        var errorPlaceholder = function() { alert("I AM ERROR"); };
         angular.module("hotel", [])
             .factory("Hotel", function($http) {
                 $http.defaults.headers.common = {"CSRF-Token": "%__CSRF_TOKEN"};
@@ -17,7 +18,7 @@
                         dst.splice.apply(dst, [0, dst.length].concat(src));
                     },
                     set: function(data) {
-                        angular.forEach(this.lists, function(name) {
+                        angular.forEach(Hotel.lists, function(name) {
                             Hotel._set(Hotel[name], data[name]);
                         });
                     },
@@ -52,9 +53,14 @@
                         method: "post",
                         url: "unassign_from_room",
                         params: {attendee_id: attendee_id}
-                    }).success(function(response) {
-                        Hotel.set(response);
-                    }).error(function(){ alert("I AM ERROR"); });
+                    }).success(Hotel.set).error(errorPlaceholder);
+                };
+                $scope.deleteRoom = function(room_id) {
+                    $http({
+                        method: "post",
+                        url: "delete_room",
+                        params: {id: room_id}
+                    }).success(Hotel.set).error(errorPlaceholder);
                 };
             })
             .controller("CreateController", function($scope, $http, $location, Hotel) {
@@ -72,7 +78,7 @@
                     }).success(function(response) {
                         Hotel.set(response);
                         $location.path("/");
-                    }).error(function() { alert("I AM ERROR"); });
+                    }).error(errorPlaceholder);
                 };
                 $scope.cancel = function() {
                     $location.path("/");
@@ -84,15 +90,11 @@
                     $http({
                         method: "post",
                         url: "edit_room",
-                        params: {
-                            id: $scope.room.id,
-                            start: $scope.room.start,
-                            end: $scope.room.end
-                        }
+                        params: $scope.room
                     }).success(function(response) {
                         Hotel.set(response);
                         $location.path("/");
-                    }).error(function() { alert("I AM ERROR"); });
+                    }).error(errorPlaceholder);
                 };
                 $scope.cancel = function() {
                     $location.path("/");
@@ -108,9 +110,7 @@
                         method: "post",
                         url: "assign_to_room",
                         params: $scope.assignment
-                    }).success(function(response) {
-                        Hotel.set(response);
-                    }).error(function() { alert("I AM ERROR"); });
+                    }).success(Hotel.set).error(errorPlaceholder);
                 };
             })
     </script>
