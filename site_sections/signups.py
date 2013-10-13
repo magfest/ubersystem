@@ -95,18 +95,21 @@ class Root:
         @ng_renderable
         def shifts(self):
             return {
-                "jobs": self.jobs(),
+                "jobs": self._jobs(),
                 "name": self.staffer.full_name
             }
 
-        def jobs(self):
+        def _jobs(self):
             return json.dumps([job.to_dict() for job in self.staffer.possible_and_current])
+
+        def jobs(self):
+            return json.dumps({"jobs": json.loads(self._jobs())})
 
         @ajax
         def sign_up(self, job_id):
             return {
                 "error": assign(self.staffer.id, job_id),
-                "jobs": json.loads(self.jobs())
+                "jobs": json.loads(self._jobs())
             }
 
         @ajax
@@ -117,7 +120,7 @@ class Root:
 
                 pass
             finally:
-                return {"jobs": json.loads(self.jobs())}
+                return {"jobs": json.loads(self._jobs())}
 
         def templates(self, template):
             return ng_render(os.path.join("signups", template))

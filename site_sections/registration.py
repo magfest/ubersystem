@@ -605,19 +605,33 @@ class Root:
         return ng_render(os.path.join("registration", template))
 
     @ajax
-    def create_room(self, department, start, end):
-        Room.objects.create(department=department, start=start, end=end)
-        return hotel_dump(department)
+    def create_room(self, **params):
+        Room.objects.create(**params)
+        return hotel_dump(params["department"])
+    
+    @ajax
+    def edit_room(self, **params):
+        room = Room.get(params)
+        room.save()
+        return hotel_dump(room.department)
     
     @ajax
     def delete_room(self, id):
-        Room.objects.get(id=id).delete()
-        return hotel_dump(department)
+        room = Room.objects.get(id=id)
+        room.delete()
+        return hotel_dump(room.department)
     
     @ajax
     def assign_to_room(self, attendee_id, room_id):
         RoomAssignment.objects.get_or_create(attendee_id=attendee_id, room_id=room_id)
         return hotel_dump(Room.objects.get(id=room_id).department)
+    
+    @ajax
+    def unassign_from_room(self, attendee_id):
+        ra = RoomAssignment.objects.get(attendee_id = attendee_id)
+        department = ra.room.department
+        ra.delete()
+        return hotel_dump(department)
 
 
 def hotel_dump(department):
@@ -628,15 +642,30 @@ def hotel_dump(department):
     }
     rooms = [{
         "id": room.id,
-        "start": room.get_start_display(),
-        "end": end.get_end_display(),
-        "attendees": [serialize(a) for a in rooms.attendee_set.order_by("first_name", "last_name")]
-    } for room in Room.objects.filter(roomassignment__attendee__assigned_depts__contains = department).order_by("id")]
-    all_assigned = [a["id"] for a in sum([r["attendees"] for r in rooms], [])]
+        "notes": room.notes,
+        "start": room.start,
+        "end": room.end,
+        "start_display": room.get_start_display(),
+        "end_display": room.get_end_display(),
+        "attendees": [serialize(ra.attendee) for ra in room.roomassignment_set.order_by("attendee__first_name", "attendee__last_name").select_related()]
+    } for room in Room.objects.filter(department = department).order_by("id")]
+    assigned = sum([r["attendees"] for r in rooms], [])
+    assigned_elsewhere = [serialize(ra.attendee)
+        for ra in RoomAssignment.objects.exclude(room__department = department)
+                                        .filter(attendee__assigned_depts__contains = department)
+                                        .select_related()]
+    assigned_ids = [a["id"] for a in assigned + assigned_elsewhere]
     return {
         "rooms": rooms,
-        "unassigned": [serialize(a) for a in Attendee.objects.filter(hotelrequests__isnull=False,
-                                                                     assigned_depts__contains=department)
-                                                             .order_by("first_name", "last_name")
-                                    if a.id not in all_assigned]
+        "assigned": assigned,
+        "assigned_elsewhere": assigned_elsewhere,
+        "unconfirmed": [serialize(a)
+            for a in Attendee.objects.filter(hotelrequests__isnull=True,
+                                             assigned_depts__contains=department)
+                                     .order_by("first_name", "last_name")],
+        "unassigned": [serialize(a)
+            for a in Attendee.objects.filter(hotelrequests__isnull=False,
+                                             assigned_depts__contains=department)
+                                     .order_by("first_name", "last_name")
+            if a.id not in assigned_ids]
     }

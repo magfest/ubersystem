@@ -35,7 +35,7 @@
                     .otherwise({redirectTo:'/'});
             });
         
-        var ScheduleController = function($scope, $http, Jobs) {
+        var ScheduleController = function($scope, $http, $timeout, Jobs) {
             $scope.name = "%__name";
             $scope.jobs = Jobs.jobs;
             var sumWeightedHours = function() {
@@ -48,6 +48,7 @@
             };
             sumWeightedHours();
             var success = function(response) {
+                console.log(response.jobs);
                 Jobs.set(response.jobs);
                 sumWeightedHours();
                 if (response.error) {
@@ -55,7 +56,15 @@
                 }
             };
             var error = function() {
-                alert("Unexpected error");  // TODO: reset jobs
+                console.log("error");
+                alert("Unexpected error");
+                refresh();
+            };
+            var refresh = function() {
+                $http({
+                    method: "get",
+                    url: "jobs"
+                }).success(success).error(error);
             };
             $scope.signUp = function(jobId) {
                 $http({
@@ -74,6 +83,11 @@
             $scope.taken = function(job) {
                 return job.taken;
             };
+            var refreshInterval = function() {
+                refresh();
+                $timeout(refreshInterval, 300000);
+            };
+            $timeout(refreshInterval, 300000);
         };
     </script>
 </head>

@@ -1,57 +1,118 @@
 <!doctype html>
 <html ng-app="hotel">
 <head>
-    <title>TODO: title</title>
+    <title>%__department_name Hotel Rooms</title>
     <link rel="stylesheet" type="text/css" href="../static/styles.css" />
     <script src="../static/date.js" type="text/javascript"></script>
+    <script src="../static/jquery-1.7.2.min.js" type="text/javascript"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.1.5/angular.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.1.5/angular-resource.min.js"></script>
     <script type="text/javascript">
         angular.module("hotel", [])
             .factory("Hotel", function($http) {
                 $http.defaults.headers.common = {"CSRF-Token": "%__CSRF_TOKEN"};
-                return {
-                    rooms: [],
-                    unassigned: [],
+                var Hotel = {
+                    lists: ["rooms", "assigned", "unassigned", "unconfirmed", "assigned_elsewhere"],
                     _set: function(dst, src) {
                         dst.splice.apply(dst, [0, dst.length].concat(src));
                     },
                     set: function(data) {
-                        this._set(this.rooms, data.rooms),
-                        this._set(this.unassigned, data.unassigned)
+                        angular.forEach(this.lists, function(name) {
+                            Hotel._set(Hotel[name], data[name]);
+                        });
+                    },
+                    get: function(id) {
+                        for(var i=0, room; room=this.rooms[i]; i++) {
+                            if (room.id == id) {
+                                return room;
+                            }
+                        }
                     }
                 };
+                angular.forEach(Hotel.lists, function(name) {
+                    Hotel[name] = [];
+                });
+                Hotel.set(%__dump);
+                return Hotel;
             })
             .config(function($routeProvider){
                 $routeProvider
-                    .when('/', {controller: HotelController, templateUrl: 'ng_templates/hotel_schedule.html'})
+                    .when('/', {controller: "HotelController", templateUrl: 'ng_templates/hotel_schedule.html'})
+                    .when('/create-room', {controller: "CreateController", templateUrl: 'ng_templates/room_form.html'})
+                    .when('/edit-room/:roomId', {controller: "EditController", templateUrl: 'ng_templates/room_form.html'})
                     .otherwise({redirectTo:'/'});
-            });
-        
-        var HotelController = function($scope, $http, Hotel) {
-            $scope.rooms = Hotel.rooms;
-            $scope.unassigned = Hotel.unassigned;
-            Hotel.set(%__dump);
-            
-            var success = function(response) {
-                Hotel.set(response);
-            };
-            var error = function() {
-                alert("I AM ERROR");    // TODO: real error message
-            };
-            
-            $scope.addRoom = function(start, end) {
-                $http({
-                    method: "post",
-                    url: "add_room",
-                    params: {
-                        department: department,
-                        start: start,
-                        end: end
-                    }
-                }).success(success).error(error);
-            };
-        };
+            })
+            .controller("HotelController", function($scope, $http, Hotel) {
+                $scope.department_name = "%__department_name";
+                angular.forEach(Hotel.lists, function(name) {
+                    $scope[name] = Hotel[name];
+                });
+                $scope.remove = function(attendee_id) {
+                    $http({
+                        method: "post",
+                        url: "unassign_from_room",
+                        params: {attendee_id: attendee_id}
+                    }).success(function(response) {
+                        Hotel.set(response);
+                    }).error(function(){ alert("I AM ERROR"); });
+                };
+            })
+            .controller("CreateController", function($scope, $http, $location, Hotel) {
+                $scope.room = {
+                    department: %__department,
+                    start: %__THURSDAY,
+                    end: %__SUNDAY,
+                    notes: ""
+                };
+                $scope.save = function() {
+                    $http({
+                        method: "post",
+                        url: "create_room",
+                        params: $scope.room
+                    }).success(function(response) {
+                        Hotel.set(response);
+                        $location.path("/");
+                    }).error(function() { alert("I AM ERROR"); });
+                };
+                $scope.cancel = function() {
+                    $location.path("/");
+                };
+            })
+            .controller("EditController", function($scope, $http, $location, $routeParams, Hotel) {
+                $scope.room = Hotel.get($routeParams.roomId);
+                $scope.save = function() {
+                    $http({
+                        method: "post",
+                        url: "edit_room",
+                        params: {
+                            id: $scope.room.id,
+                            start: $scope.room.start,
+                            end: $scope.room.end
+                        }
+                    }).success(function(response) {
+                        Hotel.set(response);
+                        $location.path("/");
+                    }).error(function() { alert("I AM ERROR"); });
+                };
+                $scope.cancel = function() {
+                    $location.path("/");
+                };
+            })
+            .controller("AddController", function($scope, $http, Hotel) {
+                $scope.assignment = {
+                    room_id: $scope.room.id,
+                    attendee_id: $scope.unassigned[0] && $scope.unassigned[0].id
+                };
+                $scope.add = function() {
+                    $http({
+                        method: "post",
+                        url: "assign_to_room",
+                        params: $scope.assignment
+                    }).success(function(response) {
+                        Hotel.set(response);
+                    }).error(function() { alert("I AM ERROR"); });
+                };
+            })
     </script>
 </head>
 <body>

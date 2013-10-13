@@ -759,6 +759,7 @@ class SeasonPassTicket(MagModel):
 
 class Room(MagModel):
     department = IntegerField(choices = JOB_LOC_OPTS)
+    notes      = CharField(max_length = 255, default = "")
     start      = IntegerField(choices = NIGHTS_OPTS)
     end        = IntegerField(choices = NIGHTS_OPTS)
 
