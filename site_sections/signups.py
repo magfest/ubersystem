@@ -27,9 +27,10 @@ class Root:
             }
         
     if not state.UBER_SHUT_DOWN:
-        def fire_safety(self, message = "", fire_safety_cert = None):
+        def fire_safety(self, message = "", fire_safety_cert = None, csrf_token = None):
             attendee = self.staffer
             if fire_safety_cert is not None:
+                check_csrf(csrf_token)
                 if not re.match(r"^\d{5}\.\d{5,11}$", fire_safety_cert):
                     message = "That is not a valid certification number"
                 else:
