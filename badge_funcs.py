@@ -84,7 +84,7 @@ def detect_duplicates():
         grouped = defaultdict(list)
         for a in Attendee.objects.exclude(first_name = "").order_by("registered").select_related("group"):
             if not a.group or a.group.status != WAITLISTED:
-                grouped[a.full_name, a.email].append(a)
+                grouped[a.full_name, a.email.lower()].append(a)
         
         dupes = {k:v for k,v in grouped.items() if len(v) > 1}
         

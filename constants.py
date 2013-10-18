@@ -3,6 +3,8 @@ from secret_settings import *
 
 DEV_BOX = True
 
+YEAR = 12
+
 EARLY_BADGE_PRICE = 40
 LATE_BADGE_PRICE  = 45
 DOOR_BADGE_PRICE  = 60
@@ -11,12 +13,12 @@ EARLY_GROUP_PRICE = 30
 LATE_GROUP_PRICE  = 35
 
 class State:
-    SEND_EMAILS = True
+    SEND_EMAILS = False
     
     AT_THE_CON = False
     POST_CON = False
     UBER_SHUT_DOWN = False
-    HIDE_SCHEDULE = False
+    HIDE_SCHEDULE = True
     
     PREREG_CLOSED = False
     PREREG_NOT_OPEN_YET = True
@@ -26,7 +28,7 @@ class State:
     ETCHED_BADGES_ORDERED = False
     
     STAFFERS_IMPORTED    = datetime(2013,  7, 23)
-    SHIFTS_CREATED       = datetime(2013, 10,  1)
+    SHIFTS_CREATED       = datetime(2013, 10, 12, 23)
     PRICE_BUMP           = datetime(2013, 10, 31, 23, 59)
     DEALER_REG_START     = datetime(2013,  8,  8, 23, 59)
     DEALER_REG_DEADLINE  = datetime(2013,  8, 16, 23, 59)
@@ -302,15 +304,7 @@ ACCESS_OPTS = enum(
     MONEY      = "Budget",
     CHALLENGES = "Challenges",
     CHECKINS   = "Checkins",
-)
-
-ACCESS_OPTS = enum(
-    ACCOUNTS   = "Account Management",
-    PEOPLE     = "Registration and Staffing",
-    STUFF      = "Inventory and Scheduling",
-    MONEY      = "Budget",
-    CHALLENGES = "Challenges",
-    CHECKINS   = "Checkins"
+    STATS      = "Analytics",
 )
 SIGNUPS = 100 # not an admin access level, so handled separately
 
@@ -335,19 +329,23 @@ JOB_LOC_OPTS = enum(
     CONCERT       = "Concert",
     CONSOLE       = "Consoles",
     CON_OPS       = "Fest Ops",
+    DISPATCH      = "Dispatch",
     PANELS        = "Events",
     FOOD_PREP     = "Food Prep",
+    INDIE_GAMES   = "Indie Games",
     JAMSPACE      = "Jam Space",
     LAN           = "LAN",
     MARKETPLACE   = "Marketplace",
     MERCH         = "Merchandise",
     REGDESK       = "Regdesk",
+    RESCUERS      = "Rescuers",
     SECURITY      = "Security",
     STAFF_SUPPORT = "Staff Support",
     STOPS         = "Staffing Ops",
     TABLETOP      = "Tabletop",
+    CCG_TABLETOP  = "Tabletop (CCG)",
     TECH_OPS      = "Tech Ops",
-    VIDEO_ROOM    = "Video Room",
+    VIDEO_ROOM    = "Games on Film",
 )
 DEPT_CHAIRS = {
     ARCADE:        "Ethan O'Toole, Tony Majors, Scott Schreiber, and Buffett",
@@ -445,6 +443,12 @@ NIGHTS_OPTS = enum(
     FRIDAY    = "Fri",
     SATURDAY  = "Sat",
     SUNDAY    = "Sun"
+)
+
+FOOD_RESTRICTION_OPTS = enum(
+    VEGETARIAN = "Vegetarian",
+    VEGAN      = "Vegan",
+    GLUTEN     = "Cannot eat gluten"
 )
 
 EMAIL_RE = re.compile("^[_A-Za-z0-9-]+(\\.[_A-Za-z0-9-+]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*(\\.[_A-Za-z0-9-]+)$")

@@ -67,7 +67,7 @@ def credit_card(func):
     return charge
 
 
-def render(template, data = None):
+def renderable_data(data = None):
     import constants
     from models import Account, all_models
     data = data or {}
@@ -87,22 +87,44 @@ def render(template, data = None):
     for acctype in ["ACCOUNTS","PEOPLE","STUFF","MONEY","CHALLENGES","CHECKINS"]:
         data["HAS_" + acctype + "_ACCESS"] = getattr(constants, acctype) in access
     
+    return data
+
+def render(template, data = None):
+    from models import Account
+    data = renderable_data(data)
     rendered = loader.get_template(template).render( Context(data) )
-    if not state.AT_THE_CON and Account.admin_name() == "Nick Marinelli":
+    if not state.AT_THE_CON and Account.is_nick() and "emails" not in template and "history" not in template:
         rendered = rendered.replace("festival", "convention").replace("Fest", "Con")
     return rendered
 
+# TODO: sanitize for XSS attacks; currently someone can only attack themselves, but still...
+def ng_render(fname, **kwargs):
+    class AngularTemplate(string.Template):
+        delimiter = "%__"
+    
+    with open(os.path.join("templates", fname)) as f:
+        data = {k: (str(v).lower() if v in [True, False] else v) for k, v in renderable_data(kwargs).items()}
+        return AngularTemplate(f.read()).substitute(**data)
+
+
+def _get_template_filename(func):
+    mod_name = func.__module__.split(".")[1]
+    return os.path.join(mod_name, func.__name__ + ".html")
+
+def ng_renderable(func):
+    @wraps(func)
+    def with_rendering(*args, **kwargs):
+        return ng_render(_get_template_filename(func), **func(*args, **kwargs))
+    return with_rendering
 
 def renderable(func):
     @wraps(func)
     def with_rendering(*args, **kwargs):
-        res = func(*args, **kwargs)
-        if isinstance(res, dict):
-            mod_name = func.__module__.split(".")[1]
-            template = "{}/{}.html".format(mod_name, func.__name__)
-            return render(template, res)
+        result = func(*args, **kwargs)
+        if isinstance(result, dict):
+            return render(_get_template_filename(func), result)
         else:
-            return res
+            return result
     return with_rendering
 
 def unrestricted(func):

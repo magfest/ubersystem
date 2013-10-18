@@ -43,7 +43,7 @@
             {% if now < PRICE_BUMP %}
                 <li style="color:red"> Price goes up to ${{ LATE_BADGE_PRICE }} at {{ PRICE_BUMP|datetime }} </li>
             {% else %}
-                <li style="color:red"> Preregistration closes at 11:59pm on Sunday, December 23. </li>
+                <li style="color:red"> Preregistration closes at {{ PREREG_TAKEDOWN|datetime }}. </li>
             {% endif %}
         </ul>
     </td>
@@ -56,10 +56,11 @@
         <ul>
             <li> Save money when you register eight or more people at once </li>
             <li> ${{ GROUP_PRICE }} per person </li>
+            <li> Group members can kick in extra to upgrade their badge level </li>
             {% if now < PRICE_BUMP %}
                 <li style="color:red"> Price goes up to ${{ LATE_GROUP_PRICE }} at {{ PRICE_BUMP|datetime }} </li>
             {% else %}
-                <li style="color:red"> Group preregistration closes at 11:59pm on Sunday, December 23. </li>
+                <li style="color:red"> Group preregistration closes at {{ PREREG_TAKEDOWN|datetime }} </li>
             {% endif %}
         </ul>
     </td>

@@ -12,20 +12,25 @@ def get_attendee(full_name, email, zip_code):
 
 @all_renderable(SIGNUPS)
 class Root:
+    @property
+    def staffer(self):
+        return Attendee.objects.get(id = cherrypy.session["staffer_id"])
+    
     if state.UBER_SHUT_DOWN:
         def index(self):
-            return render("signups/printable.html", {"attendee": Attendee.objects.get(id = cherrypy.session["staffer_id"])})
+            return render("signups/printable.html", {"attendee": self.staffer})
     else:
         def index(self, message = ""):
             return {
                 "message": message,
-                "attendee": Attendee.objects.get(id = cherrypy.session["staffer_id"])
+                "attendee": self.staffer
             }
         
     if not state.UBER_SHUT_DOWN:
-        def fire_safety(self, message = "", fire_safety_cert = None):
-            attendee = Attendee.objects.get(id = cherrypy.session["staffer_id"])
+        def fire_safety(self, message = "", fire_safety_cert = None, csrf_token = None):
+            attendee = self.staffer
             if fire_safety_cert is not None:
+                check_csrf(csrf_token)
                 if not re.match(r"^\d{5}\.\d{5,11}$", fire_safety_cert):
                     message = "That is not a valid certification number"
                 else:
@@ -39,8 +44,15 @@ class Root:
                 "fire_safety_cert": fire_safety_cert or ""
             }
         
+        def food_restrictions(self, message="", **params):
+            if params:
+                FoodRestrictions.get(dict(params, attendee_id = self.staffer.id), checkgroups = ["standard"]).save()
+                raise HTTPRedirect("index?message={}", "Your dietary restrictions have been recorded")
+            else:
+                return {}
+        
         def hotel_requests(self, message = "", decline = None, **params):
-            attendee = Attendee.objects.get(id = cherrypy.session["staffer_id"])
+            attendee = self.staffer
             requests = HotelRequests.get(params, checkgroups = ["nights"], restricted = True)
             if "attendee_id" in params:
                 if decline or not requests.nights:
@@ -65,30 +77,11 @@ class Root:
                 "attendee": attendee
             }
         
-        def schedule(self, message = ""):
-            return {
-                "message":  message,
-                "attendee": Attendee.objects.get(id = cherrypy.session["staffer_id"])
-            }
-        
-        def possible(self, message = ""):
-            return {
-                "message":  message,
-                "attendee": Attendee.objects.get(id = cherrypy.session["staffer_id"])
-            }
-        
-        def sign_up(self, job_id):
-            message = assign(cherrypy.session["staffer_id"], job_id) or "Signup successful"
-            raise HTTPRedirect("possible?message={}", message)
-        
-        def drop(self, shift_id):
-            Shift.objects.filter(id=shift_id, attendee = cherrypy.session["staffer_id"]).delete()
-            raise HTTPRedirect("schedule?message={}", "Shift dropped")
-        
         @unrestricted
-        def volunteer(self, id, requested_depts = "", message = "Select which departments interest you as a volunteer."):
-            attendee = Attendee.objects.get(id = id)
+        def volunteer(self, id, csrf_token = None, requested_depts = "", message = "Select which departments interest you as a volunteer."):
+            attendee = Attendee.objects.get(secret_id = id)
             if requested_depts:
+                check_csrf(csrf_token)
                 attendee.staffing = True
                 attendee.requested_depts = ",".join(listify(requested_depts))
                 attendee.save()
@@ -99,6 +92,39 @@ class Root:
                 "attendee": attendee,
                 "requested_depts": requested_depts
             }
+        
+        @ng_renderable
+        def shifts(self):
+            return {
+                "jobs": self._jobs(),
+                "name": self.staffer.full_name
+            }
+
+        def _jobs(self):
+            return json.dumps([job.to_dict() for job in self.staffer.possible_and_current])
+
+        def jobs(self):
+            return json.dumps({"jobs": json.loads(self._jobs())})
+
+        @ajax
+        def sign_up(self, job_id):
+            return {
+                "error": assign(self.staffer.id, job_id),
+                "jobs": json.loads(self._jobs())
+            }
+
+        @ajax
+        def drop(self, job_id):
+            try:
+                Shift.objects.get(job_id=job_id, attendee=self.staffer).delete()
+            except:
+
+                pass
+            finally:
+                return {"jobs": json.loads(self._jobs())}
+
+        def templates(self, template):
+            return ng_render(os.path.join("signups", template))
     
     @unrestricted
     def login(self, message="", full_name="", email="", zip_code=""):
@@ -106,13 +132,14 @@ class Root:
             try:
                 attendee = get_attendee(full_name, email, zip_code)
                 if not attendee.staffing:
-                    message = SafeString('You are not signed up as a volunteer.  <a href="volunteer?id={}">Click Here</a> to sign up.'.format(attendee.id))
+                    message = SafeString('You are not signed up as a volunteer.  <a href="volunteer?id={}">Click Here</a> to sign up.'.format(attendee.secret_id))
                 elif not attendee.assigned:
                     message = "You have not been assigned to any departmemts; an admin must assign you to a department before you can log in"
             except:
                 message = "No attendee matches that name and email address and zip code"
             
             if not message:
+                cherrypy.session["csrf_token"] = uuid4().hex
                 cherrypy.session["staffer_id"] = attendee.id
                 raise HTTPRedirect("index")
         
@@ -122,16 +149,3 @@ class Root:
             "email":     email,
             "zip_code":  zip_code
         }
-    
-    @unrestricted
-    def angular(self):
-        jobs = [job.to_dict() for job in Job.objects.all()]
-        return open("templates/signups/angular.html").read().replace("<<JOBS>>", json.dumps(jobs))
-    
-    @unrestricted
-    def jobs(self):
-        return json.dumps([job.to_dict() for job in Job.objects.all()])
-    
-    @unrestricted
-    def templates(self, template):
-        return open("templates/signups/" + template).read()

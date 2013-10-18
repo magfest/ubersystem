@@ -1,0 +1,61 @@
+<h2>{{ department_name }} Hotel Rooms</h2>
+
+STOPS manages hotel rooms, and we're happy to make hotel room assignments for the staffers for all of the departments.
+However, some department heads prefer to manage hotel room assignments for some or all of their staff.  Feel free to
+ignore this page or use it to manage your people.
+
+<h3> Rooms </h3>
+
+<a href="#/create-room">Add a room</a>
+
+<table style="width:auto">
+<tr ng-repeat="room in rooms"><td style="border:1px solid black">
+    <b>{{ room.start_display }} - {{ room.end_display }}</b> &nbsp;
+    <a href="#/edit-room/{{ room.id }}">Edit</a> &nbsp;
+    <button ng-click="deleteRoom(room.id)">Delete</button>
+    <div ng-if="room.notes" style="font-style:italic">{{ room.notes }}</div>
+    <div style="margin-top:5px">
+        <table>
+            <tr ng-repeat="attendee in room.attendees">
+                <td> <a href="form?id={{ attendee.id }}">{{ attendee.name }}</a> </td>
+                <td> &nbsp; <button ng-click="remove(attendee.id)">Remove</button> </td>
+            </tr>
+        </table>
+        <div ng-controller="AddController">
+            <div ng-if="unassigned.length">
+                Add an attendee:
+                <select ng-model="assignment.attendee_id" ng-options="attendee.id as attendee.name for attendee in unassigned"></select>
+                <button ng-click="add()">Add to Room</button>
+            </div>
+        </div>
+    </div>
+</td></tr>
+</table>
+
+<table style="text-align:center">
+<tr>
+    <td valign="top">
+        <br/> <b>{{ unassigned.length }} Unassigned Attendees</b>
+        <div ng-repeat="attendee in unassigned">
+            <a href="form?id={{ attendee.id }}">{{ attendee.name }}</a>
+        </div>
+    </td>
+    <td valign="top">
+        <br/> <b>{{ assigned.length }} Already Assigned</b>
+        <div ng-repeat="attendee in assigned">
+            <a href="form?id={{ attendee.id }}">{{ attendee.name }}</a>
+        </div>
+    </td>
+    <td valign="top">
+        <b>{{ unconfirmed.length }} haven't filled out<br/>the volunteer checklist</b>
+        <div ng-repeat="attendee in unconfirmed">
+            <a href="form?id={{ attendee.id }}">{{ attendee.name }}</a>
+        </div>
+    </td>
+    <td valign="top">
+        <b>{{ assigned_elsewhere.length }} Already Assigned<br/>(in another department)</b>
+        <div ng-repeat="attendee in assigned_elsewhere">
+            <a href="form?id={{ attendee.id }}">{{ attendee.name }}</a>
+        </div>
+    </td>
+</table>

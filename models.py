@@ -51,7 +51,7 @@ class MagModel(Model):
     __str__ = __repr__
     
     def __eq__(self, m):
-        return isinstance(m, self.__class__) and self.id == m.id and getattr(self, "secret_id") == getattr(m, "secret_id")
+        return isinstance(m, self.__class__) and self.id == m.id and getattr(self, "secret_id", None) == getattr(m, "secret_id", None)
     
     @classmethod
     def get(cls, params, bools=[], checkgroups=[], allowed=[], restricted=False, ignore_csrf=False):
@@ -122,7 +122,7 @@ class Account(MagModel):
     
     @staticmethod
     def is_nick():
-        return Account.admin_name() == "Nick Marinelli"
+        return Account.admin_name() in ["Nick Marinelli"]
     
     @staticmethod
     def admin_name():
@@ -583,15 +583,15 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @property
     def takes_shifts(self):
-        return self.staffing and set(self.assigned) - {CONCERT, CON_OPS, MARKETPLACE}
+        return self.staffing and set(self.assigned) - {CONCERT, CON_OPS, MARKETPLACE, RESCUERS, CCG_TABLETOP}
     
     @property
     def interests_list(self):
-        return map(int, self.interests.split(",")) if self.interests else []
+        return [int(i) for i in self.interests.split(",")] if self.interests else []
     
     @property
     def assigned(self):
-        return map(int, self.assigned_depts.split(",")) if self.assigned_depts else []
+        return [int(i) for i in self.assigned_depts.split(",")] if self.assigned_depts else []
     
     @property
     def assigned_display(self):
@@ -639,7 +639,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def possible_and_current(self):
         jobs = [s.job for s in self.shifts]
-        for job in all:
+        for job in jobs:
             job.already_signed_up = True
         jobs.extend(self.possible)
         return sorted(jobs, key=lambda j: j.start_time)
@@ -690,11 +690,25 @@ class Attendee(MagModel, TakesPaymentMixin):
             return None
     
     @cached_property
+    def food_restrictions(self):
+        try:
+            return self.foodrestrictions
+        except:
+            return None
+    
+    @cached_property
     def hotel_nights(self):
         try:
             return [dict(NIGHTS_OPTS)[night] for night in map(int, self.hotel_requests.nights.split(","))]
         except:
             return []
+    
+    @cached_property
+    def room_assignment(self):
+        try:
+            return self.roomassignment
+        except:
+            return None
 
 class HotelRequests(MagModel):
     attendee           = OneToOneField(Attendee)
@@ -707,6 +721,7 @@ class HotelRequests(MagModel):
     restricted = ["approved"]
     
     def __getattr__(self, name):
+        import constants
         day = getattr(constants, name.upper())
         if day not in dict(NIGHTS_OPTS):
             raise AttributeError()
@@ -715,6 +730,21 @@ class HotelRequests(MagModel):
     
     def __repr__(self):
         return "<{self.attendee.full_name} Hotel Requests>".format(self = self)
+
+class FoodRestrictions(MagModel):
+    attendee = OneToOneField(Attendee)
+    standard = MultiChoiceField(choices = FOOD_RESTRICTION_OPTS)
+    freeform = TextField()
+    
+    def __getattr__(self, name):
+        import constants
+        restriction = getattr(constants, name.upper())
+        if restriction not in dict(FOOD_RESTRICTION_OPTS):
+            raise AttributeError()
+        elif restriction == VEGETARIAN and str(VEGAN) in self.standard.split(","):
+            return False
+        else:
+            return str(restriction) in self.standard.split(",")
 
 class AssignedPanelist(MagModel):
     attendee = ForeignKey(Attendee)
@@ -726,6 +756,16 @@ class AssignedPanelist(MagModel):
 class SeasonPassTicket(MagModel):
     attendee = ForeignKey(Attendee)
     slug = CharField(max_length = 99)
+
+class Room(MagModel):
+    department = IntegerField(choices = JOB_LOC_OPTS)
+    notes      = CharField(max_length = 255, default = "")
+    start      = IntegerField(choices = NIGHTS_OPTS)
+    end        = IntegerField(choices = NIGHTS_OPTS)
+
+class RoomAssignment(MagModel):
+    room     = ForeignKey(Room)
+    attendee = OneToOneField(Attendee)
 
 
 class Job(MagModel):
@@ -769,8 +809,10 @@ class Job(MagModel):
             "location": self.location,
             "weight": self.weight,
             "extra15": self.extra15,
+            "weighted_hours": self.weighted_hours,
             "location_display": self.get_location_display(),
-            "start_time": self.start_time.timestamp()
+            "start_time": self.start_time.timestamp(),
+            "taken": any(cherrypy.session.get("staffer_id") == shift.attendee_id for shift in self.shift_set.all())
         }
     
     @cached_property

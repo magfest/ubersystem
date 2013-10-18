@@ -1,5 +1,6 @@
+
 <div style="text-align:center">
-    <span style="font-size:16pt ; font-weight:bold">{{ name }}'s available shifts</span>
+    <span style="font-size:16pt ; font-weight:bold">Shifts signed up for by {{ name }}</span>
     <br/>
     <span style="font-size:12pt ; font-style:italic">(If you are not {{ name }}, <a href="login">log in here</a>.)</span>
     <br/> <br/>
@@ -10,9 +11,8 @@
     </tr>
     </table>
     <br/>
-    <a href="#/schedule">Click Here</a> to see the {{ weightedHours }} weighted hours worth of shifts you are signed up for.
+    <a href="#/">Click Here</a> to sign up for more shifts; you are currently signed up for {{ weightedHours }} weighted hours.
 </div>
-
 
 <table width="95%" align="center">
 <tr style="font-weight:bold ; vertical-align:bottom">
@@ -21,9 +21,9 @@
     <td> Start Time </td>
     <td> Duration </td>
     <td> Weight <span ng-bind-html-unsafe="'../static/weightDesc.html' | popupLink"></span> </td>
-    <td style="width:150px"></td>
+    <td></td>
 </tr>
-<tr ng-repeat="job in jobs" style="vertical-align:bottom">
+<tr ng-repeat="job in jobs | filter:taken" style="vertical-align:bottom">
     <td>
         {{ job.name }}
         <sup ng-if="job.description" style="color:blue" title="{{ job.description }}">?</sup>
@@ -34,7 +34,6 @@
     <td>x{{ job.weight }}</td>
     <td>
         <span ng-if="job.taken">
-            Signed Up
             <button ng-click="drop(job.id)">Drop</button>
         </span>
         <button ng-if="!job.taken" ng-click="signUp(job.id)">Sign Up</button>

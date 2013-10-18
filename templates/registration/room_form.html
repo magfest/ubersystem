@@ -1,0 +1,34 @@
+<h3> Enter Room Data </h3>
+
+<table style="width:auto">
+<tr>
+    <td><b>Check In</b></td>
+    <td>
+        <select ng-model="room.start">
+            <option value="%__TUESDAY">Tuesday</option>
+            <option value="%__WEDNESDAY">Wednesday</option>
+            <option value="%__THURSDAY">Thursday</option>
+            <option value="%__FRIDAY">Friday</option>
+        </select>
+    </td>
+</tr>
+<tr>
+    <td><b>Check Out</b></td>
+    <td>
+        <select ng-model="room.end">
+            <option value="%__SUNDAY">Sunday</option>
+            <option value="%__MONDAY">Monday</option>
+        </select>
+    </td>
+</tr>
+<tr>
+    <td>Special Notes</td>
+    <td> <input type="text" ng-model="room.notes" maxlength="255" /> </td>
+</tr>
+<tr>
+    <td></td>
+    <td>
+        <button ng-click="save()">Save</button> &nbsp; <button ng-click="cancel()">Cancel</button>
+    </td>
+</tr>
+</table>

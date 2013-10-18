@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Dietary Restrictions{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<h2> Dietary Restrictions </h2>
+
+We feed our volunteers three meals per day during MAGFest, and our chefs have an easier time planning meals
+when they know what kind of food restrictions we all have.
+
+<br/> <br/>
+
+<form method="post" action="food_restrictions">
+    {% csrf_token %}
+    
+    {% for val, desc in FOOD_RESTRICTION_OPTS %}
+    <input type="checkbox" name="standard" value="{{ val }}" /> {{ desc }} <br/>
+    {% endfor %}
+    
+    <br/> Let us know if you have any other allergies or restrictions: <br/>
+    <textarea name="freeform" rows="3" cols="80"></textarea>
+    
+    <br/> <br/> <input type="submit" value="Upload Restrictions" />
+</form>
+
+{% endblock %}

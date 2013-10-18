@@ -53,7 +53,7 @@ def generate_attendance_by_day_graph_data(last_day_of_magfest):
     return results
 
 
-@all_renderable(PEOPLE)
+@all_renderable(PEOPLE, STATS)
 class Root:
     def index(self):
         return {
