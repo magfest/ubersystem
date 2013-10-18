@@ -45,13 +45,14 @@ class HamptonInnHotelRoomChecker(HotelRoomChecker):
         # HACK: do this one more time, so the date from departureDate is 
         # auto-filled
         browser.fill('arrivalDate', night_date.strftime("%m/%d/%y"))
+        browser.fill('departureDate', (night_date+timedelta(1)).strftime("%m/%d/%y"))
 
         # click the submit button
         # browser.execute_script("submitForm(this, '_eventId_findRoom', true);")
         browser.find_by_name('_eventId_findRoom').first.click()
 
         list_items = browser.find_by_xpath('//*[@id="sortByRoom"]/div/ul/li')
-
+    
         if "The requested rate is not available for " in browser.html:
             return []
         
@@ -59,6 +60,7 @@ class HamptonInnHotelRoomChecker(HotelRoomChecker):
 
         # NOTE: not all list items are visible.
         for list_item in list_items:
+            #print list_item.html.encode('ascii', 'ignore')
 
             raw_room_info_str = list_item['class']
             style = list_item['style']
@@ -67,11 +69,11 @@ class HamptonInnHotelRoomChecker(HotelRoomChecker):
             if not "display: block;" in style:
                 break
 
-            room_type = list_item.find_by_xpath("div[2]/div[1]/h4").text
+            room_type = list_item.find_by_xpath("div[1]/h2").text
             room_type = room_type.replace('"', ' ').strip()
 
             # get the price, if it exists
-            price_text = list_item.find_by_xpath('div[2]/div[2]/form/span').text
+            price_text = list_item.find_by_xpath('//form/span').text
             price_text.strip()
             price = 0
 
