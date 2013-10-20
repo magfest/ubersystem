@@ -119,15 +119,19 @@ class TakesPaymentMixin(object):
                    datetime.combine((self.registered + timedelta(days = 14)).date(), time(23, 59)))
 
 def _night(name):
+    import constants
+    day = getattr(constants, name.upper())
     def lookup(self):
-        import constants
-        day = getattr(constants, name.upper())
-        if day not in dict(NIGHTS_OPTS):
-            raise AttributeError(name)
-        else:
-            return day if day in self.nights_ints else ""
+        return day if day in self.nights_ints else ""
     lookup.__name__ = name
-    return property(lookup)
+    lookup = property(lookup)
+    def setter(self, val):
+        if val:
+            self.nights = "{},{}".format(self.nights, day).strip(",")
+        else:
+            self.nights = ",".join([str(night) for night in self.nights_ints if night != day])
+    setter.__name__ = name
+    return lookup.setter(setter)
 
 class NightsMixin(object):
     @property
@@ -744,7 +748,7 @@ class HotelRequests(MagModel, NightsMixin):
     approved           = BooleanField(default = False)
     
     restricted = ["approved"]
-        
+    
     def __repr__(self):
         return "<{self.attendee.full_name} Hotel Requests>".format(self = self)
 

@@ -624,7 +624,13 @@ class Root:
     
     @ajax
     def assign_to_room(self, attendee_id, room_id):
-        RoomAssignment.objects.get_or_create(attendee_id=attendee_id, room_id=room_id)
+        ra, created = RoomAssignment.objects.get_or_create(attendee_id=attendee_id, room_id=room_id)
+        hr = ra.attendee.hotel_requests
+        if ra.room.wednesday or ra.room.sunday:
+            hr.approved = True
+        else:
+            hr.wednesday = hr.sunday = False
+        hr.save()
         return hotel_dump(Room.objects.get(id=room_id).department)
     
     @ajax
