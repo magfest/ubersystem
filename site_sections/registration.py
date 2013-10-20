@@ -606,14 +606,15 @@ class Root:
 
     @ajax
     def create_room(self, **params):
-        Room.objects.create(**params)
+        params["nights"] = list(filter(bool, [params.pop(night, None) for night in NIGHT_NAMES]))
+        Room.get(params).save()
         return hotel_dump(params["department"])
     
     @ajax
     def edit_room(self, **params):
-        room = Room.get(params)
-        room.save()
-        return hotel_dump(room.department)
+        params["nights"] = list(filter(bool, [params.pop(night, None) for night in NIGHT_NAMES]))
+        Room.get(params).save()
+        return hotel_dump(params["department"])
     
     @ajax
     def delete_room(self, id):
@@ -638,17 +639,19 @@ def hotel_dump(department):
     serialize = lambda attendee: {
         "id": attendee.id,
         "name": attendee.full_name,
+        "nights": getattr(attendee.hotel_requests, "nights_display", ""),
+        "approved": int(getattr(attendee.hotel_requests, "approved", False)),
         "departments": attendee.assigned_display
     }
-    rooms = [{
+    rooms = [dict({
         "id": room.id,
         "notes": room.notes,
-        "start": room.start,
-        "end": room.end,
-        "start_display": room.get_start_display(),
-        "end_display": room.get_end_display(),
+        "nights": room.nights_display,
+        "department": room.department,
         "attendees": [serialize(ra.attendee) for ra in room.roomassignment_set.order_by("attendee__first_name", "attendee__last_name").select_related()]
-    } for room in Room.objects.filter(department = department).order_by("id")]
+    }, **{
+        night: getattr(room, night) for night in NIGHT_NAMES
+    }) for room in Room.objects.filter(department = department).order_by("id")]
     assigned = sum([r["attendees"] for r in rooms], [])
     assigned_elsewhere = [serialize(ra.attendee)
         for ra in RoomAssignment.objects.exclude(room__department = department)
@@ -659,13 +662,20 @@ def hotel_dump(department):
         "rooms": rooms,
         "assigned": assigned,
         "assigned_elsewhere": assigned_elsewhere,
+        "declined": [serialize(a)
+            for a in Attendee.objects.filter(hotelrequests__isnull=False,
+                                             hotelrequests__nights="",
+                                             assigned_depts__contains=department)
+                                     .order_by("first_name", "last_name")],
         "unconfirmed": [serialize(a)
             for a in Attendee.objects.filter(hotelrequests__isnull=True,
                                              assigned_depts__contains=department)
-                                     .order_by("first_name", "last_name")],
+                                     .order_by("first_name", "last_name")
+            if a.id not in assigned_ids],
         "unassigned": [serialize(a)
             for a in Attendee.objects.filter(hotelrequests__isnull=False,
                                              assigned_depts__contains=department)
+                                     .exclude(hotelrequests__nights="")
                                      .order_by("first_name", "last_name")
             if a.id not in assigned_ids]
     }

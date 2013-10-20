@@ -13,7 +13,7 @@
             .factory("Hotel", function($http) {
                 $http.defaults.headers.common = {"CSRF-Token": "%__CSRF_TOKEN"};
                 var Hotel = {
-                    lists: ["rooms", "assigned", "unassigned", "unconfirmed", "assigned_elsewhere"],
+                    lists: ["rooms", "assigned", "unassigned", "unconfirmed", "assigned_elsewhere", "declined"],
                     _set: function(dst, src) {
                         dst.splice.apply(dst, [0, dst.length].concat(src));
                     },
@@ -48,6 +48,11 @@
                 angular.forEach(Hotel.lists, function(name) {
                     $scope[name] = Hotel[name];
                 });
+                $scope.wrongNights = function(room, attendee) {
+                    return room.nights.indexOf(attendee.nights) === -1
+                        || room.nights.indexOf("Wed") !== -1 && attendee.nights.indexOf("Wed") === -1
+                        || room.nights.indexOf("Sun") !== -1 && attendee.nights.indexOf("Sun") === -1;
+                };
                 $scope.remove = function(attendee_id) {
                     $http({
                         method: "post",
@@ -66,8 +71,9 @@
             .controller("CreateController", function($scope, $http, $location, Hotel) {
                 $scope.room = {
                     department: %__department,
-                    start: %__THURSDAY,
-                    end: %__SUNDAY,
+                    thursday: "%__THURSDAY",
+                    friday: "%__FRIDAY",
+                    saturday: "%__SATURDAY",
                     notes: ""
                 };
                 $scope.save = function() {

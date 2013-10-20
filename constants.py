@@ -444,6 +444,8 @@ NIGHTS_OPTS = enum(
     SATURDAY  = "Sat",
     SUNDAY    = "Sun"
 )
+ORDERED_NIGHTS = [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY]
+NIGHT_NAMES = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
 FOOD_RESTRICTION_OPTS = enum(
     VEGETARIAN = "Vegetarian",

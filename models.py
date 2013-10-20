@@ -53,6 +53,12 @@ class MagModel(Model):
     def __eq__(self, m):
         return isinstance(m, self.__class__) and self.id == m.id and getattr(self, "secret_id", None) == getattr(m, "secret_id", None)
     
+    def __getattr__(self, name):
+        if name.endswith("_ints"):
+            val = getattr(self, name[:-5])
+            return [int(i) for i in val.split(",")] if val else []
+        raise AttributeError(name)
+    
     @classmethod
     def get(cls, params, bools=[], checkgroups=[], allowed=[], restricted=False, ignore_csrf=False):
         params = params.copy()
@@ -111,6 +117,25 @@ class TakesPaymentMixin(object):
     def payment_deadline(self):
         return min(state.UBER_TAKEDOWN - timedelta(days = 2),
                    datetime.combine((self.registered + timedelta(days = 14)).date(), time(23, 59)))
+
+def _night(name):
+    def lookup(self):
+        import constants
+        day = getattr(constants, name.upper())
+        if day not in dict(NIGHTS_OPTS):
+            raise AttributeError(name)
+        else:
+            return day if day in self.nights_ints else ""
+    lookup.__name__ = name
+    return property(lookup)
+
+class NightsMixin(object):
+    @property
+    def nights_display(self):
+        ordered = sorted(self.nights_ints, key=lambda i: ORDERED_NIGHTS.index(i))
+        return " / ".join(dict(NIGHTS_OPTS)[val] for val in ordered)
+    
+    locals().update({name: _night(name) for name in NIGHT_NAMES})
 
 
 
@@ -710,7 +735,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         except:
             return None
 
-class HotelRequests(MagModel):
+class HotelRequests(MagModel, NightsMixin):
     attendee           = OneToOneField(Attendee)
     nights             = MultiChoiceField(choices = NIGHTS_OPTS)
     wanted_roommates   = TextField()
@@ -719,15 +744,7 @@ class HotelRequests(MagModel):
     approved           = BooleanField(default = False)
     
     restricted = ["approved"]
-    
-    def __getattr__(self, name):
-        import constants
-        day = getattr(constants, name.upper())
-        if day not in dict(NIGHTS_OPTS):
-            raise AttributeError()
-        else:
-            return str(day) in self.nights.split(",")
-    
+        
     def __repr__(self):
         return "<{self.attendee.full_name} Hotel Requests>".format(self = self)
 
@@ -757,11 +774,10 @@ class SeasonPassTicket(MagModel):
     attendee = ForeignKey(Attendee)
     slug = CharField(max_length = 99)
 
-class Room(MagModel):
+class Room(MagModel, NightsMixin):
     department = IntegerField(choices = JOB_LOC_OPTS)
     notes      = CharField(max_length = 255, default = "")
-    start      = IntegerField(choices = NIGHTS_OPTS)
-    end        = IntegerField(choices = NIGHTS_OPTS)
+    nights     = MultiChoiceField(choices = NIGHTS_OPTS)
 
 class RoomAssignment(MagModel):
     room     = ForeignKey(Room)

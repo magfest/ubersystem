@@ -10,7 +10,7 @@ ignore this page or use it to manage your people.
 
 <table style="width:auto">
 <tr ng-repeat="room in rooms"><td style="border:1px solid black">
-    <b>{{ room.start_display }} - {{ room.end_display }}</b> &nbsp;
+    <b>{{ room.nights }}</b> &nbsp;
     <a href="#/edit-room/{{ room.id }}">Edit</a> &nbsp;
     <button ng-click="deleteRoom(room.id)">Delete</button>
     <div ng-if="room.notes" style="font-style:italic">{{ room.notes }}</div>
@@ -18,13 +18,15 @@ ignore this page or use it to manage your people.
         <table>
             <tr ng-repeat="attendee in room.attendees">
                 <td> <a href="form?id={{ attendee.id }}">{{ attendee.name }}</a> </td>
+                <td> &nbsp; {{ attendee.nights }} </td>
                 <td> &nbsp; <button ng-click="remove(attendee.id)">Remove</button> </td>
+                <td> &nbsp; <span ng-if="wrongNights(room, attendee)" style="color:red">Room nights don't match attendee's requested nights</span> </td>
             </tr>
         </table>
         <div ng-controller="AddController">
             <div ng-if="unassigned.length">
                 Add an attendee:
-                <select ng-model="assignment.attendee_id" ng-options="attendee.id as attendee.name for attendee in unassigned"></select>
+                <select ng-model="assignment.attendee_id" ng-options="attendee.id as attendee.name + ' (' + attendee.nights + ')' for attendee in unassigned"></select>
                 <button ng-click="add()">Add to Room</button>
             </div>
         </div>
@@ -37,7 +39,7 @@ ignore this page or use it to manage your people.
     <td valign="top">
         <br/> <b>{{ unassigned.length }} Unassigned Attendees</b>
         <div ng-repeat="attendee in unassigned">
-            <a href="form?id={{ attendee.id }}">{{ attendee.name }}</a>
+            <a href="form?id={{ attendee.id }}">{{ attendee.name }}</a> ({{ attendee.nights }})
         </div>
     </td>
     <td valign="top">
@@ -55,6 +57,12 @@ ignore this page or use it to manage your people.
     <td valign="top">
         <b>{{ assigned_elsewhere.length }} Already Assigned<br/>(in another department)</b>
         <div ng-repeat="attendee in assigned_elsewhere">
+            <a href="form?id={{ attendee.id }}">{{ attendee.name }}</a>
+        </div>
+    </td>
+    <td valign="top">
+        <br/> <b>{{ declined.length }} declined hotel space</b>
+        <div ng-repeat="attendee in declined">
             <a href="form?id={{ attendee.id }}">{{ attendee.name }}</a>
         </div>
     </td>

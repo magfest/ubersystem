@@ -2,23 +2,16 @@
 
 <table style="width:auto">
 <tr>
-    <td><b>Check In</b></td>
+    <td valign="top"><b>Nights</b></td>
     <td>
-        <select ng-model="room.start">
-            <option value="%__TUESDAY">Tuesday</option>
-            <option value="%__WEDNESDAY">Wednesday</option>
-            <option value="%__THURSDAY">Thursday</option>
-            <option value="%__FRIDAY">Friday</option>
-        </select>
-    </td>
-</tr>
-<tr>
-    <td><b>Check Out</b></td>
-    <td>
-        <select ng-model="room.end">
-            <option value="%__SUNDAY">Sunday</option>
-            <option value="%__MONDAY">Monday</option>
-        </select>
+        <input type="checkbox" ng-model="room.tuesday"   ng-true-value="%__TUESDAY"   ng-false-value="" ng-checked="room.tuesday"  > Tuesday night (for early setup volunteers) <br/>
+        <input type="checkbox" ng-model="room.wednesday" ng-true-value="%__WEDNESDAY" ng-false-value="" ng-checked="room.wednesday"> Wednesday night (for setup volunteers) <br/>
+        <input type="checkbox" ng-model="room.thursday"  ng-true-value="%__THURSDAY"  ng-false-value="" ng-checked="room.thursday" > Thursday night <br/>
+        <input type="checkbox" ng-model="room.friday"    ng-true-value="%__FRIDAY"    ng-false-value="" ng-checked="room.friday"   > Friday night <br/>
+        <input type="checkbox" ng-model="room.saturday"  ng-true-value="%__SATURDAY"  ng-false-value="" ng-checked="room.saturday" > Saturday night <br/>
+        <input type="checkbox" ng-model="room.sunday"    ng-true-value="%__SUNDAY"    ng-false-value="" ng-checked="room.sunday"   > Sunday night (for teardown volunteers)
+        <br/> <br/>
+        If you need nights before/after the range listed above, just mention it in the notes below.
     </td>
 </tr>
 <tr>
@@ -28,7 +21,8 @@
 <tr>
     <td></td>
     <td>
-        <button ng-click="save()">Save</button> &nbsp; <button ng-click="cancel()">Cancel</button>
+        <button ng-click="save()">Save</button> &nbsp;
+        <button ng-click="cancel()">Cancel</button>
     </td>
 </tr>
 </table>
