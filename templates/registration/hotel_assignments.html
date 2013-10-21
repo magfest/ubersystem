@@ -22,10 +22,10 @@
                             Hotel._set(Hotel[name], data[name]);
                         });
                     },
-                    get: function(id) {
-                        for(var i=0, room; room=this.rooms[i]; i++) {
-                            if (room.id == id) {
-                                return room;
+                    get: function(name, id) {
+                        for(var i=0, x; x=this[name][i]; i++) {
+                            if (x.id == id) {
+                                return x;
                             }
                         }
                     }
@@ -49,9 +49,7 @@
                     $scope[name] = Hotel[name];
                 });
                 $scope.wrongNights = function(room, attendee) {
-                    return room.nights.indexOf(attendee.nights) === -1
-                        || room.nights.indexOf("Wed") !== -1 && attendee.nights.indexOf("Wed") === -1
-                        || room.nights.indexOf("Sun") !== -1 && attendee.nights.indexOf("Sun") === -1;
+                    return room.nights.replace("Tue / ", "") != attendee.nights;
                 };
                 $scope.remove = function(attendee_id) {
                     $http({
@@ -91,7 +89,7 @@
                 };
             })
             .controller("EditController", function($scope, $http, $location, $routeParams, Hotel) {
-                $scope.room = Hotel.get($routeParams.roomId);
+                $scope.room = Hotel.get("rooms", $routeParams.roomId);
                 $scope.save = function() {
                     $http({
                         method: "post",
@@ -112,11 +110,17 @@
                     attendee_id: $scope.unassigned[0] && $scope.unassigned[0].id
                 };
                 $scope.add = function() {
-                    $http({
-                        method: "post",
-                        url: "assign_to_room",
-                        params: $scope.assignment
-                    }).success(Hotel.set).error(errorPlaceholder);
+                    var room = Hotel.get("rooms", $scope.assignment.room_id);
+                    var attendee = Hotel.get("unassigned", $scope.assignment.attendee_id);
+                    var limited = $scope.wrongNights(room, attendee) 
+                               && (room.nights.indexOf("Wed") === -1 || room.nights.indexOf("Sun") === -1);
+                    if (!limited || confirm("This attendee has requested setup/teardown and you are assigning them to a regular room, wnich will automatically decline their request to help with setup/teardown.")) {
+                        $http({
+                            method: "post",
+                            url: "assign_to_room",
+                            params: $scope.assignment
+                        }).success(Hotel.set).error(errorPlaceholder);
+                    }
                 };
             })
     </script>
