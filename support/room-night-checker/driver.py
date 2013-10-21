@@ -2,7 +2,7 @@ from utils import *
 from splinter import Browser
 from datetime import timedelta
 import datetime
-import sys
+import sys, traceback
 
 from hotel_base import *
 from hotel_gaylord import *
@@ -23,7 +23,8 @@ def CheckAllNights(hotels_to_check, night_start, night_end):
             results = hotel_to_check.check_nights(nights, browser)
             hotel_results.append(results)
     except:
-        # sys.exit(-1)
+        print "Exception encountered!"
+        traceback.print_exc(file=sys.stdout)
         raise
     else:
         browser.quit()
