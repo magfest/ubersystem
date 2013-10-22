@@ -340,6 +340,7 @@ JOB_LOC_OPTS = enum(
     REGDESK       = "Regdesk",
     RESCUERS      = "Rescuers",
     SECURITY      = "Security",
+    SHEDSPACE     = "Shedspace",
     STAFF_SUPPORT = "Staff Support",
     STOPS         = "Staffing Ops",
     TABLETOP      = "Tabletop",
