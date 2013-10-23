@@ -9,10 +9,11 @@ night_start = datetime.date(2013, 12, 31)
 night_end = datetime.date(2014, 1, 7)
 
 # test only
-#night_start = datetime.date(2014, 1, 4)
-#night_end = datetime.date(2014, 1, 5)
+#night_start = datetime.date(2014, 1, 2)
+#night_end = datetime.date(2014, 1, 3)
 
 hotels_to_check = []
+hotels_to_check.append(WestinHotelRoomChecker())
 hotels_to_check.append(GaylordHotelRoomChecker())
 hotels_to_check.append(HamptonInnHotelRoomChecker())
 
