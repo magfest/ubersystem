@@ -53,7 +53,7 @@ class HamptonInnHotelRoomChecker(HotelRoomChecker):
 
         list_items = browser.find_by_xpath('//*[@id="sortByRoom"]/div/ul/li')
     
-        if "The requested rate is not available for " in browser.html:
+        if "The requested rate is not available" in browser.html:
             return []
         
         rooms = []
