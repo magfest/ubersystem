@@ -13,7 +13,7 @@ EARLY_GROUP_PRICE = 30
 LATE_GROUP_PRICE  = 35
 
 class State:
-    SEND_EMAILS = False
+    SEND_EMAILS = True
     
     AT_THE_CON = False
     POST_CON = False
