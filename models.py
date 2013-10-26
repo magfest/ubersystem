@@ -139,7 +139,7 @@ class NightsMixin(object):
         ordered = sorted(self.nights_ints, key=lambda i: ORDERED_NIGHTS.index(i))
         return " / ".join(dict(NIGHTS_OPTS)[val] for val in ordered)
     
-    locals().update({name: _night(name) for name in NIGHT_NAMES})
+    locals().update({mutate(name): _night(mutate(name)) for name in NIGHT_NAMES for mutate in [str.upper, str.lower]})
 
 
 
