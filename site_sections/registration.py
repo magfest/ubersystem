@@ -506,9 +506,9 @@ class Root:
     
     def hotel_eligible(self):
         by_dept = defaultdict(list)
-        for attendee in Attendee.objects.filter(badge_type = STAFF_BADGE).order_by("first_name","last_name"):
-            for dept in attendee.assigned_display:
-                by_dept[dept].append(attendee)
+        for attendee in Attendee.objects.filter(badge_type = STAFF_BADGE).order_by("first_name", "last_name"):
+            for dept,disp in zip(attendee.assigned, attendee.assigned_display):
+                by_dept[dept,disp].append(attendee)
         return {"by_dept": sorted(by_dept.items())}
     
     @csv_file

@@ -4,8 +4,8 @@
 
 <h2>Hotel Eligible Staffers by Department</h2>
 
-{% for department,staffers in by_dept %}
-    <h3>{{ department }}</h3>
+{% for dept, staffers in by_dept %}
+    <a name="{{ dept.0 }}"></a><h3>{{ dept.1 }}</h3>
     <table style="width:auto ; margin-left:25px">
     {% for attendee in staffers %}
         <tr>

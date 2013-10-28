@@ -176,7 +176,10 @@ Reminder(Attendee, "Personalized MAGFest badges will be ordered next week", "per
 DeptHeadReminder("Assign MAGFest hotel rooms for your department", "room_assignments.txt",
                  lambda a: len(a.assigned) == 1 and days_before(45, state.ROOM_DEADLINE))
 
-DeptHeadReminder("Hotel reminder for MAGFest department heads", "dept_head_rooms.txt",
+DeptHeadReminder("Reminder for MAGFest department heads to double-check their staffers", "dept_head_rooms.txt",
+                 lambda a: days_before(37, state.ROOM_DEADLINE))
+
+DeptHeadReminder("Last reminder for MAGFest department heads to double-check their staffers", "dept_head_rooms.txt",
                  lambda a: days_before(7, state.ROOM_DEADLINE))
 
 DeptHeadReminder("Last chance for Department Heads to get Staff badges for your people", "dept_head_badges.txt",
