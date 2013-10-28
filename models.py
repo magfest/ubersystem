@@ -139,6 +139,10 @@ class NightsMixin(object):
         ordered = sorted(self.nights_ints, key=lambda i: ORDERED_NIGHTS.index(i))
         return " / ".join(dict(NIGHTS_OPTS)[val] for val in ordered)
     
+    @property
+    def setup_teardown(self):
+        return self.wednesday or self.sunday
+    
     locals().update({mutate(name): _night(mutate(name)) for name in NIGHT_NAMES for mutate in [str.upper, str.lower]})
 
 
@@ -719,13 +723,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             return None
     
     @cached_property
-    def food_restrictions(self):
-        try:
-            return self.foodrestrictions
-        except:
-            return None
-    
-    @cached_property
     def hotel_nights(self):
         try:
             return [dict(NIGHTS_OPTS)[night] for night in map(int, self.hotel_requests.nights.split(","))]
@@ -736,6 +733,25 @@ class Attendee(MagModel, TakesPaymentMixin):
     def room_assignment(self):
         try:
             return self.roomassignment
+        except:
+            return None
+    
+    @cached_property
+    def hotel_status(self):
+        hr = self.hotel_requests
+        if not hr:
+            return 'Has not filled out volunteer checklist'
+        elif not hr.nights:
+            return 'Declined hotel space'
+        elif hr.setup_teardown:
+            return 'Hotel nights: {} ({})'.format(hr.nights_display, 'approved' if hr.approved else 'not yet approved')
+        else:
+            return 'Hotel nights: ' + hr.nights_display
+    
+    @cached_property
+    def food_restrictions(self):
+        try:
+            return self.foodrestrictions
         except:
             return None
 

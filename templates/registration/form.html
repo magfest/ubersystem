@@ -127,9 +127,6 @@
             {{ attendee.badge }}
             {% if attendee.group %}(<a href="../groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>){% endif %}
             &nbsp;&nbsp; [<a href="change_badge?id={{ attendee.id }}">Change</a>]
-            {% if attendee.staffer %}
-                &nbsp;&nbsp; (<a href="../staffing/form?id={{ attendee.staffer.id }}">Staffing Info</a>)
-            {% endif %}
         {% else %}
             <select name="badge_type" onChange="boldOrRegular(); setBadgeMessage()">
                 {% options BADGE_OPTS attendee.badge_type %}
@@ -146,6 +143,9 @@
         </select>
         {% if AT_THE_CON and not attendee.badge_num %}
             <br/> <input type="checkbox" name="omit_badge" value="yes" {% if omit_badge %}checked{% endif %} /> Omit badge number
+        {% endif %}
+        {% if attendee.badge_type == STAFF_BADGE %}
+            &nbsp;&nbsp; [{{ attendee.hotel_status }}]
         {% endif %}
     </td>
 </tr>
