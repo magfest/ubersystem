@@ -2,6 +2,6 @@
 
 Most department heads let STOPS manage hotel rooms for our volunteers, but sometimes a department head wants to personally make room assignments.  In the past this has been done with emails and spreadsheets, but this year we have a snazzy new way to do it through Uber.
 
-So if you want to just leave room assignments alone and let STOPS handle it, you can safely ignore this email.  But if you want to meke sure that some specific room assignments are created, you can visit {{ URL_BASE }}/registration/hotel_assignments?department={{ attendee.assigned_depts }} to make room assignments for your department ({{ attendee.assigned_display.0 }}).  The deadline is {{ ROOM_DEADLINE }}, so please make sure to make your assignments by then.
+So if you want to just leave room assignments alone and let STOPS handle it, you can safely ignore this email.  But if you want to meke sure that some specific room assignments are created, you can visit {{ URL_BASE }}/registration/hotel_assignments?department={{ attendee.assigned_depts }} to make room assignments for your department ({{ attendee.assigned_display.0 }}).  The deadline is {{ ROOM_DEADLINE|datetime }}, so please make sure to make your assignments by then.
 
 {{ STOPS_EMAIL_SIGNATURE }}
