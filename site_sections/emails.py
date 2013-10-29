@@ -94,7 +94,7 @@ MarketplaceReminder("MAGFest Dealer waitlist has been exhausted", "dealer_waitli
 
 
 MarketplaceReminder("Your MAGFest Dealer registration has been approved", "dealer_approved.html",
-         lambda g: g.status == APPROVED)
+                    lambda g: g.status == APPROVED)
 
 Reminder(Attendee, "MAGFest payment received", "attendee_confirmation.html",
          lambda a: a.paid == HAS_PAID)
@@ -118,8 +118,8 @@ Reminder(Attendee, "MAGFest Panelist Badge Confirmation", "panelist_confirmation
          sender = PANELS_EMAIL)
 
 StopsReminder("MAGFest Volunteer Badge Confirmation", "volunteer_confirmation.txt",
-         lambda a: a.placeholder and a.first_name and a.last_name
-                                 and a.registered.date() > state.STAFFERS_IMPORTED.date())
+              lambda a: a.placeholder and a.first_name and a.last_name
+                                      and a.registered.date() > state.STAFFERS_IMPORTED.date())
 
 Reminder(Attendee, "MAGFest Badge Confirmation Reminder", "confirmation_reminder.txt",
          lambda a: days_after(7, a.registered) and a.placeholder and a.first_name and a.last_name)
@@ -130,22 +130,25 @@ Reminder(Attendee, "Last Chance to Accept Your MAGFest Badge", "confirmation_rem
 
 
 StopsReminder("Want to staff MAGFest again?", "imported_staffer.txt",
-         lambda a: a.placeholder and a.badge_type == STAFF_BADGE 
-                                 and a.registered.date() <= state.STAFFERS_IMPORTED.date())
+              lambda a: a.placeholder and a.badge_type == STAFF_BADGE 
+                                      and a.registered.date() <= state.STAFFERS_IMPORTED.date())
 
 StopsReminder("MAGFest shifts available", "shifts_available.txt",
-         lambda a: state.SHIFTS_AVAILABLE and a.takes_shifts)
+              lambda a: state.SHIFTS_AVAILABLE and a.takes_shifts)
 
 StopsReminder("Reminder to sign up for MAGFest shifts", "shift_reminder.txt",
-         lambda a: days_after(30, max(a.registered, state.SHIFTS_CREATED))
-               and state.SHIFTS_AVAILABLE and not state.PREREG_CLOSED and a.takes_shifts and not a.hours)
+              lambda a: days_after(30, max(a.registered, state.SHIFTS_CREATED))
+                    and state.SHIFTS_AVAILABLE and not state.PREREG_CLOSED and a.takes_shifts and not a.hours)
 
 StopsReminder("Last chance to sign up for MAGFest shifts", "shift_reminder.txt",
-         lambda a: days_before(10, state.EPOCH) and state.SHIFTS_AVAILABLE and not state.PREREG_CLOSED
-                                                and a.takes_shifts and not a.hours)
+              lambda a: days_before(10, state.EPOCH) and state.SHIFTS_AVAILABLE and not state.PREREG_CLOSED
+                                                     and a.takes_shifts and not a.hours)
 
 StopsReminder("Still want to volunteer at MAGFest?", "volunteer_check.txt",
               lambda a: days_before(5, state.UBER_TAKEDOWN) and a.ribbon == VOLUNTEER_RIBBON and a.weighted_hours == 0)
+
+StopsReminder("MAGCon - the convention to plan MAGFest!", "magcon.txt",
+              lambda a: days_before(14, state.MAGCON))
 
 
 StopsReminder("Want volunteer hotel room space at MAGFest?", "hotel_rooms.txt",
