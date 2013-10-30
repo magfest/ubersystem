@@ -3,8 +3,9 @@ from common import *
 class Reminder:
     instances = OrderedDict()
     
-    def __init__(self, model, subject, template, filter, sender=REGDESK_EMAIL, extra_data=None):
-        self.model, self.subject, self.template, self.filter, self.sender = model, subject, template, filter, sender
+    def __init__(self, model, subject, template, filter, sender=REGDESK_EMAIL, extra_data=None, cc=None):
+        self.model, self.subject, self.template, self.filter, self.sender, self.cc = model, subject, template, filter, sender, cc
+        self.cc = cc or []
         self.extra_data = extra_data or {}
         self.instances[subject] = self
     
@@ -30,7 +31,7 @@ class Reminder:
         try:
             body = render("emails/" + self.template, dict({x.__class__.__name__.lower(): x}, **self.extra_data))
             format = "text" if self.template.endswith(".txt") else "html"
-            send_email(self.sender, x.email, self.subject, body, format, model = x)
+            send_email(self.sender, x.email, self.subject, body, format, model = x, cc=self.cc)
         except:
             log.error("error sending {!r} email to {}", self.subject, x.email, exc_info=True)
             if raise_errors:
@@ -48,8 +49,8 @@ class Reminder:
                         rem.send(x, raise_errors = raise_errors)
 
 class StopsReminder(Reminder):
-    def __init__(self, subject, template, filter):
-        Reminder.__init__(self, Attendee, subject, template, lambda a: a.staffing and filter(a), STAFF_EMAIL)
+    def __init__(self, subject, template, filter, cc=None):
+        Reminder.__init__(self, Attendee, subject, template, lambda a: a.staffing and filter(a), STAFF_EMAIL, cc=cc)
 
 class DeptHeadReminder(Reminder):
     def __init__(self, subject, template, filter):
@@ -166,14 +167,15 @@ StopsReminder("Reminder to meet your MAGFest hotel room requirements", "hotel_ho
 StopsReminder("Final reminder to meet your MAGFest hotel room requirements", "hotel_hours.txt",
               lambda a: days_before(7, state.UBER_TAKEDOWN) and a.hotel_shifts_required and a.weighted_hours < 30)
 
-
-
 StopsReminder("Last chance to personalize your MAGFest badge", "personalized_badge_reminder.txt",
-         lambda a: days_before(7, state.STAFF_BADGE_DEADLINE) and a.badge_type == STAFF_BADGE and a.placeholder)
+              lambda a: days_before(7, state.STAFF_BADGE_DEADLINE) and a.badge_type == STAFF_BADGE and a.placeholder)
 
 Reminder(Attendee, "Personalized MAGFest badges will be ordered next week", "personalized_badge_deadline.txt",
          lambda a: days_before(7, state.STAFF_BADGE_DEADLINE) and a.badge_type in [STAFF_BADGE, SUPPORTER_BADGE] and not a.placeholder)
 
+StopsReminder("MAGFest Tech Ops volunteering", "techops.txt",
+              lambda a: TECH_OPS in a.requested_depts_ints and TECH_OPS not in a.assigned,
+              cc = "magfest-tech-heads@googlegroups.com")
 
 
 DeptHeadReminder("Assign MAGFest hotel rooms for your department", "room_assignments.txt",
@@ -199,6 +201,8 @@ Reminder(Group, "Last chance to pre-assign MAGFest group badges", "group_preassi
 
 Reminder(Attendee, "MAGFest parental consent form reminder", "under_18_reminder.txt",
          lambda a: a.age_group == UNDER_18 and datetime.now() > state.EPOCH - timedelta(days = 7))
+
+
 
 DeptHeadReminder("MAGFest staffers need to be marked and rated", "postcon_hours.txt",
                  lambda a: state.POST_CON and len(a.assigned) == 1)
