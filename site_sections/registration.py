@@ -149,6 +149,10 @@ class Root:
         
         raise HTTPRedirect(return_to + ("" if return_to[-1] == "?" else "&") + "message={}", message)
     
+    def goto_volunteer_checklist(self, id):
+        cherrypy.session["staffer_id"] = id
+        raise HTTPRedirect("../signups/index")
+    
     @ajax
     def record_mpoint_usage(self, badge_num, amount):
         try:
