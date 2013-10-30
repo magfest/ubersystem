@@ -2,10 +2,10 @@
 
 We're asking all department heads to double-check that people you want to get hotel room space are in Uber as being hotel eligible.  Anyone not signed up for hotel space by {{ ROOM_DEADLINE|datetime }} won't get space in our staff rooms!
 
-You can see who in your department is currently eligible for hotel space at {{ URL_BASE }}/registration/hotel_eligible
+You can see who in your department is currently eligible for hotel space at {{ URL_BASE }}/registration/hotel_eligible#{{ attendee.assigned_depts }}
 
 If anyone should be receiving hotel space but isn't listed, please either give them a Staff badge in Uber or reply to this email to give STOPS a list of their names and email addresses.
 
-If you're managing hotel room space for your people internally, please let us know ASAP how many rooms you need and who will be staying in them.
+If you're managing hotel room space for your people internally, you can use the form at {{ URL_BASE }}/registration/hotel_assignments?department={{ attendee.assigned_depts }} but be sure to get the info entered by {{ ROOM_DEADLINE|datetime }}.
 
 {{ STOPS_EMAIL_SIGNATURE }}

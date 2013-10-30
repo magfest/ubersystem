@@ -1,0 +1,9 @@
+{{ attendee.first_name }},
+
+This year's "MAGCon" staff meeting starts at noon on November 9th at the Gaylord Hotel in room Chesapeake DEF.  This isn't just a department heads meeting - it's open to everyone who wants to get more involved and see how MAGFest is run.
+
+Limited crash space is available before and after for people from out of town.  We will also be attempting to stream this meeting (no promises).
+
+Let us know if you have any questions!
+
+{{ STOPS_EMAIL_SIGNATURE }}

@@ -13,7 +13,7 @@ EARLY_GROUP_PRICE = 30
 LATE_GROUP_PRICE  = 35
 
 class State:
-    SEND_EMAILS = False
+    SEND_EMAILS = True
     
     AT_THE_CON = False
     POST_CON = False
@@ -34,6 +34,7 @@ class State:
     DEALER_REG_DEADLINE  = datetime(2013,  8, 16, 23, 59)
     DEALER_REG_SHUTDOWN  = datetime(2013, 10, 30, 23, 59)
     DEALER_PAYMENT_DUE   = datetime(2013, 10, 31, 23, 59)
+    MAGCON               = datetime(2013, 11,  9, 12)
     ROOM_DEADLINE        = datetime(2013, 12,  1, 23, 59)
     STAFF_BADGE_DEADLINE = datetime(2013, 12,  1, 23, 59)
     PREREG_TAKEDOWN      = datetime(2013, 12, 22, 23, 59)

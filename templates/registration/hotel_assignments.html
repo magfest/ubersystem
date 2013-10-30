@@ -55,7 +55,10 @@
                     $http({
                         method: "post",
                         url: "unassign_from_room",
-                        params: {attendee_id: attendee_id}
+                        params: {
+                            attendee_id: attendee_id,
+                            department: "%__department"
+                        }
                     }).success(Hotel.set).error(errorPlaceholder);
                 };
                 $scope.deleteRoom = function(room_id) {

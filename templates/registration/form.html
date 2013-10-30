@@ -127,9 +127,6 @@
             {{ attendee.badge }}
             {% if attendee.group %}(<a href="../groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>){% endif %}
             &nbsp;&nbsp; [<a href="change_badge?id={{ attendee.id }}">Change</a>]
-            {% if attendee.staffer %}
-                &nbsp;&nbsp; (<a href="../staffing/form?id={{ attendee.staffer.id }}">Staffing Info</a>)
-            {% endif %}
         {% else %}
             <select name="badge_type" onChange="boldOrRegular(); setBadgeMessage()">
                 {% options BADGE_OPTS attendee.badge_type %}
@@ -146,6 +143,9 @@
         </select>
         {% if AT_THE_CON and not attendee.badge_num %}
             <br/> <input type="checkbox" name="omit_badge" value="yes" {% if omit_badge %}checked{% endif %} /> Omit badge number
+        {% endif %}
+        {% if attendee.badge_type == STAFF_BADGE %}
+            &nbsp;&nbsp; [{{ attendee.hotel_status }}]
         {% endif %}
     </td>
 </tr>
@@ -209,7 +209,7 @@
     <td>
         <!-- TODO: disable staffing checkbox when someone has a staff badge (and volunteer ribbon?) -->
         <!-- TODO: disable trusted checkbox unless attendee is staffing -->
-        {% checkbox attendee.staffing %} This attendee is staffing <br/>
+        {% checkbox attendee.staffing %} This attendee is {% if attendee.staffing and not attendee.placeholder %}<a href="goto_volunteer_checklist?id={{ attendee.id }}">staffing</a>{% else %}staffing{% endif %} <br/>
         {% checkbox attendee.trusted %} Trusted {% popup_link "../static/trustDesc.html" %}
     </td>
 </tr>

@@ -6,10 +6,10 @@
     function setApproved(approved, id, btn) {
         var $td = $(btn).parent("td");
         $td.find("button").attr("disabled", true);
-        $.getJSON("approve", {id: id, approved: approved}, function(resp) {
+        $.post("approve", {id: id, approved: approved, csrf_token: csrf_token}, function(resp) {
             $td.text(approved);
             $td.siblings(".nights").text(resp.nights);
-        });
+        }, "json");
     }
 </script>
 
