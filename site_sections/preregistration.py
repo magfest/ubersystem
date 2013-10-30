@@ -269,8 +269,8 @@ class Root:
     
     def add_group_members(self, id, count):
         group = Group.objects.get(secret_id = id)
-        if not group.can_add:
-            raise HTTPRedirect("group_members?id={}&message={}", group.secret_id, "This group cannot add badges")
+        if int(count) < group.min_badges_addable:
+            raise HTTPRedirect("group_members?id={}&message={}", group.secret_id, "This group cannot add fewer than {} badges".format(group.min_badges_addable))
         
         charge = Charge(group, amount = 100 * int(count) * state.GROUP_PRICE, description = "{} extra badges for {}".format(count, group.name))
         charge.badges_to_add = int(count)

@@ -393,6 +393,11 @@ class Group(MagModel, TakesPaymentMixin):
     @property
     def amount_unpaid(self):
         return (self.amount_owed - self.amount_paid) if self.id else self.badge_cost
+    
+    @property
+    def min_badges_addable(self):
+        return 1 if self.can_add else (
+               0 if self.is_dealer else 5)
 
 
 
