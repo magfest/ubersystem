@@ -8,6 +8,7 @@ from hotel_base import *
 from hotel_gaylord import *
 from hotel_hamptoninn import *
 from hotel_westin import *
+from hotel_marriott import *
 
 def CheckAllNights(hotels_to_check, night_start, night_end):
 
