@@ -45,6 +45,15 @@ class Root:
             'registrations': Attendee.objects.exclude(paid=NEED_NOT_PAY).count()
         }
     
+    def departments(self):
+        attendees = list(Attendee.objects.filter(staffing=True).order_by("first_name", "last_name"))
+        everything = []
+        for department, name in JOB_LOC_OPTS:
+            assigned = [a for a in attendees if department in a.assigned]
+            unassigned = [a for a in attendees if department in a.requested_depts_ints and a not in assigned]
+            everything.append([name, assigned, unassigned])
+        return {"everything": everything}
+    
     def found_how(self):
         return {
             "m6": m6,

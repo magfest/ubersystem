@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Volunteer Requests{% endblock %}
+{% block content %}
+
+{% for department, assigned, requested in everything %}
+    <h2> {{ department }} </h2>
+    <table style="text-align:center"><tr>
+        <td valign="top">
+            <h4> Assigned </h4>
+            {% for attendee in assigned %}
+                <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a> <br/>
+            {% endfor %}
+        </td>
+        <td valign="top">
+            <h4> Requested </h4>
+            {% for attendee in requested %}
+                <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a> <br/>
+            {% endfor %}
+        </td>
+    </tr></table>
+{% endfor %}
+
+{% endblock %}
