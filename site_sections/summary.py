@@ -87,3 +87,7 @@ class Root:
                 for category in ["vegetarian", "vegan", "gluten"]
             }
         }
+    
+    def ratings(self):
+        return {"attendees": [a for a in Attendee.objects.filter(staffing=True).order_by("first_name", "last_name")
+                                if "poorly" in a.past_years]}
