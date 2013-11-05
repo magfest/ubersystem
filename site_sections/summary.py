@@ -9,6 +9,7 @@ class Root:
         attendees = Attendee.objects.all()
         return {
             "total_count":   attendees.count(),
+            "shirt_sizes":   [(desc,attendees.filter(shirt=shirt).count()) for shirt,desc in SHIRT_OPTS],
             "paid_counts":   [(desc,attendees.filter(paid=status).count()) for status,desc in PAID_OPTS],
             "badge_counts":  [(desc,attendees.filter(badge_type=bt).count(),attendees.filter(badge_type=bt,paid=NOT_PAID).count(),attendees.filter(badge_type=bt,paid=HAS_PAID).count()) for bt,desc in BADGE_OPTS],
             "aff_counts":    [(name,attendees.filter(badge_type=SUPPORTER_BADGE,affiliate=aff,paid=HAS_PAID).count(),attendees.filter(badge_type=SUPPORTER_BADGE,affiliate=aff,paid=NOT_PAID).count()) for name,aff in affiliates(exclude={})+[("None","")]],
