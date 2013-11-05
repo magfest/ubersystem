@@ -9,10 +9,12 @@
 
 <h2> Members of "{{ group.name }}" </h2>
 
-{% if group.amount_unpaid %}
-    <div style="text-align:center">
-        {% stripe_form process_group_payment charge %}
-    </div>
+{% if group.amount_unpaid and group.status != WAITLISTED %}
+    {% if not group.is_dealer or group.status != UNAPPROVED %}
+        <div style="text-align:center">
+            {% stripe_form process_group_payment charge %}
+        </div>
+    {% endif %}
 {% endif %}
 
 <div style="margin:15px">
