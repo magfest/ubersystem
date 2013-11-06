@@ -42,8 +42,10 @@ class Root:
             counts['everything combined'].count(amount)
             counts[affiliate or 'no affiliate selected'].count(amount)
         return {
-            'counts': sorted(counts.items(), key=lambda tup: -tup[1].total),
-            'registrations': Attendee.objects.exclude(paid=NEED_NOT_PAY).count()
+            'counts': sorted(counts.items(), key=lambda tup: -tup[-1].total),
+            'registrations': Attendee.objects.exclude(paid=NEED_NOT_PAY).count(),
+            'quantities': [(desc, Attendee.objects.filter(amount_extra__gte=amount).count())
+                           for amount,desc in sorted(DONATION_TIERS.items()) if amount]
         }
     
     def departments(self):
