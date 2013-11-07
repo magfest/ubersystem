@@ -19,7 +19,8 @@ class Root:
             "interests":     [(desc,attendees.exclude(paid=NOT_PAID).filter(interests__contains=str(i)).count()) for i,desc in INTEREST_OPTS],
             "age_counts":    [(desc,attendees.filter(age_group=ag).count()) for ag,desc in AGE_GROUP_OPTS],
             "paid_group":    attendees.filter(paid=PAID_BY_GROUP, group__amount_paid__gt=0).count(),
-            "free_group":    attendees.filter(paid=PAID_BY_GROUP, group__amount_paid=0).count()
+            "free_group":    attendees.filter(paid=PAID_BY_GROUP, group__amount_paid=0).count(),
+            "shirt_sales":   [(i, Attendee.objects.filter(registered__lte=datetime.now() - timedelta(days = i * 7)).exclude(shirt=NO_SHIRT).count()) for i in range(50)]
         }
     
     def affiliates(self):

@@ -82,4 +82,20 @@ Of the "paid by group" badges,
     {% endfor %}
 </ul>
 
+<br/>
+<b>Shirt sales by week</b>
+<ul>
+    {% for weeks_ago,count in shirt_sales %}
+        {% if count %}
+            <li>
+                {% if weeks_ago == 0 %}
+                    We have currently sold {{ count }} shirts.
+                {% else %}
+                    <b>{{ weeks_ago }} week{{ weeks_ago|pluralize }} ago:</b> {{ count }} shirt{{ count|pluralize }}
+                {% endif %}
+            </li>
+        {% endif %}
+    {% endfor %}
+</ul>
+
 {% endblock %}
