@@ -530,7 +530,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             return self.overridden_price
         elif self.badge_type == ONE_DAY_BADGE:
             return ONEDAY_BADGE_PRICE
-        elif datetime.now() < state.PRICE_BUMP:
+        elif self.registered < state.PRICE_BUMP:
             return EARLY_BADGE_PRICE
         elif not state.AT_THE_CON:
             return LATE_BADGE_PRICE
