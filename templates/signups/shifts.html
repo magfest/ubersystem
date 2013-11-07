@@ -20,7 +20,8 @@
             .filter("hourDay", function() {
                 return function(timestamp) {
                     var d = new Date(timestamp * 1000);
-                    return d.toString("htt").toLowerCase() + " " + d.toString("dddd");
+                    var hour = d.toString("h");
+                    return (hour == "0" ? "12" : hour) + d.toString("tt").toLowerCase() + " " + d.toString("dddd");
                 };
             })
             .filter("popupLink", function() {
