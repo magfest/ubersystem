@@ -118,7 +118,6 @@ class Root:
             try:
                 Shift.objects.get(job_id=job_id, attendee=self.staffer).delete()
             except:
-
                 pass
             finally:
                 return {"jobs": json.loads(self._jobs())}

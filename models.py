@@ -853,7 +853,7 @@ class Job(MagModel):
             "weighted_hours": self.weighted_hours,
             "location_display": self.get_location_display(),
             "start_time": self.start_time.timestamp(),
-            "taken": any(cherrypy.session.get("staffer_id") == shift.attendee_id for shift in self.shift_set.all())
+            "taken": any(int(cherrypy.session.get("staffer_id", 0)) == shift.attendee_id for shift in self.shift_set.all())
         }
     
     @cached_property
