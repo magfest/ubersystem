@@ -718,7 +718,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @property
     def hotel_eligible(self):
-        return self.badge_type == STAFF_BADGE and self.assigned != [CONCERT] and self.assigned != [MARKETPLACE]
+        return self.badge_type == STAFF_BADGE
     
     @cached_property
     def hotel_requests(self):
