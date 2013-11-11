@@ -532,8 +532,10 @@ class Attendee(MagModel, TakesPaymentMixin):
             return ONEDAY_BADGE_PRICE
         elif (self.registered or datetime.now()) < state.PRICE_BUMP:
             return EARLY_BADGE_PRICE
-        elif not state.AT_THE_CON:
+        elif (self.registered or datetime.now()) < state.SECOND_PRICE_BUMP:
             return LATE_BADGE_PRICE
+        elif not state.AT_THE_CON:
+            return LATER_BADGE_PRICE
         else:
             return DOOR_BADGE_PRICE
     

@@ -43,8 +43,7 @@
             {% if now < PRICE_BUMP %}
                 <li style="color:red"> Price goes up to ${{ LATE_BADGE_PRICE }} at {{ PRICE_BUMP|datetime }} </li>
             {% else %}
-                <!-- <li style="color:red"> Preregistration closes at {{ PREREG_TAKEDOWN|datetime }}. </li> -->
-                <li style="color:red"> Price goes up to $50 at 11:59pm on Saturday, Nov 9.</li>
+                <li style="color:red"> Preregistration closes at {{ PREREG_TAKEDOWN|datetime }}. </li>
             {% endif %}
         </ul>
     </td>
@@ -61,8 +60,7 @@
             {% if now < PRICE_BUMP %}
                 <li style="color:red"> Price goes up to ${{ LATE_GROUP_PRICE }} at {{ PRICE_BUMP|datetime }} </li>
             {% else %}
-                <li style="color:red"> Price goes up to $40 at 11:59pm on Saturday, Nov 9.</li>
-                <!-- <li style="color:red"> Group preregistration closes at {{ PREREG_TAKEDOWN|datetime }} </li> -->
+                <li style="color:red"> Group preregistration closes at {{ PREREG_TAKEDOWN|datetime }} </li>
             {% endif %}
         </ul>
     </td>
