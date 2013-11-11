@@ -197,6 +197,7 @@ EVENT_LOC_OPTS = enum(
     TABLETOP_CCG = "Tabletop (CCG)",
     CONCERTS = "Concerts",
     CHIPTUNES = "Chiptunes",
+    SHEDSPACE = "Shedspace",
 )
 EVENT_LOCS = [loc for loc,desc in EVENT_LOC_OPTS]
 EVENT_BOOKED = {"colspan": 0}
