@@ -138,6 +138,6 @@ class Root:
             for dept,desc in JOB_LOC_OPTS:
                 pages["hotel assignments"].append({
                     "name": desc,
-                    "url": "/registration/hotel_assignments?id={}".format(dept)
+                    "path": "/registration/hotel_assignments?department={}".format(dept)
                 })
         return {"pages": sorted(pages.items())}
