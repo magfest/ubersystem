@@ -134,4 +134,10 @@ class Root:
                             "name": name.replace("_", " ").title(),
                             "path": "/{}/{}".format(module_name, name)
                         })
+        if PEOPLE in Account.access_set():
+            for dept,desc in JOB_LOC_OPTS:
+                pages["hotel assignments"].append({
+                    "name": desc,
+                    "url": "/registration/hotel_assignments?id={}".format(dept)
+                })
         return {"pages": sorted(pages.items())}
