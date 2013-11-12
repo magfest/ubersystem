@@ -17,11 +17,11 @@ python3.3 -m venv env
 source ./env/bin/activate
 python distribute_setup.py
 
-for pydep in Django psycopg2 py3k-bcrypt logging_unterpolation requests nose readline stripe
+mkdir -p ./env/local/bin
+touch ./env/local/bin/placeholder
+cp ./env/local/bin/* ./env/bin/
+
+for pydep in Django psycopg2 py3k-bcrypt logging_unterpolation requests nose readline stripe CherryPy
 do
-    ./env/local/bin/easy_install $pydep
+    ./env/bin/easy_install $pydep
 done
-
-echo "ubersystem install succeeded, but you need to install cherrypy manually from development."
-
-# need to install CherryPy from development
