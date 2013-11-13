@@ -560,6 +560,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.ribbon == DEALER_RIBBON or self.badge_type == PSEUDO_DEALER_BADGE
     
     @property
+    def is_dept_head(self):
+        return self.ribbon == DEPT_HEAD_RIBBON
+    
+    @property
     def unassigned_name(self):
         if self.group_id and self.is_unassigned:
             return "[Unassigned {self.badge}]".format(self = self)
