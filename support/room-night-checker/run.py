@@ -13,11 +13,11 @@ night_end = datetime.date(2014, 1, 7)
 #night_end = datetime.date(2014, 1, 3)
 
 hotels_to_check = []
+hotels_to_check.append(HamptonInnHotelRoomChecker())
 hotels_to_check.append(ALoftHotelRoomChecker())
 hotels_to_check.append(MarriottHotelRoomChecker())
 hotels_to_check.append(WestinHotelRoomChecker())
 hotels_to_check.append(GaylordHotelRoomChecker())
-hotels_to_check.append(HamptonInnHotelRoomChecker())
 
 with file_lock('/tmp/hotel-checker.lock'):
 

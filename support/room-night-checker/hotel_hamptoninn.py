@@ -73,7 +73,7 @@ class HamptonInnHotelRoomChecker(HotelRoomChecker):
             room_type = room_type.replace('"', ' ').strip()
 
             # get the price, if it exists
-            price_text = list_item.find_by_xpath('//form/span').text
+            price_text = list_item.find_by_xpath('descendant::form/span').text
             price_text.strip()
             price = 0
 
