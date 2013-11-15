@@ -29,7 +29,6 @@
 </table>
 
 <br/>
-
 <b>Affiliates</b>
 <table style="width:auto ; border-spacing:0px ; margin-left:15px">
 <tr>
@@ -49,7 +48,6 @@
 </table>
 
 <br/>
-
 <b>Paid</b>
 <ul style="margin-top:0px">
     {% for desc,count in paid_counts %}
@@ -61,7 +59,6 @@ Of the "paid by group" badges,
 <br/>{{ free_group }} were from groups that we didn't charge.
 
 <br/> <br/>
-
 <b>Interests of non-unpaid attendees</b>
 <ul style="margin-top:0px">
     {% for desc,count in interests %}
@@ -70,11 +67,34 @@ Of the "paid by group" badges,
 </ul>
 
 <br/>
-
 <b>Attendee ages</b>
 <ul style="margin-top:0px">
     {% for desc,count in age_counts %}
         <li> <i>{{ desc }}:</i> {{ count }} </li>
+    {% endfor %}
+</ul>
+
+<br/>
+<b>Shirt Sizes</b>
+<ul>
+    {% for desc,count in shirt_sizes %}
+        <li>{{ desc }}: {{ count }}</li>
+    {% endfor %}
+</ul>
+
+<br/>
+<b>Shirt sales by week</b>
+<ul>
+    {% for weeks_ago,count in shirt_sales %}
+        {% if count %}
+            <li>
+                {% if weeks_ago == 0 %}
+                    We have currently sold {{ count }} shirts.
+                {% else %}
+                    <b>{{ weeks_ago }} week{{ weeks_ago|pluralize }} ago:</b> {{ count }} shirt{{ count|pluralize }}
+                {% endif %}
+            </li>
+        {% endif %}
     {% endfor %}
 </ul>
 

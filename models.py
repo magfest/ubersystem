@@ -393,6 +393,11 @@ class Group(MagModel, TakesPaymentMixin):
     @property
     def amount_unpaid(self):
         return (self.amount_owed - self.amount_paid) if self.id else self.badge_cost
+    
+    @property
+    def min_badges_addable(self):
+        return 1 if self.can_add else (
+               0 if self.is_dealer else 5)
 
 
 
@@ -525,10 +530,12 @@ class Attendee(MagModel, TakesPaymentMixin):
             return self.overridden_price
         elif self.badge_type == ONE_DAY_BADGE:
             return ONEDAY_BADGE_PRICE
-        elif datetime.now() < state.PRICE_BUMP:
+        elif (self.registered or datetime.now()) < state.PRICE_BUMP:
             return EARLY_BADGE_PRICE
-        elif not state.AT_THE_CON:
+        elif (self.registered or datetime.now()) < state.SECOND_PRICE_BUMP:
             return LATE_BADGE_PRICE
+        elif not state.AT_THE_CON:
+            return LATER_BADGE_PRICE
         else:
             return DOOR_BADGE_PRICE
     
@@ -551,6 +558,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def is_dealer(self):
         return self.ribbon == DEALER_RIBBON or self.badge_type == PSEUDO_DEALER_BADGE
+    
+    @property
+    def is_dept_head(self):
+        return self.ribbon == DEPT_HEAD_RIBBON
     
     @property
     def unassigned_name(self):
@@ -713,7 +724,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @property
     def hotel_eligible(self):
-        return self.badge_type == STAFF_BADGE and self.assigned != [CONCERT] and self.assigned != [MARKETPLACE]
+        return self.badge_type == STAFF_BADGE
     
     @cached_property
     def hotel_requests(self):
@@ -848,7 +859,7 @@ class Job(MagModel):
             "weighted_hours": self.weighted_hours,
             "location_display": self.get_location_display(),
             "start_time": self.start_time.timestamp(),
-            "taken": any(cherrypy.session.get("staffer_id") == shift.attendee_id for shift in self.shift_set.all())
+            "taken": any(int(cherrypy.session.get("staffer_id", 0)) == shift.attendee_id for shift in self.shift_set.all())
         }
     
     @cached_property

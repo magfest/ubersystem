@@ -50,7 +50,7 @@ def csv_file(func):
         cherrypy.response.headers["Content-Disposition"] = "attachment; filename=" + func.__name__ + ".csv"
         writer = StringIO()
         func(self, csv.writer(writer))
-        return writer.getvalue()
+        return writer.getvalue().encode("utf-8")
     return csvout
 
 
@@ -164,6 +164,7 @@ class all_renderable:
                 func.restricted = getattr(func, "restricted", self.needs_access)
                 new_func = show_queries(restricted(renderable(func)))
                 new_func.exposed = True
+                new_func._orig = func
                 setattr(klass, name, new_func)
         return klass
 

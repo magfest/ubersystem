@@ -17,7 +17,7 @@ ignore this page or use it to manage your people.
     <div style="margin-top:5px">
         <table>
             <tr ng-repeat="attendee in room.attendees">
-                <td> <a href="form?id={{ attendee.id }}">{{ attendee.name }}</a> </td>
+                <td> <a href="#/attendee/{{ attendee.id }}">{{ attendee.name }}</a> </td>
                 <td> &nbsp; {{ attendee.nights }} </td>
                 <td> &nbsp; <button ng-click="remove(attendee.id)">Remove</button> </td>
                 <td> &nbsp; <span ng-if="wrongNights(room, attendee)" style="color:red">Room nights don't match attendee's requested nights</span> </td>
@@ -39,13 +39,13 @@ ignore this page or use it to manage your people.
     <td valign="top">
         <br/> <b>{{ unassigned.length }} Unassigned Attendees</b>
         <div ng-repeat="attendee in unassigned">
-            <a href="form?id={{ attendee.id }}">{{ attendee.name }}</a> ({{ attendee.nights }})
+            <a href="#/attendee/{{ attendee.id }}">{{ attendee.name }}</a> ({{ attendee.nights }})
         </div>
     </td>
     <td valign="top">
         <br/> <b>{{ assigned.length }} Already Assigned</b>
         <div ng-repeat="attendee in assigned">
-            <a href="form?id={{ attendee.id }}">{{ attendee.name }}</a>
+            <a href="#/attendee/{{ attendee.id }}">{{ attendee.name }}</a>
         </div>
     </td>
     <td valign="top">
@@ -57,7 +57,7 @@ ignore this page or use it to manage your people.
     <td valign="top">
         <b>{{ assigned_elsewhere.length }} Already Assigned<br/>(in another department)</b>
         <div ng-repeat="attendee in assigned_elsewhere">
-            <a href="form?id={{ attendee.id }}">{{ attendee.name }}</a>
+            <a href="#/attendee/{{ attendee.id }}">{{ attendee.name }}</a>
         </div>
     </td>
     <td valign="top">

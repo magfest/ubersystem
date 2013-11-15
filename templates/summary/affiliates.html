@@ -27,4 +27,10 @@
 {% endfor %}
 </table>
 
+<h3>Quantities</h3>
+
+{% for item, quantity in quantities %}
+    <b>{{ quantity }}</b>: {{ item }} <br/>
+{% endfor %}
+
 {% endblock %}

@@ -9,10 +9,12 @@
 
 <h2> Members of "{{ group.name }}" </h2>
 
-{% if group.amount_unpaid %}
-    <div style="text-align:center">
-        {% stripe_form process_group_payment charge %}
-    </div>
+{% if group.amount_unpaid and group.status != WAITLISTED %}
+    {% if not group.is_dealer or group.status != UNAPPROVED %}
+        <div style="text-align:center">
+            {% stripe_form process_group_payment charge %}
+        </div>
+    {% endif %}
 {% endif %}
 
 <div style="margin:15px">
@@ -73,19 +75,19 @@
 
 <br/>
 
-{% if group.can_add and not group.amount_unpaid %}
+{% if group.min_badges_addable and not group.amount_unpaid %}
     <div id="add" style="display:none">
         <form method="get" action="add_group_members">
         <input type="hidden" name="id" value="{{ group.secret_id }}" />
-        Enter a number of group members to add:
-        <select name="count">{% int_options 1 10 %}</select>
+        Enter a number of group members to add{% if group.min_badges_addable > 1 %} (you cannot add fewer than {{ group.min_badges_addable }} badges to an existing group){% endif %}: <br/>
+        <select name="count">{% int_options group.min_badges_addable 10 %}</select>
         <input type="submit" value="Add Members to Group">
         </form>
     </div>
     <script type="text/javascript">
         $(function(){
             $("body").append(
-                $('<a style="cursor:pointer">Click here to add more members to your group{% if not group.can_add and not group.amount_paid %} (after you pay you will be unable to add more badges){% endif %}.</a>').click(function(e){
+                $('<a style="cursor:pointer">Click here to add more members to your group.</a>').click(function(e){
                     $(e.target).hide();
                     $("#add").show();
                 }));

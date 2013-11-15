@@ -7,6 +7,7 @@ YEAR = 12
 
 EARLY_BADGE_PRICE = 40
 LATE_BADGE_PRICE  = 45
+LATER_BADGE_PRICE = 50
 DOOR_BADGE_PRICE  = 60
 
 EARLY_GROUP_PRICE = 30
@@ -30,6 +31,7 @@ class State:
     STAFFERS_IMPORTED    = datetime(2013,  7, 23)
     SHIFTS_CREATED       = datetime(2013, 10, 12, 23)
     PRICE_BUMP           = datetime(2013, 10, 31, 23, 59)
+    SECOND_PRICE_BUMP    = datetime(2013, 11,  9, 23, 59)
     DEALER_REG_START     = datetime(2013,  8,  8, 23, 59)
     DEALER_REG_DEADLINE  = datetime(2013,  8, 16, 23, 59)
     DEALER_REG_SHUTDOWN  = datetime(2013, 10, 30, 23, 59)
@@ -58,10 +60,12 @@ class State:
     def BADGE_PRICE(self):
         if datetime.now() < self.PRICE_BUMP:
             return EARLY_BADGE_PRICE
+        elif datetime.now() < self.SECOND_PRICE_BUMP:
+            return LATE_BADGE_PRICE
         elif state.AT_THE_CON:
             return DOOR_BADGE_PRICE
         else:
-            return LATE_BADGE_PRICE
+            return LATER_BADGE_PRICE
     
     @property
     def GROUP_PRICE(self):
@@ -193,6 +197,7 @@ EVENT_LOC_OPTS = enum(
     TABLETOP_CCG = "Tabletop (CCG)",
     CONCERTS = "Concerts",
     CHIPTUNES = "Chiptunes",
+    SHEDSPACE = "Shedspace",
 )
 EVENT_LOCS = [loc for loc,desc in EVENT_LOC_OPTS]
 EVENT_BOOKED = {"colspan": 0}
@@ -327,6 +332,7 @@ JOB_INTEREST_OPTS = enum(
 JOB_LOC_OPTS = enum(
     ARCADE        = "Arcade",
     CHALLENGES    = "Challenges",
+    CHIPSPACE     = "Chipspace",
     CONCERT       = "Concert",
     CONSOLE       = "Consoles",
     CON_OPS       = "Fest Ops",
@@ -338,6 +344,7 @@ JOB_LOC_OPTS = enum(
     LAN           = "LAN",
     MARKETPLACE   = "Marketplace",
     MERCH         = "Merchandise",
+    MOPS          = "MAGmedia",
     REGDESK       = "Regdesk",
     RESCUERS      = "Rescuers",
     SECURITY      = "Security",

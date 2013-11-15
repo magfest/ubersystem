@@ -174,8 +174,7 @@ Reminder(Attendee, "Personalized MAGFest badges will be ordered next week", "per
          lambda a: days_before(7, state.STAFF_BADGE_DEADLINE) and a.badge_type in [STAFF_BADGE, SUPPORTER_BADGE] and not a.placeholder)
 
 StopsReminder("MAGFest Tech Ops volunteering", "techops.txt",
-              lambda a: TECH_OPS in a.requested_depts_ints and TECH_OPS not in a.assigned,
-              cc = "magfest-tech-heads@googlegroups.com")
+              lambda a: TECH_OPS in a.requested_depts_ints and TECH_OPS not in a.assigned)
 
 
 DeptHeadReminder("Assign MAGFest hotel rooms for your department", "room_assignments.txt",

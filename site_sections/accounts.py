@@ -116,3 +116,28 @@ class Root:
     def delete(self, id):
         Account.objects.filter(id=id).delete()
         raise HTTPRedirect("index?message={}", "Account deleted")
+    
+    @unrestricted
+    def sitemap(self):
+        import inspect
+        import site_sections
+        modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith("_")}
+        pages = defaultdict(list)
+        for module_name, module in modules.items():
+            for name in dir(module.Root):
+                method = getattr(module.Root, name)
+                if getattr(method, "exposed", False):
+                    spec = inspect.getfullargspec(method._orig)
+                    if len(spec.args[1:]) == len(spec.defaults or []) and not spec.varkw \
+                                    and set(method.restricted or []).intersection(Account.access_set()):
+                        pages[module_name].append({
+                            "name": name.replace("_", " ").title(),
+                            "path": "/{}/{}".format(module_name, name)
+                        })
+        if PEOPLE in Account.access_set():
+            for dept,desc in JOB_LOC_OPTS:
+                pages["hotel assignments"].append({
+                    "name": desc,
+                    "path": "/registration/hotel_assignments?department={}".format(dept)
+                })
+        return {"pages": sorted(pages.items())}

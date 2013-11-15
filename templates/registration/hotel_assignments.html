@@ -13,13 +13,18 @@
             .factory("Hotel", function($http) {
                 $http.defaults.headers.common = {"CSRF-Token": "%__CSRF_TOKEN"};
                 var Hotel = {
-                    lists: ["rooms", "assigned", "unassigned", "unconfirmed", "assigned_elsewhere", "declined"],
+                    lists: ["rooms","assigned","unassigned","unconfirmed","assigned_elsewhere","declined","all_attendees"],
                     _set: function(dst, src) {
                         dst.splice.apply(dst, [0, dst.length].concat(src));
                     },
                     set: function(data) {
                         angular.forEach(Hotel.lists, function(name) {
-                            Hotel._set(Hotel[name], data[name]);
+                            Hotel._set(Hotel[name], data[name] || []);
+                        });
+                        angular.forEach(Hotel.lists, function(name) {
+                            if (name != "rooms" && name != "all_attendees") {
+                                Hotel.all_attendees.push.apply(Hotel.all_attendees, Hotel[name]);
+                            }
                         });
                     },
                     get: function(name, id) {
@@ -38,10 +43,11 @@
             })
             .config(function($routeProvider){
                 $routeProvider
-                    .when('/', {controller: "HotelController", templateUrl: 'ng_templates/hotel_schedule.html'})
-                    .when('/create-room', {controller: "CreateController", templateUrl: 'ng_templates/room_form.html'})
-                    .when('/edit-room/:roomId', {controller: "EditController", templateUrl: 'ng_templates/room_form.html'})
-                    .otherwise({redirectTo:'/'});
+                    .when("/", {controller: "HotelController", templateUrl: "ng_templates/hotel_schedule.html"})
+                    .when("/create-room", {controller: "CreateController", templateUrl: "ng_templates/room_form.html"})
+                    .when("/edit-room/:roomId", {controller: "EditController", templateUrl: "ng_templates/room_form.html"})
+                    .when("/attendee/:id", {controller: "AttendeeController", templateUrl: "ng_templates/attendee_hotel.html"})
+                    .otherwise({redirectTo:"/"});
             })
             .controller("HotelController", function($scope, $http, Hotel) {
                 $scope.department_name = "%__department_name";
@@ -126,6 +132,9 @@
                     }
                 };
             })
+            .controller("AttendeeController", function($scope, $routeParams, Hotel) {
+                $scope.attendee = Hotel.get("all_attendees", $routeParams.id);
+            });
     </script>
 </head>
 <body>

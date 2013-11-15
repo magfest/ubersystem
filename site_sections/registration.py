@@ -651,6 +651,9 @@ def hotel_dump(department):
         "id": attendee.id,
         "name": attendee.full_name,
         "nights": getattr(attendee.hotel_requests, "nights_display", ""),
+        "special_needs": getattr(attendee.hotel_requests, "special_needs", ""),
+        "wanted_roommates": getattr(attendee.hotel_requests, "wanted_roommates", ""),
+        "unwanted_roommates": getattr(attendee.hotel_requests, "unwanted_roommates", ""),
         "approved": int(getattr(attendee.hotel_requests, "approved", False)),
         "departments": attendee.assigned_display
     }
