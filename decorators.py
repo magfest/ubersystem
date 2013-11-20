@@ -56,13 +56,17 @@ def csv_file(func):
 
 def credit_card(func):
     @wraps(func)
-    def charge(*args, **kwargs):
+    def charge(self, payment_id, stripeToken, **ignored):
+        if ignored:
+            log.error("received unexpected stripe parameters: {}", ignored)
         try:
-            return func(*args, **kwargs)
+            return func(self, payment_id=payment_id, stripeToken=stripeToken)
         except HTTPRedirect:
             raise
         except:
-            # TODO: email eli a stacktrace and return a template
+            send_email(ADMIN_EMAIL, ADMIN_EMAIL, "MAGFest Stripe error",
+                       "Got an error while calling charge(self, payment_id={!r}, stripeToken={!r}, ignored={}):\n{}"
+                       .format(payment_id, stripeToken, ignored, traceback.format_exc()))
             return traceback.format_exc()
     return charge
 
