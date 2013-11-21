@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Staffing Overview{% endblock %}
+{% block content %}
+
+<h2> Staffing Overview </h2>
+
+<table style="width:auto ; text-align:center">
+<tr style="font-weight:bold">
+    <td>Department</td>
+    <td>Total Weighted Hours</td>
+    <td>Weighted Hours Signed Up For</td>
+    <td>Untaken Hours</td>
+    <td>Volunteers</td>
+</tr>
+<tr>
+    <td><i>All Departments</i></td>
+    <td>{{ hour_total }}</td>
+    <td>{{ shift_total }}</td>
+    <td>{{ hour_total|subtract:shift_total }}</td>
+    <td>{{ volunteers }}</td>
+</tr>
+{% for stats in departments %}
+<tr>
+    <td>{{ stats.department }}</td>
+    <td>{{ stats.total_hours }}</td>
+    <td>{{ stats.taken_hours }}</td>
+    <td>{{ stats.total_hours|subtract:stats.taken_hours }}</td>
+    <td>{{ stats.assigned }}</td>
+</tr>
+{% endfor %}
+</table>
+
+{% endblock %}

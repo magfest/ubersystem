@@ -95,3 +95,17 @@ class Root:
     def ratings(self):
         return {"attendees": [a for a in Attendee.objects.filter(staffing=True).order_by("first_name", "last_name")
                                 if "poorly" in a.past_years]}
+    
+    def staffing_overview(self):
+        jobs, shifts, attendees = Job.everything()
+        return {
+            "hour_total": sum(j.weighted_hours * j.slots for j in jobs),
+            "shift_total": sum(s.job.weighted_hours for s in shifts),
+            "volunteers": len(attendees),
+            "departments": [{
+                "department": desc,
+                "assigned": len([a for a in attendees if dept in a.assigned]),
+                "total_hours": sum(j.weighted_hours * j.slots for j in jobs if j.location == dept),
+                "taken_hours": sum(s.job.weighted_hours for s in shifts if s.job.location == dept)
+            } for dept,desc in JOB_LOC_OPTS]
+        }

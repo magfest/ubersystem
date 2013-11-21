@@ -15,6 +15,10 @@ def jsonize(x):
     return SafeString(json.dumps(x))
 
 @register.filter
+def subtract(x, y):
+    return x - y
+
+@register.filter
 def remove_newlines(string):
     return string.replace("\n", " ")
 
