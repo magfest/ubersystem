@@ -261,6 +261,12 @@ class Root:
     @csrf_protected
     def unset_group_member(self, id):
         attendee = Attendee.objects.get(secret_id = id)
+        try:
+            send_email(REGDESK_EMAIL, attendee.email, "MAGFest group registration dropped",
+                       render("emails/group_member_dropped.txt", {"attendee": attendee}), model=attendee)
+        except:
+            log.error("unable to send group unset email", exc_info=True)
+        
         for attr in ["first_name","last_name","email","zip_code","ec_phone","phone","interests","found_how","comments"]:
             setattr(attendee, attr, "")
         attendee.age_group = AGE_UNKNOWN
