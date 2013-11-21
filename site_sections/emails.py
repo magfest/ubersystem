@@ -100,6 +100,9 @@ MarketplaceReminder("Your MAGFest Dealer registration has been approved", "deale
 Reminder(Attendee, "MAGFest payment received", "attendee_confirmation.html",
          lambda a: a.paid == HAS_PAID)
 
+Reminder(Attendee, "MAGFest group registration confirmed", "attendee_confirmation.html",
+         lambda a: a.group and a != a.group.leader and a.registered > datetime(2013, 11, 11))
+
 Reminder(Group, "MAGFest group payment received", "group_confirmation.html",
          lambda g: g.amount_paid == g.total_cost)
 
