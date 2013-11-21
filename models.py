@@ -382,8 +382,10 @@ class Group(MagModel, TakesPaymentMixin):
                         total += DEALER_BADGE_PRICE
                     elif attendee.registered <= state.PRICE_BUMP:
                         total += EARLY_GROUP_PRICE
-                    else:
+                    elif attendee.registered < state.SECOND_GROUP_BUMP:
                         total += LATE_GROUP_PRICE
+                    else:
+                        total += LATER_GROUP_PRICE
             return total
     
     @property

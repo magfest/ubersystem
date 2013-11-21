@@ -12,6 +12,7 @@ DOOR_BADGE_PRICE  = 60
 
 EARLY_GROUP_PRICE = 30
 LATE_GROUP_PRICE  = 35
+LATER_GROUP_PRICE = 40
 
 class State:
     SEND_EMAILS = True
@@ -32,6 +33,7 @@ class State:
     SHIFTS_CREATED       = datetime(2013, 10, 12, 23)
     PRICE_BUMP           = datetime(2013, 10, 31, 23, 59)
     SECOND_PRICE_BUMP    = datetime(2013, 11,  9, 23, 59)
+    SECOND_GROUP_BUMP    = datetime(2013, 11, 30, 23, 59)
     DEALER_REG_START     = datetime(2013,  8,  8, 23, 59)
     DEALER_REG_DEADLINE  = datetime(2013,  8, 16, 23, 59)
     DEALER_REG_SHUTDOWN  = datetime(2013, 10, 30, 23, 59)
@@ -69,10 +71,12 @@ class State:
     
     @property
     def GROUP_PRICE(self):
-        if datetime.now() < state.PRICE_BUMP:
+        if datetime.now() < self.PRICE_BUMP:
             return EARLY_GROUP_PRICE
-        else:
+        elif datetime.now() < self.SECOND_GROUP_BUMP:
             return LATE_GROUP_PRICE
+        else:
+            return LATER_GROUP_PRICE
     
     @property
     def PREREG_BADGE_TYPES(self):
@@ -89,7 +93,7 @@ class State:
     
     @property
     def ROOMS_AVAILABLE(self):
-        return datetime.now() < state.ROOM_DEADLINE
+        return datetime.now() < self.ROOM_DEADLINE
     
     @property
     def DEALER_REG_FULL(self):

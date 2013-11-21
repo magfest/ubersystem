@@ -59,6 +59,8 @@
             <li> Group members can kick in extra to upgrade their badge level </li>
             {% if now < PRICE_BUMP %}
                 <li style="color:red"> Price goes up to ${{ LATE_GROUP_PRICE }} at {{ PRICE_BUMP|datetime }} </li>
+            {% elif now < SECOND_GROUP_BUMP %}
+                <li style="color:red"> Price goes up to ${{ LATER_GROUP_PRICE }} at {{ SECOND_GROUP_BUMP|datetime }} </li>
             {% else %}
                 <li style="color:red"> Group preregistration closes at {{ PREREG_TAKEDOWN|datetime }} </li>
             {% endif %}
