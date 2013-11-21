@@ -46,13 +46,13 @@
         <td valign="top" style="padding-top:15px"><b>Want to kick in extra?</b></td>
         <td>
             <select name="amount_extra" style="width:50%" onChange="donationChanged()">
-                {% options DONATION_OPTS attendee.amount_extra %}
+                {% options PREREG_DONATION_OPTS attendee.amount_extra %}
             </select>
             &nbsp;
             <nobr>{% popup_link "../static/givingExtra.html" "Why do this?" %}</nobr>
             <br/>
             <font size="-2">Each level includes all lower levels.</font> <br/>
-            <font size="-2" color="red">Supporter level and higher only available until Dec 1.</font> 
+            <font size="-2" color="red">Supporter level and higher {% if now > SUPPORTER_DEADLINE %}were{% endif %} only available until {{ SUPPORTER_DEADLINE|datetime }}.</font> 
         </td>
     </tr>
 {% endif %}
