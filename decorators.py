@@ -64,7 +64,7 @@ def credit_card(func):
         except HTTPRedirect:
             raise
         except:
-            send_email(ADMIN_EMAIL, ADMIN_EMAIL, "MAGFest Stripe error",
+            send_email(ADMIN_EMAIL, [ADMIN_EMAIL, "dom@magfest.org"], "MAGFest Stripe error",
                        "Got an error while calling charge(self, payment_id={!r}, stripeToken={!r}, ignored={}):\n{}"
                        .format(payment_id, stripeToken, ignored, traceback.format_exc()))
             return traceback.format_exc()

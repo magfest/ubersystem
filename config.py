@@ -21,6 +21,13 @@ def _rollback():
     connection._rollback()
 cherrypy.tools.rollback_on_error = cherrypy.Tool("after_error_response", _rollback)
 
+def _add_email():
+    [body] = cherrypy.response.body
+    body = body.replace(b"<body>", b"""<body>Please email <a href="mailto:contact@magfest.org">contact@magfest.org</a> if you're not sure why you're seeing this page.""")
+    cherrypy.response.headers["Content-Length"] = len(body)
+    cherrypy.response.body = [body]
+cherrypy.tools.add_email_to_error_page = cherrypy.Tool("after_error_response", _add_email)
+
 cherrypy.config.update({
     "engine.autoreload.on": AUTORELOAD,
     
@@ -58,7 +65,8 @@ appconf = {
         "tools.proxy.on": True,
         "tools.proxy.base": "http://{}".format(state.HOSTNAME),
         "tools.staticdir.root": os.getcwd(),
-        "tools.rollback_on_error.on": True
+        "tools.rollback_on_error.on": True,
+        "tools.add_email_to_error_page.on": True
     },
     "/static": {
         "tools.staticdir.on": True,
