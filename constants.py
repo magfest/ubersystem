@@ -354,6 +354,7 @@ JOB_LOC_OPTS = enum(
     INDIE_GAMES   = "Indie Games",
     JAMSPACE      = "Jam Space",
     LAN           = "LAN",
+    LOADIN        = "Load-In",
     MARKETPLACE   = "Marketplace",
     MERCH         = "Merchandise",
     MOPS          = "MAGmedia",
