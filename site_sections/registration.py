@@ -682,7 +682,8 @@ def hotel_dump(department):
                                              assigned_depts__contains=department)
                                      .order_by("first_name", "last_name")],
         "unconfirmed": [serialize(a)
-            for a in Attendee.objects.filter(hotelrequests__isnull=True,
+            for a in Attendee.objects.filter(badge_type=STAFF_BADGE,
+                                             hotelrequests__isnull=True,
                                              assigned_depts__contains=department)
                                      .order_by("first_name", "last_name")
             if a.id not in assigned_ids],
