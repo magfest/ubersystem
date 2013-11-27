@@ -547,7 +547,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @property
     def amount_unpaid(self):
-        return self.total_cost - self.amount_paid
+        return max(0, self.total_cost - self.amount_paid)
     
     @property
     def is_unpaid(self):

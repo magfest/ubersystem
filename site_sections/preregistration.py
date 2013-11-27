@@ -382,6 +382,7 @@ class Root:
         attendee.save()
         raise HTTPRedirect(cherrypy.session.pop("return_to", "confirm?id=" + id))
     
+    @credit_card
     def process_attendee_donation(self, payment_id, stripeToken):
         charge = Charge.get(payment_id)
         [attendee] = charge.attendees
@@ -391,7 +392,7 @@ class Root:
             raise HTTPRedirect(return_to, message)
         else:
             attendee.amount_paid += charge.dollar_amount
-            if attendee.amount_paid == attendee.total_cost:
+            if attendee.paid == NOT_PAID and attendee.amount_paid == attendee.total_cost:
                 attendee.paid = HAS_PAID
             attendee.save()
             raise HTTPRedirect(return_to, "Your payment has been accepted, thanks so much!")
