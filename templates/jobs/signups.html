@@ -52,6 +52,7 @@
                         {% endif %}
                     </td>
                     <form method="post" action="unassign_from_list">
+                    {% csrf_token %}
                     <td>
                         <input type="hidden" name="id" value="{{ shift.id }}" />
                         <input type="submit" value="Unassign" />
