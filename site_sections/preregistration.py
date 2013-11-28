@@ -196,6 +196,9 @@ class Root:
         }
     
     def register_group_member(self, message="", **params):
+        if cherrypy.request.method.lower() == "post":
+            params["affiliate"] = params.get("aff_select") or params.get("aff_text") or ""
+
         attendee = Attendee.get(params, bools=["staffing","can_spam","international"], restricted=True)
         if "first_name" in params:
             message = check(attendee) or check_prereg_reqs(attendee)
