@@ -81,7 +81,7 @@ class Root:
         }
     
     def form(self, message="", return_to="", omit_badge="", **params):
-        attendee = Attendee.get(params, checkgroups = ["interests"],
+        attendee = Attendee.get(params, checkgroups = ["interests","requested_depts","assigned_depts"],
                                 bools = ["staffing","trusted","international","placeholder","got_merch","can_spam"])
         if "first_name" in params:
             attendee.group = None if not params["group_opt"] else Group.objects.get(id = params["group_opt"])
