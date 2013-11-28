@@ -333,6 +333,8 @@ class Root:
         }
     
     def confirm(self, message = "", return_to = "confirm", **params):
+        if cherrypy.request.method.lower() == "post":
+            params["affiliate"] = params.get("aff_select") or params.get("aff_text") or ""
         attendee = Attendee.get(params, bools = ["staffing","international"], restricted = True)
         
         placeholder = attendee.placeholder
