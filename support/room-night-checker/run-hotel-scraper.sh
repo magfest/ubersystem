@@ -2,7 +2,7 @@
 
 # when run from cron, the path is wherever cron feels like running from
 ABSOLUTE_PATH=$(dirname $(readlink -f ${BASH_SOURCE[0]}))
-START_X_SERVER=0
+START_X_SERVER=1
 export DISPLAY=:2    # keep a different number if you're doing other X stuff
 
 # don't need to modify below this point
@@ -27,13 +27,13 @@ then
 	if [[ -n "$(pgrep startx)" ]]
 	then
 		killall xinit
-		killall x11vnc
+		#killall x11vnc
 		sleep 5
 	fi
 
 	startx -- $DISPLAY &
 	sleep 5
-	x11vnc -display $DISPLAY -passwd test &
+	#x11vnc -display $DISPLAY -passwd test &
 fi
 
 killall firefox

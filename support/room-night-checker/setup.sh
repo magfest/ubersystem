@@ -9,4 +9,4 @@ virtualenv env -p $PYTHON_VER
 
 . env/bin/activate
 
-pip install selenium splinter
+pip install selenium splinter boto
