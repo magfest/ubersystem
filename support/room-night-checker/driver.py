@@ -23,10 +23,11 @@ def CheckAllNights(hotels_to_check, night_start, night_end):
 
     try:
         for hotel_to_check in hotels_to_check:
+            hotel_to_check.browser = browser
             results = hotel_to_check.check_nights(nights, browser)
             hotel_results.append(results)
     except:
-        print "Exception encountered!"
+        print("Exception encountered")
         traceback.print_exc(file=sys.stdout)
         raise
     else:

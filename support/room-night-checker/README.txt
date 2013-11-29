@@ -3,14 +3,12 @@ NOTE: by definition this is all a bit janky.
 
 install instructions:
 
-sudo apt-get install python python-pip python-virtualenv curl
-virtualenv env
-. env/bin/activate
-pip install selenium splinter
+requires python2.7 (python 3 won't work because Splinter doesn't support it)
 
-# edit run-hotel-scraper.sh, adjust the path at the top
+sudo apt-get install python python-pip python-virtualenv curl
+./setup.sh
 
 # then, run the following as the user you want to run as
 crontab -e
 
-*/15 * * * * /home/dom/hotel/run-hotel-scraper.sh
+*/15 * * * * /absolute/path/to/run-hotel-scraper.sh

@@ -13,7 +13,7 @@ class GaylordHotelRoomChecker(HotelRoomChecker):
         return ["Gaylord National", availability]
 
     def check_night(self, night_date, browser):
-        print "Gaylord national|" + night_date.strftime("%m/%d/%y")
+        print("Gaylord national|" + night_date.strftime("%m/%d/%y"))
 
         browser.visit('https://resweb.passkey.com/go/MAGfest2014')
         browser.select('groupTypeCode', 'Attendee')
@@ -47,7 +47,7 @@ class GaylordHotelRoomChecker(HotelRoomChecker):
             else:
                 assert not room_not_available
 
-            print "found|" + room_type + "|" + str(price)
+            print("found|" + room_type + "|" + str(price))
 
             rooms.append([room_type, price])
 

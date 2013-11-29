@@ -1,8 +1,6 @@
 from hotel_base import *
-from splinter import Browser
 from datetime import timedelta
 import datetime
-import time
 import re
 
 class StarwoodHotelRoomChecker(HotelRoomChecker):
@@ -20,35 +18,21 @@ class StarwoodHotelRoomChecker(HotelRoomChecker):
         return [self.hotel_name, availability]
 
     def check_night(self, night_date, browser):
-        print self.hotel_name + "|" + night_date.strftime("%m/%d/%y")
+        print(self.hotel_name + "|" + night_date.strftime("%m/%d/%y"))
 
         browser.visit(self.hotel_url)
 
         browser.click_link_by_partial_href('beginReservation.go')
 
-        # wait for all javascript to load
-        loaded_javascript = False
-        num_seconds_to_wait = 15
-        while num_seconds_to_wait != 0:
-            loaded_javascript = browser.evaluate_script("typeof doSearchForm() === 'function'")
-            if loaded_javascript:
-                break
-            time.sleep(1)
-            --num_seconds_to_wait
+        if not self.wait_for_javascript_function_to_load('doSearchForm'):
+            raise ValueError('javascript didnt load, Starwood page')
 
-        if not loaded_javascript:
-            raise ValueError('javascript didnt load, Westin page')
-
-        with browser.get_alert() as alert:
-            if alert != None:
-                alert.dismiss()
+        self.dismiss_alert()
 
         # go to next page
         browser.execute_script("doSearchForm()")
 
-        with browser.get_alert() as alert:
-            if alert != None:
-                alert.dismiss()
+        self.dismiss_alert()
 
         # make sure the page has loaded, wait up to 10 seconds before bailing
         input_name = 'resStartDate'
@@ -63,21 +47,17 @@ class StarwoodHotelRoomChecker(HotelRoomChecker):
         browser.execute_script("doSearchForm()")
 
         # this hotel complains if you try out of range dates, so just skip
-        try:
-            alert = browser.get_alert()
-            if alert != None and 'cannot' in alert.text:
-                alert.dismiss()
-                return []
-        except Exception: #selenium.common.exceptions.NoAlertPresentException:
-            pass
-            # stupidity: you can't call get_alert() without it throwing this
+        alert = self.get_alert_if_present()
+        if alert != None and 'cannot' in alert.text:
+            alert.dismiss()
+            return []
 
         table_rows = browser.find_by_xpath('//*[@id="resultstable"]/table/tbody/tr')
     
         rooms = []
 
         for tr in table_rows:
-            #print tr.html.encode('ascii', 'ignore')
+            #print(tr.html.encode('ascii', 'ignore'))
 
             if 'resultshead' in tr['class']:
                 continue
@@ -95,7 +75,7 @@ class StarwoodHotelRoomChecker(HotelRoomChecker):
             price_text = price_text.split()[1]
             price = float(price_text)
  
-            print "found: " + room_type + " " + str(price)
+            print("found: " + room_type + " " + str(price))
 
             rooms.append([room_type, price])
 

@@ -19,17 +19,7 @@ class HamptonInnHotelRoomChecker(HotelRoomChecker):
 
         browser.visit('http://hamptoninn.hilton.com/en/hp/groups/personalized/W/WASOXHX-MAG-20140101/index.jhtml')
 
-        # wait for all javascript to load
-        loaded_javascript = False
-        num_seconds_to_wait = 15
-        while num_seconds_to_wait != 0:
-            loaded_javascript = browser.evaluate_script("typeof getDates === 'function'")
-            if loaded_javascript:
-                break
-            time.sleep(1)
-            --num_seconds_to_wait
-
-        if not loaded_javascript:
+        if not self.wait_for_javascript_function_to_load('getDates'):
             raise ValueError('javascript didnt load, Hampton Inn page')
 
         # go to next page
@@ -47,9 +37,19 @@ class HamptonInnHotelRoomChecker(HotelRoomChecker):
         browser.fill('arrivalDate', night_date.strftime("%m/%d/%y"))
         browser.fill('departureDate', (night_date+timedelta(1)).strftime("%m/%d/%y"))
 
+	# HACK. need to do this to get off the stupid calendar autofill
+	browser.execute_script('jQuery( "#checkout" ).datepicker( "hide" );')
+	browser.execute_script('jQuery( "#checkin" ).datepicker( "hide" );')
+
+
         # click the submit button
-        # browser.execute_script("submitForm(this, '_eventId_findRoom', true);")
-        browser.find_by_name('_eventId_findRoom').first.click()
+        # this should work but doesn't because it thinks the element is 'hidden'
+        #browser.find_by_name('_eventId_findRoom').click() 
+        
+        # HACK: click the submit button
+        browser.execute_script('jQuery( ".linkBtn" ).click();')
+	time.sleep(1)
+
 
         list_items = browser.find_by_xpath('//*[@id="sortByRoom"]/div/ul/li')
     

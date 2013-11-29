@@ -1,7 +1,14 @@
 #!/bin/bash
 
-export ABSOLUTE_PATH=/home/dom/hotel
+# when run from cron, the path is wherever cron feels like running from
+ABSOLUTE_PATH=$(dirname $(readlink -f ${BASH_SOURCE[0]}))
+START_X_SERVER=0
+export DISPLAY=:2    # keep a different number if you're doing other X stuff
+
+# don't need to modify below this point
+
 cd $ABSOLUTE_PATH
+
 
 if [ -e secret_settings.sh ]
 then
@@ -13,7 +20,21 @@ else
 	export API_URL=http://CHANGEME.COM/CHANGE/THIS.php
 fi
 
-# don't need to modify below this point
+# this is kinda hacky. but probably works. YMMV
+# if in doubt, just have your X server started up already
+if [ $START_X_SERVER -eq "1" ]
+then
+	if [[ -n "$(pgrep startx)" ]]
+	then
+		killall xinit
+		killall x11vnc
+		sleep 5
+	fi
+
+	startx -- $DISPLAY &
+	sleep 5
+	x11vnc -display $DISPLAY -passwd test &
+fi
 
 killall firefox
 
@@ -31,7 +52,6 @@ function runit {
 
 
 . env/bin/activate
-export DISPLAY=:0
 
 echo "starting new screen scrape"
 runit date

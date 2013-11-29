@@ -15,7 +15,7 @@ class MarriottHotelRoomChecker(HotelRoomChecker):
         return ["Marriott Residence Inn", availability]
 
     def check_night(self, night_date, browser):
-        print "Marriott|" + night_date.strftime("%m/%d/%y")
+        print("Marriott|" + night_date.strftime("%m/%d/%y"))
 
         browser.visit('http://www.marriott.com/meeting-event-hotels/group-corporate-travel/groupCorp.mi?resLinkData=MAGFest%20%5EWASNH%60MAGMAGA%60135.00%60USD%60false%6012/31/13%601/6/14%6012/3/13&app=resvlink&stop_mobi=yes')
 
@@ -61,7 +61,7 @@ class MarriottHotelRoomChecker(HotelRoomChecker):
             price_text.strip()
             price = float(price_text)
  
-            print "found: " + room_type + " " + str(price)
+            print("found: " + room_type + " " + str(price))
 
             rooms.append([room_type, price])
 
