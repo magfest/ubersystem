@@ -56,6 +56,15 @@ class StarwoodHotelRoomChecker(HotelRoomChecker):
     
         rooms = []
 
+        # they show non-discounted rates if we're sold out. f that.
+        discount = True
+        
+        if "The contracted rate is no longer available for this event." in browser.html:
+            discount = False
+
+        if discount == False:
+            return []
+
         for tr in table_rows:
             #print(tr.html.encode('ascii', 'ignore'))
 
