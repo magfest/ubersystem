@@ -210,7 +210,7 @@
         <!-- TODO: disable staffing checkbox when someone has a staff badge (and volunteer ribbon?) -->
         <!-- TODO: disable trusted checkbox unless attendee is staffing -->
         {% checkbox attendee.staffing %} This attendee is {% if attendee.staffing %}<a href="goto_volunteer_checklist?id={{ attendee.id }}">staffing</a>{% else %}staffing{% endif %} <br/>
-        {% checkbox attendee.trusted %} Trusted {% popup_link "../static/trustDesc.html" %}
+        {% checkbox attendee.trusted %} Trusted {% popup_link "../static/views/trustDesc.html" %}
     </td>
 </tr>
 <tr>

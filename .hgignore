@@ -8,6 +8,8 @@ sessions/session-*
 secret_settings.py
 virtualenv.py
 ubersystem.nja
+.DS_Store
+*.sw*
 
 support/room-night-checker/build
 support/room-night-checker/env
