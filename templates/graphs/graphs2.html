@@ -2,10 +2,10 @@
 {% block title %}Money{% endblock %}
 {% block content %}
 
-<script type="text/javascript" src="../static/jquery.flot.min.js"></script>
-<script type="text/javascript" src="../static/jquery.flot.crosshair.min.js"></script>
-<script type="text/javascript" src="../static/jquery.flot.selection.min.js"></script>
-<script type="text/javascript" src="../static/date.js"></script>
+<script type="text/javascript" src="../static/lib/jquery-flot/jquery.flot.min.js"></script>
+<script type="text/javascript" src="../static/lib/jquery-flot/jquery.flot.crosshair.min.js"></script>
+<script type="text/javascript" src="../static/lib/jquery-flot/jquery.flot.selection.min.js"></script>
+<script type="text/javascript" src="../static/lib/date/date.js"></script>
 <script type="text/javascript">
     function flotable(xs) {
         return $.map(xs, function(xy){ return [[Date.parse(xy[0]).getTime() ,xy[1]]] });

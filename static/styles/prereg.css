@@ -17,7 +17,7 @@ a, a:visited, a:hover, a:active {
 
 
 #header {
-	background: url('../static/magfest-logo.png') no-repeat left bottom;
+	background: url('../images/magfest-logo.png') no-repeat left bottom;
 	padding-left: 400px;
 	
 	font-size: 30px;

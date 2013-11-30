@@ -23,18 +23,18 @@ $.focus = function(field) {
 
 var RATINGS = {
     {{ RATED_GOOD }}: {
-        false: "../static/" + "check_blank.png",
-        true:  "../static/" + "check_filled.png"
+        false: "../static/images/" + "check_blank.png",
+        true:  "../static/images/" + "check_filled.png"
     },
     {{ RATED_BAD }}: {
         prompt: "Please explain how this volunteer performed poorly:",
-        false: "../static/" + "lookofdisapproval.jpg",
-        true:  "../static/" + "lookofdisapproval_selected.jpg"
+        false: "../static/images/" + "lookofdisapproval.jpg",
+        true:  "../static/images/" + "lookofdisapproval_selected.jpg"
     },
     {{ RATED_GREAT }}: {
         prompt: "Please explain how this volunteer went above and beyond:",
-        false: "../static/" + "aplus_blank.jpg",
-        true:  "../static/" + "aplus_filled.jpg"
+        false: "../static/images" + "aplus_blank.jpg",
+        true:  "../static/images" + "aplus_filled.jpg"
     }
 };
 var renderRating = function(shiftId) {

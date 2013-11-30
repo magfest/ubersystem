@@ -49,7 +49,7 @@
                 {% options PREREG_DONATION_OPTS attendee.amount_extra %}
             </select>
             &nbsp;
-            <nobr>{% popup_link "../static/givingExtra.html" "Why do this?" %}</nobr>
+            <nobr>{% popup_link "../static/views/givingExtra.html" "Why do this?" %}</nobr>
             <br/>
             <font size="-2">Each level includes all lower levels.</font> <br/>
             <font size="-2" color="red">Supporter level and higher {% if now > SUPPORTER_DEADLINE %}were{% endif %} only available until {{ SUPPORTER_DEADLINE|datetime }}.</font> 
@@ -73,7 +73,7 @@
             <option value="" {% if not attendee.affiliate %}selected{% endif %}>I don't care about this</option>
             {% options affiliates attendee.affiliate %}
         </select>
-        &nbsp; <span class="popup">{% popup_link "../static/affiliates.html" "What's an affiliate?" %}</span>
+        &nbsp; <span class="popup">{% popup_link "../static/views/affiliates.html" "What's an affiliate?" %}</span>
         <div id="affdiv">
             <br/> <input type="text" name="aff_text" value="{{ attendee.affiliate|default:"" }}" />
         </div>
