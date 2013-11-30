@@ -311,7 +311,7 @@ class checked_if(template.Node):
             cond = False
         checked = self.negated and not cond or not self.negated and cond
         image = "checked" if checked else "unchecked"
-        return '<img src="../static/checkbox_{}.png" style="vertical-align:top ; margin-right:5px" height="20" width="20" />'.format(image)
+        return '<img src="../static/images/checkbox_{}.png" style="vertical-align:top ; margin-right:5px" height="20" width="20" />'.format(image)
 
 
 @tag
