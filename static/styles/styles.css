@@ -135,3 +135,11 @@ ul.select2-results {
     font-weight: bold;
     font-size: 16pt;
 }
+
+.pad-top-10 li {
+    padding-top: 10px;
+}
+
+.center {
+    text-align: center;
+}
