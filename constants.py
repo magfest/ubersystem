@@ -23,7 +23,7 @@ class State:
     HIDE_SCHEDULE = True
     
     PREREG_CLOSED = False
-    PREREG_NOT_OPEN_YET = True
+    PREREG_NOT_OPEN_YET = False
     SUP_REG_OPEN = True
     GROUP_REG_OPEN = True
     DEALER_WAITLIST_CLOSED = False
@@ -483,8 +483,8 @@ MIN_GROUP_SIZE, MAX_GROUP_SIZE = 8, 100
 
 DEFAULT_AFFILIATES = ["OC ReMix", "ScrewAttack",                                # got 26 and 12 supporters last year
                       "Destructoid", "Metroid Metal", "Lordkat",                # got 8 supporters last year
-                      "8BitX Radio Network", "Channel Awesome", "The Megas"]    # got 7 supporters last year
-
+                      "8BitX Radio Network", "Channel Awesome", "The Megas",    # got 7 supporters last year
+                      "TheShizz"]
 BANNED_ATTENDEES = {
     "Mike Callahan", "Michael Callahan", "Mash Callahan"
 }
