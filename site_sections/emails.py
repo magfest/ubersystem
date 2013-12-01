@@ -54,7 +54,7 @@ class StopsReminder(Reminder):
 
 class DeptHeadReminder(Reminder):
     def __init__(self, subject, template, filter):
-        Reminder.__init__(self, Attendee, subject, template, lambda a: a.ribbon == DEPT_HEAD_RIBBON and filter(a), STAFF_EMAIL)
+        Reminder.__init__(self, Attendee, subject, template, lambda a: a.ribbon == DEPT_HEAD_RIBBON and len(a.assigned) == 1 and filter(a), STAFF_EMAIL)
 
 class GroupReminder(Reminder):
     def __init__(self, subject, template, filter):
@@ -181,16 +181,19 @@ StopsReminder("MAGFest Tech Ops volunteering", "techops.txt",
 
 
 DeptHeadReminder("Assign MAGFest hotel rooms for your department", "room_assignments.txt",
-                 lambda a: len(a.assigned) == 1 and days_before(45, state.ROOM_DEADLINE))
+                 lambda a: days_before(45, state.ROOM_DEADLINE))
 
 DeptHeadReminder("Reminder for MAGFest department heads to double-check their staffers", "dept_head_rooms.txt",
-                 lambda a: days_before(37, state.ROOM_DEADLINE))
+                 lambda a: days_before(45, state.ROOM_DEADLINE))
 
 DeptHeadReminder("Last reminder for MAGFest department heads to double-check their staffers", "dept_head_rooms.txt",
                  lambda a: days_before(7, state.ROOM_DEADLINE))
 
 DeptHeadReminder("Last chance for Department Heads to get Staff badges for your people", "dept_head_badges.txt",
                  lambda a: days_before(7, state.STAFF_BADGE_DEADLINE))
+
+DeptHeadReminder("Need help with MAGFest setup/teardown?", "dept_head_setup_teardown.txt",
+                 lambda a: days_before(14, state.ROOM_DEADLINE))
 
 
 GroupReminder("Reminder to pre-assign MAGFest group badges", "group_preassign_reminder.txt",
@@ -200,14 +203,12 @@ Reminder(Group, "Last chance to pre-assign MAGFest group badges", "group_preassi
          lambda g: not state.GROUP_REG_OPEN and g.unregistered_badges and (not g.is_dealer or g.status == APPROVED))
 
 
-
 Reminder(Attendee, "MAGFest parental consent form reminder", "under_18_reminder.txt",
          lambda a: a.age_group == UNDER_18 and datetime.now() > state.EPOCH - timedelta(days = 7))
 
 
-
 DeptHeadReminder("MAGFest staffers need to be marked and rated", "postcon_hours.txt",
-                 lambda a: state.POST_CON and len(a.assigned) == 1)
+                 lambda a: state.POST_CON)
 
 
 

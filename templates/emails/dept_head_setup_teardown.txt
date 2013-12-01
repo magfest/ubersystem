@@ -1,0 +1,15 @@
+{{ attendee.first_name }},
+
+We're asking all Department Heads to tell us how much help they want before and after MAGFest with setup and teardown.  We have a couple of questions:
+
+1) How many staffers would you like us to assign you to help with setup and teardown, if any?
+
+2) Do you have any staffers already in mind to help you with this?  There are {{ attendee.assigned.0|setup_teardown_requests|length }} {{ attendee.assigned_display.0 }} staffers who have requested to help with setup/teardown.
+{% for hr in attendee.assigned.0|setup_teardown_requests %}
+- {{ hr.attendee.full_name }}{% if hr.approved %} (already approved){% endif %}{% endfor %}
+
+You can let us know how many people you'd like, or you can do it directly at {{ URL_BASE }}/registration/hotel_requests
+
+If we don't hear from you by the end of Friday, we'll assume you don't need any extra help and won't throw any extra staffers your way.
+
+{{ STOPS_EMAIL_SIGNATURE }}

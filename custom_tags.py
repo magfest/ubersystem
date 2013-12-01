@@ -49,6 +49,13 @@ def join_and(xs):
         xs = xs[:-1] + ["and " + xs[-1]]
         return ", ".join(xs)
 
+@register.filter
+def setup_teardown_requests(department):
+    requests = HotelRequests.objects.filter(attendee__assigned_depts__contains = department) \
+                                    .order_by("attendee__first_name", "attendee__last_name") \
+                                    .select_related()
+    return [hr for hr in requests if hr.setup_teardown]
+
 @tag
 class maybe_anchor(template.Node):
     def __init__(self, name):
