@@ -579,6 +579,7 @@ class Root:
             events[spt.slug].append(spt.attendee)
         return {"events": dict(events)}
     
+    @site_mappable
     def discount(self, message="", **params):
         attendee = Attendee.get(params)
         if "first_name" in params:

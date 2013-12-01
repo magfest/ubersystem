@@ -128,8 +128,9 @@ class Root:
                 method = getattr(module.Root, name)
                 if getattr(method, "exposed", False):
                     spec = inspect.getfullargspec(method._orig)
-                    if len(spec.args[1:]) == len(spec.defaults or []) and not spec.varkw \
-                                    and set(method.restricted or []).intersection(Account.access_set()):
+                    if set(method.restricted or []).intersection(Account.access_set()) \
+                            and (getattr(method, "site_mappable", False)
+                              or len(spec.args[1:]) == len(spec.defaults or []) and not spec.varkw):
                         pages[module_name].append({
                             "name": name.replace("_", " ").title(),
                             "path": "/{}/{}".format(module_name, name)

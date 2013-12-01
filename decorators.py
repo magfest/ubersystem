@@ -1,5 +1,11 @@
 from common import *
 
+
+def site_mappable(func):
+    func.site_mappable = True
+    return func
+
+
 def cached_property(func):
     pname = "_" + func.__name__
     @property
