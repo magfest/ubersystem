@@ -16,6 +16,7 @@ rm -rfv env
 python3.3 -m venv env
 source ./env/bin/activate
 python distribute_setup.py
+cp ./env/local/bin/easy_install ./env/bin
 
 mkdir -p ./env/local/bin
 touch ./env/local/bin/placeholder
