@@ -53,8 +53,8 @@ class StopsReminder(Reminder):
         Reminder.__init__(self, Attendee, subject, template, lambda a: a.staffing and filter(a), STAFF_EMAIL, cc=cc)
 
 class DeptHeadReminder(Reminder):
-    def __init__(self, subject, template, filter):
-        Reminder.__init__(self, Attendee, subject, template, lambda a: a.ribbon == DEPT_HEAD_RIBBON and len(a.assigned) == 1 and filter(a), STAFF_EMAIL)
+    def __init__(self, subject, template, filter, sender=STAFF_EMAIL):
+        Reminder.__init__(self, Attendee, subject, template, lambda a: a.ribbon == DEPT_HEAD_RIBBON and len(a.assigned) == 1 and filter(a), sender)
 
 class GroupReminder(Reminder):
     def __init__(self, subject, template, filter):
@@ -194,6 +194,8 @@ DeptHeadReminder("Last chance for Department Heads to get Staff badges for your 
 
 DeptHeadReminder("Need help with MAGFest setup/teardown?", "dept_head_setup_teardown.txt",
                  lambda a: days_before(14, state.ROOM_DEADLINE))
+
+DeptHeadReminder("Department Ribbons", "dept_head_ribbons.txt", lambda a: days_before(1, state.ROOM_DEADLINE))
 
 
 GroupReminder("Reminder to pre-assign MAGFest group badges", "group_preassign_reminder.txt",
