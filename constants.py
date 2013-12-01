@@ -343,6 +343,7 @@ JOB_INTEREST_OPTS = enum(
 JOB_LOC_OPTS = enum(
     ARCADE        = "Arcade",
     CHALLENGES    = "Challenges",
+    CHARITY       = "Charity",
     CHIPSPACE     = "Chipspace",
     CONCERT       = "Concert",
     CONSOLE       = "Consoles",
