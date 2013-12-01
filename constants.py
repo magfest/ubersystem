@@ -365,6 +365,7 @@ JOB_LOC_OPTS = enum(
     STAFF_SUPPORT = "Staff Support",
     STOPS         = "Staffing Ops",
     TABLETOP      = "Tabletop",
+    TREASURY      = "Treasury",
     CCG_TABLETOP  = "Tabletop (CCG)",
     TECH_OPS      = "Tech Ops",
     VIDEO_ROOM    = "Games on Film",
