@@ -195,7 +195,9 @@ DeptHeadReminder("Last chance for Department Heads to get Staff badges for your 
 DeptHeadReminder("Need help with MAGFest setup/teardown?", "dept_head_setup_teardown.txt",
                  lambda a: days_before(14, state.ROOM_DEADLINE))
 
-DeptHeadReminder("Department Ribbons", "dept_head_ribbons.txt", lambda a: days_before(1, state.ROOM_DEADLINE))
+DeptHeadReminder("Department Ribbons", "dept_head_ribbons.txt",
+                 lambda a: days_before(1, state.ROOM_DEADLINE),
+                 sender=REGDESK_EMAIL)
 
 
 GroupReminder("Reminder to pre-assign MAGFest group badges", "group_preassign_reminder.txt",
