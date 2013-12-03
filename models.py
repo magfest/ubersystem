@@ -629,7 +629,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @property
     def takes_shifts(self):
-        return self.staffing and set(self.assigned) - {CONCERT, CON_OPS, MARKETPLACE, RESCUERS, CCG_TABLETOP}
+        return self.staffing and set(self.assigned) - {ARTEMIS, CONCERT, CON_OPS, MARKETPLACE, CCG_TABLETOP}
     
     @property
     def interests_list(self):
