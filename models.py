@@ -155,7 +155,7 @@ class Account(MagModel):
     
     @staticmethod
     def is_nick():
-        return Account.admin_name() in ["Nick Marinelli"]
+        return Account.admin_name() in ["Nick Marinelli", "Matt Reid"]
     
     @staticmethod
     def admin_name():
