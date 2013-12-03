@@ -459,7 +459,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         import badge_funcs
         
         if self.ribbon == DEPT_HEAD_RIBBON:
-            if not state.CUSTOM_BADGES_ORDERED:
+            if not state.CUSTOM_BADGES_REALLY_ORDERED:
                 self.badge_type = STAFF_BADGE
             self.staffing = self.trusted = True
             if self.paid == NOT_PAID:
@@ -467,13 +467,13 @@ class Attendee(MagModel, TakesPaymentMixin):
         
         with BADGE_LOCK:
             if not state.AT_THE_CON:
-                if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE and not state.CUSTOM_BADGES_ORDERED:
+                if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE and not state.CUSTOM_BADGES_REALLY_ORDERED:
                     self.badge_type = SUPPORTER_BADGE
                 
                 if self.paid == NOT_PAID or self.badge_type not in PREASSIGNED_BADGE_TYPES:
                     self.badge_num = 0
                 elif self.badge_type in PREASSIGNED_BADGE_TYPES and not self.badge_num:
-                    if state.CUSTOM_BADGES_ORDERED:
+                    if state.CUSTOM_BADGES_REALLY_ORDERED:
                         self.ribbon = VOLUNTEER_RIBBON if self.badge_type == STAFF_BADGE else self.ribbon
                         self.badge_type, self.badge_num = ATTENDEE_BADGE, 0
                     elif self.paid != NOT_PAID:
@@ -514,7 +514,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         with BADGE_LOCK:
             badge_num = Attendee.objects.get(id = self.id).badge_num
             super(Attendee, self).delete(*args, **kwargs)
-            if self.badge_type not in PREASSIGNED_BADGE_TYPES or not state.CUSTOM_BADGES_ORDERED:
+            if self.badge_type not in PREASSIGNED_BADGE_TYPES or not state.CUSTOM_BADGES_REALLY_ORDERED:
                 badge_funcs.shift_badges(self, down = True)
     
     def get_unsaved(self):

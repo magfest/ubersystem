@@ -15,7 +15,7 @@ def change_badge(attendee):
         out_of_range = check_range(attendee.badge_num, attendee.badge_type)
         if out_of_range:
             return out_of_range
-        elif state.CUSTOM_BADGES_ORDERED:
+        elif state.CUSTOM_BADGES_REALLY_ORDERED:
             if attendee.badge_type in PREASSIGNED_BADGE_TYPES and old.badge_type not in PREASSIGNED_BADGE_TYPES:
                 return "Custom badges have already been ordered; you can add new staffers by giving them an Attendee badge with a Volunteer Ribbon"
             elif attendee.badge_type not in PREASSIGNED_BADGE_TYPES and old.badge_type in PREASSIGNED_BADGE_TYPES:

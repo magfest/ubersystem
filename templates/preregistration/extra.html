@@ -45,9 +45,13 @@
     <tr class="extra-row">
         <td valign="top" style="padding-top:15px"><b>Want to kick in extra?</b></td>
         <td>
-            <select name="amount_extra" style="width:50%" onChange="donationChanged()">
-                {% options PREREG_DONATION_OPTS attendee.amount_extra %}
-            </select>
+            {% if CUSTOM_BADGES_ORDERED and attendee.amount_extra >= SUPPORTER_LEVEL %}
+                {{ attendee.get_amount_extra_display }}
+            {% else %}
+                <select name="amount_extra" style="width:50%" onChange="donationChanged()">
+                    {% options PREREG_DONATION_OPTS attendee.amount_extra %}
+                </select>
+            {% endif %}
             &nbsp;
             <nobr>{% popup_link "../static/views/givingExtra.html" "Why do this?" %}</nobr>
             <br/>
