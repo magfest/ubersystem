@@ -360,6 +360,7 @@ JOB_LOC_OPTS = enum(
     MERCH         = "Merchandise",
     MOPS          = "MAGmedia",
     REGDESK       = "Regdesk",
+    REG_MANAGERS  = "Reg Managers",
     RESCUERS      = "Rescuers",
     SECURITY      = "Security",
     SHEDSPACE     = "Shedspace",
