@@ -182,6 +182,15 @@ StopsReminder("MAGFest Tech Ops volunteering", "techops.txt",
 StopsReminder("MAGFest Chipspace volunteering", "chipspace.txt",
               lambda a: (JAMSPACE in a.requested_depts_ints or JAMSPACE in a.assigned) and CHIPSPACE not in a.assigned)
 
+StopsReminder("MAGFest food prep volunteering", "food_interest.txt",
+              lambda a: FOOD_PREP in a.requested_depts_ints and not a.assigned_depts)
+
+StopsReminder("MAGFest food prep rules", "food_volunteers.txt",
+              lambda a: a.has_shifts_in(FOOD_PREP) and not a.trusted)
+
+StopsReminder("MAGFest message from Chef", "food_trusted_staffers.txt",
+              lambda a: a.has_shifts_in(FOOD_PREP) and a.trusted)
+
 
 DeptHeadReminder("Assign MAGFest hotel rooms for your department", "room_assignments.txt",
                  lambda a: days_before(45, state.ROOM_DEADLINE))

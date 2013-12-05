@@ -1,0 +1,45 @@
+{{ attendee.first_name }},
+
+You're receiving this email because you've signed up to work in the MAGFest Food suite.  The chefs have asked us to send a list of rules, so please take the time to read over them.
+
+1. The Chef's rule is law
+2. If you see a Chef moving with anything in their hands, do not move. freeze, they will move around you. 
+3. If you cause an injury, no matter how minor, report it.
+4. DO NOT EVER TOUCH A KNIFE UNLESS TOLD TO.
+5. DO NOT EVER, EVER, EVER TOUCH A CHEF'S KNIVES /COFFEE /FOOD/BOOZE
+6. Do not bring or cause drama
+7. Do not expect the chefs to cover for you. YOU are responsible for the stupid shit that YOU do/said and YOU will have to deal with the consequences on YOUR own.
+8. Do not be stupid
+9. Do not whine.
+10. Don't be a dick.
+11. If you are on anything harder than redbull, and show up to work, you will be kicked out and all your remaining shifts cleared.
+12. It is the job of the chefs to be innovative and creative. it is your job to do what you are told.
+13. The only way to impress us and EARN more trust and responsibilities is to do the job you are given.
+14. It is the job of the Chefs to deal with issues, it is your job to tell them about them.
+15. If you see someone who does not look like he belongs, tell the chefs, do not handle it yourself.
+16. If you don't know, ALWAYS ASK.
+17. It is the Chef's job to instruct, it is yours to obey.
+18. There is no shame in being wrong, only in staying wrong.
+19. If a Chef tells you to do something, do it. Failure to comply will get you sent out and your shift negated.
+20. You do not have the authority to make any decision involving who eats or when. that is the prerogative of the Chefs, do not attempt to take that authority on your shoulders.
+21. There are going to be people who are placed over you who are also volunteers, if they are placed above you, you will obey them.
+22. You will respect those placed over you and you will be respected by those who answer to you.
+23. Failure to follow the rules, will result in you being dismissed.
+24. Always clean up after yourself.
+25. A sense of humor is crucial
+26. If you piss off the chefs, you will do grunt work without hours.
+27. DON'T EVER LIE TO A CHEF
+28. Don't ever go behind chef's back.
+29. You are here to work. If found sleeping on the job, you will not receive those hours.
+30. If there is a chance that you will not be able to work your shift, let the chefs know immediately. Also, go to STOPS and drop the shift so that someone else can pick it up.
+31. You are not Chefling’s parents. Do NOT wander off with him or feed him or discipline him without permission.
+32. If you are asked to watch and care for Chefling, you are highly trusted. Do not betray that trust and remember you are responsible for him. Do not ask someone else to watch him or you will have to answer to not only Chef, but Mrs. Chef. 
+33. WATCH OUT FOR CHEFLING. He’s walking now and has teeth. Remove sharp objects and small objects that can fit inside a toilet paper roll to an unreachable place. At least 4 feet high.
+34. This is not an exclusive list. You will be held accountable and punished accordingly for any stupid shit you may attempt that we have not yet thought of.
+35. Any attempts to drag the Staff Suite or any of it’s staffers/volunteers into any conflict, argument, disagreement, or pissing contest will be dealt with quickly and accordingly.
+36. DO NOT ENTER THE CHEFS PRIVATE SLEEPING ROOMS. Security WILL be notified if unauthorized individuals are found in these rooms.
+37. Many of these rules are in place due to previous incidents and/or individuals. Don’t be the reason new rules have to be established.
+
+Please let us know if you have any questions.
+
+{{ STOPS_EMAIL_SIGNATURE }}

@@ -708,6 +708,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         wh = sum((shift.job.real_duration * shift.job.weight for shift in self.worked_shifts), 0.0)
         return wh + self.nonshift_hours
     
+    def has_shifts_in(self, department):
+        return any(shift.job.location == department for shift in self.shifts)
+    
     @property
     def shift_prereqs_complete(self):
         return not self.placeholder \
