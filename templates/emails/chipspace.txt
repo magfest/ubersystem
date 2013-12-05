@@ -1,0 +1,14 @@
+{{ attendee.first_name }},
+
+We're emailing you because you've expressed an interest in volunteering in Jamspace, and we could also use more help with Chipspace, which is basically Jamspace for chiptunes.  Since this position will potentially involve working with live sound gear, we'll need folk who can handle that responsibility.  To be more specific, we're looking for volunteers with some experience & basic knowledge of the following:
+
+ - Stage/sound system setup (i.e. running cables, setting up the stage audio gear, etc.)
+
+ - Operating a basic mixer (i.e. adjusting volume levels, preventing and eliminating feedback, managing a 3-5 channel mix, etc.)
+
+Let us know if you have the above qualifications (or even more!).  If so, we'd love to work with you!
+
+Either way, see you at MAGFest!
+
+Brandon Hood,
+Chipspace Manager

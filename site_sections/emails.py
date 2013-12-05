@@ -179,6 +179,9 @@ Reminder(Attendee, "Personalized MAGFest badges will be ordered next week", "per
 StopsReminder("MAGFest Tech Ops volunteering", "techops.txt",
               lambda a: TECH_OPS in a.requested_depts_ints and TECH_OPS not in a.assigned)
 
+StopsReminder("MAGFest Chipspace volunteering", "chipspace.txt",
+              lambda a: (JAMSPACE in a.requested_depts_ints or JAMSPACE in a.assigned) and CHIPSPACE not in a.assigned)
+
 
 DeptHeadReminder("Assign MAGFest hotel rooms for your department", "room_assignments.txt",
                  lambda a: days_before(45, state.ROOM_DEADLINE))
