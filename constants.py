@@ -488,9 +488,6 @@ DEFAULT_AFFILIATES = ["OC ReMix", "ScrewAttack",                                
                       "Destructoid", "Metroid Metal", "Lordkat",                # got 8 supporters last year
                       "8BitX Radio Network", "Channel Awesome", "The Megas",    # got 7 supporters last year
                       "TheShizz"]
-BANNED_ATTENDEES = {
-    "Mike Callahan", "Michael Callahan", "Mash Callahan"
-}
 
 SEASON_EVENTS = {
     "game_over_baltimore": {
