@@ -148,6 +148,7 @@ class Root:
             "panelists": [(a.id, a.full_name) for a in Attendee.objects.filter(Q(ribbon = PANELIST_RIBBON) | Q(badge_type = GUEST_BADGE)).order_by("first_name")]
         }
     
+    @csrf_protected
     def delete(self, id):
         event = Event.objects.filter(id=id).delete()
         raise HTTPRedirect("edit?message={}", "Event successfully deleted")
