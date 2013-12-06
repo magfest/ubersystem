@@ -1007,7 +1007,7 @@ class Tracking(MagModel):
     when   = DateTimeField(auto_now_add = True)
     who    = CharField(max_length = 75)
     which  = CharField(max_length = 125)
-    links  = CharField(max_length = 25)
+    links  = CharField(max_length = 75)
     action = IntegerField(choices = TRACKING_OPTS)
     data   = TextField()
     
