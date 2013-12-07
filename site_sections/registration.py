@@ -518,6 +518,7 @@ class Root:
     @csv_file
     def hotel_ordered(self, out):
         reqs = [hr for hr in HotelRequests.objects.select_related() if hr.nights]
+        assigned = {ra.attendee for ra in RoomAssignment.objects.select_related()}
         
         names = {}
         for hr in reqs:
@@ -529,23 +530,31 @@ class Root:
                 lookup[attendee] = xs
         
         for req in reqs:
-            for word in req.wanted_roommates.lower().replace(",", "").split():
-                try:
-                    combined = lookup[list(names[word])[0]] | lookup[req.attendee]
-                    for attendee in combined:
-                        lookup[attendee] = combined
-                except:
-                    pass
+            if req.attendee not in assigned:
+                for word in req.wanted_roommates.lower().replace(",", "").split():
+                    try:
+                        combined = lookup[list(names[word])[0]] | lookup[req.attendee]
+                        for attendee in combined:
+                            lookup[attendee] = combined
+                    except:
+                        pass
+        
+        writerow = lambda a, hr: out.writerow([a.full_name, a.email, a.phone, " / ".join(a.hotel_nights), " / ".join(a.assigned_display),
+                                               hr.wanted_roommates, hr.unwanted_roommates, hr.special_needs])
         
         grouped = {frozenset(group) for group in lookup.values()}
         out.writerow(["Name","Email","Phone","Nights","Departments","Roomate Requests","Roomate Anti-Requests","Special Needs"])
+        for room in Room.objects.order_by("department"):
+            for i in range(3):
+                out.writerow([])
+            out.writerow([room.get_department_display() + " room created by department heads for " + room.nights_display + (" ({})".format(room.notes) if room.notes else "")])
+            for ra in room.roomassignment_set.select_related():
+                writerow(ra.attendee, ra.attendee.hotel_requests)
         for group in grouped:
             for i in range(3):
                 out.writerow([])
             for a in group:
-                hr = a.hotel_requests
-                out.writerow([a.full_name, a.email, a.phone, " / ".join(a.hotel_nights), " / ".join(a.assigned_display),
-                              hr.wanted_roommates, hr.unwanted_roommates, hr.special_needs])
+                writerow(a, a.hotel_requests)
     
     def hotel_requests(self):
         requests = HotelRequests.objects.order_by("attendee__first_name", "attendee__last_name")
