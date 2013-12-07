@@ -1,0 +1,9 @@
+{{ attendee.first_name }},
+
+Thanks for volunteering to help out with Chipspace!  Based on your feedback about your qualifications, we've assigned you to Chipspace so you can sign up for shifts by logging into the volunteer checklist at {{ URL_BASE }}/signups/
+
+Since you're qualified for the position, we'd appreciate it if you signed up for the Tech Operator shifts instead of the General Helper shifts.  But feel free to take any shifts you like, especially if there aren't any Tech Operator shifts available at the times you want to work.
+
+Let us know if you have any questions.
+
+{{ STOPS_EMAIL_SIGNATURE }}

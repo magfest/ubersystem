@@ -182,6 +182,9 @@ StopsReminder("MAGFest Tech Ops volunteering", "techops.txt",
 StopsReminder("MAGFest Chipspace volunteering", "chipspace.txt",
               lambda a: (JAMSPACE in a.requested_depts_ints or JAMSPACE in a.assigned) and CHIPSPACE not in a.assigned)
 
+StopsReminder("MAGFest Chipspace shifts", "chipspace_trusted.txt",
+              lambda a: CHIPSPACE in a.assigned and a.trusted)
+
 StopsReminder("MAGFest food prep volunteering", "food_interest.txt",
               lambda a: FOOD_PREP in a.requested_depts_ints and not a.assigned_depts)
 
