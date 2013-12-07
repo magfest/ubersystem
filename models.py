@@ -781,6 +781,16 @@ class HotelRequests(MagModel, NightsMixin):
     
     restricted = ["approved"]
     
+    @classmethod
+    def in_dept(cls, department):
+        return HotelRequests.objects.filter(attendee__assigned_depts__contains = department) \
+                                    .exclude(nights="") \
+                                    .order_by("attendee__first_name", "attendee__last_name") \
+                                    .select_related()
+    
+    def decline(self):
+        self.nights = ",".join(night for night in self.nights.split(",") if int(night) in {THURSDAY,FRIDAY,SATURDAY})
+    
     def __repr__(self):
         return "<{self.attendee.full_name} Hotel Requests>".format(self = self)
 

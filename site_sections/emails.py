@@ -214,6 +214,9 @@ DeptHeadReminder("Department Ribbons", "dept_head_ribbons.txt",
                  lambda a: days_before(1, state.ROOM_DEADLINE),
                  sender=REGDESK_EMAIL)
 
+DeptHeadReminder("Final list of MAGFest hotel allocations for your department", "hotel_list.txt",
+                 lambda a: days_before(1, state.ROOM_DEADLINE + timedelta(days=6)))
+
 
 GroupReminder("Reminder to pre-assign MAGFest group badges", "group_preassign_reminder.txt",
               lambda g: days_after(30, g.registered) and state.GROUP_REG_OPEN and g.unregistered_badges)

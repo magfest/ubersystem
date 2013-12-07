@@ -51,10 +51,17 @@ def join_and(xs):
 
 @register.filter
 def setup_teardown_requests(department):
-    requests = HotelRequests.objects.filter(attendee__assigned_depts__contains = department) \
-                                    .order_by("attendee__first_name", "attendee__last_name") \
-                                    .select_related()
-    return [hr for hr in requests if hr.setup_teardown]
+    return [hr for hr in HotelRequests.in_dept(department) if hr.setup_teardown]
+
+@register.filter
+def dept_hotel_nights(department):
+    nights = defaultdict(list)
+    for hr in HotelRequests.in_dept(department):
+        if not hr.approved:
+            hr.not_yet_approved = True
+            hr.decline()    # this is safe because we're not saving
+        nights[hr.nights_display].append(hr)
+    return sorted(nights.items())
 
 @tag
 class maybe_anchor(template.Node):

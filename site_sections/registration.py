@@ -566,7 +566,7 @@ class Root:
         if approved == "approved":
             hr.approved = True
         else:
-            hr.nights = ",".join(night for night in hr.nights.split(",") if int(night) in {THURSDAY,FRIDAY,SATURDAY})
+            hr.decline()
         hr.save()
         return {"nights": " / ".join(hr.attendee.hotel_nights)}
     
