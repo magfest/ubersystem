@@ -1,5 +1,7 @@
 {{ attendee.first_name }},
 
+We're re-sending this email because of a mistake in the previous one.  Please disregard the previous email, this list is the correct one.
+
 We're trying to finalize our hotel assignments this weekend.  Here's the list of staffers in your department who are currently signed up for hotel space, grouped by nights:
 {% for nights, requests in attendee.assigned_depts|dept_hotel_nights %}
 {{ nights }}{% for hr in requests %}
