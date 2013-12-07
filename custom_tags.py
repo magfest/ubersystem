@@ -58,7 +58,8 @@ def dept_hotel_nights(department):
     nights = defaultdict(list)
     for hr in HotelRequests.in_dept(department):
         if not hr.approved:
-            hr.not_yet_approved = True
+            if hr.setup_teardown:
+                hr.not_yet_approved = True
             hr.decline()    # this is safe because we're not saving
         nights[hr.nights_display].append(hr)
     return sorted(nights.items())
