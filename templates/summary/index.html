@@ -75,6 +75,14 @@ Of the "paid by group" badges,
 </ul>
 
 <br/>
+<b>Ribbon counts</b>
+<ul style="margin-top:0px">
+    {% for desc,count in ribbons %}
+        <li> <i>{{ desc }}:</i> {{ count }} </li>
+    {% endfor %}
+</ul>
+
+<br/>
 <b>Shirt Sizes</b>
 <ul>
     {% for desc,count in shirt_sizes %}
