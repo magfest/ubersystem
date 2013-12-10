@@ -519,10 +519,11 @@ class Root:
     def hotel_ordered(self, out):
         reqs = [hr for hr in HotelRequests.objects.select_related() if hr.nights]
         assigned = {ra.attendee for ra in RoomAssignment.objects.select_related()}
+        unassigned = {hr.attendee for hr in reqs if hr.attendee not in assigned}
         
         names = {}
-        for hr in reqs:
-            names.setdefault(hr.attendee.last_name.lower(), set()).add(hr.attendee)
+        for attendee in unassigned:
+            names.setdefault(attendee.last_name.lower(), set()).add(attendee)
         
         lookup = defaultdict(set)
         for xs in names.values():
@@ -530,7 +531,7 @@ class Root:
                 lookup[attendee] = xs
         
         for req in reqs:
-            if req.attendee not in assigned:
+            if req.attendee in unassigned:
                 for word in req.wanted_roommates.lower().replace(",", "").split():
                     try:
                         combined = lookup[list(names[word])[0]] | lookup[req.attendee]
