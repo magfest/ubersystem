@@ -550,7 +550,7 @@ class Root:
             out.writerow([room.get_department_display() + " room created by department heads for " + room.nights_display + (" ({})".format(room.notes) if room.notes else "")])
             for ra in room.roomassignment_set.select_related():
                 writerow(ra.attendee, ra.attendee.hotel_requests)
-        for group in grouped:
+        for group in sorted(grouped, key=len, reverse=True):
             for i in range(3):
                 out.writerow([])
             for a in group:
