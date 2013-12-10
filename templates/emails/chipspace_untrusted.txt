@@ -1,0 +1,6 @@
+{{ attendee.first_name }},
+
+Just wanted to say thanks for signing up for shifts in Chipspace, MAGFest's "Jamspace for chiptunes".  We're looking forward to seeing you at MAGFest, please let me know if you have any questions about Chipspace before then.
+
+Brandon Hood,
+Chipspace Manager

@@ -185,6 +185,9 @@ StopsReminder("MAGFest Chipspace volunteering", "chipspace.txt",
 StopsReminder("MAGFest Chipspace shifts", "chipspace_trusted.txt",
               lambda a: CHIPSPACE in a.assigned and a.trusted)
 
+StopsReminder("MAGFest Chipspace", "chipspace_untrusted.txt",
+              lambda a: a.has_shifts_in(CHIPSPACE) and not a.trusted)
+
 StopsReminder("MAGFest food prep volunteering", "food_interest.txt",
               lambda a: FOOD_PREP in a.requested_depts_ints and not a.assigned_depts)
 
