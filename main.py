@@ -45,5 +45,5 @@ if __name__=="__main__":
     if not state.AT_THE_CON:
         daemonize(Reminder.send_all,  name = "EmailReminderTask")
         daemonize(detect_duplicates,  name = "DuplicateReminder")
-        #daemonize(check_placeholders, name = "PlaceholdersReminder")
+        daemonize(check_placeholders, name = "PlaceholdersReminder")
     cherrypy.engine.block()
