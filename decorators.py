@@ -124,7 +124,8 @@ def _get_template_filename(func):
 def ng_renderable(func):
     @wraps(func)
     def with_rendering(*args, **kwargs):
-        return ng_render(_get_template_filename(func), **func(*args, **kwargs))
+        result = func(*args, **kwargs)
+        return result if isinstance(result, str) else ng_render(_get_template_filename(func), **result)
     return with_rendering
 
 def renderable(func):

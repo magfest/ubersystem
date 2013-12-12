@@ -1,6 +1,8 @@
 from common import *
 from secret_settings import *
 
+# TODO: property maker for datetimes that become booleans based on datetime.now()
+
 DEV_BOX = True
 
 YEAR = 12
@@ -40,6 +42,7 @@ class State:
     DEALER_PAYMENT_DUE   = datetime(2013, 10, 31, 23, 59)
     MAGCON               = datetime(2013, 11,  9, 12)
     ROOM_DEADLINE        = datetime(2013, 12,  1, 23, 59)
+    ROOMS_LOCKED_IN      = True
     SUPPORTER_DEADLINE   = datetime(2013, 12,  1, 23, 59)
     STAFF_BADGE_DEADLINE = datetime(2013, 12,  1, 23, 59)
     PREREG_TAKEDOWN      = datetime(2013, 12, 22, 23, 59)

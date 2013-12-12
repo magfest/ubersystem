@@ -610,11 +610,14 @@ class Root:
     
     @ng_renderable
     def hotel_assignments(self, department):
-        return {
-            "dump": hotel_dump(department),
-            "department": department,
-            "department_name": dict(JOB_LOC_OPTS)[int(department)]
-        }
+        if state.ROOMS_LOCKED_IN:
+            return "Hotel rooms are currently locked in, email stops@magfest.org if you need a last-minute adjustment"
+        else:
+            return {
+                "dump": hotel_dump(department),
+                "department": department,
+                "department_name": dict(JOB_LOC_OPTS)[int(department)]
+            }
 
     def ng_templates(self, template):
         return ng_render(os.path.join("registration", template))
