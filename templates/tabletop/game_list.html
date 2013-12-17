@@ -1,0 +1,49 @@
+<h2> Tabletop Games </h2>
+
+<a style="display:block ; text-align:center" href="#/form">Add a Game</a>
+
+<h4>Game Check-In / Check-Out</h4>
+
+<table style="width:auto">
+<tr>
+    <td style="width:10em"><b>Game:</b></td>
+    <td><input autofocus type="text" size="30" ng-model="game" typeahead-editable="false" typeahead="g as ('[' + g.code + '] ' + g.name) for g in games | filter:nameOrCode($viewValue) | limitTo:8" /></td>
+</tr>
+<tr ng-if="game && game.checked_out">
+    <td></td>
+    <td>
+        Checked out to <b>{{ game.checked_out.name }} (Badge #{{ game.checked_out.badge }})</b> at <b>{{ game.checked_out.when }}</b>.
+        <div style="margin-top:5px">
+            <button ng-click="returned(game)">Game Was Returned</button>
+        </div>
+    </td>
+</tr>
+<tr ng-if="game && !game.checked_out">
+    <td valign="top"><b>Check Out To:</b></td>
+    <td>
+        <input autofocus type="text" size="30" ng-model="attendee" typeahead-editable="false" typeahead="a as (a.name + ' (Badge #' + a.badge + ')') for a in attendees | filter:nameOrBadge($viewValue) | limitTo:8" />
+        <div style="margin-top:5px">
+            <button ng-disabled="!attendee" ng-click="checkout(game, attendee)">Checkout</button>
+        </div>
+    </td>
+</tr>
+</table>
+
+<div class="center" style="margin-bottom:2px">
+    Filter games: <input type="text" ng-model="search" />
+</div>
+<table class="list">
+<tr class="header">
+    <td>ID</td>
+    <td>Game</td>
+    <td>Owner</td>
+    <td>Status</td>
+</tr>
+<tr ng-repeat="game in games | filter:search">
+    <td>{{ game.code }}</td>
+    <td>{{ game.name }}</td>
+    <td><a href="../registration/form?id={{ game.attendee.id }}">{{ game.attendee.name }} (Badge #{{ game.attendee.badge }})</a></td>
+    <td ng-if="game.checked_out">Checked out by {{ game.checked_out.name }}</td>
+    <td ng-if="!game.checked_out">available</td>
+</tr>
+</table>

@@ -982,20 +982,33 @@ class Game(MagModel):
     attendee = ForeignKey(Attendee)
     returned = BooleanField(default = False)
 
+    @property
+    def checked_out(self):
+        try:
+            return self.checkout
+        except:
+            return None
+
     def to_dict(self):
+        attendee = lambda a: {
+            "id": a.id,
+            "name": a.full_name,
+            "badge": a.badge_num
+        }
+        checkout = lambda c: c and dict(attendee(c.attendee), when=c.when.strftime("%I:%M%p %A"))
         return {
+            "id": self.id,
             "code": self.code,
             "name": self.name,
-            "attendee": {
-                "id": self.attendee.id,
-                "name": self.attendee.full_name,
-                "badge": self.attendee.badge_num
-            }
+            "returned": self.returned,
+            "checked_out": checkout(self.checked_out),
+            "attendee": attendee(self.attendee)
         }
 
 class Checkout(MagModel):
-    game = ForeignKey(Game)
+    game = OneToOneField(Game)
     attendee = ForeignKey(Attendee)
+    when = DateTimeField(auto_now_add = True)
 
 
 
