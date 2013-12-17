@@ -632,6 +632,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.staffing and set(self.assigned) - {ARTEMIS, CONCERT, CON_OPS, MARKETPLACE, CCG_TABLETOP}
     
     @property
+    def hotel_shifts_required(self):
+        return bool(self.hotel_nights and self.ribbon != DEPT_HEAD_RIBBON and self.takes_shifts)
+    
+    @property
     def interests_list(self):
         return [int(i) for i in self.interests.split(",")] if self.interests else []
     
@@ -720,12 +724,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def past_years_json(self):
         return [] if not self.past_years else json.loads(self.past_years)
-    
-    @property
-    def hotel_shifts_required(self):
-        return bool(self.hotel_nights
-                and self.ribbon != DEPT_HEAD_RIBBON
-                and set(self.assigned) - {MARKETPLACE, STOPS, CON_OPS, CONCERT})
     
     @property
     def hotel_eligible(self):
@@ -828,6 +826,7 @@ class Room(MagModel, NightsMixin):
 class RoomAssignment(MagModel):
     room     = ForeignKey(Room)
     attendee = OneToOneField(Attendee)
+
 
 
 class Job(MagModel):
@@ -959,8 +958,6 @@ class Success(MagModel):
 
 
 
-
-
 class MPointUse(MagModel):
     attendee = ForeignKey(Attendee)
     amount   = IntegerField()
@@ -976,6 +973,29 @@ class Sale(MagModel):
     cash    = IntegerField()
     mpoints = IntegerField()
     when    = DateTimeField(auto_now_add = True)
+
+
+
+class Game(MagModel):
+    code = CharField(max_length = 6)
+    name = CharField(max_length = 50)
+    attendee = ForeignKey(Attendee)
+    returned = BooleanField(default = False)
+
+    def to_dict(self):
+        return {
+            "code": self.code,
+            "name": self.name,
+            "attendee": {
+                "id": self.attendee.id,
+                "name": self.attendee.full_name,
+                "badge": self.attendee.badge_num
+            }
+        }
+
+class Checkout(MagModel):
+    game = ForeignKey(Game)
+    attendee = ForeignKey(Attendee)
 
 
 
