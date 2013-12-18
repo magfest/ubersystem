@@ -12,6 +12,19 @@
     <script src="../static/lib/angular/ui-bootstrap-tpls-0.7.0.js"></script>
     <script type="text/javascript">
         angular.module("tabletop", ["ngRoute", "ui.bootstrap"])
+            .directive("attendeeLink", function() {
+                return {
+                    restrict: 'E',
+                    template: '<span>' +
+                                  '<a target="_blank" href="../registration/form?id={{ attendee.id }}">{{ attendee.name }}</a>' +
+                                  '<span ng-if="badge"> (Badge #{{ attendee.badge }})</span>' +
+                              '</span>',
+                    scope: {
+                        attendee: '=attendee',
+                        badge: '=badge'
+                    }
+                };
+            })
             .factory("MatchMaker", function() {
                 return function() {
                     var args = arguments;
@@ -101,6 +114,15 @@
                         Games.set(response.data.games);
                     });
                     $scope.game = "";
+                };
+                $scope.returnToOwner = function(game) {
+                    $http({
+                        method: "post",
+                        url: "return_to_owner",
+                        params: {id: game.id}
+                    }).then(function(response) {
+                        Games.set(response.data.games);
+                    });
                 };
             })
             .controller("GameFormController", function($scope, $http, $location, Random, Games, Attendees, MatchMaker) {

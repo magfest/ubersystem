@@ -51,3 +51,13 @@ class Root:
             "message": "Success!",
             "games": self.games
         }
+    
+    @ajax
+    def return_to_owner(self, id):
+        game = Game.objects.get(id=id)
+        game.returned = True
+        game.save()
+        return {
+            "message": "Success!",
+            "games": self.games
+        }

@@ -7,12 +7,14 @@
 <table style="width:auto">
 <tr>
     <td style="width:10em"><b>Game:</b></td>
-    <td><input autofocus type="text" size="30" ng-model="game" typeahead-editable="false" typeahead="g as ('[' + g.code + '] ' + g.name) for g in games | filter:nameOrCode($viewValue) | limitTo:8" /></td>
+    <td><input autofocus type="text" size="30" ng-model="game" typeahead-editable="false" typeahead="g as ('[' + g.code + '] ' + g.name) for g in games | filter:{returned: false} | filter:nameOrCode($viewValue) | limitTo:8" /></td>
 </tr>
 <tr ng-if="game && game.checked_out">
     <td></td>
     <td>
-        Checked out to <b>{{ game.checked_out.name }} (Badge #{{ game.checked_out.badge }})</b> at <b>{{ game.checked_out.when }}</b>.
+        Checked out to
+        <attendee-link attendee="game.checked_out" badge="true"></attendee-link>
+        at <b>{{ game.checked_out.when }}</b>.
         <div style="margin-top:5px">
             <button ng-click="returned(game)">Game Was Returned</button>
         </div>
@@ -38,12 +40,17 @@
     <td>Game</td>
     <td>Owner</td>
     <td>Status</td>
+    <td></td>
 </tr>
 <tr ng-repeat="game in games | filter:search">
     <td>{{ game.code }}</td>
     <td>{{ game.name }}</td>
-    <td><a href="../registration/form?id={{ game.attendee.id }}">{{ game.attendee.name }} (Badge #{{ game.attendee.badge }})</a></td>
-    <td ng-if="game.checked_out">Checked out by {{ game.checked_out.name }}</td>
+    <td><attendee-link attendee="game.attendee" badge="true"></attendee-link> (Badge #{{ game.attendee.badge }})</td>
+    
+    <td ng-if="game.checked_out">Checked out by <attendee-link attendee="game.checked_out"></attendee-link></td>
     <td ng-if="!game.checked_out">available</td>
+    
+    <td ng-if="game.returned">Returned</td>
+    <td ng-if="!game.returned"><button ng-click="returnToOwner(game)">Return to Owner</button></td>
 </tr>
 </table>
