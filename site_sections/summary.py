@@ -114,4 +114,4 @@ class Root:
     @csv_file
     def personalized_badges(self, out):
         for a in Attendee.objects.exclude(badge_num=0).order_by("badge_num"):
-            out.writerow([a.badge_num, a.badge_printed_name or a.full_name])
+            out.writerow([a.badge_num, a.get_badge_type_display(), a.badge_printed_name or a.full_name])
