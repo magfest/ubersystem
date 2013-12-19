@@ -110,3 +110,8 @@ class Root:
                 "taken_hours": sum(s.job.weighted_hours for s in shifts if s.job.location == dept)
             } for dept,desc in JOB_LOC_OPTS]
         }
+    
+    @csv_file
+    def personalized_badges(self, out):
+        for a in Attendee.objects.exclude(badge_num=0).order_by("badge_num"):
+            out.writerow([a.badge_num, a.badge_printed_name or a.full_name])
