@@ -29,7 +29,7 @@ class State:
     SUP_REG_OPEN = True
     GROUP_REG_OPEN = True
     DEALER_WAITLIST_CLOSED = False
-    CUSTOM_BADGES_REALLY_ORDERED = False
+    CUSTOM_BADGES_REALLY_ORDERED = True
     
     STAFFERS_IMPORTED    = datetime(2013,  7, 23)
     SHIFTS_CREATED       = datetime(2013, 10, 12, 23)
