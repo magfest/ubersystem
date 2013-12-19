@@ -199,6 +199,7 @@ EVENT_LOC_OPTS = enum(
     PANELS_3 = "Panels 3",
     PANELS_4 = "Panels 4",
     PANELS_5 = "MAGES",
+    BRAINSPACE = "BrainSpace",
     AUTOGRAPHS = "Autographs",
     GAMES_ON_FILM = "Games on Film",
     CONSOLE_NGA = "Console (NGA Tournaments)",
