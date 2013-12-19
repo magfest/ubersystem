@@ -22,7 +22,7 @@ class State:
     AT_THE_CON = False
     POST_CON = False
     UBER_SHUT_DOWN = False
-    HIDE_SCHEDULE = True
+    HIDE_SCHEDULE = False
     
     PREREG_CLOSED = False
     PREREG_NOT_OPEN_YET = False
