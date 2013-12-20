@@ -235,7 +235,7 @@ Reminder(Attendee, "MAGFest parental consent form reminder", "under_18_reminder.
          lambda a: a.age_group == UNDER_18 and datetime.now() > state.EPOCH - timedelta(days = 7))
 
 Reminder(Attendee, "MAGFest food for guests", "guest_food.txt",
-         lambda a: a.badge_type == GUEST_BADGE)
+         lambda a: a.badge_type == GUEST_BADGE, sender = PANELS_EMAIL)
 
 
 
