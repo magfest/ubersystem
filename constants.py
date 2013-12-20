@@ -215,7 +215,9 @@ EVENT_LOC_OPTS = enum(
     CHIPTUNES = "Chiptunes",
     SHEDSPACE = "Shedspace",
 )
-EVENT_LOCS = [loc for loc,desc in EVENT_LOC_OPTS]
+GROUPED_EVENTS = [PANELS_1, PANELS_2, PANELS_3, PANELS_4, BRAINSPACE, AUTOGRAPHS,
+                  CONCERTS, CHIPTUNES, SHEDSPACE]
+EVENT_LOCS = GROUPED_EVENTS + [loc for loc,desc in EVENT_LOC_OPTS if loc not in GROUPED_EVENTS]
 EVENT_BOOKED = {"colspan": 0}
 EVENT_OPEN   = {"colspan": 1}
 
