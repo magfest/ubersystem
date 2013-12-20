@@ -696,7 +696,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @cached_property
     def shifts(self):
-        return list(self.shift_set.select_related())
+        return list(self.shift_set.order_by("job__start_time").select_related())
     
     @property
     def worked_shifts(self):
@@ -842,7 +842,7 @@ class Job(MagModel):
     
     @staticmethod
     def everything(location = None):
-        shifts = Shift.objects.filter(**{"job__location": location} if location else {}).select_related()
+        shifts = Shift.objects.filter(**{"job__location": location} if location else {}).order_by("job__start_time").select_related()
         
         by_job, by_attendee = defaultdict(list), defaultdict(list)
         for shift in shifts:
@@ -878,7 +878,7 @@ class Job(MagModel):
     
     @cached_property
     def shifts(self):
-        return list(self.shift_set.select_related())
+        return list(self.shift_set.order_by("job__start_time").select_related())
     
     @property
     def hours(self):
