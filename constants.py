@@ -186,6 +186,10 @@ MARKETPLACE_EMAIL_SIGNATURE = """\
  - Danielle Pomfrey,
 MAGFest Marketplace Coordinator"""
 
+PEGLEGS_EMAIL_SIGNATURE = """\
+ - Tim Macneil,
+Panels Department"""
+
 CON_LENGTH      = (state.ESCHATON - state.EPOCH).days * 24 + (state.ESCHATON - state.EPOCH).seconds // 3600
 START_TIME_OPTS = [(dt, dt.strftime("%I %p %a")) for dt in (state.EPOCH + timedelta(hours = i) for i in range(CON_LENGTH))]
 DURATION_OPTS   = [(i, "%i hour%s"%(i,("s" if i > 1 else ""))) for i in range(1,8)]

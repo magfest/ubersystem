@@ -198,6 +198,7 @@ StopsReminder("MAGFest message from Chef", "food_trusted_staffers.txt",
               lambda a: a.has_shifts_in(FOOD_PREP) and a.trusted)
 
 
+
 DeptHeadReminder("Assign MAGFest hotel rooms for your department", "room_assignments.txt",
                  lambda a: days_before(45, state.ROOM_DEADLINE))
 
@@ -221,6 +222,7 @@ DeptHeadReminder("Final list of MAGFest hotel allocations for your department", 
                  lambda a: days_before(1, state.ROOM_DEADLINE + timedelta(days=6)))
 
 
+
 GroupReminder("Reminder to pre-assign MAGFest group badges", "group_preassign_reminder.txt",
               lambda g: days_after(30, g.registered) and state.GROUP_REG_OPEN and g.unregistered_badges)
 
@@ -228,8 +230,13 @@ Reminder(Group, "Last chance to pre-assign MAGFest group badges", "group_preassi
          lambda g: not state.GROUP_REG_OPEN and g.unregistered_badges and (not g.is_dealer or g.status == APPROVED))
 
 
+
 Reminder(Attendee, "MAGFest parental consent form reminder", "under_18_reminder.txt",
          lambda a: a.age_group == UNDER_18 and datetime.now() > state.EPOCH - timedelta(days = 7))
+
+Reminder(Attendee, "MAGFest food for guests", "guest_food.txt",
+         lambda a: a.badge_type == GUEST_BADGE)
+
 
 
 DeptHeadReminder("MAGFest staffers need to be marked and rated", "postcon_hours.txt",

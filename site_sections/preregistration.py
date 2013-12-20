@@ -373,6 +373,10 @@ class Root:
             "affiliates": affiliates()
         }
     
+    def guest_food(self, id):
+        cherrypy.session['staffer_id'] = Attendee.objects.get(secret_id = id).id
+        raise HTTPRedirect("../signups/food_restrictions")
+    
     def attendee_donation_form(self, id, message=""):
         attendee = Attendee.objects.get(secret_id = id)
         return {

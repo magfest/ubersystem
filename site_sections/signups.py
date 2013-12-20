@@ -46,10 +46,18 @@ class Root:
         
         def food_restrictions(self, message="", **params):
             if params:
-                FoodRestrictions.get(dict(params, attendee_id = self.staffer.id), checkgroups = ["standard"]).save()
-                raise HTTPRedirect("index?message={}", "Your dietary restrictions have been recorded")
+                FoodRestrictions.get(dict(params, attendee_id = self.staffer.id), 
+                                     allowed = ["attendee_id", "freeform"], checkgroups = ["standard"]).save()
+                if self.staffer.badge_type == GUEST_BADGE:
+                    raise HTTPRedirect("food_restrictions?message={}", "Your info has been recorded, thanks a bunch!")
+                else:
+                    raise HTTPRedirect("index?message={}", "Your dietary restrictions have been recorded")
             else:
-                return {}
+                return {
+                    "message": message,
+                    "attendee": self.staffer,
+                    "fr": self.staffer.food_restrictions or FoodRestrictions()
+                }
         
         def hotel_requests(self, message = "", decline = None, **params):
             attendee = self.staffer
