@@ -88,7 +88,7 @@ class Root:
     @csv_file
     def panels(self, out):
         out.writerow(["Panel","Time","Duration","Room","Description","Panelists"])
-        for event in sorted(list(Event.objects.order_by("start_time")), key = lambda e: (e.start_time, e.get_location_display)):
+        for event in sorted(list(Event.objects.order_by("start_time")), key = lambda e: (e.start_time, e.get_location_display())):
             if "Panel" in event.get_location_display() or "Autograph" in event.get_location_display():
                 out.writerow([event.name,
                               event.start_time.strftime("%I%p %a").lstrip("0"),
