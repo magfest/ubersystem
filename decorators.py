@@ -105,7 +105,7 @@ def render(template, data = None):
     rendered = loader.get_template(template).render( Context(data) )
     if not state.AT_THE_CON and Account.is_nick() and "emails" not in template and "history" not in template and "form" not in rendered:
         rendered = rendered.replace("festival", "convention").replace("Fest", "Con")
-    return rendered
+    return rendered.encode("utf-8")
 
 # TODO: sanitize for XSS attacks; currently someone can only attack themselves, but still...
 def ng_render(fname, **kwargs):

@@ -60,11 +60,9 @@ class Root:
 
     @unrestricted
     def schedule_tsv(self):
-        #cherrypy.response.headers["Content-type"] = "text/html" # debug
-        cherrypy.response.headers["Content-type"] = "plain/text"
+        cherrypy.response.headers["Content-type"] = "text/plain"
         schedule = defaultdict(list)
         for event in Event.objects.order_by("start_time"):
-            
             # strip newlines from event descriptions
             event.description = normalize_newlines(event.description)
             event.description = event.description.replace('\n', ' ')
@@ -74,13 +72,14 @@ class Root:
 
             # Guidebook wants an end time, not duration.
             # also, duration is in half hours. duration=1 means 30 minutes.
-            event.end_time = event.start_time + timedelta(minutes=event.duration*30)
+            event.end_time = event.start_time + timedelta(minutes = 30 * event.duration)
             
             # now just display the times in these fields, not dates
             event.end_time = event.end_time.strftime("%I:%M:%S %p")
             event.start_time = event.start_time.strftime("%I:%M:%S %p")
 
             schedule[event.get_location_display()].append(event)
+
         return render("schedule/schedule.tsv", {
             "schedule": sorted(schedule.items(), key=lambda tup: EVENT_LOCS.index(tup[1][0].location))
         })
