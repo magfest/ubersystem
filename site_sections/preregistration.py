@@ -307,6 +307,7 @@ class Root:
     
     def transfer_badge(self, message = "", **params):
         old = Attendee.objects.get(secret_id = params["id"])
+        assert old.transferrable, "This badge is not transferrable"
         attendee = Attendee.get(params, bools = ["staffing","international"], restricted = True)
         
         if "first_name" in params:

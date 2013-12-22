@@ -593,9 +593,14 @@ class Attendee(MagModel, TakesPaymentMixin):
         return badge
     
     @property
+    def transferrable(self):
+        return self.paid in [HAS_PAID, PAID_BY_GROUP] and self.badge_type != STAFF_BADGE
+    
+    @property
     def tshirt(self):
         return self.badge_type in [STAFF_BADGE, SUPPORTER_BADGE] or self.worked_hours >= 6
     
+    # TODO: change this is has_personalized_badge
     @property
     def personalized_badge(self):
         return self.badge_type in [STAFF_BADGE, SUPPORTER_BADGE]
