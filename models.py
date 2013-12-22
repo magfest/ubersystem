@@ -458,6 +458,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     def presave_adjustments(self):
         import badge_funcs
         
+        if self.age_group == UNDER_18:
+            self.staffing = False
+            self.assigned_depts = self.requested_depts = ""
+            if self.ribbon == VOLUNTEER_RIBBON:
+                self.ribbon = NO_RIBBON
+        
         if self.ribbon == DEPT_HEAD_RIBBON:
             if not state.CUSTOM_BADGES_REALLY_ORDERED:
                 self.badge_type = STAFF_BADGE
