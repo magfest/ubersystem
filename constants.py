@@ -212,6 +212,7 @@ EVENT_LOC_OPTS = enum(
     ARCADE = "Arcade",
     LAN_1 = "LAN 1",
     LAN_2 = "LAN 2",
+    TABLETOP_POKER = "Tabletop (Poker)",
     TABLETOP_TOURNAMENTS = "Tabletop (Tournaments)",
     TABLETOP_FREEPLAY = "Tabletop (Free Play)",
     TABLETOP_CCG = "Tabletop (CCG)",
