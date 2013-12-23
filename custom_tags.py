@@ -197,10 +197,11 @@ class timespan(template.Node):
         self.model = Variable(model)
     
     @staticmethod
-    def pretty(model):
-        endtime  = model.start_time + timedelta(hours=model.duration)
-        startstr = model.start_time.strftime("%I").lstrip("0")
-        endstr   = endtime.strftime("%I").lstrip("0") + endtime.strftime("%p").lower()
+    def pretty(model, minute_increment=60):
+        minutestr = lambda dt: ":30" if dt.minute == 30 else ""
+        endtime   = model.start_time + timedelta(minutes = minute_increment * model.duration)
+        startstr  = model.start_time.strftime("%I").lstrip("0") + minutestr(model.start_time)
+        endstr    = endtime.strftime("%I").lstrip("0") + minutestr(endtime) + endtime.strftime("%p").lower()
         
         if model.start_time.day==endtime.day:
             endstr += endtime.strftime(" %A")
