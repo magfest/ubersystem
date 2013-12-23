@@ -47,7 +47,7 @@ cherrypy.config.update({
 
 django.conf.settings.configure(
     TEMPLATE_DEBUG = True,
-    TEMPLATE_DIRS  = ["templates","static"],
+    TEMPLATE_DIRS  = ["templates","static","static/views"],
     DATABASES = {
         "default": {
             "ENGINE":   "django.db.backends.postgresql_psycopg2",
