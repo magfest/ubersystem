@@ -196,9 +196,8 @@ class timespan(template.Node):
     def __init__(self, model):
         self.model = Variable(model)
     
-    def render(self, context):
-        model = self.model.resolve(context)
-        
+    @staticmethod
+    def pretty(model):
         endtime  = model.start_time + timedelta(hours=model.duration)
         startstr = model.start_time.strftime("%I").lstrip("0")
         endstr   = endtime.strftime("%I").lstrip("0") + endtime.strftime("%p").lower()
@@ -211,6 +210,9 @@ class timespan(template.Node):
                 return startstr + "-" + endstr
         else:
             return startstr + model.start_time.strftime("pm %a - ") + endstr + endtime.strftime(" %a")
+    
+    def render(self, context):
+        return self.pretty(self.model.resolve(context))
 
 @tag
 class popup_link(template.Node):

@@ -49,6 +49,12 @@ class Root:
         }
     
     @unrestricted
+    @csv_file
+    def time_ordered(self, out):
+        for event in Event.objects.order_by("start_time", "duration", "location"):
+            out.writerow([custom_tags.timespan.pretty(event), event.name, event.get_location_display()])
+    
+    @unrestricted
     def xml(self):
         cherrypy.response.headers["Content-type"] = "text/xml"
         schedule = defaultdict(list)
