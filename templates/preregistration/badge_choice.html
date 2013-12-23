@@ -42,8 +42,10 @@
             <li> All-access, four-day pass </li>
             {% if now < PRICE_BUMP %}
                 <li style="color:red"> Price goes up to ${{ LATE_BADGE_PRICE }} at {{ PRICE_BUMP|datetime }} </li>
-            {% else %}
+            {% elif now < PREREG_TAKEDOWN %}
                 <li style="color:red"> Preregistration closes at {{ PREREG_TAKEDOWN|datetime }}. </li>
+            {% else %}
+                <li style="color:red"> Preregistration closes at {{ UBER_TAKEDOWN|datetime }}. </li>
             {% endif %}
         </ul>
     </td>
@@ -51,7 +53,10 @@
 </tr>
 <tr>
 {% if GROUP_REG_OPEN %}
-    <td> <input type="radio" name="badge_type" value="{{ PSEUDO_GROUP_BADGE }}" /> <b>Group</b> </td>
+    <td>
+        {% if now < PREREG_TAKEDOWN %}<input type="radio" name="badge_type" value="{{ PSEUDO_GROUP_BADGE }}" />{% endif %}
+        <b>Group</b>
+    </td>
     <td>
         <ul>
             <li> Save money when you register eight or more people at once </li>
@@ -61,8 +66,10 @@
                 <li style="color:red"> Price goes up to ${{ LATE_GROUP_PRICE }} at {{ PRICE_BUMP|datetime }} </li>
             {% elif now < SECOND_GROUP_BUMP %}
                 <li style="color:red"> Price goes up to ${{ LATER_GROUP_PRICE }} at {{ SECOND_GROUP_BUMP|datetime }} </li>
-            {% else %}
+            {% elif now < PREREG_TAKEDOWN %}
                 <li style="color:red"> Group preregistration closes at {{ PREREG_TAKEDOWN|datetime }} </li>
+            {% else %}
+                <li style="color:red"> Group preregistration is closed </li>
             {% endif %}
         </ul>
     </td>

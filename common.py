@@ -130,6 +130,9 @@ def hour_day_format(dt):
     return dt.strftime("%I%p ").strip("0").lower() + dt.strftime("%a")
 
 
+# TODO: insert email only if successful
+# TODO: handle dest as a list more gracefully in the Email table
+# TODO: insert into Email tables for all unsent emails on a dev box
 def send_email(source, dest, subject, body, format = "text", cc = [], bcc = [], model = None):
     to, cc, bcc = map(listify, [dest, cc, bcc])
     if DEV_BOX:

@@ -68,7 +68,7 @@ class State:
             return EARLY_BADGE_PRICE
         elif datetime.now() < self.SECOND_PRICE_BUMP:
             return LATE_BADGE_PRICE
-        elif state.AT_THE_CON:
+        elif datetime.now() > self.PREREG_TAKEDOWN:
             return DOOR_BADGE_PRICE
         else:
             return LATER_BADGE_PRICE
