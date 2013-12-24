@@ -33,8 +33,8 @@ var RATINGS = {
     },
     {{ RATED_GREAT }}: {
         prompt: "Please explain how this volunteer went above and beyond:",
-        false: "../static/images" + "aplus_blank.jpg",
-        true:  "../static/images" + "aplus_filled.jpg"
+        false: "../static/images/" + "aplus_blank.jpg",
+        true:  "../static/images/" + "aplus_filled.jpg"
     }
 };
 var renderRating = function(shiftId) {
