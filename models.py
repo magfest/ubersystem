@@ -1,5 +1,6 @@
 from common import *
 
+# TODO: mixin or decorator for getattr-on-MultiChoiceField
 class MultiChoiceField(CommaSeparatedIntegerField):
     def __init__(self, *args, **kwargs):
         choices = kwargs.pop("choices")

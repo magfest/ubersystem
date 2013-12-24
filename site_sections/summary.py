@@ -115,3 +115,11 @@ class Root:
     def personalized_badges(self, out):
         for a in Attendee.objects.exclude(badge_num=0).order_by("badge_num"):
             out.writerow([a.badge_num, a.get_badge_type_display(), a.badge_printed_name or a.full_name])
+    
+    def food_eligible(self):
+        cherrypy.response.headers["Content-Type"] = "application/xml"
+        eligible = [a for a in Attendee.objects.order_by("first_name", "last_name")
+                      if not a.is_unassigned
+                    and (a.badge_type in (STAFF_BADGE, GUEST_BADGE)
+                      or a.ribbon == VOLUNTEER_RIBBON and a.weighted_hours >= 12)]
+        return render("summary/food_eligible.xml", {"attendees": eligible})
