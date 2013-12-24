@@ -600,7 +600,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @property
     def transferrable(self):
-        return self.paid in [HAS_PAID, PAID_BY_GROUP] and self.badge_type != STAFF_BADGE
+        return self.paid in [HAS_PAID, PAID_BY_GROUP] and self.badge_type not in [STAFF_BADGE, GUEST_BADGE]
     
     @property
     def tshirt(self):
