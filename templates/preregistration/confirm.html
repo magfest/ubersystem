@@ -16,11 +16,14 @@
         {% endif %}
         {% if attendee.amount_extra %}
             setTimeout(function(){  // make sure this happens after jQuery.select2
-                $.field("amount_extra").find("option").each(function(){
-                    if ($(this).val() < {{ attendee.amount_extra }}) {
-                        $(this).remove();
-                    }
-                });
+                var $extra = $.field("amount_extra");
+                if ($extra) {
+                    $extra.find("option").each(function(){
+                        if ($(this).val() < {{ attendee.amount_extra }}) {
+                            $(this).remove();
+                        }
+                    });
+                }
             }, 1);
         {% endif %}
     });
