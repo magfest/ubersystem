@@ -69,7 +69,7 @@ def dept_placeholders(department):
     if department:
         return Attendee.objects.filter(assigned_depts__contains=department, placeholder=True).order_by("first_name", "last_name")
     else:
-        return Attendee.objects.filter(placeholder=True).order_by("first_name", "last_name")
+        return Attendee.objects.filter(badge_type=STAFF_BADGE, placeholder=True).order_by("first_name", "last_name")
 
 @tag
 class maybe_anchor(template.Node):
