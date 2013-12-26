@@ -363,6 +363,7 @@ JOB_LOC_OPTS = enum(
     CONSOLE       = "Consoles",
     CON_OPS       = "Fest Ops",
     DISPATCH      = "Dispatch",
+    DORSAI        = "Dorsai",
     PANELS        = "Events",
     FOOD_PREP     = "Food Prep",
     INDIE_GAMES   = "Indie Games",
