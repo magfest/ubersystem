@@ -66,6 +66,12 @@ def attendee_misc(attendee):
         if attendee.phone and attendee.phone[:1]!="+" and len(re.compile("[0-9]").findall(attendee.phone))!=10:
             return "Invalid 10-digit personal phone number"
 
+def attendee_banned_volunteer(attendee):
+    if (attendee.ribbon == VOLUNTEER_RIBBON or attendee.staffing) and attendee.full_name in BANNED_STAFFERS:
+        return "We've declined to invite {} back as a volunteer{}".format(attendee.full_name,
+                ", talk to Eli Courtwright to override if necessary" if state.AT_THE_CON
+            else ", email stops@magfest.org if you believe this is in error")
+
 def attendee_money(attendee):
     try:
         amount_paid = int(float(attendee.amount_paid))
