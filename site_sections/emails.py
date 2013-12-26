@@ -153,7 +153,8 @@ StopsReminder("Last chance to sign up for MAGFest shifts", "shift_reminder.txt",
                                                      and a.takes_shifts and not a.hours)
 
 StopsReminder("Still want to volunteer at MAGFest?", "volunteer_check.txt",
-              lambda a: days_before(5, state.UBER_TAKEDOWN) and a.ribbon == VOLUNTEER_RIBBON and a.weighted_hours == 0)
+              lambda a: days_before(5, state.UBER_TAKEDOWN) and a.ribbon == VOLUNTEER_RIBBON
+                                                            and a.takes_shifts and a.weighted_hours == 0)
 
 StopsReminder("MAGCon - the convention to plan MAGFest!", "magcon.txt",
               lambda a: days_before(14, state.MAGCON))
