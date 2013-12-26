@@ -52,6 +52,10 @@ class StopsReminder(Reminder):
     def __init__(self, subject, template, filter, cc=None):
         Reminder.__init__(self, Attendee, subject, template, lambda a: a.staffing and filter(a), STAFF_EMAIL, cc=cc)
 
+class GuestReminder(Reminder):
+    def __init__(self, subject, template, filter=lambda a: True, cc=None):
+        Reminder.__init__(self, Attendee, subject, template, lambda a: a.badge_type == GUEST_BADGE and filter(a), PANELS_EMAIL, cc=cc)
+
 class DeptHeadReminder(Reminder):
     def __init__(self, subject, template, filter, sender=STAFF_EMAIL):
         Reminder.__init__(self, Attendee, subject, template, lambda a: a.ribbon == DEPT_HEAD_RIBBON and len(a.assigned) == 1 and filter(a), sender)
@@ -197,6 +201,9 @@ StopsReminder("MAGFest food prep rules", "food_volunteers.txt",
 StopsReminder("MAGFest message from Chef", "food_trusted_staffers.txt",
               lambda a: a.has_shifts_in(FOOD_PREP) and a.trusted)
 
+StopsReminder("MAGFest Volunteer Food", "volunteer_food_info.txt",
+              lambda a: days_before(7, state.UBER_TAKEDOWN))
+
 
 
 DeptHeadReminder("Assign MAGFest hotel rooms for your department", "room_assignments.txt",
@@ -234,9 +241,9 @@ Reminder(Group, "Last chance to pre-assign MAGFest group badges", "group_preassi
 Reminder(Attendee, "MAGFest parental consent form reminder", "under_18_reminder.txt",
          lambda a: a.age_group == UNDER_18 and datetime.now() > state.EPOCH - timedelta(days = 7))
 
-Reminder(Attendee, "MAGFest food for guests", "guest_food.txt",
-         lambda a: a.badge_type == GUEST_BADGE, sender = PANELS_EMAIL)
+GuestReminder("MAGFest food for guests", "guest_food.txt")
 
+GuestReminder("MAGFest hospitality suite information", "guest_food_info.txt")
 
 
 DeptHeadReminder("MAGFest staffers need to be marked and rated", "postcon_hours.txt",

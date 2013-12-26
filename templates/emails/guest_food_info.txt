@@ -1,0 +1,14 @@
+{{ attendee.first_name }},
+
+Thanks again for coming out to MAGFest as a Guest!  As we've previously mentioned, we feed our guests three meals per day during MAGFest, so you can drop by the Hospitality Suite in Room 6135 for food during any of the following times:
+
+Breakfast: 8am to 11am
+Lunch: 1pm to 4pm
+Dinner: 6pm to 10pm
+Overnight: 12am to 5am
+
+The first meal served will be lunch on Thursday, and the suite will remain open through Sunday afternoon, although Sunday will be leftovers rather than regular meals.
+
+Please let us know if you have any questions.
+
+{{ PEGLEGS_EMAIL_SIGNATURE }}
