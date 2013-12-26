@@ -30,12 +30,22 @@ def unassigned_counts():
                                        .annotate(unassigned=Count("id"))}
 
 def search(text):
+    if ":" in text:
+        target, term = text.lower().split(":", 1)
+        if target in ["group", "email"]:
+            target = {"group": "group__name"}.get(target, target)
+            return Attendee.objects.filter(**{target + "__icontains": term.strip()})
+    
     terms = text.split()
     if len(terms) == 2:
         first, last = terms
         if first.endswith(","):
             last, first = first.strip(","), last
         return Attendee.objects.filter(first_name__icontains = first, last_name__icontains = last)
+    elif len(terms) == 1 and terms[0].endswith(","):
+        return Attendee.objects.filter(last_name__icontains = terms[0].rstrip(","))
+    elif len(terms) == 1 and terms[0].isdigit():
+        return Attendee.objects.filter(badge_num = terms[0])
     else:
         q = Q()
         for attr in ["first_name","last_name","badge_num","email","comments","admin_notes","group__name"]:
