@@ -614,7 +614,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @property
     def donation_swag(self):
-        return [desc for amount,desc in sorted(DONATION_TIERS.items()) if amount and self.amount_extra >= amount]
+        extra = self.amount_extra
+        if self.badge_type == SUPPORTER_BADGE and extra == 0:
+            extra = SUPPORTER_LEVEL
+        return [desc for amount,desc in sorted(DONATION_TIERS.items()) if amount and extra >= amount]
     
     @property
     def merch(self):
