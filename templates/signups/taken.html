@@ -24,9 +24,9 @@
     <td></td>
 </tr>
 <tr ng-repeat="job in jobs | filter:taken" style="vertical-align:bottom">
-    <td>
+    <td id="job{{ job.id }}">
         {{ job.name }}
-        <sup ng-if="job.description" style="color:blue" title="{{ job.description }}">?</sup>
+        <sup ng-if="job.description" style="color:blue ; cursor:pointer" title="{{ job.description }}" ng-click="showDesc(job)">?</sup>
     </td>
     <td>{{ job.location_display }}</td>
     <td>{{ job.start_time|hourDay }}</td>

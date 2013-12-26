@@ -4,8 +4,9 @@
     <title>%__name's shifts</title>
     <link rel="stylesheet" type="text/css" href="../static/styles/styles.css" />
     <script src="../static/lib/date/date.js" type="text/javascript"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.1.5/angular.min.js"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.1.5/angular-resource.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.1.5/angular.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.1.5/angular-resource.min.js"></script>
     <script type="text/javascript">
         angular.module("signups", [])
             .factory("Jobs", function($http) {
@@ -83,6 +84,9 @@
             };
             $scope.taken = function(job) {
                 return job.taken;
+            };
+            $scope.showDesc = function(job) {
+                $("#job" + job.id).parent("tr").after('<tr><td colspan="6"><i>' + job.description + '</i></td></tr>');
             };
             var refreshInterval = function() {
                 refresh();
