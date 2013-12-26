@@ -62,6 +62,9 @@ class State:
     def DEALER_REG_OPEN(self):
         return self.DEALER_REG_START < datetime.now() < self.DEALER_REG_SHUTDOWN
     
+    def get_oneday_price(self, dt):
+        return {2: 20, 5: 20}.get(dt.day, 40)
+    
     @property
     def BADGE_PRICE(self):
         if datetime.now() < self.PRICE_BUMP:
@@ -72,6 +75,10 @@ class State:
             return DOOR_BADGE_PRICE
         else:
             return LATER_BADGE_PRICE
+    
+    @property
+    def ONEDAY_BADGE_PRICE(self):
+        return self.get_oneday_price(datetime.now())
     
     @property
     def GROUP_PRICE(self):
@@ -153,7 +160,6 @@ def enum(**kwargs):
         xs.append((name, val, desc))
     return [x[1:] for x in sorted(xs, key = _line if decl_sort else lambda tup: tup[2])]
 
-ONEDAY_BADGE_PRICE = 35
 DEALER_BADGE_PRICE = 30
 TABLE_PRICES       = "$125 for the first table, $175 for the second table, $225 for the third table, $300 for the fourth table"
 

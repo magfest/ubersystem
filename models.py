@@ -533,17 +533,18 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @property
     def badge_cost(self):
+        registered = self.registered or datetime.now()
         if self.paid in [PAID_BY_GROUP, NEED_NOT_PAY]:
             return 0
         elif self.overridden_price is not None:
             return self.overridden_price
         elif self.badge_type == ONE_DAY_BADGE:
-            return ONEDAY_BADGE_PRICE
-        elif (self.registered or datetime.now()) < state.PRICE_BUMP:
+            return state.get_oneday_price(registered)
+        elif registered < state.PRICE_BUMP:
             return EARLY_BADGE_PRICE
-        elif (self.registered or datetime.now()) < state.SECOND_PRICE_BUMP:
+        elif registered < state.SECOND_PRICE_BUMP:
             return LATE_BADGE_PRICE
-        elif (self.registered or datetime.now()) > state.PREREG_TAKEDOWN:
+        elif registered > state.PREREG_TAKEDOWN:
             return DOOR_BADGE_PRICE
         else:
             return LATER_BADGE_PRICE
