@@ -10,7 +10,7 @@
     window.setTimeout(function(){ $("#message").hide(); }, 10000);
     
     function showOrHide() {
-        $("#underage")[$("[name=age_group]").val() == {{ UNDER_18 }} ? "show" : "hide"]();
+        setVisible("#underage", $("[name=age_group]").val() == {{ UNDER_18 }});
     }
     $(showOrHide);
 </script>
@@ -43,7 +43,6 @@
     <td style="font-weight: bold"> <nobr>Age:</nobr> </td>
     <td>
         <select name="age_group" onChange="showOrHide()">
-            <option value="">Choose a category</option>
             {% options AGE_GROUP_OPTS attendee.age_group %}
         </select>
         <span id="underage" style="color:red ; display:none">Attendees under 18 <b>MUST</b> have a parental consent form signed to receive a badge.</span>
