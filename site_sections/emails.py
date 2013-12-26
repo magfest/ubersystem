@@ -228,6 +228,8 @@ DeptHeadReminder("Department Ribbons", "dept_head_ribbons.txt",
 DeptHeadReminder("Final list of MAGFest hotel allocations for your department", "hotel_list.txt",
                  lambda a: days_before(1, state.ROOM_DEADLINE + timedelta(days=6)))
 
+DeptHeadReminder("Unconfirmed MAGFest staffers in your department", "dept_placeholders.txt",
+                 lambda a: days_before(21, state.UBER_TAKEDOWN))
 
 
 GroupReminder("Reminder to pre-assign MAGFest group badges", "group_preassign_reminder.txt",

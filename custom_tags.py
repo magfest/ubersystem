@@ -64,6 +64,13 @@ def dept_hotel_nights(department):
         nights[hr.nights_display].append(hr)
     return sorted(nights.items())
 
+@register.filter
+def dept_placeholders(department):
+    if department:
+        return Attendee.objects.filter(assigned_depts__contains=department, placeholder=True).order_by("first_name", "last_name")
+    else:
+        return Attendee.objects.filter(placeholder=True).order_by("first_name", "last_name")
+
 @tag
 class maybe_anchor(template.Node):
     def __init__(self, name):
