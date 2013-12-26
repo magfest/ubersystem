@@ -41,7 +41,12 @@
 </tr>
 {% for attendee in recent %}
     <tr>
-        <td align="left"><a href="form?return_to=new%3f&id={{ attendee.id }}">{{ attendee.full_name }}</a></td>
+        <td align="left">
+            <a href="form?return_to=new%3f&id={{ attendee.id }}">{{ attendee.full_name }}</a>
+            {% if attendee.banned %}
+                <div style="color:red">This attendee's name matches the name of a banned person.  Please get a department head to handle this.</div>
+            {% endif %}
+        </td>
         <td>{{ attendee.get_badge_type_display }}</td>
         <td>{{ attendee.get_age_group_display }}</td>
         <td>

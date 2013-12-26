@@ -78,9 +78,9 @@ def attendee_money(attendee):
         amount_refunded = int(float(attendee.amount_refunded))
         if amount_refunded < 0:
             return "Amount Refunded must be positive"
-        elif amount_refunded>amount_paid:
+        elif amount_refunded > amount_paid:
             return "Amount Refunded cannot be greater than Amount Paid"
-        elif attendee.paid==REFUNDED and amount_refunded==0:
+        elif attendee.paid == REFUNDED and amount_refunded == 0:
             return "Amount Refunded may not be 0 if the attendee is marked Paid and Refunded"
     except:
         return "What you entered for Amount Refunded (%s) wasn't even a number" % attendee.amount_refunded

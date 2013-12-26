@@ -586,6 +586,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.unassigned_name or "{self.last_name}, {self.first_name}".format(self = self)
     
     @property
+    def banned(self):
+        return self.full_name in BANNED_ATTENDEES
+    
+    @property
     def badge(self):
         if self.paid == NOT_PAID:
             badge = "Unpaid " + self.get_badge_type_display()
@@ -607,7 +611,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def tshirt(self):
         return self.badge_type in [STAFF_BADGE, SUPPORTER_BADGE] or self.worked_hours >= 6
     
-    # TODO: change this is has_personalized_badge
+    # TODO: change this to has_personalized_badge
     @property
     def personalized_badge(self):
         return self.badge_type in [STAFF_BADGE, SUPPORTER_BADGE]
