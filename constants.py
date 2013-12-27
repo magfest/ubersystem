@@ -367,6 +367,7 @@ JOB_LOC_OPTS = enum(
     CHIPSPACE     = "Chipspace",
     CONCERT       = "Concert",
     CONSOLE       = "Consoles",
+    CONTRACTORS   = "Contractors",
     CON_OPS       = "Fest Ops",
     DISPATCH      = "Dispatch",
     DORSAI        = "Dorsai",
