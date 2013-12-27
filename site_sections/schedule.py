@@ -66,7 +66,8 @@ class Root:
 
     @unrestricted
     def schedule_tsv(self):
-        cherrypy.response.headers["Content-type"] = "text/plain"
+        cherrypy.response.headers["Content-Type"] = "text/tsv"
+        cherrypy.response.headers["Content-Disposition"] = "attachment;filename=MyVerySpecial.csv"
         schedule = defaultdict(list)
         for event in Event.objects.order_by("start_time"):
             # strip newlines from event descriptions
