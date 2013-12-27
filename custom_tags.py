@@ -378,7 +378,7 @@ class stripe_form(template.Node):
                     data-amount="{charge.amount}"
                     data-name="MAGFest Preregistration"
                     data-description="{charge.description}"
-                    data-image="../static/maglogo.png">
+                    data-image="../static/images/maglogo.png">
                 </script>
             </form>
         """.format(action=self.action, payment_id=payment_id, key=STRIPE_PUBLIC_KEY, charge=charge)
