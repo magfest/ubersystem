@@ -349,7 +349,7 @@ class Group(MagModel, TakesPaymentMixin):
     
     @cached_property
     def attendees(self):
-        return list(self.attendee_set.all())
+        return list(self.attendee_set.order_by("id"))
     
     @property
     def badges_purchased(self):

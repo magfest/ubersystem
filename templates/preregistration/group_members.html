@@ -34,7 +34,7 @@
 
 <br/> <b>Here are the badges for your group:</b>
 <table style="width:auto">
-{% for attendee in group.attendee_set.all %}
+{% for attendee in group.attendees %}
     <tr>
         <td> <ul style="padding-right:0px"><li></li></ul> </td>
         {% if attendee.first_name %}
@@ -67,7 +67,12 @@
             </td>
         {% else %}
             <td> <a style="font-size:10pt" href="register_group_member?id={{ attendee.secret_id }}">Register someone for this badge</a>: </td>
-            <td colspan="3"> {{ attendee.badge }} </td>
+            <td colspan="3">
+                {{ attendee.badge }}
+                {% if attendee.amount_extra %}
+                    <b>(Kicked in an extra ${{ attendee.amount_extra }}!)</b>
+                {% endif %}
+            </td>
         {% endif %}
     </tr>
 {% endfor %}
