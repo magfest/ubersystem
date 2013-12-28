@@ -621,7 +621,11 @@ class Root:
     @ng_renderable
     def hotel_assignments(self, department):
         if state.ROOMS_LOCKED_IN:
-            return "Hotel rooms are currently locked in, email stops@magfest.org if you need a last-minute adjustment"
+            cherrypy.response.headers["Content-Type"] = "text/plain"
+            return json.dumps({
+                "message": "Hotel rooms are currently locked in, email stops@magfest.org if you need a last-minute adjustment",
+                "rooms": [room.to_dict() for room in Room.objects.filter(department=department)]
+            }, indent=4)
         else:
             return {
                 "dump": hotel_dump(department),

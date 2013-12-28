@@ -843,6 +843,14 @@ class Room(MagModel, NightsMixin):
     department = IntegerField(choices = JOB_LOC_OPTS)
     notes      = CharField(max_length = 255, default = "")
     nights     = MultiChoiceField(choices = NIGHTS_OPTS)
+    
+    def to_dict(self):
+        return {
+            "department": self.get_department_display(),
+            "notes": self.notes,
+            "nights": self.nights_display,
+            "people": [ra.attendee.full_name for ra in self.roomassignment_set.all()]
+        }
 
 class RoomAssignment(MagModel):
     room     = ForeignKey(Room)
