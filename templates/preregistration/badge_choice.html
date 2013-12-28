@@ -45,12 +45,20 @@
             {% elif now < PREREG_TAKEDOWN %}
                 <li style="color:red"> Preregistration closes at {{ PREREG_TAKEDOWN|datetime }}. </li>
             {% else %}
-                <li style="color:red"> Preregistration closes at {{ UBER_TAKEDOWN|datetime }}. </li>
+                <li style="color:red"> Preregistration closes at {{ UBER_TAKEDOWN|datetime }}, but full-weekend passes will also be available at the door for ${{ BADGE_PRICE }}. </li>
             {% endif %}
         </ul>
     </td>
     <td> {% popup_link "../static/views/attendees.html" "Details" %} </td>
 </tr>
+{% if now > PREREG_TAKEDOWN %}
+    <tr>
+        <td> <b>Single Day Passes:</b> </td>
+        <td>
+            <ul><li>Single days passes available for sale at the door for $40 for Fri or Sat, and $20 for Thu or Sun.</li></ul>
+        </td>
+    </tr>
+{% endif %}
 <tr>
 {% if GROUP_REG_OPEN %}
     <td>
