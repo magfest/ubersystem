@@ -18,11 +18,16 @@
 (<a href="mailto:eli@courtwright.org?bcc={{ emails }}">email these staffers</a>)<b>:</b>
 <br/> <br/>
 
-<table>
+<table style="width:auto">
 {% for attendee in attendees %}
     <tr>
         <td> <ul><li></li></ul> </td>
-        <td> <a href="../registration/shifts?id={{ attendee.id }}">{{ attendee.full_name }}</a>{% if attendee.trusted %} <font size="-1">[T]</font>{% endif %}{% if attendee.multiply_assigned %}*{% endif %}: </td>
+        <td>
+            <a href="../registration/shifts?id={{ attendee.id }}">{{ attendee.full_name }}</a>
+            {% if attendee.trusted %}<font size="-1">[T]</font>{% endif %}
+            {% if attendee.multiply_assigned %}<font size="-1">[M]</font>{% endif %}
+            {% if attendee.hotel_requests.approved and attendee.hotel_requests.setup_teardown %}<font size="-1">[L]</font>{% endif %}
+        </td>
         <td> &nbsp;&nbsp;&nbsp;&nbsp; signed up for {{ attendee.weighted_hours }} shift-hours in this area </td>
     </tr>
 {% endfor %}
@@ -30,8 +35,9 @@
 
 <br/> <br/>
 <div style="margin-left:10px">
-    *: <i>Staffers marked with an asterix are assigned to multiple locations</i> <br/>
-    [T]: <i>Staffers marked with a "T" are trusted
+    [M]: <i>Staffers marked with a "M" are assigned to multiple locations</i> <br/>
+    [T]: <i>Staffers marked with a "T" are trusted</i> <br/>
+    [L]: <i>Staffers marked with a "L" are working load-in and/or load-out</i>
 </div>
 
 {% endblock %}
