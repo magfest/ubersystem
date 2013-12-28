@@ -152,7 +152,7 @@ def send_email(source, dest, subject, body, format = "text", cc = [], bcc = [], 
             bccAddresses = bcc,
             message = message
         )
-        sleep(0.25)  # avoid hitting rate limit
+        sleep(0.1)  # avoid hitting rate limit
     else:
         log.error("email sending turned off, so unable to send {}", locals())
 
