@@ -5,7 +5,7 @@ from secret_settings import *
 
 DEV_BOX = True
 
-YEAR = 12
+YEAR = 12  # TODO: put this in backlinks
 
 EARLY_BADGE_PRICE = 40
 LATE_BADGE_PRICE  = 45
@@ -203,6 +203,10 @@ EVENT_START_TIME_OPTS = [(dt, dt.strftime("%I %p %a") if not dt.minute else dt.s
                          for dt in [state.EPOCH + timedelta(minutes = i * 30) for i in range(2 * CON_LENGTH)]]
 EVENT_DURATION_OPTS = [(i, "%.1f hour%s" % (i/2, "s" if i != 2 else "")) for i in range(1, 19)]
 
+DAYS = sorted({(dt.strftime("%Y-%m-%d"), dt.strftime("%a")) for dt,desc in START_TIME_OPTS})
+HOURS = ["{:02}".format(i) for i in range(24)]
+MINUTES = ["{:02}".format(i) for i in range(60)]
+
 EVENT_LOC_OPTS = enum(
     PANELS_1 = "Panels 1",
     PANELS_2 = "Panels 2",
@@ -271,6 +275,11 @@ PAID_OPTS = enum(
     NEED_NOT_PAY  = "doesn't need to",
     REFUNDED      = "paid and refunded",
     PAID_BY_GROUP = "paid by group"
+)
+
+PAYMENT_OPTIONS = enum(
+    CASH = "cash",
+    CREDIT = "credit card"
 )
 
 STORE_PRICES = (                # start as a tuple to preserve order for STORE_ITEMS

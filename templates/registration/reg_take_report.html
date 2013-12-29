@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Reg Money Take By Station{% endblock %}
+{% block content %}
+
+<h2>Reg Take Report</h2>
+
+<form method="post" action="reg_take_report">
+<table style="width:auto" align="center">
+<tr>
+    <td>Reg Station:</td>
+    <td colspan="3"><select name="reg_station">{% options reg_stations reg_station %}</select></td>
+</tr>
+<tr style="font-weight:bold">
+    <td></td>
+    <td>Day</td>
+    <td>Hour</td>
+    <td>Minute</td>
+</tr>
+<tr>
+    <td>Start Time:</td>
+    <td><select name="startday">{% options DAYS startday %}</select></td>
+    <td><select name="starthour">{% options HOURS starthour %}</select></td>
+    <td><select name="startminute">{% options MINUTES startminute %}</select></td>
+</tr>
+<tr>
+    <td>End Time:</td>
+    <td><select name="endday">{% options DAYS endday %}</select></td>
+    <td><select name="endhour">{% options HOURS endhour %}</select></td>
+    <td><select name="endminute">{% options MINUTES endminute %}</select></td>
+</tr>
+<tr>
+    <td></td>
+    <td colspan="3" style="text-align:center"><input type="submit" name="report" value="Generate Report" /></td>
+</tr>
+</table>
+</form>
+
+{% if report %}
+    <div style="text-align:center ; font-weight:bold ; margin:25px">
+        Total Attendees: {{ attendees|length }}
+        &nbsp; / &nbsp;
+        Total Cash: ${{ total_cash }}
+        &nbsp; / &nbsp;
+        Total Credit: ${{ total_credit }}
+    </div>
+    <table class="list">
+    <tr class="header">
+        <td>Name</td>
+        <td>Badge</td>
+        <td>Payment Type</td>
+        <td>Payment Amount</td>
+        <td>Registered</td>
+    </tr>
+    {% for attendee in attendees %}
+        <tr>
+            <td><a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a></td>
+            <td>{{ attendee.badge }}</td>
+            <td>{{ attendee.get_payment_method_display }}</td>
+            <td>${{ attendee.amount_paid }}</td>
+            <td>{{ attendee.registered }}</td>
+        </tr>
+    {% endfor %}
+    </table>
+{% endif %}
+
+{% endblock %}

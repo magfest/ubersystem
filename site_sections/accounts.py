@@ -38,7 +38,8 @@ class Root:
     
     @unrestricted
     def logout(self):
-        for key in ["account_id", "csrf_token"]:
+        # TODO: this should probably be a whitelist instead of a blacklist
+        for key in ["account_id", "csrf_token", "reg_station"]:
             cherrypy.session.pop(key, None)
         raise HTTPRedirect("login?message={}", "You have been logged out")
     

@@ -7,8 +7,13 @@
 {% endif %}
 
 <script type="text/javascript">
+    // automatically log out after 5 minutes of inactivity
+    setTimeout(function() {
+        window.location = "../accounts/logout";
+    }, 300000);
+    
     var UNASSIGNED = {{ unassigned|jsonize }};
-    function groupChosen(group) {
+    var groupChosen = function(group) {
         var $group = $(group);
         var $link = $group.prev("a");
         var $badgeNum = $group.nextAll(":text");
@@ -18,7 +23,16 @@
             $link.show().attr("href", "../groups/form?id=" + $group.val());
         }
         $badgeNum.focus();
-    }
+    };
+    
+    var toggleMarkButton = function(dropdown) {
+        var $button = $(dropdown).parent().find(":submit");
+        if ($(dropdown).val()) {
+            $button.removeAttr("disabled");
+        } else {
+            $button.attr("disabled", "disabled");
+        }
+    };
 </script>
 
 <h2> Recent At-the-Door Registrations </h2>
@@ -56,7 +70,11 @@
                 <form method="post" action="mark_as_paid">
                 {% csrf_token %}
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
-                <input type="submit" value="Mark as Paid" />
+                <select name="payment_method" onChange="toggleMarkButton(this)">
+                    <option value="">payment method</option>
+                    {% options PAYMENT_OPTIONS %}
+                </select>
+                <input type="submit" disabled="disabled" value="Mark as Paid" />
                 </form>
             {% endif %}
         </td>

@@ -416,6 +416,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     phone         = CharField(max_length = 20)
     email         = CharField(max_length = 50)
     age_group     = IntegerField(default = AGE_UNKNOWN, choices = AGE_GROUP_OPTS)
+    reg_station   = IntegerField(null = True)
     
     interests   = MultiChoiceField(choices = INTEREST_OPTS)
     found_how   = CharField(max_length = 100)
@@ -442,6 +443,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     amount_paid      = IntegerField(default = 0)
     amount_extra     = IntegerField(default = 0, choices = DONATION_OPTS)
     amount_refunded  = IntegerField(default = 0)
+    payment_method   = IntegerField(null = True, choices = PAYMENT_OPTIONS)
     
     badge_printed_name = CharField(max_length = 30, default = "")
     

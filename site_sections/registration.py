@@ -379,6 +379,9 @@ class Root:
         }
     
     def new(self, message="", checked_in=""):
+        if "reg_station" not in cherrypy.session:
+            raise HTTPRedirect("new_reg_station")
+        
         groups = set()
         for a in Attendee.objects.filter(first_name="", group__isnull=False).select_related("group"):
             groups.add((a.group.id, a.group.name or "BLANK"))
@@ -392,51 +395,92 @@ class Root:
                                           .order_by("registered")
         }
     
+    def new_reg_station(self, reg_station="", message=""):
+        if reg_station:
+            if not reg_station.isdigit() or not (0 < int(reg_station) < 100):
+                message = "Reg station must be a positive integer between 0 and 100"
+            
+            if not message:
+                cherrypy.session['reg_station'] = int(reg_station)
+                raise HTTPRedirect("new?message={}", "Reg station number recorded")
+        
+        return {
+            "message": "",
+            "reg_station": reg_station
+        }
+    
+    @csrf_protected
+    def mark_as_paid(self, id, payment_method):
+        attendee = Attendee.objects.get(id = id)
+        attendee.paid = HAS_PAID
+        attendee.payment_method = payment_method
+        attendee.amount_paid = attendee.total_cost
+        attendee.reg_station = cherrypy.session["reg_station"]
+        attendee.save()
+        raise HTTPRedirect("new?message={}", "Attendee marked as paid")
+    
+    @csrf_protected
     def new_checkin(self, id, badge_num, ec_phone="", message="", group=""):
         checked_in = ""
+        badge_num = int(badge_num) if badge_num.isdigit() else 0
         attendee = Attendee.objects.get(id=id)
         existing = list(Attendee.objects.filter(badge_num = badge_num))
-        if existing:
+        if 'reg_station' not in cherrypy.session:
+            raise HTTPRedirect("new_reg_station")
+        elif not badge_num:
+            message = "You didn't enter a valid badge number"
+        elif existing:
             message = "{0.badge} already belongs to {0.full_name}".format(existing[0])
         else:
             badge_type, message = get_badge_type(badge_num)
             attendee.badge_type = badge_type
             attendee.badge_num = badge_num
-            if group:
-                group = Group.objects.get(id = group)
-                with BADGE_LOCK:
-                    available = [a for a in group.attendee_set.filter(first_name = "")]
-                    matching = [a for a in available if a.badge_type == badge_type]
-                    if not available:
-                        message = "The last badge for that group has already been assigned by another station"
-                    elif not matching:
-                        message = "Badge #{} is a {} badge, but {} has no badges of that type".format(badge_num, attendee.get_badge_type_display(), group.name)
-                    else:
-                        for attr in ["group","paid","amount_paid","ribbon"]:
-                            setattr(attendee, attr, getattr(matching[0], attr))
-                        matching[0].delete()
-            else:
-                attendee.paid = HAS_PAID
-                attendee.amount_paid = attendee.total_cost
+            if not message:
+                if group:
+                    group = Group.objects.get(id = group)
+                    with BADGE_LOCK:
+                        available = [a for a in group.attendee_set.filter(first_name = "")]
+                        matching = [a for a in available if a.badge_type == badge_type]
+                        if not available:
+                            message = "The last badge for that group has already been assigned by another station"
+                        elif not matching:
+                            message = "Badge #{} is a {} badge, but {} has no badges of that type".format(badge_num, attendee.get_badge_type_display(), group.name)
+                        else:
+                            for attr in ["group","paid","amount_paid","ribbon"]:
+                                setattr(attendee, attr, getattr(matching[0], attr))
+                            matching[0].delete()
+                elif attendee.paid != HAS_PAID:
+                    message = "You must mark this attendee as paid before you can check them in"
         
         if not message:
             attendee.ec_phone = ec_phone
             attendee.checked_in = datetime.now()
+            attendee.reg_station = cherrypy.session["reg_station"]
             attendee.save()
             message = "{a.full_name} checked in as {a.badge} with {a.accoutrements}".format(a = attendee)
             checked_in = attendee.id
         
         raise HTTPRedirect("new?message={}&checked_in={}", message, checked_in)
     
-    @csrf_protected
-    def mark_as_paid(self, id):
-        attendee = Attendee.objects.get(id = id)
-        attendee.paid = HAS_PAID
-        attendee.amount_paid = attendee.total_cost
-        attendee.save()
-        raise HTTPRedirect("new?message={}", "Attendee marked as paid")
+    def reg_take_report(self, **params):
+        if params:
+            start = datetime.strptime("{startday} {starthour}:{startminute}".format(**params), "%Y-%m-%d %H:%M")
+            end = datetime.strptime("{endday} {endhour}:{endminute}".format(**params), "%Y-%m-%d %H:%M")
+            attendees = Attendee.objects.filter(reg_station=params["reg_station"], amount_paid__gt=0,
+                                                registered__gt=start, registered__lte=end)
+            params["attendees"] = attendees
+            params["total_cash"] = sum(a.amount_paid for a in attendees if a.payment_method == CASH)
+            params["total_credit"] = sum(a.amount_paid for a in attendees if a.payment_method == CREDIT)
+        else:
+            params["endday"] = datetime.now().strftime("%Y-%m-%d")
+            params["endhour"] = datetime.now().strftime("%H")
+            params["endminute"] = datetime.now().strftime("%M")
+        
+        stations = sorted(filter(bool, Attendee.objects.values_list("reg_station", flat=True).distinct()))
+        params["reg_stations"] = stations
+        params.setdefault("reg_station", stations[0] if stations else 0)
+        return params
     
-    @csrf_protected
     def undo_new_checkin(self, id):
         attendee = Attendee.objects.get(id = id)
         if attendee.group:
@@ -446,7 +490,7 @@ class Root:
         attendee.badge_num = 0
         attendee.checked_in = attendee.group = None
         attendee.save()
-        raise HTTPRedirect("new?message={}", "Attendee un-checked-in but still marked as paid")
+        raise HTTPRedirect("new?message={}", "Attendee un-checked-in")
     
     def shifts(self, id, shift_id="", message=""):
         attendee = Attendee.objects.get(id = id)
