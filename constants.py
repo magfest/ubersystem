@@ -19,7 +19,7 @@ LATER_GROUP_PRICE = 40
 class State:
     SEND_EMAILS = True
     
-    AT_THE_CON = False
+    AT_THE_CON = True
     POST_CON = False
     UBER_SHUT_DOWN = False
     HIDE_SCHEDULE = False
@@ -283,12 +283,11 @@ PAYMENT_OPTIONS = enum(
 )
 
 STORE_PRICES = (                # start as a tuple to preserve order for STORE_ITEMS
-    ("MAGFest 11 tshirt", 15),
+    ("MAGFest 12 tshirt", 15),
+    ("MAGFest 11 tshirt", 10),
     ("EB Papas tshirt", 5),
-    ("MAGFest 9 tshirt", 5),
-    ("MAGFest X tshirt", 10),
     ("MAGFest hoodie", 30),
-    ("MAGFest 11 sticker", 1),
+    ("MAGFest 12 sticker", 1),
     ("Squarewave Bumper Sticker", 2),
     ("Squarewave Car Window Decal", 4),
     ("Squarewave Lanyard", 4),

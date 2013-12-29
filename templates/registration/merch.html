@@ -10,10 +10,11 @@
     
     function recordSale() {
         $.post("record_sale", {
-                id:      "None",
-                what:    $("#what_select").val() || $("#what_text").val() || "",
-                cash:    $("#store_cash").val(),
-                mpoints: $("#store_mpoints").val()
+                id:         "None",
+                what:       $("#what_select").val() || $("#what_text").val() || "",
+                cash:       $("#store_cash").val(),
+                mpoints:    $("#store_mpoints").val(),
+                csrf_token: csrf_token
             }, function(json) {
                 $("#message").html(json.message);
                 if (json.success) {
@@ -22,7 +23,7 @@
             }, "json");
     }
     function undoSale(id) {
-        $.post("undo_sale", {"id": id}, function(message) {
+        $.post("undo_sale", {"id": id, csrf_token: csrf_token}, function(message) {
             $("#message").html(message);
         });
     }
@@ -44,7 +45,8 @@
     function recordMPointExchange() {
         $.post("record_mpoint_exchange", {
                 badge_num:  $("#ex_badge_num").val(),
-                mpoints:    $("#ex_mpoints").val()
+                mpoints:    $("#ex_mpoints").val(),
+                csrf_token: csrf_token
             }, function(json) {
                 $("#message").html(json.message);
                 if (json.success) {
@@ -58,14 +60,14 @@
            }, "json");
     }
     function undoMPointExchange(id) {
-        $.post("undo_mpoint_exchange", {"id": id}, function(s) {
+        $.post("undo_mpoint_exchange", {"id": id, csrf_token: csrf_token}, function(s) {
             $("#message").html(s);
         });
     }
     
     function giveMerch(id, shirtSize) {
         $("#give button").attr("disabled", true);
-        $.post("give_merch", {id: id, shirt_size: shirtSize || null}, function(json) {
+        $.post("give_merch", {id: id, csrf_token: csrf_token, shirt_size: shirtSize || null}, function(json) {
             $("#give").html("");
             $("#badge_num").val("");
             $("#message").html(json.message);
@@ -81,7 +83,7 @@
         }, "json");
     }
     function takeBackMerch(id) {
-        $.post("take_back_merch", {id: id}, function(message) {
+        $.post("take_back_merch", {id: id, csrf_token: csrf_token}, function(message) {
             $("#message").html(message);
         });
     }
@@ -109,7 +111,7 @@
         
         $("#swag").on("submit", function(e){
             $("#give,#message").html("");
-            $.post("check_merch", {badge_num: $("#badge_num").val()}, function(resp) {
+            $.post("check_merch", {csrf_token: csrf_token, badge_num: $("#badge_num").val()}, function(resp) {
                 if (!resp.id) {
                     $("#message").html(resp.message);
                 } else {

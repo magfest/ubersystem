@@ -53,10 +53,11 @@
     
     function recordSale() {
         $.post("record_sale", {
-                id:      "None",
-                what:    $("#what_select").val() || $("#what_text").val() || "",
-                cash:    $("#store_cash").val(),
-                mpoints: 0
+                id:         "None",
+                what:       $("#what_select").val() || $("#what_text").val() || "",
+                cash:       $("#store_cash").val(),
+                mpoints:    0,
+                csrf_token: csrf_token
             }, function(json) {
                 $("#message").html(json.message);
                 if( json.success ) {
@@ -65,7 +66,7 @@
             }, "json");
     }
     function undoSale(id) {
-        $.post("undo_sale", {"id": id}, function(message) {
+        $.post("undo_sale", {"id": id, csrf_token: csrf_token}, function(message) {
             $("#message").html(message);
         });
     }
@@ -87,7 +88,8 @@
     function recordMPointUsage() {
         $.post("record_mpoint_usage", {
                     badge_num:  $("#badge_num").val(),
-                    amount:     $("#amount").val()
+                    amount:     $("#amount").val(),
+                    csrf_token: csrf_token
                 }, function(json) {
                     $("#message").html(json.message);
                     if( json.success ) {
@@ -102,7 +104,7 @@
                 }, "json");
     }
     function undoMPointUsage(id) {
-        $.post("undo_mpoint_usage", {"id": id}, function(s) {
+        $.post("undo_mpoint_usage", {"id": id, csrf_token: csrf_token}, function(s) {
             $("#message").html(s);
         });
     }
@@ -113,8 +115,9 @@
             return;
         }
         $.post("check_in", {id: id,
-                            age_group: $("#age_" + id).val(),
-                            badge_num: $("#num_" + id).val() || ""},
+                            csrf_token: csrf_token,
+                            age_group:  $("#age_" + id).val(),
+                            badge_num:  $("#num_" + id).val() || ""},
                 function(json) {
                     var message = json.message;
                     if( json.success ) {
@@ -132,9 +135,10 @@
     }
     function undoCheckin(id, pre_paid, pre_amount, pre_badge) {
         $.post("undo_checkin", {id: id,
-                                pre_paid: pre_paid,
+                                csrf_token: csrf_token,
+                                pre_paid:   pre_paid,
                                 pre_amount: pre_amount,
-                                pre_badge: pre_badge},
+                                pre_badge:  pre_badge},
                 function(s) {
                     var sep = location.href.indexOf("?")==-1 ? "?" : "&";
                     location.href += sep + "message=" + encodeURIComponent(s);

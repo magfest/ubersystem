@@ -84,6 +84,8 @@ def check_csrf(csrf_token):
     if csrf_token != cherrypy.session["csrf_token"]:
         log.error("csrf tokens don't match: {!r} != {!r}", csrf_token, cherrypy.session["csrf_token"])
         raise AssertionError("CSRF check failed")
+    else:
+        cherrypy.request.headers["CSRF-Token"] = csrf_token
 
 def check(model):
     prefix = model.__class__.__name__.lower() + "_"

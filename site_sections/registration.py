@@ -253,11 +253,6 @@ class Root:
             increment = True
             
             message += "{0.full_name} checked in as {0.badge} with {0.accoutrements}".format(attendee)
-            if attendee.staffing:
-                if attendee.weighted_hours:
-                    message += "<br/> Please give this staffer their schedule"
-                else:
-                    message += "<br/> This staffer is not signed up for hours; tell them to talk to a department head ASAP"
         
         return {
             "success":    success,

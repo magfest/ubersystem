@@ -92,7 +92,7 @@
         <td>
             {% csrf_token %}
             <input type="hidden" name="id" value="{{ attendee.id }}" />
-            <input type="submit" value="Check In" />
+            <input type="submit" value="Check In" {% if attendee.paid == NOT_PAID %}disabled{% endif %} />
         </td>
         </form>
     </tr>
