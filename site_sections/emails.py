@@ -250,6 +250,8 @@ GuestReminder("MAGFest food for guests", "guest_food.txt")
 
 GuestReminder("MAGFest hospitality suite information", "guest_food_info.txt")
 
+Reminder(Attendee, "MAGFest schedule, maps, and other FAQs", "precon_faqs.html", lambda a: days_before(7, state.EPOCH))
+
 
 DeptHeadReminder("MAGFest staffers need to be marked and rated", "postcon_hours.txt",
                  lambda a: state.POST_CON)
