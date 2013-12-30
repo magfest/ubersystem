@@ -399,6 +399,7 @@ class Root:
                 raise HTTPRedirect("pay?id={}&message={}", attendee.secret_id, message)
             else:
                 attendee.paid = HAS_PAID
+                attendee.amount_paid = attendee.total_cost
                 attendee.save()
                 raise HTTPRedirect("register?message={}", "Your payment has been accepted, please proceed to the Preregistration desk to pick up your badge")
     
