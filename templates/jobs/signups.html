@@ -43,7 +43,7 @@
                     <td> <ul><li></li></ul> </td>
                     <td> <a href="../registration/shifts?id={{ shift.attendee.id }}">{{ shift.attendee.full_name }}</a>&nbsp;&nbsp; </td>
                     <td>
-                        {% if shift.worked %}
+                        {% if shift.worked != SHIFT_UNMARKED %}
                             <i>{{ shift.get_worked_display }}</i>
                         {% else %}
                             <select onChange="setStatus({{ shift.id }}, this)">
