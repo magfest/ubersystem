@@ -342,11 +342,13 @@ class Root:
     
     if state.AT_THE_CON or DEV_BOX:
         @unrestricted
-        def register(self, message="", **params):
+        def register(self, message="", payment="", **params):
             params["id"] = "None"
             attendee = Attendee.get(params, bools=["international"], checkgroups=["interests"], restricted=True)
             if "first_name" in params:
-                if not attendee.first_name or not attendee.last_name:
+                if not payment:
+                    message = "Please select a payment type"
+                elif not attendee.first_name or not attendee.last_name:
                     message = "First and Last Name are required fields"
                 elif attendee.ec_phone[:1] != "+" and len(re.compile("[0-9]").findall(attendee.ec_phone)) != 10:
                     message = "Enter a 10-digit emergency contact number"
@@ -355,17 +357,50 @@ class Root:
                 elif attendee.badge_type not in [ATTENDEE_BADGE, ONE_DAY_BADGE]:
                     message = "No hacking allowed!"
                 else:
+                    payment = int(payment)
                     attendee.badge_num = 0
                     if not attendee.zip_code:
                         attendee.zip_code = "00000"
                     attendee.save()
-                    message = "Thank you for registering!  Please queue in the line and have your photo ID and signed waiver ready.  If you have not already paid, please also have ${} ready.".format(attendee.total_cost)
+                    message = "Thanks!  Please queue in the {} line and have your photo ID and {} ready."
+                    if payment == STRIPE:
+                        raise HTTPRedirect("pay?id={}", attendee.secret_id)
+                    elif payment == CASH:
+                        message = message.format("cash", "${}".format(attendee.total_cost))
+                    elif payment == SQUARE:
+                        message = message.format("credit card", "credit card")
                     raise HTTPRedirect("register?message={}", message)
             
             return {
+                "payment":  payment,
                 "message":  message,
                 "attendee": attendee
             }
+        
+        @unrestricted
+        def pay(self, id, message=""):
+            attendee = Attendee.objects.get(secret_id = id)
+            if attendee.paid == HAS_PAID:
+                raise HTTPRedirect("register?message={}", "You are already paid and should proceed to the preregistration desk to pick up your badge")
+            else:
+                return {
+                    "message": message,
+                    "attendee": attendee,
+                    "charge": Charge(attendee, description = attendee.full_name)
+                }
+        
+        @unrestricted
+        @credit_card
+        def take_payment(self, payment_id, stripeToken):
+            charge = Charge.get(payment_id)
+            [attendee] = charge.attendees
+            message = charge.charge_cc(stripeToken)
+            if message:
+                raise HTTPRedirect("pay?id={}&message={}", attendee.secret_id, message)
+            else:
+                attendee.paid = HAS_PAID
+                attendee.save()
+                raise HTTPRedirect("register?message={}", "Your payment has been accepted, please proceed to the Preregistration desk to pick up your badge")
     
     def comments(self, order = "last_name"):
         return {

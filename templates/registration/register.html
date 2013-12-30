@@ -20,8 +20,17 @@
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 <table width="100%" cellspacing="5" cellpadding="5">
 <tr>
-    <td width="25%" style="font-weight:bold"> <nobr>First and Last Name:</nobr> </td>
+    <td width="25%" style="font-weight:bold">Payment Method:</td>
     <td width="75%">
+        <select name="payment">
+            <option value="">Select a payment option</option>
+            {% options DOOR_PAYMENT_OPTS payment %}
+        </select>
+    </td>
+</tr>
+<tr>
+    <td style="font-weight:bold"> <nobr>First and Last Name:</nobr> </td>
+    <td>
         <input class="focus" type="text" style="width:10em" name="first_name" value="{{ attendee.first_name }}" />
         <input type="text" style="width:10em" name="last_name"  value="{{ attendee.last_name }}"  />
     </td>

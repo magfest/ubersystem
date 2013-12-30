@@ -282,6 +282,12 @@ PAYMENT_OPTIONS = enum(
     CREDIT = "credit card"
 )
 
+DOOR_PAYMENT_OPTS = enum(
+    CASH   = "Pay with cash",
+    STRIPE = "Pay with credit card (faster)",
+    SQUARE = "Pay with credit card at the registration desk (slower)"
+)
+
 STORE_PRICES = (                # start as a tuple to preserve order for STORE_ITEMS
     ("MAGFest 12 tshirt", 15),
     ("MAGFest 11 tshirt", 10),

@@ -369,19 +369,27 @@ class stripe_form(template.Node):
         payment_id = uuid4().hex
         charge = self.charge.resolve(context)
         cherrypy.session[payment_id] = charge
+        
+        email = ""
+        if len(charge.targets) == 1:
+            email = 'data-email="{}"'.format(charge.targets[0].email)
+        
+        regtext = "Registration" if state.AT_THE_CON else "Preregistration"
+        
         return """
             <form class="stripe" method="post" action="{action}">
                 <input type="hidden" name="payment_id" value="{payment_id}" />
                 <script
                     src="https://checkout.stripe.com/v2/checkout.js" class="stripe-button"
                     data-key="{key}"
+                    {email}
                     data-amount="{charge.amount}"
-                    data-name="MAGFest Preregistration"
+                    data-name="MAGFest {regtext}"
                     data-description="{charge.description}"
                     data-image="../static/images/maglogo.png">
                 </script>
             </form>
-        """.format(action=self.action, payment_id=payment_id, key=STRIPE_PUBLIC_KEY, charge=charge)
+        """.format(action=self.action, regtext=regtext, email=email, payment_id=payment_id, key=STRIPE_PUBLIC_KEY, charge=charge)
 
 
 
