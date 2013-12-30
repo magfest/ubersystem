@@ -1,0 +1,8 @@
+{{ attendee.first_name }},
+
+Thanks again for signing up for shifts in tabletop!  We're looking for a little extra help running some of our poker tournaments this year; they've been so popular in the past that we could use a few more people to help run them.
+
+If you're interested in doing this instead of (or in addition to) some of your existing shifts, please reply to this email and let us know.
+
+- Devon Courtwright,
+Tabletop Organizer

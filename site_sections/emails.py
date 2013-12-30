@@ -205,6 +205,8 @@ StopsReminder("MAGFest message from Chef", "food_trusted_staffers.txt",
 StopsReminder("MAGFest Volunteer Food", "volunteer_food_info.txt",
               lambda a: days_before(7, state.UBER_TAKEDOWN))
 
+Reminder(Attendee, "Want to help run MAGFest poker tournaments?", "poker.txt",
+         lambda a: a.has_shifts_in(TABLETOP), sender="tabletop@magfest.org")
 
 
 DeptHeadReminder("Assign MAGFest hotel rooms for your department", "room_assignments.txt",
