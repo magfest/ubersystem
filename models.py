@@ -692,10 +692,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     # TODO: make this efficient
     @cached_property
     def possible(self):
-        if not self.assigned:
+        if not self.assigned and not state.AT_THE_CON:
             return []
         else:
-            jobs = {job.id: job for job in Job.objects.filter(location__in = self.assigned)}
+            jobs = {job.id: job for job in Job.objects.filter(**{} if state.AT_THE_CON else {"location__in": self.assigned})}
             for job in jobs.values():
                 job._shifts = []
             for shift in Shift.objects.filter(job__location__in = self.assigned).select_related():
@@ -707,7 +707,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @property
     def possible_opts(self):
-        return [(job.id,"%s (%s)" % (job.name, hour_day_format(job.start_time))) for job in self.possible]
+        return [(job.id,"(%s) [%s] %s" % (hour_day_format(job.start_time), job.get_location_display(), job.name))
+                for job in self.possible if datetime.now() < job.start_time + timedelta(hours=job.duration)]
     
     @property
     def possible_and_current(self):
@@ -874,22 +875,22 @@ class Job(MagModel):
     @staticmethod
     def everything(location = None):
         shifts = Shift.objects.filter(**{"job__location": location} if location else {}).order_by("job__start_time").select_related()
-        
+
         by_job, by_attendee = defaultdict(list), defaultdict(list)
         for shift in shifts:
             by_job[shift.job].append(shift)
             by_attendee[shift.attendee].append(shift)
-        
-        attendees = [a for a in Attendee.staffers() if not location or int(location) in a.assigned]
+
+        attendees = [a for a in Attendee.staffers() if state.AT_THE_CON or not location or int(location) in a.assigned]
         for attendee in attendees:
             attendee._shifts = by_attendee[attendee]
-        
+
         jobs = list(Job.objects.filter(**{"location": location} if location else {}).order_by("start_time","duration","name"))
         for job in jobs:
             job._shifts = by_job[job]
-            job._available_staffers = [s for s in attendees if (not job.restricted or s.trusted)
-                                                            and not job.hours.intersection(s.hours)]
-        
+            job._available_staffers = [s for s in attendees if not job.restricted or s.trusted]
+            # TODO: make this correct for both the con and during the year
+
         return jobs, shifts, attendees
     
     def to_dict(self):

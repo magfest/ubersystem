@@ -9,26 +9,31 @@
 
 <h2> All Jobs With Unfilled Shifts </h2>
 
-<table>
+<div style="position:fixed ; top:25% ; right: 25%">
+    <b>Assign someone to any of these positions:</b> <br/>
+    <select id="assignee">
+        {% for attendee in attendees %}
+            <option value="{{ attendee.id }}">{{ attendee.full_name }}</option>
+        {% endfor %}
+    </select>
+</div>
+
+<table style="width:50%">
 {% for job in jobs %}
     {% if job.shifts|length < job.slots %}
         <tr>
             <td> <a name="{{ job.id }}"></a><b>{% timespan job %}:</b> </td>
-            <td> <a href="form?id={{ job.id }}"><b>{{ job.name }}{% if job.restricted %}*{% endif %}</b></a> </td>
+            <td> <a href="form?id={{ job.id }}"><b>{{ job.name }}{% if job.restricted %}*{% endif %}</b></a> ({{ job.get_location_display }}) </td>
             <td> <nobr>({{ job.shifts|length }}/{{ job.slots }} slots filled)</nobr> </td>
                 {% if job.available_staffers %}
-                    <form method="post" action="assign_from_everywhere">
                     <td>
+                        <form method="post" action="assign_from_everywhere" onSubmit="$(this).find('[name=staffer_id]').val($('#assignee').val())">
                         {% csrf_token %}
                         <input type="hidden" name="job_id" value="{{ job.id }}" />
-                        <select name="staffer_id">
-                            {% for attendee in job.available_staffers %}
-                                <option value="{{ attendee.id }}">{{ attendee.full_name }}</option>
-                            {% endfor %}
-                        </select>
+                        <input type="hidden" name="staffer_id" value="" />
                         <input type="submit" value="Assign" />
+                        </form>
                     </td>
-                    </form>
                 {% else %}
                     <td><i>(no extra available staffers)</i></td>
                 {% endif %}
@@ -58,7 +63,7 @@
                         </td>
                         </form>
                         <td id="rating{{ shift.id }}"></td>
-                        {% if staffer.shift.worked == SHIFT_WORKED %}
+                        {% if shift.worked == SHIFT_WORKED %}
                             <script type="text/javascript">renderRating({{ shift.id }});</script>
                         {% endif %}
                     </tr>

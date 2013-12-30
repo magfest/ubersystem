@@ -43,9 +43,10 @@ class Root:
     def everywhere(self, message=""):
         jobs, shifts, attendees = Job.everything()
         return {
-            "message":  message,
-            "shifts":   Shift.serialize(shifts),
-            "jobs":     [job for job in jobs if not job.restricted
+            "message":   message,
+            "shifts":    Shift.serialize(shifts),
+            "attendees": attendees,
+            "jobs":      [job for job in jobs if not job.restricted
                                             and datetime.now() < job.start_time + timedelta(hours = job.duration)]
         }
     
@@ -113,7 +114,7 @@ class Root:
     @csrf_protected
     def assign_from_everywhere(self, job_id, staffer_id):
         message = assign(staffer_id, job_id) or "Staffer assigned to shift"
-        raise HTTPRedirect("everywhere?message={}", message)
+        raise HTTPRedirect("everywhere?message={}#{}", message, job_id)
     
     @csrf_protected
     def assign_from_list(self, job_id, staffer_id):
