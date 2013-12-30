@@ -1,10 +1,6 @@
 from __future__ import division
 from common import *
 
-def search_fields(att):
-    return [att.full_name, att.last_first, att.badge, att.comments, att.admin_notes, att.email] \
-           + ([att.group.name] if att.group else [])
-
 def check_everything(attendee):
     if state.AT_THE_CON and attendee.id is None:
         if isinstance(attendee.badge_num, str) or attendee.badge_num < 0:
@@ -48,7 +44,7 @@ def search(text):
         return Attendee.objects.filter(badge_num = terms[0])
     else:
         q = Q()
-        for attr in ["first_name","last_name","badge_num","email","comments","admin_notes","group__name"]:
+        for attr in ["first_name","last_name","badge_num","email","comments","admin_notes","secret_id","group__name","group__secret_id"]:
             q |= Q(**{attr + "__icontains": text})
         return Attendee.objects.filter(q)
 
