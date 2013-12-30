@@ -121,6 +121,7 @@ def _get_template_filename(func):
     mod_name = func.__module__.split(".")[1]
     return os.path.join(mod_name, func.__name__ + ".html")
 
+# TODO: better integration with @site_mappable
 def ng_renderable(func):
     @wraps(func)
     def with_rendering(*args, **kwargs):

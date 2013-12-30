@@ -1,6 +1,6 @@
 from common import *
 
-@all_renderable(STUFF)
+@all_renderable(CHECKINS)
 class Root:
     @property
     def attendees(self):
@@ -14,6 +14,7 @@ class Root:
     def games(self):
         return [g.to_dict() for g in Game.objects.order_by("name").select_related()]
     
+    @site_mappable
     @ng_renderable
     def index(self):
         return {

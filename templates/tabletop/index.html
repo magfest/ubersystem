@@ -4,11 +4,11 @@
     <title>Tabletop Game Checkins</title>
     <link rel="stylesheet" type="text/css" href="../static/styles/styles.css" />
     <link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" />
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
-    <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"></script>
-    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.2.5/angular.min.js"></script>
-    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.2.5/angular-route.js"></script>
-    <script src="//netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script>
+    <script src="../static/lib/jquery/jquery-1.10.2.min.js"></script>
+    <script src="../static/lib/jquery/jquery-ui-1.10.3.min.js"></script>
+    <script src="../static/lib/angular/angular.min.js"></script>
+    <script src="../static/lib/angular/angular-route.js"></script>
+    <script src="../static/lib/angular/bootstrap.min.js"></script>
     <script src="../static/lib/angular/ui-bootstrap-tpls-0.7.0.js"></script>
     <script type="text/javascript">
         angular.module("tabletop", ["ngRoute", "ui.bootstrap"])
@@ -126,6 +126,7 @@
                 };
             })
             .controller("GameFormController", function($scope, $http, $location, Random, Games, Attendees, MatchMaker) {
+                $scope.games = Games.games;
                 $scope.attendees = Attendees.attendees;
                 $scope.code = Random.id();
                 $scope.nameOrBadge = MatchMaker("name", "badge");

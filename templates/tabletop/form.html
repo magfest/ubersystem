@@ -10,7 +10,7 @@
 </tr>
 <tr>
     <td><b>Game:</b></td>
-    <td><input type="text" ng-model="name" autofocus /></td>
+    <td><input type="text" ng-model="name" typeahead="g.name for g in games | limitTo:8" autofocus /></td>
 </tr>
 <tr>
     <td><b>Owner:</b></td>
