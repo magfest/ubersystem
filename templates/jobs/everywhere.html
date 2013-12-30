@@ -9,7 +9,7 @@
 
 <h2> All Jobs With Unfilled Shifts </h2>
 
-<div style="position:fixed ; top:25% ; right: 25%">
+<div style="position:fixed ; top:25% ; right: 10%">
     <b>Assign someone to any of these positions:</b> <br/>
     <select id="assignee">
         {% for attendee in attendees %}
@@ -18,7 +18,7 @@
     </select>
 </div>
 
-<table style="width:50%">
+<table style="width:66%">
 {% for job in jobs %}
     {% if job.shifts|length < job.slots %}
         <tr>
@@ -47,7 +47,7 @@
                         <td> <ul><li></li></ul> </td>
                         <td> <a href="../registration/shifts?id={{ shift.attendee.id }}">{{ shift.attendee.full_name }}</a>&nbsp;&nbsp; </td>
                         <td>
-                            {% if shift.worked %}
+                            {% if shift.worked != SHIFT_UNMARKED %}
                                 <i>{{ shift.get_worked_display }}</i>
                             {% else %}
                                 <select onChange="setStatus({{ shift.id }}, this)">
