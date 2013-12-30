@@ -408,24 +408,8 @@ JOB_LOC_OPTS = enum(
     VIDEO_ROOM    = "Games on Film",
 )
 DEPT_CHAIRS = {
-    ARCADE:        "Ethan O'Toole, Tony Majors, Scott Schreiber, and Buffett",
-    CHALLENGES:    "Ryon Sumner and Challenge Andy",
-    CONCERT:       "James Pettigrew, Karen Lambey, and Matthew Stanford",
-    CONSOLE:       "Michael Ridgaway, Bunny Smith, and Orvie Thumel",
-    CON_OPS:       "Aaron Churchill",
-    PANELS:        "Carla Vorhees and Tim MacNeil",
-    FOOD_PREP:     "Ben Seburn and David Lansdell",
-    JAMSPACE:      "Dan Kim and Ryan Meier",
-    LAN:           "Cleon Chick, Alex Cutlip, and Greg Cotton",
-    MARKETPLACE:   "Danielle Pomfrey",
-    MERCH:         "Ryan Nichols and Jeff Rosen",
-    REGDESK:       "Victoria Earl, Bob Earl, William Burghart, and Antigonut Jarrett",
-    SECURITY:      "Rene Gobeyn and Steve Simmons",
-    STAFF_SUPPORT: "Eli Courtwright and Jack Boyd",
-    STOPS:         "Eli Courtwright and Jack Boyd",
-    TABLETOP:      "Richard Mackay, Will Mackay, and Devon Courtwright",
-    TECH_OPS:      "Matthew Reid and Will Henson",
-    VIDEO_ROOM:    "Gabriel Ricard",
+    STAFF_SUPPORT: "Jack Boyd",
+    SECURITY:      "The Dorsai Irregulars"
 }
 JOB_PAGE_OPTS = (
     ("index",    "Calendar View"),

@@ -8,18 +8,29 @@ If your shifts are not marked as worked, you won't
 {% endif %}
 get a free badge or free hotel room space next year.
 
-{% if attendee.badge_type == STAFF_BADGE %}
-    <br/><br/>
-    Free food is available for Staffers in the hospitality Suite, and your Staff badge also grants you entry to the Galaxy Cafe to purchase cheap food.  The Gaylord requests that we only use this cafeteria during these times:
-    <ul>
-        <li>Breakfast: 7 - 9am</li>
-        <li>Lunch:  1 - 3pm</li>
-        <li>Dinner: 7 - 9pm</li>
-    </ul>
-    To get to the Galaxy Cafe, go to the far back of the Maryland Ballroom foyer (go around the corner from where Registration is and walk all the way to the back).  Go through the doors and turn left.  Just before you get to the Security desk in the hallway, look to your left and there will be a wide set of stairs going down.  Go down those stairs and then the Galaxy Cafe will be on your right.
+<br/> <br/>
+Free food is available in the Hospitality Suite in Room 6135 during the following times:
+<ul>
+    <li>Breakfast: 8am to 11am</li>
+    <li>Lunch: 1pm to 4pm</li>
+    <li>Dinner: 6pm to 10pm</li>
+    <li>Overnight: 12am to 5am</li>
+</ul>
+
+{% if attendee.badge_type == ATTENDEE_BADGE %}
+    You'll become eligible for food after working 6 weighted hours worth of shifts.  Please come to Staffing Ops (in the Fest Ops room) to get your ribbon marked after working your first shift and getting your department head to sign this sheet.
+    <br/>
 {% endif %}
 
-<br/> <br/>
+<br/>
+In addition to the Hospitality Suite, you can buy food at the Galaxy Cafe.  To get there, go to the far back of the Maryland Ballroom foyer, then go through the doors and turn left.  Just before you get to the Security desk in the hallway, look to your left and there will be a wide set of stairs going down.  Go down those stairs and then the Galaxy Cafe will be on your right.  You can use the Galaxy Cafe during any of the following times:
+<ul>
+    <li>Breakfast ($12.50): 6:30am - 8:00am</li>
+    <li>Lunch ($14.50): 1:00pm - 2:30pm</li>
+    <li>Dinner (14:50): 7:00pm - 9:00pm</li>
+</ul>
+
+<br/>
 {% if attendee.shifts %}
     <i>You should report to a Department Chair for each department you're working before the start of your first shift:</i>
     <div style="margin-left:5% ; font-weight:bold">
@@ -53,5 +64,5 @@ get a free badge or free hotel room space next year.
     {% endfor %}
     </table>
 {% else %}
-    You have not signed up for any shifts.
+    <h3>You have not signed up for any shifts.</h3>
 {% endif %}

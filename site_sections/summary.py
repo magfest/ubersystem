@@ -78,7 +78,7 @@ class Root:
         }
     
     def all_schedules(self):
-        return {"staffers": Attendee.objects.filter(staffing = True).order_by("last_name","first_name")}
+        return {"staffers": [a for a in Attendee.objects.filter(staffing = True).order_by("last_name","first_name") if a.shifts]}
     
     def food_restrictions(self):
         guests = Attendee.objects.filter(badge_type = GUEST_BADGE).count()

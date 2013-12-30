@@ -239,10 +239,17 @@ class must_contact(template.Node):
         self.staffer = Variable(staffer)
     
     def render(self, context):
+        chairs = defaultdict(list)
+        for dept, head in DEPT_CHAIRS.items():
+            chairs[dept].append(head)
+        for head in Attendee.objects.filter(ribbon = DEPT_HEAD_RIBBON).order_by("badge_num"):
+            for dept in head.assigned:
+                chairs[dept].append(head.full_name)
+        
         staffer = self.staffer.resolve(context)
         locations = [s.job.location for s in staffer.shifts]
         dept_names = dict(JOB_LOC_OPTS)
-        return "<br/>".join({"{} ({})".format(DEPT_CHAIRS[dept], dept_names[dept]) for dept in locations})
+        return "<br/>".join(sorted({"({}) {}".format(dept_names[dept], " / ".join(chairs[dept])) for dept in locations}))
 
 @tag
 class add_max_lengths(template.Node):
