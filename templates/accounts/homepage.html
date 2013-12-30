@@ -42,7 +42,11 @@
     <ul>
         <li> <a href="../registration/">Attendees</a> </li>
         <li> <a href="../groups/">Groups</a> </li>
-        <li> <a href="../registration/staffers">Staffers</a> </li>
+        {% if AT_THE_CON %}
+            <li> <a href="../jobs/everywhere">All untaken shifts for all departments</a> </li>
+        {% else %}
+            <li> <a href="../registration/staffers">Staffers</a> </li>
+        {% endif %}
         <li> <a href="../jobs/">Jobs</a> </li>
         <li> <a href="../registration/feed">Feed of Database Changes</a> </li>
         {% if AT_THE_CON %}
