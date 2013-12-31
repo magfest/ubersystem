@@ -62,7 +62,7 @@
             else {
                 $(".maybe_bold").css("font-weight", "bold");
                 {% if AT_THE_CON %}
-                    $("#email").css("font-weight", "normal");
+                    $("#email,#zip_code").css("font-weight", "normal");
                 {% endif %}
             }
         }
@@ -186,7 +186,7 @@
     <td> <input type="text" name="email" value="{{ attendee.email }}" /> </td>
 </tr>
 <tr>
-    <td class="maybe_bold"> Zip Code: </td>
+    <td class="maybe_bold" id="zip_code"> Zip Code: </td>
     <td>
         <input type="text" name="zip_code" value="{{ attendee.zip_code }}" />
         {% checkbox attendee.international %} Attendee is from outside the US.
