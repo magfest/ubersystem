@@ -430,22 +430,18 @@ class Root:
                 We will announce preregistration opening on magfest.org, check there for updates.
             </body></html>
         """
+
+if state.PREREG_CLOSED:
+    @all_renderable()
+    class Root:
+        def default(self, *args, **kwargs):
+            return """
+                <html><head></head><body style="text-align:center">
+                    <h2 style="color:red">Preregistration has closed.</h2>
+                    We'll see everyone on January 2 - 5. <br/> <br/>
+                    Full weekend passes will be available at the door for $60,
+                    and single day passes will be $20 on Thursday or Sunday,
+                    and $40 for Friday or Saturday.
+                </body></html>
+            """
     
-    def prereg_closed(self, *args, **kwargs):
-        return """
-            <html><head></head><body style="color:red ; text-align:center">
-                <h2>Preregistration has closed.</h2>
-                We'll see everyone on January 2 - 5. <br/> <br/>
-                Full weekend passes will be available at the door for $60,
-                and single day passes will be $20 on Thursday or Sunday,
-                and $40 for Friday or Saturday.
-            </body></html>
-        """
-    
-    def __getattribute__(self, name):
-        if not DEV_BOX and state.PREREG_NOT_OPEN_YET:
-            return object.__getattribute__(self, "prereg_not_open_yet")
-        elif not DEV_BOX and state.PREREG_CLOSED:
-            return object.__getattribute__(self, "prereg_closed")
-        else:
-            return object.__getattribute__(self, name)
