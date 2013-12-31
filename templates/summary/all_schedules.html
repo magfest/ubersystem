@@ -5,7 +5,7 @@
 
 {% for attendee in staffers %}
     {% if attendee.weighted_hours %}
-        <div style="page-break-after:always">
+        <div style="page-break-after:always ; font-size:10pt">
         <h2 align="center">{{ attendee.full_name }}'s Shift Schedule</h2>
         
         {% include "signups/printable_schedule.html" %}
