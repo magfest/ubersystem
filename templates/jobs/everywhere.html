@@ -9,11 +9,19 @@
 
 <h2> All Jobs With Unfilled Shifts </h2>
 
+<div style="text-align:center">
+    {% if show_restricted %}
+        <a href="everywhere">Show Only Unrestricted Shifts</a>
+    {% else %}
+        <a href="everywhere?show_restricted=true">Show Regular and Restricted Shifts</a>
+    {% endif %}
+</div>
+
 <div style="position:fixed ; top:25% ; right: 10%">
     <b>Assign someone to any of these positions:</b> <br/>
     <select id="assignee">
         {% for attendee in attendees %}
-            <option value="{{ attendee.id }}">{{ attendee.full_name }}</option>
+            <option value="{{ attendee.id }}">{{ attendee.full_name }}{% if show_restricted and attendee.trusted %} [T]{% endif %}</option>
         {% endfor %}
     </select>
 </div>
@@ -23,7 +31,11 @@
     {% if job.shifts|length < job.slots %}
         <tr>
             <td> <a name="{{ job.id }}"></a><b>{% timespan job %}:</b> </td>
-            <td> <a href="form?id={{ job.id }}"><b>{{ job.name }}{% if job.restricted %}*{% endif %}</b></a> ({{ job.get_location_display }}) </td>
+            <td>
+                {% if job.restricted %}[R]{% endif %}
+                <a href="form?id={{ job.id }}"><b>{{ job.name }}{% if job.restricted %}*{% endif %}</b></a>
+                ({{ job.get_location_display }})
+            </td>
             <td> <nobr>({{ job.shifts|length }}/{{ job.slots }} slots filled)</nobr> </td>
                 {% if job.available_staffers %}
                     <td>

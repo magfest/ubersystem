@@ -40,14 +40,15 @@ class Root:
             "shifts":   Shift.serialize(shifts)
         }
     
-    def everywhere(self, message=""):
+    def everywhere(self, message="", show_restricted=""):
         jobs, shifts, attendees = Job.everything()
         return {
             "message":   message,
-            "shifts":    Shift.serialize(shifts),
             "attendees": attendees,
-            "jobs":      [job for job in jobs if not job.restricted
-                                            and datetime.now() < job.start_time + timedelta(hours = job.duration)]
+            "shifts":    Shift.serialize(shifts),
+            "show_restricted": show_restricted,
+            "jobs":      [job for job in jobs if (show_restricted or not job.restricted)
+                                             and datetime.now() < job.start_time + timedelta(hours = job.duration)]
         }
     
     def staffers(self, location = ARCADE):
