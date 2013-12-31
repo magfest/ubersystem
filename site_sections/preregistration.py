@@ -435,9 +435,10 @@ class Root:
         return """
             <html><head></head><body style="color:red ; text-align:center">
                 <h2>Preregistration has closed.</h2>
-                We'll see everyone on January 2 - 5.
+                We'll see everyone on January 2 - 5. <br/> <br/>
                 Full weekend passes will be available at the door for $60,
-                and single day passes will be $35.
+                and single day passes will be $20 on Thursday or Sunday,
+                and $40 for Friday or Saturday.
             </body></html>
         """
     
