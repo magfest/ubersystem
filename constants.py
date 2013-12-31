@@ -347,6 +347,12 @@ PAYMENT_TYPE_OPTS = enum(
     CASH_PAYMENT   = "Cash"
 )
 
+SALE_OPTS = enum(
+    MERCH = "Merch",
+    CASH = "Cash",
+    CREDIT = "Credit Card"
+)
+
 ACCESS_OPTS = enum(
     ACCOUNTS   = "Account Management",
     PEOPLE     = "Registration and Staffing",

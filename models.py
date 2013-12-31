@@ -1001,10 +1001,13 @@ class MPointExchange(MagModel):
     when     = DateTimeField(auto_now_add = True)
 
 class Sale(MagModel):
-    what    = CharField(max_length = 50)
-    cash    = IntegerField()
-    mpoints = IntegerField()
-    when    = DateTimeField(auto_now_add = True)
+    attendee = ForeignKey(Attendee, null = True)
+    what     = CharField(max_length = 50)
+    cash     = IntegerField()
+    mpoints  = IntegerField()
+    when     = DateTimeField(auto_now_add = True)
+    reg_station = IntegerField(null = True)
+    payment_method = IntegerField(default = MERCH, choices = SALE_OPTS)
 
 
 

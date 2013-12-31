@@ -202,14 +202,23 @@ class Root:
         return "MPoint exchange deleted"
     
     @ajax
-    def record_sale(self, **params):
+    def record_sale(self, badge_num=None, **params):
+        params["reg_station"] = cherrypy.session.get("reg_station")
         sale = Sale.get(params)
         message = check(sale)
+        if not message and badge_num is not None:
+            try:
+                sale.attendee = Attendee.objects.get(badge_num = badge_num)
+            except:
+                message = "No attendee has that badge number"
+        
         if message:
             return {"success":False, "message":message}
         else:
             sale.save()
-            message = "{sale.what} sold for ${sale.cash}".format(sale = sale)
+            message = "{sale.what} sold{to} for ${sale.cash}{mpoints}".format(sale = sale,
+                to = (" to " + sale.attendee.full_name) if sale.attendee else "",
+                mpoints = " and {} MPoints".format(sale.mpoints) if sale.mpoints else "")
             return {"id":sale.id, "success":True, "message":message}
     
     @ajax
@@ -493,11 +502,15 @@ class Root:
         if params:
             start = datetime.strptime("{startday} {starthour}:{startminute}".format(**params), "%Y-%m-%d %H:%M")
             end = datetime.strptime("{endday} {endhour}:{endminute}".format(**params), "%Y-%m-%d %H:%M")
+            sales = Sale.objects.filter(reg_station=params["reg_station"], when__gt=start, when__lte=end)
             attendees = Attendee.objects.filter(reg_station=params["reg_station"], amount_paid__gt=0,
                                                 registered__gt=start, registered__lte=end)
+            params["sales"] = sales
             params["attendees"] = attendees
-            params["total_cash"] = sum(a.amount_paid for a in attendees if a.payment_method == CASH)
-            params["total_credit"] = sum(a.amount_paid for a in attendees if a.payment_method == CREDIT)
+            params["total_cash"] = sum(a.amount_paid for a in attendees if a.payment_method == CASH) \
+                                 + sum(s.cash for s in sales if s.payment_method == CASH)
+            params["total_credit"] = sum(a.amount_paid for a in attendees if a.payment_method == CREDIT) \
+                                   + sum(s.cash for s in sales if s.payment_method == CREDIT)
         else:
             params["endday"] = datetime.now().strftime("%Y-%m-%d")
             params["endhour"] = datetime.now().strftime("%H")

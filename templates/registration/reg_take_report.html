@@ -37,12 +37,33 @@
 
 {% if report %}
     <div style="text-align:center ; font-weight:bold ; margin:25px">
-        Total Attendees: {{ attendees|length }}
+        Total Badge Sales: {{ attendees|length }}
+        &nbsp; / &nbsp;
+        Total Fees Taken: {{ sales|length }}
         &nbsp; / &nbsp;
         Total Cash: ${{ total_cash }}
         &nbsp; / &nbsp;
         Total Credit: ${{ total_credit }}
     </div>
+    <table class="list">
+    <tr class="header">
+        <td>Fee</td>
+        <td>Paid By</td>
+        <td>Payment Type</td>
+        <td>Payment Amount</td>
+        <td>When</td>
+    </tr>
+    {% for sale in sales %}
+        <tr>
+            <td>{{ sale.what }}</td>
+            <td><a href="../form?id={{ attendee.id }}">{{ sale.attendee.full_name }}</a></td>
+            <td>{{ sale.get_payment_method_display }}</td>
+            <td>${{ sale.cash }}</td>
+            <td>{{ sale.when }}</td>
+        </tr>
+    {% endfor %}
+    </table>
+    <br/> <br/>
     <table class="list">
     <tr class="header">
         <td>Name</td>
