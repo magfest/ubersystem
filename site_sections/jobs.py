@@ -192,5 +192,7 @@ class Root:
                 out.writerow([shift.job.start_time.strftime("%I%p %a").lstrip("0"),
                               "{} hours".format(shift.job.real_duration),
                               shift.job.name,
-                              shift.attendee.full_name])
+                              shift.attendee.full_name,
+                              "Circle One: worked / unworked",
+                              "Comments:"])
             out.writerow([])
