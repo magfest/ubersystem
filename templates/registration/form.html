@@ -128,7 +128,7 @@
             {% if attendee.group %}(<a href="../groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>){% endif %}
             &nbsp;&nbsp; [<a href="change_badge?id={{ attendee.id }}">Change</a>]
         {% else %}
-            <select name="badge_type" onChange="boldOrRegular(); setBadgeMessage()">
+            <select name="badge_type" onChange="boldOrRegular(); setBadgeMessage(); setAmountPaid();">
                 {% options BADGE_OPTS attendee.badge_type %}
             </select>
             {% if AT_THE_CON %}
