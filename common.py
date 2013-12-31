@@ -117,13 +117,13 @@ def assign(attendee_id, job_id):
     attendee = Attendee.objects.get(id = attendee_id)
     
     if job.restricted and not attendee.trusted:
-        return "Not eligible (this message should never be seen)"
+        return "You can't assign an untrusted attendee to a restricted shift"
     
     if job.slots <= job.shift_set.count():
         return "All slots for this job have already been filled"
     
     if not job.no_overlap(attendee):
-        return "Staffer is already signed up for a shift during that time"
+        return "This volunteer is already signed up for a shift during that time"
     
     Shift.objects.create(attendee=attendee, job=job)
 
