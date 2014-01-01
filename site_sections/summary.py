@@ -123,3 +123,8 @@ class Root:
                     and (a.badge_type in (STAFF_BADGE, GUEST_BADGE)
                       or a.ribbon == VOLUNTEER_RIBBON and a.weighted_hours >= 12)]
         return render("summary/food_eligible.xml", {"attendees": eligible})
+    
+    @csv_file
+    def staff_badges(self, out):
+        for a in Attendee.objects.filter(badge_type=STAFF_BADGE).order_by("badge_num"):
+            out.writerow([a.badge_num, a.full_name])
