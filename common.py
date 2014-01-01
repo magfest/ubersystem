@@ -68,7 +68,7 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
 
 
 def listify(x):
-    return x if isinstance(x, (list,tuple,set,frozenset)) else [x]
+    return list(x) if isinstance(x, (list,tuple,set,frozenset)) else [x]
 
 
 def comma_and(xs):
@@ -173,7 +173,7 @@ def check_range(badge_num, badge_type):
 
 
 class Charge:
-    def __init__(self, targets, amount=None, description=None):
+    def __init__(self, targets=(), amount=None, description=None):
         self.targets = listify(targets)
         self.amount = amount or self.total_cost
         self.description = description or self.names
@@ -185,7 +185,7 @@ class Charge:
         return charge
     
     def refresh(self):
-        self.targets[:] = [t.__class__.objects.get(id=t.id) if t.id else t for t in self.targets]
+        self.targets[:] = [t.__class__.objects.get(id=t.id) if getattr(t, "id", None) else t for t in self.targets]
     
     @property
     def total_cost(self):

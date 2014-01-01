@@ -1,6 +1,8 @@
 from __future__ import division
 from common import *
 
+# TODO: move hotel stuff to a different site section
+
 def check_everything(attendee):
     if state.AT_THE_CON and attendee.id is None:
         if isinstance(attendee.badge_num, str) or attendee.badge_num < 0:
@@ -490,7 +492,6 @@ class Root:
             attendee.save()
             raise HTTPRedirect("new?message={}", "Payment accepted")
     
-    
     @csrf_protected
     def new_checkin(self, id, badge_num, ec_phone="", message="", group=""):
         checked_in = ""
@@ -534,6 +535,36 @@ class Root:
         
         raise HTTPRedirect("new?message={}&checked_in={}", message, checked_in)
     
+    def arbitrary_charge_form(self, message="", amount=None, description=""):
+        charge = None
+        if amount is not None:
+            if not amount.isdigit() or not (1 <= int(amount) <= 999):
+                message = "Amount must be a dollar amount between $1 and $999"
+            elif not description:
+                message = "You must enter a brief description of what's being sold"
+            else:
+                charge = Charge(amount = 100 * int(amount), description = description)
+        
+        return {
+            "charge": charge,
+            "message": message,
+            "amount": amount,
+            "description": description
+        }
+    
+    @credit_card
+    def arbitrary_charge(self, payment_id, stripeToken):
+        charge = Charge.get(payment_id)
+        message = charge.charge_cc(stripeToken)
+        if message:
+            raise HTTPRedirect("arbitrary_charge_form?message={}", message)
+        else:
+            ArbitraryCharge.objects.create(
+                amount = charge.dollar_amount,
+                what = charge.description,
+                reg_station = cherrypy.session.get("reg_station"))
+            raise HTTPRedirect("arbitrary_charge_form?message={}", "Charge successfully processed")
+    
     def reg_take_report(self, **params):
         if params:
             start = datetime.strptime("{startday} {starthour}:{startminute}".format(**params), "%Y-%m-%d %H:%M")
@@ -545,7 +576,7 @@ class Root:
             params["attendees"] = attendees
             params["total_cash"] = sum(a.amount_paid for a in attendees if a.payment_method == CASH) \
                                  + sum(s.cash for s in sales if s.payment_method == CASH)
-            params["total_credit"] = sum(a.amount_paid for a in attendees if a.payment_method == CREDIT) \
+            params["total_credit"] = sum(a.amount_paid for a in attendees if a.payment_method in [STRIPE, SQUARE, MANUAL]) \
                                    + sum(s.cash for s in sales if s.payment_method == CREDIT)
         else:
             params["endday"] = datetime.now().strftime("%Y-%m-%d")

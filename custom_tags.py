@@ -381,7 +381,12 @@ class stripe_form(template.Node):
         if len(charge.targets) == 1:
             email = 'data-email="{}"'.format(charge.targets[0].email)
         
-        regtext = "Registration" if state.AT_THE_CON else "Preregistration"
+        if not charge.targets:
+            regtext = "On-Site Charge"
+        elif state.AT_THE_CON:
+            regtext = "Registration"
+        else:
+            regtext = "Preregistration"
         
         return """
             <form class="stripe" method="post" action="{action}">

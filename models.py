@@ -1009,6 +1009,13 @@ class Sale(MagModel):
     reg_station = IntegerField(null = True)
     payment_method = IntegerField(default = MERCH, choices = SALE_OPTS)
 
+class ArbitraryCharge(MagModel):
+    amount = IntegerField()
+    what   = CharField(max_length = 255)
+    when   = DateTimeField(auto_now_add = True)
+    reg_station = IntegerField(null = True)
+    
+    display = "what"
 
 
 class Game(MagModel):

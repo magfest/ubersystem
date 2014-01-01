@@ -17,14 +17,14 @@ LATE_GROUP_PRICE  = 35
 LATER_GROUP_PRICE = 40
 
 class State:
-    SEND_EMAILS = True
+    SEND_EMAILS = False
     
-    AT_THE_CON = False
+    AT_THE_CON = True
     POST_CON = False
     UBER_SHUT_DOWN = False
     HIDE_SCHEDULE = False
     
-    PREREG_CLOSED = False
+    PREREG_CLOSED = True
     PREREG_NOT_OPEN_YET = False
     SUP_REG_OPEN = True
     GROUP_REG_OPEN = True
@@ -52,11 +52,12 @@ class State:
     ESCHATON             = datetime(2014,  1,  5, 22)
     
     PATH     = "/magfest"
-    HOSTNAME = "magfestubersystem.com"
+    #HOSTNAME = "magfestubersystem.com"
+    HOSTNAME = "magfest.net"
     
     @property
     def URL_BASE(self):
-        return "http://" + self.HOSTNAME + self.PATH
+        return "https://" + self.HOSTNAME + self.PATH
     
     @property
     def DEALER_REG_OPEN(self):
@@ -277,15 +278,30 @@ PAID_OPTS = enum(
     PAID_BY_GROUP = "paid by group"
 )
 
-PAYMENT_OPTIONS = enum(
+FEE_PAYMENT_OPTS = enum(
     CASH = "cash",
-    CREDIT = "credit card"
+    CREDIT = "credit"
 )
 
+PAYMENT_OPTIONS = enum(
+    CASH = "Cash",
+    STRIPE = "Stripe",
+    SQUARE = "Square",
+    MANUAL = "Stripe"
+)
+
+NEW_REG_PAYMENT_OPTS = enum(
+    CASH = "Cash",
+    SQUARE = "Square",
+    MANUAL = "Stripe"
+)
+
+# TODO: need a more elegant way to have ordered enums
 DOOR_PAYMENT_OPTS = enum(
     CASH   = "Pay with cash",
-    STRIPE = "Pay with credit card (faster)",
-    SQUARE = "Pay with credit card at the registration desk (slower)"
+    STRIPE = "Pay with  credit card now (faster)",
+    MANUAL = "Pay with credit card at the registration desk (slower)",
+    GROUP  = "Taking an unassigned Group badge (group leader must be present)"
 )
 
 STORE_PRICES = (                # start as a tuple to preserve order for STORE_ITEMS
