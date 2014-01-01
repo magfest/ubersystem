@@ -34,7 +34,10 @@ else:
 class Redirector:
     @cherrypy.expose
     def index(self):
-        raise HTTPRedirect(state.PATH)
+        if state.AT_THE_CON:
+            raise HTTPRedirect(state.PATH + '/accounts/homepage')
+        else:
+            raise HTTPRedirect(state.PATH)
 
 cherrypy.tree.mount(Redirector(), "/", {})
 cherrypy.tree.mount(root, state.PATH, appconf)
