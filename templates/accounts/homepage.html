@@ -18,14 +18,16 @@
 
 <div class="indent"> Welcome to the MAGFest Ubersystem.  <a href="../accounts/sitemap">Click here</a> for a full site map, or use one of the common links below. </div>
 
-<div class="heading">Request Features and Report Bugs</div>
-<div class="indent">
-    Uber is constantly changing/improving, and if you have an idea for an improvement or want to report a bug, please
-    do so in our issue tracker.
-</div>
-<ul>
-    <li><a href="https://bitbucket.org/EliAndrewC/magfest/issues">View and Create Issues</a></li>
-</ul>
+{% if not AT_THE_CON %}
+    <div class="heading">Request Features and Report Bugs</div>
+    <div class="indent">
+        Uber is constantly changing/improving, and if you have an idea for an improvement or want to report a bug, please
+        do so in our issue tracker.
+    </div>
+    <ul>
+        <li><a href="https://bitbucket.org/EliAndrewC/magfest/issues">View and Create Issues</a></li>
+    </ul>
+{% endif %}
 
 {% if HAS_ACCOUNTS_ACCESS %}
     <div class="heading"> Administrative Accounts </div>
@@ -78,6 +80,12 @@
     <div class="heading"> Challenges </div>
     <div class="indent"> Track the games and winners at the Challenges Booth. </div>
     <ul> <li> <a href="../challenges/">Challenges</a> </li> </ul>
+{% endif %}
+
+{% if AT_THE_CON and HAS_CHECKINS_ACCESS %}
+    <div class="heading"> Tabletop </div>
+    <div class="indent"> Track the games that people bring and check out. </div>
+    <ul> <li> <a href="../tabletop/">Tabletop Games</a> </li> </ul>
 {% endif %}
 
 <div class="heading"> Your Account </div>
