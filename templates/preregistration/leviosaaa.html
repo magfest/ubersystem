@@ -1,0 +1,16 @@
+<html>
+    <head>
+        <title>Payment For Leviosaaa</title>
+    </head>
+    <body>
+        {% if message %}<font color="red">{{ message }}</font>{% endif %}
+        <h2>Leviosaaa Invoice</h2>
+        Our records indicate that the group <b>Leviosaa</b> was registered and paid for on <b>Oct 4</b>.
+        <br/> <br/>
+        Then on <b>Nov 16th</b> more badges were added (going from <b>8</b> to <b>13</b>) but then never paid for.
+        <br/> <br/>
+        We're going to have to delete the unpaid badges from your group unless you pay by <b>11:59pm on Wednesday, Jan 1</b>.
+        <br/> <br/>
+        {% stripe_form take_leviosaaa_payment charge %}
+    </body>
+</html>
