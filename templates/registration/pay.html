@@ -3,14 +3,18 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
+<script type="text/javascript">
+    DISABLE_STRIPE_BUTTONS_ON_CLICK = false;
+</script>
+
 <h2>Payment for {{ attendee.full_name }}</h2>
 
 <table style="width:auto ; margin-left:auto ; margin-right: auto"><tr>
     <td>{% stripe_form take_payment charge %}</td>
     <td style="width:100px ; text-align:center">or</td>
-    <td><a href="register?message=Please+proceed+to+the+cash+line+to+pick+up+your+badge">{% stripe_button "Nevermind, I'll Pay Cash" %}</a></td>
+    <td><a href="register?message=Please+queue+in+the+cash+line+and+have+your+photo+ID+and+cash+ready.">{% stripe_button "Nevermind, I'll Pay Cash" %}</a></td>
     <td style="width:100px ; text-align:center">or</td>
-    <td><a href="register?message=Please+proceed+to+the+credit+card+line+to+pick+up+your+badge">{% stripe_button "Nevermind, I'll Use My Credit Card at the Desk" %}</a></td>
+    <td><a href="register?message=Please+queue+in+the+credit+card+line+and+have+your+photo+ID+and+credit+card+ready.">{% stripe_button "Nevermind, I'll Use My Credit Card at the Desk" %}</a></td>
 </tr></table>
 
 {% endblock %}

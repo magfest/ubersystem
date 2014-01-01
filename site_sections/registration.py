@@ -370,6 +370,8 @@ class Root:
                     message = "Thanks!  Please queue in the {} line and have your photo ID and {} ready."
                     if payment == STRIPE:
                         raise HTTPRedirect("pay?id={}", attendee.secret_id)
+                    elif payment == GROUP:
+                        message = "Please proceed to the cash line to pick up your (already-paid-for) badge"
                     elif payment == CASH:
                         message = message.format("cash", "${}".format(attendee.total_cost))
                     elif payment == SQUARE:

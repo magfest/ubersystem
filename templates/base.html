@@ -18,11 +18,14 @@
     <link rel="stylesheet" href="../static/lib/jquery-contextMenu/jquery.contextMenu.css" type="text/css" />
     <link rel="stylesheet" href="../static/lib/jquery-ui/ui-lightness/jquery-ui-1.9.0.custom.css" type="text/css" />
     <script type="text/javascript">
+        var DISABLE_STRIPE_BUTTONS_ON_CLICK = true;
         $(function(){
             $(".focus:first").focus();
-            $("form.stripe").on("click", "button", function() {
-                $("a > .stripe-button-el").unwrap().attr("disabled", true).unwrap()
-            });
+            if (DISABLE_STRIPE_BUTTONS_ON_CLICK) {
+                $("form.stripe").on("click", "button", function() {
+                    $("a > .stripe-button-el").unwrap().attr("disabled", true).unwrap()
+                });
+            }
         });
     </script>
 </head>
