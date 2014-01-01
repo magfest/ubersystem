@@ -33,6 +33,11 @@
             $button.attr("disabled", "disabled");
         }
     };
+    $(function() {
+        $("table.list select[name=payment_method]").each(function(i, dropdown) {
+            toggleMarkButton(dropdown);
+        });
+    });
     
     var recordFee = function() {
         $.post("record_sale", {
@@ -73,10 +78,15 @@
     $(showOrHideWhatText);
 </script>
 
-<h2> Recent At-the-Door Registrations </h2>
+<h2> {% if not show_all %}Recent{% endif %} At-the-Door Registrations </h2>
 
 <div style="text-align:center">
-    <a href="index">Click Here</a> to view the preregistered and checked in attendee list
+    {% if show_all %}
+        <a href="new">Click Here</a> to see only recent at-the-door registrations
+    {% else %}
+        <a href="new?show_all=true">Click Here</a> to see all at-the-door registrations instead of only recent ones
+    {% endif %}
+    <br/> <a href="index">Click Here</a> to view the preregistered and checked in attendee list
 </div>
 
 <div id="transactions" style="text-align:center ; margin-top:5px ; padding:10px ; background:lightgray">
@@ -85,8 +95,7 @@
         <td>
             Payment Method:
             <select id="payment_method">
-                <option value="{{ CASH }}">Cash</option>
-                <option value="{{ CREDIT }}">Credit</option>
+                {% options FEE_PAYMENT_OPTS %}
             </select>
         </td>
         <td>Badge Num: <input type="text" id="badge_num" size="4" class="focus" /></td>
@@ -101,7 +110,6 @@
         <td> <input type="submit" id="record_sale" value="Record Fee" onClick="recordFee()" /> </td>
     </tr> </table>
 </div>
-
 
 <br/>
 
@@ -128,13 +136,15 @@
         <td>
             {% if attendee.paid == HAS_PAID %}
                 paid
+            {% elif attendee.payment_method == GROUP %}
+                group
             {% else %}
                 <form method="post" action="mark_as_paid">
                 {% csrf_token %}
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
                 <select name="payment_method" onChange="toggleMarkButton(this)">
                     <option value="">payment method</option>
-                    {% options PAYMENT_OPTIONS %}
+                    {% options NEW_REG_PAYMENT_OPTS attendee.payment_method %}
                 </select>
                 <input type="submit" disabled="disabled" value="Mark as Paid" />
                 </form>

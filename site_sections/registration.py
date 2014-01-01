@@ -266,16 +266,17 @@ class Root:
             "badge":      attendee.badge,
             "paid":       attendee.get_paid_display(),
             "age_group":  attendee.get_age_group_display(),
-            "pre_paid":   pre_paid,
-            "pre_amount": pre_amount,
+            "pre_paid":   pre_paid,    # TODO: this is no longer necessary
+            "pre_amount": pre_amount,  # TODO: this is no longer necessary
             "pre_badge":  pre_badge,
             "checked_in": attendee.checked_in and hour_day_format(attendee.checked_in)
         }
     
     @csrf_protected
     def undo_checkin(self, id, pre_paid, pre_amount, pre_badge):
+        # TODO: this no longer needs to take the pre_paid and pre_amount parameters
         a = Attendee.objects.get(id = id)
-        a.checked_in, a.paid, a.amount_paid, a.badge_num = None, pre_paid, pre_amount, pre_badge
+        a.checked_in, a.badge_num = None, pre_badge
         a.save()
         return "Attendee successfully un-checked-in"
     
@@ -347,39 +348,39 @@ class Root:
     
     if state.AT_THE_CON or DEV_BOX:
         @unrestricted
-        def register(self, message="", payment="", **params):
+        def register(self, message="", **params):
             params["id"] = "None"
             attendee = Attendee.get(params, bools=["international"], checkgroups=["interests"], restricted=True)
             if "first_name" in params:
-                if not payment:
+                if not attendee.payment_method:
                     message = "Please select a payment type"
                 elif not attendee.first_name or not attendee.last_name:
                     message = "First and Last Name are required fields"
                 elif attendee.ec_phone[:1] != "+" and len(re.compile("[0-9]").findall(attendee.ec_phone)) != 10:
                     message = "Enter a 10-digit emergency contact number"
-                elif not attendee.age_group:
+                elif attendee.age_group == AGE_UNKNOWN:
                     message = "Please select an age category"
+                elif attendee.payment_method == MANUAL and not attendee.email:
+                    message = "Email address is required if you're paying with a credit card at our registration desk"
                 elif attendee.badge_type not in [ATTENDEE_BADGE, ONE_DAY_BADGE]:
                     message = "No hacking allowed!"
                 else:
-                    payment = int(payment)
                     attendee.badge_num = 0
                     if not attendee.zip_code:
                         attendee.zip_code = "00000"
                     attendee.save()
                     message = "Thanks!  Please queue in the {} line and have your photo ID and {} ready."
-                    if payment == STRIPE:
+                    if attendee.payment_method == STRIPE:
                         raise HTTPRedirect("pay?id={}", attendee.secret_id)
-                    elif payment == GROUP:
-                        message = "Please proceed to the cash line to pick up your (already-paid-for) badge"
-                    elif payment == CASH:
+                    elif attendee.payment_method == GROUP:
+                        message = "Please proceed to the preregistration line to pick up your badge."
+                    elif attendee.payment_method == CASH:
                         message = message.format("cash", "${}".format(attendee.total_cost))
-                    elif payment == SQUARE:
+                    elif attendee.payment_method == MANUAL:
                         message = message.format("credit card", "credit card")
                     raise HTTPRedirect("register?message={}", message)
             
             return {
-                "payment":  payment,
                 "message":  message,
                 "attendee": attendee
             }
@@ -416,7 +417,7 @@ class Root:
             "attendees": Attendee.objects.exclude(comments = "").order_by(order)
         }
     
-    def new(self, message="", checked_in=""):
+    def new(self, show_all="", message="", checked_in=""):
         if "reg_station" not in cherrypy.session:
             raise HTTPRedirect("new_reg_station")
         
@@ -424,18 +425,22 @@ class Root:
         for a in Attendee.objects.filter(first_name="", group__isnull=False).select_related("group"):
             groups.add((a.group.id, a.group.name or "BLANK"))
         
+        if show_all:
+            restrict_to = {"paid": NOT_PAID, "placeholder": False}
+        if not show_all:
+            restrict_to = {"registered__gte": datetime.now() - timedelta(minutes=90)}
+        
         return {
             "message":    message,
+            "show_all":   show_all,
             "checked_in": checked_in,
             "groups":     sorted(groups, key = lambda tup: tup[1]),
-            "recent":     Attendee.objects.filter(badge_num=0, registered__gte = datetime.now() - timedelta(minutes=90))
-                                          .exclude(first_name = "")
-                                          .order_by("registered")
+            "recent":     Attendee.objects.filter(badge_num=0, **restrict_to).exclude(first_name="").order_by("registered")
         }
     
     def new_reg_station(self, reg_station="", message=""):
         if reg_station:
-            if not reg_station.isdigit() or not (0 < int(reg_station) < 100):
+            if not reg_station.isdigit() or not (0 <= int(reg_station) < 100):
                 message = "Reg station must be a positive integer between 0 and 100"
             
             if not message:
@@ -443,12 +448,17 @@ class Root:
                 raise HTTPRedirect("new?message={}", "Reg station number recorded")
         
         return {
-            "message": "",
+            "message": message,
             "reg_station": reg_station
         }
     
     @csrf_protected
     def mark_as_paid(self, id, payment_method):
+        if cherrypy.session["reg_station"] == 0:
+            raise HTTPRedirect("new_reg_station?message={}", "Reg station 0 is for prereg only and may not accept payments")
+        elif int(payment_method) == MANUAL:
+            raise HTTPRedirect("manual_reg_charge_form?id={}", id)
+        
         attendee = Attendee.objects.get(id = id)
         attendee.paid = HAS_PAID
         attendee.payment_method = payment_method
@@ -456,6 +466,30 @@ class Root:
         attendee.reg_station = cherrypy.session["reg_station"]
         attendee.save()
         raise HTTPRedirect("new?message={}", "Attendee marked as paid")
+    
+    def manual_reg_charge_form(self, id):
+        attendee = Attendee.objects.get(id=id)
+        if attendee.paid != NOT_PAID:
+            raise HTTPRedirect("new?message={}{}", attendee.full_name, " is already marked as paid")
+
+        return {
+            "attendee": attendee,
+            "charge": Charge(attendee)
+        }
+    
+    @credit_card
+    def manual_reg_charge(self, payment_id, stripeToken):
+        charge = Charge.get(payment_id)
+        [attendee] = charge.attendees
+        message = charge.charge_cc(stripeToken)
+        if message:
+            raise HTTPRedirect("new_credit_form?id={}&message={}", attendee.id, message)
+        else:
+            attendee.paid = HAS_PAID
+            attendee.amount_paid = attendee.total_cost
+            attendee.save()
+            raise HTTPRedirect("new?message={}", "Payment accepted")
+    
     
     @csrf_protected
     def new_checkin(self, id, badge_num, ec_phone="", message="", group=""):

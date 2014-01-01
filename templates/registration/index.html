@@ -116,8 +116,6 @@
             showTop("Oh noes - the web server is down or something!!!!!");
         });
         
-        showOrHideWhatText(true);
-        
         $("#badge_num,#amount").keypress(function(e){
             if( (e.keyCode || e.which) == 13 )  // ENTER
                 recordMPointUsage();
@@ -223,7 +221,9 @@
             {% endif %}
         </td>
         <td><nobr>
-            {% if AT_THE_CON and not attendee.badge_num %}
+            {% if AT_THE_CON and attendee.paid == NOT_PAID %}
+                {{ attendee.get_badge_type_display }}
+            {% elif AT_THE_CON and not attendee.badge_num %}
                 {{ attendee.get_badge_type_display }}
                 {% if attendee.is_unassigned %}
                     <input type="hidden" id="num_{{ attendee.id }}" />
@@ -243,6 +243,10 @@
             {% if AT_THE_CON %}
                 <td> {{ attendee.checked_in|time:"fA"|lower }} {{ attendee.checked_in|date:"D" }} </td>
             {% endif %}
+        {% elif attendee.paid == NOT_PAID %}
+            <td colspan="2">
+                <a href="new?show_all=true">Go to at-the-door page to check in</a>
+            </td>
         {% else %}
             <td>
                 <select id="age_{{ attendee.id }}" onChange="highlight($(this).parents('tr'))">

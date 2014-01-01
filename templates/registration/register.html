@@ -9,9 +9,18 @@
     });
     window.setTimeout(function(){ $("#message").hide(); }, 10000);
     
-    function showOrHide() {
+    var maybeBold = function() {
+        if ($("[name=payment_method]").val() == {{ MANUAL }}) {
+            $("#email").css("font-weight", "bold");
+        } else {
+            $("#email").css("font-weight", "normal");
+        }
+    };
+    $(maybeBold);
+    
+    var showOrHide = function() {
         setVisible("#underage", $("[name=age_group]").val() == {{ UNDER_18 }});
-    }
+    };
     $(showOrHide);
 </script>
 
@@ -22,9 +31,9 @@
 <tr>
     <td width="25%" style="font-weight:bold">Payment Method:</td>
     <td width="75%">
-        <select name="payment">
+        <select name="payment_method" onChange="maybeBold()">
             <option value="">Select a payment option</option>
-            {% options DOOR_PAYMENT_OPTS payment %}
+            {% options DOOR_PAYMENT_OPTS attendee.payment_method %}
         </select>
     </td>
 </tr>
@@ -58,16 +67,16 @@
     </td>
 </tr>
 <tr>
+    <td id="email"> Email Address: </td>
+    <td> <input type="text" name="email" value="{{ attendee.email }}" /> </td>
+</tr>
+<tr>
     <td> Zip Code: </td>
     <td>
         <input type="text" name="zip_code" value="{{ attendee.zip_code }}" />
         <input type="checkbox" name="international" value="1" {% if attendee.international %}checked{% endif %} />
         I'm from outside the US.
     </td>
-</tr>
-<tr>
-    <td> Email Address: </td>
-    <td> <input type="text" name="email" value="{{ attendee.email }}" /> </td>
 </tr>
 <tr>
     <td> <nobr>How did you</nobr> <nobr>find MAGFest?</nobr> </td>
