@@ -53,6 +53,7 @@ class Root:
     
     def staffers(self, location = ARCADE):
         jobs, shifts, attendees = Job.everything(location)
+        attendees = [a for a in attendees if int(location) in a.assigned]
         return {
             "location":           location,
             "attendees":          attendees,
