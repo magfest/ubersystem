@@ -7,10 +7,10 @@
 {% endif %}
 
 <script type="text/javascript">
-    // automatically log out after 5 minutes of inactivity
+    // automatically log out after 15 minutes of inactivity
     setTimeout(function() {
         window.location = "../accounts/logout";
-    }, 300000);
+    }, 900000);
     
     var UNASSIGNED = {{ unassigned|jsonize }};
     var groupChosen = function(group) {
