@@ -423,17 +423,8 @@ class Root:
             "registered": slug in [spt.slug for spt in attendee.seasonpassticket_set.all()]
         }
     
-    def prereg_not_open_yet(self, *args, **kwargs):
-        return """
-            <html><head></head><body style="color:red ; text-align:center">
-                <h2>Preregistration is not yet open.</h2>
-                We will announce preregistration opening on magfest.org, check there for updates.
-            </body></html>
-        """
-
-if state.PREREG_CLOSED:
-    @all_renderable()
-    class Root:
+    if state.PREREG_CLOSED:
+        del index, form, badge_choice
         def default(self, *args, **kwargs):
             return """
                 <html><head></head><body style="text-align:center">
@@ -444,25 +435,3 @@ if state.PREREG_CLOSED:
                     and $40 for Friday or Saturday.
                 </body></html>
             """
-        
-        def leviosaaa(self, message=""):
-            leviosaaa = Group.objects.get(name="Leviosaaa")
-            if not leviosaaa.amount_unpaid:
-                return "You are paid up, so everyone in Leviosaaa should have no trouble picking up their badges at our registration desk!"
-            else:
-                return {
-                    "message": message,
-                    "charge": Charge(leviosaaa, description="unpaid Leviosaaa badges")
-                }
-        
-        @credit_card
-        def take_leviosaaa_payment(self, payment_id, stripeToken):
-            charge = Charge.get(payment_id)
-            [group] = charge.groups
-            message = charge.charge_cc(stripeToken)
-            if message:
-                raise HTTPRedirect("leviosaaa?message={}", message)
-            else:
-                group.amount_paid += charge.dollar_amount
-                group.save()
-                raise HTTPRedirect("leviosaaa")

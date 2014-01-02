@@ -146,6 +146,8 @@
         {% endif %}
         {% if attendee.badge_type == STAFF_BADGE %}
             &nbsp;&nbsp; [{{ attendee.hotel_status }}]
+        {% elif attendee.transferrable %}
+            &nbsp;&nbsp; [<a href="../preregistration/confirm?id={{ attendee.secret_id }}">Confirm/Transfer</a>]
         {% endif %}
     </td>
 </tr>
