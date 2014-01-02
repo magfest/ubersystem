@@ -3,7 +3,7 @@ from secret_settings import *
 
 # TODO: property maker for datetimes that become booleans based on datetime.now()
 
-DEV_BOX = True
+DEV_BOX = False
 
 YEAR = 12  # TODO: put this in backlinks
 
