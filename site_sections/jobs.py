@@ -48,6 +48,7 @@ class Root:
             "shifts":    Shift.serialize(shifts),
             "show_restricted": show_restricted,
             "jobs":      [job for job in jobs if (show_restricted or not job.restricted)
+                                             and job.location != MOPS
                                              and datetime.now() < job.start_time + timedelta(hours = job.duration)]
         }
     
