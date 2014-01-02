@@ -612,7 +612,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @property
     def tshirt(self):
-        return self.badge_type in [STAFF_BADGE, SUPPORTER_BADGE] or self.worked_hours >= 6
+        return self.amount_extra >= SHIRT_LEVEL \
+            or self.badge_type in [STAFF_BADGE, SUPPORTER_BADGE] \
+            or self.worked_hours >= 6
     
     # TODO: change this to has_personalized_badge
     @property
@@ -628,11 +630,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @property
     def merch(self):
-        merch = []
-        if self.badge_type == SUPPORTER_BADGE:
-            merch.extend(["a supporter pack", "a $10 M-Point coin"])
-        if self.tshirt:
-            merch.append("a tshirt")
+        # TODO standardize on either "shirt" or "tshirt"
+        merch = self.donation_swag
+        if self.tshirt and DONATION_TIERS[SHIRT_LEVEL] not in merch:
+            merch.append(DONATION_TIERS[SHIRT_LEVEL])
         if self.extra_merch:
             merch.append(self.extra_merch)
         return comma_and(merch)
