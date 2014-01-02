@@ -352,7 +352,7 @@ class Root:
         @unrestricted
         def register(self, message="", **params):
             params["id"] = "None"
-            attendee = Attendee.get(params, bools=["international"], checkgroups=["interests"], restricted=True)
+            attendee = Attendee.get(params, bools=["international"], checkgroups=["interests"], restricted=True, ignore_csrf=True)
             if "first_name" in params:
                 if not attendee.payment_method:
                     message = "Please select a payment type"
