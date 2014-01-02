@@ -30,7 +30,7 @@
 {% for job in jobs %}
     {% if job.shifts|length < job.slots %}
         <tr>
-            <td> <a name="{{ job.id }}"></a><b>{% timespan job %}:</b> </td>
+            <td> <a name="{{ job.id }}"></a><b>{% timespan job %}:</b> [x{{ job.weight }}] </td>
             <td>
                 {% if job.restricted %}[R]{% endif %}
                 <a href="form?id={{ job.id }}"><b>{{ job.name }}{% if job.restricted %}*{% endif %}</b></a>
