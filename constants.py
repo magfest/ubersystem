@@ -287,7 +287,8 @@ PAYMENT_OPTIONS = enum(
     CASH = "Cash",
     STRIPE = "Stripe",
     SQUARE = "Square",
-    MANUAL = "Stripe"
+    MANUAL = "Stripe",
+    GROUP = "Group"
 )
 
 NEW_REG_PAYMENT_OPTS = enum(
