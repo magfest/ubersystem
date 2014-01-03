@@ -602,10 +602,16 @@ class Root:
     def shifts(self, id, shift_id="", message=""):
         jobs, shifts, attendees = Job.everything()
         [attendee] = [a for a in attendees if a.id == int(id)]
+        if state.AT_THE_CON:
+            attendee._possible = [job for job in jobs if datetime.now() < job.start_time
+                                                     and job.slots > len(job.shifts)
+                                                     and (not job.restricted or attendee.trusted)
+                                                     and job.location != MOPS]
         return {
             "message":  message,
             "shift_id": shift_id,
             "attendee": attendee,
+            "possible": attendee.possible_opts,
             "shifts":   Shift.serialize(attendee.shift_set.all())
         }
     

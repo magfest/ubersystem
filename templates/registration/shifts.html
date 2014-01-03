@@ -12,13 +12,13 @@
 <table width="100%">
 <tr>
     <td width="50%">
-        {% if attendee.possible %}
+        {% if possible %}
             <form method="post" action="assign">
             {% csrf_token %}
             <input type="hidden" name="staffer_id" value="{{ attendee.id }}" />
             <b>Add a Shift:</b>
             <select name="job_id">
-                {% options attendee.possible_opts %}
+                {% options possible %}
             </select>
             <input type="submit" value="Assign" />
             </form>
