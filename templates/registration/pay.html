@@ -9,12 +9,12 @@
 
 <h2>Payment for {{ attendee.full_name }}</h2>
 
-<table style="width:auto ; margin-left:auto ; margin-right: auto"><tr>
-    <td>{% stripe_form take_payment charge %}</td>
-    <td style="width:100px ; text-align:center">or</td>
-    <td><a href="register?message=Please+queue+in+the+cash+line+and+have+your+photo+ID+and+cash+ready.">{% stripe_button "Nevermind, I'll Pay Cash" %}</a></td>
-    <td style="width:100px ; text-align:center">or</td>
-    <td><a href="register?message=Please+queue+in+the+credit+card+line+and+have+your+photo+ID+and+credit+card+ready.">{% stripe_button "Nevermind, I'll Use My Credit Card at the Desk" %}</a></td>
-</tr></table>
+<div class="center">
+    {% stripe_form take_payment charge %}
+    <br/>
+    <a href="register?message=Please+queue+in+the+cash+line+and+have+your+photo+ID+and+cash+ready.">{% stripe_button "Nevermind, I'll Pay Cash" %}</a>
+    <br/> <br/>
+    <a href="register?message=Please+queue+in+the+credit+card+line+and+have+your+photo+ID+and+credit+card+ready.">{% stripe_button "Nevermind, I'll Use My Credit Card at the Desk" %}</a>
+</div>
 
 {% endblock %}
