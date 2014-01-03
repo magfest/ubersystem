@@ -461,7 +461,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def presave_adjustments(self):
         import badge_funcs
         
-        if self.age_group == UNDER_18:
+        if self.age_group == UNDER_18 and not state.AT_THE_CON:
             self.staffing = False
             self.assigned_depts = self.requested_depts = ""
             if self.ribbon == VOLUNTEER_RIBBON:
