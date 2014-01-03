@@ -9,7 +9,10 @@ def weighted_hours(staffer, location):
 
 @all_renderable(PEOPLE)
 class Root:
-    def index(self, location = ARCADE):
+    def index(self, location = None if state.AT_THE_CON else ARCADE):
+        if location is None:
+            raise HTTPRedirect("signups")
+        
         by_id = {}
         jobs = defaultdict(list)
         for job in Job.objects.filter(location = location):
@@ -32,7 +35,11 @@ class Root:
             "times":    times
         }
     
-    def signups(self, location = ARCADE):
+    def signups(self, location = None):
+        if location is None:
+            location = cherrypy.session.get("prev_location") or ARCADE
+        cherrypy.session["prev_location"] = location
+        
         jobs, shifts, attendees = Job.everything(location)
         return {
             "location": location,
