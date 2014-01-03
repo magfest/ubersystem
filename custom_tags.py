@@ -375,11 +375,11 @@ class stripe_form(template.Node):
     def render(self, context):
         payment_id = uuid4().hex
         charge = self.charge.resolve(context)
-        cherrypy.session[payment_id] = charge
+        cherrypy.session[payment_id] = charge.to_dict()
         
         email = ""
         if len(charge.targets) == 1:
-            email = 'data-email="{}"'.format(charge.targets[0].email)
+            email = 'data-email="{}"'.format(charge.models[0].email)
         
         if not charge.targets:
             regtext = "On-Site Charge"

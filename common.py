@@ -172,24 +172,49 @@ def check_range(badge_num, badge_type):
             return "{} badge numbers must fall within the range {} - {}".format(dict(BADGE_OPTS)[badge_type], min_num, max_num)
 
 
+# NOTE: this whole thing will HORRIBLY break prereg, but that's okay because we're at the con now
 class Charge:
     def __init__(self, targets=(), amount=None, description=None):
-        self.targets = listify(targets)
+        self.targets = [self.serialize(m) for m in listify(targets)]
         self.amount = amount or self.total_cost
         self.description = description or self.names
     
     @staticmethod
     def get(payment_id):
-        charge = cherrypy.session.pop(payment_id)
-        charge.refresh()
-        return charge
+        return Charge(**cherrypy.session.pop(payment_id))
     
-    def refresh(self):
-        self.targets[:] = [t.__class__.objects.get(id=t.id) if getattr(t, "id", None) else t for t in self.targets]
+    def to_dict(self):
+        return {
+            "targets": self.targets,
+            "amount": self.amount,
+            "description": self.description
+        }
+    
+    def serialize(self, x):
+        if isinstance(x, dict):
+            return x
+        if isinstance(x, Attendee):
+            return {"attendee": x.id}
+        elif isinstance(x, Group):
+            return {"group": x.id}
+        else:
+            raise AssertionError("{} is not an attendee or group".format(x))
+    
+    def parse(self, d):
+        if "attendee" in d:
+            return Attendee.objects.get(id=d["attendee"])
+        elif "group" in d:
+            return Attendee.objects.get(id=d["group"])
+        else:
+            raise AssertionError("{} is not an attendee or group".format(d))
+    
+    @property
+    def models(self):
+        return [self.parse(d) for d in self.targets]
     
     @property
     def total_cost(self):
-        return 100 * sum(m.amount_unpaid for m in self.targets)
+        return 100 * sum(m.amount_unpaid for m in self.models)
     
     @property
     def dollar_amount(self):
@@ -197,15 +222,15 @@ class Charge:
     
     @property
     def names(self):
-        return ", ".join(repr(m).strip("<>") for m in self.targets)
+        return ", ".join(repr(m).strip("<>") for m in self.models)
     
     @property
     def attendees(self):
-        return [m for m in self.targets if isinstance(m, Attendee)]
+        return [self.parse(d) for d in self.targets if "attendee" in d]
     
     @property
     def groups(self):
-        return [m for m in self.targets if isinstance(m, Group)]
+        return [self.parse(d) for d in self.targets if "group" in d]
     
     def charge_cc(self, token):
         try:
@@ -227,6 +252,7 @@ def affiliates(exclude={"paid":NOT_PAID}):
     for aff,amt in Attendee.objects.exclude(Q(amount_extra=0) | Q(affiliate="")).values_list("affiliate","amount_extra"):
         amounts[aff] += amt
     return [(aff,aff) for aff,amt in sorted(amounts.items(), key=lambda tup: -tup[1])]
+
 
 
 def get_page(page, queryset):
