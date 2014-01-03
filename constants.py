@@ -310,7 +310,7 @@ KLUDGE_PAYMENT_OPTS = enum(
     MANUAL = "Pay with credit card at the registration desk",
     GROUP  = "Taking an unassigned Group badge (group leader must be present)"
 )
-KLUDGE_PAYMENT_OPTS = DOOR_PAYMENT_OPTS
+#KLUDGE_PAYMENT_OPTS = DOOR_PAYMENT_OPTS
 
 STORE_PRICES = (                # start as a tuple to preserve order for STORE_ITEMS
     ("MAGFest 12 tshirt", 15),
