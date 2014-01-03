@@ -600,7 +600,8 @@ class Root:
         raise HTTPRedirect("new?message={}", "Attendee un-checked-in")
     
     def shifts(self, id, shift_id="", message=""):
-        attendee = Attendee.objects.get(id = id)
+        jobs, shifts, attendees = Job.everything()
+        [attendee] = [a for a in attendees if a.id == int(id)]
         return {
             "message":  message,
             "shift_id": shift_id,

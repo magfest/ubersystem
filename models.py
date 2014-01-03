@@ -710,8 +710,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @property
     def possible_opts(self):
-        return [(job.id,"(%s) [%s] %s" % (hour_day_format(job.start_time), job.get_location_display(), job.name))
-                for job in self.possible if datetime.now() < job.start_time + timedelta(hours=job.duration)]
+        return [(job.id, "(%s) [%s] %s" % (hour_day_format(job.start_time), job.get_location_display(), job.name))
+                for job in self.possible if datetime.now() < job.start_time]
     
     @property
     def possible_and_current(self):
