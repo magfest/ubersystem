@@ -304,7 +304,8 @@ class Root:
                 elif attendee.got_merch:
                     message = "{a.full_name} ({a.badge}) already got {a.merch}".format(a = attendee)
                 else:
-                    id, tshirt = attendee.id, attendee.tshirt
+                    id = attendee.id
+                    tshirt = (attendee.shirt or NO_SHIRT) if attendee.tshirt else NO_SHIRT
                     message = "{a.full_name} ({a.badge}) has not yet received {a.merch}".format(a = attendee)
         return {
             "id": id,
@@ -312,8 +313,14 @@ class Root:
             "message": message
         }
     
+    # TODO: make no_shirt configurable
     @ajax
-    def give_merch(self, id, shirt_size):
+    def give_merch(self, id, shirt_size, no_shirt):
+        try:
+            shirt_size = int(shirt_size)
+        except:
+            shirt_size = None
+        
         success = False
         attendee = Attendee.objects.get(id = id)
         if not attendee.merch:
@@ -321,18 +328,17 @@ class Root:
         elif attendee.got_merch:
             message = "{} already got {}".format(attendee.full_name, attendee.merch)
         else:
-            message = "{} is now marked as having received {}".format(attendee.full_name, attendee.merch)
+            if no_shirt:
+                message = "{} is now marked as having received all of the following (EXCEPT FOR THE SHIRT): {}"
+            else:
+                message = "{} is now marked as having received {}"
+            message = message.format(attendee.full_name, attendee.merch)
             attendee.got_merch = True
+            if shirt_size:
+                attendee.shirt = shirt_size
             attendee.save()
-            if shirt_size and shirt_size.isdigit():
-                Tracking.objects.create(
-                    fk_id = id,
-                    model = "Attendee",
-                    which = repr(attendee),
-                    who = Account.admin_name(),
-                    action = CREATED,
-                    data = "shirt => " + dict(SHIRT_OPTS)[int(shirt_size)]
-                )
+            if no_shirt:
+                NoShirt.objects.create(attendee = attendee)
             success = True
         
         return {
@@ -346,6 +352,8 @@ class Root:
         attendee = Attendee.objects.get(id = id)
         attendee.got_merch = False
         attendee.save()
+        for ns in attendee.noshirt_set.all():
+            ns.delete()
         return "{a.full_name} ({a.badge}) merch handout canceled".format(a = attendee)
     
     if state.AT_THE_CON or DEV_BOX:

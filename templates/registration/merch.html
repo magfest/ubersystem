@@ -65,9 +65,9 @@
         });
     }
     
-    function giveMerch(id, shirtSize) {
+    function giveMerch(noShirt, id, shirtSize) {
         $("#give button").attr("disabled", true);
-        $.post("give_merch", {id: id, csrf_token: csrf_token, shirt_size: shirtSize || null}, function(json) {
+        $.post("give_merch", {id: id, csrf_token: csrf_token, no_shirt: noShirt, shirt_size: shirtSize || null}, function(json) {
             $("#give").html("");
             $("#badge_num").val("");
             $("#message").html(json.message);
@@ -115,15 +115,26 @@
                 if (!resp.id) {
                     $("#message").html(resp.message);
                 } else {
-                    $("#give").html(resp.message + "<br/>");
-                    if (resp.tshirt) {
+                    $("#give").html(resp.message.replace(" and ", " ")
+                                        .replace(" received ", " received<br/>- ")
+                                        .replace(/,/g, "<br/>- ")
+                                  + "<br/>");
+                    if (resp.tshirt != {{ NO_SHIRT }}) {
                         $("#give").append("Choose a shirt size:").append($shirtOpts);
+                        $("#give select").val(resp.tshirt);
                     }
-                    $("#give").append(
-                        $("<button>Give Merch</button>").click(function() {
-                            giveMerch(resp.id, $("#shirt").val());
-                            return false;
-                        }));
+                    $("#give")
+                        .append(
+                            $('<button class="withshirt">Give Merch</button>').click(function() {
+                                giveMerch('', resp.id, $("#shirt").val());
+                                return false;
+                            })
+                        ).append(
+                            $('<button class="withoutshirt">Give Merch Without Shirt</button>').click(function() {
+                                giveMerch('no_shirt', resp.id, $("#shirt").val());
+                                return false;
+                            })
+                        );
                 }
             }, "json");
             return false;

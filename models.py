@@ -862,6 +862,8 @@ class RoomAssignment(MagModel):
     room     = ForeignKey(Room)
     attendee = OneToOneField(Attendee)
 
+class NoShirt(MagModel):
+    attendee = ForeignKey(Attendee)
 
 
 class Job(MagModel):
