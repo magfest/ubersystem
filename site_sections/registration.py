@@ -305,7 +305,7 @@ class Root:
                     message = "{a.full_name} ({a.badge}) already got {a.merch}".format(a = attendee)
                 else:
                     id = attendee.id
-                    tshirt = (attendee.shirt or NO_SHIRT) if attendee.tshirt else NO_SHIRT
+                    tshirt = (attendee.shirt or SIZE_UNKNOWN) if attendee.tshirt else NO_SHIRT
                     message = "{a.full_name} ({a.badge}) has not yet received {a.merch}".format(a = attendee)
         return {
             "id": id,
@@ -327,6 +327,8 @@ class Root:
             message = "{} has no merch".format(attendee.full_name)
         elif attendee.got_merch:
             message = "{} already got {}".format(attendee.full_name, attendee.merch)
+        elif shirt_size == SIZE_UNKNOWN:
+            message = "You must select a shirt size"
         else:
             if no_shirt:
                 message = "{} is now marked as having received all of the following (EXCEPT FOR THE SHIRT): {}"

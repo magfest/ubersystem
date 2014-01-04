@@ -4,7 +4,7 @@
 
 <script type="text/javascript">
     var $shirtOpts = $("<select/>").attr("id", "shirt");
-    $.each({{ SHIRT_OPTS|jsonize }}, function(i,size) {
+    $.each({{ MERCH_SHIRT_OPTS|jsonize }}, function(i,size) {
         $shirtOpts.append($("<option/>").val(size[0]).text(size[1]));
     });
     
@@ -125,12 +125,12 @@
                     }
                     $("#give")
                         .append(
-                            $('<button class="withshirt">Give Merch</button>').click(function() {
+                            $('<button>Give Merch</button>').click(function() {
                                 giveMerch('', resp.id, $("#shirt").val());
                                 return false;
                             })
                         ).append(
-                            $('<button class="withoutshirt">Give Merch Without Shirt</button>').click(function() {
+                            $('<button>Give Merch Without Shirt</button>').click(function() {
                                 giveMerch('no_shirt', resp.id, $("#shirt").val());
                                 return false;
                             })

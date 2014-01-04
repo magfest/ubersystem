@@ -331,6 +331,7 @@ FEE_PRICES = (
 FEE_ITEMS = [(item,item) for item,price in FEE_PRICES]
 FEE_PRICES = dict(FEE_PRICES)
 
+SIZE_UNKNOWN = -1
 NO_SHIRT = 0
 SHIRT_OPTS = (
     (NO_SHIRT, "no shirt"),
@@ -346,6 +347,7 @@ SHIRT_OPTS = (
     (10, "x-large (female)"),
 )
 PREREG_SHIRT_OPTS = SHIRT_OPTS[1:]
+MERCH_SHIRT_OPTS = [(SIZE_UNKNOWN, "select a size")] + list(PREREG_SHIRT_OPTS)
 
 INTEREST_OPTS = enum(
     CONSOLE     = "Consoles",
