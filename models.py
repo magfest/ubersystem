@@ -457,6 +457,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     display = "full_name"
     restricted = ["group","admin_notes","badge_num","ribbon","regdesk_info","extra_merch","got_merch","paid","amount_paid","amount_refunded","assigned_depts","trusted","nonshift_hours"]
+    # TODO: double check restricted for new fields, maybe whitelist instead of blacklist?
     
     def presave_adjustments(self):
         import badge_funcs
