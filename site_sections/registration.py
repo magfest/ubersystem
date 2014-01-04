@@ -626,9 +626,11 @@ class Root:
         raise HTTPRedirect("shifts?id={}&message={}", attendee.id, "Non-shift hours updated")
     
     @csrf_protected
-    def update_notes(self, id, admin_notes):
+    def update_notes(self, id, admin_notes, for_review=None):
         attendee = Attendee.objects.get(id = id)
         attendee.admin_notes = admin_notes
+        if for_review is not None:
+            attendee.for_review = for_review
         attendee.save()
         raise HTTPRedirect("shifts?id={}&message={}", id, "Admin notes updated")
     
