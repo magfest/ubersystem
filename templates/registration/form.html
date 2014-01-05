@@ -272,7 +272,7 @@
             {% options DONATION_OPTS attendee.amount_extra %}
         </select>
         {% if AT_THE_CON and attendee.staffing %}
-            ({{ attendee.worked_hours }} hours worked)
+            <br/> ({{ attendee.worked_hours }} out of {{ attendee.weighted_hours }} hours worked)
         {% endif %}
     </td>
 </tr>
