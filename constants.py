@@ -19,8 +19,8 @@ LATER_GROUP_PRICE = 40
 class State:
     SEND_EMAILS = False
     
-    AT_THE_CON = True
-    POST_CON = False
+    AT_THE_CON = False
+    POST_CON = True
     UBER_SHUT_DOWN = False
     HIDE_SCHEDULE = False
     
@@ -52,12 +52,11 @@ class State:
     ESCHATON             = datetime(2014,  1,  5, 22)
     
     PATH     = "/magfest"
-    #HOSTNAME = "magfestubersystem.com"
-    HOSTNAME = "magfest.net"
+    HOSTNAME = "magfestubersystem.com"
     
     @property
     def URL_BASE(self):
-        return "https://" + self.HOSTNAME + self.PATH
+        return "http://" + self.HOSTNAME + self.PATH
     
     @property
     def DEALER_REG_OPEN(self):
@@ -152,7 +151,7 @@ def enum(**kwargs):
             lines = f.readlines()
         def _line(tup):
             for i,line in enumerate(lines):
-                if tup[0] in line:
+                if re.match("^ {4}" + tup[0] + " +=", line):
                     return i
     xs = []
     for name,desc in kwargs.items():
@@ -439,6 +438,7 @@ JOB_LOC_OPTS = enum(
     TECH_OPS      = "Tech Ops",
     VIDEO_ROOM    = "Games on Film",
 )
+# TODO: rename this to DEPT_CHAIR_OVERRIDES or something
 DEPT_CHAIRS = {
     STAFF_SUPPORT: "Jack Boyd",
     SECURITY:      "The Dorsai Irregulars"

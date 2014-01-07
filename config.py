@@ -7,11 +7,12 @@ if sys.argv[0].endswith("nosetests") or "TESTING" in os.environ:
     AUTORELOAD = False
     DBUSER, DBPASS, DBNAME = TEST_DB, TEST_USER, TEST_PASS
 else:
-    PORT = 443
+    PORT = 4321
     AUTORELOAD = True
     DBUSER, DBPASS, DBNAME = ["m12"] * 3
 
 if DEV_BOX:
+    state.HOSTNAME = "localhost"
     STRIPE_SECRET_KEY = "sk_test_CvvvyHs2XnU9giMYDCUnIpF4"
     STRIPE_PUBLIC_KEY = "pk_test_t36jT3di98A0rnENDejBE1Vg"
 
@@ -32,14 +33,10 @@ cherrypy.config.update({
     
     "server.socket_host": "0.0.0.0",
     "server.socket_port": PORT,
-    "server.protocol_version": "HTTP/1.0",
+    "server.protocol_version": "HTTP/1.0",  # TODO: change the keep-alive and thread pool sizes instead maybe?
     
     "log.screen": False,
     "checker.check_skipped_app_config": False,
-    
-    "server.ssl_private_key": "certs/key.pem",
-    "server.ssl_certificate": "certs/cert.pem",
-    "server.ssl_certificate_chain": "certs/chain.pem",
     
     "tools.sessions.on": True,
     "tools.sessions.path": state.PATH,
@@ -66,7 +63,7 @@ django.conf.settings.configure(
 appconf = {
     "/": {
         "tools.proxy.on": True,
-        "tools.proxy.base": "https://{}".format(state.HOSTNAME),
+        "tools.proxy.base": "http://{}:{}".format(state.HOSTNAME, PORT),
         "tools.staticdir.root": os.getcwd(),
         "tools.rollback_on_error.on": True,
         "tools.add_email_to_error_page.on": True

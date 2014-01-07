@@ -435,3 +435,14 @@ class Root:
                     and $40 for Friday or Saturday.
                 </body></html>
             """
+
+if state.POST_CON:
+    @all_renderable()
+    class Root:
+        def default(self, *args, **kwargs):
+            return """
+                <html><head></head><body style="text-align:center">
+                    <h2 style="color:red">Hope you had a great MAGFest!</h2>
+                    Preregistration for MAGFest 13 will open in the summer.
+                </body></html>
+            """
