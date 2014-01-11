@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Get Your MAGFest Shirt{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<h2>{{ attendee.full_name }}'s Shirt</h2>
+
+Sorry again for selling out of our MAGFest tshirts this year - we had no idea that
+it would be our best selling shirt in at least 5 years!  As promised, we'll mail you
+the shirt you were supposed to get, just tell us your address and shirt size before
+Jan 31st and we'll mail them out ASAP.
+
+<form method="post" action="shirt">
+{% csrf_token %}
+<input type="hidden" name="id" value="{{ attendee.secret_id }}" />
+<table style="width:auto">
+<tr>
+    <td><b>Shirt Size:</b></td>
+    <td>
+        <select name="shirt">
+            <option value="{{ SIZE_UNKNOWN }}">Select a size</option>
+            {% options PREREG_SHIRT_OPTS attendee.shirt %}
+        </select>
+    </td>
+</tr>
+<tr>
+    <td style="vertical-align:top"><b>Mailing Address:</b></td>
+    <td>
+        <textarea name="address" rows="4" cols="30">{{ attendee.address }}</textarea>
+    </td>
+</tr>
+<tr>
+    <td></td>
+    <td><input type="submit" value="Upload Shirt Size and Address" /></td>
+</tr>
+</table>
+</form>
+
+{% endblock %}

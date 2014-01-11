@@ -446,3 +446,23 @@ if state.POST_CON:
                     Preregistration for MAGFest 13 will open in the summer.
                 </body></html>
             """
+    
+        def shirt(self, message = "", **params):
+            attendee = Attendee.get(params, restricted = True)
+            assert attendee.noshirt_set.get(), "There's no record of {} putting in to get a tshirt mailed out from our merch department".format(attendee.full_name)
+            if "address" in params:
+                if attendee.shirt == SIZE_UNKNOWN:
+                    message = "Please select a shirt size."
+                elif not attendee.address:
+                    message = "Your address is required."
+                else:
+                    print(attendee.shirt, attendee.get_shirt_display())
+                    attendee.save()
+                    raise HTTPRedirect("shirt?id={}", attendee.secret_id)
+            elif attendee.address:
+                message = "We've recorded your shirt size and address, which you may update anytime before Jan 31st."
+            
+            return {
+                "message": message,
+                "attendee": attendee
+            }

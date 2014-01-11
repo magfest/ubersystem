@@ -83,7 +83,7 @@ days_before = lambda days, dt: dt - timedelta(days = days) < datetime.now() < dt
 
 ### WARNING - changing the email subject line for a reminder causes ALL of those reminders to be re-sent
 
-
+"""
 MarketplaceReminder("Reminder to pay for your MAGFest Dealer registration", "dealer_payment_reminder.txt",
                     lambda g: g.status == APPROVED and days_after(30, g.approved) and g.is_unpaid)
 
@@ -261,6 +261,13 @@ DeptHeadReminder("MAGFest staffers need to be marked and rated", "postcon_hours.
 for _event in SEASON_EVENTS.values():
     SeasonSupporterReminder(_event)
 
+"""
+
+'''
+Reminder(Attendee, "Claim Your MAGFest Tshirt", "shirt_info.txt",
+         lambda a: a.noshirt_set.all(),
+         sender="MAGFest Merch <merch@magfest.org>")
+'''
 
 @all_renderable(PEOPLE)
 class Root:

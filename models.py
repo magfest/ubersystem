@@ -434,6 +434,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     regdesk_info = CharField(max_length = 255, default = "")
     extra_merch  = CharField(max_length = 255, default = "")
     got_merch    = BooleanField(default = False)
+    address      = CharField(max_length = 255, default = "")    # TODO: remove this for next year
     
     registered = DateTimeField(auto_now_add = True)
     checked_in = DateTimeField(null = True)
@@ -476,7 +477,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 self.paid = NEED_NOT_PAY
         
         with BADGE_LOCK:
-            if not state.AT_THE_CON:
+            if not state.AT_THE_CON and not state.POST_CON:
                 if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE and not state.CUSTOM_BADGES_REALLY_ORDERED:
                     self.badge_type = SUPPORTER_BADGE
                 
@@ -492,7 +493,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if not self.amount_extra:
             self.affiliate = ""
         
-        if self.amount_extra < SHIRT_LEVEL:
+        if not self.tshirt:
             self.shirt = NO_SHIRT
         
         if self.staffing and self.badge_type == ATTENDEE_BADGE and self.ribbon == NO_RIBBON:
@@ -613,6 +614,7 @@ class Attendee(MagModel, TakesPaymentMixin):
            and self.paid in [HAS_PAID, PAID_BY_GROUP] \
            and self.badge_type not in [STAFF_BADGE, GUEST_BADGE]
     
+    # TODO: this should really be called gets_shirt or something
     @property
     def tshirt(self):
         return self.amount_extra >= SHIRT_LEVEL \

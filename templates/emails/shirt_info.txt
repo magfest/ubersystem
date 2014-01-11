@@ -1,0 +1,10 @@
+{{ attendee.first_name }},
+
+Sorry again for running out of MAGFest shirts at the merch booth this year - we had no idea that our (admittedly excellent) shirt design would be our most popular in at least 5 years!
+
+As promised, we'll mail you the shirt you were supposed to get, we just need you to fill out your shirt size and mailing address using the following form: {{ URL_BASE }}/preregistration/shirt?id={{ attendee.secret_id }}
+
+We'd appreciate it if you could fill this out by Jan 31st so that we can send out the shirts in a timely fashion.
+
+ - Ryan Nichols,
+MAGFest Merch Manager
