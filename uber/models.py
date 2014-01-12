@@ -978,26 +978,6 @@ class Shift(MagModel):
         return "{self.attendee.full_name}'s {self.job.name!r} shift".format(self = self)
 
 
-
-class Challenge(MagModel):
-    game   = CharField(max_length = 100)
-    normal = BooleanField()
-    hard   = BooleanField()
-    expert = BooleanField()
-    unfair = BooleanField()
-    
-    display = "game"
-    
-    def has_level(self, level):
-        return {NORMAL:self.normal, HARD:self.hard, EXPERT:self.expert, UNFAIR:self.unfair}[int(level)]
-
-class Success(MagModel):
-    challenge = ForeignKey(Challenge)
-    attendee  = ForeignKey(Attendee)
-    level     = IntegerField(choices = LEVEL_OPTS)
-
-
-
 class MPointUse(MagModel):
     attendee = ForeignKey(Attendee)
     amount   = IntegerField()

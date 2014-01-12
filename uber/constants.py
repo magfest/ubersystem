@@ -383,7 +383,6 @@ ACCESS_OPTS = enum(
     PEOPLE     = "Registration and Staffing",
     STUFF      = "Inventory and Scheduling",
     MONEY      = "Budget",
-    CHALLENGES = "Challenges",
     CHECKINS   = "Checkins",
     STATS      = "Analytics",
 )
@@ -481,19 +480,6 @@ WRISTBAND_COLORS = {
     UNDER_18: "red",
     BETWEEN_18_AND_21: "blue",
     OVER_21: "green"
-}
-
-LEVEL_OPTS = enum(
-    NORMAL = "Normal",
-    HARD   = "Hard",
-    EXPERT = "Expert",
-    UNFAIR = "Unfair"
-)
-LEVEL_VALUES = {
-    NORMAL: 1,
-    HARD:   2,
-    EXPERT: 3,
-    UNFAIR: 5,
 }
 
 TRACKING_OPTS = enum(
