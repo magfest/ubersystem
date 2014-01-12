@@ -1,4 +1,4 @@
-from common import *
+from uber.common import *
 
 def weighted_hours(staffer, location):
     shifts = Shift.objects.filter(attendee = staffer).select_related()

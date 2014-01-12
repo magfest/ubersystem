@@ -1,4 +1,4 @@
-from common import *
+from uber.common import *
 
 def prereg_money():
     preregs = defaultdict(int)

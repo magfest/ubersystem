@@ -1,4 +1,4 @@
-from common import *
+from uber.common import *
 from django.utils.text import normalize_newlines
 
 @all_renderable(STUFF)

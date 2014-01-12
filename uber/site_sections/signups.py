@@ -1,4 +1,4 @@
-from common import *
+from uber.common import *
 
 def get_attendee(full_name, email, zip_code):
     words = full_name.split()

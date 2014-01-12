@@ -1,4 +1,4 @@
-from common import *
+from uber.common import *
 
 
 account_required = [("name","Full Name"), ("email","Email Address"), ("hashed","Password")]

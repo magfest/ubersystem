@@ -1,4 +1,4 @@
-from common import *
+from uber.common import *
 
 def next_badge_num(badge_type):
     sametype = Attendee.objects.filter(badge_type = badge_type).exclude(badge_num = 0)

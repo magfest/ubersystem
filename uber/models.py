@@ -1,4 +1,4 @@
-from common import *
+from uber.common import *
 
 # TODO: mixin or decorator for getattr-on-MultiChoiceField
 class MultiChoiceField(CommaSeparatedIntegerField):
@@ -120,7 +120,7 @@ class TakesPaymentMixin(object):
                    datetime.combine((self.registered + timedelta(days = 14)).date(), time(23, 59)))
 
 def _night(name):
-    import constants
+    from uber import constants
     day = getattr(constants, name.upper())
     def lookup(self):
         return day if day in self.nights_ints else ""
@@ -828,7 +828,7 @@ class FoodRestrictions(MagModel):
     freeform = TextField()
     
     def __getattr__(self, name):
-        import constants
+        from uber import constants
         restriction = getattr(constants, name.upper())
         if restriction not in dict(FOOD_RESTRICTION_OPTS):
             raise AttributeError()

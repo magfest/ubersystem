@@ -1,20 +1,10 @@
-from common import *
+from uber.common import *
 
-TEST_DB, TEST_USER, TEST_PASS = ["magtest"] * 3
-
-if sys.argv[0].endswith("nosetests") or "TESTING" in os.environ:
-    PORT = 1234
-    AUTORELOAD = False
-    DBUSER, DBPASS, DBNAME = TEST_DB, TEST_USER, TEST_PASS
-else:
-    PORT = 4321
-    AUTORELOAD = True
-    DBUSER, DBPASS, DBNAME = ["m12"] * 3
+PORT = 4321
+DBUSER, DBPASS, DBNAME = ["m12"] * 3
 
 if DEV_BOX:
     state.HOSTNAME = "localhost"
-    STRIPE_SECRET_KEY = "sk_test_CvvvyHs2XnU9giMYDCUnIpF4"
-    STRIPE_PUBLIC_KEY = "pk_test_t36jT3di98A0rnENDejBE1Vg"
 
 def _rollback():
     from django.db import connection
@@ -29,7 +19,7 @@ def _add_email():
 cherrypy.tools.add_email_to_error_page = cherrypy.Tool("after_error_response", _add_email)
 
 cherrypy.config.update({
-    "engine.autoreload.on": AUTORELOAD,
+    "engine.autoreload.on": True,
     
     "server.socket_host": "0.0.0.0",
     "server.socket_port": PORT,
@@ -47,14 +37,14 @@ cherrypy.config.update({
 
 django.conf.settings.configure(
     TEMPLATE_DEBUG = True,
-    TEMPLATE_DIRS  = ["templates","static","static/views"],
+    TEMPLATE_DIRS  = [os.path.join(HERE, dname) for dname in ["templates","static","static/views"]],
     DATABASES = {
         "default": {
             "ENGINE":   "django.db.backends.postgresql_psycopg2",
             "HOST":     "localhost",
             "NAME":     DBNAME,
             "USER":     DBUSER,
-            "PASSWORD": DBNAME
+            "PASSWORD": DBPASS
         }
     },
     DEBUG = DEV_BOX
@@ -64,7 +54,7 @@ appconf = {
     "/": {
         "tools.proxy.on": True,
         "tools.proxy.base": "http://{}:{}".format(state.HOSTNAME, PORT),
-        "tools.staticdir.root": os.getcwd(),
+        "tools.staticdir.root": HERE,
         "tools.rollback_on_error.on": True,
         "tools.add_email_to_error_page.on": True
     },
@@ -84,6 +74,6 @@ for logger,level in LOGGING_LEVELS.items():
     logging.getLogger(logger).setLevel(level)
 
 log = logging.getLogger()
-handler = logging.FileHandler("uber.log")
+handler = logging.FileHandler("all.log")
 handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
 log.addHandler(handler)

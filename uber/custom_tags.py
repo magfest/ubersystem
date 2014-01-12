@@ -1,5 +1,5 @@
 from __future__ import division
-from common import *
+from uber.common import *
 
 @register.filter
 def datetime(dt, fmt = "11:59pm EST on %A, %b %e"):

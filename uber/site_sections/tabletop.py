@@ -1,4 +1,4 @@
-from common import *
+from uber.common import *
 
 @all_renderable(CHECKINS)
 class Root:

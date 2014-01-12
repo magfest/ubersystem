@@ -1,11 +1,11 @@
-from common import *
-from secret_settings import *
+from uber.common import *
+from uber.secret_settings import *
 
 # TODO: property maker for datetimes that become booleans based on datetime.now()
 
-DEV_BOX = False
+DEV_BOX = True
 
-YEAR = 12  # TODO: put this in backlinks
+HERE = os.path.abspath(os.path.dirname(__file__))
 
 EARLY_BADGE_PRICE = 40
 LATE_BADGE_PRICE  = 45

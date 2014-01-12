@@ -1,5 +1,5 @@
 from __future__ import division
-from common import *
+from uber.common import *
 
 # TODO: move hotel stuff to a different site section
 
@@ -46,7 +46,7 @@ def search(text):
         return Attendee.objects.filter(badge_num = terms[0])
     else:
         q = Q()
-        for attr in ["first_name","last_name","badge_num","email","comments","admin_notes","secret_id","group__name","group__secret_id"]:
+        for attr in ["first_name","last_name","badge_num","badge_printed_name","email","comments","admin_notes","secret_id","group__name","group__secret_id"]:
             q |= Q(**{attr + "__icontains": text})
         return Attendee.objects.filter(q)
 

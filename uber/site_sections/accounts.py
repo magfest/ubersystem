@@ -1,4 +1,4 @@
-from common import *
+from uber.common import *
 
 def randstring():
     return "".join(chr(randrange(33,127)) for i in range(8))

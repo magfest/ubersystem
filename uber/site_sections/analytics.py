@@ -17,7 +17,7 @@
 # values from a file vs the database because we switched to postgres and
 # I don't feel like converting.  Here be dragons. I am not proud.
 
-from common import *
+from uber.common import *
 import copy
 
 # imports the actual hardcoded graph data for previous magfest years

@@ -1,5 +1,5 @@
-from common import *
-import models
+from uber.common import *
+from uber import models
 
 from sys import argv
 from django.db import connection
@@ -10,7 +10,7 @@ class Style:
     def __getattr__(self, name):
         return lambda text: text
 
-text = open("models.py").read()
+text = open("uber/models.py").read()
 classes.sort(key = lambda c: text.index("class " + c.__name__ + "("))
 
 if __name__ == "__main__":

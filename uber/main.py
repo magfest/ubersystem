@@ -1,19 +1,19 @@
-from common import *
+from uber.common import *
 
 # TODO: open source DaemonTask and use it properly with cherrypy engine hooks
 # TODO: make UBER_SHUT_DOWN testable, since right not it's only checked at import time
 # TODO: more elegant importing for uber shutdown
 
 if state.UBER_SHUT_DOWN:
-    import site_sections.schedule, site_sections.signups, site_sections.preregistration
+    import uber.site_sections.schedule, uber.site_sections.signups, uber.site_sections.preregistration
     @all_renderable()
     class Root:
         def default(self, *args, **kwargs):
             return render("closed.html")
         
-        signups = site_sections.signups.Root()
-        schedule = site_sections.schedule.Root()
-        preregistration = site_sections.preregistration.Root()
+        signups = uber.site_sections.signups.Root()
+        schedule = uber.site_sections.schedule.Root()
+        preregistration = uber.site_sections.preregistration.Root()
     root = Root()
 else:
     @all_renderable()
@@ -26,9 +26,10 @@ else:
             return render("common.js")
     
     root = Root()
-    sections = [path.split("/")[1][:-3] for path in glob("site_sections/*.py") if "__init__" not in path]
+    sections = [path.split("/")[-1][:-3] for path in glob(os.path.join(HERE, "site_sections", "*.py"))
+                                         if "__init__" not in path]
     for section in sections:
-        module = __import__("site_sections." + section, fromlist=["Root"])
+        module = __import__("uber.site_sections." + section, fromlist=["Root"])
         setattr(root, section, module.Root())
 
 class Redirector:
@@ -41,12 +42,3 @@ class Redirector:
 
 cherrypy.tree.mount(Redirector(), "/", {})
 cherrypy.tree.mount(root, state.PATH, appconf)
-
-if __name__=="__main__":
-    cherrypy.engine.start()
-    cherrypy.engine.wait(cherrypy.engine.states.STARTED)
-    daemonize(Reminder.send_all, name = "EmailReminderTask")
-    if not state.AT_THE_CON and not state.POST_CON:
-        daemonize(detect_duplicates,  name = "DuplicateReminder")
-        daemonize(check_placeholders, name = "PlaceholdersReminder")
-    cherrypy.engine.block()

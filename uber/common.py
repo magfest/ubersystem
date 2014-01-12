@@ -34,10 +34,10 @@ from threading import Thread, RLock, local, current_thread
 import bcrypt
 import cherrypy
 import django.conf
-from amazon_ses import AmazonSES, EmailMessage
 
-from constants import *
-from config import *
+from uber.amazon_ses import AmazonSES, EmailMessage
+from uber.constants import *
+from uber.config import *
 
 from django import template
 from django.db import connection
@@ -277,11 +277,11 @@ def daemonize(func, name="DaemonTask", interval=300, threads=1):
 
 
 # These imports are last so they can import everything from this module.  Don't move or reorder them.
-from decorators import *
-from models import *
-from badge_funcs import *
-import model_checks
-import custom_tags
+from uber.decorators import *
+from uber.models import *
+from uber.badge_funcs import *
+from uber import model_checks
+from uber import custom_tags
 template.builtins.append(register)
-from site_sections.emails import Reminder
-import main
+from uber.site_sections.emails import Reminder
+import uber.main

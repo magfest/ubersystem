@@ -1,4 +1,4 @@
-from common import *
+from uber.common import *
 
 
 def site_mappable(func):
@@ -78,8 +78,8 @@ def credit_card(func):
 
 
 def renderable_data(data = None):
-    import constants
-    from models import Account, all_models
+    from uber import constants
+    from uber.models import Account, all_models
     data = data or {}
     data.update({m.__name__: m for m in all_models()})
     data.update({k: v for k,v in constants.__dict__.items() if re.match("^[_A-Z0-9]*$", k)})
@@ -100,7 +100,7 @@ def renderable_data(data = None):
     return data
 
 def render(template, data = None):
-    from models import Account
+    from uber.models import Account
     data = renderable_data(data)
     rendered = loader.get_template(template).render( Context(data) )
     if not state.AT_THE_CON and Account.is_nick() and "emails" not in template and "history" not in template and "form" not in rendered:
@@ -118,7 +118,7 @@ def ng_render(fname, **kwargs):
 
 
 def _get_template_filename(func):
-    mod_name = func.__module__.split(".")[1]
+    mod_name = func.__module__.split(".")[-1]
     return os.path.join(mod_name, func.__name__ + ".html")
 
 # TODO: better integration with @site_mappable
@@ -155,7 +155,7 @@ def restricted(func):
                 raise HTTPRedirect("../accounts/login?message=You+are+not+logged+in")
             
             else:
-                from models import Account
+                from uber.models import Account
                 if not set(func.restricted).intersection( Account.access_set() ):
                     if len(func.restricted) == 1:
                         return "You need {} access for this page".format(dict(ACCESS_OPTS)[func.restricted[0]])

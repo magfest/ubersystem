@@ -1,4 +1,4 @@
-from common import *
+from uber.common import *
 
 def check_prereg_reqs(attendee):
     if attendee.age_group == AGE_UNKNOWN:
