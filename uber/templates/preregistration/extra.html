@@ -45,7 +45,7 @@
     <tr class="extra-row">
         <td valign="top" style="padding-top:15px"><b>Want to kick in extra?</b></td>
         <td>
-            {% if CUSTOM_BADGES_ORDERED and attendee.amount_extra >= SUPPORTER_LEVEL %}
+            {% if AFTER_PRINTED_BADGE_DEADLINE and attendee.amount_extra >= SUPPORTER_LEVEL %}
                 {{ attendee.get_amount_extra_display }}
                 <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
             {% else %}
@@ -64,8 +64,8 @@
 <tr class="badge-row extra-row" style="display:none">
     <td> <b>Name Printed on Badge:</b> </td>
     <td>
-        <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" {% if CUSTOM_BADGES_ORDERED %}readonly{% endif %} />
-        {% if CUSTOM_BADGES_ORDERED %}
+        <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" {% if AFTER_PRINTED_BADGE_DEADLINE %}readonly{% endif %} />
+        {% if AFTER_PRINTED_BADGE_DEADLINE %}
             <br/> <i>(custom badges have already been ordered, so you can no longer set this)</i>
         {% endif %}
     </td>

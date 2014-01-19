@@ -4,6 +4,17 @@ from uber.common import *
 # TODO: make UBER_SHUT_DOWN testable, since right not it's only checked at import time
 # TODO: more elegant importing for uber shutdown
 
+def _rollback():
+    connection._rollback()
+cherrypy.tools.rollback_on_error = cherrypy.Tool("after_error_response", _rollback)
+
+def _add_email():
+    [body] = cherrypy.response.body
+    body = body.replace(b"<body>", b"""<body>Please email <a href="mailto:contact@magfest.org">contact@magfest.org</a> if you're not sure why you're seeing this page.""")
+    cherrypy.response.headers["Content-Length"] = len(body)
+    cherrypy.response.body = [body]
+cherrypy.tools.add_email_to_error_page = cherrypy.Tool("after_error_response", _add_email)
+
 if state.UBER_SHUT_DOWN:
     import uber.site_sections.schedule, uber.site_sections.signups, uber.site_sections.preregistration
     @all_renderable()
@@ -35,10 +46,10 @@ else:
 class Redirector:
     @cherrypy.expose
     def index(self):
-        if state.AT_THE_CON:
-            raise HTTPRedirect(state.PATH + '/accounts/homepage')
+        if AT_THE_CON:
+            raise HTTPRedirect(PATH + '/accounts/homepage')
         else:
-            raise HTTPRedirect(state.PATH)
+            raise HTTPRedirect(PATH)
 
 cherrypy.tree.mount(Redirector(), "/", {})
-cherrypy.tree.mount(root, state.PATH, appconf)
+cherrypy.tree.mount(root, PATH, conf['appconf'])

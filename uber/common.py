@@ -1,4 +1,3 @@
-# TODO: room ordering prioritizes groupings based on same nights
 # TODO: MPointUse needs a better name, and is confusing with MPointExchange
 # TODO: weighted hours which are NOT worked should be listed in red on the shifts page hour total
 
@@ -34,6 +33,8 @@ from threading import Thread, RLock, local, current_thread
 import bcrypt
 import cherrypy
 import django.conf
+from validate import Validator
+from configobj import ConfigObj, ConfigObjError, flatten_errors
 
 from uber.amazon_ses import AmazonSES, EmailMessage
 from uber.constants import *
@@ -110,6 +111,29 @@ class Order:
     
     def __str__(self):
         return self.order
+
+
+class SeasonEvent:
+    instances = []
+    
+    def __init__(self, slug, **kwargs):
+        assert re.match('^[a-z0-9_]+$', slug), 'Season Event sections must have separated_by_underscore names'
+        for opt in ['url', 'location']:
+            assert kwargs.get(opt), '{!r} is a required option for Season Event subsections'.format(opt)
+        
+        self.slug = slug
+        self.name = kwargs['name'] or slug.replace("_", " ").title()
+        self.day = datetime.strptime('%Y-%m-%d', kwargs['day'])
+        self.url = kwargs['url']
+        self.location = kwargs['location']
+        if kwargs['deadline']:
+            self.deadline = datetime.strptime('%Y-%m-%d', kwargs['day'])
+        else:
+            self.deadline = datetime.combine((self.day - timedelta(days = 7)).date(), time(23, 59))
+    
+    @classmethod
+    def register(cls, slug, kwargs):
+        cls.instances.append(cls(slug, **kwargs))
 
 
 def assign(attendee_id, job_id):

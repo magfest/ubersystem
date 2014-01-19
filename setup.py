@@ -16,5 +16,6 @@ if __name__ == '__main__':
             "logging_unterpolation==0.2.0",
             "stripe==1.11.0",
             "CherryPy==3.2.4",
+            "configobj-py3==4.7.2",
         ]
     )

@@ -1,6 +1,7 @@
 from uber.common import *
 
 # TODO: mixin or decorator for getattr-on-MultiChoiceField
+
 class MultiChoiceField(CommaSeparatedIntegerField):
     def __init__(self, *args, **kwargs):
         choices = kwargs.pop("choices")
@@ -149,9 +150,9 @@ class NightsMixin(object):
 
 
 class Account(MagModel):
-    name   = CharField(max_length = 50)
-    email  = CharField(max_length = 50)
-    hashed = CharField(max_length = 128)
+    name   = TextField()
+    email  = TextField()
+    hashed = TextField()
     access = MultiChoiceField(choices = ACCESS_OPTS)
     
     @staticmethod
@@ -176,46 +177,7 @@ class Account(MagModel):
 class PasswordReset(MagModel):
     account   = ForeignKey(Account)
     generated = DateTimeField(auto_now_add = True)
-    hashed    = CharField(max_length = 128)
-
-
-
-class MoneySource(MagModel):
-    name = CharField(max_length = 50)
-
-class MoneyDept(MagModel):
-    name = CharField(max_length = 50)
-    amount = IntegerField()
-    
-    @property
-    def allocations(self):
-        return self.money_set.order_by("-amount", "name")
-    
-    @property
-    def allocated(self):
-        return sum(m.amount for m in self.allocations)
-
-class Money(MagModel):
-    type        = IntegerField(choices = BUDGET_TYPE_OPTS)
-    name        = CharField(max_length = 50)
-    amount      = IntegerField()
-    description = TextField()
-    paid_by     = ForeignKey(MoneySource, null = True)
-    dept        = ForeignKey(MoneyDept, null = True)
-    pledged     = BooleanField()
-    estimate    = BooleanField()
-    pre_con     = BooleanField()
-    
-    @cached_property
-    def payment_total(self):
-        return sum(p.amount for p in self.payment_set.all())
-
-class Payment(MagModel):
-    money  = ForeignKey(Money)
-    type   = IntegerField(choices = PAYMENT_TYPE_OPTS)
-    amount = IntegerField()
-    name   = CharField(max_length = 50)
-    day    = DateField()
+    hashed    = TextField()
 
 
 
@@ -223,7 +185,7 @@ class Event(MagModel):
     location    = IntegerField(choices = EVENT_LOC_OPTS, null = True)
     start_time  = DateTimeField(null = True)
     duration    = IntegerField()
-    name        = CharField(max_length = 99)
+    name        = TextField()
     description = TextField()
     
     @property
@@ -246,10 +208,10 @@ class Event(MagModel):
 
 class Group(MagModel, TakesPaymentMixin):
     secret_id     = UuidField()
-    name          = CharField(max_length = 50)
+    name          = TextField()
     tables        = IntegerField()
     address       = TextField()
-    website       = CharField(max_length = 255)
+    website       = TextField()
     wares         = TextField()
     description   = TextField()
     special_needs = TextField()
@@ -408,19 +370,19 @@ class Attendee(MagModel, TakesPaymentMixin):
     secret_id     = UuidField()
     group         = ForeignKey(Group, null = True)
     placeholder   = BooleanField(default = False)
-    first_name    = CharField(max_length = 25)
-    last_name     = CharField(max_length = 25)
+    first_name    = TextField()
+    last_name     = TextField()
     international = BooleanField(default = False)
-    zip_code      = CharField(max_length = 20)
-    ec_phone      = CharField(max_length = 20)
-    phone         = CharField(max_length = 20)
-    email         = CharField(max_length = 50)
+    zip_code      = TextField()
+    ec_phone      = TextField()
+    phone         = TextField()
+    email         = TextField()
     age_group     = IntegerField(default = AGE_UNKNOWN, choices = AGE_GROUP_OPTS)
     reg_station   = IntegerField(null = True)
     
     interests   = MultiChoiceField(choices = INTEREST_OPTS)
-    found_how   = CharField(max_length = 100)
-    comments    = CharField(max_length = 255)
+    found_how   = TextField()
+    comments    = TextField()
     for_review  = TextField()
     admin_notes = TextField()
     
@@ -428,13 +390,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     badge_type = IntegerField(choices = BADGE_OPTS)
     ribbon     = IntegerField(default = NO_RIBBON, choices = RIBBON_OPTS)
     
-    affiliate    = CharField(max_length = 50, default = "")
+    affiliate    = TextField()
     shirt        = IntegerField(choices = SHIRT_OPTS)
     can_spam     = BooleanField(default = False)
-    regdesk_info = CharField(max_length = 255, default = "")
-    extra_merch  = CharField(max_length = 255, default = "")
+    regdesk_info = TextField()
+    extra_merch  = TextField()
     got_merch    = BooleanField(default = False)
-    address      = CharField(max_length = 255, default = "")    # TODO: remove this for next year
     
     registered = DateTimeField(auto_now_add = True)
     checked_in = DateTimeField(null = True)
@@ -446,15 +407,15 @@ class Attendee(MagModel, TakesPaymentMixin):
     amount_refunded  = IntegerField(default = 0)
     payment_method   = IntegerField(null = True, choices = PAYMENT_OPTIONS)
     
-    badge_printed_name = CharField(max_length = 30, default = "")
+    badge_printed_name = TextField()
     
     staffing         = BooleanField(default = False)
-    fire_safety_cert = CharField(max_length = 50, default = "")
+    fire_safety_cert = TextField()
     requested_depts  = MultiChoiceField(choices = JOB_INTEREST_OPTS)
     assigned_depts   = MultiChoiceField(choices = JOB_LOC_OPTS)
     trusted          = BooleanField(default = False)
     nonshift_hours   = IntegerField(default = 0)
-    past_years       = TextField(default = "")
+    past_years       = TextField()
     
     display = "full_name"
     restricted = ["group","admin_notes","badge_num","ribbon","regdesk_info","extra_merch","got_merch","paid","amount_paid","amount_refunded","assigned_depts","trusted","nonshift_hours"]
@@ -749,7 +710,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def shift_prereqs_complete(self):
         return not self.placeholder \
            and self.fire_safety_cert \
-           and (self.badge_type != STAFF_BADGE or self.hotel_requests is not None or not state.ROOMS_AVAILABLE)
+           and (self.badge_type != STAFF_BADGE or self.hotel_requests is not None or not state.BEFORE_ROOM_DEADLINE)
     
     @property
     def past_years_json(self):
@@ -846,11 +807,11 @@ class AssignedPanelist(MagModel):
 
 class SeasonPassTicket(MagModel):
     attendee = ForeignKey(Attendee)
-    slug = CharField(max_length = 99)
+    slug = TextField()
 
 class Room(MagModel, NightsMixin):
     department = IntegerField(choices = JOB_LOC_OPTS)
-    notes      = CharField(max_length = 255, default = "")
+    notes      = TextField()
     nights     = MultiChoiceField(choices = NIGHTS_OPTS)
     
     def to_dict(self):
@@ -869,9 +830,10 @@ class NoShirt(MagModel):
     attendee = ForeignKey(Attendee)
 
 
+
 class Job(MagModel):
-    name        = CharField(max_length = 100)
-    description = CharField(max_length = 100)
+    name        = TextField()
+    description = TextField()
     location    = IntegerField(choices = JOB_LOC_OPTS)
     start_time  = DateTimeField()
     duration    = IntegerField()
@@ -966,7 +928,7 @@ class Shift(MagModel):
     attendee = ForeignKey(Attendee)
     worked   = IntegerField(choices = WORKED_OPTS, default = SHIFT_UNMARKED)
     rating   = IntegerField(choices = RATING_OPTS, default = UNRATED)
-    comment  = CharField(max_length = 255)
+    comment  = TextField()
     
     @classmethod
     def serialize(cls, shifts):
@@ -976,6 +938,7 @@ class Shift(MagModel):
     @property
     def name(self):
         return "{self.attendee.full_name}'s {self.job.name!r} shift".format(self = self)
+
 
 
 class MPointUse(MagModel):
@@ -990,7 +953,7 @@ class MPointExchange(MagModel):
 
 class Sale(MagModel):
     attendee = ForeignKey(Attendee, null = True)
-    what     = CharField(max_length = 50)
+    what     = TextField()
     cash     = IntegerField()
     mpoints  = IntegerField()
     when     = DateTimeField(auto_now_add = True)
@@ -999,16 +962,17 @@ class Sale(MagModel):
 
 class ArbitraryCharge(MagModel):
     amount = IntegerField()
-    what   = CharField(max_length = 255)
+    what   = TextField()
     when   = DateTimeField(auto_now_add = True)
     reg_station = IntegerField(null = True)
     
     display = "what"
 
 
+
 class Game(MagModel):
-    code = CharField(max_length = 6)
-    name = CharField(max_length = 50)
+    code = TextField()
+    name = TextField()
     attendee = ForeignKey(Attendee)
     returned = BooleanField(default = False)
 
@@ -1044,10 +1008,10 @@ class Checkout(MagModel):
 
 class Email(MagModel):
     fk_id   = IntegerField()
-    model   = CharField(max_length = 50)
-    subject = CharField(max_length = 255)
-    dest    = CharField(max_length = 100)
+    model   = TextField()
     when    = DateTimeField(auto_now_add = True)
+    subject = TextField()
+    dest    = TextField()
     body    = TextField()
     
     display = "subject"
@@ -1074,13 +1038,14 @@ class Email(MagModel):
             return SafeString(self.body.replace("\n", "<br/>"))
 
 
+
 class Tracking(MagModel):
     fk_id  = IntegerField()
-    model  = CharField(max_length = 25)
+    model  = TextField()
     when   = DateTimeField(auto_now_add = True)
-    who    = CharField(max_length = 75)
-    which  = CharField(max_length = 125)
-    links  = CharField(max_length = 75)
+    who    = TextField()
+    which  = TextField()
+    links  = TextField()
     action = IntegerField(choices = TRACKING_OPTS)
     data   = TextField()
     
@@ -1139,26 +1104,24 @@ class Tracking(MagModel):
 Tracking.UNTRACKED = [Tracking, Email]
 
 @receiver(pre_save)
-def update_hook(sender, instance, **kwargs):
+def _update_hook(sender, instance, **kwargs):
     if instance.id is not None and sender not in Tracking.UNTRACKED:
         Tracking.track(UPDATED, instance)
 
 @receiver(post_save)
-def create_hook(sender, instance, created, **kwargs):
+def _create_hook(sender, instance, created, **kwargs):
     if created and sender not in Tracking.UNTRACKED:
         Tracking.track(CREATED, instance)
 
 @receiver(pre_delete)
-def delete_hook(sender, instance, **kwargs):
+def _delete_hook(sender, instance, **kwargs):
     if sender not in Tracking.UNTRACKED:
         Tracking.track(DELETED, instance)
 
 
-def ismodel(x):
-    return getattr(x, "__base__", None) is MagModel
 
 def all_models():
-    return [m for m in globals().values() if ismodel(m)]
+    return [m for m in globals().values() if getattr(x, "__base__", None) is MagModel]
 
 for _model in all_models():
     _model._meta.db_table = _model.__name__

@@ -3,11 +3,11 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-<h2>{% if DEALER_REG_FULL %}You've been added to our waitlist!{% else %}Thanks for applying as a Dealer!{% endif %}</h2>
+<h2>{% if AFTER_DEALER_REG_DEADLINE %}You've been added to our waitlist!{% else %}Thanks for applying as a Dealer!{% endif %}</h2>
 
 We've received your application for {{ group.name }} to purchase a Dealer registration for MAGFest.
 
-{% if DEALER_REG_FULL %}
+{% if AFTER_DEALER_REG_DEADLINE %}
     Since our Marketplace is currently full, you've been added to our waitlist, and we'll let you know by the end of November if a spot opens up for you.
 {% else %}
     We receive a flood of applications every year, which we respond to in the order in which we receive them, and you'll be emailed when we process yours.

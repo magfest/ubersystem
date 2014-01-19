@@ -13,11 +13,6 @@ def account_misc(account):
     return ""
 
 
-
-item_required = [("name","'What is it?'")]
-
-
-
 event_required = [("name","Event Name")]
 
 def event_overlaps(event, other_event_id = None):
@@ -31,7 +26,6 @@ def event_overlaps(event, other_event_id = None):
             return "'{}' overlaps with the time/duration you specified for '{}'".format(existing[hh], event.name)
 
 
-
 group_required = [("name","Group Name")]
 
 def group_paid(group):
@@ -41,7 +35,6 @@ def group_paid(group):
             return "Amount Paid must be a reasonable number"
     except:
         return "What you entered for Amount Paid ({}) isn't even a number".format(group.amount_paid)
-
 
 
 def attendee_misc(attendee):
@@ -89,7 +82,7 @@ def attendee_money(attendee):
         elif attendee.paid == REFUNDED and amount_refunded == 0:
             return "Amount Refunded may not be 0 if the attendee is marked Paid and Refunded"
     except:
-        return "What you entered for Amount Refunded (%s) wasn't even a number" % attendee.amount_refunded
+        return "What you entered for Amount Refunded ({}) wasn't even a number".format(attendee.amount_refunded)
 
 def attendee_badge_range(attendee):
     if state.AT_THE_CON:
@@ -98,23 +91,9 @@ def attendee_badge_range(attendee):
             return "{} badge numbers must fall within {} and {}".format(attendee.get_badge_type_display(), min_num, max_num)
 
 
-
-money_required = moneydept_required = [("name","Name")]
-
-def money_dept(money):
-    if money.dept and money.dept.name == "Refunds":
-        return "Refunds is a department handled specially and you may not assign budget items to it"
-
 def money_amount(money):
     if not str(money.amount).isdigit():
         return "Amount must be a positive number"
-moneydept_amount = money_amount
-
-
-
-payment_required = [("name","Payment Name"), ("day","Payment Date")]
-payment_amount = money_amount
-
 
 
 job_required = [("name","Job Name")]
@@ -129,33 +108,6 @@ def job_conflicts(job):
     for shift in job.shift_set.select_related():
         if job.hours.intersection( shift.attendee.hours - original_hours ):
             return "You can't change this job to this time, because {} is already working a shift then".format(shift.attendee.full_name)
-
-
-
-def success_badge(success):
-    try:
-        return check_range(int(success.badge_num), success.badge_type)
-    except ValueError:
-        return "'{}' is not a valid badge number".format(success.badge_num)
-
-def success_level(success):
-    if not success.challenge.has_level(success.level):
-        return "'%s' doesn't have a %s challenge" % (success.challenge.game, dict(LEVEL_OPTS)[int(success.level)])
-
-def success_existing(success):
-    existing = Success.objects.filter(badge_type=success.badge_type, badge_num=success.badge_num, challenge=success.challenge)
-    levels = [s.level for s in existing] if existing else []
-    if success.level in levels:
-        return "%s has already completed '%s' on %s" % (success.identifier, success.challenge.game, success.get_level_display())
-
-
-
-challenge_required = [("game","Game")]
-
-def challenge_exists(challenge):
-    if not challenge.normal and not challenge.hard and not challenge.expert and not challenge.unfair:
-        return "You must select at least one difficulty level"
-
 
 
 checkin_required = [("name","What is it?")]

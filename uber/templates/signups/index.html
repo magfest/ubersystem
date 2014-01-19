@@ -44,7 +44,7 @@
         about any dietary restrictions.
     </li>
     {% if attendee.badge_type == STAFF_BADGE and attendee.registered < ROOM_DEADLINE %}
-        {% if ROOMS_AVAILABLE %}
+        {% if BEFORE_ROOM_DEADLINE %}
             <li>
                 {% checked_if attendee.hotelrequests %}
                 {% if not attendee.placeholder and attendee.food_restrictions and not attendee.hotelrequests %}

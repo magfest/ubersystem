@@ -1,5 +1,7 @@
 from uber.common import *
 
+# TODO: move daemonize into cherrypy.engine.subscribe
+
 if __name__=="__main__":
     cherrypy.engine.start()
     cherrypy.engine.wait(cherrypy.engine.states.STARTED)

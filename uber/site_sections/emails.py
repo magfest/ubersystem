@@ -83,7 +83,7 @@ days_before = lambda days, dt: dt - timedelta(days = days) < datetime.now() < dt
 
 ### WARNING - changing the email subject line for a reminder causes ALL of those reminders to be re-sent
 
-"""
+
 MarketplaceReminder("Reminder to pay for your MAGFest Dealer registration", "dealer_payment_reminder.txt",
                     lambda g: g.status == APPROVED and days_after(30, g.approved) and g.is_unpaid)
 
@@ -141,15 +141,15 @@ StopsReminder("Want to staff MAGFest again?", "imported_staffer.txt",
               lambda a: a.placeholder and a.badge_type == STAFF_BADGE 
                                       and a.registered.date() <= state.STAFFERS_IMPORTED.date())
 
-StopsReminder("MAGFest shifts available", "shifts_available.txt",
-              lambda a: state.SHIFTS_AVAILABLE and a.takes_shifts)
+StopsReminder("MAGFest shifts available", "AFTER_SHIFTS_CREATED.txt",
+              lambda a: state.AFTER_SHIFTS_CREATED and a.takes_shifts)
 
 StopsReminder("Reminder to sign up for MAGFest shifts", "shift_reminder.txt",
               lambda a: days_after(30, max(a.registered, state.SHIFTS_CREATED))
-                    and state.SHIFTS_AVAILABLE and not state.PREREG_CLOSED and a.takes_shifts and not a.hours)
+                    and state.AFTER_SHIFTS_CREATED and not state.PREREG_CLOSED and a.takes_shifts and not a.hours)
 
 StopsReminder("Last chance to sign up for MAGFest shifts", "shift_reminder.txt",
-              lambda a: days_before(10, state.EPOCH) and state.SHIFTS_AVAILABLE and not state.PREREG_CLOSED
+              lambda a: days_before(10, state.EPOCH) and state.AFTER_SHIFTS_CREATED and not state.PREREG_CLOSED
                                                      and a.takes_shifts and not a.hours)
 
 StopsReminder("Still want to volunteer at MAGFest?", "volunteer_check.txt",
@@ -161,7 +161,7 @@ StopsReminder("MAGCon - the convention to plan MAGFest!", "magcon.txt",
 
 
 StopsReminder("Want volunteer hotel room space at MAGFest?", "hotel_rooms.txt",
-              lambda a: before(state.ROOM_DEADLINE) and state.SHIFTS_AVAILABLE and a.hotel_eligible)
+              lambda a: before(state.ROOM_DEADLINE) and state.AFTER_SHIFTS_CREATED and a.hotel_eligible)
 
 StopsReminder("Reminder to sign up for MAGFest hotel room space", "hotel_reminder.txt",
               lambda a: days_before(14, state.ROOM_DEADLINE) and a.hotel_eligible and not a.hotel_requests)
@@ -176,10 +176,10 @@ StopsReminder("Final reminder to meet your MAGFest hotel room requirements", "ho
               lambda a: days_before(7, state.UBER_TAKEDOWN) and a.hotel_shifts_required and a.weighted_hours < 30)
 
 StopsReminder("Last chance to personalize your MAGFest badge", "personalized_badge_reminder.txt",
-              lambda a: days_before(7, state.STAFF_BADGE_DEADLINE) and a.badge_type == STAFF_BADGE and a.placeholder)
+              lambda a: days_before(7, state.PRINTED_BADGE_DEADLINE) and a.badge_type == STAFF_BADGE and a.placeholder)
 
 Reminder(Attendee, "Personalized MAGFest badges will be ordered next week", "personalized_badge_deadline.txt",
-         lambda a: days_before(7, state.STAFF_BADGE_DEADLINE) and a.badge_type in [STAFF_BADGE, SUPPORTER_BADGE] and not a.placeholder)
+         lambda a: days_before(7, state.PRINTED_BADGE_DEADLINE) and a.badge_type in [STAFF_BADGE, SUPPORTER_BADGE] and not a.placeholder)
 
 StopsReminder("MAGFest Tech Ops volunteering", "techops.txt",
               lambda a: TECH_OPS in a.requested_depts_ints and TECH_OPS not in a.assigned)
@@ -219,7 +219,7 @@ DeptHeadReminder("Last reminder for MAGFest department heads to double-check the
                  lambda a: days_before(7, state.ROOM_DEADLINE))
 
 DeptHeadReminder("Last chance for Department Heads to get Staff badges for your people", "dept_head_badges.txt",
-                 lambda a: days_before(7, state.STAFF_BADGE_DEADLINE))
+                 lambda a: days_before(7, state.PRINTED_BADGE_DEADLINE))
 
 DeptHeadReminder("Need help with MAGFest setup/teardown?", "dept_head_setup_teardown.txt",
                  lambda a: days_before(14, state.ROOM_DEADLINE))
@@ -261,13 +261,11 @@ DeptHeadReminder("MAGFest staffers need to be marked and rated", "postcon_hours.
 for _event in SEASON_EVENTS.values():
     SeasonSupporterReminder(_event)
 
-"""
 
-'''
 Reminder(Attendee, "Claim Your MAGFest Tshirt", "shirt_info.txt",
          lambda a: a.noshirt_set.all(),
          sender="MAGFest Merch <merch@magfest.org>")
-'''
+
 
 @all_renderable(PEOPLE)
 class Root:

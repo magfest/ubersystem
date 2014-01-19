@@ -78,7 +78,7 @@ class Root:
                         group.tables = 0
                         group.prepare_prereg_badges(attendee, params["badges"])
                     else:
-                        group.status = WAITLISTED if state.DEALER_REG_FULL else UNAPPROVED
+                        group.status = WAITLISTED if state.AFTER_DEALER_REG_DEADLINE else UNAPPROVED
                         attendee.ribbon = DEALER_RIBBON
                     
                     attendee.badge_type = ATTENDEE_BADGE
@@ -113,7 +113,7 @@ class Root:
                 raise HTTPRedirect("index")
         else:
             attendee.can_spam = edit_id is None     # only defaults to true for these forms
-            if attendee.badge_type == PSEUDO_DEALER_BADGE and state.DEALER_REG_FULL:
+            if attendee.badge_type == PSEUDO_DEALER_BADGE and state.AFTER_DEALER_REG_DEADLINE:
                 message = "Dealer registration is closed, but you can fill out this form to add yourself to our waitlist"
         
         return {
