@@ -383,7 +383,7 @@ class stripe_form(template.Node):
         
         if not charge.targets:
             regtext = "On-Site Charge"
-        elif state.AT_THE_CON:
+        elif AT_THE_CON:
             regtext = "Registration"
         else:
             regtext = "Preregistration"

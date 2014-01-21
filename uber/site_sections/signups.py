@@ -16,7 +16,7 @@ class Root:
     def staffer(self):
         return Attendee.objects.get(id = cherrypy.session["staffer_id"])
     
-    if state.UBER_SHUT_DOWN:
+    if UBER_SHUT_DOWN:
         def index(self):
             return render("signups/printable.html", {"attendee": self.staffer})
     else:
@@ -26,7 +26,7 @@ class Root:
                 "attendee": self.staffer
             }
         
-    if not state.UBER_SHUT_DOWN:
+    if not UBER_SHUT_DOWN:
         def fire_safety(self, message = "", fire_safety_cert = None, csrf_token = None):
             attendee = self.staffer
             if fire_safety_cert is not None:

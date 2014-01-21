@@ -15,6 +15,7 @@ import traceback
 from glob import glob
 from uuid import uuid4
 from io import StringIO
+from pprint import pprint
 from copy import deepcopy
 from pprint import pformat
 from hashlib import sha512
@@ -25,6 +26,7 @@ from itertools import groupby
 from time import sleep, mktime
 from urllib.request import urlopen
 from urllib.parse import quote, parse_qsl
+from os.path import abspath, dirname, join
 from collections import defaultdict, OrderedDict
 from datetime import date, time, datetime, timedelta
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
@@ -37,8 +39,8 @@ from validate import Validator
 from configobj import ConfigObj, ConfigObjError, flatten_errors
 
 from uber.amazon_ses import AmazonSES, EmailMessage
-from uber.constants import *
 from uber.config import *
+from uber.constants import *
 
 from django import template
 from django.db import connection
@@ -61,7 +63,7 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
         args = [self.quote(s) for s in args]
         kwargs = {k:self.quote(v) for k,v in kwargs.items()}
         cherrypy.HTTPRedirect.__init__(self, page.format(*args, **kwargs))
-        if state.URL_BASE.startswith("https"):
+        if URL_BASE.startswith("https"):
             self.urls[0] = self.urls[0].replace("http://", "https://")
     
     def quote(self, s):
@@ -135,6 +137,9 @@ class SeasonEvent:
     def register(cls, slug, kwargs):
         cls.instances.append(cls(slug, **kwargs))
 
+for _slug, _conf in conf['season_events'].items():
+    SeasonEvent.register(_slug, _conf)
+
 
 def assign(attendee_id, job_id):
     job = Job.objects.get(id=job_id)
@@ -169,7 +174,7 @@ def send_email(source, dest, subject, body, format = "text", cc = [], bcc = [], 
         fk = {"fk_id": 0, "model": "n/a"} if model == "n/a" else {"fk_id": model.id, "model": model.__class__.__name__}
         Email.objects.create(subject = subject, dest = dest, body = body, **fk)
     
-    if state.SEND_EMAILS and to:
+    if SEND_EMAILS and to:
         message = EmailMessage(subject = subject, **{"bodyText" if format == "text" else "bodyHtml": body})
         AmazonSES(AWS_ACCESS_KEY_ID, AWS_SECRET_KEY).sendEmail(
             source = source,
@@ -308,4 +313,4 @@ from uber import model_checks
 from uber import custom_tags
 template.builtins.append(register)
 from uber.site_sections.emails import Reminder
-import uber.main
+import uber.server

@@ -117,7 +117,7 @@ class MagModel(Model):
 class TakesPaymentMixin(object):
     @property
     def payment_deadline(self):
-        return min(state.UBER_TAKEDOWN - timedelta(days = 2),
+        return min(UBER_TAKEDOWN - timedelta(days = 2),
                    datetime.combine((self.registered + timedelta(days = 14)).date(), time(23, 59)))
 
 def _night(name):
@@ -202,7 +202,7 @@ class Event(MagModel):
     @property
     def start_slot(self):
         if self.start_time:
-            return int((self.start_time - state.EPOCH).total_seconds() / (60 * 30))
+            return int((self.start_time - EPOCH).total_seconds() / (60 * 30))
 
 
 
@@ -343,9 +343,9 @@ class Group(MagModel, TakesPaymentMixin):
                 if attendee.paid == PAID_BY_GROUP:
                     if attendee.ribbon == DEALER_RIBBON:
                         total += DEALER_BADGE_PRICE
-                    elif attendee.registered <= state.PRICE_BUMP:
+                    elif attendee.registered <= PRICE_BUMP:
                         total += EARLY_GROUP_PRICE
-                    elif attendee.registered < state.SECOND_GROUP_BUMP:
+                    elif attendee.registered < SECOND_GROUP_BUMP:
                         total += LATE_GROUP_PRICE
                     else:
                         total += LATER_GROUP_PRICE
@@ -424,28 +424,28 @@ class Attendee(MagModel, TakesPaymentMixin):
     def presave_adjustments(self):
         import badge_funcs
         
-        if self.age_group == UNDER_18 and not state.AT_THE_CON:
+        if self.age_group == UNDER_18 and not AT_THE_CON:
             self.staffing = False
             self.assigned_depts = self.requested_depts = ""
             if self.ribbon == VOLUNTEER_RIBBON:
                 self.ribbon = NO_RIBBON
         
         if self.ribbon == DEPT_HEAD_RIBBON:
-            if not state.CUSTOM_BADGES_REALLY_ORDERED:
+            if not CUSTOM_BADGES_REALLY_ORDERED:
                 self.badge_type = STAFF_BADGE
             self.staffing = self.trusted = True
             if self.paid == NOT_PAID:
                 self.paid = NEED_NOT_PAY
         
         with BADGE_LOCK:
-            if not state.AT_THE_CON and not state.POST_CON:
-                if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE and not state.CUSTOM_BADGES_REALLY_ORDERED:
+            if not AT_THE_CON and not POST_CON:
+                if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE and not CUSTOM_BADGES_REALLY_ORDERED:
                     self.badge_type = SUPPORTER_BADGE
                 
                 if self.paid == NOT_PAID or self.badge_type not in PREASSIGNED_BADGE_TYPES:
                     self.badge_num = 0
                 elif self.badge_type in PREASSIGNED_BADGE_TYPES and not self.badge_num:
-                    if state.CUSTOM_BADGES_REALLY_ORDERED:
+                    if CUSTOM_BADGES_REALLY_ORDERED:
                         self.ribbon = VOLUNTEER_RIBBON if self.badge_type == STAFF_BADGE else self.ribbon
                         self.badge_type, self.badge_num = ATTENDEE_BADGE, 0
                     elif self.paid != NOT_PAID:
@@ -473,7 +473,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.paid != REFUNDED:
             self.amount_refunded = 0
         
-        if state.AT_THE_CON and self.badge_num and self.id is None:
+        if AT_THE_CON and self.badge_num and self.id is None:
             self.checked_in = datetime.now()
         
         for attr in ["first_name", "last_name"]:
@@ -486,7 +486,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         with BADGE_LOCK:
             badge_num = Attendee.objects.get(id = self.id).badge_num
             super(Attendee, self).delete(*args, **kwargs)
-            if self.badge_type not in PREASSIGNED_BADGE_TYPES or not state.CUSTOM_BADGES_REALLY_ORDERED:
+            if self.badge_type not in PREASSIGNED_BADGE_TYPES or not CUSTOM_BADGES_REALLY_ORDERED:
                 badge_funcs.shift_badges(self, down = True)
     
     def get_unsaved(self):
@@ -505,14 +505,12 @@ class Attendee(MagModel, TakesPaymentMixin):
             return self.overridden_price
         elif self.badge_type == ONE_DAY_BADGE:
             return state.get_oneday_price(registered)
-        elif registered < state.PRICE_BUMP:
+        elif registered < PRICE_BUMP:
             return EARLY_BADGE_PRICE
-        elif registered < state.SECOND_PRICE_BUMP:
-            return LATE_BADGE_PRICE
-        elif registered > state.PREREG_TAKEDOWN:
+        elif registered > PREREG_TAKEDOWN:
             return DOOR_BADGE_PRICE
         else:
-            return LATER_BADGE_PRICE
+            return LATE_BADGE_PRICE
     
     @property
     def total_cost(self):
@@ -659,10 +657,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     # TODO: make this efficient
     @cached_property
     def possible(self):
-        if not self.assigned and not state.AT_THE_CON:
+        if not self.assigned and not AT_THE_CON:
             return []
         else:
-            jobs = {job.id: job for job in Job.objects.filter(**{} if state.AT_THE_CON else {"location__in": self.assigned})}
+            jobs = {job.id: job for job in Job.objects.filter(**{} if AT_THE_CON else {"location__in": self.assigned})}
             for job in jobs.values():
                 job._shifts = []
             for shift in Shift.objects.filter(job__location__in = self.assigned).select_related():
@@ -851,7 +849,7 @@ class Job(MagModel):
             by_job[shift.job].append(shift)
             by_attendee[shift.attendee].append(shift)
 
-        attendees = [a for a in Attendee.staffers() if state.AT_THE_CON or not location or int(location) in a.assigned]
+        attendees = [a for a in Attendee.staffers() if AT_THE_CON or not location or int(location) in a.assigned]
         for attendee in attendees:
             attendee._shifts = by_attendee[attendee]
 
@@ -1121,7 +1119,7 @@ def _delete_hook(sender, instance, **kwargs):
 
 
 def all_models():
-    return [m for m in globals().values() if getattr(x, "__base__", None) is MagModel]
+    return [m for m in globals().values() if getattr(m, "__base__", None) is MagModel]
 
 for _model in all_models():
     _model._meta.db_table = _model.__name__

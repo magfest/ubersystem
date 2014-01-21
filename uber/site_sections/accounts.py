@@ -94,7 +94,7 @@ class Root:
         account = Account.get(params, checkgroups=["access"])
         is_new = account.id is None
         if is_new:
-            if state.AT_THE_CON:
+            if AT_THE_CON:
                 account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
             else:
                 password = randstring()
@@ -104,7 +104,7 @@ class Root:
         if not message:
             account.save()
             message = "Account settings uploaded"
-            if is_new and not state.AT_THE_CON:
+            if is_new and not AT_THE_CON:
                 data = {
                     "account": account,
                     "password": password

@@ -4,7 +4,7 @@ from uber.common import *
 # TODO: move hotel stuff to a different site section
 
 def check_everything(attendee):
-    if state.AT_THE_CON and attendee.id is None:
+    if AT_THE_CON and attendee.id is None:
         if isinstance(attendee.badge_num, str) or attendee.badge_num < 0:
             return "Invalid badge number"
         elif attendee.id is None and attendee.badge_num != 0 and Attendee.objects.filter(badge_type=attendee.badge_type, badge_num=attendee.badge_num).count():
@@ -17,7 +17,7 @@ def check_everything(attendee):
     if message:
         return message
     
-    if state.AT_THE_CON and attendee.age_group == AGE_UNKNOWN and attendee.id is None:
+    if AT_THE_CON and attendee.age_group == AGE_UNKNOWN and attendee.id is None:
         return "You must enter this attendee's age group"
 
 def unassigned_counts():
@@ -66,7 +66,7 @@ class Root:
         
         if search_text and count == total_count:
             message = "No matches found"
-        elif search_text and count == 1 and (not state.AT_THE_CON or search_text.isdigit()):
+        elif search_text and count == 1 and (not AT_THE_CON or search_text.isdigit()):
             raise HTTPRedirect("form?id={}&message={}", attendees[0].id, "This attendee was the only search result")
         
         page = int(page)
@@ -94,7 +94,7 @@ class Root:
         if "first_name" in params:
             attendee.group = None if not params["group_opt"] else Group.objects.get(id = params["group_opt"])
             
-            if state.AT_THE_CON and omit_badge:
+            if AT_THE_CON and omit_badge:
                 attendee.badge_num = 0
             message = check_everything(attendee)
             if not message:
@@ -104,7 +104,7 @@ class Root:
                     raise HTTPRedirect(return_to + "&message={}", "Attendee data uploaded")
                 else:
                     raise HTTPRedirect("index?uploaded_id={}&message={}&search_text={}", attendee.id, "has been uploaded",
-                        "{} {}".format(attendee.first_name, attendee.last_name) if state.AT_THE_CON else "")
+                        "{} {}".format(attendee.first_name, attendee.last_name) if AT_THE_CON else "")
         
         return {
             "message":    message,
@@ -119,7 +119,7 @@ class Root:
         attendee = Attendee.get(dict(params, badge_num = params.get("newnum") or 0), allowed = ["badge_num"])
         
         if "badge_type" in params:
-            preassigned = state.AT_THE_CON or attendee.badge_type in PREASSIGNED_BADGE_TYPES
+            preassigned = AT_THE_CON or attendee.badge_type in PREASSIGNED_BADGE_TYPES
             if preassigned:
                 message = check(attendee)
             
@@ -358,7 +358,7 @@ class Root:
             ns.delete()
         return "{a.full_name} ({a.badge}) merch handout canceled".format(a = attendee)
     
-    if state.AT_THE_CON or DEV_BOX:
+    if AT_THE_CON or DEV_BOX:
         @unrestricted
         def register(self, message="", **params):
             params["id"] = "None"
@@ -602,7 +602,7 @@ class Root:
         attendee = Attendee.objects.get(id = id)
         if attendee.group:
             unassigned = Attendee.objects.create(group = attendee.group, paid = PAID_BY_GROUP, badge_type = attendee.badge_type, ribbon = attendee.ribbon)
-            unassigned.registered = datetime(state.EPOCH.year, 1, 1)
+            unassigned.registered = datetime(EPOCH.year, 1, 1)
             unassigned.save()
         attendee.badge_num = 0
         attendee.checked_in = attendee.group = None
@@ -612,7 +612,7 @@ class Root:
     def shifts(self, id, shift_id="", message=""):
         jobs, shifts, attendees = Job.everything()
         [attendee] = [a for a in attendees if a.id == int(id)]
-        if state.AT_THE_CON:
+        if AT_THE_CON:
             attendee._possible = [job for job in jobs if datetime.now() < job.start_time
                                                      and job.slots > len(job.shifts)
                                                      and (not job.restricted or attendee.trusted)
@@ -790,7 +790,7 @@ class Root:
     
     @ng_renderable
     def hotel_assignments(self, department):
-        if state.ROOMS_LOCKED_IN:
+        if ROOMS_LOCKED_IN:
             cherrypy.response.headers["Content-Type"] = "text/plain"
             return json.dumps({
                 "message": "Hotel rooms are currently locked in, email stops@magfest.org if you need a last-minute adjustment",

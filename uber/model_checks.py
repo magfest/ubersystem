@@ -46,10 +46,10 @@ def attendee_misc(attendee):
     elif attendee.placeholder:
         return
     
-    if (state.AT_THE_CON and attendee.email and not EMAIL_RE.match(attendee.email)) or (not state.AT_THE_CON and not EMAIL_RE.match(attendee.email)):
+    if (AT_THE_CON and attendee.email and not EMAIL_RE.match(attendee.email)) or (not AT_THE_CON and not EMAIL_RE.match(attendee.email)):
         return "Enter a valid email address"
     
-    if not attendee.international and not state.AT_THE_CON:
+    if not attendee.international and not AT_THE_CON:
         if not re.compile("^[0-9]{5}$").match(attendee.zip_code):
             return "Enter a valid zip code"
         
@@ -62,7 +62,7 @@ def attendee_misc(attendee):
 def attendee_banned_volunteer(attendee):
     if (attendee.ribbon == VOLUNTEER_RIBBON or attendee.staffing) and attendee.full_name in BANNED_STAFFERS:
         return "We've declined to invite {} back as a volunteer{}".format(attendee.full_name,
-                ", talk to Eli Courtwright to override if necessary" if state.AT_THE_CON
+                ", talk to Eli Courtwright to override if necessary" if AT_THE_CON
             else ", email stops@magfest.org if you believe this is in error")
 
 def attendee_money(attendee):
@@ -85,7 +85,7 @@ def attendee_money(attendee):
         return "What you entered for Amount Refunded ({}) wasn't even a number".format(attendee.amount_refunded)
 
 def attendee_badge_range(attendee):
-    if state.AT_THE_CON:
+    if AT_THE_CON:
         min_num, max_num = BADGE_RANGES[attendee.badge_type]
         if attendee.badge_num != 0 and not (min_num <= attendee.badge_num <= max_num):
             return "{} badge numbers must fall within {} and {}".format(attendee.get_badge_type_display(), min_num, max_num)
@@ -109,9 +109,6 @@ def job_conflicts(job):
         if job.hours.intersection( shift.attendee.hours - original_hours ):
             return "You can't change this job to this time, because {} is already working a shift then".format(shift.attendee.full_name)
 
-
-checkin_required = [("name","What is it?")]
-checkin_badge = success_badge
 
 mpointuse_amount = money_amount
 

@@ -423,7 +423,7 @@ class Root:
             "registered": slug in [spt.slug for spt in attendee.seasonpassticket_set.all()]
         }
     
-    if state.PREREG_CLOSED:
+    if PREREG_CLOSED:
         del index, form, badge_choice
         def default(self, *args, **kwargs):
             return """
@@ -436,7 +436,7 @@ class Root:
                 </body></html>
             """
 
-if state.POST_CON:
+if POST_CON:
     @all_renderable()
     class Root:
         def default(self, *args, **kwargs):

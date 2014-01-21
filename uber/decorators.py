@@ -103,7 +103,7 @@ def render(template, data = None):
     from uber.models import Account
     data = renderable_data(data)
     rendered = loader.get_template(template).render( Context(data) )
-    if not state.AT_THE_CON and Account.is_nick() and "emails" not in template and "history" not in template and "form" not in rendered:
+    if not AT_THE_CON and Account.is_nick() and "emails" not in template and "history" not in template and "form" not in rendered:
         rendered = rendered.replace("festival", "convention").replace("Fest", "Con")
     return rendered.encode("utf-8")
 

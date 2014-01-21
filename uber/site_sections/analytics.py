@@ -22,7 +22,7 @@ import copy
 
 # imports the actual hardcoded graph data for previous magfest years
 # (yes, its hardcoded and not from the DB).
-from graph_data import *
+from uber.graph_data import *
 
 def generate_attendance_by_day_graph_data(last_day_of_magfest):
 

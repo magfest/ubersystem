@@ -15,7 +15,7 @@ def _add_email():
     cherrypy.response.body = [body]
 cherrypy.tools.add_email_to_error_page = cherrypy.Tool("after_error_response", _add_email)
 
-if state.UBER_SHUT_DOWN:
+if UBER_SHUT_DOWN:
     import uber.site_sections.schedule, uber.site_sections.signups, uber.site_sections.preregistration
     @all_renderable()
     class Root:
@@ -37,7 +37,7 @@ else:
             return render("common.js")
     
     root = Root()
-    sections = [path.split("/")[-1][:-3] for path in glob(os.path.join(HERE, "site_sections", "*.py"))
+    sections = [path.split("/")[-1][:-3] for path in glob(os.path.join(MODULE_ROOT, "site_sections", "*.py"))
                                          if "__init__" not in path]
     for section in sections:
         module = __import__("uber.site_sections." + section, fromlist=["Root"])
@@ -52,4 +52,4 @@ class Redirector:
             raise HTTPRedirect(PATH)
 
 cherrypy.tree.mount(Redirector(), "/", {})
-cherrypy.tree.mount(root, PATH, conf['appconf'])
+cherrypy.tree.mount(root, PATH, conf['appconf'].dict())

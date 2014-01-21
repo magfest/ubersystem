@@ -7,7 +7,7 @@ from uber.common import *
 # imports the actual hardcoded graph data for previous magfest years
 # (yes, its hardcoded and not from the DB).  only used for money graph,
 # newer graphs read directly from DB
-from graph_data import *
+from uber.graph_data import *
 
 
 def graphable():
@@ -41,7 +41,7 @@ def get_graphs_data():
         Attendee.objects.filter(paid=NOT_PAID).count()
     ]
     curr = graphable()
-    until = (state.EPOCH.date() - date.today()).days
+    until = (EPOCH.date() - date.today()).days
 
     # TODO: replace hardcoded dates below with these
     # these are END DATES
@@ -118,7 +118,7 @@ class Root:
             Attendee.objects.filter(paid=NOT_PAID).count()
         ]
         curr = graphable()
-        until = (state.EPOCH.date() - date.today()).days
+        until = (EPOCH.date() - date.today()).days
         return {
             "until": until,
             "needed": Money.objects.filter(

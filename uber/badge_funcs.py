@@ -15,7 +15,7 @@ def change_badge(attendee):
         out_of_range = check_range(attendee.badge_num, attendee.badge_type)
         if out_of_range:
             return out_of_range
-        elif state.CUSTOM_BADGES_REALLY_ORDERED:
+        elif CUSTOM_BADGES_REALLY_ORDERED:
             if attendee.badge_type in PREASSIGNED_BADGE_TYPES and old.badge_type not in PREASSIGNED_BADGE_TYPES:
                 return "Custom badges have already been ordered; you can add new staffers by giving them an Attendee badge with a Volunteer Ribbon"
             elif attendee.badge_type not in PREASSIGNED_BADGE_TYPES and old.badge_type in PREASSIGNED_BADGE_TYPES:
@@ -25,7 +25,7 @@ def change_badge(attendee):
             elif attendee.badge_type in PREASSIGNED_BADGE_TYPES and attendee.badge_num != old.badge_num:
                 return "Custom badges have already been ordered, so you cannot shift badge numbers"
         
-        if state.AT_THE_CON:
+        if AT_THE_CON:
             if not attendee.badge_num and attendee.badge_type in PREASSIGNED_BADGE_TYPES:
                 return "You must assign a badge number for pre-assigned badge types"
             
@@ -50,14 +50,14 @@ def change_badge(attendee):
                 attendee.badge_num = next
         
         attendee.save()
-        if state.AT_THE_CON or new <= next:
+        if AT_THE_CON or new <= next:
             return "Badge updated"
         else:
             return "That badge number was too high, so the next available badge was assigned instead"
 
 
 def shift_badges(attendee, down, until = MAX_BADGE):
-    if state.AT_THE_CON:
+    if AT_THE_CON:
         return
     
     with BADGE_LOCK:

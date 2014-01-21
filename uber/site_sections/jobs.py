@@ -9,7 +9,7 @@ def weighted_hours(staffer, location):
 
 @all_renderable(PEOPLE)
 class Root:
-    def index(self, location = None if state.AT_THE_CON else ARCADE):
+    def index(self, location = None if AT_THE_CON else ARCADE):
         if location is None:
             raise HTTPRedirect("signups")
         
@@ -28,7 +28,7 @@ class Root:
         by_start = defaultdict(list)
         for job in jobs:
             by_start[job.start_time].append(job)
-        times = [state.EPOCH + timedelta(hours = i) for i in range(CON_LENGTH)]
+        times = [EPOCH + timedelta(hours = i) for i in range(CON_LENGTH)]
         times = [(t, t + timedelta(hours = 1), by_start[t]) for i,t in enumerate(times)]
         return {
             "location": location,

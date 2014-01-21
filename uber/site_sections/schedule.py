@@ -5,7 +5,7 @@ from django.utils.text import normalize_newlines
 class Root:
     @unrestricted
     def index(self, message=""):
-        if state.HIDE_SCHEDULE and not Account.access_set() and not cherrypy.session.get("staffer_id"):
+        if HIDE_SCHEDULE and not Account.access_set() and not cherrypy.session.get("staffer_id"):
             return "The MAGFest schedule is being developed and will be made public when it's closer to being finalized."
         
         schedule = defaultdict(lambda: defaultdict(list))
@@ -19,7 +19,7 @@ class Root:
         for id,name in EVENT_LOC_OPTS:
             max_events = 1
             for i in range(2 * CON_LENGTH):
-                half_hour = state.EPOCH + timedelta(minutes = 30 * i)
+                half_hour = EPOCH + timedelta(minutes = 30 * i)
                 max_events = max(max_events, len(schedule[half_hour][id]))
             max_simul[id] = max_events
         
@@ -163,7 +163,7 @@ class Root:
     def move(self, id, location, start_slot):
         event = Event.objects.get(id = id)
         event.location = int(location)
-        event.start_time = state.EPOCH + timedelta(minutes = 30 * int(start_slot))
+        event.start_time = EPOCH + timedelta(minutes = 30 * int(start_slot))
         resp = {"error": check(event)}
         if not resp["error"]:
             event.save()
