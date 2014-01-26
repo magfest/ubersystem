@@ -17,21 +17,21 @@ class MagModel(Model):
     class Meta:
         abstract = True
         app_label = ''
-    
+
     _propertized = ()
-    
+
     def presave_adjustments(self):
         pass
-    
+
     def save(self, *args, **kwargs):
         self.presave_adjustments()
         super(MagModel, self).save(*args, **kwargs)
-    
+
     @classmethod
     def get_field(cls, name):
         [field] = [f for f in cls._meta.fields if f.name == name]
         return field
-    
+
     def field_repr(self, name):
         try:
             field = self.get_field(name)
@@ -48,15 +48,15 @@ class MagModel(Model):
                 return s
         except Exception as e:
             raise ValueError('error formatting {} ({!r})'.format(name, val)) from e
-    
+
     def __repr__(self):
         display = getattr(self, 'display', 'name' if hasattr(self, 'name') else 'id')
         return '<{}>'.format(' '.join(str(getattr(self, field)) for field in listify(display)))
     __str__ = __repr__
-    
+
     def __eq__(self, m):
         return isinstance(m, self.__class__) and self.id == m.id and getattr(self, 'secret_id', None) == getattr(m, 'secret_id', None)
-    
+
     def __getattr__(self, name):
         if name.endswith('_ints'):
             val = getattr(self, name[:-5])
@@ -72,7 +72,7 @@ class MagModel(Model):
             return choice in getattr(self, multi.name + '_ints')
 
         raise AttributeError(name)
-    
+
     @classmethod
     def get(cls, params, bools=[], checkgroups=[], allowed=[], restricted=False, ignore_csrf=False):
         params = params.copy()
@@ -83,12 +83,12 @@ class MagModel(Model):
             model = cls.objects.get(id = id)
         else:
             model = cls.objects.get(secret_id = id)
-        
+
         if not ignore_csrf:
             assert not {k for k in params if k not in allowed} or cherrypy.request.method == 'POST', 'POST required'
         model.apply(params, bools, checkgroups, allowed, restricted, ignore_csrf)
         return model
-    
+
     def apply(self, params, bools=[], checkgroups=[], allowed=[], restricted=True, ignore_csrf=True):
         for field in self._meta.fields:
             if restricted and field.name in self.restricted:
@@ -151,11 +151,11 @@ class NightsMixin(object):
     def nights_display(self):
         ordered = sorted(self.nights_ints, key=lambda i: ORDERED_NIGHTS.index(i))
         return ' / '.join(dict(NIGHTS_OPTS)[val] for val in ordered)
-    
+
     @property
     def setup_teardown(self):
         return self.wednesday or self.sunday
-    
+
     locals().update({mutate(name): _night(mutate(name)) for name in NIGHT_NAMES for mutate in [str.upper, str.lower]})
 
 
@@ -165,18 +165,18 @@ class Account(MagModel):
     email  = TextField()
     hashed = TextField()
     access = MultiChoiceField(choices = ACCESS_OPTS)
-    
+
     @staticmethod
     def is_nick():
         return Account.admin_name() in ['Nick Marinelli', 'Matt Reid']
-    
+
     @staticmethod
     def admin_name():
         try:
             return Account.objects.get(id = cherrypy.session.get('account_id')).name
         except:
             return None
-    
+
     @staticmethod
     def access_set(id = None):
         try:
@@ -198,18 +198,18 @@ class Event(MagModel):
     duration    = IntegerField()
     name        = TextField()
     description = TextField()
-    
+
     @property
     def half_hours(self):
         half_hours = set()
         for i in range(self.duration):
             half_hours.add(self.start_time + timedelta(minutes = 30 * i))
         return half_hours
-    
+
     @property
     def minutes(self):
         return self.duration * 30
-    
+
     @property
     def start_slot(self):
         if self.start_time:
@@ -234,31 +234,31 @@ class Group(MagModel, TakesPaymentMixin):
     admin_notes   = TextField()
     registered    = DateTimeField(auto_now_add = True)
     approved      = DateTimeField(null = True)
-    
+
     restricted = ['amount_paid','amount_owed','auto_recalc','admin_notes','lockable','status','approved']
-    
+
     def presave_adjustments(self):
         self.__dict__.pop('_attendees', None)
         if self.auto_recalc:
             self.amount_owed = self.total_cost
         if self.status == APPROVED and not self.approved:
             self.approved = datetime.now()
-    
+
     def prepare_prereg_badges(self, attendee, badges):
         self._badges = int(badges)
         self.preregisterer = attendee
-    
+
     def assign_prereg_badges(self):
         self.save()
         self.preregisterer.group = self
         self.preregisterer.save()
         self.assign_badges(self.badges)
-    
+
     def get_unsaved(self):
         attendee = deepcopy(self.preregisterer)
         attendee.badge_type = PSEUDO_GROUP_BADGE
         return attendee, self
-    
+
     def assign_badges(self, new_badge_count):
         self.save()
         ribbon = self.get_new_ribbon()
@@ -276,13 +276,13 @@ class Group(MagModel, TakesPaymentMixin):
                 for i in range(abs(diff)):
                     floating[i].delete()
         self.save()
-    
+
     def get_new_badge_type(self):
         if GUEST_BADGE in self.attendee_set.values_list('badge_type', flat=True):
             return GUEST_BADGE
         else:
             return ATTENDEE_BADGE
-    
+
     def get_new_ribbon(self):
         ribbons = set(self.attendee_set.values_list('ribbon', flat=True))
         for ribbon in [DEALER_RIBBON, BAND_RIBBON, NO_RIBBON]:
@@ -290,7 +290,7 @@ class Group(MagModel, TakesPaymentMixin):
                 return ribbon
         else:
             return DEALER_RIBBON if self.is_dealer else NO_RIBBON
-    
+
     @staticmethod
     def everyone():
         attendees = Attendee.objects.select_related('group')
@@ -301,41 +301,41 @@ class Group(MagModel, TakesPaymentMixin):
             if a.group:
                 groups[a.group_id]._attendees.append(a)
         return list(attendees), list(groups.values())
-    
+
     @property
     def is_dealer(self):
         return bool(self.tables and (not self.id or self.amount_paid or self.amount_owed))
-    
+
     @property
     def is_unpaid(self):
         return self.amount_owed > 0 and self.amount_paid == 0
-    
+
     @property
     def email(self):
         return self.leader and self.leader.email
-    
+
     @cached_property
     def leader(self):
         for a in sorted(self.attendees, key = lambda a: a.id):
             if a.email:
                 return a
-    
+
     @cached_property
     def attendees(self):
         return list(self.attendee_set.order_by('id'))
-    
+
     @property
     def badges_purchased(self):
         return len([a for a in self.attendees if a.paid == PAID_BY_GROUP])
-    
+
     @cached_property
     def badges(self):
         return len(self.attendees)
-    
+
     @property
     def unregistered_badges(self):
         return len([a for a in self.attendees if not a.first_name])
-    
+
     @property
     def table_cost(self):
         prices = {0: 0, 1: 125, 2: 175, 3: 225}
@@ -343,7 +343,7 @@ class Group(MagModel, TakesPaymentMixin):
         for table in range(self.tables + 1):
             total += prices.get(table, 300)
         return total
-    
+
     @property
     def badge_cost(self):
         if not self.id:
@@ -361,15 +361,15 @@ class Group(MagModel, TakesPaymentMixin):
                     else:
                         total += LATER_GROUP_PRICE
             return total
-    
+
     @property
     def total_cost(self):
         return self.table_cost + self.badge_cost
-    
+
     @property
     def amount_unpaid(self):
         return (self.amount_owed - self.amount_paid) if self.id else self.badge_cost
-    
+
     @property
     def min_badges_addable(self):
         return 1 if self.can_add else (
@@ -390,36 +390,36 @@ class Attendee(MagModel, TakesPaymentMixin):
     email         = TextField()
     age_group     = IntegerField(default = AGE_UNKNOWN, choices = AGE_GROUP_OPTS)
     reg_station   = IntegerField(null = True)
-    
+
     interests   = MultiChoiceField(choices = INTEREST_OPTS)
     found_how   = TextField()
     comments    = TextField()
     for_review  = TextField()
     admin_notes = TextField()
-    
+
     badge_num  = IntegerField(default = 0)
     badge_type = IntegerField(choices = BADGE_OPTS)
     ribbon     = IntegerField(default = NO_RIBBON, choices = RIBBON_OPTS)
-    
+
     affiliate    = TextField()
     shirt        = IntegerField(choices = SHIRT_OPTS)
     can_spam     = BooleanField(default = False)
     regdesk_info = TextField()
     extra_merch  = TextField()
     got_merch    = BooleanField(default = False)
-    
+
     registered = DateTimeField(auto_now_add = True)
     checked_in = DateTimeField(null = True)
-    
+
     paid             = IntegerField(default = NOT_PAID, choices = PAID_OPTS)
     overridden_price = IntegerField(default = None, null = True)
     amount_paid      = IntegerField(default = 0)
     amount_extra     = IntegerField(default = 0, choices = DONATION_OPTS)
     amount_refunded  = IntegerField(default = 0)
     payment_method   = IntegerField(null = True, choices = PAYMENT_OPTIONS)
-    
+
     badge_printed_name = TextField()
-    
+
     staffing         = BooleanField(default = False)
     fire_safety_cert = TextField()
     requested_depts  = MultiChoiceField(choices = JOB_INTEREST_OPTS)
@@ -427,85 +427,92 @@ class Attendee(MagModel, TakesPaymentMixin):
     trusted          = BooleanField(default = False)
     nonshift_hours   = IntegerField(default = 0)
     past_years       = TextField()
-    
+
     display = 'full_name'
     restricted = ['group','admin_notes','badge_num','ribbon','regdesk_info','extra_merch','got_merch','paid','amount_paid','amount_refunded','assigned_depts','trusted','nonshift_hours']
-    
-    def presave_adjustments(self):
-        import badge_funcs
-        
-        if self.age_group == UNDER_18 and not AT_THE_CON:
-            self.staffing = False
-            self.assigned_depts = self.requested_depts = ''
-            if self.ribbon == VOLUNTEER_RIBBON:
-                self.ribbon = NO_RIBBON
-        
-        if self.ribbon == DEPT_HEAD_RIBBON:
-            if not CUSTOM_BADGES_REALLY_ORDERED:
-                self.badge_type = STAFF_BADGE
-            self.staffing = self.trusted = True
-            if self.paid == NOT_PAID:
-                self.paid = NEED_NOT_PAY
-        
+
+    def delete(self, *args, **kwargs):
+        from uber import badge_funcs
         with BADGE_LOCK:
-            if not AT_THE_CON and not POST_CON:
-                if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE and not CUSTOM_BADGES_REALLY_ORDERED:
-                    self.badge_type = SUPPORTER_BADGE
-                
-                if self.paid == NOT_PAID or self.badge_type not in PREASSIGNED_BADGE_TYPES:
-                    self.badge_num = 0
-                elif self.badge_type in PREASSIGNED_BADGE_TYPES and not self.badge_num:
-                    if CUSTOM_BADGES_REALLY_ORDERED:
-                        self.ribbon = VOLUNTEER_RIBBON if self.badge_type == STAFF_BADGE else self.ribbon
-                        self.badge_type, self.badge_num = ATTENDEE_BADGE, 0
-                    elif self.paid != NOT_PAID:
-                        self.badge_num = badge_funcs.next_badge_num(self.badge_type)
-        
+            badge_num = Attendee.objects.get(id = self.id).badge_num
+            super(Attendee, self).delete(*args, **kwargs)
+            if self.has_personalized_badge and not CUSTOM_BADGES_REALLY_ORDERED:
+                badge_funcs.shift_badges(self, down = True)
+
+    def presave_adjustments(self):
+        self._staffing_adjustments()
+        self._badge_adjustments()
+        self._misc_adjustments()
+
+    def _misc_adjustments(self):
         if not self.amount_extra:
             self.affiliate = ''
-        
+
         if not self.gets_shirt:
             self.shirt = NO_SHIRT
-        
-        if self.staffing and self.badge_type == ATTENDEE_BADGE and self.ribbon == NO_RIBBON:
-            self.ribbon = VOLUNTEER_RIBBON
-        elif self.staffing and self.badge_type == STAFF_BADGE and self.ribbon == VOLUNTEER_RIBBON:
-            self.ribbon = NO_RIBBON
-        
-        if self.badge_type == STAFF_BADGE or self.ribbon == VOLUNTEER_RIBBON:
-            self.staffing = True
-        elif self.age_group == UNDER_18:
-            self.staffing = False
-        
-        if not self.staffing:
-            self.requested_depts = self.assigned_depts = ''
-        
+
         if self.paid != REFUNDED:
             self.amount_refunded = 0
-        
+
         if AT_THE_CON and self.badge_num and self.id is None:
             self.checked_in = datetime.now()
-        
+
         for attr in ['first_name', 'last_name']:
             value = getattr(self, attr)
             if value.isupper() or value.islower():
                 setattr(self, attr, value.title())
-    
-    def delete(self, *args, **kwargs):
-        import badge_funcs
+
+    def _badge_adjustments(self):
+        from uber import badge_funcs
         with BADGE_LOCK:
-            badge_num = Attendee.objects.get(id = self.id).badge_num
-            super(Attendee, self).delete(*args, **kwargs)
-            if self.badge_type not in PREASSIGNED_BADGE_TYPES or not CUSTOM_BADGES_REALLY_ORDERED:
-                badge_funcs.shift_badges(self, down = True)
-    
+            if not AT_THE_CON and not POST_CON:
+                if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE and not CUSTOM_BADGES_REALLY_ORDERED:
+                    self.badge_type = SUPPORTER_BADGE
+
+                if self.paid == NOT_PAID or self.has_personalized_badge:
+                    self.badge_num = 0
+                elif self.has_personalized_badge and not self.badge_num:
+                    if CUSTOM_BADGES_REALLY_ORDERED:
+                        self.badge_type, self.badge_num = ATTENDEE_BADGE, 0
+                    elif self.paid != NOT_PAID:
+                        self.badge_num = badge_funcs.next_badge_num(self.badge_type)
+
+    def _staffing_adjustments(self):
+        if self.ribbon == DEPT_HEAD_RIBBON:
+            self.staffing = self.trusted = True
+            if not CUSTOM_BADGES_REALLY_ORDERED:
+                self.badge_type = STAFF_BADGE
+            if self.paid == NOT_PAID:
+                self.paid = NEED_NOT_PAY
+
+        old = Attendee.objects.get(id=self.id) if self.id else None
+        if old and self.badge_type != STAFF_BADGE:
+            if self.staffing and not old.staffing or self.ribbon == VOLUNTEER_RIBBON and old.ribbon != VOLUNTEER_RIBBON:
+                self.staffing = True
+                if self.ribbon == NO_RIBBON:
+                    self.ribbon = VOLUNTEER_RIBBON
+            elif old.staffing and not self.staffing or self.ribbon != VOLUNTEER_RIBBON and old.ribbon == VOLUNTEER_RIBBON:
+                self.unset_volunteering()
+
+        if self.age_group == UNDER_18 and not AT_THE_CON and not POST_CON:
+            self.unset_volunteering()
+
+        if self.badge_type == STAFF_BADGE and self.ribbon == VOLUNTEER_RIBBON:
+            self.ribbon = NO_RIBBON
+
+    def unset_volunteering(self):
+        self.staffing = self.trusted = False
+        self.requested_depts = self.assigned_depts = ''
+        if self.ribbon == VOLUNTEER_RIBBON:
+            self.ribbon = NO_RIBBON
+
     def get_unsaved(self):
         return self, Group()
-    
+
     @staticmethod
     def staffers():
-        return Attendee.objects.filter(staffing = True).order_by('first_name','last_name')
-    
+        return Attendee.objects.filter(staffing = True).order_by('first_name', 'last_name')
+
     @property
     def badge_cost(self):
         registered = self.registered or datetime.now()
@@ -521,48 +528,48 @@ class Attendee(MagModel, TakesPaymentMixin):
             return DOOR_BADGE_PRICE
         else:
             return LATE_BADGE_PRICE
-    
+
     @property
     def total_cost(self):
         return self.badge_cost + self.amount_extra
-    
+
     @property
     def amount_unpaid(self):
         return max(0, self.total_cost - self.amount_paid)
-    
+
     @property
     def is_unpaid(self):
         return self.paid == NOT_PAID
-    
+
     @property
     def is_unassigned(self):
         return not self.first_name
-    
+
     @property
     def is_dealer(self):
         return self.ribbon == DEALER_RIBBON or self.badge_type == PSEUDO_DEALER_BADGE
-    
+
     @property
     def is_dept_head(self):
         return self.ribbon == DEPT_HEAD_RIBBON
-    
+
     @property
     def unassigned_name(self):
         if self.group_id and self.is_unassigned:
             return '[Unassigned {self.badge}]'.format(self = self)
-    
+
     @property
     def full_name(self):
         return self.unassigned_name or '{self.first_name} {self.last_name}'.format(self = self)
-    
+
     @property
     def last_first(self):
         return self.unassigned_name or '{self.last_name}, {self.first_name}'.format(self = self)
-    
+
     @property
     def banned(self):
         return self.full_name in BANNED_ATTENDEES
-    
+
     @property
     def badge(self):
         if self.paid == NOT_PAID:
@@ -571,36 +578,36 @@ class Attendee(MagModel, TakesPaymentMixin):
             badge = '{} #{}'.format(self.get_badge_type_display(), self.badge_num)
         else:
             badge = self.get_badge_type_display()
-        
+
         if self.ribbon != NO_RIBBON:
             badge += ' ({})'.format(self.get_ribbon_display())
-        
+
         return badge
-    
+
     @property
     def is_transferrable(self):
         return self.id and not self.checked_in \
            and self.paid in [HAS_PAID, PAID_BY_GROUP] \
            and self.badge_type not in [STAFF_BADGE, GUEST_BADGE]
-    
+
     @property
     def gets_shirt(self):
         return self.amount_extra >= SHIRT_LEVEL \
             or self.is_dept_head \
             or self.badge_type in [SUPPORTER_BADGE] \
             or (self.worked_hours >= 6 and (self.worked_hours < 18 or self.worked_hours >= 24))
-    
+
     @property
     def has_personalized_badge(self):
         return self.badge_type in [STAFF_BADGE, SUPPORTER_BADGE]
-    
+
     @property
     def donation_swag(self):
         extra = self.amount_extra
         if self.badge_type == SUPPORTER_BADGE and extra == 0:
             extra = SUPPORTER_LEVEL
         return [desc for amount,desc in sorted(DONATION_TIERS.items()) if amount and extra >= amount]
-    
+
     @property
     def merch(self):
         merch = self.donation_swag
@@ -609,7 +616,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.extra_merch:
             merch.append(self.extra_merch)
         return comma_and(merch)
-    
+
     @property
     def accoutrements(self):
         stuff = [] if self.ribbon == NO_RIBBON else ['a ' + self.get_ribbon_display() + ' ribbon']
@@ -617,43 +624,43 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.regdesk_info:
             stuff.append(self.regdesk_info)
         return comma_and(stuff)
-    
+
     @property
     def multiply_assigned(self):
         return len(self.assigned) > 1
-    
+
     @property
     def takes_shifts(self):
         return self.staffing and set(self.assigned) - {ARTEMIS, CONCERT, CON_OPS, MARKETPLACE,
                                                        CCG_TABLETOP, DORSAI, CONTRACTORS}
-    
+
     @property
     def hotel_shifts_required(self):
         return bool(self.hotel_nights and self.ribbon != DEPT_HEAD_RIBBON and self.takes_shifts)
-    
+
     @property
     def interests_list(self):
         return [int(i) for i in self.interests.split(',')] if self.interests else []
-    
+
     @property
     def assigned(self):
         return [int(i) for i in self.assigned_depts.split(',')] if self.assigned_depts else []
-    
+
     @property
     def assigned_display(self):
         return [dict(JOB_LOC_OPTS)[loc] for loc in self.assigned]
-    
+
     @cached_property
     def shifts(self):
         return list(self.shift_set.select_related().order_by('job__start_time'))
-    
+
     @cached_property
     def hours(self):
         all_hours = set()
         for shift in self.shifts:
             all_hours.update(shift.job.hours)
         return all_hours
-    
+
     @cached_property
     def hour_map(self):
         all_hours = {}
@@ -661,7 +668,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             for hour in shift.job.hours:
                 all_hours[hour] = shift.job
         return all_hours
-    
+
     @cached_property
     def possible(self):
         if not self.assigned and not AT_THE_CON:
@@ -676,12 +683,12 @@ class Attendee(MagModel, TakesPaymentMixin):
                         if job.slots > len(job.shifts)
                            and job.no_overlap(self)
                            and (not job.restricted or self.trusted)]
-    
+
     @property
     def possible_opts(self):
         return [(job.id, '(%s) [%s] %s' % (hour_day_format(job.start_time), job.get_location_display(), job.name))
                 for job in self.possible if datetime.now() < job.start_time]
-    
+
     @property
     def possible_and_current(self):
         jobs = [s.job for s in self.shifts]
@@ -689,63 +696,63 @@ class Attendee(MagModel, TakesPaymentMixin):
             job.already_signed_up = True
         jobs.extend(self.possible)
         return sorted(jobs, key=lambda j: j.start_time)
-    
+
     @cached_property
     def shifts(self):
         return list(self.shift_set.order_by('job__start_time').select_related())
-    
+
     @property
     def worked_shifts(self):
         return [shift for shift in self.shifts if shift.worked == SHIFT_WORKED]
-    
+
     @property
     def weighted_hours(self):
         wh = sum((shift.job.real_duration * shift.job.weight for shift in self.shifts), 0.0)
         return wh + self.nonshift_hours
-    
+
     @property
     def worked_hours(self):
         wh = sum((shift.job.real_duration * shift.job.weight for shift in self.worked_shifts), 0.0)
         return wh + self.nonshift_hours
-    
+
     def has_shifts_in(self, department):
         return any(shift.job.location == department for shift in self.shifts)
-    
+
     @property
     def shift_prereqs_complete(self):
         return not self.placeholder \
            and self.fire_safety_cert \
            and (self.badge_type != STAFF_BADGE or self.hotel_requests is not None or not state.BEFORE_ROOM_DEADLINE)
-    
+
     @property
     def past_years_json(self):
         return [] if not self.past_years else json.loads(self.past_years)
-    
+
     @property
     def hotel_eligible(self):
         return self.badge_type == STAFF_BADGE
-    
+
     @cached_property
     def hotel_requests(self):
         try:
             return self.hotelrequests
         except:
             return None
-    
+
     @cached_property
     def hotel_nights(self):
         try:
             return [dict(NIGHTS_OPTS)[night] for night in map(int, self.hotel_requests.nights.split(','))]
         except:
             return []
-    
+
     @cached_property
     def room_assignment(self):
         try:
             return self.roomassignment
         except:
             return None
-    
+
     @cached_property
     def hotel_status(self):
         hr = self.hotel_requests
@@ -757,7 +764,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             return 'Hotel nights: {} ({})'.format(hr.nights_display, 'approved' if hr.approved else 'not yet approved')
         else:
             return 'Hotel nights: ' + hr.nights_display
-    
+
     @cached_property
     def food_restrictions(self):
         try:
@@ -772,19 +779,19 @@ class HotelRequests(MagModel, NightsMixin):
     unwanted_roommates = TextField()
     special_needs      = TextField()
     approved           = BooleanField(default = False)
-    
+
     restricted = ['approved']
-    
+
     @classmethod
     def in_dept(cls, department):
         return HotelRequests.objects.filter(attendee__assigned_depts__contains = department) \
                                     .exclude(nights='') \
                                     .order_by('attendee__first_name', 'attendee__last_name') \
                                     .select_related()
-    
+
     def decline(self):
         self.nights = ','.join(night for night in self.nights.split(',') if int(night) in {THURSDAY,FRIDAY,SATURDAY})
-    
+
     def __repr__(self):
         return '<{self.attendee.full_name} Hotel Requests>'.format(self = self)
 
@@ -792,7 +799,7 @@ class FoodRestrictions(MagModel):
     attendee = OneToOneField(Attendee)
     standard = MultiChoiceField(choices = FOOD_RESTRICTION_OPTS)
     freeform = TextField()
-    
+
     def __getattr__(self, name):
         restriction = getattr(constants, name.upper())
         if restriction not in dict(FOOD_RESTRICTION_OPTS):
@@ -805,7 +812,7 @@ class FoodRestrictions(MagModel):
 class AssignedPanelist(MagModel):
     attendee = ForeignKey(Attendee)
     event = ForeignKey(Event)
-    
+
     def __repr__(self):
         return '<{self.attendee.full_name} panelisting {self.event.name}>'.format(self = self)
 
@@ -817,7 +824,7 @@ class Room(MagModel, NightsMixin):
     department = IntegerField(choices = JOB_LOC_OPTS)
     notes      = TextField()
     nights     = MultiChoiceField(choices = NIGHTS_OPTS)
-    
+
     def to_dict(self):
         return {
             'department': self.get_department_display(),
@@ -845,7 +852,7 @@ class Job(MagModel):
     slots       = IntegerField()
     restricted  = BooleanField(default = False)
     extra15     = BooleanField(default = False)
-    
+
     @staticmethod
     def everything(location = None):
         shifts = Shift.objects.filter(**{'job__location': location} if location else {}).order_by('job__start_time').select_related()
@@ -865,7 +872,7 @@ class Job(MagModel):
             job._available_staffers = [s for s in attendees if not job.restricted or s.trusted]
 
         return jobs, shifts, attendees
-    
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -880,18 +887,18 @@ class Job(MagModel):
             'start_time': self.start_time.timestamp(),
             'taken': any(int(cherrypy.session.get('staffer_id', 0)) == shift.attendee_id for shift in self.shift_set.all())
         }
-    
+
     @cached_property
     def shifts(self):
         return list(self.shift_set.order_by('job__start_time').select_related())
-    
+
     @property
     def hours(self):
         hours = set()
         for i in range(self.duration):
             hours.add(self.start_time + timedelta(hours=i))
         return hours
-    
+
     def no_overlap(self, attendee):
         before = self.start_time - timedelta(hours = 1)
         after  = self.start_time + timedelta(hours = self.duration)
@@ -902,26 +909,26 @@ class Job(MagModel):
             and (after not in attendee.hour_map
                 or not self.extra15
                 or self.location == attendee.hour_map[after].location))
-    
+
     @cached_property
     def all_staffers(self):
         return list(Attendee.objects.order_by('last_name','first_name'))
-    
+
     @cached_property
     def available_staffers(self):
         return [s for s in self.all_staffers
                 if self.location in s.assigned
                    and self.no_overlap(s)
                    and (s.trusted or not self.restricted)]
-    
+
     @property
     def real_duration(self):
         return self.duration + (0.25 if self.extra15 else 0)
-    
+
     @property
     def weighted_hours(self):
         return self.weight * self.real_duration
-    
+
     @property
     def total_hours(self):
         return self.weighted_hours * self.slots
@@ -932,12 +939,12 @@ class Shift(MagModel):
     worked   = IntegerField(choices = WORKED_OPTS, default = SHIFT_UNMARKED)
     rating   = IntegerField(choices = RATING_OPTS, default = UNRATED)
     comment  = TextField()
-    
+
     @classmethod
     def serialize(cls, shifts):
         return {shift.id: {attr: getattr(shift, attr) for attr in ['id','worked','rating','comment']}
                            for shift in shifts}
-    
+
     @property
     def name(self):
         return "{self.attendee.full_name}'s {self.job.name!r} shift".format(self = self)
@@ -968,7 +975,7 @@ class ArbitraryCharge(MagModel):
     what   = TextField()
     when   = DateTimeField(auto_now_add = True)
     reg_station = IntegerField(null = True)
-    
+
     display = 'what'
 
 
@@ -1016,23 +1023,23 @@ class Email(MagModel):
     subject = TextField()
     dest    = TextField()
     body    = TextField()
-    
+
     display = 'subject'
-    
+
     @cached_property
     def fk(self):
         try:
             return globals()[self.model].objects.get(id = self.fk_id)
         except:
             return None
-    
+
     @property
     def rcpt_name(self):
         if self.model == 'Group':
             return self.fk.leader.full_name
         else:
             return self.fk.full_name
-    
+
     @property
     def html(self):
         if '<body>' in self.body:
@@ -1051,15 +1058,15 @@ class Tracking(MagModel):
     links  = TextField()
     action = IntegerField(choices = TRACKING_OPTS)
     data   = TextField()
-    
+
     @classmethod
     def values(cls, instance):
         return {field.name: getattr(instance, field.name) for field in instance._meta.fields}
-    
+
     @classmethod
     def format(cls, values):
         return ', '.join('{}={}'.format(k, v) for k,v in values.items())
-    
+
     @classmethod
     def track(cls, action, instance):
         if action in [CREATED, UNPAID_PREREG, EDITED_PREREG]:
@@ -1077,13 +1084,13 @@ class Tracking(MagModel):
                 return
         else:
             data = 'id={}'.format(instance.id)
-        
+
         links = ', '.join(
             '{}({})'.format(field.rel.to.__name__, getattr(instance, field.attname))
             for field in instance._meta.fields
             if isinstance(field, ForeignKey) and getattr(instance, field.name)
         )
-        
+
         try:
             who = Account.objects.get(id = cherrypy.session.get('account_id')).name
         except:
@@ -1091,7 +1098,7 @@ class Tracking(MagModel):
                 who = current_thread().name
             else:
                 who = 'non-admin'
-        
+
         return Tracking.objects.create(
             model = instance.__class__.__name__,
             fk_id = 0 if action in [UNPAID_PREREG, EDITED_PREREG] else instance.id,

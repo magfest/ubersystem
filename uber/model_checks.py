@@ -7,7 +7,7 @@ def account_misc(account):
     if account.id is None and Account.objects.filter(email__iexact=account.email).count():
         return 'That email address is already being used by another account'
     
-    if not EMAIL_RE.match(account.email):
+    if not re.match(EMAIL_RE, account.email):
         return "That's not a valid email address"
     
     return ''
@@ -46,7 +46,7 @@ def attendee_misc(attendee):
     elif attendee.placeholder:
         return
     
-    if (AT_THE_CON and attendee.email and not EMAIL_RE.match(attendee.email)) or (not AT_THE_CON and not EMAIL_RE.match(attendee.email)):
+    if (AT_THE_CON and attendee.email and not re.match(EMAIL_RE, attendee.email)) or (not AT_THE_CON and not re.match(EMAIL_RE, attendee.email)):
         return 'Enter a valid email address'
     
     if not attendee.international and not AT_THE_CON:
