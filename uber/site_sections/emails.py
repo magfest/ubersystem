@@ -83,7 +83,10 @@ class SeasonSupporterReminder(Reminder):
 
 before = lambda dt: bool(dt) and datetime.now() < dt
 days_after = lambda days, dt: bool(dt) and (datetime.now() > dt + timedelta(days=days))
-days_before = lambda days, dt: bool(dt) and (dt - timedelta(days = days) < datetime.now() < dt)
+def days_before(days, dt, until=None):
+    if dt:
+        until = (dt - timedelta(days=until)) if until else dt
+        return dt - timedelta(days=days) < datetime.now() < until
 
 
 ### WARNING - changing the email subject line for an email causes ALL of those emails to be re-sent!
@@ -93,7 +96,7 @@ MarketplaceReminder('Reminder to pay for your MAGFest Dealer registration', 'dea
                     lambda g: g.status == APPROVED and days_after(30, g.approved) and g.is_unpaid)
 
 MarketplaceReminder('Your MAGFest Dealer registration is due in one week', 'dealer_payment_reminder.txt',
-                    lambda g: g.status == APPROVED and days_before(7, DEALER_PAYMENT_DUE) and g.is_unpaid)
+                    lambda g: g.status == APPROVED and days_before(7, DEALER_PAYMENT_DUE, 2) and g.is_unpaid)
 
 MarketplaceReminder('Last chance to pay for your MAGFest Dealer registration', 'dealer_payment_reminder.txt',
                     lambda g: g.status == APPROVED and days_before(2, DEALER_PAYMENT_DUE) and g.is_unpaid)
@@ -143,8 +146,7 @@ Reminder(Attendee, 'Last Chance to Accept Your MAGFest Badge', 'confirmation_rem
 
 
 StopsReminder('Want to staff MAGFest again?', 'imported_staffer.txt',
-              lambda a: a.placeholder and a.badge_type == STAFF_BADGE 
-                                      and a.registered.date() <= PREREG_OPENING)
+              lambda a: a.placeholder and a.badge_type == STAFF_BADGE and a.registered < PREREG_OPENING)
 
 StopsReminder('MAGFest shifts available', 'AFTER_SHIFTS_CREATED.txt',
               lambda a: state.AFTER_SHIFTS_CREATED and a.takes_shifts)
@@ -166,16 +168,16 @@ StopsReminder('MAGCon - the convention to plan MAGFest!', 'magcon.txt',
 
 
 StopsReminder('Want volunteer hotel room space at MAGFest?', 'hotel_rooms.txt',
-              lambda a: before(ROOM_DEADLINE) and state.AFTER_SHIFTS_CREATED and a.hotel_eligible)
+              lambda a: days_before(45, ROOM_DEADLINE, 14) and state.AFTER_SHIFTS_CREATED and a.hotel_eligible)
 
 StopsReminder('Reminder to sign up for MAGFest hotel room space', 'hotel_reminder.txt',
-              lambda a: days_before(14, ROOM_DEADLINE) and a.hotel_eligible and not a.hotel_requests)
+              lambda a: days_before(14, ROOM_DEADLINE, 2) and a.hotel_eligible and not a.hotel_requests)
 
 StopsReminder('Last chance to sign up for MAGFest hotel room space', 'hotel_reminder.txt',
               lambda a: days_before(2, ROOM_DEADLINE) and a.hotel_eligible and not a.hotel_requests)
 
 StopsReminder('Reminder to meet your MAGFest hotel room requirements', 'hotel_hours.txt',
-              lambda a: days_before(14, UBER_TAKEDOWN) and a.hotel_shifts_required and a.weighted_hours < 30)
+              lambda a: days_before(14, UBER_TAKEDOWN, 7) and a.hotel_shifts_required and a.weighted_hours < 30)
 
 StopsReminder('Final reminder to meet your MAGFest hotel room requirements', 'hotel_hours.txt',
               lambda a: days_before(7, UBER_TAKEDOWN) and a.hotel_shifts_required and a.weighted_hours < 30)
