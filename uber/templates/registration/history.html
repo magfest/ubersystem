@@ -4,7 +4,7 @@
 
 {% include "registration/menu.html" %}
 
-<h2> {{ attendee.full_name }} changelog </h2>
+<h2>Changelog for {{ attendee.full_name }} {% if AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
 
 <table class="list">
 <tr class="header">
