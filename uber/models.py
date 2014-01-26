@@ -37,7 +37,9 @@ class MagModel(Model):
             field = self.get_field(name)
             val = getattr(self, name)
             s = repr(val)
-            if isinstance(field, MultiChoiceField):
+            if name == 'hashed':
+                return '<bcrypted>'
+            elif isinstance(field, MultiChoiceField):
                 opts = dict(field.choices)
                 return repr('' if not val else ','.join(opts[int(opt)] for opt in val.split(',')))
             elif field.choices and val is not None:

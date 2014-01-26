@@ -294,7 +294,7 @@ class DaemonTask:
     
     @property
     def running(self):
-        return any(t.is_alive() for i in self.threads)
+        return any(t.is_alive() for t in self.threads)
     
     def start(self):
         assert not self.threads, '{} was already started and has not yet stopped'.format(self.name)

@@ -148,7 +148,7 @@ Reminder(Attendee, 'Last Chance to Accept Your MAGFest Badge', 'confirmation_rem
 StopsReminder('Want to staff MAGFest again?', 'imported_staffer.txt',
               lambda a: a.placeholder and a.badge_type == STAFF_BADGE and a.registered < PREREG_OPENING)
 
-StopsReminder('MAGFest shifts available', 'AFTER_SHIFTS_CREATED.txt',
+StopsReminder('MAGFest shifts available', 'shifts_created.txt',
               lambda a: state.AFTER_SHIFTS_CREATED and a.takes_shifts)
 
 StopsReminder('Reminder to sign up for MAGFest shifts', 'shift_reminder.txt',

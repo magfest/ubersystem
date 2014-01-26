@@ -72,8 +72,11 @@ class Root:
             raise HTTPRedirect('login?message={}', 'You are not logged in')
         
         if old_password is not None:
+            new_password = new_password.strip()
             account = Account.objects.get(id = cherrypy.session['account_id'])
-            if not valid_password(old_password, account):
+            if not new_password:
+                message = 'New password is required'
+            elif not valid_password(old_password, account):
                 message = 'Incorrect old password; please try again'
             else:
                 check_csrf(csrf_token)
