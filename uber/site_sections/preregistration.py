@@ -52,7 +52,6 @@ class Root:
             raise HTTPRedirect('badge_choice?message={}', 'You must select a badge type')
         
         params['id'] = 'None'   # security!
-        params['affiliate'] = params.get('aff_select') or params.get('aff_text') or ''
         if edit_id is not None:
             attendee, group = get_unsaved(edit_id, if_not_found = HTTPRedirect('badge_choice?message={}', 'That preregistration has already been finalized'))
             attendee.apply(params, bools=['staffing','can_spam','international'])
@@ -196,9 +195,6 @@ class Root:
         }
     
     def register_group_member(self, message='', **params):
-        if cherrypy.request.method.lower() == 'post':
-            params['affiliate'] = params.get('aff_select') or params.get('aff_text') or ''
-
         attendee = Attendee.get(params, bools=['staffing','can_spam','international'], restricted=True)
         if 'first_name' in params:
             message = check(attendee) or check_prereg_reqs(attendee)
@@ -337,8 +333,6 @@ class Root:
         }
     
     def confirm(self, message = '', return_to = 'confirm', **params):
-        if cherrypy.request.method.lower() == 'post':
-            params['affiliate'] = params.get('aff_select') or params.get('aff_text') or ''
         attendee = Attendee.get(params, bools = ['staffing','international'], restricted = True)
         
         placeholder = attendee.placeholder
