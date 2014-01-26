@@ -115,7 +115,7 @@ EVENT_LOC_OPTS = enum(
     PANELS_5 = 'MAGES',
     BRAINSPACE = 'BrainSpace',
     AUTOGRAPHS = 'Autographs',
-    GAMES_ON_FILM = 'Games on Film',
+    FILM_FEST = 'Games on Film',
     CONSOLE_NGA = 'Console (NGA Tournaments)',
     CONSOLE_ATTENDEE = 'Console (Attendee Tournaments)',
     CONSOLE_STAGE = 'J.S. Joust + Sportsfriends',
@@ -260,7 +260,8 @@ INTEREST_OPTS = enum(
     PANELS      = 'Guests/Panels',
     TABLETOP    = 'Tabletop games',
     MARKETPLACE = 'Dealers',
-    TOURNAMENTS = 'Tournaments'
+    TOURNAMENTS = 'Tournaments',
+    FILM_FEST   = 'Film Festival',
 )
 
 SALE_OPTS = enum(
@@ -292,7 +293,7 @@ JOB_INTEREST_OPTS = enum(
     REGDESK    = 'Regdesk',
     TABLETOP   = 'Tabletop',
     TECH_OPS   = 'Tech Ops',
-    VIDEO_ROOM = 'Film Festival',
+    FILM_FEST  = 'Film Festival',
 )
 JOB_LOC_OPTS = enum(
     ARCADE        = 'Arcade',
@@ -308,6 +309,7 @@ JOB_LOC_OPTS = enum(
     DORSAI        = 'Dorsai',
     PANELS        = 'Events',
     FOOD_PREP     = 'Food Prep',
+    FILM_FEST     = 'Games on Film',
     INDIE_GAMES   = 'Indie Games',
     JAMSPACE      = 'Jam Space',
     LAN           = 'LAN',
@@ -326,7 +328,6 @@ JOB_LOC_OPTS = enum(
     TREASURY      = 'Treasury',
     CCG_TABLETOP  = 'Tabletop (CCG)',
     TECH_OPS      = 'Tech Ops',
-    VIDEO_ROOM    = 'Games on Film',
 )
 DEPT_CHAIR_OVERRIDES = {
     STAFF_SUPPORT: 'Jack Boyd',
