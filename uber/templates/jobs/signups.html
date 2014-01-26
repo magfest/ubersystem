@@ -41,7 +41,13 @@
             {% for shift in job.shifts %}
                 <tr>
                     <td> <ul><li></li></ul> </td>
-                    <td> <a href="../registration/shifts?id={{ shift.attendee.id }}">{{ shift.attendee.full_name }}</a>&nbsp;&nbsp; </td>
+                    <td>
+                        <a href="../registration/shifts?id={{ shift.attendee.id }}">{{ shift.attendee.full_name }}</a>
+                        &nbsp;&nbsp;
+                        {% if AT_THE_CON and not shift.attendee.checked_in %}
+                            <i>(not checked in)</i>
+                        {% endif %}
+                    </td>
                     <td>
                         {% if shift.worked != SHIFT_UNMARKED %}
                             <i>{{ shift.get_worked_display }}</i>

@@ -41,7 +41,18 @@
 <br/><br/>
 
 {% if attendee.shift_set.count %}
-    <b> Shifts signed up for by {{ attendee.full_name }} ({{ attendee.weighted_hours }} weighted hours, {{ attendee.hours|length|add:attendee.nonshift_hours }} actual hours): </b>
+    <b>
+        Shifts signed up for by {{ attendee.full_name }}
+        {% if AT_THE_CON %}
+            {% if attendee.checked_in %}
+                <i>[checked in]</i>
+            {% else %}
+                <b>[not checked in]</b>
+            {% endif %}
+        {% endif %}
+        ({{ attendee.weighted_hours }} weighted hours,
+        {{ attendee.hours|length|add:attendee.nonshift_hours }} actual hours):
+    </b>
     <br/> <br/>
     <table width="95%" align="center">
     <tr style="font-weight:bold">
