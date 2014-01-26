@@ -119,9 +119,9 @@
                                         .replace(" received ", " received<br/>- ")
                                         .replace(/,/g, "<br/>- ")
                                   + "<br/>");
-                    if (resp.tshirt != {{ NO_SHIRT }}) {
+                    if (resp.shirt != {{ NO_SHIRT }}) {
                         $("#give").append("Choose a shirt size:").append($shirtOpts);
-                        $("#give select").val(resp.tshirt);
+                        $("#give select").val(resp.shirt);
                     }
                     $("#give")
                         .append(

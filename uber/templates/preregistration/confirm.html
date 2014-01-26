@@ -11,7 +11,7 @@
 
 <script type="text/javascript">
     $(function(){
-        {% if attendee.personalized_badge %}
+        {% if attendee.has_personalized_badge %}
             $(".badge-row").show();
         {% endif %}
         {% if attendee.amount_extra %}

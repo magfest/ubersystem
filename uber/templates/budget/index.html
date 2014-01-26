@@ -8,127 +8,61 @@
     }
 </style>
 
-<div style="text-align:center ; font-weight:bold ; font-size:18pt">Budget</div>
-<br/>
-<div style="text-align:center">
-    <a href="form?id=None">Click Here</a> to add a new budget item.<br/>
-    <a href="depts">Click Here</a> to edit departments.
-</div>
-<br/>
-<div style="text-align:center ; font-size:14pt">
-    {{ net }} <br/> ${{ spent }} has been spent <br/> ${{ pre_con }} more needed pre-con <br/> ${{ cash_on_hand }} cash on hand
+<h2>Revenue</h2>
+
+<div class="center">
+    (${{ total }} total)
 </div>
 
-<table>
-<tr>
-    <td width="55%" valign="top">
-        <span style="font-size:14pt ; font-weight:bold">Expenses</span>
-        &nbsp;
-        (${{ debit_total }} allocated, ${{ budget_total }} budgeted)
-        <br/><br/>
-        <div style="margin-left:5% ; margin-right:5%">
-            <table class="list" style="width:100%">
-            <tr class="header">
-                <td width="60%" align="left">Name</td>
-                <td width="20%">Allocated</td>
-                <td width="20%">Budgeted</td>
-            </tr>
-            <tr bgcolor="{% zebra debits start %}">
-                <td align="left"> Refunds </td>
-                <td align="center"> ${{ preregs.refunded }} </td>
-                <td align="center"> ${{ alloc_refunded|default:"???" }} </td>
-            </tr>
-            {% for dept in depts %}
-                <tr bgcolor="{% zebra debits %}">
-                    <td align="left"> {{ dept.name }} </td>
-                    <td align="center"> ${{ dept.allocated|maybe_red:dept.amount }} </td>
-                    <td align="center"> ${{ dept.amount }} </td>
-                </tr>
-                {% for item in dept.allocations %}
-                    <tr bgcolor="{% zebra debits noinc %}">
-                        <td align="left">
-                            <ul><li>
-                                <a href="form?id={{ item.id }}">{{ item.name }}</a>
-                                <nobr>
-                                    {% if item.pledged %}[P]{% endif %}
-                                    {% if item.estimate %}[E]{% endif %}
-                                    {% if item.pre_con %}[BC]{% endif %}
-                                </nobr>
-                            </li></ul>
-                        </td>
-                        <td valign="top" align="center"> ${{ item.amount }} </td>
-                        <td></td>
-                    </tr>
-                {% endfor %}
-            {% endfor %}
-            </table>
-        </div>
-    </td>
-    <td width="45%" valign="top">
-        <span style="font-size:14pt ; font-weight:bold">Revenue</span>
-        &nbsp;
-        (${{ credit_total }} total)
-        <br/><br/>
-        <div style="margin-left:5% ; margin-right:5%">
-            <table class="list" width="100%">
-            <tr class="header">
-                <td width="80%" align="left">Name</td>
-                <td width="20%">Amount</td>
-            </tr>
-            <tr bgcolor="{% zebra credits start %}">
-                <td align="left"> Attendee Badges </td>
-                <td> ${{ preregs.Attendee }} </td>
-            </tr>
-            <tr bgcolor="{% zebra credits %}">
-                <td align="left"> Supporter Badges </td>
-                <td> ${{ preregs.Supporter }} </td>
-            </tr>
-            <tr bgcolor="{% zebra credits %}">
-                <td align="left"> Super-Supporter Badges </td>
-                <td> ${{ preregs.SuperSupporter }} </td>
-            </tr>
-            <tr bgcolor="{% zebra credits %}">
-                <td align="left"> Group Badges </td>
-                <td> ${{ preregs.group_badges }} </td>
-            </tr>
-            <tr bgcolor="{% zebra credits %}">
-                <td align="left"> Dealer Badges </td>
-                <td> ${{ preregs.dealer_badges }} </td>
-            </tr>
-            <tr bgcolor="{% zebra credits %}">
-                <td align="left"> Dealer Tables </td>
-                <td> ${{ preregs.dealer_tables }} </td>
-            </tr>
-            <tr bgcolor="{% zebra credits %}">
-                <td align="left"> Staff Badges </td>
-                <td> ${{ preregs.Staff }} </td>
-            </tr>
-            <tr bgcolor="{% zebra credits %}">
-                <td align="left"> Single Day Badges </td>
-                <td> ${{ preregs.OneDay }} </td>
-            </tr>
-            {% for what, total in sales.items %}
-                <tr bgcolor="{% zebra credits %}">
-                    <td align="left"> {{ what }} sales </td>
-                    <td> ${{ total }} </td>
-                </tr>
-            {% endfor %}
-            {% for total, source in sources %}
-                <tr bgcolor="{% zebra credits %}">
-                    <td align="left"> Loan From <a href="donor?id={{ source.id }}">{{ source.name }}</a> </td>
-                    <td> ${{ total }} </td>
-                </tr>
-            {% endfor %}
-            {% for item in credits %}
-                <tr bgcolor="{% zebra credits %}">
-                    <td align="left"> <a href="form?id={{ item.id }}">{{ item.name }}</a>
-                    <td> ${{ item.amount }} </td>
-                </tr>
-            {% endfor %}
-            </table>
-        </div>
-    </td>
-</tr>
-</table>
+<br/> <br/>
+
+<div style="margin-left:5%">
+    <table class="list" style="width:auto" align="center">
+    <tr class="header">
+        <td width="80%" align="left">Name</td>
+        <td width="20%">Amount</td>
+    </tr>
+    <tr bgcolor="{% zebra credits start %}">
+        <td align="left">Attendee Badges</td>
+        <td>${{ preregs.Attendee }}</td>
+    </tr>
+    <tr bgcolor="{% zebra credits %}">
+        <td align="left">Kicked-In Extra</td>
+        <td>${{ preregs.extra }}</td>
+    </tr>
+    <tr bgcolor="{% zebra credits %}">
+        <td align="left">Group Badges</td>
+        <td>${{ preregs.group_badges }}</td>
+    </tr>
+    <tr bgcolor="{% zebra credits %}">
+        <td align="left">Dealer Badges</td>
+        <td>${{ preregs.dealer_badges }}</td>
+    </tr>
+    <tr bgcolor="{% zebra credits %}">
+        <td align="left">Dealer Tables</td>
+        <td>${{ preregs.dealer_tables }}</td>
+    </tr>
+    <tr bgcolor="{% zebra credits %}">
+        <td align="left">Staff Badges</td>
+        <td>${{ preregs.Staff }} </td>
+    </tr>
+    <tr bgcolor="{% zebra credits %}">
+        <td align="left">Single Day Badges</td>
+        <td>${{ preregs.OneDay }}</td>
+    </tr>
+    {% for what, total in sales.items %}
+        <tr bgcolor="{% zebra credits %}">
+            <td align="left">{{ what }} sales</td>
+            <td>${{ total }}</td>
+        </tr>
+    {% endfor %}
+    {% for item in credits %}
+        <tr bgcolor="{% zebra credits %}">
+            <td align="left"><a href="form?id={{ item.id }}">{{ item.name }}</a>
+            <td>${{ item.amount }}</td>
+        </tr>
+    {% endfor %}
+    </table>
+</div>
 
 {% endblock %}

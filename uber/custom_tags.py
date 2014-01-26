@@ -1,4 +1,3 @@
-from __future__ import division
 from uber.common import *
 
 @register.filter
@@ -240,7 +239,7 @@ class must_contact(template.Node):
     
     def render(self, context):
         chairs = defaultdict(list)
-        for dept, head in DEPT_CHAIRS.items():
+        for dept, head in DEPT_CHAIR_OVERRIDES.items():
             chairs[dept].append(head)
         for head in Attendee.objects.filter(ribbon = DEPT_HEAD_RIBBON).order_by("badge_num"):
             for dept in head.assigned:
@@ -281,7 +280,7 @@ class pages(template.Node):
             if pagenum == page:
                 pages.append(pagenum)
             else:
-                path = cherrypy.request.request_line.split()[1].split("/")[-1]  # TODO: don't parse the entire request line
+                path = cherrypy.request.request_line.split()[1].split("/")[-1]
                 page_qs = "page={}".format(pagenum)
                 if "page=" in path:
                     path = re.sub(r"page=\d+", page_qs, path)
@@ -424,3 +423,6 @@ class BoldIfNode(template.Node):
             return "<b>" + output + "</b>"
         else:
             return output
+
+
+template.builtins.append(register)

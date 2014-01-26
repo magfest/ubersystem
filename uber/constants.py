@@ -1,16 +1,11 @@
 from uber.common import *
 from uber.secret_settings import *
 
-# TODO: season supporters from last year
-# TODO: genericize prices to an n-tiered system
-# TODO: BEFORE_ and AFTER_ properties
-
 class State:
     @property
     def DEALER_REG_OPEN(self):
         return self.AFTER_DEALER_REG_START and self.BEFORE_DEALER_REG_SHUTDOWN
     
-    # TODO: fix this, maybe genericize it to use epoch and eschaton or something
     def get_oneday_price(self, dt):
         return {2: 20, 5: 20}.get(dt.day, 40)
     
@@ -84,9 +79,8 @@ DONATION_TIERS = {
 }
 DONATION_OPTS = sorted((amt, '+ ${}: {}'.format(amt,desc) if amt else desc) for amt,desc in DONATION_TIERS.items())
 
-def enum(**kwargs):
-    decl_sort = kwargs.pop('_sort_by_declaration', False)
-    if decl_sort:
+def enum(*, sort_by_declaration=False, **kwargs):
+    if sort_by_declaration:
         with open(__file__) as f:
             lines = f.readlines()
         def _line(tup):
@@ -98,7 +92,7 @@ def enum(**kwargs):
         val = int(sha512(name.encode()).hexdigest()[:7], 16)
         globals()[name] = val
         xs.append((name, val, desc))
-    return [x[1:] for x in sorted(xs, key = _line if decl_sort else lambda tup: tup[2])]
+    return [x[1:] for x in sorted(xs, key = _line if sort_by_declaration else lambda tup: tup[2])]
 
 DEALER_BADGE_PRICE = 30
 TABLE_PRICES = '$125 for the first table, $175 for the second table, $225 for the third table, $300 for the fourth table'
@@ -153,6 +147,10 @@ BADGE_OPTS = enum(
     GUEST_BADGE     = 'Guest',
     ONE_DAY_BADGE   = 'One Day'
 )
+AT_THE_DOOR_BADGE_OPTS = enum(
+    ATTENDEE_BADGE = 'Full Weekend Pass (${})'.format(state.BADGE_PRICE),
+    ONE_DAY_BADGE = 'Single Day Pass (${})'.format(state.ONEDAY_BADGE_PRICE)
+)
 PSEUDO_GROUP_BADGE  = 1  # people registering in groups will get attendee badges
 PSEUDO_DEALER_BADGE = 2  # dealers get attendee badges with a ribbon
 BADGE_RANGES = {         # these may overlap, but shouldn't
@@ -203,10 +201,10 @@ NEW_REG_PAYMENT_OPTS = enum(
     MANUAL = 'Stripe'
 )
 
-# TODO: need a more elegant way to have ordered enums
 DOOR_PAYMENT_OPTS = enum(
+    sort_by_declaration = True,
     CASH   = 'Pay with cash',
-    STRIPE = 'Pay with  credit card now (faster)',
+    STRIPE = 'Pay with credit card now (faster)',
     MANUAL = 'Pay with credit card at the registration desk (slower)',
     GROUP  = 'Taking an unassigned Group badge (group leader must be present)'
 )
@@ -331,8 +329,7 @@ JOB_LOC_OPTS = enum(
     TECH_OPS      = 'Tech Ops',
     VIDEO_ROOM    = 'Games on Film',
 )
-# TODO: rename this to DEPT_CHAIR_OVERRIDES or something
-DEPT_CHAIRS = {
+DEPT_CHAIR_OVERRIDES = {
     STAFF_SUPPORT: 'Jack Boyd',
     SECURITY:      'The Dorsai Irregulars'
 }
@@ -363,7 +360,7 @@ RATING_OPTS = enum(
 )
 
 AGE_GROUP_OPTS = enum(
-    _sort_by_declaration = True,
+    sort_by_declaration = True,
     AGE_UNKNOWN       = 'How old are you?',
     UNDER_18          = 'under 18',
     BETWEEN_18_AND_21 = '18, 19, or 20',

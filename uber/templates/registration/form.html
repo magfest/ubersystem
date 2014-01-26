@@ -18,15 +18,16 @@
     }
     
     var unassigned = {{ unassigned|jsonize }};
-    function groupWarning() {
+    var groupWarning = function() {
         var groupID = $.val("group_opt");
-        if( groupID && "{{ attendee.id }}" == "None" && unassigned[groupID] > 0 )
+        if (groupID && "{{ attendee.id }}" == "None" && unassigned[groupID] > 0) {
             $("#unassigned").show("slow");
-        else
+        } else {
             $("#unassigned").hide("fast");
+        }
     }
     
-    function setAmountPaid(focus) {
+    var setAmountPaid = function(focus) {
         {% if not attendee.id %}
             var amount = {{ BADGE_PRICE }};
             if( $.val("badge_type") == {{ ONE_DAY_BADGE }} )
@@ -84,12 +85,18 @@
         }
     }
     
+    var showOrHideStaffStuff = function() {
+        setVisible('.staffing', $.field("staffing").is(":checked"));
+    };
+    
     $(document).ready(function(){
         $.field("placeholder").click(boldOrRegular).click(setPreassigned);
         setBadgeMessage();
         boldOrRegular();
         setGroupLink();
         showOrHideAmounts();
+        showOrHideStaffStuff();
+        $.field("staffing").on("click", showOrHideStaffStuff);
         {% if AT_THE_CON and not attendee.id %}
             $.field("paid").val({{ HAS_PAID }});
             $.field("amount_paid").val({{ BADGE_PRICE }});
@@ -209,17 +216,15 @@
 <tr>
     <td valign="top"> Staffing </td>
     <td>
-        <!-- TODO: disable staffing checkbox when someone has a staff badge (and volunteer ribbon?) -->
-        <!-- TODO: disable trusted checkbox unless attendee is staffing -->
-        {% checkbox attendee.staffing %} This attendee is {% if attendee.staffing %}<a href="goto_volunteer_checklist?id={{ attendee.id }}">volunteering</a>{% else %}volunteering{% endif %} <br/>
-        {% checkbox attendee.trusted %} Trusted {% popup_link "../static/views/trustDesc.html" %}
+        {% checkbox attendee.staffing %} This attendee is {% if attendee.staffing %}<a href="goto_volunteer_checklist?id={{ attendee.id }}">volunteering</a>{% else %}volunteering{% endif %}
+        <div class="staffing">{% checkbox attendee.trusted %} Trusted {% popup_link "../static/views/trustDesc.html" %}</div>
     </td>
 </tr>
-<tr>
+<tr class="staffing">
     <td valign="top"> Requested Depts </td>
     <td> {% checkgroup attendee.requested_depts %} </td>
 </tr>
-<tr>
+<tr class="staffing">
     <td valign="top"> Assigned Depts </td>
     <td> {% checkgroup attendee.assigned_depts %} </td>
 </tr>

@@ -1,6 +1,6 @@
 from uber.common import *
 
-@all_renderable(CHECKINS)
+@all_renderable(CHECKINS, angular=True)
 class Root:
     @property
     def attendees(self):
@@ -14,16 +14,12 @@ class Root:
     def games(self):
         return [g.to_dict() for g in Game.objects.order_by("name").select_related()]
     
-    @site_mappable
     @ng_renderable
     def index(self):
         return {
             "games": json.dumps(self.games),
             "attendees": json.dumps(self.attendees),
         }
-    
-    def ng_templates(self, template):
-        return ng_render(os.path.join("tabletop", template))
     
     @ajax
     def badged_attendees(self):

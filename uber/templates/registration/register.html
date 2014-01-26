@@ -64,10 +64,8 @@
 <tr>
     <td style="font-weight:bold"> Badge Type </td>
     <td>
-        <!-- TODO: make this an _OPTS in constants.py -->
         <select name="badge_type">
-            <option value="{{ ATTENDEE_BADGE }}" {% if attendee.badge_type == ATTENDEE_BADGE %}selected{% endif %}>Full Weekend Pass (${{ BADGE_PRICE }})</option>
-            <option value="{{ ONE_DAY_BADGE }}" {% if attendee.badge_type == ONE_DAY_BADGE %}selected{% endif %}>Single Day Pass (${{ ONEDAY_BADGE_PRICE }})</option>
+            {% options AT_THE_DOOR_BADGE_OPTS attendee.badge_type %}
         </select>
     </td>
 </tr>

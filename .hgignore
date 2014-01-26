@@ -10,3 +10,4 @@ virtualenv.py
 ubersystem.nja
 .DS_Store
 *.sw*
+*.egg-info

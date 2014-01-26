@@ -110,9 +110,9 @@ def job_conflicts(job):
             return "You can't change this job to this time, because {} is already working a shift then".format(shift.attendee.full_name)
 
 
-mpointuse_amount = money_amount
+cashformpoints_amount = money_amount
 
-def mpointexchange_numbers(mpe):
+def oldmpointexchange_numbers(mpe):
     if not str(mpe.mpoints).isdigit():
         return "MPoints must be a positive integer"
 

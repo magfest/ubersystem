@@ -103,11 +103,6 @@ class Root:
                               event.description,
                               " / ".join(ap.attendee.full_name for ap in event.assignedpanelist_set.order_by("attendee__first_name"))])
     
-    @csv_file
-    def panelists(self, out):
-        out.writerow(["Panelist", "Panels"])
-        # TODO: finish this
-    
     @unrestricted
     def now(self, when=None):
         if when:

@@ -68,6 +68,7 @@ class MarketplaceReminder(Reminder):
     def __init__(self, subject, template, filter):
         Reminder.__init__(self, Group, subject, template, lambda g: g.is_dealer and filter(g), MARKETPLACE_EMAIL)
 
+# see issue #173 about rewriting this
 class SeasonSupporterReminder(Reminder):
     def __init__(self, event):
         Reminder.__init__(self, Attendee,
@@ -257,8 +258,7 @@ DeptHeadReminder('MAGFest staffers need to be marked and rated', 'postcon_hours.
                  lambda a: POST_CON)
 
 
-
-# TODO: replace this with new SeasonSupporter class
+# see issue #173 about rewriting this
 #for _event in SEASON_EVENTS.values():
 #    SeasonSupporterReminder(_event)
 

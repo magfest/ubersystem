@@ -1,7 +1,7 @@
 from uber.common import *
 
 def randstring():
-    return "".join(chr(randrange(33,127)) for i in range(8))
+    return ''.join(chr(randrange(33,127)) for i in range(8))
 
 def valid_password(password, account):
     all_hashed = [account.hashed] + [pr.hashed for pr in account.passwordreset_set.all()]
@@ -10,88 +10,88 @@ def valid_password(password, account):
 @all_renderable(ACCOUNTS)
 class Root:
     @unrestricted
-    def login(self, message="", **params):
-        if "email" in params:
+    def login(self, message='', **params):
+        if 'email' in params:
             try:
-                account = Account.objects.get(email__iexact = params["email"])
+                account = Account.objects.get(email__iexact = params['email'])
                 PasswordReset.objects.filter(generated__lt = datetime.now() - timedelta(days = 7)).delete()
-                if not valid_password(params["password"], account):
-                    message = "Incorrect password"
+                if not valid_password(params['password'], account):
+                    message = 'Incorrect password'
             except Account.DoesNotExist:
-                message = "No account exists for that email address"
+                message = 'No account exists for that email address'
             
             if not message:
-                cherrypy.session["account_id"] = account.id
-                cherrypy.session["csrf_token"] = uuid4().hex
-                raise HTTPRedirect("homepage")
+                cherrypy.session['account_id'] = account.id
+                cherrypy.session['csrf_token'] = uuid4().hex
+                raise HTTPRedirect('homepage')
         
         return {
-            "message": message,
-            "email":   params.get("email", "")
+            'message': message,
+            'email':   params.get('email', '')
         }
     
     @unrestricted
-    def homepage(self, message=""):
-        if not cherrypy.session.get("account_id"):
-            raise HTTPRedirect("login?message={}", "You are not logged in")
-        return {"message": message}
+    def homepage(self, message=''):
+        if not cherrypy.session.get('account_id'):
+            raise HTTPRedirect('login?message={}', 'You are not logged in')
+        return {'message': message}
     
     @unrestricted
     def logout(self):
-        # TODO: this should probably be a whitelist instead of a blacklist
-        for key in ["account_id", "csrf_token", "reg_station"]:
-            cherrypy.session.pop(key, None)
-        raise HTTPRedirect("login?message={}", "You have been logged out")
+        for key in cherrypy.session.keys():
+            if key not in ['preregs', 'paid_preregs', 'job_defaults', 'prev_location']:
+                cherrypy.session.pop(key)
+        raise HTTPRedirect('login?message={}', 'You have been logged out')
     
     @unrestricted
-    def reset(self, message="", email=None):
+    def reset(self, message='', email=None):
         if email is not None:
             account = Account.objects.filter(email__iexact=email)
             if not account:
-                message = "No account exists for email address {!r}".format(email)
+                message = 'No account exists for email address {!r}'.format(email)
             else:
                 account = account[0]
                 password = randstring()
                 PasswordReset.objects.create(account=account, hashed=bcrypt.hashpw(password, bcrypt.gensalt()))
                 data = {
-                    "name": account.name,
-                    "password":  password
+                    'name': account.name,
+                    'password':  password
                 }
-                send_email(ADMIN_EMAIL, account.email, "MAGFest Admin Password Reset",
-                           render("accounts/reset_email.txt", data))
-                raise HTTPRedirect("login?message={}", "Your new password has been emailed to you")
+                send_email(ADMIN_EMAIL, account.email, 'MAGFest Admin Password Reset',
+                           render('accounts/reset_email.txt', data))
+                raise HTTPRedirect('login?message={}', 'Your new password has been emailed to you')
         
         return {
-            "email":   email,
-            "message": message
+            'email':   email,
+            'message': message
         }
     
     @unrestricted
-    def change_password(self, message="", old_password=None, new_password=None, csrf_token=None):
-        if not cherrypy.session.get("account_id"):
-            raise HTTPRedirect("login?message={}", "You are not logged in")
+    def change_password(self, message='', old_password=None, new_password=None, csrf_token=None):
+        if not cherrypy.session.get('account_id'):
+            raise HTTPRedirect('login?message={}', 'You are not logged in')
         
         if old_password is not None:
-            account = Account.objects.get(id = cherrypy.session["account_id"])
+            account = Account.objects.get(id = cherrypy.session['account_id'])
             if not valid_password(old_password, account):
-                message = "Incorrect old password; please try again"
+                message = 'Incorrect old password; please try again'
             else:
                 check_csrf(csrf_token)
                 account.hashed = bcrypt.hashpw(new_password, bcrypt.gensalt())
                 account.save()
-                raise HTTPRedirect("homepage?message={}", "Your password has been updated")
+                raise HTTPRedirect('homepage?message={}', 'Your password has been updated')
         
-        return {"message": message}
+        return {'message': message}
     
-    def index(self, message="", order="name"):
+    def index(self, message='', order='name'):
         return {
-            "message":  message,
-            "order":    Order(order),
-            "accounts": Account.objects.order_by(order)
+            'message':  message,
+            'order':    Order(order),
+            'accounts': Account.objects.order_by(order)
         }
     
-    def update(self, password="", **params):
-        account = Account.get(params, checkgroups=["access"])
+    def update(self, password='', **params):
+        account = Account.get(params, checkgroups=['access'])
         is_new = account.id is None
         if is_new:
             if AT_THE_CON:
@@ -103,43 +103,42 @@ class Root:
         message = check(account)
         if not message:
             account.save()
-            message = "Account settings uploaded"
+            message = 'Account settings uploaded'
             if is_new and not AT_THE_CON:
                 data = {
-                    "account": account,
-                    "password": password
+                    'account': account,
+                    'password': password
                 }
-                send_email(ADMIN_EMAIL, account.email, "New MAGFest Ubersystem Account",
-                           render("accounts/new_email.txt", data))
+                send_email(ADMIN_EMAIL, account.email, 'New MAGFest Ubersystem Account',
+                           render('accounts/new_email.txt', data))
         
-        raise HTTPRedirect("index?message={}", message)
+        raise HTTPRedirect('index?message={}', message)
     
     def delete(self, id):
         Account.objects.filter(id=id).delete()
-        raise HTTPRedirect("index?message={}", "Account deleted")
+        raise HTTPRedirect('index?message={}', 'Account deleted')
     
     @unrestricted
     def sitemap(self):
-        import inspect
-        import site_sections
-        modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith("_")}
+        from uber import site_sections
+        modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}
         pages = defaultdict(list)
         for module_name, module in modules.items():
             for name in dir(module.Root):
                 method = getattr(module.Root, name)
-                if getattr(method, "exposed", False):
+                if getattr(method, 'exposed', False):
                     spec = inspect.getfullargspec(method._orig)
                     if set(method.restricted or []).intersection(Account.access_set()) \
-                            and (getattr(method, "site_mappable", False)
+                            and (getattr(method, 'site_mappable', False)
                               or len(spec.args[1:]) == len(spec.defaults or []) and not spec.varkw):
                         pages[module_name].append({
-                            "name": name.replace("_", " ").title(),
-                            "path": "/{}/{}".format(module_name, name)
+                            'name': name.replace('_', ' ').title(),
+                            'path': '/{}/{}'.format(module_name, name)
                         })
         if PEOPLE in Account.access_set():
             for dept,desc in JOB_LOC_OPTS:
-                pages["hotel assignments"].append({
-                    "name": desc,
-                    "path": "/registration/hotel_assignments?department={}".format(dept)
+                pages['hotel assignments'].append({
+                    'name': desc,
+                    'path': '/hotel/assignments?department={}'.format(dept)
                 })
-        return {"pages": sorted(pages.items())}
+        return {'pages': sorted(pages.items())}

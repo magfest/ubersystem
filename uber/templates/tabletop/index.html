@@ -83,8 +83,8 @@
             })
             .config(function($routeProvider){
                 $routeProvider
-                    .when("/", {controller: "GameListController", templateUrl: "ng_templates/game_list.html"})
-                    .when("/form", {controller: "GameFormController", templateUrl: "ng_templates/form.html"})
+                    .when("/", {controller: "GameListController", templateUrl: "ng/game_list.html"})
+                    .when("/form", {controller: "GameFormController", templateUrl: "ng/form.html"})
                     .otherwise({redirectTo:"/"});
             })
             .controller("GameListController", function($scope, $http, Games, Attendees, MatchMaker) {
