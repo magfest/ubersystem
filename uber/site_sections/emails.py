@@ -3,11 +3,15 @@ from uber.common import *
 class Reminder:
     instances = OrderedDict()
     
-    def __init__(self, model, subject, template, filter, sender=REGDESK_EMAIL, extra_data=None, cc=None):
-        self.model, self.subject, self.template, self.filter, self.sender, self.cc = model, subject, template, filter, sender, cc
+    def __init__(self, model, subject, template, filter, sender=REGDESK_EMAIL, extra_data=None, cc=None, post_con=False):
+        self.model, self.subject, self.template, self.sender = model, subject, template, sender
         self.cc = cc or []
         self.extra_data = extra_data or {}
         self.instances[subject] = self
+        if post_con:
+            self.filter = lambda x: POST_CON and filter(x)
+        else:
+            self.filter = lambda x: not POST_CON and filter(x)
     
     def __repr__(self):
         return '<{}: {!r}>'.format(self.__class__.__name__, self.subject)
@@ -42,31 +46,31 @@ class Reminder:
         attendees, groups = Group.everyone()
         models = {Attendee: attendees, Group: groups}
         all_sent = {(e.model, e.fk_id, e.subject): e for e in Email.objects.all()}
-        if SEND_EMAILS:
+        if SEND_EMAILS and not AT_THE_CON:
             for rem in Reminder.instances.values():
                 for x in models[rem.model]:
                     if x.email and rem.should_send(x, all_sent):
                         rem.send(x, raise_errors = raise_errors)
 
 class StopsReminder(Reminder):
-    def __init__(self, subject, template, filter, cc=None):
-        Reminder.__init__(self, Attendee, subject, template, lambda a: a.staffing and filter(a), STAFF_EMAIL, cc=cc)
+    def __init__(self, subject, template, filter, **kwargs):
+        Reminder.__init__(self, Attendee, subject, template, lambda a: a.staffing and filter(a), STAFF_EMAIL, **kwargs)
 
 class GuestReminder(Reminder):
-    def __init__(self, subject, template, filter=lambda a: True, cc=None):
-        Reminder.__init__(self, Attendee, subject, template, lambda a: a.badge_type == GUEST_BADGE and filter(a), PANELS_EMAIL, cc=cc)
+    def __init__(self, subject, template, filter=lambda a: True, **kwargs):
+        Reminder.__init__(self, Attendee, subject, template, lambda a: a.badge_type == GUEST_BADGE and filter(a), PANELS_EMAIL, **kwargs)
 
 class DeptHeadReminder(Reminder):
-    def __init__(self, subject, template, filter, sender=STAFF_EMAIL):
-        Reminder.__init__(self, Attendee, subject, template, lambda a: a.ribbon == DEPT_HEAD_RIBBON and len(a.assigned) == 1 and filter(a), sender)
+    def __init__(self, subject, template, filter=lambda a: True, sender=STAFF_EMAIL, **kwargs):
+        Reminder.__init__(self, Attendee, subject, template, lambda a: a.ribbon == DEPT_HEAD_RIBBON and len(a.assigned) == 1 and filter(a), sender, **kwargs)
 
 class GroupReminder(Reminder):
-    def __init__(self, subject, template, filter):
-        Reminder.__init__(self, Group, subject, template, lambda g: not g.is_dealer and filter(g), REGDESK_EMAIL)
+    def __init__(self, subject, template, filter, **kwargs):
+        Reminder.__init__(self, Group, subject, template, lambda g: not g.is_dealer and filter(g), REGDESK_EMAIL, **kwargs)
 
 class MarketplaceReminder(Reminder):
-    def __init__(self, subject, template, filter):
-        Reminder.__init__(self, Group, subject, template, lambda g: g.is_dealer and filter(g), MARKETPLACE_EMAIL)
+    def __init__(self, subject, template, filter, **kwargs):
+        Reminder.__init__(self, Group, subject, template, lambda g: g.is_dealer and filter(g), MARKETPLACE_EMAIL, **kwargs)
 
 # see issue #173 about rewriting this
 class SeasonSupporterReminder(Reminder):
@@ -245,7 +249,7 @@ Reminder(Group, 'Last chance to pre-assign MAGFest group badges', 'group_preassi
 
 
 Reminder(Attendee, 'MAGFest parental consent form reminder', 'under_18_reminder.txt',
-         lambda a: a.age_group == UNDER_18 and datetime.now() > EPOCH - timedelta(days = 7))
+         lambda a: a.age_group == UNDER_18 and days_before(7, EPOCH))
 
 GuestReminder('MAGFest food for guests', 'guest_food.txt')
 
@@ -254,8 +258,7 @@ GuestReminder('MAGFest hospitality suite information', 'guest_food_info.txt')
 Reminder(Attendee, 'MAGFest schedule, maps, and other FAQs', 'precon_faqs.html', lambda a: days_before(7, EPOCH))
 
 
-DeptHeadReminder('MAGFest staffers need to be marked and rated', 'postcon_hours.txt',
-                 lambda a: POST_CON)
+DeptHeadReminder('MAGFest staffers need to be marked and rated', 'postcon_hours.txt', post_con=True)
 
 
 # see issue #173 about rewriting this

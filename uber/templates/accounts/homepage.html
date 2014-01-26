@@ -18,16 +18,14 @@
 
 <div class="indent"> Welcome to the MAGFest Ubersystem.  <a href="../accounts/sitemap">Click here</a> for a full site map, or use one of the common links below. </div>
 
-{% if not AT_THE_CON %}
-    <div class="heading">Request Features and Report Bugs</div>
-    <div class="indent">
-        Uber is constantly changing/improving, and if you have an idea for an improvement or want to report a bug, please
-        do so in our issue tracker.
-    </div>
-    <ul>
-        <li><a href="https://bitbucket.org/EliAndrewC/magfest/issues">View and Create Issues</a></li>
-    </ul>
-{% endif %}
+<div class="heading">Request Features and Report Bugs</div>
+<div class="indent">
+    Uber is constantly changing/improving, and if you have an idea for an improvement or want to report a bug, please
+    do so in our issue tracker.
+</div>
+<ul>
+    <li><a href="https://bitbucket.org/EliAndrewC/magfest/issues">View and Create Issues</a></li>
+</ul>
 
 {% if HAS_ACCOUNTS_ACCESS %}
     <div class="heading"> Administrative Accounts </div>
@@ -51,7 +49,7 @@
         {% endif %}
         <li> <a href="../jobs/">Jobs</a> </li>
         <li> <a href="../registration/feed">Feed of Database Changes</a> </li>
-        {% if AT_THE_CON %}
+        {% if AT_THE_CON or POST_CON %}
             <li> <a href="../registration/merch">Merch</a> </li>
         {% endif %}
     </ul>
