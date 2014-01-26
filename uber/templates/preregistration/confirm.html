@@ -73,7 +73,7 @@
 </form>
 
 {% if not attendee.placeholder %}
-    {% if attendee.transferrable %}
+    {% if attendee.is_transferrable %}
         <form method="GET" action="transfer_badge" style="margin-left:25ex">
         <input type="hidden" name="id" value="{{ attendee.secret_id }}" />
         <input type="submit" value="Transfer my Badge" />

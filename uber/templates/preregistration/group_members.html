@@ -51,7 +51,7 @@
                 &nbsp;&nbsp;&nbsp;&nbsp;
             </td>
             <td>
-                {% if attendee.transferrable %}
+                {% if attendee.is_transferrable %}
                     {% if attendee != group.leader and not attendee.amount_extra %}
                         <form method="post" action="unset_group_member">
                         {% csrf_token %}
