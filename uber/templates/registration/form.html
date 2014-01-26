@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 {% block title %}Attendee Form - {{ attendee.full_name }}{% endblock %}
 {% block content %}
@@ -290,7 +291,7 @@
     <td> <input type="text" name="regdesk_info" value="{{ attendee.regdesk_info }}" style="width:80%" /> </td>
 </tr>
 <tr>
-    <td> Can Spam: </td>
+    <td> Receive Newsletter: </td>
     <td> {% checkbox attendee.can_spam %} Yes </td>
 </tr>
 {% if AT_THE_CON %}
