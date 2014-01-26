@@ -6,11 +6,11 @@ def prereg_money():
         preregs['Attendee'] += attendee.amount_paid
         preregs['extra'] += attendee.amount_extra
 
-    preregs["group_badges"] = sum(g.badge_cost for g in Group.objects.filter(tables=0).exclude(amount_paid=0))
+    preregs['group_badges'] = sum(g.badge_cost for g in Group.objects.filter(tables=0).exclude(amount_paid=0))
 
     dealers = Group.objects.filter(tables__gt=0, amount_paid__gt=0)
-    preregs["dealer_tables"] = sum(d.table_cost for d in dealers)
-    preregs["dealer_badges"] = sum(d.badge_cost for d in dealers)
+    preregs['dealer_tables'] = sum(d.table_cost for d in dealers)
+    preregs['dealer_badges'] = sum(d.badge_cost for d in dealers)
 
     return preregs
 
@@ -28,9 +28,9 @@ class Root:
         preregs = prereg_money()
         total = sum(preregs.values()) + sum(sales.values())
         return {
-            "total":   total,
-            "preregs": preregs,
-            "sales":   sales
+            'total':   total,
+            'preregs': preregs,
+            'sales':   sales
         }
 
     def mpoints(self):
@@ -39,4 +39,4 @@ class Root:
             groups[mpu.attendee and mpu.attendee.group].append(mpu)
         all = [(sum(mpu.amount for mpu in mpus), group, mpus)
                for group,mpus in groups.items()]
-        return {"all": sorted(all, reverse=True)}
+        return {'all': sorted(all, reverse=True)}

@@ -36,8 +36,8 @@ from configobj import ConfigObj, ConfigObjError, flatten_errors
 
 from uber.amazon_ses import AmazonSES, EmailMessage
 from uber.config import *
-from uber import constants
 from uber.constants import *
+from uber import constants
 
 from django import template
 from django.db import connection

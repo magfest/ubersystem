@@ -1,7 +1,7 @@
 from uber.common import *
 
 @register.filter
-def datetime(dt, fmt = "11:59pm EST on %A, %b %e"):
+def datetime(dt, fmt='11:59pm EST on %A, %b %e'):
     return " ".join(dt.strftime(fmt).split())
 
 @register.filter
@@ -19,15 +19,15 @@ def subtract(x, y):
 
 @register.filter
 def remove_newlines(string):
-    return string.replace("\n", " ")
+    return string.replace('\n', ' ')
 
 @register.filter
 def time_day(dt):
-    return SafeString("<nobr>{} {}</nobr>".format(dt.strftime("%I:%M%p").lstrip("0").lower(), dt.strftime("%a")))
+    return SafeString('<nobr>{} {}</nobr>'.format(dt.strftime('%I:%M%p').lstrip('0').lower(), dt.strftime('%a')))
 
 @register.filter
 def idize(s):
-    return re.sub("\W+", "_", str(s)).strip("_")
+    return re.sub('\W+', '_', str(s)).strip('_')
 
 @register.filter
 def maybe_red(amount, comp):
@@ -38,15 +38,15 @@ def maybe_red(amount, comp):
 
 @register.filter
 def maybe_last_year(day):
-    return "last year" if day <= STAFFERS_IMPORTED else day
+    return 'last year' if day <= STAFFERS_IMPORTED else day
 
 @register.filter
 def join_and(xs):
     if len(xs) in [0, 1, 2]:
-        return " and ".join(xs)
+        return ' and '.join(xs)
     else:
-        xs = xs[:-1] + ["and " + xs[-1]]
-        return ", ".join(xs)
+        xs = xs[:-1] + ['and ' + xs[-1]]
+        return ', '.join(xs)
 
 @register.filter
 def setup_teardown_requests(department):
@@ -66,9 +66,9 @@ def dept_hotel_nights(department):
 @register.filter
 def dept_placeholders(department):
     if department:
-        return Attendee.objects.filter(assigned_depts__contains=department, placeholder=True).order_by("first_name", "last_name")
+        return Attendee.objects.filter(assigned_depts__contains=department, placeholder=True).order_by('first_name', 'last_name')
     else:
-        return Attendee.objects.filter(badge_type=STAFF_BADGE, placeholder=True).order_by("first_name", "last_name")
+        return Attendee.objects.filter(badge_type=STAFF_BADGE, placeholder=True).order_by('first_name', 'last_name')
 
 @tag
 class maybe_anchor(template.Node):
@@ -78,7 +78,7 @@ class maybe_anchor(template.Node):
     def render(self, context):
         name = self.name.resolve(context)
         letter = name.upper()[0]
-        if letter != context.get("letter"):
+        if letter != context.get('letter'):
             context["letter"] = letter
             return '<a name="{}"></a>'.format(letter)
         else:
@@ -87,17 +87,17 @@ class maybe_anchor(template.Node):
 counters = local()
 @tag
 class zebra(template.Node):
-    def __init__(self, name, param=""):
+    def __init__(self, name, param=''):
         self.name, self.param = name, param
     
     def render(self, context):
         counter = getattr(counters, self.name, 0)
-        if self.param == "start":
+        if self.param == 'start':
             counter = 0
-        elif self.param != "noinc":
+        elif self.param != 'noinc':
             counter = (counter + 1) % 2
         setattr(counters, self.name, counter)
-        return ["#ffffff","#eeeeee"][counter]
+        return ['#ffffff','#eeeeee'][counter]
 
 @tag
 class options(template.Node):
@@ -112,34 +112,34 @@ class options(template.Node):
             try:
                 default = default.resolve(context)
             except:
-                default = ""
+                default = ''
         
         results = []
         for opt in options:
             if len(listify(opt)) == 1:
                 opt = [opt, opt]
             val, desc = opt
-            selected = "selected" if str(val)==str(default) else ""
-            val  = str(val).replace('"',  "&quot;").replace("\n", "")
-            desc = str(desc).replace('"', "&quot;").replace("\n", "")
+            selected = "selected" if str(val)==str(default) else ''
+            val  = str(val).replace('"',  '&quot;').replace('\n', '')
+            desc = str(desc).replace('"', '&quot;').replace('\n', '')
             results.append("""<option value="%s" %s>%s</option>""" % (val, selected, desc))
-        return "\n".join(results)
+        return '\n'.join(results)
 
 @tag
 class checkbox(template.Node):
     def __init__(self, field):
-        model, self.field_name = field.split(".")
+        model, self.field_name = field.split('.')
         self.model = Variable(model)
     
     def render(self, context):
         model = self.model.resolve(context)
-        checked = "checked" if getattr(model, self.field_name) else ""
+        checked = 'checked' if getattr(model, self.field_name) else ''
         return '<input type="checkbox" name="{}" value="1" {} />'.format(self.field_name, checked)
 
 @tag
 class checkgroup(template.Node):
     def __init__(self, field):
-        model, self.field_name = field.split(".")
+        model, self.field_name = field.split('.')
         self.model = Variable(model)
     
     def render(self, context):
@@ -149,10 +149,10 @@ class checkgroup(template.Node):
         defaults = defaults.split(",") if defaults else []
         results = []
         for num, desc in options:
-            checked = "checked" if str(num) in defaults else ""
+            checked = 'checked' if str(num) in defaults else ''
             results.append('<nobr><input type="checkbox" name="{}" value="{}" {} /> {}</nobr>'
                            .format(self.field_name, num, checked, desc))
-        return "&nbsp;&nbsp\n".join(results)
+        return '&nbsp;&nbsp\n'.join(results)
 
 @tag
 class int_options(template.Node):
@@ -171,9 +171,9 @@ class int_options(template.Node):
         
         results = []
         for i in range(minval, maxval+1):
-            selected = "selected" if i==default else ""
+            selected = 'selected' if i==default else ''
             results.append('<option value="{val}" {selected}>{val}</option>'.format(val=i, selected=selected))
-        return "\n".join(results)
+        return '\n'.join(results)
 
 @tag
 class radio(template.Node):
@@ -185,7 +185,7 @@ class radio(template.Node):
     def render(self, context):
         value   = self.value.resolve(context)
         default = self.default.resolve(context)
-        checked = "checked" if str(value)==str(default) else ""
+        checked = 'checked' if str(value)==str(default) else ''
         
         return """<input type="radio" name="%s" value="%s" %s />""" % (self.name, value, checked)
 
@@ -204,19 +204,19 @@ class timespan(template.Node):
     
     @staticmethod
     def pretty(model, minute_increment=60):
-        minutestr = lambda dt: ":30" if dt.minute == 30 else ""
+        minutestr = lambda dt: ':30' if dt.minute == 30 else ''
         endtime   = model.start_time + timedelta(minutes = minute_increment * model.duration)
-        startstr  = model.start_time.strftime("%I").lstrip("0") + minutestr(model.start_time)
-        endstr    = endtime.strftime("%I").lstrip("0") + minutestr(endtime) + endtime.strftime("%p").lower()
+        startstr  = model.start_time.strftime('%I').lstrip('0') + minutestr(model.start_time)
+        endstr    = endtime.strftime('%I').lstrip('0') + minutestr(endtime) + endtime.strftime('%p').lower()
         
         if model.start_time.day==endtime.day:
-            endstr += endtime.strftime(" %A")
+            endstr += endtime.strftime(' %A')
             if model.start_time.hour<12 and endtime.hour>=12:
-                return startstr + "am - " + endstr
+                return startstr + 'am - ' + endstr
             else:
-                return startstr + "-" + endstr
+                return startstr + '-' + endstr
         else:
-            return startstr + model.start_time.strftime("pm %a - ") + endstr + endtime.strftime(" %a")
+            return startstr + model.start_time.strftime('pm %a - ') + endstr + endtime.strftime(' %a')
     
     def render(self, context):
         return self.pretty(self.model.resolve(context))
@@ -228,9 +228,8 @@ class popup_link(template.Node):
         self.text = text.strip('"')
     
     def render(self, context):
-        return """
-            <a onClick="window.open('%s', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;"
-               href="%s">%s</a>""" % (self.href, self.href, self.text)
+        return """<a onClick="window.open('{self.href}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;"
+                     href="{self.href}">{self.text}</a>""".format(self=self)
 
 @tag
 class must_contact(template.Node):
@@ -241,14 +240,14 @@ class must_contact(template.Node):
         chairs = defaultdict(list)
         for dept, head in DEPT_CHAIR_OVERRIDES.items():
             chairs[dept].append(head)
-        for head in Attendee.objects.filter(ribbon = DEPT_HEAD_RIBBON).order_by("badge_num"):
+        for head in Attendee.objects.filter(ribbon = DEPT_HEAD_RIBBON).order_by('badge_num'):
             for dept in head.assigned:
                 chairs[dept].append(head.full_name)
         
         staffer = self.staffer.resolve(context)
         locations = [s.job.location for s in staffer.shifts]
         dept_names = dict(JOB_LOC_OPTS)
-        return "<br/>".join(sorted({"({}) {}".format(dept_names[dept], " / ".join(chairs[dept])) for dept in locations}))
+        return '<br/>'.join(sorted({'({}) {}'.format(dept_names[dept], ' / '.join(chairs[dept])) for dept in locations}))
 
 @tag
 class add_max_lengths(template.Node):
@@ -280,20 +279,20 @@ class pages(template.Node):
             if pagenum == page:
                 pages.append(pagenum)
             else:
-                path = cherrypy.request.request_line.split()[1].split("/")[-1]
-                page_qs = "page={}".format(pagenum)
-                if "page=" in path:
-                    path = re.sub(r"page=\d+", page_qs, path)
+                path = cherrypy.request.request_line.split()[1].split('/')[-1]
+                page_qs = 'page={}'.format(pagenum)
+                if 'page=' in path:
+                    path = re.sub(r'page=\d+', page_qs, path)
                 else:
-                    path += ("&" if "?" in path else "?") + page_qs
+                    path += ('&' if '?' in path else '?') + page_qs
                 pages.append('<a href="{}">{}</a>'.format(path, pagenum))
-        return "Page: " + " ".join(map(str, pages))
+        return 'Page: ' + ' '.join(map(str, pages))
 
 def extract_fields(what):
     if isinstance(what, Attendee):
-        return "a{}".format(what.id), what.full_name, what.total_cost
+        return 'a{}'.format(what.id), what.full_name, what.total_cost
     elif isinstance(what, Group):
-        return "g{}".format(what.id), what.name, what.amount_unpaid
+        return 'g{}'.format(what.id), what.name, what.amount_unpaid
     else:
         return None, None, None
 
@@ -307,13 +306,13 @@ class nav_menu(template.Node):
             self.menu_items.append([href[1:-1], label[1:-1], display])
     
     def is_visible(self, display, context):
-        bools = {"True": True, "False": False}
+        bools = {'True': True, 'False': False}
         return bools[display] if display in bools else Variable(display).resolve(context)
     
     def render(self, context):
         inst = self.inst.resolve(context)
         if not inst.id:
-            return ""
+            return ''
         
         pages = [(href.format(**inst.__dict__), label)
                  for href, label, display in self.menu_items
@@ -322,12 +321,12 @@ class nav_menu(template.Node):
         width = 100 // len(pages)
         items = ['<table class="menu"><tr>']
         for href, label in pages:
-            if cherrypy.request.path_info.endswith(href.split("?")[0]):
+            if cherrypy.request.path_info.endswith(href.split('?')[0]):
                 link = label
             else:
                 link = '<a href="{}">{}</a>'.format(href, label)
             items.append('<td width="{}%">{}</td>'.format(width, link))
-        return "\n".join(items + ["</tr></table>"])
+        return '\n'.join(items + ['</tr></table>'])
 
 @tag
 class checked_if(template.Node):
@@ -341,22 +340,22 @@ class checked_if(template.Node):
         except:
             cond = False
         checked = self.negated and not cond or not self.negated and cond
-        image = "checked" if checked else "unchecked"
+        image = 'checked' if checked else 'unchecked'
         return '<img src="../static/images/checkbox_{}.png" style="vertical-align:top ; margin-right:5px" height="20" width="20" />'.format(image)
 
 
 @tag
 class csrf_token(template.Node):
     def render(self, context):
-        if not cherrypy.session.get("csrf_token"):
-            cherrypy.session["csrf_token"] = uuid4().hex
+        if not cherrypy.session.get('csrf_token'):
+            cherrypy.session['csrf_token'] = uuid4().hex
         return '<input type="hidden" name="csrf_token" value="{}" />'.format(cherrypy.session["csrf_token"])
 
 
 @tag
 class stripe_button(template.Node):
     def __init__(self, *label):
-        self.label = " ".join(label).strip('"')
+        self.label = ' '.join(label).strip('"')
     
     def render(self, context):
         return """
@@ -381,11 +380,11 @@ class stripe_form(template.Node):
             email = 'data-email="{}"'.format(charge.models[0].email)
         
         if not charge.targets:
-            regtext = "On-Site Charge"
+            regtext = 'On-Site Charge'
         elif AT_THE_CON:
-            regtext = "Registration"
+            regtext = 'Registration'
         else:
-            regtext = "Preregistration"
+            regtext = 'Preregistration'
         
         return """
             <form class="stripe" method="post" action="{action}">
@@ -420,7 +419,7 @@ class BoldIfNode(template.Node):
         cond = self.cond.resolve(context)
         output = self.nodelist.render(context)
         if cond:
-            return "<b>" + output + "</b>"
+            return '<b>' + output + '</b>'
         else:
             return output
 

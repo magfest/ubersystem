@@ -1,5 +1,4 @@
 from uber.common import *
-from uber.secret_settings import *
 
 class State:
     @property
