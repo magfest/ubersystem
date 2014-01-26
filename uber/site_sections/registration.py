@@ -49,7 +49,7 @@ def search(text):
 
 @all_renderable(PEOPLE)
 class Root:
-    def index(self, message='', show='some', page='1', search_text='', uploaded_id='', order='last_name'):
+    def index(self, message='', page='1', search_text='', uploaded_id='', order='last_name'):
         order_by = [order, 'first_name'] if order.endswith('last_name') else [order]
         total_count = Attendee.objects.count()
         count = 0
@@ -68,12 +68,10 @@ class Root:
         
         page = int(page)
         pages = range(1, int(math.ceil(count / 100)) + 1)
-        if show == 'some':
-            attendees = attendees[-100 + 100*page : 100*page]
+        attendees = attendees[-100 + 100*page : 100*page]
         
         return {
             'message':        message if isinstance(message, str) else message[-1],
-            'show':           show,
             'page':           page,
             'pages':          pages,
             'search_text':    search_text,

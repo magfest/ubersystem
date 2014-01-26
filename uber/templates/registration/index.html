@@ -179,18 +179,13 @@
     {% if search_results %}
         <br/> <a href="index?show={{ show }}&order={{ order }}">Click here</a> to view full attendee list instead of only search results
     {% else %}
-        {% if show == "some" %}
-            {% for pagenum in pages %}
-                {% if pagenum == page %}
-                    {{ pagenum }}
-                {% else %}
-                    <a href="index?order={{ order }}&show={{ show }}&page={{ pagenum }}">{{ pagenum }}</a>
-                {% endif %}
-            {% endfor %}
-            &nbsp; <a href="index?order={{ order }}&show=all">All</a>
-        {% else %}
-            <a href="index?order={{ order }}&show=some">Show Partial Results</a>
-        {% endif %}
+        {% for pagenum in pages %}
+            {% if pagenum == page %}
+                {{ pagenum }}
+            {% else %}
+                <a href="index?order={{ order }}&page={{ pagenum }}">{{ pagenum }}</a>
+            {% endif %}
+        {% endfor %}
     {% endif %}
     <br/> <br/>
     <a href="form?id=None">Add an attendee</a>
