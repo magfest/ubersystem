@@ -293,7 +293,7 @@
     <td> Receive Newsletter: </td>
     <td> {% checkbox attendee.can_spam %} Yes </td>
 </tr>
-{% if AT_THE_CON or POST_CON %}
+{% if AT_OR_POST_CON %}
     <tr>
         <td valign="top"> Notes for Later Review: </td>
         <td> <textarea name="for_review" rows="3" style="width:66%">{{ attendee.for_review }}</textarea> </td>

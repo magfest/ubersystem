@@ -99,7 +99,7 @@
 <form method="post" action="update_notes">
 {% csrf_token %}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
-{% if AT_THE_CON or POST_CON %}
+{% if AT_OR_POST_CON %}
     <br/> <b>Notes For Later Review:</b> <br/>
     <textarea name="for_review" rows="4" style="margin-left:10px ; margin-top:5px ; width:80%">{{ attendee.for_review }}</textarea>
 {% endif %}

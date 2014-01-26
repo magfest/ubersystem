@@ -117,4 +117,12 @@ def check_placeholders():
                                         .select_related('group'))
             if placeholders:
                 body = render('emails/placeholders.html', {'placeholders': placeholders})
-                send_email(ADMIN_EMAIL, dest, subject, body, format = 'html', model = 'n/a')
+                send_email(ADMIN_EMAIL, dest, subject, body, format='html', model='n/a')
+
+
+def check_unassigned():
+    unassigned = list(Attendee.objects.filter(staffing=True, assigned_depts='').order_by('first_name', 'last_name'))
+    subject = 'Unassigned Volunteer Report for ' + datetime.now().strftime('%Y-%m-%d')
+    if unassigned and not Email.objects.filter(subject = subject):
+        body = render('emails/unassigned.html', {'unassigned': unassigned})
+        send_email(STAFF_EMAIL, STAFF_EMAIL, subject, body, format='html', model='n/a')

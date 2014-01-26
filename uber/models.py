@@ -465,7 +465,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def _badge_adjustments(self):
         from uber import badge_funcs
         with BADGE_LOCK:
-            if not AT_THE_CON and not POST_CON:
+            if PRE_CON:
                 if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE and not CUSTOM_BADGES_REALLY_ORDERED:
                     self.badge_type = SUPPORTER_BADGE
 
@@ -494,7 +494,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             elif old.staffing and not self.staffing or self.ribbon != VOLUNTEER_RIBBON and old.ribbon == VOLUNTEER_RIBBON:
                 self.unset_volunteering()
 
-        if self.age_group == UNDER_18 and not AT_THE_CON and not POST_CON:
+        if self.age_group == UNDER_18 and PRE_CON:
             self.unset_volunteering()
 
         if self.badge_type == STAFF_BADGE and self.ribbon == VOLUNTEER_RIBBON:
