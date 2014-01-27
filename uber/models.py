@@ -354,12 +354,8 @@ class Group(MagModel, TakesPaymentMixin):
                 if attendee.paid == PAID_BY_GROUP:
                     if attendee.ribbon == DEALER_RIBBON:
                         total += DEALER_BADGE_PRICE
-                    elif attendee.registered <= PRICE_BUMP:
-                        total += EARLY_GROUP_PRICE
-                    elif attendee.registered < SECOND_GROUP_BUMP:
-                        total += LATE_GROUP_PRICE
                     else:
-                        total += LATER_GROUP_PRICE
+                        total += state.get_group_price(attendee.registered)
             return total
 
     @property
@@ -520,12 +516,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             return self.overridden_price
         elif self.badge_type == ONE_DAY_BADGE:
             return state.get_oneday_price(registered)
-        elif registered < PRICE_BUMP:
-            return EARLY_BADGE_PRICE
-        elif registered > PREREG_TAKEDOWN:
-            return DOOR_BADGE_PRICE
         else:
-            return LATE_BADGE_PRICE
+            return state.get_attendee_price(registered)
 
     @property
     def total_cost(self):

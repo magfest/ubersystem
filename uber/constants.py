@@ -4,31 +4,33 @@ class State:
     @property
     def DEALER_REG_OPEN(self):
         return self.AFTER_DEALER_REG_START and self.BEFORE_DEALER_REG_SHUTDOWN
-    
+
     def get_oneday_price(self, dt):
-        prices = conf['single_day_prices']
-        return prices.get(dt.strftime('%A'), prices['default'])
-    
-    @property
-    def BADGE_PRICE(self):
-        if datetime.now() < PRICE_BUMP:
-            return EARLY_BADGE_PRICE
-        elif datetime.now() > PREREG_TAKEDOWN:
-            return DOOR_BADGE_PRICE
-        else:
-            return LATE_BADGE_PRICE
-    
+        default = conf['badge_prices']['default_single_day']
+        return conf['badge_prices']['single_day'].get(dt.strftime('%A'), default)
+
+    def get_attendee_price(self, dt):
+        price = conf['badge_prices']['initial_attendee']
+        for day, bumped_price in sorted(PRICE_BUMPS.items()):
+            if dt >= day:
+                price = bumped_price
+        return price
+
+    def get_group_price(self, dt):
+        return self.get_attendee_price(dt) - conf['badge_prices']['group_discount']
+
     @property
     def ONEDAY_BADGE_PRICE(self):
         return self.get_oneday_price(datetime.now())
-    
+
+    @property
+    def BADGE_PRICE(self):
+        return self.get_attendee_price(datetime.now())
+
     @property
     def GROUP_PRICE(self):
-        if datetime.now() < PRICE_BUMP:
-            return EARLY_GROUP_PRICE
-        else:
-            return LATE_GROUP_PRICE
-    
+        return self.get_group_price(datetime.now())
+
     @property
     def PREREG_BADGE_TYPES(self):
         types = [ATTENDEE_BADGE]
@@ -37,14 +39,14 @@ class State:
             if reg_open:
                 types.append(badge_type)
         return types
-    
+
     @property
     def PREREG_DONATION_OPTS(self):
         if datetime.now() < SUPPORTER_DEADLINE:
             return DONATION_OPTS
         else:
             return [(amt, desc) for amt,desc in DONATION_OPTS if amt < SUPPORTER_LEVEL]
-    
+
     def __getattr__(self, name):
         if name.startswith('BEFORE_'):
             return datetime.now() < globals()[name.split('_', 1)[1]]

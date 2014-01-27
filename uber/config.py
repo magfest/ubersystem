@@ -46,9 +46,11 @@ for _opt, _val in conf.items():
         globals()[_opt.upper()] = _val
 
 for _opt, _val in conf['dates'].items():
-    if _val:
-        _val = datetime.strptime(_val + ' 23:59', '%Y-%m-%d %H:%M')
-    globals()[_opt.upper()] = _val or None
+    globals()[_opt.upper()] = datetime.strptime(_val + ' 23:59', '%Y-%m-%d %H:%M') if _val else None
+
+PRICE_BUMPS = {}
+for _opt, _val in conf['badge_prices']['attendee'].items():
+    PRICE_BUMPS[datetime.strptime(_opt, '%Y-%m-%d')] = _val
 
 AT_OR_POST_CON = AT_THE_CON or POST_CON
 PRE_CON = not AT_OR_POST_CON

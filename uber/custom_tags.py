@@ -2,7 +2,7 @@ from uber.common import *
 
 @register.filter
 def datetime(dt, fmt='11:59pm EST on %A, %b %e'):
-    return " ".join(dt.strftime(fmt).split())
+    return ' '.join(dt.strftime(fmt).split())
 
 @register.filter
 def timestamp(dt):
@@ -405,6 +405,35 @@ class BoldIfNode(template.Node):
             return '<b>' + output + '</b>'
         else:
             return output
+
+
+
+@tag
+class single_day_prices(template.Node):
+    def render(self, context):
+        prices = ''
+        for day, price in conf['badge_prices']['single_day'].items():
+            prices += '${} for {}, '.format(price, day)
+        return prices + 'and ${} for other days'.format(conf['badge_prices']['default_single_day'])
+
+class Notice(template.Node):
+    def notice(self, label, takedown, discount=False):
+        discount = conf['badge_prices']['group_discount'] if discount else 0
+        for day, price in sorted(PRICE_BUMPS.items()):
+            if datetime.now() < day:
+                return 'Price goes up to ${} at 11:59pm EST on {}'.format(price - discount, (day - timedelta(days=1)).strftime('%A, %b %e'))
+        else:
+            return '{} closes at 11:59pm EST on {}'.format(label, takedown.strftime('%A, %b %e'))
+
+@tag
+class attendee_price_notice(Notice):
+    def render(self, context):
+        return self.notice('Preregistration', PREREG_TAKEDOWN)
+
+@tag
+class group_price_notice(Notice):
+    def render(self, context):
+        return self.notice('Group preregistration', GROUP_PREREG_TAKEDOWN, discount=True)
 
 
 template.builtins.append(register)

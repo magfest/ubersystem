@@ -19,7 +19,7 @@
         $("td:first-child").contents().andSelf().mouseover(function(event){
             $(event.target).find(":radio").focus();
         }).click(function(event){
-            if( event.target.nodeName == "TD" ) {
+            if (event.target.nodeName == "TD") {
                 $(event.target).find(":radio").click();
             } else {
                 $(event.target).siblings(":radio").click();
@@ -40,13 +40,7 @@
     <td>
         <ul>
             <li> All-access, four-day pass </li>
-            {% if now < PRICE_BUMP %}
-                <li style="color:red"> Price goes up to ${{ LATE_BADGE_PRICE }} at {{ PRICE_BUMP|datetime }} </li>
-            {% elif now < PREREG_TAKEDOWN %}
-                <li style="color:red"> Preregistration closes at {{ PREREG_TAKEDOWN|datetime }}. </li>
-            {% else %}
-                <li style="color:red"> Preregistration closes at {{ UBER_TAKEDOWN|datetime }}, but full-weekend passes will also be available at the door for ${{ BADGE_PRICE }}. </li>
-            {% endif %}
+            <li style="color:red">{% attendee_price_notice %}</li>
         </ul>
     </td>
     <td> {% popup_link "../static/views/attendees.html" "Details" %} </td>
@@ -54,9 +48,7 @@
 {% if now > PREREG_TAKEDOWN %}
     <tr>
         <td> <b>Single Day Passes:</b> </td>
-        <td>
-            <ul><li>Single days passes available for sale at the door for $40 for Fri or Sat, and $20 for Thu or Sun.</li></ul>
-        </td>
+        <td><ul><li>Single days passes available for sale at the door for {% single_day_prices %}.</li></ul></td>
     </tr>
 {% endif %}
 <tr>
@@ -67,18 +59,10 @@
     </td>
     <td>
         <ul>
-            <li> Save money when you register eight or more people at once </li>
-            <li> ${{ GROUP_PRICE }} per person </li>
-            <li> Group members can kick in extra to upgrade their badge level </li>
-            {% if now < PRICE_BUMP %}
-                <li style="color:red"> Price goes up to ${{ LATE_GROUP_PRICE }} at {{ PRICE_BUMP|datetime }} </li>
-            {% elif now < SECOND_GROUP_BUMP %}
-                <li style="color:red"> Price goes up to ${{ LATER_GROUP_PRICE }} at {{ SECOND_GROUP_BUMP|datetime }} </li>
-            {% elif now < PREREG_TAKEDOWN %}
-                <li style="color:red"> Group preregistration closes at {{ PREREG_TAKEDOWN|datetime }} </li>
-            {% else %}
-                <li style="color:red"> Group preregistration is closed </li>
-            {% endif %}
+            <li>Save money when you register eight or more people at once</li>
+            <li>${{ GROUP_PRICE }} per person</li>
+            <li>Group members can kick in extra to upgrade their badge level</li>
+            <li style="color:red">{% group_price_notice %}</li>
         </ul>
     </td>
     <td> {% popup_link "../static/views/groups.html" "Details" %} </td>
