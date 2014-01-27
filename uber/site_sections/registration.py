@@ -636,18 +636,19 @@ class Root:
             'who_opts': Tracking.objects.values_list('who', flat=True).order_by('who').distinct(),
         }
 
-    def staffers(self, message='', order='first_name'):
+    def staffers(self, message='', order='first_name', search_text=''):
         shifts = defaultdict(list)
         for shift in Shift.objects.select_related():
             shifts[shift.attendee].append(shift)
 
-        staffers = list(Attendee.objects.filter(staffing = True))
+        staffers = list(search(search_text, staffing=True) if search_text else Attendee.objects.filter(staffing=True))
         for staffer in staffers:
             staffer._shifts = shifts[staffer]
 
         return {
             'order': Order(order),
             'message': message,
+            'search_text': search_text,
             'staffer_count': len(staffers),
             'total_hours': sum(j.weighted_hours * j.slots for j in Job.objects.all()),
             'taken_hours': sum(s.job.weighted_hours for s in Shift.objects.select_related()),

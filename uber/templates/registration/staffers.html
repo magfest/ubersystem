@@ -2,7 +2,22 @@
 {% block title %}Staffing Admin{% endblock %}
 {% block content %}
 
-<h2> Staffers </h2>
+<form method="get" action="staffers" style="text-align:center">
+<input type="hidden" name="order" value="{{ order }}" />
+<b>Search:</b> <input class="focus" type="text" name="search_text" style="width:15em" value="{{ search_text }}" />
+</form>
+
+<h2>
+    {% if search_text %}
+        Volunteer Search Results
+    {% else %}
+        Volunteers
+    {% endif %}
+</h2>
+
+{% if search_text %}
+    <div class="center"><a href="staffers">Show All Volunteers</a></div>
+{% endif %}
 
 <table style="text-align:center ; font-weight: bold" cellspacing="25"><tr/>
     <td width="33%">{{ staffer_count }} volunteers</td>
