@@ -91,7 +91,7 @@ class MagModel(Model):
 
     def apply(self, params, bools=[], checkgroups=[], allowed=[], restricted=True, ignore_csrf=True):
         for field in self._meta.fields:
-            if restricted and field.name in self.restricted:
+            if restricted and field.name not in self.unrestricted:
                 continue
 
             id_param = field.name + '_id'
@@ -235,7 +235,7 @@ class Group(MagModel, TakesPaymentMixin):
     registered    = DateTimeField(auto_now_add = True)
     approved      = DateTimeField(null = True)
 
-    restricted = ['amount_paid','amount_owed','auto_recalc','admin_notes','lockable','status','approved']
+    unrestricted = {'name', 'tables', 'address', 'website', 'wares', 'description', 'special_needs'}
 
     def presave_adjustments(self):
         self.__dict__.pop('_attendees', None)
@@ -425,7 +425,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     past_years       = TextField()
 
     display = 'full_name'
-    restricted = ['group','admin_notes','badge_num','ribbon','regdesk_info','extra_merch','got_merch','paid','amount_paid','amount_refunded','assigned_depts','trusted','nonshift_hours']
+    unrestricted = {'first_name', 'last_name', 'international', 'zip_code', 'ec_phone', 'phone', 'email', 'age_group',
+                    'interests', 'found_how', 'comments', 'badge_type', 'affiliate', 'shirt', 'can_spam',
+                    'badge_printed_name', 'staffing', 'fire_safety_cert', 'requested_depts', 'assigned_depts'}
 
     def delete(self, *args, **kwargs):
         with BADGE_LOCK:
@@ -770,7 +772,7 @@ class HotelRequests(MagModel, NightsMixin):
     special_needs      = TextField()
     approved           = BooleanField(default = False)
 
-    restricted = ['approved']
+    unrestricted = ['attendee_id', 'nights', 'wanted_roommates', 'unwanted_roommates', 'special_needs']
 
     @classmethod
     def in_dept(cls, department):
