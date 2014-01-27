@@ -71,7 +71,6 @@
     
     function setPreassigned() {
         if( $.field("placeholder").is(":checked") ) {
-            $.field("age_group").val("{{ OVER_21 }}");
             $.field("paid").val("{{ NEED_NOT_PAY }}");
         }
         showOrHideAmounts();
