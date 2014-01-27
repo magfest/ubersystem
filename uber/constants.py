@@ -6,7 +6,8 @@ class State:
         return self.AFTER_DEALER_REG_START and self.BEFORE_DEALER_REG_SHUTDOWN
     
     def get_oneday_price(self, dt):
-        return {2: 20, 5: 20}.get(dt.day, 40)
+        prices = conf['single_day_prices']
+        return prices.get(dt.strftime('%A'), prices['default'])
     
     @property
     def BADGE_PRICE(self):
