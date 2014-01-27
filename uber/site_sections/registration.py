@@ -203,8 +203,6 @@ class Root:
     @ajax
     def check_in(self, id, badge_num, age_group):
         attendee = Attendee.objects.get(id=id)
-        pre_paid = attendee.paid
-        pre_amount = attendee.amount_paid
         pre_badge = attendee.badge_num
         success, increment = True, False
 
@@ -240,15 +238,12 @@ class Root:
             'badge':      attendee.badge,
             'paid':       attendee.get_paid_display(),
             'age_group':  attendee.get_age_group_display(),
-            'pre_paid':   pre_paid,    # TODO: this is no longer necessary
-            'pre_amount': pre_amount,  # TODO: this is no longer necessary
             'pre_badge':  pre_badge,
             'checked_in': attendee.checked_in and hour_day_format(attendee.checked_in)
         }
 
     @csrf_protected
-    def undo_checkin(self, id, pre_paid, pre_amount, pre_badge):
-        # TODO: this no longer needs to take the pre_paid and pre_amount parameters
+    def undo_checkin(self, id, pre_badge):
         a = Attendee.objects.get(id = id)
         a.checked_in, a.badge_num = None, pre_badge
         a.save()

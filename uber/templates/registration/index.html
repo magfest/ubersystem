@@ -87,7 +87,7 @@
                 function(json) {
                     var message = json.message;
                     if( json.success ) {
-                        message += ' &nbsp; <a href="#" onClick="undoCheckin('+id+','+json.pre_paid+','+json.pre_amount+','+json.pre_badge+') ; return false">Undo</a>';
+                        message += ' &nbsp; <a href="#" onClick="undoCheckin('+id+','+json.pre_badge+') ; return false">Undo</a>';
                         $("#paid_" + id).html(json.paid);
                         $("#cin_" + id).html(json.checked_in);
                         $("#age_" + id).parent().html(json.age_group);
@@ -99,12 +99,8 @@
                 },
                 "json");
     }
-    function undoCheckin(id, pre_paid, pre_amount, pre_badge) {
-        $.post("undo_checkin", {id: id,
-                                csrf_token: csrf_token,
-                                pre_paid:   pre_paid,
-                                pre_amount: pre_amount,
-                                pre_badge:  pre_badge},
+    function undoCheckin(id, pre_badge) {
+        $.post("undo_checkin", {id: id, csrf_token: csrf_token, pre_badge: pre_badge},
                 function(s) {
                     var sep = location.href.indexOf("?")==-1 ? "?" : "&";
                     location.href += sep + "message=" + encodeURIComponent(s);
