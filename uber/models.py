@@ -432,7 +432,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     restricted = ['group','admin_notes','badge_num','ribbon','regdesk_info','extra_merch','got_merch','paid','amount_paid','amount_refunded','assigned_depts','trusted','nonshift_hours']
 
     def delete(self, *args, **kwargs):
-        from uber import badge_funcs
         with BADGE_LOCK:
             badge_num = Attendee.objects.get(id = self.id).badge_num
             super(Attendee, self).delete(*args, **kwargs)
@@ -463,7 +462,6 @@ class Attendee(MagModel, TakesPaymentMixin):
                 setattr(self, attr, value.title())
 
     def _badge_adjustments(self):
-        from uber import badge_funcs
         with BADGE_LOCK:
             if PRE_CON:
                 if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE and not CUSTOM_BADGES_REALLY_ORDERED:

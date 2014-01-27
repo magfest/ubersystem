@@ -1,13 +1,4 @@
 <script type="text/javascript">
-    var affChanged = function(startup) {
-        var newAff = $.field("aff_select")[0].selectedIndex === 0;
-        setVisible("#affdiv", newAff);
-        if (!newAff) {
-            $.field("aff_text").val("");
-        } else if (!startup) {
-            $.focus("aff_text");
-        }
-    };
     var donationChanged = function() {
         setVisible(".affiliate-row", $.val("amount_extra") > 0);
         setVisible(".shirt-row", $.val("amount_extra") >= {{ SHIRT_LEVEL }});
@@ -20,7 +11,6 @@
     $(function(){
         if ($.field("amount_extra")) {
             donationChanged();
-            affChanged(true);
             var format = function(opt) {
                 if (opt.id == {{ SUPPORTER_LEVEL }} || opt.id == {{ SEASON_LEVEL }}) {
                     return '<span class="select2-bolded">' + opt.text + '</span>';
@@ -34,6 +24,13 @@
                 minimumResultsForSearch: 99,
                 escapeMarkup: function(m) { return m; }
             });
+            $.field("affiliate").select2({
+                placeholder: "I don't care about this",
+                createSearchChoice: function(term) {
+                    return {id: term, text: term};
+                },
+                data: {{ affiliates|jsonize }}
+            }).select2("val", {{ attendee.affiliate|default:""|jsonize }});
             $("form").submit(function(){
                 $(":submit").attr("value", "Uploading Preregistration...").attr("disabled", true);
             });
@@ -73,15 +70,8 @@
 <tr class="affiliate-row extra-row" style="display:none">
     <td valign="top"> <b>Affiliate:</b> </td>
     <td>
-        <select name="aff_select" onChange="affChanged()">
-            <option value="">---Other---</option>
-            <option value="" {% if not attendee.affiliate %}selected{% endif %}>I don't care about this</option>
-            {% options affiliates attendee.affiliate %}
-        </select>
+        <input type="hidden" name="affiliate" style="width:30ex" />
         &nbsp; <span class="popup">{% popup_link "../static/views/affiliates.html" "What's an affiliate?" %}</span>
-        <div id="affdiv">
-            <br/> <input type="text" name="aff_text" value="{{ attendee.affiliate|default:"" }}" />
-        </div>
     </td>
 </tr>
 <tr class="shirt-row extra-row" style="display:none">

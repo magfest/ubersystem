@@ -127,19 +127,6 @@ def send_email(source, dest, subject, body, format = 'text', cc = [], bcc = [], 
         Email.objects.create(subject = subject, dest = ','.join(listify(dest)), body = body, **fk)
 
 
-# this is here instead of in badge_funcs.py for import simplicity
-def check_range(badge_num, badge_type):
-    try:
-        badge_num = int(badge_num)
-    except:
-        return '"{}" is not a valid badge number (should be an integer)'.format(badge_num)
-    
-    if badge_num:
-        min_num, max_num = BADGE_RANGES[int(badge_type)]
-        if not min_num <= badge_num <= max_num:
-            return '{} badge numbers must fall within the range {} - {}'.format(dict(BADGE_OPTS)[badge_type], min_num, max_num)
-
-
 class Charge:
     def __init__(self, targets=(), amount=None, description=None):
         self.targets = [self.serialize(m) for m in listify(targets)]
@@ -214,11 +201,11 @@ class Charge:
             return 'An unexpected problem occured while processing your card: ' + str(e)
 
 
-def affiliates(exclude={'paid':NOT_PAID}):
+def affiliates():
     amounts = defaultdict(int, {a:-i for i,a in enumerate(DEFAULT_AFFILIATES)})
     for aff,amt in Attendee.objects.exclude(Q(amount_extra=0) | Q(affiliate='')).values_list('affiliate','amount_extra'):
         amounts[aff] += amt
-    return [(aff,aff) for aff,amt in sorted(amounts.items(), key=lambda tup: -tup[1])]
+    return [{"id": aff, "text": aff} for aff, amt in sorted(amounts.items(), key=lambda tup: -tup[1])]
 
 
 def get_page(page, queryset):

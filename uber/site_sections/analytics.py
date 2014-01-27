@@ -27,7 +27,6 @@ from uber.graph_data import *
 def generate_attendance_by_day_graph_data(last_day_of_magfest):
 
     # doing a raw query instead of models because we're doing funky stuff.
-    from django.db import connection
     cursor = connection.cursor()
 
     # this is an EXTREMELY COMPLEX STORED PROCEDURE in mysql, you have to view
@@ -121,6 +120,5 @@ class Root:
                 "attendance_data": graph_data
             }
         except:
-            from django.db import connection    # reset connection on transaction error
             connection.close()
             raise

@@ -8,6 +8,18 @@ def next_badge_num(badge_type):
         return BADGE_RANGES[badge_type][0]
 
 
+def check_range(badge_num, badge_type):
+    try:
+        badge_num = int(badge_num)
+    except:
+        return '"{}" is not a valid badge number (should be an integer)'.format(badge_num)
+    
+    if badge_num:
+        min_num, max_num = BADGE_RANGES[int(badge_type)]
+        if not min_num <= badge_num <= max_num:
+            return '{} badge numbers must fall within the range {} - {}'.format(dict(BADGE_OPTS)[badge_type], min_num, max_num)
+
+
 def change_badge(attendee):
     with BADGE_LOCK:
         new = attendee.badge_num

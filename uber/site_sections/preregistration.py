@@ -43,14 +43,14 @@ class Root:
                 'message': message,
                 'charge': Charge(preregs)
             }
-    
+
     def badge_choice(self, message=''):
         return {'message': message}
-    
+
     def form(self, message='', edit_id=None, **params):
         if 'badge_type' not in params and edit_id is None:
             raise HTTPRedirect('badge_choice?message={}', 'You must select a badge type')
-        
+
         params['id'] = 'None'   # security!
         if edit_id is not None:
             attendee, group = get_unsaved(edit_id, if_not_found = HTTPRedirect('badge_choice?message={}', 'That preregistration has already been finalized'))
@@ -60,17 +60,17 @@ class Root:
         else:
             attendee = Attendee.get(params, bools=['staffing','can_spam','international'], ignore_csrf=True, restricted=True)
             group = Group.get(params, ignore_csrf=True, restricted=True)
-        
+
         if attendee.badge_type not in state.PREREG_BADGE_TYPES:
             raise HTTPRedirect('badge_choice?message={}', 'Dealer registration is not open' if attendee.is_dealer else 'Invalid badge type')
-        
+
         if 'first_name' in params:
             message = check(attendee) or check_prereg_reqs(attendee)
             if not message and attendee.badge_type in [PSEUDO_DEALER_BADGE, PSEUDO_GROUP_BADGE]:
                 message = check(group)
             if not message and attendee.badge_type == PSEUDO_DEALER_BADGE:
                 message = check_dealer(group)
-            
+
             if not message:
                 if attendee.badge_type in [PSEUDO_DEALER_BADGE, PSEUDO_GROUP_BADGE]:
                     if attendee.badge_type == PSEUDO_GROUP_BADGE:
@@ -79,10 +79,10 @@ class Root:
                     else:
                         group.status = WAITLISTED if state.AFTER_DEALER_REG_DEADLINE else UNAPPROVED
                         attendee.ribbon = DEALER_RIBBON
-                    
+
                     attendee.badge_type = ATTENDEE_BADGE
                     attendee.paid = PAID_BY_GROUP
-                
+
                 if attendee.is_dealer:
                     group.save()
                     attendee.group = group
@@ -102,19 +102,19 @@ class Root:
                         Tracking.track(EDITED_PREREG, attendee)
                         if group.badges:
                             Tracking.track(EDITED_PREREG, group)
-                
+
                 if Attendee.objects.filter(first_name = attendee.first_name, last_name = attendee.last_name, email = attendee.email):
                     raise HTTPRedirect('duplicate?id={}', group.secret_id if attendee.paid == PAID_BY_GROUP else attendee.secret_id)
-                
+
                 if attendee.full_name in BANNED_ATTENDEES:
                     raise HTTPRedirect('banned?id={}', group.secret_id if attendee.paid == PAID_BY_GROUP else attendee.secret_id)
-                
+
                 raise HTTPRedirect('index')
         else:
             attendee.can_spam = edit_id is None     # only defaults to true for these forms
             if attendee.badge_type == PSEUDO_DEALER_BADGE and state.AFTER_DEALER_REG_DEADLINE:
                 message = 'Dealer registration is closed, but you can fill out this form to add yourself to our waitlist'
-        
+
         return {
             'message':    message,
             'attendee':   attendee,
@@ -123,22 +123,22 @@ class Root:
             'badges':     params.get('badges'),
             'affiliates': affiliates()
         }
-    
+
     def duplicate(self, id):
         attendee, group = get_unsaved(id)
         orig = Attendee.objects.filter(first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email)
         if not orig:
             raise HTTPRedirect('index')
-        
+
         return {
             'duplicate': attendee,
             'attendee': orig[0]
         }
-    
+
     def banned(self, id):
         attendee, group = get_unsaved(id)
         return {'attendee': attendee}
-    
+
     @credit_card
     def prereg_payment(self, payment_id, stripeToken):
         charge = Charge.get(payment_id)
@@ -148,44 +148,44 @@ class Root:
             message = 'Our preregistration price has gone up; please fill out the payment form again at the higher price'
         else:
             message = charge.charge_cc(stripeToken)
-        
+
         if message:
             raise HTTPRedirect('index?message={}', message)
-        
+
         for attendee in charge.attendees:
             attendee.paid = HAS_PAID
             attendee.amount_paid = attendee.total_cost
             attendee.save()
             if attendee.full_name in BANNED_ATTENDEES:
                 send_banned_email(attendee)
-        
+
         for group in charge.groups:
             group.assign_prereg_badges()
             group.amount_paid = group.total_cost
             group.save()
             if group.leader.full_name in BANNED_ATTENDEES:
                 send_banned_email(group.leader)
-        
+
         cherrypy.session.pop('preregs', None)
         preregs = cherrypy.session.setdefault('paid_preregs', {})
         preregs.setdefault('attendees', []).extend(charge.attendees)
         preregs.setdefault('groups', []).extend(charge.groups)
         raise HTTPRedirect('paid_preregs')
-    
+
     def paid_preregs(self):
         preregs = cherrypy.session.get('paid_preregs')
         if preregs:
             return {'preregs': preregs}
         else:
             raise HTTPRedirect('index')
-    
+
     def delete(self, id):
         cherrypy.session['preregs'] = [m for m in cherrypy.session.setdefault('preregs', []) if m.secret_id != id]
         raise HTTPRedirect('index?message={}', 'Preregistration deleted')
-    
+
     def dealer_confirmation(self, id):
         return {'group': Group.objects.get(id=id)}
-    
+
     def group_members(self, id, message=''):
         group = Group.objects.get(secret_id = id)
         return {
@@ -193,7 +193,7 @@ class Root:
             'charge': Charge(group),
             'message': message
         }
-    
+
     def register_group_member(self, message='', **params):
         attendee = Attendee.get(params, bools=['staffing','can_spam','international'], restricted=True)
         if 'first_name' in params:
@@ -204,33 +204,33 @@ class Root:
                 attendee.save()
                 if attendee.full_name in BANNED_ATTENDEES:
                     send_banned_email(attendee)
-                
+
                 if attendee.amount_unpaid:
                     raise HTTPRedirect('group_extra_payment_form?id={}', attendee.secret_id)
                 else:
                     raise HTTPRedirect('group_members?id={}&message={}', attendee.group.secret_id, 'Badge registered successfully')
         else:
             attendee.can_spam = True    # only defaults to true for these forms
-        
+
         return {
             'attendee': attendee,
             'message':  message,
             'affiliates': affiliates()
         }
-    
+
     def group_extra_payment_form(self, id):
         attendee = Attendee.objects.get(secret_id = id)
         return {
             'attendee': attendee,
             'charge': Charge(attendee, description = '{} kicking in extra'.format(attendee.full_name))
         }
-    
+
     def group_undo_extra_payment(self, id):
         attendee = Attendee.objects.get(secret_id = id)
         attendee.amount_extra -= attendee.amount_unpaid
         attendee.save()
         raise HTTPRedirect('group_members?id={}&message={}', attendee.group.secret_id, 'Extra payment undone')
-    
+
     @credit_card
     def process_group_payment(self, payment_id, stripeToken):
         charge = Charge.get(payment_id)
@@ -242,7 +242,7 @@ class Root:
             group.amount_paid += charge.dollar_amount
             group.save()
             raise HTTPRedirect('group_members?id={}&message={}', group.secret_id, 'Your payment has been accepted!')
-    
+
     @credit_card
     def process_group_member_payment(self, payment_id, stripeToken):
         charge = Charge.get(payment_id)
@@ -256,7 +256,7 @@ class Root:
             attendee.amount_paid += charge.dollar_amount
             attendee.save()
             raise HTTPRedirect('group_members?id={}&message={}', attendee.group.secret_id, 'Extra payment accepted')
-    
+
     @csrf_protected
     def unset_group_member(self, id):
         attendee = Attendee.objects.get(secret_id = id)
@@ -265,25 +265,25 @@ class Root:
                        render('emails/group_member_dropped.txt', {'attendee': attendee}), model=attendee)
         except:
             log.error('unable to send group unset email', exc_info=True)
-        
+
         for attr in ['first_name','last_name','email','zip_code','ec_phone','phone','interests','found_how','comments']:
             setattr(attendee, attr, '')
         attendee.age_group = AGE_UNKNOWN
         attendee.save()
         raise HTTPRedirect('group_members?id={}&message={}', attendee.group.secret_id, 'Attendee unset; you may now assign their badge to someone else')
-    
+
     def add_group_members(self, id, count):
         group = Group.objects.get(secret_id = id)
         if int(count) < group.min_badges_addable:
             raise HTTPRedirect('group_members?id={}&message={}', group.secret_id, 'This group cannot add fewer than {} badges'.format(group.min_badges_addable))
-        
+
         charge = Charge(group, amount = 100 * int(count) * state.GROUP_PRICE, description = '{} extra badges for {}'.format(count, group.name))
         charge.badges_to_add = int(count)
         return {
             'group': group,
             'charge': charge
         }
-    
+
     @credit_card
     def pay_for_extra_members(self, payment_id, stripeToken):
         charge = Charge.get(payment_id)
@@ -292,7 +292,7 @@ class Root:
             message = 'Our preregistration price has gone up since you tried to add the bagdes; please try again'
         else:
             message = charge.charge_cc(stripeToken)
-        
+
         if message:
             raise HTTPRedirect('group_members?id={}&message={}', group.secret_id, message)
         else:
@@ -300,12 +300,12 @@ class Root:
             group.amount_paid += charge.dollar_amount
             group.save()
             raise HTTPRedirect('group_members?id={}&message={}', group.secret_id, 'You payment has been accepted and the badges have been added to your group')
-    
+
     def transfer_badge(self, message = '', **params):
         old = Attendee.objects.get(secret_id = params['id'])
         assert old.is_transferrable, 'This badge is not transferrable'
         attendee = Attendee.get(params, bools = ['staffing','international'], restricted = True)
-        
+
         if 'first_name' in params:
             message = check(attendee) or check_prereg_reqs(attendee)
             if not message and (not params['first_name'] and not params['last_name']):
@@ -317,24 +317,24 @@ class Root:
                     send_email(REGDESK_EMAIL, [old.email, attendee.email, REGDESK_EMAIL], subject, body, model = attendee)
                 except:
                     log.error('unable to send badge change email', exc_info = True)
-                
+
                 if attendee.full_name in BANNED_ATTENDEES:
                     send_banned_email(attendee)
-                
+
                 raise HTTPRedirect('confirm?id={}&message={}', attendee.secret_id, 'Your registration has been transferred')
         else:
             for attr in ['first_name','last_name','email','zip_code','international','ec_phone','phone','interests','age_group','staffing','requested_depts']:
                 setattr(attendee, attr, getattr(Attendee(), attr))
-        
+
         return {
             'old':      old,
             'attendee': attendee,
             'message':  message
         }
-    
+
     def confirm(self, message = '', return_to = 'confirm', **params):
         attendee = Attendee.get(params, bools = ['staffing','international'], restricted = True)
-        
+
         placeholder = attendee.placeholder
         if 'email' in params:
             attendee.placeholder = False
@@ -345,7 +345,7 @@ class Root:
                     message = 'Your registration has been confirmed.'
                 else:
                     message = 'Your information has been updated.'
-                
+
                 page = ('confirm?id=' + attendee.secret_id + '&') if return_to == 'confirm' else (return_to + '?')
                 if attendee.amount_unpaid:
                     cherrypy.session['return_to'] = page
@@ -354,24 +354,24 @@ class Root:
                     raise HTTPRedirect(page + 'message=' + message)
         elif attendee.amount_unpaid and attendee.zip_code:  # don't skip to payment until the form is filled out
             raise HTTPRedirect('attendee_donation_form?id={}&message={}', attendee.secret_id, message)
-        
+
         attendee.placeholder = placeholder
         if not message and attendee.placeholder:
             message = 'You are not yet registered!  You must fill out this form to complete your registration.'
         elif not message:
             message = 'You are already registered but you may update your information with this form.'
-        
+
         return {
             'return_to':  return_to,
             'attendee':   attendee,
             'message':    message,
             'affiliates': affiliates()
         }
-    
+
     def guest_food(self, id):
         cherrypy.session['staffer_id'] = Attendee.objects.get(secret_id = id).id
         raise HTTPRedirect('../signups/food_restrictions')
-    
+
     def attendee_donation_form(self, id, message=''):
         attendee = Attendee.objects.get(secret_id = id)
         return {
@@ -379,13 +379,13 @@ class Root:
             'attendee': attendee,
             'charge': Charge(attendee, description = '{}{}'.format(attendee.full_name, '' if attendee.overridden_price else ' kicking in extra'))
         }
-    
+
     def undo_attendee_donation(self, id):
         attendee = Attendee.objects.get(secret_id = id)
         attendee.amount_extra = max(0, attendee.amount_extra - attendee.amount_unpaid)
         attendee.save()
         raise HTTPRedirect(cherrypy.session.pop('return_to', 'confirm?id=' + id))
-    
+
     @credit_card
     def process_attendee_donation(self, payment_id, stripeToken):
         charge = Charge.get(payment_id)
@@ -400,7 +400,7 @@ class Root:
                 attendee.paid = HAS_PAID
             attendee.save()
             raise HTTPRedirect(return_to, 'Your payment has been accepted, thanks so much!')
-    
+
     def event(self, slug, *, id, register=None):
         attendee = Attendee.objects.get(secret_id = id)
         event = SEASON_EVENTS[slug]
@@ -409,14 +409,14 @@ class Root:
         if register and not deadline_passed:
             SeasonPassTicket.objects.get_or_create(attendee=attendee, slug=slug)
             raise HTTPRedirect(slug + '?id={}', id)
-        
+
         return {
             'event': event,
             'attendee': attendee,
             'deadline_passed': deadline_passed,
             'registered': slug in [spt.slug for spt in attendee.seasonpassticket_set.all()]
         }
-    
+
     if PREREG_CLOSED:
         del index, form, badge_choice
         def default(self, *args, **kwargs):
@@ -440,7 +440,7 @@ if POST_CON:
                     Preregistration for MAGFest 13 will open in the summer.
                 </body></html>
             """
-    
+
         def shirt(self, message = '', **params):
             attendee = Attendee.get(params, restricted = True)
             assert attendee.owed_shirt, "There's no record of {} being owed a tshirt".format(attendee.full_name)
@@ -454,7 +454,7 @@ if POST_CON:
                     raise HTTPRedirect('shirt?id={}', attendee.secret_id)
             elif attendee.address:
                 message = "We've recorded your shirt size and address, which you may update anytime before Jan 31st."
-            
+
             return {
                 'message': message,
                 'attendee': attendee

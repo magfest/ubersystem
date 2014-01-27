@@ -250,23 +250,6 @@ class must_contact(template.Node):
         return '<br/>'.join(sorted({'({}) {}'.format(dept_names[dept], ' / '.join(chairs[dept])) for dept in locations}))
 
 @tag
-class add_max_lengths(template.Node):
-    def __init__(self, model_name):
-        self.model_name = model_name
-    
-    def render(self, context):
-        import models
-        klass = getattr(models, self.model_name)
-        
-        lines = []
-        for field in klass._meta.fields:
-            if isinstance(field, CharField):
-                lines.append("""$("input[type=text][name={}]").attr("maxlength", "{}");""" 
-                             .format(field.name, field.max_length))
-        
-        return """<script type="text/javascript">{}</script>""".format("\n".join(lines))
-
-@tag
 class pages(template.Node):
     def __init__(self, page, count):
         self.page, self.count = Variable(page), Variable(count)
