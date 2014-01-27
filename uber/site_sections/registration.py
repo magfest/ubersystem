@@ -27,7 +27,7 @@ def unassigned_counts():
 @all_renderable(PEOPLE)
 class Root:
     def index(self, message='', page='1', search_text='', uploaded_id='', order='last_name'):
-        order_by = [order, 'first_name'] if order.endswith('last_name') else [order]
+        order_by = ['empty_last', order, 'first_name'] if order.endswith('last_name') else [order]
         total_count = Attendee.objects.count()
         count = 0
         if search_text:
@@ -36,7 +36,7 @@ class Root:
         if not count:
             attendees = Attendee.objects.all()
             count = total_count
-        attendees = attendees.select_related('group').order_by(*order_by)
+        attendees = attendees.select_related('group').extra(select={'empty_last': "first_name = ''"}).order_by(*order_by)
 
         if search_text and count == total_count:
             message = 'No matches found'
