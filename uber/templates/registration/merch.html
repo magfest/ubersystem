@@ -123,18 +123,20 @@
                         $("#give").append("Choose a shirt size:").append($shirtOpts);
                         $("#give select").val(resp.shirt);
                     }
-                    $("#give")
-                        .append(
-                            $('<button>Give Merch</button>').click(function() {
-                                giveMerch('', resp.id, $("#shirt").val());
-                                return false;
-                            })
-                        ).append(
+                    $("#give").append(
+                        $('<button>Give Merch</button>').click(function() {
+                            giveMerch('', resp.id, $("#shirt").val());
+                            return false;
+                        })
+                    );
+                    {% if OUT_OF_SHIRTS %}
+                        $("#give").append(
                             $('<button>Give Merch Without Shirt</button>').click(function() {
                                 giveMerch('no_shirt', resp.id, $("#shirt").val());
                                 return false;
                             })
                         );
+                    {% endif %}
                 }
             }, "json");
             return false;
