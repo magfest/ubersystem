@@ -1,5 +1,7 @@
 from uber.common import *
 
+_checkboxes = ['staffing', 'can_spam', 'international', 'no_cellphone']
+
 def check_prereg_reqs(attendee):
     if attendee.age_group == AGE_UNKNOWN:
         return 'You must select an age category'
@@ -54,11 +56,11 @@ class Root:
         params['id'] = 'None'   # security!
         if edit_id is not None:
             attendee, group = get_unsaved(edit_id, if_not_found = HTTPRedirect('badge_choice?message={}', 'That preregistration has already been finalized'))
-            attendee.apply(params, bools=['staffing','can_spam','international'])
+            attendee.apply(params, bools=_checkboxes)
             group.apply(params)
             params.setdefault('badges', group.badges)
         else:
-            attendee = Attendee.get(params, bools=['staffing','can_spam','international'], ignore_csrf=True, restricted=True)
+            attendee = Attendee.get(params, bools=_checkboxes, ignore_csrf=True, restricted=True)
             group = Group.get(params, ignore_csrf=True, restricted=True)
 
         if attendee.badge_type not in state.PREREG_BADGE_TYPES:
@@ -195,7 +197,7 @@ class Root:
         }
 
     def register_group_member(self, message='', **params):
-        attendee = Attendee.get(params, bools=['staffing','can_spam','international'], restricted=True)
+        attendee = Attendee.get(params, bools=_checkboxes, restricted=True)
         if 'first_name' in params:
             message = check(attendee) or check_prereg_reqs(attendee)
             if not message and not params['first_name']:
@@ -304,7 +306,7 @@ class Root:
     def transfer_badge(self, message = '', **params):
         old = Attendee.objects.get(secret_id = params['id'])
         assert old.is_transferrable, 'This badge is not transferrable'
-        attendee = Attendee.get(params, bools = ['staffing','international'], restricted = True)
+        attendee = Attendee.get(params, bools=_checkboxes, restricted=True)
 
         if 'first_name' in params:
             message = check(attendee) or check_prereg_reqs(attendee)
@@ -333,7 +335,7 @@ class Root:
         }
 
     def confirm(self, message = '', return_to = 'confirm', **params):
-        attendee = Attendee.get(params, bools = ['staffing','international'], restricted = True)
+        attendee = Attendee.get(params, bools=_checkboxes, restricted=True)
 
         placeholder = attendee.placeholder
         if 'email' in params:

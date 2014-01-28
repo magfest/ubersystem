@@ -1,17 +1,15 @@
 from uber.common import *
 
-class MultiChoiceField(CommaSeparatedIntegerField):
+class MultiChoiceField(TextField):
     def __init__(self, *args, **kwargs):
         choices = kwargs.pop('choices')
-        kwargs.setdefault('max_length', 255)
-        CommaSeparatedIntegerField.__init__(self, *args, **kwargs)
+        TextField.__init__(self, *args, **kwargs)
         self._choices = choices
 
-class UuidField(CharField):
+class UuidField(TextField):
     def __init__(self, *args, **kwargs):
-        kwargs.setdefault('max_length', 32)
         kwargs.setdefault('default', lambda: uuid4().hex)
-        CharField.__init__(self, *args, **kwargs)
+        TextField.__init__(self, *args, **kwargs)
 
 class MagModel(Model):
     class Meta:
@@ -164,7 +162,7 @@ class Account(MagModel):
     name   = TextField()
     email  = TextField()
     hashed = TextField()
-    access = MultiChoiceField(choices = ACCESS_OPTS)
+    access = MultiChoiceField(choices=ACCESS_OPTS)
 
     @staticmethod
     def is_nick():
@@ -187,14 +185,14 @@ class Account(MagModel):
 
 class PasswordReset(MagModel):
     account   = ForeignKey(Account)
-    generated = DateTimeField(auto_now_add = True)
+    generated = DateTimeField(auto_now_add=True)
     hashed    = TextField()
 
 
 
 class Event(MagModel):
-    location    = IntegerField(choices = EVENT_LOC_OPTS, null = True)
-    start_time  = DateTimeField(null = True)
+    location    = IntegerField(choices=EVENT_LOC_OPTS, null=True)
+    start_time  = DateTimeField(null=True)
     duration    = IntegerField()
     name        = TextField()
     description = TextField()
@@ -226,14 +224,14 @@ class Group(MagModel, TakesPaymentMixin):
     wares         = TextField()
     description   = TextField()
     special_needs = TextField()
-    amount_paid   = IntegerField(default = 0)
-    amount_owed   = IntegerField(default = 0)
-    auto_recalc   = BooleanField(default = True)
-    status        = IntegerField(default = UNAPPROVED, choices = STATUS_OPTS)
-    can_add       = BooleanField(default = False)
+    amount_paid   = IntegerField(default=0)
+    amount_owed   = IntegerField(default=0)
+    auto_recalc   = BooleanField(default=True)
+    status        = IntegerField(default=UNAPPROVED, choices=STATUS_OPTS)
+    can_add       = BooleanField(default=False)
     admin_notes   = TextField()
-    registered    = DateTimeField(auto_now_add = True)
-    approved      = DateTimeField(null = True)
+    registered    = DateTimeField(auto_now_add=True)
+    approved      = DateTimeField(null=True)
 
     unrestricted = {'name', 'tables', 'address', 'website', 'wares', 'description', 'special_needs'}
 
@@ -297,7 +295,7 @@ class Group(MagModel, TakesPaymentMixin):
         groups = {g.id: g for g in Group.objects.all()}
         for g in groups.values():
             g._attendees = []
-        for a in Attendee.objects.filter(group__isnull = False).select_related('group'):
+        for a in Attendee.objects.filter(group__isnull=False).select_related('group'):
             if a.group:
                 groups[a.group_id]._attendees.append(a)
         return list(attendees), list(groups.values())
@@ -375,53 +373,54 @@ class Group(MagModel, TakesPaymentMixin):
 
 class Attendee(MagModel, TakesPaymentMixin):
     secret_id     = UuidField()
-    group         = ForeignKey(Group, null = True)
-    placeholder   = BooleanField(default = False)
+    group         = ForeignKey(Group, null=True)
+    placeholder   = BooleanField(default=False)
     first_name    = TextField()
     last_name     = TextField()
-    international = BooleanField(default = False)
+    international = BooleanField(default=False)
     zip_code      = TextField()
     ec_phone      = TextField()
     phone         = TextField()
+    no_cellphone  = BooleanField(default=False)
     email         = TextField()
-    age_group     = IntegerField(default = AGE_UNKNOWN, choices = AGE_GROUP_OPTS)
-    reg_station   = IntegerField(null = True)
+    age_group     = IntegerField(default=AGE_UNKNOWN, choices=AGE_GROUP_OPTS)
+    reg_station   = IntegerField(null=True)
 
-    interests   = MultiChoiceField(choices = INTEREST_OPTS)
+    interests   = MultiChoiceField(choices=INTEREST_OPTS)
     found_how   = TextField()
     comments    = TextField()
     for_review  = TextField()
     admin_notes = TextField()
 
-    badge_num  = IntegerField(default = 0)
-    badge_type = IntegerField(choices = BADGE_OPTS)
-    ribbon     = IntegerField(default = NO_RIBBON, choices = RIBBON_OPTS)
+    badge_num  = IntegerField(default=0)
+    badge_type = IntegerField(choices=BADGE_OPTS)
+    ribbon     = IntegerField(default=NO_RIBBON, choices=RIBBON_OPTS)
 
     affiliate    = TextField()
-    shirt        = IntegerField(choices = SHIRT_OPTS)
-    can_spam     = BooleanField(default = False)
+    shirt        = IntegerField(choices=SHIRT_OPTS)
+    can_spam     = BooleanField(default=False)
     regdesk_info = TextField()
     extra_merch  = TextField()
-    got_merch    = BooleanField(default = False)
+    got_merch    = BooleanField(default=False)
 
-    registered = DateTimeField(auto_now_add = True)
-    checked_in = DateTimeField(null = True)
+    registered = DateTimeField(auto_now_add=True)
+    checked_in = DateTimeField(null=True)
 
-    paid             = IntegerField(default = NOT_PAID, choices = PAID_OPTS)
-    overridden_price = IntegerField(default = None, null = True)
-    amount_paid      = IntegerField(default = 0)
-    amount_extra     = IntegerField(default = 0, choices = DONATION_OPTS)
-    amount_refunded  = IntegerField(default = 0)
-    payment_method   = IntegerField(null = True, choices = PAYMENT_OPTIONS)
+    paid             = IntegerField(default=NOT_PAID, choices=PAID_OPTS)
+    overridden_price = IntegerField(default=None, null=True)
+    amount_paid      = IntegerField(default=0)
+    amount_extra     = IntegerField(default=0, choices=DONATION_OPTS)
+    amount_refunded  = IntegerField(default=0)
+    payment_method   = IntegerField(null=True, choices=PAYMENT_OPTIONS)
 
     badge_printed_name = TextField()
 
-    staffing         = BooleanField(default = False)
+    staffing         = BooleanField(default=False)
     fire_safety_cert = TextField()
-    requested_depts  = MultiChoiceField(choices = JOB_INTEREST_OPTS)
-    assigned_depts   = MultiChoiceField(choices = JOB_LOC_OPTS)
-    trusted          = BooleanField(default = False)
-    nonshift_hours   = IntegerField(default = 0)
+    requested_depts  = MultiChoiceField(choices=JOB_INTEREST_OPTS)
+    assigned_depts   = MultiChoiceField(choices=JOB_LOC_OPTS)
+    trusted          = BooleanField(default=False)
+    nonshift_hours   = IntegerField(default=0)
     past_years       = TextField()
 
     display = 'full_name'
@@ -766,11 +765,11 @@ class Attendee(MagModel, TakesPaymentMixin):
 
 class HotelRequests(MagModel, NightsMixin):
     attendee           = OneToOneField(Attendee)
-    nights             = MultiChoiceField(choices = NIGHTS_OPTS)
+    nights             = MultiChoiceField(choices=NIGHTS_OPTS)
     wanted_roommates   = TextField()
     unwanted_roommates = TextField()
     special_needs      = TextField()
-    approved           = BooleanField(default = False)
+    approved           = BooleanField(default=False)
 
     unrestricted = ['attendee_id', 'nights', 'wanted_roommates', 'unwanted_roommates', 'special_needs']
 
@@ -789,7 +788,7 @@ class HotelRequests(MagModel, NightsMixin):
 
 class FoodRestrictions(MagModel):
     attendee = OneToOneField(Attendee)
-    standard = MultiChoiceField(choices = FOOD_RESTRICTION_OPTS)
+    standard = MultiChoiceField(choices=FOOD_RESTRICTION_OPTS)
     freeform = TextField()
 
     def __getattr__(self, name):
@@ -813,9 +812,9 @@ class SeasonPassTicket(MagModel):
     slug = TextField()
 
 class Room(MagModel, NightsMixin):
-    department = IntegerField(choices = JOB_LOC_OPTS)
+    department = IntegerField(choices=JOB_LOC_OPTS)
     notes      = TextField()
-    nights     = MultiChoiceField(choices = NIGHTS_OPTS)
+    nights     = MultiChoiceField(choices=NIGHTS_OPTS)
 
     def to_dict(self):
         return {
@@ -837,13 +836,13 @@ class NoShirt(MagModel):
 class Job(MagModel):
     name        = TextField()
     description = TextField()
-    location    = IntegerField(choices = JOB_LOC_OPTS)
+    location    = IntegerField(choices=JOB_LOC_OPTS)
     start_time  = DateTimeField()
     duration    = IntegerField()
     weight      = FloatField()
     slots       = IntegerField()
-    restricted  = BooleanField(default = False)
-    extra15     = BooleanField(default = False)
+    restricted  = BooleanField(default=False)
+    extra15     = BooleanField(default=False)
 
     @staticmethod
     def everything(location = None):
@@ -928,8 +927,8 @@ class Job(MagModel):
 class Shift(MagModel):
     job      = ForeignKey(Job)
     attendee = ForeignKey(Attendee)
-    worked   = IntegerField(choices = WORKED_OPTS, default = SHIFT_UNMARKED)
-    rating   = IntegerField(choices = RATING_OPTS, default = UNRATED)
+    worked   = IntegerField(choices=WORKED_OPTS, default=SHIFT_UNMARKED)
+    rating   = IntegerField(choices=RATING_OPTS, default=UNRATED)
     comment  = TextField()
 
     @classmethod
@@ -946,27 +945,27 @@ class Shift(MagModel):
 class MPointForCash(MagModel):
     attendee = ForeignKey(Attendee)
     amount   = IntegerField()
-    when     = DateTimeField(auto_now_add = True)
+    when     = DateTimeField(auto_now_add=True)
 
 class OldMPointExchange(MagModel):
     attendee = ForeignKey(Attendee)
     mpoints  = IntegerField()
-    when     = DateTimeField(auto_now_add = True)
+    when     = DateTimeField(auto_now_add=True)
 
 class Sale(MagModel):
-    attendee = ForeignKey(Attendee, null = True)
+    attendee = ForeignKey(Attendee, null=True)
     what     = TextField()
     cash     = IntegerField()
     mpoints  = IntegerField()
-    when     = DateTimeField(auto_now_add = True)
-    reg_station = IntegerField(null = True)
-    payment_method = IntegerField(default = MERCH, choices = SALE_OPTS)
+    when     = DateTimeField(auto_now_add=True)
+    reg_station = IntegerField(null=True)
+    payment_method = IntegerField(default=MERCH, choices=SALE_OPTS)
 
 class ArbitraryCharge(MagModel):
     amount = IntegerField()
     what   = TextField()
-    when   = DateTimeField(auto_now_add = True)
-    reg_station = IntegerField(null = True)
+    when   = DateTimeField(auto_now_add=True)
+    reg_station = IntegerField(null=True)
 
     display = 'what'
 
@@ -976,7 +975,7 @@ class Game(MagModel):
     code = TextField()
     name = TextField()
     attendee = ForeignKey(Attendee)
-    returned = BooleanField(default = False)
+    returned = BooleanField(default=False)
 
     @property
     def checked_out(self):
@@ -1004,14 +1003,14 @@ class Game(MagModel):
 class Checkout(MagModel):
     game = OneToOneField(Game)
     attendee = ForeignKey(Attendee)
-    when = DateTimeField(auto_now_add = True)
+    when = DateTimeField(auto_now_add=True)
 
 
 
 class Email(MagModel):
     fk_id   = IntegerField()
     model   = TextField()
-    when    = DateTimeField(auto_now_add = True)
+    when    = DateTimeField(auto_now_add=True)
     subject = TextField()
     dest    = TextField()
     body    = TextField()
@@ -1044,11 +1043,11 @@ class Email(MagModel):
 class Tracking(MagModel):
     fk_id  = IntegerField()
     model  = TextField()
-    when   = DateTimeField(auto_now_add = True)
+    when   = DateTimeField(auto_now_add=True)
     who    = TextField()
     which  = TextField()
     links  = TextField()
-    action = IntegerField(choices = TRACKING_OPTS)
+    action = IntegerField(choices=TRACKING_OPTS)
     data   = TextField()
 
     @classmethod

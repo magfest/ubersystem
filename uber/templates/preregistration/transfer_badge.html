@@ -39,17 +39,7 @@ our Registration Desk; that will belong to whomever the badge is transferred.
         {% checkbox attendee.international %} I'm coming from outside the US.
     </td>
 </tr>
-<tr>
-    <td> <b>Emergency Contact<br/>Phone Number:</b> </td>
-    <td>
-        <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" />
-        <i>The person we should call if something happens to you.</i>
-    </td>
-</tr>
-<tr>
-    <td> <i>Your</i> Phone Number: </td>
-    <td> <input type="text" name="phone" value="{{ attendee.phone }}" /> </td>
-</tr>
+{% include "preregistration/phone_numbers.html" %}
 <tr>
     <td> <nobr>What interests you?</nobr> </td>
     <td> {% checkgroup attendee.interests %} </td>

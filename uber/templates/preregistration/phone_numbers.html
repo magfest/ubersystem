@@ -1,0 +1,30 @@
+<tr>
+    <td> <b>Emergency Contact <br/> Phone Number:</b> </td>
+    <td>
+        <table style="border-spacing:0px ; width:auto">
+        <tr>
+            <td style="padding:0px">
+                <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" />
+            </td>
+            <td style="padding-left:15px">
+                <i>The person we should call if something happens to you.</i>
+            </td>
+        </tr>
+        </table>
+    </td>
+</tr>
+<tr>
+    <td id="phone"> <i>Your</i> Cellphone Number: </td>
+    <td>
+        <table style="border-spacing:0px ; width:auto">
+        <tr>
+            <td style="padding:0px">
+                <input type="text" name="phone" value="{{ attendee.phone }}" />
+            </td>
+            <td style="padding-left:15px">
+                <span id="nophone">{% checkbox attendee.no_cellphone %} I don't own a cellphone</span>
+            </td>
+        </tr>
+        </table>
+    </td>
+</tr>

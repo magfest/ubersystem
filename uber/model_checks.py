@@ -37,6 +37,9 @@ def group_paid(group):
         return "What you entered for Amount Paid ({}) isn't even a number".format(group.amount_paid)
 
 
+def _invalid_phone_number(s):
+    return s.startswith('+') or len(re.findall(r'\d', s)) != 10
+
 def attendee_misc(attendee):
     if attendee.group and not attendee.first_name.strip() and not attendee.last_name.strip():
         return
@@ -50,14 +53,17 @@ def attendee_misc(attendee):
         return 'Enter a valid email address'
     
     if not attendee.international and not AT_THE_CON:
-        if not re.compile('^[0-9]{5}$').match(attendee.zip_code):
+        if not re.match(r'^\d{5}$', attendee.zip_code):
             return 'Enter a valid zip code'
         
-        if attendee.ec_phone[:1] != '+' and len(re.compile('[0-9]').findall(attendee.ec_phone)) != 10:
+        if _invalid_phone_number(attendee.ec_phone):
             return 'Enter a 10-digit emergency contact number'
         
-        if attendee.phone and attendee.phone[:1]!='+' and len(re.compile('[0-9]').findall(attendee.phone))!=10:
-            return 'Invalid 10-digit personal phone number'
+        if attendee.phone and _invalid_phone_number(attendee.phone):
+            return 'Invalid 10-digit cellphone number'
+    
+    if not attendee.no_cellphone and attendee.staffing and _invalid_phone_number(attendee.phone):
+        return "10-digit cellphone number is required for volunteers (unless you don't own a cellphone)"
 
 def attendee_banned_volunteer(attendee):
     if (attendee.ribbon == VOLUNTEER_RIBBON or attendee.staffing) and attendee.full_name in BANNED_STAFFERS:

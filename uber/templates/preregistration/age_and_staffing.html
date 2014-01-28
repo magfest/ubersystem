@@ -1,5 +1,5 @@
 <script type="text/javascript">
-    function ageGroupSelected() {
+    var ageGroupSelected = function() {
         setVisible("#age_disclaimer", $.val("age_group") === {{ UNDER_18 }});
         if (!$.field("badge_type") || $.val("badge_type") !== {{ PSEUDO_DEALER_BADGE }}) {
             setVisible(".staffing", $.val("age_group") !== {{ UNDER_18}});
@@ -8,10 +8,14 @@
     }
     $(ageGroupSelected);
 
-    function staffingClicked(nonGui) {
-        setVisible("#departments", $.field("staffing").is(":visible:checked"));
-        if (!nonGui)
+    var staffingClicked = function(nonGui) {
+        var checked = $.field("staffing").is(":visible:checked");
+        setVisible("#departments", checked);
+        setVisible("#nophone", checked);
+        $("#phone").css("font-weight", checked ? "bold" : "normal");
+        if (!nonGui) {
             $.focus("email");
+        }
     }
     $(staffingClicked);
 </script>

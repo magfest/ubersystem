@@ -112,25 +112,7 @@
         </tr> </table>
     </td>
 </tr>
-<tr>
-    <td> <b>Emergency Contact <br/> Phone Number:</b> </td>
-    <td>
-        <table style="border-spacing:0px ; width:auto">
-        <tr>
-            <td style="padding:0px">
-                <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" />
-            </td>
-            <td style="padding-left:15px">
-                <i>The person we should call if something happens to you.</i>
-            </td>
-        </tr>
-        </table>
-    </td>
-</tr>
-<tr>
-    <td id="phone"> <i>Your</i> Phone Number: </td>
-    <td> <input type="text" name="phone" value="{{ attendee.phone }}" /> </td>
-</tr>
+{% include "preregistration/phone_numbers.html" %}
 <tr>
     <td> What interests you? </td>
     <td> {% checkgroup attendee.interests %} </td>
