@@ -72,7 +72,7 @@ class MagModel(Model):
         raise AttributeError(name)
 
     @classmethod
-    def get(cls, params, bools=[], checkgroups=[], allowed=[], restricted=False, ignore_csrf=False):
+    def get(cls, params, bools=(), checkgroups=(), allowed=(), restricted=False, ignore_csrf=False):
         params = params.copy()
         id = params.pop('id', 'None')
         if id == 'None':
@@ -87,7 +87,7 @@ class MagModel(Model):
         model.apply(params, bools, checkgroups, allowed, restricted, ignore_csrf)
         return model
 
-    def apply(self, params, bools=[], checkgroups=[], allowed=[], restricted=True, ignore_csrf=True):
+    def apply(self, params, bools=(), checkgroups=(), allowed=(), restricted=True, ignore_csrf=True):
         for field in self._meta.fields:
             if restricted and field.name not in self.unrestricted:
                 continue
@@ -105,7 +105,9 @@ class MagModel(Model):
                     value = str(params[field.name]).strip()
 
                 try:
-                    if isinstance(field, IntegerField):
+                    if isinstance(field, FloatField):
+                        value = float(value)
+                    elif isinstance(field, IntegerField):
                         value = int(float(value))
                     elif isinstance(field, DateTimeField):
                         value = datetime.strptime(value, '%Y-%m-%d %H:%M:%S')
@@ -218,7 +220,7 @@ class Event(MagModel):
 class Group(MagModel, TakesPaymentMixin):
     secret_id     = UuidField()
     name          = TextField()
-    tables        = IntegerField()
+    tables        = FloatField(default=0)
     address       = TextField()
     website       = TextField()
     wares         = TextField()
@@ -336,9 +338,9 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def table_cost(self):
-        prices = {0: 0, 1: 125, 2: 175, 3: 225}
+        prices = {0: 0, 0.5: 0, 1: 125, 2: 175, 3: 225}
         total = 0
-        for table in range(self.tables + 1):
+        for table in range(int(self.tables) + 1):
             total += prices.get(table, 300)
         return total
 

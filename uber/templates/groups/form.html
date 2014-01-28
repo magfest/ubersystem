@@ -52,7 +52,11 @@
 </tr>
 <tr>
     <td> <b>Tables:</b> </td>
-    <td> <select name="tables">{% int_options 0 10 group.tables %}</select> </td>
+    <td>
+        <select name="tables">
+            {% options TABLE_OPTS group.tables %}
+        </select>
+    </td>
 </tr>
 <tr>
     <td> <b>Badges:</b> </td>

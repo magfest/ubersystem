@@ -74,7 +74,7 @@ def dept_placeholders(department):
 class maybe_anchor(template.Node):
     def __init__(self, name):
         self.name = Variable(name)
-    
+
     def render(self, context):
         name = self.name.resolve(context)
         letter = name.upper()[0]
@@ -89,7 +89,7 @@ counters = local()
 class zebra(template.Node):
     def __init__(self, name, param=''):
         self.name, self.param = name, param
-    
+
     def render(self, context):
         counter = getattr(counters, self.name, 0)
         if self.param == 'start':
@@ -104,7 +104,7 @@ class options(template.Node):
     def __init__(self, options, default='""'):
         self.options = Variable(options)
         self.default = default[1:-1] if default[0]=='"' else Variable(default)
-    
+
     def render(self, context):
         options = self.options.resolve(context)
         default = self.default
@@ -113,13 +113,13 @@ class options(template.Node):
                 default = default.resolve(context)
             except:
                 default = ''
-        
+
         results = []
         for opt in options:
             if len(listify(opt)) == 1:
                 opt = [opt, opt]
             val, desc = opt
-            selected = "selected" if str(val)==str(default) else ''
+            selected = "selected" if str(val) == str(default) else ''
             val  = str(val).replace('"',  '&quot;').replace('\n', '')
             desc = str(desc).replace('"', '&quot;').replace('\n', '')
             results.append("""<option value="%s" %s>%s</option>""" % (val, selected, desc))
@@ -130,7 +130,7 @@ class checkbox(template.Node):
     def __init__(self, field):
         model, self.field_name = field.split('.')
         self.model = Variable(model)
-    
+
     def render(self, context):
         model = self.model.resolve(context)
         checked = 'checked' if getattr(model, self.field_name) else ''
@@ -141,7 +141,7 @@ class checkgroup(template.Node):
     def __init__(self, field):
         model, self.field_name = field.split('.')
         self.model = Variable(model)
-    
+
     def render(self, context):
         model = self.model.resolve(context)
         options = model.get_field(self.field_name).choices
@@ -160,7 +160,7 @@ class int_options(template.Node):
         self.minval  = int(minval) if minval.isdigit() else Variable(minval)
         self.maxval  = int(maxval) if maxval.isdigit() else Variable(maxval)
         self.default = int(default) if default.isdigit() else Variable(default)
-    
+
     def render(self, context):
         minval = self.minval if isinstance(self.minval, int) else self.minval.resolve(context)
         maxval = self.maxval if isinstance(self.maxval, int) else self.maxval.resolve(context)
@@ -168,7 +168,7 @@ class int_options(template.Node):
             default = self.default if isinstance(self.default, int) else int(self.default.resolve(context))
         except:
             default = 1
-        
+
         results = []
         for i in range(minval, maxval+1):
             selected = 'selected' if i==default else ''
@@ -181,19 +181,19 @@ class radio(template.Node):
         self.name    = name[1:-1]
         self.value   = Variable(value)
         self.default = Variable(default)
-    
+
     def render(self, context):
         value   = self.value.resolve(context)
         default = self.default.resolve(context)
         checked = 'checked' if str(value)==str(default) else ''
-        
+
         return """<input type="radio" name="%s" value="%s" %s />""" % (self.name, value, checked)
 
 @tag
 class hour_day(template.Node):
     def __init__(self, dt):
         self.dt = Variable(dt)
-    
+
     def render(self, context):
         return hour_day_format( self.dt.resolve(context) )
 
@@ -201,14 +201,14 @@ class hour_day(template.Node):
 class timespan(template.Node):
     def __init__(self, model):
         self.model = Variable(model)
-    
+
     @staticmethod
     def pretty(model, minute_increment=60):
         minutestr = lambda dt: ':30' if dt.minute == 30 else ''
         endtime   = model.start_time + timedelta(minutes = minute_increment * model.duration)
         startstr  = model.start_time.strftime('%I').lstrip('0') + minutestr(model.start_time)
         endstr    = endtime.strftime('%I').lstrip('0') + minutestr(endtime) + endtime.strftime('%p').lower()
-        
+
         if model.start_time.day==endtime.day:
             endstr += endtime.strftime(' %A')
             if model.start_time.hour<12 and endtime.hour>=12:
@@ -217,7 +217,7 @@ class timespan(template.Node):
                 return startstr + '-' + endstr
         else:
             return startstr + model.start_time.strftime('pm %a - ') + endstr + endtime.strftime(' %a')
-    
+
     def render(self, context):
         return self.pretty(self.model.resolve(context))
 
@@ -226,7 +226,7 @@ class popup_link(template.Node):
     def __init__(self, href, text='"<sup>?</sup>"'):
         self.href = href.strip('"')
         self.text = text.strip('"')
-    
+
     def render(self, context):
         return """<a onClick="window.open('{self.href}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;"
                      href="{self.href}">{self.text}</a>""".format(self=self)
@@ -235,7 +235,7 @@ class popup_link(template.Node):
 class must_contact(template.Node):
     def __init__(self, staffer):
         self.staffer = Variable(staffer)
-    
+
     def render(self, context):
         chairs = defaultdict(list)
         for dept, head in DEPT_CHAIR_OVERRIDES.items():
@@ -243,7 +243,7 @@ class must_contact(template.Node):
         for head in Attendee.objects.filter(ribbon = DEPT_HEAD_RIBBON).order_by('badge_num'):
             for dept in head.assigned:
                 chairs[dept].append(head.full_name)
-        
+
         staffer = self.staffer.resolve(context)
         locations = [s.job.location for s in staffer.shifts]
         dept_names = dict(JOB_LOC_OPTS)
@@ -253,7 +253,7 @@ class must_contact(template.Node):
 class pages(template.Node):
     def __init__(self, page, count):
         self.page, self.count = Variable(page), Variable(count)
-    
+
     def render(self, context):
         page = int(self.page.resolve(context))
         count = self.count.resolve(context)
@@ -287,20 +287,20 @@ class nav_menu(template.Node):
         for i in range(0, len(items), 3):
             href, label, display = items[i : i + 3]
             self.menu_items.append([href[1:-1], label[1:-1], display])
-    
+
     def is_visible(self, display, context):
         bools = {'True': True, 'False': False}
         return bools[display] if display in bools else Variable(display).resolve(context)
-    
+
     def render(self, context):
         inst = self.inst.resolve(context)
         if not inst.id:
             return ''
-        
+
         pages = [(href.format(**inst.__dict__), label)
                  for href, label, display in self.menu_items
                  if self.is_visible(display, context)]
-        
+
         width = 100 // len(pages)
         items = ['<table class="menu"><tr>']
         for href, label in pages:
@@ -316,7 +316,7 @@ class checked_if(template.Node):
     def __init__(self, *args):
         self.negated = len(args) > 1
         self.cond = Variable(args[-1])
-    
+
     def render(self, context):
         try:
             cond = self.cond.resolve(context)
@@ -339,7 +339,7 @@ class csrf_token(template.Node):
 class stripe_button(template.Node):
     def __init__(self, *label):
         self.label = ' '.join(label).strip('"')
-    
+
     def render(self, context):
         return """
             <button class="stripe-button-el">
@@ -352,23 +352,23 @@ class stripe_form(template.Node):
     def __init__(self, action, charge):
         self.action = action
         self.charge = Variable(charge)
-    
+
     def render(self, context):
         payment_id = uuid4().hex
         charge = self.charge.resolve(context)
         cherrypy.session[payment_id] = charge.to_dict()
-        
+
         email = ""
         if len(charge.targets) == 1:
             email = 'data-email="{}"'.format(charge.models[0].email)
-        
+
         if not charge.targets:
             regtext = 'On-Site Charge'
         elif AT_THE_CON:
             regtext = 'Registration'
         else:
             regtext = 'Preregistration'
-        
+
         return """
             <form class="stripe" method="post" action="{action}">
                 <input type="hidden" name="payment_id" value="{payment_id}" />
@@ -397,7 +397,7 @@ class BoldIfNode(template.Node):
     def __init__(self, cond, nodelist):
         self.cond = Variable(cond)
         self.nodelist = nodelist
-    
+
     def render(self, context):
         cond = self.cond.resolve(context)
         output = self.nodelist.render(context)

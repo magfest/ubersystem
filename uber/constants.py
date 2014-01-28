@@ -385,6 +385,11 @@ TRACKING_OPTS = enum(
     AUTO_BADGE_SHIFT = 'automatic badge-shift'
 )
 
+TABLE_OPTS = [
+    (0,   'no table'),
+    (0.5, 'half-table')
+] + [(float(i), i) for i in range(1, 11)]
+
 STATUS_OPTS = enum(
     UNAPPROVED = 'Pending Approval',
     WAITLISTED = 'Waitlisted',
