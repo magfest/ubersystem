@@ -12,7 +12,7 @@
 <tr>
     <td> <b>Attendee:</b> </td>
     <td>
-        <input type="hidden" name="attendee_id" style="width:30ex" />
+        <input type="hidden" name="attendee_id" style="width:60ex" />
         <script type="text/javascript">
             $.field("attendee_id").select2({
                 data: {{ all_attendees|jsonize }}
@@ -47,7 +47,7 @@
 </tr>
 {% for account in accounts %}
     <tr id="{{ account.email|idize }}" bgcolor="{% cycle #FFFFFF,#EEEEEE %}">
-        <td> <nobr>{{ account.attendee.full_name }}</nobr> </td>
+        <td> <nobr><a href="../registration/form?id={{ account.attendee.id }}">{{ account.attendee.full_name }}</a></nobr> </td>
         <td> <a href="mailto:{{ account.attendee.email }}">{{ account.attendee.email }}</a> </td>
         <td align="left">
             <form class="update" method="post" action="update">

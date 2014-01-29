@@ -19,6 +19,40 @@ def valid_password(password, account):
 
 @all_renderable(ACCOUNTS)
 class Root:
+    def index(self, message=''):
+        return {
+            'message':  message,
+            'accounts': AdminAccount.objects.order_by('attendee__first_name', 'attendee__last_name'),
+            'all_attendees': [{
+                'id': a.id,
+                'text': '{a.full_name} - {a.badge}'.format(a=a)
+            } for a in Attendee.objects.exclude(email='')]
+        }
+
+    def update(self, password='', **params):
+        account = AdminAccount.get(params, checkgroups=['access'])
+        is_new = account.id is None
+        if is_new:
+            password = password if AT_THE_CON else randstring()
+            account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
+
+        message = check(account)
+        if not message:
+            account.save()
+            message = 'Account settings uploaded'
+            if is_new and not AT_THE_CON:
+                body = render('accounts/new_email.txt', {
+                    'account': account,
+                    'password': password
+                })
+                send_email(ADMIN_EMAIL, account.attendee.email, 'New MAGFest Ubersystem Account', body)
+
+        raise HTTPRedirect('index?message={}', message)
+
+    def delete(self, id):
+        AdminAccount.objects.filter(id=id).delete()
+        raise HTTPRedirect('index?message={}', 'Account deleted')
+
     @unrestricted
     def login(self, message='', **params):
         if 'email' in params:
@@ -28,30 +62,30 @@ class Root:
                     message = 'Incorrect password'
             except AdminAccount.DoesNotExist:
                 message = 'No account exists for that email address'
-            
+
             if not message:
                 cherrypy.session['account_id'] = account.id
                 cherrypy.session['csrf_token'] = uuid4().hex
                 raise HTTPRedirect('homepage')
-        
+
         return {
             'message': message,
             'email':   params.get('email', '')
         }
-    
+
     @unrestricted
     def homepage(self, message=''):
         if not cherrypy.session.get('account_id'):
             raise HTTPRedirect('login?message={}', 'You are not logged in')
         return {'message': message}
-    
+
     @unrestricted
     def logout(self):
         for key in list(cherrypy.session.keys()):
             if key not in ['preregs', 'paid_preregs', 'job_defaults', 'prev_location']:
                 cherrypy.session.pop(key)
         raise HTTPRedirect('login?message={}', 'You have been logged out')
-    
+
     @unrestricted
     def reset(self, message='', email=None):
         if email is not None:
@@ -70,17 +104,17 @@ class Root:
                 })
                 send_email(ADMIN_EMAIL, account.attendee.email, 'MAGFest Admin Password Reset', body)
                 raise HTTPRedirect('login?message={}', 'Your new password has been emailed to you')
-        
+
         return {
             'email':   email,
             'message': message
         }
-    
+
     @unrestricted
     def change_password(self, message='', old_password=None, new_password=None, csrf_token=None):
         if not cherrypy.session.get('account_id'):
             raise HTTPRedirect('login?message={}', 'You are not logged in')
-        
+
         if old_password is not None:
             new_password = new_password.strip()
             account = AdminAccount.objects.get(id = cherrypy.session['account_id'])
@@ -93,40 +127,9 @@ class Root:
                 account.hashed = bcrypt.hashpw(new_password, bcrypt.gensalt())
                 account.save()
                 raise HTTPRedirect('homepage?message={}', 'Your password has been updated')
-        
+
         return {'message': message}
-    
-    def index(self, message=''):
-        return {
-            'message':  message,
-            'accounts': AdminAccount.objects.order_by('attendee__first_name', 'attendee__last_name'),
-            'all_attendees': [{'id': a.id, 'text': a.full_name} for a in Attendee.objects.exclude(email='')]
-        }
-    
-    def update(self, password='', **params):
-        account = AdminAccount.get(params, checkgroups=['access'])
-        is_new = account.id is None
-        if is_new:
-            password = password if AT_THE_CON else randstring()
-            account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
-        
-        message = check(account)
-        if not message:
-            account.save()
-            message = 'Account settings uploaded'
-            if is_new and not AT_THE_CON:
-                body = render('accounts/new_email.txt', {
-                    'account': account,
-                    'password': password
-                })
-                send_email(ADMIN_EMAIL, account.attendee.email, 'New MAGFest Ubersystem Account', body)
-        
-        raise HTTPRedirect('index?message={}', message)
-    
-    def delete(self, id):
-        AdminAccount.objects.filter(id=id).delete()
-        raise HTTPRedirect('index?message={}', 'Account deleted')
-    
+
     @unrestricted
     def sitemap(self):
         from uber import site_sections
