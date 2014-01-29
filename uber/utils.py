@@ -103,6 +103,11 @@ def hour_day_format(dt):
     return dt.strftime('%I%p ').strip('0').lower() + dt.strftime('%a')
 
 
+def underscorize(s):
+    s = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', s)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s).lower()
+
+
 def send_email(source, dest, subject, body, format = 'text', cc = [], bcc = [], model = None):
     to, cc, bcc = map(listify, [dest, cc, bcc])
     if DEV_BOX:

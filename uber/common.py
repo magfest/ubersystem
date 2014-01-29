@@ -6,6 +6,7 @@ import json
 import math
 import string
 import socket
+import random
 import logging
 import inspect
 import warnings
@@ -21,6 +22,7 @@ from hashlib import sha512
 from functools import wraps
 from xml.dom import minidom
 from random import randrange
+from contextlib import closing
 from time import sleep, mktime
 from urllib.parse import quote
 from os.path import abspath, dirname, join

@@ -1,16 +1,11 @@
 from uber.common import *
 
 
-account_required = [('name','Full Name'), ('email','Email Address'), ('hashed','Password')]
+adminaccount_required = [('attendee', 'Attendee'), ('hashed','Password')]
 
-def account_misc(account):
-    if account.id is None and Account.objects.filter(email__iexact=account.email).count():
-        return 'That email address is already being used by another account'
-    
-    if not re.match(EMAIL_RE, account.email):
-        return "That's not a valid email address"
-    
-    return ''
+def adminaccount_misc(account):
+    if account.id is None and AdminAccount.objects.filter(attendee_id=account.attendee_id):
+        return 'That attendee already has an admin account'
 
 
 event_required = [('name','Event Name')]
@@ -43,25 +38,25 @@ def _invalid_phone_number(s):
 def attendee_misc(attendee):
     if attendee.group and not attendee.first_name.strip() and not attendee.last_name.strip():
         return
-    
+
     if not attendee.first_name or not attendee.last_name:
         return 'First Name and Last Name are required'
     elif attendee.placeholder:
         return
-    
+
     if (AT_THE_CON and attendee.email and not re.match(EMAIL_RE, attendee.email)) or (not AT_THE_CON and not re.match(EMAIL_RE, attendee.email)):
         return 'Enter a valid email address'
-    
+
     if not attendee.international and not AT_THE_CON:
         if not re.match(r'^\d{5}$', attendee.zip_code):
             return 'Enter a valid zip code'
-        
+
         if _invalid_phone_number(attendee.ec_phone):
             return 'Enter a 10-digit emergency contact number'
-        
+
         if attendee.phone and _invalid_phone_number(attendee.phone):
             return 'Invalid 10-digit cellphone number'
-    
+
     if not attendee.no_cellphone and attendee.staffing and _invalid_phone_number(attendee.phone):
         return "10-digit cellphone number is required for volunteers (unless you don't own a cellphone)"
 
@@ -78,7 +73,7 @@ def attendee_money(attendee):
             return 'Amount Paid cannot be less than zero'
     except:
         return "What you entered for Amount Paid ({}) wasn't even a number".format(attendee.amount_paid)
-    
+
     try:
         amount_refunded = int(float(attendee.amount_refunded))
         if amount_refunded < 0:
@@ -110,7 +105,7 @@ def job_slots(job):
 
 def job_conflicts(job):
     original_hours = set() if job.id is None else Job.objects.get(id=job.id).hours
-    
+
     for shift in job.shift_set.select_related():
         if job.hours.intersection( shift.attendee.hours - original_hours ):
             return 'You cannot change this job to this time, because {} is already working a shift then'.format(shift.attendee.full_name)

@@ -91,7 +91,7 @@ def renderable_data(data = None):
     except:
         pass
     
-    access = Account.access_set()
+    access = AdminAccount.access_set()
     for acctype in ['ACCOUNTS','PEOPLE','STUFF','MONEY','CHALLENGES','CHECKINS']:
         data['HAS_' + acctype + '_ACCESS'] = getattr(constants, acctype) in access
     
@@ -100,7 +100,7 @@ def renderable_data(data = None):
 def render(template, data = None):
     data = renderable_data(data)
     rendered = loader.get_template(template).render( Context(data) )
-    if not AT_THE_CON and Account.is_nick() and 'emails' not in template and 'history' not in template and 'form' not in rendered:
+    if not AT_THE_CON and AdminAccount.is_nick() and 'emails' not in template and 'history' not in template and 'form' not in rendered:
         rendered = rendered.replace('festival', 'convention').replace('Fest', 'Con')
     return rendered.encode('utf-8')
 
@@ -158,7 +158,7 @@ def restricted(func):
                 raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in')
             
             else:
-                if not set(func.restricted).intersection( Account.access_set() ):
+                if not set(func.restricted).intersection(AdminAccount.access_set()):
                     if len(func.restricted) == 1:
                         return 'You need {} access for this page'.format(dict(ACCESS_OPTS)[func.restricted[0]])
                     else:

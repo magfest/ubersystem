@@ -69,7 +69,15 @@ class MagModel(Model):
         else:
             return choice in getattr(self, multi.name + '_ints')
 
-        raise AttributeError(name)
+        one_to_one = {underscorize(r.model.__name__) for r in self._meta.get_all_related_objects()
+                                                     if isinstance(r.field, OneToOneField)}
+        if name in one_to_one:
+            try:
+                return getattr(self, name.replace('_', ''))
+            except:
+                return None
+
+        raise AttributeError(self.__class__.__name__ + '.' + name)
 
     @classmethod
     def get(cls, params, bools=(), checkgroups=(), allowed=(), restricted=False, ignore_csrf=False):
@@ -157,38 +165,6 @@ class NightsMixin(object):
         return self.wednesday or self.sunday
 
     locals().update({mutate(name): _night(mutate(name)) for name in NIGHT_NAMES for mutate in [str.upper, str.lower]})
-
-
-
-class Account(MagModel):
-    name   = TextField()
-    email  = TextField()
-    hashed = TextField()
-    access = MultiChoiceField(choices=ACCESS_OPTS)
-
-    @staticmethod
-    def is_nick():
-        return Account.admin_name() in ['Nick Marinelli', 'Matt Reid']
-
-    @staticmethod
-    def admin_name():
-        try:
-            return Account.objects.get(id = cherrypy.session.get('account_id')).name
-        except:
-            return None
-
-    @staticmethod
-    def access_set(id = None):
-        try:
-            id = id or cherrypy.session.get('account_id')
-            return {int(a) for a in Account.objects.get(id=id).access.split(',')}
-        except:
-            return set()
-
-class PasswordReset(MagModel):
-    account   = ForeignKey(Account)
-    generated = DateTimeField(auto_now_add=True)
-    hashed    = TextField()
 
 
 
@@ -399,7 +375,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     ribbon     = IntegerField(default=NO_RIBBON, choices=RIBBON_OPTS)
 
     affiliate    = TextField()
-    shirt        = IntegerField(choices=SHIRT_OPTS)
+    shirt        = IntegerField(choices=SHIRT_OPTS, default=NO_SHIRT)
     can_spam     = BooleanField(default=False)
     regdesk_info = TextField()
     extra_merch  = TextField()
@@ -719,18 +695,11 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def past_years_json(self):
-        return [] if not self.past_years else json.loads(self.past_years)
+        return json.loads(self.past_years or '[]')
 
     @property
     def hotel_eligible(self):
         return self.badge_type == STAFF_BADGE
-
-    @cached_property
-    def hotel_requests(self):
-        try:
-            return self.hotelrequests
-        except:
-            return None
 
     @cached_property
     def hotel_nights(self):
@@ -738,13 +707,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             return [dict(NIGHTS_OPTS)[night] for night in map(int, self.hotel_requests.nights.split(','))]
         except:
             return []
-
-    @cached_property
-    def room_assignment(self):
-        try:
-            return self.roomassignment
-        except:
-            return None
 
     @cached_property
     def hotel_status(self):
@@ -758,12 +720,41 @@ class Attendee(MagModel, TakesPaymentMixin):
         else:
             return 'Hotel nights: ' + hr.nights_display
 
-    @cached_property
-    def food_restrictions(self):
+class AdminAccount(MagModel):
+    attendee = OneToOneField(Attendee)
+    hashed   = TextField()
+    access   = MultiChoiceField(choices=ACCESS_OPTS)
+
+    def __repr__(self):
+        return '<{}>'.format(self.attendee.full_name)
+
+    # TODO: make this configurable
+    @staticmethod
+    def is_nick():
+        return AdminAccount.admin_name() in {
+            'Nick Marinelli', 'Nicholas Marinelli'
+            'Matt Reid', 'Matthew Reid'
+        }
+
+    @staticmethod
+    def admin_name():
         try:
-            return self.foodrestrictions
+            return AdminAccount.objects.get(id = cherrypy.session.get('account_id')).attendee.full_name
         except:
             return None
+
+    @staticmethod
+    def access_set(id = None):
+        try:
+            id = id or cherrypy.session.get('account_id')
+            return set(AdminAccount.objects.get(id=id).access_ints)
+        except:
+            return set()
+
+class PasswordReset(MagModel):
+    account   = OneToOneField(AdminAccount)
+    generated = DateTimeField(auto_now_add=True)
+    hashed    = TextField()
 
 class HotelRequests(MagModel, NightsMixin):
     attendee           = OneToOneField(Attendee)
@@ -944,7 +935,7 @@ class Shift(MagModel):
 
 
 
-class MPointForCash(MagModel):
+class MPointsForCash(MagModel):
     attendee = ForeignKey(Attendee)
     amount   = IntegerField()
     when     = DateTimeField(auto_now_add=True)
@@ -1122,7 +1113,7 @@ def _delete_hook(sender, instance, **kwargs):
 
 
 def all_models():
-    return [m for m in globals().values() if getattr(m, '__base__', None) is MagModel]
+    return {m for m in globals().values() if getattr(m, '__base__', None) is MagModel}
 
 for _model in all_models():
     _model._meta.db_table = _model.__name__
