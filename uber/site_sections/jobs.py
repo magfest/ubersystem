@@ -111,7 +111,7 @@ class Root:
     
     @csrf_protected
     def delete(self, id):
-        job = Job.objects.get(id=id)
+        job = Job.get(id)
         job.shift_set.all().delete()
         job.delete()
         raise HTTPRedirect('index?location={}#{}', job.location, job.start_time)
@@ -128,7 +128,7 @@ class Root:
     
     @csrf_protected
     def assign_from_list(self, job_id, staffer_id):
-        location = Job.objects.get(id = job_id).location
+        location = Job.get(job_id).location
         message = assign(staffer_id, job_id)
         if message:
             raise HTTPRedirect('signups?location={}&message={}', location, message)
@@ -137,26 +137,26 @@ class Root:
     
     @csrf_protected
     def unassign_from_job(self, id):
-        shift = Shift.objects.get(id = id)
+        shift = Shift.get(id)
         shift.delete()
         raise HTTPRedirect('staffers_by_job?id={}&message={}', shift.job.id, 'Staffer unassigned')
     
     @csrf_protected
     def unassign_from_list(self, id):
-        shift = Shift.objects.get(id = id)
+        shift = Shift.get(id)
         shift.delete()
         raise HTTPRedirect('signups?location={}#{}', shift.job.location, shift.job.id)
     
     @csrf_protected
     def unassign_from_everywhere(self, id):
-        shift = Shift.objects.get(id = id)
+        shift = Shift.get(id)
         shift.delete()
         raise HTTPRedirect('everywhere?#{}', shift.job.id)
     
     @ajax
     def set_worked(self, id, worked):
         try:
-            shift = Shift.objects.get(id = id)
+            shift = Shift.get(id)
             shift.worked = int(worked)
             shift.save()
             return shift.get_worked_display()
@@ -165,14 +165,14 @@ class Root:
     
     @ajax
     def undo_worked(self, id):
-        shift = Shift.objects.get(id=id)
+        shift = Shift.get(id)
         shift.worked = SHIFT_UNMARKED
         shift.save()
         raise HTTPRedirect(cherrypy.request.headers['Referer'])
     
     @ajax
     def rate(self, shift_id, rating, comment = ''):
-        shift = Shift.objects.get(id = shift_id)
+        shift = Shift.get(shift_id)
         shift.rating, shift.comment = int(rating), comment
         shift.save()
         return {}

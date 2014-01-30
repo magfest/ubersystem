@@ -11,16 +11,20 @@ your badge at our registration desk.
 The following preregistrations have been made from this computer:
 <br/><br/>
 <ul>
-{% for attendee in preregs.attendees %}
-    <li>
-        {{ attendee.full_name }}
-        {% if attendee.donation_swag %}
-            ({{ attendee.donation_swag|join:", " }})
-        {% endif %}
-    </li>
-{% endfor %}
-{% for group in preregs.groups %}
-    <li> <b>{{ group.name }}</b> (<a href="group_members?id={{ group.secret_id }}">Click Here</a> to assign your group's badges) </li>
+{% for prereg in preregs %}
+    {% if prereg.first_name %}
+        <li>
+            {{ prereg.full_name }}
+            {% if prereg.donation_swag %}
+                ({{ prereg.donation_swag|join:", " }})
+            {% endif %}
+        </li>
+    {% else %}
+        <li>
+            <b>{{ prereg.name }}</b>
+            (<a href="group_members?id={{ prereg.secret_id }}">Click Here</a> to assign your group's badges)
+        </li>
+    {% endif %}
 {% endfor %}
 </ul>
 <br/>

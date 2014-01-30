@@ -104,7 +104,7 @@ def job_slots(job):
         return 'You cannot reduce the number of slots to below the number of staffers currently signed up for this job'
 
 def job_conflicts(job):
-    original_hours = set() if job.id is None else Job.objects.get(id=job.id).hours
+    original_hours = set() if job.id is None else Job.get(job.id).hours
 
     for shift in job.shift_set.select_related():
         if job.hours.intersection( shift.attendee.hours - original_hours ):

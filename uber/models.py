@@ -1,5 +1,7 @@
 from uber.common import *
 
+# TODO: standardized to_dict() approach
+
 class MultiChoiceField(TextField):
     def __init__(self, *args, **kwargs):
         choices = kwargs.pop('choices')
@@ -24,6 +26,24 @@ class MagModel(Model):
     def save(self, *args, **kwargs):
         self.presave_adjustments()
         super(MagModel, self).save(*args, **kwargs)
+
+    @staticmethod
+    def from_sessionized(d):
+        [ModelClass] = [m for m in all_models() if m.__name__ in d]
+        m = ModelClass(**d[ModelClass.__name__])
+        m.post_from_sessionized(d)
+        return m
+
+    def post_from_sessionized(self, d):
+        pass
+
+    def sessionize(self):
+        d = {self.__class__.__name__: model_to_dict(self)}
+        d.update(self.extra_sessionized())
+        return d
+
+    def extra_sessionized(self):
+        return {}
 
     @classmethod
     def get_field(cls, name):
@@ -81,6 +101,12 @@ class MagModel(Model):
 
     @classmethod
     def get(cls, params, bools=(), checkgroups=(), allowed=(), restricted=False, ignore_csrf=False):
+        if isinstance(params, (int, str)):
+            if isinstance(params, int) or params.isdigit():
+                return cls.objects.get(id=params)
+            else:
+                return cls.objects.get(secret_id=params)
+        
         params = params.copy()
         id = params.pop('id', 'None')
         if id == 'None':
@@ -133,6 +159,19 @@ class MagModel(Model):
 
             if not ignore_csrf:
                 check_csrf(params.get('csrf_token'))
+
+    # TODO: make this actually work
+    def extra_json_fields(self):
+        return {}
+
+    def to_json(self):
+        d = {}
+        for f in self._meta.fields:
+            if not isinstance(f, (ForeignKey, OneToOneField)):
+                pass
+        
+        d.update(self.extra_json_fields())
+        return json.dumps(d)
 
 class TakesPaymentMixin(object):
     @property
@@ -220,20 +259,32 @@ class Group(MagModel, TakesPaymentMixin):
         if self.status == APPROVED and not self.approved:
             self.approved = datetime.now()
 
-    def prepare_prereg_badges(self, attendee, badges):
+    def extra_sessionized(self):
+        if hasattr(self, '_badges') and hasattr(self, '_preregisterer'):
+            return {
+                'badges': self._badges,
+                'preregisterer': self._preregisterer.sessionize()
+            }
+        else:
+            return {}
+
+    def post_from_sessionized(self, d):
+        if 'badges' in d and 'preregisterer' in d:
+            self.prepare_prereg_badges(self.from_sessionized(d['preregisterer']), d['badges'])
+
+    def prepare_prereg_badges(self, preregisterer, badges):
         self._badges = int(badges)
-        self.preregisterer = attendee
+        self._preregisterer = self._leader = preregisterer
 
     def assign_prereg_badges(self):
         self.save()
-        self.preregisterer.group = self
-        self.preregisterer.save()
+        self._preregisterer.group = self
+        self._preregisterer.save()
         self.assign_badges(self.badges)
 
     def get_unsaved(self):
-        attendee = deepcopy(self.preregisterer)
-        attendee.badge_type = PSEUDO_GROUP_BADGE
-        return attendee, self
+        self._preregisterer.badge_type = PSEUDO_GROUP_BADGE
+        return self._preregisterer, self
 
     def assign_badges(self, new_badge_count):
         self.save()
@@ -408,7 +459,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     def delete(self, *args, **kwargs):
         with BADGE_LOCK:
-            badge_num = Attendee.objects.get(id = self.id).badge_num
+            badge_num = Attendee.get(self.id).badge_num
             super(Attendee, self).delete(*args, **kwargs)
             if self.has_personalized_badge and not CUSTOM_BADGES_REALLY_ORDERED:
                 badge_funcs.shift_badges(self, down = True)
@@ -458,7 +509,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             if self.paid == NOT_PAID:
                 self.paid = NEED_NOT_PAY
 
-        old = Attendee.objects.get(id=self.id) if self.id else None
+        old = Attendee.get(self.id) if self.id else None
         if old and self.badge_type != STAFF_BADGE:
             if self.staffing and not old.staffing or self.ribbon == VOLUNTEER_RIBBON and old.ribbon != VOLUNTEER_RIBBON:
                 self.staffing = True
@@ -739,7 +790,7 @@ class AdminAccount(MagModel):
     @staticmethod
     def admin_name():
         try:
-            return AdminAccount.objects.get(id = cherrypy.session.get('account_id')).attendee.full_name
+            return AdminAccount.get(cherrypy.session.get('account_id')).attendee.full_name
         except:
             return None
 
@@ -747,7 +798,7 @@ class AdminAccount(MagModel):
     def access_set(id = None):
         try:
             id = id or cherrypy.session.get('account_id')
-            return set(AdminAccount.objects.get(id=id).access_ints)
+            return set(AdminAccount.get(id).access_ints)
         except:
             return set()
 
@@ -1013,7 +1064,7 @@ class Email(MagModel):
     @cached_property
     def fk(self):
         try:
-            return globals()[self.model].objects.get(id = self.fk_id)
+            return globals()[self.model].get(self.fk_id)
         except:
             return None
 
@@ -1058,7 +1109,7 @@ class Tracking(MagModel):
             data = cls.format({k: instance.field_repr(k) for k in values})
         elif action == UPDATED:
             curr = cls.values(instance)
-            orig = instance.__class__.objects.get(id = instance.id)
+            orig = instance.__class__.get(instance.id)
             diff = {name: "'{} -> {}'".format(orig.field_repr(name), instance.field_repr(name))
                     for name,val in curr.items() if val != getattr(orig, name)}
             data = cls.format(diff)
@@ -1076,7 +1127,7 @@ class Tracking(MagModel):
         )
 
         try:
-            who = Account.objects.get(id = cherrypy.session.get('account_id')).name
+            who = Account.get(cherrypy.session.get('account_id')).name
         except:
             if current_thread().daemon:
                 who = current_thread().name

@@ -23,7 +23,7 @@ def check_range(badge_num, badge_type):
 def change_badge(attendee):
     with BADGE_LOCK:
         new = attendee.badge_num
-        old = Attendee.objects.get(id = attendee.id)
+        old = Attendee.get(attendee.id)
         out_of_range = check_range(attendee.badge_num, attendee.badge_type)
         if out_of_range:
             return out_of_range

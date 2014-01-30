@@ -45,6 +45,7 @@ from django import template
 from django.db import connection
 from django.db.models import base
 from django.dispatch import receiver
+from django.forms.models import model_to_dict
 from django.utils.safestring import SafeString
 from django.db.models.signals import pre_save, post_save, pre_delete
 from django.template import loader, Context, Variable, TemplateSyntaxError

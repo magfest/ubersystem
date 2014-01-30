@@ -51,7 +51,7 @@ class Root:
     
     @ajax
     def return_to_owner(self, id):
-        game = Game.objects.get(id=id)
+        game = Game.get(id)
         game.returned = True
         game.save()
         return {

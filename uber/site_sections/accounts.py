@@ -117,7 +117,7 @@ class Root:
 
         if old_password is not None:
             new_password = new_password.strip()
-            account = AdminAccount.objects.get(id = cherrypy.session['account_id'])
+            account = AdminAccount.get(cherrypy.session['account_id'])
             if not new_password:
                 message = 'New password is required'
             elif not valid_password(old_password, account):

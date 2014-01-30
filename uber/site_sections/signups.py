@@ -14,7 +14,7 @@ def get_attendee(full_name, email, zip_code):
 class Root:
     @property
     def staffer(self):
-        return Attendee.objects.get(id = cherrypy.session['staffer_id'])
+        return Attendee.get(cherrypy.session['staffer_id'])
     
     if UBER_SHUT_DOWN:
         def index(self):

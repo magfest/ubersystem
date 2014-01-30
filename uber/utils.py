@@ -7,13 +7,13 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
         cherrypy.HTTPRedirect.__init__(self, page.format(*args, **kwargs))
         if URL_BASE.startswith('https'):
             self.urls[0] = self.urls[0].replace('http://', 'https://')
-    
+
     def quote(self, s):
         return quote(s) if isinstance(s, str) else str(s)
 
 
 def listify(x):
-    return list(x) if isinstance(x, (list,tuple,set,frozenset)) else [x]
+    return list(x) if isinstance(x, (list, tuple, set, frozenset)) else [x]
 
 
 def comma_and(xs):
@@ -34,11 +34,11 @@ def check_csrf(csrf_token):
 
 def check(model):
     prefix = model.__class__.__name__.lower() + '_'
-    
+
     for field,name in getattr(model_checks, prefix + 'required', []):
         if not str(getattr(model,field)).strip():
             return name + ' is a required field'
-    
+
     for name,attr in model_checks.__dict__.items():
         if name.startswith(prefix) and hasattr(attr, '__call__'):
             message = attr(model)
@@ -49,22 +49,22 @@ def check(model):
 class Order:
     def __init__(self, order):
         self.order = order
-    
+
     def __getitem__(self, field):
         return ('-' + field) if field==self.order else field
-    
+
     def __str__(self):
         return self.order
 
 
 class SeasonEvent:
     instances = []
-    
+
     def __init__(self, slug, **kwargs):
         assert re.match('^[a-z0-9_]+$', slug), 'Season Event sections must have separated_by_underscore names'
         for opt in ['url', 'location']:
             assert kwargs.get(opt), '{!r} is a required option for Season Event subsections'.format(opt)
-        
+
         self.slug = slug
         self.name = kwargs['name'] or slug.replace('_', ' ').title()
         self.day = datetime.strptime('%Y-%m-%d', kwargs['day'])
@@ -74,7 +74,7 @@ class SeasonEvent:
             self.deadline = datetime.strptime('%Y-%m-%d', kwargs['day'])
         else:
             self.deadline = datetime.combine((self.day - timedelta(days = 7)).date(), time(23, 59))
-    
+
     @classmethod
     def register(cls, slug, kwargs):
         cls.instances.append(cls(slug, **kwargs))
@@ -84,18 +84,18 @@ for _slug, _conf in conf['season_events'].items():
 
 
 def assign(attendee_id, job_id):
-    job = Job.objects.get(id=job_id)
-    attendee = Attendee.objects.get(id = attendee_id)
-    
+    job = Job.get(job_id)
+    attendee = Attendee.get(attendee_id)
+
     if job.restricted and not attendee.trusted:
         return 'You cannot assign an untrusted attendee to a restricted shift'
-    
+
     if job.slots <= job.shift_set.count():
         return 'All slots for this job have already been filled'
-    
+
     if not job.no_overlap(attendee):
         return 'This volunteer is already signed up for a shift during that time'
-    
+
     Shift.objects.create(attendee=attendee, job=job)
 
 
@@ -113,7 +113,7 @@ def send_email(source, dest, subject, body, format = 'text', cc = [], bcc = [], 
     if DEV_BOX:
         for xs in [to, cc, bcc]:
             xs[:] = [email for email in xs if email.endswith('mailinator.com') or 'eli@courtwright.org' in email]
-    
+
     if SEND_EMAILS and to:
         message = EmailMessage(subject = subject, **{'bodyText' if format == 'text' else 'bodyHtml': body})
         AmazonSES(AWS_ACCESS_KEY_ID, AWS_SECRET_KEY).sendEmail(
@@ -126,7 +126,7 @@ def send_email(source, dest, subject, body, format = 'text', cc = [], bcc = [], 
         sleep(0.1)  # avoid hitting rate limit
     else:
         log.error('email sending turned off, so unable to send {}', locals())
-    
+
     if model and dest:
         fk = {'fk_id': 0, 'model': 'n/a'} if model == 'n/a' else {'fk_id': model.id, 'model': model.__class__.__name__}
         Email.objects.create(subject = subject, dest = ','.join(listify(dest)), body = body, **fk)
@@ -134,63 +134,54 @@ def send_email(source, dest, subject, body, format = 'text', cc = [], bcc = [], 
 
 class Charge:
     def __init__(self, targets=(), amount=None, description=None):
-        self.targets = [self.serialize(m) for m in listify(targets)]
+        self.targets = [self._sessionize(m) for m in listify(targets)]
         self.amount = amount or self.total_cost
         self.description = description or self.names
-    
+
+    @staticmethod
+    def _sessionize(m):
+        if isinstance(m, dict):
+            return m
+        elif isinstance(m, MagModel):
+            return m.sessionize()
+        else:
+            raise AssertionError('{} is not an attendee or group'.format(m))
+
     @staticmethod
     def get(payment_id):
         return Charge(**cherrypy.session.pop(payment_id))
-    
+
     def to_dict(self):
         return {
             'targets': self.targets,
             'amount': self.amount,
             'description': self.description
         }
-    
-    def serialize(self, x):
-        if isinstance(x, dict):
-            return x
-        if isinstance(x, Attendee):
-            return {'attendee': x.id}
-        elif isinstance(x, Group):
-            return {'group': x.id}
-        else:
-            raise AssertionError('{} is not an attendee or group'.format(x))
-    
-    def parse(self, d):
-        if 'attendee' in d:
-            return Attendee.objects.get(id=d['attendee'])
-        elif 'group' in d:
-            return Attendee.objects.get(id=d['group'])
-        else:
-            raise AssertionError('{} is not an attendee or group'.format(d))
-    
+
     @property
     def models(self):
-        return [self.parse(d) for d in self.targets]
-    
+        return [MagModel.from_sessionized(d) for d in self.targets]
+
     @property
     def total_cost(self):
         return 100 * sum(m.amount_unpaid for m in self.models)
-    
+
     @property
     def dollar_amount(self):
         return self.amount // 100
-    
+
     @property
     def names(self):
         return ', '.join(repr(m).strip('<>') for m in self.models)
-    
+
     @property
     def attendees(self):
-        return [self.parse(d) for d in self.targets if 'attendee' in d]
-    
+        return [m for m in self.models if isinstance(m, Attendee)]
+
     @property
     def groups(self):
-        return [self.parse(d) for d in self.targets if 'group' in d]
-    
+        return [m for m in self.models if isinstance(m, Group)]
+
     def charge_cc(self, token):
         try:
             self.response = stripe.Charge.create(
@@ -252,11 +243,11 @@ class DaemonTask:
         self.name, self.func, self.interval, self.thread_count = name, func, interval, threads
         cherrypy.engine.subscribe('start', self.start)
         cherrypy.engine.subscribe('stop', self.stop, priority=99)
-    
+
     @property
     def running(self):
         return any(t.is_alive() for t in self.threads)
-    
+
     def start(self):
         assert not self.threads, '{} was already started and has not yet stopped'.format(self.name)
         for i in range(self.thread_count):
@@ -264,7 +255,7 @@ class DaemonTask:
             t.daemon = True
             t.start()
             self.threads.append(t)
-    
+
     def stop(self):
         for i in range(20):
             if self.running:
@@ -274,13 +265,13 @@ class DaemonTask:
         else:
             log.warn('{} is still running, so it will just be killed when the Python interpreter exits', self.name)
         del self.threads[:]
-    
+
     def run(self):
         while not stopped.is_set():
             try:
                 self.func()
             except:
                 log.warning('ignoring unexpected error in {}', self.name, exc_info=True)
-            
+
             if self.interval:
                 stopped.wait(self.interval)

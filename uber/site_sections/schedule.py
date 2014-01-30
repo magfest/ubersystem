@@ -156,7 +156,7 @@ class Root:
     
     @ajax
     def move(self, id, location, start_slot):
-        event = Event.objects.get(id = id)
+        event = Event.get(id)
         event.location = int(location)
         event.start_time = EPOCH + timedelta(minutes = 30 * int(start_slot))
         resp = {'error': check(event)}
@@ -166,7 +166,7 @@ class Root:
     
     @ajax
     def swap(self, id1, id2):
-        e1, e2 = Event.objects.get(id = id1), Event.objects.get(id = id2)
+        e1, e2 = Event.get(id1), Event.get(id2)
         (e1.location,e1.start_time),(e2.location,e2.start_time) = (e2.location,e2.start_time),(e1.location,e1.start_time)
         resp = {'error': model_checks.event_overlaps(e1, e2.id) or model_checks.event_overlaps(e2, e1.id)}
         if not resp['error']:

@@ -57,14 +57,14 @@ class Root:
             'order':          Order(order),
             'attendee_count': total_count,
             'checkin_count':  Attendee.objects.exclude(checked_in__isnull = True).count(),
-            'attendee':       Attendee.objects.get(id = uploaded_id) if uploaded_id else None
+            'attendee':       Attendee.get(uploaded_id) if uploaded_id else None
         }
 
     def form(self, message='', return_to='', omit_badge='', **params):
         attendee = Attendee.get(params, checkgroups = ['interests','requested_depts','assigned_depts'],
                                 bools = ['staffing','trusted','international','placeholder','got_merch','can_spam'])
         if 'first_name' in params:
-            attendee.group = None if not params['group_opt'] else Group.objects.get(id = params['group_opt'])
+            attendee.group = None if not params['group_opt'] else Group.get(params['group_opt'])
 
             if AT_THE_CON and omit_badge:
                 attendee.badge_num = 0
@@ -105,7 +105,7 @@ class Root:
         }
 
     def history(self, id):
-        attendee = Attendee.objects.get(id = id)
+        attendee = Attendee.get(id)
         Tracking.objects.filter(links__contains = 'Attendee({})'.format(id))
         return {
             'attendee': attendee,
@@ -119,7 +119,7 @@ class Root:
 
     @csrf_protected
     def delete(self, id, return_to = 'index?'):
-        attendee = Attendee.objects.get(id=id)
+        attendee = Attendee.get(id)
         attendee.delete()
         message = 'Attendee deleted'
         if attendee.group:
@@ -151,7 +151,7 @@ class Root:
 
     @ajax
     def undo_mpoint_usage(self, id):
-        CashForMPoints.objects.get(id=id).delete()
+        CashForMPoints.get(id).delete()
         return 'MPoint usage deleted'
 
     @ajax
@@ -172,7 +172,7 @@ class Root:
 
     @ajax
     def undo_mpoint_exchange(self, id):
-        OldMPointExchange.objects.get(id=id).delete()
+        OldMPointExchange.get(id).delete()
         return 'MPoint exchange deleted'
 
     @ajax
@@ -197,12 +197,12 @@ class Root:
 
     @ajax
     def undo_sale(self, id):
-        Sale.objects.get(id=id).delete()
+        Sale.get(id).delete()
         return 'Sale deleted'
 
     @ajax
     def check_in(self, id, badge_num, age_group):
-        attendee = Attendee.objects.get(id=id)
+        attendee = Attendee.get(id)
         pre_badge = attendee.badge_num
         success, increment = True, False
 
@@ -244,7 +244,7 @@ class Root:
 
     @csrf_protected
     def undo_checkin(self, id, pre_badge):
-        a = Attendee.objects.get(id = id)
+        a = Attendee.get(id)
         a.checked_in, a.badge_num = None, pre_badge
         a.save()
         return 'Attendee successfully un-checked-in'
@@ -288,7 +288,7 @@ class Root:
             shirt_size = None
 
         success = False
-        attendee = Attendee.objects.get(id = id)
+        attendee = Attendee.get(id)
         if not attendee.merch:
             message = '{} has no merch'.format(attendee.full_name)
         elif attendee.got_merch:
@@ -317,7 +317,7 @@ class Root:
 
     @ajax
     def take_back_merch(self, id):
-        attendee = Attendee.objects.get(id = id)
+        attendee = Attendee.get(id)
         attendee.got_merch = False
         attendee.save()
         for ns in attendee.noshirt_set.all():
@@ -437,7 +437,7 @@ class Root:
         elif int(payment_method) == MANUAL:
             raise HTTPRedirect('manual_reg_charge_form?id={}', id)
 
-        attendee = Attendee.objects.get(id = id)
+        attendee = Attendee.get(id)
         attendee.paid = HAS_PAID
         attendee.payment_method = payment_method
         attendee.amount_paid = attendee.total_cost
@@ -446,7 +446,7 @@ class Root:
         raise HTTPRedirect('new?message={}', 'Attendee marked as paid')
 
     def manual_reg_charge_form(self, id):
-        attendee = Attendee.objects.get(id=id)
+        attendee = Attendee.get(id)
         if attendee.paid != NOT_PAID:
             raise HTTPRedirect('new?message={}{}', attendee.full_name, ' is already marked as paid')
 
@@ -472,7 +472,7 @@ class Root:
     def new_checkin(self, id, badge_num, ec_phone='', message='', group=''):
         checked_in = ''
         badge_num = int(badge_num) if badge_num.isdigit() else 0
-        attendee = Attendee.objects.get(id=id)
+        attendee = Attendee.get(id)
         existing = list(Attendee.objects.filter(badge_num = badge_num))
         if 'reg_station' not in cherrypy.session:
             raise HTTPRedirect('new_reg_station')
@@ -486,7 +486,7 @@ class Root:
             attendee.badge_num = badge_num
             if not message:
                 if group:
-                    group = Group.objects.get(id = group)
+                    group = Group.get(group)
                     with BADGE_LOCK:
                         available = [a for a in group.attendee_set.filter(first_name = '')]
                         matching = [a for a in available if a.badge_type == badge_type]
@@ -565,7 +565,7 @@ class Root:
         return params
 
     def undo_new_checkin(self, id):
-        attendee = Attendee.objects.get(id = id)
+        attendee = Attendee.get(id)
         if attendee.group:
             unassigned = Attendee.objects.create(group = attendee.group, paid = PAID_BY_GROUP, badge_type = attendee.badge_type, ribbon = attendee.ribbon)
             unassigned.registered = datetime(EPOCH.year, 1, 1)
@@ -593,7 +593,7 @@ class Root:
 
     @csrf_protected
     def update_nonshift(self, id, nonshift_hours):
-        attendee = Attendee.objects.get(id = id)
+        attendee = Attendee.get(id)
         if not re.match('^[0-9]+$', nonshift_hours):
             raise HTTPRedirect('shifts?id={}&message={}', attendee.id, 'Invalid integer')
 
@@ -603,7 +603,7 @@ class Root:
 
     @csrf_protected
     def update_notes(self, id, admin_notes, for_review=None):
-        attendee = Attendee.objects.get(id = id)
+        attendee = Attendee.get(id)
         attendee.admin_notes = admin_notes
         if for_review is not None:
             attendee.for_review = for_review
@@ -617,7 +617,7 @@ class Root:
 
     @csrf_protected
     def unassign(self, shift_id):
-        shift = Shift.objects.get(id=shift_id)
+        shift = Shift.get(shift_id)
         shift.delete()
         raise HTTPRedirect('shifts?id={}&message={}', shift.attendee.id, 'Staffer unassigned from shift')
 

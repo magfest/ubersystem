@@ -24,7 +24,7 @@ class Root:
 
     @ajax
     def approve(self, id, approved):
-        hr = HotelRequests.objects.get(id = id)
+        hr = HotelRequests.get(id)
         if approved == 'approved':
             hr.approved = True
         else:
@@ -103,7 +103,7 @@ class Root:
 
     @ajax
     def delete_room(self, id):
-        room = Room.objects.get(id=id)
+        room = Room.get(id)
         room.delete()
         return _hotel_dump(room.department)
 
@@ -117,7 +117,7 @@ class Root:
             else:
                 hr.wednesday = hr.sunday = False
             hr.save()
-        return _hotel_dump(Room.objects.get(id=room_id).department)
+        return _hotel_dump(Room.get(room_id).department)
 
     @ajax
     def unassign_from_room(self, attendee_id, department):

@@ -55,7 +55,7 @@ class Root:
     
     def unapprove(self, id, action, email):
         assert action in ['waitlisted', 'declined']
-        group = Group.objects.get(id = id)
+        group = Group.get(id)
         subject = 'Your MAGFest Dealer registration has been ' + action
         send_email(MARKETPLACE_EMAIL, group.email, subject, email, model = group)
         if action == 'waitlisted':
@@ -68,7 +68,7 @@ class Root:
     
     @csrf_protected
     def delete(self, id):
-        group = Group.objects.get(id=id)
+        group = Group.get(id)
         if group.badges - group.unregistered_badges:
             raise HTTPRedirect('form?id={}&message={}', id, "You can't delete a group without first unassigning its badges.")
         

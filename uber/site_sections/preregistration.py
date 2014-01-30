@@ -1,5 +1,7 @@
 from uber.common import *
 
+# TODO: can_spam defaulting to true should be handled in a custom tag or something
+
 _checkboxes = ['staffing', 'can_spam', 'international', 'no_cellphone']
 
 def check_prereg_reqs(attendee):
@@ -20,30 +22,37 @@ def check_dealer(group):
     elif not group.description:
         return "Please provide a brief description of your business for our website's Confirmed Vendors page"
 
-def get_unsaved(id, if_not_found = HTTPRedirect('index')):
-    for model in cherrypy.session.setdefault('preregs', []):
-        if model.secret_id == id:
-            return model.get_unsaved()
-    raise if_not_found
-
 def send_banned_email(attendee):
     try:
         send_email(REGDESK_EMAIL, REGDESK_EMAIL, 'Banned attendee registration',
-                   render('emails/banned_attendee.txt', {'attendee': attendee}), model = 'n/a')
+                   render('emails/banned_attendee.txt', {'attendee': attendee}), model='n/a')
     except:
         log.error('unable to send banned email about {}', attendee)
 
 
 @all_renderable()
 class Root:
+    @property
+    def preregs(self):
+        return cherrypy.session.setdefault('preregs', OrderedDict())
+
+    @property
+    def paid_preregs(self):
+        return cherrypy.session.setdefault('paid_preregs', [])
+
+    def _get_unsaved(self, id, if_not_found = HTTPRedirect('index')):
+        if id in self.preregs:
+            return MagModel.from_sessionized(self.preregs[id]).get_unsaved()
+        else:
+            raise if_not_found
+
     def index(self, message=''):
-        preregs = cherrypy.session.get('preregs')
-        if not preregs:
+        if not self.preregs:
             raise HTTPRedirect('badge_choice?message={}', message) if message else HTTPRedirect('badge_choice')
         else:
             return {
                 'message': message,
-                'charge': Charge(preregs)
+                'charge': Charge(list(self.preregs.values()))   # TODO: fix listify
             }
 
     def badge_choice(self, message=''):
@@ -55,7 +64,7 @@ class Root:
 
         params['id'] = 'None'   # security!
         if edit_id is not None:
-            attendee, group = get_unsaved(edit_id, if_not_found = HTTPRedirect('badge_choice?message={}', 'That preregistration has already been finalized'))
+            attendee, group = self._get_unsaved(edit_id, if_not_found = HTTPRedirect('badge_choice?message={}', 'That preregistration has already been finalized'))
             attendee.apply(params, bools=_checkboxes)
             group.apply(params)
             params.setdefault('badges', group.badges)
@@ -75,6 +84,7 @@ class Root:
 
             if not message:
                 if attendee.badge_type in [PSEUDO_DEALER_BADGE, PSEUDO_GROUP_BADGE]:
+                    attendee.paid = PAID_BY_GROUP
                     if attendee.badge_type == PSEUDO_GROUP_BADGE:
                         group.tables = 0
                         group.prepare_prereg_badges(attendee, params['badges'])
@@ -82,8 +92,8 @@ class Root:
                         group.status = WAITLISTED if state.AFTER_DEALER_REG_DEADLINE else UNAPPROVED
                         attendee.ribbon = DEALER_RIBBON
 
+                    # TODO: better badge type logic, move to pre_save
                     attendee.badge_type = ATTENDEE_BADGE
-                    attendee.paid = PAID_BY_GROUP
 
                 if attendee.is_dealer:
                     group.save()
@@ -94,18 +104,14 @@ class Root:
                                render('emails/dealer_reg_notification.txt', {'group': group}), model=group)
                     raise HTTPRedirect('dealer_confirmation?id={}', group.id)
                 else:
-                    preregs = cherrypy.session.setdefault('preregs', [])
-                    if attendee not in preregs and group not in preregs:
-                        preregs.append(group if group.badges else attendee)
-                        Tracking.track(UNPAID_PREREG, attendee)
-                        if group.badges:
-                            Tracking.track(UNPAID_PREREG, group)
-                    else:
-                        Tracking.track(EDITED_PREREG, attendee)
-                        if group.badges:
-                            Tracking.track(EDITED_PREREG, group)
+                    target = group if group.badges else attendee
+                    track_type = EDITED_PREREG if target.secret_id in self.preregs else UNPAID_PREREG
+                    self.preregs[target.secret_id] = target.sessionize()
+                    Tracking.track(track_type, attendee)
+                    if group.badges:
+                        Tracking.track(track_type, group)
 
-                if Attendee.objects.filter(first_name = attendee.first_name, last_name = attendee.last_name, email = attendee.email):
+                if Attendee.objects.filter(first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email):
                     raise HTTPRedirect('duplicate?id={}', group.secret_id if attendee.paid == PAID_BY_GROUP else attendee.secret_id)
 
                 if attendee.full_name in BANNED_ATTENDEES:
@@ -127,7 +133,7 @@ class Root:
         }
 
     def duplicate(self, id):
-        attendee, group = get_unsaved(id)
+        attendee, group = self._get_unsaved(id)
         orig = Attendee.objects.filter(first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email)
         if not orig:
             raise HTTPRedirect('index')
@@ -138,7 +144,7 @@ class Root:
         }
 
     def banned(self, id):
-        attendee, group = get_unsaved(id)
+        attendee, group = self._get_unsaved(id)
         return {'attendee': attendee}
 
     @credit_card
@@ -168,28 +174,25 @@ class Root:
             if group.leader.full_name in BANNED_ATTENDEES:
                 send_banned_email(group.leader)
 
-        cherrypy.session.pop('preregs', None)
-        preregs = cherrypy.session.setdefault('paid_preregs', {})
-        preregs.setdefault('attendees', []).extend(charge.attendees)
-        preregs.setdefault('groups', []).extend(charge.groups)
-        raise HTTPRedirect('paid_preregs')
+        self.preregs.clear()
+        self.paid_preregs.extend(charge.targets)
+        raise HTTPRedirect('paid_preregistrations')
 
-    def paid_preregs(self):
-        preregs = cherrypy.session.get('paid_preregs')
-        if preregs:
-            return {'preregs': preregs}
-        else:
+    def paid_preregistrations(self):
+        if not self.paid_preregs:
             raise HTTPRedirect('index')
+        else:
+            return {'preregs': [MagModel.from_sessionized(d) for d in self.paid_preregs]}
 
     def delete(self, id):
-        cherrypy.session['preregs'] = [m for m in cherrypy.session.setdefault('preregs', []) if m.secret_id != id]
+        self.preregs.pop(id, None)
         raise HTTPRedirect('index?message={}', 'Preregistration deleted')
 
     def dealer_confirmation(self, id):
-        return {'group': Group.objects.get(id=id)}
+        return {'group': Group.get(id)}
 
     def group_members(self, id, message=''):
-        group = Group.objects.get(secret_id = id)
+        group = Group.get(id)
         return {
             'group':   group,
             'charge': Charge(group),
@@ -221,14 +224,14 @@ class Root:
         }
 
     def group_extra_payment_form(self, id):
-        attendee = Attendee.objects.get(secret_id = id)
+        attendee = Attendee.get(id)
         return {
             'attendee': attendee,
             'charge': Charge(attendee, description = '{} kicking in extra'.format(attendee.full_name))
         }
 
     def group_undo_extra_payment(self, id):
-        attendee = Attendee.objects.get(secret_id = id)
+        attendee = Attendee.get(id)
         attendee.amount_extra -= attendee.amount_unpaid
         attendee.save()
         raise HTTPRedirect('group_members?id={}&message={}', attendee.group.secret_id, 'Extra payment undone')
@@ -261,7 +264,7 @@ class Root:
 
     @csrf_protected
     def unset_group_member(self, id):
-        attendee = Attendee.objects.get(secret_id = id)
+        attendee = Attendee.get(id)
         try:
             send_email(REGDESK_EMAIL, attendee.email, 'MAGFest group registration dropped',
                        render('emails/group_member_dropped.txt', {'attendee': attendee}), model=attendee)
@@ -275,7 +278,7 @@ class Root:
         raise HTTPRedirect('group_members?id={}&message={}', attendee.group.secret_id, 'Attendee unset; you may now assign their badge to someone else')
 
     def add_group_members(self, id, count):
-        group = Group.objects.get(secret_id = id)
+        group = Group.get(id)
         if int(count) < group.min_badges_addable:
             raise HTTPRedirect('group_members?id={}&message={}', group.secret_id, 'This group cannot add fewer than {} badges'.format(group.min_badges_addable))
 
@@ -304,7 +307,7 @@ class Root:
             raise HTTPRedirect('group_members?id={}&message={}', group.secret_id, 'You payment has been accepted and the badges have been added to your group')
 
     def transfer_badge(self, message = '', **params):
-        old = Attendee.objects.get(secret_id = params['id'])
+        old = Attendee.get(params['id'])
         assert old.is_transferrable, 'This badge is not transferrable'
         attendee = Attendee.get(params, bools=_checkboxes, restricted=True)
 
@@ -371,11 +374,11 @@ class Root:
         }
 
     def guest_food(self, id):
-        cherrypy.session['staffer_id'] = Attendee.objects.get(secret_id = id).id
+        cherrypy.session['staffer_id'] = Attendee.get(id).id
         raise HTTPRedirect('../signups/food_restrictions')
 
     def attendee_donation_form(self, id, message=''):
-        attendee = Attendee.objects.get(secret_id = id)
+        attendee = Attendee.get(id)
         return {
             'message': message,
             'attendee': attendee,
@@ -383,7 +386,7 @@ class Root:
         }
 
     def undo_attendee_donation(self, id):
-        attendee = Attendee.objects.get(secret_id = id)
+        attendee = Attendee.get(id)
         attendee.amount_extra = max(0, attendee.amount_extra - attendee.amount_unpaid)
         attendee.save()
         raise HTTPRedirect(cherrypy.session.pop('return_to', 'confirm?id=' + id))
@@ -404,7 +407,7 @@ class Root:
             raise HTTPRedirect(return_to, 'Your payment has been accepted, thanks so much!')
 
     def event(self, slug, *, id, register=None):
-        attendee = Attendee.objects.get(secret_id = id)
+        attendee = Attendee.get(id)
         event = SEASON_EVENTS[slug]
         deadline_passed = datetime.now() > event['deadline']
         assert attendee.amount_extra >= SEASON_LEVEL
