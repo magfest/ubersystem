@@ -1,7 +1,5 @@
 from uber.common import *
 
-# TODO: can_spam defaulting to true should be handled in a custom tag or something
-
 _checkboxes = ['staffing', 'can_spam', 'international', 'no_cellphone']
 
 def check_prereg_reqs(attendee):
@@ -79,7 +77,7 @@ class Root:
             message = check(attendee) or check_prereg_reqs(attendee)
             if not message and attendee.badge_type in [PSEUDO_DEALER_BADGE, PSEUDO_GROUP_BADGE]:
                 message = check(group)
-            if not message and attendee.badge_type == PSEUDO_DEALER_BADGE:
+            elif not message and attendee.badge_type == PSEUDO_DEALER_BADGE:
                 message = check_dealer(group)
 
             if not message:
@@ -90,10 +88,6 @@ class Root:
                         group.prepare_prereg_badges(attendee, params['badges'])
                     else:
                         group.status = WAITLISTED if state.AFTER_DEALER_REG_DEADLINE else UNAPPROVED
-                        attendee.ribbon = DEALER_RIBBON
-
-                    # TODO: better badge type logic, move to pre_save
-                    attendee.badge_type = ATTENDEE_BADGE
 
                 if attendee.is_dealer:
                     group.save()

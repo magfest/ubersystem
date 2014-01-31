@@ -1,7 +1,5 @@
 from uber.common import *
 
-# TODO: standardized to_dict() approach
-
 class MultiChoiceField(TextField):
     def __init__(self, *args, **kwargs):
         choices = kwargs.pop('choices')
@@ -61,7 +59,7 @@ class MagModel(Model):
                 opts = dict(field.choices)
                 return repr('' if not val else ','.join(opts[int(opt)] for opt in val.split(',')))
             elif field.choices and val is not None:
-                return repr(dict(field.choices)[int(val)])
+                return repr(dict(field.choices).get(int(val), '<nonstandard>'))
             else:
                 return s
         except Exception as e:
@@ -159,19 +157,6 @@ class MagModel(Model):
 
             if not ignore_csrf:
                 check_csrf(params.get('csrf_token'))
-
-    # TODO: make this actually work
-    def extra_json_fields(self):
-        return {}
-
-    def to_json(self):
-        d = {}
-        for f in self._meta.fields:
-            if not isinstance(f, (ForeignKey, OneToOneField)):
-                pass
-        
-        d.update(self.extra_json_fields())
-        return json.dumps(d)
 
 class TakesPaymentMixin(object):
     @property
@@ -488,6 +473,12 @@ class Attendee(MagModel, TakesPaymentMixin):
                 setattr(self, attr, value.title())
 
     def _badge_adjustments(self):
+        if self.badge_type == PSEUDO_GROUP_BADGE:
+            self.badge_type = ATTENDEE_BADGE
+        elif self.badge_type == PSEUDO_DEALER_BADGE:
+            self.badge_type = ATTENDEE_BADGE
+            self.ribbon = DEALER_RIBBON
+
         with BADGE_LOCK:
             if PRE_CON:
                 if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE and not CUSTOM_BADGES_REALLY_ORDERED:
