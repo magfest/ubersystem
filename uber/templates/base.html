@@ -26,6 +26,23 @@
                     $("a > .stripe-button-el").unwrap().attr("disabled", true).unwrap()
                 });
             }
+
+            // prevent people from paying after prereg closes
+            {% if PRE_CON %}
+                if ($("form.stripe").length) {
+                    var prevHour = new Date().getHours();
+                    var checkHour = function() {
+                        var currHour = new Date().getHours();
+                        if (currHour != prevHour) {
+                            location.reload();
+                        } else {
+                            prevHour = currHour;
+                            setTimeout(checkHour, 1000);
+                        }
+                    };
+                    checkHour();
+                }
+            {% endif %}
         });
     </script>
 </head>
