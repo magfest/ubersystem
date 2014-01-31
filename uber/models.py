@@ -447,7 +447,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             badge_num = Attendee.get(self.id).badge_num
             super(Attendee, self).delete(*args, **kwargs)
             if self.has_personalized_badge and not CUSTOM_BADGES_REALLY_ORDERED:
-                badge_funcs.shift_badges(self, down = True)
+                shift_badges(self, down = True)
 
     def presave_adjustments(self):
         self._staffing_adjustments()
@@ -484,13 +484,13 @@ class Attendee(MagModel, TakesPaymentMixin):
                 if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE and not CUSTOM_BADGES_REALLY_ORDERED:
                     self.badge_type = SUPPORTER_BADGE
 
-                if self.paid == NOT_PAID or self.has_personalized_badge:
+                if self.paid == NOT_PAID or not self.has_personalized_badge:
                     self.badge_num = 0
                 elif self.has_personalized_badge and not self.badge_num:
                     if CUSTOM_BADGES_REALLY_ORDERED:
                         self.badge_type, self.badge_num = ATTENDEE_BADGE, 0
                     elif self.paid != NOT_PAID:
-                        self.badge_num = badge_funcs.next_badge_num(self.badge_type)
+                        self.badge_num = next_badge_num(self.badge_type)
 
     def _staffing_adjustments(self):
         if self.ribbon == DEPT_HEAD_RIBBON:
@@ -520,6 +520,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         self.requested_depts = self.assigned_depts = ''
         if self.ribbon == VOLUNTEER_RIBBON:
             self.ribbon = NO_RIBBON
+        if self.badge_type == STAFF_BADGE:
+            shift_badges(attendee, down=True)
+            self.badge_type = ATTENDEE_BADGE
 
     def get_unsaved(self):
         return self, Group()

@@ -351,6 +351,7 @@ class Root:
                     raise HTTPRedirect('attendee_donation_form?id={}', attendee.secret_id)
                 else:
                     raise HTTPRedirect(page + 'message=' + message)
+
         elif attendee.amount_unpaid and attendee.zip_code:  # don't skip to payment until the form is filled out
             raise HTTPRedirect('attendee_donation_form?id={}&message={}', attendee.secret_id, message)
 
