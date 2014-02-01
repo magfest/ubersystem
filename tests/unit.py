@@ -1,12 +1,5 @@
-import sys
-from io import StringIO
-from urllib.parse import urlencode
+from uber.tests import *
 
-import requests
-
-sys.path.append('.')
-from tests import *
-from site_sections import preregistration
 
 class TestModelGet(TestUber):
     def with_params(self, model=Attendee, **kwargs):
@@ -16,7 +9,7 @@ class TestModelGet(TestUber):
         attendee = self.with_params(first_name='Bob', last_name='Loblaw')
         self.assertEqual('Bob Loblaw', attendee.full_name)
 
-        self.assertEqual(0, self.with_params(age_group = '0').age_group)
+        self.assertEqual(123, self.with_params(amount_paid='123').amount_paid)
 
         self.assertEqual(datetime(2001, 2, 3, 4, 5, 6), self.with_params(checked_in='2001-02-03 04:05:06').checked_in)
 
@@ -47,32 +40,34 @@ class TestBadgeChange(TestUber):
         self.assertEqual(staff_badges, [a.badge_num for a in Attendee.objects.filter(badge_type=STAFF_BADGE).order_by('badge_num')])
         self.assertEqual(supporter_badges, [a.badge_num for a in Attendee.objects.filter(badge_type=SUPPORTER_BADGE).order_by('badge_num')])
 
+
 class TestPreassignedBadgeChange(TestBadgeChange):
     end_ranges = ([1,2,3,4,5,6], [500,501,502,503])
 
     def test_end_to_next(self):
-        self.change_badge(self.supporter_five, STAFF_BADGE, expected_num = 6)
+        self.change_badge(self.supporter_five, STAFF_BADGE, expected_num=6)
 
     def test_end_to_end(self):
-        self.change_badge(self.supporter_five, STAFF_BADGE, 6)
+        self.change_badge(self.supporter_five, STAFF_BADGE, new_num=6)
 
     def test_end_to_boundary(self):
-        self.change_badge(self.supporter_five, STAFF_BADGE, 5)
+        self.change_badge(self.supporter_five, STAFF_BADGE, new_num=5)
 
     def test_end_to_middle(self):
-        self.change_badge(self.supporter_five, STAFF_BADGE, 3)
+        self.change_badge(self.supporter_five, STAFF_BADGE, new_num=3)
 
     def test_end_to_beginning(self):
-        self.change_badge(self.supporter_five, STAFF_BADGE, 1)
+        self.change_badge(self.supporter_five, STAFF_BADGE, new_num=1)
 
     def test_end_to_over(self):
-        self.change_badge(self.supporter_five, STAFF_BADGE, new_num = 7, expected_num = 6)
+        self.change_badge(self.supporter_five, STAFF_BADGE, new_num=7, expected_num=6)
 
     def test_middle_to_next(self):
-        self.change_badge(self.supporter_three, STAFF_BADGE, expected_num = 6)
+        self.change_badge(self.supporter_three, STAFF_BADGE, expected_num=6)
 
     def test_beginning_to_next(self):
-        self.change_badge(self.supporter_one, STAFF_BADGE, expected_num = 6)
+        self.change_badge(self.supporter_one, STAFF_BADGE, expected_num=6)
+
 
 class TestInternalBadgeChange(TestBadgeChange):
     end_ranges = ([1,2,3,4,5], [500,501,502,503,504])
@@ -114,6 +109,7 @@ class TestInternalBadgeChange(TestBadgeChange):
         self.change_badge(self.staff_one,   STAFF_BADGE, 1)
         self.change_badge(self.staff_three, STAFF_BADGE, 3)
         self.change_badge(self.staff_five,  STAFF_BADGE, 5)
+
 
 class TestPreassignedBadgeDeletion(TestBadgeChange):
     end_ranges = ([1,2,3,4], [500,501,502,503,504])

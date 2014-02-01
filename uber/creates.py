@@ -1,31 +1,33 @@
 from uber.common import *
-from uber import models
 
-from sys import argv
+verbose = dry_run = False
 
 class Style:
     def __getattr__(self, name):
         return lambda text: text
 
-with open('uber/models.py') as f:
+with open(join(MODULE_ROOT, 'models.py')) as f:
     text = f.read()
-    classes = sorted(models.all_models(), key=lambda c: text.index('class ' + c.__name__ + '('))
 
-if __name__ == '__main__':
-    if len(argv) > 1:
-        classes = [c for c in classes if c.__name__ in argv[1:]]
-    
+classes = sorted(all_models(), key=lambda c: text.index('class {}('.format(c.__name__)))
+
+def drop_and_create():
     with closing(connection.cursor()) as cursor:
         for model in reversed(classes):
             sql = 'DROP TABLE IF EXISTS "{}";'.format(model.__name__)
-            print(sql)
-            cursor.execute(sql)
+            if verbose:
+                print(sql)
+            if not dry_run:
+                cursor.execute(sql)
 
         for model in classes:
             sql = connection.creation.sql_create_model(model, Style(), classes)[0][0]
-            print(sql)
-            cursor.execute(sql)
-    
+            if verbose:
+                print(sql)
+            if not dry_run:
+                cursor.execute(sql)
+
+def insert_admin():
     attendee = Attendee.objects.create(
         placeholder = True,
         first_name  = 'Test',
@@ -39,3 +41,13 @@ if __name__ == '__main__':
         access   = ','.join(str(level) for level, name in ACCESS_OPTS),
         hashed   = bcrypt.hashpw('magfest', bcrypt.gensalt())
     )
+
+if __name__ == '__main__':
+    verbose = '--quiet' not in sys.argv
+    dry_run = '--dry-run' in sys.argv
+    if any(not arg.startswith('-') for arg in sys.argv[1:]):
+        classes = [c for c in classes if c.__name__ in sys.argv[1:]]
+
+    drop_and_create()
+    if not dry_run:
+        insert_admin()

@@ -208,6 +208,15 @@ def get_page(page, queryset):
     return queryset[(int(page) - 1) * 100 : int(page) * 100]
 
 
+def genpasswd():
+    try:
+        with open('/usr/share/dict/words') as f:
+            words = [s.strip() for s in f.readlines() if "'" not in s and s.islower() and 3 < len(s) < 8]
+            return ' '.join(random.choice(words) for i in range(4))
+    except:
+        return ''.join(chr(randrange(33, 127)) for i in range(8))
+
+
 def search(text, **filters):
     attendees = Attendee.objects.filter(**filters)
     if ':' in text:

@@ -1,13 +1,5 @@
 from uber.common import *
 
-def randstring():
-    try:
-        with open('/usr/share/dict/words') as f:
-            words = [s.strip() for s in f.readlines() if "'" not in s and s.islower() and 3 < len(s) < 8]
-            return ' '.join(random.choice(words) for i in range(4))
-    except:
-        return ''.join(chr(randrange(33, 127)) for i in range(8))
-
 def valid_password(password, account):
     pr = account.password_reset
     if pr and pr.is_expired:
@@ -33,7 +25,7 @@ class Root:
         account = AdminAccount.get(params, checkgroups=['access'])
         is_new = account.id is None
         if is_new:
-            password = password if AT_THE_CON else randstring()
+            password = password if AT_THE_CON else genpasswd()
             account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
 
         message = check(account)
@@ -94,7 +86,7 @@ class Root:
                 message = 'No account exists for email address {!r}'.format(email)
             else:
                 account = account[0]
-                password = randstring()
+                password = genpasswd()
                 if account.password_reset:
                     account.password_reset.delete()
                 PasswordReset.objects.create(account=account, hashed=bcrypt.hashpw(password, bcrypt.gensalt()))
