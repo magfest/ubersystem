@@ -25,8 +25,8 @@ from random import randrange
 from contextlib import closing
 from time import sleep, mktime
 from urllib.parse import quote
-from os.path import abspath, dirname, join
 from collections import defaultdict, OrderedDict
+from os.path import abspath, dirname, exists, join
 from datetime import date, time, datetime, timedelta
 from threading import Thread, RLock, local, current_thread
 

@@ -3,3 +3,5 @@ __pycache__
 sessions/session-*
 *.egg-info
 *.log
+development.conf
+production.conf

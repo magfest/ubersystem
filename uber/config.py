@@ -3,11 +3,24 @@ from uber.common import *
 MODULE_ROOT = abspath(dirname(__file__))
 ROOT = MODULE_ROOT[:MODULE_ROOT.rfind(os.path.sep)]
 
-_roots = ['root = string(default="{}")\n'.format(ROOT), 'module_root = string(default="{}")\n'.format(MODULE_ROOT)]
+_roots = ['root = "{}"'.format(ROOT), 'module_root = "{}"'.format(MODULE_ROOT)]
+_rootspec = ['root = string(default="{}")\n'.format(ROOT), 'module_root = string(default="{}")\n'.format(MODULE_ROOT)]
 with open(join(MODULE_ROOT, 'configspec.ini')) as _f:
-    _spec = ConfigObj(_roots + _f.readlines(), list_values=False, interpolation=False, _inspec=True)
+    _spec = ConfigObj(_rootspec + _f.readlines(), list_values=False, interpolation=False, _inspec=True)
 
-conf = ConfigObj(open('uber/defaults.conf').readlines(), configspec=_spec, interpolation='ConfigParser')
+with open(join(MODULE_ROOT, 'defaults.conf')) as _f:
+    conf = ConfigObj(_f.readlines(), configspec=_spec, interpolation='ConfigParser')
+
+if any(sys.argv[0].endswith(testrunner) for testrunner in ['py.test', 'nosetests']):
+    _overrides = ['uber/tests/test.conf']
+else:
+    _overrides = ['development.conf', 'production.conf']
+
+for _fname in _overrides:
+    _fpath = join(ROOT, _fname)
+    if exists(_fname):
+        with open(_fname) as _f:
+            conf.merge(ConfigObj(_roots + _f.readlines(), configspec=_spec, interpolation='ConfigParser'))
 
 _validator = Validator()
 _errors = conf.validate(_validator, preserve_errors=True)

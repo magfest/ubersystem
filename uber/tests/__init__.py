@@ -1,28 +1,26 @@
 from unittest import TestCase
 
 from uber.common import *
-from uber import creates
+from uber import init_db
 
 def setUpModule():
-    creates.drop_and_create()
+    init_db.drop_and_create()
 
 class TestUber(TestCase):
     delete_on_teardown = False
 
     def tearDown(self):
         if self.delete_on_teardown:
-            for model in reversed(creates.classes):
+            for model in reversed(init_db.classes):
                 model.objects.all().delete()
 
     def make_attendee(self, **params):
         params = dict({
-            'first_name': 'Testie',
-            'last_name':  'McTesterson',
-            'badge_type': ATTENDEE_BADGE,
-            'badge_num':  next_badge_num(ATTENDEE_BADGE),
-            'email':      self.email,
-            'zip_code':   '00000',
-            'ec_phone':   '1234567890'
+            'placeholder': True,
+            'first_name':  'Testie',
+            'last_name':   'McTesterson',
+            'badge_type':  ATTENDEE_BADGE,
+            'paid': NEED_NOT_PAY,
         }, **params)
         return Attendee.objects.create(**params)
 
@@ -36,7 +34,7 @@ class TestUber(TestCase):
 
 class TestModelGet(TestUber):
     def with_params(self, model=Attendee, **kwargs):
-        return model.get(dict(kwargs, id='None'))
+        return model.get(dict(kwargs, id='None'), ignore_csrf=True)
 
     def test_basic(self):
         attendee = self.with_params(first_name='Bob', last_name='Loblaw')
@@ -58,9 +56,9 @@ class TestBadgeChange(TestUber):
             for i,last_name in enumerate(['one', 'two', 'three', 'four', 'five']):
                 a = self.make_attendee(first_name=dict(BADGE_OPTS)[badge_type],
                                        last_name=last_name,
-                                       badge_type=badge_type,
-                                       badge_num=range(*BADGE_RANGES[badge_type])[i])
+                                       badge_type=badge_type)
                 setattr(self, '{}_{}'.format(a.first_name.lower(), last_name), a)
+        self.check_ranges()
 
     def tearDown(self):
         try:
@@ -77,7 +75,7 @@ class TestBadgeChange(TestUber):
     def check_ranges(self):
         for badge_type in PREASSIGNED_BADGE_TYPES:
             actual = [a.badge_num for a in Attendee.objects.filter(badge_type=badge_type).order_by('badge_num')]
-            expected = range(*BADGE_RANGES[badge_type])[:len(actual)]
+            expected = list(range(*BADGE_RANGES[badge_type])[:len(actual)])
             self.assertEqual(actual, expected, '{} badge numbers were {}, expected {}'.format(dict(BADGE_OPTS)[badge_type], actual, expected))
 
 
@@ -109,42 +107,42 @@ class TestPreassignedBadgeChange(TestBadgeChange):
 
 class TestInternalBadgeChange(TestBadgeChange):
     def test_beginning_to_end(self):
-        self.change_badge(self.staff_one, STAFF_BADGE, 5)
+        self.change_badge(self.staff_one, STAFF_BADGE, new_num=5)
 
     def test_beginning_to_next(self):
-        self.change_badge(self.staff_one, STAFF_BADGE, expected_num = 5)
+        self.change_badge(self.staff_one, STAFF_BADGE, expected_num=5)
 
     def test_beginning_plus_one(self):
-        self.change_badge(self.staff_one, STAFF_BADGE, 2)
+        self.change_badge(self.staff_one, STAFF_BADGE, new_num=2)
 
     def test_beginning_to_middle(self):
-        self.change_badge(self.staff_one, STAFF_BADGE, 4)
+        self.change_badge(self.staff_one, STAFF_BADGE, new_num=4)
 
     def test_end_to_beginning(self):
-        self.change_badge(self.staff_five, STAFF_BADGE, 1)
+        self.change_badge(self.staff_five, STAFF_BADGE, new_num=1)
 
     def test_end_minus_one(self):
-        self.change_badge(self.staff_five, STAFF_BADGE, 4)
+        self.change_badge(self.staff_five, STAFF_BADGE, new_num=4)
 
     def test_end_to_middle(self):
-        self.change_badge(self.staff_five, STAFF_BADGE, 2)
+        self.change_badge(self.staff_five, STAFF_BADGE, new_num=2)
 
     def test_middle_plus_one(self):
-        self.change_badge(self.staff_three, STAFF_BADGE, 4)
+        self.change_badge(self.staff_three, STAFF_BADGE, new_num=4)
 
     def test_middle_minus_one(self):
-        self.change_badge(self.staff_three, STAFF_BADGE, 2)
+        self.change_badge(self.staff_three, STAFF_BADGE, new_num=2)
 
     def test_middle_up(self):
-        self.change_badge(self.staff_two, STAFF_BADGE, 4)
+        self.change_badge(self.staff_two, STAFF_BADGE, new_num=4)
 
     def test_middle_down(self):
-        self.change_badge(self.staff_four, STAFF_BADGE, 2)
+        self.change_badge(self.staff_four, STAFF_BADGE, new_num=2)
 
     def test_self_assignment(self):
-        self.change_badge(self.staff_one,   STAFF_BADGE, 1)
-        self.change_badge(self.staff_three, STAFF_BADGE, 3)
-        self.change_badge(self.staff_five,  STAFF_BADGE, 5)
+        self.change_badge(self.staff_one,   STAFF_BADGE, new_num=1)
+        self.change_badge(self.staff_three, STAFF_BADGE, new_num=3)
+        self.change_badge(self.staff_five,  STAFF_BADGE, new_num=5)
 
 
 class TestPreassignedBadgeDeletion(TestBadgeChange):
