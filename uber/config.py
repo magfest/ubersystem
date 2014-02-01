@@ -43,6 +43,12 @@ def _unrepr(d):
 _unrepr(conf['cherrypy'])
 _unrepr(conf['appconf'])
 cherrypy.config.update(conf['cherrypy'].dict())
+cherrypy.engine.autoreload.files.update([
+    join(ROOT, 'production.conf'),
+    join(ROOT, 'development.conf'),
+    join(MODULE_ROOT, 'defaults.conf'),
+    join(MODULE_ROOT, 'configspec.ini')
+])
 try:
     os.makedirs(conf['cherrypy']['tools.sessions.storage_path'])
 except:
