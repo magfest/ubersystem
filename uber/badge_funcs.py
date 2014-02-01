@@ -13,7 +13,7 @@ def check_range(badge_num, badge_type):
         badge_num = int(badge_num)
     except:
         return '"{}" is not a valid badge number (should be an integer)'.format(badge_num)
-    
+
     if badge_num:
         min_num, max_num = BADGE_RANGES[int(badge_type)]
         if not min_num <= badge_num <= max_num:
@@ -36,11 +36,11 @@ def change_badge(attendee):
                 return 'Badge updated'
             elif attendee.badge_type in PREASSIGNED_BADGE_TYPES and attendee.badge_num != old.badge_num:
                 return 'Custom badges have already been ordered, so you cannot shift badge numbers'
-        
-        if AT_THE_CON:
+
+        if AT_OR_POST_CON:
             if not attendee.badge_num and attendee.badge_type in PREASSIGNED_BADGE_TYPES:
                 return 'You must assign a badge number for pre-assigned badge types'
-            
+
             existing = Attendee.objects.filter(badge_type = attendee.badge_type, badge_num = attendee.badge_num)
             if existing and attendee.badge_num:
                 return 'That badge number already belongs to {!r}'.format(existing[0].full_name)
@@ -48,19 +48,19 @@ def change_badge(attendee):
             next = next_badge_num(attendee.badge_type) - 1
             attendee.badge_num = min(attendee.badge_num or MAX_BADGE, next)
             if old.badge_num < attendee.badge_num:
-                shift_badges(old, down = True, until = attendee.badge_num)
+                shift_badges(old, down=True, until=attendee.badge_num)
             else:
-                shift_badges(attendee, down = False, until = old.badge_num)
+                shift_badges(attendee, down=False, until=old.badge_num)
         else:
             if old.badge_num:
-                shift_badges(old, down = True)
-            
+                shift_badges(old, down=True)
+
             next = next_badge_num(attendee.badge_type)
             if 0 < attendee.badge_num <= next:
-                shift_badges(attendee, down = False)
+                shift_badges(attendee, down=False)
             else:
                 attendee.badge_num = next
-        
+
         attendee.save()
         if AT_THE_CON or new <= next:
             return 'Badge updated'
@@ -95,9 +95,9 @@ def detect_duplicates():
         for a in Attendee.objects.exclude(first_name = '').order_by('registered').select_related('group'):
             if not a.group or a.group.status != WAITLISTED:
                 grouped[a.full_name, a.email.lower()].append(a)
-        
+
         dupes = {k:v for k,v in grouped.items() if len(v) > 1}
-        
+
         for who,attendees in dupes.items():
             paid = [a for a in attendees if a.paid == HAS_PAID]
             unpaid = [a for a in attendees if a.paid == NOT_PAID]
@@ -105,7 +105,7 @@ def detect_duplicates():
                 for a in unpaid:
                     a.delete()
                 del dupes[who]
-        
+
         if dupes:
             body = render('emails/duplicates.html', {'dupes': sorted(dupes.items())})
             send_email(ADMIN_EMAIL, REGDESK_EMAIL, subject, body, format = 'html', model = 'n/a')
