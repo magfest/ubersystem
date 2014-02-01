@@ -30,6 +30,10 @@ def _unrepr(d):
 _unrepr(conf['cherrypy'])
 _unrepr(conf['appconf'])
 cherrypy.config.update(conf['cherrypy'].dict())
+try:
+    os.makedirs(conf['cherrypy']['tools.sessions.storage_path'])
+except:
+    pass
 
 django.conf.settings.configure(**conf['django'].dict())
 

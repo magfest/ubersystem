@@ -2,3 +2,4 @@ env
 __pycache__
 sessions/session-*
 *.egg-info
+*.log
