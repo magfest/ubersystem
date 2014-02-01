@@ -552,5 +552,6 @@ def main(version=DEFAULT_VERSION):
     tarball = download_setuptools(download_base=options.download_base)
     return _install(tarball, _build_install_args(options))
 
+
 if __name__ == '__main__':
     sys.exit(main())
