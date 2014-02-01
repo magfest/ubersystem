@@ -41,7 +41,7 @@ If you're absolutely sure that this is someone else, you can continue and pay fo
 <br/> <br/>
 
 <table style="width:auto" align="center"><tr>
-{% if attendee.group and attendee.group.is_dealer and not attendee.group.approved %}
+{% if attendee.group and attendee.group.is_dealer and attendee.group.status != APPROVED %}
     <td><a href="index">I'm doing this because my Dealer request isn't approved!</a></td>
 {% else %}
     <td><a href="index">I'm someone else, let me pay!</a></td>
