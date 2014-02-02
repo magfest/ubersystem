@@ -1,7 +1,7 @@
 from uber.common import *
 
 groups, attendees = {}, {}
-with open(join(MODULE_ROOT, 'tests', 'dump.json')) as f:
+with open(join(MODULE_ROOT, 'tests', 'test_data.json')) as f:
     dump = json.load(f)
 
 offset_from = EPOCH
