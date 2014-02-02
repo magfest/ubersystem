@@ -652,14 +652,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     def hotel_shifts_required(self):
         return bool(self.hotel_nights and self.ribbon != DEPT_HEAD_RIBBON and self.takes_shifts)
 
-    @property
-    def interests_list(self):
-        return [int(i) for i in self.interests.split(',')] if self.interests else []
-
+    # TODO: replace this with assigned_depts_ints
     @property
     def assigned(self):
         return [int(i) for i in self.assigned_depts.split(',')] if self.assigned_depts else []
 
+    # TODO: genericize this
     @property
     def assigned_display(self):
         return [dict(JOB_LOC_OPTS)[loc] for loc in self.assigned if loc in dict(JOB_LOC_OPTS)]
