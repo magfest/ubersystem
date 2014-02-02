@@ -5,7 +5,7 @@ from django.utils.text import normalize_newlines
 class Root:
     @unrestricted
     def index(self, message=''):
-        if HIDE_SCHEDULE and not Account.access_set() and not cherrypy.session.get('staffer_id'):
+        if HIDE_SCHEDULE and not AdminAccount.access_set() and not cherrypy.session.get('staffer_id'):
             return "The MAGFest schedule is being developed and will be made public when it's closer to being finalized."
         
         schedule = defaultdict(lambda: defaultdict(list))

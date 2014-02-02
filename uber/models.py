@@ -57,7 +57,7 @@ class MagModel(Model):
                 return '<bcrypted>'
             elif isinstance(field, MultiChoiceField):
                 opts = dict(field.choices)
-                return repr('' if not val else ','.join(opts[int(opt)] for opt in val.split(',')))
+                return repr('' if not val else ','.join(opts[int(opt)] for opt in val.split(',') if opt in opts))
             elif field.choices and val is not None:
                 return repr(dict(field.choices).get(int(val), '<nonstandard>'))
             else:
@@ -447,7 +447,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             badge_num = Attendee.get(self.id).badge_num
             super(Attendee, self).delete(*args, **kwargs)
             if self.has_personalized_badge and not CUSTOM_BADGES_REALLY_ORDERED:
-                shift_badges(self, down = True)
+                shift_badges(self, down=True)
 
     def presave_adjustments(self):
         self._staffing_adjustments()
@@ -501,7 +501,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 self.paid = NEED_NOT_PAY
 
         old = Attendee.get(self.id) if self.id else None
-        if old and self.badge_type != STAFF_BADGE:
+        if old:
             if self.staffing and not old.staffing or self.ribbon == VOLUNTEER_RIBBON and old.ribbon != VOLUNTEER_RIBBON:
                 self.staffing = True
                 if self.ribbon == NO_RIBBON:
@@ -521,7 +521,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.ribbon == VOLUNTEER_RIBBON:
             self.ribbon = NO_RIBBON
         if self.badge_type == STAFF_BADGE:
-            shift_badges(attendee, down=True)
+            shift_badges(self, down=True)
             self.badge_type = ATTENDEE_BADGE
 
     def get_unsaved(self):
@@ -662,7 +662,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def assigned_display(self):
-        return [dict(JOB_LOC_OPTS)[loc] for loc in self.assigned]
+        return [dict(JOB_LOC_OPTS)[loc] for loc in self.assigned if loc in dict(JOB_LOC_OPTS)]
 
     @cached_property
     def shifts(self):
