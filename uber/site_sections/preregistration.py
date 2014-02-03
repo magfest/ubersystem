@@ -445,7 +445,7 @@ if POST_CON:
             attendee = Attendee.get(params, restricted = True)
             assert attendee.owed_shirt, "There's no record of {} being owed a tshirt".format(attendee.full_name)
             if 'address' in params:
-                if attendee.shirt == SIZE_UNKNOWN:
+                if attendee.shirt in [NO_SHIRT, SIZE_UNKNOWN]:
                     message = 'Please select a shirt size.'
                 elif not attendee.address:
                     message = 'Your address is required.'
