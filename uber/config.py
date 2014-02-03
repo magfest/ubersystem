@@ -54,6 +54,15 @@ try:
 except:
     pass
 
+if 'DATABASE_URL' in os.environ:
+    _url = urlparse(os.environ['DATABASE_URL'])
+    conf['django']['DATABASES']['default'].update({
+        'HOST': _url.hostname,
+        'PORT': _url.port,
+        'USER': _url.username,
+        'PASSWORD': _url.password,
+        'NAME': _url.path.strip('/')
+    })
 django.conf.settings.configure(**conf['django'].dict())
 
 for _logger, _level in conf['loggers'].items():
