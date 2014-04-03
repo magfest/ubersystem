@@ -1,4 +1,6 @@
 env
+.env-success
+.vagrant
 __pycache__
 sessions/session-*
 *.egg-info
