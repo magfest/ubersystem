@@ -3,7 +3,7 @@ magfest
 
 This is the webapp that MAGFest uses to track things like registration, events, staffers, groups, dealers, jobs, game checkouts, etc.
 
-If you want to run a development server to play around with it, there are two supporter approachs: running it locally and running on Heroku.
+If you want to run a development server to play around with it, there are two supporter approachs: running it locally and running on Vagrant.
 
 
 Setting Up a Local Dev Environment
@@ -12,8 +12,8 @@ Setting Up a Local Dev Environment
 Linux is currently the only supported development platform.  Theoretically this codebase should work on other platforms, but this has not been tested.
 
 Here's what you need installed before you can run this:
-- Python 3.3 (with source headers)
-- Postgresql 9.0 or later
+* Python 3.3 (with source headers)
+* Postgresql 9.0 or later
 
 Let's start by getting all of the Python dependencies installed.  We'll clone the repo, make a virtualenv, install distribute, and then install all of our Python dependencies:
 
@@ -56,13 +56,42 @@ If you'd like to insert about 10,000 attendees with realistic shifts and whatnot
 $ ./env/bin/python uber/tests/import_test_data.py
 ```
 
-Alternatively, you could insert directly with the sql file in the same directory as that script, though you'll need to start with an empty database for that to work, e.g.
+Alternatively, you could insert directly with the sql file in the same directory as that script (though you'll need to start with an empty database for this to work), e.g.
 
 ```bash
 $ psql --host=localhost --username=m13 --password m13 < uber/tests/test_data.sql
 ```
 
 
-Setting up a Heroku Development Envionment
-==========================================
-Instructions for this are forthcoming.
+Running on Vagrant
+==================
+[Vagrant](http://www.vagrantup.com/) is a great way to provide portable development environments by letting you install a local VM and have it automatically configured with all of the software and dependencies you need to start developing.  If you're already running Linux, we recommend you just develop locally, so this section assumes you are using Windows.  Here's what you'll need to install to get your dev environment up and running:
+* [TortoiseGit](https://code.google.com/p/tortoisegit/) for checking out this repo
+* [VirtualBox](https://www.virtualbox.org/wiki/Downloads) for running your development VM
+* [Vagrant](http://www.vagrantup.com/downloads.html) itself
+* [Putty](http://www.chiark.greenend.org.uk/~sgtatham/putty/download.html) for SSH-ing into your development machine once it's up and running
+
+First, use TortoiseGit to check out this repo.  It's probably a good idea to fork this repo and then clone your fork, to do that:
+* make an account (or log in to your existing account) on [GitHub](https://github.com/)
+* go to https://github.com/EliAndrewC/magfest and click the "Fork" button at the top right of the page
+* tell TortoiseGit to clone your new repo, which will be at ``https://github.com/<YOUR-USERNAME>/magfest``
+
+Next open up a DOS prompt and change into the ``magfest`` directory that was created when you cloned your repo, and type ``vagrant up``.  This does a bunch of different things:
+* downloads a VirtualBox image of an Ubuntu server from the internet
+* starts up the VM and installs all necessary OS dependencies
+* creates a database filled with test data
+* sets up a Python virtualenv with all of the necessary Python packages needed to run Uber
+
+Now that you have your VM, the only thing left to do is log into your server and start Uber.  Since I don't currently have a Windows machine to test on, I'm a little fuzzy on the best way to do that.  I'll fill in the details as soon as I get that figured out, but in the meantime here are some links:
+* http://stackoverflow.com/questions/9885108/ssh-to-vagrant-box-in-windows
+* http://www.robertpate.net/blog/2013/getting-the-vagrant-ssh-command-to-work-on-windows/
+
+Once you've logged in, you can run the following command to run Uber:
+
+```bash
+python uber/run_server.py
+```
+
+After running this command, you can go to http://localhost:4321/ and log in with the email address "magfest@example.com" and the password "magfest".
+
+Now you're ready to do development; every time you edit one of the Python files that make up Uber, the process will restart automatically, so you'll see the change as soon as you refresh your browser.  The only thing to watch out for is that if you make a syntax error, the process will stop altogether since it can't restart without being valid.  In that case you'll have to re-run the above command to re-start the server (after fixing your syntax error).
