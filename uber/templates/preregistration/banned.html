@@ -1,9 +1,9 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}You may be banned from MAGFest!{% endblock %}
+{% block title %}You may be banned from {{ EVENT_NAME }}!{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
 
-<h2> You may be banned from MAGFest! </h2>
+<h2> You may be banned from {{ EVENT_NAME }}! </h2>
 
 Our list of banned people includes someone named <b>{{ attendee.full_name }}</b>.  Every banned attendee has
 been told they are banned, so if this is not a mistake then you should definitely know it.  However, if you

@@ -35,7 +35,7 @@
     <td> {% checkgroup attendee.interests %} </td>
 </tr>
 <tr>
-    <td> <nobr>How did you</nobr> <nobr>find MAGFest?</nobr> </td>
+    <td> <nobr>How did you</nobr> <nobr>find {{ EVENT_NAME }}?</nobr> </td>
     <td> <input type="text" name="found_how" value="{{ attendee.found_how }}" /> </td>
 </tr>
 <tr>
@@ -46,7 +46,7 @@
     <td> <nobr>Keep Me Updated:</nobr> </td>
     <td>
         <input type="checkbox" name="can_spam" value="1" {% if attendee.can_spam %}checked{% endif %} />
-        Send me emails relating to MAGFest in future years. &nbsp;&nbsp;
+        Send me emails relating to {{ EVENT_NAME }} in future years. &nbsp;&nbsp;
         <span class="popup">{% popup_link "../static/views/privacy.html" "View Our Privacy Policy" %}</span>
     </td>
 </tr>

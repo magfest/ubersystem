@@ -219,11 +219,11 @@ KLUDGE_PAYMENT_OPTS = enum(
 KLUDGE_PAYMENT_OPTS = DOOR_PAYMENT_OPTS
 
 STORE_PRICES = (                # start as a tuple to preserve order for STORE_ITEMS
-    ('MAGFest 12 tshirt', 15),
-    ('MAGFest 11 tshirt', 10),
+    ('{{ EVENT_NAME }} 12 tshirt', 15),
+    ('{{ EVENT_NAME }} 11 tshirt', 10),
     ('EB Papas tshirt', 5),
-    ('MAGFest hoodie', 30),
-    ('MAGFest 12 sticker', 1),
+    ('{{ EVENT_NAME }} hoodie', 30),
+    ('{{ EVENT_NAME }} 12 sticker', 1),
     ('Squarewave Bumper Sticker', 2),
     ('Squarewave Car Window Decal', 4),
     ('Squarewave Lanyard', 4),

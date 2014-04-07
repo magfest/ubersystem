@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html>
 <head>
-    <title>MAGFest - At the Door Registration</title>
+    <title>{{ EVENT_NAME }} - At the Door Registration</title>
     <link rel="stylesheet" type="text/css" href="../static/styles/styles.css" />
     <script type="text/javascript" src="../static/lib/jquery/jquery-1.7.2.min.js"></script>
     <script src="../common.js" type="text/javascript"></script>
@@ -95,11 +95,11 @@
     </td>
 </tr>
 <tr>
-    <td> <nobr>How did you</nobr> <nobr>find MAGFest?</nobr> </td>
+    <td> <nobr>How did you</nobr> <nobr>find {{ EVENT_NAME }}?</nobr> </td>
     <td> <input type="text" name="found_how" value="{{ attendee.found_how }}" style="width:80%" /> </td>
 </tr>
 <tr>
-    <td> <nobr>What are you</nobr> <nobr>interested in</nobr> <nobr>at MAGFest?</nobr> </td>
+    <td> <nobr>What are you</nobr> <nobr>interested in</nobr> <nobr>at {{ EVENT_NAME }}?</nobr> </td>
     <td>
         <nobr><input type="checkbox" onClick="$(':checkbox[name=interests]').attr('checked',this.checked)" /> Everything</nobr>
         {% checkgroup attendee.interests %}

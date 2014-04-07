@@ -205,7 +205,7 @@
     <td> <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" /> </td>
 </tr>
 <tr>
-    <td> <nobr>{% bold_if AT_THE_CON %}Age as of MAGFest:{% end_bold_if %}</nobr> </td>
+    <td> <nobr>{% bold_if AT_THE_CON %}Age as of {{ EVENT_NAME }}:{% end_bold_if %}</nobr> </td>
     <td>
         <select name="age_group">
             {% options AGE_GROUP_OPTS attendee.age_group %}
@@ -228,7 +228,7 @@
     <td> {% checkgroup attendee.assigned_depts %} </td>
 </tr>
 <tr>
-    <td> <nobr>How did they</nobr> <nobr>find MAGFest?</nobr> </td>
+    <td> <nobr>How did they</nobr> <nobr>find {{ EVENT_NAME }}?</nobr> </td>
     <td> <input type="text" name="found_how" value="{{ attendee.found_how }}" style="width:80%" /> </td>
 </tr>
 {% if AT_THE_CON and attendee.id %}

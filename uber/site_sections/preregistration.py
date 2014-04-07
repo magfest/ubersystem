@@ -260,7 +260,7 @@ class Root:
     def unset_group_member(self, id):
         attendee = Attendee.get(id)
         try:
-            send_email(REGDESK_EMAIL, attendee.email, 'MAGFest group registration dropped',
+            send_email(REGDESK_EMAIL, attendee.email, '{{ EVENT_NAME }} group registration dropped',
                        render('emails/group_member_dropped.txt', {'attendee': attendee}), model=attendee)
         except:
             log.error('unable to send group unset email', exc_info=True)
@@ -311,7 +311,7 @@ class Root:
                 message = 'First and Last names are required.'
             if not message:
                 attendee.save()
-                subject, body = 'MAGFest Registration Transferred', render('emails/transfer_badge.txt', {'new': attendee, 'old': old})
+                subject, body = '{{ EVENT_NAME }} Registration Transferred', render('emails/transfer_badge.txt', {'new': attendee, 'old': old})
                 try:
                     send_email(REGDESK_EMAIL, [old.email, attendee.email, REGDESK_EMAIL], subject, body, model = attendee)
                 except:

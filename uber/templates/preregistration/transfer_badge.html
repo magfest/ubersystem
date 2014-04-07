@@ -1,12 +1,12 @@
 {% extends "./preregistration/preregbase.html" %}
 {% block backlink %}{% endblock %}
-{% block title %}Tranfer Your MAGFest Registration{% endblock %}
+{% block title %}Transfer Your {{ EVENT_NAME }} Registration{% endblock %}
 {% block content %}
 
 <h2> Transfer {{ old.full_name }}'s Registration </h2>
 
-By filling out this form, you will be transferring {{ old.full_name }}'s MAGFest registration
-to someone else.  {{ old.full_name }} will no longer have a paid MAGFest badge waiting at
+By filling out this form, you will be transferring {{ old.full_name }}'s {{ EVENT_NAME }} registration
+to someone else.  {{ old.full_name }} will no longer have a paid {{ EVENT_NAME }} badge waiting at
 our Registration Desk; that will belong to whomever the badge is transferred.
 
 <form method="POST" action="transfer_badge">
