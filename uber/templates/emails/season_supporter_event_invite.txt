@@ -1,6 +1,6 @@
 {{ attendee.first_name }},
 
-As part of your 2014 Season Supporter package, you are eligible for complimentary admission to all 2013 and 2014 MAGFest events.  Our next event is {{ event.name }}, and it's coming up on {{ event.day|datetime:"%A, %b %e" }} at {{ event.location }}, which you can read more about at {{ event.url }}
+As part of your 2014 Season Supporter package, you are eligible for complimentary admission to all 2013 and 2014 {{ EVENT_NAME }} events.  Our next event is {{ event.name }}, and it's coming up on {{ event.day|datetime:"%A, %b %e" }} at {{ event.location }}, which you can read more about at {{ event.url }}
 
 To claim your complementary badge, just visit {{ URL_BASE }}/preregistration/event/{{ event.slug }}?id={{ attendee.secret_id }}
 

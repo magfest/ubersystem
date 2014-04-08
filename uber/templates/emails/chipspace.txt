@@ -8,7 +8,7 @@ We're emailing you because you've expressed an interest in volunteering in Jamsp
 
 Let us know if you have the above qualifications (or even more!).  If so, we'd love to work with you!
 
-Either way, see you at MAGFest!
+Either way, see you at {{ EVENT_NAME }}!
 
 Brandon Hood,
 Chipspace Manager

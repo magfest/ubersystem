@@ -3,9 +3,9 @@
 You're receiving this email because you expressed an interest in volunteering in the Food Prep department.  The following is a message from Chef:
 
 
-If you don't know me, my name is Chef.  I and my crew run the Staff Suite here at MAGFest. We are all veterans with at least 3 MAGFests under our belts. We know what we are doing and what we are looking for, both in terms of what we are making and who we are looking for. Most of us are either trained chefs or experienced cooks. We are incredible at what we do. 
+If you don't know me, my name is Chef.  I and my crew run the Staff Suite here at {{ EVENT_NAME }}. We are all veterans with at least 3 {{ EVENT_NAME }}s under our belts. We know what we are doing and what we are looking for, both in terms of what we are making and who we are looking for. Most of us are either trained chefs or experienced cooks. We are incredible at what we do. 
 
-My crew and I need people. We need people who are willing to help. People who are willing to come in on time, to do what we need to do and to contribute to making MAGFest better. 
+My crew and I need people. We need people who are willing to help. People who are willing to come in on time, to do what we need to do and to contribute to making {{ EVENT_NAME }} better. 
 
 I have expectations for the people who help in my department. I expect diligence, intelligence, obedience and respect. I need you to respect the people who lead you, and to respect the rules we have in place. I need you to be diligent in the tasks given to you. and in doing them to the best of your ability. I need people who are obedient, in doing tasks that they may not want to do, which may not seem to be glamorous, or popular. But despite that, know that they are necessary. Lastly I need people who are intelligent in their tasks, to see what else needs doing, and to ask how else they can help. 
 

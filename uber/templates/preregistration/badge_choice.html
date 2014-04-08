@@ -43,7 +43,7 @@
             <li style="color:red">{% attendee_price_notice %}</li>
         </ul>
     </td>
-    <td> {% popup_link "../static/views/attendees.html" "Details" %} </td>
+    <td> {% popup_link "../static_views/attendees.html" "Details" %} </td>
 </tr>
 {% if now > PREREG_TAKEDOWN %}
     <tr>
@@ -65,7 +65,7 @@
             <li style="color:red">{% group_price_notice %}</li>
         </ul>
     </td>
-    <td> {% popup_link "../static/views/groups.html" "Details" %} </td>
+    <td> {% popup_link "../static_views/groups.html" "Details" %} </td>
 {% else %}
     <td> &nbsp;&nbsp;&nbsp;&nbsp; <b>Group</b> </td>
     <td colspan="2" style="color:red">

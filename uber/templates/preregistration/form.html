@@ -35,7 +35,7 @@
             <select name="tables">
                 {% int_options 1 MAX_TABLES group.tables %}
             </select> ({{ TABLE_PRICES }}) &nbsp;&nbsp;
-            <nobr>[<i>You may <a href="mailto:marketplace@magfest.org">send an email</a> to request more than {{ MAX_TABLES }} tables.</i>]</nobr>
+            <nobr>[<i>You may <a href="mailto:marketplace@{{ EVENT_NAME }}.org">send an email</a> to request more than {{ MAX_TABLES }} tables.</i>]</nobr>
         </td>
     </tr>
 {% endif %}
@@ -118,7 +118,7 @@
     <td> {% checkgroup attendee.interests %} </td>
 </tr>
 <tr>
-    <td> How did you <br/> find MAGFest? </td>
+    <td> How did you <br/> find {{ EVENT_NAME }}? </td>
     <td> <input type="text" name="found_how" value="{{ attendee.found_how }}" /> </td>
 </tr>
 <tr>
@@ -128,8 +128,8 @@
 <tr>
     <td> Keep Me Updated: </td>
     <td>
-        {% checkbox attendee.can_spam %} Send me emails relating to MAGFest in future years. &nbsp;&nbsp;
-        <span class="popup">{% popup_link "../static/views/privacy.html" "View Our Privacy Policy" %}</span>
+        {% checkbox attendee.can_spam %} Send me emails relating to {{ EVENT_NAME }} in future years. &nbsp;&nbsp;
+        <span class="popup">{% popup_link "../static_views/privacy.html" "View Our Privacy Policy" %}</span>
     </td>
 </tr>
 <tr>

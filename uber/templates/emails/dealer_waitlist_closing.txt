@@ -1,5 +1,5 @@
 {{ group.leader.first_name }}, 
 
-I am sorry to inform you that only one space opened up for the waitlist, and unfortunately, your group ({{ group.name }}) did not make it into MAGFest Marketplace this year, which is why your application is now being declined.  Please try again next year.  Registration opens up at Otakon and online at the same time.  Again, I am very sorry that you did not make it into the Marketplace this year.
+I am sorry to inform you that only one space opened up for the waitlist, and unfortunately, your group ({{ group.name }}) did not make it into {{ EVENT_NAME }} Marketplace this year, which is why your application is now being declined.  Please try again next year.  Registration opens up at Otakon and online at the same time.  Again, I am very sorry that you did not make it into the Marketplace this year.
 
 {{ MARKETPLACE_EMAIL_SIGNATURE }}

@@ -1,6 +1,6 @@
 {{ attendee.first_name }},
 
-You're receiving this email because you've signed up to work in the MAGFest Food suite.  The chefs have asked us to send a list of rules, so please take the time to read over them.
+You're receiving this email because you've signed up to work in the {{ EVENT_NAME }} Food suite.  The chefs have asked us to send a list of rules, so please take the time to read over them.
 
 1. The Chef's rule is law
 2. If you see a Chef moving with anything in their hands, do not move. freeze, they will move around you. 
