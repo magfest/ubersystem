@@ -4,7 +4,25 @@ class State:
     @property
     def DEALER_REG_OPEN(self):
         return self.AFTER_DEALER_REG_START and self.BEFORE_DEALER_REG_SHUTDOWN
-
+	
+    @property
+    def PREREG_OPEN(self):
+        if PREREG_NOT_OPEN_YET or self.BEFORE_PREREG_OPENING:
+            return "notopenyet"
+        elif PREREG_CLOSED or self.AFTER_PREREG_TAKEDOWN:
+            return "closed"
+        else:
+            return True
+	
+    @property
+    def BADGES_SOLD(self):
+        from uber.common import Attendee
+        attendees = Attendee.objects.all()
+        paid_group_sales = attendees.filter(paid=PAID_BY_GROUP, group__amount_paid__gt=0).count()
+        paid_ind_sales = attendees.filter(paid=HAS_PAID).count()
+        badges_sold_count = paid_group_sales + paid_ind_sales
+        return badges_sold_count
+		
     def get_oneday_price(self, dt):
         default = conf['badge_prices']['default_single_day']
         return conf['badge_prices']['single_day'].get(dt.strftime('%A'), default)
@@ -58,26 +76,17 @@ class State:
 
 state = State()
 
-EARLY_BADGE_PRICE = 40
+EARLY_BADGE_PRICE = 50
 LATE_BADGE_PRICE  = 50
-DOOR_BADGE_PRICE  = 60
-
-EARLY_GROUP_PRICE = 30
-LATE_GROUP_PRICE  = 40
+DOOR_BADGE_PRICE  = 50
 
 SHIRT_LEVEL = 20
-SUPPORTER_LEVEL = 60
-SEASON_LEVEL = 160
+SUPPORTER_LEVEL = 50
 DONATION_TIERS = {
     0: 'No thanks',
-    5: '"??" ribbon',
-    10: 'button',
-    SHIRT_LEVEL: 'tshirt',
+    5: 'Friend of MAGFest ribbon',
+    SHIRT_LEVEL: 'T-shirt',
     SUPPORTER_LEVEL: 'Supporter Package',
-    100: '??',
-    SEASON_LEVEL: 'Season Supporter Pass for 2015',
-    200: '??',
-    500: 'Lightsuit'
 }
 DONATION_OPTS = sorted((amt, '+ ${}: {}'.format(amt,desc) if amt else desc) for amt,desc in DONATION_TIERS.items())
 
@@ -156,11 +165,11 @@ AT_THE_DOOR_BADGE_OPTS = enum(
 PSEUDO_GROUP_BADGE  = 1  # people registering in groups will get attendee badges
 PSEUDO_DEALER_BADGE = 2  # dealers get attendee badges with a ribbon
 BADGE_RANGES = {         # these may overlap, but shouldn't
-    STAFF_BADGE:     [1, 499],
-    SUPPORTER_BADGE: [500, 999],
-    GUEST_BADGE:     [1000, 1999],
-    ATTENDEE_BADGE:  [2000, 19999],
-    ONE_DAY_BADGE:   [20000, 29999],
+    STAFF_BADGE:     [1, 200],
+    SUPPORTER_BADGE: [201, 700],
+    GUEST_BADGE:     [701, 750],
+    ATTENDEE_BADGE:  [751, 3000],
+    ONE_DAY_BADGE:   [0, 0],
 }
 MAX_BADGE = max(xs[1] for xs in BADGE_RANGES.values())
 
@@ -171,7 +180,6 @@ RIBBON_OPTS = enum(
     PRESS_RIBBON     = 'Camera',
     PANELIST_RIBBON  = 'Panelist',
     DEALER_RIBBON    = 'Shopkeep',
-    BAND_RIBBON      = 'Rock Star'
 )
 PREASSIGNED_BADGE_TYPES = [STAFF_BADGE, SUPPORTER_BADGE]
 CAN_UNSET = [ATTENDEE_BADGE]

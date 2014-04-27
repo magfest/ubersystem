@@ -27,9 +27,14 @@ def send_banned_email(attendee):
     except:
         log.error('unable to send banned email about {}', attendee)
 
-
 @all_renderable()
 class Root:
+    
+    def stats(self):
+        return json.dumps({
+            'remaining badges': max(0,(MAX_BADGE_SALES - state.BADGES_SOLD)),
+        })
+        
     @property
     def preregs(self):
         return cherrypy.session.setdefault('preregs', OrderedDict())
@@ -417,16 +422,33 @@ class Root:
             'registered': slug in [spt.slug for spt in attendee.seasonpassticket_set.all()]
         }
 
-    if PREREG_CLOSED:
+    if (state.BADGES_SOLD >= MAX_BADGE_SALES):
         del index, form, badge_choice
         def default(self, *args, **kwargs):
             return '''
                 <html><head></head><body style='text-align:center'>
-                    <h2 style='color:red'>Preregistration has closed.</h2>
-                    We'll see everyone on January 2 - 5. <br/> <br/>
-                    Full weekend passes will be available at the door for $60,
-                    and single day passes will be $20 on Thursday or Sunday,
-                    and $40 for Friday or Saturday.
+                    <h2 style='color:red'>''' + EVENT_NAME + ''' has sold out.</h2>
+                    Thanks to everyone who pre-registered! <br/> <br/>
+                    We'll see you September 12th - 14th.
+                </body></html>
+            '''
+    elif state.PREREG_OPEN == "notopenyet":
+        del index, form, badge_choice
+        def default(self, *args, **kwargs):
+            return '''
+                <html><head></head><body style='text-align:center'>
+                    <h2 style='color:red'>''' + EVENT_NAME + ''' pre-registration is not yet open.</h2>
+                    Please check back on May 15th.
+                </body></html>
+            '''
+    elif state.PREREG_OPEN == "closed":
+        del index, form, badge_choice
+        def default(self, *args, **kwargs):
+            return '''
+                <html><head></head><body style='text-align:center'>
+                    <h2 style='color:red'>''' + EVENT_NAME + ''' pre-registration has closed.</h2>
+                    We'll see everyone September 12th - 14th. <br/> <br/>
+                    Full weekend passes will be available at the door for $60. There will not be any single-day passes available - apologies for any inconvenience this causes.
                 </body></html>
             '''
 
