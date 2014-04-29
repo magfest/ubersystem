@@ -82,16 +82,30 @@ Next open up a DOS prompt and change into the ``magfest`` directory that was cre
 * creates a database filled with test data
 * sets up a Python virtualenv with all of the necessary Python packages needed to run Uber
 
-Now that you have your VM, the only thing left to do is log into your server and start Uber.  Since I don't currently have a Windows machine to test on, I'm a little fuzzy on the best way to do that.  I'll fill in the details as soon as I get that figured out, but in the meantime here are some links:
-* http://stackoverflow.com/questions/9885108/ssh-to-vagrant-box-in-windows
-* http://www.robertpate.net/blog/2013/getting-the-vagrant-ssh-command-to-work-on-windows/
+Now that you have your VM, the only thing left to do is log into your server and start Uber.  First, make sure Git is in your Windows PATH. Use this if you're not sure how:
+http://blog.countableset.ch/2012/06/07/adding-git-to-windows-7-path/
 
-Once you've logged in, you can run the following command to run Uber:
+Next, run
 
 ```bash
-python uber/run_server.py
+vagrant ssh
+```
+
+To ssh into your server. Once you've logged in, you can run the following commands to run Uber:
+
+```bash
+cd magfest
+./evn/bin/python uber/run_server.py
 ```
 
 After running this command, you can go to http://localhost:4321/ and log in with the email address "magfest@example.com" and the password "magfest".
 
 Now you're ready to do development; every time you edit one of the Python files that make up Uber, the process will restart automatically, so you'll see the change as soon as you refresh your browser.  The only thing to watch out for is that if you make a syntax error, the process will stop altogether since it can't restart without being valid.  In that case you'll have to re-run the above command to re-start the server (after fixing your syntax error).
+
+If you want to run the server in the background to free up your ssh session for other commands, use Ctrl-Z to suspend it and then run
+
+```bash
+bg
+```
+
+to run the server in the background.

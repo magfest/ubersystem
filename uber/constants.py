@@ -46,6 +46,11 @@ class State:
         return self.get_attendee_price(datetime.now())
 
     @property
+    def SUPPORTER_BADGE_PRICE(self):
+        supporter_price = self.BADGE_PRICE + SUPPORTER_LEVEL
+        return supporter_price
+    
+    @property
     def GROUP_PRICE(self):
         return self.get_group_price(datetime.now())
 
@@ -79,6 +84,9 @@ state = State()
 EARLY_BADGE_PRICE = 50
 LATE_BADGE_PRICE  = 50
 DOOR_BADGE_PRICE  = 50
+
+EARLY_GROUP_PRICE = 30
+LATE_GROUP_PRICE  = 40
 
 SHIRT_LEVEL = 20
 SUPPORTER_LEVEL = 50

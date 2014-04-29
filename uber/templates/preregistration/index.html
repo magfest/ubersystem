@@ -3,7 +3,7 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-<h2> {{ EVENT_NAME }} Preregistration </h2>
+<h2> ${{ EVENT_NAME }} Preregistration </h2>
 
 <table style="width:auto ; margin-left:auto ; margin-right: auto"><tr>
     <td>{% stripe_form prereg_payment charge %}</td>

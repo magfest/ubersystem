@@ -12,7 +12,7 @@
         if ($.field("amount_extra")) {
             donationChanged();
             var format = function(opt) {
-                if (opt.id == {{ SUPPORTER_LEVEL }} || opt.id == {{ SEASON_LEVEL }}) {
+                if (opt.id == {{ SUPPORTER_LEVEL }}) {
                     return '<span class="select2-bolded">' + opt.text + '</span>';
                 } else {
                     return opt.text;
@@ -46,7 +46,7 @@
                 {{ attendee.get_amount_extra_display }}
                 <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
             {% else %}
-                <select name="amount_extra" style="width:50%" onChange="donationChanged()">
+                <select name="amount_extra" style="width:50%" onChange="donationChanged()" >
                     {% options PREREG_DONATION_OPTS attendee.amount_extra %}
                 </select>
             {% endif %}

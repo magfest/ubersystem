@@ -5,6 +5,7 @@
 
 <form method="post" action="form">
 <input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
+<input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
 {% if edit_id %}
     <input type="hidden" name="edit_id" value="{{ edit_id }}" />
 {% endif %}
