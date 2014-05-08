@@ -95,7 +95,7 @@ To ssh into your server. Once you've logged in, you can run the following comman
 
 ```bash
 cd magfest
-./evn/bin/python uber/run_server.py
+./env/bin/python uber/run_server.py
 ```
 
 After running this command, you can go to http://localhost:4321/ and log in with the email address "magfest@example.com" and the password "magfest".

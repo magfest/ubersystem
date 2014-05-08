@@ -49,6 +49,7 @@ class Root:
         else:
             raise if_not_found
 
+    @check_if_can_reg
     def index(self, message=''):
         if not self.preregs:
             raise HTTPRedirect('badge_choice?message={}', message) if message else HTTPRedirect('badge_choice')
@@ -57,10 +58,12 @@ class Root:
                 'message': message,
                 'charge': Charge(list(self.preregs.values()))   # TODO: fix listify
             }
-
+            
+    @check_if_can_reg
     def badge_choice(self, message=''):
         return {'message': message}
 
+    @check_if_can_reg
     def form(self, message='', edit_id=None, **params):
         if 'badge_type' not in params and edit_id is None:
             raise HTTPRedirect('badge_choice?message={}', 'You must select a badge type')
@@ -421,36 +424,6 @@ class Root:
             'deadline_passed': deadline_passed,
             'registered': slug in [spt.slug for spt in attendee.seasonpassticket_set.all()]
         }
-
-    if (state.BADGES_SOLD >= MAX_BADGE_SALES):
-        del index, form, badge_choice
-        def default(self, *args, **kwargs):
-            return '''
-                <html><head></head><body style='text-align:center'>
-                    <h2 style='color:red'>''' + EVENT_NAME + ''' has sold out.</h2>
-                    Thanks to everyone who pre-registered! <br/> <br/>
-                    We'll see you September 12th - 14th.
-                </body></html>
-            '''
-    elif state.PREREG_OPEN == "notopenyet":
-        del index, form, badge_choice
-        def default(self, *args, **kwargs):
-            return '''
-                <html><head></head><body style='text-align:center'>
-                    <h2 style='color:red'>''' + EVENT_NAME + ''' pre-registration is not yet open.</h2>
-                    Please check back on May 15th.
-                </body></html>
-            '''
-    elif state.PREREG_OPEN == "closed":
-        del index, form, badge_choice
-        def default(self, *args, **kwargs):
-            return '''
-                <html><head></head><body style='text-align:center'>
-                    <h2 style='color:red'>''' + EVENT_NAME + ''' pre-registration has closed.</h2>
-                    We'll see everyone September 12th - 14th. <br/> <br/>
-                    Full weekend passes will be available at the door for $60. There will not be any single-day passes available - apologies for any inconvenience this causes.
-                </body></html>
-            '''
 
 if POST_CON:
     @all_renderable()
