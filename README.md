@@ -65,6 +65,8 @@ $ psql --host=localhost --username=m13 --password m13 < uber/tests/test_data.sql
 
 Running on Vagrant
 ==================
+(windows instructions, if you're on linux/etc the process will be similar)
+
 [Vagrant](http://www.vagrantup.com/) is a great way to provide portable development environments by letting you install a local VM and have it automatically configured with all of the software and dependencies you need to start developing.  If you're already running Linux, we recommend you just develop locally, so this section assumes you are using Windows.  Here's what you'll need to install to get your dev environment up and running:
 * [TortoiseGit](https://code.google.com/p/tortoisegit/) for checking out this repo
 * [VirtualBox](https://www.virtualbox.org/wiki/Downloads) for running your development VM
@@ -76,17 +78,19 @@ First, use TortoiseGit to check out this repo.  It's probably a good idea to for
 * go to https://github.com/EliAndrewC/magfest and click the "Fork" button at the top right of the page
 * tell TortoiseGit to clone your new repo, which will be at ``https://github.com/<YOUR-USERNAME>/magfest``
 
-Next open up a DOS prompt and change into the ``magfest`` directory that was created when you cloned your repo, and type ``vagrant up``.  This does a bunch of different things:
+Next open a DOS prompt run as an administrator.  go to Start->Accessories->Command Prompt, right click, run as administrator
+
+Change into the ``magfest`` directory that was created when you cloned your repo, and type ``vagrant up``.  This does a bunch of different things:
 * downloads a VirtualBox image of an Ubuntu server from the internet
 * starts up the VM and installs all necessary OS dependencies
 * creates a database filled with test data
 * sets up a Python virtualenv with all of the necessary Python packages needed to run Uber
 
-Now that you have your VM, the only thing left to do is log into your server and start Uber.  Since I don't currently have a Windows machine to test on, I'm a little fuzzy on the best way to do that.  I'll fill in the details as soon as I get that figured out, but in the meantime here are some links:
-* http://stackoverflow.com/questions/9885108/ssh-to-vagrant-box-in-windows
-* http://www.robertpate.net/blog/2013/getting-the-vagrant-ssh-command-to-work-on-windows/
+Now that you have your VM, the only thing left to do is log into your server and start Uber.  The easiest way is to do:
+```vagrant ssh```
+(you can also use Putty)
 
-Once you've logged in, you can run the following command to run Uber:
+Once you've logged in, you can run the following command to run start the Ubersystem server:
 
 ```bash
 python uber/run_server.py
