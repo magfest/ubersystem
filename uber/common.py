@@ -7,7 +7,6 @@ import math
 import string
 import socket
 import random
-import logging
 import inspect
 import warnings
 import threading
@@ -34,8 +33,8 @@ from threading import Thread, RLock, local, current_thread
 import bcrypt
 import cherrypy
 import django.conf
-from validate import Validator
-from configobj import ConfigObj, ConfigObjError, flatten_errors
+
+from sideboard.lib import log, parse_config, entry_point, listify, DaemonTask
 
 from uber.amazon_ses import AmazonSES, EmailMessage
 from uber.config import *
@@ -54,9 +53,6 @@ from django.db.models import Q, Avg, Sum, Count, Model, ForeignKey, OneToOneFiel
 
 import stripe
 stripe.api_key = STRIPE_SECRET_KEY
-
-import logging_unterpolation
-logging_unterpolation.patch_logging()
 
 from uber.utils import *
 from uber.decorators import *

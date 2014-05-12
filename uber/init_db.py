@@ -42,7 +42,8 @@ def insert_admin():
         hashed   = bcrypt.hashpw('magfest', bcrypt.gensalt())
     )
 
-if __name__ == '__main__':
+@entry_point
+def init_db():
     verbose = '--quiet' not in sys.argv
     dry_run = '--dry-run' in sys.argv
     if any(not arg.startswith('-') for arg in sys.argv[1:]):

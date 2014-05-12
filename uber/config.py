@@ -1,34 +1,6 @@
 from uber.common import *
 
-MODULE_ROOT = abspath(dirname(__file__))
-ROOT = MODULE_ROOT[:MODULE_ROOT.rfind(os.path.sep)]
-
-_roots = ['root = "{}"'.format(ROOT), 'module_root = "{}"'.format(MODULE_ROOT)]
-_rootspec = ['root = string(default="{}")\n'.format(ROOT), 'module_root = string(default="{}")\n'.format(MODULE_ROOT)]
-with open(join(MODULE_ROOT, 'configspec.ini')) as _f:
-    _spec = ConfigObj(_rootspec + _f.readlines(), list_values=False, interpolation=False, _inspec=True)
-
-with open(join(MODULE_ROOT, 'defaults.conf')) as _f:
-    conf = ConfigObj(_f.readlines(), configspec=_spec, interpolation='ConfigParser')
-
-if any(sys.argv[0].endswith(testrunner) for testrunner in ['py.test', 'nosetests']):
-    _overrides = ['uber/tests/test.conf']
-else:
-    _overrides = ['development.conf', 'production.conf']
-
-for _fname in _overrides:
-    _fpath = join(ROOT, _fname)
-    if exists(_fname):
-        with open(_fname) as _f:
-            conf.merge(ConfigObj(_roots + _f.readlines(), configspec=_spec, interpolation='ConfigParser'))
-
-_validator = Validator()
-_errors = conf.validate(_validator, preserve_errors=True)
-if _errors != True:
-    _errors = flatten_errors(conf, _errors)
-    print('failed to validate configspec')
-    pprint(_errors)
-    raise ConfigObjError(_errors)
+conf = parse_config(__file__)
 
 def _unrepr(d):
     for opt in d:
@@ -40,19 +12,7 @@ def _unrepr(d):
         elif isinstance(d[opt], dict):
             _unrepr(d[opt])
 
-_unrepr(conf['cherrypy'])
 _unrepr(conf['appconf'])
-cherrypy.config.update(conf['cherrypy'].dict())
-cherrypy.engine.autoreload.files.update([
-    join(ROOT, 'production.conf'),
-    join(ROOT, 'development.conf'),
-    join(MODULE_ROOT, 'defaults.conf'),
-    join(MODULE_ROOT, 'configspec.ini')
-])
-try:
-    os.makedirs(conf['cherrypy']['tools.sessions.storage_path'])
-except:
-    pass
 
 if 'DATABASE_URL' in os.environ:
     _url = urlparse(os.environ['DATABASE_URL'])
@@ -64,14 +24,6 @@ if 'DATABASE_URL' in os.environ:
         'NAME': _url.path.strip('/')
     })
 django.conf.settings.configure(**conf['django'].dict())
-
-for _logger, _level in conf['loggers'].items():
-    logging.getLogger(_logger).setLevel(getattr(logging, _level))
-
-log = logging.getLogger()
-_handler = logging.FileHandler('uber.log')
-_handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
-log.addHandler(_handler)
 
 for _opt, _val in conf.items():
     if not isinstance(_val, dict):
