@@ -10,3 +10,4 @@ production.conf
 #Project
 workspace.xml
 tasks.xml
+distribute-*.tar.gz
