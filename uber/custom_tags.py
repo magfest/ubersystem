@@ -377,12 +377,12 @@ class stripe_form(template.Node):
                     data-key="{key}"
                     {email}
                     data-amount="{charge.amount}"
-                    data-name="MAGFest {regtext}"
+                    data-name="{event_name} {regtext}"
                     data-description="{charge.description}"
                     data-image="../static/images/maglogo.png">
                 </script>
             </form>
-        """.format(action=self.action, regtext=regtext, email=email, payment_id=payment_id, key=STRIPE_PUBLIC_KEY, charge=charge)
+        """.format(action=self.action, event_name=EVENT_NAME, regtext=regtext, email=email, payment_id=payment_id, key=STRIPE_PUBLIC_KEY, charge=charge)
 
 
 
