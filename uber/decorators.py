@@ -39,12 +39,22 @@ def csrf_protected(func):
     return protected
 
 
+# requires: POST and a valid CSRF token
 def ajax(func):
     @wraps(func)
     def returns_json(*args, **kwargs):
         cherrypy.response.headers['Content-Type'] = 'application/json'
         assert cherrypy.request.method == 'POST', 'POST required'
         check_csrf(kwargs.pop('csrf_token', None))
+        return json.dumps(func(*args, **kwargs)).encode('utf-8')
+    return returns_json
+
+# used for things that should be publicly called, i.e. APIs and such.
+# supports GET or POST
+def ajax_public_callable(func):
+    @wraps(func)
+    def returns_json(*args, **kwargs):
+        cherrypy.response.headers['Content-Type'] = 'application/json'
         return json.dumps(func(*args, **kwargs)).encode('utf-8')
     return returns_json
 
