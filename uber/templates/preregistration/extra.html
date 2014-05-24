@@ -12,7 +12,7 @@
         if ($.field("amount_extra")) {
             donationChanged();
             var format = function(opt) {
-                if (opt.id == {{ SUPPORTER_LEVEL }}) {
+                if (opt.id == {{ SUPPORTER_LEVEL }} || opt.id == {{ SEASON_LEVEL }}) {
                     return '<span class="select2-bolded">' + opt.text + '</span>';
                 } else {
                     return opt.text;
