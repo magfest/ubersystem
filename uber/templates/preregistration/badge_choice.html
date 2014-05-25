@@ -46,60 +46,60 @@
 <form method="post" id="badgechoice" action="form">
 
 <table class="badges">
-    <tr>
-        <td>
-            <input type="radio" id="attendee" name="badge_type" value="{{ ATTENDEE_BADGE }}" checked /><input type="hidden" id="attendee_amount" name="amount_extra" value="0" />
-            <b>Attendee:</b> &nbsp; ${{ BADGE_PRICE }}
-        </td>
-        <td>
-            <ul>
-                <li> All-access, three-day pass </li>
-                {%if PRICE_CHANGE %}<li style="color:red">{% attendee_price_notice %}</li>{% endif %}
-            </ul>
-        </td>
-        <td> {% popup_link "../static_views/attendees.html" "Details" %} </td>
-    </tr>
+<tr>
+    <td>
+        <input type="radio" id="attendee" name="badge_type" value="{{ ATTENDEE_BADGE }}" checked /><input type="hidden" id="attendee_amount" name="amount_extra" value="0" />
+        <b>Attendee:</b> &nbsp; ${{ BADGE_PRICE }}
+    </td>
+    <td>
+        <ul>
+            <li> All-access, three-day pass </li>
+            {%if PRICE_CHANGE %}<li style="color:red">{% attendee_price_notice %}</li>{% endif %}
+        </ul>
+    </td>
+    <td> {% popup_link "../static_views/attendees.html" "Details" %} </td>
+</tr>
 {% if now > PREREG_TAKEDOWN and SINGLE_DAY_BADGES %}
     <tr>
         <td> <b>Single Day Passes:</b> </td>
         <td><ul><li>Single days passes available for sale at the door for {% single_day_prices %}.</li></ul></td>
     </tr>
 {% endif %}
-    <tr>
-        <td>
-            <input type="radio" id="supporter" name="badge_type" value="{{ ATTENDEE_BADGE }}" /><input type="hidden" id="supporter_amount" name="amount_extra" value="{{ SUPPORTER_LEVEL }}" />
-            <b>Supporter:</b> &nbsp; ${{ SUPPORTER_BADGE_PRICE }}
-        </td>
-        <td>
-            <ul>
-                <li> All-access pass with bonus swag </li>
-            </ul>
-        </td>
-        <td> {% popup_link "../static_views/supporters.html" "Details" %} </td>
-    </tr>
+<tr>
+    <td>
+        <input type="radio" id="supporter" name="badge_type" value="{{ ATTENDEE_BADGE }}" /><input type="hidden" id="supporter_amount" name="amount_extra" value="{{ SUPPORTER_LEVEL }}" />
+        <b>Supporter:</b> &nbsp; ${{ SUPPORTER_BADGE_PRICE }}
+    </td>
+    <td>
+        <ul>
+            <li> All-access pass with bonus swag </li>
+        </ul>
+    </td>
+    <td> {% popup_link "../static_views/supporters.html" "Details" %} </td>
+</tr>
 {% if GROUP_REG_AVAILABLE %}
-    <tr>
+<tr>
 {% if GROUP_REG_OPEN %}
-        <td>
-            {% if now < PREREG_TAKEDOWN %}<input type="radio" name="badge_type" value="{{ PSEUDO_GROUP_BADGE }}" />{% endif %}
-            <b>Group</b>
-        </td>
-        <td>
-            <ul>
-                <li>Save money when you register eight or more people at once</li>
-                <li>${{ GROUP_PRICE }} per person</li>
-                <li>Group members can kick in extra to upgrade their badge level</li>
-                <li style="color:red">{% group_price_notice %}</li>
-            </ul>
-        </td>
-        <td> {% popup_link "../static_views/groups.html" "Details" %} </td>
+    <td>
+        {% if now < PREREG_TAKEDOWN %}<input type="radio" name="badge_type" value="{{ PSEUDO_GROUP_BADGE }}" />{% endif %}
+        <b>Group</b>
+    </td>
+    <td>
+        <ul>
+            <li>Save money when you register eight or more people at once</li>
+            <li>${{ GROUP_PRICE }} per person</li>
+            <li>Group members can kick in extra to upgrade their badge level</li>
+            <li style="color:red">{% group_price_notice %}</li>
+        </ul>
+    </td>
+    <td> {% popup_link "../static_views/groups.html" "Details" %} </td>
 {% else %}
-        <td> &nbsp;&nbsp;&nbsp;&nbsp; <b>Group</b> </td>
-        <td colspan="2" style="color:red">
-            <ul><li>The deadline for Group registration has passed, but you can still register as a regular attendee.</li></ul>
-        </td>
+    <td> &nbsp;&nbsp;&nbsp;&nbsp; <b>Group</b> </td>
+    <td colspan="2" style="color:red">
+        <ul><li>The deadline for Group registration has passed, but you can still register as a regular attendee.</li></ul>
+    </td>
 {% endif %}
-    </tr>
+</tr>
 {% endif %}
 </table>
 
