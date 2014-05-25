@@ -35,6 +35,11 @@ class Root:
             'remaining badges': max(0,(MAX_BADGE_SALES - state.BADGES_SOLD)),
         })
         
+    def check_prereg(self):
+        return json.dumps({
+            'force_refresh': not state.PREREG_OPEN or state.BADGES_SOLD >= MAX_BADGE_SALES
+        })
+        
     @property
     def preregs(self):
         return cherrypy.session.setdefault('preregs', OrderedDict())
