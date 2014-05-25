@@ -377,7 +377,7 @@ class stripe_form(template.Node):
                     data-key="{key}"
                     {email}
                     data-amount="{charge.amount}"
-                    data-name="{{ EVENT_NAME }} {regtext}"
+                    data-name="MAGFest {regtext}"
                     data-description="{charge.description}"
                     data-image="../static/images/maglogo.png">
                 </script>
