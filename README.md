@@ -99,3 +99,9 @@ python uber/run_server.py
 After running this command, you can go to http://localhost:4321/ and log in with the email address "magfest@example.com" and the password "magfest".
 
 Now you're ready to do development; every time you edit one of the Python files that make up Uber, the process will restart automatically, so you'll see the change as soon as you refresh your browser.  The only thing to watch out for is that if you make a syntax error, the process will stop altogether since it can't restart without being valid.  In that case you'll have to re-run the above command to re-start the server (after fixing your syntax error).
+
+Vagrant Performance notes:
+==========================
+
+Note1: shared folders are very slow on Windows. Don't be suprised that things run a bit slower.
+Note2: you probably should use the virtualbox application to increase the CPU and Memory size of the image to make it run smoother.  4CPU and 4GB of mem is a good start.

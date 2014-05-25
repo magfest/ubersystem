@@ -9,5 +9,21 @@
   <component name="TemplatesService">
     <option name="TEMPLATE_CONFIGURATION" value="Django" />
   </component>
+  <component name="TemplatesService">
+    <option name="templateFileTypes">
+      <list>
+        <option value="XHTML" />
+        <option value="HTML" />
+        <option value="XML" />
+        <option value="CSS" />
+      </list>
+    </option>
+    <option name="TEMPLATE_CONFIGURATION" value="Django" />
+    <option name="TEMPLATE_FOLDERS">
+      <list>
+        <option value="$MODULE_DIR$/uber/templates" />
+      </list>
+    </option>
+  </component>
 </module>
 
