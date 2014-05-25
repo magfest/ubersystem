@@ -1,6 +1,6 @@
 {{ attendee.first_name }},
 
-We're asking all Department Heads to tell us how much help they want before and after MAGFest with setup and teardown.  We have a couple of questions:
+We're asking all Department Heads to tell us how much help they want before and after {{ EVENT_NAME }} with setup and teardown.  We have a couple of questions:
 
 1) How many staffers would you like us to assign you to help with setup and teardown, if any?
 

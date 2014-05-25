@@ -6,7 +6,7 @@
     <br/> <br/>
     <table width="100%" style="text-align:center">
     <tr>
-        <td ng-bind-html-unsafe="'../static/views/stafferComps.html' | popupLink:'See What You Get For Volunteering'"></td>
+        <td ng-bind-html-unsafe="'../static_views/stafferComps.html' | popupLink:'See What You Get For Volunteering'"></td>
         <td ng-if="!%__HIDE_SCHEDULE"> <a target="_blank" href="../schedule/">View the {{ EVENT_NAME }} Schedule</a> </td>
     </tr>
     </table>
@@ -20,7 +20,7 @@
     <td> Department </td>
     <td> Start Time </td>
     <td> Duration </td>
-    <td> Weight <span ng-bind-html-unsafe="'../static/views/weightDesc.html' | popupLink"></span> </td>
+    <td> Weight <span ng-bind-html-unsafe="'../static_views/weightDesc.html' | popupLink"></span> </td>
     <td></td>
 </tr>
 <tr ng-repeat="job in jobs | filter:taken" style="vertical-align:bottom">

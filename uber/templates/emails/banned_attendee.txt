@@ -1,3 +1,3 @@
-Someone named {{ attendee.full_name }} has just registered for MAGFest, and that name is on our list of banned attendees.  This may or may not be the same person, but we should definitely look into it.
+Someone named {{ attendee.full_name }} has just registered for {{ EVENT_NAME }}, and that name is on our list of banned attendees.  This may or may not be the same person, but we should definitely look into it.
 
 You can see their registration at {{ URL_BASE }}/registration/form?id={{ attendee.id }}

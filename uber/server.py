@@ -24,6 +24,10 @@ class UberShutDown:
     schedule = schedule.Root()
     preregistration = preregistration.Root()
 
+class StaticViews:
+    @cherrypy.expose
+    def default(self, filename):
+        return render('static_views/' + filename)
 
 @all_renderable()
 class Uber:
@@ -33,6 +37,8 @@ class Uber:
     def common_js(self):
         cherrypy.response.headers['Content-Type'] = 'text/javascript'
         return render('common.js')
+
+    static_views = StaticViews()
 
 _sections = [path.split('/')[-1][:-3] for path in glob(os.path.join(MODULE_ROOT, 'site_sections', '*.py'))
                                       if not path.endswith('__init__.py')]

@@ -1,6 +1,6 @@
 {{ attendee.first_name }},
 
-This is the last call to get in requests for custom ribbons for your department!  This is something I posted about on the MAGFest Staff Facebook group over a week ago.  If you've emailed me your request or commented on the thread, I'll be contacting you shortly to finalize the order and you can safely ignore the rest of this email.
+This is the last call to get in requests for custom ribbons for your department!  This is something I posted about on the {{ EVENT_NAME }} Staff Facebook group over a week ago.  If you've emailed me your request or commented on the thread, I'll be contacting you shortly to finalize the order and you can safely ignore the rest of this email.
 
 If you don't know what's going on, the deal is that you tell me what ribbon you want, what it gives access to, and how many you need (plus any other details that are important to you, e.g., "make sure it's hot-pink and sparkly"). I'll order your ribbons and bring them to the fest, then hand them to you first thing.  You get to give out the ribbons as you see fit.
 
