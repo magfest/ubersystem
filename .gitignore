@@ -7,3 +7,7 @@ sessions/session-*
 *.log
 development.conf
 production.conf
+#Project
+workspace.xml
+tasks.xml
+distribute-*.tar.gz
