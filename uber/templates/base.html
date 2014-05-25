@@ -3,6 +3,7 @@
 <head>
     <title>{{ EVENT_NAME }} - {% block title %}{% endblock %}</title>
     <link rel="stylesheet" type="text/css" href="../static/styles/styles.css" />
+    <link rel="stylesheet" type="text/css" href="{{ THEME_VIEW_DIR }}/admin.css" />
 	{% block sectionStyle %}{% endblock %}
     <script type="text/javascript" src="../static/lib/jquery/jquery-1.7.2.min.js"></script>
     <script type="text/javascript" src="../static/lib/jquery-ui/jquery-ui-1.9.0.custom.min.js"></script>
@@ -47,6 +48,7 @@
     </script>
 </head>
 <body>
+<div id="floating_logo"></div>
 <div id="mainContainer">
 {% block top %}
     <div id="top" style="display:none">
