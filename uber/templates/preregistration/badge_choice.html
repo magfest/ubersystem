@@ -35,7 +35,6 @@
         } else {
             $("input[name='amount_extra']").val(0);
         }
-    
     });
 </script>
 
@@ -75,32 +74,34 @@
         <td> {% popup_link "../static_views/supporters.html" "Details" %} </td>
     </tr>
 {% if GROUP_REG_AVAILABLE %}
-<tr>
+    <tr>
 {% if GROUP_REG_OPEN %}
-    <td>
-        {% if now < PREREG_TAKEDOWN %}<input type="radio" name="badge_type" value="{{ PSEUDO_GROUP_BADGE }}" />{% endif %}
-        <b>Group</b>
-    </td>
-    <td>
-        <ul>
-            <li>Save money when you register eight or more people at once</li>
-            <li>${{ GROUP_PRICE }} per person</li>
-            <li>Group members can kick in extra to upgrade their badge level</li>
-            <li style="color:red">{% group_price_notice %}</li>
-        </ul>
-    </td>
-    <td> {% popup_link "../static_views/groups.html" "Details" %} </td>
+        <td>
+            {% if now < PREREG_TAKEDOWN %}<input type="radio" name="badge_type" value="{{ PSEUDO_GROUP_BADGE }}" />{% endif %}
+            <b>Group</b>
+        </td>
+        <td>
+            <ul>
+                <li>Save money when you register eight or more people at once</li>
+                <li>${{ GROUP_PRICE }} per person</li>
+                <li>Group members can kick in extra to upgrade their badge level</li>
+                <li style="color:red">{% group_price_notice %}</li>
+            </ul>
+        </td>
+        <td> {% popup_link "../static_views/groups.html" "Details" %} </td>
 {% else %}
-    <td> &nbsp;&nbsp;&nbsp;&nbsp; <b>Group</b> </td>
-    <td colspan="2" style="color:red">
-        <ul><li>The deadline for Group registration has passed, but you can still register as a regular attendee.</li></ul>
-    </td>
+        <td> &nbsp;&nbsp;&nbsp;&nbsp; <b>Group</b> </td>
+        <td colspan="2" style="color:red">
+            <ul><li>The deadline for Group registration has passed, but you can still register as a regular attendee.</li></ul>
+        </td>
 {% endif %}
-</tr>
+    </tr>
 {% endif %}
 </table>
 
 <br/>
+<input type="hidden" name="staffing" value=0 /> <!-- Turns on if Staff is checked -->
+<input type="hidden" name="amount_extra" value=0 /> <!-- Set the amount_extra if Supporter is checked -->
 <input type="submit" value="Continue to Preregistration Form" />
 
 </form>
