@@ -28,17 +28,14 @@
     });
 
     $(document).submit(function(){
+        // If the Supporter radio button is checked, send through the supporter kick-in amount
         if ($("#supporter").is(":checked")){
-            $("#supporter_amount").prop("disabled",false);
+            $("input[name='amount_extra']").val({{ SUPPORTER_LEVEL }});
+        // If not, force to 0 in case the user hit the Back button to change their badge type
         } else {
-            $("#supporter_amount").prop("disabled",true);
+            $("input[name='amount_extra']").val(0);
         }
-        
-        if ($("#attendee").is(":checked")){
-            $("#attendee_amount").prop("disabled",false);
-        } else {
-            $("#attendee_amount").prop("disabled",true);
-        }
+    
     });
 </script>
 
@@ -48,7 +45,7 @@
 <table class="badges">
     <tr>
         <td>
-            <input type="radio" id="attendee" name="badge_type" value="{{ ATTENDEE_BADGE }}" checked /><input type="hidden" id="attendee_amount" name="amount_extra" value="0" />
+            <input type="radio" id="attendee" name="badge_type" value="{{ ATTENDEE_BADGE }}" checked />
             <b>Attendee:</b> &nbsp; ${{ BADGE_PRICE }}
         </td>
         <td>
@@ -67,7 +64,7 @@
 {% endif %}
     <tr>
         <td>
-            <input type="radio" id="supporter" name="badge_type" value="{{ ATTENDEE_BADGE }}" /><input type="hidden" id="supporter_amount" name="amount_extra" value="{{ SUPPORTER_LEVEL }}" />
+            <input type="radio" id="supporter" name="badge_type" value="{{ ATTENDEE_BADGE }}" />
             <b>Supporter:</b> &nbsp; ${{ SUPPORTER_BADGE_PRICE }}
         </td>
         <td>
@@ -104,7 +101,8 @@
 </table>
 
 <br/>
-
+<input type="hidden" name="staffing" value=0 /> <!-- Turns on if Staff is checked -->
+<input type="hidden" name="amount_extra" value=0 /> <!-- Set the amount_extra if Supporter is checked -->
 <input type="submit" value="Continue to Preregistration Form" />
 
 </form>

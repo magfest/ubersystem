@@ -86,6 +86,8 @@ class Root:
         if attendee.badge_type not in state.PREREG_BADGE_TYPES:
             raise HTTPRedirect('badge_choice?message={}', 'Dealer registration is not open' if attendee.is_dealer else 'Invalid badge type')
 
+        log.error('I am printing some stuff: {!r}', attendee.amount_extra)
+            
         if 'first_name' in params:
             message = check(attendee) or check_prereg_reqs(attendee)
             if not message and attendee.badge_type in [PSEUDO_DEALER_BADGE, PSEUDO_GROUP_BADGE]:
