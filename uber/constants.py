@@ -20,7 +20,8 @@ class State:
         attendees = Attendee.objects.all()
         paid_group_sales = attendees.filter(paid=PAID_BY_GROUP, group__amount_paid__gt=0).count()
         paid_ind_sales = attendees.filter(paid=HAS_PAID).count()
-        badges_sold_count = paid_group_sales + paid_ind_sales
+        paid_and_refunded = attendees.filter(paid=REFUNDED).count()
+        badges_sold_count = paid_group_sales + paid_ind_sales + paid_and_refunded
         return badges_sold_count
 		
     def get_oneday_price(self, dt):
