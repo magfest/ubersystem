@@ -48,7 +48,7 @@
                 {{ attendee.get_amount_extra_display }}
                 <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
             {% else %}
-                <select name="amount_extra" style="width:50%" onChange="donationChanged()">
+                <select name="amount_extra" style="width:50%" onChange="donationChanged()" >
                     {% options PREREG_DONATION_OPTS attendee.amount_extra %}
                 </select>
             {% endif %}

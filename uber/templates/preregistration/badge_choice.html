@@ -26,35 +26,56 @@
             }
         }).css("cursor", "default");
     });
+
+    $(document).submit(function(){
+        // If the Supporter radio button is checked, send through the supporter kick-in amount
+        if ($("#supporter").is(":checked")){
+            $("input[name='amount_extra']").val({{ SUPPORTER_LEVEL }});
+        // If not, force to 0 in case the user hit the Back button to change their badge type
+        } else {
+            $("input[name='amount_extra']").val(0);
+        }
+    });
 </script>
 
 <h2 style="margin-top:10px"> Choose a Badge </h2>
-<form method="post" action="form">
+<form method="post" id="badgechoice" action="form">
 
 <table class="badges">
-<tr>
-    <td>
-        <input type="radio" name="badge_type" value="{{ ATTENDEE_BADGE }}" checked />
-        <b>Attendee:</b> &nbsp; ${{ BADGE_PRICE }}
-    </td>
-    <td>
-        <ul>
-            <li> All-access, four-day pass </li>
-            <li style="color:red">{% attendee_price_notice %}</li>
-        </ul>
-    </td>
-    <td> {% popup_link "../static_views/attendees.html" "Details" %} </td>
-</tr>
-{% if now > PREREG_TAKEDOWN %}
+    <tr>
+        <td>
+            <input type="radio" id="attendee" name="badge_type" value="{{ ATTENDEE_BADGE }}" checked />
+            <b>Attendee:</b> &nbsp; ${{ BADGE_PRICE }}
+        </td>
+        <td>
+            <ul>
+                <li> All-access, three-day pass </li>
+                {%if PRICE_CHANGE %}<li style="color:red">{% attendee_price_notice %}</li>{% endif %}
+            </ul>
+        </td>
+        <td> {% popup_link "../static_views/attendees.html" "Details" %} </td>
+    </tr>
+{% if now > PREREG_TAKEDOWN and SINGLE_DAY_BADGES %}
     <tr>
         <td> <b>Single Day Passes:</b> </td>
         <td><ul><li>Single days passes available for sale at the door for {% single_day_prices %}.</li></ul></td>
     </tr>
 {% endif %}
-
-{% if GROUP_REG_ENABLED  %}
     <tr>
-    {% if ALLOW_NEW_GROUP_REGISTRATIONS %}
+        <td>
+            <input type="radio" id="supporter" name="badge_type" value="{{ ATTENDEE_BADGE }}" />
+            <b>Supporter:</b> &nbsp; ${{ SUPPORTER_BADGE_PRICE }}
+        </td>
+        <td>
+            <ul>
+                <li> All-access pass with bonus swag </li>
+            </ul>
+        </td>
+        <td> {% popup_link "../static_views/supporters.html" "Details" %} </td>
+    </tr>
+{% if GROUP_REG_AVAILABLE %}
+    <tr>
+{% if GROUP_REG_OPEN %}
         <td>
             {% if now < PREREG_TAKEDOWN %}<input type="radio" name="badge_type" value="{{ PSEUDO_GROUP_BADGE }}" />{% endif %}
             <b>Group</b>
@@ -68,18 +89,19 @@
             </ul>
         </td>
         <td> {% popup_link "../static_views/groups.html" "Details" %} </td>
-    {% else %}
+{% else %}
         <td> &nbsp;&nbsp;&nbsp;&nbsp; <b>Group</b> </td>
         <td colspan="2" style="color:red">
             <ul><li>The deadline for Group registration has passed, but you can still register as a regular attendee.</li></ul>
         </td>
-    {% endif %}
+{% endif %}
     </tr>
 {% endif %}
 </table>
 
 <br/>
-
+<input type="hidden" name="staffing" value=0 /> <!-- Turns on if Staff is checked -->
+<input type="hidden" name="amount_extra" value=0 /> <!-- Set the amount_extra if Supporter is checked -->
 <input type="submit" value="Continue to Preregistration Form" />
 
 </form>
