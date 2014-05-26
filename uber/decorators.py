@@ -3,7 +3,7 @@ from uber.common import *
 def check_if_can_reg(func):
     @wraps(func)
     def with_check(*args,**kwargs):
-        if (state.BADGES_SOLD >= MAX_BADGE_SALES):
+        if state.BADGES_SOLD >= MAX_BADGE_SALES:
             return '''
                     <html><head></head><body style='text-align:center'>
                         <h2 style='color:red'>''' + EVENT_NAME + ''' has sold out.</h2>

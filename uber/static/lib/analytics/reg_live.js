@@ -38,7 +38,7 @@ function merge_new_data(id_hash, timestamp) {
 
     // ensure new event time always takes place in the future of any queued events.
     if (all_regs.length > 0) {
-        console.assert(timestamp > all_regs[all_regs.length - 1].timestamp);
+        // console.assert(timestamp > all_regs[all_regs.length - 1].timestamp);
     }
 
     var new_item = {};
@@ -104,7 +104,7 @@ function try_to_schedule_next_valid_event()
 
 function schedule_next_event(num_seconds_from_now) {
     reg_timer.once(num_seconds_from_now*1000);
-    console.log("scheduling next event for +" + num_seconds_from_now + "seconds");
+    // console.log("scheduling next event for +" + num_seconds_from_now + "seconds");
 }
 
 function process_incoming_ajax_data(registrations)
