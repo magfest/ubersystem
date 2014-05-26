@@ -27,9 +27,19 @@ def send_banned_email(attendee):
     except:
         log.error('unable to send banned email about {}', attendee)
 
-
 @all_renderable()
 class Root:
+    
+    def stats(self):
+        return json.dumps({
+            'remaining badges': max(0,(MAX_BADGE_SALES - state.BADGES_SOLD)),
+        })
+        
+    def check_prereg(self):
+        return json.dumps({
+            'force_refresh': not state.PREREG_OPEN or state.BADGES_SOLD >= MAX_BADGE_SALES
+        })
+        
     @property
     def preregs(self):
         return cherrypy.session.setdefault('preregs', OrderedDict())
@@ -44,6 +54,7 @@ class Root:
         else:
             raise if_not_found
 
+    @check_if_can_reg
     def index(self, message=''):
         if not self.preregs:
             raise HTTPRedirect('badge_choice?message={}', message) if message else HTTPRedirect('badge_choice')
@@ -52,10 +63,12 @@ class Root:
                 'message': message,
                 'charge': Charge(list(self.preregs.values()))   # TODO: fix listify
             }
-
+            
+    @check_if_can_reg
     def badge_choice(self, message=''):
         return {'message': message}
 
+    @check_if_can_reg
     def form(self, message='', edit_id=None, **params):
         if 'badge_type' not in params and edit_id is None:
             raise HTTPRedirect('badge_choice?message={}', 'You must select a badge type')
@@ -73,6 +86,8 @@ class Root:
         if attendee.badge_type not in state.PREREG_BADGE_TYPES:
             raise HTTPRedirect('badge_choice?message={}', 'Dealer registration is not open' if attendee.is_dealer else 'Invalid badge type')
 
+        log.error('I am printing some stuff: {!r}', attendee.amount_extra)
+            
         if 'first_name' in params:
             message = check(attendee) or check_prereg_reqs(attendee)
             if not message and attendee.badge_type in [PSEUDO_DEALER_BADGE, PSEUDO_GROUP_BADGE]:
@@ -260,7 +275,7 @@ class Root:
     def unset_group_member(self, id):
         attendee = Attendee.get(id)
         try:
-            send_email(REGDESK_EMAIL, attendee.email, 'MAGFest group registration dropped',
+            send_email(REGDESK_EMAIL, attendee.email, '{{ EVENT_NAME }} group registration dropped',
                        render('emails/group_member_dropped.txt', {'attendee': attendee}), model=attendee)
         except:
             log.error('unable to send group unset email', exc_info=True)
@@ -311,7 +326,7 @@ class Root:
                 message = 'First and Last names are required.'
             if not message:
                 attendee.save()
-                subject, body = 'MAGFest Registration Transferred', render('emails/transfer_badge.txt', {'new': attendee, 'old': old})
+                subject, body = '{{ EVENT_NAME }} Registration Transferred', render('emails/transfer_badge.txt', {'new': attendee, 'old': old})
                 try:
                     send_email(REGDESK_EMAIL, [old.email, attendee.email, REGDESK_EMAIL], subject, body, model = attendee)
                 except:
@@ -416,19 +431,6 @@ class Root:
             'deadline_passed': deadline_passed,
             'registered': slug in [spt.slug for spt in attendee.seasonpassticket_set.all()]
         }
-
-    if PREREG_CLOSED:
-        del index, form, badge_choice
-        def default(self, *args, **kwargs):
-            return '''
-                <html><head></head><body style='text-align:center'>
-                    <h2 style='color:red'>Preregistration has closed.</h2>
-                    We'll see everyone on January 2 - 5. <br/> <br/>
-                    Full weekend passes will be available at the door for $60,
-                    and single day passes will be $20 on Thursday or Sunday,
-                    and $40 for Friday or Saturday.
-                </body></html>
-            '''
 
 if POST_CON:
     @all_renderable()

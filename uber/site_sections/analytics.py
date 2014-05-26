@@ -55,9 +55,7 @@ def generate_attendance_by_day_graph_data(last_day_of_magfest):
 @all_renderable(PEOPLE, STATS)
 class Root:
     def index(self):
-        return {
-            "test": "test"
-        }
+        return {}
 
     def analytics_graph_by_attendance(self):
         try:
@@ -122,3 +120,23 @@ class Root:
         except:
             connection.close()
             raise
+
+
+    # display last 2 minutes worth of registrations, to be used by alerting services
+    @ajax_public_callable
+    def recent_regs_json(self):
+        restrict_to = {'registered__gte': datetime.datetime.now() - timedelta(minutes=2)}
+        attendees = Attendee.objects.order_by('registered').filter(**restrict_to)
+
+        att = []
+        for attendee in attendees:
+            id_hash = hash(attendee.first_name + ' ' + str(attendee.id))
+            unix_timestamp = int(attendee.registered.strftime('%s'))
+            item = [unix_timestamp, id_hash]
+            att.append(item)
+
+        return att
+
+    # display the page that calls the AJAX above
+    def recent_regs_live(self):
+        return {}

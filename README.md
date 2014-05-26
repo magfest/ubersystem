@@ -86,16 +86,36 @@ Change into the ``magfest`` directory that was created when you cloned your repo
 * creates a database filled with test data
 * sets up a Python virtualenv with all of the necessary Python packages needed to run Uber
 
-Now that you have your VM, the only thing left to do is log into your server and start Uber.  The easiest way is to do:
-```vagrant ssh```
-(you can also use Putty)
+Now that you have your VM, the only thing left to do is log into your server and start Uber.  First, make sure Git is in your Windows PATH. Use this if you're not sure how:
+http://blog.countableset.ch/2012/06/07/adding-git-to-windows-7-path/
+
+Next, run
+
+```bash
+vagrant ssh
+```
 
 Once you've logged in, you can run the following command to run start the Ubersystem server:
 
 ```bash
-python uber/run_server.py
+cd magfest
+./env/bin/python uber/run_server.py
 ```
 
 After running this command, you can go to http://localhost:4321/ and log in with the email address "magfest@example.com" and the password "magfest".
 
 Now you're ready to do development; every time you edit one of the Python files that make up Uber, the process will restart automatically, so you'll see the change as soon as you refresh your browser.  The only thing to watch out for is that if you make a syntax error, the process will stop altogether since it can't restart without being valid.  In that case you'll have to re-run the above command to re-start the server (after fixing your syntax error).
+
+If you want to run the server in the background to free up your ssh session for other commands, use Ctrl-Z to suspend it and then run
+
+```bash
+bg
+```
+
+to run the server in the background.
+
+Vagrant Performance notes:
+==========================
+
+Note1: shared folders are very slow on Windows. Don't be suprised that things run a bit slower.
+Note2: you probably should use the virtualbox application to increase the CPU and Memory size of the image to make it run smoother.  4CPU and 4GB of mem is a good start.

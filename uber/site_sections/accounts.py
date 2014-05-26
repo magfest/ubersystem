@@ -37,7 +37,7 @@ class Root:
                     'account': account,
                     'password': password
                 })
-                send_email(ADMIN_EMAIL, account.attendee.email, 'New MAGFest Ubersystem Account', body)
+                send_email(ADMIN_EMAIL, account.attendee.email, 'New '+ EVENT_NAME +' Ubersystem Account', body)
 
         raise HTTPRedirect('index?message={}', message)
 
@@ -94,7 +94,7 @@ class Root:
                     'name': account.attendee.full_name,
                     'password':  password
                 })
-                send_email(ADMIN_EMAIL, account.attendee.email, 'MAGFest Admin Password Reset', body)
+                send_email(ADMIN_EMAIL, account.attendee.email, EVENT_NAME +' Admin Password Reset', body)
                 raise HTTPRedirect('login?message={}', 'Your new password has been emailed to you')
 
         return {

@@ -1,3 +1,5 @@
+import mimetypes
+
 from uber.common import *
 from uber.site_sections.emails import Reminder
 from uber.site_sections import schedule, signups, preregistration
@@ -26,8 +28,13 @@ class UberShutDown:
 
 class StaticViews:
     @cherrypy.expose
-    def default(self, filename):
-        return render('static_views/' + filename)
+    def default(self, *args, **kwargs):
+        # TODO: nicer error handling -Dom
+        filename = args[-1]
+        content = render('static_views/' + '/'.join(args))
+        mimetypes.init()
+        guessed_content_type = mimetypes.guess_type(filename)[0]
+        return cherrypy.lib.static.serve_fileobj(content, name=filename, content_type=guessed_content_type)
 
 @all_renderable()
 class Uber:

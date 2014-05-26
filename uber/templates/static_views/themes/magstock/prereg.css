@@ -1,0 +1,43 @@
+body {
+	background-color: black;
+	color: #CCC;
+	font-family: sans-serif;
+}
+
+a, a:visited, a:hover, a:active {
+	color: #68F;
+	}
+
+#mainContainer {
+	background-color: #151515;
+	width: 800px;
+	margin: 20px;
+	padding:20px;
+}
+
+
+#header {
+	background: url('{{THEME_DIR}}/logo.png') no-repeat left bottom;
+	padding-left: 400px;
+	
+	font-size: 30px;
+	font-weight: bold;
+	line-height: 65px;
+	margin-bottom: 20px;
+	color: #FFF;
+}
+
+table.form {
+border-spacing: 0px;
+}
+table.form td {
+padding: 8px;
+}
+
+.extra-row {
+	background-color: #333;
+}
+
+.extra-row td {
+	border: solid #333;
+}
