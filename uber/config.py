@@ -16,10 +16,12 @@ if any(sys.argv[0].endswith(testrunner) for testrunner in ['py.test', 'nosetests
 else:
     _overrides = ['development.conf', 'production.conf']
 
+_overrides.append('event.conf')
+
 for _fname in _overrides:
     _fpath = join(ROOT, _fname)
-    if exists(_fname):
-        with open(_fname) as _f:
+    if exists(_fpath):
+        with open(_fpath) as _f:
             conf.merge(ConfigObj(_roots + _f.readlines(), configspec=_spec, interpolation='ConfigParser'))
 
 _validator = Validator()
@@ -44,6 +46,7 @@ _unrepr(conf['cherrypy'])
 _unrepr(conf['appconf'])
 cherrypy.config.update(conf['cherrypy'].dict())
 cherrypy.engine.autoreload.files.update([
+    join(ROOT, 'event.conf'),
     join(ROOT, 'production.conf'),
     join(ROOT, 'development.conf'),
     join(MODULE_ROOT, 'defaults.conf'),

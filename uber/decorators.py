@@ -1,5 +1,34 @@
 from uber.common import *
 
+def check_if_can_reg(func):
+    @wraps(func)
+    def with_check(*args,**kwargs):
+        if (state.BADGES_SOLD >= MAX_BADGE_SALES):
+            return '''
+                    <html><head></head><body style='text-align:center'>
+                        <h2 style='color:red'>''' + EVENT_NAME + ''' has sold out.</h2>
+                        Thanks to everyone who pre-registered! <br/> <br/>
+                        We'll see you September 12th - 14th.
+                    </body></html>
+                '''
+        elif state.PREREG_OPEN == "notopenyet":
+            return '''
+                    <html><head></head><body style='text-align:center'>
+                        <h2 style='color:red'>''' + EVENT_NAME + ''' pre-registration is not yet open.</h2>
+                        Please check back on May 15th.
+                    </body></html>
+                '''
+        elif state.PREREG_OPEN == "closed":
+            return '''
+                    <html><head></head><body style='text-align:center'>
+                        <h2 style='color:red'>''' + EVENT_NAME + ''' pre-registration has closed.</h2>
+                        We'll see everyone September 12th - 14th. <br/> <br/>
+                        Full weekend passes will be available at the door for $60. There will not be any single-day passes available - apologies for any inconvenience this causes.
+                    </body></html>
+                '''
+        else:
+            return func(*args,**kwargs)
+    return with_check
 
 def site_mappable(func):
     func.site_mappable = True
@@ -39,12 +68,22 @@ def csrf_protected(func):
     return protected
 
 
+# requires: POST and a valid CSRF token
 def ajax(func):
     @wraps(func)
     def returns_json(*args, **kwargs):
         cherrypy.response.headers['Content-Type'] = 'application/json'
         assert cherrypy.request.method == 'POST', 'POST required'
         check_csrf(kwargs.pop('csrf_token', None))
+        return json.dumps(func(*args, **kwargs)).encode('utf-8')
+    return returns_json
+
+# used for things that should be publicly called, i.e. APIs and such.
+# supports GET or POST
+def ajax_public_callable(func):
+    @wraps(func)
+    def returns_json(*args, **kwargs):
+        cherrypy.response.headers['Content-Type'] = 'application/json'
         return json.dumps(func(*args, **kwargs)).encode('utf-8')
     return returns_json
 
