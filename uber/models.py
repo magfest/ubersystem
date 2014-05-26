@@ -440,7 +440,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     display = 'full_name'
     unrestricted = {'first_name', 'last_name', 'international', 'zip_code', 'ec_phone', 'phone', 'email', 'age_group',
                     'interests', 'found_how', 'comments', 'badge_type', 'affiliate', 'shirt', 'can_spam',
-                    'badge_printed_name', 'staffing', 'fire_safety_cert', 'requested_depts', 'assigned_depts'}
+                    'badge_printed_name', 'staffing', 'fire_safety_cert', 'requested_depts', 'amount_extra'}
 
     def delete(self, *args, **kwargs):
         with BADGE_LOCK:
