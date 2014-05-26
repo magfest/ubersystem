@@ -382,7 +382,7 @@ class stripe_form(template.Node):
                     data-image="{theme_dir}/stripe-logo.png">
                 </script>
             </form>
-        """.format(theme_dir=THEME_DIR, action=self.action, event_name=EVENT_NAME, regtext=regtext, email=email, payment_id=payment_id, key=STRIPE_PUBLIC_KEY, charge=charge)
+        """.format(theme_dir=state.THEME_DIR, action=self.action, event_name=EVENT_NAME, regtext=regtext, email=email, payment_id=payment_id, key=STRIPE_PUBLIC_KEY, charge=charge)
 
 
 
