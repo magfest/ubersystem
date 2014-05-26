@@ -6,7 +6,7 @@
 ################################################################################
 
 sudo apt-get update -y
-sudo apt-get install -y python3-dev postgresql postgresql-contrib libpq-dev language-pack-id git
+sudo apt-get install -y python3-dev postgresql postgresql-contrib libpq-dev language-pack-id git lynx tofrodos
 sudo locale-gen en_US en_US.UTF-8 hu_HU hu_HU.UTF-8
 sudo dpkg-reconfigure locales
 
