@@ -71,6 +71,14 @@ class State:
         else:
             return [(amt, desc) for amt,desc in DONATION_OPTS if amt < SUPPORTER_LEVEL]
 
+    @property
+    def THEME_DIR(self):
+        return URL_BASE + "/" + BASE_THEME_DIR + "/" + CURRENT_THEME
+
+    @property
+    def THEME_VIEW_DIR(self):
+        return URL_BASE + "/" + BASE_THEME_VIEW_DIR + "/" + CURRENT_THEME
+
     def __getattr__(self, name):
         if name.startswith('BEFORE_'):
             return datetime.now() < globals()[name.split('_', 1)[1]]
@@ -431,3 +439,6 @@ FOOD_RESTRICTION_OPTS = enum(
     VEGAN      = 'Vegan',
     GLUTEN     = 'Cannot eat gluten'
 )
+
+BASE_THEME_DIR = "static/themes"
+BASE_THEME_VIEW_DIR = "static_views/themes"
