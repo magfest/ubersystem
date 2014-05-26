@@ -1,37 +1,10 @@
-from unittest import TestCase
-
 from uber.common import *
-from uber import init_db
 
-def setUpModule():
-    init_db.drop_and_create()
-
-class TestUber(TestCase):
-    delete_on_teardown = False
-
-    def tearDown(self):
-        if self.delete_on_teardown:
-            for model in reversed(init_db.classes):
-                model.objects.all().delete()
-
-    def make_attendee(self, **params):
-        params = dict({
-            'placeholder': True,
-            'first_name':  'Testie',
-            'last_name':   'McTesterson',
-            'badge_type':  ATTENDEE_BADGE,
-            'paid': NEED_NOT_PAY,
-        }, **params)
-        return Attendee.objects.create(**params)
-
-    def make_group(self, **params):
-        params = dict({
-            'name': 'Some Group',
-            'tables': 0,
-        }, **params)
-        return Group.objects.create(**params)
+import pytest
+from mock import Mock
 
 
+'''
 class TestModelGet(TestUber):
     def with_params(self, model=Attendee, **kwargs):
         return model.get(dict(kwargs, id='None'), ignore_csrf=True)
@@ -154,3 +127,4 @@ class TestPreassignedBadgeDeletion(TestBadgeChange):
 
     def test_delete_end(self):
         self.staff_five.delete()
+'''

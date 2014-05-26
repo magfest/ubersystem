@@ -92,6 +92,7 @@ def days_before(days, dt, until=None):
 ### WARNING - changing the email subject line for an email causes ALL of those emails to be re-sent!
 
 
+'''
 MarketplaceReminder('Reminder to pay for your MAGFest Dealer registration', 'dealer_payment_reminder.txt',
                     lambda g: g.status == APPROVED and days_after(30, g.approved) and g.is_unpaid)
 
@@ -113,7 +114,7 @@ Reminder(Attendee, 'MAGFest payment received', 'attendee_confirmation.html',
          lambda a: a.paid == HAS_PAID)
 
 Reminder(Attendee, 'MAGFest group registration confirmed', 'attendee_confirmation.html',
-         lambda a: a.group and a != a.group.leader and a.registered > datetime(2013, 11, 11))
+         lambda a: a.group and a != a.group.leader)
 
 Reminder(Group, 'MAGFest group payment received', 'group_confirmation.html',
          lambda g: g.amount_paid == g.total_cost)
@@ -267,6 +268,7 @@ DeptHeadReminder('MAGFest staffers need to be marked and rated', 'postcon_hours.
 #for _event in SEASON_EVENTS.values():
 #    SeasonSupporterReminder(_event)
 
+'''
 
 @all_renderable(PEOPLE)
 class Root:

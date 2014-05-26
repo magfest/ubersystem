@@ -1,32 +1,5 @@
 from uber.common import *
 
-verbose = dry_run = False
-
-class Style:
-    def __getattr__(self, name):
-        return lambda text: text
-
-with open(join(MODULE_ROOT, 'models.py')) as f:
-    text = f.read()
-
-classes = sorted(all_models(), key=lambda c: text.index('class {}('.format(c.__name__)))
-
-def drop_and_create():
-    with closing(connection.cursor()) as cursor:
-        for model in reversed(classes):
-            sql = 'DROP TABLE IF EXISTS "{}";'.format(model.__name__)
-            if verbose:
-                print(sql)
-            if not dry_run:
-                cursor.execute(sql)
-
-        for model in classes:
-            sql = connection.creation.sql_create_model(model, Style(), classes)[0][0]
-            if verbose:
-                print(sql)
-            if not dry_run:
-                cursor.execute(sql)
-
 def insert_admin():
     attendee = Attendee.objects.create(
         placeholder = True,

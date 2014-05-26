@@ -33,23 +33,25 @@ from threading import Thread, RLock, local, current_thread
 import bcrypt
 import cherrypy
 import django.conf
+from pytz import UTC
 
 from sideboard.lib import log, parse_config, entry_point, listify, DaemonTask
+from sideboard.lib.sa import declarative_base, SessionManager, UTCDateTime, UUID
 
 from uber.amazon_ses import AmazonSES, EmailMessage
 from uber.config import *
 from uber.constants import *
 from uber import constants
 
+import sqlalchemy
+from sqlalchemy.ext import declarative
+from sqlalchemy.orm import relationship
+from sqlalchemy.schema import Column, ForeignKey, UniqueConstraint
+from sqlalchemy.types import UnicodeText, Boolean, Integer, Float, TypeDecorator
+
 from django import template
-from django.db import connection
-from django.db.models import base
-from django.dispatch import receiver
-from django.forms.models import model_to_dict
 from django.utils.safestring import SafeString
-from django.db.models.signals import pre_save, post_save, pre_delete
 from django.template import loader, Context, Variable, TemplateSyntaxError
-from django.db.models import Q, Avg, Sum, Count, Model, ForeignKey, OneToOneField, BooleanField, CharField, TextField, IntegerField, FloatField, DateField, DateTimeField, CommaSeparatedIntegerField
 
 import stripe
 stripe.api_key = STRIPE_SECRET_KEY

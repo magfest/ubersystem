@@ -1,53 +1,91 @@
 from uber.common import *
 
-class MultiChoiceField(TextField):
-    def __init__(self, *args, **kwargs):
-        choices = kwargs.pop('choices')
-        TextField.__init__(self, *args, **kwargs)
-        self._choices = choices
 
-class UuidField(TextField):
-    def __init__(self, *args, **kwargs):
-        kwargs.setdefault('default', lambda: uuid4().hex)
-        TextField.__init__(self, *args, **kwargs)
+def _get_defaults(func):
+    spec = inspect.getfullargspec(func)
+    return dict(zip(reversed(spec.args), reversed(spec.defaults)))
+default_constructor = _get_defaults(declarative.declarative_base)['constructor']
 
-class MagModel(Model):
-    class Meta:
-        abstract = True
-        app_label = ''
+
+SQLALchemyColumn = Column
+def Column(*args, **kwargs):
+    kwargs.setdefault('nullable', False)
+    if args[0] is UnicodeText or isinstance(args[0], (UnicodeText, MultiChoice)):
+        kwargs.setdefault('default', '')
+    default = kwargs.get('default')
+    if isinstance(default, (int, str)):
+        kwargs.setdefault('server_default', str(default))
+    return SQLALchemyColumn(*args, **kwargs)
+
+
+
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.sql.expression import FunctionElement
+
+class utcnow(FunctionElement):
+    type = UTCDateTime()
+
+@compiles(utcnow, 'postgresql')
+def pg_utcnow(element, compiler, **kw):
+    return "timezone('utc', current_timestamp)"
+
+@compiles(utcnow, 'sqlite')
+def sqlite_utcnow(element, compiler, **kw):
+    return "datetime('now', 'utc')"
+
+
+
+class Choice(TypeDecorator):
+    impl = Integer
+
+    def __init__(self, choices, **kwargs):
+        self.choices = dict(choices)
+        TypeDecorator.__init__(self, **kwargs)
+
+    def process_bind_param(self, value, dialect):
+        try:
+            assert int(value) in self.choices
+        except:
+            raise ValueError('{!r} not a valid option out of {}'.format(value, self.choices))
+        else:
+            return int(value)
+
+
+class MultiChoice(TypeDecorator):
+    impl = UnicodeText
+
+    def __init__(self, choices, **kwargs):
+        self.choices = choices
+        TypeDecorator.__init__(self, **kwargs)
+
+    def process_bind_param(self, value, dialect):
+        return value if isinstance(value, str) else ','.join(value)
+
+
+@declarative_base
+class MagModel:
+    id = Column(UUID, primary_key=True, default=lambda: uuid4())
 
     _propertized = ()
+
+    def __init__(self, *args, **kwargs):
+        default_constructor(self, *args, **kwargs)
+        for attr, col in self.__table__.columns.items():
+            if col.default:
+                self.__dict__.setdefault(attr, col.default.execute())
 
     def presave_adjustments(self):
         pass
 
-    def save(self, *args, **kwargs):
-        self.presave_adjustments()
-        super(MagModel, self).save(*args, **kwargs)
-
-    @staticmethod
-    def from_sessionized(d):
-        [ModelClass] = [m for m in all_models() if m.__name__ in d]
-        m = ModelClass(**d[ModelClass.__name__])
-        m.post_from_sessionized(d)
-        return m
-
-    def post_from_sessionized(self, d):
-        pass
-
-    def sessionize(self):
-        d = {self.__class__.__name__: model_to_dict(self)}
-        d.update(self.extra_sessionized())
-        return d
-
-    def extra_sessionized(self):
-        return {}
+    @property
+    def session(self):
+        return Session.session_factory.object_session(self)
 
     @classmethod
     def get_field(cls, name):
-        [field] = [f for f in cls._meta.fields if f.name == name]
-        return field
+        return cls.__table__.columns[name]
 
+    # TODO: this is definitely broken
     def field_repr(self, name):
         try:
             field = self.get_field(name)
@@ -65,19 +103,26 @@ class MagModel(Model):
         except Exception as e:
             raise ValueError('error formatting {} ({!r})'.format(name, val)) from e
 
-    def __repr__(self):
-        display = getattr(self, 'display', 'name' if hasattr(self, 'name') else 'id')
-        return '<{}>'.format(' '.join(str(getattr(self, field)) for field in listify(display)))
-    __str__ = __repr__
-
     def __eq__(self, m):
-        return isinstance(m, self.__class__) and self.id == m.id and getattr(self, 'secret_id', None) == getattr(m, 'secret_id', None)
+        return self.id is not None and self.id == m.id
+
+    def __ne__(self, m):        # Python is stupid for making me do this
+        return not (self == m)
+
+    def __hash__(self):
+        return hash(self.id)
 
     def __getattr__(self, name):
         if name.endswith('_ints'):
             val = getattr(self, name[:-5])
-            return [int(i) for i in val.split(',')] if val else []
+            return [int(i) for i in str(val).split(',')] if val else []
 
+        if name.endswith('_label'):
+            field_name = name[:-6]
+            val = getattr(self, field_name)
+            return '' if val is None else self.get_field(field_name).type.choices[val]
+
+        '''
         try:
             [multi] = [f for f in self._meta.fields if isinstance(f, MultiChoiceField)]
             choice = getattr(constants, name)
@@ -94,31 +139,29 @@ class MagModel(Model):
                 return getattr(self, name.replace('_', ''))
             except:
                 return None
-
+        '''
         raise AttributeError(self.__class__.__name__ + '.' + name)
 
+    # TODO: this is horribly broken
     @classmethod
     def get(cls, params, bools=(), checkgroups=(), allowed=(), restricted=False, ignore_csrf=False):
         if isinstance(params, (int, str)):
             if isinstance(params, int) or params.isdigit():
                 return cls.objects.get(id=params)
-            else:
-                return cls.objects.get(secret_id=params)
-        
+
         params = params.copy()
         id = params.pop('id', 'None')
         if id == 'None':
             model = cls()
         elif str(id).isdigit():
-            model = cls.objects.get(id = id)
-        else:
-            model = cls.objects.get(secret_id = id)
+            model = cls.objects.get(id=id)
 
         if not ignore_csrf:
             assert not {k for k in params if k not in allowed} or cherrypy.request.method == 'POST', 'POST required'
         model.apply(params, bools, checkgroups, allowed, restricted, ignore_csrf)
         return model
 
+    # TODO: this is horribly broken
     def apply(self, params, bools=(), checkgroups=(), allowed=(), restricted=True, ignore_csrf=True):
         for field in self._meta.fields:
             if restricted and field.name not in self.unrestricted:
@@ -158,6 +201,7 @@ class MagModel(Model):
             if not ignore_csrf:
                 check_csrf(params.get('csrf_token'))
 
+
 class TakesPaymentMixin(object):
     @property
     def payment_deadline(self):
@@ -191,13 +235,12 @@ class NightsMixin(object):
     locals().update({mutate(name): _night(mutate(name)) for name in NIGHT_NAMES for mutate in [str.upper, str.lower]})
 
 
-
 class Event(MagModel):
-    location    = IntegerField(choices=EVENT_LOC_OPTS, null=True)
-    start_time  = DateTimeField(null=True)
-    duration    = IntegerField()
-    name        = TextField()
-    description = TextField()
+    location    = Column(Choice(EVENT_LOC_OPTS))
+    start_time  = Column(UTCDateTime)
+    duration    = Column(Integer)
+    name        = Column(UnicodeText, nullable=False)
+    description = Column(UnicodeText)
 
     @property
     def half_hours(self):
@@ -216,137 +259,93 @@ class Event(MagModel):
             return int((self.start_time - EPOCH).total_seconds() / (60 * 30))
 
 
-
 class Group(MagModel, TakesPaymentMixin):
-    secret_id     = UuidField()
-    name          = TextField()
-    tables        = FloatField(default=0)
-    address       = TextField()
-    website       = TextField()
-    wares         = TextField()
-    description   = TextField()
-    special_needs = TextField()
-    amount_paid   = IntegerField(default=0)
-    amount_owed   = IntegerField(default=0)
-    auto_recalc   = BooleanField(default=True)
-    status        = IntegerField(default=UNAPPROVED, choices=STATUS_OPTS)
-    can_add       = BooleanField(default=False)
-    admin_notes   = TextField()
-    registered    = DateTimeField(auto_now_add=True)
-    approved      = DateTimeField(null=True)
+    name          = Column(UnicodeText)
+    tables        = Column(Float, default=0)
+    address       = Column(UnicodeText)
+    website       = Column(UnicodeText)
+    wares         = Column(UnicodeText)
+    description   = Column(UnicodeText)
+    special_needs = Column(UnicodeText)
+    amount_paid   = Column(Integer, default=0)
+    cost          = Column(Integer, default=0)
+    auto_recalc   = Column(Boolean, default=True)
+    status        = Column(Choice(STATUS_OPTS), default=UNAPPROVED)
+    can_add       = Column(Boolean, default=False)
+    admin_notes   = Column(UnicodeText)
+    registered    = Column(UTCDateTime, server_default=utcnow())
+    approved      = Column(UTCDateTime, nullable=True)
+    leader_id     = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader'), nullable=True)
+    leader        = relationship('Attendee', foreign_keys=leader_id)
 
     unrestricted = {'name', 'tables', 'address', 'website', 'wares', 'description', 'special_needs'}
 
     def presave_adjustments(self):
         self.__dict__.pop('_attendees', None)
         if self.auto_recalc:
-            self.amount_owed = self.total_cost
+            self.cost = self.default_cost
         if self.status == APPROVED and not self.approved:
-            self.approved = datetime.now()
+            self.approved = datetime.now(UTC)
 
-    def extra_sessionized(self):
-        if hasattr(self, '_badges') and hasattr(self, '_preregisterer'):
-            return {
-                'badges': self._badges,
-                'preregisterer': self._preregisterer.sessionize()
-            }
-        else:
-            return {}
-
-    def post_from_sessionized(self, d):
-        if 'badges' in d and 'preregisterer' in d:
-            self.prepare_prereg_badges(self.from_sessionized(d['preregisterer']), d['badges'])
-
-    def prepare_prereg_badges(self, preregisterer, badges):
-        self._badges = int(badges)
-        self._preregisterer = self._leader = preregisterer
-
-    def assign_prereg_badges(self):
-        self.save()
-        self._preregisterer.group = self
-        self._preregisterer.save()
-        self.assign_badges(self.badges)
-
-    def get_unsaved(self):
-        self._preregisterer.badge_type = PSEUDO_GROUP_BADGE
-        return self._preregisterer, self
-
-    def assign_badges(self, new_badge_count):
-        self.save()
-        ribbon = self.get_new_ribbon()
-        badge_type = self.get_new_badge_type()
-        new_badge_count = int(new_badge_count)
-        diff = new_badge_count - self.attendee_set.filter(paid = PAID_BY_GROUP).count()
+    def assign_badges(self, new_badge_count, session=None):
+        session = session or self.session
+        assert session, 'session parameter required for unsaved groups'
+        diff = int(new_badge_count) - self.badges
         if diff > 0:
             for i in range(diff):
-                Attendee.objects.create(group=self, badge_type=badge_type, ribbon=ribbon, paid=PAID_BY_GROUP)
+                self.attendees.append(Attendee(badge_type=self.new_badge_type, ribbon=self.new_ribbon, paid=PAID_BY_GROUP))
         elif diff < 0:
-            floating = list(self.attendee_set.filter(paid=PAID_BY_GROUP, first_name='', last_name=''))
+            floating = [a for a in self.attendees if a.is_unassigned and a.paid == PAID_BY_GROUP]
             if len(floating) < abs(diff):
                 return 'You cannot reduce the number of badges for a group to below the number of assigned badges'
             else:
                 for i in range(abs(diff)):
-                    floating[i].delete()
-        self.save()
+                    session.delete(floating[i])
 
-    def get_new_badge_type(self):
-        if GUEST_BADGE in self.attendee_set.values_list('badge_type', flat=True):
+    @property
+    def new_badge_type(self):
+        if GUEST_BADGE in {a.badge_type for a in self.attendees}:
             return GUEST_BADGE
         else:
             return ATTENDEE_BADGE
 
-    def get_new_ribbon(self):
-        ribbons = set(self.attendee_set.values_list('ribbon', flat=True))
-        for ribbon in [DEALER_RIBBON, BAND_RIBBON, NO_RIBBON]:
+    @property
+    def new_ribbon(self):
+        ribbons = {a.ribbon for a in self.attendees}
+        for ribbon in [DEALER_RIBBON, BAND_RIBBON]:
             if ribbon in ribbons:
                 return ribbon
         else:
             return DEALER_RIBBON if self.is_dealer else NO_RIBBON
 
-    @staticmethod
-    def everyone():
-        attendees = Attendee.objects.select_related('group')
-        groups = {g.id: g for g in Group.objects.all()}
-        for g in groups.values():
-            g._attendees = []
-        for a in Attendee.objects.filter(group__isnull=False).select_related('group'):
-            if a.group:
-                groups[a.group_id]._attendees.append(a)
-        return list(attendees), list(groups.values())
-
     @property
     def is_dealer(self):
-        return bool(self.tables and (not self.id or self.amount_paid or self.amount_owed))
+        return bool(self.tables and (not self.registered or self.amount_paid or self.cost))
 
     @property
     def is_unpaid(self):
-        return self.amount_owed > 0 and self.amount_paid == 0
+        return self.cost > 0 and self.amount_paid == 0
 
     @property
     def email(self):
-        return self.leader and self.leader.email
-
-    @cached_property
-    def leader(self):
-        for a in sorted(self.attendees, key = lambda a: a.id):
-            if a.email:
-                return a
-
-    @cached_property
-    def attendees(self):
-        return list(self.attendee_set.order_by('id'))
+        if self.leader and self.leader.email:
+            return self.leader.email
+        else:
+            emails = [a.email for a in self.attendees if a.email]
+            if len(emails) == 1:
+                return emails[0]
 
     @property
     def badges_purchased(self):
         return len([a for a in self.attendees if a.paid == PAID_BY_GROUP])
 
-    @cached_property
+    @property
     def badges(self):
         return len(self.attendees)
 
     @property
     def unregistered_badges(self):
-        return len([a for a in self.attendees if not a.first_name])
+        return len([a for a in self.attendees if a.is_unassigned])
 
     @property
     def table_cost(self):
@@ -358,90 +357,95 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def badge_cost(self):
-        if not self.id:
-            return self.badges * state.GROUP_PRICE
-        else:
-            total = 0
-            for attendee in self.attendees:
-                if attendee.paid == PAID_BY_GROUP:
-                    if attendee.ribbon == DEALER_RIBBON:
-                        total += DEALER_BADGE_PRICE
-                    else:
-                        total += state.get_group_price(attendee.registered)
-            return total
+        total = 0
+        for attendee in self.attendees:
+            if attendee.paid == PAID_BY_GROUP:
+                if attendee.ribbon == DEALER_RIBBON:
+                    total += DEALER_BADGE_PRICE
+                else:
+                    total += state.get_group_price(attendee.registered)
+        return total
 
     @property
-    def total_cost(self):
+    def default_cost(self):
         return self.table_cost + self.badge_cost
 
     @property
     def amount_unpaid(self):
-        return (self.amount_owed - self.amount_paid) if self.id else self.badge_cost
+        return (self.cost - self.amount_paid) if self.registered else self.default_cost
 
     @property
     def min_badges_addable(self):
-        return 1 if self.can_add else (
-               0 if self.is_dealer else 5)
-
+        return 1 if self.can_add else \
+               0 if self.is_dealer else 5
 
 
 class Attendee(MagModel, TakesPaymentMixin):
-    secret_id     = UuidField()
-    group         = ForeignKey(Group, null=True)
-    placeholder   = BooleanField(default=False)
-    first_name    = TextField()
-    last_name     = TextField()
-    international = BooleanField(default=False)
-    zip_code      = TextField()
-    ec_phone      = TextField()
-    phone         = TextField()
-    no_cellphone  = BooleanField(default=False)
-    email         = TextField()
-    age_group     = IntegerField(default=AGE_UNKNOWN, choices=AGE_GROUP_OPTS)
-    reg_station   = IntegerField(null=True)
+    group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
+    group = relationship(Group, backref='attendees', foreign_keys=group_id)
 
-    interests   = MultiChoiceField(choices=INTEREST_OPTS)
-    found_how   = TextField()
-    comments    = TextField()
-    for_review  = TextField()
-    admin_notes = TextField()
+    placeholder   = Column(Boolean, default=False)
+    first_name    = Column(UnicodeText)
+    last_name     = Column(UnicodeText)
+    international = Column(Boolean, default=False)
+    zip_code      = Column(UnicodeText)
+    ec_phone      = Column(UnicodeText)
+    phone         = Column(UnicodeText)
+    no_cellphone  = Column(Boolean, default=False)
+    email         = Column(UnicodeText)
+    age_group     = Column(Choice(AGE_GROUP_OPTS), default=AGE_UNKNOWN)
+    reg_station   = Column(Integer, nullable=True)
 
-    badge_num  = IntegerField(default=0)
-    badge_type = IntegerField(choices=BADGE_OPTS)
-    ribbon     = IntegerField(default=NO_RIBBON, choices=RIBBON_OPTS)
+    interests   = Column(MultiChoice(INTEREST_OPTS))
+    found_how   = Column(UnicodeText)
+    comments    = Column(UnicodeText)
+    for_review  = Column(UnicodeText)
+    admin_notes = Column(UnicodeText)
 
-    affiliate    = TextField()
-    shirt        = IntegerField(choices=SHIRT_OPTS, default=NO_SHIRT)
-    can_spam     = BooleanField(default=False)
-    regdesk_info = TextField()
-    extra_merch  = TextField()
-    got_merch    = BooleanField(default=False)
+    badge_num  = Column(Integer, default=0)
+    badge_type = Column(Choice(BADGE_OPTS), default=ATTENDEE_BADGE)
+    ribbon     = Column(Choice(RIBBON_OPTS), default=NO_RIBBON)
 
-    registered = DateTimeField(auto_now_add=True)
-    checked_in = DateTimeField(null=True)
+    affiliate    = Column(UnicodeText)
+    shirt        = Column(Choice(SHIRT_OPTS), default=NO_SHIRT)
+    can_spam     = Column(Boolean, default=False)
+    regdesk_info = Column(UnicodeText)
+    extra_merch  = Column(UnicodeText)
+    got_merch    = Column(Boolean, default=False)
 
-    paid             = IntegerField(default=NOT_PAID, choices=PAID_OPTS)
-    overridden_price = IntegerField(default=None, null=True)
-    amount_paid      = IntegerField(default=0)
-    amount_extra     = IntegerField(default=0, choices=DONATION_OPTS)
-    amount_refunded  = IntegerField(default=0)
-    payment_method   = IntegerField(null=True, choices=PAYMENT_OPTIONS)
+    registered = Column(UTCDateTime, server_default=utcnow())
+    checked_in = Column(UTCDateTime, nullable=True)
 
-    badge_printed_name = TextField()
+    paid             = Column(Choice(PAID_OPTS), default=NOT_PAID)
+    overridden_price = Column(Integer, nullable=True)
+    amount_paid      = Column(Integer, default=0)
+    amount_extra     = Column(Choice(DONATION_OPTS), default=0)
+    amount_refunded  = Column(Integer, default=0)
+    payment_method   = Column(Choice(PAYMENT_OPTIONS), nullable=True)
 
-    staffing         = BooleanField(default=False)
-    fire_safety_cert = TextField()
-    requested_depts  = MultiChoiceField(choices=JOB_INTEREST_OPTS)
-    assigned_depts   = MultiChoiceField(choices=JOB_LOC_OPTS)
-    trusted          = BooleanField(default=False)
-    nonshift_hours   = IntegerField(default=0)
-    past_years       = TextField()
+    badge_printed_name = Column(UnicodeText)
+
+    staffing         = Column(Boolean, default=False)
+    fire_safety_cert = Column(UnicodeText)
+    requested_depts  = Column(MultiChoice(JOB_INTEREST_OPTS))
+    assigned_depts   = Column(MultiChoice(JOB_LOC_OPTS))
+    trusted          = Column(Boolean, default=False)
+    nonshift_hours   = Column(Integer, default=0)
+    past_years       = Column(UnicodeText)
+
+    no_shirt          = relationship('NoShirt', backref='attendee', uselist=False)
+    admin_account     = relationship('AdminAccount', backref='attendee', uselist=False)
+    hotel_requests    = relationship('HotelRequests', backref='attendee', uselist=False)
+    room_assignments  = relationship('RoomAssignment', backref='attendee', uselist=False)
+    assigned_panelist = relationship('AssignedPanelist', backref='attendee', uselist=False)
+    food_restrictions = relationship('FoodRestrictions', backref='attendee', uselist=False)
 
     display = 'full_name'
     unrestricted = {'first_name', 'last_name', 'international', 'zip_code', 'ec_phone', 'phone', 'email', 'age_group',
                     'interests', 'found_how', 'comments', 'badge_type', 'affiliate', 'shirt', 'can_spam',
                     'badge_printed_name', 'staffing', 'fire_safety_cert', 'requested_depts', 'assigned_depts'}
 
+    # TODO: not sure how to handle this
     def delete(self, *args, **kwargs):
         with BADGE_LOCK:
             badge_num = Attendee.get(self.id).badge_num
@@ -464,7 +468,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.paid != REFUNDED:
             self.amount_refunded = 0
 
-        if AT_THE_CON and self.badge_num and self.id is None:
+        if AT_THE_CON and self.badge_num and not self.registered:
             self.checked_in = datetime.now()
 
         for attr in ['first_name', 'last_name']:
@@ -527,10 +531,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     def get_unsaved(self):
         return self, Group()
 
-    @staticmethod
-    def staffers():
-        return Attendee.objects.filter(staffing = True).order_by('first_name', 'last_name')
-
     @property
     def badge_cost(self):
         registered = self.registered or datetime.now()
@@ -570,15 +570,15 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def unassigned_name(self):
         if self.group_id and self.is_unassigned:
-            return '[Unassigned {self.badge}]'.format(self = self)
+            return '[Unassigned {self.badge}]'.format(self=self)
 
     @property
     def full_name(self):
-        return self.unassigned_name or '{self.first_name} {self.last_name}'.format(self = self)
+        return self.unassigned_name or '{self.first_name} {self.last_name}'.format(self=self)
 
     @property
     def last_first(self):
-        return self.unassigned_name or '{self.last_name}, {self.first_name}'.format(self = self)
+        return self.unassigned_name or '{self.last_name}, {self.first_name}'.format(self=self)
 
     @property
     def banned(self):
@@ -587,20 +587,20 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def badge(self):
         if self.paid == NOT_PAID:
-            badge = 'Unpaid ' + self.get_badge_type_display()
+            badge = 'Unpaid ' + self.badge_type_label
         elif self.badge_num:
-            badge = '{} #{}'.format(self.get_badge_type_display(), self.badge_num)
+            badge = '{} #{}'.format(self.badge_type_label, self.badge_num)
         else:
-            badge = self.get_badge_type_display()
+            badge = self.badge_type_label
 
         if self.ribbon != NO_RIBBON:
-            badge += ' ({})'.format(self.get_ribbon_display())
+            badge += ' ({})'.format(self.ribbon_label)
 
         return badge
 
     @property
     def is_transferrable(self):
-        return self.id and not self.checked_in \
+        return self.registered and not self.checked_in \
            and self.paid in [HAS_PAID, PAID_BY_GROUP] \
            and self.badge_type not in [STAFF_BADGE, GUEST_BADGE]
 
@@ -643,28 +643,19 @@ class Attendee(MagModel, TakesPaymentMixin):
     def multiply_assigned(self):
         return len(self.assigned) > 1
 
+    # TODO: this should be configurable
     @property
     def takes_shifts(self):
-        return self.staffing and set(self.assigned) - {ARTEMIS, CONCERT, CON_OPS, MARKETPLACE,
-                                                       CCG_TABLETOP, DORSAI, CONTRACTORS}
+        return bool(self.staffing and set(self.assigned_depts_ints) - {ARTEMIS, CONCERT, CON_OPS, MARKETPLACE, CCG_TABLETOP, DORSAI, CONTRACTORS})
 
     @property
     def hotel_shifts_required(self):
         return bool(self.hotel_nights and self.ribbon != DEPT_HEAD_RIBBON and self.takes_shifts)
 
-    # TODO: replace this with assigned_depts_ints
-    @property
-    def assigned(self):
-        return [int(i) for i in self.assigned_depts.split(',')] if self.assigned_depts else []
-
     # TODO: genericize this
     @property
     def assigned_display(self):
         return [dict(JOB_LOC_OPTS)[loc] for loc in self.assigned if loc in dict(JOB_LOC_OPTS)]
-
-    @cached_property
-    def shifts(self):
-        return list(self.shift_set.select_related().order_by('job__start_time'))
 
     @cached_property
     def hours(self):
@@ -708,10 +699,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             job.already_signed_up = True
         jobs.extend(self.possible)
         return sorted(jobs, key=lambda j: j.start_time)
-
-    @cached_property
-    def shifts(self):
-        return list(self.shift_set.order_by('job__start_time').select_related())
 
     @property
     def worked_shifts(self):
@@ -763,10 +750,11 @@ class Attendee(MagModel, TakesPaymentMixin):
         else:
             return 'Hotel nights: ' + hr.nights_display
 
+
 class AdminAccount(MagModel):
-    attendee = OneToOneField(Attendee)
-    hashed   = TextField()
-    access   = MultiChoiceField(choices=ACCESS_OPTS)
+    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    hashed      = Column(UnicodeText)
+    access      = Column(MultiChoice(ACCESS_OPTS))
 
     def __repr__(self):
         return '<{}>'.format(self.attendee.full_name)
@@ -782,33 +770,37 @@ class AdminAccount(MagModel):
     @staticmethod
     def admin_name():
         try:
-            return AdminAccount.get(cherrypy.session.get('account_id')).attendee.full_name
+            with Session() as session:
+                return session.admin_account(cherrypy.session['account_id']).attendee.full_name
         except:
             return None
 
     @staticmethod
-    def access_set(id = None):
+    def access_set(id=None):
         try:
-            id = id or cherrypy.session.get('account_id')
-            return set(AdminAccount.get(id).access_ints)
+            with Session() as session:
+                id = id or cherrypy.session['account_id']
+                return set(session.admin_account(id).access_ints)
         except:
             return set()
 
 class PasswordReset(MagModel):
-    account   = OneToOneField(AdminAccount)
-    generated = DateTimeField(auto_now_add=True)
-    hashed    = TextField()
+    account_id = Column(UUID, ForeignKey('admin_account.id'))
+    account    = relationship(AdminAccount, backref='password_resets')
+    generated  = Column(UTCDateTime, server_default=utcnow())
+    hashed     = Column(UnicodeText)
 
 class HotelRequests(MagModel, NightsMixin):
-    attendee           = OneToOneField(Attendee)
-    nights             = MultiChoiceField(choices=NIGHTS_OPTS)
-    wanted_roommates   = TextField()
-    unwanted_roommates = TextField()
-    special_needs      = TextField()
-    approved           = BooleanField(default=False)
+    attendee_id        = Column(UUID, ForeignKey('attendee.id'))
+    nights             = Column(MultiChoice(NIGHTS_OPTS))
+    wanted_roommates   = Column(UnicodeText)
+    unwanted_roommates = Column(UnicodeText)
+    special_needs      = Column(UnicodeText)
+    approved           = Column(Boolean, default=False)
 
     unrestricted = ['attendee_id', 'nights', 'wanted_roommates', 'unwanted_roommates', 'special_needs']
 
+    # TODO: fix this to work with SQLAlchemy
     @classmethod
     def in_dept(cls, department):
         return HotelRequests.objects.filter(attendee__assigned_depts__contains = department) \
@@ -817,15 +809,15 @@ class HotelRequests(MagModel, NightsMixin):
                                     .select_related()
 
     def decline(self):
-        self.nights = ','.join(night for night in self.nights.split(',') if int(night) in {THURSDAY,FRIDAY,SATURDAY})
+        self.nights = ','.join(night for night in self.nights.split(',') if int(night) in {THURSDAY, FRIDAY, SATURDAY})
 
     def __repr__(self):
-        return '<{self.attendee.full_name} Hotel Requests>'.format(self = self)
+        return '<{self.attendee.full_name} Hotel Requests>'.format(self=self)
 
 class FoodRestrictions(MagModel):
-    attendee = OneToOneField(Attendee)
-    standard = MultiChoiceField(choices=FOOD_RESTRICTION_OPTS)
-    freeform = TextField()
+    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    standard    = Column(MultiChoice(FOOD_RESTRICTION_OPTS))
+    freeform    = Column(UnicodeText)
 
     def __getattr__(self, name):
         restriction = getattr(constants, name.upper())
@@ -837,87 +829,42 @@ class FoodRestrictions(MagModel):
             return str(restriction) in self.standard.split(',')
 
 class AssignedPanelist(MagModel):
-    attendee = ForeignKey(Attendee)
-    event = ForeignKey(Event)
+    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    event_id    = Column(UUID, ForeignKey('event.id'))
+    event       = relationship(Event, backref='assigned_panelists')
 
     def __repr__(self):
-        return '<{self.attendee.full_name} panelisting {self.event.name}>'.format(self = self)
+        return '<{self.attendee.full_name} panelisting {self.event.name}>'.format(self=self)
 
 class SeasonPassTicket(MagModel):
-    attendee = ForeignKey(Attendee)
-    slug = TextField()
+    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    attendee    = relationship(Attendee, backref='season_pass_tickets')
+    slug        = Column(UnicodeText)
 
 class Room(MagModel, NightsMixin):
-    department = IntegerField(choices=JOB_LOC_OPTS)
-    notes      = TextField()
-    nights     = MultiChoiceField(choices=NIGHTS_OPTS)
-
-    def to_dict(self):
-        return {
-            'department': self.get_department_display(),
-            'notes': self.notes,
-            'nights': self.nights_display,
-            'people': [ra.attendee.full_name for ra in self.roomassignment_set.all()]
-        }
+    department = Column(Choice(JOB_LOC_OPTS))
+    notes      = Column(UnicodeText)
+    nights     = Column(MultiChoice(NIGHTS_OPTS))
 
 class RoomAssignment(MagModel):
-    room     = ForeignKey(Room)
-    attendee = OneToOneField(Attendee)
+    room_id     = Column(UUID, ForeignKey('room.id'))
+    room        = relationship(Room, backref='room_assignments')
+    attendee_id = Column(UUID, ForeignKey('attendee.id'))
 
 class NoShirt(MagModel):
-    attendee = ForeignKey(Attendee)
-
+    attendee_id = Column(UUID, ForeignKey('attendee.id'))
 
 
 class Job(MagModel):
-    name        = TextField()
-    description = TextField()
-    location    = IntegerField(choices=JOB_LOC_OPTS)
-    start_time  = DateTimeField()
-    duration    = IntegerField()
-    weight      = FloatField()
-    slots       = IntegerField()
-    restricted  = BooleanField(default=False)
-    extra15     = BooleanField(default=False)
-
-    @staticmethod
-    def everything(location = None):
-        shifts = Shift.objects.filter(**{'job__location': location} if location else {}).order_by('job__start_time').select_related()
-
-        by_job, by_attendee = defaultdict(list), defaultdict(list)
-        for shift in shifts:
-            by_job[shift.job].append(shift)
-            by_attendee[shift.attendee].append(shift)
-
-        attendees = [a for a in Attendee.staffers() if AT_THE_CON or not location or int(location) in a.assigned]
-        for attendee in attendees:
-            attendee._shifts = by_attendee[attendee]
-
-        jobs = list(Job.objects.filter(**{'location': location} if location else {}).order_by('start_time','duration','name'))
-        for job in jobs:
-            job._shifts = by_job[job]
-            job._available_staffers = [s for s in attendees if not job.restricted or s.trusted]
-
-        return jobs, shifts, attendees
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'description': self.description,
-            'duration': self.duration,
-            'location': self.location,
-            'weight': self.weight,
-            'extra15': self.extra15,
-            'weighted_hours': self.weighted_hours,
-            'location_display': self.get_location_display(),
-            'start_time': self.start_time.timestamp(),
-            'taken': any(int(cherrypy.session.get('staffer_id', 0)) == shift.attendee_id for shift in self.shift_set.all())
-        }
-
-    @cached_property
-    def shifts(self):
-        return list(self.shift_set.order_by('job__start_time').select_related())
+    name        = Column(UnicodeText)
+    description = Column(UnicodeText)
+    location    = Column(Choice(JOB_LOC_OPTS))
+    start_time  = Column(UTCDateTime)
+    duration    = Column(Integer)
+    weight      = Column(Float)
+    slots       = Column(Integer)
+    restricted  = Column(Boolean, default=False)
+    extra15     = Column(Boolean, default=False)
 
     @property
     def hours(self):
@@ -927,8 +874,8 @@ class Job(MagModel):
         return hours
 
     def no_overlap(self, attendee):
-        before = self.start_time - timedelta(hours = 1)
-        after  = self.start_time + timedelta(hours = self.duration)
+        before = self.start_time - timedelta(hours=1)
+        after  = self.start_time + timedelta(hours=self.duration)
         return (not self.hours.intersection(attendee.hours)
             and (before not in attendee.hour_map
                 or not attendee.hour_map[before].extra15
@@ -936,17 +883,6 @@ class Job(MagModel):
             and (after not in attendee.hour_map
                 or not self.extra15
                 or self.location == attendee.hour_map[after].location))
-
-    @cached_property
-    def all_staffers(self):
-        return list(Attendee.objects.order_by('last_name','first_name'))
-
-    @cached_property
-    def available_staffers(self):
-        return [s for s in self.all_staffers
-                if self.location in s.assigned
-                   and self.no_overlap(s)
-                   and (s.trusted or not self.restricted)]
 
     @property
     def real_duration(self):
@@ -961,23 +897,20 @@ class Job(MagModel):
         return self.weighted_hours * self.slots
 
 class Shift(MagModel):
-    job      = ForeignKey(Job)
-    attendee = ForeignKey(Attendee)
-    worked   = IntegerField(choices=WORKED_OPTS, default=SHIFT_UNMARKED)
-    rating   = IntegerField(choices=RATING_OPTS, default=UNRATED)
-    comment  = TextField()
-
-    @classmethod
-    def serialize(cls, shifts):
-        return {shift.id: {attr: getattr(shift, attr) for attr in ['id','worked','rating','comment']}
-                           for shift in shifts}
+    job_id      = Column(UUID, ForeignKey('job.id'))
+    job         = relationship(Job, backref='shifts')
+    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    attendee    = relationship(Attendee, backref='shifts')
+    worked      = Column(Choice(WORKED_OPTS), default=SHIFT_UNMARKED)
+    rating      = Column(Choice(RATING_OPTS), default=UNRATED)
+    comment     = Column(UnicodeText)
 
     @property
     def name(self):
-        return "{self.attendee.full_name}'s {self.job.name!r} shift".format(self = self)
+        return "{self.attendee.full_name}'s {self.job.name!r} shift".format(self=self)
 
 
-
+'''
 class MPointsForCash(MagModel):
     attendee = ForeignKey(Attendee)
     amount   = IntegerField()
@@ -1019,22 +952,6 @@ class Game(MagModel):
             return self.checkout
         except:
             return None
-
-    def to_dict(self):
-        attendee = lambda a: {
-            'id': a.id,
-            'name': a.full_name,
-            'badge': a.badge_num
-        }
-        checkout = lambda c: c and dict(attendee(c.attendee), when=c.when.strftime('%I:%M%p %A'))
-        return {
-            'id': self.id,
-            'code': self.code,
-            'name': self.name,
-            'returned': self.returned,
-            'checked_out': checkout(self.checked_out),
-            'attendee': attendee(self.attendee)
-        }
 
 class Checkout(MagModel):
     game = OneToOneField(Game)
@@ -1154,9 +1071,53 @@ def _delete_hook(sender, instance, **kwargs):
         Tracking.track(DELETED, instance)
 
 
+    # TODO: go on the Session class
+    @staticmethod
+    def everyone():
+        attendees = session.query(Attendee).options(joinedload(Attendee.group)).all()
+        groups = {g.id: g for g in session.query(Group).all()}
+        for g in groups.values():
+            g._attendees = []
+        for a in session.query(Attendee).filter(Attendee.group_id != None).joinedload(Attendee.group).all():
+            groups[a.group_id]._attendees.append(a)
+        return list(attendees), list(groups.values())
 
-def all_models():
-    return {m for m in globals().values() if getattr(m, '__base__', None) is MagModel}
+    @staticmethod
+    def staffers():
+        return Attendee.objects.filter(staffing = True).order_by('first_name', 'last_name')
 
-for _model in all_models():
-    _model._meta.db_table = _model.__name__
+    @staticmethod
+    def everything(location = None):
+        shifts = Shift.objects.filter(**{'job__location': location} if location else {}).order_by('job__start_time').select_related()
+
+        by_job, by_attendee = defaultdict(list), defaultdict(list)
+        for shift in shifts:
+            by_job[shift.job].append(shift)
+            by_attendee[shift.attendee].append(shift)
+
+        attendees = [a for a in Attendee.staffers() if AT_THE_CON or not location or int(location) in a.assigned]
+        for attendee in attendees:
+            attendee._shifts = by_attendee[attendee]
+
+        jobs = list(Job.objects.filter(**{'location': location} if location else {}).order_by('start_time','duration','name'))
+        for job in jobs:
+            job._shifts = by_job[job]
+            job._available_staffers = [s for s in attendees if not job.restricted or s.trusted]
+
+        return jobs, shifts, attendees
+
+    # TODO: need some way to fix this, which will be tough unless we use self.session, I guess
+    @cached_property
+    def all_staffers(self):
+        return list(Attendee.objects.order_by('last_name','first_name'))
+
+    @cached_property
+    def available_staffers(self):
+        return [s for s in self.all_staffers
+                if self.location in s.assigned
+                   and self.no_overlap(s)
+                   and (s.trusted or not self.restricted)]
+'''
+
+class Session(SessionManager):
+    engine = sqlalchemy.create_engine(SQLALCHEMY_URL)
