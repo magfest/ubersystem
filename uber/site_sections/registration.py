@@ -395,6 +395,7 @@ class Root:
             'attendees': Attendee.objects.exclude(comments = '').order_by(order)
         }
 
+    
     def new(self, show_all='', message='', checked_in=''):
         if 'reg_station' not in cherrypy.session:
             raise HTTPRedirect('new_reg_station')

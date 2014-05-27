@@ -6,7 +6,7 @@
 ################################################################################
 
 sudo apt-get update -y
-sudo apt-get install -y python3-dev postgresql postgresql-contrib libpq-dev language-pack-id
+sudo apt-get install -y python3-dev postgresql postgresql-contrib libpq-dev language-pack-id git lynx tofrodos
 sudo locale-gen en_US en_US.UTF-8 hu_HU hu_HU.UTF-8
 sudo dpkg-reconfigure locales
 
@@ -30,6 +30,11 @@ else
     cat /home/vagrant/magfest/uber/tests/test_data.sql | sudo -u postgres psql m13
 fi
 
+# there is a bug in python -m venv which doesnt obey --copies (i.e. don't do any symlinks)
+# I have submitted this to CPython for inclusion but for now, patch the installed python file.
+# (we can't use symlinks with SMB shares)
+sudo patch /usr/lib/python3.4/venv/__init__.py < /home/vagrant/magfest/vagrant/venv-symlink-fix.patch
+
 
 ################################################################################
 # Set up our virtualenv
@@ -40,7 +45,7 @@ if [ -f .env-success ]; then
     echo "Virtualenv already exists"
 else
     rm -rf env/
-    python3 -m venv env
+    python3 -m venv env --without-pip --copies
     ./env/bin/python distribute_setup.py
     ./env/bin/python setup.py develop
     cp vagrant/bash_aliases /home/vagrant/.bash_aliases
