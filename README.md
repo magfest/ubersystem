@@ -114,8 +114,13 @@ bg
 
 to run the server in the background.
 
-Vagrant Performance notes:
+Vagrant troubleshooting notes:
 ==========================
 
 Note1: shared folders are very slow on Windows. Don't be suprised that things run a bit slower.
+
 Note2: you probably should use the virtualbox application to increase the CPU and Memory size of the image to make it run smoother.  4CPU and 4GB of mem is a good start.
+
+Note3: If virtualbox hangs on startup with a message about "Clearing port forwarding", it's misleading and probably having a silent issue with the shared folder mount (https://github.com/mitchellh/vagrant/issues/3139)
+
+A workaround for this is to install Powershell v3, which seems to fix it. http://www.microsoft.com/en-us/download/details.aspx?id=34595
