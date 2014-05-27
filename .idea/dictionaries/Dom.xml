@@ -3,6 +3,8 @@
     <words>
       <w>autostart</w>
       <w>dequeue</w>
+      <w>lockfile</w>
+      <w>lockfiles</w>
       <w>timerange</w>
     </words>
   </dictionary>
