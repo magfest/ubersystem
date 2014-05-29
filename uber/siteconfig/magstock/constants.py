@@ -54,10 +54,10 @@ SHIRT_OPTS = (
 JOB_INTEREST_OPTS = enum(
     ANYTHING        = "Anything",
     FOOD_PREP       = "Food Prep",
-    STAFF_SUPPORT	= "Staff support",
-    MUSIC			= "Music",
-    REGISTRATION	= "Registration",
-    DRIVING			= "Driving campers On-site",
+    STAFF_SUPPORT   = "Staff support",
+    MUSIC           = "Music",
+    REGISTRATION    = "Registration",
+    DRIVING         = "Driving campers On-site",
 )
 
 del enum
