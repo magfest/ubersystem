@@ -1,3 +1,4 @@
+{% block additional_css %}
 #floating_logo {
 	position: absolute;
 	float: right;
@@ -10,3 +11,4 @@
 	background-position: right top;
     opacity: 0.2;
 }
+{% endblock additional_css %}

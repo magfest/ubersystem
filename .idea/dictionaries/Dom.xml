@@ -2,10 +2,17 @@
   <dictionary name="Dom">
     <words>
       <w>autostart</w>
+      <w>csrf</w>
       <w>dequeue</w>
+      <w>endif</w>
+      <w>filenames</w>
       <w>lockfile</w>
       <w>lockfiles</w>
+      <w>lolz</w>
+      <w>magfest</w>
+      <w>magstock</w>
       <w>timerange</w>
+      <w>unthemed</w>
     </words>
   </dictionary>
 </component>

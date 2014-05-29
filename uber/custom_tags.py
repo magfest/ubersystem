@@ -71,6 +71,14 @@ def dept_placeholders(department):
         return Attendee.objects.filter(badge_type=STAFF_BADGE, placeholder=True).order_by('first_name', 'last_name')
 
 @tag
+class absolute_path(template.Node):
+    def __init__(self, path):
+        self.path = Variable(path)
+
+    def render(self, context):
+        return state.build_absolute_path( self.path.resolve(context) )
+
+@tag
 class maybe_anchor(template.Node):
     def __init__(self, name):
         self.name = Variable(name)
