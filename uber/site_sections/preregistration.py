@@ -441,7 +441,7 @@ if POST_CON:
                 </body></html>
             """
 
-        def shirt(self, message = '', **params):
+        def shirt_reorder(self, message = '', **params):
             attendee = Attendee.get(params, restricted = True)
             assert attendee.owed_shirt, "There's no record of {} being owed a tshirt".format(attendee.full_name)
             if 'address' in params:
