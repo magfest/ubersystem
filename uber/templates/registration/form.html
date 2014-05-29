@@ -216,7 +216,7 @@
     <td valign="top"> Staffing </td>
     <td>
         {% checkbox attendee.staffing %} This attendee is {% if attendee.staffing %}<a href="goto_volunteer_checklist?id={{ attendee.id }}">volunteering</a>{% else %}volunteering{% endif %}
-        <div class="staffing">{% checkbox attendee.trusted %} Trusted {% popup_link "../themed/trustDesc.html" %}</div>
+        <div class="staffing">{% checkbox attendee.trusted %} Trusted {% popup_link "../static_views/trustDesc.html" %}</div>
     </td>
 </tr>
 <tr class="staffing">
