@@ -39,8 +39,7 @@ class StaticViews:
         return path_args[-1]
 
     @cherrypy.expose
-    def default(self, *args, **kwargs):
-        path_args = args
+    def default(self, *path_args, **kwargs):
         content_filename = self.get_filename_from_path_args(path_args)
 
         template_name = self.get_full_path_from_path_args(path_args)

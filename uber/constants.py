@@ -1,11 +1,5 @@
 from uber.common import *
 
-# example:
-# turns string 'accounts/homepage' into
-# 'http://localhost:4321/magfest/accounts/homepage'
-def build_absolute_path(abs_path):
-    return URL_BASE + "/" + abs_path
-
 class State:
     @property
     def DEALER_REG_OPEN(self):
@@ -79,7 +73,12 @@ class State:
 
     @property
     def THEME_DIR(self):
-        return build_absolute_path(BASE_THEME_DIR + "/" + CURRENT_THEME)
+        return self.build_absolute_path(BASE_THEME_DIR + "/" + CURRENT_THEME)
+
+    # example: turns string 'accounts/homepage' into
+    # 'http://localhost:4321/magfest/accounts/homepage'
+    def build_absolute_path(self, abs_path):
+        return URL_BASE + "/" + abs_path
 
     def __getattr__(self, name):
         if name.startswith('BEFORE_'):
