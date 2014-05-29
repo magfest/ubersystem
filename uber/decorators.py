@@ -136,23 +136,21 @@ def renderable_data(data = None):
     
     return data
 
-# try rendering using the first template in the list that exists
-def render_from_list(template_name_list, data = None):
+# render using the first template that actually exists in template_name_list
+def render(template_name_list, data = None):
     data = renderable_data(data)
-    template = loader.select_template(template_name_list)
+    template = loader.select_template(listify(template_name_list))
     rendered = template.render( Context(data) )
-    rendered = change_the_word_fest_to_con_if_nick_logged_in(rendered, template)
+
+    rendered = screw_you_nick(rendered, template) # lolz.
 
     return rendered.encode('utf-8')
 
-def render(template, data = None):
-    template_list = [template]
-    return render_from_list(template_list, data)
 
 # this is a Magfest inside joke.
-# Magfest is not a convention. It's a festival.
-# Except........ if you're Nick. In which case, scratch that, reverse it.
-def change_the_word_fest_to_con_if_nick_logged_in(rendered, template):
+# Nick gets mad when people call Magfest a 'convention'. He always says 'It's not a convention, it's a festival'
+# So........ if Nick is logged in.... let's annoy him a bit :)
+def screw_you_nick(rendered, template):
     if not AT_THE_CON and AdminAccount.is_nick() and 'emails' not in template and 'history' not in template and 'form' not in rendered:
         return rendered.replace('festival', 'convention').replace('Fest', 'Con') # lolz.
     else:
