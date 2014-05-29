@@ -1,5 +1,11 @@
 from uber.common import *
 
+# example:
+# turns string 'accounts/homepage' into
+# 'http://localhost:4321/magfest/accounts/homepage'
+def build_absolute_path(abs_path):
+    return URL_BASE + "/" + abs_path
+
 class State:
     @property
     def DEALER_REG_OPEN(self):
@@ -73,11 +79,7 @@ class State:
 
     @property
     def THEME_DIR(self):
-        return URL_BASE + "/" + BASE_THEME_DIR + "/" + CURRENT_THEME
-
-    @property
-    def THEME_VIEW_DIR(self):
-        return URL_BASE + "/" + BASE_THEME_VIEW_DIR + "/" + CURRENT_THEME
+        return build_absolute_path(BASE_THEME_DIR + "/" + CURRENT_THEME)
 
     def __getattr__(self, name):
         if name.startswith('BEFORE_'):
@@ -441,4 +443,3 @@ FOOD_RESTRICTION_OPTS = enum(
 )
 
 BASE_THEME_DIR = "static/themes"
-BASE_THEME_VIEW_DIR = "themed"
