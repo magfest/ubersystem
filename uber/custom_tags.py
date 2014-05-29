@@ -76,7 +76,7 @@ class absolute_path(template.Node):
         self.path = Variable(path)
 
     def render(self, context):
-        return build_absolute_path( self.path.resolve(context) )
+        return state.build_absolute_path( self.path.resolve(context) )
 
 @tag
 class maybe_anchor(template.Node):
