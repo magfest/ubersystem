@@ -264,36 +264,6 @@ FEE_PRICES = (
 FEE_ITEMS = [(item,item) for item,price in FEE_PRICES]
 FEE_PRICES = dict(FEE_PRICES)
 
-SIZE_UNKNOWN = -1
-NO_SHIRT = 0
-SHIRT_OPTS = (
-    (NO_SHIRT, 'no shirt'),
-    (1, 'small'),
-    (2, 'medium'),
-    (3, 'large'),
-    (4, 'x-large'),
-    (5, 'xx-large'),
-    (6, 'xxx-large'),
-    (7, 'small (female)'),
-    (8, 'medium (female)'),
-    (9, 'large (female)'),
-    (10, 'x-large (female)'),
-)
-PREREG_SHIRT_OPTS = SHIRT_OPTS[1:]
-MERCH_SHIRT_OPTS = [(SIZE_UNKNOWN, 'select a size')] + list(PREREG_SHIRT_OPTS)
-
-INTEREST_OPTS = enum(
-    CONSOLE     = 'Consoles',
-    ARCADE      = 'Arcade',
-    LAN         = 'LAN',
-    MUSIC       = 'Music',
-    PANELS      = 'Guests/Panels',
-    TABLETOP    = 'Tabletop games',
-    MARKETPLACE = 'Dealers',
-    TOURNAMENTS = 'Tournaments',
-    FILM_FEST   = 'Film Festival',
-)
-
 SALE_OPTS = enum(
     MERCH = 'Merch',
     CASH = 'Cash',
@@ -310,21 +280,6 @@ ACCESS_OPTS = enum(
 )
 SIGNUPS = 100 # not an admin access level, so handled separately
 
-JOB_INTEREST_OPTS = enum(
-    ANYTHING   = 'Anything',
-    ARCADE     = 'Arcade',
-    CHALLENGES = 'Challenges Booth',
-    CONSOLE    = 'Consoles',
-    PANELS     = 'Panels',
-    FOOD_PREP  = 'Food Prep',
-    JAMSPACE   = 'Jam Space',
-    LAN        = 'LAN',
-    SECURITY   = 'Security',
-    REGDESK    = 'Regdesk',
-    TABLETOP   = 'Tabletop',
-    TECH_OPS   = 'Tech Ops',
-    FILM_FEST  = 'Film Festival',
-)
 JOB_LOC_OPTS = enum(
     ARCADE        = 'Arcade',
     ARTEMIS       = 'Artemis',
@@ -442,3 +397,17 @@ FOOD_RESTRICTION_OPTS = enum(
 )
 
 BASE_THEME_DIR = "static/themes"
+
+
+# gotta be a better way than exec into global scope. not sure how though.
+try:
+    exec("from siteconfig.constants import *")
+except ImportError:
+    pass
+try:
+    exec("from siteconfig." + CURRENT_THEME + ".constants import *")
+except ImportError:
+    pass
+
+PREREG_SHIRT_OPTS = SHIRT_OPTS[1:]
+MERCH_SHIRT_OPTS = [(SIZE_UNKNOWN, 'select a size')] + list(PREREG_SHIRT_OPTS)

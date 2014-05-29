@@ -414,12 +414,19 @@ class BoldIfNode(template.Node):
         else:
             return output
 
-
 @tag
 class organization_and_event_name(template.Node):
     def render(self, context):
         if EVENT_NAME.lower() != ORGANIZATION_NAME.lower():
             return EVENT_NAME + ' and ' + ORGANIZATION_NAME
+        else:
+            return EVENT_NAME
+
+@tag
+class organization_or_event_name(template.Node):
+    def render(self, context):
+        if EVENT_NAME.lower() != ORGANIZATION_NAME.lower():
+            return EVENT_NAME + ' or ' + ORGANIZATION_NAME
         else:
             return EVENT_NAME
 
