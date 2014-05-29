@@ -136,12 +136,27 @@ def renderable_data(data = None):
     
     return data
 
-def render(template, data = None):
+# try rendering using the first template in the list that exists
+def render_from_list(template_name_list, data = None):
     data = renderable_data(data)
-    rendered = loader.get_template(template).render( Context(data) )
-    if not AT_THE_CON and AdminAccount.is_nick() and 'emails' not in template and 'history' not in template and 'form' not in rendered:
-        rendered = rendered.replace('festival', 'convention').replace('Fest', 'Con')
+    template = loader.select_template(template_name_list)
+    rendered = template.render( Context(data) )
+    rendered = change_the_word_fest_to_con_if_nick_logged_in(rendered, template)
+
     return rendered.encode('utf-8')
+
+def render(template, data = None):
+    template_list = [template]
+    return render_from_list(template_list, data)
+
+# this is a Magfest inside joke.
+# Magfest is not a convention. It's a festival.
+# Except........ if you're Nick. In which case, scratch that, reverse it.
+def change_the_word_fest_to_con_if_nick_logged_in(rendered, template):
+    if not AT_THE_CON and AdminAccount.is_nick() and 'emails' not in template and 'history' not in template and 'form' not in rendered:
+        return rendered.replace('festival', 'convention').replace('Fest', 'Con') # lolz.
+    else:
+        return rendered
 
 # TODO: sanitize for XSS attacks; currently someone can only attack themselves, but still...
 def ng_render(fname, **kwargs):

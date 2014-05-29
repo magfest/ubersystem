@@ -53,7 +53,7 @@
                 </select>
             {% endif %}
             &nbsp;
-            <nobr>{% popup_link "../static_views/givingExtra.html" "Why do this?" %}</nobr>
+            <nobr>{% popup_link "../themed/givingExtra.html" "Why do this?" %}</nobr>
             <br/>
             <font size="-2">Each level includes all lower levels.</font> <br/>
             <font size="-2" color="red">Supporter level and higher {% if now > SUPPORTER_DEADLINE %}were{% endif %} only available until {{ SUPPORTER_DEADLINE|datetime }}.</font> 
@@ -73,7 +73,7 @@
     <td valign="top"> <b>Affiliate:</b> </td>
     <td>
         <input type="hidden" name="affiliate" style="width:30ex" />
-        &nbsp; <span class="popup">{% popup_link "../static_views/affiliates.html" "What's an affiliate?" %}</span>
+        &nbsp; <span class="popup">{% popup_link "../themed/affiliates.html" "What's an affiliate?" %}</span>
     </td>
 </tr>
 <tr class="shirt-row extra-row" style="display:none">

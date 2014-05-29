@@ -53,7 +53,7 @@
                 {% if PRICE_CHANGE %}<li style="color:red">{% attendee_price_notice %}</li>{% endif %}
             </ul>
         </td>
-        <td> {% popup_link "../static_views/attendees.html" "Details" %} </td>
+        <td> {% popup_link "../themed/attendees.html" "Details" %} </td>
     </tr>
 {% if now > PREREG_TAKEDOWN and SINGLE_DAY_BADGES %}
     <tr>
@@ -71,7 +71,7 @@
                 <li> All-access pass with bonus swag </li>
             </ul>
         </td>
-        <td> {% popup_link "../static_views/supporters.html" "Details" %} </td>
+        <td> {% popup_link "../themed/supporters.html" "Details" %} </td>
     </tr>
 {% if GROUP_REG_AVAILABLE %}
     <tr>
@@ -88,7 +88,7 @@
                 <li style="color:red">{% group_price_notice %}</li>
             </ul>
         </td>
-        <td> {% popup_link "../static_views/groups.html" "Details" %} </td>
+        <td> {% popup_link "../themed/groups.html" "Details" %} </td>
 {% else %}
         <td> &nbsp;&nbsp;&nbsp;&nbsp; <b>Group</b> </td>
         <td colspan="2" style="color:red">

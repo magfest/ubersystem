@@ -441,4 +441,4 @@ FOOD_RESTRICTION_OPTS = enum(
 )
 
 BASE_THEME_DIR = "static/themes"
-BASE_THEME_VIEW_DIR = "static_views/themes"
+BASE_THEME_VIEW_DIR = "themed"
