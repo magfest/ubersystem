@@ -29,6 +29,7 @@ INTEREST_OPTS = enum(
     COOKING="Cooking",
     NATURE_STUFF="Nature Stuff",
     SWIMMING="Swimming",
+    MOON_BOUNCE="Moon Bounce",
     PLAYING_VIDEOGAMES="Playing Videogames",
     FLOATING_THING_IN_LAKE="Floating Thing In Lake",
     NO_IDEA_FIRST_TIME="No idea (first time)",
@@ -37,22 +38,22 @@ INTEREST_OPTS = enum(
 SIZE_UNKNOWN = -1
 NO_SHIRT = 0
 SHIRT_OPTS = (
-    (NO_SHIRT, 'no shirt'),
-    (1, 'small'),
-    (2, 'medium'),
-    (3, 'large'),
-    (4, 'x-large'),
-    (5, 'xx-large'),
-    (6, 'xxx-large'),
-    (7, 'small (female)'),
-    (8, 'medium (female)'),
-    (9, 'large (female)'),
-    (10, 'x-large (female)'),
+    (NO_SHIRT, 'No shirt'),
+    (1, 'Small'),
+    (2, 'Medium'),
+    (3, 'Large'),
+    (4, 'X-large'),
+    (5, 'XX-large'),
+    (6, 'XXX-large'),
+    (7, 'Small (female)'),
+    (8, 'Medium (female)'),
+    (9, 'Large (female)'),
+    (10, 'X-large (female)'),
 )
 
 
 SHIRT_COLOR_OPTS = (
-    (NO_SHIRT, 'no shirt'),
+    (NO_SHIRT, 'No shirt'),
     (1, 'Black'),
     (2, 'White (for tie-dyeing later)'),
 )
