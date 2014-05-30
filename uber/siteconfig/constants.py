@@ -66,5 +66,14 @@ JOB_INTEREST_OPTS = enum(
     FILM_FEST  = 'Film Festival',
 )
 
+SHIRT_LEVEL = 20
+SUPPORTER_LEVEL = 50
+SEASON_LEVEL = 160
+DONATION_TIERS = {
+    0: 'No thanks',
+    5: 'Friend of MAGFest ribbon',
+    SHIRT_LEVEL: 'T-shirt',
+    SUPPORTER_LEVEL: 'Supporter Package',
+}
 
 del enum

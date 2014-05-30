@@ -51,6 +51,14 @@ SHIRT_OPTS = (
 )
 
 
+SHIRT_COLOR_OPTS = (
+    (NO_SHIRT, 'no shirt'),
+    (1, 'Black'),
+    (2, 'White (for tie-dyeing later)'),
+)
+
+PREREG_SHIRT_COLOR_OPTS = SHIRT_COLOR_OPTS[1:]
+
 JOB_INTEREST_OPTS = enum(
     ANYTHING        = "Anything",
     FOOD_PREP       = "Food Prep",
@@ -59,5 +67,15 @@ JOB_INTEREST_OPTS = enum(
     REGISTRATION    = "Registration",
     DRIVING         = "Driving campers On-site",
 )
+
+
+SHIRT_LEVEL = 20
+SUPPORTER_LEVEL = 50
+SEASON_LEVEL = 160
+DONATION_TIERS = {
+    SHIRT_LEVEL: 'T-shirt',
+}
+
+SHIRT_COST = SHIRT_LEVEL
 
 del enum

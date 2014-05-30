@@ -271,19 +271,14 @@
             Refunded: $<input type="text" style="width:4em" name="amount_refunded" value="{{ attendee.amount_refunded }}" />
         </span>
         &nbsp;&nbsp;&nbsp;
-        Kicked in extra:
-        <select name="amount_extra" onChange="showOrHideAmounts(true)">
-            {% options DONATION_OPTS attendee.amount_extra %}
-        </select>
+        {% include "registration/kicked_in_extra.html" %}
+
         {% if AT_THE_CON and attendee.staffing %}
             <br/> ({{ attendee.worked_hours }} out of {{ attendee.weighted_hours }} hours worked)
         {% endif %}
     </td>
 </tr>
-<tr>
-    <td> Extra Merch: </td>
-    <td> <input type="text" name="extra_merch" value="{{ attendee.extra_merch }}" style="width:80%" /> </td>
-</tr>
+{% include "registration/merch_info.html" %}
 <tr>
     <td> Special Regdesk Instructions: </td>
     <td> <input type="text" name="regdesk_info" value="{{ attendee.regdesk_info }}" style="width:80%" /> </td>

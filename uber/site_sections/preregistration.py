@@ -70,6 +70,13 @@ class Root:
 
     @check_if_can_reg
     def form(self, message='', edit_id=None, **params):
+
+        if CURRENT_THEME == "magstock":
+            if not 'buy_shirt' in params or params['buy_shirt'] != 'on':
+                params['shirt'] = NO_SHIRT
+                params['shirt_color'] = NO_SHIRT
+
+
         if 'badge_type' not in params and edit_id is None:
             raise HTTPRedirect('badge_choice?message={}', 'You must select a badge type')
 
