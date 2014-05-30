@@ -72,7 +72,7 @@ class Root:
     def form(self, message='', edit_id=None, **params):
 
         if CURRENT_THEME == "magstock":
-            if not 'buy_shirt' in params or params['buy_shirt'] != 'on':
+            if params.get('buy_shirt') != 'on':
                 params['shirt'] = NO_SHIRT
                 params['shirt_color'] = NO_SHIRT
 
