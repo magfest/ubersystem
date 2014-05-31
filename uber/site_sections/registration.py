@@ -1,6 +1,12 @@
 from uber.common import *
 
 def check_everything(attendee):
+    if CURRENT_THEME == "magstock":
+        shirt_size_selected = attendee.shirt != NO_SHIRT
+        shirt_color_selected = attendee.shirt_color != NO_SHIRT
+        if shirt_size_selected != shirt_color_selected:
+            return 'Shirt color/size not valid combination. Either set both or remove both'
+
     if AT_THE_CON and attendee.id is None:
         if isinstance(attendee.badge_num, str) or attendee.badge_num < 0:
             return 'Invalid badge number'

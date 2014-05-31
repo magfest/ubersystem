@@ -98,17 +98,6 @@ DOOR_BADGE_PRICE  = 50
 EARLY_GROUP_PRICE = 30
 LATE_GROUP_PRICE  = 40
 
-SHIRT_LEVEL = 20
-SUPPORTER_LEVEL = 50
-SEASON_LEVEL = 160
-DONATION_TIERS = {
-    0: 'No thanks',
-    5: 'Friend of MAGFest ribbon',
-    SHIRT_LEVEL: 'T-shirt',
-    SUPPORTER_LEVEL: 'Supporter Package',
-}
-DONATION_OPTS = sorted((amt, '+ ${}: {}'.format(amt,desc) if amt else desc) for amt,desc in DONATION_TIERS.items())
-
 def enum(*, sort_by_declaration=False, **kwargs):
     if sort_by_declaration:
         with open(__file__) as f:
@@ -411,3 +400,4 @@ except ImportError:
 
 PREREG_SHIRT_OPTS = SHIRT_OPTS[1:]
 MERCH_SHIRT_OPTS = [(SIZE_UNKNOWN, 'select a size')] + list(PREREG_SHIRT_OPTS)
+DONATION_OPTS = sorted((amt, '+ ${}: {}'.format(amt,desc) if amt else desc) for amt,desc in DONATION_TIERS.items())

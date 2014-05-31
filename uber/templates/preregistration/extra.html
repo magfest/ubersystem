@@ -76,14 +76,6 @@
         &nbsp; <span class="popup">{% popup_link "../static_views/affiliates.html" "What's an affiliate?" %}</span>
     </td>
 </tr>
-<tr class="shirt-row extra-row" style="display:none">
-    <td> <b>Shirt Size</b> </td>
-    <td>
-        <select name="shirt">
-            <option value="{{ NO_SHIRT }}">Select a shirt size</option>
-            {% options PREREG_SHIRT_OPTS attendee.shirt %}
-        </select>
-    </td>
-</tr>
-
 {% endif %}
+
+{% include "preregistration/shirt_selection.html" %}

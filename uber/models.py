@@ -412,6 +412,11 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     affiliate    = TextField()
     shirt        = IntegerField(choices=SHIRT_OPTS, default=NO_SHIRT)
+
+    # yes, we are changing our DB schema based on the theme.
+    if CURRENT_THEME == "magstock":
+        shirt_color  = IntegerField(choices=SHIRT_COLOR_OPTS, default=NO_SHIRT)
+
     can_spam     = BooleanField(default=False)
     regdesk_info = TextField()
     extra_merch  = TextField()
@@ -439,7 +444,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     display = 'full_name'
     unrestricted = {'first_name', 'last_name', 'international', 'zip_code', 'ec_phone', 'phone', 'email', 'age_group',
-                    'interests', 'found_how', 'comments', 'badge_type', 'affiliate', 'shirt', 'can_spam',
+                    'interests', 'found_how', 'comments', 'badge_type', 'affiliate', 'shirt', 'shirt_color', 'can_spam',
                     'badge_printed_name', 'staffing', 'fire_safety_cert', 'requested_depts', 'amount_extra'}
 
     def delete(self, *args, **kwargs):
