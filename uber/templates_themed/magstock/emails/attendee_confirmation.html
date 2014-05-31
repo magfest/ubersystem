@@ -1,0 +1,36 @@
+<html>
+<head></head>
+<body>
+
+You ({{ attendee.full_name }}) have preregistered for {{ EVENT_NAME }}
+{% if attendee.group %}
+    by claiming one of the badges in the {{ attendee.group.name }} group.
+{% else %}
+    and your payment of ${{ attendee.amount_paid }} has been received.  
+{% endif %}
+Your registration confirmation number is {{ attendee.secret_id }}.
+
+<br/> <br/>
+Badges are not mailed out before the event, so your badge will be available for pickup at the registration desk when you arrive at {{ EVENT_NAME }}. Simply bring a photo ID to the registration desk to pick up your badge. If you ordered a t-shirt with your badge, you can pick it up with your badge.
+
+{% if attendee.amount_extra %}
+    <br/> <br/>
+    Your additional contribution of ${{ attendee.amount_extra }} provides you with these bonus items, which may be picked up at the {{ EVENT_NAME }} registration area:
+    <ul>
+    {% for swag in attendee.donation_swag %}
+        <li>{{ swag }}</li>
+    {% endfor %}
+{% endif %}
+
+{% include "emails/reg_notes.html" %}
+
+{% if attendee.is_transferrable %}
+    <br/> <br/>
+    {{ EVENT_NAME }} has a no-refund policy for all registrations.  If for any reason you can't make it, we allow and encourage
+    you to resell your registration for the exact price you paid for it.  To transfer your registration to another person,
+    send them <a href="{{ URL_BASE }}/preregistration/transfer_badge?id={{ attendee.secret_id }}">this personalized link</a>,
+    which will work until {{ UBER_TAKEDOWN|datetime }}.
+{% endif %}
+
+</body>
+</html>
