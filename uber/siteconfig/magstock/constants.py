@@ -29,7 +29,6 @@ INTEREST_OPTS = enum(
     COOKING="Cooking",
     NATURE_STUFF="Nature Stuff",
     SWIMMING="Swimming",
-    MOON_BOUNCE="Moon Bounce",
     PLAYING_VIDEOGAMES="Playing Videogames",
     FLOATING_THING_IN_LAKE="Floating Thing In Lake",
     NO_IDEA_FIRST_TIME="No idea (first time)",
