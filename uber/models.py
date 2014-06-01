@@ -624,12 +624,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     def donation_swag(self):
         if CURRENT_THEME == "magstock":
             description = ""
-            if SHIRT_OPTS[self.shirt][0] == NO_SHIRT:
+            if self.shirt == NO_SHIRT:
                 description = "No shirt"
             else:
-                shirt_desc = SHIRT_OPTS[self.shirt][1]
-                shirt_color_desc = SHIRT_COLOR_OPTS[self.shirt_color][1]
-                description = shirt_desc + ", " + shirt_color_desc
+                description = self.get_shirt_display() + ", " + self.get_shirt_color_display()
 
             return description
         else:
