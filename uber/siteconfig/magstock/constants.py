@@ -68,6 +68,14 @@ JOB_INTEREST_OPTS = enum(
     DRIVING         = "Driving campers On-site",
 )
 
+NOISE_LEVEL_OPTS = enum(
+    NOISE_LEVEL_0="1) As quiet as possible all the time",
+    NOISE_LEVEL_1="2) As quiet as possible at night",
+    NOISE_LEVEL_2="3) Reasonable noise doesn't scare me",
+    NOISE_LEVEL_3="4) Lots of noise is no problem, though I like to sleep",
+    NOISE_LEVEL_4="5) PARTY PARTY PARTY (MAX NOISE)",
+    NOISE_LEVEL_5="6) Doesn't matter, I'm commuting",
+)
 
 SHIRT_LEVEL = 20
 SUPPORTER_LEVEL = 50
