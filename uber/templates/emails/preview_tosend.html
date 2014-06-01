@@ -1,0 +1,15 @@
+{% extends "base-admin.html" %}
+{% block backlink %}{% endblock %}
+{% block title %}Emails that would be sent if SEND_EMAILS were True:{% endblock %}
+{% block content %}
+
+<h2>Emails that would be sent if SEND_EMAILS were True:</h2>
+
+<pre>
+{% for email in emails %}
+    <hr>
+    {%include "emails/email_preview.html" %}
+{% endfor %}
+</pre>
+
+{% endblock %}

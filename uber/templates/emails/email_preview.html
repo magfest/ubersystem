@@ -1,0 +1,16 @@
+{% comment %}
+This template isn't used to send any emails, it's used for in-browser previews only.
+{% endcomment %}
+
+from: {{ email.source }}<br/>
+to: {{ email.dest }}<br/>
+cc: {{ email.dest|join:", " }}<br/>
+bcc: {{ email.dest|join:", " }}<br/>
+subject: {{ email.subject }}<br/>
+format: {{ email.format }}<br/>
+body:
+{% if email.format == "text" %}
+{{ email.body|linebreaks }}<br/>
+{% else %}
+{{ email.body }}<br/>
+{% endif %}
