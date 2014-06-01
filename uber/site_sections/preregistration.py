@@ -331,7 +331,7 @@ class Root:
                 message = 'First and Last names are required.'
             if not message:
                 attendee.save()
-                subject, body = '{{ EVENT_NAME }} Registration Transferred', render('emails/transfer_badge.txt', {'new': attendee, 'old': old})
+                subject, body = EVENT_NAME + ' Registration Transferred', render('emails/transfer_badge.txt', {'new': attendee, 'old': old})
                 try:
                     send_email(REGDESK_EMAIL, [old.email, attendee.email, REGDESK_EMAIL], subject, body, model = attendee)
                 except:
