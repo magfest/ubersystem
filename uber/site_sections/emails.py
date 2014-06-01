@@ -36,7 +36,7 @@ class Reminder:
 
     def send_email(self, source, dest, subject, body, format = 'text', cc = [], bcc = [], model = None, render_only=False):
         if render_only:
-            return {'source': source,'dest': dest,'subject': subject,'body': body,'format': format,'cc': cc,'bcc': bcc}
+            return {'source': source,'dest': listify(dest),'subject': subject,'body': body,'format': format,'cc': listify(cc),'bcc': listify(bcc)}
         else:
             # really send an email
             send_email(self.sender, x.email, self.subject, body, format, model = x, cc=self.cc, render_only=render_only)
