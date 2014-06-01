@@ -622,10 +622,19 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def donation_swag(self):
-        extra = self.amount_extra
-        if self.badge_type == SUPPORTER_BADGE and extra == 0:
-            extra = SUPPORTER_LEVEL
-        return [desc for amount,desc in sorted(DONATION_TIERS.items()) if amount and extra >= amount]
+        if CURRENT_THEME == "magstock":
+            description = ""
+            if self.shirt == NO_SHIRT:
+                description = "No shirt"
+            else:
+                description = self.get_shirt_display() + ", " + self.get_shirt_color_display()
+
+            return description
+        else:
+            extra = self.amount_extra
+            if self.badge_type == SUPPORTER_BADGE and extra == 0:
+                extra = SUPPORTER_LEVEL
+            return [desc for amount,desc in sorted(DONATION_TIERS.items()) if amount and extra >= amount]
 
     @property
     def merch(self):

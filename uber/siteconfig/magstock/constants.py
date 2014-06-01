@@ -53,8 +53,8 @@ SHIRT_OPTS = (
 
 SHIRT_COLOR_OPTS = (
     (NO_SHIRT, 'No shirt'),
-    (1, 'Black'),
-    (2, 'White (for tie-dyeing later)'),
+    (1, 'Black Shirt'),
+    (2, 'White Shirt (for tie-dyeing later)'),
 )
 
 PREREG_SHIRT_COLOR_OPTS = SHIRT_COLOR_OPTS[1:]
