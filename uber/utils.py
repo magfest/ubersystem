@@ -116,7 +116,7 @@ def send_email(source, dest, subject, body, format = 'text', cc = [], bcc = [], 
 
     if SEND_EMAILS and to:
         message = EmailMessage(subject = subject, **{'bodyText' if format == 'text' else 'bodyHtml': body})
-        AmazonSES(AWS_ACCESS_KEY_ID, AWS_SECRET_KEY).sendEmail(
+        AmazonSES(AWS_ACCESS_KEY, AWS_SECRET_KEY).sendEmail(
             source = source,
             toAddresses = to,
             ccAddresses = cc,

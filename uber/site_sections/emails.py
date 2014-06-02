@@ -3,11 +3,13 @@ from uber.common import *
 class Reminder:
     instances = OrderedDict()
     
-    def __init__(self, model, subject, template, filter, sender=REGDESK_EMAIL, extra_data=None, cc=None, post_con=False):
+    def __init__(self, model, subject, template, filter, sender=REGDESK_EMAIL, extra_data=None, cc=None, post_con=False, category=None):
         self.model, self.subject, self.template, self.sender = model, subject, template, sender
         self.cc = cc or []
         self.extra_data = extra_data or {}
         self.instances[subject] = self
+        self.category = category or 'uncategorized'
+
         if post_con:
             self.filter = lambda x: POST_CON and filter(x)
         else:
@@ -27,30 +29,47 @@ class Reminder:
     
     def should_send(self, x, all_sent = None):
         try:
-            return not self.prev(x, all_sent) and self.filter(x)
+            email_category_allowed = 'all' in EMAIL_CATEGORIES_ALLOWED_TO_SEND or self.category in EMAIL_CATEGORIES_ALLOWED_TO_SEND
+            return not self.prev(x, all_sent) and email_category_allowed and self.filter(x)
         except:
             log.error('unexpected error', exc_info=True)
-    
-    def send(self, x, raise_errors = True):
+
+    def send_email(self, source, dest, subject, body, format = 'text', cc = [], bcc = [], model = None, render_only=False):
+        if render_only:
+            return {'source': source,'dest': listify(dest),'subject': subject,'body': body,'format': format,'cc': listify(cc),'bcc': listify(bcc)}
+        else:
+            # really send an email
+            send_email(source, dest, subject, body, format, cc, bcc, model)
+
+    def send(self, x, raise_errors = True, render_only = False):
         try:
             body = render('emails/' + self.template, dict({x.__class__.__name__.lower(): x}, **self.extra_data))
             format = 'text' if self.template.endswith('.txt') else 'html'
-            send_email(self.sender, x.email, self.subject, body, format, model = x, cc=self.cc)
+            return self.send_email(self.sender, x.email, self.subject, body, format, model = x, cc=self.cc, render_only=render_only)
         except:
             log.error('error sending {!r} email to {}', self.subject, x.email, exc_info=True)
             if raise_errors:
                 raise
-    
+
+    # if render_only is True, this will return all rendered emails as a list, instead of sending them
     @staticmethod
-    def send_all(raise_errors = False):
+    def send_all(raise_errors = False, render_only = False):
+        dont_send_emails = not SEND_EMAILS or AT_THE_CON
+        if dont_send_emails and not render_only:
+            return
+
+        results = []
         attendees, groups = Group.everyone()
         models = {Attendee: attendees, Group: groups}
         all_sent = {(e.model, e.fk_id, e.subject): e for e in Email.objects.all()}
-        if SEND_EMAILS and not AT_THE_CON:
-            for rem in Reminder.instances.values():
-                for x in models[rem.model]:
-                    if x.email and rem.should_send(x, all_sent):
-                        rem.send(x, raise_errors = raise_errors)
+
+        for rem in Reminder.instances.values():
+            for x in models[rem.model]:
+                if x.email and rem.should_send(x, all_sent):
+                    result = rem.send(x, raise_errors = raise_errors, render_only = render_only)
+                    results.append(result)
+
+        return results
 
 class StopsReminder(Reminder):
     def __init__(self, subject, template, filter, **kwargs):
@@ -89,7 +108,30 @@ def days_before(days, dt, until=None):
         return dt - timedelta(days=days) < datetime.now() < until
 
 
+
+
 ### WARNING - changing the email subject line for an email causes ALL of those emails to be re-sent!
+
+Reminder(Attendee, EVENT_NAME +' schedule, maps, and other FAQs', 'precon_faqs.html',
+         lambda a: days_before(7, EPOCH), category='precon_faq')
+
+
+Reminder(Attendee, EVENT_NAME +' payment received', 'attendee_confirmation.html',
+         lambda a: a.paid == HAS_PAID,
+         category='attendee_registration_confirmation')
+
+Reminder(Attendee, EVENT_NAME +' group registration confirmed', 'attendee_confirmation.html',
+         lambda a: a.group and a != a.group.leader and a.registered > datetime(2013, 11, 11),
+         category='attendee_registration_confirmation')
+
+Reminder(Group, EVENT_NAME +' group payment received', 'group_confirmation.html',
+         lambda g: g.amount_paid == g.total_cost,
+         category='attendee_registration_confirmation')
+
+
+
+Reminder(Attendee, EVENT_NAME +' extra payment received', 'group_donation.txt',
+         lambda a: a.paid == PAID_BY_GROUP and a.amount_extra and a.amount_paid == a.amount_extra)
 
 
 MarketplaceReminder('Reminder to pay for your '+ EVENT_NAME +' Dealer registration', 'dealer_payment_reminder.txt',
@@ -108,19 +150,6 @@ MarketplaceReminder(EVENT_NAME +' Dealer waitlist has been exhausted', 'dealer_w
 
 MarketplaceReminder('Your '+ EVENT_NAME +' Dealer registration has been approved', 'dealer_approved.html',
                     lambda g: g.status == APPROVED)
-
-Reminder(Attendee, EVENT_NAME +' payment received', 'attendee_confirmation.html',
-         lambda a: a.paid == HAS_PAID)
-
-Reminder(Attendee, EVENT_NAME +' group registration confirmed', 'attendee_confirmation.html',
-         lambda a: a.group and a != a.group.leader and a.registered > datetime(2013, 11, 11))
-
-Reminder(Group, EVENT_NAME +' group payment received', 'group_confirmation.html',
-         lambda g: g.amount_paid == g.total_cost)
-
-Reminder(Attendee, EVENT_NAME +' extra payment received', 'group_donation.txt',
-         lambda a: a.paid == PAID_BY_GROUP and a.amount_extra and a.amount_paid == a.amount_extra)
-
 
 
 Reminder(Attendee, EVENT_NAME +' Badge Confirmation', 'badge_confirmation.txt',
@@ -257,8 +286,6 @@ GuestReminder(EVENT_NAME +' food for guests', 'guest_food.txt')
 
 GuestReminder(EVENT_NAME +' hospitality suite information', 'guest_food_info.txt')
 
-Reminder(Attendee, EVENT_NAME +' schedule, maps, and other FAQs', 'precon_faqs.html', lambda a: days_before(7, EPOCH))
-
 
 DeptHeadReminder(EVENT_NAME +' staffers need to be marked and rated', 'postcon_hours.txt', post_con=True)
 
@@ -279,6 +306,12 @@ class Root:
             'page': page,
             'emails': get_page(page, emails),
             'count': emails.count()
+        }
+
+    def preview_tosend(self):
+        emails = Reminder.send_all(render_only = True)
+        return {
+            'emails': emails
         }
     
     def sent(self, **params):
