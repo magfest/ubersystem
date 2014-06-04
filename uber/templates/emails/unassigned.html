@@ -1,7 +1,7 @@
 <html>
 <head></head>
 <body>
-    <h3>{{ unassigned|length }} volunteers are not assigned to any department:</h3>
+    <h3>{{ EVENT_NAME_AND_YEAR }}<br/>{{ unassigned|length }} volunteers are not assigned to any department:</h3>
     <ul style="margin-top:0px ; margin-bottom:10px">
     {% for attendee in unassigned %}
             <li>
