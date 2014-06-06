@@ -368,7 +368,7 @@ class stripe_form(template.Node):
 
         email = ""
         if charge.targets:
-            email = 'data-email="{}"'.format(charge.models[0].email)
+            email = charge.models[0].email
 
         if not charge.targets:
             regtext = 'On-Site Charge'
@@ -377,20 +377,16 @@ class stripe_form(template.Node):
         else:
             regtext = 'Preregistration'
 
-        return """
-            <form class="stripe" method="post" action="{action}">
-                <input type="hidden" name="payment_id" value="{payment_id}" />
-                <script
-                    src="https://checkout.stripe.com/v2/checkout.js" class="stripe-button"
-                    data-key="{key}"
-                    {email}
-                    data-amount="{charge.amount}"
-                    data-name="{event_name} {regtext}"
-                    data-description="{charge.description}"
-                    data-image="{theme_dir}/stripe-logo.png">
-                </script>
-            </form>
-        """.format(theme_dir=state.THEME_DIR, action=self.action, event_name=EVENT_NAME, regtext=regtext, email=email, payment_id=payment_id, key=STRIPE_PUBLIC_KEY, charge=charge)
+        params = {
+            'action': self.action,
+            'regtext': regtext,
+            'email': email,
+            'payment_id': payment_id,
+            # 'key': STRIPE_PUBLIC_KEY,
+            'charge': charge
+        }
+
+        return render('preregistration/stripeForm.html', params)
 
 
 
