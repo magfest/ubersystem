@@ -19,9 +19,6 @@ def Column(*args, **kwargs):
 
 
 
-from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.sql.expression import FunctionElement
-
 class utcnow(FunctionElement):
     type = UTCDateTime()
 
@@ -31,7 +28,7 @@ def pg_utcnow(element, compiler, **kw):
 
 @compiles(utcnow, 'sqlite')
 def sqlite_utcnow(element, compiler, **kw):
-    return "datetime('now', 'utc')"
+    return "(datetime('now', 'utc'))"
 
 
 
