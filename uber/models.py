@@ -43,12 +43,13 @@ class Choice(TypeDecorator):
         TypeDecorator.__init__(self, **kwargs)
 
     def process_bind_param(self, value, dialect):
-        try:
-            assert int(value) in self.choices
-        except:
-            raise ValueError('{!r} not a valid option out of {}'.format(value, self.choices))
-        else:
-            return int(value)
+        if value is not None:
+            try:
+                assert int(value) in self.choices
+            except:
+                raise ValueError('{!r} not a valid option out of {}'.format(value, self.choices))
+            else:
+                return int(value)
 
 
 class MultiChoice(TypeDecorator):
@@ -66,6 +67,7 @@ class MultiChoice(TypeDecorator):
 class MagModel:
     id = Column(UUID, primary_key=True, default=lambda: uuid4())
 
+    unrestricted = ()
     _propertized = ()
 
     def __init__(self, *args, **kwargs):
@@ -112,6 +114,10 @@ class MagModel:
     def __hash__(self):
         return hash(self.id)
 
+    def orig_value_of(self, name):
+        hist = get_history(self, name)
+        return (hist.deleted or hist.unchanged)[0]
+
     def __getattr__(self, name):
         if name.endswith('_ints'):
             val = getattr(self, name[:-5])
@@ -122,6 +128,11 @@ class MagModel:
             val = getattr(self, field_name)
             return '' if val is None else self.get_field(field_name).type.choices[val]
 
+        if name.endswith('_local'):
+            field_name = name[:-6]
+            val = getattr(self, field_name)
+            return val.astimezone(EVENT_TIMEZONE)
+
         '''
         try:
             [multi] = [f for f in self._meta.fields if isinstance(f, MultiChoiceField)]
@@ -131,72 +142,39 @@ class MagModel:
             pass
         else:
             return choice in getattr(self, multi.name + '_ints')
-
-        one_to_one = {underscorize(r.model.__name__) for r in self._meta.get_all_related_objects()
-                                                     if isinstance(r.field, OneToOneField)}
-        if name in one_to_one:
-            try:
-                return getattr(self, name.replace('_', ''))
-            except:
-                return None
         '''
         raise AttributeError(self.__class__.__name__ + '.' + name)
 
-    # TODO: this is horribly broken
-    @classmethod
-    def get(cls, params, bools=(), checkgroups=(), allowed=(), restricted=False, ignore_csrf=False):
-        if isinstance(params, (int, str)):
-            if isinstance(params, int) or params.isdigit():
-                return cls.objects.get(id=params)
-
-        params = params.copy()
-        id = params.pop('id', 'None')
-        if id == 'None':
-            model = cls()
-        elif str(id).isdigit():
-            model = cls.objects.get(id=id)
-
-        if not ignore_csrf:
-            assert not {k for k in params if k not in allowed} or cherrypy.request.method == 'POST', 'POST required'
-        model.apply(params, bools, checkgroups, allowed, restricted, ignore_csrf)
-        return model
-
-    # TODO: this is horribly broken
-    def apply(self, params, bools=(), checkgroups=(), allowed=(), restricted=True, ignore_csrf=True):
-        for field in self._meta.fields:
-            if restricted and field.name not in self.unrestricted:
-                continue
-
-            id_param = field.name + '_id'
-            if isinstance(field, (ForeignKey, OneToOneField)) and id_param in params:
-                setattr(self, id_param, params[id_param])
-
-            elif field.name in params and field.name != 'id':
-                if isinstance(params[field.name], list):
-                    value = ','.join(params[field.name])
-                elif isinstance(params[field.name], bool):
-                    value = params[field.name]
+    # NOTE: theoretically we should use from_dict() for this, either to replace this or in the
+    #       implementation; it would be worth looking into what problems arise from that
+    def apply(self, params, *, bools=(), checkgroups=(), restricted=True, ignore_csrf=True):
+        for column in self.__table__.columns:
+            if (not restricted or column.name in self.unrestricted) and column.name in params and column.name != 'id':
+                if isinstance(params[column.name], list):
+                    value = ','.join(map(str, params[column.name]))
+                elif isinstance(params[column.name], bool):
+                    value = params[column.name]
                 else:
-                    value = str(params[field.name]).strip()
+                    value = str(params[column.name]).strip()
 
                 try:
-                    if isinstance(field, FloatField):
+                    if isinstance(column.type, Float):
                         value = float(value)
-                    elif isinstance(field, IntegerField):
+                    elif isinstance(column.type, (Choice, Integer)):
                         value = int(float(value))
-                    elif isinstance(field, DateTimeField):
-                        value = datetime.strptime(value, '%Y-%m-%d %H:%M:%S')
+                    elif isinstance(column.type, UTCDateTime):
+                        value = datetime.strptime(value, '%Y-%m-%d %H:%M:%S').replace(tzinfo=EVENT_TIMEZONE)
                 except:
                     pass
 
-                setattr(self, field.name, value)
+                setattr(self, column.name, value)
 
         if cherrypy.request.method.upper() == 'POST':
-            for field in self._meta.fields:
-                if field.name in bools:
-                    setattr(self, field.name, field.name in params and bool(int(params[field.name])))
-                elif field.name in checkgroups and field.name not in params:
-                    setattr(self, field.name, '')
+            for column in self.__table__.columns:
+                if column.name in bools:
+                    setattr(self, column.name, column.name in params and bool(int(params[column.name])))
+                elif column.name in checkgroups and column.name not in params:
+                    setattr(self, column.name, '')
 
             if not ignore_csrf:
                 check_csrf(params.get('csrf_token'))
@@ -238,7 +216,7 @@ class NightsMixin(object):
 class Event(MagModel):
     location    = Column(Choice(EVENT_LOC_OPTS))
     start_time  = Column(UTCDateTime)
-    duration    = Column(Integer)
+    duration    = Column(Integer)   # half-hour increments
     name        = Column(UnicodeText, nullable=False)
     description = Column(UnicodeText)
 
@@ -251,12 +229,12 @@ class Event(MagModel):
 
     @property
     def minutes(self):
-        return self.duration * 30
+        return (self.duration or 0) * 30
 
     @property
     def start_slot(self):
         if self.start_time:
-            return int((self.start_time - EPOCH).total_seconds() / (60 * 30))
+            return int((self.start_time_local - EPOCH).total_seconds() / (60 * 30))
 
 
 class Group(MagModel, TakesPaymentMixin):
@@ -380,6 +358,7 @@ class Group(MagModel, TakesPaymentMixin):
                0 if self.is_dealer else 5
 
 
+# TODO: change phone to cellphone
 class Attendee(MagModel, TakesPaymentMixin):
     group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(Group, backref='attendees', foreign_keys=group_id)
@@ -442,10 +421,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     display = 'full_name'
     unrestricted = {'first_name', 'last_name', 'international', 'zip_code', 'ec_phone', 'phone', 'email', 'age_group',
-                    'interests', 'found_how', 'comments', 'badge_type', 'affiliate', 'shirt', 'can_spam',
-                    'badge_printed_name', 'staffing', 'fire_safety_cert', 'requested_depts', 'assigned_depts'}
+                    'interests', 'found_how', 'comments', 'badge_type', 'affiliate', 'shirt', 'can_spam', 'no_cellphone',
+                    'badge_printed_name', 'staffing', 'fire_safety_cert', 'requested_depts', 'amount_extra'}
 
-    # TODO: not sure how to handle this
     def delete(self, *args, **kwargs):
         with BADGE_LOCK:
             badge_num = Attendee.get(self.id).badge_num
@@ -469,7 +447,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             self.amount_refunded = 0
 
         if AT_THE_CON and self.badge_num and not self.registered:
-            self.checked_in = datetime.now()
+            self.checked_in = datetime.now(UTC)
 
         for attr in ['first_name', 'last_name']:
             value = getattr(self, attr)
@@ -504,15 +482,17 @@ class Attendee(MagModel, TakesPaymentMixin):
             if self.paid == NOT_PAID:
                 self.paid = NEED_NOT_PAY
 
-        old = Attendee.get(self.id) if self.id else None
-        if old:
-            if self.staffing and not old.staffing or self.ribbon == VOLUNTEER_RIBBON and old.ribbon != VOLUNTEER_RIBBON:
+        if self.registered:
+            old_ribbon = self.orig_value_of('ribbon')
+            old_staffing = self.orig_value_of('staffing')
+            if self.staffing and not old_staffing or self.ribbon == VOLUNTEER_RIBBON and old_ribbon != VOLUNTEER_RIBBON:
                 self.staffing = True
                 if self.ribbon == NO_RIBBON:
                     self.ribbon = VOLUNTEER_RIBBON
-            elif old.staffing and not self.staffing or self.ribbon != VOLUNTEER_RIBBON and old.ribbon == VOLUNTEER_RIBBON:
+            elif old_staffing and not self.staffing or self.ribbon != VOLUNTEER_RIBBON and old_ribbon == VOLUNTEER_RIBBON:
                 self.unset_volunteering()
 
+        # TODO: maybe allow some kind of override on this?
         if self.age_group == UNDER_18 and PRE_CON:
             self.unset_volunteering()
 
@@ -525,9 +505,11 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.ribbon == VOLUNTEER_RIBBON:
             self.ribbon = NO_RIBBON
         if self.badge_type == STAFF_BADGE:
-            shift_badges(self, down=True)
+            self.session.shift_badges(self, down=True)
             self.badge_type = ATTENDEE_BADGE
+        del self.shifts[:]
 
+    # TODO: fix this
     def get_unsaved(self):
         return self, Group()
 
@@ -1121,3 +1103,89 @@ def _delete_hook(sender, instance, **kwargs):
 
 class Session(SessionManager):
     engine = sqlalchemy.create_engine(SQLALCHEMY_URL)
+
+    class SessionMixin:
+        def next_badge_num(self, badge_type):
+            #assert_badge_locked()
+            sametype = self.query(Attendee).filter(Attendee.badge_type == badge_type, Attendee.badge_num > 0)
+            if sametype.count():
+                return 1 + sametype.order_by(Attendee.badge_num.desc()).first().badge_num
+            else:
+                return BADGE_RANGES[badge_type][0]
+
+        def shift_badges(self, attendee, down, until = MAX_BADGE):
+            #assert_badge_locked()
+            if not CUSTOM_BADGES_REALLY_ORDERED:
+                shift = -1 if down else 1
+                for a in self.query(Attendee).filter(Attendee.badge_type == attendee.badge_type,
+                                                     Attendee.badge_num >= attendee.badge_num,
+                                                     Attendee.badge_num <= until,
+                                                     Attendee.badge_num != 0,
+                                                     Attendee.id != attendee.id):
+                    a.badge_num += shift
+
+        def change_badge(self, attendee):
+            #assert_badge_locked()
+            old_badge_num = attendee.orig_value_of('badge_num')
+            old_badge_type = attendee.orig_value_of('badge_type')
+
+            out_of_range = check_range(attendee.badge_num, attendee.badge_type)
+            if out_of_range:
+                return out_of_range
+            elif CUSTOM_BADGES_REALLY_ORDERED:
+                if attendee.badge_type in PREASSIGNED_BADGE_TYPES and old_badge_type not in PREASSIGNED_BADGE_TYPES:
+                    return 'Custom badges have already been ordered; you can add new staffers by giving them an Attendee badge with a Volunteer Ribbon'
+                elif attendee.badge_type not in PREASSIGNED_BADGE_TYPES and old_badge_type in PREASSIGNED_BADGE_TYPES:
+                    attendee.badge_num = 0
+                    return 'Badge updated'
+                elif attendee.badge_type in PREASSIGNED_BADGE_TYPES and attendee.badge_num != old_badge_num:
+                    return 'Custom badges have already been ordered, so you cannot shift badge numbers'
+
+            if AT_OR_POST_CON:
+                if not attendee.badge_num and attendee.badge_type in PREASSIGNED_BADGE_TYPES:
+                    return 'You must assign a badge number for pre-assigned badge types'
+                elif attendee.badge_num and self.query(Attendee).filter_by(badge_type=attendee.badge_type, badge_num=attendee.badge_num).count():
+                    return 'That badge number already belongs to {!r}'.format(existing[0].full_name)
+            elif old_badge_num and old_badge_type == attendee.badge_type:
+                next = next_badge_num(attendee.badge_type) - 1
+                attendee.badge_num = min(attendee.badge_num or MAX_BADGE, next)
+                if old_badge_num < attendee.badge_num:
+                    self.shift_badges(attendee, down=True, until=attendee.badge_num)     # probably broken
+                else:
+                    self.shift_badges(attendee, down=False, until=old_badge_num)         # probably broken
+            else:
+                if old_badge_num:
+                    self.shift_badges(attendee, down=True)
+
+                next = self.next_badge_num(attendee.badge_type)
+                if 0 < attendee.badge_num <= next:
+                    self.shift_badges(attendee, down=False)
+                else:
+                    attendee.badge_num = next
+
+            if AT_THE_CON or new <= next:
+                return 'Badge updated'
+            else:
+                return 'That badge number was too high, so the next available badge was assigned instead'
+
+
+def _make_getter(model):
+    def getter(self, params, *, bools=(), checkgroups=(), allowed=(), restricted=False, ignore_csrf=False):
+        if isinstance(params, str):
+            return self.query(model).filter_by(id=params).one()
+        else:
+            params = params.copy()
+            id = params.pop('id', 'None')
+            if id == 'None':
+                inst = model()
+            else:
+                inst = self.query(model).filter_by(id=id).one()
+
+            if not ignore_csrf:
+                assert not {k for k in params if k not in allowed} or cherrypy.request.method == 'POST', 'POST required'
+            inst.apply(params, bools=bools, checkgroups=checkgroups, restricted=restricted, ignore_csrf=ignore_csrf)
+            return inst
+    return getter
+
+for _model in Session.all_models():
+    setattr(Session.SessionMixin, _model.__tablename__, _make_getter(_model))

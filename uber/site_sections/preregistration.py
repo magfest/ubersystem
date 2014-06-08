@@ -62,7 +62,7 @@ class Root:
 
         params['id'] = 'None'   # security!
         if edit_id is not None:
-            attendee, group = self._get_unsaved(edit_id, if_not_found = HTTPRedirect('badge_choice?message={}', 'That preregistration has already been finalized'))
+            attendee, group = self._get_unsaved(edit_id, if_not_found=HTTPRedirect('badge_choice?message={}', 'That preregistration has already been finalized'))
             attendee.apply(params, bools=_checkboxes)
             group.apply(params)
             params.setdefault('badges', group.badges)

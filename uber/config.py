@@ -29,13 +29,14 @@ for _opt, _val in conf.items():
     if not isinstance(_val, dict):
         globals()[_opt.upper()] = _val
 
+EVENT_TIMEZONE = pytz.timezone(EVENT_TIMEZONE)
 for _opt, _val in conf['dates'].items():
     if not _val:
         _dt = None
     elif ' ' in _val:
-        _dt = datetime.strptime(_val, '%Y-%m-%d %H')
+        _dt = datetime.strptime(_val, '%Y-%m-%d %H').replace(tzinfo=EVENT_TIMEZONE)
     else:
-        _dt = datetime.strptime(_val + ' 23:59', '%Y-%m-%d %H:%M')
+        _dt = datetime.strptime(_val + ' 23:59', '%Y-%m-%d %H:%M').replace(tzinfo=EVENT_TIMEZONE)
     globals()[_opt.upper()] = _dt
 
 PRICE_BUMPS = {}
