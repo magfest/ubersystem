@@ -9,7 +9,7 @@ class Root:
             'shirt_sizes':   [(desc,attendees.filter(shirt=shirt).count()) for shirt,desc in SHIRT_OPTS],
             'paid_counts':   [(desc,attendees.filter(paid=status).count()) for status,desc in PAID_OPTS],
             'badge_counts':  [(desc,attendees.filter(badge_type=bt).count(),attendees.filter(badge_type=bt,paid=NOT_PAID).count(),attendees.filter(badge_type=bt,paid=HAS_PAID).count()) for bt,desc in BADGE_OPTS],
-            'aff_counts':    [(name,attendees.filter(badge_type=SUPPORTER_BADGE,affiliate=aff,paid=HAS_PAID).count(),attendees.filter(badge_type=SUPPORTER_BADGE,affiliate=aff,paid=NOT_PAID).count()) for name,aff in affiliates(exclude={})+[('None','')]],
+            'aff_counts':    [(name,attendees.filter(badge_type=SUPPORTER_BADGE,affiliate=aff,paid=HAS_PAID).count(),attendees.filter(badge_type=SUPPORTER_BADGE,affiliate=aff,paid=NOT_PAID).count()) for name,aff in affiliates()+[('None','')]],
             'checkin_count': attendees.exclude(checked_in__isnull=True).count(),
             'paid_noshows':  attendees.filter(paid=HAS_PAID, checked_in__isnull=True).count() + attendees.filter(paid=PAID_BY_GROUP, group__amount_paid__gt=0, checked_in__isnull=True).count(),
             'free_noshows':  attendees.filter(paid=NEED_NOT_PAY, checked_in__isnull=True).count(),
