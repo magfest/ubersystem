@@ -115,6 +115,7 @@ class MagModel:
         hist = get_history(self, name)
         return (hist.deleted or hist.unchanged)[0]
 
+    # Possible TODO: there are three very similar pseudo-attributes; we may consider just making a decorator for defining these
     def __getattr__(self, name):
         if name.endswith('_ints'):
             val = getattr(self, name[:-5])
@@ -123,23 +124,22 @@ class MagModel:
         if name.endswith('_label'):
             field_name = name[:-6]
             val = getattr(self, field_name)
-            return '' if val is None else self.get_field(field_name).type.choices[val]
+            return '' if val is None else self.get_field(field_name).type.choices[int(val)]
 
         if name.endswith('_local'):
             field_name = name[:-6]
             val = getattr(self, field_name)
             return val.astimezone(EVENT_TIMEZONE)
 
-        '''
         try:
-            [multi] = [f for f in self._meta.fields if isinstance(f, MultiChoiceField)]
+            [multi] = [col for col in self.__table__.columns if isinstance(col.type, MultiChoice)]
             choice = getattr(constants, name)
-            assert choice in [val for val, desc in multi.choice]
+            assert choice in [val for val, desc in multi.type.choices]
         except:
             pass
         else:
             return choice in getattr(self, multi.name + '_ints')
-        '''
+
         raise AttributeError(self.__class__.__name__ + '.' + name)
 
     # NOTE: theoretically we should use from_dict() for this, either to replace this or in the
@@ -489,7 +489,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             elif old_staffing and not self.staffing or self.ribbon != VOLUNTEER_RIBBON and old_ribbon == VOLUNTEER_RIBBON:
                 self.unset_volunteering()
 
-        # TODO: maybe allow some kind of override on this?
+        # TODO: maybe allow some kind of admin override on this?
         if self.age_group == UNDER_18 and PRE_CON:
             self.unset_volunteering()
 
@@ -1174,7 +1174,7 @@ def _make_getter(model):
             params = params.copy()
             id = params.pop('id', 'None')
             if id == 'None':
-                inst = model()
+                inst = model()  # TODO: do we add this to the session?
             else:
                 inst = self.query(model).filter_by(id=id).one()
 

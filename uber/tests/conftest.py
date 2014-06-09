@@ -22,3 +22,19 @@ def init_db(request):
 def db(request, init_db):
     shutil.copy('/tmp/test.db', '/tmp/test.db.backup')
     request.addfinalizer(lambda: shutil.copy('/tmp/test.db.backup', '/tmp/test.db'))
+
+
+modules = [uber.common, uber.models, uber.badge_funcs, uber.utils, uber.model_checks, uber.server]
+for modname in os.listdir(os.path.join(MODULE_ROOT, 'site_sections')):
+    if modname.endswith('.py') and not modname.startswith('_'):
+        modules.append(__import__('uber.site_sections.' + modname[:-3], fromlist='*'))
+
+@pytest.fixture
+def precon(monkeypatch):
+    for module in modules:
+        monkeypatch.setattr(module, 'AT_THE_CON', False)
+
+@pytest.fixture
+def at_the_con(monkeypatch):
+    for module in modules:
+        monkeypatch.setattr(module, 'AT_THE_CON', True)

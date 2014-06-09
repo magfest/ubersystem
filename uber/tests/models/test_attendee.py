@@ -114,3 +114,75 @@ def test_hotel_shifts_required(monkeypatch):
     monkeypatch.setattr(Attendee, 'hotel_nights', [THURSDAY, FRIDAY])
     assert Attendee().hotel_shifts_required
     assert not Attendee(ribbon=DEPT_HEAD_RIBBON).hotel_shifts_required
+
+def test_unset_volunteer():
+    a = Attendee(staffing=True, trusted=True, requested_depts=CONSOLE, assigned_depts=CONSOLE, ribbon=VOLUNTEER_RIBBON, shifts=[Shift()])
+    a.unset_volunteering()
+    assert not a.staffing and not a.trusted and not a.requested_depts and not a.assigned_depts and not a.shifts and a.ribbon == NO_RIBBON
+
+def test_unset_volunteer_with_different_ribbon():
+    a = Attendee(ribbon=DEALER_RIBBON)
+    a.unset_volunteering()
+    assert a.ribbon == DEALER_RIBBON
+
+def test_unset_volunteer_with_staff_badge(monkeypatch):
+    with Session() as session:
+        monkeypatch.setattr(Attendee, 'session', Mock())
+        a = Attendee(badge_type=STAFF_BADGE, badge_num=123)
+        a.unset_volunteering()
+        assert a.badge_type == ATTENDEE_BADGE
+        a.session.shift_badges.assert_called_with(a, down=True)
+
+def test_misc_adjustments_amount_extra():
+    a = Attendee(affiliate='xxx', amount_extra=1)
+    a._misc_adjustments()
+    assert a.affiliate == 'xxx'
+
+    a = Attendee(affiliate='xxx')
+    a._misc_adjustments()
+    assert a.affiliate == ''
+
+def test_misc_adjustments_gets_shirt():
+    a = Attendee(shirt=1, amount_extra=SHIRT_LEVEL)
+    a._misc_adjustments()
+    a.shirt == 1
+
+    a = Attendee(shirt=1)
+    a._misc_adjustments()
+    assert a.shirt == NO_SHIRT
+
+def test_misc_adjustments_amount_refunded():
+    a = Attendee(amount_refunded=123, paid=REFUNDED)
+    a._misc_adjustments()
+    assert a.amount_refunded == 123
+
+    a = Attendee(amount_refunded=123)
+    a._misc_adjustments()
+    assert not a.amount_refunded
+
+def test_misc_adjustments_badge_at_con(precon):
+    a = Attendee(badge_num=1)
+    a._misc_adjustments()
+    assert a.checked_in
+
+def test_misc_adjustments_badge_at_con(at_the_con):
+    a = Attendee()
+    a._misc_adjustments()
+    assert not a.checked_in
+
+    a = Attendee(badge_num=1, registered=datetime.now(UTC))
+    a._misc_adjustments()
+    assert not a.checked_in
+
+    a = Attendee(badge_num=1)
+    a._misc_adjustments()
+    assert a.checked_in
+
+def test_misc_adjustments_names():
+    a = Attendee(first_name='nac', last_name='mac Feegle')
+    a._misc_adjustments()
+    assert a.full_name == 'Nac mac Feegle'
+
+    a = Attendee(first_name='NAC', last_name='mac feegle')
+    a._misc_adjustments()
+    assert a.full_name == 'Nac Mac Feegle'
