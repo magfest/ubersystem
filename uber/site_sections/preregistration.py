@@ -33,6 +33,7 @@ class Root:
     def stats(self):
         return json.dumps({
             'remaining badges': max(0,(MAX_BADGE_SALES - state.BADGES_SOLD)),
+            'badges_sold': state.BADGES_SOLD
         })
         
     def check_prereg(self):
