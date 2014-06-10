@@ -382,7 +382,6 @@ class stripe_form(template.Node):
             'regtext': regtext,
             'email': email,
             'payment_id': payment_id,
-            # 'key': STRIPE_PUBLIC_KEY,
             'charge': charge
         }
 

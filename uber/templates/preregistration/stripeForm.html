@@ -3,7 +3,7 @@
     <script
         src="https://checkout.stripe.com/v2/checkout.js" class="stripe-button"
         data-key="{{ STRIPE_PUBLIC_KEY }}"
-        {% if email != "" %}data-email="{{ email }}"{% endif %}
+        {% if email %}data-email="{{ email }}"{% endif %}
         data-amount="{{charge.amount}}"
         data-name="{{ EVENT_NAME_AND_YEAR }} {{regtext}}"
         data-description="{{charge.description}}"
