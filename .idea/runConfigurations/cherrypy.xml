@@ -22,7 +22,9 @@
     <option name="SCRIPT_NAME" value="/home/vagrant/magfest/uber/run_debug_server.py" />
     <option name="PARAMETERS" value="" />
     <RunnerSettings RunnerId="PyDebugRunner" />
+    <RunnerSettings RunnerId="PythonRunner" />
     <ConfigurationWrapper RunnerId="PyDebugRunner" />
+    <ConfigurationWrapper RunnerId="PythonRunner" />
     <method />
   </configuration>
 </component>
