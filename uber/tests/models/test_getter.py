@@ -3,7 +3,7 @@ from uber.tests import *
 @pytest.fixture
 def attendee_id():
     with Session() as session:
-        return session.query(Attendee).first().id
+        return session.query(Attendee).filter_by(first_name='Regular', last_name='Attendee').one().id
 
 @pytest.fixture(autouse=True)
 def mock_apply(monkeypatch):
@@ -21,9 +21,11 @@ def test_invalid_gets():
 
 def test_basic_get(attendee_id, mock_apply):
     with Session() as session:
-        assert session.attendee(attendee_id).first_name == 'Test'
+        assert session.attendee(attendee_id).first_name == 'Regular'
         assert not mock_apply.called
-        assert session.attendee({'id': attendee_id}).first_name == 'Test'
+        assert session.attendee(id=attendee_id).first_name == 'Regular'
+        assert not mock_apply.called
+        assert session.attendee({'id': attendee_id}).first_name == 'Regular'
         assert mock_apply.called
 
 def test_empty_get(mock_apply):

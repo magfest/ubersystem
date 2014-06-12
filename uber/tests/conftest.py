@@ -13,9 +13,15 @@ def init_db(request):
     with Session() as session:
         session.add(Attendee(
             placeholder=True,
-            first_name='Test',
-            last_name='Test',
-            paid=NEED_NOT_PAY
+            first_name='Regular',
+            last_name='Volunteer',
+            ribbon=VOLUNTEER_RIBBON,
+            staffing=True
+        ))
+        session.add(Attendee(
+            placeholder=True,
+            first_name='Regular',
+            last_name='Attendee'
         ))
 
 @pytest.fixture(autouse=True)
@@ -29,12 +35,38 @@ for modname in os.listdir(os.path.join(MODULE_ROOT, 'site_sections')):
     if modname.endswith('.py') and not modname.startswith('_'):
         modules.append(__import__('uber.site_sections.' + modname[:-3], fromlist='*'))
 
+def _make_setting_fixture(name, setting, val):
+    def func(monkeypatch):
+        for module in modules:
+            monkeypatch.setattr(module, setting, val)
+    func.__name__ = name
+    globals()[name] = pytest.fixture(func)
+
+'''
+_make_setting_fixture('at_con', 'AT_THE_CON', True)
+_make_setting_fixture('precon', 'AT_THE_CON', False)
+_make_setting_fixture('custom_badges_ordered', 'CUSTOM_BADGES_REALLY_ORDERED', True)
+_make_setting_fixture('custom_badges_not_ordered', 'CUSTOM_BADGES_REALLY_ORDERED', False)
+'''
+
 @pytest.fixture
 def precon(monkeypatch):
     for module in modules:
+        monkeypatch.setattr(module, 'PRE_CON', True)
         monkeypatch.setattr(module, 'AT_THE_CON', False)
 
 @pytest.fixture
-def at_the_con(monkeypatch):
+def at_con(monkeypatch):
     for module in modules:
+        monkeypatch.setattr(module, 'PRE_CON', False)
         monkeypatch.setattr(module, 'AT_THE_CON', True)
+
+@pytest.fixture
+def custom_badges_ordered(monkeypatch):
+    for module in modules:
+        monkeypatch.setattr(module, 'CUSTOM_BADGES_REALLY_ORDERED', True)
+
+@pytest.fixture
+def custom_badges_not_ordered(monkeypatch):
+    for module in modules:
+        monkeypatch.setattr(module, 'CUSTOM_BADGES_REALLY_ORDERED', False)

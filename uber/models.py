@@ -421,12 +421,12 @@ class Attendee(MagModel, TakesPaymentMixin):
                     'interests', 'found_how', 'comments', 'badge_type', 'affiliate', 'shirt', 'can_spam', 'no_cellphone',
                     'badge_printed_name', 'staffing', 'fire_safety_cert', 'requested_depts', 'amount_extra'}
 
-    def delete(self, *args, **kwargs):
-        with BADGE_LOCK:
-            badge_num = Attendee.get(self.id).badge_num
-            super(Attendee, self).delete(*args, **kwargs)
-            if self.has_personalized_badge and not CUSTOM_BADGES_REALLY_ORDERED:
-                shift_badges(self, down=True)
+    def as_we_delete(self, *args, **kwargs):
+        #_assert_badge_lock()
+        badge_num = Attendee.get(self.id).badge_num
+        super(Attendee, self).delete(*args, **kwargs)
+        if self.has_personalized_badge and not CUSTOM_BADGES_REALLY_ORDERED:
+            shift_badges(self, down=True)
 
     def presave_adjustments(self):
         self._staffing_adjustments()
@@ -458,18 +458,18 @@ class Attendee(MagModel, TakesPaymentMixin):
             self.badge_type = ATTENDEE_BADGE
             self.ribbon = DEALER_RIBBON
 
-        with BADGE_LOCK:
-            if PRE_CON:
-                if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE and not CUSTOM_BADGES_REALLY_ORDERED:
-                    self.badge_type = SUPPORTER_BADGE
+        if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE and not CUSTOM_BADGES_REALLY_ORDERED:
+            self.badge_type = SUPPORTER_BADGE
 
-                if self.paid == NOT_PAID or not self.has_personalized_badge:
-                    self.badge_num = 0
-                elif self.has_personalized_badge and not self.badge_num:
-                    if CUSTOM_BADGES_REALLY_ORDERED:
-                        self.badge_type, self.badge_num = ATTENDEE_BADGE, 0
-                    elif self.paid != NOT_PAID:
-                        self.badge_num = next_badge_num(self.badge_type)
+        #_assert_badge_lock()
+        if PRE_CON:
+            if self.paid == NOT_PAID or not self.has_personalized_badge:
+                self.badge_num = 0
+            elif self.has_personalized_badge and not self.badge_num:
+                if CUSTOM_BADGES_REALLY_ORDERED:
+                    self.badge_type, self.badge_num = ATTENDEE_BADGE, 0
+                elif self.paid != NOT_PAID:
+                    self.badge_num = self.session.next_badge_num(self.badge_type)
 
     def _staffing_adjustments(self):
         if self.ribbon == DEPT_HEAD_RIBBON:
@@ -1167,8 +1167,10 @@ class Session(SessionManager):
 
 
 def _make_getter(model):
-    def getter(self, params, *, bools=(), checkgroups=(), allowed=(), restricted=False, ignore_csrf=False):
-        if isinstance(params, str):
+    def getter(self, params=None, *, bools=(), checkgroups=(), allowed=(), restricted=False, ignore_csrf=False, **query):
+        if query:
+            return self.query(model).filter_by(**query).one()
+        elif isinstance(params, str):
             return self.query(model).filter_by(id=params).one()
         else:
             params = params.copy()
