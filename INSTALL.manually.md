@@ -1,4 +1,4 @@
-Setting Up a Local Dev Environment
+Manual Installation
 ==================================
 
 Linux is currently the only supported development platform.  Theoretically this codebase should work on other platforms, but this has not been tested.
