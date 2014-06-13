@@ -6,6 +6,6 @@ Ubersystem is under active development, and if you run into any issues with setu
 
 Installation types
 ================
-- [Vagrant Installation](INSTALL.vagrant.md)   (recommended method for developers)
+- [Vagrant Installation](INSTALL.vagrant.md)   (recommended method for developers) ***USE THIS***
 - [Manual Installation](INSTALL.manually.md)
 - coming soon: Installation/deployment with Puppet
