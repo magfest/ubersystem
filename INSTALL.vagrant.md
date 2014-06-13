@@ -1,6 +1,6 @@
-Running on Vagrant
+Setting up Ubersystem to run on Vagrant
 ==================
-(windows instructions, if you're on linux/etc the process will be similar)
+Windows instructions, if you're on linux/etc the process will be similar.
 
 [Vagrant](http://www.vagrantup.com/) is a great way to provide portable development environments by letting you install a local VM and have it automatically configured with all of the software and dependencies you need to start developing.  If you're already running Linux, we recommend you just develop locally, so this section assumes you are using Windows.  Here's what you'll need to install to get your dev environment up and running:
 * [TortoiseGit](https://code.google.com/p/tortoisegit/) for checking out this repo
@@ -10,7 +10,7 @@ Running on Vagrant
 
 First, use TortoiseGit to check out this repo.  It's probably a good idea to fork this repo and then clone your fork, to do that:
 * make an account (or log in to your existing account) on [GitHub](https://github.com/)
-* go to https://github.com/EliAndrewC/magfest and click the "Fork" button at the top right of the page
+* go to https://github.com/magfest/ubersystem and click the "Fork" button at the top right of the page
 * tell TortoiseGit to clone your new repo, which will be at ``https://github.com/<YOUR-USERNAME>/magfest``
 
 Next open a DOS prompt run as an administrator.  go to Start->Accessories->Command Prompt, right click, run as administrator
