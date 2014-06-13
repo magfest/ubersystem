@@ -4,13 +4,13 @@ Manual Installation
 Linux is currently the only supported development platform.  Theoretically this codebase should work on other platforms, but this has not been tested.
 
 Here's what you need installed before you can run this:
-* Python 3.3 (with source headers)
+* Python >= 3.3 (with source headers)
 * Postgresql 9.0 or later
 
 Let's start by getting all of the Python dependencies installed.  We'll clone the repo, make a virtualenv, install distribute, and then install all of our Python dependencies:
 
 ```bash
-$ git clone https://github.com/EliAndrewC/magfest  # or your fork
+$ git clone https://github.com/magfest/ubersystem  # or your fork
 $ cd magfest
 $ python3.3 -m venv env
 $ ./env/bin/python distribute_setup.py
