@@ -103,7 +103,7 @@ class MagModel:
             raise ValueError('error formatting {} ({!r})'.format(name, val)) from e
 
     def __eq__(self, m):
-        return self.id is not None and self.id == m.id
+        return self.id is not None and isinstance(m, MagModel) and self.id == m.id
 
     def __ne__(self, m):        # Python is stupid for making me do this
         return not (self == m)
@@ -452,6 +452,8 @@ class Attendee(MagModel, TakesPaymentMixin):
                 setattr(self, attr, value.title())
 
     def _badge_adjustments(self):
+        #_assert_badge_lock()
+
         if self.badge_type == PSEUDO_GROUP_BADGE:
             self.badge_type = ATTENDEE_BADGE
         elif self.badge_type == PSEUDO_DEALER_BADGE:
@@ -461,7 +463,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE and not CUSTOM_BADGES_REALLY_ORDERED:
             self.badge_type = SUPPORTER_BADGE
 
-        #_assert_badge_lock()
         if PRE_CON:
             if self.paid == NOT_PAID or not self.has_personalized_badge:
                 self.badge_num = 0
@@ -502,7 +503,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.ribbon == VOLUNTEER_RIBBON:
             self.ribbon = NO_RIBBON
         if self.badge_type == STAFF_BADGE:
-            self.session.shift_badges(self, down=True)
+            self.session.shift_badges(STAFF_BADGE, self.badge_num)
             self.badge_type = ATTENDEE_BADGE
         del self.shifts[:]
 
@@ -1104,63 +1105,81 @@ class Session(SessionManager):
     class SessionMixin:
         def next_badge_num(self, badge_type):
             #assert_badge_locked()
+
+            if badge_type not in PREASSIGNED_BADGE_TYPES:
+                return 0
+
             sametype = self.query(Attendee).filter(Attendee.badge_type == badge_type, Attendee.badge_num > 0)
             if sametype.count():
-                return 1 + sametype.order_by(Attendee.badge_num.desc()).first().badge_num
+                next = 1 + sametype.order_by(Attendee.badge_num.desc()).first().badge_num
             else:
-                return BADGE_RANGES[badge_type][0]
+                next = BADGE_RANGES[badge_type][0]
 
-        def shift_badges(self, attendee, down, until = MAX_BADGE):
+            for attendee in [m for m in chain(self.new, self.dirty) if isinstance(m, Attendee)]:
+                if attendee.badge_type == badge_type:
+                    next = max(next, 1 + attendee.badge_num)
+
+            return next
+
+        def shift_badges(self, badge_type, badge_num, *, until=MAX_BADGE, **direction):
             #assert_badge_locked()
+            assert not any(param for param in direction if param not in ['up', 'down']), 'unknown parameters'
+            assert len(direction) < 2, 'you cannot specify both up and down parameters'
+            down = (not direction['up']) if 'up' in direction else direction.get('down', True)
             if not CUSTOM_BADGES_REALLY_ORDERED:
                 shift = -1 if down else 1
-                for a in self.query(Attendee).filter(Attendee.badge_type == attendee.badge_type,
-                                                     Attendee.badge_num >= attendee.badge_num,
+                for a in self.query(Attendee).filter(Attendee.badge_type == badge_type,
+                                                     Attendee.badge_num >= badge_num,
                                                      Attendee.badge_num <= until,
-                                                     Attendee.badge_num != 0,
-                                                     Attendee.id != attendee.id):
+                                                     Attendee.badge_num != 0):
                     a.badge_num += shift
 
-        def change_badge(self, attendee):
+        def change_badge(self, attendee, badge_type, badge_num=None):
             #assert_badge_locked()
-            old_badge_num = attendee.orig_value_of('badge_num')
-            old_badge_type = attendee.orig_value_of('badge_type')
+            old_badge_num = attendee.badge_num
+            old_badge_type = attendee.badge_type
 
-            out_of_range = check_range(attendee.badge_num, attendee.badge_type)
+            out_of_range = check_range(badge_num, badge_type)
             if out_of_range:
                 return out_of_range
             elif CUSTOM_BADGES_REALLY_ORDERED:
-                if attendee.badge_type in PREASSIGNED_BADGE_TYPES and old_badge_type not in PREASSIGNED_BADGE_TYPES:
+                if badge_type in PREASSIGNED_BADGE_TYPES and old_badge_type not in PREASSIGNED_BADGE_TYPES:
                     return 'Custom badges have already been ordered; you can add new staffers by giving them an Attendee badge with a Volunteer Ribbon'
-                elif attendee.badge_type not in PREASSIGNED_BADGE_TYPES and old_badge_type in PREASSIGNED_BADGE_TYPES:
+                elif badge_type not in PREASSIGNED_BADGE_TYPES and old_badge_type in PREASSIGNED_BADGE_TYPES:
                     attendee.badge_num = 0
                     return 'Badge updated'
-                elif attendee.badge_type in PREASSIGNED_BADGE_TYPES and attendee.badge_num != old_badge_num:
+                elif badge_type in PREASSIGNED_BADGE_TYPES and badge_num != old_badge_num:
                     return 'Custom badges have already been ordered, so you cannot shift badge numbers'
 
             if AT_OR_POST_CON:
-                if not attendee.badge_num and attendee.badge_type in PREASSIGNED_BADGE_TYPES:
+                if not badge_num and badge_type in PREASSIGNED_BADGE_TYPES:
                     return 'You must assign a badge number for pre-assigned badge types'
-                elif attendee.badge_num and self.query(Attendee).filter_by(badge_type=attendee.badge_type, badge_num=attendee.badge_num).count():
-                    return 'That badge number already belongs to {!r}'.format(existing[0].full_name)
-            elif old_badge_num and old_badge_type == attendee.badge_type:
-                next = next_badge_num(attendee.badge_type) - 1
-                attendee.badge_num = min(attendee.badge_num or MAX_BADGE, next)
-                if old_badge_num < attendee.badge_num:
-                    self.shift_badges(attendee, down=True, until=attendee.badge_num)     # probably broken
+                elif badge_num:
+                    existing = self.query(Attendee).filter_by(badge_type=badge_type, badge_num=badge_num)
+                    if existing.count():
+                        return 'That badge number already belongs to {!r}'.format(existing.first().full_name)
+            elif old_badge_num and old_badge_type == badge_type:
+                next = self.next_badge_num(badge_type) - 1
+                new_badge_num = min(badge_num or MAX_BADGE, next)
+                if old_badge_num < badge_num:
+                    self.shift_badges(badge_type, old_badge_num, down=True, until=new_badge_num)
                 else:
-                    self.shift_badges(attendee, down=False, until=old_badge_num)         # probably broken
+                    self.shift_badges(badge_type, new_badge_num, up=True, until=old_badge_num)
+                attendee.badge_num = new_badge_num
             else:
                 if old_badge_num:
-                    self.shift_badges(attendee, down=True)
+                    self.shift_badges(old_badge_type, old_badge_num)
 
-                next = self.next_badge_num(attendee.badge_type)
-                if 0 < attendee.badge_num <= next:
-                    self.shift_badges(attendee, down=False)
+                next = self.next_badge_num(badge_type)
+                new_badge_num = badge_num or next
+                if new_badge_num < next:
+                    self.shift_badges(badge_type, badge_num, up=True)
+                    attendee.badge_num = badge_num
                 else:
                     attendee.badge_num = next
+                attendee.badge_type = badge_type
 
-            if AT_THE_CON or new <= next:
+            if AT_THE_CON or attendee.badge_num <= next:
                 return 'Badge updated'
             else:
                 return 'That badge number was too high, so the next available badge was assigned instead'
@@ -1188,3 +1207,16 @@ def _make_getter(model):
 
 for _model in Session.all_models():
     setattr(Session.SessionMixin, _model.__tablename__, _make_getter(_model))
+
+def _before_flush(session, context, instances='deprecated'):
+    BADGE_LOCK.acquire()
+    for model in chain(session.dirty, session.new):
+        model.presave_adjustments()
+
+def _after_flush(session, context):
+    BADGE_LOCK.release()
+
+def register_session_listeners():
+    listen(Session.session_factory, 'before_flush', _before_flush)
+    listen(Session.session_factory, 'after_flush', _after_flush)
+register_session_listeners()

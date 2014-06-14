@@ -19,6 +19,7 @@ from copy import deepcopy
 from pprint import pformat
 from hashlib import sha512
 from functools import wraps
+from itertools import chain
 from xml.dom import minidom
 from random import randrange
 from contextlib import closing
@@ -45,6 +46,7 @@ from uber.constants import *
 from uber import constants
 
 import sqlalchemy
+from sqlalchemy.event import listen
 from sqlalchemy.ext import declarative
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.compiler import compiles

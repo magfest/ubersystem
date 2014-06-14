@@ -132,7 +132,7 @@ class TestUnsetVolunteer:
             a = Attendee(badge_type=STAFF_BADGE, badge_num=123)
             a.unset_volunteering()
             assert a.badge_type == ATTENDEE_BADGE
-            a.session.shift_badges.assert_called_with(a, down=True)
+            a.session.shift_badges.assert_called_with(STAFF_BADGE, 123)
 
     def test_affiliate_with_extra(self):
         a = Attendee(affiliate='xxx', amount_extra=1)

@@ -87,7 +87,7 @@ class Root:
             'unassigned': unassigned_counts()
         }
 
-    def change_badge(self, message='', **params):
+    def change_badge(self, id, message='', **params):
         attendee = Attendee.get(dict(params, badge_num = params.get('newnum') or 0), allowed = ['badge_num'])
 
         if 'badge_type' in params:
