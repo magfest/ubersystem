@@ -4,11 +4,11 @@ def check_if_can_reg(func):
     @wraps(func)
     def with_check(*args,**kwargs):
         if state.BADGES_SOLD >= MAX_BADGE_SALES:
-            raise HTTPRedirect('../static_views/prereg_soldout.html')
+            return render('static_views/prereg_soldout.html')
         elif state.PREREG_OPEN == "notopenyet":
-            raise HTTPRedirect('../static_views/prereg_not_yet_open.html')
+            return render('static_views/prereg_not_yet_open.html')
         elif state.PREREG_OPEN == "closed":
-            raise HTTPRedirect('../static_views/prereg_closed.html')
+            return render('static_views/prereg_closed.html')
         else:
             return func(*args,**kwargs)
     return with_check
