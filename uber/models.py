@@ -84,24 +84,6 @@ class MagModel:
     def get_field(cls, name):
         return cls.__table__.columns[name]
 
-    # TODO: this is definitely broken
-    def field_repr(self, name):
-        try:
-            field = self.get_field(name)
-            val = getattr(self, name)
-            s = repr(val)
-            if name == 'hashed':
-                return '<bcrypted>'
-            elif isinstance(field, MultiChoiceField):
-                opts = dict(field.choices)
-                return repr('' if not val else ','.join(opts[int(opt)] for opt in val.split(',') if opt in opts))
-            elif field.choices and val is not None:
-                return repr(dict(field.choices).get(int(val), '<nonstandard>'))
-            else:
-                return s
-        except Exception as e:
-            raise ValueError('error formatting {} ({!r})'.format(name, val)) from e
-
     def __eq__(self, m):
         return self.id is not None and isinstance(m, MagModel) and self.id == m.id
 
@@ -876,6 +858,17 @@ class Job(MagModel):
     def total_hours(self):
         return self.weighted_hours * self.slots
 
+    @cached_property
+    def all_staffers(self):
+        return self.session.query(Attendee).order_by(Attendee.last_name, Attendee.first_name).all()
+
+    @cached_property
+    def available_staffers(self):
+        return [s for s in self.all_staffers
+                if self.location in s.assigned
+                   and (s.trusted or not self.restricted)
+                   and self.no_overlap(s)]
+
 class Shift(MagModel):
     job_id      = Column(UUID, ForeignKey('job.id'))
     job         = relationship(Job, backref='shifts')
@@ -890,70 +883,69 @@ class Shift(MagModel):
         return "{self.attendee.full_name}'s {self.job.name!r} shift".format(self=self)
 
 
-'''
+
 class MPointsForCash(MagModel):
-    attendee = ForeignKey(Attendee)
-    amount   = IntegerField()
-    when     = DateTimeField(auto_now_add=True)
+    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    attendee    = relationship(Attendee, backref='mpoints_for_cash')
+    amount      = Column(Integer)
+    when        = Column(UTCDateTime, default=lambda: datetime.now(UTC))
 
 class OldMPointExchange(MagModel):
-    attendee = ForeignKey(Attendee)
-    mpoints  = IntegerField()
-    when     = DateTimeField(auto_now_add=True)
+    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    attendee    = relationship(Attendee, backref='old_mpoint_exchanges')
+    amount      = Column(Integer)
+    when        = Column(UTCDateTime, default=lambda: datetime.now(UTC))
 
 class Sale(MagModel):
-    attendee = ForeignKey(Attendee, null=True)
-    what     = TextField()
-    cash     = IntegerField()
-    mpoints  = IntegerField()
-    when     = DateTimeField(auto_now_add=True)
-    reg_station = IntegerField(null=True)
-    payment_method = IntegerField(default=MERCH, choices=SALE_OPTS)
+    attendee_id    = Column(UUID, ForeignKey('attendee.id'), nullable=True)
+    attendee       = relationship(Attendee, backref='sales')
+    what           = Column(UnicodeText)
+    cash           = Column(Integer, default=0)
+    mpoints        = Column(Integer, default=0)
+    when           = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    reg_station    = Column(Integer, nullable=True)
+    payment_method = Column(Choice(SALE_OPTS), default=MERCH)
 
 class ArbitraryCharge(MagModel):
-    amount = IntegerField()
-    what   = TextField()
-    when   = DateTimeField(auto_now_add=True)
-    reg_station = IntegerField(null=True)
+    amount      = Column(Integer)
+    what        = Column(UnicodeText)
+    when        = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    reg_station = Column(Integer, nullable=True)
 
     display = 'what'
 
 
 
 class Game(MagModel):
-    code = TextField()
-    name = TextField()
-    attendee = ForeignKey(Attendee)
-    returned = BooleanField(default=False)
-
-    @property
-    def checked_out(self):
-        try:
-            return self.checkout
-        except:
-            return None
+    code        = Column(UnicodeText)
+    name        = Column(UnicodeText)
+    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    attendee    = relationship(Attendee, backref='games')
+    returned    = Column(Boolean, default=False)
+    checked_out = relationship('Checkout', backref='game', uselist=False)
 
 class Checkout(MagModel):
-    game = OneToOneField(Game)
-    attendee = ForeignKey(Attendee)
-    when = DateTimeField(auto_now_add=True)
+    game_id     = Column(UUID, ForeignKey('game.id'))
+    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    attendee    = relationship(Attendee, backref='checkouts')
+    when        = Column(UTCDateTime, default=lambda: datetime.now(UTC))
 
 
 
 class Email(MagModel):
-    fk_id   = IntegerField()
-    model   = TextField()
-    when    = DateTimeField(auto_now_add=True)
-    subject = TextField()
-    dest    = TextField()
-    body    = TextField()
+    fk_id   = Column(UUID)
+    model   = Column(UnicodeText)
+    when    = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    subject = Column(UnicodeText)
+    dest    = Column(UnicodeText)
+    body    = Column(UnicodeText)
 
     display = 'subject'
 
     @cached_property
     def fk(self):
         try:
-            return globals()[self.model].get(self.fk_id)
+            return getattr(self.session, globals()[self.model].__tablename__)(self.fk_id)
         except:
             return None
 
@@ -974,33 +966,52 @@ class Email(MagModel):
 
 
 class Tracking(MagModel):
-    fk_id  = IntegerField()
-    model  = TextField()
-    when   = DateTimeField(auto_now_add=True)
-    who    = TextField()
-    which  = TextField()
-    links  = TextField()
-    action = IntegerField(choices=TRACKING_OPTS)
-    data   = TextField()
-
-    @classmethod
-    def values(cls, instance):
-        return {field.name: getattr(instance, field.name) for field in instance._meta.fields}
+    fk_id  = Column(UUID)
+    model  = Column(UnicodeText)
+    when   = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    who    = Column(UnicodeText)
+    which  = Column(UnicodeText)
+    links  = Column(UnicodeText)
+    action = Column(Choice(TRACKING_OPTS))
+    data   = Column(UnicodeText)
 
     @classmethod
     def format(cls, values):
         return ', '.join('{}={}'.format(k, v) for k,v in values.items())
 
     @classmethod
+    def repr(cls, column, value):
+        try:
+            s = repr(value)
+            if column.name == 'hashed':
+                return '<bcrypted>'
+            elif isinstance(column.type, MultiChoice):
+                opts = dict(column.type.choices)
+                return repr('' if not value else (','.join(opts[int(opt)] for opt in value.split(',') if opt in opts)))
+            elif isinstance(column.type, Choice) and value is not None:
+                return repr(dict(column.type.choices).get(int(value), '<nonstandard>'))
+            else:
+                return s
+        except Exception as e:
+            raise ValueError('error formatting {} ({!r})'.format(column.name, value)) from e
+
+    @classmethod
+    def differences(cls, instance):
+        diff = {}
+        for attr, column in instance.__table__.columns.items():
+            new_val = getattr(instance, attr)
+            old_val = instance.orig_value_of(attr)
+            if old_val != new_val:
+                diff[attr] = "'{} -> {}'".format(cls.repr(column, old_val), cls.repr(column, new_val))
+        return diff
+
+    @classmethod
     def track(cls, action, instance):
         if action in [CREATED, UNPAID_PREREG, EDITED_PREREG]:
-            values = cls.values(instance)
-            data = cls.format({k: instance.field_repr(k) for k in values})
+            vals = {attr: cls.repr(column, getattr(instance, attr)) for attr, column in instance.__table__.columns.items()}
+            data = cls.format(vals)
         elif action == UPDATED:
-            curr = cls.values(instance)
-            orig = instance.__class__.get(instance.id)
-            diff = {name: "'{} -> {}'".format(orig.field_repr(name), instance.field_repr(name))
-                    for name,val in curr.items() if val != getattr(orig, name)}
+            diff = cls.differences(instance)
             data = cls.format(diff)
             if len(diff) == 1 and 'badge_num' in diff:
                 action = AUTO_BADGE_SHIFT
@@ -1010,94 +1021,30 @@ class Tracking(MagModel):
             data = 'id={}'.format(instance.id)
 
         links = ', '.join(
-            '{}({})'.format(field.rel.to.__name__, getattr(instance, field.attname))
-            for field in instance._meta.fields
-            if isinstance(field, ForeignKey) and getattr(instance, field.name)
+            '{}({})'.format(list(column.foreign_keys)[0].table.name, getattr(instance, val))
+            for name, column in instance.__table__.columns.items()
+            if column.foreign_keys and getattr(instance, name)
         )
+        who = AdminAccount.admin_name() or (current_thread().name if current_thread().daemon else 'non-admin')
 
-        try:
-            who = Account.get(cherrypy.session.get('account_id')).name
-        except:
-            if current_thread().daemon:
-                who = current_thread().name
-            else:
-                who = 'non-admin'
-
-        return Tracking.objects.create(
-            model = instance.__class__.__name__,
-            fk_id = 0 if action in [UNPAID_PREREG, EDITED_PREREG] else instance.id,
-            which = repr(instance),
-            who = who,
-            links = links,
-            action = action,
-            data = data,
-        )
+        def _insert(session):
+            session.add(Tracking(
+                model = instance.__class__.__name__,
+                fk_id = 0 if action in [UNPAID_PREREG, EDITED_PREREG] else instance.id,
+                which = repr(instance),
+                who = who,
+                links = links,
+                action = action,
+                data = data
+            ))
+        if instance.session:
+            _insert(instance.session)
+        else:
+            with Session() as session:
+                _insert(session)
 
 Tracking.UNTRACKED = [Tracking, Email]
 
-@receiver(pre_save)
-def _update_hook(sender, instance, **kwargs):
-    if instance.id is not None and sender not in Tracking.UNTRACKED:
-        Tracking.track(UPDATED, instance)
-
-@receiver(post_save)
-def _create_hook(sender, instance, created, **kwargs):
-    if created and sender not in Tracking.UNTRACKED:
-        Tracking.track(CREATED, instance)
-
-@receiver(pre_delete)
-def _delete_hook(sender, instance, **kwargs):
-    if sender not in Tracking.UNTRACKED:
-        Tracking.track(DELETED, instance)
-
-
-    # TODO: go on the Session class
-    @staticmethod
-    def everyone():
-        attendees = session.query(Attendee).options(joinedload(Attendee.group)).all()
-        groups = {g.id: g for g in session.query(Group).all()}
-        for g in groups.values():
-            g._attendees = []
-        for a in session.query(Attendee).filter(Attendee.group_id != None).joinedload(Attendee.group).all():
-            groups[a.group_id]._attendees.append(a)
-        return list(attendees), list(groups.values())
-
-    @staticmethod
-    def staffers():
-        return Attendee.objects.filter(staffing = True).order_by('first_name', 'last_name')
-
-    @staticmethod
-    def everything(location = None):
-        shifts = Shift.objects.filter(**{'job__location': location} if location else {}).order_by('job__start_time').select_related()
-
-        by_job, by_attendee = defaultdict(list), defaultdict(list)
-        for shift in shifts:
-            by_job[shift.job].append(shift)
-            by_attendee[shift.attendee].append(shift)
-
-        attendees = [a for a in Attendee.staffers() if AT_THE_CON or not location or int(location) in a.assigned]
-        for attendee in attendees:
-            attendee._shifts = by_attendee[attendee]
-
-        jobs = list(Job.objects.filter(**{'location': location} if location else {}).order_by('start_time','duration','name'))
-        for job in jobs:
-            job._shifts = by_job[job]
-            job._available_staffers = [s for s in attendees if not job.restricted or s.trusted]
-
-        return jobs, shifts, attendees
-
-    # TODO: need some way to fix this, which will be tough unless we use self.session, I guess
-    @cached_property
-    def all_staffers(self):
-        return list(Attendee.objects.order_by('last_name','first_name'))
-
-    @cached_property
-    def available_staffers(self):
-        return [s for s in self.all_staffers
-                if self.location in s.assigned
-                   and self.no_overlap(s)
-                   and (s.trusted or not self.restricted)]
-'''
 
 class Session(SessionManager):
     engine = sqlalchemy.create_engine(SQLALCHEMY_URL)
@@ -1184,6 +1131,43 @@ class Session(SessionManager):
             else:
                 return 'That badge number was too high, so the next available badge was assigned instead'
 
+    def everyone():
+        attendees = session.query(Attendee).options(joinedload(Attendee.group)).all()
+        groups = {g.id: g for g in session.query(Group).all()}
+        for g in groups.values():
+            g._attendees = []
+        for a in session.query(Attendee).filter(Attendee.group_id != None).options(joinedload(Attendee.group)).all():
+            groups[a.group_id]._attendees.append(a)
+        return list(attendees), list(groups.values())
+
+    def staffers():
+        return self.query(Attendee).filter_by(staffing=True).order_by(Attendee.first_name, Attendee.last_name)
+
+    def everything(location=None):
+        shifts = self.query(Shift) \
+                     .filter(*[Job.location == location] if location else []) \
+                     .options(joinedload(Shift.job)) \
+                     .order_by(Job.start_time) \
+                     .all()
+
+        by_job, by_attendee = defaultdict(list), defaultdict(list)
+        for shift in shifts:
+            by_job[shift.job].append(shift)
+            by_attendee[shift.attendee].append(shift)
+
+        attendees = [a for a in self.staffers() if AT_THE_CON or not location or int(location) in a.assigned]
+        for attendee in attendees:
+            attendee._shifts = by_attendee[attendee]
+
+        jobs = self.query(Job) \
+                   .filter(*[Job.location == location] if location else []) \
+                   .order_by(Job.start_time, Job.duration, Job.name)
+        for job in jobs:
+            job._shifts = by_job[job]
+            job._available_staffers = [s for s in attendees if not job.restricted or s.trusted]
+
+        return jobs, shifts, attendees
+
 
 def _make_getter(model):
     def getter(self, params=None, *, bools=(), checkgroups=(), allowed=(), restricted=False, ignore_csrf=False, **query):
@@ -1208,15 +1192,22 @@ def _make_getter(model):
 for _model in Session.all_models():
     setattr(Session.SessionMixin, _model.__tablename__, _make_getter(_model))
 
-def _before_flush(session, context, instances='deprecated'):
+def _presave_adjustments(session, context, instances='deprecated'):
     BADGE_LOCK.acquire()
     for model in chain(session.dirty, session.new):
         model.presave_adjustments()
 
-def _after_flush(session, context):
+def _release_badge_lock(session, context):
     BADGE_LOCK.release()
 
+def _track_changes(session, context, instances='deprecated'):
+    for action, instances in {CREATED: session.new, UPDATED: session.dirty, DELETED: session.deleted}.items():
+        for instance in instances:
+            if instance.__class__ not in Tracking.UNTRACKED:
+                Tracking.track(action, instance)
+
 def register_session_listeners():
-    listen(Session.session_factory, 'before_flush', _before_flush)
-    listen(Session.session_factory, 'after_flush', _after_flush)
+    listen(Session.session_factory, 'before_flush', _presave_adjustments)
+    listen(Session.session_factory, 'after_flush', _release_badge_lock)
+    listen(Session.session_factory, 'before_flush', _track_changes)
 register_session_listeners()

@@ -48,9 +48,9 @@ from uber import constants
 import sqlalchemy
 from sqlalchemy.event import listen
 from sqlalchemy.ext import declarative
-from sqlalchemy.orm import relationship
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm.attributes import get_history
+from sqlalchemy.orm import relationship, joinedload
 from sqlalchemy.sql.expression import FunctionElement
 from sqlalchemy.schema import Column, ForeignKey, UniqueConstraint
 from sqlalchemy.types import UnicodeText, Boolean, Integer, Float, TypeDecorator

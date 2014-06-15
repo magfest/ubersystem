@@ -13,8 +13,7 @@ def check_range(badge_num, badge_type):
             return '{} badge numbers must fall within the range {} - {}'.format(dict(BADGE_OPTS)[badge_type], min_num, max_num)
 
 
-
-# TODO: returning (result, error) is not a convention I'm not using anywhere else,
+# TODO: returning (result, error) is not a convention we're using anywhere else,
 #       so maybe change this to be more idiomatic if convenient, but not a big deal
 def get_badge_type(badge_num):
     try:
