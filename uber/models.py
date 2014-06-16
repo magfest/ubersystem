@@ -93,6 +93,10 @@ class MagModel:
     def __hash__(self):
         return hash(self.id)
 
+    @property
+    def is_new(self):
+        return not instance_state(self).persistent
+
     def orig_value_of(self, name):
         hist = get_history(self, name)
         return (hist.deleted or hist.unchanged)[0]
@@ -495,7 +499,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def badge_cost(self):
-        registered = self.registered or datetime.now()
+        registered = self.registered or datetime.now(EVENT_TIMEZONE)
         if self.paid in [PAID_BY_GROUP, NEED_NOT_PAY]:
             return 0
         elif self.overridden_price is not None:
@@ -652,7 +656,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def possible_opts(self):
         return [(job.id, '(%s) [%s] %s' % (hour_day_format(job.start_time), job.get_location_display(), job.name))
-                for job in self.possible if datetime.now() < job.start_time]
+                for job in self.possible if datetime.now(EVENT_TIMEZONE) < job.start_time]
 
     @property
     def possible_and_current(self):
@@ -714,9 +718,11 @@ class Attendee(MagModel, TakesPaymentMixin):
 
 
 class AdminAccount(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
     hashed      = Column(UnicodeText)
     access      = Column(MultiChoice(ACCESS_OPTS))
+
+    password_reset = relationship('PasswordReset', backref='admin_account', uselist=False)
 
     def __repr__(self):
         return '<{}>'.format(self.attendee.full_name)
@@ -747,13 +753,16 @@ class AdminAccount(MagModel):
             return set()
 
 class PasswordReset(MagModel):
-    account_id = Column(UUID, ForeignKey('admin_account.id'))
-    account    = relationship(AdminAccount, backref='password_resets')
+    account_id = Column(UUID, ForeignKey('admin_account.id'), unique=True)
     generated  = Column(UTCDateTime, server_default=utcnow())
     hashed     = Column(UnicodeText)
 
+    @property
+    def is_expired(self):
+        return self.generated < datetime.now(UTC) - timedelta(days=7)
+
 class HotelRequests(MagModel, NightsMixin):
-    attendee_id        = Column(UUID, ForeignKey('attendee.id'))
+    attendee_id        = Column(UUID, ForeignKey('attendee.id'), unique=True)
     nights             = Column(MultiChoice(NIGHTS_OPTS))
     wanted_roommates   = Column(UnicodeText)
     unwanted_roommates = Column(UnicodeText)
@@ -777,7 +786,7 @@ class HotelRequests(MagModel, NightsMixin):
         return '<{self.attendee.full_name} Hotel Requests>'.format(self=self)
 
 class FoodRestrictions(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
     standard    = Column(MultiChoice(FOOD_RESTRICTION_OPTS))
     freeform    = Column(UnicodeText)
 
@@ -811,10 +820,10 @@ class Room(MagModel, NightsMixin):
 class RoomAssignment(MagModel):
     room_id     = Column(UUID, ForeignKey('room.id'))
     room        = relationship(Room, backref='room_assignments')
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
 
 class NoShirt(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
 
 
 class Job(MagModel):
@@ -925,7 +934,7 @@ class Game(MagModel):
     checked_out = relationship('Checkout', backref='game', uselist=False)
 
 class Checkout(MagModel):
-    game_id     = Column(UUID, ForeignKey('game.id'))
+    game_id     = Column(UUID, ForeignKey('game.id'), unique=True)
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
     attendee    = relationship(Attendee, backref='checkouts')
     when        = Column(UTCDateTime, default=lambda: datetime.now(UTC))
@@ -1050,6 +1059,10 @@ class Session(SessionManager):
     engine = sqlalchemy.create_engine(SQLALCHEMY_URL)
 
     class SessionMixin:
+        def get_account_by_email(self, email):
+            return self.query(AdminAccount).join(Attendee) \
+                       .filter(func.lower(Attendee.email) == func.lower(email)).one()
+
         def next_badge_num(self, badge_type):
             #assert_badge_locked()
 

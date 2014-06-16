@@ -21,15 +21,15 @@ class State:
 
     @property
     def ONEDAY_BADGE_PRICE(self):
-        return self.get_oneday_price(datetime.now())
+        return self.get_oneday_price(datetime.now(EVENT_TIMEZONE))
 
     @property
     def BADGE_PRICE(self):
-        return self.get_attendee_price(datetime.now())
+        return self.get_attendee_price(datetime.now(EVENT_TIMEZONE))
 
     @property
     def GROUP_PRICE(self):
-        return self.get_group_price(datetime.now())
+        return self.get_group_price(datetime.now(EVENT_TIMEZONE))
 
     @property
     def PREREG_BADGE_TYPES(self):
@@ -42,16 +42,16 @@ class State:
 
     @property
     def PREREG_DONATION_OPTS(self):
-        if datetime.now() < SUPPORTER_DEADLINE:
+        if datetime.now(EVENT_TIMEZONE) < SUPPORTER_DEADLINE:
             return DONATION_OPTS
         else:
             return [(amt, desc) for amt,desc in DONATION_OPTS if amt < SUPPORTER_LEVEL]
 
     def __getattr__(self, name):
         if name.startswith('BEFORE_'):
-            return datetime.now() < globals()[name.split('_', 1)[1]]
+            return datetime.now(EVENT_TIMEZONE) < globals()[name.split('_', 1)[1]]
         elif name.startswith('AFTER_'):
-            return datetime.now() > globals()[name.split('_', 1)[1]]
+            return datetime.now(EVENT_TIMEZONE) > globals()[name.split('_', 1)[1]]
         else:
             raise AttributeError('no such attribute {}'.format(name))
 

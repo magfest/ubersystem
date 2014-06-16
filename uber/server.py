@@ -3,10 +3,6 @@ from uber.site_sections.emails import Reminder
 from uber.site_sections import schedule, signups, preregistration
 
 
-def _rollback():
-    connection._rollback()
-cherrypy.tools.rollback_on_error = cherrypy.Tool('after_error_response', _rollback)
-
 def _add_email():
     [body] = cherrypy.response.body
     body = body.replace(b'<body>', b'''<body>Please email <a href='mailto:contact@magfest.org'>contact@magfest.org</a> if you're not sure why you're seeing this page.''')

@@ -41,7 +41,7 @@ for _opt, _val in conf['dates'].items():
 
 PRICE_BUMPS = {}
 for _opt, _val in conf['badge_prices']['attendee'].items():
-    PRICE_BUMPS[datetime.strptime(_opt, '%Y-%m-%d')] = _val
+    PRICE_BUMPS[datetime.strptime(_opt, '%Y-%m-%d').replace(tzinfo=EVENT_TIMEZONE)] = _val
 
 AT_OR_POST_CON = AT_THE_CON or POST_CON
 PRE_CON = not AT_OR_POST_CON

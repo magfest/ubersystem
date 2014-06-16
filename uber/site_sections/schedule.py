@@ -67,7 +67,7 @@ class Root:
     @unrestricted
     def schedule_tsv(self):
         cherrypy.response.headers['Content-Type'] = 'text/tsv'
-        cherrypy.response.headers['Content-Disposition'] = 'attachment;filename=Schedule-{}.tsv'.format(int(datetime.now().timestamp()))
+        cherrypy.response.headers['Content-Disposition'] = 'attachment;filename=Schedule-{}.tsv'.format(int(datetime.now(EVENT_TIMEZONE).timestamp()))
         schedule = defaultdict(list)
         for event in Event.objects.order_by('start_time'):
             # strip newlines from event descriptions
@@ -108,7 +108,7 @@ class Root:
         if when:
             now = datetime(*map(int, when.split(',')))
         else:
-            now = datetime.combine(date.today(), time(datetime.now().hour))
+            now = datetime.combine(date.today(), time(datetime.now(EVENT_TIMEZONE).hour))
         
         current, upcoming = [], []
         for loc,desc in EVENT_LOC_OPTS:
@@ -126,7 +126,7 @@ class Root:
                 upcoming.extend(event for event in next if event.start_time==next[0].start_time)
         
         return {
-            'now':      now if when else datetime.now(),
+            'now':      now if when else datetime.now(EVENT_TIMEZONE),
             'current':  current,
             'upcoming': upcoming
         }

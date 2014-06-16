@@ -404,7 +404,7 @@ class Root:
     def event(self, slug, *, id, register=None):
         attendee = Attendee.get(id)
         event = SEASON_EVENTS[slug]
-        deadline_passed = datetime.now() > event['deadline']
+        deadline_passed = datetime.now(EVENT_TIMEZONE) > event['deadline']
         assert attendee.amount_extra >= SEASON_LEVEL
         if register and not deadline_passed:
             SeasonPassTicket.objects.get_or_create(attendee=attendee, slug=slug)

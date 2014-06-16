@@ -218,7 +218,7 @@ class Root:
             message = attendee.full_name + ' was already checked in!'
         elif success:
             message = ''
-            attendee.checked_in = datetime.now()
+            attendee.checked_in = datetime.now(UTC)
             attendee.age_group = int(age_group)
             if not attendee.badge_num:
                 attendee.badge_num = int(badge_num)
@@ -406,7 +406,7 @@ class Root:
         if show_all:
             restrict_to = {'paid': NOT_PAID, 'placeholder': False}
         if not show_all:
-            restrict_to = {'registered__gte': datetime.now() - timedelta(minutes=90)}
+            restrict_to = {'registered__gte': datetime.now(UTC) - timedelta(minutes=90)}
 
         return {
             'message':    message,
@@ -503,7 +503,7 @@ class Root:
 
         if not message:
             attendee.ec_phone = ec_phone
-            attendee.checked_in = datetime.now()
+            attendee.checked_in = datetime.now(UTC)
             attendee.reg_station = cherrypy.session['reg_station']
             attendee.save()
             message = '{a.full_name} checked in as {a.badge} with {a.accoutrements}'.format(a = attendee)
@@ -555,9 +555,9 @@ class Root:
             params['total_credit'] = sum(a.amount_paid for a in attendees if a.payment_method in [STRIPE, SQUARE, MANUAL]) \
                                    + sum(s.cash for s in sales if s.payment_method == CREDIT)
         else:
-            params['endday'] = datetime.now().strftime('%Y-%m-%d')
-            params['endhour'] = datetime.now().strftime('%H')
-            params['endminute'] = datetime.now().strftime('%M')
+            params['endday'] = datetime.now(EVENT_TIMEZONE).strftime('%Y-%m-%d')
+            params['endhour'] = datetime.now(EVENT_TIMEZONE).strftime('%H')
+            params['endminute'] = datetime.now(EVENT_TIMEZONE).strftime('%M')
 
         stations = sorted(filter(bool, Attendee.objects.values_list('reg_station', flat=True).distinct()))
         params['reg_stations'] = stations
@@ -579,7 +579,7 @@ class Root:
         jobs, shifts, attendees = Job.everything()
         [attendee] = [a for a in attendees if a.id == int(id)]
         if AT_THE_CON:
-            attendee._possible = [job for job in jobs if datetime.now() < job.start_time
+            attendee._possible = [job for job in jobs if datetime.now(EVENT_TIMEZONE) < job.start_time
                                                      and job.slots > len(job.shifts)
                                                      and (not job.restricted or attendee.trusted)
                                                      and job.location != MOPS]
