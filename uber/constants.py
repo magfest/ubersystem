@@ -123,6 +123,15 @@ EVENT_START_TIME_OPTS = [(dt, dt.strftime('%I %p %a') if not dt.minute else dt.s
                          for dt in [EPOCH + timedelta(minutes = i * 30) for i in range(2 * CON_LENGTH)]]
 EVENT_DURATION_OPTS = [(i, '%.1f hour%s' % (i/2, 's' if i != 2 else '')) for i in range(1, 19)]
 
+if YEAR == '0':
+    EVENT_NAME_AND_YEAR = EVENT_NAME 
+else:
+    EVENT_NAME_AND_YEAR = EVENT_NAME + " " + YEAR
+PREREG_OPEN_DATE = PREREG_OPENING.strftime('%B') + " " + str(int(EPOCH.strftime('%d')) % 100)
+EVENT_MONTH = EPOCH.strftime('%B')
+EVENT_START_DAY = int(EPOCH.strftime('%d')) % 100
+EVENT_END_DAY = int(ESCHATON.strftime('%d')) % 100
+
 DAYS = sorted({(dt.strftime('%Y-%m-%d'), dt.strftime('%a')) for dt,desc in START_TIME_OPTS})
 HOURS = ['{:02}'.format(i) for i in range(24)]
 MINUTES = ['{:02}'.format(i) for i in range(60)]
