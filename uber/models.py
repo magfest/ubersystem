@@ -464,8 +464,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         if not self.amount_extra:
             self.affiliate = ''
 
-        if not self.gets_shirt:
-            self.shirt = NO_SHIRT
+        if CURRENT_THEME != "magstock":
+            if not self.gets_shirt:
+                self.shirt = NO_SHIRT
 
         if self.paid != REFUNDED:
             self.amount_refunded = 0
