@@ -27,7 +27,16 @@ this bettter with the rest of the shirt system.
     });
 </script>
 
+{% if attendee.amount_extra %}
 <tr class="extra-row">
+{% else %}
+<tr>
+    <td><b>Shirt:</b></td>
+    <td><i>Shirt pre-orders are closed, but you can still buy them on-site.</i></td>
+</tr>
+
+<tr class="extra-row" style="display:none">
+{% endif %}
     <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" id="amount_extra" />
     <td> <b>I want to buy a shirt (+${{ SHIRT_COST }})</b> </td>
     <td>
