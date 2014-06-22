@@ -1,10 +1,32 @@
 from uber.common import *
 
+
+def get_magstock_shirt_summary():
+    cursor = connection.cursor()
+    cursor.execute('SELECT shirt,shirt_color,COUNT(shirt) FROM "Attendee" GROUP BY shirt,shirt_color ORDER BY shirt_color;')
+    data = dictfetchall(cursor)
+
+    shirt_data = []
+    for row in data:
+        new_row = dict()
+
+        if row['shirt'] == 0 and row['shirt_color'] == 0:
+            continue
+
+        new_row['shirt'] = [desc for shirt,desc in SHIRT_OPTS if shirt == row['shirt']][0]
+        new_row['shirt_color'] = [desc for shirt_color,desc in SHIRT_COLOR_OPTS if shirt_color == row['shirt_color']][0]
+        new_row['count'] = row['count']
+
+        shirt_data.append(new_row)
+
+    return shirt_data
+
 @all_renderable(PEOPLE, STATS)
 class Root:
     def index(self):
         attendees = Attendee.objects.all()
-        return {
+
+        data = {
             'total_count':   attendees.count(),
             'shirt_sizes':   [(desc,attendees.filter(shirt=shirt).count()) for shirt,desc in SHIRT_OPTS],
             'paid_counts':   [(desc,attendees.filter(paid=status).count()) for status,desc in PAID_OPTS],
@@ -19,7 +41,10 @@ class Root:
             'free_group':    attendees.filter(paid=PAID_BY_GROUP, group__amount_paid=0).count(),
             'shirt_sales':   [(i, Attendee.objects.filter(registered__lte=datetime.now() - timedelta(days = i * 7)).exclude(shirt=NO_SHIRT).count()) for i in range(50)],
             'ribbons':       [(desc, Attendee.objects.filter(ribbon=val).count()) for val,desc in RIBBON_OPTS if val != NO_RIBBON],
+            'magstock_shirt_sales': get_magstock_shirt_summary(),
         }
+
+        return data
     
     def affiliates(self):
         class AffiliateCounts:
