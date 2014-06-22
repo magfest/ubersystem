@@ -46,13 +46,13 @@ from uber.constants import *
 from uber import constants
 
 import sqlalchemy
-from sqlalchemy import func
 from sqlalchemy.event import listen
+from sqlalchemy import func, or_, and_
 from sqlalchemy.ext import declarative
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.orm import relationship, joinedload
 from sqlalchemy.sql.expression import FunctionElement
+from sqlalchemy.orm import Query, relationship, joinedload
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.schema import Column, ForeignKey, UniqueConstraint
 from sqlalchemy.types import UnicodeText, Boolean, Integer, Float, TypeDecorator

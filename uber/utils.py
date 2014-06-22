@@ -211,28 +211,3 @@ def genpasswd():
             return ' '.join(random.choice(words) for i in range(4))
     except:
         return ''.join(chr(randrange(33, 127)) for i in range(8))
-
-
-def search(text, **filters):
-    attendees = Attendee.objects.filter(**filters)
-    if ':' in text:
-        target, term = text.lower().split(':', 1)
-        if target in ['group', 'email']:
-            target = {'group': 'group__name'}.get(target, target)
-            return attendees.filter(**{target + '__icontains': term.strip()})
-
-    terms = text.split()
-    if len(terms) == 2:
-        first, last = terms
-        if first.endswith(','):
-            last, first = first.strip(','), last
-        return attendees.filter(first_name__icontains = first, last_name__icontains = last)
-    elif len(terms) == 1 and terms[0].endswith(','):
-        return attendees.filter(last_name__icontains = terms[0].rstrip(','))
-    elif len(terms) == 1 and terms[0].isdigit():
-        return attendees.filter(badge_num = terms[0])
-    else:
-        q = Q()
-        for attr in ['first_name','last_name','badge_num','badge_printed_name','email','comments','admin_notes','for_review','secret_id','group__name','group__secret_id']:
-            q |= Q(**{attr + '__icontains': text})
-        return attendees.filter(q)

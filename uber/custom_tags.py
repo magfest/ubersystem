@@ -144,7 +144,7 @@ class checkgroup(template.Node):
 
     def render(self, context):
         model = self.model.resolve(context)
-        options = model.get_field(self.field_name).choices
+        options = model.get_field(self.field_name).type.choices
         defaults = getattr(model, self.field_name, None)
         defaults = defaults.split(",") if defaults else []
         results = []

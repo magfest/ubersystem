@@ -97,6 +97,10 @@ class MagModel:
     def is_new(self):
         return not instance_state(self).persistent
 
+    @property
+    def db_id(self):
+        return 'None' if self.is_new else self.id
+
     def orig_value_of(self, name):
         hist = get_history(self, name)
         return (hist.deleted or hist.unchanged)[0]
@@ -1058,6 +1062,17 @@ Tracking.UNTRACKED = [Tracking, Email]
 class Session(SessionManager):
     engine = sqlalchemy.create_engine(SQLALCHEMY_URL)
 
+    class QuerySubclass(Query):
+        def icontains(self, attr=None, val=None, **filters):
+            query = self
+            if len(self.column_descriptions) == 1 and filters:
+                model = self.column_descriptions[0]['type']
+                for colname, val in filters.items():
+                    query = query.filter(getattr(model, colname).ilike('%' + val + '%'))
+            if attr and col:
+                query = self.filter(attr.ilike('%' + text + '%'))
+            return query
+
     class SessionMixin:
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee) \
@@ -1144,42 +1159,84 @@ class Session(SessionManager):
             else:
                 return 'That badge number was too high, so the next available badge was assigned instead'
 
-    def everyone():
-        attendees = session.query(Attendee).options(joinedload(Attendee.group)).all()
-        groups = {g.id: g for g in session.query(Group).all()}
-        for g in groups.values():
-            g._attendees = []
-        for a in session.query(Attendee).filter(Attendee.group_id != None).options(joinedload(Attendee.group)).all():
-            groups[a.group_id]._attendees.append(a)
-        return list(attendees), list(groups.values())
+        def everyone(self):
+            attendees = session.query(Attendee).options(joinedload(Attendee.group)).all()
+            groups = {g.id: g for g in session.query(Group).all()}
+            for g in groups.values():
+                g._attendees = []
+            for a in session.query(Attendee).filter(Attendee.group_id != None).options(joinedload(Attendee.group)).all():
+                groups[a.group_id]._attendees.append(a)
+            return list(attendees), list(groups.values())
 
-    def staffers():
-        return self.query(Attendee).filter_by(staffing=True).order_by(Attendee.first_name, Attendee.last_name)
+        def staffers(self):
+            return self.query(Attendee).filter_by(staffing=True).order_by(Attendee.first_name, Attendee.last_name)
 
-    def everything(location=None):
-        shifts = self.query(Shift) \
-                     .filter(*[Job.location == location] if location else []) \
-                     .options(joinedload(Shift.job)) \
-                     .order_by(Job.start_time) \
-                     .all()
+        def match_to_group(self, attendee, group):
+            with BADGE_LOCK:
+                available = [a for a in group.attendees if a.is_unassigned]
+                matching = [a for a in available if a.badge_type == attendee.badge_type]
+                if not available:
+                    return 'The last badge for that group has already been assigned by another station'
+                elif not matching:
+                    return 'Badge #{} is a {} badge, but {} has no badges of that type'.format(attendee.badge_num, attendee.badge_type_label, group.name)
+                else:
+                    for attr in ['group', 'paid', 'amount_paid', 'ribbon']:
+                        setattr(attendee, attr, getattr(matching[0], attr))
+                    session.delete(matching[0])
+                    session.add(attendee)
+                    session.commit()
 
-        by_job, by_attendee = defaultdict(list), defaultdict(list)
-        for shift in shifts:
-            by_job[shift.job].append(shift)
-            by_attendee[shift.attendee].append(shift)
+        def everything(self, location=None):
+            shifts = self.query(Shift) \
+                         .filter(*[Job.location == location] if location else []) \
+                         .options(joinedload(Shift.job)) \
+                         .order_by(Job.start_time) \
+                         .all()
 
-        attendees = [a for a in self.staffers() if AT_THE_CON or not location or int(location) in a.assigned]
-        for attendee in attendees:
-            attendee._shifts = by_attendee[attendee]
+            by_job, by_attendee = defaultdict(list), defaultdict(list)
+            for shift in shifts:
+                by_job[shift.job].append(shift)
+                by_attendee[shift.attendee].append(shift)
 
-        jobs = self.query(Job) \
-                   .filter(*[Job.location == location] if location else []) \
-                   .order_by(Job.start_time, Job.duration, Job.name)
-        for job in jobs:
-            job._shifts = by_job[job]
-            job._available_staffers = [s for s in attendees if not job.restricted or s.trusted]
+            attendees = [a for a in self.staffers() if AT_THE_CON or not location or int(location) in a.assigned]
+            for attendee in attendees:
+                attendee._shifts = by_attendee[attendee]
 
-        return jobs, shifts, attendees
+            jobs = self.query(Job) \
+                       .filter(*[Job.location == location] if location else []) \
+                       .order_by(Job.start_time, Job.duration, Job.name)
+            for job in jobs:
+                job._shifts = by_job[job]
+                job._available_staffers = [s for s in attendees if not job.restricted or s.trusted]
+
+            return jobs, shifts, attendees
+
+        def search(self, text, **filters):
+            attendees = self.query(Attendee).outerjoin(Attendee.group).options(joinedload(Attendee.group)).filter_by(**filters)
+            if ':' in text:
+                target, term = text.lower().split(':', 1)
+                if target == 'email':
+                    return attendees.filter_by(email=term)
+                elif target == 'group':
+                    return attendees.icontains(Group.name, term)
+
+            terms = text.split()
+            if len(terms) == 2:
+                first, last = terms
+                if first.endswith(','):
+                    last, first = first.strip(','), last
+                return attendees.icontains(first_name=first, last_name=last)
+            elif len(terms) == 1 and terms[0].endswith(','):
+                return attendees.icontains(last_name=terms[0].rstrip(','))
+            elif len(terms) == 1 and terms[0].isdigit():
+                return attendees.filter_by(badge_num=terms[0])
+            elif len(terms) == 1 and re.match('[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}', terms[0]):
+                return attendees.filter(or_(Attendee.id == terms[0], Group.id == terms[0]))
+            else:
+                checks = [Group.name.ilike('%' + text + '%')]
+                for attr in ['first_name', 'last_name', 'badge_printed_name', 'email', 'comments', 'admin_notes', 'for_review']:
+                    checks.append(getattr(Attendee, attr).ilike('%' + text + '%'))
+                return attendees.filter(or_(*checks))
 
 
 def _make_getter(model):

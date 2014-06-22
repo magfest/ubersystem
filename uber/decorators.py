@@ -71,7 +71,6 @@ def sessionized(func):
     @wraps(func)
     def with_session(*args, **kwargs):
         innermost = _get_innermost(func)
-        print(innermost.__name__, inspect.getfullargspec(innermost).args)
         if 'session' not in inspect.getfullargspec(innermost).args:
             return func(*args, **kwargs)
         else:
