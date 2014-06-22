@@ -90,6 +90,16 @@ Of the "paid by group" badges,
     {% endfor %}
 </ul>
 
+{% if magstock_shirt_sales %}
+<br/>
+<b>Magstock Shirt Sales</b>
+<ul>
+    {% for shirt_row in magstock_shirt_sales %}
+        <li>{{ shirt_row.shirt }},{{ shirt_row.shirt_color }}: {{ shirt_row.count }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
 <br/>
 <b>Shirt sales by week</b>
 <ul>
