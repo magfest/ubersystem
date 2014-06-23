@@ -211,24 +211,24 @@
         </td>
         <td><nobr>
             {% if AT_THE_CON and attendee.paid == NOT_PAID %}
-                {{ attendee.get_badge_type_display }}
+                {{ attendee.badge_type_label }}
             {% elif AT_THE_CON and not attendee.badge_num %}
-                {{ attendee.get_badge_type_display }}
+                {{ attendee.badge_type_label }}
                 {% if attendee.is_unassigned %}
                     <input type="hidden" id="num_{{ attendee.id }}" />
                 {% else %}
                     #<input class="num" id="num_{{ attendee.id }}" type="text" size="3" />
                 {% endif %}
                 {% if attendee.ribbon != NO_RIBBON %}
-                    ({{ attendee.get_ribbon_display }})
+                    ({{ attendee.ribbon_label }})
                 {% endif %}
             {% else %}
                 {{ attendee.badge }}
             {% endif %}
         </nobr></td>
-        <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.get_paid_display }}</nobr></td>
+        <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
         {% if attendee.checked_in or not AT_THE_CON %}
-            <td> <nobr>{{ attendee.get_age_group_display }}</nobr> </td>
+            <td> <nobr>{{ attendee.age_group_label }}</nobr> </td>
             {% if AT_THE_CON %}
                 <td> {{ attendee.checked_in|time:"fA"|lower }} {{ attendee.checked_in|date:"D" }} </td>
             {% endif %}

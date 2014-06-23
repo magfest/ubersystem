@@ -12,7 +12,7 @@ class State:
     def get_attendee_price(self, dt):
         price = conf['badge_prices']['initial_attendee']
         for day, bumped_price in sorted(PRICE_BUMPS.items()):
-            if dt >= day:
+            if (dt or datetime.now(UTC)) >= day:
                 price = bumped_price
         return price
 

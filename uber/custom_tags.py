@@ -2,12 +2,12 @@ from uber.common import *
 
 @register.filter
 def datetime(dt, fmt='11:59pm EST on %A, %b %e'):
-    return ' '.join(dt.strftime(fmt).split())
+    return ' '.join(dt.astimezone(EVENT_TIMEZONE).strftime(fmt).split())
 
 @register.filter
 def timestamp(dt):
-    import time
-    return str(int(time.mktime(dt.timetuple())))
+    from time import mktime
+    return str(int(mktime(dt.timetuple())))
 
 @register.filter
 def jsonize(x):
@@ -23,7 +23,12 @@ def remove_newlines(string):
 
 @register.filter
 def time_day(dt):
-    return SafeString('<nobr>{} {}</nobr>'.format(dt.strftime('%I:%M%p').lstrip('0').lower(), dt.strftime('%a')))
+    return SafeString('<nobr>{} {}</nobr>'.format(dt.astimezone(EVENT_TIMEZONE).strftime('%I:%M%p').lstrip('0').lower(),
+                                                  dt.astimezone(EVENT_TIMEZONE).strftime('%a')))
+
+@register.filter
+def full_datetime(dt):
+    return dt.astimezone(EVENT_TIMEZONE).strftime('%H:%M on %B %d %Y')
 
 @register.filter
 def idize(s):
@@ -294,7 +299,7 @@ class nav_menu(template.Node):
 
     def render(self, context):
         inst = self.inst.resolve(context)
-        if not inst.id:
+        if inst.is_new:
             return ''
 
         pages = [(href.format(**inst.__dict__), label)

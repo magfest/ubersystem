@@ -2,76 +2,72 @@ from uber.common import *
 
 @all_renderable(PEOPLE)
 class Root:
-    def index(self, message='', order='name', show='all'):
+    def index(self, session, message='', order='name', show='all'):
         which = {
-            'all':    {},
-            'tables': {'tables__gt': 0},
-            'groups': {'tables': 0}
+            'all':    [],
+            'tables': [Group.tables > 0],
+            'groups': [Group.tables == 0]
         }[show]
-        
-        groups = sorted(Group.objects.filter(**which),
-                        reverse = '-' in order,
-                        key = lambda g: [getattr(g, order.strip('-')), g.tables])
-        by_id = {g.id: g for g in groups}
-        for g in groups:
-            g._attendees = []
-        for a in Attendee.objects.filter(group_id__isnull = False).all():
-            if a.group_id in by_id:
-                by_id[a.group_id]._attendees.append(a)
-        
+        # TODO: think about using a SQLAlchemy column property for .badges and then just use .order()
+        groups = sorted(session.query(Group).filter(*which).options(joinedload('attendees')).all(),
+                        reverse=order.startswith('-'),
+                        key=lambda g: [getattr(g, order.lstrip('-')), g.tables])
         return {
-            'message': message,
-            'groups':  groups,
-            'order':   Order(order),
-            'show':    show,
-            'total_badges':    Attendee.objects.filter(group__isnull = False).count(),
-            'tabled_badges':   Attendee.objects.filter(group__tables__gt = 0).count(),
-            'untabled_badges': Attendee.objects.filter(group__tables = 0).count(),
-            'total_groups':    Group.objects.count(),
-            'tabled_groups':   Group.objects.filter(tables__gt = 0).count(),
-            'untabled_groups': Group.objects.filter(tables = 0).count(),
-            'tables':            Group.objects.aggregate(tables = Sum('tables'))['tables'],
-            'unapproved_tables': Group.objects.filter(status = UNAPPROVED).aggregate(tables = Sum('tables'))['tables'] or 0,
-            'waitlisted_tables': Group.objects.filter(status = WAITLISTED).aggregate(tables = Sum('tables'))['tables'] or 0,
-            'approved_tables':   Group.objects.filter(status = APPROVED).aggregate(tables = Sum('tables'))['tables'] or 0
+            'show':              show,
+            'groups':            groups,
+            'message':           message,
+            'order':             Order(order),
+            'total_groups':      len(groups),
+            'total_badges':      sum(g.badges for g in groups),
+            'tabled_badges':     sum(g.badges for g in groups if g.tables),
+            'untabled_badges':   sum(g.badges for g in groups if not g.tables),
+            'tabled_groups':     len([g for g in groups if g.tables]),
+            'untabled_groups':   len([g for g in groups if not g.tables]),
+            'tables':            sum(g.tables for g in groups),
+            'unapproved_tables': sum(g.tables for g in groups if g.status == UNAPPROVED),
+            'waitlisted_tables': sum(g.tables for g in groups if g.status == WAITLISTED),
+            'approved_tables':   sum(g.tables for g in groups if g.status == APPROVED)
         }
-    
-    def form(self, message='', **params):
-        group = Group.get(params, bools=['auto_recalc','can_add'])
+
+    def form(self, session, message='', **params):
+        group = session.group(params, bools=['auto_recalc','can_add'])
         if 'name' in params:
             message = check(group)
             if not message:
+                session.add(group)
                 message = group.assign_badges(params['badges'])
                 if not message:
                     if 'redirect' in params:
                         raise HTTPRedirect('../preregistration/group_members?id={}', group.secret_id)
                     else:
                         raise HTTPRedirect('form?id={}&message={}', group.id, 'Group info uploaded')
-        
         return {
             'message': message,
             'group':   group
         }
-    
-    def unapprove(self, id, action, email):
+
+    @ajax
+    def unapprove(self, session, id, action, email):
         assert action in ['waitlisted', 'declined']
-        group = Group.get(id)
+        group = session.group(id)
         subject = 'Your MAGFest Dealer registration has been ' + action
         send_email(MARKETPLACE_EMAIL, group.email, subject, email, model = group)
         if action == 'waitlisted':
             group.status = WAITLISTED
-            group.save()
         else:
-            group.attendee_set.all().delete()
-            group.delete()
-        return 'ok'
-    
+            for attendee in group.attendees:
+                session.delete(attendee)
+            session.delete(group)
+        session.commit()
+        return {'success': True}
+
     @csrf_protected
-    def delete(self, id):
-        group = Group.get(id)
+    def delete(self, session, id):
+        group = session.group(id)
         if group.badges - group.unregistered_badges:
             raise HTTPRedirect('form?id={}&message={}', id, "You can't delete a group without first unassigning its badges.")
-        
-        group.attendee_set.all().delete()
-        group.delete()
-        raise HTTPRedirect('index?message={}', 'Group deleted')
+        else:
+            for attendee in group.attendees:
+                session.delete(attendee)
+            session.delete(group)
+            raise HTTPRedirect('index?message={}', 'Group deleted')

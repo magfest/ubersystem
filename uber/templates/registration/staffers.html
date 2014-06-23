@@ -45,7 +45,7 @@
     <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
         <td style="text-align:left"> <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a> </td>
         <td>{{ attendee.badge }}</td>
-        <td>{{ attendee.get_paid_display }}</td>
+        <td>{{ attendee.paid_label }}</td>
         <td style="text-align:left">
             <ul>
                 {% for dept in attendee.assigned_display %}

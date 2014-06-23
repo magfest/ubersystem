@@ -21,7 +21,6 @@ def check_everything(attendee):
 @all_renderable(PEOPLE)
 class Root:
     def index(self, session, message='', page='1', search_text='', uploaded_id='', order='last_name'):
-        order_by = ['empty_last', order, 'first_name'] if order.endswith('last_name') else [order]
         total_count = session.query(Attendee).count()
         count = 0
         if search_text:
@@ -32,8 +31,7 @@ class Root:
             count = total_count
 
         # TODO: order the empty strings last, which I think is like nullsfirst() or something
-        # TODO: order
-        attendees = attendees
+        attendees = attendees.order([order, 'first_name'] if order.endswith('last_name') else [order])
 
         if search_text and count == total_count:
             message = 'No matches found'
@@ -110,7 +108,7 @@ class Root:
                                            and_(Email.model == 'Attendee', Email.fk_id == id)))
                                .order_by(Email.when).all(),
             'changes':  session.query(Tracking)
-                               .filter(or_(Tracking.links.match('Attendee({})'.format(id)),
+                               .filter(or_(Tracking.links.like('%Attendee({})%'.format(id)),
                                            and_(Tracking.model == 'Attendee', Tracking.fk_id == id)))
                                .order_by(Tracking.when).all()
         }
@@ -565,6 +563,7 @@ class Root:
         raise HTTPRedirect('new?message={}', 'Attendee un-checked-in')
 
     # TODO: this AT_THE_CON check is kind of hacky, we should probably roll that into the possible_opts property
+    #       we also should un-special-case MOPS into something more configurable
     def shifts(self, session, id, shift_id='', message=''):
         jobs, shifts, attendees = session.everything()
         [attendee] = [a for a in attendees if a.id == id]
@@ -598,13 +597,14 @@ class Root:
         raise HTTPRedirect('shifts?id={}&message={}', id, 'Admin notes updated')
 
     @csrf_protected
-    def assign(self, staffer_id, job_id):
-        message = assign(staffer_id, job_id) or 'Shift added'
+    def assign(self, session, staffer_id, job_id):
+        message = session.assign(staffer_id, job_id) or 'Shift added'
         raise HTTPRedirect('shifts?id={}&message={}', staffer_id, message)
 
     @csrf_protected
     def unassign(self, session, shift_id):
-        session.delete(session.shift(shift_id))
+        shift = session.shift(shift_id)
+        session.delete(shift)
         raise HTTPRedirect('shifts?id={}&message={}', shift.attendee.id, 'Staffer unassigned from shift')
 
     def feed(self, session, page='1', who='', what=''):
@@ -612,8 +612,8 @@ class Root:
         if who:
             feed = feed.filter_by(who=who)
         if what:
-            what = '%' + what + '%'  # SQLAlchemy should have an icontains for this
-            feed = feed.filter(or_(Tracking.data.ilike(what), Tracking.which.ilike(what)))
+            like = '%' + what + '%'  # SQLAlchemy should have an icontains for this
+            feed = feed.filter(or_(Tracking.data.ilike(like), Tracking.which.ilike(like)))
         return {
             'who': who,
             'what': what,
@@ -624,23 +624,17 @@ class Root:
         }
 
     def staffers(self, session, message='', order='first_name', search_text=''):
-        shifts = defaultdict(list)
-        joined_shifts = session.query(Shift).options(joinedload(Shift.attendee), joinedload(Shift.job)).all()
-        for shift in joined_shifts:
-            shifts[shift.attendee].append(shift)
-
-        staffers = search(search_text, staffing=True) if search_text else session.query(Attendee).filter_by(staffing=True).all()
-        for staffer in staffers:
-            staffer._shifts = shifts[staffer]
-
+        jobs, shifts, staffers = session.everything()
+        if search_text:
+            staffers = session.search(search_text, Attendee.staffing == True).options(joinedload(Attendee.shifts)).all()
         return {
             'order': Order(order),
             'message': message,
             'search_text': search_text,
             'staffer_count': len(staffers),
-            'total_hours': sum(j.weighted_hours * j.slots for j in session.query(Job).all()),
-            'taken_hours': sum(s.job.weighted_hours for s in joined_shifts),
-            'staffers': sorted(staffers, key = lambda a: getattr(a, order.lstrip('-')), reverse = order.startswith('-'))
+            'total_hours': sum(j.weighted_hours * j.slots for j in jobs),
+            'taken_hours': sum(s.job.weighted_hours for s in shifts),
+            'staffers': sorted(staffers, reverse=order.startswith('-'), key=lambda s: getattr(s, order.lstrip('-')))
         }
 
     def review(self, session):

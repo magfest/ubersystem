@@ -35,14 +35,15 @@ def sqlite_utcnow(element, compiler, **kw):
 class Choice(TypeDecorator):
     impl = Integer
 
-    def __init__(self, choices, **kwargs):
+    def __init__(self, choices, *, allow_unspecified=False, **kwargs):
         self.choices = dict(choices)
+        self.allow_unspecified = allow_unspecified
         TypeDecorator.__init__(self, **kwargs)
 
     def process_bind_param(self, value, dialect):
         if value is not None:
             try:
-                assert int(value) in self.choices
+                assert self.allow_unspecified or int(value) in self.choices
             except:
                 raise ValueError('{!r} not a valid option out of {}'.format(value, self.choices))
             else:
@@ -99,7 +100,7 @@ class MagModel:
 
     @property
     def db_id(self):
-        return 'None' if self.is_new else self.id
+        return None if self.is_new else self.id
 
     def orig_value_of(self, name):
         hist = get_history(self, name)
@@ -385,7 +386,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     paid             = Column(Choice(PAID_OPTS), default=NOT_PAID)
     overridden_price = Column(Integer, nullable=True)
     amount_paid      = Column(Integer, default=0)
-    amount_extra     = Column(Choice(DONATION_OPTS), default=0)
+    amount_extra     = Column(Choice(DONATION_OPTS, allow_unspecified=True), default=0)
     amount_refunded  = Column(Integer, default=0)
     payment_method   = Column(Choice(PAYMENT_OPTIONS), nullable=True)
 
@@ -611,7 +612,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def multiply_assigned(self):
-        return len(self.assigned) > 1
+        return len(self.assigned_depts_ints) > 1
 
     # TODO: this should be configurable
     @property
@@ -625,7 +626,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     # TODO: genericize this
     @property
     def assigned_display(self):
-        return [dict(JOB_LOC_OPTS)[loc] for loc in self.assigned if loc in dict(JOB_LOC_OPTS)]
+        return [dict(JOB_LOC_OPTS)[loc] for loc in self.assigned_depts_ints if loc in dict(JOB_LOC_OPTS)]
 
     @cached_property
     def hours(self):
@@ -644,22 +645,21 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @cached_property
     def possible(self):
-        if not self.assigned and not AT_THE_CON:
+        assert self.session, '.possible property may only be accessed for jobs attached to a session'
+        if not self.assigned_depts and not AT_THE_CON:
             return []
         else:
-            jobs = {job.id: job for job in Job.objects.filter(**{} if AT_THE_CON else {'location__in': self.assigned})}
-            for job in jobs.values():
-                job._shifts = []
-            for shift in Shift.objects.filter(job__location__in = self.assigned).select_related():
-                jobs[shift.job_id]._shifts.append(shift)
-            return [job for job in sorted(jobs.values(), key = lambda j: j.start_time)
+            return [job for job in self.session.query(Job)
+                                       .filter(*[] if AT_THE_CON else [Job.location.in_(self.assigned_depts_ints)])
+                                       .options(joinedload(Job.shifts))
+                                       .order_by(Job.start_time).all()
                         if job.slots > len(job.shifts)
                            and job.no_overlap(self)
                            and (not job.restricted or self.trusted)]
 
     @property
     def possible_opts(self):
-        return [(job.id, '(%s) [%s] %s' % (hour_day_format(job.start_time), job.get_location_display(), job.name))
+        return [(job.id, '(%s) [%s] %s' % (hour_day_format(job.start_time), job.location_label, job.name))
                 for job in self.possible if datetime.now(EVENT_TIMEZONE) < job.start_time]
 
     @property
@@ -878,7 +878,7 @@ class Job(MagModel):
     @cached_property
     def available_staffers(self):
         return [s for s in self.all_staffers
-                if self.location in s.assigned
+                if self.location in s.assigned_depts_ints
                    and (s.trusted or not self.restricted)
                    and self.no_overlap(s)]
 
@@ -1034,7 +1034,7 @@ class Tracking(MagModel):
             data = 'id={}'.format(instance.id)
 
         links = ', '.join(
-            '{}({})'.format(list(column.foreign_keys)[0].table.name, getattr(instance, val))
+            '{}({})'.format(list(column.foreign_keys)[0].column.table.name, getattr(instance, name))
             for name, column in instance.__table__.columns.items()
             if column.foreign_keys and getattr(instance, name)
         )
@@ -1063,12 +1063,27 @@ class Session(SessionManager):
     engine = sqlalchemy.create_engine(SQLALCHEMY_URL)
 
     class QuerySubclass(Query):
+        @property
+        def is_single_table_query(self):
+            return len(self.column_descriptions) == 1
+
+        @property
+        def model(self):
+            assert self.is_single_table_query, '.order() is only valid for single-table queries'
+            return self.column_descriptions[0]['type']
+
+        def order(self, attrs):
+            order = []
+            for attr in listify(attrs):
+                col = getattr(self.model, attr.lstrip('-'))
+                order.append(col.desc() if attr.startswith('-') else col)
+            return self.order_by(*order)
+
         def icontains(self, attr=None, val=None, **filters):
             query = self
             if len(self.column_descriptions) == 1 and filters:
-                model = self.column_descriptions[0]['type']
                 for colname, val in filters.items():
-                    query = query.filter(getattr(model, colname).ilike('%' + val + '%'))
+                    query = query.filter(getattr(self.model, colname).ilike('%' + val + '%'))
             if attr and col:
                 query = self.filter(attr.ilike('%' + text + '%'))
             return query
@@ -1169,7 +1184,10 @@ class Session(SessionManager):
             return list(attendees), list(groups.values())
 
         def staffers(self):
-            return self.query(Attendee).filter_by(staffing=True).order_by(Attendee.first_name, Attendee.last_name)
+            return self.query(Attendee) \
+                       .filter_by(staffing=True) \
+                       .options(joinedload(Attendee.group)) \
+                       .order_by(Attendee.first_name, Attendee.last_name)
 
         def match_to_group(self, attendee, group):
             with BADGE_LOCK:
@@ -1187,32 +1205,26 @@ class Session(SessionManager):
                     session.commit()
 
         def everything(self, location=None):
-            shifts = self.query(Shift) \
-                         .filter(*[Job.location == location] if location else []) \
-                         .options(joinedload(Shift.job)) \
-                         .order_by(Job.start_time) \
-                         .all()
-
-            by_job, by_attendee = defaultdict(list), defaultdict(list)
-            for shift in shifts:
-                by_job[shift.job].append(shift)
-                by_attendee[shift.attendee].append(shift)
-
-            attendees = [a for a in self.staffers() if AT_THE_CON or not location or int(location) in a.assigned]
-            for attendee in attendees:
-                attendee._shifts = by_attendee[attendee]
-
+            location = [Job.location == location] if location else []
             jobs = self.query(Job) \
-                       .filter(*[Job.location == location] if location else []) \
-                       .order_by(Job.start_time, Job.duration, Job.name)
+                       .filter(*location) \
+                       .options(joinedload(Job.shifts)) \
+                       .order_by(Job.start_time, Job.duration, Job.name).all()
+            shifts = self.query(Shift) \
+                         .filter(*location) \
+                         .options(joinedload(Shift.job), joinedload(Shift.attendee)) \
+                         .join(Shift.job).order_by(Job.start_time).all()
+            attendees = [a for a in self.query(Attendee)
+                                        .filter_by(staffing=True)
+                                        .options(joinedload(Attendee.shifts), joinedload(Attendee.group))
+                                        .order_by(Attendee.first_name, Attendee.last_name).all()
+                         if AT_THE_CON or not location or int(location) in a.assigned_depts_ints]
             for job in jobs:
-                job._shifts = by_job[job]
-                job._available_staffers = [s for s in attendees if not job.restricted or s.trusted]
-
+                job._available_staffers = [a for a in attendees if not job.restricted or a.trusted]
             return jobs, shifts, attendees
 
-        def search(self, text, **filters):
-            attendees = self.query(Attendee).outerjoin(Attendee.group).options(joinedload(Attendee.group)).filter_by(**filters)
+        def search(self, text, *filters):
+            attendees = self.query(Attendee).outerjoin(Attendee.group).options(joinedload(Attendee.group)).filter(*filters)
             if ':' in text:
                 target, term = text.lower().split(':', 1)
                 if target == 'email':
@@ -1237,6 +1249,33 @@ class Session(SessionManager):
                 for attr in ['first_name', 'last_name', 'badge_printed_name', 'email', 'comments', 'admin_notes', 'for_review']:
                     checks.append(getattr(Attendee, attr).ilike('%' + text + '%'))
                 return attendees.filter(or_(*checks))
+
+        def assign(self, attendee_id, job_id):
+            job = self.job(job_id)
+            attendee = self.attendee(attendee_id)
+
+            if job.restricted and not attendee.trusted:
+                return 'You cannot assign an untrusted attendee to a restricted shift'
+
+            if job.slots <= len(job.shifts):
+                return 'All slots for this job have already been filled'
+
+            if not job.no_overlap(attendee):
+                return 'This volunteer is already signed up for a shift during that time'
+
+            self.add(Shift(attendee=attendee, job=job))
+            self.commit()
+
+        def affiliates(self):
+            amounts = defaultdict(int, {a:-i for i,a in enumerate(DEFAULT_AFFILIATES)})
+            for aff, amt in self.query(Attendee.affiliate, Attendee.amount_extra) \
+                                .filter(and_(Attendee.amount_extra > 0, Attendee.affiliate != '')):
+                amounts[aff] += amt
+            return [{
+                'id': aff,
+                'text': aff,
+                'total': max(0, amt)
+            } for aff, amt in sorted(amounts.items(), key=lambda tup: -tup[1])]
 
 
 def _make_getter(model):

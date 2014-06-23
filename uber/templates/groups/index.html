@@ -15,10 +15,8 @@
     &nbsp;&nbsp;&nbsp;&nbsp;
     <b>With Tables:</b> {{ tabled_groups }} groups ({{ tabled_badges }} badges)
     &nbsp;&nbsp;&nbsp;&nbsp;
-    <b>Without Tables:</b> {{ untabled_groups }} groups ({{ untabled_badges }} badges)
-    
+    <b>Without Tables:</b> {{ untabled_groups }} groups ({{ untabled_badges }} badges)    
     <br/> <br/>
-    
     {{ approved_tables }} approved tables / {{ waitlisted_tables }} waitlisted tables / {{ unapproved_tables }} unapproved tables
 </div>
 
@@ -42,7 +40,7 @@
     <td width="15%"> <a href="index?show={{ show }}&order={{ order.status }}">Approved</a> </td>
     <td width="15%"> <a href="index?show={{ show }}&order={{ order.badges }}">Badges</a>{% popup_link "../static_views/badgeCounts.html" %} </td>
     <td width="15%"> <a href="index?show={{ show }}&order={{ order.tables }}">Tables</a> </td>
-    <td width="15%"> <a href="index?show={{ show }}&order={{ order.amount_owed }}">Owed</a> </td>
+    <td width="15%"> <a href="index?show={{ show }}&order={{ order.amount_unpaid }}">Owed</a> </td>
     <td width="15%"> <a href="index?show={{ show }}&order={{ order.amount_paid }}">Paid</a> </td>
 </tr>
 {% for group in groups %}
@@ -50,14 +48,14 @@
         <td style="text-align:left"> <a href="form?id={{ group.id }}">{{ group.name|default:"?????" }}</a> </td>
         <td>
             {% if group.is_dealer %}
-                {{ group.get_status_display }}
+                {{ group.status_label }}
             {% else %}
                 n/a
             {% endif %}
         </td>
         <td> {{ group.badges_purchased }} / {{ group.badges }} </td>
         <td> {{ group.tables }} </td>
-        <td> ${{ group.amount_owed }} </td>
+        <td> ${{ group.amount_unpaid }} </td>
         <td> ${{ group.amount_paid }} </td>
     </tr>
 {% endfor %}

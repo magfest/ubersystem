@@ -42,7 +42,7 @@
 
 <br/><br/>
 
-{% if attendee.shift_set.count %}
+{% if attendee.shifts %}
     <b>
         Shifts signed up for by {{ attendee.full_name }}
         {% if AT_THE_CON %}
@@ -68,12 +68,12 @@
     {% for shift in attendee.shifts %}
         <tr>
             <td><a href="../jobs/form?id={{ shift.job.id }}">{{ shift.job.name }}</a></td>
-            <td><a href="../jobs/index?location={{ shift.job.location }}">{{ shift.job.get_location_display }}</a></td>
+            <td><a href="../jobs/index?location={{ shift.job.location }}">{{ shift.job.location_label }}</a></td>
             <td>{% hour_day shift.job.start_time %}</td>
             <td>{{ shift.job.duration }} (x{{ shift.job.weight }})</td>
             <td>
                 {% if shift.worked != SHIFT_UNMARKED %}
-                    <i>{{ shift.get_worked_display }}</i>
+                    <i>{{ shift.worked_label }}</i>
                 {% else %}
                     <select onChange="setStatus({{ shift.id }}, this)">
                         {% options WORKED_OPTS shift.worked %}

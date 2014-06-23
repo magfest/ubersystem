@@ -79,22 +79,6 @@ for _slug, _conf in conf['season_events'].items():
     SeasonEvent.register(_slug, _conf)
 
 
-def assign(attendee_id, job_id):
-    job = Job.get(job_id)
-    attendee = Attendee.get(attendee_id)
-
-    if job.restricted and not attendee.trusted:
-        return 'You cannot assign an untrusted attendee to a restricted shift'
-
-    if job.slots <= job.shift_set.count():
-        return 'All slots for this job have already been filled'
-
-    if not job.no_overlap(attendee):
-        return 'This volunteer is already signed up for a shift during that time'
-
-    Shift.objects.create(attendee=attendee, job=job)
-
-
 def hour_day_format(dt):
     return dt.strftime('%I%p ').strip('0').lower() + dt.strftime('%a')
 
@@ -191,13 +175,6 @@ class Charge:
         except stripe.StripeError as e:
             log.error('unexpected stripe error', exc_info=True)
             return 'An unexpected problem occured while processing your card: ' + str(e)
-
-
-def affiliates():
-    amounts = defaultdict(int, {a:-i for i,a in enumerate(DEFAULT_AFFILIATES)})
-    for aff,amt in Attendee.objects.exclude(Q(amount_extra=0) | Q(affiliate='')).values_list('affiliate','amount_extra'):
-        amounts[aff] += amt
-    return [{"id": aff, "text": aff} for aff, amt in sorted(amounts.items(), key=lambda tup: -tup[1])]
 
 
 def get_page(page, queryset):
