@@ -628,14 +628,14 @@ class Attendee(MagModel, TakesPaymentMixin):
     def assigned_display(self):
         return [dict(JOB_LOC_OPTS)[loc] for loc in self.assigned_depts_ints if loc in dict(JOB_LOC_OPTS)]
 
-    @cached_property
+    @property
     def hours(self):
         all_hours = set()
         for shift in self.shifts:
             all_hours.update(shift.job.hours)
         return all_hours
 
-    @cached_property
+    @property
     def hour_map(self):
         all_hours = {}
         for shift in self.shifts:
