@@ -213,6 +213,10 @@ class Root:
         success, increment = True, False
 
         if not attendee.badge_num:
+            if CURRENT_THEME == "magstock":
+                if not badge_num or badge_num == 0:
+                    badge_num = next_badge_num(attendee.badge_type)
+
             message = check_range(badge_num, attendee.badge_type)
             if not message:
                 maybe_dupe = Attendee.objects.filter(badge_num=badge_num, badge_type=attendee.badge_type)
