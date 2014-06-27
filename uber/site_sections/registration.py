@@ -400,6 +400,11 @@ class Root:
             else:
                 attendee.paid = HAS_PAID
                 attendee.amount_paid = attendee.total_cost
+
+                # HACK! need to fix this to save correctly.
+                if attendee.registered is None:
+                    attendee.registered = datetime.now()
+
                 attendee.save()
                 raise HTTPRedirect('register?message={}', 'Your payment has been accepted, please proceed to the Preregistration desk to pick up your badge')
 
@@ -488,6 +493,10 @@ class Root:
         checked_in = ''
         badge_num = int(badge_num) if badge_num.isdigit() else 0
         attendee = Attendee.get(id)
+
+        if CURRENT_THEME == "magstock" and not badge_num:
+            badge_num = next_badge_num(attendee.badge_type)
+
         existing = list(Attendee.objects.filter(badge_num = badge_num))
         if 'reg_station' not in cherrypy.session:
             raise HTTPRedirect('new_reg_station')
