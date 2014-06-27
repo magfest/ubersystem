@@ -175,10 +175,12 @@ BADGE_OPTS = enum(
     GUEST_BADGE     = 'Guest',
     ONE_DAY_BADGE   = 'One Day'
 )
-AT_THE_DOOR_BADGE_OPTS = enum(
+NORMAL_AT_THE_DOOR_BADGE_OPTS = enum(
     ATTENDEE_BADGE = 'Full Weekend Pass (${})'.format(state.BADGE_PRICE),
     ONE_DAY_BADGE = 'Single Day Pass (${})'.format(state.ONEDAY_BADGE_PRICE)
 )
+AT_THE_DOOR_BADGE_OPTS = NORMAL_AT_THE_DOOR_BADGE_OPTS
+
 PSEUDO_GROUP_BADGE  = 1  # people registering in groups will get attendee badges
 PSEUDO_DEALER_BADGE = 2  # dealers get attendee badges with a ribbon
 BADGE_RANGES = {         # these may overlap, but shouldn't
