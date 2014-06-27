@@ -392,6 +392,11 @@ class Root:
             else:
                 attendee.paid = HAS_PAID
                 attendee.amount_paid = attendee.total_cost
+
+                # HACK! need to fix this to save correctly.
+                if attendee.registered is none:
+                    attendee.registered = datetime.now()
+
                 attendee.save()
                 raise HTTPRedirect('register?message={}', 'Your payment has been accepted, please proceed to the Preregistration desk to pick up your badge')
 
