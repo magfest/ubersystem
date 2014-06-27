@@ -402,7 +402,7 @@ class Root:
                 attendee.amount_paid = attendee.total_cost
 
                 # HACK! need to fix this to save correctly.
-                if attendee.registered is none:
+                if attendee.registered is None:
                     attendee.registered = datetime.now()
 
                 attendee.save()
