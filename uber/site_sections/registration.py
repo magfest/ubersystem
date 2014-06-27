@@ -9,8 +9,12 @@ def check_everything(attendee):
 
     if AT_THE_CON and attendee.id is None:
         if isinstance(attendee.badge_num, str) or attendee.badge_num < 0:
-            return 'Invalid badge number'
-        elif attendee.id is None and attendee.badge_num != 0 and Attendee.objects.filter(badge_type=attendee.badge_type, badge_num=attendee.badge_num).count():
+            if CURRENT_THEME != "magstock":
+                return 'Invalid badge number'
+            else:
+                attendee.badge_num = next_badge_num(attendee.badge_type)
+
+        if attendee.id is None and attendee.badge_num != 0 and Attendee.objects.filter(badge_type=attendee.badge_type, badge_num=attendee.badge_num).count():
             return 'Another attendee already exists with that badge number'
 
     if attendee.is_dealer and not attendee.group:
