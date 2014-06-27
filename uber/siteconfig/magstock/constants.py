@@ -87,4 +87,8 @@ DONATION_TIERS = {
 
 SHIRT_COST = SHIRT_LEVEL
 
+AT_THE_DOOR_BADGE_OPTS = enum(
+    ATTENDEE_BADGE = 'Full Weekend Pass (${})'.format(state.BADGE_PRICE),
+)
+
 del enum
