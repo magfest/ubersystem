@@ -76,4 +76,9 @@ DONATION_TIERS = {
     SUPPORTER_LEVEL: 'Supporter Package',
 }
 
+AT_THE_DOOR_BADGE_OPTS = enum(
+    ATTENDEE_BADGE = 'Full Weekend Pass (${})'.format(state.BADGE_PRICE),
+    ONE_DAY_BADGE = 'Single Day Pass (${})'.format(state.ONEDAY_BADGE_PRICE)
+)
+
 del enum
