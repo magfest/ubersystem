@@ -46,11 +46,13 @@ from uber.constants import *
 from uber import constants
 
 import sqlalchemy
+from sqlalchemy.sql import case
 from sqlalchemy.event import listen
 from sqlalchemy import func, or_, and_
 from sqlalchemy.ext import declarative
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.sql.expression import FunctionElement
 from sqlalchemy.orm import Query, relationship, joinedload
 from sqlalchemy.orm.attributes import get_history, instance_state
@@ -72,6 +74,7 @@ from uber.badge_funcs import *
 from uber import model_checks
 from uber import custom_tags
 from uber.server import *
+from uber.tests import import_test_data
 
 # kludgy hack because I love "from <module> import *" way too much
 for _module in ['utils', 'models', 'custom_tags', 'decorators']:

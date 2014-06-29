@@ -18,7 +18,7 @@
         {% elif attendee.badge_type == PSEUDO_DEALER_BADGE %}
             Dealer Application
         {% else %}
-            {{ attendee.get_badge_type_display }}
+            {{ attendee.badge_type_label }}
         {% endif %}
     </td>
 </tr>

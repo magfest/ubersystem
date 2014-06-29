@@ -1,9 +1,6 @@
 from uber.common import *
-
 import shutil
-
 import pytest
-
 from sideboard.tests import patch_session
 
 
@@ -43,8 +40,8 @@ def init_db(request):
 
 @pytest.fixture(autouse=True)
 def db(request, init_db):
-    shutil.copy('/tmp/test.db', '/tmp/test.db.backup')
-    request.addfinalizer(lambda: shutil.copy('/tmp/test.db.backup', '/tmp/test.db'))
+    shutil.copy('/tmp/uber.db', '/tmp/uber.db.backup')
+    request.addfinalizer(lambda: shutil.move('/tmp/uber.db.backup', '/tmp/uber.db'))
 
 
 modules = [uber.common, uber.models, uber.badge_funcs, uber.utils, uber.model_checks, uber.server]

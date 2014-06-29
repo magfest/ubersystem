@@ -52,14 +52,14 @@ class Root:
     @csv_file
     def time_ordered(self, out):
         for event in Event.objects.order_by('start_time', 'duration', 'location'):
-            out.writerow([custom_tags.timespan.pretty(event, 30), event.name, event.get_location_display()])
+            out.writerow([custom_tags.timespan.pretty(event, 30), event.name, event.location_label])
     
     @unrestricted
     def xml(self):
         cherrypy.response.headers['Content-type'] = 'text/xml'
         schedule = defaultdict(list)
         for event in Event.objects.order_by('start_time'):
-            schedule[event.get_location_display()].append(event)
+            schedule[event.location_label].append(event)
         return render('schedule/schedule.xml', {
             'schedule': sorted(schedule.items(), key=lambda tup: EVENT_LOCS.index(tup[1][0].location))
         })
@@ -85,21 +85,21 @@ class Root:
             event.end_time = event.end_time.strftime('%I:%M:%S %p')
             event.start_time = event.start_time.strftime('%I:%M:%S %p')
 
-            schedule[event.get_location_display()].append(event)
+            schedule[event.location_label].append(event)
 
         return render('schedule/schedule.tsv', {
             'schedule': sorted(schedule.items(), key=lambda tup: EVENT_LOCS.index(tup[1][0].location))
         })
-    
+
     @csv_file
     def panels(self, out):
         out.writerow(['Panel','Time','Duration','Room','Description','Panelists'])
-        for event in sorted(list(Event.objects.order_by('start_time')), key = lambda e: (e.start_time, e.get_location_display())):
-            if 'Panel' in event.get_location_display() or 'Autograph' in event.get_location_display():
+        for event in sorted(list(Event.objects.order_by('start_time')), key = lambda e: (e.start_time, e.location_label)):
+            if 'Panel' in event.location_label or 'Autograph' in event.location_label:
                 out.writerow([event.name,
                               event.start_time.strftime('%I%p %a').lstrip('0'),
                               '{} minutes'.format(event.minutes),
-                              event.get_location_display(),
+                              event.location_label,
                               event.description,
                               ' / '.join(ap.attendee.full_name for ap in event.assignedpanelist_set.order_by('attendee__first_name'))])
     

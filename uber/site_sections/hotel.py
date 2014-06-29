@@ -5,7 +5,7 @@ class Root:
     def index(self):
         by_dept = defaultdict(list)
         for attendee in Attendee.objects.filter(badge_type = STAFF_BADGE).order_by('first_name', 'last_name'):
-            for dept,disp in zip(attendee.assigned, attendee.assigned_display):
+            for dept, disp in zip(attendee.assigned, attendee.assigned_depts_display):
                 by_dept[dept,disp].append(attendee)
         return {'by_dept': sorted(by_dept.items())}
 
@@ -57,7 +57,7 @@ class Root:
                     except:
                         pass
 
-        writerow = lambda a, hr: out.writerow([a.full_name, a.email, a.phone, ' / '.join(a.hotel_nights), ' / '.join(a.assigned_display),
+        writerow = lambda a, hr: out.writerow([a.full_name, a.email, a.phone, ' / '.join(a.hotel_nights), ' / '.join(a.assigned_depts_display),
                                                hr.wanted_roommates, hr.unwanted_roommates, hr.special_needs])
 
         grouped = {frozenset(group) for group in lookup.values()}
@@ -65,7 +65,7 @@ class Root:
         for room in Room.objects.order_by('department'):
             for i in range(3):
                 out.writerow([])
-            out.writerow([room.get_department_display() + ' room created by department heads for ' + room.nights_display + (' ({})'.format(room.notes) if room.notes else '')])
+            out.writerow([room.department_label + ' room created by department heads for ' + room.nights_display + (' ({})'.format(room.notes) if room.notes else '')])
             for ra in room.roomassignment_set.select_related():
                 writerow(ra.attendee, ra.attendee.hotel_requests)
         for group in sorted(grouped, key=len, reverse=True):
@@ -136,7 +136,7 @@ def _attendee_dict(attendee):
         'wanted_roommates': getattr(attendee.hotel_requests, 'wanted_roommates', ''),
         'unwanted_roommates': getattr(attendee.hotel_requests, 'unwanted_roommates', ''),
         'approved': int(getattr(attendee.hotel_requests, 'approved', False)),
-        'departments': attendee.assigned_display
+        'departments': attendee.assigned_depts_display
     }
 
 def _room_dict(room):

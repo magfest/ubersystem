@@ -8,12 +8,12 @@
         <td> {{ attendee.registered }} </td>
         <td> <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a> </td>
         <td>
-            {{ attendee.get_badge_type_display }}
+            {{ attendee.badge_type_label }}
             {% if attendee.badge_type == DEALER_BADGE %}
                 ({{ attendee.group.name }})
             {% endif %}
         </td>
-        <td> paid: {{ attendee.get_paid_display }} </td>
+        <td> paid: {{ attendee.paid_label }} </td>
     </tr>
 {% endfor %}
 </table>

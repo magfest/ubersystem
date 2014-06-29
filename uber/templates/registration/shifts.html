@@ -75,7 +75,7 @@
                 {% if shift.worked != SHIFT_UNMARKED %}
                     <i>{{ shift.worked_label }}</i>
                 {% else %}
-                    <select onChange="setStatus({{ shift.id }}, this)">
+                    <select onChange="setStatus('{{ shift.id }}', this)">
                         {% options WORKED_OPTS shift.worked %}
                     </select>
                 {% endif %}
@@ -87,7 +87,7 @@
             </form>
             <td id="rating{{ shift.id }}"></td>
             {% if shift.worked == SHIFT_WORKED %}
-                <script type="text/javascript">renderRating({{ shift.id }});</script>
+                <script type="text/javascript">renderRating('{{ shift.id }}');</script>
             {% endif %}
         </tr>
     {% endfor %}

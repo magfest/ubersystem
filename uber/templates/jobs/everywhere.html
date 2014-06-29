@@ -34,7 +34,7 @@
             <td>
                 {% if job.restricted %}[R]{% endif %}
                 <a href="form?id={{ job.id }}"><b>{{ job.name }}{% if job.restricted %}*{% endif %}</b></a>
-                ({{ job.get_location_display }})
+                ({{ job.location_label }})
             </td>
             <td> <nobr>({{ job.shifts|length }}/{{ job.slots }} slots filled)</nobr> </td>
                 {% if job.available_staffers %}
@@ -60,7 +60,7 @@
                         <td> <a href="../registration/shifts?id={{ shift.attendee.id }}">{{ shift.attendee.full_name }}</a>&nbsp;&nbsp; </td>
                         <td>
                             {% if shift.worked != SHIFT_UNMARKED %}
-                                <i>{{ shift.get_worked_display }}</i>
+                                <i>{{ shift.worked_label }}</i>
                             {% else %}
                                 <select onChange="setStatus({{ shift.id }}, this)">
                                     {% options WORKED_OPTS shift.worked %}

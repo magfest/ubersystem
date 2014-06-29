@@ -58,3 +58,6 @@ def import_uber_test_data():
         import_attendees(session)
         import_events(session)
         import_jobs(session)
+
+if __name__ == '__main__':
+    import_uber_test_data()

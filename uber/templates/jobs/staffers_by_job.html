@@ -4,7 +4,7 @@
 
 {% include "jobs/job_menu.html" %}
 
-<h3 class="center">{% timespan job %} {{ job.name }} shift in {{ job.get_location_display }}</h3>
+<h3 class="center">{% timespan job %} {{ job.name }} shift in {{ job.location_label }}</h3>
 
 {% if job.shifts|length < job.slots %}
     {% if job.available_staffers %}

@@ -15,11 +15,11 @@ We already have a {{ attendee.full_name }} with email address {{ attendee.email 
 {% elif attendee.paid == NOT_PAID %}
     unpaid
 {% else %}
-    {{ attendee.get_paid_display }}
+    {{ attendee.paid_label }}
 {% endif %}
-{{ attendee.get_badge_type_display }}
+{{ attendee.badge_type_label }}
 {% if attendee.ribbon != NO_RIBBON %}
-    ({{ attendee.get_ribbon_display }})
+    ({{ attendee.ribbon_label }})
 {% endif %}
 badge{% if attendee.group %}
     (with the group <a href="group_members?id={{ attendee.group.secret_id }}">{{ attendee.group.name }}</a>)

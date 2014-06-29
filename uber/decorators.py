@@ -21,6 +21,22 @@ def cached_property(func):
     return caching
 
 
+def suffix_property(func):
+    func._is_suffix_property = True
+    return func
+
+def _suffix_property_check(inst, name):
+    if not name.startswith('_'):
+        suffix = '_' + name.rsplit('_', 1)[-1]
+        prop_func = getattr(inst, suffix, None)
+        if getattr(prop_func, '_is_suffix_property', False):
+            field_name = name[:-len(suffix)]
+            field_val = getattr(inst, field_name)
+            return prop_func(field_name, field_val)
+
+suffix_property.check = _suffix_property_check
+
+
 def csrf_protected(func):
     @wraps(func)
     def protected(*args, csrf_token, **kwargs):
@@ -48,6 +64,16 @@ def csv_file(func):
         func(self, csv.writer(writer))
         return writer.getvalue().encode('utf-8')
     return csvout
+
+
+def check_shutdown(func):
+    @wraps(func)
+    def with_check(self, *args, **kwargs):
+        if UBER_STUT_DOWN:
+            raise HTTPRedirect('index?message={}', 'The page you requested is only available pre-event.')
+        else:
+            return func(self, *args, **kwargs)
+    return with_check
 
 
 def credit_card(func):

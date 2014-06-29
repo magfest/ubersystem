@@ -640,12 +640,12 @@ class Root:
     def review(self, session):
         return {'attendees': session.query(Attendee)
                                     .filter(Attendee.for_review != '')
-                                    .order_by(Attendee.first_name, Attendee.last_name)}
+                                    .order_by(Attendee.full_name)}
 
     def season_pass_tickets(self, session):
         events = defaultdict(list)
         for spt in session.query(SeasonPassTicket).options(joinedload(SeasonPassTicket.attendee)) \
-                                                  .order_by(Attendee.first_name):
+                                                  .order_by(Attendee.full_name):
             events[spt.slug].append(spt.attendee)
         return {'events': dict(events)}
 

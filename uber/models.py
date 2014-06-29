@@ -1,5 +1,7 @@
 from uber.common import *
 
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.sql import case
 
 def _get_defaults(func):
     spec = inspect.getfullargspec(func)
@@ -106,21 +108,28 @@ class MagModel:
         hist = get_history(self, name)
         return (hist.deleted or hist.unchanged)[0]
 
-    # Possible TODO: there are three very similar pseudo-attributes; we may consider just making a decorator for defining these
+    @suffix_property
+    def _ints(self, name, val):
+        return [int(i) for i in str(val).split(',')] if val else []
+
+    @suffix_property
+    def _label(self, name, val):
+        return '' if val is None else self.get_field(name).type.choices[int(val)]
+
+    @suffix_property
+    def _local(self, name, val):
+        return val.astimezone(EVENT_TIMEZONE)
+
+    @suffix_property
+    def _display(self, name, val):
+        ints = getattr(self, name + '_ints')
+        labels = dict(self.get_field(name).type.choices)
+        return ' / '.join(sorted(labels[i] for i in ints))
+
     def __getattr__(self, name):
-        if name.endswith('_ints'):
-            val = getattr(self, name[:-5])
-            return [int(i) for i in str(val).split(',')] if val else []
-
-        if name.endswith('_label'):
-            field_name = name[:-6]
-            val = getattr(self, field_name)
-            return '' if val is None else self.get_field(field_name).type.choices[int(val)]
-
-        if name.endswith('_local'):
-            field_name = name[:-6]
-            val = getattr(self, field_name)
-            return val.astimezone(EVENT_TIMEZONE)
+        suffixed = suffix_property.check(self, name)
+        if suffixed:
+            return suffixed
 
         try:
             [multi] = [col for col in self.__table__.columns if isinstance(col.type, MultiChoice)]
@@ -133,8 +142,7 @@ class MagModel:
 
         raise AttributeError(self.__class__.__name__ + '.' + name)
 
-    # NOTE: theoretically we should use from_dict() for this, either to replace this or in the
-    #       implementation; it would be worth looking into what problems arise from that
+    # NOTE: if we used from_dict() to implement this it would probably end up being simpler
     def apply(self, params, *, bools=(), checkgroups=(), restricted=True, ignore_csrf=True):
         for column in self.__table__.columns:
             if (not restricted or column.name in self.unrestricted) and column.name in params and column.name != 'id':
@@ -412,6 +420,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                     'interests', 'found_how', 'comments', 'badge_type', 'affiliate', 'shirt', 'can_spam', 'no_cellphone',
                     'badge_printed_name', 'staffing', 'fire_safety_cert', 'requested_depts', 'amount_extra'}
 
+    # TODO: fix this to work with SQLAlchemy
     def as_we_delete(self, *args, **kwargs):
         #_assert_badge_lock()
         badge_num = Attendee.get(self.id).badge_num
@@ -543,13 +552,25 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.group_id and self.is_unassigned:
             return '[Unassigned {self.badge}]'.format(self=self)
 
-    @property
+    @hybrid_property
     def full_name(self):
         return self.unassigned_name or '{self.first_name} {self.last_name}'.format(self=self)
 
-    @property
+    @full_name.expression
+    def full_name(cls):
+        return case([
+            (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
+        ], else_ = func.lower(cls.first_name + ' ' + cls.last_name))
+
+    @hybrid_property
     def last_first(self):
         return self.unassigned_name or '{self.last_name}, {self.first_name}'.format(self=self)
+
+    @last_first.expression
+    def last_first(cls):
+        return case([
+            (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
+        ], else_ = func.lower(cls.last_name + ', ' + cls.first_name))
 
     @property
     def banned(self):
@@ -604,7 +625,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def accoutrements(self):
-        stuff = [] if self.ribbon == NO_RIBBON else ['a ' + self.get_ribbon_display() + ' ribbon']
+        stuff = [] if self.ribbon == NO_RIBBON else ['a ' + self.ribbon_label + ' ribbon']
         stuff.append('a {} wristband'.format(WRISTBAND_COLORS[self.age_group]))
         if self.regdesk_info:
             stuff.append(self.regdesk_info)
@@ -622,11 +643,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def hotel_shifts_required(self):
         return bool(self.hotel_nights and self.ribbon != DEPT_HEAD_RIBBON and self.takes_shifts)
-
-    # TODO: genericize this
-    @property
-    def assigned_display(self):
-        return [dict(JOB_LOC_OPTS)[loc] for loc in self.assigned_depts_ints if loc in dict(JOB_LOC_OPTS)]
 
     @property
     def hours(self):
@@ -873,7 +889,7 @@ class Job(MagModel):
 
     @cached_property
     def all_staffers(self):
-        return self.session.query(Attendee).order_by(Attendee.last_name, Attendee.first_name).all()
+        return self.session.query(Attendee).order_by(Attendee.last_first).all()
 
     @cached_property
     def available_staffers(self):
@@ -1088,10 +1104,25 @@ class Session(SessionManager):
                 query = self.filter(attr.ilike('%' + text + '%'))
             return query
 
+        def iexact(self, **filters):
+            return self.filter(*[func.lower(getattr(self.model, attr)) == func.lower(val) for attr, val in filters.items()])
+
     class SessionMixin:
+        def logged_in_volunteer(self):
+            return self.attendee(cherrypy.session['staffer_id'])
+
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee) \
                        .filter(func.lower(Attendee.email) == func.lower(email)).one()
+
+        def lookup_attendee(self, full_name, email, zip_code):
+            words = full_name.split()
+            for i in range(1, len(words)):
+                first, last = ' '.join(words[:i]), ' '.join(words[i:])
+                attendee = self.query(Attendee).iexact(first_name=first, last_name=last, email=email, zip_code=zip_code).all()
+                if attendee:
+                    return attendee[0]
+            raise ValueError('attendee not found')
 
         def next_badge_num(self, badge_type):
             #assert_badge_locked()
@@ -1187,7 +1218,7 @@ class Session(SessionManager):
             return self.query(Attendee) \
                        .filter_by(staffing=True) \
                        .options(joinedload(Attendee.group)) \
-                       .order_by(Attendee.first_name, Attendee.last_name)
+                       .order_by(Attendee.full_name)
 
         def match_to_group(self, attendee, group):
             with BADGE_LOCK:
@@ -1217,7 +1248,7 @@ class Session(SessionManager):
             attendees = [a for a in self.query(Attendee)
                                         .filter_by(staffing=True)
                                         .options(joinedload(Attendee.shifts), joinedload(Attendee.group))
-                                        .order_by(Attendee.first_name, Attendee.last_name).all()
+                                        .order_by(Attendee.full_name).all()
                          if AT_THE_CON or not location or int(location) in a.assigned_depts_ints]
             for job in jobs:
                 job._available_staffers = [a for a in attendees if not job.restricted or a.trusted]
