@@ -27,10 +27,11 @@ INTEREST_OPTS = enum(
     LAN         = 'LAN',
     MUSIC       = 'Music',
     PANELS      = 'Guests/Panels',
-    TABLETOP    = 'Tabletop games',
+    TABLETOP    = 'Tabletop Games',
     MARKETPLACE = 'Dealers',
     TOURNAMENTS = 'Tournaments',
-    FILM_FEST   = 'Film Festival',
+    FILM_FEST   = 'Video Room',
+    SPECIAL     = 'Special Events/Panels',
 )
 
 SIZE_UNKNOWN = -1
@@ -53,7 +54,6 @@ SHIRT_OPTS = (
 JOB_INTEREST_OPTS = enum(
     ANYTHING   = 'Anything',
     ARCADE     = 'Arcade',
-    CHALLENGES = 'Challenges Booth',
     CONSOLE    = 'Consoles',
     PANELS     = 'Panels',
     FOOD_PREP  = 'Food Prep',
@@ -63,7 +63,7 @@ JOB_INTEREST_OPTS = enum(
     REGDESK    = 'Regdesk',
     TABLETOP   = 'Tabletop',
     TECH_OPS   = 'Tech Ops',
-    FILM_FEST  = 'Film Festival',
+    FILM_FEST  = 'Video Room',
 )
 
 SHIRT_LEVEL = 20
@@ -75,5 +75,35 @@ DONATION_TIERS = {
     SHIRT_LEVEL: 'T-shirt',
     SUPPORTER_LEVEL: 'Supporter Package',
 }
+
+DEALER_BADGE_PRICE = 30
+
+BADGE_RANGES = {         # these may overlap, but shouldn't
+    STAFF_BADGE:     [1, 200],
+    SUPPORTER_BADGE: [201, 700],
+    GUEST_BADGE:     [701, 750],
+    ATTENDEE_BADGE:  [751, 3000],
+    ONE_DAY_BADGE:   [0, 0],
+}
+
+STORE_PRICES = (                # start as a tuple to preserve order for STORE_ITEMS
+    ('MAGFest 12 tshirt', 15),
+    ('MAGFest 11 tshirt', 10),
+    ('EB Papas tshirt', 5),
+    ('MAGFest hoodie', 30),
+    ('MAGFest 12 sticker', 1),
+    ('Squarewave Bumper Sticker', 2),
+    ('Squarewave Car Window Decal', 4),
+    ('Squarewave Lanyard', 4),
+)
+
+STORE_ITEMS = [(item,item) for item,price in STORE_PRICES]
+STORE_PRICES = dict(STORE_PRICES)
+FEE_PRICES = (
+    ('Badge Replacement',    50),
+    ('Wristband Replacement', 5),
+)
+FEE_ITEMS = [(item,item) for item,price in FEE_PRICES]
+FEE_PRICES = dict(FEE_PRICES)
 
 del enum
