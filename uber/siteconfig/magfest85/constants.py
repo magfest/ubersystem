@@ -78,6 +78,14 @@ DONATION_TIERS = {
 
 DEALER_BADGE_PRICE = 30
 
+BADGE_OPTS = enum(
+    ATTENDEE_BADGE  = 'Attendee',
+    SUPPORTER_BADGE = 'Supporter',
+    STAFF_BADGE     = 'Staff',
+    GUEST_BADGE     = 'Guest',
+    ONE_DAY_BADGE   = 'One Day'
+)
+
 BADGE_RANGES = {         # these may overlap, but shouldn't
     STAFF_BADGE:     [1, 200],
     SUPPORTER_BADGE: [201, 700],
