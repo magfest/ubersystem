@@ -35,6 +35,13 @@
         } else {
             $("input[name='amount_extra']").val(0);
         }
+        
+        // If the Apply to Staff radio button is checked, pre-check the volunteer button on the next page
+        if ($("#staff").is(":checked")) {
+            $("input[name='staffing']").val(1);
+        } else {
+            $("input[name='staffing']").val(0);
+        }
     });
 </script>
 
@@ -99,6 +106,17 @@
 {% endif %}
     </tr>
 {% endif %}
+    <tr>
+        <td>
+            <input type="radio" id="staff" name="badge_type" value="{{ ATTENDEE_BADGE }}"><b>Apply to Staff</b>
+        </td>
+        <td>
+            <ul>
+                <li>Staff space is limited for {{ EVENT_NAME }}.
+                <li>Please only apply if you have previously staffed at MAGFest.</li>
+                <li>Staff must work at least 30 hours for a badge refund.</li>
+            </ul>
+    </tr>
 </table>
 
 <br/>
