@@ -138,5 +138,6 @@ class Root:
         return att
 
     # display the page that calls the AJAX above
+    @unrestricted
     def recent_regs_live(self):
         return {}
