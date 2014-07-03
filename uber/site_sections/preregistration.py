@@ -33,7 +33,7 @@ class Root:
     def stats(self):
         cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
         return json.dumps({
-            'remaining badges': max(0,(MAX_BADGE_SALES - state.BADGES_SOLD)),
+            'remaining_badges': max(0,(MAX_BADGE_SALES - state.BADGES_SOLD)),
             'badges_sold': state.BADGES_SOLD
         })
         

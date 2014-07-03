@@ -137,7 +137,7 @@ function do_ajax_request() {
      });
 
     $.getJSON('../preregistration/stats', function(stats) {
-        $('.remaining_badges').html(stats["remaining badges"]);
+        $('.remaining_badges').html(stats["remaining_badges"]);
         $('.badges_sold').html(stats["badges_sold"]);
     });
 }
