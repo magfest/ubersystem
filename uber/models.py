@@ -423,7 +423,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     extra_merch  = TextField()
     got_merch    = BooleanField(default=False)
 
-    registered = DateTimeField(auto_now_add=True)
+    registered = DateTimeField(null=True)
     checked_in = DateTimeField(null=True)
 
     paid             = IntegerField(default=NOT_PAID, choices=PAID_OPTS)
@@ -478,6 +478,9 @@ class Attendee(MagModel, TakesPaymentMixin):
             value = getattr(self, attr)
             if value.isupper() or value.islower():
                 setattr(self, attr, value.title())
+
+        if not self.registered:
+            self.registered = datetime.now()
 
     def _badge_adjustments(self):
         if self.badge_type == PSEUDO_GROUP_BADGE:
