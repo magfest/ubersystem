@@ -124,6 +124,7 @@ class Root:
 
     # display last 2 minutes worth of registrations, to be used by alerting services
     @ajax_public_callable
+    @unrestricted
     def recent_regs_json(self):
         restrict_to = {'registered__gte': datetime.datetime.now() - timedelta(minutes=2)}
         attendees = Attendee.objects.order_by('registered').filter(**restrict_to)
