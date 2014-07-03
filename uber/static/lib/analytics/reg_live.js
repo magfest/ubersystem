@@ -135,6 +135,11 @@ function do_ajax_request() {
      $.post(ajax_data_url,[], function(json_data, status) {
             process_incoming_ajax_data(json_data);
      });
+
+    $.getJSON('../preregistration/stats', function(stats) {
+        $('.remaining_badges').html(stats["remaining badges"]);
+        $('.badges_sold').html(stats["badges_sold"]);
+    });
 }
 
 $( document ).ready(function() {
