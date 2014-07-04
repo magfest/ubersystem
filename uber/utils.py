@@ -268,7 +268,7 @@ class DaemonTask:
     def start(self):
         assert not self.threads, '{} was already started and has not yet stopped'.format(self.name)
         for i in range(self.thread_count):
-            t = Thread(target = self.func, name = self.name)
+            t = Thread(target = self.run, name = self.name)
             t.daemon = True
             t.start()
             self.threads.append(t)
