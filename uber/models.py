@@ -1,5 +1,7 @@
 from uber.common import *
 
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.sql import case
 
 def _get_defaults(func):
     spec = inspect.getfullargspec(func)
@@ -35,14 +37,15 @@ def sqlite_utcnow(element, compiler, **kw):
 class Choice(TypeDecorator):
     impl = Integer
 
-    def __init__(self, choices, **kwargs):
+    def __init__(self, choices, *, allow_unspecified=False, **kwargs):
         self.choices = dict(choices)
+        self.allow_unspecified = allow_unspecified
         TypeDecorator.__init__(self, **kwargs)
 
     def process_bind_param(self, value, dialect):
         if value is not None:
             try:
-                assert int(value) in self.choices
+                assert self.allow_unspecified or int(value) in self.choices
             except:
                 raise ValueError('{!r} not a valid option out of {}'.format(value, self.choices))
             else:
@@ -97,25 +100,36 @@ class MagModel:
     def is_new(self):
         return not instance_state(self).persistent
 
+    @property
+    def db_id(self):
+        return None if self.is_new else self.id
+
     def orig_value_of(self, name):
         hist = get_history(self, name)
         return (hist.deleted or hist.unchanged)[0]
 
-    # Possible TODO: there are three very similar pseudo-attributes; we may consider just making a decorator for defining these
+    @suffix_property
+    def _ints(self, name, val):
+        return [int(i) for i in str(val).split(',')] if val else []
+
+    @suffix_property
+    def _label(self, name, val):
+        return '' if val is None else self.get_field(name).type.choices[int(val)]
+
+    @suffix_property
+    def _local(self, name, val):
+        return val.astimezone(EVENT_TIMEZONE)
+
+    @suffix_property
+    def _display(self, name, val):
+        ints = getattr(self, name + '_ints')
+        labels = dict(self.get_field(name).type.choices)
+        return ' / '.join(sorted(labels[i] for i in ints))
+
     def __getattr__(self, name):
-        if name.endswith('_ints'):
-            val = getattr(self, name[:-5])
-            return [int(i) for i in str(val).split(',')] if val else []
-
-        if name.endswith('_label'):
-            field_name = name[:-6]
-            val = getattr(self, field_name)
-            return '' if val is None else self.get_field(field_name).type.choices[int(val)]
-
-        if name.endswith('_local'):
-            field_name = name[:-6]
-            val = getattr(self, field_name)
-            return val.astimezone(EVENT_TIMEZONE)
+        suffixed = suffix_property.check(self, name)
+        if suffixed:
+            return suffixed
 
         try:
             [multi] = [col for col in self.__table__.columns if isinstance(col.type, MultiChoice)]
@@ -128,8 +142,7 @@ class MagModel:
 
         raise AttributeError(self.__class__.__name__ + '.' + name)
 
-    # NOTE: theoretically we should use from_dict() for this, either to replace this or in the
-    #       implementation; it would be worth looking into what problems arise from that
+    # NOTE: if we used from_dict() to implement this it would probably end up being simpler
     def apply(self, params, *, bools=(), checkgroups=(), restricted=True, ignore_csrf=True):
         for column in self.__table__.columns:
             if (not restricted or column.name in self.unrestricted) and column.name in params and column.name != 'id':
@@ -381,7 +394,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     paid             = Column(Choice(PAID_OPTS), default=NOT_PAID)
     overridden_price = Column(Integer, nullable=True)
     amount_paid      = Column(Integer, default=0)
-    amount_extra     = Column(Choice(DONATION_OPTS), default=0)
+    amount_extra     = Column(Choice(DONATION_OPTS, allow_unspecified=True), default=0)
     amount_refunded  = Column(Integer, default=0)
     payment_method   = Column(Choice(PAYMENT_OPTIONS), nullable=True)
 
@@ -407,6 +420,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                     'interests', 'found_how', 'comments', 'badge_type', 'affiliate', 'shirt', 'can_spam', 'no_cellphone',
                     'badge_printed_name', 'staffing', 'fire_safety_cert', 'requested_depts', 'amount_extra', 'payment_method'}
 
+    # TODO: fix this to work with SQLAlchemy
     def as_we_delete(self, *args, **kwargs):
         #_assert_badge_lock()
         badge_num = Attendee.get(self.id).badge_num
@@ -542,13 +556,25 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.group_id and self.is_unassigned:
             return '[Unassigned {self.badge}]'.format(self=self)
 
-    @property
+    @hybrid_property
     def full_name(self):
         return self.unassigned_name or '{self.first_name} {self.last_name}'.format(self=self)
 
-    @property
+    @full_name.expression
+    def full_name(cls):
+        return case([
+            (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
+        ], else_ = func.lower(cls.first_name + ' ' + cls.last_name))
+
+    @hybrid_property
     def last_first(self):
         return self.unassigned_name or '{self.last_name}, {self.first_name}'.format(self=self)
+
+    @last_first.expression
+    def last_first(cls):
+        return case([
+            (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
+        ], else_ = func.lower(cls.last_name + ', ' + cls.first_name))
 
     @property
     def banned(self):
@@ -612,7 +638,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def accoutrements(self):
-        stuff = [] if self.ribbon == NO_RIBBON else ['a ' + self.get_ribbon_display() + ' ribbon']
+        stuff = [] if self.ribbon == NO_RIBBON else ['a ' + self.ribbon_label + ' ribbon']
         stuff.append('a {} wristband'.format(WRISTBAND_COLORS[self.age_group]))
         if self.regdesk_info:
             stuff.append(self.regdesk_info)
@@ -620,7 +646,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def multiply_assigned(self):
-        return len(self.assigned) > 1
+        return len(self.assigned_depts_ints) > 1
 
     # TODO: this should be configurable
     @property
@@ -631,19 +657,14 @@ class Attendee(MagModel, TakesPaymentMixin):
     def hotel_shifts_required(self):
         return bool(self.hotel_nights and self.ribbon != DEPT_HEAD_RIBBON and self.takes_shifts)
 
-    # TODO: genericize this
     @property
-    def assigned_display(self):
-        return [dict(JOB_LOC_OPTS)[loc] for loc in self.assigned if loc in dict(JOB_LOC_OPTS)]
-
-    @cached_property
     def hours(self):
         all_hours = set()
         for shift in self.shifts:
             all_hours.update(shift.job.hours)
         return all_hours
 
-    @cached_property
+    @property
     def hour_map(self):
         all_hours = {}
         for shift in self.shifts:
@@ -653,22 +674,21 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @cached_property
     def possible(self):
-        if not self.assigned and not AT_THE_CON:
+        assert self.session, '.possible property may only be accessed for jobs attached to a session'
+        if not self.assigned_depts and not AT_THE_CON:
             return []
         else:
-            jobs = {job.id: job for job in Job.objects.filter(**{} if AT_THE_CON else {'location__in': self.assigned})}
-            for job in jobs.values():
-                job._shifts = []
-            for shift in Shift.objects.filter(job__location__in = self.assigned).select_related():
-                jobs[shift.job_id]._shifts.append(shift)
-            return [job for job in sorted(jobs.values(), key = lambda j: j.start_time)
+            return [job for job in self.session.query(Job)
+                                       .filter(*[] if AT_THE_CON else [Job.location.in_(self.assigned_depts_ints)])
+                                       .options(joinedload(Job.shifts))
+                                       .order_by(Job.start_time).all()
                         if job.slots > len(job.shifts)
                            and job.no_overlap(self)
                            and (not job.restricted or self.trusted)]
 
     @property
     def possible_opts(self):
-        return [(job.id, '(%s) [%s] %s' % (hour_day_format(job.start_time), job.get_location_display(), job.name))
+        return [(job.id, '(%s) [%s] %s' % (hour_day_format(job.start_time), job.location_label, job.name))
                 for job in self.possible if datetime.now(EVENT_TIMEZONE) < job.start_time]
 
     @property
@@ -882,12 +902,12 @@ class Job(MagModel):
 
     @cached_property
     def all_staffers(self):
-        return self.session.query(Attendee).order_by(Attendee.last_name, Attendee.first_name).all()
+        return self.session.query(Attendee).order_by(Attendee.last_first).all()
 
     @cached_property
     def available_staffers(self):
         return [s for s in self.all_staffers
-                if self.location in s.assigned
+                if self.location in s.assigned_depts_ints
                    and (s.trusted or not self.restricted)
                    and self.no_overlap(s)]
 
@@ -1043,7 +1063,7 @@ class Tracking(MagModel):
             data = 'id={}'.format(instance.id)
 
         links = ', '.join(
-            '{}({})'.format(list(column.foreign_keys)[0].table.name, getattr(instance, val))
+            '{}({})'.format(list(column.foreign_keys)[0].column.table.name, getattr(instance, name))
             for name, column in instance.__table__.columns.items()
             if column.foreign_keys and getattr(instance, name)
         )
@@ -1071,10 +1091,51 @@ Tracking.UNTRACKED = [Tracking, Email]
 class Session(SessionManager):
     engine = sqlalchemy.create_engine(SQLALCHEMY_URL)
 
+    class QuerySubclass(Query):
+        @property
+        def is_single_table_query(self):
+            return len(self.column_descriptions) == 1
+
+        @property
+        def model(self):
+            assert self.is_single_table_query, '.order() is only valid for single-table queries'
+            return self.column_descriptions[0]['type']
+
+        def order(self, attrs):
+            order = []
+            for attr in listify(attrs):
+                col = getattr(self.model, attr.lstrip('-'))
+                order.append(col.desc() if attr.startswith('-') else col)
+            return self.order_by(*order)
+
+        def icontains(self, attr=None, val=None, **filters):
+            query = self
+            if len(self.column_descriptions) == 1 and filters:
+                for colname, val in filters.items():
+                    query = query.filter(getattr(self.model, colname).ilike('%' + val + '%'))
+            if attr and col:
+                query = self.filter(attr.ilike('%' + text + '%'))
+            return query
+
+        def iexact(self, **filters):
+            return self.filter(*[func.lower(getattr(self.model, attr)) == func.lower(val) for attr, val in filters.items()])
+
     class SessionMixin:
+        def logged_in_volunteer(self):
+            return self.attendee(cherrypy.session['staffer_id'])
+
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee) \
                        .filter(func.lower(Attendee.email) == func.lower(email)).one()
+
+        def lookup_attendee(self, full_name, email, zip_code):
+            words = full_name.split()
+            for i in range(1, len(words)):
+                first, last = ' '.join(words[:i]), ' '.join(words[i:])
+                attendee = self.query(Attendee).iexact(first_name=first, last_name=last, email=email, zip_code=zip_code).all()
+                if attendee:
+                    return attendee[0]
+            raise ValueError('attendee not found')
 
         def next_badge_num(self, badge_type):
             #assert_badge_locked()
@@ -1157,42 +1218,108 @@ class Session(SessionManager):
             else:
                 return 'That badge number was too high, so the next available badge was assigned instead'
 
-    def everyone():
-        attendees = session.query(Attendee).options(joinedload(Attendee.group)).all()
-        groups = {g.id: g for g in session.query(Group).all()}
-        for g in groups.values():
-            g._attendees = []
-        for a in session.query(Attendee).filter(Attendee.group_id != None).options(joinedload(Attendee.group)).all():
-            groups[a.group_id]._attendees.append(a)
-        return list(attendees), list(groups.values())
+        def everyone(self):
+            attendees = session.query(Attendee).options(joinedload(Attendee.group)).all()
+            groups = {g.id: g for g in session.query(Group).all()}
+            for g in groups.values():
+                g._attendees = []
+            for a in session.query(Attendee).filter(Attendee.group_id != None).options(joinedload(Attendee.group)).all():
+                groups[a.group_id]._attendees.append(a)
+            return list(attendees), list(groups.values())
 
-    def staffers():
-        return self.query(Attendee).filter_by(staffing=True).order_by(Attendee.first_name, Attendee.last_name)
+        def staffers(self):
+            return self.query(Attendee) \
+                       .filter_by(staffing=True) \
+                       .options(joinedload(Attendee.group)) \
+                       .order_by(Attendee.full_name)
 
-    def everything(location=None):
-        shifts = self.query(Shift) \
-                     .filter(*[Job.location == location] if location else []) \
-                     .options(joinedload(Shift.job)) \
-                     .order_by(Job.start_time) \
-                     .all()
+        def match_to_group(self, attendee, group):
+            with BADGE_LOCK:
+                available = [a for a in group.attendees if a.is_unassigned]
+                matching = [a for a in available if a.badge_type == attendee.badge_type]
+                if not available:
+                    return 'The last badge for that group has already been assigned by another station'
+                elif not matching:
+                    return 'Badge #{} is a {} badge, but {} has no badges of that type'.format(attendee.badge_num, attendee.badge_type_label, group.name)
+                else:
+                    for attr in ['group', 'paid', 'amount_paid', 'ribbon']:
+                        setattr(attendee, attr, getattr(matching[0], attr))
+                    session.delete(matching[0])
+                    session.add(attendee)
+                    session.commit()
 
-        by_job, by_attendee = defaultdict(list), defaultdict(list)
-        for shift in shifts:
-            by_job[shift.job].append(shift)
-            by_attendee[shift.attendee].append(shift)
+        def everything(self, location=None):
+            location = [Job.location == location] if location else []
+            jobs = self.query(Job) \
+                       .filter(*location) \
+                       .options(joinedload(Job.shifts)) \
+                       .order_by(Job.start_time, Job.duration, Job.name).all()
+            shifts = self.query(Shift) \
+                         .filter(*location) \
+                         .options(joinedload(Shift.job), joinedload(Shift.attendee)) \
+                         .join(Shift.job).order_by(Job.start_time).all()
+            attendees = [a for a in self.query(Attendee)
+                                        .filter_by(staffing=True)
+                                        .options(joinedload(Attendee.shifts), joinedload(Attendee.group))
+                                        .order_by(Attendee.full_name).all()
+                         if AT_THE_CON or not location or int(location) in a.assigned_depts_ints]
+            for job in jobs:
+                job._available_staffers = [a for a in attendees if not job.restricted or a.trusted]
+            return jobs, shifts, attendees
 
-        attendees = [a for a in self.staffers() if AT_THE_CON or not location or int(location) in a.assigned]
-        for attendee in attendees:
-            attendee._shifts = by_attendee[attendee]
+        def search(self, text, *filters):
+            attendees = self.query(Attendee).outerjoin(Attendee.group).options(joinedload(Attendee.group)).filter(*filters)
+            if ':' in text:
+                target, term = text.lower().split(':', 1)
+                if target == 'email':
+                    return attendees.filter_by(email=term)
+                elif target == 'group':
+                    return attendees.icontains(Group.name, term)
 
-        jobs = self.query(Job) \
-                   .filter(*[Job.location == location] if location else []) \
-                   .order_by(Job.start_time, Job.duration, Job.name)
-        for job in jobs:
-            job._shifts = by_job[job]
-            job._available_staffers = [s for s in attendees if not job.restricted or s.trusted]
+            terms = text.split()
+            if len(terms) == 2:
+                first, last = terms
+                if first.endswith(','):
+                    last, first = first.strip(','), last
+                return attendees.icontains(first_name=first, last_name=last)
+            elif len(terms) == 1 and terms[0].endswith(','):
+                return attendees.icontains(last_name=terms[0].rstrip(','))
+            elif len(terms) == 1 and terms[0].isdigit():
+                return attendees.filter_by(badge_num=terms[0])
+            elif len(terms) == 1 and re.match('[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}', terms[0]):
+                return attendees.filter(or_(Attendee.id == terms[0], Group.id == terms[0]))
+            else:
+                checks = [Group.name.ilike('%' + text + '%')]
+                for attr in ['first_name', 'last_name', 'badge_printed_name', 'email', 'comments', 'admin_notes', 'for_review']:
+                    checks.append(getattr(Attendee, attr).ilike('%' + text + '%'))
+                return attendees.filter(or_(*checks))
 
-        return jobs, shifts, attendees
+        def assign(self, attendee_id, job_id):
+            job = self.job(job_id)
+            attendee = self.attendee(attendee_id)
+
+            if job.restricted and not attendee.trusted:
+                return 'You cannot assign an untrusted attendee to a restricted shift'
+
+            if job.slots <= len(job.shifts):
+                return 'All slots for this job have already been filled'
+
+            if not job.no_overlap(attendee):
+                return 'This volunteer is already signed up for a shift during that time'
+
+            self.add(Shift(attendee=attendee, job=job))
+            self.commit()
+
+        def affiliates(self):
+            amounts = defaultdict(int, {a:-i for i,a in enumerate(DEFAULT_AFFILIATES)})
+            for aff, amt in self.query(Attendee.affiliate, Attendee.amount_extra) \
+                                .filter(and_(Attendee.amount_extra > 0, Attendee.affiliate != '')):
+                amounts[aff] += amt
+            return [{
+                'id': aff,
+                'text': aff,
+                'total': max(0, amt)
+            } for aff, amt in sorted(amounts.items(), key=lambda tup: -tup[1])]
 
 
 def _make_getter(model):

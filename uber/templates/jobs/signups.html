@@ -50,7 +50,7 @@
                     </td>
                     <td>
                         {% if shift.worked != SHIFT_UNMARKED %}
-                            <i>{{ shift.get_worked_display }}</i>
+                            <i>{{ shift.worked_label }}</i>
                         {% else %}
                             <select onChange="setStatus({{ shift.id }}, this)">
                                 {% options WORKED_OPTS shift.worked %}

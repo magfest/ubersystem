@@ -38,6 +38,6 @@ def test_ignore_csrf(request):
         pytest.raises(Exception, session.attendee, {'paid': NEED_NOT_PAY})
         session.attendee({'paid': NEED_NOT_PAY}, ignore_csrf=True)
         session.attendee({'paid': NEED_NOT_PAY}, allowed=['paid'])
-        request.addfinalizer(lambda: setattr(cherrypy, 'request', 'GET'))
+        request.addfinalizer(lambda: setattr(cherrypy.request, 'method', 'GET'))
         cherrypy.request.method = 'POST'
         session.attendee({'paid': NEED_NOT_PAY})

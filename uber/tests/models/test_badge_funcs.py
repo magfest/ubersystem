@@ -3,8 +3,8 @@ from uber.tests import *
 @pytest.fixture
 def session(request):
     session = Session().session
-    check_ranges(session)
     request.addfinalizer(session.close)
+    check_ranges(session)
     for badge_type, badge_name in [(STAFF_BADGE, 'staff'), (SUPPORTER_BADGE, 'supporter')]:
         for number in ['One', 'Two', 'Three', 'Four', 'Five']:
             setattr(session, '{}_{}'.format(badge_name, number).lower(),
@@ -22,8 +22,7 @@ def check_ranges(session):
     for badge_type in [STAFF_BADGE, SUPPORTER_BADGE]:
         actual = [a.badge_num for a in session.query(Attendee)
                                               .filter_by(badge_type=badge_type)
-                                              .order_by(Attendee.badge_num)
-                                              .all()]
+                                              .order_by(Attendee.badge_num).all()]
         expected = list(range(*BADGE_RANGES[badge_type])[:len(actual)])
         assert actual == expected
 

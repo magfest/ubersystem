@@ -45,7 +45,7 @@
         <td valign="top" style="padding-top:15px"><b>Want to kick in extra?</b></td>
         <td>
             {% if AFTER_PRINTED_BADGE_DEADLINE and attendee.amount_extra >= SUPPORTER_LEVEL %}
-                {{ attendee.get_amount_extra_display }}
+                {{ attendee.amount_extra_label }}
                 <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
             {% else %}
                 <select name="amount_extra" style="width:50%" onChange="donationChanged()" >

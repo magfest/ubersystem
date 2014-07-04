@@ -79,22 +79,6 @@ for _slug, _conf in conf['season_events'].items():
     SeasonEvent.register(_slug, _conf)
 
 
-def assign(attendee_id, job_id):
-    job = Job.get(job_id)
-    attendee = Attendee.get(attendee_id)
-
-    if job.restricted and not attendee.trusted:
-        return 'You cannot assign an untrusted attendee to a restricted shift'
-
-    if job.slots <= job.shift_set.count():
-        return 'All slots for this job have already been filled'
-
-    if not job.no_overlap(attendee):
-        return 'This volunteer is already signed up for a shift during that time'
-
-    Shift.objects.create(attendee=attendee, job=job)
-
-
 def hour_day_format(dt):
     return dt.strftime('%I%p ').strip('0').lower() + dt.strftime('%a')
 
@@ -193,13 +177,6 @@ class Charge:
             return 'An unexpected problem occured while processing your card: ' + str(e)
 
 
-def affiliates():
-    amounts = defaultdict(int, {a:-i for i,a in enumerate(DEFAULT_AFFILIATES)})
-    for aff,amt in Attendee.objects.exclude(Q(amount_extra=0) | Q(affiliate='')).values_list('affiliate','amount_extra'):
-        amounts[aff] += amt
-    return [{"id": aff, "text": aff} for aff, amt in sorted(amounts.items(), key=lambda tup: -tup[1])]
-
-
 def get_page(page, queryset):
     return queryset[(int(page) - 1) * 100 : int(page) * 100]
 
@@ -211,31 +188,6 @@ def genpasswd():
             return ' '.join(random.choice(words) for i in range(4))
     except:
         return ''.join(chr(randrange(33, 127)) for i in range(8))
-
-
-def search(text, **filters):
-    attendees = Attendee.objects.filter(**filters)
-    if ':' in text:
-        target, term = text.lower().split(':', 1)
-        if target in ['group', 'email']:
-            target = {'group': 'group__name'}.get(target, target)
-            return attendees.filter(**{target + '__icontains': term.strip()})
-
-    terms = text.split()
-    if len(terms) == 2:
-        first, last = terms
-        if first.endswith(','):
-            last, first = first.strip(','), last
-        return attendees.filter(first_name__icontains = first, last_name__icontains = last)
-    elif len(terms) == 1 and terms[0].endswith(','):
-        return attendees.filter(last_name__icontains = terms[0].rstrip(','))
-    elif len(terms) == 1 and terms[0].isdigit():
-        return attendees.filter(badge_num = terms[0])
-    else:
-        q = Q()
-        for attr in ['first_name','last_name','badge_num','badge_printed_name','email','comments','admin_notes','for_review','secret_id','group__name','group__secret_id']:
-            q |= Q(**{attr + '__icontains': text})
-        return attendees.filter(q)
 
 def dictfetchall(cursor):
     "Returns all rows from a cursor as a dict"

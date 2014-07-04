@@ -57,7 +57,7 @@
         <tr>
             <td>{{ sale.what }}</td>
             <td><a href="../form?id={{ attendee.id }}">{{ sale.attendee.full_name }}</a></td>
-            <td>{{ sale.get_payment_method_display }}</td>
+            <td>{{ sale.payment_method_label }}</td>
             <td>${{ sale.cash }}</td>
             <td>{{ sale.when }}</td>
         </tr>
@@ -76,7 +76,7 @@
         <tr>
             <td><a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a></td>
             <td>{{ attendee.badge }}</td>
-            <td>{{ attendee.get_payment_method_display }}</td>
+            <td>{{ attendee.payment_method_label }}</td>
             <td>${{ attendee.amount_paid }}</td>
             <td>{{ attendee.registered }}</td>
         </tr>

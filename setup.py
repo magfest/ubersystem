@@ -1,7 +1,6 @@
 from setuptools import setup
 
 exec(open('uber/_version.py').read())
-
 if __name__ == '__main__':
     setup(
         name='uber',
