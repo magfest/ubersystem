@@ -437,7 +437,7 @@ class Notice(template.Node):
     def notice(self, label, takedown, discount=False):
         discount = conf['badge_prices']['group_discount'] if discount else 0
         for day, price in sorted(PRICE_BUMPS.items()):
-            if datetime.now() < day:
+            if datetime.now(EVENT_TIMEZONE) < day:
                 return 'Price goes up to ${} at 11:59pm EST on {}'.format(price - discount, (day - timedelta(days=1)).strftime('%A, %b %e'))
         else:
             return '{} closes at 11:59pm EST on {}'.format(label, takedown.strftime('%A, %b %e'))

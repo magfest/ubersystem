@@ -5,10 +5,6 @@ from uber.site_sections.emails import Reminder
 from uber.site_sections import schedule, signups, preregistration
 
 
-def _rollback():
-    connection._rollback()
-cherrypy.tools.rollback_on_error = cherrypy.Tool('after_error_response', _rollback)
-
 def _add_email():
     [body] = cherrypy.response.body
     body = body.replace(b'<body>', b'''<body>Please email <a href='mailto:contact@magfest.org'>contact@magfest.org</a> if you're not sure why you're seeing this page.''')
@@ -75,13 +71,14 @@ class Redirector:
         else:
             raise HTTPRedirect(PATH)
 
-cherrypy.tree.mount(Redirector(), '/', {})
 cherrypy.tree.mount(Root(), PATH, conf['appconf'].dict())
 
 if SEND_EMAILS:
-    DaemonTask(Reminder.send_all, name='EmailReminderTask')
+    DaemonTask(Reminder.send_all)
+'''
 if PRE_CON:
-    DaemonTask(detect_duplicates, name='DuplicateReminder')
-    DaemonTask(check_unassigned, name='UnassignedReminder')
+    DaemonTask(detect_duplicates)
+    DaemonTask(check_unassigned)
     if CHECK_PLACEHOLDERS:
-        DaemonTask(check_placeholders, name='PlaceholdersReminder')
+        DaemonTask(check_placeholders)
+'''

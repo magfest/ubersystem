@@ -3,7 +3,7 @@ from uber.common import *
 def valid_password(password, account):
     pr = account.password_reset
     if pr and pr.is_expired:
-        pr.delete()
+        account.session.delete(pr)
         pr = None
 
     all_hashed = [account.hashed] + ([pr.hashed] if pr else [])
@@ -11,48 +11,48 @@ def valid_password(password, account):
 
 @all_renderable(ACCOUNTS)
 class Root:
-    def index(self, message=''):
+    def index(self, session, message=''):
         return {
             'message':  message,
-            'accounts': AdminAccount.objects.order_by('attendee__first_name', 'attendee__last_name'),
+            'accounts': session.query(AdminAccount).join(Attendee)
+                               .order_by(Attendee.first_name, Attendee.last_name).all(),
             'all_attendees': [{
                 'id': a.id,
                 'text': '{a.full_name} - {a.badge}'.format(a=a)
-            } for a in Attendee.objects.exclude(email='')]
+            } for a in session.query(Attendee).filter(Attendee.email != '').all()]
         }
 
-    def update(self, password='', **params):
-        account = AdminAccount.get(params, checkgroups=['access'])
-        is_new = account.id is None
-        if is_new:
+    def update(self, session, password='', **params):
+        account = session.admin_account(params, checkgroups=['access'])
+        if account.is_new:
             password = password if AT_THE_CON else genpasswd()
             account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
 
         message = check(account)
         if not message:
-            account.save()
             message = 'Account settings uploaded'
-            if is_new and not AT_THE_CON:
+            if account.is_new and not AT_THE_CON:
                 body = render('accounts/new_email.txt', {
                     'account': account,
                     'password': password
                 })
                 send_email(ADMIN_EMAIL, account.attendee.email, 'New '+ EVENT_NAME +' Ubersystem Account', body)
+                session.add(account)
 
         raise HTTPRedirect('index?message={}', message)
 
-    def delete(self, id):
-        AdminAccount.objects.filter(id=id).delete()
+    def delete(self, session, id):
+        session.delete(session.admin_account(id))
         raise HTTPRedirect('index?message={}', 'Account deleted')
 
     @unrestricted
-    def login(self, message='', **params):
+    def login(self, session, message='', **params):
         if 'email' in params:
             try:
-                account = AdminAccount.objects.get(attendee__email__iexact = params['email'])
+                account = session.get_account_by_email(params['email'])
                 if not valid_password(params['password'], account):
                     message = 'Incorrect password'
-            except AdminAccount.DoesNotExist:
+            except NoResultFound:
                 message = 'No account exists for that email address'
 
             if not message:
@@ -79,17 +79,17 @@ class Root:
         raise HTTPRedirect('login?message={}', 'You have been logged out')
 
     @unrestricted
-    def reset(self, message='', email=None):
+    def reset(self, session, message='', email=None):
         if email is not None:
-            account = AdminAccount.objects.filter(email__iexact=email)
-            if not account:
+            try:
+                account = session.get_account_by_email(email)
+            except NoResultFound:
                 message = 'No account exists for email address {!r}'.format(email)
             else:
-                account = account[0]
                 password = genpasswd()
                 if account.password_reset:
-                    account.password_reset.delete()
-                PasswordReset.objects.create(account=account, hashed=bcrypt.hashpw(password, bcrypt.gensalt()))
+                    session.delete(account.password_reset)
+                session.add(PasswordReset(account=account, hashed=bcrypt.hashpw(password, bcrypt.gensalt())))
                 body = render('accounts/reset_email.txt', {
                     'name': account.attendee.full_name,
                     'password':  password
@@ -103,13 +103,13 @@ class Root:
         }
 
     @unrestricted
-    def change_password(self, message='', old_password=None, new_password=None, csrf_token=None):
+    def change_password(self, session, message='', old_password=None, new_password=None, csrf_token=None):
         if not cherrypy.session.get('account_id'):
             raise HTTPRedirect('login?message={}', 'You are not logged in')
 
         if old_password is not None:
             new_password = new_password.strip()
-            account = AdminAccount.get(cherrypy.session['account_id'])
+            account = session.admin_account(cherrypy.session['account_id'])
             if not new_password:
                 message = 'New password is required'
             elif not valid_password(old_password, account):
@@ -117,7 +117,6 @@ class Root:
             else:
                 check_csrf(csrf_token)
                 account.hashed = bcrypt.hashpw(new_password, bcrypt.gensalt())
-                account.save()
                 raise HTTPRedirect('homepage?message={}', 'Your password has been updated')
 
         return {'message': message}

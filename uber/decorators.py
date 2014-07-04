@@ -13,6 +13,10 @@ def check_if_can_reg(func):
             return func(*args,**kwargs)
     return with_check
 
+def _get_innermost(func):
+    return _get_innermost(func.__wrapped__) if hasattr(func, '__wrapped__') else func
+
+
 def site_mappable(func):
     func.site_mappable = True
     return func
@@ -27,20 +31,6 @@ def cached_property(func):
             setattr(self, pname, func(self, *args, **kwargs))
         return getattr(self, pname)
     return caching
-
-
-def show_queries(func):
-    @wraps(func)
-    def queries(self, *args, **kwargs):
-        connection.queries[:] = []
-        stripped = [arg for arg in args if arg != 'querylog']
-        try:
-            return func(self, *stripped, **kwargs)
-        finally:
-            if 'querylog' in args:
-                cherrypy.response.headers['Content-type'] = 'text/plain'
-                return pformat(connection.queries)
-    return queries
 
 
 def csrf_protected(func):
@@ -99,13 +89,32 @@ def credit_card(func):
     return charge
 
 
+def sessionized(func):
+    @wraps(func)
+    def with_session(*args, **kwargs):
+        innermost = _get_innermost(func)
+        print(innermost.__name__, inspect.getfullargspec(innermost).args)
+        if 'session' not in inspect.getfullargspec(innermost).args:
+            return func(*args, **kwargs)
+        else:
+            with Session() as session:
+                try:
+                    retval = func(*args, session=session, **kwargs)
+                    session.expunge_all()
+                    return retval
+                except HTTPRedirect:
+                    session.commit()
+                    raise
+    return with_session
+
+
 def renderable_data(data = None):
     data = data or {}
-    data.update({m.__name__: m for m in all_models()})
+    data.update({m.__name__: m for m in Session.all_models()})
     data.update({k: v for k,v in constants.__dict__.items() if re.match('^[_A-Z0-9]*$', k)})
     data.update({k: getattr(state, k) for k in dir(state) if re.match('^[_A-Z0-9]*$', k)})
     data.update({
-        'now':   datetime.now(),
+        'now':   datetime.now(EVENT_TIMEZONE),
         'PAGE':  cherrypy.request.path_info.split('/')[-1]
     })
     try:
@@ -217,7 +226,7 @@ class all_renderable:
         for name,func in klass.__dict__.items():
             if hasattr(func, '__call__'):
                 func.restricted = getattr(func, 'restricted', self.needs_access)
-                new_func = show_queries(restricted(renderable(func)))
+                new_func = sessionized(restricted(renderable(func)))
                 new_func.exposed = True
                 new_func._orig = func
                 setattr(klass, name, new_func)

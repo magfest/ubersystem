@@ -12,10 +12,6 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
         return quote(s) if isinstance(s, str) else str(s)
 
 
-def listify(x):
-    return list(x) if isinstance(x, (list, tuple, set, frozenset)) else [x]
-
-
 def comma_and(xs):
     if len(xs) > 1:
         xs[-1] = 'and ' + xs[-1]
@@ -241,11 +237,6 @@ def search(text, **filters):
             q |= Q(**{attr + '__icontains': text})
         return attendees.filter(q)
 
-
-stopped = threading.Event()
-cherrypy.engine.subscribe('start', stopped.clear)
-cherrypy.engine.subscribe('stop', stopped.set, priority=98)
-
 def dictfetchall(cursor):
     "Returns all rows from a cursor as a dict"
     desc = cursor.description
@@ -253,42 +244,3 @@ def dictfetchall(cursor):
         dict(zip([col[0] for col in desc], row))
         for row in cursor.fetchall()
     ]
-
-class DaemonTask:
-    def __init__(self, func, name='DaemonTask', interval=300, threads=1):
-        self.threads = []
-        self.name, self.func, self.interval, self.thread_count = name, func, interval, threads
-        cherrypy.engine.subscribe('start', self.start)
-        cherrypy.engine.subscribe('stop', self.stop, priority=99)
-
-    @property
-    def running(self):
-        return any(t.is_alive() for t in self.threads)
-
-    def start(self):
-        assert not self.threads, '{} was already started and has not yet stopped'.format(self.name)
-        for i in range(self.thread_count):
-            t = Thread(target = self.func, name = self.name)
-            t.daemon = True
-            t.start()
-            self.threads.append(t)
-
-    def stop(self):
-        for i in range(20):
-            if self.running:
-                sleep(0.1)
-            else:
-                break
-        else:
-            log.warn('{} is still running, so it will just be killed when the Python interpreter exits', self.name)
-        del self.threads[:]
-
-    def run(self):
-        while not stopped.is_set():
-            try:
-                self.func()
-            except:
-                log.warning('ignoring unexpected error in {}', self.name, exc_info=True)
-
-            if self.interval:
-                stopped.wait(self.interval)

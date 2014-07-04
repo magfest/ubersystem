@@ -1,7 +1,6 @@
 Django==1.6.1
 psycopg2==2.5.2
 py3k-bcrypt==0.3
-logging_unterpolation==0.2.0
 stripe==1.11.0
-CherryPy==3.2.4
-configobj==5.0.0
+pytz==2014.4
+SQLAlchemy==0.8.5

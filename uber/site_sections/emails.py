@@ -100,12 +100,12 @@ class SeasonSupporterReminder(Reminder):
                                 filter = lambda a: a.amount_extra >= SEASON_LEVEL and before(event['deadline']),
                                 extra_data = {'event': event})
 
-before = lambda dt: bool(dt) and datetime.now() < dt
-days_after = lambda days, dt: bool(dt) and (datetime.now() > dt + timedelta(days=days))
+before = lambda dt: bool(dt) and datetime.now(EVENT_TIMEZONE) < dt
+days_after = lambda days, dt: bool(dt) and (datetime.now(EVENT_TIMEZONE) > dt + timedelta(days=days))
 def days_before(days, dt, until=None):
     if dt:
         until = (dt - timedelta(days=until)) if until else dt
-        return dt - timedelta(days=days) < datetime.now() < until
+        return dt - timedelta(days=days) < datetime.now(EVENT_TIMEZONE) < until
 
 
 
@@ -121,7 +121,7 @@ Reminder(Attendee, EVENT_NAME +' payment received', 'attendee_confirmation.html'
          category='attendee_registration_confirmation')
 
 Reminder(Attendee, EVENT_NAME +' group registration confirmed', 'attendee_confirmation.html',
-         lambda a: a.group and a != a.group.leader and a.registered > datetime(2013, 11, 11),
+         lambda a: a.group and a != a.group.leader,
          category='attendee_registration_confirmation')
 
 Reminder(Group, EVENT_NAME +' group payment received', 'group_confirmation.html',
@@ -129,6 +129,8 @@ Reminder(Group, EVENT_NAME +' group payment received', 'group_confirmation.html'
          category='attendee_registration_confirmation')
 
 
+
+'''
 
 Reminder(Attendee, EVENT_NAME +' extra payment received', 'group_donation.txt',
          lambda a: a.paid == PAID_BY_GROUP and a.amount_extra and a.amount_paid == a.amount_extra)
@@ -294,6 +296,7 @@ DeptHeadReminder(EVENT_NAME +' staffers need to be marked and rated', 'postcon_h
 #for _event in SEASON_EVENTS.values():
 #    SeasonSupporterReminder(_event)
 
+'''
 
 @all_renderable(PEOPLE)
 class Root:

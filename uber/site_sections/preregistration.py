@@ -84,7 +84,7 @@ class Root:
 
         params['id'] = 'None'   # security!
         if edit_id is not None:
-            attendee, group = self._get_unsaved(edit_id, if_not_found = HTTPRedirect('badge_choice?message={}', 'That preregistration has already been finalized'))
+            attendee, group = self._get_unsaved(edit_id, if_not_found=HTTPRedirect('badge_choice?message={}', 'That preregistration has already been finalized'))
             attendee.apply(params, bools=_checkboxes)
             group.apply(params)
             params.setdefault('badges', group.badges)
@@ -426,7 +426,7 @@ class Root:
     def event(self, slug, *, id, register=None):
         attendee = Attendee.get(id)
         event = SEASON_EVENTS[slug]
-        deadline_passed = datetime.now() > event['deadline']
+        deadline_passed = datetime.now(EVENT_TIMEZONE) > event['deadline']
         assert attendee.amount_extra >= SEASON_LEVEL
         if register and not deadline_passed:
             SeasonPassTicket.objects.get_or_create(attendee=attendee, slug=slug)

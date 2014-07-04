@@ -45,11 +45,9 @@ def import_jobs():
             for secret_id in shifts:
                 Shift.objects.get_or_create(job=job, attendee=attendees[secret_id])
 
-def import_everything():
+@entry_point
+def import_uber_test_data():
     import_groups()
     import_attendees()
     import_events()
     import_jobs()
-
-if __name__ == '__main__':
-    import_everything()
