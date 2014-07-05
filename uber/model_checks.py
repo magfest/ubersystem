@@ -75,6 +75,13 @@ def attendee_money(attendee):
         return "What you entered for Amount Paid ({}) wasn't even a number".format(attendee.amount_paid)
 
     try:
+        amount_extra = int(float(attendee.amount_extra or 0))
+        if amount_extra < 0:
+            return 'Amount extra must be a positive integer'
+    except:
+        return 'Invalid amount extra ({})'.format(attendee.amount_extra)
+
+    try:
         amount_refunded = int(float(attendee.amount_refunded))
         if amount_refunded < 0:
             return 'Amount Refunded must be positive'
@@ -100,15 +107,15 @@ def money_amount(money):
 job_required = [('name','Job Name')]
 
 def job_slots(job):
-    if job.slots < job.shift_set.count():
+    if job.slots < len(job.shifts):
         return 'You cannot reduce the number of slots to below the number of staffers currently signed up for this job'
 
 def job_conflicts(job):
-    original_hours = set() if job.id is None else Job.get(job.id).hours
-
-    for shift in job.shift_set.select_related():
-        if job.hours.intersection( shift.attendee.hours - original_hours ):
-            return 'You cannot change this job to this time, because {} is already working a shift then'.format(shift.attendee.full_name)
+    if not job.is_new:
+        original_hours = Job(start_time=job.orig_value_of('start_time'), duration=job.orig_value_of('duration')).hours
+        for shift in job.shifts:
+            if job.hours.intersection(shift.attendee.hours - original_hours):
+                return 'You cannot change this job to this time, because {} is already working a shift then'.format(shift.attendee.full_name)
 
 
 cashformpoints_amount = money_amount

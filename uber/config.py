@@ -29,19 +29,20 @@ for _opt, _val in conf.items():
     if not isinstance(_val, dict):
         globals()[_opt.upper()] = _val
 
+TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S'
 EVENT_TIMEZONE = pytz.timezone(EVENT_TIMEZONE)
 for _opt, _val in conf['dates'].items():
     if not _val:
         _dt = None
     elif ' ' in _val:
-        _dt = datetime.strptime(_val, '%Y-%m-%d %H').replace(tzinfo=EVENT_TIMEZONE)
+        _dt = EVENT_TIMEZONE.localize(datetime.strptime(_val, '%Y-%m-%d %H'))
     else:
-        _dt = datetime.strptime(_val + ' 23:59', '%Y-%m-%d %H:%M').replace(tzinfo=EVENT_TIMEZONE)
+        _dt = EVENT_TIMEZONE.localize(datetime.strptime(_val + ' 23:59', '%Y-%m-%d %H:%M'))
     globals()[_opt.upper()] = _dt
 
 PRICE_BUMPS = {}
 for _opt, _val in conf['badge_prices']['attendee'].items():
-    PRICE_BUMPS[datetime.strptime(_opt, '%Y-%m-%d').replace(tzinfo=EVENT_TIMEZONE)] = _val
+    PRICE_BUMPS[EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d'))] = _val
 
 AT_OR_POST_CON = AT_THE_CON or POST_CON
 PRE_CON = not AT_OR_POST_CON

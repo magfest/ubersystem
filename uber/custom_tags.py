@@ -11,7 +11,7 @@ def timestamp(dt):
 
 @register.filter
 def jsonize(x):
-    return SafeString(json.dumps(x))
+    return SafeString(json.dumps(x, cls=serializer))
 
 @register.filter
 def subtract(x, y):
@@ -125,9 +125,11 @@ class options(template.Node):
                 opt = [opt, opt]
             val, desc = opt
             selected = "selected" if str(val) == str(default) else ''
+            if isinstance(val, datetime):
+                val = val.strftime(TIMESTAMP_FORMAT)
             val  = str(val).replace('"',  '&quot;').replace('\n', '')
             desc = str(desc).replace('"', '&quot;').replace('\n', '')
-            results.append("""<option value="%s" %s>%s</option>""" % (val, selected, desc))
+            results.append('<option value="{}" {}>{}</option>'.format(val, selected, desc))
         return '\n'.join(results)
 
 @tag
@@ -425,7 +427,7 @@ class Notice(template.Node):
     def notice(self, label, takedown, discount=False):
         discount = conf['badge_prices']['group_discount'] if discount else 0
         for day, price in sorted(PRICE_BUMPS.items()):
-            if datetime.now(EVENT_TIMEZONE) < day:
+            if localized_now() < day:
                 return 'Price goes up to ${} at 11:59pm EST on {}'.format(price - discount, (day - timedelta(days=1)).strftime('%A, %b %e'))
         else:
             return '{} closes at 11:59pm EST on {}'.format(label, takedown.strftime('%A, %b %e'))

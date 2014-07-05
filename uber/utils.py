@@ -12,6 +12,10 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
         return quote(s) if isinstance(s, str) else str(s)
 
 
+def localized_now():
+    return EVENT_TIMEZONE.localize(datetime.now())
+
+
 def comma_and(xs):
     if len(xs) > 1:
         xs[-1] = 'and ' + xs[-1]

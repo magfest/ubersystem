@@ -110,7 +110,8 @@ class MagModel:
 
     @suffix_property
     def _ints(self, name, val):
-        return [int(i) for i in str(val).split(',')] if val else []
+        choices = dict(self.get_field(name).type.choices)
+        return [int(i) for i in str(val).split(',') if int(i) in choices] if val else []
 
     @suffix_property
     def _label(self, name, val):
@@ -121,14 +122,14 @@ class MagModel:
         return val.astimezone(EVENT_TIMEZONE)
 
     @suffix_property
-    def _display(self, name, val):
+    def _labels(self, name, val):
         ints = getattr(self, name + '_ints')
         labels = dict(self.get_field(name).type.choices)
-        return ' / '.join(sorted(labels[i] for i in ints))
+        return sorted(labels[i] for i in ints)
 
     def __getattr__(self, name):
         suffixed = suffix_property.check(self, name)
-        if suffixed:
+        if suffixed is not None:
             return suffixed
 
         try:
@@ -142,7 +143,7 @@ class MagModel:
 
         raise AttributeError(self.__class__.__name__ + '.' + name)
 
-    # NOTE: if we used from_dict() to implement this it would probably end up being simpler
+    # NOTE: if we used from_dict() to implement this it might end up being simpler
     def apply(self, params, *, bools=(), checkgroups=(), restricted=True, ignore_csrf=True):
         for column in self.__table__.columns:
             if (not restricted or column.name in self.unrestricted) and column.name in params and column.name != 'id':
@@ -159,7 +160,7 @@ class MagModel:
                     elif isinstance(column.type, (Choice, Integer)):
                         value = int(float(value))
                     elif isinstance(column.type, UTCDateTime):
-                        value = datetime.strptime(value, '%Y-%m-%d %H:%M:%S').replace(tzinfo=EVENT_TIMEZONE)
+                        value = EVENT_TIMEZONE.localize(datetime.strptime(value, TIMESTAMP_FORMAT))
                 except:
                     pass
 
@@ -513,7 +514,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def badge_cost(self):
-        registered = self.registered or datetime.now(EVENT_TIMEZONE)
+        registered = self.registered or localized_now()
         if self.paid in [PAID_BY_GROUP, NEED_NOT_PAY]:
             return 0
         elif self.overridden_price is not None:
@@ -676,7 +677,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def possible_opts(self):
         return [(job.id, '(%s) [%s] %s' % (hour_day_format(job.start_time), job.location_label, job.name))
-                for job in self.possible if datetime.now(EVENT_TIMEZONE) < job.start_time]
+                for job in self.possible if localized_now() < job.start_time]
 
     @property
     def possible_and_current(self):
@@ -911,6 +912,10 @@ class Shift(MagModel):
     def name(self):
         return "{self.attendee.full_name}'s {self.job.name!r} shift".format(self=self)
 
+    @staticmethod
+    def dump(shifts):
+        return {shift.id: shift.to_dict() for shift in shifts}
+
 
 
 class MPointsForCash(MagModel):
@@ -1112,8 +1117,7 @@ class Session(SessionManager):
             return self.attendee(cherrypy.session['staffer_id'])
 
         def get_account_by_email(self, email):
-            return self.query(AdminAccount).join(Attendee) \
-                       .filter(func.lower(Attendee.email) == func.lower(email)).one()
+            return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
 
         def lookup_attendee(self, full_name, email, zip_code):
             words = full_name.split()
@@ -1236,13 +1240,13 @@ class Session(SessionManager):
                     session.commit()
 
         def everything(self, location=None):
-            location = [Job.location == location] if location else []
+            location_filter = [Job.location == location] if location else []
             jobs = self.query(Job) \
-                       .filter(*location) \
+                       .filter(*location_filter) \
                        .options(joinedload(Job.shifts)) \
                        .order_by(Job.start_time, Job.duration, Job.name).all()
             shifts = self.query(Shift) \
-                         .filter(*location) \
+                         .filter(*location_filter) \
                          .options(joinedload(Shift.job), joinedload(Shift.attendee)) \
                          .join(Shift.job).order_by(Job.start_time).all()
             attendees = [a for a in self.query(Attendee)

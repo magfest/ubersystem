@@ -51,7 +51,7 @@ def ajax(func):
         cherrypy.response.headers['Content-Type'] = 'application/json'
         assert cherrypy.request.method == 'POST', 'POST required'
         check_csrf(kwargs.pop('csrf_token', None))
-        return json.dumps(func(*args, **kwargs)).encode('utf-8')
+        return json.dumps(func(*args, **kwargs), cls=serializer).encode('utf-8')
     return returns_json
 
 
@@ -69,7 +69,7 @@ def csv_file(func):
 def check_shutdown(func):
     @wraps(func)
     def with_check(self, *args, **kwargs):
-        if UBER_STUT_DOWN:
+        if UBER_SHUT_DOWN:
             raise HTTPRedirect('index?message={}', 'The page you requested is only available pre-event.')
         else:
             return func(self, *args, **kwargs)
@@ -117,7 +117,7 @@ def renderable_data(data = None):
     data.update({k: v for k,v in constants.__dict__.items() if re.match('^[_A-Z0-9]*$', k)})
     data.update({k: getattr(state, k) for k in dir(state) if re.match('^[_A-Z0-9]*$', k)})
     data.update({
-        'now':   datetime.now(EVENT_TIMEZONE),
+        'now':   localized_now(),
         'PAGE':  cherrypy.request.path_info.split('/')[-1]
     })
     try:

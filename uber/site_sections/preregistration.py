@@ -404,7 +404,7 @@ class Root:
     def event(self, slug, *, id, register=None):
         attendee = Attendee.get(id)
         event = SEASON_EVENTS[slug]
-        deadline_passed = datetime.now(EVENT_TIMEZONE) > event['deadline']
+        deadline_passed = localized_now() > event['deadline']
         assert attendee.amount_extra >= SEASON_LEVEL
         if register and not deadline_passed:
             SeasonPassTicket.objects.get_or_create(attendee=attendee, slug=slug)
@@ -414,7 +414,7 @@ class Root:
             'event': event,
             'attendee': attendee,
             'deadline_passed': deadline_passed,
-            'registered': slug in [spt.slug for spt in attendee.seasonpassticket_set.all()]
+            'registered': slug in [spt.slug for spt in attendee.season_pass_tickets]
         }
 
     if PREREG_CLOSED:

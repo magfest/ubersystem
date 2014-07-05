@@ -18,7 +18,7 @@ when they know what kind of food restrictions we all have.
 
 <form method="post" action="food_restrictions">
     {% csrf_token %}
-    <input type="hidden" name="id" value="{{ fr.id }}" />
+    <input type="hidden" name="id" value="{{ fr.db_id }}" />
     
     {% checkgroup fr.standard %}
     

@@ -20,7 +20,7 @@ def check_everything(attendee):
 
 @all_renderable(PEOPLE)
 class Root:
-    def index(self, session, message='', page='1', search_text='', uploaded_id='', order='last_name'):
+    def index(self, session, message='', page='1', search_text='', uploaded_id='', order='last_first'):
         total_count = session.query(Attendee).count()
         count = 0
         if search_text:
@@ -30,9 +30,7 @@ class Root:
             attendees = session.query(Attendee).options(joinedload(Attendee.group))
             count = total_count
 
-        # TODO: order the empty strings last, which I think is like nullsfirst() or something
-        attendees = attendees.order([order, 'first_name'] if order.endswith('last_name') else [order])
-
+        attendees = attendees.order(order)
         if search_text and count == total_count:
             message = 'No matches found'
         elif search_text and count == 1 and (not AT_THE_CON or search_text.isdigit()):
@@ -532,8 +530,8 @@ class Root:
 
     def reg_take_report(self, session, **params):
         if params:
-            start = datetime.strptime('{startday} {starthour}:{startminute}'.format(**params), '%Y-%m-%d %H:%M').replace(tzinfo=EVENT_TIMEZONE)
-            end = datetime.strptime('{endday} {endhour}:{endminute}'.format(**params), '%Y-%m-%d %H:%M').replace(tzinfo=EVENT_TIMEZONE)
+            start = EVENT_TIMEZONE.localize(datetime.strptime('{startday} {starthour}:{startminute}'.format(**params), '%Y-%m-%d %H:%M'))
+            end = EVENT_TIMEZONE.localize(datetime.strptime('{endday} {endhour}:{endminute}'.format(**params), '%Y-%m-%d %H:%M'))
             sales = session.query(Sale).filter(Sale.reg_station == params['reg_station'],
                                                Sale.when > start, Sale.when <= end).all()
             attendees = session.query(Attendee).filter(Attendee.reg_station == params['reg_station'], Attendee.amount_paid > 0,
@@ -545,9 +543,9 @@ class Root:
             params['total_credit'] = sum(a.amount_paid for a in attendees if a.payment_method in [STRIPE, SQUARE, MANUAL]) \
                                    + sum(s.cash for s in sales if s.payment_method == CREDIT)
         else:
-            params['endday'] = datetime.now(EVENT_TIMEZONE).strftime('%Y-%m-%d')
-            params['endhour'] = datetime.now(EVENT_TIMEZONE).strftime('%H')
-            params['endminute'] = datetime.now(EVENT_TIMEZONE).strftime('%M')
+            params['endday'] = localized_now().strftime('%Y-%m-%d')
+            params['endhour'] = localized_now().strftime('%H')
+            params['endminute'] = localized_now().strftime('%M')
 
         stations = sorted(filter(bool, Attendee.objects.values_list('reg_station', flat=True).distinct()))
         params['reg_stations'] = stations
@@ -563,12 +561,12 @@ class Root:
         raise HTTPRedirect('new?message={}', 'Attendee un-checked-in')
 
     # TODO: this AT_THE_CON check is kind of hacky, we should probably roll that into the possible_opts property
-    #       we also should un-special-case MOPS into something more configurable
+    # TODO: un-special-case MOPS into something more configurable
     def shifts(self, session, id, shift_id='', message=''):
         jobs, shifts, attendees = session.everything()
         [attendee] = [a for a in attendees if a.id == id]
         if AT_THE_CON:
-            attendee._possible = [job for job in jobs if datetime.now(EVENT_TIMEZONE) < job.start_time
+            attendee._possible = [job for job in jobs if localized_now() < job.start_time
                                                      and job.slots > len(job.shifts)
                                                      and (not job.restricted or attendee.trusted)
                                                      and job.location != MOPS]
@@ -576,7 +574,8 @@ class Root:
             'message':  message,
             'shift_id': shift_id,
             'attendee': attendee,
-            'possible': attendee.possible_opts
+            'possible': attendee.possible_opts,
+            'shifts':   Shift.dump(attendee.shifts)
         }
 
     @csrf_protected

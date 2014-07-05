@@ -333,3 +333,50 @@ class TestBadgeAdjustments:
         a = Attendee(badge_type=SUPPORTER_BADGE, paid=HAS_PAID, badge_num=1)
         a._badge_adjustments()
         assert a.badge_type == SUPPORTER_BADGE and a.badge_num == 1
+
+class TestLookupAttendee:
+    @pytest.fixture(autouse=True)
+    def searchable(self):
+        with Session() as session:
+            attendee = Attendee(
+                placeholder=True,
+                first_name='Searchable',
+                last_name='Attendee',
+                email='searchable@example.com',
+                zip_code='12345'
+            )
+            session.add(attendee)
+            session.add(Attendee(
+                placeholder=True,
+                first_name='Two First',
+                last_name='Names',
+                email='searchable@example.com',
+                zip_code='12345'
+            ))
+            session.add(Attendee(
+                placeholder=True,
+                first_name='Two',
+                last_name='Last Names',
+                email='searchable@example.com',
+                zip_code='12345'
+            ))
+            return attendee.id
+
+    def test_search_not_found(self):
+        with Session() as session:
+            pytest.raises(ValueError, session.lookup_attendee, 'Searchable Attendee', 'searchable@example.com', 'xxxxx')
+            pytest.raises(ValueError, session.lookup_attendee, 'XXX XXX', 'searchable@example.com', '12345')
+            pytest.raises(ValueError, session.lookup_attendee, 'Searchable Attendee', 'xxx', '12345')
+
+    def test_search_basic(self, searchable):
+        with Session() as session:
+            assert str(searchable) == session.lookup_attendee('Searchable Attendee', 'searchable@example.com', '12345').id
+
+    def test_search_case_insensitive(self, searchable):
+        with Session() as session:
+            assert str(searchable) == session.lookup_attendee('searchablE attendeE', 'seArchAble@exAmple.com', '12345').id
+
+    def test_search_multi_word_names(self):
+        with Session() as session:
+            assert session.lookup_attendee('Two First Names', 'searchable@example.com', '12345')
+            assert session.lookup_attendee('Two Last Names', 'searchable@example.com', '12345')

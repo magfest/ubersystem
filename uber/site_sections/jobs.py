@@ -1,12 +1,5 @@
 from uber.common import *
 
-def weighted_hours(staffer, location):
-    shifts = Shift.objects.filter(attendee = staffer).select_related()
-    return sum([shift.job.real_duration * shift.job.weight
-                for shift in shifts
-                if shift.job.location == int(location)],
-               0.0)
-
 @all_renderable(PEOPLE)
 class Root:
     def index(self, session, location=None):
@@ -19,7 +12,7 @@ class Root:
         jobs, shifts, attendees = session.everything(location)
         by_start = defaultdict(list)
         for job in jobs:
-            by_start[job.start_time].append(job)
+            by_start[job.start_time_local].append(job)
         times = [EPOCH + timedelta(hours=i) for i in range(CON_LENGTH)]
         return {
             'location': location,
@@ -35,7 +28,7 @@ class Root:
         return {
             'location': location,
             'jobs':     jobs,
-            #'shifts':   Shift.serialize(shifts)
+            'shifts':   Shift.dump(shifts)
         }
 
     def everywhere(self, session, message='', show_restricted=''):
@@ -43,11 +36,11 @@ class Root:
         return {
             'message':   message,
             'attendees': attendees,
-            #'shifts':    Shift.serialize(shifts),
+            'shifts':    Shift.dump(shifts),
             'show_restricted': show_restricted,
             'jobs':      [job for job in jobs if (show_restricted or not job.restricted)
                                              and job.location != MOPS  # TODO: make this configurable
-                                             and datetime.now(EVENT_TIMEZONE) < job.start_time + timedelta(hours = job.duration)]
+                                             and localized_now() < job.start_time + timedelta(hours = job.duration)]
         }
 
     def staffers(self, session, location=None):
@@ -151,12 +144,12 @@ class Root:
         try:
             shift = session.shift(id)
             shift.worked = int(worked)
+            session.commit()
             return shift.worked_label
         except:
             return 'an unexpected error occured'
 
-    # TODO: is this correct?  raising a redirect on an @ajax call seems wrong
-    @ajax
+    @csrf_protected
     def undo_worked(self, session, id):
         shift = session.shift(id)
         shift.worked = SHIFT_UNMARKED
@@ -166,6 +159,7 @@ class Root:
     def rate(self, session, shift_id, rating, comment = ''):
         shift = session.shift(shift_id)
         shift.rating, shift.comment = int(rating), comment
+        session.commit()
         return {}
 
     def summary(self):

@@ -62,11 +62,12 @@ class Root:
 
         grouped = {frozenset(group) for group in lookup.values()}
         out.writerow(['Name','Email','Phone','Nights','Departments','Roomate Requests','Roomate Anti-Requests','Special Needs'])
+        # TODO: make sure to do the equivalent of a backwards and forwards select-related
         for room in Room.objects.order_by('department'):
             for i in range(3):
                 out.writerow([])
             out.writerow([room.department_label + ' room created by department heads for ' + room.nights_display + (' ({})'.format(room.notes) if room.notes else '')])
-            for ra in room.roomassignment_set.select_related():
+            for ra in room.room_assignments:
                 writerow(ra.attendee, ra.attendee.hotel_requests)
         for group in sorted(grouped, key=len, reverse=True):
             for i in range(3):
@@ -81,7 +82,7 @@ class Root:
             return json.dumps({
                 'message': 'Hotel rooms are currently locked in, email stops@magfest.org if you need a last-minute adjustment',
                 'rooms': [room.to_dict() for room in Room.objects.filter(department=department)]
-            }, indent=4)
+            }, indent=4, cls=serializer)
         else:
             return {
                 'department': department,

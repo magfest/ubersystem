@@ -26,7 +26,7 @@ def get_badge_type(badge_num):
 
 
 def detect_duplicates():
-    subject = 'Duplicates Report for ' + datetime.now(EVENT_TIMEZONE).strftime('%Y-%m-%d')
+    subject = 'Duplicates Report for ' + localized_now().strftime('%Y-%m-%d')
     if not Email.objects.filter(subject = subject):
         grouped = defaultdict(list)
         for a in Attendee.objects.exclude(first_name = '').order_by('registered').select_related('group'):
@@ -56,10 +56,10 @@ def check_placeholders():
     }
     for dest,query in emails.items():
         email = [s for s in dest.split() if '@' in s][0].strip('<>').split('@')[0].title()
-        subject = email + ' Placeholder Badge Report for ' + datetime.now(EVENT_TIMEZONE).strftime('%Y-%m-%d')
+        subject = email + ' Placeholder Badge Report for ' + localized_now().strftime('%Y-%m-%d')
         if not Email.objects.filter(subject = subject):
             placeholders = list(Attendee.objects.filter(query, placeholder = True,
-                                                        registered__lt = datetime.now(EVENT_TIMEZONE) - timedelta(days = 30))
+                                                        registered__lt = localized_now() - timedelta(days = 30))
                                         .order_by('registered','first_name','last_name')
                                         .select_related('group'))
             if placeholders:
@@ -69,7 +69,7 @@ def check_placeholders():
 
 def check_unassigned():
     unassigned = list(Attendee.objects.filter(staffing=True, assigned_depts='').order_by('first_name', 'last_name'))
-    subject = 'Unassigned Volunteer Report for ' + datetime.now(EVENT_TIMEZONE).strftime('%Y-%m-%d')
+    subject = 'Unassigned Volunteer Report for ' + localized_now().strftime('%Y-%m-%d')
     if unassigned and not Email.objects.filter(subject = subject):
         body = render('emails/unassigned.html', {'unassigned': unassigned})
         send_email(STAFF_EMAIL, STAFF_EMAIL, subject, body, format='html', model='n/a')
