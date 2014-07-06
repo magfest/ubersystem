@@ -1,6 +1,7 @@
 from uber.common import *
 
 
+# TODO: use _get_innermost() to replace _orig since there's no point to having both
 def _get_innermost(func):
     return _get_innermost(func.__wrapped__) if hasattr(func, '__wrapped__') else func
 
@@ -57,11 +58,11 @@ def ajax(func):
 
 def csv_file(func):
     @wraps(func)
-    def csvout(self):
+    def csvout(self, session):
         cherrypy.response.headers['Content-Type'] = 'application/csv'
         cherrypy.response.headers['Content-Disposition'] = 'attachment; filename=' + func.__name__ + '.csv'
         writer = StringIO()
-        func(self, csv.writer(writer))
+        func(self, csv.writer(writer), session)
         return writer.getvalue().encode('utf-8')
     return csvout
 
@@ -124,11 +125,11 @@ def renderable_data(data = None):
         data['CSRF_TOKEN'] = cherrypy.session['csrf_token']
     except:
         pass
-    
+
     access = AdminAccount.access_set()
     for acctype in ['ACCOUNTS','PEOPLE','STUFF','MONEY','CHALLENGES','CHECKINS']:
         data['HAS_' + acctype + '_ACCESS'] = getattr(constants, acctype) in access
-    
+
     return data
 
 def render(template, data = None):
@@ -142,7 +143,7 @@ def render(template, data = None):
 def ng_render(fname, **kwargs):
     class AngularTemplate(string.Template):
         delimiter = '%__'
-    
+
     with open(os.path.join(MODULE_ROOT, 'templates', fname)) as f:
         data = {k: (str(v).lower() if v in [True, False] else v) for k, v in renderable_data(kwargs).items()}
         return AngularTemplate(f.read()).substitute(**data)
@@ -159,7 +160,7 @@ def ng_renderable(func):
     def with_rendering(*args, **kwargs):
         result = func(*args, **kwargs)
         return result if isinstance(result, str) else ng_render(_get_template_filename(func), **result)
-    
+
     spec = inspect.getfullargspec(func)
     if spec.args == ['self'] and not spec.varargs and not spec.varkw:
         return site_mappable(with_rendering)
@@ -187,10 +188,10 @@ def restricted(func):
             if func.restricted == (SIGNUPS,):
                 if not cherrypy.session.get('staffer_id'):
                     raise HTTPRedirect('../signups/login?message=You+are+not+logged+in')
-            
+
             elif cherrypy.session.get('account_id') is None:
                 raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in')
-            
+
             else:
                 if not set(func.restricted).intersection(AdminAccount.access_set()):
                     if len(func.restricted) == 1:
@@ -198,7 +199,7 @@ def restricted(func):
                     else:
                         return ('You need at least one of the following access levels to view this page: '
                             + ', '.join(dict(ACCESS_OPTS)[r] for r in func.restricted))
-        
+
         return func(*args, **kwargs)
     return with_restrictions
 
@@ -206,13 +207,13 @@ class all_renderable:
     def __init__(self, *needs_access, angular=False):
         self.angular = angular
         self.needs_access = needs_access
-    
+
     def __call__(self, klass):
         if self.angular:
             def ng(self, template):
                 return ng_render(os.path.join(_get_module_name(klass), 'angular', template))
             klass.ng = ng
-        
+
         for name,func in klass.__dict__.items():
             if hasattr(func, '__call__'):
                 func.restricted = getattr(func, 'restricted', self.needs_access)

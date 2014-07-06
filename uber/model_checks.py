@@ -8,11 +8,13 @@ def adminaccount_misc(account):
         return 'That attendee already has an admin account'
 
 
-event_required = [('name','Event Name')]
+event_required = [('name', 'Event Name')]
 
-def event_overlaps(event, other_event_id = None):
+def event_overlaps(event, other_event_id=None):
     existing = {}
-    for e in Event.objects.filter(location = event.location).exclude(id = event.id).exclude(id = other_event_id):
+    for e in event.session.query(Event).filter(Event.location == event.location,
+                                               Event.id != event.id,
+                                               Event.id != other_event_id).all():
         for hh in e.half_hours:
             existing[hh] = e.name
 

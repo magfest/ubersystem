@@ -36,7 +36,7 @@ class Root:
     # TODO: add joinedload options here for efficiency
     def mpoints(self, session):
         groups = defaultdict(list)
-        for mpu in session.query(CashForMPoints).all():
+        for mpu in session.query(MPointsForCash).all():
             groups[mpu.attendee and mpu.attendee.group].append(mpu)
         all = [(sum(mpu.amount for mpu in mpus), group, mpus)
                for group,mpus in groups.items()]

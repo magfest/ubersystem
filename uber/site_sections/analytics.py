@@ -24,10 +24,11 @@ import copy
 # (yes, its hardcoded and not from the DB).
 from uber.graph_data import *
 
-def generate_attendance_by_day_graph_data(last_day_of_magfest):
+def generate_attendance_by_day_graph_data(session):
+    last_day_of_magfest = ESCHATON.strftime('%Y-%m-%d')
 
     # doing a raw query instead of models because we're doing funky stuff.
-    cursor = connection.cursor()
+    cursor = session.connection()
 
     # this is an EXTREMELY COMPLEX STORED PROCEDURE in mysql, you have to view
     # it in mysql query browser or something similar to keep your sanity.
@@ -47,78 +48,49 @@ def generate_attendance_by_day_graph_data(last_day_of_magfest):
         attendance_so_far += day_data[2]
         results.append([day_data[0], day_data[1], day_data[2], attendance_so_far])
 
-    #print results
-
     return results
 
 
 @all_renderable(PEOPLE, STATS)
 class Root:
     def index(self):
-        return {
-            "test": "test"
-        }
+        return {'test': 'test'}
 
-    def analytics_graph_by_attendance(self):
-        try:
-            starting_magfest_year = 6
-            ending_magfest_year = 12
+    def analytics_graph_by_attendance(self, session):
+        starting_magfest_year = 6
+        ending_magfest_year = 12
 
-            print("starting query")
+        # for previous years, use cached data
+        raw_data = copy.deepcopy(raw_data_mag6_thru_mag11)
 
-            # if the previous databases worked, do this:
-            # ------------
-            # collect raw data for each year
-            #raw_data = []
-            #for which_magfest in range(
-            #    starting_magfest_year, ending_magfest_year + 1):
-            #    raw_data.append(
-            #        generate_attendance_by_day_graph_data(which_magfest)
-            #    )
-            # -------------
+        # for this year, run the query
+        raw_data.append(generate_attendance_by_day_graph_data(session))
 
-            # for previous years, use cached data
-            raw_data = copy.deepcopy(raw_data_mag6_thru_mag11)
-            
-            # for this year, run the query
-            raw_data.append(generate_attendance_by_day_graph_data('2014-01-05'))
+        # make it be in a sane format that we can deal with in google charts
+        graph_data = [['Date', 'Magfest 6', 'Magfest 7', 'Magfest 8', 'Magfest 9', 'Magfest 10', 'Magfest 11', 'Magfest 12']]
 
-            print("done query, processing data")
+        newest_magfest = ending_magfest_year - starting_magfest_year
 
-            # make it be in a sane format that we can deal with in google charts
-            graph_data = []
-            graph_data.append(["Date", "Magfest 6",
-                "Magfest 7", "Magfest 8", "Magfest 9", "Magfest 10", "Magfest 11", "Magfest 12"])
+        # combine all the different magfest year data into one big array
+        for day in range(0, 365 + 1):
+            row = []
 
-            newest_magfest = ending_magfest_year - starting_magfest_year
+            # only need the date from the newest magfest. ignore the others
+            date = raw_data[newest_magfest][day][1]
 
-            # combine all the different magfest year data into one big array
-            for day in range(0, 365 + 1):
-                row = []
+            # magfestubersystem.com likes this one better
+            row.append(date.strftime("%Y-%m-%d"))
 
-                # only need the date from the newest magfest. ignore the others
-                date = raw_data[newest_magfest][day][1]
+            # courtwright.org likes this one better
+            #row.append(date)
 
-                # magfestubersystem.com likes this one better
-                row.append(date.strftime("%Y-%m-%d"))
+            for magfest_data in raw_data:
+                # should be the same day offset
+                assert magfest_data[day][0] == day
 
-                # courtwright.org likes this one better
-                #row.append(date)
+                total_attendance_that_day = magfest_data[day][3]
+                row.append(total_attendance_that_day)
 
-                for magfest_data in raw_data:
-                    # should be the same day offset
-                    assert magfest_data[day][0] == day
+            graph_data.append(row)
 
-                    total_attendance_that_day = magfest_data[day][3]
-                    row.append(total_attendance_that_day)
-
-                graph_data.append(row)
-
-            print("done processing, rendering...")
-
-            return {
-                "attendance_data": graph_data
-            }
-        except:
-            connection.close()
-            raise
+        return {'attendance_data': graph_data}

@@ -19,6 +19,10 @@ def Column(*args, **kwargs):
         kwargs.setdefault('server_default', str(default))
     return SQLALchemyColumn(*args, **kwargs)
 
+sqlalchemy_relationship = relationship
+def relationship(*args, **kwargs):
+    kwargs.setdefault('load_on_pending', True)
+    return sqlalchemy_relationship(*args, **kwargs)
 
 
 class utcnow(FunctionElement):
@@ -413,7 +417,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     admin_account     = relationship('AdminAccount', backref='attendee', uselist=False)
     hotel_requests    = relationship('HotelRequests', backref='attendee', uselist=False)
     room_assignments  = relationship('RoomAssignment', backref='attendee', uselist=False)
-    assigned_panelist = relationship('AssignedPanelist', backref='attendee', uselist=False)
     food_restrictions = relationship('FoodRestrictions', backref='attendee', uselist=False)
 
     display = 'full_name'
@@ -822,6 +825,7 @@ class FoodRestrictions(MagModel):
 
 class AssignedPanelist(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    attendee    = relationship(Attendee, backref='assigned_panelists')
     event_id    = Column(UUID, ForeignKey('event.id'))
     event       = relationship(Event, backref='assigned_panelists')
 
@@ -1210,13 +1214,9 @@ class Session(SessionManager):
                 return 'That badge number was too high, so the next available badge was assigned instead'
 
         def everyone(self):
-            attendees = session.query(Attendee).options(joinedload(Attendee.group)).all()
-            groups = {g.id: g for g in session.query(Group).all()}
-            for g in groups.values():
-                g._attendees = []
-            for a in session.query(Attendee).filter(Attendee.group_id != None).options(joinedload(Attendee.group)).all():
-                groups[a.group_id]._attendees.append(a)
-            return list(attendees), list(groups.values())
+            attendees = self.query(Attendee).options(joinedload(Attendee.group)).all()
+            groups = self.query(Group).options(joinedload(Group.attendees)).all()
+            return attendees, groups
 
         def staffers(self):
             return self.query(Attendee) \
