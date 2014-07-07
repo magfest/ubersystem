@@ -347,7 +347,7 @@ class Root:
                     attendee.save()
                     message = 'Thanks!  Please queue in the {} line and have your photo ID and {} ready.'
                     if attendee.payment_method == STRIPE:
-                        raise HTTPRedirect('pay?id={}', attendee.secret_id)
+                        raise HTTPRedirect('pay?id={}', attendee.id)
                     elif attendee.payment_method == GROUP:
                         message = 'Please proceed to the preregistration line to pick up your badge.'
                     elif attendee.payment_method == CASH:
@@ -380,7 +380,7 @@ class Root:
             [attendee] = charge.attendees
             message = charge.charge_cc(stripeToken)
             if message:
-                raise HTTPRedirect('pay?id={}&message={}', attendee.secret_id, message)
+                raise HTTPRedirect('pay?id={}&message={}', attendee.id, message)
             else:
                 attendee.paid = HAS_PAID
                 attendee.amount_paid = attendee.total_cost
@@ -663,6 +663,6 @@ class Root:
                 session.add(attendee)
                 attendee.placeholder = True
                 attendee.badge_type = ATTENDEE_BADGE
-                raise HTTPRedirect('../preregistration/confirm?id={}', attendee.secret_id)
+                raise HTTPRedirect('../preregistration/confirm?id={}', attendee.id)
 
         return {'message': message}

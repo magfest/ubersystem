@@ -2,7 +2,7 @@
 
 Thanks again for signing up to volunteer at {{ EVENT_NAME }}!  You're not currently signed up for any shifts, and it's really helpful when our staffers sign up for shifts as far in advance as possible, since that lets us know which times and departments are shorthanded.
 
-Please sign up for shifts at {{ URL_BASE }}/signups/login and if you have trouble logging in, you can verify/update your personal information at {{ URL_BASE }}/preregistration/confirm?id={{ attendee.secret_id }}
+Please sign up for shifts at {{ URL_BASE }}/signups/login and if you have trouble logging in, you can verify/update your personal information at {{ URL_BASE }}/preregistration/confirm?id={{ attendee.id }}
 
 You can add / drop / change your shifts anytime until {{ UBER_TAKEDOWN|datetime }}.
 

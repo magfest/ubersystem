@@ -35,10 +35,10 @@ class Root:
             message = check(group)
             if not message:
                 session.add(group)
-                message = group.assign_badges(params['badges'])
+                message = session.assign_badges(group, params['badges'])
                 if not message:
                     if 'redirect' in params:
-                        raise HTTPRedirect('../preregistration/group_members?id={}', group.secret_id)
+                        raise HTTPRedirect('../preregistration/group_members?id={}', group.id)
                     else:
                         raise HTTPRedirect('form?id={}&message={}', group.id, 'Group info uploaded')
         return {

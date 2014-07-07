@@ -2,6 +2,6 @@
 
 Thanks for pre-registering for {{ EVENT_NAME }}.  Our records indicate that you are under the age of 18, and as such, you will need a signed parental consent waiver. If a parent/guardian will be present at {{ EVENT_NAME }}, then they can sign the consent waiver when you pick up your badge at the registration desk. If a parent/guardian will not be at the event, the waiver may be brought pre-signed, however it MUST be notarized. We will not accept pre-signed waivers that are not notarized. You may find the waiver at {{ CONSENT_FORM_URL }}
 
-If you are actually over 18, you can update your age in our database at {{ URL_BASE }}/preregistration/confirm?id={{ attendee.secret_id  }} before {{ UBER_TAKEDOWN|datetime }}.  Or you can simply ignore this email, since we'll be checking photo IDs at our registration desk.
+If you are actually over 18, you can update your age in our database at {{ URL_BASE }}/preregistration/confirm?id={{ attendee.id  }} before {{ UBER_TAKEDOWN|datetime }}.  Or you can simply ignore this email, since we'll be checking photo IDs at our registration desk.
 
 {{ REGDESK_EMAIL_SIGNATURE }}

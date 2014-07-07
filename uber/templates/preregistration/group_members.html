@@ -55,12 +55,12 @@
                     {% if attendee != group.leader and not attendee.amount_extra %}
                         <form method="post" action="unset_group_member">
                         {% csrf_token %}
-                        <input type="hidden" name="id" value="{{ attendee.secret_id }}" />
+                        <input type="hidden" name="id" value="{{ attendee.id }}" />
                         <input type="submit" value="This person isn't coming" />
                         </form>
                     {% elif attendee.amount_extra %}
                         <form method="get" action="transfer_badge">
-                        <input type="hidden" name="id" value="{{ attendee.secret_id }}" />
+                        <input type="hidden" name="id" value="{{ attendee.id }}" />
                         <b> Kicked in an extra ${{ attendee.amount_extra }}! </b>
                         <input type="submit" value="Transfer Registration" />
                         </form>
@@ -68,7 +68,7 @@
                 {% endif %}
             </td>
         {% else %}
-            <td> <a style="font-size:10pt" href="register_group_member?id={{ attendee.secret_id }}">Register someone for this badge</a>: </td>
+            <td> <a style="font-size:10pt" href="register_group_member?id={{ attendee.id }}">Register someone for this badge</a>: </td>
             <td colspan="3">
                 {{ attendee.badge }}
                 {% if attendee.amount_extra %}
@@ -85,7 +85,7 @@
 {% if group.min_badges_addable and not group.amount_unpaid %}
     <div id="add" style="display:none">
         <form method="get" action="add_group_members">
-        <input type="hidden" name="id" value="{{ group.secret_id }}" />
+        <input type="hidden" name="id" value="{{ group.id }}" />
         Enter a number of group members to add{% if group.min_badges_addable > 1 %} (you cannot add fewer than {{ group.min_badges_addable }} badges to an existing group){% endif %}: <br/>
         <select name="count">{% int_options group.min_badges_addable 10 %}</select>
         <input type="submit" value="Add Members to Group">

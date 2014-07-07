@@ -92,14 +92,15 @@ def underscorize(s):
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s).lower()
 
 
-def send_email(source, dest, subject, body, format = 'text', cc = [], bcc = [], model = None):
+# TODO: make the eli@courtwright.org part configurable
+def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=None):
     to, cc, bcc = map(listify, [dest, cc, bcc])
     if DEV_BOX:
         for xs in [to, cc, bcc]:
             xs[:] = [email for email in xs if email.endswith('mailinator.com') or 'eli@courtwright.org' in email]
 
     if SEND_EMAILS and to:
-        message = EmailMessage(subject = subject, **{'bodyText' if format == 'text' else 'bodyHtml': body})
+        message = EmailMessage(subject=subject, **{'bodyText' if format == 'text' else 'bodyHtml': body})
         AmazonSES(AWS_ACCESS_KEY_ID, AWS_SECRET_KEY).sendEmail(
             source = source,
             toAddresses = to,
@@ -112,24 +113,34 @@ def send_email(source, dest, subject, body, format = 'text', cc = [], bcc = [], 
         log.error('email sending turned off, so unable to send {}', locals())
 
     if model and dest:
-        fk = {'fk_id': 0, 'model': 'n/a'} if model == 'n/a' else {'fk_id': model.id, 'model': model.__class__.__name__}
-        Email.objects.create(subject = subject, dest = ','.join(listify(dest)), body = body, **fk)
+        fk = {'model': 'n/a'} if model == 'n/a' else {'fk_id': model.id, 'model': model.__class__.__name__}
+        with Session() as session:
+            session.add(Email(subject=subject, dest=','.join(listify(dest)), body=body, **fk))
 
 
 class Charge:
     def __init__(self, targets=(), amount=None, description=None):
-        self.targets = [self._sessionize(m) for m in listify(targets)]
+        self.targets = [self.to_sessionized(m) for m in listify(targets)]
         self.amount = amount or self.total_cost
         self.description = description or self.names
 
     @staticmethod
-    def _sessionize(m):
+    def to_sessionized(m):
         if isinstance(m, dict):
             return m
-        elif isinstance(m, MagModel):
-            return m.sessionize()
+        elif isinstance(m, Attendee):
+            return m.to_dict()
+        elif isinstance(m, Group):
+            return m.to_dict(Group.to_dict_default_attrs + ['attendees'])
         else:
             raise AssertionError('{} is not an attendee or group'.format(m))
+
+    @staticmethod
+    def from_sessionized(d):
+        assert d['_model'] in {'Attendee', 'Group'}
+        if d['_model'] == 'Group':
+            d = dict(d, attendees=[Attendee(**a) for a in d.get('attendees', [])])
+        return Session.resolve_model(d['_model'])(**d)
 
     @staticmethod
     def get(payment_id):
@@ -144,7 +155,7 @@ class Charge:
 
     @property
     def models(self):
-        return [MagModel.from_sessionized(d) for d in self.targets]
+        return [self.from_sessionized(d) for d in self.targets]
 
     @property
     def total_cost(self):
@@ -156,7 +167,7 @@ class Charge:
 
     @property
     def names(self):
-        return ', '.join(repr(m).strip('<>') for m in self.models)
+        return ', '.join(getattr(m, 'name', getattr(m, 'full_name', None)) for m in self.models)
 
     @property
     def attendees(self):

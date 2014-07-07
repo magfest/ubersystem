@@ -20,7 +20,7 @@
             To claim your ticket, just click the following button:
             <br/> <br/>
             <form method="post" action="{{ event.slug }}" style="text-align:center">
-            <input type="hidden" name="id" value="{{ attendee.secret_id }}" />
+            <input type="hidden" name="id" value="{{ attendee.id }}" />
             <input type="hidden" name="register" value="true" />
             <input type="submit" value="I'm Definitely Coming!" />
             </form>

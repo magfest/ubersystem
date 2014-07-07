@@ -5,7 +5,7 @@
 
 <form method="post" action="register_group_member">
 {% csrf_token %}
-<input type="hidden" name="id" value="{{ attendee.secret_id }}" />
+<input type="hidden" name="id" value="{{ attendee.id }}" />
 
 <table width="100%" cellspacing="5" cellpadding="5">
 <tr>

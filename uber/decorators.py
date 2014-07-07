@@ -79,11 +79,11 @@ def check_shutdown(func):
 
 def credit_card(func):
     @wraps(func)
-    def charge(self, payment_id, stripeToken, **ignored):
+    def charge(self, session, payment_id, stripeToken, stripeEmail='ignored', **ignored):
         if ignored:
             log.error('received unexpected stripe parameters: {}', ignored)
         try:
-            return func(self, payment_id=payment_id, stripeToken=stripeToken)
+            return func(self, session=session, payment_id=payment_id, stripeToken=stripeToken)
         except HTTPRedirect:
             raise
         except:

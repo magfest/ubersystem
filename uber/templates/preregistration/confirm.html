@@ -28,7 +28,7 @@
 
 <form method="post" action="confirm">
 {% csrf_token %}
-<input type="hidden" name="id" value="{{ attendee.secret_id }}" />
+<input type="hidden" name="id" value="{{ attendee.id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
 
 <table class="form">
@@ -65,7 +65,7 @@
 {% if not attendee.placeholder %}
     {% if attendee.is_transferrable %}
         <form method="GET" action="transfer_badge" style="margin-left:25ex">
-        <input type="hidden" name="id" value="{{ attendee.secret_id }}" />
+        <input type="hidden" name="id" value="{{ attendee.id }}" />
         <input type="submit" value="Transfer my Badge" />
         </form>
     {% endif %}

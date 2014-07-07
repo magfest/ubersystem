@@ -160,7 +160,7 @@
 
 {% if not group.is_new and group.attendees %}
     <hr/>
-    <h3> Badges: &nbsp; <a style="font-size:10pt" href="../preregistration/group_members?id={{ group.secret_id }}">Link for group leader</a> </h3>
+    <h3> Badges: &nbsp; <a style="font-size:10pt" href="../preregistration/group_members?id={{ group.id }}">Link for group leader</a> </h3>
     <table style="width:auto">
     {% for attendee in group.attendees %}
         <tr>

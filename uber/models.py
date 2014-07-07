@@ -69,12 +69,14 @@ class MultiChoice(TypeDecorator):
 
 @declarative_base
 class MagModel:
-    id = Column(UUID, primary_key=True, default=lambda: uuid4())
+    id = Column(UUID, primary_key=True, default=lambda: str(uuid4()))
 
-    unrestricted = ()
+    _unrestricted = ()
     _propertized = ()
 
     def __init__(self, *args, **kwargs):
+        if '_model' in kwargs:
+            assert kwargs.pop('_model') == self.__class__.__name__
         default_constructor(self, *args, **kwargs)
         for attr, col in self.__table__.columns.items():
             if col.default:
@@ -110,7 +112,7 @@ class MagModel:
 
     def orig_value_of(self, name):
         hist = get_history(self, name)
-        return (hist.deleted or hist.unchanged)[0]
+        return (hist.deleted or hist.unchanged or [getattr(self, name)])[0]
 
     @suffix_property
     def _ints(self, name, val):
@@ -150,7 +152,7 @@ class MagModel:
     # NOTE: if we used from_dict() to implement this it might end up being simpler
     def apply(self, params, *, bools=(), checkgroups=(), restricted=True, ignore_csrf=True):
         for column in self.__table__.columns:
-            if (not restricted or column.name in self.unrestricted) and column.name in params and column.name != 'id':
+            if (not restricted or column.name in self._unrestricted) and column.name in params and column.name != 'id':
                 if isinstance(params[column.name], list):
                     value = ','.join(map(str, params[column.name]))
                 elif isinstance(params[column.name], bool):
@@ -255,31 +257,18 @@ class Group(MagModel, TakesPaymentMixin):
     registered    = Column(UTCDateTime, server_default=utcnow())
     approved      = Column(UTCDateTime, nullable=True)
     leader_id     = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader'), nullable=True)
-    leader        = relationship('Attendee', foreign_keys=leader_id)
+    leader        = relationship('Attendee', foreign_keys=leader_id, post_update=True)
 
-    unrestricted = {'name', 'tables', 'address', 'website', 'wares', 'description', 'special_needs'}
+    _unrestricted = {'name', 'tables', 'address', 'website', 'wares', 'description', 'special_needs'}
 
     def presave_adjustments(self):
-        self.__dict__.pop('_attendees', None)
+        assigned = [a for a in self.attendees if not a.is_unassigned]
+        if len(assigned) == 1:
+            [self.leader] = assigned
         if self.auto_recalc:
             self.cost = self.default_cost
         if self.status == APPROVED and not self.approved:
             self.approved = datetime.now(UTC)
-
-    def assign_badges(self, new_badge_count, session=None):
-        session = session or self.session
-        assert session, 'session parameter required for unsaved groups'
-        diff = int(new_badge_count) - self.badges
-        if diff > 0:
-            for i in range(diff):
-                self.attendees.append(Attendee(badge_type=self.new_badge_type, ribbon=self.new_ribbon, paid=PAID_BY_GROUP))
-        elif diff < 0:
-            floating = [a for a in self.attendees if a.is_unassigned and a.paid == PAID_BY_GROUP]
-            if len(floating) < abs(diff):
-                return 'You cannot reduce the number of badges for a group to below the number of assigned badges'
-            else:
-                for i in range(abs(diff)):
-                    session.delete(floating[i])
 
     @property
     def new_badge_type(self):
@@ -309,6 +298,9 @@ class Group(MagModel, TakesPaymentMixin):
     def email(self):
         if self.leader and self.leader.email:
             return self.leader.email
+        elif self.leader_id:  # unattached groups
+            [leader] = [a for a in self.attendees if a.id == self.leader_id]
+            return leader.email
         else:
             emails = [a.email for a in self.attendees if a.email]
             if len(emails) == 1:
@@ -420,9 +412,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     food_restrictions = relationship('FoodRestrictions', backref='attendee', uselist=False)
 
     display = 'full_name'
-    unrestricted = {'first_name', 'last_name', 'international', 'zip_code', 'ec_phone', 'phone', 'email', 'age_group',
-                    'interests', 'found_how', 'comments', 'badge_type', 'affiliate', 'shirt', 'can_spam', 'no_cellphone',
-                    'badge_printed_name', 'staffing', 'fire_safety_cert', 'requested_depts', 'amount_extra'}
+    _unrestricted = {'first_name', 'last_name', 'international', 'zip_code', 'ec_phone', 'phone', 'email', 'age_group',
+                     'interests', 'found_how', 'comments', 'badge_type', 'affiliate', 'shirt', 'can_spam', 'no_cellphone',
+                     'badge_printed_name', 'staffing', 'fire_safety_cert', 'requested_depts', 'amount_extra'}
 
     # TODO: fix this to work with SQLAlchemy
     def as_we_delete(self, *args, **kwargs):
@@ -793,7 +785,7 @@ class HotelRequests(MagModel, NightsMixin):
     special_needs      = Column(UnicodeText)
     approved           = Column(Boolean, default=False)
 
-    unrestricted = ['attendee_id', 'nights', 'wanted_roommates', 'unwanted_roommates', 'special_needs']
+    _unrestricted = ['attendee_id', 'nights', 'wanted_roommates', 'unwanted_roommates', 'special_needs']
 
     # TODO: fix this to work with SQLAlchemy
     @classmethod
@@ -971,7 +963,7 @@ class Checkout(MagModel):
 
 
 class Email(MagModel):
-    fk_id   = Column(UUID)
+    fk_id   = Column(UUID, nullable=True)
     model   = Column(UnicodeText)
     when    = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     subject = Column(UnicodeText)
@@ -1068,7 +1060,7 @@ class Tracking(MagModel):
         def _insert(session):
             session.add(Tracking(
                 model = instance.__class__.__name__,
-                fk_id = 0 if action in [UNPAID_PREREG, EDITED_PREREG] else instance.id,
+                fk_id = instance.id,
                 which = repr(instance),
                 who = who,
                 links = links,
@@ -1284,6 +1276,19 @@ class Session(SessionManager):
                 for attr in ['first_name', 'last_name', 'badge_printed_name', 'email', 'comments', 'admin_notes', 'for_review']:
                     checks.append(getattr(Attendee, attr).ilike('%' + text + '%'))
                 return attendees.filter(or_(*checks))
+
+        def assign_badges(self, group, new_badge_count):
+            diff = int(new_badge_count) - group.badges
+            if diff > 0:
+                for i in range(diff):
+                    group.attendees.append(Attendee(badge_type=group.new_badge_type, ribbon=group.new_ribbon, paid=PAID_BY_GROUP))
+            elif diff < 0:
+                floating = [a for a in group.attendees if a.is_unassigned and a.paid == PAID_BY_GROUP]
+                if len(floating) < abs(diff):
+                    return 'You cannot reduce the number of badges for a group to below the number of assigned badges'
+                else:
+                    for i in range(abs(diff)):
+                        self.delete(floating[i])
 
         def assign(self, attendee_id, job_id):
             job = self.job(job_id)

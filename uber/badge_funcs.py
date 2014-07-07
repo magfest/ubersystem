@@ -73,3 +73,6 @@ def check_unassigned():
     if unassigned and not Email.objects.filter(subject = subject):
         body = render('emails/unassigned.html', {'unassigned': unassigned})
         send_email(STAFF_EMAIL, STAFF_EMAIL, subject, body, format='html', model='n/a')
+
+
+# TODO: perhaps a check_leaderless() for checking for leaderless groups, since those don't get emails
