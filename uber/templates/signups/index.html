@@ -18,12 +18,12 @@
     <li>
         {% checked_if not attendee.placeholder %}
         {% if attendee.placeholder %}
-            <a href="../preregistration/confirm?return_to=../signups/index&id={{ attendee.secret_id }}">Confirm</a>
+            <a href="../preregistration/confirm?return_to=../signups/index&id={{ attendee.id }}">Confirm</a>
         {% else %}
             Confirm
         {% endif %}
         you are coming to {{ EVENT_NAME }}.
-	{% if not attendee.placeholder %}(you can still <a href="../preregistration/confirm?return_to=../signups/index&id={{ attendee.secret_id }}">edit your info</a>){% endif %}
+	{% if not attendee.placeholder %}(you can still <a href="../preregistration/confirm?return_to=../signups/index&id={{ attendee.id }}">edit your info</a>){% endif %}
     </li>
     <li>
         {% checked_if attendee.fire_safety_cert %}

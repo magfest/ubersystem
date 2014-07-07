@@ -100,12 +100,12 @@ class SeasonSupporterReminder(Reminder):
                                 filter = lambda a: a.amount_extra >= SEASON_LEVEL and before(event['deadline']),
                                 extra_data = {'event': event})
 
-before = lambda dt: bool(dt) and datetime.now(EVENT_TIMEZONE) < dt
-days_after = lambda days, dt: bool(dt) and (datetime.now(EVENT_TIMEZONE) > dt + timedelta(days=days))
+before = lambda dt: bool(dt) and localized_now() < dt
+days_after = lambda days, dt: bool(dt) and (localized_now() > dt + timedelta(days=days))
 def days_before(days, dt, until=None):
     if dt:
         until = (dt - timedelta(days=until)) if until else dt
-        return dt - timedelta(days=days) < datetime.now(EVENT_TIMEZONE) < until
+        return dt - timedelta(days=days) < localized_now() < until
 
 
 

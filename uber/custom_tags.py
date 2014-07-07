@@ -11,7 +11,7 @@ def timestamp(dt):
 
 @register.filter
 def jsonize(x):
-    return SafeString(json.dumps(x))
+    return SafeString(json.dumps(x, cls=serializer))
 
 @register.filter
 def subtract(x, y):
@@ -70,10 +70,11 @@ def dept_hotel_nights(department):
 
 @register.filter
 def dept_placeholders(department):
-    if department:
-        return Attendee.objects.filter(assigned_depts__contains=department, placeholder=True).order_by('first_name', 'last_name')
-    else:
-        return Attendee.objects.filter(badge_type=STAFF_BADGE, placeholder=True).order_by('first_name', 'last_name')
+    with Session() as session:
+        if department:
+            return session.query(Attendee).filter(Attendee.placeholder == True, Attendee.assigned_depts.like('%{}%'.format(department))).order_by(Attendee.full_name).all()
+        else:
+            return session.query(Attendee).filter_by(badge_type=STAFF_BADGE, placeholder=True).order_by(Attendee.full_name).all()
 
 @tag
 class absolute_path(template.Node):
@@ -133,9 +134,11 @@ class options(template.Node):
                 opt = [opt, opt]
             val, desc = opt
             selected = "selected" if str(val) == str(default) else ''
+            if isinstance(val, datetime):
+                val = val.strftime(TIMESTAMP_FORMAT)
             val  = str(val).replace('"',  '&quot;').replace('\n', '')
             desc = str(desc).replace('"', '&quot;').replace('\n', '')
-            results.append("""<option value="%s" %s>%s</option>""" % (val, selected, desc))
+            results.append('<option value="{}" {}>{}</option>'.format(val, selected, desc))
         return '\n'.join(results)
 
 @tag
@@ -250,14 +253,14 @@ class must_contact(template.Node):
         self.staffer = Variable(staffer)
 
     def render(self, context):
+        staffer = self.staffer.resolve(context)
         chairs = defaultdict(list)
         for dept, head in DEPT_CHAIR_OVERRIDES.items():
             chairs[dept].append(head)
-        for head in Attendee.objects.filter(ribbon = DEPT_HEAD_RIBBON).order_by('badge_num'):
-            for dept in head.assigned:
+        for head in staffer.session.query(Attendee).filter_by(ribbon=DEPT_HEAD_RIBBON).order_by('badge_num').all():
+            for dept in head.assigned_depts_ints:
                 chairs[dept].append(head.full_name)
 
-        staffer = self.staffer.resolve(context)
         locations = [s.job.location for s in staffer.shifts]
         dept_names = dict(JOB_LOC_OPTS)
         return '<br/>'.join(sorted({'({}) {}'.format(dept_names[dept], ' / '.join(chairs[dept])) for dept in locations}))
@@ -442,7 +445,7 @@ class Notice(template.Node):
     def notice(self, label, takedown, discount=False):
         discount = conf['badge_prices']['group_discount'] if discount else 0
         for day, price in sorted(PRICE_BUMPS.items()):
-            if datetime.now(EVENT_TIMEZONE) < day:
+            if localized_now() < day:
                 return 'Price goes up to ${} at 11:59pm EST on {}'.format(price - discount, (day - timedelta(days=1)).strftime('%A, %b %e'))
         else:
             return '{} closes at 11:59pm EST on {}'.format(label, takedown.strftime('%A, %b %e'))

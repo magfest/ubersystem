@@ -56,11 +56,6 @@ def _make_setting_fixture(name, setting, val):
     func.__name__ = name
     globals()[name] = pytest.fixture(func)
 
-'''
-_make_setting_fixture('custom_badges_ordered', 'CUSTOM_BADGES_REALLY_ORDERED', True)
-_make_setting_fixture('custom_badges_not_ordered', 'CUSTOM_BADGES_REALLY_ORDERED', False)
-'''
-
 @pytest.fixture
 def precon(monkeypatch):
     for module in modules:
@@ -75,12 +70,5 @@ def at_con(monkeypatch):
         monkeypatch.setattr(module, 'AT_THE_CON', True)
         monkeypatch.setattr(module, 'AT_OR_POST_CON', True)
 
-@pytest.fixture
-def custom_badges_ordered(monkeypatch):
-    for module in modules:
-        monkeypatch.setattr(module, 'CUSTOM_BADGES_REALLY_ORDERED', True)
-
-@pytest.fixture
-def custom_badges_not_ordered(monkeypatch):
-    for module in modules:
-        monkeypatch.setattr(module, 'CUSTOM_BADGES_REALLY_ORDERED', False)
+_make_setting_fixture('custom_badges_ordered', 'CUSTOM_BADGES_REALLY_ORDERED', True)
+_make_setting_fixture('custom_badges_not_ordered', 'CUSTOM_BADGES_REALLY_ORDERED', False)

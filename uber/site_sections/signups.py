@@ -4,7 +4,7 @@ from uber.common import *
 # TODO: maybe move this to SessionMixin?
 # TODO: confirm that this uses to_dict properly
 def dump_jobs(session):
-    return json.dumps([job.to_dict() for job in session.logged_in_volunteer().possible_and_current])
+    return json.dumps([job.to_dict() for job in session.logged_in_volunteer().possible_and_current], cls=serializer)
 
 @all_renderable(SIGNUPS)
 class Root:
@@ -138,7 +138,7 @@ class Root:
                 attendee = session.lookup_attendee(full_name, email, zip_code)
                 if not attendee.staffing:
                     message = SafeString('You are not signed up as a volunteer.  <a href="volunteer?id={}">Click Here</a> to sign up.'.format(attendee.id))
-                elif not attendee.assigned:
+                elif not attendee.assigned_depts_ints:
                     message = 'You have not been assigned to any departmemts; an admin must assign you to a department before you can log in'
             except:
                 message = 'No attendee matches that name and email address and zip code'

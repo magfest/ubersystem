@@ -35,14 +35,14 @@
 </tr>
 {% for request in requests %}
     <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
-        <td><a href="form?id={{ request.attendee.id }}">{{ request.attendee.full_name }}</a></td>
-        <td>{{ request.attendee.assigned_display|join:" / " }}</td>
+        <td><a href="../registration/form?id={{ request.attendee.id }}">{{ request.attendee.full_name }}</a></td>
+        <td>{{ request.attendee.assigned_depts_labels|join:" / " }}</td>
         <td>{{ request.wanted_roommates|linebreaksbr }}</td>
         <td>{{ request.unwanted_roommates|linebreaksbr }}</td>
         <td>{{ request.special_needs }}</td>
         <td class="nights">{{ request.attendee.hotel_nights|join:" / " }}</td>
         <td>
-            {% if not request.WEDNESDAY and not request.SUNDAY %}
+            {% if not request.WEDNESDAY and not request.SUNDAY %}   <!-- TODO: make this configurable -->
                 n/a
             {% else %}
                 {% if request.approved %}

@@ -17,8 +17,8 @@ class Root:
     @ng_renderable
     def index(self):
         return {
-            'games': json.dumps(self.games),
-            'attendees': json.dumps(self.attendees),
+            'games': json.dumps(self.games, cls=serializer),
+            'attendees': json.dumps(self.attendees, cls=serializer),
         }
     
     @ajax

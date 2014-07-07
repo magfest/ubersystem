@@ -22,7 +22,7 @@ We already have a {{ attendee.full_name }} with email address {{ attendee.email 
     ({{ attendee.ribbon_label }})
 {% endif %}
 badge{% if attendee.group %}
-    (with the group <a href="group_members?id={{ attendee.group.secret_id }}">{{ attendee.group.name }}</a>)
+    (with the group <a href="group_members?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>)
 {% endif %}.
 
 If you have any questions then please email <a href="regdesk@magfest.org">regdesk@magfest.org</a>.
@@ -47,7 +47,7 @@ If you're absolutely sure that this is someone else, you can continue and pay fo
     <td><a href="index">I'm someone else, let me pay!</a></td>
 {% endif %}
     <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>
-    <td><a href="delete?id={{ duplicate.secret_id }}">Well never mind then!</a></td>
+    <td><a href="delete?id={{ duplicate.id }}">Well never mind then!</a></td>
 </tr></table>
 
 {% endblock %}

@@ -1,5 +1,5 @@
 {{ attendee.first_name }},
 
-We're ordering customized {{ EVENT_NAME }} badges next week, so you should double-check what you've told us to print on your badge.  You can edit what you want printed on your badge at {{ URL_BASE }}/preregistration/confirm?id={{ attendee.secret_id }} until {{ PRINTED_BADGE_DEADLINE|datetime }}.
+We're ordering customized {{ EVENT_NAME }} badges next week, so you should double-check what you've told us to print on your badge.  You can edit what you want printed on your badge at {{ URL_BASE }}/preregistration/confirm?id={{ attendee.id }} until {{ PRINTED_BADGE_DEADLINE|datetime }}.
 
 {{ REGDESK_EMAIL_SIGNATURE }}

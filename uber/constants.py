@@ -40,11 +40,11 @@ class State:
 
     @property
     def ONEDAY_BADGE_PRICE(self):
-        return self.get_oneday_price(datetime.now(EVENT_TIMEZONE))
+        return self.get_oneday_price(localized_now())
 
     @property
     def BADGE_PRICE(self):
-        return self.get_attendee_price(datetime.now(EVENT_TIMEZONE))
+        return self.get_attendee_price(localized_now())
 
     @property
     def SUPPORTER_BADGE_PRICE(self):
@@ -53,7 +53,7 @@ class State:
     
     @property
     def GROUP_PRICE(self):
-        return self.get_group_price(datetime.now(EVENT_TIMEZONE))
+        return self.get_group_price(localized_now())
 
     @property
     def PREREG_BADGE_TYPES(self):
@@ -66,10 +66,17 @@ class State:
 
     @property
     def PREREG_DONATION_OPTS(self):
-        if datetime.now(EVENT_TIMEZONE) < SUPPORTER_DEADLINE:
+        if localized_now() < SUPPORTER_DEADLINE:
             return DONATION_OPTS
         else:
             return [(amt, desc) for amt,desc in DONATION_OPTS if amt < SUPPORTER_LEVEL]
+
+    @property
+    def AT_THE_DOOR_BADGE_OPTS(self):
+        return enum(
+            ATTENDEE_BADGE = 'Full Weekend Pass (${})'.format(self.BADGE_PRICE),
+            ONE_DAY_BADGE = 'Single Day Pass (${})'.format(self.ONEDAY_BADGE_PRICE)
+        )
 
     @property
     def THEME_DIR(self):
@@ -82,9 +89,9 @@ class State:
 
     def __getattr__(self, name):
         if name.startswith('BEFORE_'):
-            return datetime.now(EVENT_TIMEZONE) < globals()[name.split('_', 1)[1]]
+            return localized_now() < globals()[name.split('_', 1)[1]]
         elif name.startswith('AFTER_'):
-            return datetime.now(EVENT_TIMEZONE) > globals()[name.split('_', 1)[1]]
+            return localized_now() > globals()[name.split('_', 1)[1]]
         else:
             raise AttributeError('no such attribute {}'.format(name))
 
@@ -175,12 +182,6 @@ BADGE_OPTS = enum(
     GUEST_BADGE     = 'Guest',
     ONE_DAY_BADGE   = 'One Day'
 )
-NORMAL_AT_THE_DOOR_BADGE_OPTS = enum(
-    ATTENDEE_BADGE = 'Full Weekend Pass (${})'.format(state.BADGE_PRICE),
-    ONE_DAY_BADGE = 'Single Day Pass (${})'.format(state.ONEDAY_BADGE_PRICE)
-)
-AT_THE_DOOR_BADGE_OPTS = NORMAL_AT_THE_DOOR_BADGE_OPTS
-
 PSEUDO_GROUP_BADGE  = 1  # people registering in groups will get attendee badges
 PSEUDO_DEALER_BADGE = 2  # dealers get attendee badges with a ribbon
 BADGE_RANGES = {         # these may overlap, but shouldn't

@@ -1,5 +1,12 @@
 from uber.tests import *
 
+@pytest.fixture
+def session(request, monkeypatch):
+    session = Session().session
+    request.addfinalizer(session.close)
+    monkeypatch.setattr(session, 'add', Mock())
+    monkeypatch.setattr(session, 'delete', Mock())
+    return session
 
 def test_cost_presave_adjustment():
     g = Group(cost=123, auto_recalc=False)
@@ -101,26 +108,25 @@ def test_badges_purchased():
         Attendee(paid=NOT_PAID), Attendee(paid=HAS_PAID), Attendee(paid=REFUNDED), Attendee(paid=NEED_NOT_PAY)
     ]).badges_purchased
 
-def test_assign_new_badges(monkeypatch):
+def test_assign_new_badges(session, monkeypatch):
     monkeypatch.setattr(Group, 'new_ribbon', 111)
     monkeypatch.setattr(Group, 'new_badge_type', 222)
     group = Group()
-    group.assign_badges('2', session=Mock())
+    session.assign_badges(group, '2')
     assert 2 == group.badges == len(group.attendees)
     for attendee in group.attendees:
         assert attendee.paid == PAID_BY_GROUP
         assert attendee.ribbon == 111
         assert attendee.badge_type == 222
 
-def test_assign_removing_too_many_badges():
-    assert not Group(attendees=[Attendee(paid=PAID_BY_GROUP)]).assign_badges(0, session=Mock())
-    assert 'You cannot' in Group(attendees=[Attendee(paid=HAS_PAID)]).assign_badges(0, session=Mock())
-    assert 'You cannot' in Group(attendees=[Attendee(first_name='x')]).assign_badges(0, session=Mock())
+def test_assign_removing_too_many_badges(session):
+    assert not session.assign_badges(Group(attendees=[Attendee(paid=PAID_BY_GROUP)]), 0)
+    assert 'You cannot' in session.assign_badges(Group(attendees=[Attendee(paid=HAS_PAID)]), 0)
+    assert 'You cannot' in session.assign_badges(Group(attendees=[Attendee(first_name='x')]), 0)
 
-def test_assign_removing_badges():
-    session = Mock()
+def test_assign_removing_badges(session):
     attendees = [Attendee(paid=PAID_BY_GROUP), Attendee(first_name='x'), Attendee(paid=HAS_PAID), Attendee(paid=PAID_BY_GROUP)]
-    Group(attendees=attendees).assign_badges(2, session=session)
+    session.assign_badges(Group(attendees=attendees), 2)
     assert session.delete.call_count == 2
     session.delete.assert_any_call(attendees[0])
     session.delete.assert_any_call(attendees[3])

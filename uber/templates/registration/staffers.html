@@ -48,7 +48,7 @@
         <td>{{ attendee.paid_label }}</td>
         <td style="text-align:left">
             <ul>
-                {% for dept in attendee.assigned_display %}
+                {% for dept in attendee.assigned_depts_labels %}
                     <li>{{ dept }}</li>
                 {% empty %}
                     <span style="color:red">No assignments</span>

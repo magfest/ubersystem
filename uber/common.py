@@ -37,8 +37,8 @@ import cherrypy
 import django.conf
 from pytz import UTC
 
-from sideboard.lib import log, parse_config, entry_point, listify, DaemonTask
 from sideboard.lib.sa import declarative_base, SessionManager, UTCDateTime, UUID
+from sideboard.lib import log, parse_config, entry_point, listify, DaemonTask, serializer
 
 from uber.amazon_ses import AmazonSES, EmailMessage
 from uber.config import *
@@ -77,5 +77,5 @@ from uber.server import *
 from uber.tests import import_test_data
 
 # kludgy hack because I love "from <module> import *" way too much
-for _module in ['utils', 'models', 'custom_tags', 'decorators']:
-    __import__('uber.' + _module, fromlist=['os']).__dict__.update(globals())
+for _module in ['constants', 'utils', 'models', 'custom_tags', 'decorators']:
+    __import__('uber.' + _module, fromlist='*').__dict__.update(globals())

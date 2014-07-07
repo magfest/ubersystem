@@ -63,7 +63,7 @@ def test_float_val(job):
 def test_datetime_val(job):
     format = '%Y-%m-%d %H:%M:%S'
     assert job.start_time is None
-    now = datetime.now(EVENT_TIMEZONE)
+    now = localized_now()
     job.apply({'start_time': now.strftime(format)}, restricted=False)
     assert job.start_time.strftime(format) == now.strftime(format)
 

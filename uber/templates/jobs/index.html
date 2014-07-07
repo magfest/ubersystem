@@ -5,7 +5,7 @@
 {% include "jobs/main_menu.html" %}
 
 <table class="calendar">
-{% for curr_dt,prev_dt,jobs in times %}
+{% for curr_dt, prev_dt, jobs in times %}
     <tr>
         <td>
             <nobr>{{ curr_dt|date:"gA"|lower }} {{ curr_dt|date:"D" }}</nobr>
@@ -20,7 +20,7 @@
                 <nobr> Weight: x{{ job.weight }}{% if job.extra15 %}*{% endif %} </nobr>
                 <br/>
                 <nobr> {{ job.shifts|length }}/{{ job.slots }} Staffers <a href="staffers_by_job?id={{ job.id }}">Signed Up</a>
-                {% if job.shifts|length %}
+                {% if job.shifts %}
                     <a href="#" onClick="$(this).next().show().prev().remove() ; return false" style="display:block">View Staffers</a>
                     <div style="display:none">
                         {% for shift in job.shifts %}

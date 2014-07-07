@@ -1,5 +1,7 @@
 from uber.tests import *
 
+# TODO: I'm using some MAGFest-specific values, but this will fail if e.g. someone eliminates ARCADE as a department
+
 def test_ints():
     assert [] == Attendee().interests_ints
     assert [ARCADE] == Attendee(interests=ARCADE).interests_ints
@@ -20,5 +22,5 @@ def test_multi_checks():
     pytest.raises(AttributeError, lambda: Attendee().NOT_A_REAL_CHOICE)
 
     assert not HotelRequests().THURSDAY
-    assert HotelRequests(nights='{},{}'.format(THURSDAY, FRIDAY)).THURSDAY
-    assert not HotelRequests(nights='{},{}'.format(THURSDAY, FRIDAY)).SATURDAY
+    assert HotelRequests(nights='{},{}'.format(FRIDAY, SATURDAY)).FRIDAY
+    assert not HotelRequests(nights='{},{}'.format(FRIDAY, SATURDAY)).SUNDAY

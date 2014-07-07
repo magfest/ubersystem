@@ -12,7 +12,7 @@ Jan 31st and we'll mail them out ASAP.
 
 <form method="post" action="shirt">
 {% csrf_token %}
-<input type="hidden" name="id" value="{{ attendee.secret_id }}" />
+<input type="hidden" name="id" value="{{ attendee.id }}" />
 <table style="width:auto">
 <tr>
     <td><b>Shirt Size:</b></td>
