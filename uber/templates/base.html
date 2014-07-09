@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="../static/lib/jquery-cluetip/jquery.cluetip.css" type="text/css" />
     <link rel="stylesheet" href="../static/lib/jquery-contextMenu/jquery.contextMenu.css" type="text/css" />
     <link rel="stylesheet" href="../static/lib/jquery-ui/ui-lightness/jquery-ui-1.9.0.custom.css" type="text/css" />
+    {% block additional_styles %}{%  endblock %}
     <script type="text/javascript">
         var DISABLE_STRIPE_BUTTONS_ON_CLICK = true;
         $(function(){
@@ -47,6 +48,7 @@
     </script>
 </head>
 <body>
+{% block top_of_body_additional %}{%  endblock %}
 <div id="mainContainer">
 {% block top %}
     <div id="top" style="display:none">
@@ -66,6 +68,9 @@
 <br/>
 {% block header %}{% endblock %}
 {% block content %}{% endblock %}
+
+<div id="bottomAnchor" />
+
 </div> <!-- end mainContainer -->
 </body>
 </html>

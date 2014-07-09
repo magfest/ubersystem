@@ -1,3 +1,5 @@
+{% if SHOW_AFFILIATES_AND_EXTRAS %}
+
 <script type="text/javascript">
     var donationChanged = function() {
         setVisible(".affiliate-row", $.val("amount_extra") > 0);
@@ -46,7 +48,7 @@
                 {{ attendee.amount_extra_label }}
                 <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
             {% else %}
-                <select name="amount_extra" style="width:50%" onChange="donationChanged()">
+                <select name="amount_extra" style="width:50%" onChange="donationChanged()" >
                     {% options PREREG_DONATION_OPTS attendee.amount_extra %}
                 </select>
             {% endif %}
@@ -74,12 +76,6 @@
         &nbsp; <span class="popup">{% popup_link "../static_views/affiliates.html" "What's an affiliate?" %}</span>
     </td>
 </tr>
-<tr class="shirt-row extra-row" style="display:none">
-    <td> <b>Shirt Size</b> </td>
-    <td>
-        <select name="shirt">
-            <option value="{{ NO_SHIRT }}">Select a shirt size</option>
-            {% options PREREG_SHIRT_OPTS attendee.shirt %}
-        </select>
-    </td>
-</tr>
+{% endif %}
+
+{% include "preregistration/shirt_selection.html" %}

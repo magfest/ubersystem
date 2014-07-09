@@ -94,3 +94,25 @@ class Root:
             graph_data.append(row)
 
         return {'attendance_data': graph_data}
+
+
+    # display last 2 minutes worth of registrations, to be used by alerting services
+    @ajax_public_callable
+    @unrestricted
+    def recent_regs_json(self):
+        restrict_to = {'registered__gte': datetime.datetime.now() - timedelta(minutes=2)}
+        attendees = Attendee.objects.order_by('registered').filter(**restrict_to)
+
+        att = []
+        for attendee in attendees:
+            id_hash = hash(attendee.first_name + ' ' + str(attendee.id))
+            unix_timestamp = int(attendee.registered.strftime('%s'))
+            item = [unix_timestamp, id_hash]
+            att.append(item)
+
+        return att
+
+    # display the page that calls the AJAX above
+    @unrestricted
+    def recent_regs_live(self):
+        return {}

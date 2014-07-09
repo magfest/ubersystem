@@ -77,6 +77,14 @@ def dept_placeholders(department):
             return session.query(Attendee).filter_by(badge_type=STAFF_BADGE, placeholder=True).order_by(Attendee.full_name).all()
 
 @tag
+class absolute_path(template.Node):
+    def __init__(self, path):
+        self.path = Variable(path)
+
+    def render(self, context):
+        return state.build_absolute_path( self.path.resolve(context) )
+
+@tag
 class maybe_anchor(template.Node):
     def __init__(self, name):
         self.name = Variable(name)
@@ -368,7 +376,7 @@ class stripe_form(template.Node):
 
         email = ""
         if charge.targets:
-            email = 'data-email="{}"'.format(charge.models[0].email)
+            email = charge.models[0].email
 
         if not charge.targets:
             regtext = 'On-Site Charge'
@@ -377,20 +385,15 @@ class stripe_form(template.Node):
         else:
             regtext = 'Preregistration'
 
-        return """
-            <form class="stripe" method="post" action="{action}">
-                <input type="hidden" name="payment_id" value="{payment_id}" />
-                <script
-                    src="https://checkout.stripe.com/v2/checkout.js" class="stripe-button"
-                    data-key="{key}"
-                    {email}
-                    data-amount="{charge.amount}"
-                    data-name="MAGFest {regtext}"
-                    data-description="{charge.description}"
-                    data-image="../static/images/maglogo.png">
-                </script>
-            </form>
-        """.format(action=self.action, regtext=regtext, email=email, payment_id=payment_id, key=STRIPE_PUBLIC_KEY, charge=charge)
+        params = {
+            'action': self.action,
+            'regtext': regtext,
+            'email': email,
+            'payment_id': payment_id,
+            'charge': charge
+        }
+
+        return render('preregistration/stripeForm.html', params)
 
 
 
@@ -414,7 +417,21 @@ class BoldIfNode(template.Node):
         else:
             return output
 
+@tag
+class organization_and_event_name(template.Node):
+    def render(self, context):
+        if EVENT_NAME.lower() != ORGANIZATION_NAME.lower():
+            return EVENT_NAME + ' and ' + ORGANIZATION_NAME
+        else:
+            return EVENT_NAME
 
+@tag
+class organization_or_event_name(template.Node):
+    def render(self, context):
+        if EVENT_NAME.lower() != ORGANIZATION_NAME.lower():
+            return EVENT_NAME + ' or ' + ORGANIZATION_NAME
+        else:
+            return EVENT_NAME
 
 @tag
 class single_day_prices(template.Node):

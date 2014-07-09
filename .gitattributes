@@ -1,0 +1,10 @@
+* 	text=auto eol=lf
+*.py 	text
+*.xml	text
+*.css 	text
+*.html 	text
+*.sh	text
+vagrant/bash_aliases text
+
+*.png 	binary
+*.jpg 	binary

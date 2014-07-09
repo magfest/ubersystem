@@ -1,4 +1,4 @@
-var csrf_token = "{{ CSRF_TOKEN }}";
+var csrf_token = "{% if CSRF_TOKEN %}{{ CSRF_TOKEN }}{% endif %}";
 
 var setVisible = function(selector, visible) {
     $(selector)[visible ? "show" : "hide"]();

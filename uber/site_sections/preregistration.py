@@ -33,9 +33,21 @@ def send_banned_email(attendee):
     except:
         log.error('unable to send banned email about {}', attendee)
 
-
 @all_renderable()
 class Root:
+    
+    def stats(self):
+        cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
+        return json.dumps({
+            'remaining_badges': max(0,(MAX_BADGE_SALES - state.BADGES_SOLD)),
+            'badges_sold': state.BADGES_SOLD
+        })
+        
+    def check_prereg(self):
+        return json.dumps({
+            'force_refresh': not state.PREREG_OPEN or state.BADGES_SOLD >= MAX_BADGE_SALES
+        })
+        
     @property
     def unpaid_preregs(self):
         return cherrypy.session.setdefault('unpaid_preregs', OrderedDict())
@@ -55,6 +67,7 @@ class Root:
         else:
             raise if_not_found
 
+    @check_if_can_reg
     def index(self, message=''):
         if not self.unpaid_preregs:
             raise HTTPRedirect('badge_choice?message={}', message) if message else HTTPRedirect('badge_choice')
@@ -63,11 +76,20 @@ class Root:
                 'message': message,
                 'charge': Charge(listify(self.unpaid_preregs.values()))
             }
-
+            
+    @check_if_can_reg
     def badge_choice(self, message=''):
         return {'message': message}
 
+    @check_if_can_reg
     def form(self, session, message='', edit_id=None, **params):
+
+        if CURRENT_THEME == "magstock":
+            if params.get('buy_shirt') != 'on':
+                params['shirt'] = NO_SHIRT
+                params['shirt_color'] = NO_SHIRT
+
+
         if 'badge_type' not in params and edit_id is None:
             raise HTTPRedirect('badge_choice?message={}', 'You must select a badge type')
 
@@ -83,7 +105,7 @@ class Root:
 
         if attendee.badge_type not in state.PREREG_BADGE_TYPES:
             raise HTTPRedirect('badge_choice?message={}', 'Dealer registration is not open' if attendee.is_dealer else 'Invalid badge type')
-
+            
         if 'first_name' in params:
             message = check(attendee) or check_prereg_reqs(attendee)
             if not message and attendee.badge_type in [PSEUDO_DEALER_BADGE, PSEUDO_GROUP_BADGE]:
@@ -268,7 +290,7 @@ class Root:
     def unset_group_member(self, session, id):
         attendee = session.attendee(id)
         try:
-            send_email(REGDESK_EMAIL, attendee.email, 'MAGFest group registration dropped',
+            send_email(REGDESK_EMAIL, attendee.email, '{{ EVENT_NAME }} group registration dropped',
                        render('emails/group_member_dropped.txt', {'attendee': attendee}), model=attendee)
         except:
             log.error('unable to send group unset email', exc_info=True)
@@ -320,7 +342,7 @@ class Root:
             if not message and (not params['first_name'] and not params['last_name']):
                 message = 'First and Last names are required.'
             if not message:
-                subject, body = 'MAGFest Registration Transferred', render('emails/transfer_badge.txt', {'new': attendee, 'old': old})
+                subject, body = EVENT_NAME + ' Registration Transferred', render('emails/transfer_badge.txt', {'new': attendee, 'old': old})
                 try:
                     send_email(REGDESK_EMAIL, [old.email, attendee.email, REGDESK_EMAIL], subject, body, model=attendee)
                 except:
@@ -426,19 +448,6 @@ class Root:
             'registered': slug in [spt.slug for spt in attendee.season_pass_tickets]
         }
 
-    if PREREG_CLOSED:
-        del index, form, badge_choice
-        def default(self, *args, **kwargs):
-            return '''
-                <html><head></head><body style='text-align:center'>
-                    <h2 style='color:red'>Preregistration has closed.</h2>
-                    We'll see everyone on January 2 - 5. <br/> <br/>
-                    Full weekend passes will be available at the door for $60,
-                    and single day passes will be $20 on Thursday or Sunday,
-                    and $40 for Friday or Saturday.
-                </body></html>
-            '''
-
 if POST_CON:
     @all_renderable()
     class Root:
@@ -451,7 +460,7 @@ if POST_CON:
             """
 
         # TODO: figure out if this is the best way to handle the issue of people not getting shirts
-        def shirt(self, session, message = '', **params):
+		def shirt_reorder(self, session, message = '', **params):
             attendee = session.attendee(params, restricted = True)
             assert attendee.owed_shirt, "There's no record of {} being owed a tshirt".format(attendee.full_name)
             if 'address' in params:

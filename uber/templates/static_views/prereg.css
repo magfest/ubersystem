@@ -1,3 +1,4 @@
+{% block prereg_css %}
 body {
 	background-color: black;
 	color: #CCC;
@@ -17,7 +18,7 @@ a, a:visited, a:hover, a:active {
 
 
 #header {
-	background: url('../images/magfest-logo.png') no-repeat left bottom;
+	background: url('{{THEME_DIR}}/logo.png') no-repeat left bottom;
 	padding-left: 400px;
 	
 	font-size: 30px;
@@ -28,7 +29,7 @@ a, a:visited, a:hover, a:active {
 }
 
 table.form {
-border-spacing: 0px;
+border-spacing: 0;
 }
 table.form td {
 padding: 8px;
@@ -41,3 +42,4 @@ padding: 8px;
 .extra-row td {
 	border: solid #333;
 }
+{% endblock prereg_css %}

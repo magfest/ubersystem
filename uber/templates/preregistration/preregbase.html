@@ -1,9 +1,20 @@
 {% extends "base.html" %}
 {% block sectionStyle %}
-    <link rel="stylesheet" type="text/css" href="../static/styles/prereg.css" />
+    <link rel="stylesheet" type="text/css" href="../static_views/prereg.css" />
 {% endblock %}
 {% block header %}
 <div id="header">
     <span class="pageTitle">Preregistration</span>
 </div>
+
+<script type="text/javascript">
+    var checkCap = function () {
+        $.getJSON('check_prereg', function(check) {
+            if (check.force_refresh) {
+                location.reload(); // Reload the page to prevent registering after reg is closed
+            }
+        });
+    };
+    setInterval(checkCap, 1000 * 1 * 15);
+</script>
 {% endblock header %}

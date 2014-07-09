@@ -1,0 +1,61 @@
+{% extends "./preregistration/preregbase.html" %}
+{% block title %}Preregistration{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<h2> {{ EVENT_NAME }} Preregistration </h2>
+
+<table style="width:auto ; margin-left:auto ; margin-right: auto"><tr>
+    <td>{% stripe_form prereg_payment charge %}</td>
+    <td style="width:100px ; text-align:center">or</td>
+    <td><a href="badge_choice">{% stripe_button "Add Another Prereg" %}</a></td>
+</tr></table>
+
+<br/>
+
+<table class="charge">
+<thead><tr>
+    <td>Preregistration</td>
+    <td>Details</td>
+    <td>Price</td>
+    <td></td>
+</tr></thead>
+{% for attendee in charge.attendees %}
+    <tr>
+        <td>{{ attendee.full_name }}</td>
+        <td>
+            <ul style="padding-left:15px">
+                <li>Full weekend pass</li>
+                {{ attendee.donation_swag }}
+            </ul>
+        </td>
+        <td>${{ attendee.total_cost }}</td>
+        <td>
+            <a href="form?edit_id={{ attendee.secret_id }}">Edit</a> /
+            <a href="delete?id={{ attendee.secret_id }}">Delete</a>
+        </td>
+     </tr>
+{% endfor %}
+{% for group in charge.groups %}
+    <tr>
+        <td>{{ group.name }}</td>
+        <td>{{ group.badges }} badges</td>
+        <td>${{ group.total_cost }}</td>
+        <td>
+            <a href="form?edit_id={{ group.secret_id }}">Edit</a> /
+            <a href="delete?id={{ group.secret_id }}">Delete</a>
+        </td>
+    </tr>
+{% endfor %}
+{% if charge.targets|length > 1 %}
+    <tr>
+        <td></td>
+        <td style="text-align:right ; padding-right:20px"><i>Total:</i></td>
+        <td><b>${{ charge.dollar_amount }}</b></td>
+    </tr>
+{% endif %}
+</table>
+
+{% include "preregistration/disclaimers.html" %}
+
+{% endblock %}
