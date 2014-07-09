@@ -50,7 +50,7 @@ class Root:
     def unapprove(self, session, id, action, email):
         assert action in ['waitlisted', 'declined']
         group = session.group(id)
-        subject = 'Your MAGFest Dealer registration has been ' + action
+        subject = 'Your '+ EVENT_NAME +' Dealer registration has been ' + action
         send_email(MARKETPLACE_EMAIL, group.email, subject, email, model = group)
         if action == 'waitlisted':
             group.status = WAITLISTED

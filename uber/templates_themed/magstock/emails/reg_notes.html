@@ -1,0 +1,24 @@
+{% if attendee.staffing %}
+    <br/> <br/>
+    Thanks for applying to volunteer!
+    {% if attendee.paid == HAS_PAID %}
+        Now that we've received your payment
+    {% elif attendee.paid == PAID_BY_GROUP %}
+        As soon as we get a chance,
+    {% else %}
+        After we receive your payment
+    {% endif %}
+    , we will contact you with further instructions if you are picked to be a volunteer.
+{% endif %}
+
+{% comment %}**DISABLED FOR MAGSTOCK***
+{% if attendee.age_group == UNDER_18 %}
+    <br/> <br/>
+    Because you are under 18, you must bring a signed and notarized parental permission
+    to be granted admission to {{ EVENT_NAME }}.  You may download the permission slip 
+    <a href="{{ CONSENT_FORM_URL }}">by clicking here</a>.
+    <br/> <br/>
+    You may <a href="{{ URL_BASE }}/preregistration/confirm?id={{ attendee.secret_id }}">click here</a>
+    to edit your info if you are over 18 and entered that age by mistake.
+{% endif %}
+{% endcomment %}

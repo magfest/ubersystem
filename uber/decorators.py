@@ -1,5 +1,17 @@
 from uber.common import *
 
+def check_if_can_reg(func):
+    @wraps(func)
+    def with_check(*args,**kwargs):
+        if state.BADGES_SOLD >= MAX_BADGE_SALES:
+            return render('static_views/prereg_soldout.html')
+        elif state.PREREG_OPEN == "notopenyet":
+            return render('static_views/prereg_not_yet_open.html')
+        elif state.PREREG_OPEN == "closed":
+            return render('static_views/prereg_closed.html')
+        else:
+            return func(*args,**kwargs)
+    return with_check
 
 # TODO: use _get_innermost() to replace _orig since there's no point to having both
 def _get_innermost(func):
@@ -46,6 +58,7 @@ def csrf_protected(func):
     return protected
 
 
+# requires: POST and a valid CSRF token
 def ajax(func):
     @wraps(func)
     def returns_json(*args, **kwargs):
@@ -53,6 +66,15 @@ def ajax(func):
         assert cherrypy.request.method == 'POST', 'POST required'
         check_csrf(kwargs.pop('csrf_token', None))
         return json.dumps(func(*args, **kwargs), cls=serializer).encode('utf-8')
+    return returns_json
+
+# used for things that should be publicly called, i.e. APIs and such.
+# supports GET or POST
+def ajax_public_callable(func):
+    @wraps(func)
+    def returns_json(*args, **kwargs):
+        cherrypy.response.headers['Content-Type'] = 'application/json'
+        return json.dumps(func(*args, **kwargs)).encode('utf-8')
     return returns_json
 
 
@@ -132,12 +154,25 @@ def renderable_data(data = None):
 
     return data
 
-def render(template, data = None):
+# render using the first template that actually exists in template_name_list
+def render(template_name_list, data = None):
     data = renderable_data(data)
-    rendered = loader.get_template(template).render( Context(data) )
-    if not AT_THE_CON and AdminAccount.is_nick() and 'emails' not in template and 'history' not in template and 'form' not in rendered:
-        rendered = rendered.replace('festival', 'convention').replace('Fest', 'Con')
+    template = loader.select_template(listify(template_name_list))
+    rendered = template.render( Context(data) )
+
+    rendered = screw_you_nick(rendered, template) # lolz.
+
     return rendered.encode('utf-8')
+
+
+# this is a Magfest inside joke.
+# Nick gets mad when people call Magfest a 'convention'. He always says 'It's not a convention, it's a festival'
+# So........ if Nick is logged in.... let's annoy him a bit :)
+def screw_you_nick(rendered, template):
+    if not AT_THE_CON and AdminAccount.is_nick() and 'emails' not in template and 'history' not in template and 'form' not in rendered:
+        return rendered.replace('festival', 'convention').replace('Fest', 'Con') # lolz.
+    else:
+        return rendered
 
 # TODO: sanitize for XSS attacks; currently someone can only attack themselves, but still...
 def ng_render(fname, **kwargs):

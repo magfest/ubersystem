@@ -414,7 +414,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     display = 'full_name'
     _unrestricted = {'first_name', 'last_name', 'international', 'zip_code', 'ec_phone', 'phone', 'email', 'age_group',
                      'interests', 'found_how', 'comments', 'badge_type', 'affiliate', 'shirt', 'can_spam', 'no_cellphone',
-                     'badge_printed_name', 'staffing', 'fire_safety_cert', 'requested_depts', 'amount_extra'}
+                     'badge_printed_name', 'staffing', 'fire_safety_cert', 'requested_depts', 'amount_extra', 'payment_method'}
 
     # TODO: fix this to work with SQLAlchemy
     def as_we_delete(self, *args, **kwargs):
@@ -433,8 +433,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         if not self.amount_extra:
             self.affiliate = ''
 
-        if not self.gets_shirt:
-            self.shirt = NO_SHIRT
+        if CURRENT_THEME != "magstock":
+            if not self.gets_shirt:
+                self.shirt = NO_SHIRT
 
         if self.paid != REFUNDED:
             self.amount_refunded = 0
@@ -446,6 +447,9 @@ class Attendee(MagModel, TakesPaymentMixin):
             value = getattr(self, attr)
             if value.isupper() or value.islower():
                 setattr(self, attr, value.title())
+
+        if not self.registered:
+            self.registered = datetime.now()
 
     def _badge_adjustments(self):
         #_assert_badge_lock()
@@ -605,10 +609,19 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def donation_swag(self):
-        extra = self.amount_extra
-        if self.badge_type == SUPPORTER_BADGE and extra == 0:
-            extra = SUPPORTER_LEVEL
-        return [desc for amount,desc in sorted(DONATION_TIERS.items()) if amount and extra >= amount]
+        if CURRENT_THEME == "magstock":
+            description = ""
+            if self.shirt == NO_SHIRT:
+                description = "No shirt"
+            else:
+                description = self.get_shirt_display() + ", " + self.get_shirt_color_display()
+
+            return description
+        else:
+            extra = self.amount_extra
+            if self.badge_type == SUPPORTER_BADGE and extra == 0:
+                extra = SUPPORTER_LEVEL
+            return [desc for amount,desc in sorted(DONATION_TIERS.items()) if amount and extra >= amount]
 
     @property
     def merch(self):

@@ -6,7 +6,7 @@ class Root:
     @unrestricted
     def index(self, session, message=''):
         if HIDE_SCHEDULE and not AdminAccount.access_set() and not cherrypy.session.get('staffer_id'):
-            return "The MAGFest schedule is being developed and will be made public when it's closer to being finalized."
+            return "The "+ EVENT_NAME + " schedule is being developed and will be made public when it's closer to being finalized."
 
         schedule = defaultdict(lambda: defaultdict(list))
         for event in session.query(Event).all():

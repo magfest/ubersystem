@@ -4,7 +4,26 @@ class State:
     @property
     def DEALER_REG_OPEN(self):
         return self.AFTER_DEALER_REG_START and self.BEFORE_DEALER_REG_SHUTDOWN
-
+	
+    @property
+    def PREREG_OPEN(self):
+        if PREREG_NOT_OPEN_YET or self.BEFORE_PREREG_OPENING:
+            return "notopenyet"
+        elif PREREG_CLOSED or self.AFTER_PREREG_TAKEDOWN:
+            return "closed"
+        else:
+            return True
+	
+    @property
+    def BADGES_SOLD(self):
+        from uber.common import Attendee
+        attendees = Attendee.objects.all()
+        paid_group_sales = attendees.filter(paid=PAID_BY_GROUP, group__amount_paid__gt=0).count()
+        paid_ind_sales = attendees.filter(paid=HAS_PAID).count()
+        paid_and_refunded = attendees.filter(paid=REFUNDED).count()
+        badges_sold_count = paid_group_sales + paid_ind_sales + paid_and_refunded
+        return badges_sold_count
+		
     def get_oneday_price(self, dt):
         default = conf['badge_prices']['default_single_day']
         return conf['badge_prices']['single_day'].get(dt.strftime('%A'), default)
@@ -27,6 +46,11 @@ class State:
     def BADGE_PRICE(self):
         return self.get_attendee_price(localized_now())
 
+    @property
+    def SUPPORTER_BADGE_PRICE(self):
+        supporter_price = self.BADGE_PRICE + SUPPORTER_LEVEL
+        return supporter_price
+    
     @property
     def GROUP_PRICE(self):
         return self.get_group_price(localized_now())
@@ -54,6 +78,15 @@ class State:
             ONE_DAY_BADGE = 'Single Day Pass (${})'.format(self.ONEDAY_BADGE_PRICE)
         )
 
+    @property
+    def THEME_DIR(self):
+        return self.build_absolute_path(BASE_THEME_DIR + "/" + CURRENT_THEME)
+
+    # example: turns string 'accounts/homepage' into
+    # 'http://localhost:4321/magfest/accounts/homepage'
+    def build_absolute_path(self, abs_path):
+        return URL_BASE + "/" + abs_path
+
     def __getattr__(self, name):
         if name.startswith('BEFORE_'):
             return localized_now() < globals()[name.split('_', 1)[1]]
@@ -65,28 +98,12 @@ class State:
 
 state = State()
 
-EARLY_BADGE_PRICE = 40
+EARLY_BADGE_PRICE = 50
 LATE_BADGE_PRICE  = 50
-DOOR_BADGE_PRICE  = 60
+DOOR_BADGE_PRICE  = 50
 
 EARLY_GROUP_PRICE = 30
 LATE_GROUP_PRICE  = 40
-
-SHIRT_LEVEL = 20
-SUPPORTER_LEVEL = 60
-SEASON_LEVEL = 160
-DONATION_TIERS = {
-    0: 'No thanks',
-    5: '"??" ribbon',
-    10: 'button',
-    SHIRT_LEVEL: 'tshirt',
-    SUPPORTER_LEVEL: 'Supporter Package',
-    100: '??',
-    SEASON_LEVEL: 'Season Supporter Pass for 2015',
-    200: '??',
-    500: 'Lightsuit'
-}
-DONATION_OPTS = sorted((amt, '+ ${}: {}'.format(amt,desc) if amt else desc) for amt,desc in DONATION_TIERS.items())
 
 def enum(*, sort_by_declaration=False, **kwargs):
     if sort_by_declaration:
@@ -112,6 +129,15 @@ DURATION_OPTS   = [(i, '%i hour%s'%(i,('s' if i > 1 else ''))) for i in range(1,
 EVENT_START_TIME_OPTS = [(dt, dt.strftime('%I %p %a') if not dt.minute else dt.strftime('%I:%M %a'))
                          for dt in [EPOCH + timedelta(minutes = i * 30) for i in range(2 * CON_LENGTH)]]
 EVENT_DURATION_OPTS = [(i, '%.1f hour%s' % (i/2, 's' if i != 2 else '')) for i in range(1, 19)]
+
+if YEAR == '0':
+    EVENT_NAME_AND_YEAR = EVENT_NAME 
+else:
+    EVENT_NAME_AND_YEAR = EVENT_NAME + " " + YEAR
+PREREG_OPEN_DATE = PREREG_OPENING.strftime('%B') + " " + str(int(EPOCH.strftime('%d')) % 100)
+EVENT_MONTH = EPOCH.strftime('%B')
+EVENT_START_DAY = int(EPOCH.strftime('%d')) % 100
+EVENT_END_DAY = int(ESCHATON.strftime('%d')) % 100
 
 DAYS = sorted({(dt.strftime('%Y-%m-%d'), dt.strftime('%a')) for dt,desc in START_TIME_OPTS})
 HOURS = ['{:02}'.format(i) for i in range(24)]
@@ -159,11 +185,11 @@ BADGE_OPTS = enum(
 PSEUDO_GROUP_BADGE  = 1  # people registering in groups will get attendee badges
 PSEUDO_DEALER_BADGE = 2  # dealers get attendee badges with a ribbon
 BADGE_RANGES = {         # these may overlap, but shouldn't
-    STAFF_BADGE:     [1, 499],
-    SUPPORTER_BADGE: [500, 999],
-    GUEST_BADGE:     [1000, 1999],
-    ATTENDEE_BADGE:  [2000, 19999],
-    ONE_DAY_BADGE:   [20000, 29999],
+    STAFF_BADGE:     [1, 200],
+    SUPPORTER_BADGE: [201, 700],
+    GUEST_BADGE:     [701, 750],
+    ATTENDEE_BADGE:  [751, 3000],
+    ONE_DAY_BADGE:   [0, 0],
 }
 MAX_BADGE = max(xs[1] for xs in BADGE_RANGES.values())
 
@@ -174,7 +200,6 @@ RIBBON_OPTS = enum(
     PRESS_RIBBON     = 'Camera',
     PANELIST_RIBBON  = 'Panelist',
     DEALER_RIBBON    = 'Shopkeep',
-    BAND_RIBBON      = 'Rock Star'
 )
 PREASSIGNED_BADGE_TYPES = [STAFF_BADGE, SUPPORTER_BADGE]
 CAN_UNSET = [ATTENDEE_BADGE]
@@ -240,36 +265,6 @@ FEE_PRICES = (
 FEE_ITEMS = [(item,item) for item,price in FEE_PRICES]
 FEE_PRICES = dict(FEE_PRICES)
 
-SIZE_UNKNOWN = -1
-NO_SHIRT = 0
-SHIRT_OPTS = (
-    (NO_SHIRT, 'no shirt'),
-    (1, 'small'),
-    (2, 'medium'),
-    (3, 'large'),
-    (4, 'x-large'),
-    (5, 'xx-large'),
-    (6, 'xxx-large'),
-    (7, 'small (female)'),
-    (8, 'medium (female)'),
-    (9, 'large (female)'),
-    (10, 'x-large (female)'),
-)
-PREREG_SHIRT_OPTS = SHIRT_OPTS[1:]
-MERCH_SHIRT_OPTS = [(SIZE_UNKNOWN, 'select a size')] + list(PREREG_SHIRT_OPTS)
-
-INTEREST_OPTS = enum(
-    CONSOLE     = 'Consoles',
-    ARCADE      = 'Arcade',
-    LAN         = 'LAN',
-    MUSIC       = 'Music',
-    PANELS      = 'Guests/Panels',
-    TABLETOP    = 'Tabletop games',
-    MARKETPLACE = 'Dealers',
-    TOURNAMENTS = 'Tournaments',
-    FILM_FEST   = 'Film Festival',
-)
-
 SALE_OPTS = enum(
     MERCH = 'Merch',
     CASH = 'Cash',
@@ -286,21 +281,6 @@ ACCESS_OPTS = enum(
 )
 SIGNUPS = 100 # not an admin access level, so handled separately
 
-JOB_INTEREST_OPTS = enum(
-    ANYTHING   = 'Anything',
-    ARCADE     = 'Arcade',
-    CHALLENGES = 'Challenges Booth',
-    CONSOLE    = 'Consoles',
-    PANELS     = 'Panels',
-    FOOD_PREP  = 'Food Prep',
-    JAMSPACE   = 'Jam Space',
-    LAN        = 'LAN',
-    SECURITY   = 'Security',
-    REGDESK    = 'Regdesk',
-    TABLETOP   = 'Tabletop',
-    TECH_OPS   = 'Tech Ops',
-    FILM_FEST  = 'Film Festival',
-)
 JOB_LOC_OPTS = enum(
     ARCADE        = 'Arcade',
     ARTEMIS       = 'Artemis',
@@ -416,3 +396,20 @@ FOOD_RESTRICTION_OPTS = enum(
     VEGAN      = 'Vegan',
     GLUTEN     = 'Cannot eat gluten'
 )
+
+BASE_THEME_DIR = "static/themes"
+
+
+# gotta be a better way than exec into global scope. not sure how though.
+try:
+    exec("from siteconfig.constants import *")
+except ImportError:
+    pass
+try:
+    exec("from siteconfig." + CURRENT_THEME + ".constants import *")
+except ImportError:
+    pass
+
+PREREG_SHIRT_OPTS = SHIRT_OPTS[1:]
+MERCH_SHIRT_OPTS = [(SIZE_UNKNOWN, 'select a size')] + list(PREREG_SHIRT_OPTS)
+DONATION_OPTS = sorted((amt, '+ ${}: {}'.format(amt,desc) if amt else desc) for amt,desc in DONATION_TIERS.items())

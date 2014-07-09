@@ -1,14 +1,15 @@
 {% if attendee.staffing %}
     <br/> <br/>
-    Thanks for signing up as a volunteer!
+    Thanks for your interest in volunteering!
     {% if attendee.paid == HAS_PAID %}
-        Now that we've recieved your payment
+        Now that we've received your payment
     {% elif attendee.paid == PAID_BY_GROUP %}
         As soon as we get a chance,
     {% else %}
         After we receive your payment
     {% endif %}
-    you'll be assigned to a department and we'll email you with will instructions about how to sign up for shifts.
+     we will review your request to volunteer at {{ EVENT_NAME }}. If you are selected, we will email further
+    instructions about your department assignment and how to sign up for shifts.
 {% endif %}
 
 {% if attendee.age_group == UNDER_18 %}

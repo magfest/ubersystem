@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ EVENT_NAME }} - Live registrations</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+    <script type="text/javascript" src="../static/lib/moment/moment.min.js"></script>
+    <script type="text/javascript" src="../static/lib/jquery-timer/jquery.timer.js"></script>
+    <script type="text/javascript" src="../static/lib/analytics/reg_live.js"></script>
+</head>
+<body>
+
+<audio id="sfx" src="../static/sfx/ring.wav" preload="auto"></audio>
+
+<h1>{{ EVENT_NAME }} - Live Registrations</h1>
+
+<p>This page will automatically update whenever someone registers for Magfest. Feel free to leave it open as long as you like</p>
+
+<h2>Badges sold so far: <span class="badges_sold">?</span></h2>
+<h2>Badges remaining:   <font color="red"><span class="remaining_badges">?</span></font></h2>
+
+<p><b>Continually checking for new registrations...</b></p>
+<img src="../static/images/ajax-loader.gif"/>
+
+<div id="registrations">
+</div>
+
+<!-- Dom was here -->
+
+</body>
+</html>
