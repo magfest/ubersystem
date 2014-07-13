@@ -16,14 +16,13 @@ class State:
 	
     @property
     def BADGES_SOLD(self):
-        from uber.common import Attendee
-        attendees = Attendee.objects.all()
-        paid_group_sales = attendees.filter(paid=PAID_BY_GROUP, group__amount_paid__gt=0).count()
-        paid_ind_sales = attendees.filter(paid=HAS_PAID).count()
-        paid_and_refunded = attendees.filter(paid=REFUNDED).count()
-        badges_sold_count = paid_group_sales + paid_ind_sales + paid_and_refunded
-        return badges_sold_count
-		
+        with Session() as session:
+            attendees = session.query(Attendee)
+            individuals = attendees.filter(or_(Attendee.paid == HAS_PAID, Attendee.paid == REFUNDED)).count()
+            group_badges = attendees.join(Attendee.group).filter(Attendee.paid == PAID_BY_GROUP,
+                                                                 Group.amount_paid > 0).count()
+            return individuals + group_badges
+
     def get_oneday_price(self, dt):
         default = conf['badge_prices']['default_single_day']
         return conf['badge_prices']['single_day'].get(dt.strftime('%A'), default)
@@ -200,6 +199,7 @@ RIBBON_OPTS = enum(
     PRESS_RIBBON     = 'Camera',
     PANELIST_RIBBON  = 'Panelist',
     DEALER_RIBBON    = 'Shopkeep',
+    BAND_RIBBON      = 'Rock Star'
 )
 PREASSIGNED_BADGE_TYPES = [STAFF_BADGE, SUPPORTER_BADGE]
 CAN_UNSET = [ATTENDEE_BADGE]
@@ -399,14 +399,13 @@ FOOD_RESTRICTION_OPTS = enum(
 
 BASE_THEME_DIR = "static/themes"
 
-
 # gotta be a better way than exec into global scope. not sure how though.
 try:
-    exec("from siteconfig.constants import *")
+    exec("from uber.siteconfig.constants import *")
 except ImportError:
     pass
 try:
-    exec("from siteconfig." + CURRENT_THEME + ".constants import *")
+    exec("from uber.siteconfig." + CURRENT_THEME + ".constants import *")
 except ImportError:
     pass
 

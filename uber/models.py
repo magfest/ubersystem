@@ -440,16 +440,13 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.paid != REFUNDED:
             self.amount_refunded = 0
 
-        if AT_THE_CON and self.badge_num and not self.registered:
+        if AT_THE_CON and self.badge_num and self.is_new:
             self.checked_in = datetime.now(UTC)
 
         for attr in ['first_name', 'last_name']:
             value = getattr(self, attr)
             if value.isupper() or value.islower():
                 setattr(self, attr, value.title())
-
-        if not self.registered:
-            self.registered = datetime.now()
 
     def _badge_adjustments(self):
         #_assert_badge_lock()

@@ -35,19 +35,6 @@ def send_banned_email(attendee):
 
 @all_renderable()
 class Root:
-    
-    def stats(self):
-        cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
-        return json.dumps({
-            'remaining_badges': max(0,(MAX_BADGE_SALES - state.BADGES_SOLD)),
-            'badges_sold': state.BADGES_SOLD
-        })
-        
-    def check_prereg(self):
-        return json.dumps({
-            'force_refresh': not state.PREREG_OPEN or state.BADGES_SOLD >= MAX_BADGE_SALES
-        })
-        
     @property
     def unpaid_preregs(self):
         return cherrypy.session.setdefault('unpaid_preregs', OrderedDict())
@@ -67,6 +54,16 @@ class Root:
         else:
             raise if_not_found
 
+    def stats(self):
+        cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
+        return json.dumps({
+            'badges_sold': state.BADGES_SOLD,
+            'remaining_badges': max(0, MAX_BADGE_SALES - state.BADGES_SOLD)
+        })
+
+    def check_prereg(self):
+        return json.dumps({'force_refresh': not state.PREREG_OPEN or state.BADGES_SOLD >= MAX_BADGE_SALES})
+
     @check_if_can_reg
     def index(self, message=''):
         if not self.unpaid_preregs:
@@ -83,7 +80,6 @@ class Root:
 
     @check_if_can_reg
     def form(self, session, message='', edit_id=None, **params):
-
         if CURRENT_THEME == "magstock":
             if params.get('buy_shirt') != 'on':
                 params['shirt'] = NO_SHIRT
@@ -460,7 +456,7 @@ if POST_CON:
             """
 
         # TODO: figure out if this is the best way to handle the issue of people not getting shirts
-		def shirt_reorder(self, session, message = '', **params):
+        def shirt_reorder(self, session, message = '', **params):
             attendee = session.attendee(params, restricted = True)
             assert attendee.owed_shirt, "There's no record of {} being owed a tshirt".format(attendee.full_name)
             if 'address' in params:

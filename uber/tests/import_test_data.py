@@ -8,10 +8,18 @@ offset_from = EPOCH
 def offset_to_datetime(offset):
     return offset_from + timedelta(hours=offset)
 
+words = []
+def random_group_name():
+    if not words:
+        with open('/usr/share/dict/words') as f:
+            words[:] = [s.strip() for s in f if len(s) > 3 and re.match('^[a-z]+$', s)]
+    return ' '.join(random.choice(words).title() for i in range(2))
+
 def import_groups(session):
     for g in dump['groups']:
         secret_id = g.pop('secret_id')
         g['cost'] = g.pop('amount_owed')
+        g['name'] = random_group_name()
         groups[secret_id] = Group(**g)
         session.add(groups[secret_id])
 

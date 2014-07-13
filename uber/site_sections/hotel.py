@@ -126,9 +126,9 @@ class Root:
 
     @ajax
     def unassign_from_room(self, session, attendee_id, department):
-        for ra in RoomAssignment.objects.filter(attendee_id=attendee_id).all():
+        for ra in session.query(RoomAssignment).filter_by(attendee_id=attendee_id).all():
             session.delete(ra)
-            session.commit()
+        session.commit()
         return _hotel_dump(session, department)
 
 

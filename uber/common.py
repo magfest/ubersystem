@@ -37,13 +37,9 @@ import cherrypy
 import django.conf
 from pytz import UTC
 
-from sideboard.lib.sa import declarative_base, SessionManager, UTCDateTime, UUID
-from sideboard.lib import log, parse_config, entry_point, listify, DaemonTask, serializer
-
-from uber.amazon_ses import AmazonSES, EmailMessage
-from uber.config import *
-from uber.constants import *
-from uber import constants
+from django import template
+from django.utils.safestring import SafeString
+from django.template import loader, Context, Variable, TemplateSyntaxError
 
 import sqlalchemy
 from sqlalchemy.sql import case
@@ -59,14 +55,14 @@ from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.schema import Column, ForeignKey, UniqueConstraint
 from sqlalchemy.types import UnicodeText, Boolean, Integer, Float, TypeDecorator
 
-from django import template
-from django.utils.safestring import SafeString
-from django.template import loader, Context, Variable, TemplateSyntaxError
-
-import stripe
-stripe.api_key = STRIPE_SECRET_KEY
+from sideboard.lib.sa import declarative_base, SessionManager, UTCDateTime, UUID
+from sideboard.lib import log, parse_config, entry_point, listify, DaemonTask, serializer
 
 import uber
+from uber.amazon_ses import AmazonSES, EmailMessage
+from uber.config import *
+from uber.constants import *
+from uber import constants
 from uber.utils import *
 from uber.decorators import *
 from uber.models import *
@@ -74,7 +70,11 @@ from uber.badge_funcs import *
 from uber import model_checks
 from uber import custom_tags
 from uber.server import *
+from uber import init_db
 from uber.tests import import_test_data
+
+import stripe
+stripe.api_key = STRIPE_SECRET_KEY
 
 # kludgy hack because I love "from <module> import *" way too much
 for _module in ['constants', 'utils', 'models', 'custom_tags', 'decorators']:

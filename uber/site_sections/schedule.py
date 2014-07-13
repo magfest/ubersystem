@@ -6,7 +6,7 @@ class Root:
     @unrestricted
     def index(self, session, message=''):
         if HIDE_SCHEDULE and not AdminAccount.access_set() and not cherrypy.session.get('staffer_id'):
-            return "The "+ EVENT_NAME + " schedule is being developed and will be made public when it's closer to being finalized."
+            return "The " + EVENT_NAME + " schedule is being developed and will be made public when it's closer to being finalized."
 
         schedule = defaultdict(lambda: defaultdict(list))
         for event in session.query(Event).all():
@@ -157,8 +157,8 @@ class Root:
         }
 
     @csrf_protected
-    def delete(self, id):
-        event = Event.objects.filter(id=id).delete()
+    def delete(self, session, id):
+        event = session.delete(session.event(id))
         raise HTTPRedirect('edit?message={}', 'Event successfully deleted')
 
     @ajax

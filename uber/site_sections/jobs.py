@@ -183,7 +183,7 @@ class Root:
     def all_shifts(self, out):
         for loc,name in JOB_LOC_OPTS:
             out.writerow([name])
-            for shift in Shift.objects.filter(job__location = loc).order_by('job__start_time','job__name').select_related():
+            for shift in session.Shift.objects.filter(job__location = loc).order_by('job__start_time','job__name').select_related():
                 out.writerow([shift.job.start_time.strftime('%I%p %a').lstrip('0'),
                               '{} hours'.format(shift.job.real_duration),
                               shift.job.name,

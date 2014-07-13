@@ -43,6 +43,9 @@ def db(request, init_db):
     shutil.copy('/tmp/uber.db', '/tmp/uber.db.backup')
     request.addfinalizer(lambda: shutil.move('/tmp/uber.db.backup', '/tmp/uber.db'))
 
+@pytest.fixture(autouse=True)
+def cp_session():
+    cherrypy.session = {}
 
 modules = [uber.common, uber.models, uber.badge_funcs, uber.utils, uber.model_checks, uber.server]
 for modname in os.listdir(os.path.join(MODULE_ROOT, 'site_sections')):
