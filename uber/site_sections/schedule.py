@@ -16,7 +16,7 @@ class Root:
                 schedule[half_hour][event.location].append(EVENT_BOOKED)
 
         max_simul = {}
-        for id,name in EVENT_LOC_OPTS:
+        for id,name in EVENT_LOCATION_OPTS:
             max_events = 1
             for i in range(2 * CON_LENGTH):
                 half_hour = EPOCH + timedelta(minutes = 30 * i)
@@ -34,18 +34,18 @@ class Root:
                             schedule[half_hour + timedelta(minutes=30*i)][event.location].append(event.colspan)
 
         for half_hour in schedule:
-            for id,name in EVENT_LOC_OPTS:
+            for id, name in EVENT_LOCATION_OPTS:
                 span_sum = sum(getattr(e,'colspan',e) for e in schedule[half_hour][id])
                 for i in range(max_simul[id] - span_sum):
                     schedule[half_hour][id].append(EVENT_OPEN)
 
-            schedule[half_hour] = sorted(schedule[half_hour].items(), key=lambda tup: EVENT_LOCS.index(tup[0]))
+            schedule[half_hour] = sorted(schedule[half_hour].items(), key=lambda tup: ORDERED_EVENT_LOCS.index(tup[0]))
 
-        max_simul = [(id,dict(EVENT_LOC_OPTS)[id],colspan) for id,colspan in max_simul.items()]
+        max_simul = [(id, EVENT_LOCATIONS[id], colspan) for id,colspan in max_simul.items()]
         return {
             'message':   message,
             'schedule':  sorted(schedule.items()),
-            'max_simul': sorted(max_simul, key=lambda tup: EVENT_LOCS.index(tup[0]))
+            'max_simul': sorted(max_simul, key=lambda tup: ORDERED_EVENT_LOCS.index(tup[0]))
         }
 
     @unrestricted
@@ -61,7 +61,7 @@ class Root:
         for event in session.query(Event).order_by('start_time').all():
             schedule[event.location_label].append(event)
         return render('schedule/schedule.xml', {
-            'schedule': sorted(schedule.items(), key=lambda tup: EVENT_LOCS.index(tup[1][0].location))
+            'schedule': sorted(schedule.items(), key=lambda tup: ORDERED_EVENT_LOCS.index(tup[1][0].location))
         })
 
     @unrestricted
@@ -88,7 +88,7 @@ class Root:
             schedule[event.location_label].append(event)
 
         return render('schedule/schedule.tsv', {
-            'schedule': sorted(schedule.items(), key=lambda tup: EVENT_LOCS.index(tup[1][0].location))
+            'schedule': sorted(schedule.items(), key=lambda tup: ORDERED_EVENT_LOCS.index(tup[1][0].location))
         })
 
     @csv_file
@@ -111,7 +111,7 @@ class Root:
             now = EVENT_TIMEZONE.localize(datetime.combine(localized_now().date(), time(localized_now().hour)))
 
         current, upcoming = [], []
-        for loc,desc in EVENT_LOC_OPTS:
+        for loc,desc in EVENT_LOCATION_OPTS:
             approx = session.query(Event).filter(Event.location == loc,
                                                  Event.start_time >= now - timedelta(hours=6),
                                                  Event.start_time <= now).all()

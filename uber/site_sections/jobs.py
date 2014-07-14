@@ -165,7 +165,7 @@ class Root:
     def summary(self):
         all_jobs, all_shifts, attendees = session.everything()
         locations = {}
-        for loc, name in JOB_LOC_OPTS:
+        for loc, name in JOB_LOCATION_OPTS:
             jobs = [j for j in all_jobs if j.location == loc]
             shifts = [s for s in all_shifts if s.job.location == loc]
             locations[name] = {
@@ -181,7 +181,7 @@ class Root:
     # TODO: fix this to work with SQLAlchemy
     @csv_file
     def all_shifts(self, out):
-        for loc,name in JOB_LOC_OPTS:
+        for loc,name in JOB_LOCATION_OPTS:
             out.writerow([name])
             for shift in session.Shift.objects.filter(job__location = loc).order_by('job__start_time','job__name').select_related():
                 out.writerow([shift.job.start_time.strftime('%I%p %a').lstrip('0'),

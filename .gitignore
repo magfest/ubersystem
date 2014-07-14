@@ -2,12 +2,9 @@ env
 .env-success
 .vagrant
 __pycache__
-sessions/session-*
 *.egg-info
 *.log
-development.conf
-production.conf
-event.conf
+development.ini
 #Project
 workspace.xml
 tasks.xml

@@ -22,11 +22,11 @@ def test_total_hours(monkeypatch):
 
 @pytest.fixture
 def dept1():
-    return JOB_LOC_OPTS[0][0]
+    return JOB_LOCATION_OPTS[0][0]
 
 @pytest.fixture
 def dept2():
-    return JOB_LOC_OPTS[1][0]
+    return JOB_LOCATION_OPTS[1][0]
 
 @pytest.fixture
 def session(request, dept1, dept2):

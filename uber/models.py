@@ -206,8 +206,8 @@ def _night(name):
 class NightsMixin(object):
     @property
     def nights_display(self):
-        ordered = sorted(self.nights_ints, key=lambda i: ORDERED_NIGHTS.index(i))
-        return ' / '.join(dict(NIGHTS_OPTS)[val] for val in ordered)
+        ordered = sorted(self.nights_ints, key=NIGHT_DISPLAY_ORDER.index)
+        return ' / '.join(dict(NIGHT_OPTS)[val] for val in ordered)
 
     @property
     def setup_teardown(self):
@@ -217,7 +217,7 @@ class NightsMixin(object):
 
 
 class Event(MagModel):
-    location    = Column(Choice(EVENT_LOC_OPTS))
+    location    = Column(Choice(EVENT_LOCATION_OPTS))
     start_time  = Column(UTCDateTime)
     duration    = Column(Integer)   # half-hour increments
     name        = Column(UnicodeText, nullable=False)
@@ -251,7 +251,7 @@ class Group(MagModel, TakesPaymentMixin):
     amount_paid   = Column(Integer, default=0)
     cost          = Column(Integer, default=0)
     auto_recalc   = Column(Boolean, default=True)
-    status        = Column(Choice(STATUS_OPTS), default=UNAPPROVED)
+    status        = Column(Choice(DEALER_STATUS_OPTS), default=UNAPPROVED)
     can_add       = Column(Boolean, default=False)
     admin_notes   = Column(UnicodeText)
     registered    = Column(UTCDateTime, server_default=utcnow())
@@ -388,19 +388,19 @@ class Attendee(MagModel, TakesPaymentMixin):
     registered = Column(UTCDateTime, server_default=utcnow())
     checked_in = Column(UTCDateTime, nullable=True)
 
-    paid             = Column(Choice(PAID_OPTS), default=NOT_PAID)
+    paid             = Column(Choice(PAYMENT_OPTS), default=NOT_PAID)
     overridden_price = Column(Integer, nullable=True)
     amount_paid      = Column(Integer, default=0)
-    amount_extra     = Column(Choice(DONATION_OPTS, allow_unspecified=True), default=0)
+    amount_extra     = Column(Choice(DONATION_TIER_OPTS, allow_unspecified=True), default=0)
     amount_refunded  = Column(Integer, default=0)
-    payment_method   = Column(Choice(PAYMENT_OPTIONS), nullable=True)
+    payment_method   = Column(Choice(PAYMENT_METHOD_OPTS), nullable=True)
 
     badge_printed_name = Column(UnicodeText)
 
     staffing         = Column(Boolean, default=False)
     fire_safety_cert = Column(UnicodeText)
     requested_depts  = Column(MultiChoice(JOB_INTEREST_OPTS))
-    assigned_depts   = Column(MultiChoice(JOB_LOC_OPTS))
+    assigned_depts   = Column(MultiChoice(JOB_LOCATION_OPTS))
     trusted          = Column(Boolean, default=False)
     nonshift_hours   = Column(Integer, default=0)
     past_years       = Column(UnicodeText)
@@ -433,7 +433,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if not self.amount_extra:
             self.affiliate = ''
 
-        if CURRENT_THEME != "magstock":
+        if MODE != "magstock":
             if not self.gets_shirt:
                 self.shirt = NO_SHIRT
 
@@ -606,18 +606,10 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def donation_swag(self):
-        if CURRENT_THEME == "magstock":
-            description = ""
-            if self.shirt == NO_SHIRT:
-                description = "No shirt"
-            else:
-                description = self.get_shirt_display() + ", " + self.get_shirt_color_display()
-
-            return description
+        if MODE == "magstock":
+            return ['No shirt'] if self.shirt == NO_SHIRT else [self.get_shirt_display() + ", " + self.get_shirt_color_display()]
         else:
-            extra = self.amount_extra
-            if self.badge_type == SUPPORTER_BADGE and extra == 0:
-                extra = SUPPORTER_LEVEL
+            extra = SUPPORTER_LEVEL if not self.amount_extra and self.badge_type == SUPPORTER_BADGE else self.amount_extra
             return [desc for amount,desc in sorted(DONATION_TIERS.items()) if amount and extra >= amount]
 
     @property
@@ -726,7 +718,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @cached_property
     def hotel_nights(self):
         try:
-            return [dict(NIGHTS_OPTS)[night] for night in map(int, self.hotel_requests.nights.split(','))]
+            return [dict(NIGHT_OPTS)[night] for night in map(int, self.hotel_requests.nights.split(','))]
         except:
             return []
 
@@ -789,7 +781,7 @@ class PasswordReset(MagModel):
 
 class HotelRequests(MagModel, NightsMixin):
     attendee_id        = Column(UUID, ForeignKey('attendee.id'), unique=True)
-    nights             = Column(MultiChoice(NIGHTS_OPTS))
+    nights             = Column(MultiChoice(NIGHT_OPTS))
     wanted_roommates   = Column(UnicodeText)
     unwanted_roommates = Column(UnicodeText)
     special_needs      = Column(UnicodeText)
@@ -840,9 +832,9 @@ class SeasonPassTicket(MagModel):
     slug        = Column(UnicodeText)
 
 class Room(MagModel, NightsMixin):
-    department = Column(Choice(JOB_LOC_OPTS))
+    department = Column(Choice(JOB_LOCATION_OPTS))
     notes      = Column(UnicodeText)
-    nights     = Column(MultiChoice(NIGHTS_OPTS))
+    nights     = Column(MultiChoice(NIGHT_OPTS))
 
 class RoomAssignment(MagModel):
     room_id     = Column(UUID, ForeignKey('room.id'))
@@ -856,7 +848,7 @@ class NoShirt(MagModel):
 class Job(MagModel):
     name        = Column(UnicodeText)
     description = Column(UnicodeText)
-    location    = Column(Choice(JOB_LOC_OPTS))
+    location    = Column(Choice(JOB_LOCATION_OPTS))
     start_time  = Column(UTCDateTime)
     duration    = Column(Integer)
     weight      = Column(Float)
@@ -910,7 +902,7 @@ class Shift(MagModel):
     job         = relationship(Job, backref='shifts')
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
     attendee    = relationship(Attendee, backref='shifts')
-    worked      = Column(Choice(WORKED_OPTS), default=SHIFT_UNMARKED)
+    worked      = Column(Choice(WORKED_STATUS_OPTS), default=SHIFT_UNMARKED)
     rating      = Column(Choice(RATING_OPTS), default=UNRATED)
     comment     = Column(UnicodeText)
 

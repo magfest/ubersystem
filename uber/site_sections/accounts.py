@@ -140,7 +140,7 @@ class Root:
                         })
 
         if PEOPLE in AdminAccount.access_set():
-            for dept,desc in JOB_LOC_OPTS:
+            for dept,desc in JOB_LOCATION_OPTS:
                 pages['hotel assignments'].append({
                     'name': desc,
                     'path': '/hotel/assignments?department={}'.format(dept)

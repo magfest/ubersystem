@@ -52,7 +52,7 @@ class Root:
     def departments(self, session):
         attendees = session.query(Attendee).filter_by(staffing=True).order_by(Attendee.full_name).all()
         everything = []
-        for department, name in JOB_LOC_OPTS:
+        for department, name in JOB_LOCATION_OPTS:
             assigned = [a for a in attendees if department in a.assigned_depts_ints]
             unassigned = [a for a in attendees if department in a.requested_depts_ints and a not in assigned]
             everything.append([name, assigned, unassigned])
@@ -92,7 +92,7 @@ class Root:
                 'assigned': len([a for a in attendees if dept in a.assigned_depts_ints]),
                 'total_hours': sum(j.weighted_hours * j.slots for j in jobs if j.location == dept),
                 'taken_hours': sum(s.job.weighted_hours for s in shifts if s.job.location == dept)
-            } for dept, desc in JOB_LOC_OPTS]
+            } for dept, desc in JOB_LOCATION_OPTS]
         }
 
     @csv_file

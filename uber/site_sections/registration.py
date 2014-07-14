@@ -1,7 +1,7 @@
 from uber.common import *
 
 def check_everything(attendee):
-    if CURRENT_THEME == "magstock":
+    if MODE == 'magstock':
         shirt_size_selected = attendee.shirt != NO_SHIRT
         shirt_color_selected = attendee.shirt_color != NO_SHIRT
         if shirt_size_selected != shirt_color_selected:
@@ -9,7 +9,7 @@ def check_everything(attendee):
 
     if AT_THE_CON and attendee.id is None:
         if isinstance(attendee.badge_num, str) or attendee.badge_num < 0:
-            if CURRENT_THEME != "magstock":
+            if MODE != 'magstock':
                 return 'Invalid badge number'
             else:
                 attendee.badge_num = next_badge_num(attendee.badge_type)
@@ -215,7 +215,7 @@ class Root:
         success, increment = True, False
 
         if not attendee.badge_num:
-            if CURRENT_THEME == "magstock":
+            if MODE == 'magstock':
                 if not badge_num or badge_num == 0:
                     badge_num = next_badge_num(attendee.badge_type)
 
@@ -492,7 +492,7 @@ class Root:
         badge_num = int(badge_num) if badge_num.isdigit() else 0
         attendee = session.attendee(id)
 
-        if CURRENT_THEME == "magstock" and not badge_num:
+        if MODE == 'magstock' and not badge_num:
             badge_num = next_badge_num(attendee.badge_type)
 
         existing = session.query(Attendee).filter_by(badge_num=badge_num).all()

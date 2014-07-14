@@ -184,10 +184,10 @@ StopsReminder(EVENT_NAME +' shifts available', 'shifts_created.txt',
 
 StopsReminder('Reminder to sign up for '+ EVENT_NAME +' shifts', 'shift_reminder.txt',
               lambda a: days_after(30, max(a.registered, SHIFTS_CREATED))
-                    and state.AFTER_SHIFTS_CREATED and not PREREG_CLOSED and a.takes_shifts and not a.hours)
+                    and state.AFTER_SHIFTS_CREATED and BEFORE_PREREG_TAKEDOWN and a.takes_shifts and not a.hours)
 
 StopsReminder('Last chance to sign up for '+ EVENT_NAME +' shifts', 'shift_reminder.txt',
-              lambda a: days_before(10, EPOCH) and state.AFTER_SHIFTS_CREATED and not PREREG_CLOSED
+              lambda a: days_before(10, EPOCH) and state.AFTER_SHIFTS_CREATED and BEFORE_PREREG_TAKEDOWN
                                                and a.takes_shifts and not a.hours)
 
 StopsReminder('Still want to volunteer at '+ EVENT_NAME +'?', 'volunteer_check.txt',

@@ -25,7 +25,7 @@ if 'DATABASE_URL' in os.environ:
     })
 django.conf.settings.configure(**conf['django'].dict())
 
-for _opt, _val in conf.items():
+for _opt, _val in chain(conf.items(), conf['badge_prices'].items()):
     if not isinstance(_val, dict):
         globals()[_opt.upper()] = _val
 
@@ -44,5 +44,33 @@ PRICE_BUMPS = {}
 for _opt, _val in conf['badge_prices']['attendee'].items():
     PRICE_BUMPS[EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d'))] = _val
 
-AT_OR_POST_CON = AT_THE_CON or POST_CON
-PRE_CON = not AT_OR_POST_CON
+def _make_enum(enum_name, section):
+    opts, lookup = [], {}
+    for name, desc in section.items():
+        if isinstance(name, int):
+            val = name
+        else:
+            val = globals()[name.upper()] = int(sha512(name.upper().encode()).hexdigest()[:7], 16)
+        opts.append((val, desc))
+        lookup[val] = desc
+
+    enum_name = enum_name.upper()
+    globals()[enum_name + '_OPTS'] = opts
+    globals()[enum_name + ('' if enum_name.endswith('S') else 'S')] = lookup
+
+for _name, _section in conf['enums'].items():
+    _make_enum(_name, _section)
+
+for _name, _val in conf['integer_enums'].items():
+    if isinstance(_val, int):
+        globals()[_name.upper()] = _val
+for _name, _section in conf['integer_enums'].items():
+    if isinstance(_section, dict):
+        _interpolated = OrderedDict()
+        for _desc, _val in _section.items():
+            _interpolated[int(_val) if _val.isdigit() else globals()[_val.upper()]] = _desc
+        _make_enum(_name, _interpolated)
+
+BADGE_RANGES = {}
+for _badge_type, _range in conf['badge_ranges'].items():
+    BADGE_RANGES[globals()[_badge_type.upper()]] = _range

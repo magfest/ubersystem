@@ -76,13 +76,6 @@ def dept_placeholders(department):
         else:
             return session.query(Attendee).filter_by(badge_type=STAFF_BADGE, placeholder=True).order_by(Attendee.full_name).all()
 
-@tag
-class absolute_path(template.Node):
-    def __init__(self, path):
-        self.path = Variable(path)
-
-    def render(self, context):
-        return state.build_absolute_path( self.path.resolve(context) )
 
 @tag
 class maybe_anchor(template.Node):
@@ -98,19 +91,20 @@ class maybe_anchor(template.Node):
         else:
             return ""
 
-counters = local()
 @tag
 class zebra(template.Node):
+    counters = local()
+
     def __init__(self, name, param=''):
         self.name, self.param = name, param
 
     def render(self, context):
-        counter = getattr(counters, self.name, 0)
+        counter = getattr(self.counters, self.name, 0)
         if self.param == 'start':
             counter = 0
         elif self.param != 'noinc':
             counter = (counter + 1) % 2
-        setattr(counters, self.name, counter)
+        setattr(self.counters, self.name, counter)
         return ['#ffffff','#eeeeee'][counter]
 
 @tag
@@ -262,7 +256,7 @@ class must_contact(template.Node):
                 chairs[dept].append(head.full_name)
 
         locations = [s.job.location for s in staffer.shifts]
-        dept_names = dict(JOB_LOC_OPTS)
+        dept_names = dict(JOB_LOCATION_OPTS)
         return '<br/>'.join(sorted({'({}) {}'.format(dept_names[dept], ' / '.join(chairs[dept])) for dept in locations}))
 
 @tag

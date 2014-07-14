@@ -87,7 +87,7 @@ class Root:
             return {
                 'department': department,
                 'dump': _hotel_dump(session, department),
-                'department_name': dict(JOB_LOC_OPTS)[int(department)]
+                'department_name': dict(JOB_LOCATION_OPTS)[int(department)]
             }
 
     @ajax
