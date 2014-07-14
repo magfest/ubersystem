@@ -73,11 +73,11 @@ class State:
 
     @property
     def SUPPORTERS_ENABLED(self):
-        return SUPPORTER_LEVEL in self.PREREG_DONATION_OPTS
+        return SUPPORTER_LEVEL in dict(self.PREREG_DONATION_OPTS)
 
     @property
     def SEASON_SUPPORTERS_ENABLED(self):
-        return SEASON_LEVEL in self.PREREG_DONATION_OPTS
+        return SEASON_LEVEL in dict(self.PREREG_DONATION_OPTS)
 
     @property
     def AT_THE_DOOR_BADGE_OPTS(self):

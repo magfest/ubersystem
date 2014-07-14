@@ -55,7 +55,7 @@
                 <nobr>{% popup_link "../static_views/givingExtra.html" "Why do this?" %}</nobr>
                 <br/>
                 <font size="-2">Each level includes all lower levels.</font> <br/>
-                <font size="-2" color="red">Supporter level and higher {% if now > SUPPORTER_DEADLINE %}were{% endif %} only available until {{ SUPPORTER_DEADLINE|datetime }}.</font> 
+                <font size="-2" color="red">Supporter level and higher {% if BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ SUPPORTER_DEADLINE|datetime }}.</font> 
             </td>
         </tr>
     {% endif %}

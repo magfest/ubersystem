@@ -29,6 +29,7 @@ for _opt, _val in chain(conf.items(), conf['badge_prices'].items()):
     if not isinstance(_val, dict):
         globals()[_opt.upper()] = _val
 
+DATES = {}
 TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S'
 EVENT_TIMEZONE = pytz.timezone(EVENT_TIMEZONE)
 for _opt, _val in conf['dates'].items():
@@ -39,6 +40,8 @@ for _opt, _val in conf['dates'].items():
     else:
         _dt = EVENT_TIMEZONE.localize(datetime.strptime(_val + ' 23:59', '%Y-%m-%d %H:%M'))
     globals()[_opt.upper()] = _dt
+    if _dt:
+        DATES[_opt.upper()] = _dt
 
 PRICE_BUMPS = {}
 for _opt, _val in conf['badge_prices']['attendee'].items():

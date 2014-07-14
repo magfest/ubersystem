@@ -55,7 +55,7 @@
         </td>
         <td> {% popup_link "../static_views/attendees.html" "Details" %} </td>
     </tr>
-{% if now > PREREG_TAKEDOWN and SINGLE_DAY_BADGES %}
+{% if AFTER_PREREG_TAKEDOWN and ONE_DAYS_ENABLED %}
     <tr>
         <td> <b>Single Day Passes:</b> </td>
         <td><ul><li>Single days passes available for sale at the door for {% single_day_prices %}.</li></ul></td>
@@ -77,9 +77,9 @@
 {% endif %}
 {% if GROUPS_ENABLED %}
     <tr>
-    {% if BEFORE_GROUP_REG_TAKEDOWN %}
+    {% if BEFORE_GROUP_PREREG_TAKEDOWN %}
             <td>
-                {% if now < PREREG_TAKEDOWN %}<input type="radio" name="badge_type" value="{{ PSEUDO_GROUP_BADGE }}" />{% endif %}
+                <input type="radio" name="badge_type" value="{{ PSEUDO_GROUP_BADGE }}" />
                 <b>Group</b>
             </td>
             <td>
