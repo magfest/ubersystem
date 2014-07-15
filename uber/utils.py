@@ -92,12 +92,11 @@ def underscorize(s):
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s).lower()
 
 
-# TODO: make the eli@courtwright.org part configurable
 def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=None):
     to, cc, bcc = map(listify, [dest, cc, bcc])
     if DEV_BOX:
         for xs in [to, cc, bcc]:
-            xs[:] = [email for email in xs if email.endswith('mailinator.com') or 'eli@courtwright.org' in email]
+            xs[:] = [email for email in xs if email.endswith('mailinator.com') or DEVELOPER_EMAIL in email]
 
     if SEND_EMAILS and to:
         message = EmailMessage(subject=subject, **{'bodyText' if format == 'text' else 'bodyHtml': body})

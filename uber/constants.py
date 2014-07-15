@@ -87,10 +87,14 @@ class State:
         return opts
 
     def __getattr__(self, name):
-        if name.startswith('BEFORE_'):
-            return localized_now() < globals()[name.split('_', 1)[1]]
-        elif name.startswith('AFTER_'):
-            return localized_now() > globals()[name.split('_', 1)[1]]
+        if name.split('_')[0] in ['BEFORE', 'AFTER']:
+            date_setting = globals()[name.split('_', 1)[1]]
+            if not date_setting:
+                return False
+            elif name.startswith('BEFORE_'):
+                return localized_now() < date_setting
+            else:
+                return localized_now() > date_setting
         else:
             raise AttributeError('no such attribute {}'.format(name))
 
@@ -120,9 +124,6 @@ EVENT_BOOKED = {'colspan': 0}
 EVENT_OPEN   = {'colspan': 1}
 
 MAX_BADGE = max(xs[1] for xs in BADGE_RANGES.values())
-
-PREASSIGNED_BADGE_TYPES = [STAFF_BADGE, SUPPORTER_BADGE]
-CAN_UNSET = [ATTENDEE_BADGE]
 
 JOB_PAGE_OPTS = (
     ('index',    'Calendar View'),

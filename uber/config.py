@@ -77,3 +77,5 @@ for _name, _section in conf['integer_enums'].items():
 BADGE_RANGES = {}
 for _badge_type, _range in conf['badge_ranges'].items():
     BADGE_RANGES[globals()[_badge_type.upper()]] = _range
+
+PREASSIGNED_BADGE_TYPES = [globals()[badge_type.upper()] for badge_type in PREASSIGNED_BADGE_TYPES]

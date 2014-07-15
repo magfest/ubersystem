@@ -3,12 +3,11 @@ from uber.common import *
 class Reminder:
     instances = OrderedDict()
     
-    def __init__(self, model, subject, template, filter, sender=REGDESK_EMAIL, extra_data=None, cc=None, post_con=False, category=None):
+    def __init__(self, model, subject, template, filter, sender=REGDESK_EMAIL, extra_data=None, cc=None, post_con=False):
         self.model, self.subject, self.template, self.sender = model, subject, template, sender
         self.cc = cc or []
         self.extra_data = extra_data or {}
         self.instances[subject] = self
-        self.category = category or 'uncategorized'
 
         if post_con:
             self.filter = lambda x: POST_CON and filter(x)
@@ -29,8 +28,7 @@ class Reminder:
     
     def should_send(self, x, all_sent = None):
         try:
-            email_category_allowed = 'all' in EMAIL_CATEGORIES_ALLOWED_TO_SEND or self.category in EMAIL_CATEGORIES_ALLOWED_TO_SEND
-            return not self.prev(x, all_sent) and email_category_allowed and self.filter(x)
+            return not self.prev(x, all_sent) and self.filter(x)
         except:
             log.error('unexpected error', exc_info=True)
 
@@ -112,37 +110,41 @@ def days_before(days, dt, until=None):
 
 ### WARNING - changing the email subject line for an email causes ALL of those emails to be re-sent!
 
-Reminder(Attendee, EVENT_NAME +' schedule, maps, and other FAQs', 'precon_faqs.html',
-         lambda a: days_before(7, EPOCH), category='precon_faq')
 
+Reminder(Attendee, EVENT_NAME + ' payment received', 'attendee_confirmation.html',
+         lambda a: a.paid == HAS_PAID)
 
-Reminder(Attendee, EVENT_NAME +' payment received', 'attendee_confirmation.html',
-         lambda a: a.paid == HAS_PAID,
-         category='attendee_registration_confirmation')
+Reminder(Attendee, EVENT_NAME + ' group registration confirmed', 'attendee_confirmation.html',
+         lambda a: a.group and a != a.group.leader)
 
-Reminder(Attendee, EVENT_NAME +' group registration confirmed', 'attendee_confirmation.html',
-         lambda a: a.group and a != a.group.leader,
-         category='attendee_registration_confirmation')
-
-Reminder(Group, EVENT_NAME +' group payment received', 'group_confirmation.html',
-         lambda g: g.amount_paid == g.total_cost,
-         category='attendee_registration_confirmation')
-
-
-
-'''
+Reminder(Group, EVENT_NAME + ' group payment received', 'group_confirmation.html',
+         lambda g: g.amount_paid == g.total_cost)
 
 Reminder(Attendee, EVENT_NAME +' extra payment received', 'group_donation.txt',
          lambda a: a.paid == PAID_BY_GROUP and a.amount_extra and a.amount_paid == a.amount_extra)
 
+Reminder(Attendee, EVENT_NAME + ' Badge Confirmation', 'badge_confirmation.txt',
+         lambda a: a.placeholder and a.first_name and a.last_name
+                                 and a.badge_type not in [GUEST_BADGE, STAFF_BADGE]
+                                 and a.ribbon not in [PANELIST_RIBBON, VOLUNTEER_RIBBON])
 
-MarketplaceReminder('Reminder to pay for your '+ EVENT_NAME +' Dealer registration', 'dealer_payment_reminder.txt',
+
+
+
+# Dealer emails; these are safe to be turned on for all events because even if the event doesn't have dealers,
+# none of these emails will be sent unless someone has applied to be a dealer, which they cannot do until
+# dealer registration has been turned on.
+
+MarketplaceReminder('Your ' + EVENT_NAME + ' Dealer registration has been approved', 'dealer_approved.html',
+                    lambda g: g.status == APPROVED)
+
+MarketplaceReminder('Reminder to pay for your ' + EVENT_NAME + ' Dealer registration', 'dealer_payment_reminder.txt',
                     lambda g: g.status == APPROVED and days_after(30, g.approved) and g.is_unpaid)
 
-MarketplaceReminder('Your '+ EVENT_NAME +' Dealer registration is due in one week', 'dealer_payment_reminder.txt',
+MarketplaceReminder('Your ' + EVENT_NAME + ' Dealer registration is due in one week', 'dealer_payment_reminder.txt',
                     lambda g: g.status == APPROVED and days_before(7, DEALER_PAYMENT_DUE, 2) and g.is_unpaid)
 
-MarketplaceReminder('Last chance to pay for your '+ EVENT_NAME +' Dealer registration', 'dealer_payment_reminder.txt',
+MarketplaceReminder('Last chance to pay for your ' + EVENT_NAME + ' Dealer registration', 'dealer_payment_reminder.txt',
                     lambda g: g.status == APPROVED and days_before(2, DEALER_PAYMENT_DUE) and g.is_unpaid)
 
 MarketplaceReminder(EVENT_NAME +' Dealer waitlist has been exhausted', 'dealer_waitlist_closing.txt',
@@ -150,39 +152,42 @@ MarketplaceReminder(EVENT_NAME +' Dealer waitlist has been exhausted', 'dealer_w
 
 
 
-MarketplaceReminder('Your '+ EVENT_NAME +' Dealer registration has been approved', 'dealer_approved.html',
-                    lambda g: g.status == APPROVED)
+# Placeholder badge emails; when an admin creates a "placeholder" badge, we send one of three different emails depending
+# on whether the placeholder is a regular attendee, a guest/panelist, or a volunteer/staffer.  We also send a final
+# reminder email before the placeholder deadline explaining that the badge must be explicitly accepted or we'll assume
+# the person isn't coming.
+#
+# These emails are safe to be turned on for all events because none of them are sent unless an administrator explicitly
+# creates a "placeholder" registration.
 
-
-Reminder(Attendee, EVENT_NAME +' Badge Confirmation', 'badge_confirmation.txt',
-         lambda a: a.placeholder and a.first_name and a.last_name
-                                 and a.badge_type not in [GUEST_BADGE, STAFF_BADGE]
-                                 and a.ribbon not in [PANELIST_RIBBON, VOLUNTEER_RIBBON])
-
-Reminder(Attendee, EVENT_NAME +' Panelist Badge Confirmation', 'panelist_confirmation.txt',
+Reminder(Attendee, EVENT_NAME + ' Panelist Badge Confirmation', 'panelist_confirmation.txt',
          lambda a: a.placeholder and a.first_name and a.last_name
                                  and (a.badge_type == GUEST_BADGE or a.ribbon == PANELIST_RIBBON),
          sender = PANELS_EMAIL)
 
-StopsReminder(EVENT_NAME +' Volunteer Badge Confirmation', 'volunteer_confirmation.txt',
+StopsReminder(EVENT_NAME + ' Volunteer Badge Confirmation', 'volunteer_confirmation.txt',
               lambda a: a.placeholder and a.first_name and a.last_name
                                       and a.registered > PREREG_OPENING)
 
-Reminder(Attendee, EVENT_NAME +' Badge Confirmation Reminder', 'confirmation_reminder.txt',
+Reminder(Attendee, EVENT_NAME + ' Badge Confirmation Reminder', 'confirmation_reminder.txt',
          lambda a: days_after(7, a.registered) and a.placeholder and a.first_name and a.last_name)
 
-Reminder(Attendee, 'Last Chance to Accept Your '+ EVENT_NAME +' Badge', 'confirmation_reminder.txt',
+Reminder(Attendee, 'Last Chance to Accept Your ' + EVENT_NAME + ' Badge', 'confirmation_reminder.txt',
          lambda a: days_before(7, PLACEHOLDER_DEADLINE) and a.placeholder and a.first_name and a.last_name)
 
 
 
-StopsReminder('Want to staff '+ EVENT_NAME +' again?', 'imported_staffer.txt',
+
+'''
+
+
+StopsReminder('Want to staff ' + EVENT_NAME + ' again?', 'imported_staffer.txt',
               lambda a: a.placeholder and a.badge_type == STAFF_BADGE and a.registered < PREREG_OPENING)
 
-StopsReminder(EVENT_NAME +' shifts available', 'shifts_created.txt',
+StopsReminder(EVENT_NAME + ' shifts available', 'shifts_created.txt',
               lambda a: state.AFTER_SHIFTS_CREATED and a.takes_shifts)
 
-StopsReminder('Reminder to sign up for '+ EVENT_NAME +' shifts', 'shift_reminder.txt',
+StopsReminder('Reminder to sign up for ' + EVENT_NAME + ' shifts', 'shift_reminder.txt',
               lambda a: days_after(30, max(a.registered, SHIFTS_CREATED))
                     and state.AFTER_SHIFTS_CREATED and BEFORE_PREREG_TAKEDOWN and a.takes_shifts and not a.hours)
 
@@ -193,9 +198,6 @@ StopsReminder('Last chance to sign up for '+ EVENT_NAME +' shifts', 'shift_remin
 StopsReminder('Still want to volunteer at '+ EVENT_NAME +'?', 'volunteer_check.txt',
               lambda a: days_before(5, UBER_TAKEDOWN) and a.ribbon == VOLUNTEER_RIBBON
                                                       and a.takes_shifts and a.weighted_hours == 0)
-
-StopsReminder('MAGCon - the convention to plan '+ EVENT_NAME +'!', 'magcon.txt',
-              lambda a: days_before(14, MAGCON))
 
 
 StopsReminder('Want volunteer hotel room space at '+ EVENT_NAME +'?', 'hotel_rooms.txt',
@@ -213,11 +215,76 @@ StopsReminder('Reminder to meet your '+ EVENT_NAME +' hotel room requirements', 
 StopsReminder('Final reminder to meet your '+ EVENT_NAME +' hotel room requirements', 'hotel_hours.txt',
               lambda a: days_before(7, UBER_TAKEDOWN) and a.hotel_shifts_required and a.weighted_hours < 30)
 
+
+
+DeptHeadReminder('Assign ' + EVENT_NAME + ' hotel rooms for your department', 'room_assignments.txt',
+                 lambda a: days_before(45, ROOM_DEADLINE))
+
+DeptHeadReminder('Reminder for ' + EVENT_NAME + ' department heads to double-check their staffers', 'dept_head_rooms.txt',
+                 lambda a: days_before(45, ROOM_DEADLINE))
+
+DeptHeadReminder('Last reminder for ' + EVENT_NAME + ' department heads to double-check their staffers', 'dept_head_rooms.txt',
+                 lambda a: days_before(7, ROOM_DEADLINE))
+
+DeptHeadReminder('Last chance for Department Heads to get Staff badges for your people', 'dept_head_badges.txt',
+                 lambda a: days_before(7, PRINTED_BADGE_DEADLINE))
+
+DeptHeadReminder('Need help with ' + EVENT_NAME + ' setup/teardown?', 'dept_head_setup_teardown.txt',
+                 lambda a: days_before(14, ROOM_DEADLINE))
+
+DeptHeadReminder('Final list of '+ EVENT_NAME +' hotel allocations for your department', 'hotel_list.txt',
+                 lambda a: days_before(1, ROOM_DEADLINE + timedelta(days=6)))
+
+DeptHeadReminder('Unconfirmed '+ EVENT_NAME +' staffers in your department', 'dept_placeholders.txt',
+                 lambda a: days_before(21, UBER_TAKEDOWN))
+
+
+
+GroupReminder('Reminder to pre-assign ' + EVENT_NAME + ' group badges', 'group_preassign_reminder.txt',
+              lambda g: days_after(30, g.registered) and state.BEFORE_GROUP_REG_TAKEDOWN and g.unregistered_badges)
+
+Reminder(Group, 'Last chance to pre-assign ' + EVENT_NAME + ' group badges', 'group_preassign_reminder.txt',
+         lambda g: state.AFTER_GROUP_REG_TAKEDOWN and g.unregistered_badges and (not g.is_dealer or g.status == APPROVED))
+
+
+
+
+# TODO: make this configurable
+Reminder(Attendee, EVENT_NAME + ' parental consent form reminder', 'under_18_reminder.txt',
+         lambda a: a.age_group == UNDER_18 and days_before(7, EPOCH))
+
+
+# TODO: make personalized badge stuff configurable
 StopsReminder('Last chance to personalize your '+ EVENT_NAME +' badge', 'personalized_badge_reminder.txt',
               lambda a: days_before(7, PRINTED_BADGE_DEADLINE) and a.badge_type == STAFF_BADGE and a.placeholder)
-
 Reminder(Attendee, 'Personalized '+ EVENT_NAME +' badges will be ordered next week', 'personalized_badge_deadline.txt',
          lambda a: days_before(7, PRINTED_BADGE_DEADLINE) and a.badge_type in [STAFF_BADGE, SUPPORTER_BADGE] and not a.placeholder)
+
+
+
+DeptHeadReminder(EVENT_NAME + ' staffers need to be marked and rated', 'postcon_hours.txt', post_con=True)
+
+
+# see issue #173 about rewriting this
+#for _event in SEASON_EVENTS.values():
+#    SeasonSupporterReminder(_event)
+
+
+### MAGFest-specific:
+
+StopsReminder('MAGCon - the convention to plan '+ EVENT_NAME +'!', 'magcon.txt',
+              lambda a: days_before(14, MAGCON))
+
+Reminder(Attendee, EVENT_NAME + ' schedule, maps, and other FAQs', 'precon_faqs.html',
+         lambda a: days_before(7, EPOCH))
+
+GuestReminder(EVENT_NAME + ' food for guests', 'guest_food.txt')
+
+GuestReminder(EVENT_NAME + ' hospitality suite information', 'guest_food_info.txt')
+
+DeptHeadReminder('Department Ribbons', 'dept_head_ribbons.txt',
+                 lambda a: days_before(1, ROOM_DEADLINE),
+                 sender=REGDESK_EMAIL)
 
 StopsReminder(EVENT_NAME +' Tech Ops volunteering', 'techops.txt',
               lambda a: TECH_OPS in a.requested_depts_ints and TECH_OPS not in a.assigned)
@@ -246,57 +313,8 @@ StopsReminder(EVENT_NAME +' Volunteer Food', 'volunteer_food_info.txt',
 Reminder(Attendee, 'Want to help run '+ EVENT_NAME +' poker tournaments?', 'poker.txt',
          lambda a: a.has_shifts_in(TABLETOP), sender='tabletop@magfest.org')
 
-
-DeptHeadReminder('Assign '+ EVENT_NAME +' hotel rooms for your department', 'room_assignments.txt',
-                 lambda a: days_before(45, ROOM_DEADLINE))
-
-DeptHeadReminder('Reminder for '+ EVENT_NAME +' department heads to double-check their staffers', 'dept_head_rooms.txt',
-                 lambda a: days_before(45, ROOM_DEADLINE))
-
-DeptHeadReminder('Last reminder for '+ EVENT_NAME +' department heads to double-check their staffers', 'dept_head_rooms.txt',
-                 lambda a: days_before(7, ROOM_DEADLINE))
-
-DeptHeadReminder('Last chance for Department Heads to get Staff badges for your people', 'dept_head_badges.txt',
-                 lambda a: days_before(7, PRINTED_BADGE_DEADLINE))
-
-DeptHeadReminder('Need help with '+ EVENT_NAME +' setup/teardown?', 'dept_head_setup_teardown.txt',
-                 lambda a: days_before(14, ROOM_DEADLINE))
-
-DeptHeadReminder('Department Ribbons', 'dept_head_ribbons.txt',
-                 lambda a: days_before(1, ROOM_DEADLINE),
-                 sender=REGDESK_EMAIL)
-
-DeptHeadReminder('Final list of '+ EVENT_NAME +' hotel allocations for your department', 'hotel_list.txt',
-                 lambda a: days_before(1, ROOM_DEADLINE + timedelta(days=6)))
-
-DeptHeadReminder('Unconfirmed '+ EVENT_NAME +' staffers in your department', 'dept_placeholders.txt',
-                 lambda a: days_before(21, UBER_TAKEDOWN))
-
-
-GroupReminder('Reminder to pre-assign '+ EVENT_NAME +' group badges', 'group_preassign_reminder.txt',
-              lambda g: days_after(30, g.registered) and state.BEFORE_GROUP_REG_TAKEDOWN and g.unregistered_badges)
-
-Reminder(Group, 'Last chance to pre-assign '+ EVENT_NAME +' group badges', 'group_preassign_reminder.txt',
-         lambda g: state.AFTER_GROUP_REG_TAKEDOWN and g.unregistered_badges and (not g.is_dealer or g.status == APPROVED))
-
-
-
-Reminder(Attendee, EVENT_NAME +' parental consent form reminder', 'under_18_reminder.txt',
-         lambda a: a.age_group == UNDER_18 and days_before(7, EPOCH))
-
-GuestReminder(EVENT_NAME +' food for guests', 'guest_food.txt')
-
-GuestReminder(EVENT_NAME +' hospitality suite information', 'guest_food_info.txt')
-
-
-DeptHeadReminder(EVENT_NAME +' staffers need to be marked and rated', 'postcon_hours.txt', post_con=True)
-
-
-# see issue #173 about rewriting this
-#for _event in SEASON_EVENTS.values():
-#    SeasonSupporterReminder(_event)
-
 '''
+
 
 @all_renderable(PEOPLE)
 class Root:
