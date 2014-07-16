@@ -305,7 +305,7 @@
         var $schedHead = $schedule.find("thead tr");
         var $schedBody = $schedule.find("tbody");
         var $emptyRow = $("<tr/>");
-        $.each({{ EVENT_LOC_OPTS|jsonize }}, function(i,loc) {
+        $.each({{ EVENT_LOCATION_OPTS|jsonize }}, function(i,loc) {
             if (loc[1].indexOf("(") >= 0) {
                 loc[1] = loc[1].replace("(", "<nobr>(").replace(")", ")</nobr>");
             } else {

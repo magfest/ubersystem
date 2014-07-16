@@ -8,6 +8,7 @@ sessions/session-*
 development.conf
 production.conf
 event.conf
+development.ini
 #Project
 workspace.xml
 tasks.xml

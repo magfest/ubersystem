@@ -1,36 +1,6 @@
 from uber.common import *
 
-MODULE_ROOT = abspath(dirname(__file__))
-ROOT = MODULE_ROOT[:MODULE_ROOT.rfind(os.path.sep)]
-
-_roots = ['root = "{}"'.format(ROOT), 'module_root = "{}"'.format(MODULE_ROOT)]
-_rootspec = ['root = string(default="{}")\n'.format(ROOT), 'module_root = string(default="{}")\n'.format(MODULE_ROOT)]
-with open(join(MODULE_ROOT, 'configspec.ini')) as _f:
-    _spec = ConfigObj(_rootspec + _f.readlines(), list_values=False, interpolation=False, _inspec=True)
-
-with open(join(MODULE_ROOT, 'defaults.conf')) as _f:
-    conf = ConfigObj(_f.readlines(), configspec=_spec, interpolation='ConfigParser')
-
-if any(sys.argv[0].endswith(testrunner) for testrunner in ['py.test', 'nosetests']):
-    _overrides = ['uber/tests/test.conf']
-else:
-    _overrides = ['development.conf', 'production.conf']
-
-_overrides.append('event.conf')
-
-for _fname in _overrides:
-    _fpath = join(ROOT, _fname)
-    if exists(_fpath):
-        with open(_fpath) as _f:
-            conf.merge(ConfigObj(_roots + _f.readlines(), configspec=_spec, interpolation='ConfigParser'))
-
-_validator = Validator()
-_errors = conf.validate(_validator, preserve_errors=True)
-if _errors != True:
-    _errors = flatten_errors(conf, _errors)
-    print('failed to validate configspec')
-    pprint(_errors)
-    raise ConfigObjError(_errors)
+conf = parse_config(__file__)
 
 def _unrepr(d):
     for opt in d:
@@ -42,20 +12,7 @@ def _unrepr(d):
         elif isinstance(d[opt], dict):
             _unrepr(d[opt])
 
-_unrepr(conf['cherrypy'])
 _unrepr(conf['appconf'])
-cherrypy.config.update(conf['cherrypy'].dict())
-cherrypy.engine.autoreload.files.update([
-    join(ROOT, 'event.conf'),
-    join(ROOT, 'production.conf'),
-    join(ROOT, 'development.conf'),
-    join(MODULE_ROOT, 'defaults.conf'),
-    join(MODULE_ROOT, 'configspec.ini')
-])
-try:
-    os.makedirs(conf['cherrypy']['tools.sessions.storage_path'])
-except:
-    pass
 
 if 'DATABASE_URL' in os.environ:
     _url = urlparse(os.environ['DATABASE_URL'])
@@ -68,30 +25,57 @@ if 'DATABASE_URL' in os.environ:
     })
 django.conf.settings.configure(**conf['django'].dict())
 
-for _logger, _level in conf['loggers'].items():
-    logging.getLogger(_logger).setLevel(getattr(logging, _level))
-
-log = logging.getLogger()
-_handler = logging.FileHandler('uber.log')
-_handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
-log.addHandler(_handler)
-
-for _opt, _val in conf.items():
+for _opt, _val in chain(conf.items(), conf['badge_prices'].items()):
     if not isinstance(_val, dict):
         globals()[_opt.upper()] = _val
 
+DATES = {}
+TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S'
+EVENT_TIMEZONE = pytz.timezone(EVENT_TIMEZONE)
 for _opt, _val in conf['dates'].items():
     if not _val:
         _dt = None
     elif ' ' in _val:
-        _dt = datetime.strptime(_val, '%Y-%m-%d %H')
+        _dt = EVENT_TIMEZONE.localize(datetime.strptime(_val, '%Y-%m-%d %H'))
     else:
-        _dt = datetime.strptime(_val + ' 23:59', '%Y-%m-%d %H:%M')
+        _dt = EVENT_TIMEZONE.localize(datetime.strptime(_val + ' 23:59', '%Y-%m-%d %H:%M'))
     globals()[_opt.upper()] = _dt
+    if _dt:
+        DATES[_opt.upper()] = _dt
 
 PRICE_BUMPS = {}
 for _opt, _val in conf['badge_prices']['attendee'].items():
-    PRICE_BUMPS[datetime.strptime(_opt, '%Y-%m-%d')] = _val
+    PRICE_BUMPS[EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d'))] = _val
 
-AT_OR_POST_CON = AT_THE_CON or POST_CON
-PRE_CON = not AT_OR_POST_CON
+def _make_enum(enum_name, section):
+    opts, lookup = [], {}
+    for name, desc in section.items():
+        if isinstance(name, int):
+            val = name
+        else:
+            val = globals()[name.upper()] = int(sha512(name.upper().encode()).hexdigest()[:7], 16)
+        opts.append((val, desc))
+        lookup[val] = desc
+
+    enum_name = enum_name.upper()
+    globals()[enum_name + '_OPTS'] = opts
+    globals()[enum_name + ('' if enum_name.endswith('S') else 'S')] = lookup
+
+for _name, _section in conf['enums'].items():
+    _make_enum(_name, _section)
+
+for _name, _val in conf['integer_enums'].items():
+    if isinstance(_val, int):
+        globals()[_name.upper()] = _val
+for _name, _section in conf['integer_enums'].items():
+    if isinstance(_section, dict):
+        _interpolated = OrderedDict()
+        for _desc, _val in _section.items():
+            _interpolated[int(_val) if _val.isdigit() else globals()[_val.upper()]] = _desc
+        _make_enum(_name, _interpolated)
+
+BADGE_RANGES = {}
+for _badge_type, _range in conf['badge_ranges'].items():
+    BADGE_RANGES[globals()[_badge_type.upper()]] = _range
+
+PREASSIGNED_BADGE_TYPES = [globals()[badge_type.upper()] for badge_type in PREASSIGNED_BADGE_TYPES]

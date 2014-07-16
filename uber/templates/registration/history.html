@@ -17,8 +17,8 @@
 {% for tracked in changes %}
     <tr>
         <td style="white-space:nowrap">{{ tracked.model }}</td>
-        <td style="white-space:nowrap">{{ tracked.get_action_display }}</td>
-        <td style="white-space:nowrap">{{ tracked.when }}</td>
+        <td style="white-space:nowrap">{{ tracked.action_label }}</td>
+        <td style="white-space:nowrap">{{ tracked.when|full_datetime }}</td>
         <td style="white-space:nowrap">{{ tracked.who }}</td>
         <td>{{ tracked.data }}</td>
     </tr>
@@ -58,7 +58,7 @@
 
 {% for email in emails  %}
     {% if forloop.first %}<h2> Automated Emails </h2>{% endif %}
-    <h3> {{ email.subject }} ({{ email.when }}) </h3>
+    <h3> {{ email.subject }} ({{ email.when|full_datetime }}) </h3>
     <div style="font-family:courier">{{ email.html }}</div>
 {% endfor %}
 

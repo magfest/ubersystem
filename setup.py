@@ -1,10 +1,11 @@
 from setuptools import setup
 
+exec(open('uber/_version.py').read())
 if __name__ == '__main__':
     setup(
         name='uber',
-        version='13.0',
         packages=['uber'],
+        version=__version__,
         author='Eli Courtwright',
         author_email='eli@courtwright.org',
         description='The MAGFest Ubersystem',

@@ -12,7 +12,7 @@
         <td>{% stripe_form process_attendee_donation charge %}</td>
         {% if attendee.amount_extra %}
             <td style="width:100px ; text-align:center">or</td>
-            <td><a href="undo_attendee_donation?id={{ attendee.secret_id }}">{% stripe_button "Undo Extra Money" %}</a></td>
+            <td><a href="undo_attendee_donation?id={{ attendee.id }}">{% stripe_button "Undo Extra Money" %}</a></td>
         {% endif %}
     </tr></table>
 {% else %}
@@ -28,7 +28,7 @@
     <table style="width:auto ; margin-left:auto ; margin-right: auto"><tr>
         <td>{% stripe_form process_attendee_donation charge %}</td>
         <td style="width:100px ; text-align:center">or</td>
-        <td><a href="undo_attendee_donation?id={{ attendee.secret_id }}">{% stripe_button "Nevermind" %}</a></td>
+        <td><a href="undo_attendee_donation?id={{ attendee.id }}">{% stripe_button "Nevermind" %}</a></td>
     </tr></table>
 {% endif %}
 

@@ -33,8 +33,8 @@
         </td>
         <td>${{ attendee.total_cost }}</td>
         <td>
-            <a href="form?edit_id={{ attendee.secret_id }}">Edit</a> /
-            <a href="delete?id={{ attendee.secret_id }}">Delete</a>
+            <a href="form?edit_id={{ attendee.id }}">Edit</a> /
+            <a href="delete?id={{ attendee.id }}">Delete</a>
         </td>
      </tr>
 {% endfor %}
@@ -42,10 +42,10 @@
     <tr>
         <td>{{ group.name }}</td>
         <td>{{ group.badges }} badges</td>
-        <td>${{ group.total_cost }}</td>
+        <td>${{ group.default_cost }}</td>
         <td>
-            <a href="form?edit_id={{ group.secret_id }}">Edit</a> /
-            <a href="delete?id={{ group.secret_id }}">Delete</a>
+            <a href="form?edit_id={{ group.id }}">Edit</a> /
+            <a href="delete?id={{ group.id }}">Delete</a>
         </td>
     </tr>
 {% endfor %}

@@ -55,13 +55,13 @@
         </td>
         <td> {% popup_link "../static_views/attendees.html" "Details" %} </td>
     </tr>
-{% if now > PREREG_TAKEDOWN and SINGLE_DAY_BADGES %}
+{% if AFTER_PREREG_TAKEDOWN and ONE_DAYS_ENABLED %}
     <tr>
         <td> <b>Single Day Passes:</b> </td>
         <td><ul><li>Single days passes available for sale at the door for {% single_day_prices %}.</li></ul></td>
     </tr>
 {% endif %}
-{% if SUPPORTER_BADGE_TYPE_ENABLED %}
+{% if SUPPORTERS_ENABLED %}
     <tr>
         <td>
             <input type="radio" id="supporter" name="badge_type" value="{{ ATTENDEE_BADGE }}" />
@@ -75,28 +75,28 @@
         <td> {% popup_link "../static_views/supporters.html" "Details" %} </td>
     </tr>
 {% endif %}
-{% if GROUP_REG_AVAILABLE %}
+{% if GROUPS_ENABLED %}
     <tr>
-{% if GROUP_REG_OPEN %}
-        <td>
-            {% if now < PREREG_TAKEDOWN %}<input type="radio" name="badge_type" value="{{ PSEUDO_GROUP_BADGE }}" />{% endif %}
-            <b>Group</b>
-        </td>
-        <td>
-            <ul>
-                <li>Save money when you register eight or more people at once</li>
-                <li>${{ GROUP_PRICE }} per person</li>
-                <li>Group members can kick in extra to upgrade their badge level</li>
-                <li style="color:red">{% group_price_notice %}</li>
-            </ul>
-        </td>
-        <td> {% popup_link "../static_views/groups.html" "Details" %} </td>
-{% else %}
-        <td> &nbsp;&nbsp;&nbsp;&nbsp; <b>Group</b> </td>
-        <td colspan="2" style="color:red">
-            <ul><li>The deadline for Group registration has passed, but you can still register as a regular attendee.</li></ul>
-        </td>
-{% endif %}
+    {% if BEFORE_GROUP_PREREG_TAKEDOWN %}
+            <td>
+                <input type="radio" name="badge_type" value="{{ PSEUDO_GROUP_BADGE }}" />
+                <b>Group</b>
+            </td>
+            <td>
+                <ul>
+                    <li>Save money when you register eight or more people at once</li>
+                    <li>${{ GROUP_PRICE }} per person</li>
+                    <li>Group members can kick in extra to upgrade their badge level</li>
+                    <li style="color:red">{% group_price_notice %}</li>
+                </ul>
+            </td>
+            <td> {% popup_link "../static_views/groups.html" "Details" %} </td>
+    {% else %}
+            <td> &nbsp;&nbsp;&nbsp;&nbsp; <b>Group</b> </td>
+            <td colspan="2" style="color:red">
+                <ul><li>The deadline for Group registration has passed, but you can still register as a regular attendee.</li></ul>
+            </td>
+    {% endif %}
     </tr>
 {% endif %}
 </table>

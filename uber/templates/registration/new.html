@@ -132,8 +132,8 @@
                 <div style="color:red">This attendee's name matches the name of a banned person.  Please get a department head to handle this.</div>
             {% endif %}
         </td>
-        <td>{{ attendee.get_badge_type_display }}</td>
-        <td>{{ attendee.get_age_group_display }}</td>
+        <td>{{ attendee.badge_type_label }}</td>
+        <td>{{ attendee.age_group_label }}</td>
         <td>
             {% if attendee.paid == HAS_PAID %}
                 paid

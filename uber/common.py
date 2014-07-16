@@ -7,7 +7,6 @@ import math
 import string
 import socket
 import random
-import logging
 import inspect
 import warnings
 import threading
@@ -20,6 +19,7 @@ from copy import deepcopy
 from pprint import pformat
 from hashlib import sha512
 from functools import wraps
+from itertools import chain
 from xml.dom import minidom
 from random import randrange
 from contextlib import closing
@@ -31,33 +31,38 @@ from os.path import abspath, dirname, exists, join
 from datetime import date, time, datetime, timedelta
 from threading import Thread, RLock, local, current_thread
 
+import pytz
 import bcrypt
 import cherrypy
 import django.conf
-from validate import Validator
-from configobj import ConfigObj, ConfigObjError, flatten_errors
+from pytz import UTC
 
+from django import template
+from django.utils.safestring import SafeString
+from django.template import loader, Context, Variable, TemplateSyntaxError
+
+import sqlalchemy
+from sqlalchemy.sql import case
+from sqlalchemy.event import listen
+from sqlalchemy import func, or_, and_
+from sqlalchemy.ext import declarative
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.sql.expression import FunctionElement
+from sqlalchemy.orm import Query, relationship, joinedload
+from sqlalchemy.orm.attributes import get_history, instance_state
+from sqlalchemy.schema import Column, ForeignKey, UniqueConstraint
+from sqlalchemy.types import UnicodeText, Boolean, Integer, Float, TypeDecorator
+
+from sideboard.lib.sa import declarative_base, SessionManager, UTCDateTime, UUID
+from sideboard.lib import log, parse_config, entry_point, listify, DaemonTask, serializer
+
+import uber
 from uber.amazon_ses import AmazonSES, EmailMessage
 from uber.config import *
 from uber.constants import *
 from uber import constants
-
-from django import template
-from django.db import connection
-from django.db.models import base
-from django.dispatch import receiver
-from django.forms.models import model_to_dict
-from django.utils.safestring import SafeString
-from django.db.models.signals import pre_save, post_save, pre_delete
-from django.template import loader, Context, Variable, TemplateSyntaxError
-from django.db.models import Q, Avg, Sum, Count, Model, ForeignKey, OneToOneField, BooleanField, CharField, TextField, IntegerField, FloatField, DateField, DateTimeField, CommaSeparatedIntegerField
-
-import stripe
-stripe.api_key = STRIPE_SECRET_KEY
-
-import logging_unterpolation
-logging_unterpolation.patch_logging()
-
 from uber.utils import *
 from uber.decorators import *
 from uber.models import *
@@ -65,7 +70,12 @@ from uber.badge_funcs import *
 from uber import model_checks
 from uber import custom_tags
 from uber.server import *
+from uber import init_db
+from uber.tests import import_test_data
+
+import stripe
+stripe.api_key = STRIPE_SECRET_KEY
 
 # kludgy hack because I love "from <module> import *" way too much
-for _module in ['utils', 'models', 'custom_tags', 'decorators']:
-    __import__('uber.' + _module, fromlist=['os']).__dict__.update(globals())
+for _module in ['constants', 'utils', 'models', 'custom_tags', 'decorators']:
+    __import__('uber.' + _module, fromlist='*').__dict__.update(globals())
