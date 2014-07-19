@@ -1,7 +1,7 @@
 from uber.common import *
 
-from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.sql import case
+# TODO: change display to _repr_attrs or whatever that's called
+
 
 def _get_defaults(func):
     spec = inspect.getfullargspec(func)
@@ -633,14 +633,13 @@ class Attendee(MagModel, TakesPaymentMixin):
     def multiply_assigned(self):
         return len(self.assigned_depts_ints) > 1
 
-    # TODO: this should be configurable
     @property
     def takes_shifts(self):
-        return bool(self.staffing and set(self.assigned_depts_ints) - {ARTEMIS, CONCERT, CON_OPS, MARKETPLACE, CCG_TABLETOP, DORSAI, CONTRACTORS})
+        return bool(self.staffing and set(self.assigned_depts_ints) - SHIFTLESS_DEPTS)
 
     @property
     def hotel_shifts_required(self):
-        return bool(self.hotel_nights and self.ribbon != DEPT_HEAD_RIBBON and self.takes_shifts)
+        return bool(SHIFTS_CREATED and self.hotel_nights and self.ribbon != DEPT_HEAD_RIBBON and self.takes_shifts)
 
     @property
     def hours(self):
@@ -698,6 +697,12 @@ class Attendee(MagModel, TakesPaymentMixin):
         wh = sum((shift.job.real_duration * shift.job.weight for shift in self.worked_shifts), 0.0)
         return wh + self.nonshift_hours
 
+    def requested(self, department):
+        return department in self.requested_depts_ints
+
+    def assigned_to(self, department):
+        return department in self.assigned_dept_ints
+
     def has_shifts_in(self, department):
         return any(shift.job.location == department for shift in self.shifts)
 
@@ -713,7 +718,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def hotel_eligible(self):
-        return self.badge_type == STAFF_BADGE
+        return ROOM_DEADLINE and self.badge_type == STAFF_BADGE
 
     @cached_property
     def hotel_nights(self):
@@ -963,6 +968,9 @@ class Checkout(MagModel):
     when        = Column(UTCDateTime, default=lambda: datetime.now(UTC))
 
 
+
+class ApprovedEmail(MagModel):
+    subject = Column(UnicodeText)
 
 class Email(MagModel):
     fk_id   = Column(UUID, nullable=True)

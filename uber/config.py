@@ -78,4 +78,5 @@ BADGE_RANGES = {}
 for _badge_type, _range in conf['badge_ranges'].items():
     BADGE_RANGES[globals()[_badge_type.upper()]] = _range
 
+SHIFTLESS_DEPTS = {globals()[dept.upper()] for dept in SHIFTLESS_DEPTS}
 PREASSIGNED_BADGE_TYPES = [globals()[badge_type.upper()] for badge_type in PREASSIGNED_BADGE_TYPES]

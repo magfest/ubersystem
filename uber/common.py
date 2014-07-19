@@ -9,6 +9,7 @@ import socket
 import random
 import inspect
 import warnings
+import mimetypes
 import threading
 import traceback
 from glob import glob
@@ -59,13 +60,14 @@ from sideboard.lib.sa import declarative_base, SessionManager, UTCDateTime, UUID
 from sideboard.lib import log, parse_config, entry_point, listify, DaemonTask, serializer
 
 import uber
-from uber.amazon_ses import AmazonSES, EmailMessage
+from uber.amazon_ses import AmazonSES, EmailMessage  # TODO: replace this after boto adds Python 3 support
 from uber.config import *
 from uber.constants import *
 from uber import constants
 from uber.utils import *
 from uber.decorators import *
 from uber.models import *
+from uber.reminders import *
 from uber.badge_funcs import *
 from uber import model_checks
 from uber import custom_tags

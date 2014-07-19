@@ -1,5 +1,0 @@
-{{ attendee.first_name }},
-
-Thanks for offering to help out in the Tech Ops department at {{ EVENT_NAME }}.  Please tell us a little bit about your background so we can see if you would be a good fit for Tech Ops.  See https://docs.google.com/document/d/1DU2clnfQcUOtWgx6BWxKNj_LJ2rOfaC-A2tfcEwgLAQ for our technical requirements.
-
-{{ STOPS_EMAIL_SIGNATURE }}

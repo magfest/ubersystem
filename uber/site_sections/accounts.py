@@ -130,7 +130,7 @@ class Root:
             for name in dir(module.Root):
                 method = getattr(module.Root, name)
                 if getattr(method, 'exposed', False):
-                    spec = inspect.getfullargspec(method._orig)
+                    spec = inspect.getfullargspec(get_innermost(method))
                     if set(method.restricted or []).intersection(AdminAccount.access_set()) \
                             and (getattr(method, 'site_mappable', False)
                               or len([arg for arg in spec.args[1:] if arg != 'session']) == len(spec.defaults or []) and not spec.varkw):

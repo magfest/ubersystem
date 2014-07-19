@@ -1,0 +1,16 @@
+{% extends "base-admin.html" %}
+{% block title %}Example Reminder Emails{% endblock %}
+{% block content %}
+
+<h2> {{ reminder.subject }} </h2>
+
+{% if examples %}
+    The following are some examples of the {{ count }} emails that will be sent once this email is approved:
+{% else %}
+    Nobody matches the email criteria.  Perhaps the email is time-based and it's not yet time for it to be sent out?
+{% endif %}
+
+{% for url, email in examples }}
+    <h3><a href="{{ url }}">Source</a></h3>
+    <pre>{{ email }}</pre>
+{% endblock %}

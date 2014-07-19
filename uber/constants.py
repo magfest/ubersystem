@@ -5,16 +5,6 @@ class State:
     def DEALER_REG_OPEN(self):
         return self.AFTER_DEALER_REG_START and self.BEFORE_DEALER_REG_SHUTDOWN
 
-    # TODO: string/string/True is a weird way to do trinary
-    @property
-    def PREREG_OPEN(self):
-        if self.BEFORE_PREREG_OPENING:
-            return "notopenyet"
-        elif self.AFTER_PREREG_TAKEDOWN:
-            return "closed"
-        else:
-            return True
-
     @property
     def BADGES_SOLD(self):
         with Session() as session:
@@ -25,11 +15,11 @@ class State:
             return individuals + group_badges
 
     def get_oneday_price(self, dt):
-        default = conf['badge_prices']['default_single_day']
+        default = DEFAULT_SINGLE_DAY
         return conf['badge_prices']['single_day'].get(dt.strftime('%A'), default)
 
     def get_attendee_price(self, dt):
-        price = conf['badge_prices']['initial_attendee']
+        price = INITIAL_ATTENDEE
         if PRICE_BUMPS_ENABLED:
             for day, bumped_price in sorted(PRICE_BUMPS.items()):
                 if (dt or datetime.now(UTC)) >= day:
@@ -37,7 +27,7 @@ class State:
         return price
 
     def get_group_price(self, dt):
-        return self.get_attendee_price(dt) - conf['badge_prices']['group_discount']
+        return self.get_attendee_price(dt) - GROUP_DISCOUNT
 
     @property
     def ONEDAY_BADGE_PRICE(self):

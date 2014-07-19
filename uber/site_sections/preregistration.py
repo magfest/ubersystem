@@ -62,7 +62,7 @@ class Root:
         })
 
     def check_prereg(self):
-        return json.dumps({'force_refresh': not state.PREREG_OPEN or state.BADGES_SOLD >= MAX_BADGE_SALES})
+        return json.dumps({'force_refresh': state.AFTER_PREREG_TAKEDOWN or state.BADGES_SOLD >= MAX_BADGE_SALES})
 
     @check_if_can_reg
     def index(self, message=''):

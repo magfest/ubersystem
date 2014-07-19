@@ -1,7 +1,4 @@
-import mimetypes
-
 from uber.common import *
-from uber.site_sections.emails import Reminder
 from uber.site_sections import schedule, signups, preregistration
 
 
@@ -73,12 +70,9 @@ class Redirector:
 
 cherrypy.tree.mount(Root(), PATH, conf['appconf'].dict())
 
-if SEND_EMAILS:
-    DaemonTask(Reminder.send_all)
-'''
+DaemonTask(Reminder.send_all, interval=300)
 if PRE_CON:
     DaemonTask(detect_duplicates)
     DaemonTask(check_unassigned)
     if CHECK_PLACEHOLDERS:
         DaemonTask(check_placeholders)
-'''

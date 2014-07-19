@@ -202,11 +202,3 @@ def genpasswd():
             return ' '.join(random.choice(words) for i in range(4))
     except:
         return ''.join(chr(randrange(33, 127)) for i in range(8))
-
-def dictfetchall(cursor):
-    "Returns all rows from a cursor as a dict"
-    desc = cursor.description
-    return [
-        dict(zip([col[0] for col in desc], row))
-        for row in cursor.fetchall()
-    ]
