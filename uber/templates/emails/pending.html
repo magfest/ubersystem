@@ -1,0 +1,26 @@
+{% extends "base-admin.html" %}
+{% block title %}Reminder Emails Pending Approval{% endblock %}
+{% block content %}
+
+<table class="list">
+<tr class="header">
+    <td>Subject</td>
+    <td>Sender</td>
+    <td>Examples</td>
+    <td>Approve</td>
+</tr>
+{% for reminder in reminders %}
+    <tr>
+        <td>{{ reminder.subject }}</td>
+        <td>{{ reminder.sender }}</td>
+        <td><a href="pending_examples?subject={{ email.subject|urlencode }}">See Examples</a></td>
+        <td>
+            <form method="post" action="approve">
+            <input type="hidden" name="subject" value="{{ reminder.subject }}" />
+            <input type="submit" value="Approve" />
+        </td>
+    </tr>
+{% endfor %}
+</table>
+
+{% endblock %}

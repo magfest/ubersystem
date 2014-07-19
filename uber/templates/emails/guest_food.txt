@@ -1,7 +1,0 @@
-{{ attendee.first_name }},
-
-Thanks for coming out to {{ EVENT_NAME }} as a Guest!  Since our Staff Food Suite is also open to to Guests, we'd appreciate it if you took a moment to let us know about any dietary restrictions you might have, using the following link: {{ URL_BASE }}/preregistration/guest_food?id={{ attendee.id }}
-
-Please fill out that form even if you have no dietary restrictions, since that helps us tell the difference between people with no restrictions and people who just haven't filled out the form yet.
-
-{{ PEGLEGS_EMAIL_SIGNATURE }}

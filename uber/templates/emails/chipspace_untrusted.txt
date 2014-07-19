@@ -1,6 +1,0 @@
-{{ attendee.first_name }},
-
-Just wanted to say thanks for signing up for shifts in Chipspace, {{ EVENT_NAME }}'s "Jamspace for chiptunes".  We're looking forward to seeing you at {{ EVENT_NAME }}, please let me know if you have any questions about Chipspace before then.
-
-Brandon Hood,
-Chipspace Manager

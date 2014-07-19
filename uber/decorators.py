@@ -5,17 +5,17 @@ def check_if_can_reg(func):
     def with_check(*args,**kwargs):
         if state.BADGES_SOLD >= MAX_BADGE_SALES:
             return render('static_views/prereg_soldout.html')
-        elif state.PREREG_OPEN == "notopenyet":
+        elif state.BEFORE_PREREG_OPEN:
             return render('static_views/prereg_not_yet_open.html')
-        elif state.PREREG_OPEN == "closed":
+        elif state.AFTER_PREREG_TAKEDOWN:
             return render('static_views/prereg_closed.html')
         else:
             return func(*args,**kwargs)
     return with_check
 
-# TODO: use _get_innermost() to replace _orig since there's no point to having both
-def _get_innermost(func):
-    return _get_innermost(func.__wrapped__) if hasattr(func, '__wrapped__') else func
+
+def get_innermost(func):
+    return get_innermost(func.__wrapped__) if hasattr(func, '__wrapped__') else func
 
 
 def site_mappable(func):
@@ -119,7 +119,7 @@ def credit_card(func):
 def sessionized(func):
     @wraps(func)
     def with_session(*args, **kwargs):
-        innermost = _get_innermost(func)
+        innermost = get_innermost(func)
         if 'session' not in inspect.getfullargspec(innermost).args:
             return func(*args, **kwargs)
         else:
@@ -257,7 +257,6 @@ class all_renderable:
                 func.restricted = getattr(func, 'restricted', self.needs_access)
                 new_func = sessionized(restricted(renderable(func)))
                 new_func.exposed = True
-                new_func._orig = func
                 setattr(klass, name, new_func)
         return klass
 
