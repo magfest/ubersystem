@@ -80,7 +80,7 @@
 {% if group.is_new %}
 <tr>
     <td> <b>Status</b> </td>
-    <td> <select name="status">{% options STATUS_OPTS group.status %}</select> </td>
+    <td> <select name="status">{% options DEALER_STATUS_OPTS group.status %}</select> </td>
 </tr>
 {% endif %}
 {% if group.is_dealer %}
@@ -171,6 +171,18 @@
                     (paid => {{ attendee.paid_label }}, &nbsp;&nbsp;
                      badge => {{ attendee.badge }})
                 </i>
+            </td>
+            <td>
+                {% if attendee == group.leader %}
+                    <b>Leader</b>
+                {% elif not attendee.is_unassigned %}
+                    <form method="post" action="assign_leader">
+                    {% csrf_token %}
+                    <input type="hidden" name="group_id" value="{{ group.id }}" />
+                    <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
+                    <input type="submit" value="Make Leader" />
+                    </form>
+                {% endif %}
             </td>
         </tr>
     {% endfor %}

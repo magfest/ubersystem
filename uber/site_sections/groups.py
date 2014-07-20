@@ -41,6 +41,8 @@ class Root:
                         raise HTTPRedirect('../preregistration/group_members?id={}', group.id)
                     else:
                         raise HTTPRedirect('form?id={}&message={}', group.id, 'Group info uploaded')
+
+        group.attendees.sort(key=lambda a: (a.is_unassigned, a != group.leader, a.full_name))
         return {
             'message': message,
             'group':   group
@@ -71,3 +73,13 @@ class Root:
                 session.delete(attendee)
             session.delete(group)
             raise HTTPRedirect('index?message={}', 'Group deleted')
+
+    @csrf_protected
+    def assign_leader(self, session, group_id, attendee_id):
+        group = session.group(group_id)
+        attendee = session.attendee(attendee_id)
+        if attendee not in group.attendees:
+            raise HTTPRedirect('form?id={}&message={}', group_id, 'That attendee has been removed from the group')
+        else:
+            group.leader_id = attendee_id
+            raise HTTPRedirect('form?id={}&message={}', group_id, 'Group leader set')
