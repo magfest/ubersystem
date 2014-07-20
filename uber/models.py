@@ -274,6 +274,11 @@ class Group(MagModel, TakesPaymentMixin):
             self.approved = datetime.now(UTC)
 
     @property
+    def sorted_attendees(self):
+        self.attendees.sort(key=lambda a: (a.is_unassigned, a.id != self.leader_id, a.full_name))
+        return self.attendees
+
+    @property
     def new_badge_type(self):
         if GUEST_BADGE in {a.badge_type for a in self.attendees}:
             return GUEST_BADGE

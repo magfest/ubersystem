@@ -42,7 +42,6 @@ class Root:
                     else:
                         raise HTTPRedirect('form?id={}&message={}', group.id, 'Group info uploaded')
 
-        group.attendees.sort(key=lambda a: (a.is_unassigned, a != group.leader, a.full_name))
         return {
             'message': message,
             'group':   group
