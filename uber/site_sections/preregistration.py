@@ -220,17 +220,23 @@ class Root:
             'message': message
         }
 
-    # TODO: make sure two people can click the same badge and fill out the form and not clobber each other
-    def register_group_member(self, session, message='', **params):
+    def register_group_member(self, session, group_id, message='', **params):
+        group = session.group(group_id)
         attendee = session.attendee(params, bools=_checkboxes, restricted=True)
         if 'first_name' in params:
             message = check(attendee) or check_prereg_reqs(attendee)
             if not message and not params['first_name']:
                 message = 'First and Last Name are required fields'
             if not message:
+                if session.assign_badges(group, group.badges - 1):
+                    raise HTTPRedirect('group_members?id={}&message={}', group_id, 'No more unassigned badges exist in this group')
+
                 if attendee.full_name in BANNED_ATTENDEES:
                     send_banned_email(attendee)
 
+                attendee.group_id = group_id
+                attendee.paid = PAID_BY_GROUP
+                session.add(attendee)
                 if attendee.amount_unpaid:
                     raise HTTPRedirect('group_extra_payment_form?id={}', attendee.id)
                 else:
@@ -239,8 +245,9 @@ class Root:
             attendee.can_spam = True    # only defaults to true for these forms
 
         return {
-            'attendee': attendee,
             'message':  message,
+            'group_id': group_id,
+            'attendee': attendee,
             'affiliates': session.affiliates()
         }
 
