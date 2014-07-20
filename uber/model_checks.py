@@ -38,7 +38,7 @@ def _invalid_phone_number(s):
     return s.startswith('+') or len(re.findall(r'\d', s)) != 10
 
 def attendee_misc(attendee):
-    if attendee.group and not attendee.first_name.strip() and not attendee.last_name.strip():
+    if attendee.group_id and not attendee.first_name.strip() and not attendee.last_name.strip():
         return
 
     if not attendee.first_name or not attendee.last_name:
@@ -61,6 +61,12 @@ def attendee_misc(attendee):
 
     if not attendee.no_cellphone and attendee.staffing and _invalid_phone_number(attendee.phone):
         return "10-digit cellphone number is required for volunteers (unless you don't own a cellphone)"
+
+def attendee_leadership(attendee):
+    if attendee.session and not attendee.group_id:
+        orig_group_id = attendee.orig_value_of('group_id')
+        if orig_group_id and attendee.id == attendee.session.group(orig_group_id).leader_id:
+            return 'You cannot remove the leader of a group from that group; make someone else the leader first'
 
 def attendee_banned_volunteer(attendee):
     if (attendee.ribbon == VOLUNTEER_RIBBON or attendee.staffing) and attendee.full_name in BANNED_STAFFERS:
