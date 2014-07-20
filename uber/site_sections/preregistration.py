@@ -324,7 +324,6 @@ class Root:
             session.merge(group)
             raise HTTPRedirect('group_members?id={}&message={}', group.id, 'You payment has been accepted and the badges have been added to your group')
 
-    # TODO: trusted people probably shouldn't be able to transfer their badge OR we should unset their trusted status
     def transfer_badge(self, session, message='', **params):
         old = session.attendee(params['id'])
         assert old.is_transferrable, 'This badge is not transferrable'
@@ -336,7 +335,7 @@ class Root:
             if not message and (not params['first_name'] and not params['last_name']):
                 message = 'First and Last names are required.'
             if not message:
-                subject, body = EVENT_NAME + ' Registration Transferred', render('emails/transfer_badge.txt', {'new': attendee, 'old': old})
+                subject, body = EVENT_NAME + ' Registration Transferred', render('emails/reg_workflow/badge_transfer.txt', {'new': attendee, 'old': old})
                 try:
                     send_email(REGDESK_EMAIL, [old.email, attendee.email, REGDESK_EMAIL], subject, body, model=attendee)
                 except:
@@ -345,7 +344,10 @@ class Root:
                 if attendee.full_name in BANNED_ATTENDEES:
                     send_banned_email(attendee)
 
-                raise HTTPRedirect('confirm?id={}&message={}', attendee.id, 'Your registration has been transferred')
+                if attendee.group_id:
+                    raise HTTPRedirect('group_members?id={}&message={}', attendee.group_id, 'Registration successfully transferred')
+                else:
+                    raise HTTPRedirect('confirm?id={}&message={}', attendee.id, 'Your registration has been transferred')
         else:
             for attr in ['first_name','last_name','email','zip_code','international','ec_phone','phone','interests','age_group','staffing','requested_depts']:
                 setattr(attendee, attr, getattr(Attendee(), attr))
