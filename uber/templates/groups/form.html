@@ -158,7 +158,7 @@
     </div>
 {% endif %}
 
-{% if not group.is_new and group.attendees %}
+{% if not group.is_new and group.sorted_attendees %}
     <hr/>
     <h3> Badges: &nbsp; <a style="font-size:10pt" href="../preregistration/group_members?id={{ group.id }}">Link for group leader</a> </h3>
     <table style="width:auto">

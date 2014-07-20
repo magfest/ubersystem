@@ -286,13 +286,12 @@ class Root:
         attendee = session.attendee(id)
         try:
             send_email(REGDESK_EMAIL, attendee.email, '{{ EVENT_NAME }} group registration dropped',
-                       render('emails/group_member_dropped.txt', {'attendee': attendee}), model=attendee)
+                       render('emails/reg_workflow/group_member_dropped.txt', {'attendee': attendee}), model=attendee)
         except:
             log.error('unable to send group unset email', exc_info=True)
 
-        for attr in ['first_name','last_name','email','zip_code','ec_phone','phone','interests','found_how','comments']:
-            setattr(attendee, attr, '')
-        attendee.age_group = AGE_UNKNOWN
+        session.assign_badges(attendee.group, attendee.group.badges + 1)
+        session.delete(attendee)
         raise HTTPRedirect('group_members?id={}&message={}', attendee.group.id, 'Attendee unset; you may now assign their badge to someone else')
 
     def add_group_members(self, session, id, count):

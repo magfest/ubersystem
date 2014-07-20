@@ -34,7 +34,7 @@
 
 <br/> <b>Here are the badges for your group:</b>
 <table style="width:auto">
-{% for attendee in group.attendees %}
+{% for attendee in group.sorted_attendees %}
     <tr>
         <td> <ul style="padding-right:0px"><li></li></ul> </td>
         {% if attendee.first_name %}
