@@ -662,13 +662,14 @@ class Root:
     def review(self, session):
         return {'attendees': session.query(Attendee)
                                     .filter(Attendee.for_review != '')
-                                    .order_by(Attendee.full_name)}
+                                    .order_by(Attendee.full_name).all()}
 
     def season_pass_tickets(self, session):
         events = defaultdict(list)
-        for spt in session.query(SeasonPassTicket).options(joinedload(SeasonPassTicket.attendee)) \
-                                                  .order_by(Attendee.full_name):
-            events[spt.slug].append(spt.attendee)
+        for spt in session.query(SeasonPassTicket).all():
+            events[spt.slug].append(spt.fk)
+        for attending in events.values():
+            attending.sort(key=lambda a: (a.first_name, a.last_name))
         return {'events': dict(events)}
 
     @site_mappable
