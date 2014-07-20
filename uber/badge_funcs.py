@@ -27,52 +27,55 @@ def get_badge_type(badge_num):
 
 def detect_duplicates():
     subject = 'Duplicates Report for ' + localized_now().strftime('%Y-%m-%d')
-    if not Email.objects.filter(subject = subject):
-        grouped = defaultdict(list)
-        for a in Attendee.objects.exclude(first_name = '').order_by('registered').select_related('group'):
-            if not a.group or a.group.status != WAITLISTED:
-                grouped[a.full_name, a.email.lower()].append(a)
+    with Session() as session:
+        if session.no_email(subject):
+            grouped = defaultdict(list)
+            for a in session.query(Attendee).filter(Attendee.first_name != '').options(joinedload(Attendee.group)).order_by(Attendee.registered):
+                if not a.group or a.group.status != WAITLISTED:
+                    grouped[a.full_name, a.email.lower()].append(a)
 
-        dupes = {k:v for k,v in grouped.items() if len(v) > 1}
+            dupes = {k: v for k, v in grouped.items() if len(v) > 1}
 
-        for who,attendees in dupes.items():
-            paid = [a for a in attendees if a.paid == HAS_PAID]
-            unpaid = [a for a in attendees if a.paid == NOT_PAID]
-            if len(paid) == 1 and len(attendees) == 1 + len(unpaid):
-                for a in unpaid:
-                    a.delete()
-                del dupes[who]
+            for who, attendees in dupes.items():
+                paid = [a for a in attendees if a.paid == HAS_PAID]
+                unpaid = [a for a in attendees if a.paid == NOT_PAID]
+                if len(paid) == 1 and len(attendees) == 1 + len(unpaid):
+                    for a in unpaid:
+                        session.delete(a)
+                    del dupes[who]
 
-        if dupes:
-            body = render('emails/duplicates.html', {'dupes': sorted(dupes.items())})
-            send_email(ADMIN_EMAIL, REGDESK_EMAIL, subject, body, format = 'html', model = 'n/a')
+            if dupes:
+                body = render('emails/daily_checks/duplicates.html', {'dupes': sorted(dupes.items())})
+                send_email(ADMIN_EMAIL, REGDESK_EMAIL, subject, body, format='html', model='n/a')
 
 
 def check_placeholders():
-    emails = {
-        STAFF_EMAIL: Q(staffing = True),
-        PANELS_EMAIL: Q(badge_type = GUEST_BADGE) | Q(ribbon = PANELIST_RIBBON),
-        REGDESK_EMAIL: ~(Q(staffing = True) | Q(badge_type = GUEST_BADGE) | Q(ribbon = PANELIST_RIBBON))
-    }
-    for dest,query in emails.items():
-        email = [s for s in dest.split() if '@' in s][0].strip('<>').split('@')[0].title()
-        subject = email + ' Placeholder Badge Report for ' + localized_now().strftime('%Y-%m-%d')
-        if not Email.objects.filter(subject = subject):
-            placeholders = list(Attendee.objects.filter(query, placeholder = True,
-                                                        registered__lt = localized_now() - timedelta(days = 30))
-                                        .order_by('registered','first_name','last_name')
-                                        .select_related('group'))
-            if placeholders:
-                body = render('emails/placeholders.html', {'placeholders': placeholders})
-                send_email(ADMIN_EMAIL, dest, subject, body, format='html', model='n/a')
+    emails = [
+        ['Staff', STAFF_EMAIL, Attendee.staffing == True],
+        ['Panelist', PANELS_EMAIL, or_(Attendee.badge_type == GUEST_BADGE, Attendee.ribbon == PANELIST_RIBBON)],
+        ['Attendee', REGDESK_EMAIL, not_(or_(Attendee.staffing == True, Attendee.badge_type == GUEST_BADGE, Attendee.ribbon == PANELIST_RIBBON))]
+    ]
+    with Session() as session:
+        for badge_type, dest, query in emails.items():
+            subject = '{} {} Placeholder Badge Report for {}'.format(EVENT_NAME, badge_type, localized_now().strftime('%Y-%m-%d'))
+            if session.no_email(subject):
+                placeholders = session.query(Attendee) \
+                                      .filter(Attendee.registered < localized_now() - timedelta(days=30), *query) \
+                                      .filter_by(placeholder=True) \
+                                      .options(joinedload(Attendee.group)) \
+                                      .order_by(Attendee.registered, Attendee.full_name).all()
+                if placeholders:
+                    body = render('emails/daily_checks/placeholders.html', {'placeholders': placeholders})
+                    send_email(ADMIN_EMAIL, dest, subject, body, format='html', model='n/a')
 
 
 def check_unassigned():
-    unassigned = list(Attendee.objects.filter(staffing=True, assigned_depts='').order_by('first_name', 'last_name'))
-    subject = 'Unassigned Volunteer Report for ' + localized_now().strftime('%Y-%m-%d')
-    if unassigned and not Email.objects.filter(subject = subject):
-        body = render('emails/unassigned.html', {'unassigned': unassigned})
-        send_email(STAFF_EMAIL, STAFF_EMAIL, subject, body, format='html', model='n/a')
+    with Session() as session:
+        unassigned = session.query(Attendee).filter_by(staffing=True, assigned_depts='').order_by(Attendee.full_name).all()
+        subject = 'Unassigned Volunteer Report for ' + localized_now().strftime('%Y-%m-%d')
+        if unassigned and session.no_email(subject):
+            body = render('emails/daily_checks/unassigned.html', {'unassigned': unassigned})
+            send_email(STAFF_EMAIL, STAFF_EMAIL, subject, body, format='html', model='n/a')
 
 
 # TODO: perhaps a check_leaderless() for checking for leaderless groups, since those don't get emails

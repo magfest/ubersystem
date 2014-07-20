@@ -16,10 +16,10 @@ class Root:
             'message':  message,
             'accounts': session.query(AdminAccount).join(Attendee)
                                .order_by(Attendee.first_name, Attendee.last_name).all(),
-            'all_attendees': [{
-                'id': a.id,
-                'text': '{a.full_name} - {a.badge}'.format(a=a)
-            } for a in session.query(Attendee).filter(Attendee.email != '').all()]
+            'all_attendees': [
+                (a.id, '{a.full_name} - {a.badge}'.format(a=a))
+                for a in session.query(Attendee).filter(Attendee.email != '').order_by(Attendee.full_name).all()
+            ]
         }
 
     def update(self, session, password='', **params):

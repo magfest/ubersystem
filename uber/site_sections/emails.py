@@ -13,21 +13,28 @@ class Root:
     def sent(self, session, **params):
         return {'emails': session.query(Email).filter_by(**params).order_by(Email.when).all()}
 
-    def pending(self, session):
+    def pending(self, session, message=''):
         approved = {ae.subject for ae in session.query(ApprovedEmail).all()}
-        return {'pending': [rem for rem in Reminder.instances.values() if rem.needs_approval and rem.subject not in approved]}
+        return {
+            'message': message,
+            'pending': [ae for ae in AutomatedEmail.instances.values() if ae.needs_approval and ae.subject not in approved]
+        }
 
     def pending_examples(self, session, subject):
         count = 0
         examples = []
-        reminder = Reminder.instances[subject]
+        email = AutomatedEmail.instances[subject]
         attendees, groups = session.everyone()
-        for x in (attendees if rem.model == Attendee else Group):
-            if reminder.filter(x):
+        models = {Attendee: attendees, Group: groups, 'SeasonPass': session.season_passes()}
+        for x in models[email.model]:
+            if email.filter(x):
                 count += 1
-                url = ('../registration/form?id={}' if rem.model == Attendee else '../groups/form?id={}').format(x.id)
+                url = {
+                    Group: '../groups/form?id={}',
+                    Attendee: '../registration/form?id={}'
+                }.get(x.__class__, '').format(x.id)
                 if len(examples) < 10:
-                    examples.append([url, reminder.render(x)])
+                    examples.append([url, email.render(x)])
 
         return {
             'count': count,

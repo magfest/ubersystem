@@ -1,6 +1,8 @@
 {% extends "base-admin.html" %}
-{% block title %}Reminder Emails Pending Approval{% endblock %}
+{% block title %}Automated Emails Pending Approval{% endblock %}
 {% block content %}
+
+<h2> Pending Emails Requiring Approval </h2>
 
 <table class="list">
 <tr class="header">
@@ -9,15 +11,17 @@
     <td>Examples</td>
     <td>Approve</td>
 </tr>
-{% for reminder in reminders %}
+{% for email in pending %}
     <tr>
-        <td>{{ reminder.subject }}</td>
-        <td>{{ reminder.sender }}</td>
+        <td>{{ email.subject }}</td>
+        <td>{{ email.sender }}</td>
         <td><a href="pending_examples?subject={{ email.subject|urlencode }}">See Examples</a></td>
         <td>
             <form method="post" action="approve">
-            <input type="hidden" name="subject" value="{{ reminder.subject }}" />
+            {% csrf_token %}
+            <input type="hidden" name="subject" value="{{ email.subject }}" />
             <input type="submit" value="Approve" />
+            </form>
         </td>
     </tr>
 {% endfor %}

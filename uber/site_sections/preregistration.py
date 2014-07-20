@@ -427,20 +427,19 @@ class Root:
             session.merge(attendee)
             raise HTTPRedirect(return_to, 'Your payment has been accepted, thanks so much!')
 
-    def event(self, session, slug, *, id, register=None):
-        attendee = session.attendee(id)
-        event = SEASON_EVENTS[slug]
-        deadline_passed = localized_now() > event['deadline']
-        assert attendee.amount_extra >= SEASON_LEVEL
+    def event(self, session, id, slug, register=None):
+        season_pass = session.season_pass(id)
+        event = SeasonEvent.instances[slug]
+        deadline_passed = localized_now() > event.deadline
         if register and not deadline_passed:
-            session.add(SeasonPassTicket(attendee=attendee, slug=slug))
-            raise HTTPRedirect(slug + '?id={}', id)
+            session.add(SeasonPassTicket(fk_id=season_pass.id, slug=slug))
+            raise HTTPRedirect('event?id={}&slug={}', id, slug)
 
         return {
             'event': event,
-            'attendee': attendee,
+            'attendee': season_pass,
             'deadline_passed': deadline_passed,
-            'registered': slug in [spt.slug for spt in attendee.season_pass_tickets]
+            'registered': bool(session.query(SeasonPassTicket).filter_by(fk_id=id, slug=slug).count())
         }
 
 if POST_CON:

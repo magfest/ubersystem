@@ -161,10 +161,8 @@ def renderable_data(data=None):
 def render(template_name_list, data = None):
     data = renderable_data(data)
     template = loader.select_template(listify(template_name_list))
-    rendered = template.render( Context(data) )
-
-    rendered = screw_you_nick(rendered, template) # lolz.
-
+    rendered = template.render(Context(data))
+    rendered = screw_you_nick(rendered, template)  # lolz.
     return rendered.encode('utf-8')
 
 
