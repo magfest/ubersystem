@@ -72,7 +72,7 @@ from uber.badge_funcs import *
 from uber import model_checks
 from uber import custom_tags
 from uber.server import *
-from uber import init_db
+from uber import reset_db
 from uber.tests import import_test_data
 
 import stripe
