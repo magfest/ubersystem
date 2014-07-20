@@ -1,8 +1,13 @@
 {% extends "base-admin.html" %}
-{% block title %}Example Reminder Emails{% endblock %}
+{% block title %}Example Automated Emails{% endblock %}
 {% block content %}
 
-<h2> {{ reminder.subject }} </h2>
+<h2> {{ subject }} </h2>
+
+<div class="center">
+    <a href="pending">Return to pending email list</a>
+</div>
+<br/>
 
 {% if examples %}
     The following are some examples of the {{ count }} emails that will be sent once this email is approved:
@@ -10,7 +15,9 @@
     Nobody matches the email criteria.  Perhaps the email is time-based and it's not yet time for it to be sent out?
 {% endif %}
 
-{% for url, email in examples }}
-    <h3><a href="{{ url }}">Source</a></h3>
-    <pre>{{ email }}</pre>
+{% for url, email in examples %}
+    <h3>{% if url %}<a href="{{ url }}">Source</a>{% else %}Previous Season Supporter:{% endif %}</h3>
+    <pre style="white-space:pre-wrap">{{ email }}</pre>
+{% endfor %}
+
 {% endblock %}

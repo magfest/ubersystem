@@ -1,0 +1,7 @@
+{{ attendee.first_name }},
+
+You still haven't accepted the {{ attendee.badge_type_label }} badge{% if attendee.ribbon != NO_RIBBON %} with a {{ attendee.ribbon_label }} ribbon{% endif %} for this year's {{ EVENT_NAME }}.  We need to know whether you're coming, so please let us know by filling out the form at {{ URL_BASE }}/preregistration/confirm?id={{ attendee.id }}
+
+We're going to delete all un-accepted preregistrations at {{ PLACEHOLDER_DEADLINE|datetime }}, so please make sure to fill out the form before then.
+
+{{ REGDESK_EMAIL_SIGNATURE }}

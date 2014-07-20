@@ -1,9 +1,9 @@
 {{ attendee.first_name }},
 
-As part of your 2014 Season Supporter package, you are eligible for complimentary admission to all 2013 and 2014 {{ EVENT_NAME }} events.  Our next event is {{ event.name }}, and it's coming up on {{ event.day|datetime:"%A, %b %e" }} at {{ event.location }}, which you can read more about at {{ event.url }}
+As part of your Season Supporter package {% if attendee.is_attendee %}this year{% else %}last year{% endif %}, you are eligible for complimentary admission to all of {% if attendee.is_attendee %}this and next year's{% else %}this year's{% endif %} {{ EVENT_NAME }} events.  Our next event is {{ event.name }}, and it's coming up on {{ event.day|datetime:"%A, %b %e" }} at {{ event.location }}, which you can read more about at {{ event.url }}
 
-To claim your complementary badge, just visit {{ URL_BASE }}/preregistration/event/{{ event.slug }}?id={{ attendee.id }}
+To claim your complementary badge, just visit {{ URL_BASE }}/preregistration/event?slug={{ event.slug }}&id={{ attendee.id }}
 
-Remember that our events often sell out, so if you would like to attend this event, please RSVP no later than {{ event.deadline|datetime }} so that we can reserve a ticket for you.  Please note that your complimentary pass is only valid for you, and is not transferrable.  Thank you so much for your support, and we hope to see you there!
+Remember that our events often sell out, so if you would like to attend this event, please RSVP no later than {{ event.deadline|datetime }} so that we can reserve a ticket for you.  Please note that your complimentary pass is only valid for you, and is not transferrable.  Thanks so much for your support, and we hope to see you there!
 
 {{ REGDESK_EMAIL_SIGNATURE }}

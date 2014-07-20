@@ -1,5 +1,5 @@
 {% extends "base-admin.html" %}
-{% block title %}Recently Sent Reminder Emails{% endblock %}
+{% block title %}Recently Sent Automated Emails{% endblock %}
 {% block content %}
 
 {% pages page count %}
@@ -7,7 +7,7 @@
 <table class="list">
 <tr class="header">
     <td>Sent</td>
-    <td>Reminder</td>
+    <td>Subject</td>
     <td>Recipient</td>
 </tr>
 {% for email in emails %}

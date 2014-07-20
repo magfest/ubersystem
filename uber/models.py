@@ -147,6 +147,9 @@ class MagModel:
         else:
             return choice in getattr(self, multi.name + '_ints')
 
+        if name.startswith('is_'):
+            return self.__class__.__name__.lower() == name[3:]
+
         raise AttributeError(self.__class__.__name__ + '.' + name)
 
     # NOTE: if we used from_dict() to implement this it might end up being simpler
@@ -701,7 +704,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         return department in self.requested_depts_ints
 
     def assigned_to(self, department):
-        return department in self.assigned_dept_ints
+        return department in self.assigned_depts_ints
 
     def has_shifts_in(self, department):
         return any(shift.job.location == department for shift in self.shifts)
@@ -832,9 +835,12 @@ class AssignedPanelist(MagModel):
         return '<{self.attendee.full_name} panelisting {self.event.name}>'.format(self=self)
 
 class SeasonPassTicket(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    attendee    = relationship(Attendee, backref='season_pass_tickets')
-    slug        = Column(UnicodeText)
+    fk_id    = Column(UUID, ForeignKey('attendee.id'))
+    slug     = Column(UnicodeText)
+
+    @property
+    def fk(self):
+        return self.session.season_pass(self.fk_id)
 
 class Room(MagModel, NightsMixin):
     department = Column(Choice(JOB_LOCATION_OPTS))
@@ -968,6 +974,11 @@ class Checkout(MagModel):
     when        = Column(UTCDateTime, default=lambda: datetime.now(UTC))
 
 
+
+class PrevSeasonSupporter(MagModel):
+    first_name = Column(UnicodeText)
+    last_name  = Column(UnicodeText)
+    email      = Column(UnicodeText)
 
 class ApprovedEmail(MagModel):
     subject = Column(UnicodeText)
@@ -1124,6 +1135,23 @@ class Session(SessionManager):
 
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
+
+        def no_email(self, subject):
+            return not self.query(Email).filter_by(subject=subject).all()
+
+        def season_pass(self, id):
+            pss = self.query(PrevSeasonSupporter).all()
+            if pss:
+                return pss[0]
+            else:
+                attendee = self.attendee(id)
+                assert attendee.amount_extra >= SEASON_LEVEL
+                return attendee
+
+        def season_passes(self):
+            attendees = {a.email: a for a in self.query(Attendee).filter(Attendee.amount_extra >= SEASON_LEVEL).all()}
+            prev = [pss for pss in self.query(PrevSeasonSupporter).all() if pss.email not in attendees]
+            return prev + list(attendees.values())
 
         def lookup_attendee(self, full_name, email, zip_code):
             words = full_name.split()

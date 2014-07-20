@@ -45,8 +45,8 @@ from django.template import loader, Context, Variable, TemplateSyntaxError
 import sqlalchemy
 from sqlalchemy.sql import case
 from sqlalchemy.event import listen
-from sqlalchemy import func, or_, and_
 from sqlalchemy.ext import declarative
+from sqlalchemy import func, or_, and_, not_
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -67,7 +67,7 @@ from uber import constants
 from uber.utils import *
 from uber.decorators import *
 from uber.models import *
-from uber.reminders import *
+from uber.automated_emails import *
 from uber.badge_funcs import *
 from uber import model_checks
 from uber import custom_tags

@@ -58,7 +58,7 @@ class Order:
 
 
 class SeasonEvent:
-    instances = []
+    instances = OrderedDict()
 
     def __init__(self, slug, **kwargs):
         assert re.match('^[a-z0-9_]+$', slug), 'Season Event sections must have separated_by_underscore names'
@@ -67,17 +67,17 @@ class SeasonEvent:
 
         self.slug = slug
         self.name = kwargs['name'] or slug.replace('_', ' ').title()
-        self.day = datetime.strptime('%Y-%m-%d', kwargs['day'])
+        self.day = EVENT_TIMEZONE.localize(datetime.strptime(kwargs['day'], '%Y-%m-%d'))
         self.url = kwargs['url']
         self.location = kwargs['location']
         if kwargs['deadline']:
-            self.deadline = datetime.strptime('%Y-%m-%d', kwargs['day'])
+            self.deadline = EVENT_TIMEZONE.localize(datetime.strptime(kwargs['day'], '%Y-%m-%d'))
         else:
-            self.deadline = datetime.combine((self.day - timedelta(days = 7)).date(), time(23, 59))
+            self.deadline = (self.day - timedelta(days = 7)).replace(hour=23, minute=59)
 
     @classmethod
     def register(cls, slug, kwargs):
-        cls.instances.append(cls(slug, **kwargs))
+        cls.instances[slug] = cls(slug, **kwargs)
 
 for _slug, _conf in conf['season_events'].items():
     SeasonEvent.register(_slug, _conf)
@@ -112,6 +112,7 @@ def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=
         log.error('email sending turned off, so unable to send {}', locals())
 
     if model and dest:
+        body = body.decode('utf-8') if isinstance(body, bytes) else body
         fk = {'model': 'n/a'} if model == 'n/a' else {'fk_id': model.id, 'model': model.__class__.__name__}
         with Session() as session:
             session.add(Email(subject=subject, dest=','.join(listify(dest)), body=body, **fk))

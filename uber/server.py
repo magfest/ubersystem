@@ -70,9 +70,10 @@ class Redirector:
 
 cherrypy.tree.mount(Root(), PATH, conf['appconf'].dict())
 
-DaemonTask(Reminder.send_all, interval=300)
-if PRE_CON:
-    DaemonTask(detect_duplicates)
-    DaemonTask(check_unassigned)
-    if CHECK_PLACEHOLDERS:
-        DaemonTask(check_placeholders)
+if SEND_EMAILS or DEV_BOX:
+    DaemonTask(AutomatedEmail.send_all, interval=300)
+    if PRE_CON:
+        DaemonTask(detect_duplicates, interval=300)
+        DaemonTask(check_unassigned, interval=300)
+        if CHECK_PLACEHOLDERS:
+            DaemonTask(check_placeholders, interval=300)

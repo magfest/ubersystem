@@ -8,7 +8,7 @@ class Root:
         return {
             'total_count':   len(attendees),
             'shirt_sizes':   [(desc, count(shirt=shirt)) for shirt, desc in SHIRT_OPTS],
-            'paid_counts':   [(desc, count(paid=status)) for status, desc in PAID_OPTS],
+            'paid_counts':   [(desc, count(paid=status)) for status, desc in PAYMENT_OPTS],
             'badge_counts':  [(desc, count(badge_type=bt), count(paid=NOT_PAID, badge_type=bt), count(paid=HAS_PAID, badge_type=bt)) for bt, desc in BADGE_OPTS],
             'aff_counts':    [(aff['text'], count(badge_type=SUPPORTER_BADGE, affiliate=aff['text'], paid=HAS_PAID), count(badge_type=SUPPORTER_BADGE, affiliate=aff['text'], paid=NOT_PAID)) for aff in session.affiliates()],
             'checkin_count': count(checked_in=None),
