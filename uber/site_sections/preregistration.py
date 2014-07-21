@@ -450,6 +450,9 @@ class Root:
             'registered': bool(session.query(SeasonPassTicket).filter_by(fk_id=id, slug=slug).count())
         }
 
+    def credit_card_retry(self):
+        return {}
+
 if POST_CON:
     @all_renderable()
     class Root:

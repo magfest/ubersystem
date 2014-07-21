@@ -144,7 +144,11 @@ class Charge:
 
     @staticmethod
     def get(payment_id):
-        return Charge(**cherrypy.session.pop(payment_id))
+        charge = cherrypy.session.pop(payment_id, None)
+        if charge:
+            return Charge(**charge)
+        else:
+            raise HTTPRedirect('../preregistration/credit_card_retry')
 
     def to_dict(self):
         return {

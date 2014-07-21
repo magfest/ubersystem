@@ -85,7 +85,7 @@ class SeasonSupporterEmail(AutomatedEmail):
     def __init__(self, event):
         AutomatedEmail.__init__(self, 'SeasonPass',
                                 subject = 'Claim your {} tickets with your {} Season Pass'.format(event.name, EVENT_NAME),
-                                template = 'season_supporter_event_invite.txt',
+                                template = 'reg_workflow/season_supporter_event_invite.txt',
                                 filter = lambda a: before(event.deadline),
                                 needs_approval = True,
                                 extra_data = {'event': event})
