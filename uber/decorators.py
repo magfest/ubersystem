@@ -3,14 +3,14 @@ from uber.common import *
 def check_if_can_reg(func):
     @wraps(func)
     def with_check(*args,**kwargs):
-        if state.BADGES_SOLD >= MAX_BADGE_SALES:
-            return render('static_views/prereg_soldout.html')
-        elif state.BEFORE_PREREG_OPEN:
-            return render('static_views/prereg_not_yet_open.html')
-        elif state.AFTER_PREREG_TAKEDOWN:
-            return render('static_views/prereg_closed.html')
-        else:
-            return func(*args,**kwargs)
+        if not DEV_BOX:
+            if state.BADGES_SOLD >= MAX_BADGE_SALES:
+                return render('static_views/prereg_soldout.html')
+            elif state.BEFORE_PREREG_OPEN:
+                return render('static_views/prereg_not_yet_open.html')
+            elif state.AFTER_PREREG_TAKEDOWN:
+                return render('static_views/prereg_closed.html')
+        return func(*args,**kwargs)
     return with_check
 
 
