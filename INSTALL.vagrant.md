@@ -1,5 +1,7 @@
 Setting up Ubersystem to run on Vagrant
 ==================
+Note: These instructions are currently broken as of 7/23/14, we are currently fixing the installation process as part of a major overhaul.  If you REALLY want to do this, email code at magfest dot org and we'll walk you through it, it's mostly similar.
+
 Windows instructions, if you're on linux/etc the process will be similar.
 
 [Vagrant](http://www.vagrantup.com/) is a great way to provide portable development environments by letting you install a local VM and have it automatically configured with all of the software and dependencies you need to start developing.  If you're already running Linux, we recommend you just develop locally, so this section assumes you are using Windows.  Here's what you'll need to install to get your dev environment up and running:
