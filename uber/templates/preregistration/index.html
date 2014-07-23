@@ -41,7 +41,14 @@
 {% for group in charge.groups %}
     <tr>
         <td>{{ group.name }}</td>
-        <td>{{ group.badges }} badges</td>
+        <td>
+            <ul>
+                <li>{{ group.badges }} badges</li>
+                {% for swag in group.attendees.0.donation_swag %}
+                    <li>{{ swag }}</li>
+                {% endfor %}
+            </ul>
+        </td>
         <td>${{ group.default_cost }}</td>
         <td>
             <a href="form?edit_id={{ group.id }}">Edit</a> /

@@ -67,9 +67,9 @@
     <td> $<input type="text" style="width:4em" name="amount_paid" value="{{ group.amount_paid }}" /> </td>
 </tr>
 <tr>
-    <td> <b><nobr>Amount Owed:</nobr></b> </td>
+    <td> <b><nobr>Total Group Price:</nobr></b> </td>
     <td>
-        $<input type="text" style="width:4em" name="amount_owed" value="{{ group.amount_owed }}" />
+        $<input type="text" style="width:4em" name="cost" value="{{ group.cost }}" />
         {% checkbox group.auto_recalc %} Automatically recalculate this number.
     </td>
 </tr>

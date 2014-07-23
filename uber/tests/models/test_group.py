@@ -126,7 +126,9 @@ def test_assign_removing_too_many_badges(session):
 
 def test_assign_removing_badges(session):
     attendees = [Attendee(paid=PAID_BY_GROUP), Attendee(first_name='x'), Attendee(paid=HAS_PAID), Attendee(paid=PAID_BY_GROUP)]
-    session.assign_badges(Group(attendees=attendees), 2)
+    group = Group(attendees=attendees)
+    session.assign_badges(group, 2)
+    assert group.badges == 2
     assert session.delete.call_count == 2
     session.delete.assert_any_call(attendees[0])
     session.delete.assert_any_call(attendees[3])
@@ -138,3 +140,15 @@ def test_badge_cost(monkeypatch):
         Attendee(paid=PAID_BY_GROUP), Attendee(paid=PAID_BY_GROUP),
         Attendee(paid=PAID_BY_GROUP, ribbon=DEALER_RIBBON), Attendee(paid=PAID_BY_GROUP, ribbon=DEALER_RIBBON)
     ]).badge_cost
+
+def test_new_extra():
+    assert 0 == Group().amount_extra
+    assert 20 == Group(attendees=[Attendee(paid=PAID_BY_GROUP, amount_extra=20)]).amount_extra
+    assert 30 == Group(attendees=[
+        Attendee(paid=PAID_BY_GROUP, amount_extra=10),
+        Attendee(paid=PAID_BY_GROUP, amount_extra=20)
+    ]).amount_extra
+
+def test_existing_extra(monkeypatch):
+    monkeypatch.setattr(Group, 'is_new', False)
+    assert 0 == Group(attendees=[Attendee(paid=PAID_BY_GROUP, amount_extra=20)]).amount_extra
