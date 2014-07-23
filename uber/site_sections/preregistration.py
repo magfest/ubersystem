@@ -189,7 +189,10 @@ class Root:
                 send_banned_email(attendee)
 
         for group in charge.groups:
-            group.amount_paid = group.default_cost
+            group.amount_paid = group.default_cost - group.amount_extra
+            for attendee in group.attendees:
+                if attendee.amount_extra:
+                    attendee.amount_paid = attendee.amount_extra
             session.add(group)
             session.commit()  # commit now so group.leader will resolve
             if group.leader.full_name in BANNED_ATTENDEES:

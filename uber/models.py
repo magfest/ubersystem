@@ -347,7 +347,14 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def default_cost(self):
-        return self.table_cost + self.badge_cost
+        return self.table_cost + self.badge_cost + self.amount_extra
+
+    @property
+    def amount_extra(self):
+        if self.is_new:
+            return sum(a.amount_unpaid for a in self.attendees if a.paid == PAID_BY_GROUP)
+        else:
+            return 0
 
     @property
     def amount_unpaid(self):
@@ -1332,6 +1339,7 @@ class Session(SessionManager):
                 else:
                     for i in range(abs(diff)):
                         self.delete(floating[i])
+                        group.attendees.remove(floating[i])
 
         def assign(self, attendee_id, job_id):
             job = self.job(job_id)
