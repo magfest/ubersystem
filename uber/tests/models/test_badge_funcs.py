@@ -11,8 +11,8 @@ def session(request):
                              session.attendee(badge_type=badge_type, first_name=number))
     return session
 
-@pytest.fixture
-def teardown_range_check(request, session):
+@pytest.fixture(autouse=True)
+def teardown_range_check(request):
     def _check_range():
         with Session() as session:
             check_ranges(session)
@@ -162,3 +162,26 @@ class TestInternalBadgeChange:
         change_badge(session, session.staff_one,   STAFF_BADGE, new_num=1)
         change_badge(session, session.staff_three, STAFF_BADGE, new_num=3)
         change_badge(session, session.staff_five,  STAFF_BADGE, new_num=5)
+
+
+class TestBadgeDeletion:
+    @pytest.fixture(autouse=True)
+    def preconditions(self, precon, custom_badges_not_ordered): pass
+
+    def test_beginning_delete(self, session):
+        session.delete(session.staff_one)
+        session.commit()
+
+    def test_middle_delete(self, session):
+        session.delete(session.staff_three)
+        session.commit()
+
+    def test_end_delete(self, session):
+        session.delete(session.staff_five)
+        session.commit()
+
+    def test_non_preassigned_deletion(self, session):
+        session.delete(session.query(Attendee).filter_by(badge_type=ATTENDEE_BADGE).first())
+        session.commit()
+
+# TODO: unit tests for changes/deletions after custom badges have been ordered

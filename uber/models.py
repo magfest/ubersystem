@@ -85,6 +85,9 @@ class MagModel:
     def presave_adjustments(self):
         pass
 
+    def on_delete(self):
+        pass
+
     @property
     def session(self):
         return Session.session_factory.object_session(self)
@@ -431,13 +434,10 @@ class Attendee(MagModel, TakesPaymentMixin):
                      'interests', 'found_how', 'comments', 'badge_type', 'affiliate', 'shirt', 'can_spam', 'no_cellphone',
                      'badge_printed_name', 'staffing', 'fire_safety_cert', 'requested_depts', 'amount_extra', 'payment_method'}
 
-    # TODO: fix this to work with SQLAlchemy
-    def as_we_delete(self, *args, **kwargs):
+    def on_delete(self):
         #_assert_badge_lock()
-        badge_num = Attendee.get(self.id).badge_num
-        super(Attendee, self).delete(*args, **kwargs)
         if self.has_personalized_badge and not CUSTOM_BADGES_REALLY_ORDERED:
-            shift_badges(self, down=True)
+            self.session.shift_badges(self.badge_type, self.badge_num, down=True)
 
     def presave_adjustments(self):
         self._staffing_adjustments()
@@ -515,7 +515,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.ribbon == VOLUNTEER_RIBBON:
             self.ribbon = NO_RIBBON
         if self.badge_type == STAFF_BADGE:
-            self.session.shift_badges(STAFF_BADGE, self.badge_num)
+            self.session.shift_badges(STAFF_BADGE, self.badge_num, down=True)
             self.badge_type = ATTENDEE_BADGE
         del self.shifts[:]
 
@@ -1232,14 +1232,14 @@ class Session(SessionManager):
             elif old_badge_num and old_badge_type == badge_type:
                 next = self.next_badge_num(badge_type) - 1
                 new_badge_num = min(badge_num or MAX_BADGE, next)
-                if old_badge_num < badge_num:
+                if old_badge_num < new_badge_num:
                     self.shift_badges(badge_type, old_badge_num, down=True, until=new_badge_num)
                 else:
                     self.shift_badges(badge_type, new_badge_num, up=True, until=old_badge_num)
                 attendee.badge_num = new_badge_num
             else:
                 if old_badge_num:
-                    self.shift_badges(old_badge_type, old_badge_num)
+                    self.shift_badges(old_badge_type, old_badge_num, down=True)
 
                 next = self.next_badge_num(badge_type)
                 new_badge_num = badge_num or next
@@ -1397,6 +1397,11 @@ def _presave_adjustments(session, context, instances='deprecated'):
     for model in chain(session.dirty, session.new):
         model.presave_adjustments()
 
+def _on_delete(session, context, instances='deprecated'):
+    BADGE_LOCK.acquire()
+    for model in session.deleted:
+        model.on_delete()
+
 def _release_badge_lock(session, context):
     BADGE_LOCK.release()
 
@@ -1408,6 +1413,7 @@ def _track_changes(session, context, instances='deprecated'):
 
 def register_session_listeners():
     listen(Session.session_factory, 'before_flush', _presave_adjustments)
-    listen(Session.session_factory, 'after_flush', _release_badge_lock)
     listen(Session.session_factory, 'before_flush', _track_changes)
+    listen(Session.session_factory, 'before_flush', _on_delete)
+    listen(Session.session_factory, 'after_flush', _release_badge_lock)
 register_session_listeners()
