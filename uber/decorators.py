@@ -137,7 +137,7 @@ def sessionized(func):
 def renderable_data(data=None):
     data = data or {}
     data['PAGE'] = cherrypy.request.path_info.split('/')[-1]
-    data.update({m.__name__: m for m in Session.all_models()})  # TODO: I don't think we actually need this anymore
+    data.update({m.__name__: m for m in Session.all_models()})
     data.update({k: v for k,v in config.__dict__.items() if re.match('^[_A-Z0-9]*$', k)})
     data.update({k: getattr(state, k) for k in dir(state) if re.match('^[_A-Z0-9]*$', k)})
     for date in DATES:

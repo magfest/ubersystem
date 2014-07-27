@@ -18,12 +18,6 @@
         <select name="attendee_id">
             {% options all_attendees %}
         </select>
-        <input type="hidden" name="attendee_id" style="width:60ex" />
-        <script type="text/javascript">
-            $.field("attendee_id").select2({
-                data: {{ all_attendees|jsonize }}
-            }).select2("val", "{{ account.attendee_id|default:"" }}");
-        </script>
     </td>
 </tr>
 {% if AT_THE_CON %}

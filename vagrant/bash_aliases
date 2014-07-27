@@ -1,4 +1,4 @@
-cd /home/vagrant
 alias python='/home/vagrant/sideboard/env/bin/python'
 export PYTHONSTARTUP='/home/vagrant/magfest/vagrant/pythonstartup.py' 
+alias run_server='/home/vagrant/sideboard/env/bin/python /home/vagrant/sideboard/sideboard/run_server.py'
 source /home/vagrant/sideboard/env/bin/activate
