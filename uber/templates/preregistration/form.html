@@ -91,10 +91,11 @@
     </tr>
 {% endif %}
 <tr>
-    <td> <b><nobr>First and Last Name:</nobr></b> </td>
+    <td> <b><nobr>Legal First and Last Name:</nobr></b> </td>
     <td>
         <input type="text" style="width:10em" name="first_name" value="{{ attendee.first_name }}" class="focus" />
         <input type="text" style="width:15em" name="last_name"  value="{{ attendee.last_name }}" />
+        <span class="popup">{% popup_link "../static_views/legal_name.html" "What does this mean?" %}</span>
     </td>
 </tr>
 {% include "preregistration/extra.html" %}
