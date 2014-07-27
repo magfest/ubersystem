@@ -11,7 +11,7 @@ def to_sessionized(attendee, group):
 def check_prereg_reqs(attendee):
     if attendee.age_group == AGE_UNKNOWN:
         return 'You must select an age category'
-    elif attendee.badge_type == PSEUDO_DEALER_BADGE and not attendee.phone:
+    elif attendee.badge_type == PSEUDO_DEALER_BADGE and not attendee.cellphone:
         return 'Your phone number is required'
     elif attendee.amount_extra >= SHIRT_LEVEL and attendee.shirt == NO_SHIRT:
         return 'Your shirt size is required'
@@ -359,7 +359,7 @@ class Root:
                 else:
                     raise HTTPRedirect('confirm?id={}&message={}', attendee.id, 'Your registration has been transferred')
         else:
-            for attr in ['first_name','last_name','email','zip_code','international','ec_phone','phone','interests','age_group','staffing','requested_depts']:
+            for attr in ['first_name','last_name','email','zip_code','international','ec_phone','cellphone','interests','age_group','staffing','requested_depts']:
                 setattr(attendee, attr, getattr(Attendee(), attr))
 
         return {

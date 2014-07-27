@@ -1,7 +1,5 @@
 from uber.common import *
 
-# TODO: change display to _repr_attrs or whatever that's called
-
 
 def _get_defaults(func):
     spec = inspect.getfullargspec(func)
@@ -265,6 +263,7 @@ class Group(MagModel, TakesPaymentMixin):
     leader_id     = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader'), nullable=True)
     leader        = relationship('Attendee', foreign_keys=leader_id, post_update=True)
 
+    _repr_attr_names = ['name']
     _unrestricted = {'name', 'tables', 'address', 'website', 'wares', 'description', 'special_needs'}
 
     def presave_adjustments(self):
@@ -369,7 +368,6 @@ class Group(MagModel, TakesPaymentMixin):
                0 if self.is_dealer else 5
 
 
-# TODO: change phone to cellphone
 class Attendee(MagModel, TakesPaymentMixin):
     group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(Group, backref='attendees', foreign_keys=group_id)
@@ -380,7 +378,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     international = Column(Boolean, default=False)
     zip_code      = Column(UnicodeText)
     ec_phone      = Column(UnicodeText)
-    phone         = Column(UnicodeText)
+    cellphone     = Column(UnicodeText)
     no_cellphone  = Column(Boolean, default=False)
     email         = Column(UnicodeText)
     age_group     = Column(Choice(AGE_GROUP_OPTS), default=AGE_UNKNOWN)
@@ -429,8 +427,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     room_assignments  = relationship('RoomAssignment', backref='attendee', uselist=False)
     food_restrictions = relationship('FoodRestrictions', backref='attendee', uselist=False)
 
-    display = 'full_name'
-    _unrestricted = {'first_name', 'last_name', 'international', 'zip_code', 'ec_phone', 'phone', 'email', 'age_group',
+    _repr_attr_names = ['full_name']
+    _unrestricted = {'first_name', 'last_name', 'international', 'zip_code', 'ec_phone', 'cellphone', 'email', 'age_group',
                      'interests', 'found_how', 'comments', 'badge_type', 'affiliate', 'shirt', 'can_spam', 'no_cellphone',
                      'badge_printed_name', 'staffing', 'fire_safety_cert', 'requested_depts', 'amount_extra', 'payment_method'}
 
@@ -502,7 +500,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             elif old_staffing and not self.staffing or self.ribbon != VOLUNTEER_RIBBON and old_ribbon == VOLUNTEER_RIBBON:
                 self.unset_volunteering()
 
-        # TODO: maybe allow some kind of admin override on this?
         if self.age_group == UNDER_18 and PRE_CON:
             self.unset_volunteering()
 
@@ -518,10 +515,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             self.session.shift_badges(STAFF_BADGE, self.badge_num, down=True)
             self.badge_type = ATTENDEE_BADGE
         del self.shifts[:]
-
-    # TODO: fix this
-    def get_unsaved(self):
-        return self, Group()
 
     @property
     def badge_cost(self):
@@ -622,7 +615,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def donation_swag(self):
         if MODE == "magstock":
-            return ['No shirt'] if self.shirt == NO_SHIRT else [self.get_shirt_display() + ", " + self.get_shirt_color_display()]
+            return ['No shirt'] if self.shirt == NO_SHIRT else [self.shirt_label + ", " + self.shirt_color_label]
         else:
             extra = SUPPORTER_LEVEL if not self.amount_extra and self.badge_type == SUPPORTER_BADGE else self.amount_extra
             return [desc for amount,desc in sorted(DONATION_TIERS.items()) if amount and extra >= amount]
@@ -765,13 +758,9 @@ class AdminAccount(MagModel):
     def __repr__(self):
         return '<{}>'.format(self.attendee.full_name)
 
-    # TODO: make this configurable
     @staticmethod
     def is_nick():
-        return AdminAccount.admin_name() in {
-            'Nick Marinelli', 'Nicholas Marinelli'
-            'Matt Reid', 'Matthew Reid'
-        }
+        return AdminAccount.admin_name() in JERKS
 
     @staticmethod
     def admin_name():
@@ -879,6 +868,8 @@ class Job(MagModel):
     restricted  = Column(Boolean, default=False)
     extra15     = Column(Boolean, default=False)
 
+    _repr_attr_names = ['name']
+
     @property
     def hours(self):
         hours = set()
@@ -967,7 +958,7 @@ class ArbitraryCharge(MagModel):
     when        = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     reg_station = Column(Integer, nullable=True)
 
-    display = 'what'
+    _repr_attr_names = ['what']
 
 
 
@@ -978,6 +969,8 @@ class Game(MagModel):
     attendee    = relationship(Attendee, backref='games')
     returned    = Column(Boolean, default=False)
     checked_out = relationship('Checkout', backref='game', uselist=False)
+
+    _repr_attr_names = ['name']
 
 class Checkout(MagModel):
     game_id     = Column(UUID, ForeignKey('game.id'), unique=True)
@@ -992,8 +985,12 @@ class PrevSeasonSupporter(MagModel):
     last_name  = Column(UnicodeText)
     email      = Column(UnicodeText)
 
+    _repr_attr_names = ['first_name', 'last_name', 'email']
+
 class ApprovedEmail(MagModel):
     subject = Column(UnicodeText)
+
+    _repr_attr_names = ['subject']
 
 class Email(MagModel):
     fk_id   = Column(UUID, nullable=True)
@@ -1003,7 +1000,7 @@ class Email(MagModel):
     dest    = Column(UnicodeText)
     body    = Column(UnicodeText)
 
-    display = 'subject'
+    _repr_attr_names = ['subject']
 
     @cached_property
     def fk(self):
@@ -1379,7 +1376,7 @@ def _make_getter(model):
             params = params.copy()
             id = params.pop('id', 'None')
             if id == 'None':
-                inst = model()  # TODO: do we add this to the session?
+                inst = model()
             else:
                 inst = self.query(model).filter_by(id=id).one()
 
