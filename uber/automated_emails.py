@@ -101,16 +101,16 @@ def days_before(days, dt, until=None):
 # Payment reminder emails, including ones for groups, which are always safe to be here, since they just
 # won't get sent if group registration is turned off.
 
-AutomatedEmail(Attendee, '{EVENT_NAME} payment received', 'payments/attendee_confirmation.html',
+AutomatedEmail(Attendee, '{EVENT_NAME} payment received', 'reg_workflow/attendee_confirmation.html',
          lambda a: a.paid == HAS_PAID)
 
-AutomatedEmail(Group, '{EVENT_NAME} group payment received', 'payments/group_confirmation.html',
+AutomatedEmail(Group, '{EVENT_NAME} group payment received', 'reg_workflow/group_confirmation.html',
          lambda g: g.amount_paid == g.cost)
 
-AutomatedEmail(Attendee, '{EVENT_NAME} group registration confirmed', 'payments/attendee_confirmation.html',
+AutomatedEmail(Attendee, '{EVENT_NAME} group registration confirmed', 'reg_workflow/attendee_confirmation.html',
          lambda a: a.group and a != a.group.leader)
 
-AutomatedEmail(Attendee, '{EVENT_NAME} extra payment received', 'payments/group_donation.txt',
+AutomatedEmail(Attendee, '{EVENT_NAME} extra payment received', 'reg_workflow/group_donation.txt',
          lambda a: a.paid == PAID_BY_GROUP and a.amount_extra and a.amount_paid == a.amount_extra)
 
 
@@ -199,7 +199,7 @@ StopsEmail('Still want to volunteer at {EVENT_NAME}?', 'shifts/volunteer_check.t
                                        and a.ribbon == VOLUNTEER_RIBBON and a.takes_shifts and a.weighted_hours == 0)
 
 
-# MAGFest provides staff rooms for returning volunteers; leave ROOM_DEADLINE blank to turn off these emails.
+# MAGFest provides staff rooms for returning volunteers; leave ROOM_DEADLINE blank to keep these emails turned off.
 
 StopsEmail('Want volunteer hotel room space at {EVENT_NAME}?', 'shifts/hotel_rooms.txt',
            lambda a: days_before(45, ROOM_DEADLINE, 14) and state.AFTER_SHIFTS_CREATED and a.hotel_eligible)

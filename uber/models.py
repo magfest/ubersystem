@@ -143,7 +143,7 @@ class MagModel:
 
         try:
             [multi] = [col for col in self.__table__.columns if isinstance(col.type, MultiChoice)]
-            choice = getattr(constants, name)
+            choice = getattr(config, name)
             assert choice in [val for val, desc in multi.type.choices]
         except:
             pass
@@ -196,7 +196,7 @@ class TakesPaymentMixin(object):
                    datetime.combine((self.registered + timedelta(days = 14)).date(), time(23, 59)))
 
 def _night(name):
-    day = getattr(constants, name.upper())
+    day = getattr(config, name.upper())
     def lookup(self):
         return day if day in self.nights_ints else ''
     lookup.__name__ = name
@@ -829,7 +829,7 @@ class FoodRestrictions(MagModel):
     freeform    = Column(UnicodeText)
 
     def __getattr__(self, name):
-        restriction = getattr(constants, name.upper())
+        restriction = getattr(config, name.upper())
         if restriction not in dict(FOOD_RESTRICTION_OPTS):
             raise AttributeError()
         elif restriction == VEGETARIAN and str(VEGAN) in self.standard.split(','):

@@ -68,7 +68,7 @@ class Redirector:
         else:
             raise HTTPRedirect(PATH)
 
-cherrypy.tree.mount(Root(), PATH, conf['appconf'].dict())
+cherrypy.tree.mount(Root(), PATH, APPCONF)
 
 if SEND_EMAILS or DEV_BOX:
     DaemonTask(AutomatedEmail.send_all, interval=300)

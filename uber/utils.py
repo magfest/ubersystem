@@ -79,7 +79,7 @@ class SeasonEvent:
     def register(cls, slug, kwargs):
         cls.instances[slug] = cls(slug, **kwargs)
 
-for _slug, _conf in conf['season_events'].items():
+for _slug, _conf in SEASON_EVENTS.items():
     SeasonEvent.register(_slug, _conf)
 
 
