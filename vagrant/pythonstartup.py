@@ -16,5 +16,7 @@ def save_history():
 if os.path.exists(history_path):
     readline.read_history_file(history_path)
 
-if os.path.exists('uber/common.py'):
+try:
     from uber.common import *
+except:
+    pass
