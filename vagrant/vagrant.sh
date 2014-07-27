@@ -37,20 +37,39 @@ sudo patch /usr/lib/python3.4/venv/__init__.py < /home/vagrant/magfest/vagrant/v
 
 
 ################################################################################
-# Set up our virtualenv
+# Check out Sideboard
 ################################################################################
 
-cd /home/vagrant/magfest
+cd /home/vagrant
+if [ -d /home/vagrant/sideboard ]; then
+    echo "Sideboard already cloned"
+else
+    git clone https://github.com/appliedsec/sideboard
+    ln -s /home/vagrant/magfest /home/vagrant/sideboard/plugins/uber
+fi
+
+################################################################################
+# Set up the Sideboard virtualenv and install our dependencies
+################################################################################
+
+cd /home/vagrant/sideboard
 if [ -f .env-success ]; then
     echo "Virtualenv already exists"
 else
     rm -rf env/
     python3 -m venv env --without-pip --copies
+    chmod 755 ./env/bin/python  # not sure why this stopped being executable by default
+    cp ../magfest/distribute_setup.py .
     ./env/bin/python distribute_setup.py
     ./env/bin/python setup.py develop
-    cp vagrant/bash_aliases /home/vagrant/.bash_aliases
+    ./env/bin/paver install_deps
+    ./env/bin/sep reset_uber_db
+    cp /home/vagrant/magfest/vagrant/bash_aliases /home/vagrant/.bash_aliases
     rm -f distribute*.tar.gz
     touch .env-success
 fi
+
+chown -R vagrant.vagrant /home/vagrant/sideboard
+chmod 755 /home/vagrant/sideboard/env/bin/python  # not sure why this isn't executable by default
 
 echo "MAGFest Vagrant VM successfully provisioned"

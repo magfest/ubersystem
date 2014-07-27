@@ -1,3 +1,4 @@
-cd /home/vagrant/magfest
-alias python='/home/vagrant/magfest/env/bin/python'
+cd /home/vagrant
+alias python='/home/vagrant/sideboard/env/bin/python'
 export PYTHONSTARTUP='/home/vagrant/magfest/vagrant/pythonstartup.py' 
+source /home/vagrant/sideboard/env/bin/activate
