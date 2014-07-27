@@ -62,8 +62,7 @@ from sideboard.lib import log, parse_config, entry_point, listify, DaemonTask, s
 import uber
 from uber.amazon_ses import AmazonSES, EmailMessage  # TODO: replace this after boto adds Python 3 support
 from uber.config import *
-from uber.constants import *
-from uber import constants
+from uber import config
 from uber.utils import *
 from uber.decorators import *
 from uber.models import *
@@ -79,5 +78,5 @@ import stripe
 stripe.api_key = STRIPE_SECRET_KEY
 
 # kludgy hack because I love "from <module> import *" way too much
-for _module in ['constants', 'utils', 'models', 'custom_tags', 'decorators']:
+for _module in ['config', 'utils', 'models', 'custom_tags', 'decorators']:
     __import__('uber.' + _module, fromlist='*').__dict__.update(globals())
