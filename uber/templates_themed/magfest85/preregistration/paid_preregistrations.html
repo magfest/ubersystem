@@ -1,0 +1,36 @@
+{% extends "./preregistration/preregbase.html" %}
+{% block title %}Preregistraton Successful{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<h2>Thanks for Preregistering!</h2>
+
+Your payment has been successfully processed; simply bring a photo ID to {{ EVENT_NAME }} and you should have no trouble picking up
+your badge at our registration desk.
+<br/><br/>
+The following preregistrations have been made from this computer:
+<br/><br/>
+<ul>
+{% for prereg in preregs %}
+    {% if prereg.first_name %}
+        <li>
+            {{ prereg.full_name }}
+            {% if prereg.donation_swag %}
+                ({{ prereg.donation_swag|join:", " }})
+            {% endif %}
+        </li>
+    {% else %}
+        <li>
+            <b>{{ prereg.name }}</b>
+            (<a href="group_members?id={{ prereg.secret_id }}">Click Here</a> to assign your group's badges)
+        </li>
+    {% endif %}
+{% endfor %}
+</ul>
+<br/>
+
+<a href="index">Click Here</a> to return to the main preregistration form.
+
+{% include "preregistration/disclaimers.html" %}
+
+{% endblock %}
