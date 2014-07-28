@@ -31,13 +31,13 @@ class Root:
         message = check(account)
         if not message:
             message = 'Account settings uploaded'
+            session.add(account)
             if account.is_new and not AT_THE_CON:
-                body = render('accounts/new_email.txt', {
+                body = render('emails/accounts/new_account.txt', {
                     'account': account,
                     'password': password
                 })
-                send_email(ADMIN_EMAIL, account.attendee.email, 'New '+ EVENT_NAME +' Ubersystem Account', body)
-                session.add(account)
+                send_email(ADMIN_EMAIL, session.attendee(account.attendee_id).email, 'New ' + EVENT_NAME + ' Ubersystem Account', body)
 
         raise HTTPRedirect('index?message={}', message)
 
@@ -90,7 +90,7 @@ class Root:
                 if account.password_reset:
                     session.delete(account.password_reset)
                 session.add(PasswordReset(account=account, hashed=bcrypt.hashpw(password, bcrypt.gensalt())))
-                body = render('accounts/reset_email.txt', {
+                body = render('emails/accounts/password_reset.txt', {
                     'name': account.attendee.full_name,
                     'password':  password
                 })

@@ -1,11 +1,28 @@
+"""
+When an admin submits a form to create/edit an attendee/group/job/etc we usually want to perform some basic validations
+on the data that was entered.  We put those validations here.  To make a validation for the Attendee model, you can
+just write a function prefixed with "attendee_" like the "attendee_money" function below, which checks the values for
+things like amount_paid and amount_extra.  That function should return None on success and an error string on failure.
+
+In addition, you can define a set of required fields by suffixing the lower-cased model name with "_required", like
+the "adminaccount_required" list below.  This should be a list of tuples where the first tuple element is the name of
+the field, and the second is the name that should be displayed in the "XXX is a required field" error message.
+
+To perform these validations, call the "check" method on the instance you're validating.  That method returns None
+on success and a string error message on validation failure.
+"""
 from uber.common import *
+
+# TODO: there are no unit tests for any of this :(
 
 
 adminaccount_required = [('attendee', 'Attendee'), ('hashed','Password')]
 
 def adminaccount_misc(account):
-    if account.id is None and AdminAccount.objects.filter(attendee_id=account.attendee_id):
-        return 'That attendee already has an admin account'
+    if account.is_new:
+        with Session() as session:
+            if session.query(AdminAccount).filter_by(attendee_id=account.attendee_id).all():
+                return 'That attendee already has an admin account'
 
 
 event_required = [('name', 'Event Name')]
@@ -56,10 +73,10 @@ def attendee_misc(attendee):
         if _invalid_phone_number(attendee.ec_phone):
             return 'Enter a 10-digit emergency contact number'
 
-        if attendee.phone and _invalid_phone_number(attendee.phone):
+        if attendee.cellphone and _invalid_phone_number(attendee.cellphone):
             return 'Invalid 10-digit cellphone number'
 
-    if not attendee.no_cellphone and attendee.staffing and _invalid_phone_number(attendee.phone):
+    if not attendee.no_cellphone and attendee.staffing and _invalid_phone_number(attendee.cellphone):
         return "10-digit cellphone number is required for volunteers (unless you don't own a cellphone)"
 
 def attendee_leadership(attendee):
@@ -104,7 +121,7 @@ def attendee_badge_range(attendee):
     if AT_THE_CON:
         min_num, max_num = BADGE_RANGES[attendee.badge_type]
         if attendee.badge_num != 0 and not (min_num <= attendee.badge_num <= max_num):
-            return '{} badge numbers must fall within {} and {}'.format(attendee.get_badge_type_display(), min_num, max_num)
+            return '{} badge numbers must fall within {} and {}'.format(attendee.badge_type_label, min_num, max_num)
 
 
 def money_amount(money):

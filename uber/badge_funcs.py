@@ -26,7 +26,7 @@ def get_badge_type(badge_num):
 
 
 def detect_duplicates():
-    subject = 'Duplicates Report for ' + localized_now().strftime('%Y-%m-%d')
+    subject = EVENT_NAME + ' Duplicates Report for ' + localized_now().strftime('%Y-%m-%d')
     with Session() as session:
         if session.no_email(subject):
             grouped = defaultdict(list)
@@ -72,7 +72,7 @@ def check_placeholders():
 def check_unassigned():
     with Session() as session:
         unassigned = session.query(Attendee).filter_by(staffing=True, assigned_depts='').order_by(Attendee.full_name).all()
-        subject = 'Unassigned Volunteer Report for ' + localized_now().strftime('%Y-%m-%d')
+        subject = EVENT_NAME + ' Unassigned Volunteer Report for ' + localized_now().strftime('%Y-%m-%d')
         if unassigned and session.no_email(subject):
             body = render('emails/daily_checks/unassigned.html', {'unassigned': unassigned})
             send_email(STAFF_EMAIL, STAFF_EMAIL, subject, body, format='html', model='n/a')

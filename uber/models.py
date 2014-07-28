@@ -1,7 +1,5 @@
 from uber.common import *
 
-# TODO: change display to _repr_attrs or whatever that's called
-
 
 def _get_defaults(func):
     spec = inspect.getfullargspec(func)
@@ -85,6 +83,9 @@ class MagModel:
     def presave_adjustments(self):
         pass
 
+    def on_delete(self):
+        pass
+
     @property
     def session(self):
         return Session.session_factory.object_session(self)
@@ -140,7 +141,7 @@ class MagModel:
 
         try:
             [multi] = [col for col in self.__table__.columns if isinstance(col.type, MultiChoice)]
-            choice = getattr(constants, name)
+            choice = getattr(config, name)
             assert choice in [val for val, desc in multi.type.choices]
         except:
             pass
@@ -193,7 +194,7 @@ class TakesPaymentMixin(object):
                    datetime.combine((self.registered + timedelta(days = 14)).date(), time(23, 59)))
 
 def _night(name):
-    day = getattr(constants, name.upper())
+    day = getattr(config, name.upper())
     def lookup(self):
         return day if day in self.nights_ints else ''
     lookup.__name__ = name
@@ -262,6 +263,7 @@ class Group(MagModel, TakesPaymentMixin):
     leader_id     = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader'), nullable=True)
     leader        = relationship('Attendee', foreign_keys=leader_id, post_update=True)
 
+    _repr_attr_names = ['name']
     _unrestricted = {'name', 'tables', 'address', 'website', 'wares', 'description', 'special_needs'}
 
     def presave_adjustments(self):
@@ -366,7 +368,6 @@ class Group(MagModel, TakesPaymentMixin):
                0 if self.is_dealer else 5
 
 
-# TODO: change phone to cellphone
 class Attendee(MagModel, TakesPaymentMixin):
     group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(Group, backref='attendees', foreign_keys=group_id)
@@ -377,7 +378,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     international = Column(Boolean, default=False)
     zip_code      = Column(UnicodeText)
     ec_phone      = Column(UnicodeText)
-    phone         = Column(UnicodeText)
+    cellphone     = Column(UnicodeText)
     no_cellphone  = Column(Boolean, default=False)
     email         = Column(UnicodeText)
     age_group     = Column(Choice(AGE_GROUP_OPTS), default=AGE_UNKNOWN)
@@ -426,18 +427,15 @@ class Attendee(MagModel, TakesPaymentMixin):
     room_assignments  = relationship('RoomAssignment', backref='attendee', uselist=False)
     food_restrictions = relationship('FoodRestrictions', backref='attendee', uselist=False)
 
-    display = 'full_name'
-    _unrestricted = {'first_name', 'last_name', 'international', 'zip_code', 'ec_phone', 'phone', 'email', 'age_group',
+    _repr_attr_names = ['full_name']
+    _unrestricted = {'first_name', 'last_name', 'international', 'zip_code', 'ec_phone', 'cellphone', 'email', 'age_group',
                      'interests', 'found_how', 'comments', 'badge_type', 'affiliate', 'shirt', 'can_spam', 'no_cellphone',
                      'badge_printed_name', 'staffing', 'fire_safety_cert', 'requested_depts', 'amount_extra', 'payment_method'}
 
-    # TODO: fix this to work with SQLAlchemy
-    def as_we_delete(self, *args, **kwargs):
+    def on_delete(self):
         #_assert_badge_lock()
-        badge_num = Attendee.get(self.id).badge_num
-        super(Attendee, self).delete(*args, **kwargs)
         if self.has_personalized_badge and not CUSTOM_BADGES_REALLY_ORDERED:
-            shift_badges(self, down=True)
+            self.session.shift_badges(self.badge_type, self.badge_num, down=True)
 
     def presave_adjustments(self):
         self._staffing_adjustments()
@@ -502,7 +500,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             elif old_staffing and not self.staffing or self.ribbon != VOLUNTEER_RIBBON and old_ribbon == VOLUNTEER_RIBBON:
                 self.unset_volunteering()
 
-        # TODO: maybe allow some kind of admin override on this?
         if self.age_group == UNDER_18 and PRE_CON:
             self.unset_volunteering()
 
@@ -515,13 +512,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.ribbon == VOLUNTEER_RIBBON:
             self.ribbon = NO_RIBBON
         if self.badge_type == STAFF_BADGE:
-            self.session.shift_badges(STAFF_BADGE, self.badge_num)
+            self.session.shift_badges(STAFF_BADGE, self.badge_num, down=True)
             self.badge_type = ATTENDEE_BADGE
         del self.shifts[:]
-
-    # TODO: fix this
-    def get_unsaved(self):
-        return self, Group()
 
     @property
     def badge_cost(self):
@@ -622,7 +615,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def donation_swag(self):
         if MODE == "magstock":
-            return ['No shirt'] if self.shirt == NO_SHIRT else [self.get_shirt_display() + ", " + self.get_shirt_color_display()]
+            return ['No shirt'] if self.shirt == NO_SHIRT else [self.shirt_label + ", " + self.shirt_color_label]
         else:
             extra = SUPPORTER_LEVEL if not self.amount_extra and self.badge_type == SUPPORTER_BADGE else self.amount_extra
             return [desc for amount,desc in sorted(DONATION_TIERS.items()) if amount and extra >= amount]
@@ -765,13 +758,9 @@ class AdminAccount(MagModel):
     def __repr__(self):
         return '<{}>'.format(self.attendee.full_name)
 
-    # TODO: make this configurable
     @staticmethod
     def is_nick():
-        return AdminAccount.admin_name() in {
-            'Nick Marinelli', 'Nicholas Marinelli'
-            'Matt Reid', 'Matthew Reid'
-        }
+        return AdminAccount.admin_name() in JERKS
 
     @staticmethod
     def admin_name():
@@ -829,7 +818,7 @@ class FoodRestrictions(MagModel):
     freeform    = Column(UnicodeText)
 
     def __getattr__(self, name):
-        restriction = getattr(constants, name.upper())
+        restriction = getattr(config, name.upper())
         if restriction not in dict(FOOD_RESTRICTION_OPTS):
             raise AttributeError()
         elif restriction == VEGETARIAN and str(VEGAN) in self.standard.split(','):
@@ -878,6 +867,8 @@ class Job(MagModel):
     slots       = Column(Integer)
     restricted  = Column(Boolean, default=False)
     extra15     = Column(Boolean, default=False)
+
+    _repr_attr_names = ['name']
 
     @property
     def hours(self):
@@ -967,7 +958,7 @@ class ArbitraryCharge(MagModel):
     when        = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     reg_station = Column(Integer, nullable=True)
 
-    display = 'what'
+    _repr_attr_names = ['what']
 
 
 
@@ -978,6 +969,8 @@ class Game(MagModel):
     attendee    = relationship(Attendee, backref='games')
     returned    = Column(Boolean, default=False)
     checked_out = relationship('Checkout', backref='game', uselist=False)
+
+    _repr_attr_names = ['name']
 
 class Checkout(MagModel):
     game_id     = Column(UUID, ForeignKey('game.id'), unique=True)
@@ -992,8 +985,12 @@ class PrevSeasonSupporter(MagModel):
     last_name  = Column(UnicodeText)
     email      = Column(UnicodeText)
 
+    _repr_attr_names = ['first_name', 'last_name', 'email']
+
 class ApprovedEmail(MagModel):
     subject = Column(UnicodeText)
+
+    _repr_attr_names = ['subject']
 
 class Email(MagModel):
     fk_id   = Column(UUID, nullable=True)
@@ -1003,7 +1000,7 @@ class Email(MagModel):
     dest    = Column(UnicodeText)
     body    = Column(UnicodeText)
 
-    display = 'subject'
+    _repr_attr_names = ['subject']
 
     @cached_property
     def fk(self):
@@ -1232,14 +1229,14 @@ class Session(SessionManager):
             elif old_badge_num and old_badge_type == badge_type:
                 next = self.next_badge_num(badge_type) - 1
                 new_badge_num = min(badge_num or MAX_BADGE, next)
-                if old_badge_num < badge_num:
+                if old_badge_num < new_badge_num:
                     self.shift_badges(badge_type, old_badge_num, down=True, until=new_badge_num)
                 else:
                     self.shift_badges(badge_type, new_badge_num, up=True, until=old_badge_num)
                 attendee.badge_num = new_badge_num
             else:
                 if old_badge_num:
-                    self.shift_badges(old_badge_type, old_badge_num)
+                    self.shift_badges(old_badge_type, old_badge_num, down=True)
 
                 next = self.next_badge_num(badge_type)
                 new_badge_num = badge_num or next
@@ -1379,7 +1376,7 @@ def _make_getter(model):
             params = params.copy()
             id = params.pop('id', 'None')
             if id == 'None':
-                inst = model()  # TODO: do we add this to the session?
+                inst = model()
             else:
                 inst = self.query(model).filter_by(id=id).one()
 
@@ -1397,6 +1394,11 @@ def _presave_adjustments(session, context, instances='deprecated'):
     for model in chain(session.dirty, session.new):
         model.presave_adjustments()
 
+def _on_delete(session, context, instances='deprecated'):
+    BADGE_LOCK.acquire()
+    for model in session.deleted:
+        model.on_delete()
+
 def _release_badge_lock(session, context):
     BADGE_LOCK.release()
 
@@ -1408,6 +1410,7 @@ def _track_changes(session, context, instances='deprecated'):
 
 def register_session_listeners():
     listen(Session.session_factory, 'before_flush', _presave_adjustments)
-    listen(Session.session_factory, 'after_flush', _release_badge_lock)
     listen(Session.session_factory, 'before_flush', _track_changes)
+    listen(Session.session_factory, 'before_flush', _on_delete)
+    listen(Session.session_factory, 'after_flush', _release_badge_lock)
 register_session_listeners()
