@@ -13,3 +13,4 @@ development.ini
 workspace.xml
 tasks.xml
 distribute-*.tar.gz
+*.swp
