@@ -421,11 +421,11 @@ class Attendee(MagModel, TakesPaymentMixin):
     nonshift_hours   = Column(Integer, default=0)
     past_years       = Column(UnicodeText)
 
-    no_shirt          = relationship('NoShirt', backref='attendee', uselist=False)
-    admin_account     = relationship('AdminAccount', backref='attendee', uselist=False)
-    hotel_requests    = relationship('HotelRequests', backref='attendee', uselist=False)
-    room_assignments  = relationship('RoomAssignment', backref='attendee', uselist=False)
-    food_restrictions = relationship('FoodRestrictions', backref='attendee', uselist=False)
+    no_shirt          = relationship('NoShirt', backref='attendee', uselist=False, cascade='delete')
+    admin_account     = relationship('AdminAccount', backref='attendee', uselist=False, cascade='delete')
+    hotel_requests    = relationship('HotelRequests', backref='attendee', uselist=False, cascade='delete')
+    room_assignments  = relationship('RoomAssignment', backref='attendee', uselist=False, cascade='delete')
+    food_restrictions = relationship('FoodRestrictions', backref='attendee', uselist=False, cascade='delete')
 
     _repr_attr_names = ['full_name']
     _unrestricted = {'first_name', 'last_name', 'international', 'zip_code', 'ec_phone', 'cellphone', 'email', 'age_group',
@@ -753,7 +753,7 @@ class AdminAccount(MagModel):
     hashed      = Column(UnicodeText)
     access      = Column(MultiChoice(ACCESS_OPTS))
 
-    password_reset = relationship('PasswordReset', backref='admin_account', uselist=False)
+    password_reset = relationship('PasswordReset', backref='admin_account', uselist=False, cascade='delete')
 
     def __repr__(self):
         return '<{}>'.format(self.attendee.full_name)
@@ -828,9 +828,9 @@ class FoodRestrictions(MagModel):
 
 class AssignedPanelist(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    attendee    = relationship(Attendee, backref='assigned_panelists')
+    attendee    = relationship(Attendee, backref='assigned_panelists', cascade='delete')
     event_id    = Column(UUID, ForeignKey('event.id'))
-    event       = relationship(Event, backref='assigned_panelists')
+    event       = relationship(Event, backref='assigned_panelists', cascade='delete')
 
     def __repr__(self):
         return '<{self.attendee.full_name} panelisting {self.event.name}>'.format(self=self)
@@ -850,7 +850,7 @@ class Room(MagModel, NightsMixin):
 
 class RoomAssignment(MagModel):
     room_id     = Column(UUID, ForeignKey('room.id'))
-    room        = relationship(Room, backref='room_assignments')
+    room        = relationship(Room, backref='room_assignments', cascade='delete')
     attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
 
 class NoShirt(MagModel):
@@ -913,9 +913,9 @@ class Job(MagModel):
 
 class Shift(MagModel):
     job_id      = Column(UUID, ForeignKey('job.id'))
-    job         = relationship(Job, backref='shifts')
+    job         = relationship(Job, backref='shifts', cascade='delete')
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    attendee    = relationship(Attendee, backref='shifts')
+    attendee    = relationship(Attendee, backref='shifts', cascade='delete')
     worked      = Column(Choice(WORKED_STATUS_OPTS), default=SHIFT_UNMARKED)
     rating      = Column(Choice(RATING_OPTS), default=UNRATED)
     comment     = Column(UnicodeText)
@@ -932,19 +932,19 @@ class Shift(MagModel):
 
 class MPointsForCash(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    attendee    = relationship(Attendee, backref='mpoints_for_cash')
+    attendee    = relationship(Attendee, backref='mpoints_for_cash', cascade='delete')
     amount      = Column(Integer)
     when        = Column(UTCDateTime, default=lambda: datetime.now(UTC))
 
 class OldMPointExchange(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    attendee    = relationship(Attendee, backref='old_mpoint_exchanges')
+    attendee    = relationship(Attendee, backref='old_mpoint_exchanges', cascade='delete')
     amount      = Column(Integer)
     when        = Column(UTCDateTime, default=lambda: datetime.now(UTC))
 
 class Sale(MagModel):
     attendee_id    = Column(UUID, ForeignKey('attendee.id'), nullable=True)
-    attendee       = relationship(Attendee, backref='sales')
+    attendee       = relationship(Attendee, backref='sales', cascade='delete')
     what           = Column(UnicodeText)
     cash           = Column(Integer, default=0)
     mpoints        = Column(Integer, default=0)
@@ -966,16 +966,16 @@ class Game(MagModel):
     code        = Column(UnicodeText)
     name        = Column(UnicodeText)
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    attendee    = relationship(Attendee, backref='games')
+    attendee    = relationship(Attendee, backref='games', cascade='delete')
     returned    = Column(Boolean, default=False)
-    checked_out = relationship('Checkout', backref='game', uselist=False)
+    checked_out = relationship('Checkout', backref='game', uselist=False, cascade='delete')
 
     _repr_attr_names = ['name']
 
 class Checkout(MagModel):
     game_id     = Column(UUID, ForeignKey('game.id'), unique=True)
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    attendee    = relationship(Attendee, backref='checkouts')
+    attendee    = relationship(Attendee, backref='checkouts', cascade='delete')
     when        = Column(UTCDateTime, default=lambda: datetime.now(UTC))
 
 
@@ -1393,9 +1393,6 @@ def _presave_adjustments(session, context, instances='deprecated'):
     BADGE_LOCK.acquire()
     for model in chain(session.dirty, session.new):
         model.presave_adjustments()
-
-def _on_delete(session, context, instances='deprecated'):
-    BADGE_LOCK.acquire()
     for model in session.deleted:
         model.on_delete()
 
@@ -1411,6 +1408,5 @@ def _track_changes(session, context, instances='deprecated'):
 def register_session_listeners():
     listen(Session.session_factory, 'before_flush', _presave_adjustments)
     listen(Session.session_factory, 'before_flush', _track_changes)
-    listen(Session.session_factory, 'before_flush', _on_delete)
     listen(Session.session_factory, 'after_flush', _release_badge_lock)
 register_session_listeners()
