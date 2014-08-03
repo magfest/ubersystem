@@ -22,14 +22,8 @@
         }
     }
 
-    var showOrHideRedirect = function() {
-        var approve = $.field("status").is(":checked");
-        $.field("redirect").attr("checked", approve);
-        setVisible("#redirect", approve);
-    };
-
     $(function() {
-        {% if group.is_new %}
+        {% if group.is_new and not new_dealer %}
             $.field("status").find("[value={{ UNAPPROVED }}]").text("n/a (not a paid Dealer)");
         {% endif %}
     });
@@ -44,12 +38,27 @@
 <form method="post" action="form">
 {% csrf_token %}
 <input type="hidden" name="id" value="{{ group.db_id }}" />
+<input type="hidden" name="new_dealer" value="{{ new_dealer }}" />
 
 <table>
 <tr>
     <td width="25%"> <b><nobr>Name of Group:</nobr></b> </td>
     <td width="75%"> <input class="focus" type="text" name="name" value="{{ group.name }}" /> </td>
 </tr>
+<!-- we need to register a placeholder group leader with this new group -->
+{% if new_dealer %}
+    <tr>
+        <td> <nobr><b>Owner's First and Last Name:</b></nobr> </td>
+        <td>
+            <input type="text" name="first_name" value="{{ first_name }}" style="width:10em" />
+            <input type="text" name="last_name" value="{{ last_name }}" style="width:15em" />
+        </td>
+    </tr>
+    <tr>
+        <td> <nobr><b>Owner's Email Address:</b></nobr> </td>
+        <td> <input type="text" name="email" value="{{ email }}" /> </td>
+    </tr>
+{% endif %}
 <tr>
     <td> <b>Tables:</b> </td>
     <td>
@@ -77,13 +86,7 @@
     <td> <b><nobr>Can Add Badges:</nobr></b> </td>
     <td> {% checkbox group.can_add %} Allow this group to add badges </td>
 </tr>
-{% if group.is_new %}
-<tr>
-    <td> <b>Status</b> </td>
-    <td> <select name="status">{% options DEALER_STATUS_OPTS group.status %}</select> </td>
-</tr>
-{% endif %}
-{% if group.is_dealer %}
+{% if new_dealer or group.is_dealer %}
     {% if group.leader %}
         <tr>
             <td> <b>Phone Number</b> </td>
@@ -93,20 +96,25 @@
     <tr>
         <td valign="top"> <b>Status</b> </td>
         <td id="status">
-            {{ group.status_label }} <br/>
-            {% if group.status != APPROVED %}
-                <input type="checkbox" name="status" value="{{ APPROVED }}" onClick="showOrHideRedirect()" /> Approved
-                <div id="redirect" style="display:none">
-                    <input type="checkbox" name="redirect" /> Redirect to Group page on submit
-                </div>
-                <a href="#" onClick="$('#setstatus').toggle(); return false;">Waitlist or Reject</a> <br/>
-                <div id="setstatus" style="display:none">
-                    Enter an email message to be sent along with the notification: <br/>
-                    (The email subject will be "Your {{ EVENT_NAME }} Dealer registration has been [waitlisted | declined]")
-                    <textarea name="email", rows="5" cols="50"></textarea> <br/>
-                    <button onClick="unapprove('waitlisted'); return false;">Waitlist</button>
-                    <button onClick="unapprove('declined'); return false;">Reject</button>
-                </div>
+            {% if new_dealer %}
+                <select name="status">
+                    <option value="{{ APPROVED }}">Approved</option>
+                    <option value="{{ UNAPPROVED }}">Unapproved</option>
+                    <option value="{{ WAITLISTED }}">Waitlisted</option>
+                </select>
+            {% else %}
+                {{ group.status_label }} <br/>
+                {% if group.status != APPROVED %}
+                    <input type="checkbox" name="status" value="{{ APPROVED }}" /> Approved
+                    <a href="#" onClick="$('#setstatus').toggle(); return false;">Waitlist or Reject</a> <br/>
+                    <div id="setstatus" style="display:none">
+                        Enter an email message to be sent along with the notification: <br/>
+                        (The email subject will be "Your {{ EVENT_NAME }} Dealer registration has been [waitlisted | declined]")
+                        <textarea name="email", rows="5" cols="50"></textarea> <br/>
+                        <button onClick="unapprove('waitlisted'); return false;">Waitlist</button>
+                        <button onClick="unapprove('declined'); return false;">Reject</button>
+                    </div>
+                {% endif %}
             {% endif %}
         </td>
     </tr>
@@ -132,7 +140,7 @@
     </tr>
 {% endif %}
 <tr>
-    <td valign="top"> <b><nobr>Admin Notes:</nobr></b> </td>
+    <td valign="top"> <nobr>Admin Notes:</nobr> </td>
     <td> <textarea name="admin_notes" rows="3" style="width:66%">{{ group.admin_notes }}</textarea> </td>
 </tr>
 </table>

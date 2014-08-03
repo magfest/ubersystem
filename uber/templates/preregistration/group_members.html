@@ -2,7 +2,7 @@
 {% block title %}Group Members{% endblock %}
 {% block backlink %}
     {% if HAS_PEOPLE_ACCESS %}
-        <a href="../groups/" style="float:right">Return to Group List</a>
+        <a href="../groups/form?id={{ group.id }}" style="float:right">Return to Group Admin Form</a>
     {% endif %}
 {% endblock %}
 {% block content %}
@@ -47,8 +47,11 @@
                 &nbsp;&nbsp;&nbsp;&nbsp;
             </td>
             <td>
-                zip code: {{ attendee.zip_code }}
-                &nbsp;&nbsp;&nbsp;&nbsp;
+                <!-- placeholder group leader registrations won't have a zip code -->
+                {% if attendee.zip_code %}
+                    zip code: {{ attendee.zip_code }}
+                    &nbsp;&nbsp;&nbsp;&nbsp;
+                {% endif %}
             </td>
             <td>
                 {% if attendee.is_transferrable %}

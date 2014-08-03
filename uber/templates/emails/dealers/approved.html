@@ -2,7 +2,7 @@
 <head></head>
 <body>
 Your group ({{ group.name }}) has been approved as a {{ EVENT_NAME }} Dealer!
-You can pay the ${{ group.total_cost }} you owe using the credit card button
+You can pay the ${{ group.cost }} you owe using the credit card button
 <a href="{{ URL_BASE }}/preregistration/group_members?id={{ group.id }}">on this page</a>.
 
 {% if group.unassigned_badges %}
