@@ -330,10 +330,10 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def table_cost(self):
-        prices = {0: 0, 0.5: 0, 1: 125, 2: 175, 3: 225}
+        prices = {0: 0, 0.5: 0, 1: 125, 2: 175, 3: 250}
         total = 0
         for table in range(int(self.tables) + 1):
-            total += prices.get(table, 300)
+            total += prices.get(table, 350)
         return total
 
     @property

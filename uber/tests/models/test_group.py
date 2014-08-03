@@ -43,9 +43,9 @@ def test_table_cost():
     assert 0 == Group().table_cost
     assert 125 == Group(tables=1).table_cost
     assert 300 == Group(tables=2).table_cost
-    assert 525 == Group(tables=3).table_cost
-    assert 825 == Group(tables=4).table_cost
-    assert 1125 == Group(tables=5).table_cost
+    assert 550 == Group(tables=3).table_cost
+    assert 900 == Group(tables=4).table_cost
+    assert 1250 == Group(tables=5).table_cost
 
 def test_amount_unpaid(monkeypatch):
     assert 0 == Group(registered=datetime.now(UTC)).amount_unpaid
