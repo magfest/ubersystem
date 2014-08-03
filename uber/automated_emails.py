@@ -13,7 +13,7 @@ class AutomatedEmail:
         self.cc = cc or []
         self.bcc = bcc or []
         self.extra_data = extra_data or {}
-        self.instances[subject] = self
+        self.instances[self.subject] = self
         if post_con:
             self.filter = lambda x: POST_CON and filter(x)
         else:
@@ -31,7 +31,7 @@ class AutomatedEmail:
 
     def should_send(self, x, all_sent=None):
         try:
-            return not self.prev(x, all_sent) and self.filter(x)
+            return x.email and not self.prev(x, all_sent) and self.filter(x)
         except:
             log.error('unexpected error', exc_info=True)
 
@@ -58,7 +58,7 @@ class AutomatedEmail:
             for rem in cls.instances.values():
                 if not rem.needs_approval or rem.subject in approved:
                     for x in models[rem.model]:
-                        if x.email and rem.should_send(x, all_sent):
+                        if rem.should_send(x, all_sent):
                             rem.send(x, raise_errors=raise_errors)
 
 class StopsEmail(AutomatedEmail):
@@ -162,6 +162,10 @@ AutomatedEmail(Attendee, '{EVENT_NAME} Panelist Badge Confirmation', 'placeholde
                                        and (a.badge_type == GUEST_BADGE or a.ribbon == PANELIST_RIBBON),
                sender = PANELS_EMAIL)
 
+AutomatedEmail(Attendee, '{EVENT_NAME} Dealer Information Required', 'placeholders/dealer.txt',
+               lambda a: a.placeholder and a.is_dealer and a.group.status == APPROVED,
+               sender=MARKETPLACE_EMAIL)
+
 StopsEmail('Want to staff {EVENT_NAME} again?', 'placeholders/imported_volunteer.txt',
            lambda a: a.placeholder and a.staffing and a.registered <= PREREG_OPEN)
 
@@ -172,13 +176,14 @@ StopsEmail('{EVENT_NAME} Volunteer Badge Confirmation', 'placeholders/volunteer.
 AutomatedEmail(Attendee, '{EVENT_NAME} Badge Confirmation', 'placeholders/regular.txt',
                lambda a: a.placeholder and a.first_name and a.last_name
                                        and a.badge_type not in [GUEST_BADGE, STAFF_BADGE]
-                                       and a.ribbon not in [PANELIST_RIBBON, VOLUNTEER_RIBBON])
+                                       and a.ribbon not in [DEALER_RIBBON, PANELIST_RIBBON, VOLUNTEER_RIBBON])
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Badge Confirmation Reminder', 'placeholders/reminder.txt',
-               lambda a: days_after(7, a.registered) and a.placeholder and a.first_name and a.last_name)
+               lambda a: days_after(7, a.registered) and a.placeholder and a.first_name and a.last_name and not a.is_dealer)
 
 AutomatedEmail(Attendee, 'Last Chance to Accept Your {EVENT_NAME} Badge', 'placeholders/reminder.txt',
-               lambda a: days_before(7, PLACEHOLDER_DEADLINE) and a.placeholder and a.first_name and a.last_name)
+               lambda a: days_before(7, PLACEHOLDER_DEADLINE) and a.placeholder and a.first_name and a.last_name
+                                                              and not a.is_dealer)
 
 
 # Volunteer emails; none of these will be sent unless SHIFTS_CREATED is set.

@@ -29,22 +29,34 @@ class Root:
             'approved_tables':   sum(g.tables for g in groups if g.status == APPROVED)
         }
 
-    def form(self, session, message='', **params):
+    def form(self, session, new_dealer='', first_name='', last_name='', email='', message='', **params):
         group = session.group(params, bools=['auto_recalc','can_add'])
         if 'name' in params:
             message = check(group)
             if not message:
                 session.add(group)
                 message = session.assign_badges(group, params['badges'])
+                if not message and new_dealer and not (first_name and last_name and email and group.badges):
+                    message = 'When registering a new Dealer, you must enter the name and email address of the group leader and must allocate at least one badge'
                 if not message:
-                    if 'redirect' in params:
-                        raise HTTPRedirect('../preregistration/group_members?id={}', group.id)
+                    if new_dealer:
+                        session.commit()
+                        leader = group.leader = group.attendees[0]
+                        leader.first_name, leader.last_name, leader.email = first_name, last_name, email
+                        leader.placeholder = True
+                        if group.status == APPROVED:
+                            raise HTTPRedirect('../preregistration/group_members?id={}', group.id)
+                        else:
+                            raise HTTPRedirect('index?message={}', group.name + ' is uploaded and ' + group.status_label)
                     else:
                         raise HTTPRedirect('form?id={}&message={}', group.id, 'Group info uploaded')
-
         return {
+            'group': group,
             'message': message,
-            'group':   group
+            'new_dealer': new_dealer,
+            'first_name': first_name,
+            'last_name': last_name,
+            'email': email
         }
 
     @ajax
