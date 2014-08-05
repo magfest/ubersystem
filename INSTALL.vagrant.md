@@ -3,7 +3,7 @@ Setting up Ubersystem to run on Vagrant
 Windows instructions, if you're on linux/etc the process will be similar.
 
 [Vagrant](http://www.vagrantup.com/) is a great way to provide portable development environments by letting you install a local VM and have it automatically configured with all of the software and dependencies you need to start developing.  If you're already running Linux, we recommend you just develop locally, so this section assumes you are using Windows.  Here's what you'll need to install to get your dev environment up and running:
-* [TortoiseGit](https://code.google.com/p/tortoisegit/) for checking out this repo
+* [TortoiseGit](https://code.google.com/p/tortoisegit/) for checking out this repo. You can also use any other git tool you like.
 * [VirtualBox](https://www.virtualbox.org/wiki/Downloads) for running your development VM
 * [Vagrant](http://www.vagrantup.com/downloads.html) itself
 * [Putty](http://www.chiark.greenend.org.uk/~sgtatham/putty/download.html) for SSH-ing into your development machine once it's up and running
