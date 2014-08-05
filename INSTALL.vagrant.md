@@ -1,7 +1,5 @@
 Setting up Ubersystem to run on Vagrant
 ==================
-Note: These instructions are currently broken as of 7/23/14, we are currently fixing the installation process as part of a major overhaul.  If you REALLY want to do this, email code at magfest dot org and we'll walk you through it, it's mostly similar.
-
 Windows instructions, if you're on linux/etc the process will be similar.
 
 [Vagrant](http://www.vagrantup.com/) is a great way to provide portable development environments by letting you install a local VM and have it automatically configured with all of the software and dependencies you need to start developing.  If you're already running Linux, we recommend you just develop locally, so this section assumes you are using Windows.  Here's what you'll need to install to get your dev environment up and running:
@@ -36,10 +34,10 @@ Once you've logged in, you can run the following command to run start the Ubersy
 
 ```bash
 cd magfest
-./env/bin/python uber/run_server.py
+./env/bin/python sideboard/run_server.py
 ```
 
-After running this command, you can go to http://localhost:4321/ and log in with the email address "magfest@example.com" and the password "magfest".
+After running this command, you can go to http://localhost:8321/ and log in with the email address "magfest@example.com" and the password "magfest".
 
 Now you're ready to do development; every time you edit one of the Python files that make up Uber, the process will restart automatically, so you'll see the change as soon as you refresh your browser.  The only thing to watch out for is that if you make a syntax error, the process will stop altogether since it can't restart without being valid.  In that case you'll have to re-run the above command to re-start the server (after fixing your syntax error).
 
