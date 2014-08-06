@@ -31,6 +31,9 @@
         // If the Supporter radio button is checked, send through the supporter kick-in amount
         if ($("#supporter").is(":checked")){
             $("input[name='amount_extra']").val({{ SUPPORTER_LEVEL }});
+        // If the Season Supporter radio button is checked, send through the season level instead
+        else if ($("#season_supporter").is(":checked")){
+            $("input[name='amount_extra']").val({{ SEASON_LEVEL }});
         // If not, force to 0 in case the user hit the Back button to change their badge type
         } else {
             $("input[name='amount_extra']").val(0);
@@ -73,6 +76,20 @@
             </ul>
         </td>
         <td> {% popup_link "../static_views/supporters.html" "Details" %} </td>
+    </tr>
+{% endif %}
+{% if SEASON_SUPPORTERS_ENABLED %}
+<tr>
+        <td>
+            <input type="radio" id="season_supporter" name="badge_type" value="{{ ATTENDEE_BADGE }}" />
+            <b>Supporter:</b> &nbsp; ${{ SEASON_BADGE_PRICE }}
+        </td>
+        <td>
+            <ul>
+                <li>{% include "preregistration/season_badge_description.html" %}</li>
+            </ul>
+        </td>
+        <td> {% popup_link "../static_views/seasonPasses.html" "Details" %} </td>
     </tr>
 {% endif %}
 {% if GROUPS_ENABLED %}
