@@ -51,10 +51,7 @@
             <b>Attendee:</b> &nbsp; ${{ BADGE_PRICE }}
         </td>
         <td>
-            <ul>
-                <li> All-access, three-day pass </li>
-                {% if PRICE_CHANGE %}<li style="color:red">{% attendee_price_notice %}</li>{% endif %}
-            </ul>
+            {% include "preregistration/attendee_badge_description.html" %}
         </td>
         <td> {% popup_link "../static_views/attendees.html" "Details" %} </td>
     </tr>
@@ -71,9 +68,7 @@
             <b>Supporter:</b> &nbsp; ${{ SUPPORTER_BADGE_PRICE }}
         </td>
         <td>
-            <ul>
-                <li>{% include "preregistration/supporter_badge_description.html" %}</li>
-            </ul>
+            {% include "preregistration/supporter_badge_description.html" %}
         </td>
         <td> {% popup_link "../static_views/supporters.html" "Details" %} </td>
     </tr>
@@ -85,9 +80,7 @@
             <b>Supporter:</b> &nbsp; ${{ SEASON_BADGE_PRICE }}
         </td>
         <td>
-            <ul>
-                <li>{% include "preregistration/season_badge_description.html" %}</li>
-            </ul>
+            {% include "preregistration/season_badge_description.html" %}
         </td>
         <td> {% popup_link "../static_views/seasonPasses.html" "Details" %} </td>
     </tr>
@@ -100,12 +93,7 @@
                 <b>Group</b>
             </td>
             <td>
-                <ul>
-                    <li>Save money when you register eight or more people at once</li>
-                    <li>${{ GROUP_PRICE }} per person</li>
-                    <li>Group members can kick in extra to upgrade their badge level</li>
-                    <li style="color:red">{% group_price_notice %}</li>
-                </ul>
+                {% include "preregistration/group_badge_description.html" %}
             </td>
             <td> {% popup_link "../static_views/groups.html" "Details" %} </td>
     {% else %}
