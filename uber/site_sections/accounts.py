@@ -81,7 +81,7 @@ class Root:
     @unrestricted
     def reset(self, message='', email=None):
         if email is not None:
-            account = AdminAccount.objects.filter(email__iexact=email)
+            account = AdminAccount.objects.filter(attendee__email__iexact=email)
             if not account:
                 message = 'No account exists for email address {!r}'.format(email)
             else:
