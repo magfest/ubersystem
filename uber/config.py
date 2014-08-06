@@ -63,6 +63,10 @@ class State:
     @property
     def SUPPORTER_BADGE_PRICE(self):
         return self.BADGE_PRICE + SUPPORTER_LEVEL
+        
+    @property
+    def SEASON_BADGE_PRICE(self):
+        return self.BADGE_PRICE + SEASON_LEVEL
 
     @property
     def GROUP_PRICE(self):
