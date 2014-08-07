@@ -47,7 +47,7 @@ If you're absolutely sure that this is someone else, you can continue and pay fo
     <td><a href="index">I'm someone else, let me pay!</a></td>
 {% endif %}
     <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>
-    <td><a href="delete?id={{ duplicate.id }}">Well never mind then!</a></td>
+    <td><a href="delete?id={% if duplicate.group %}{{ duplicate.group.id }}{% else %}{{ duplicate.id }}{% endif %}">Well never mind then!</a></td>
 </tr></table>
 
 {% endblock %}
