@@ -93,6 +93,7 @@ def underscorize(s):
 
 
 def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=None):
+    subject = subject.format(EVENT_NAME=EVENT_NAME)
     to, cc, bcc = map(listify, [dest, cc, bcc])
     if DEV_BOX:
         for xs in [to, cc, bcc]:
