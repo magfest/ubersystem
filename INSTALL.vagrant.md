@@ -33,7 +33,7 @@ vagrant ssh
 Once you've logged in, you can run the following command to run start the Ubersystem server:
 
 ```bash
-run_server.py
+run_server
 ```
 
 After running this command, you can go to http://localhost:8282/ and log in with the email address "magfest@example.com" and the password "magfest".
