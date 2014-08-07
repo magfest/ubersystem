@@ -140,7 +140,8 @@ class Root:
 
                 raise HTTPRedirect('index')
         else:
-            attendee.can_spam = edit_id is None     # only defaults to true for these forms
+            if edit_id is None:
+                attendee.can_spam = True    # only defaults to true for these forms
             if attendee.badge_type == PSEUDO_DEALER_BADGE and state.AFTER_DEALER_REG_DEADLINE:
                 message = 'Dealer registration is closed, but you can fill out this form to add yourself to our waitlist'
 
