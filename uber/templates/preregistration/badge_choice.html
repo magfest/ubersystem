@@ -31,6 +31,9 @@
         // If the Supporter radio button is checked, send through the supporter kick-in amount
         if ($("#supporter").is(":checked")){
             $("input[name='amount_extra']").val({{ SUPPORTER_LEVEL }});
+        // If the Season Supporter radio button is checked, send through the season level instead
+        else if ($("#season_supporter").is(":checked")){
+            $("input[name='amount_extra']").val({{ SEASON_LEVEL }});
         // If not, force to 0 in case the user hit the Back button to change their badge type
         } else {
             $("input[name='amount_extra']").val(0);
@@ -48,10 +51,7 @@
             <b>Attendee:</b> &nbsp; ${{ BADGE_PRICE }}
         </td>
         <td>
-            <ul>
-                <li> All-access, three-day pass </li>
-                {% if PRICE_CHANGE %}<li style="color:red">{% attendee_price_notice %}</li>{% endif %}
-            </ul>
+            {% include "preregistration/attendee_badge_description.html" %}
         </td>
         <td> {% popup_link "../static_views/attendees.html" "Details" %} </td>
     </tr>
@@ -68,11 +68,21 @@
             <b>Supporter:</b> &nbsp; ${{ SUPPORTER_BADGE_PRICE }}
         </td>
         <td>
-            <ul>
-                <li>{% include "preregistration/supporter_badge_description.html" %}</li>
-            </ul>
+            {% include "preregistration/supporter_badge_description.html" %}
         </td>
         <td> {% popup_link "../static_views/supporters.html" "Details" %} </td>
+    </tr>
+{% endif %}
+{% if SEASON_SUPPORTERS_ENABLED %}
+<tr>
+        <td>
+            <input type="radio" id="season_supporter" name="badge_type" value="{{ ATTENDEE_BADGE }}" />
+            <b>Supporter:</b> &nbsp; ${{ SEASON_BADGE_PRICE }}
+        </td>
+        <td>
+            {% include "preregistration/season_badge_description.html" %}
+        </td>
+        <td> {% popup_link "../static_views/seasonPasses.html" "Details" %} </td>
     </tr>
 {% endif %}
 {% if GROUPS_ENABLED %}
@@ -83,12 +93,7 @@
                 <b>Group</b>
             </td>
             <td>
-                <ul>
-                    <li>Save money when you register eight or more people at once</li>
-                    <li>${{ GROUP_PRICE }} per person</li>
-                    <li>Group members can kick in extra to upgrade their badge level</li>
-                    <li style="color:red">{% group_price_notice %}</li>
-                </ul>
+                {% include "preregistration/group_badge_description.html" %}
             </td>
             <td> {% popup_link "../static_views/groups.html" "Details" %} </td>
     {% else %}
