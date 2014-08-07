@@ -31,6 +31,7 @@ class Root:
         message = check(account)
         if not message:
             message = 'Account settings uploaded'
+            account.attendee = session.attendee(account.attendee_id)   # dumb temporary hack, will fix later with tests
             session.add(account)
             if account.is_new and not AT_THE_CON:
                 body = render('emails/accounts/new_account.txt', {
