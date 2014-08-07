@@ -29,7 +29,7 @@ def check_dealer(group):
 def send_banned_email(attendee):
     try:
         send_email(REGDESK_EMAIL, REGDESK_EMAIL, 'Banned attendee registration',
-                   render('emails/banned_attendee.txt', {'attendee': attendee}), model='n/a')
+                   render('emails/reg_workflow/banned_attendee.txt', {'attendee': attendee}), model='n/a')
     except:
         log.error('unable to send banned email about {}', attendee)
 
@@ -122,7 +122,7 @@ class Root:
                     session.add_all([attendee, group])
                     session.commit()
                     send_email(MARKETPLACE_EMAIL, MARKETPLACE_EMAIL, 'Dealer application received',
-                               render('emails/dealer_reg_notification.txt', {'group': group}), model=group)
+                               render('emails/dealers/reg_notification.txt', {'group': group}), model=group)
                     raise HTTPRedirect('dealer_confirmation?id={}', group.id)
                 else:
                     target = group if group.badges else attendee
