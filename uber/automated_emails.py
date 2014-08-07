@@ -167,11 +167,11 @@ AutomatedEmail(Attendee, '{EVENT_NAME} Dealer Information Required', 'placeholde
                sender=MARKETPLACE_EMAIL)
 
 StopsEmail('Want to staff {EVENT_NAME} again?', 'placeholders/imported_volunteer.txt',
-           lambda a: a.placeholder and a.staffing and a.registered <= PREREG_OPEN)
+           lambda a: a.placeholder and a.staffing and a.registered_local <= PREREG_OPEN)
 
 StopsEmail('{EVENT_NAME} Volunteer Badge Confirmation', 'placeholders/volunteer.txt',
            lambda a: a.placeholder and a.first_name and a.last_name
-                                      and a.registered > PREREG_OPEN)
+                                      and a.registered_local > PREREG_OPEN)
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Badge Confirmation', 'placeholders/regular.txt',
                lambda a: a.placeholder and a.first_name and a.last_name
@@ -192,7 +192,7 @@ StopsEmail('{EVENT_NAME} shifts available', 'shifts/created.txt',
            lambda a: state.AFTER_SHIFTS_CREATED and a.takes_shifts)
 
 StopsEmail('Reminder to sign up for {EVENT_NAME} shifts', 'shifts/reminder.txt',
-           lambda a: state.AFTER_SHIFTS_CREATED and days_after(30, max(a.registered, SHIFTS_CREATED))
+           lambda a: state.AFTER_SHIFTS_CREATED and days_after(30, max(a.registered_local, SHIFTS_CREATED))
                  and state.BEFORE_PREREG_TAKEDOWN and a.takes_shifts and not a.hours)
 
 StopsEmail('Last chance to sign up for {EVENT_NAME} shifts', 'shifts/reminder.txt',
