@@ -90,7 +90,7 @@ class Root:
                 password = genpasswd()
                 if account.password_reset:
                     session.delete(account.password_reset)
-                session.add(PasswordReset(account=account, hashed=bcrypt.hashpw(password, bcrypt.gensalt())))
+                session.add(PasswordReset(admin_account=account, hashed=bcrypt.hashpw(password, bcrypt.gensalt())))
                 body = render('emails/accounts/password_reset.txt', {
                     'name': account.attendee.full_name,
                     'password':  password
