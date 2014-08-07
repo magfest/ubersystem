@@ -11,6 +11,7 @@
             $.post("unapprove", {
                 id: "{{ group.id }}",
                 action: action,
+                csrf_token: csrf_token,
                 email: $.val("email")
             }, function() {
                 if (action == "declined") {
