@@ -12,10 +12,13 @@
         padding: 5px;
         border: 1px solid black;
     }
+    table.badges td.nobr {
+        white-space: nowrap;
+    }
 </style>
 
 <script type="text/javascript">
-    $(document).ready(function(){
+    $(function(){
         $("td:first-child").contents().andSelf().mouseover(function(event){
             $(event.target).find(":radio").focus();
         }).click(function(event){
@@ -24,21 +27,20 @@
             } else {
                 $(event.target).siblings(":radio").click();
             }
+            badgeTypeChanged();
         }).css("cursor", "default");
     });
 
-    $(document).submit(function(){
-        // If the Supporter radio button is checked, send through the supporter kick-in amount
+    var badgeTypeChanged = function() {
+        // Set the kicked-in amount to either 0 or the supporter/season level
         if ($("#supporter").is(":checked")){
             $("input[name='amount_extra']").val({{ SUPPORTER_LEVEL }});
-        // If the Season Supporter radio button is checked, send through the season level instead
-        else if ($("#season_supporter").is(":checked")){
+        } else if ($("#season_supporter").is(":checked")){
             $("input[name='amount_extra']").val({{ SEASON_LEVEL }});
-        // If not, force to 0 in case the user hit the Back button to change their badge type
         } else {
             $("input[name='amount_extra']").val(0);
         }
-    });
+    };
 </script>
 
 <h2 style="margin-top:10px"> Choose a Badge </h2>
@@ -46,7 +48,7 @@
 
 <table class="badges">
     <tr>
-        <td>
+        <td class="nobr">
             <input type="radio" id="attendee" name="badge_type" value="{{ ATTENDEE_BADGE }}" checked />
             <b>Attendee:</b> &nbsp; ${{ BADGE_PRICE }}
         </td>
@@ -63,7 +65,7 @@
 {% endif %}
 {% if SUPPORTERS_ENABLED %}
     <tr>
-        <td>
+        <td class="nobr">
             <input type="radio" id="supporter" name="badge_type" value="{{ ATTENDEE_BADGE }}" />
             <b>Supporter:</b> &nbsp; ${{ SUPPORTER_BADGE_PRICE }}
         </td>
@@ -75,9 +77,9 @@
 {% endif %}
 {% if SEASON_SUPPORTERS_ENABLED %}
 <tr>
-        <td>
+        <td class="nobr">
             <input type="radio" id="season_supporter" name="badge_type" value="{{ ATTENDEE_BADGE }}" />
-            <b>Supporter:</b> &nbsp; ${{ SEASON_BADGE_PRICE }}
+            <b>Season Supporter:</b> &nbsp; ${{ SEASON_BADGE_PRICE }}
         </td>
         <td>
             {% include "preregistration/season_badge_description.html" %}
@@ -88,7 +90,7 @@
 {% if GROUPS_ENABLED %}
     <tr>
     {% if BEFORE_GROUP_PREREG_TAKEDOWN %}
-            <td>
+            <td class="nobr">
                 <input type="radio" name="badge_type" value="{{ PSEUDO_GROUP_BADGE }}" />
                 <b>Group</b>
             </td>
