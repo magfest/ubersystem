@@ -19,6 +19,9 @@
             Dealer Application
         {% else %}
             {{ attendee.badge_type_label }}
+            {% if badge_type == ATTENDEE %}
+                (${{ BADGE_PRICE }})
+            {% endif %}
         {% endif %}
     </td>
 </tr>
