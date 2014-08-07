@@ -237,7 +237,7 @@ class Root:
                 if attendee.full_name in BANNED_ATTENDEES:
                     send_banned_email(attendee)
 
-                attendee.group_id = group_id
+                group.attendees.append(attendee)
                 attendee.paid = PAID_BY_GROUP
                 session.add(attendee)
                 if attendee.amount_unpaid:
