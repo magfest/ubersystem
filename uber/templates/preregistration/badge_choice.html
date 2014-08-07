@@ -92,14 +92,14 @@
     {% if BEFORE_GROUP_PREREG_TAKEDOWN %}
             <td class="nobr">
                 <input type="radio" name="badge_type" value="{{ PSEUDO_GROUP_BADGE }}" />
-                <b>Group</b>
+                <b>Group:</b> &nbsp; ${{ GROUP_PRICE }} per person
             </td>
             <td>
                 {% include "preregistration/group_badge_description.html" %}
             </td>
             <td> {% popup_link "../static_views/groups.html" "Details" %} </td>
     {% else %}
-            <td> &nbsp;&nbsp;&nbsp;&nbsp; <b>Group</b> </td>
+            <td> &nbsp;&nbsp;&nbsp;&nbsp; <b>Group:</b> &nbsp; ${{ GROUP_PRICE }} per person</td>
             <td colspan="2" style="color:red">
                 <ul><li>The deadline for Group registration has passed, but you can still register as a regular attendee.</li></ul>
             </td>
