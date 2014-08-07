@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" serverName="localhost uber" />
+  <component name="PublishConfigData" serverName="localhost uber">
+    <serverData>
+      <paths name="localhost uber">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/home/vagrant/magfest" />
+            <mapping local="" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+  </component>
 </project>
-
