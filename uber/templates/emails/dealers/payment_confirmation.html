@@ -1,4 +1,6 @@
-Your Marketplace table ({{ group.name }}) has been preregistered for {{ EVENT_NAME_AND_YEAR }} and your payment of ${{ attendee.amount_paid }} has been received. The Marketplace coordinator will continue to be in touch with you to keep you informed of Marketplace rules and procedures.
+{{ group.leader.first_name }},
+
+Your group ({{ group.name }}) has been preregistered and your payment of ${{ attendee.amount_paid }} has been received. Your group will have {{ group.tables }} Marketplace table{{ group.table|pluralize }} at {{ EVENT_NAME_AND_YEAR }}. The Marketplace coordinator will continue to be in touch with you to keep you informed of Marketplace rules and procedures.
 
 {% if group.unassigned_badges %}
     <br/> <br/>
@@ -11,3 +13,5 @@ Your Marketplace table ({{ group.name }}) has been preregistered for {{ EVENT_NA
 If you would like to add badges, then please email us as {{ MARKETPLACE_EMAIL }}.
 
 <br/><br/>Badges are not mailed out before the event, so badges for your group will be available for pickup at the registration desk when you arrive at MAGFest. Inform your group to bring a photo ID to the registration desk, where they'll be provided with their badge. If anyone in your group ordered bonus items such as a ribbon, t-shirt, or supporter package, they can pick those up at our merchandise booth. The location and hours of the registration desk and merchandise booth will be e-mailed prior to the event.
+
+{{ MARKETPLACE_EMAIL_SIGNATURE }}
