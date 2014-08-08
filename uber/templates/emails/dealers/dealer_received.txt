@@ -1,0 +1,3 @@
+Dear {{ group.leader.full_name }},
+
+Thank you for submitting an application for {{ group.name }} to appear in the {{ EVENT_NAME_AND_YEAR }} Marketplace! We'll be reviewing all applications, and will let you know as soon as possible if we're able to approve yours.
