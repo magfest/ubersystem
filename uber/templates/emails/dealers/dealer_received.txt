@@ -1,3 +1,5 @@
 Dear {{ group.leader.full_name }},
 
-Thank you for submitting an application for {{ group.name }} to appear in the {{ EVENT_NAME_AND_YEAR }} Marketplace! We'll be reviewing all applications, and will let you know as soon as possible if we're able to approve yours.
+Thank you for submitting an application for {{ group.name }} to appear in the {{ EVENT_NAME_AND_YEAR }} Marketplace! We'll be reviewing all applications, and will let you know as soon as possible if yours have been approved. Please understand that due to the number of applications we receive, it may take awhile for you to get a response; however, you will be notified if you have been approved, waitlisted, or declined. Thank you! 
+
+{{ MARKETPLACE_EMAIL_SIGNATURE }} 
