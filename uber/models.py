@@ -836,7 +836,7 @@ class AssignedPanelist(MagModel):
         return '<{self.attendee.full_name} panelisting {self.event.name}>'.format(self=self)
 
 class SeasonPassTicket(MagModel):
-    fk_id    = Column(UUID, ForeignKey('attendee.id'))
+    fk_id    = Column(UUID)
     slug     = Column(UnicodeText)
 
     @property
@@ -1149,7 +1149,7 @@ class Session(SessionManager):
             return not self.query(Email).filter_by(subject=subject).all()
 
         def season_pass(self, id):
-            pss = self.query(PrevSeasonSupporter).all()
+            pss = self.query(PrevSeasonSupporter).filter_by(id=id).all()
             if pss:
                 return pss[0]
             else:
