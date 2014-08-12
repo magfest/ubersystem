@@ -6,7 +6,8 @@
     <h2>{{ event }}</h2>
     <ul>
     {% for attendee in attendees %}
-        <li>{{ attendee.full_name }} ({{ attendee.email }})</li>
+        <!-- use first and last name instead of .full_name to be compatible with both Attendee and PrevSeasonSupporter -->
+        <li>{{ attendee.first_name }} {{ attendee.last_name }} ({{ attendee.email }})</li>
     {% endfor %}
     </ul>
 {% endfor %}

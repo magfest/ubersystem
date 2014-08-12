@@ -123,6 +123,8 @@ class Root:
                     session.commit()
                     send_email(MARKETPLACE_EMAIL, MARKETPLACE_EMAIL, 'Dealer application received',
                                render('emails/dealers/reg_notification.txt', {'group': group}), model=group)
+                    send_email(MARKETPLACE_EMAIL, group.leader.email, 'Dealer Application Received',
+                               render('emails/dealers/dealer_received.txt', {'group': group}), model=group)
                     raise HTTPRedirect('dealer_confirmation?id={}', group.id)
                 else:
                     target = group if group.badges else attendee

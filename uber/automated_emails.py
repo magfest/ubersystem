@@ -36,7 +36,8 @@ class AutomatedEmail:
             log.error('unexpected error', exc_info=True)
 
     def render(self, x):
-        return render('emails/' + self.template, dict({x.__class__.__name__.lower(): x}, **self.extra_data))
+        model = 'attendee' if isinstance(x, PrevSeasonSupporter) else x.__class__.__name__.lower()
+        return render('emails/' + self.template, dict({model: x}, **self.extra_data))
 
     def send(self, x, raise_errors=True):
         try:
