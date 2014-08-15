@@ -817,6 +817,10 @@ class PasswordReset(MagModel):
     account   = OneToOneField(AdminAccount)
     generated = DateTimeField(auto_now_add=True)
     hashed    = TextField()
+    
+    @property
+    def is_expired(self):
+        return self.generated < datetime.now() - timedelta(days=7)
 
 class HotelRequests(MagModel, NightsMixin):
     attendee           = OneToOneField(Attendee)
