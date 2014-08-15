@@ -42,4 +42,7 @@ padding: 8px;
 .extra-row td {
 	border: solid #333;
 }
+#updateButton {
+    width:20ex;
+}
 {% endblock prereg_css %}

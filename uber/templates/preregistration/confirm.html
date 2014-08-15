@@ -56,19 +56,16 @@
 </tr>
 <tr>
     <td></td>
-    <td> <input type="submit" value="{% if attendee.placeholder %}Register{% else %}Update My Info{% endif %}" /> </td>
+    <td> <input type="submit" value="{% if attendee.placeholder %}Register{% else %}Update My Info{% endif %}" id="updateButton"/> </td>
+</tr>
+<tr>
+    <td></td>
+    <td>
+        <button type="button" onClick='location.href="transfer_badge?id={{ attendee.id }}"'>Transfer my Badge</button>
+    </td>
 </tr>
 </table>
 
 </form>
-
-{% if not attendee.placeholder %}
-    {% if attendee.is_transferrable %}
-        <form method="GET" action="transfer_badge" style="margin-left:25ex">
-        <input type="hidden" name="id" value="{{ attendee.id }}" />
-        <input type="submit" value="Transfer my Badge" />
-        </form>
-    {% endif %}
-{% endif %}
 
 {% endblock %}
