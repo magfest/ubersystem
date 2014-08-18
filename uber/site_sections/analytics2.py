@@ -6,6 +6,7 @@ class GraphData:
         self.registrations = [{'dec 18th': 37}, {'dec 20th': 40}]
         self.event_end_date = "01/23/14"
 
+    # test
     def to_JSON(self):
         return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
 
