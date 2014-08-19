@@ -199,6 +199,7 @@ RIBBON_OPTS = enum(
     PRESS_RIBBON     = 'Camera',
     PANELIST_RIBBON  = 'Panelist',
     DEALER_RIBBON    = 'Shopkeep',
+    BAND_RIBBON      = 'Rock Star',
 )
 PREASSIGNED_BADGE_TYPES = [STAFF_BADGE, SUPPORTER_BADGE]
 CAN_UNSET = [ATTENDEE_BADGE]
