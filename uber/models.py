@@ -243,6 +243,8 @@ class Group(MagModel, TakesPaymentMixin):
             self.amount_owed = self.total_cost
         if self.status == APPROVED and not self.approved:
             self.approved = datetime.now()
+        if not self.registered:
+            self.registered = datetime.now()
 
     def extra_sessionized(self):
         if hasattr(self, '_badges') and hasattr(self, '_preregisterer'):

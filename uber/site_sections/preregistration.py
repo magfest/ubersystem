@@ -299,7 +299,7 @@ class Root:
             raise HTTPRedirect('group_members?id={}&message={}', group.secret_id, 'This group cannot add fewer than {} badges'.format(group.min_badges_addable))
 
         charge = Charge(group, amount = 100 * int(count) * state.GROUP_PRICE, description = '{} extra badges for {}'.format(count, group.name))
-        charge.badges_to_add = int(count)
+        
         return {
             'group': group,
             'charge': charge
@@ -309,15 +309,16 @@ class Root:
     def pay_for_extra_members(self, payment_id, stripeToken):
         charge = Charge.get(payment_id)
         [group] = charge.groups
-        if charge.dollar_amount != charge.badges_to_add * state.GROUP_PRICE:
-            message = 'Our preregistration price has gone up since you tried to add the bagdes; please try again'
+        badges_to_add = charge.dollar_amount // state.GROUP_PRICE
+        if charge.dollar_amount % state.GROUP_PRICE:
+            message = 'Our preregistration price has gone up since you tried to add these badges; please try again'
         else:
             message = charge.charge_cc(stripeToken)
 
         if message:
             raise HTTPRedirect('group_members?id={}&message={}', group.secret_id, message)
         else:
-            group.assign_badges(group.badges + charge.badges_to_add)
+            group.assign_badges(group.badges + badges_to_add)
             group.amount_paid += charge.dollar_amount
             group.save()
             raise HTTPRedirect('group_members?id={}&message={}', group.secret_id, 'You payment has been accepted and the badges have been added to your group')
@@ -446,7 +447,6 @@ if POST_CON:
             return """
                 <html><head></head><body style='text-align:center'>
                     <h2 style='color:red'>Hope you had a great MAGFest!</h2>
-                    Preregistration for MAGFest 13 will open in the summer.
                 </body></html>
             """
 

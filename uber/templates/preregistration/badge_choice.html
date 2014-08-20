@@ -87,7 +87,7 @@
                 <li>Save money when you register eight or more people at once</li>
                 <li>${{ GROUP_PRICE }} per person</li>
                 <li>Group members can kick in extra to upgrade their badge level</li>
-                <li style="color:red">{% group_price_notice %}</li>
+                {% if PRICE_CHANGE %}<li style="color:red">{% group_price_notice %}</li>{% endif %}
             </ul>
         </td>
         <td> {% popup_link "../static_views/groups.html" "Details" %} </td>
