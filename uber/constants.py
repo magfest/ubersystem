@@ -395,6 +395,8 @@ FOOD_RESTRICTION_OPTS = enum(
     VEGETARIAN = 'Vegetarian',
     VEGAN      = 'Vegan',
     GLUTEN     = 'Cannot eat gluten'
+    NO_PORK    = 'No Pork'
+    NO_DAIRY   = 'No Dairy'
 )
 
 BASE_THEME_DIR = "static/themes"

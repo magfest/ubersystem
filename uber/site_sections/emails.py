@@ -186,7 +186,7 @@ Reminder(Attendee, 'Last Chance to Accept Your '+ EVENT_NAME +' Badge', 'confirm
 
 
 StopsReminder('Want to staff '+ EVENT_NAME +' again?', 'imported_staffer.txt',
-              lambda a: a.placeholder and a.badge_type == STAFF_BADGE and a.registered < PREREG_OPENING
+              lambda a: a.placeholder and a.badge_type == STAFF_BADGE and a.registered < PREREG_OPENING,
               category='staff_precon_reminder')
 
 StopsReminder(EVENT_NAME +' shifts available', 'shifts_created.txt',
