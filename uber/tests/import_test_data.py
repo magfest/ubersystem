@@ -56,8 +56,9 @@ def import_jobs(session):
             j['start_time'] = offset_to_datetime(j['start_time'])
             shifts = j.pop('shifts')
             job = Job(**j)
+            session.add(job)
             for secret_id in shifts:
-                session.add(Shift(job=job, attendee=attendees[secret_id]))
+                job.shifts.append(Shift(attendee=attendees[secret_id]))
 
 @entry_point
 def import_uber_test_data():
