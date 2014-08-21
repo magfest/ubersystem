@@ -26,15 +26,6 @@
 	{% if not attendee.placeholder %}(you can still <a href="../preregistration/confirm?return_to=../signups/index&id={{ attendee.secret_id }}">edit your info</a>){% endif %}
     </li>
     <li>
-        {% checked_if attendee.fire_safety_cert %}
-        {% if not attendee.placeholder and not attendee.fire_safety_cert %}
-            <a href="fire_safety">Certify yourself</a>
-        {% else %}
-            Certify yourself
-        {% endif %}
-        with fire safety training.
-    </li>
-    <li>
         {% checked_if attendee.food_restrictions %}
         {% if not attendee.placeholder and attendee.fire_safety_cert %}
             <a href="food_restrictions">Let us know</a>
@@ -43,31 +34,6 @@
         {% endif %}
         about any dietary restrictions.
     </li>
-    {% if attendee.badge_type == STAFF_BADGE and attendee.registered < ROOM_DEADLINE %}
-        {% if BEFORE_ROOM_DEADLINE %}
-            <li>
-                {% checked_if attendee.hotelrequests %}
-                {% if not attendee.placeholder and attendee.food_restrictions and not attendee.hotelrequests %}
-                    <a href="hotel_requests">Tell us</a>
-                {% else %}
-                    Tell us
-                {% endif %}
-                whether you want hotel room space no later than <b>{{ ROOM_DEADLINE|datetime }}</b>
-                {% if attendee.hotelrequests %}
-                    (you may <a href="hotel_requests">edit your request</a> until then).
-                {% endif %}
-            </li>
-        {% else %}
-            <li>
-                {% checked_if attendee.hotelrequests %}
-                {% if attendee.hotelrequests %}
-                    Thanks for filling out the hotel space request form before the deadline.
-                {% else %}
-                    You didn't fill out the hotel request form before the deadline.
-                {% endif %}
-            </li>
-        {% endif %}
-    {% endif %}
     <li>
         {% checked_if attendee.shifts %}
         {% if attendee.shift_prereqs_complete %}
