@@ -242,20 +242,16 @@ Reminder(Attendee, 'Personalized '+ EVENT_NAME +' badges will be ordered next we
          category='attendee_registration_confirmation')
 
 StopsReminder(EVENT_NAME +' Tech Ops volunteering', 'techops.txt',
-              lambda a: TECH_OPS in a.requested_depts_ints and TECH_OPS not in a.assigned,
-              category='staff_precon_reminder')
+              lambda a: TECH_OPS in a.requested_depts_ints and TECH_OPS not in a.assigned)
 
 StopsReminder(EVENT_NAME +' Chipspace volunteering', 'chipspace.txt',
-              lambda a: (JAMSPACE in a.requested_depts_ints or JAMSPACE in a.assigned) and CHIPSPACE not in a.assigned,
-              category='staff_precon_reminder')
+              lambda a: (JAMSPACE in a.requested_depts_ints or JAMSPACE in a.assigned) and CHIPSPACE not in a.assigned)
 
 StopsReminder(EVENT_NAME +' Chipspace shifts', 'chipspace_trusted.txt',
-              lambda a: CHIPSPACE in a.assigned and a.trusted,
-              category='staff_precon_reminder')
+              lambda a: CHIPSPACE in a.assigned and a.trusted)
 
 StopsReminder(EVENT_NAME +' Chipspace', 'chipspace_untrusted.txt',
-              lambda a: a.has_shifts_in(CHIPSPACE) and not a.trusted,
-              category='staff_precon_reminder')
+              lambda a: a.has_shifts_in(CHIPSPACE) and not a.trusted)
 
 StopsReminder(EVENT_NAME +' food prep volunteering', 'food_interest.txt',
               lambda a: FOOD_PREP in a.requested_depts_ints and not a.assigned_depts,

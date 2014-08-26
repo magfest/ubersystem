@@ -394,7 +394,9 @@ NIGHT_NAMES = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday
 FOOD_RESTRICTION_OPTS = enum(
     VEGETARIAN = 'Vegetarian',
     VEGAN      = 'Vegan',
-    GLUTEN     = 'Cannot eat gluten'
+    GLUTEN     = 'Cannot eat gluten',
+    NO_PORK    = 'No Pork',
+    NO_DAIRY   = 'No Dairy'
 )
 
 BASE_THEME_DIR = "static/themes"
