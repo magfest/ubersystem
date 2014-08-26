@@ -753,9 +753,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def shift_prereqs_complete(self):
-        return not self.placeholder \
-           and self.fire_safety_cert \
-           and (self.badge_type != STAFF_BADGE or self.hotel_requests is not None or not state.BEFORE_ROOM_DEADLINE)
+        return not self.placeholder
 
     @property
     def past_years_json(self):

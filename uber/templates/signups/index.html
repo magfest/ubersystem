@@ -27,7 +27,7 @@
     </li>
     <li>
         {% checked_if attendee.food_restrictions %}
-        {% if not attendee.placeholder and attendee.fire_safety_cert %}
+        {% if not attendee.placeholder %}
             <a href="food_restrictions">Let us know</a>
         {% else %}
             Let us know
