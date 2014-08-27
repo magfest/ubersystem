@@ -78,6 +78,9 @@ def attendee_misc(attendee):
 
     if not attendee.no_cellphone and attendee.staffing and _invalid_phone_number(attendee.cellphone):
         return "10-digit cellphone number is required for volunteers (unless you don't own a cellphone)"
+    if attendee.age_group == UNDER_18 and attendee.staffing and attendee.badge_type != STAFF_BADGE and PRE_CON:
+        return "Attendees must be 18 years of age or older to volunteer"
+
 
 def attendee_leadership(attendee):
     if attendee.session and not attendee.group_id:

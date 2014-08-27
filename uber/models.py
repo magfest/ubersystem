@@ -500,9 +500,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             elif old_staffing and not self.staffing or self.ribbon != VOLUNTEER_RIBBON and old_ribbon == VOLUNTEER_RIBBON:
                 self.unset_volunteering()
 
-        if self.age_group == UNDER_18 and PRE_CON:
-            self.unset_volunteering()
-
         if self.badge_type == STAFF_BADGE and self.ribbon == VOLUNTEER_RIBBON:
             self.ribbon = NO_RIBBON
 
