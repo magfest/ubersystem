@@ -9,7 +9,7 @@
     {% popup_link "../static_views/howToStaff.html" "How do I volunteer?" %}
 </div>
 
-{% if DEV_BOX or AFTER_SHIFTS_CREATED %}
+{% if DEV_BOX or now > SHIFTS_CREATED %}
     <form method="post" action="login">
     <table width="100%" style="text-align:center">
     <tr style="font-weight:bold">
