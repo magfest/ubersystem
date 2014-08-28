@@ -91,7 +91,7 @@ class Root:
                                                               .group_by(Attendee.group_id).all()}
         }
 
-    def change_badge(self, id, message='', **params):
+    def change_badge(self, session, id, message='', **params):
         attendee = session.attendee(id)
         if 'badge_type' in params:
             preassigned = AT_THE_CON or attendee.badge_type in PREASSIGNED_BADGE_TYPES

@@ -490,7 +490,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             if self.paid == NOT_PAID:
                 self.paid = NEED_NOT_PAY
 
-        if self.registered:
+        if not self.is_new:
             old_ribbon = self.orig_value_of('ribbon')
             old_staffing = self.orig_value_of('staffing')
             if self.staffing and not old_staffing or self.ribbon == VOLUNTEER_RIBBON and old_ribbon != VOLUNTEER_RIBBON:
@@ -1170,6 +1170,7 @@ class Session(SessionManager):
 
         def next_badge_num(self, badge_type):
             #assert_badge_locked()
+            badge_type = int(badge_type)
 
             if badge_type not in PREASSIGNED_BADGE_TYPES:
                 return 0
@@ -1201,6 +1202,7 @@ class Session(SessionManager):
 
         def change_badge(self, attendee, badge_type, badge_num=None):
             #assert_badge_locked()
+            badge_type = int(badge_type)
             old_badge_num = attendee.badge_num
             old_badge_type = attendee.badge_type
 
@@ -1225,7 +1227,7 @@ class Session(SessionManager):
                         return 'That badge number already belongs to {!r}'.format(existing.first().full_name)
             elif old_badge_num and old_badge_type == badge_type:
                 next = self.next_badge_num(badge_type) - 1
-                new_badge_num = min(badge_num or MAX_BADGE, next)
+                new_badge_num = min(int(badge_num or MAX_BADGE), next)
                 if old_badge_num < new_badge_num:
                     self.shift_badges(badge_type, old_badge_num, down=True, until=new_badge_num)
                 else:
@@ -1236,10 +1238,10 @@ class Session(SessionManager):
                     self.shift_badges(old_badge_type, old_badge_num, down=True)
 
                 next = self.next_badge_num(badge_type)
-                new_badge_num = badge_num or next
+                new_badge_num = int(badge_num or next)
                 if new_badge_num < next:
-                    self.shift_badges(badge_type, badge_num, up=True)
-                    attendee.badge_num = badge_num
+                    self.shift_badges(badge_type, new_badge_num, up=True)
+                    attendee.badge_num = new_badge_num
                 else:
                     attendee.badge_num = next
                 attendee.badge_type = badge_type
