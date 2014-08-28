@@ -68,7 +68,7 @@
         <td><ul><li>Single days passes available for sale at the door for {% single_day_prices %}.</li></ul></td>
     </tr>
 {% endif %}
-{% if SUPPORTER_BADGE_TYPE_ENABLED %}
+{% if SUPPORTER_BADGE_TYPE_ENABLED and now < SUPPORTER_DEADLINE %}
     <tr>
         <td>
             <input type="radio" id="supporter" name="badge_type" value="{{ ATTENDEE_BADGE }}" />
