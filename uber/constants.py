@@ -314,6 +314,7 @@ JOB_LOC_OPTS = enum(
     TREASURY      = 'Treasury',
     CCG_TABLETOP  = 'Tabletop (CCG)',
     TECH_OPS      = 'Tech Ops',
+    REZ_OVERLORD  = "Overlord of Rick 'Rez' Scott",
 )
 DEPT_CHAIR_OVERRIDES = {
     STAFF_SUPPORT: 'Jack Boyd',
