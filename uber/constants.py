@@ -145,7 +145,6 @@ EVENT_LOC_OPTS = enum(
     CONCERTS = 'Concerts',
     TABLETOP = 'Tabletop',
     CONSOLE_ROOM = 'Console Room',
-    VIDEO_ROOM = 'Video Room',
     OUTDOORS = 'Outdoor Events',
     JAMSPACE = 'Jamspace',
     CHIPTUNES = 'Chiptunes',
