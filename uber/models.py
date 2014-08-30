@@ -1142,7 +1142,7 @@ class Tracking(MagModel):
         )
 
         try:
-            who = Account.get(cherrypy.session.get('account_id')).name
+            who = AdminAccount.get(cherrypy.session.get('account_id')).attendee.full_name
         except:
             if current_thread().daemon:
                 who = current_thread().name

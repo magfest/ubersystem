@@ -5,8 +5,8 @@
     <envs>
       <env name="PYTHONUNBUFFERED" value="1" />
     </envs>
-    <option name="SDK_HOME" value="ssh://vagrant@127.0.0.1:2222/home/vagrant/magfest/env/bin/python3" />
-    <option name="WORKING_DIRECTORY" value="/home/vagrant/magfest" />
+    <option name="SDK_HOME" value="vagrant://D:\uber\magfest85/home/vagrant/magfest/env/bin/python" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
     <option name="IS_MODULE_SDK" value="false" />
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
