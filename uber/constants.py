@@ -148,7 +148,8 @@ EVENT_LOC_OPTS = enum(
     OUTDOORS = 'Outdoor Events',
     JAMSPACE = 'Jamspace',
     CHIPTUNES = 'Chiptunes',
-    REGISTRATION = 'Registration'
+    REGISTRATION = 'Registration',
+    HORIZONS = 'Horizons'
 )
 GROUPED_EVENTS = [PANELS_1, PANELS_2, PANELS_3,
                   CONCERTS, CHIPTUNES, JAMSPACE]
