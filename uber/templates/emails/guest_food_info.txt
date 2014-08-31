@@ -1,14 +1,16 @@
 {{ attendee.first_name }},
 
-Thanks again for coming out to {{ EVENT_NAME }} as a Guest!  As we've previously mentioned, we feed our guests three meals per day during {{ EVENT_NAME }}, so you can drop by the Hospitality Suite in Room 6135 for food during any of the following times:
+Thanks again for coming out to {{ EVENT_NAME }} as a Guest! As we've previously mentioned, we feed our guests three meals per day during {{ EVENT_NAME }}, so you can drop by the Hospitality Suite in Retreat I & II* located on the 3rd floor of the Retreat building for food during any of the following times:
 
 Breakfast: 8am to 11am
 Lunch: 1pm to 4pm
 Dinner: 6pm to 10pm
-Overnight: 12am to 5am
+Overnight: 10pm to 5am
 
-The first meal served will be lunch on Thursday, and the suite will remain open through Sunday afternoon, although Sunday will be leftovers rather than regular meals.
+The first meal served will be a light breakfast on Friday, and the suite will remain open through Sunday afternoon. More information can be found by visiting http://magsuite.jennytru.com
 
 Please let us know if you have any questions.
 
 {{ PEGLEGS_EMAIL_SIGNATURE }}
+
+*Exit the elevator in Retreat building on the 3rd floor and go to the right. Retreat I & II will be on the right shortly down the hall.

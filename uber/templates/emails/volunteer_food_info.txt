@@ -1,24 +1,18 @@
 {{ attendee.first_name }},
 
-Thanks again for volunteering at {{ EVENT_NAME }} this year.  We feed our volunteers three meals per day during {{ EVENT_NAME }}, so you can drop by the Hospitality Suite in Room 6135 for food during any of the following times:
+Thanks again for volunteering at {{ EVENT_NAME }} this year. We feed our volunteers three meals per day during {{ EVENT_NAME }}, so you can drop by the Hospitality Suite in Retreat I & II* located on the 3rd floor of the Retreat building for food during any of the following times:
 
 Breakfast: 8am to 11am
 Lunch: 1pm to 4pm
 Dinner: 6pm to 10pm
-Overnight: 12am to 5am
+Overnight: 10pm to 5am
 
-{% if attendee.badge_type == ATTENDEE_BADGE %}You'll become eligible for food after working your first shift.  Please come to Staffing Ops (in the Fest Ops room) after you first get your badge to get your shift schedule, and then come back to get your ribbon marked after working your first shift and getting your department head to sign your sheet.
+{% if attendee.badge_type == ATTENDEE_BADGE %}You'll become eligible for food after working your first shift. Please come to Staffing Ops (in the Fest Ops room) after you first get your badge to get your shift schedule, and then come back to get your ribbon marked after working your first shift and getting your department head to sign your sheet.
 
-{% endif %}The first meal served will be lunch on Thursday, and the suite will remain open through Sunday afternoon, although Sunday will be leftovers rather than regular meals.  All volunteers should read the Hospitality Suite rules at http://chefsuite.cr4zyw3bchk.com/
-
-In addition to the Hospitality Suite, you'll be eligible to buy food at the Galaxy Cafe, which is the Gaylord's cafeteria for its own staff which they've generously allowed us to use.  To get to the Galaxy Cafe, go to the far back of the Maryland Ballroom foyer, then go through the doors and turn left.  Just before you get to the Security desk in the hallway, look to your left and there will be a wide set of stairs going down.  Go down those stairs and then the Galaxy Cafe will be on your right.  You can use the Galaxy Cafe during any of the following times:
-
-Breakfast ($12.50): 6:30am - 8:00am
-Lunch ($14.50): 1:00pm - 2:30pm
-Dinner (14:50): 7:00pm - 9:00pm
-
-Returning volunteers may notice that those prices are significantly higher than they've been in the past.  Apparently this is what the Gaylord was supposed to be charging us all along, but due to an oversight on their part we've been getting the "Gaylord Staff" price instead of the "Contractor" price.  They noticed and informed us of the oversight this year - alas!
+{% endif %}The first meal served will be a light breakfast on Friday, and the suite will remain open through Sunday afternoon. More information can be found by visiting http://magsuite.jennytru.com
 
 Please let us know if you have any questions.
 
 {{ STOPS_EMAIL_SIGNATURE }}
+
+*Exit the elevator in Retreat building on the 3rd floor and go to the right. Retreat I & II will be on the right shortly down the hall.
