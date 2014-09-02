@@ -60,7 +60,7 @@ def change_badge(attendee):
                 shift_badges(attendee, down=False)
             else:
                 attendee.badge_num = next
-
+                
         attendee.save()
         if AT_THE_CON or new <= next:
             return 'Badge updated'
@@ -74,7 +74,12 @@ def shift_badges(attendee, down, until = MAX_BADGE):
             shift = -1 if down else 1
             for a in Attendee.objects.filter(badge_type = attendee.badge_type, badge_num__gte = attendee.badge_num) \
                                      .exclude(badge_num = 0).exclude(id = attendee.id).exclude(badge_num__gt = until):
-                a.badge_num += shift
+                min_num, max_num = BADGE_RANGES[int(attendee.badge_type)]
+                if not min_num <= attendee.badge_num <= max_num:
+                    a.badge_num = min_num
+                    shift_badges(a, down = False, until = attendee.badge_num)
+                else:
+                    a.badge_num += shift
                 a.save()
 
 
