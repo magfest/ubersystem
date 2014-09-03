@@ -136,3 +136,40 @@ def check_unassigned():
     if unassigned and not Email.objects.filter(subject = subject):
         body = render('emails/unassigned.html', {'unassigned': unassigned})
         send_email(STAFF_EMAIL, STAFF_EMAIL, subject, body, format='html', model='n/a')
+
+# run through all badges and check 2 things:
+# 1) there are no gaps in badge numbers
+# 2) all badge numbers are in the ranges set by BADGE_RANGES
+# note: does not do any duplicates checking, that's a different pre-existing check
+def badge_consistency_check():
+    errors = []
+
+    # check 1, see if anything is out of range
+    for attendee in Attendee.objects.exclude(first_name = '').exclude(badge_num = 0).order_by('badge_num'):
+        out_of_range_error = check_range(attendee.badge_num, attendee.badge_type)
+        if out_of_range_error:
+            msg = '{a.full_name}: badge #{a.badge_num}: {err}'.format(a=attendee, err=out_of_range_error)
+            errors.append(msg)
+
+    # check 2: see if there are any gaps in each of the badge ranges
+    for badge_type_val, badge_type_desc in BADGE_OPTS:
+        prev_badge_num = -1
+        prev_attendee_name = ""
+
+        for attendee in Attendee.objects.filter(badge_type=badge_type_val).exclude(first_name = '').exclude(badge_num = 0).order_by('badge_num'):
+            if prev_badge_num == -1:
+                prev_badge_num = attendee.badge_num
+                prev_attendee_name = attendee.full_name
+                continue
+
+            if attendee.badge_num - 1 != prev_badge_num:
+                msg = "gap in badge sequence between " + badge_type_desc + " " + \
+                      "badge# " + str(prev_badge_num) + "(" + prev_attendee_name + ")" + " and " + \
+                      "badge# " + str(attendee.badge_num) + "(" + attendee.full_name + ")"
+
+                errors.append(msg)
+
+            prev_badge_num = attendee.badge_num
+            prev_attendee_name = attendee.full_name
+
+    return errors

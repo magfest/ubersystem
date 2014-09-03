@@ -1,0 +1,20 @@
+{% extends "base-admin.html" %}
+{% block title %}Developer Utility - Badge consistency check{% endblock %}
+{% block content %}
+
+    <h1>Badge numbering consistency</h1>
+
+    <a href="badge_number_consistency_check?run_check=yes">Run badge check</a> - This check ensures that all badges in the system
+    conform to the numbers we have setup in BADGE_RANGES.  If any errors are found you will have the opportunity to fix
+    them after the check runs.<br/><br/>
+
+    {% if errors_found %}
+        <font color="red">
+            <b>Badge consistency errors found!</b> Errors were:<br/><br/>
+            {% for error in errors %}
+                {{ error }}<br>
+            {% endfor %}
+        </font>
+    {% endif %}
+
+{% endblock %}

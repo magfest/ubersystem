@@ -35,3 +35,15 @@ class Root:
             'last_commit_log': last_commit_log,
             'git_status': git_status
         }
+
+
+    def badge_number_consistency_check(self, run_check=None):
+        errors = []
+
+        if run_check != None:
+            errors = badge_consistency_check()
+
+        return {
+            'errors_found': len(errors) > 0,
+            'errors': errors,
+        }
