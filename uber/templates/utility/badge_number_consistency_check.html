@@ -2,19 +2,42 @@
 {% block title %}Developer Utility - Badge consistency check{% endblock %}
 {% block content %}
 
-    <h1>Badge numbering consistency</h1>
+    <h1>Badge numbering consistency utility</h1>
+
+    {% if ran_fixup %}
+        <p>
+        <font color="green">Badge number fixup completed.<br/>
+        Please re-run consistency check again to make sure all errors are resolved.<br/>
+        If any errors remain, you will need to dig into the database to find out what happened.<br/>
+        <br>
+        One thing to check: Make sure that the values in BADGE_RANGES are valid. i.e. there aren't too few staff or supporter badges/etc.<br/>
+        </font>
+        </p>
+    {% endif %}
 
     <a href="badge_number_consistency_check?run_check=yes">Run badge check</a> - This check ensures that all badges in the system
     conform to the numbers we have setup in BADGE_RANGES.  If any errors are found you will have the opportunity to fix
     them after the check runs.<br/><br/>
 
     {% if errors_found %}
+        <p>
         <font color="red">
             <b>Badge consistency errors found!</b> Errors were:<br/><br/>
             {% for error in errors %}
                 {{ error }}<br>
             {% endfor %}
         </font>
+        </p>
+
+        <p>DARK MAGIC: Type in "yes, do it" in the box below to re-assign all badge numbers to be in compliance with valid badge ranges.<br/>
+        DO NOT DO THIS UNLESS YOU REALLY KNOW WHAT YOU ARE DOING AND HAVE TALKED TO EITHER DOM, ELI, OR VICKI.<br/>
+        <b>PLEASE BACKUP THE DATABASE BEFORE DOING THIS.</b><br/>
+        <br/>
+        NOTE: This may take quite a few minutes to run DO NOT MESS WITH IT. In fact, it's best to take uber offline beforehand. This is truly dark magic.
+        <form action="badge_number_consistency_check" method="POST">
+        <input name="run_fixup" value="" /><input type="submit" name="submit" value="submit" />
+        </form>
+        </p>
     {% endif %}
 
 {% endblock %}
