@@ -148,22 +148,22 @@ def badge_consistency_check():
     for attendee in Attendee.objects.exclude(first_name = '').exclude(badge_num = 0).order_by('badge_num'):
         out_of_range_error = check_range(attendee.badge_num, attendee.badge_type)
         if out_of_range_error:
-            msg = attendee.full_name + ": badge#: " + str(attendee.badge_num) + ": " + out_of_range_error
+            msg = '{a.full_name}: badge #{a.badge_num}: {err}'.format(a=attendee, err=out_of_range_error)
             errors.append(msg)
 
     # check 2: see if there are any gaps in each of the badge ranges
-    for badge_type in BADGE_OPTS:
+    for badge_type_val, badge_type_desc in BADGE_OPTS:
         prev_badge_num = -1
         prev_attendee_name = ""
 
-        for attendee in Attendee.objects.filter(badge_type=badge_type[0]).exclude(first_name = '').exclude(badge_num = 0).order_by('badge_num'):
+        for attendee in Attendee.objects.filter(badge_type=badge_type_val).exclude(first_name = '').exclude(badge_num = 0).order_by('badge_num'):
             if prev_badge_num == -1:
                 prev_badge_num = attendee.badge_num
                 prev_attendee_name = attendee.full_name
                 continue
 
             if attendee.badge_num - 1 != prev_badge_num:
-                msg = "gap in badge sequence between " + badge_type[1] + " " + \
+                msg = "gap in badge sequence between " + badge_type_desc + " " + \
                       "badge# " + str(prev_badge_num) + "(" + prev_attendee_name + ")" + " and " + \
                       "badge# " + str(attendee.badge_num) + "(" + attendee.full_name + ")"
 
