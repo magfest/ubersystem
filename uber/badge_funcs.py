@@ -74,6 +74,7 @@ def shift_badges(attendee, down, until = MAX_BADGE):
             shift = -1 if down else 1
             for a in Attendee.objects.filter(badge_type = attendee.badge_type, badge_num__gte = attendee.badge_num) \
                                      .exclude(badge_num = 0).exclude(id = attendee.id).exclude(badge_num__gt = until):
+                a.badge_num += shift
                 a.save()
 
 
