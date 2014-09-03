@@ -15,7 +15,10 @@ sudo bash
 service postgresql restart        
 su postgres
 psql                              
-    DROP DATABASE mydbname
-    CREATE DATABASE mydbname
+    DROP DATABASE mydbname;
+    CREATE DATABASE mydbname;
 psql -d mydbname -f backupfile.sql
+
+# select from an attende (this exact syntax is super-important)
+SELECT * FROM "Attendee";
 ```
