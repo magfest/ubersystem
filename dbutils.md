@@ -1,5 +1,5 @@
 some quick reference notes on how to manipulate postgres quickly.
-
+```
 # switch to the postgres user
 sudo bash
 su postgres
@@ -18,3 +18,4 @@ psql
     DROP DATABASE mydbname
     CREATE DATABASE mydbname
 psql -d mydbname -f backupfile.sql
+```
