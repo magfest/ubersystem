@@ -9,3 +9,4 @@ Installation types
 - [Vagrant Installation](INSTALL.vagrant.md)   (recommended method for developers) ***USE THIS***
 - [Manual Installation](INSTALL.manually.md)
 - coming soon: Installation/deployment with Puppet
+- [Database utils / shortcuts](dbutils.md)
