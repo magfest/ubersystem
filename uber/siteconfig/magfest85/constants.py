@@ -87,11 +87,11 @@ BADGE_OPTS = enum(
 )
 
 BADGE_RANGES = {         # these may overlap, but shouldn't
-    STAFF_BADGE:     [1, 200],
-    SUPPORTER_BADGE: [201, 700],
-    GUEST_BADGE:     [701, 750],
-    ATTENDEE_BADGE:  [751, 3000],
-    ONE_DAY_BADGE:   [0, 0],
+    STAFF_BADGE:     [1, 299],
+    SUPPORTER_BADGE: [300, 599],
+    GUEST_BADGE:     [800, 999],
+    ATTENDEE_BADGE:  [1000, 2999],
+    ONE_DAY_BADGE:   [5000, 5499],
 }
 
 STORE_PRICES = (                # start as a tuple to preserve order for STORE_ITEMS

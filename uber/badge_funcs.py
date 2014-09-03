@@ -60,7 +60,7 @@ def change_badge(attendee):
                 shift_badges(attendee, down=False)
             else:
                 attendee.badge_num = next
-
+                
         attendee.save()
         if AT_THE_CON or new <= next:
             return 'Badge updated'
