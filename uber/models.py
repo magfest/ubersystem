@@ -281,6 +281,10 @@ class Group(MagModel, TakesPaymentMixin):
         return self.attendees
 
     @property
+    def floating(self):
+        return [a for a in self.attendees if a.is_unassigned and a.paid == PAID_BY_GROUP]
+
+    @property
     def new_badge_type(self):
         if GUEST_BADGE in {a.badge_type for a in self.attendees}:
             return GUEST_BADGE
@@ -1329,7 +1333,7 @@ class Session(SessionManager):
                 for i in range(diff):
                     group.attendees.append(Attendee(badge_type=group.new_badge_type, ribbon=group.new_ribbon, paid=PAID_BY_GROUP))
             elif diff < 0:
-                floating = [a for a in group.attendees if a.is_unassigned and a.paid == PAID_BY_GROUP]
+                floating = group.floating
                 if len(floating) < abs(diff):
                     return 'You cannot reduce the number of badges for a group to below the number of assigned badges'
                 else:
