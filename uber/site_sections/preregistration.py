@@ -234,11 +234,16 @@ class Root:
             if not message and not params['first_name']:
                 message = 'First and Last Name are required fields'
             if not message:
-                if session.assign_badges(group, group.badges - 1):
+                if not group.floating:
                     raise HTTPRedirect('group_members?id={}&message={}', group_id, 'No more unassigned badges exist in this group')
 
                 if attendee.full_name in BANNED_ATTENDEES:
                     send_banned_email(attendee)
+
+                badge_being_claimed = group.floating[0]
+                attendee.registered = badge_being_claimed.registered
+                group.attendees.remove(badge_being_claimed)
+                session.delete(badge_being_claimed)
 
                 group.attendees.append(attendee)
                 attendee.paid = PAID_BY_GROUP
