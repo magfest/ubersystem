@@ -7,7 +7,9 @@
               {% if attendee.ribbon == VOLUNTEER_RIBBON %}now_eligible="{{ attendee.worked_hours|yesno:"true,false" }}"{% endif %}
               {% if attendee.food_restrictions.vegetarian %}vegetarian="true"{% endif %}
               {% if attendee.food_restrictions.vegan %}vegan="true"{% endif %}
-              {% if attendee.food_restrictions.gluten %}no_gluten="true"{% endif %}>
+              {% if attendee.food_restrictions.gluten %}no_gluten="true"{% endif %}
+              {% if attendee.food_restrictions.no_pork %}no_pork="true"{% endif %}
+              {% if attendee.food_restrictions.no_dairy %}no_dairy="true"{% endif %}>
         {% if attendee.food_restrictions.freeform %}<notes>{{ attendee.food_restrictions.freeform }}</notes>{% endif %}
     </attendee>
 {% endfor %}
