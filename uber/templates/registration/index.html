@@ -148,6 +148,9 @@
         <td width="33%"> <span id="checkin_count">{{ checkin_count }}</span> Checked In </td>
         <td width="33%"> <a href="#" onClick="$('#transactions').toggle('fast'); return false;">Record MPoint Exchange</a> </td>
     </tr>
+    <tr style="text-align:center; font-weight:bold; font-color:red; {% if remaining_badges < 50 %} font-size:18pt; {% endif %}">
+        <td colspan="3">Badges remaining: <font color="red">{{ remaining_badges }}</font></td>
+    </tr>
     </table>
 {% endif %}
 
@@ -195,14 +198,15 @@
 <tr class="header">
     <td align="left"> <a href="index?order={{ order.last_name }}">Name</a> </td>
     <td> <a href="index?order={{ order.badge_num }}">Badge</a> </td>
-    <td> <a href="index?order={{ order.paid }}">Paid</a> </td>
-    <td> <a href="index?order={{ order.age_group }}">Age</a> </td>
     {% if AT_THE_CON %}
         <td> <a href="index?order={{ order.checked_in }}"><nobr>Checked In</nobr></a> </td>
     {% endif %}
+    <td> <a href="index?order={{ order.age_group }}">Age</a> </td>
+    <td> <a href="index?order={{ order.paid }}">Paid</a> </td>
 </tr>
 {% for attendee in attendees %}
     <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
+        
         <td id="name_{{ attendee.id }}" style="text-align:left">
             <a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a>
             {% if attendee.group %}
@@ -226,26 +230,26 @@
                 {{ attendee.badge }}
             {% endif %}
         </nobr></td>
-        <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.get_paid_display }}</nobr></td>
         {% if attendee.checked_in or not AT_THE_CON %}
-            <td> <nobr>{{ attendee.get_age_group_display }}</nobr> </td>
             {% if AT_THE_CON %}
                 <td> {{ attendee.checked_in|time:"fA"|lower }} {{ attendee.checked_in|date:"D" }} </td>
             {% endif %}
+            <td> <nobr>{{ attendee.get_age_group_display }}</nobr> </td>
         {% elif attendee.paid == NOT_PAID %}
             <td colspan="2">
                 <a href="new?show_all=true">Go to at-the-door page to check in</a>
             </td>
         {% else %}
+            <td id="cin_{{ attendee.id }}">
+                <input type="submit" value="Check In" onClick="check_in({{ attendee.id }})" {% if attendee.is_unassigned %}disabled{% endif %} />
+            </td>
             <td>
                 <select id="age_{{ attendee.id }}" onChange="highlight($(this).parents('tr'))">
                     {% options AGE_GROUP_OPTS attendee.age_group %}
                 </select>
             </td>
-            <td id="cin_{{ attendee.id }}">
-                <input type="submit" value="Check In" onClick="check_in({{ attendee.id }})" {% if attendee.is_unassigned %}disabled{% endif %} />
-            </td>
         {% endif %}
+        <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.get_paid_display }}</nobr></td>
     </tr>
 {% endfor %}
 </table>
