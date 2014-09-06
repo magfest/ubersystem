@@ -107,7 +107,7 @@ class Root:
             'notes': filter(bool, [getattr(a.food_restrictions, 'freeform', '') for a in volunteers]),
             'standard': {
                 category: len([a for a in volunteers if getattr(a.food_restrictions, category, False)])
-                for category in ['vegetarian', 'vegan', 'gluten']
+                for category in ['vegetarian', 'vegan', 'gluten', 'no_pork', 'no_dairy']
             }
         }
     
