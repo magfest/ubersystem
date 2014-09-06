@@ -28,8 +28,9 @@ class MagModel(Model):
     @staticmethod
     def from_sessionized(d):
         [ModelClass] = [m for m in all_models() if m.__name__ in d]
-        group_id = d[ModelClass.__name__].pop('group', None)
-        d[ModelClass.__name__].setdefault('group_id', group_id)
+        if 'group' in d[ModelClass.__name__]:
+            group_id = d[ModelClass.__name__].pop('group')
+            d[ModelClass.__name__].setdefault('group_id', group_id)
         m = ModelClass(**d[ModelClass.__name__])
         m.post_from_sessionized(d)
         return m
