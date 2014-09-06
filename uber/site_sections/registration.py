@@ -58,16 +58,17 @@ class Root:
         attendees = attendees[-100 + 100*page : 100*page]
 
         return {
-            'message':        message if isinstance(message, str) else message[-1],
-            'page':           page,
-            'pages':          pages,
-            'search_text':    search_text,
-            'search_results': bool(search_text),
-            'attendees':      attendees,
-            'order':          Order(order),
-            'attendee_count': total_count,
-            'checkin_count':  Attendee.objects.exclude(checked_in__isnull = True).count(),
-            'attendee':       Attendee.get(uploaded_id) if uploaded_id else None
+            'message':          message if isinstance(message, str) else message[-1],
+            'page':             page,
+            'pages':            pages,
+            'search_text':      search_text,
+            'search_results':   bool(search_text),
+            'attendees':        attendees,
+            'order':            Order(order),
+            'attendee_count':   total_count,
+            'checkin_count':    Attendee.objects.exclude(checked_in__isnull = True).count(),
+            'attendee':         Attendee.get(uploaded_id) if uploaded_id else None,
+            'remaining_badges': max(0,(MAX_BADGE_SALES - state.BADGES_SOLD))
         }
 
     def form(self, message='', return_to='', omit_badge='', **params):
@@ -433,7 +434,8 @@ class Root:
             'show_all':   show_all,
             'checked_in': checked_in,
             'groups':     sorted(groups, key = lambda tup: tup[1]),
-            'recent':     Attendee.objects.filter(badge_num=0, **restrict_to).exclude(first_name='').order_by('registered')
+            'recent':     Attendee.objects.filter(badge_num=0, **restrict_to).exclude(first_name='').order_by('registered'),
+            'remaining_badges': max(0,(MAX_BADGE_SALES - state.BADGES_SOLD))
         }
 
     def new_reg_station(self, reg_station='', message=''):

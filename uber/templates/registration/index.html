@@ -148,6 +148,9 @@
         <td width="33%"> <span id="checkin_count">{{ checkin_count }}</span> Checked In </td>
         <td width="33%"> <a href="#" onClick="$('#transactions').toggle('fast'); return false;">Record MPoint Exchange</a> </td>
     </tr>
+    <tr style="text-align:center; font-weight:bold; font-color:red; {% if remaining_badges < 50 %} font-size:18pt; {% endif %}">
+        <td colspan="3">Badges remaining: <font color="red">{{ remaining_badges }}</font></td>
+    </tr>
     </table>
 {% endif %}
 
