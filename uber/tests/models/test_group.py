@@ -119,6 +119,14 @@ def test_assign_new_badges(session, monkeypatch):
         assert attendee.ribbon == 111
         assert attendee.badge_type == 222
 
+def test_assign_extra_create_arguments(session):
+    group = Group()
+    registered = localized_now()
+    session.assign_badges(group, 2, registered=registered)
+    assert 2 == group.badges == len(group.attendees)
+    for attendee in group.attendees:
+        assert attendee.registered == registered
+
 def test_assign_removing_too_many_badges(session):
     assert not session.assign_badges(Group(attendees=[Attendee(paid=PAID_BY_GROUP)]), 0)
     assert 'You cannot' in session.assign_badges(Group(attendees=[Attendee(paid=HAS_PAID)]), 0)

@@ -124,12 +124,14 @@ class Root:
     @csrf_protected
     def delete(self, session, id, return_to = 'index?'):
         attendee = session.attendee(id)
-        session.delete(attendee)
-        message = 'Attendee deleted'
         if attendee.group:
-            session.add(Attendee(group=attendee.group, paid=attendee.paid,
+            session.delete_from_group(attendee, attendee.group)
+            session.add(Attendee(group=attendee.group, paid=attendee.paid, registered=attendee.registered,
                                  badge_type=attendee.badge_type, badge_num=attendee.badge_num))
             message = 'Attendee deleted, but badge ' + attendee.badge + ' is still available to be assigned to someone else'
+        else:
+            session.delete(attendee)
+            message = 'Attendee deleted'
 
         raise HTTPRedirect(return_to + ('' if return_to[-1] == '?' else '&') + 'message={}', message)
 
@@ -333,7 +335,7 @@ class Root:
         attendee.got_merch = False
         if attendee.no_shirt:
             session.delete(attendee.no_shirt)
-        session.delete()
+        session.commit()
         return '{a.full_name} ({a.badge}) merch handout canceled'.format(a=attendee)
 
     if AT_THE_CON or DEV_BOX:
