@@ -309,11 +309,11 @@ DeptHeadReminder('Unconfirmed '+ EVENT_NAME +' staffers in your department', 'de
 
 
 GroupReminder('Reminder to pre-assign '+ EVENT_NAME +' group badges', 'group_preassign_reminder.txt',
-              lambda g: days_after(30, g.registered) and state.BEFORE_GROUP_REG_TAKEDOWN and g.unregistered_badges,
+              lambda g: days_after(30, g.registered) and state.BEFORE_GROUP_PREREG_TAKEDOWN and g.unregistered_badges,
               category='placeholder_badge_confirmation')
 
 Reminder(Group, 'Last chance to pre-assign '+ EVENT_NAME +' group badges', 'group_preassign_reminder.txt',
-         lambda g: state.AFTER_GROUP_REG_TAKEDOWN and g.unregistered_badges and (not g.is_dealer or g.status == APPROVED),
+         lambda g: state.AFTER_GROUP_PREREG_TAKEDOWN and g.unregistered_badges and (not g.is_dealer or g.status == APPROVED),
          category='placeholder_badge_confirmation')
 
 
