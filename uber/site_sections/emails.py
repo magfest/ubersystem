@@ -155,7 +155,7 @@ MarketplaceReminder(EVENT_NAME +' Dealer waitlist has been exhausted', 'dealer_w
 
 MarketplaceReminder('Your '+ EVENT_NAME +' Dealer registration has been approved', 'dealer_approved.html',
                     lambda g: g.status == APPROVED,
-                    category='marketplace_registration_confirmation')
+                    category='dealer_approved_confirmation')
 
 
 Reminder(Attendee, EVENT_NAME +' Badge Confirmation', 'badge_confirmation.txt',
