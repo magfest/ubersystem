@@ -79,19 +79,24 @@ DONATION_TIERS = {
 DEALER_BADGE_PRICE = 30
 
 BADGE_OPTS = enum(
+    sort_by_declaration = True,
     ATTENDEE_BADGE  = 'Attendee',
     SUPPORTER_BADGE = 'Supporter',
     STAFF_BADGE     = 'Staff',
     GUEST_BADGE     = 'Guest',
-    ONE_DAY_BADGE   = 'One Day'
+    FRIDAY_BADGE    = 'Friday',
+    SATURDAY_BADGE  = 'Saturday',
+    SUNDAY_BADGE    = 'Sunday'
 )
 
 BADGE_RANGES = {         # these may overlap, but shouldn't
-    STAFF_BADGE:     [1, 299],
-    SUPPORTER_BADGE: [300, 599],
+    STAFF_BADGE:     [1, 199],
+    SUPPORTER_BADGE: [200, 799],
     GUEST_BADGE:     [800, 999],
     ATTENDEE_BADGE:  [1000, 2999],
-    ONE_DAY_BADGE:   [5000, 5499],
+    FRIDAY_BADGE:    [5000, 5499],
+    SATURDAY_BADGE:  [5000, 5499],
+    SUNDAY_BADGE:    [5000, 5499],
 }
 
 STORE_PRICES = (                # start as a tuple to preserve order for STORE_ITEMS
