@@ -355,7 +355,7 @@ class Root:
                     message = 'Please select an age category'
                 elif attendee.payment_method == MANUAL and not attendee.email:
                     message = 'Email address is required to pay with a credit card at our registration desk'
-                elif attendee.badge_type not in [ATTENDEE_BADGE, ONE_DAY_BADGE]:
+                elif attendee.badge_type not in [ATTENDEE_BADGE, FRIDAY_BADGE, SATURDAY_BADGE, SUNDAY_BADGE]:
                     message = 'No hacking allowed!'
                 else:
                     attendee.badge_num = 0

@@ -34,6 +34,13 @@ class State:
             if dt >= day:
                 price = bumped_price
         return price
+    
+    def get_specific_oneday_badge(self, day):
+        for n in DAYS:
+                current_day = datetime.strptime(n[0], "%Y-%m-%d")
+                if day == current_day.strftime("%A"):
+                    return state.get_oneday_price(current_day)
+        return None
 
     def get_group_price(self, dt):
         return self.get_attendee_price(dt) - conf['badge_prices']['group_discount']
@@ -165,22 +172,29 @@ BADGE_OPTS = enum(
     SUPPORTER_BADGE = 'Supporter',
     STAFF_BADGE     = 'Staff',
     GUEST_BADGE     = 'Guest',
-    ONE_DAY_BADGE   = 'One Day'
+    FRIDAY_BADGE    = 'Friday',
+    SATURDAY_BADGE  = 'Saturday',
+    SUNDAY_BADGE    = 'Sunday'
 )
 NORMAL_AT_THE_DOOR_BADGE_OPTS = enum(
+    sort_by_declaration = True,
     ATTENDEE_BADGE = 'Full Weekend Pass (${})'.format(state.BADGE_PRICE),
-    ONE_DAY_BADGE = 'Single Day Pass (${})'.format(state.ONEDAY_BADGE_PRICE)
+    FRIDAY_BADGE   = 'Friday Pass (${})'.format(state.get_specific_oneday_badge(day="Friday")),
+    SATURDAY_BADGE = 'Saturday Pass (${})'.format(state.get_specific_oneday_badge(day="Saturday")),
+    SUNDAY_BADGE   = 'Sunday Pass (${})'.format(state.get_specific_oneday_badge(day="Sunday"))
 )
 AT_THE_DOOR_BADGE_OPTS = NORMAL_AT_THE_DOOR_BADGE_OPTS
 
 PSEUDO_GROUP_BADGE  = 1  # people registering in groups will get attendee badges
 PSEUDO_DEALER_BADGE = 2  # dealers get attendee badges with a ribbon
 BADGE_RANGES = {         # these may overlap, but shouldn't
-    STAFF_BADGE:     [1, 200],
-    SUPPORTER_BADGE: [201, 700],
-    GUEST_BADGE:     [701, 750],
-    ATTENDEE_BADGE:  [751, 3000],
-    ONE_DAY_BADGE:   [0, 0],
+    STAFF_BADGE:     [1, 199],
+    SUPPORTER_BADGE: [200, 799],
+    GUEST_BADGE:     [800, 999],
+    ATTENDEE_BADGE:  [1000, 2999],
+    FRIDAY_BADGE:    [5000, 5499],
+    SATURDAY_BADGE:  [5000, 5499],
+    SUNDAY_BADGE:    [5000, 5499],
 }
 MAX_BADGE = max(xs[1] for xs in BADGE_RANGES.values())
 

@@ -553,8 +553,12 @@ class Attendee(MagModel, TakesPaymentMixin):
             return 0
         elif self.overridden_price is not None:
             return self.overridden_price
-        elif self.badge_type == ONE_DAY_BADGE:
-            return state.get_oneday_price(registered)
+        elif self.badge_type == FRIDAY_BADGE:
+            return state.get_specific_oneday_badge(day="Friday")
+        elif self.badge_type == SATURDAY_BADGE:
+            return state.get_specific_oneday_badge(day="Saturday")
+        elif self.badge_type == SUNDAY_BADGE:
+            return state.get_specific_oneday_badge(day="Sunday")
         else:
             return state.get_attendee_price(registered)
 
