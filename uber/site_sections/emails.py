@@ -112,7 +112,7 @@ def days_before(days, dt, until=None):
 
 ### WARNING - changing the email subject line for an email causes ALL of those emails to be re-sent!
 
-Reminder(Attendee, EVENT_NAME +' schedule, maps, and other FAQs', 'precon_faqs.html',
+Reminder(Attendee, EVENT_NAME +' Schedules, Maps, and Other FAQs', 'precon_faqs.html',
          lambda a: days_before(7, EPOCH), category='precon_faq')
 
 
