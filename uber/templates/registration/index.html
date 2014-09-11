@@ -151,6 +151,9 @@
     <tr style="text-align:center; font-weight:bold; font-color:red; {% if remaining_badges < 50 %} font-size:18pt; {% endif %}">
         <td colspan="3">Badges remaining: <font color="red">{{ remaining_badges }}</font></td>
     </tr>
+    <tr style="text-align:center; font-weight:bold;">
+        <td colspan="3">Today's badge sales: {{ todays_sales }}</td>
+    </tr>
     </table>
 {% endif %}
 

@@ -19,9 +19,15 @@ class State:
         from uber.common import Attendee
         attendees = Attendee.objects.all()
         paid_group_sales = attendees.filter(paid=PAID_BY_GROUP, group__amount_paid__gt=0).count()
-        paid_ind_sales = attendees.filter(paid=HAS_PAID).count()
-        paid_and_refunded = attendees.filter(paid=REFUNDED).count()
-        badges_sold_count = paid_group_sales + paid_ind_sales + paid_and_refunded
+        paid_ind_sales = attendees.filter(paid=HAS_PAID, badge_type=ATTENDEE_BADGE).count()
+        badges_sold_count = paid_group_sales + paid_ind_sales
+        return badges_sold_count
+    
+    @property
+    def get_oneday_sales(self, badge):
+        from uber.common import Attendee
+        attendees = Attendee.objects.all()
+        badges_sold_count = attendees.filter(paid=HAS_PAID, badge_type=badge).count()
         return badges_sold_count
 		
     def get_oneday_price(self, dt):
