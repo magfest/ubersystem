@@ -19,7 +19,7 @@ class State:
         from uber.common import Attendee
         attendees = Attendee.objects.all()
         paid_group_sales = attendees.filter(paid=PAID_BY_GROUP, group__amount_paid__gt=0).count()
-        paid_ind_sales = attendees.filter(paid=HAS_PAID, badge_type=ATTENDEE_BADGE).count()
+        paid_ind_sales = attendees.filter(paid=HAS_PAID, badge_type__in=[ATTENDEE_BADGE, SUPPORTER_BADGE]).count()
         badges_sold_count = paid_group_sales + paid_ind_sales
         return badges_sold_count
 		
