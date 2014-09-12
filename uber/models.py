@@ -627,7 +627,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def gets_shirt(self):
         return self.amount_extra >= SHIRT_LEVEL \
             or self.is_dept_head \
-            or self.badge_type in [SUPPORTER_BADGE] \
+            or self.badge_type in [SUPPORTER_BADGE, STAFF_BADGE] \
             or (self.worked_hours >= 6 and (self.worked_hours < 18 or self.worked_hours >= 24))
 
     @property
