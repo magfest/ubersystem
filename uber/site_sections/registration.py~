@@ -36,6 +36,7 @@ def unassigned_counts():
 
 @all_renderable(PEOPLE)
 class Root:
+    @get_todays_badge_sales
     def index(self, message='', page='1', search_text='', uploaded_id='', order='last_name'):
         order_by = ['empty_last', order, 'first_name'] if order.endswith('last_name') else [order]
         total_count = Attendee.objects.count()
@@ -415,6 +416,7 @@ class Root:
             'attendees': Attendee.objects.exclude(comments = '').order_by(order)
         }
 
+    @get_todays_badge_sales
     def new(self, show_all='', message='', checked_in=''):
         if 'reg_station' not in cherrypy.session:
             raise HTTPRedirect('new_reg_station')

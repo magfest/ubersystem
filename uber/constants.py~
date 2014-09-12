@@ -22,6 +22,13 @@ class State:
         paid_ind_sales = attendees.filter(paid=HAS_PAID, badge_type=ATTENDEE_BADGE).count()
         badges_sold_count = paid_group_sales + paid_ind_sales
         return badges_sold_count
+    
+    @property
+    def get_oneday_sales(self, badge):
+        from uber.common import Attendee
+        attendees = Attendee.objects.all()
+        badges_sold_count = attendees.filter(paid=HAS_PAID, badge_type=badge).count()
+        return badges_sold_count
 		
     def get_oneday_price(self, dt):
         default = conf['badge_prices']['default_single_day']

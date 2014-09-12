@@ -12,6 +12,21 @@ def check_if_can_reg(func):
         else:
             return func(*args,**kwargs)
     return with_check
+    
+def get_todays_badge_sales(func):
+    @wraps(func)
+    def with_sales(*args,**kwargs):
+        today = datetime.now().strftime("%A")
+        #today = "Friday"
+        if today == "Friday":
+            return state.get_oneday_sales(badge = "FRIDAY_BADGE")
+        elif today == "Saturday":
+            return state.get_oneday_sales(badge = "SATURDAY_BADGE")
+        elif today == "Sunday":
+            return state.get_oneday_sales(badge = "SUNDAY_BADGE")
+        else:
+            return "0"
+    return with_sales
 
 def site_mappable(func):
     func.site_mappable = True
