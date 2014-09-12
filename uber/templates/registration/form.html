@@ -113,6 +113,11 @@
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
 <table width="100%" cellspacing="5" cellpadding="5">
+<tr>
+    <td colspan="2" style="text-align:center;">
+        <a href="../preregistration/confirm?id={{ attendee.secret_id }}">Attendee's Badge Page</a>
+    </td>
+</tr>
 {% if not AT_THE_CON %}
     <tr>
         <td width="25%"> <b>Placeholder:</b> </td>
