@@ -21,6 +21,7 @@
             $link.hide();
         } else {
             $link.show().attr("href", "../groups/form?id=" + $group.val());
+            $group.parents("tr").find(":submit").removeAttr("disabled");
         }
         $badgeNum.focus();
     };
