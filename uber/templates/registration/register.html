@@ -40,10 +40,17 @@
         setVisible("#underage", $("[name=age_group]").val() == {{ UNDER_18 }});
     };
     $(showOrHide);
+    
+    $(function() {
+        var dt = new Date();
+        $("#today").text(dt.toDateString());
+    });
 </script>
 
+<center><font size="6">Today is <span id="today">?</span></font></center>
 <form method="post" action="register" autocomplete="off">
 <input type="hidden" name="id" value="{{ attendee.id }}" />
+<br/>
 <table width="100%" cellspacing="5" cellpadding="5">
 <tr>
     <td width="25%" style="font-weight:bold">Payment Method:</td>
