@@ -242,8 +242,7 @@ class Root:
 
                 badge_being_claimed = group.floating[0]
                 attendee.registered = badge_being_claimed.registered
-                group.attendees.remove(badge_being_claimed)
-                session.delete(badge_being_claimed)
+                session.delete_from_group(badge_being_claimed, group)
 
                 group.attendees.append(attendee)
                 attendee.paid = PAID_BY_GROUP
@@ -251,7 +250,7 @@ class Root:
                 if attendee.amount_unpaid:
                     raise HTTPRedirect('group_extra_payment_form?id={}', attendee.id)
                 else:
-                    raise HTTPRedirect('group_members?id={}&message={}', attendee.group.id, 'Badge registered successfully')
+                    raise HTTPRedirect('group_members?id={}&message={}', attendee.group_id, 'Badge registered successfully')
         else:
             attendee.can_spam = True    # only defaults to true for these forms
 
@@ -272,7 +271,7 @@ class Root:
     def group_undo_extra_payment(self, session, id):
         attendee = session.attendee(id)
         attendee.amount_extra -= attendee.amount_unpaid
-        raise HTTPRedirect('group_members?id={}&message={}', attendee.group.id, 'Extra payment undone')
+        raise HTTPRedirect('group_members?id={}&message={}', attendee.group_id, 'Extra payment undone')
 
     @credit_card
     def process_group_payment(self, session, payment_id, stripeToken):
@@ -308,9 +307,9 @@ class Root:
         except:
             log.error('unable to send group unset email', exc_info=True)
 
-        session.assign_badges(attendee.group, attendee.group.badges + 1)
-        session.delete(attendee)
-        raise HTTPRedirect('group_members?id={}&message={}', attendee.group.id, 'Attendee unset; you may now assign their badge to someone else')
+        session.assign_badges(attendee.group, attendee.group.badges + 1, registered=attendee.registered)
+        session.delete_from_group(attendee, attendee.group)
+        raise HTTPRedirect('group_members?id={}&message={}', attendee.group_id, 'Attendee unset; you may now assign their badge to someone else')
 
     def add_group_members(self, session, id, count):
         group = session.group(id)

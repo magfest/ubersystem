@@ -21,4 +21,9 @@ psql -d mydbname -f backupfile.sql
 
 # select from an attende (this exact syntax is super-important)
 SELECT * FROM "Attendee";
+
+# create a database cluster if you blew it up
+/usr/lib/postgresql/9.3/bin/initdb /var/lib/postgresql/9.3/main
+or as root:
+su - postgres -c "/usr/lib/postgresql/9.3/bin/initdb /var/lib/postgresql/9.3/main"
 ```

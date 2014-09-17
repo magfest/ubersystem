@@ -1327,19 +1327,28 @@ class Session(SessionManager):
                     checks.append(getattr(Attendee, attr).ilike('%' + text + '%'))
                 return attendees.filter(or_(*checks))
 
-        def assign_badges(self, group, new_badge_count):
+        def delete_from_group(self, attendee, group):
+            '''
+            Sometimes we want to delete an attendee badge which is part of a group.  In most cases, we could just
+            say "session.delete(attendee)" but sometimes we need to make sure that the attendee is ALSO removed
+            from the "group.attendees" list before we commit, since the number of attendees in a group is used in
+            our presave_adjustments() code to update the group price.  So anytime we delete an attendee in a group,
+            we should use this method.
+            '''
+            self.delete(attendee)
+            group.attendees.remove(attendee)
+
+        def assign_badges(self, group, new_badge_count, **extra_create_args):
             diff = int(new_badge_count) - group.badges
             if diff > 0:
                 for i in range(diff):
-                    group.attendees.append(Attendee(badge_type=group.new_badge_type, ribbon=group.new_ribbon, paid=PAID_BY_GROUP))
+                    group.attendees.append(Attendee(badge_type=group.new_badge_type, ribbon=group.new_ribbon, paid=PAID_BY_GROUP, **extra_create_args))
             elif diff < 0:
-                floating = group.floating
-                if len(floating) < abs(diff):
+                if len(group.floating) < abs(diff):
                     return 'You cannot reduce the number of badges for a group to below the number of assigned badges'
                 else:
-                    for i in range(abs(diff)):
-                        self.delete(floating[i])
-                        group.attendees.remove(floating[i])
+                    for attendee in group.floating[:abs(diff)]:
+                        self.delete_from_group(attendee, group)
 
         def assign(self, attendee_id, job_id):
             job = self.job(job_id)

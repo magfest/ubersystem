@@ -96,13 +96,13 @@
         <td>
             Payment Method:
             <select id="payment_method">
-                {% options FEE_PAYMENT_OPTS %}
+                {% options FEE_PAYMENT_METHOD_OPTS %}
             </select>
         </td>
         <td>Badge Num: <input type="text" id="badge_num" size="4" class="focus" /></td>
         <td>
             <select id="what_select" onChange="showOrHideWhatText()">
-                {% options FEE_ITEMS %}
+                {% options FEE_ITEM_NAMES %}
                 <option value="">Other...</option>
             </select>
             <input type="text" id="what_text" size="20" maxlength="50" />
