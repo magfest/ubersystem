@@ -340,9 +340,9 @@ class Root:
 
     if AT_THE_CON or DEV_BOX:
         @unrestricted
-        def register(self, message='', **params):
+        def register(self, session, message='', **params):
             params['id'] = 'None'
-            attendee = Attendee.get(params, bools=['international'], checkgroups=['interests'], restricted=True, ignore_csrf=True)
+            attendee = session.attendee(params, bools=['international'], checkgroups=['interests'], restricted=True, ignore_csrf=True)
             if 'first_name' in params:
                 if not attendee.payment_method:
                     message = 'Please select a payment type'
