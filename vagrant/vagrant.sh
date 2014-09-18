@@ -6,7 +6,7 @@
 ################################################################################
 
 sudo apt-get update -y
-sudo apt-get install -y wamerican python3-dev postgresql postgresql-contrib libpq-dev language-pack-id git lynx tofrodos
+sudo apt-get install -y wamerican python3-dev postgresql postgresql-contrib libpq-dev language-pack-id git lynx tofrodos python3-tk
 sudo locale-gen en_US en_US.UTF-8 hu_HU hu_HU.UTF-8
 sudo dpkg-reconfigure locales
 
