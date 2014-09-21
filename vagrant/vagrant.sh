@@ -61,6 +61,18 @@ else
 fi
 
 ################################################################################
+# Add Anthrocon Plugin
+################################################################################
+
+if [ -d /home/vagrant/magfest/anthrocon_plugin ]; then
+    ln -s /home/vagrant/magfest/anthrocon_plugin /home/vagrant/sideboard/plugins/anthrocon_plugin
+else
+    cd /home/vagrant/sideboard/plugins/
+    git clone https://github.com/Anthrocon-Reg/anthrocon_plugin
+    cd /home/vagrant
+fi
+
+################################################################################
 # Set up the Sideboard virtualenv and install our dependencies
 ################################################################################
 
