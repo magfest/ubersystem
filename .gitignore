@@ -14,3 +14,4 @@ workspace.xml
 tasks.xml
 distribute-*.tar.gz
 *.swp
+anthrocon_plugin/
