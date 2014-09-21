@@ -118,10 +118,12 @@
     </td>
 </tr>
 {% include "preregistration/phone_numbers.html" %}
+{% if INTERESTS_ENABLED %}
 <tr>
     <td> What interests you? </td>
     <td> {% checkgroup attendee.interests %} </td>
 </tr>
+{% endif %}
 <tr>
     <td> How did you <br/> find {{ EVENT_NAME }}? </td>
     <td> <input type="text" name="found_how" value="{{ attendee.found_how }}" /> </td>
