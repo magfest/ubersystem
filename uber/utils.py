@@ -71,7 +71,7 @@ class SeasonEvent:
         self.url = kwargs['url']
         self.location = kwargs['location']
         if kwargs['deadline']:
-            self.deadline = EVENT_TIMEZONE.localize(datetime.strptime(kwargs['day'], '%Y-%m-%d'))
+            self.deadline = EVENT_TIMEZONE.localize(datetime.strptime(kwargs['deadline'], '%Y-%m-%d'))
         else:
             self.deadline = (self.day - timedelta(days = 7)).replace(hour=23, minute=59)
 
