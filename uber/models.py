@@ -1418,7 +1418,7 @@ def _release_badge_lock_on_error(*args, **kwargs):
     try:
         BADGE_LOCK.release()
     except:
-        log.warn('failed reloading BADGE_LOCK on db error; these errors should not happen in the first place and we do not expect releasing the lock to fail when they do, but we still want to keep going if/when this does occur')
+        log.warn('failed releasing BADGE_LOCK on db error; these errors should not happen in the first place and we do not expect releasing the lock to fail when they do, but we still want to keep going if/when this does occur')
 
 def _track_changes(session, context, instances='deprecated'):
     for action, instances in {CREATED: session.new, UPDATED: session.dirty, DELETED: session.deleted}.items():
