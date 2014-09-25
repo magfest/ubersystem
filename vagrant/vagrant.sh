@@ -44,7 +44,7 @@ cd /home/vagrant
 if [ -d /home/vagrant/sideboard ]; then
     echo "Sideboard already cloned"
 else
-    git clone https://github.com/appliedsec/sideboard
+    git clone https://github.com/magfest/sideboard
     ln -s /home/vagrant/magfest /home/vagrant/sideboard/plugins/uber
 fi
 
