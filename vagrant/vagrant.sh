@@ -6,7 +6,7 @@
 ################################################################################
 
 sudo apt-get update -y
-sudo apt-get install -y wamerican python3-dev postgresql postgresql-contrib libpq-dev language-pack-id git lynx tofrodos
+sudo apt-get install -y wamerican python3-dev postgresql postgresql-contrib libpq-dev language-pack-id git lynx tofrodos python3-tk
 sudo locale-gen en_US en_US.UTF-8 hu_HU hu_HU.UTF-8
 sudo dpkg-reconfigure locales
 
@@ -44,7 +44,7 @@ cd /home/vagrant
 if [ -d /home/vagrant/sideboard ]; then
     echo "Sideboard already cloned"
 else
-    git clone https://github.com/appliedsec/sideboard
+    git clone https://github.com/magfest/sideboard
     ln -s /home/vagrant/magfest /home/vagrant/sideboard/plugins/uber
 fi
 
