@@ -40,13 +40,37 @@ Next, run
 vagrant ssh
 ```
 
-Once you've logged in, you can run the following command to run start the Ubersystem server:
+## Setting up the database
+When running uber on a testing server, you'll probably want some data to work with. Ubersystem comes with a large (10k+) set of realistic test data. This data was created from MAGFest 12's attendee database by scrubbing personal information and swapping first and last names around.
+
+To add the test data to your local server, run the following command after sshing into vagrant:
+```bash
+sep import_uber_test_data
+```
+
+For staging and production servers, you may not want this data, but you'll definitely want a starting admin account. To create this account, run:
+```bash
+sep insert_admin
+```
+
+This account, by default, has a login of "magfest@example.com" and the password "magfest".
+
+Finally, there are some cases during development where you simply want to erase the current database and start anew. To do this, run:
+```bash
+sep reset_uber_db
+```
+
+Note that this command only works if DEV_BOX is turned on - this is to prevent accidentally deleting important data on production servers.
+
+## Running ubersystem
+
+After logging in and setting up your database, you can run the following command to run start the Ubersystem server:
 
 ```bash
 run_server
 ```
 
-After running this command, you can go to http://localhost:8282/ and log in with the email address "magfest@example.com" and the password "magfest".
+After running this command, you can go to http://localhost:8282/ and log in with the starting admin account credentials.
 
 Now you're ready to do development; every time you edit one of the Python files that make up Uber, the process will restart automatically, so you'll see the change as soon as you refresh your browser.  The only thing to watch out for is that if you make a syntax error, the process will stop altogether since it can't restart without being valid.  In that case you'll have to re-run the above command to re-start the server (after fixing your syntax error).
 
@@ -58,10 +82,11 @@ bg
 
 to run the server in the background.
 
+
 Vagrant Troubleshooting:
 ==========================
 
-1. Shared folders are very slow on Windows. Don't be suprised that things run a bit slower.
+1. Shared folders are very slow on Windows. Don't be surprised that things run a bit slower.
 
 2. You probably should use the virtualbox application to increase the CPU and Memory size of the image to make it run smoother.  4CPU and 4GB of mem is a good start.
 
