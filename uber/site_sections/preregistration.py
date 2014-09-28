@@ -250,7 +250,7 @@ class Root:
                 if attendee.amount_unpaid:
                     raise HTTPRedirect('group_extra_payment_form?id={}', attendee.id)
                 else:
-                    raise HTTPRedirect('group_members?id={}&message={}', attendee.group_id, 'Badge registered successfully')
+                    raise HTTPRedirect('group_members?id={}&message={}', group.id, 'Badge registered successfully')
         else:
             attendee.can_spam = True    # only defaults to true for these forms
 

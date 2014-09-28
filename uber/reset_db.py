@@ -1,5 +1,6 @@
 from uber.common import *
 
+@entry_point
 def insert_admin():
     with Session() as session:
         attendee = Attendee(
