@@ -125,10 +125,14 @@ class Root:
     def delete(self, session, id, return_to = 'index?'):
         attendee = session.attendee(id)
         if attendee.group:
-            session.delete_from_group(attendee, attendee.group)
-            session.add(Attendee(group=attendee.group, paid=attendee.paid, registered=attendee.registered,
-                                 badge_type=attendee.badge_type, badge_num=attendee.badge_num))
-            message = 'Attendee deleted, but badge ' + attendee.badge + ' is still available to be assigned to someone else'
+            if attendee.group.leader_id == attendee.id:
+                message = 'You cannot delete the leader of a group; you must make someone else the leader first, or just delete the entire group'
+            else:
+                session.add(Attendee(**{attr: getattr(attendee, attr) for attr in [
+                    'group', 'registered', 'badge_type', 'badge_num', 'paid', 'amount_paid', 'amount_extra'
+                ]}))
+                session.delete_from_group(attendee, attendee.group)
+                message = 'Attendee deleted, but this ' + attendee.badge + ' badge is still available to be assigned to someone else in the same group'
         else:
             session.delete(attendee)
             message = 'Attendee deleted'

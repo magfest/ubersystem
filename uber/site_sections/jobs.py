@@ -24,7 +24,7 @@ class Root:
             location = cherrypy.session.get('prev_location') or ARCADE  # TODO: make this configurable
         cherrypy.session['prev_location'] = location
 
-        jobs, shifts, attendees = Job.everything(location)
+        jobs, shifts, attendees = session.everything(location)
         return {
             'location': location,
             'jobs':     jobs,

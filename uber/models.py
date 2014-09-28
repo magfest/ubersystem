@@ -1128,7 +1128,7 @@ class Session(SessionManager):
 
         @property
         def model(self):
-            assert self.is_single_table_query, '.order() is only valid for single-table queries'
+            assert self.is_single_table_query, 'actions such as .order() and .icontains() and .iexact() are only valid for single-table queries'
             return self.column_descriptions[0]['type']
 
         def order(self, attrs):
@@ -1420,7 +1420,16 @@ def _presave_adjustments(session, context, instances='deprecated'):
         model.on_delete()
 
 def _release_badge_lock(session, context):
-    BADGE_LOCK.release()
+    try:
+        BADGE_LOCK.release()
+    except:
+        log.error('failed releasing BADGE_LOCK after session flush; this should never actually happen, but we want to just keep going if it ever does')
+
+def _release_badge_lock_on_error(*args, **kwargs):
+    try:
+        BADGE_LOCK.release()
+    except:
+        log.warn('failed releasing BADGE_LOCK on db error; these errors should not happen in the first place and we do not expect releasing the lock to fail when they do, but we still want to keep going if/when this does occur')
 
 def _track_changes(session, context, instances='deprecated'):
     for action, instances in {CREATED: session.new, UPDATED: session.dirty, DELETED: session.deleted}.items():
@@ -1432,4 +1441,5 @@ def register_session_listeners():
     listen(Session.session_factory, 'before_flush', _presave_adjustments)
     listen(Session.session_factory, 'before_flush', _track_changes)
     listen(Session.session_factory, 'after_flush', _release_badge_lock)
+    listen(Session.engine, 'dbapi_error', _release_badge_lock_on_error)
 register_session_listeners()

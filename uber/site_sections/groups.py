@@ -76,15 +76,18 @@ class Root:
         return {'success': True}
 
     @csrf_protected
-    def delete(self, session, id):
+    def delete(self, session, id, confirmed = None):
         group = session.group(id)
-        if group.badges - group.unregistered_badges:
-            raise HTTPRedirect('form?id={}&message={}', id, "You can't delete a group without first unassigning its badges.")
+        if group.badges - group.unregistered_badges and not confirmed:
+            raise HTTPRedirect('deletion_confirmation?id={}', id)
         else:
             for attendee in group.attendees:
                 session.delete(attendee)
             session.delete(group)
             raise HTTPRedirect('index?message={}', 'Group deleted')
+
+    def deletion_confirmation(self, session, id):
+        return {'group': session.group(id)}
 
     @csrf_protected
     def assign_leader(self, session, group_id, attendee_id):
