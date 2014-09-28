@@ -371,6 +371,13 @@ class Group(MagModel, TakesPaymentMixin):
         return 1 if self.can_add else \
                0 if self.is_dealer else 5
 
+class AgeGroup(MagModel):
+    desc         = Column(UnicodeText)
+    min_age      = Column(Integer)
+    max_age      = Column(Integer)
+    discount     = Column(Integer)
+    can_register = Column(Boolean, default=True)
+    
 
 class Attendee(MagModel, TakesPaymentMixin):
     group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
@@ -385,9 +392,13 @@ class Attendee(MagModel, TakesPaymentMixin):
     cellphone     = Column(UnicodeText)
     no_cellphone  = Column(Boolean, default=False)
     email         = Column(UnicodeText)
-    age_group     = Column(Choice(AGE_GROUP_OPTS), default=AGE_UNKNOWN)
+    # TODO: Replace the current age_group option list with the following columns: 
+    #age_group_id  = Column(UUID, ForeignKey('age_group.id', ondelete='SET NULL'), nullable=True)
+    #age_group     = relationship(AgeGroup, backref='attendees', foreign_keys=age_group_id)
+    age_group     = Column(Choice(AGE_GROUP_OPTS, default=AGE_UNKNOWN))
+    birthdate     = Column(UTCDateTime, nullable=True)
     reg_station   = Column(Integer, nullable=True)
-
+    
     interests   = Column(MultiChoice(INTEREST_OPTS))
     found_how   = Column(UnicodeText)
     comments    = Column(UnicodeText)
