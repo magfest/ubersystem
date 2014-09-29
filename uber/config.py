@@ -52,31 +52,15 @@ class State:
     def get_group_price(self, dt):
         return self.get_attendee_price(dt) - GROUP_DISCOUNT
         
-    def get_age_group_date(self, name):
-        if name.split('_')[0] in ['UNDER', 'BETWEEN', 'OVER']:
-            year_mod = int(name.split('_')[1])
-            start_date = EPOCH
-            new_year = start_date.year - year_mod
-            
-            if name.startswith('UNDER_'):
-                start_birthdate = start_date
-                end_birthdate = start_date.replace(year = new_year - 1)
-            elif name.startswith('BETWEEN_'):
-                second_year_mod = int(name.split('_')[3])
-                start_birthdate = start_date.replace(year = start_date.year - second_year_mod)
-                end_birthdate = start_date.replace(year = new_year - 1)
-            elif name.startswith('OVER_'):
-                start_birthdate = start_date.replace(year = new_year)
-                end_birthdate = start_date.replace(year = start_date.year - 150)
-            return (start_birthdate, end_birthdate)
-        else:
-            return False
-            
-    def get_age_group(self, dt):
-        print(AGE_GROUP_OPTS)
+    def get_age_group_date(self):
+        start_date = EPOCH if localized_now() <= EPOCH else localized_now()
+        start_year = start_date.year - self.max_age
+        end_year = start_date.year - self.min_age
         
-    def UNDER_18_DATE(self):
-        return self.get_age_group(localized_now())
+        start_birthdate = start_date.replace(year = start_year - 1, day = start_date.day + 1) # Start date is adjusted to be one day after the cutoff, so there are no gaps.
+        end_birthdate = start_date.replace(year = end_year)
+        
+        return (start_birthdate, end_birthdate)
 
     @property
     def ONEDAY_BADGE_PRICE(self):
