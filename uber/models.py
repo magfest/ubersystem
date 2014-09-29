@@ -377,7 +377,7 @@ class AgeGroup(MagModel):
     max_age      = Column(Integer)
     discount     = Column(Integer)
     can_register = Column(Boolean, default=True)
-    #can_volunter = Column(Boolean, default=True)
+    #can_volunteer = Column(Boolean, default=True)
     
 
 class Attendee(MagModel, TakesPaymentMixin):
@@ -396,7 +396,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     # TODO: Replace the current age_group option list with the following columns: 
     #age_group_id  = Column(UUID, ForeignKey('age_group.id', ondelete='SET NULL'), nullable=True)
     #age_group     = relationship(AgeGroup, backref='attendees', foreign_keys=age_group_id)
-    age_group     = Column(Choice(AGE_GROUP_OPTS, default=AGE_UNKNOWN))
+    age_group     = Column(Choice(AGE_GROUP_OPTS), default=AGE_UNKNOWN)
     birthdate     = Column(UTCDateTime, nullable=True)
     reg_station   = Column(Integer, nullable=True)
     
