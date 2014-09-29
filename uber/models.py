@@ -377,6 +377,7 @@ class AgeGroup(MagModel):
     max_age      = Column(Integer)
     discount     = Column(Integer)
     can_register = Column(Boolean, default=True)
+    #can_volunter = Column(Boolean, default=True)
     
 
 class Attendee(MagModel, TakesPaymentMixin):
@@ -443,7 +444,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     food_restrictions = relationship('FoodRestrictions', backref='attendee', uselist=False, cascade='delete')
 
     _repr_attr_names = ['full_name']
-    _unrestricted = {'first_name', 'last_name', 'international', 'zip_code', 'ec_phone', 'cellphone', 'email', 'age_group',
+    _unrestricted = {'first_name', 'last_name', 'international', 'zip_code', 'ec_phone', 'cellphone', 'email', 'age_group', 'birthdate',
                      'interests', 'found_how', 'comments', 'badge_type', 'affiliate', 'shirt', 'can_spam', 'no_cellphone',
                      'badge_printed_name', 'staffing', 'fire_safety_cert', 'requested_depts', 'amount_extra', 'payment_method'}
 
