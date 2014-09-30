@@ -8,9 +8,14 @@
     }
 </script>
 
-<h2> Groups </h2>
+<ol class="breadcrumb">
+  <li><a href="../accounts/homepage">Home</a></li>
+  <li>People</li>
+  <li class="active">Groups</li>
+</ol>
 
-<div style="text-align:center">
+
+<div class="panel panel-default">
     <b>Total:</b> {{ total_groups }} groups ({{ total_badges }} badges, {{ tables }} tables)
     &nbsp;&nbsp;&nbsp;&nbsp;
     <b>With Tables:</b> {{ tabled_groups }} groups ({{ tabled_badges }} badges)
@@ -20,33 +25,35 @@
     {{ approved_tables }} approved tables / {{ waitlisted_tables }} waitlisted tables / {{ unapproved_tables }} unapproved tables
 </div>
 
-<br/>
-
-<div style="text-align:center">
-    <a href="form?id=None">Add a group</a>
-    &nbsp;&nbsp;&nbsp;&nbsp;
-    <a href="form?id=None&new_dealer=true">Add a dealer</a>
-    &nbsp;&nbsp;&nbsp;&nbsp;
-    <select onChange="toggleDisplay(this)">
-        <option value="all"    {% if show == "all" %}selected{% endif %}>Show All Groups</option>
-        <option value="tables" {% if show == "tables" %}selected{% endif %}>Show Groups With Tables</option>
-        <option value="groups" {% if show == "groups" %}selected{% endif %}>Show Groups Without Tables</option>
-    </select>
-</div>
-
-<br/>
-
-<table class="list">
-<tr class="header">
-    <td width="25%" style="text-align:left"> <a class="sortlink" href="index?show={{ show }}&order={{ order.name }}">Name</a> </td>
-    <td width="15%"> <a href="index?show={{ show }}&order={{ order.status }}">Approved</a> </td>
-    <td width="15%"> <a href="index?show={{ show }}&order={{ order.badges }}">Badges</a>{% popup_link "../static_views/badgeCounts.html" %} </td>
-    <td width="15%"> <a href="index?show={{ show }}&order={{ order.tables }}">Tables</a> </td>
-    <td width="15%"> <a href="index?show={{ show }}&order={{ order.amount_unpaid }}">Owed</a> </td>
-    <td width="15%"> <a href="index?show={{ show }}&order={{ order.amount_paid }}">Paid</a> </td>
-</tr>
+<div class="panel panel-default">
+<table class="table table-striped footable" data-filter="#filter" data-page-navigation=".pagination" data-limit-navigation="5">
+<caption>
+    <div class="col-md-4">
+    <a class="btn btn-default" href="form?id=None">Add a group</a>
+    <a class="btn btn-default" href="form?id=None&new_dealer=true">Add a dealer</a>
+    </div>
+    <div class="input-group col-md-4">
+	<input class="form-control" type="text" name="filter" id="filter" placeholder="Type Here to Search"/>
+	<span class="input-group-addon">
+	<span class="glyphicon glyphicon-search"></span>
+	</span>
+	</div>
+<ul class="nav nav-tabs" role="tablist">
+  <li {% if show == "all" %}class="active"{% endif %}><a href="index?order=name&show=all">All</a></li>
+  <li {% if show == "tables" %}class="active"{% endif %}><a href="index?order=name&show=tables">Tables</a></li>
+  <li {% if show == "groups" %}class="active"{% endif %}><a href="index?order=name&show=groups">Groups</a></li>
+</ul>
+</caption>
+<thead><tr>
+    <th data-type="alpha">Name</th>
+    <th data-type="alpha">Approved</th>
+    <th data-type="numeric">Badges{% popup_link "../static_views/badgeCounts.html" %}</th>
+    <th data-type="numeric">Tables</th>
+    <th data-type="numeric">Owed</th>
+    <th data-type="numeric">Paid</th>
+</tr></thead>
 {% for group in groups %}
-    <tr bgcolor="{% cycle #FFFFFF,#EEEEEE %}">
+    <tr>
         <td style="text-align:left"> <a href="form?id={{ group.id }}">{{ group.name|default:"?????" }}</a> </td>
         <td>
             {% if group.is_dealer %}
@@ -61,6 +68,8 @@
         <td> ${{ group.amount_paid }} </td>
     </tr>
 {% endfor %}
+	<caption align="bottom">
+		<ul class="pagination"></ul>
+	</caption>
 </table>
-
 {% endblock %}
