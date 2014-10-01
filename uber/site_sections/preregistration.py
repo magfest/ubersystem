@@ -346,7 +346,6 @@ class Root:
         assert old.is_transferrable, 'This badge is not transferrable'
         attendee = session.attendee(params, bools=_checkboxes, restricted=True)
         attendee.registered = old.registered
-        session.expunge(old)
 
         if 'first_name' in params:
             message = check(attendee) or check_prereg_reqs(attendee)
