@@ -2,20 +2,17 @@
 {% block title %}Homepage{% endblock %}
 {% block content %}
 
-<style type="text/css">
-    div.indent {
-        text-indent: 20px;
-    }
-    div.heading {
-        margin-top:  20px;
-        font-weight: bold;
-        font-size:   14pt;
-    }
-</style>
+<ol class="breadcrumb">
+  <li class="active">Home</li>
+</ol>
 
-<h2> {{ EVENT_NAME }} Ubersystem Administration </h2>
-
-<div class="indent"> Welcome to the {{ EVENT_NAME }} Ubersystem.</div>
-
-
+<div class="row">
+<div class="col-sm-6 col-sm-offset-3">
+				<div class="well">
+					<p><img class="img-responsive center-block" src="../static/images/circle-icons/easel.png"></p>
+					<h1>{{ EVENT_NAME }} Ubersystem</h1>
+					<p>The former contents of this page have been moved to the new menubar at the top.</p>
+					<p>New content coming soon!</p>
+				</div>
+</div>
 {% endblock %}
