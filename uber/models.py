@@ -26,6 +26,7 @@ def relationship(*args, **kwargs):
 class utcnow(FunctionElement):
     type = UTCDateTime()
 
+
 @compiles(utcnow, 'postgresql')
 def pg_utcnow(element, compiler, **kw):
     return "timezone('utc', current_timestamp)"
@@ -170,7 +171,10 @@ class MagModel:
                     elif isinstance(column.type, (Choice, Integer)):
                         value = int(float(value))
                     elif isinstance(column.type, UTCDateTime):
-                        value = EVENT_TIMEZONE.localize(datetime.strptime(value, TIMESTAMP_FORMAT))
+                        try:
+                            value = EVENT_TIMEZONE.localize(datetime.strptime(value, TIMESTAMP_FORMAT))
+                        except:
+                            value = EVENT_TIMEZONE.localize(datetime.strptime(value, DATESTAMP_FORMAT))
                 except:
                     pass
 
@@ -372,12 +376,13 @@ class Group(MagModel, TakesPaymentMixin):
                0 if self.is_dealer else 5
 
 class AgeGroup(MagModel):
-    desc         = Column(UnicodeText)
-    min_age      = Column(Integer)
-    max_age      = Column(Integer)
-    discount     = Column(Integer)
-    can_register = Column(Boolean, default=True)
-    #can_volunteer = Column(Boolean, default=True)
+    desc          = Column(UnicodeText)
+    min_age       = Column(Integer)
+    max_age       = Column(Integer)
+    discount      = Column(Integer)
+    can_register  = Column(Boolean, default=True)
+    can_volunteer = Column(Boolean, default=True)
+    consent_form  = Column(Boolean, default=False)
     
 
 class Attendee(MagModel, TakesPaymentMixin):
@@ -393,10 +398,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     cellphone     = Column(UnicodeText)
     no_cellphone  = Column(Boolean, default=False)
     email         = Column(UnicodeText)
-    # TODO: Replace the current age_group option list with the following columns: 
-    #age_group_id  = Column(UUID, ForeignKey('age_group.id', ondelete='SET NULL'), nullable=True)
-    #age_group     = relationship(AgeGroup, backref='attendees', foreign_keys=age_group_id)
-    age_group     = Column(Choice(AGE_GROUP_OPTS), default=AGE_UNKNOWN)
+    age_group_id  = Column(UUID, ForeignKey('age_group.id', ondelete='SET NULL'), nullable=True)
+    age_group     = relationship(AgeGroup, backref='attendees', foreign_keys=age_group_id)
     birthdate     = Column(UTCDateTime, nullable=True)
     reg_station   = Column(Integer, nullable=True)
     
@@ -471,6 +474,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if AT_THE_CON and self.badge_num and self.is_new:
             self.checked_in = datetime.now(UTC)
+            
+        if COLLECT_EXACT_BIRTHDATE:
+            self.age_group = self.session.age_group_from_birthdate(self.birthdate)
 
         for attr in ['first_name', 'last_name']:
             value = getattr(self, attr)
@@ -1157,6 +1163,16 @@ class Session(SessionManager):
 
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
+            
+        def age_group_from_birthdate(self, birthdate):
+            calc_date = EPOCH if localized_now() <= EPOCH else localized_now()
+            attendee_age = int((calc_date - birthdate).days / 365.2425)
+
+            age_groups = self.query(AgeGroup)
+            for current_age_group in age_groups:
+                if current_age_group.min_age <= attendee_age <= current_age_group.max_age:
+                    return current_age_group
+            return None
 
         def no_email(self, subject):
             return not self.query(Email).filter_by(subject=subject).all()

@@ -51,16 +51,6 @@ class State:
 
     def get_group_price(self, dt):
         return self.get_attendee_price(dt) - GROUP_DISCOUNT
-        
-    def get_age_group_date(self):
-        start_date = EPOCH if localized_now() <= EPOCH else localized_now()
-        start_year = start_date.year - self.max_age
-        end_year = start_date.year - self.min_age
-        
-        start_birthdate = start_date.replace(year = start_year - 1, day = start_date.day + 1) # Start date is adjusted to be one day after the cutoff, so there are no gaps.
-        end_birthdate = start_date.replace(year = end_year)
-        
-        return (start_birthdate, end_birthdate)
 
     @property
     def ONEDAY_BADGE_PRICE(self):
@@ -121,7 +111,7 @@ class State:
             elif name.startswith('BEFORE_'):
                 return localized_now() < date_setting
             else:
-                return localized_now() > date_setting            
+                return localized_now() > date_setting
         else:
             raise AttributeError('no such attribute {}'.format(name))
 
@@ -149,6 +139,7 @@ for _opt, _val in chain(_config.items(), BADGE_PRICES.items()):
 
 DATES = {}
 TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S'
+DATESTAMP_FORMAT = '%Y-%m-%d'
 EVENT_TIMEZONE = pytz.timezone(EVENT_TIMEZONE)
 for _opt, _val in _config['dates'].items():
     if not _val:

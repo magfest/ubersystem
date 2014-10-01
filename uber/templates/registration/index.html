@@ -228,7 +228,7 @@
         </nobr></td>
         <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
         {% if attendee.checked_in or not AT_THE_CON %}
-            <td> <nobr>{{ attendee.age_group_label }}</nobr> </td>
+            <td> <nobr>{{ attendee.age_group.desc }}</nobr> </td>
             {% if AT_THE_CON %}
                 <td> {{ attendee.checked_in|time:"fA"|lower }} {{ attendee.checked_in|date:"D" }} </td>
             {% endif %}

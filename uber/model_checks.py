@@ -78,26 +78,17 @@ def attendee_misc(attendee):
 
     if not attendee.no_cellphone and attendee.staffing and _invalid_phone_number(attendee.cellphone):
         return "10-digit cellphone number is required for volunteers (unless you don't own a cellphone)"
-    if attendee.age_group == UNDER_18 and attendee.staffing and attendee.badge_type != STAFF_BADGE and PRE_CON:
-        return "Attendees must be 18 years of age or older to volunteer"
+    if not attendee.age_group == UNDER_18 and attendee.staffing and attendee.badge_type != STAFF_BADGE and PRE_CON:
+        return "Volunteers cannot be " + attendee.age_group.desc
         
     if COLLECT_EXACT_BIRTHDATE and attendee.birthdate:
-        if attendee.birthdate == "Click to select":
-            return "Please enter your birthdate."
-        print(attendee.birthdate)
-        attendee.birthdate = EVENT_TIMEZONE.localize(datetime.strptime(attendee.birthdate,"%m/%d/%Y"))
+        if attendee.birthdate == 'Click to select': return 'Please select a birthdate.'
         with Session() as session:
-            for age_group in AGE_GROUP_OPTS: # This section needs to be rewritten when we can make the database relational.
-                age_groups = session.query(AgeGroup)
-                current_age_group = age_groups.filter(AgeGroup.desc == age_group[1]).first()
-                if current_age_group:
-                    birthdate_range = State.get_age_group_date(current_age_group)
-                    print(birthdate_range)
-                    if birthdate_range[0] <= attendee.birthdate <= birthdate_range[1]:
-                        if not current_age_group.can_register:
-                            return "Attendees cannot be " + current_age_group.desc + "."
-                        else:
-                            attendee.age_group = age_group[0]
+            age_group = session.age_group_from_birthdate(attendee.birthdate)
+            if not age_group:
+                return 'Your birthdate is invalid. Seriously, did you say you were over 100 or something?'
+            elif not age_group.can_register:
+                return 'Attendees cannot be ' + age_group.desc
 
 
 def attendee_leadership(attendee):

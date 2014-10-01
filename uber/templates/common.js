@@ -103,6 +103,7 @@ $(function() {
         changeMonth: true,
         changeYear: true,
         yearRange: "-100:+0",
-        defaultDate: "-20y"
+        defaultDate: "-20y",
+        dateFormat: "yy-mm-dd"
     });
 });

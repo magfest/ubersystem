@@ -27,7 +27,7 @@
         <tr>
             <td style="padding:0px">
             {% if COLLECT_EXACT_BIRTHDATE %}
-                <input type="text" name="birthdate" value="{{ attendee.birthdate|date:"m/d/Y"|default:"Click to select" }}" readonly="true" class="datepicker">
+                <input type="text" name="birthdate" value="{{ attendee.birthdate|date:"Y-m-d"|default:"Click to select" }}" readonly="true" class="datepicker">
             {% else %}
                 <select name="age_group" onChange="ageGroupSelected()">
                     {% options AGE_GROUP_OPTS attendee.age_group %}
