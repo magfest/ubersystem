@@ -23,6 +23,9 @@
     <link rel="stylesheet" href="../static/lib/jquery-ui/ui-lightness/jquery-ui-1.9.0.custom.css" type="text/css" />
     <link rel="icon" href="http://magfest.org/sites/default/files/favicon.ico" type="image/vnd.microsoft.icon" />
     
+    <script src="../static/lib/toastr/toastr.min.js"></script>
+    <link href="../static/lib/toastr/toastr.min.css" rel="stylesheet">
+
     <script src="../static/lib/bootstrap/js/bootstrap.min.js"></script>
     <link href="../static/lib/bootstrap/css/bootstrap.min.css" rel="stylesheet">
     <link href="../static/lib/bootstrap/css/bootstrap-theme.min.css" rel="stylesheet">
@@ -48,6 +51,22 @@
     
 <script>
 $(document).ready(function() {
+    toastr.options = {
+  "closeButton": true,
+  "debug": false,
+  "positionClass": "toast-top-full-width",
+  "onclick": null,
+  "showDuration": "300",
+  "hideDuration": "1000",
+  "timeOut": "0",
+  "extendedTimeOut": "0",
+  "showEasing": "swing",
+  "hideEasing": "linear",
+  "showMethod": "fadeIn",
+  "hideMethod": "fadeOut"
+    }
+    var message = "{{message}}";
+    if (message.length) {toastr.info(message)};
 	$('.footable').footable();
 });
 </script>
@@ -84,7 +103,7 @@ $(document).ready(function() {
 </head>
 <body>
 {% block top_of_body_additional %}{%  endblock %}
-<div id="mainContainer" class="container">
+<div id="mainContainer" class="container-fluid">
 {% block top %}
     <div id="top" style="display:none">
         <table style="width:100% ; background:orange ; margin-bottom:5px ; position:fixed">
@@ -101,7 +120,6 @@ $(document).ready(function() {
 {% block message %}<span id="message" style="float:left ; color:red">{{ message }}</span>{% endblock %}
 {% block backlink %}
 <nav class="navbar navbar-default navbar-static-top" role="navigation">
-  <div class="container-fluid">
     <!-- Brand and toggle get grouped for better mobile display -->
     <div class="navbar-header">
       <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#main-navbar-collapse-1">
@@ -176,7 +194,6 @@ $(document).ready(function() {
 {% endif %}
     </ul>
     </div><!-- /.navbar-collapse -->
-  </div><!-- /.container-fluid -->
 </nav>
 {% endblock %}
 
@@ -184,5 +201,6 @@ $(document).ready(function() {
 {% block content %}{% endblock %}
 
 <div id="bottomAnchor" /></div> <!-- end mainContainer -->
+</div>
 </body>
 </html>
