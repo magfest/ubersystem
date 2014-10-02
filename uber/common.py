@@ -54,7 +54,7 @@ from sqlalchemy.sql.expression import FunctionElement
 from sqlalchemy.orm import Query, relationship, joinedload
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.schema import Column, ForeignKey, UniqueConstraint
-from sqlalchemy.types import UnicodeText, Boolean, Integer, Float, TypeDecorator
+from sqlalchemy.types import UnicodeText, Boolean, Integer, Float, TypeDecorator, Date
 
 from sideboard.lib.sa import declarative_base, SessionManager, UTCDateTime, UUID
 from sideboard.lib import log, parse_config, entry_point, listify, DaemonTask, serializer
