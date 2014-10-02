@@ -171,10 +171,9 @@ class MagModel:
                     elif isinstance(column.type, (Choice, Integer)):
                         value = int(float(value))
                     elif isinstance(column.type, UTCDateTime):
-                        try:
-                            value = EVENT_TIMEZONE.localize(datetime.strptime(value, TIMESTAMP_FORMAT))
-                        except:
-                            value = EVENT_TIMEZONE.localize(datetime.strptime(value, DATESTAMP_FORMAT))
+                        value = EVENT_TIMEZONE.localize(datetime.strptime(value, TIMESTAMP_FORMAT))
+                    elif isinstance(column.type, Date):
+                        value = datetime.strptime(value, DATE_FORMAT)
                 except:
                     pass
 
@@ -400,7 +399,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     email         = Column(UnicodeText)
     age_group_id  = Column(UUID, ForeignKey('age_group.id', ondelete='SET NULL'), nullable=True)
     age_group     = relationship(AgeGroup, backref='attendees', foreign_keys=age_group_id)
-    birthdate     = Column(UTCDateTime, nullable=True)
+    birthdate     = Column(Date, nullable=True, default=None)
     reg_station   = Column(Integer, nullable=True)
     
     interests   = Column(MultiChoice(INTEREST_OPTS))
@@ -1168,8 +1167,9 @@ class Session(SessionManager):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
             
         def age_group_from_birthdate(self, birthdate):
+            if not birthdate: return None
             calc_date = EPOCH if localized_now() <= EPOCH else localized_now()
-            attendee_age = int((calc_date - birthdate).days / 365.2425)
+            attendee_age = int((datetime.date(calc_date) - datetime.date(birthdate)).days / 365.2425)
 
             age_groups = self.query(AgeGroup)
             for current_age_group in age_groups:
