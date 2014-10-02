@@ -56,7 +56,10 @@ class Root:
         cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
         return json.dumps({
             'badges_sold': state.BADGES_SOLD,
-            'remaining_badges': max(0, MAX_BADGE_SALES - state.BADGES_SOLD)
+            'remaining_badges': max(0, MAX_BADGE_SALES - state.BADGES_SOLD),
+
+            'server_current_timestamp': int(datetime.utcnow().timestamp()),
+            'warn_if_server_browser_time_mismatch': WARN_IF_SERVER_BROWSER_TIME_MISMATCH
         })
 
     def check_prereg(self):
@@ -342,9 +345,8 @@ class Root:
     def transfer_badge(self, session, message='', **params):
         old = session.attendee(params['id'])
         assert old.is_transferrable, 'This badge is not transferrable'
-        attendee = session.attendee(params, bools=_checkboxes, restricted=True)
-        attendee.registered = old.registered
         session.expunge(old)
+        attendee = session.attendee(params, bools=_checkboxes, restricted=True)
 
         if 'first_name' in params:
             message = check(attendee) or check_prereg_reqs(attendee)
