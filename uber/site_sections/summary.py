@@ -100,6 +100,13 @@ class Root:
         for a in session.query(Attendee).filter(Attendee.badge_num != 0).order_by('badge_num').all():
             out.writerow([a.badge_num, a.badge_type_label, a.badge_printed_name or a.full_name])
 
+    # print out a CSV list of attendees that signed up for the newsletter for import into our bulk mailer
+    @csv_file
+    def can_spam(self, out, session):
+        out.writerow(["fullname", "email", "zipcode"])
+        for a in session.query(Attendee).filter(Attendee.can_spam == True).order_by('email').all():
+            out.writerow([a.full_name, a.email, a.zip_code])
+
     def food_eligible(self, session):
         cherrypy.response.headers['Content-Type'] = 'application/xml'
         eligible = [a for a in session.query(Attendee).order_by(Attendee.full_name).all()
