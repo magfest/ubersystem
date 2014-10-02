@@ -58,7 +58,10 @@ class Root:
         cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
         return json.dumps({
             'badges_sold': state.BADGES_SOLD,
-            'remaining_badges': max(0, MAX_BADGE_SALES - state.BADGES_SOLD)
+            'remaining_badges': max(0, MAX_BADGE_SALES - state.BADGES_SOLD),
+
+            'server_current_timestamp': int(datetime.utcnow().timestamp()),
+            'warn_if_server_browser_time_mismatch': WARN_IF_SERVER_BROWSER_TIME_MISMATCH
         })
 
     def check_prereg(self):
