@@ -344,9 +344,8 @@ class Root:
     def transfer_badge(self, session, message='', **params):
         old = session.attendee(params['id'])
         assert old.is_transferrable, 'This badge is not transferrable'
-        attendee = session.attendee(params, bools=_checkboxes, restricted=True)
-        attendee.registered = old.registered
         session.expunge(old)
+        attendee = session.attendee(params, bools=_checkboxes, restricted=True)
 
         if 'first_name' in params:
             message = check(attendee) or check_prereg_reqs(attendee)
