@@ -506,8 +506,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if self.badge_type == STAFF_BADGE and self.ribbon == VOLUNTEER_RIBBON:
             self.ribbon = NO_RIBBON
-            
-        if self.badge_type == STAFF_BADGE and not self.staffing
+
+        if self.badge_type == STAFF_BADGE:
             self.staffing = True
 
     def unset_volunteering(self):
