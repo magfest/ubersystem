@@ -1,6 +1,6 @@
 from uber.common import *
 
-@all_renderable(CHECKINS, angular=True)
+@all_renderable(CHECKINS)
 class Root:
     @property
     def attendees(self):
@@ -14,7 +14,7 @@ class Root:
     def games(self):
         return [g.to_dict() for g in Game.objects.order_by('name').select_related()]
     
-    @ng_renderable
+    #@ng_renderable
     def index(self):
         return {
             'games': json.dumps(self.games, cls=serializer),

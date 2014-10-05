@@ -1,11 +1,5 @@
 from uber.common import *
 
-# TODO: it seems like half the time we're using the json and the other half we're re-loading; this seems confusing and wasteful
-# TODO: maybe move this to SessionMixin?
-# TODO: confirm that this uses to_dict properly
-def dump_jobs(session):
-    return json.dumps([job.to_dict() for job in session.logged_in_volunteer().possible_and_current], cls=serializer)
-
 @all_renderable(SIGNUPS)
 class Root:
     def index(self, session, message=''):
@@ -97,39 +91,36 @@ class Root:
         }
 
     @check_shutdown
-    @ng_renderable
     def shifts(self, session):
         return {
-            'jobs': dump_jobs(session),
+            'jobs': session.jobs_for_signups(),
             'name': session.logged_in_volunteer().full_name
         }
 
     @check_shutdown
+    @ajax_gettable
     def jobs(self, session):
-        return json.dumps({'jobs': json.loads(dump_jobs(session))})
+        return {'jobs': session.jobs_for_signups()}
 
     @check_shutdown
     @ajax
     def sign_up(self, session, job_id):
         return {
-            'error': session.assign(self.staffer.id, job_id),
-            'jobs': json.loads(dump_jobs(session))
+            'error': session.assign(session.logged_in_volunteer().id, job_id),
+            'jobs': session.jobs_for_signups()
         }
 
     @check_shutdown
     @ajax
     def drop(self, session, job_id):
         try:
-            session.delete(session.shift(job_id=job_id, attendee_id=self.logged_in_volunteer().id))
+            shift = session.shift(job_id=job_id, attendee_id=session.logged_in_volunteer().id)
+            session.delete(shift)
             session.commit()
         except:
             pass
         finally:
-            return {'jobs': json.loads(dump_jobs(session))}
-
-    @check_shutdown
-    def templates(self, template):
-        return ng_render(os.path.join('signups', template))
+            return {'jobs': session.jobs_for_signups()}
 
     @unrestricted
     def login(self, session, message='', full_name='', email='', zip_code=''):

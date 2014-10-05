@@ -32,6 +32,23 @@ class StaticViews:
         return path_args[-1]
 
     @cherrypy.expose
+    def magfest_js(self):
+        """
+        We have several Angular apps which need to be able to access our constants like ATTENDEE_BADGE and such.
+        We also need those apps to be able to make HTTP requests with CSRF tokens, so we set that default.
+        """
+        cherrypy.response.headers['Content-Type'] = 'text/javascript'
+        renderable = {k: v for k, v in renderable_data().items() if isinstance(v, (bool, int, str))}
+        consts = json.dumps(renderable, indent=4)
+        return '\n'.join([
+            'angular.module("magfest", [])',
+            '.constant("magconsts", {})'.format(consts),
+            '.run(function ($http) {',
+            '   $http.defaults.headers.common["CSRF-Token"] = "{}";'.format(renderable.get('CSRF_TOKEN')),
+            '});'
+        ])
+
+    @cherrypy.expose
     def default(self, *path_args, **kwargs):
         content_filename = self.get_filename_from_path_args(path_args)
 
