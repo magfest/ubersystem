@@ -1,19 +1,19 @@
 
 <script type="text/javascript">
-    function dropdownChanged() {
+    var mainMenuDropdownChanged = function () {
         window.location = $("#page").val() + "?location=" + $("#location").val();
-    }
+    };
 </script>
 
 <table style="text-align:center">
 <tr>
     <td width="50%">
-        <select id="location" style="font-size:14pt ; font-weight:bold" onChange="dropdownChanged()">
+        <select id="location" style="font-size:14pt ; font-weight:bold" onChange="mainMenuDropdownChanged()">
             {% options JOB_LOCATION_OPTS location %}
         </select>
     </td>
     <td width="50%">
-        <select id="page" style="font-size:14pt ; font-weight:bold" onChange="dropdownChanged()">
+        <select id="page" style="font-size:14pt ; font-weight:bold" onChange="mainMenuDropdownChanged()">
             {% options JOB_PAGE_OPTS PAGE %}
         </select>
     </td>
