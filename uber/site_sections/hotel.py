@@ -1,6 +1,6 @@
 from uber.common import *
 
-@all_renderable(PEOPLE, angular=True)
+@all_renderable(PEOPLE)
 class Root:
     def index(self, session):
         by_dept = defaultdict(list)
@@ -75,7 +75,7 @@ class Root:
             for a in group:
                 writerow(a, a.hotel_requests)
 
-    @ng_renderable
+    #@ng_renderable
     def assignments(self, session, department):
         if ROOMS_LOCKED_IN:
             cherrypy.response.headers['Content-Type'] = 'text/plain'

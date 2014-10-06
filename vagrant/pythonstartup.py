@@ -17,6 +17,7 @@ if os.path.exists(history_path):
     readline.read_history_file(history_path)
 
 try:
+    import sideboard
     from uber.common import *
 except:
     pass

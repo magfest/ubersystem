@@ -23,17 +23,6 @@ def site_mappable(func):
     return func
 
 
-def cached_property(func):
-    pname = '_' + func.__name__
-    @property
-    @wraps(func)
-    def caching(self, *args, **kwargs):
-        if not hasattr(self, pname):
-            setattr(self, pname, func(self, *args, **kwargs))
-        return getattr(self, pname)
-    return caching
-
-
 def suffix_property(func):
     func._is_suffix_property = True
     return func
@@ -58,8 +47,8 @@ def csrf_protected(func):
     return protected
 
 
-# requires: POST and a valid CSRF token
 def ajax(func):
+    '''decorator for Ajax POST requests which require a CSRF token and return JSON'''
     @wraps(func)
     def returns_json(*args, **kwargs):
         cherrypy.response.headers['Content-Type'] = 'application/json'
@@ -68,13 +57,18 @@ def ajax(func):
         return json.dumps(func(*args, **kwargs), cls=serializer).encode('utf-8')
     return returns_json
 
-# used for things that should be publicly called, i.e. APIs and such.
-# supports GET or POST
-def ajax_public_callable(func):
+
+def ajax_gettable(func):
+    '''
+    Decorator for page handlers which return JSON.  Unlike the above @ajax decorator,
+    this allows either GET or POST and does not check for a CSRF token, so this can
+    be used for pages which supply data to external APIs as well as pages used for
+    periodically polling the server for new data by our own Javascript code.
+    '''
     @wraps(func)
     def returns_json(*args, **kwargs):
         cherrypy.response.headers['Content-Type'] = 'application/json'
-        return json.dumps(func(*args, **kwargs)).encode('utf-8')
+        return json.dumps(func(*args, **kwargs), cls=serializer).encode('utf-8')
     return returns_json
 
 
@@ -158,7 +152,7 @@ def renderable_data(data=None):
     return data
 
 # render using the first template that actually exists in template_name_list
-def render(template_name_list, data = None):
+def render(template_name_list, data=None):
     data = renderable_data(data)
     template = loader.select_template(listify(template_name_list))
     rendered = template.render(Context(data))
@@ -175,33 +169,12 @@ def screw_you_nick(rendered, template):
     else:
         return rendered
 
-# TODO: sanitize for XSS attacks; currently someone can only attack themselves, but still...
-def ng_render(fname, **kwargs):
-    class AngularTemplate(string.Template):
-        delimiter = '%__'
-
-    with open(os.path.join(MODULE_ROOT, 'templates', fname)) as f:
-        data = {k: (str(v).lower() if v in [True, False] else v) for k, v in renderable_data(kwargs).items()}
-        return AngularTemplate(f.read()).substitute(**data)
-
 
 def _get_module_name(class_or_func):
     return class_or_func.__module__.split('.')[-1]
 
 def _get_template_filename(func):
     return os.path.join(_get_module_name(func), func.__name__ + '.html')
-
-def ng_renderable(func):
-    @wraps(func)
-    def with_rendering(*args, **kwargs):
-        result = func(*args, **kwargs)
-        return result if isinstance(result, str) else ng_render(_get_template_filename(func), **result)
-
-    spec = inspect.getfullargspec(func)
-    if spec.args == ['self'] and not spec.varargs and not spec.varkw:
-        return site_mappable(with_rendering)
-    else:
-        return with_rendering
 
 def renderable(func):
     @wraps(func)
@@ -240,16 +213,10 @@ def restricted(func):
     return with_restrictions
 
 class all_renderable:
-    def __init__(self, *needs_access, angular=False):
-        self.angular = angular
+    def __init__(self, *needs_access):
         self.needs_access = needs_access
 
     def __call__(self, klass):
-        if self.angular:
-            def ng(self, template):
-                return ng_render(os.path.join(_get_module_name(klass), 'angular', template))
-            klass.ng = ng
-
         for name,func in klass.__dict__.items():
             if hasattr(func, '__call__'):
                 func.restricted = getattr(func, 'restricted', self.needs_access)

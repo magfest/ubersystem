@@ -691,7 +691,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def possible_and_current(self):
         jobs = [s.job for s in self.shifts]
         for job in jobs:
-            job.already_signed_up = True
+            job.taken = True
         jobs.extend(self.possible)
         return sorted(jobs, key=lambda j: j.start_time)
 
@@ -916,10 +916,10 @@ class Job(MagModel):
                    and self.no_overlap(s)]
 
 class Shift(MagModel):
-    job_id      = Column(UUID, ForeignKey('job.id'))
-    job         = relationship(Job, backref='shifts', cascade='delete')
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    attendee    = relationship(Attendee, backref='shifts', cascade='delete')
+    job_id      = Column(UUID, ForeignKey('job.id', ondelete='cascade'))
+    job         = relationship(Job, backref='shifts')
+    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='cascade'))
+    attendee    = relationship(Attendee, backref='shifts')
     worked      = Column(Choice(WORKED_STATUS_OPTS), default=SHIFT_UNMARKED)
     rating      = Column(Choice(RATING_OPTS), default=UNRATED)
     comment     = Column(UnicodeText)
@@ -1145,6 +1145,10 @@ class Session(SessionManager):
     class SessionMixin:
         def logged_in_volunteer(self):
             return self.attendee(cherrypy.session['staffer_id'])
+
+        def jobs_for_signups(self):
+            fields = ['name', 'location_label', 'description', 'weight', 'start_time_local', 'duration', 'weighted_hours', 'restricted', 'extra15', 'taken']
+            return [job.to_dict(fields) for job in self.logged_in_volunteer().possible_and_current]
 
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
