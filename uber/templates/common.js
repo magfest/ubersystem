@@ -97,3 +97,13 @@ function showTop(message) {
 function hideTop() {
     $("#top").hide("fast");
 }
+
+$(function() {
+    $(".datepicker").datepicker({
+        changeMonth: true,
+        changeYear: true,
+        yearRange: "-100:+0",
+        defaultDate: "-20y",
+        dateFormat: "yy-mm-dd"
+    });
+});

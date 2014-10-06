@@ -2,71 +2,94 @@
 {% block title %}Accounts{% endblock %}
 {% block content %}
 
-<h2> Accounts </h2>
+<ol class="breadcrumb">
+  <li><a href="../accounts/homepage">Home</a></li>
+  <li class="active">Accounts</li>
+</ol>
 
-<h3>Change your password</h3>
-<a href="../accounts/change_password">Click here</a> to change your own password.
-
-<h3> New Account </h3>
-<form id="new_admin" method="post" action="update">
+<div class="panel panel-default">
+<div class="panel-heading"><h3>New Account</h3></div>
+<form id="new_admin" method="post" action="update" role="form" class="form-inline">
 <input type="hidden" name="id" value="None" />
 {% csrf_token %}
-<table style="width:auto">
-<tr>
-    <td> <b>Attendee:</b> </td>
-    <td>
-        <select name="attendee_id">
-            {% options all_attendees %}
-        </select>
-    </td>
-</tr>
-{% if AT_THE_CON %}
-    <tr>
-        <td> <b>Password:</b> </td>
-        <td> <input type="password" name="password" /> </td>
-    </tr>
-{% endif %}
-<tr>
-    <td> <b>Access:</b> </td>
-    <td> {% checkgroup AdminAccount.access %} </td>
-</tr>
-<tr>
-    <td></td>
-    <td> <input type="submit" value="Create Account" /> </td> 
-</tr>
-</table>
+<div class="form-group">
+    <label for="attendee_id" class="sr-only">Attendee</label>
+    <select class="form-control" id="attendee_id" name="attendee_id">
+    	{% options all_attendees %}
+    </select>
+</div>
+<div class="form-group">
+    <div class="input-group input-group-sm">
+    <label for="password" class="sr-only">Password</label>
+    <input type="password" class="form-control" id="password" name="password"
+       placeholder="Password" 
+       {% if not AT_THE_CON %}disabled{% endif %}>
+  	{% if not AT_THE_CON %}
+  		<span class="input-group-addon glyphicon glyphicon-ban-circle">
+  		</span>
+  	{% endif %}
+	</div>
+</div>
+<div class="form-group">
+    {% checkgroup AdminAccount.access %}
+</div>
+<button type="submit" class="btn btn-default">Create Account</button>
 </form>
+</div>
 
-<h3>Existing Accounts</h3>
-<table class="list">
-<tr class="header">
-    <td>Name</td>
-    <td>Email</td>
-    <td>Access</td>
-    <td></td>
-</tr>
+<div class="panel panel-default">
+<div class="panel-heading"><h3>Existing Accounts</h3></div>
+
+<div class="table-responsive">
+<table class="table footable">
+<thead><tr>
+    <th></th>
+    <th>Name</th>
+    <th>Email</th>
+    <th data-hide="phone">Access</th>
+</tr></thead>
+
+<tbody>
 {% for account in accounts %}
-    <tr id="{{ account.email|idize }}" bgcolor="{% cycle #FFFFFF,#EEEEEE %}">
-        <td> <nobr><a href="../registration/form?id={{ account.attendee.id }}">{{ account.attendee.full_name }}</a></nobr> </td>
-        <td> <a href="mailto:{{ account.attendee.email }}">{{ account.attendee.email }}</a> </td>
-        <td align="left">
-            <form class="update" method="post" action="update">
-            <input type="hidden" name="id" value="{{ account.id }}" />
-            {% csrf_token %}
-            <table><tr>
-                <td> {% checkgroup account.access %} </td>
-                <td> <input type="submit" value="Update" /> </td>
-            </tr></table>
-            </form>
-        </td>
-        <td align="center"> 
-            <form class="delete" method="post" action="delete">
-            <input type="hidden" name="id" value="{{ account.id }}" />
-            <input type="submit" value="Delete" />
-            </form>
-        </td>
-    </tr>
+	<form class="form" method="post" action="update">
+		<tr id="{{ account.email|idize }}">
+			<td>
+			<div class="btn-group-vertical">
+				<button type="submit" class="btn btn-primary"><span class="glyphicon glyphicon-floppy-disk"></span></button>
+				<button type="button" class="btn btn-danger deleteButton"><span class="glyphicon glyphicon-trash"></span></button>
+			</div>
+			</td>
+			<td> <nobr><a href="../registration/form?id={{ account.attendee.id }}">
+				{{ account.attendee.full_name }}</a></nobr>
+			</td>
+			<td> <a href="mailto:{{ account.attendee.email }}">{{ account.attendee.email }}</a> </td>
+			<td>
+				<input type="hidden" name="id" value="{{ account.id }}" />
+				{% csrf_token %}
+				<div class="form-group">{% checkgroup account.access %}</div>
+			</td>
+		</tr>
+    </form>
 {% endfor %}
+</tbody>
 </table>
+</div>
 
+<script>
+$(document).ready(function() {
+	$(".deleteButton").click(function(event) {
+		$.confirm({
+			text: "Are you sure you want to delete that user?",
+			confirm: function(button) {
+				$(event.target.form).attr("action", "delete").submit();
+			},
+			cancel: function(button) {
+			}
+		});
+	});
+	$('.footable').footable();
+});
+</script>
+
+</div>
 {% endblock %}

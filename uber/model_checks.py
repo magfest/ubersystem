@@ -78,8 +78,17 @@ def attendee_misc(attendee):
 
     if not attendee.no_cellphone and attendee.staffing and _invalid_phone_number(attendee.cellphone):
         return "10-digit cellphone number is required for volunteers (unless you don't own a cellphone)"
-    if attendee.age_group == UNDER_18 and attendee.staffing and attendee.badge_type != STAFF_BADGE and PRE_CON:
-        return "Attendees must be 18 years of age or older to volunteer"
+    if not attendee.age_group == UNDER_18 and attendee.staffing and attendee.badge_type != STAFF_BADGE and PRE_CON:
+        return "Volunteers cannot be " + attendee.age_group.desc
+        
+    if COLLECT_EXACT_BIRTHDATE and attendee.birthdate:
+        if attendee.birthdate == 'Click to select': return 'Please select a birthdate.'
+        with Session() as session:
+            age_group = session.age_group_from_birthdate(attendee.birthdate)
+            if not age_group:
+                return 'Your birthdate is invalid. Seriously, did you say you were over 100 or something?'
+            elif not age_group.can_register:
+                return 'Attendees cannot be ' + age_group.desc
 
 
 def attendee_leadership(attendee):

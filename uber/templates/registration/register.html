@@ -40,7 +40,7 @@
     var showOrHide = function() {
         setVisible("#underage", $("[name=age_group]").val() == {{ UNDER_18 }});
     };
-    $(showOrHide);
+    {% if not COLLECT_EXACT_BIRTHDATE %} $(showOrHide); {% endif %}
 </script>
 
 <form method="post" action="register" autocomplete="off">
@@ -77,9 +77,13 @@
 <tr>
     <td style="font-weight: bold"> <nobr>Age:</nobr> </td>
     <td>
+    {% if COLLECT_EXACT_BIRTHDATE %}
+        <input type="text" name="birthdate" value="{{ attendee.birthdate|date:"Y-m-d"|default:"Click to select" }}" readonly="true" class="datepicker">
+    {% else %}
         <select name="age_group" onChange="showOrHide()">
             {% options AGE_GROUP_OPTS attendee.age_group %}
         </select>
+    {% endif %}
         <span id="underage" style="color:red ; display:none">Attendees under 18 <b>MUST</b> have a parental consent form signed to receive a badge.</span>
     </td>
 </tr>

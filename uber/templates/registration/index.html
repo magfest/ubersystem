@@ -1,23 +1,6 @@
 {% extends "base-admin.html" %}
 {% block title %}Attendee Admin{% endblock %}
-{% block backlink %}
-    <span style="float:right ; margin-top:5px ; margin-right:5px">
-        <a id="backlink" href="../accounts/homepage">Return Home</a>
-    </span>
-{% endblock%}
 {% block message %}
-
-<style type="text/css">
-    body { margin:0px ; padding:0px }
-    table.list {
-        width: 98%;
-        margin-left: 1%;
-        margin-right: 1%;
-        border-spacing: 0px;
-        border: 1px solid black;
-        border-collapse: separate;
-    }
-</style>
 
 <span id="message" style="float:left ; color:red ; margin-top:4px ; margin-left:4px">
 {% if attendee %}
@@ -50,31 +33,7 @@
         if( badge_num && !badge_num.match(/^\d+$/) )
             $tr.find(":text").parents("td").css("border", "3px solid red");
     }
-        
-    function recordMPointUsage() {
-        $.post("record_mpoint_usage", {
-                    badge_num:  $("#badge_num").val(),
-                    amount:     $("#amount").val(),
-                    csrf_token: csrf_token
-                }, function(json) {
-                    $("#message").html(json.message);
-                    if( json.success ) {
-                        $("#badge_num,#amount").val("");
-                        $("#badge_num").focus();
-                        $("#message").append(' &nbsp; ').append(
-                            $('<a href="#">Undo</a>').click(function(){
-                                undoMPointUsage(json.id);
-                                return false;
-                            }));
-                    }
-                }, "json");
-    }
-    function undoMPointUsage(id) {
-        $.post("undo_mpoint_usage", {"id": id, csrf_token: csrf_token}, function(s) {
-            $("#message").html(s);
-        });
-    }
-    
+            
     function check_in(id) {
         if( $("#age_" + id).val() == {{ AGE_UNKNOWN }} ) {
             alert("You may not check someone in without confirming their age.");
@@ -112,11 +71,6 @@
             showTop("Oh noes - the web server is down or something!!!!!");
         });
         
-        $("#badge_num,#amount").keypress(function(e){
-            if( (e.keyCode || e.which) == 13 )  // ENTER
-                recordMPointUsage();
-        });
-        
         {% if AT_THE_CON %}
             $(".num").keypress(function(e){
                 if( (e.keyCode || e.which) == 13 )  // ENTER
@@ -135,45 +89,45 @@
 -->
 </script>
 
-<br/>
-<form method="get" action="index" style="text-align:center">
+<ol class="breadcrumb">
+  <li><a href="../accounts/homepage">Home</a></li>
+  <li>People</li>
+  <li class="active">Attendees{% if search_results %} (Search Results){% endif %}</li>
+</ol>
+
+<div class="row">
+
+<div class="panel col-md-4">
+<form role="form" method="get" action="index">
 <input type="hidden" name="order" value="{{ order }}" />
-<b>Search:</b> <input class="focus" type="text" name="search_text" style="width:15em" value="{{ search_text }}" />
+<div class="input-group">
+<input class="form-control" type="text" name="search_text" value="{{ search_text }}" />
+<span class="input-group-btn"><button class="btn btn-default" type="submit">
+<span class="glyphicon glyphicon-search"></span>
+</button></span>
+</div>
 </form>
-
-{% if AT_THE_CON %}
-    <table width="100%">
-    <tr style="text-align:center ; font-weight:bold">
-        <td width="33%"> {{ attendee_count }} Attendee{{ attendee_count|pluralize }} </td>
-        <td width="33%"> <span id="checkin_count">{{ checkin_count }}</span> Checked In </td>
-        <td width="33%"> <a href="#" onClick="$('#transactions').toggle('fast'); return false;">Record MPoint Exchange</a> </td>
-    </tr>
-    </table>
-{% endif %}
-
-<div id="transactions" style="display:none ; text-align:center ; margin-top:5px ; padding:10px ; background:lightgray">
-<table>
-<tr>
-    <td> MPoints exchanged for cash: </td>
-    <td> Badge num: <input type="text" id="badge_num" size="2" /> </td>
-    <td> exchanged $<input type="text" id="amount" size="2" /> </td>
-    <td> <input type="submit" id="record_mpu" value="Record Exchange" onClick="recordMPointUsage()" /> </td>
-</tr>
-</table>
 </div>
 
-<div style="text-align:center">
-    <br/>
-    <div style="font-size:18pt ; font-weight:bold">
-        {% if search_results %}
-            Attendee Search Results
-        {% else %}
-            Attendees
-        {% endif %}
-    </div>
+<div class="panel col-md-4">
+<a class="btn btn-primary" href="form?id=None">Add an attendee</a>
+    <a class="btn btn-default" {% if not AT_THE_CON %}disabled="disabled"{% endif %} 
+    	href="new">View Recent At-the-Door Registrations</a>
+</div>
+
+<div class="panel col-md-4">
+<div class="col-md-6">{{ attendee_count }} Attendee{{ attendee_count|pluralize }}</div>
+        <div class="col-md-6"><span id="checkin_count">{{ checkin_count }}</span> Checked In</div>
+</div>
+</div>
+
     {% if search_results %}
-        <br/> <a href="index?order={{ order }}">Click here</a> to view full attendee list instead of only search results <br/>
+    <div class="panel panel-info">
+    <a href="index?order={{ order }}">Click here</a> to view full attendee list instead of only search results.
+    </div>
     {% endif %}
+
+<div class="panel panel-default">
     {% for pagenum in pages %}
         {% if pagenum == page %}
             {{ pagenum }}
@@ -181,26 +135,17 @@
             <a href="index?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}">{{ pagenum }}</a>
         {% endif %}
     {% endfor %}
-    <br/> <br/>
-    <a href="form?id=None">Add an attendee</a>
+    
+<table class="table footable">
+<thead><tr>
+    <th> <a href="index?order={{ order.last_first }}">Name</a> </th>
+    <th data-hide="phone"> <a href="index?order={{ order.badge_num }}">Badge</a> </th>
+    <th data-hide="phone"> <a href="index?order={{ order.paid }}">Paid</a> </th>
+    <th data-hide="phone">Age</th>
     {% if AT_THE_CON %}
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <a href="new">View Recent At-the-Door Registrations</a>
+        <th> <a href="index?order={{ order.checked_in }}"><nobr>Checked In</nobr></a> </th>
     {% endif %}
-</div>
-
-<br/>
-
-<table class="list">
-<tr class="header">
-    <td align="left"> <a href="index?order={{ order.last_first }}">Name</a> </td>
-    <td> <a href="index?order={{ order.badge_num }}">Badge</a> </td>
-    <td> <a href="index?order={{ order.paid }}">Paid</a> </td>
-    <td>Age</td>
-    {% if AT_THE_CON %}
-        <td> <a href="index?order={{ order.checked_in }}"><nobr>Checked In</nobr></a> </td>
-    {% endif %}
-</tr>
+</tr></thead>
 {% for attendee in attendees %}
     <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
         <td id="name_{{ attendee.id }}" style="text-align:left">
@@ -228,7 +173,7 @@
         </nobr></td>
         <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
         {% if attendee.checked_in or not AT_THE_CON %}
-            <td> <nobr>{{ attendee.age_group_label }}</nobr> </td>
+            <td> <nobr>{{ attendee.age_group.desc }}</nobr> </td>
             {% if AT_THE_CON %}
                 <td> {{ attendee.checked_in|time:"fA"|lower }} {{ attendee.checked_in|date:"D" }} </td>
             {% endif %}
@@ -249,5 +194,6 @@
     </tr>
 {% endfor %}
 </table>
+</div>
 
 {% endblock %}

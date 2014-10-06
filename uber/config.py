@@ -139,6 +139,7 @@ for _opt, _val in chain(_config.items(), BADGE_PRICES.items()):
 
 DATES = {}
 TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S'
+DATE_FORMAT = '%Y-%m-%d'
 EVENT_TIMEZONE = pytz.timezone(EVENT_TIMEZONE)
 for _opt, _val in _config['dates'].items():
     if not _val:

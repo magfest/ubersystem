@@ -159,7 +159,7 @@ class checkbox(template.Node):
     def render(self, context):
         model = self.model.resolve(context)
         checked = 'checked' if getattr(model, self.field_name) else ''
-        return '<input type="checkbox" name="{}" value="1" {} />'.format(self.field_name, checked)
+        return '<div class="checkbox"><input type="checkbox" name="{}" value="1" {} /></div>'.format(self.field_name, checked)
 
 @tag
 class checkgroup(template.Node):
@@ -175,9 +175,9 @@ class checkgroup(template.Node):
         results = []
         for num, desc in options:
             checked = 'checked' if str(num) in defaults else ''
-            results.append('<nobr><input type="checkbox" name="{}" value="{}" {} /> {}</nobr>'
+            results.append('<label class="checkbox-inline"><input type="checkbox" name="{}" value="{}" {} /> {}</label>'
                            .format(self.field_name, num, checked, desc))
-        return '&nbsp;&nbsp\n'.join(results)
+        return (''.join(results))
 
 @tag
 class int_options(template.Node):
@@ -212,7 +212,7 @@ class radio(template.Node):
         default = self.default.resolve(context)
         checked = 'checked' if str(value)==str(default) else ''
 
-        return """<input type="radio" name="%s" value="%s" %s />""" % (self.name, value, checked)
+        return """<div class="radio"><input type="radio" name="%s" value="%s" %s /></div>""" % (self.name, value, checked)
 
 @tag
 class hour_day(template.Node):
