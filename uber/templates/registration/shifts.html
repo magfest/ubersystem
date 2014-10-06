@@ -65,7 +65,7 @@
         <td>Status</td>
         <td></td>
     </tr>
-    {% for shift in attendee.shifts %}
+    {% for shift in attendee.shifts|sortBy:'job.start_time' %}
         <tr>
             <td><a href="../jobs/form?id={{ shift.job.id }}">{{ shift.job.name }}</a></td>
             <td><a href="../jobs/index?location={{ shift.job.location }}">{{ shift.job.location_label }}</a></td>
@@ -76,7 +76,7 @@
                     <i>{{ shift.worked_label }}</i>
                 {% else %}
                     <select onChange="setStatus('{{ shift.id }}', this)">
-                        {% options WORKED_OPTS shift.worked %}
+                        {% options WORKED_STATUS_OPTS shift.worked %}
                     </select>
                 {% endif %}
             </td>

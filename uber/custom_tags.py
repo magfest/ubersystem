@@ -21,6 +21,17 @@ def subtract(x, y):
 def remove_newlines(string):
     return string.replace('\n', ' ')
 
+def _getter(x, attrName):
+    if '.' in attrName:
+        first, rest = attrName.split('.', 1)
+        return _getter(getattr(x, first), rest)
+    else:
+        return getattr(x, attrName)
+
+@register.filter
+def sortBy(xs, attrName):
+    return sorted(xs, key=lambda x: _getter(x, attrName))
+
 @register.filter
 def time_day(dt):
     return SafeString('<nobr>{} {}</nobr>'.format(dt.astimezone(EVENT_TIMEZONE).strftime('%I:%M%p').lstrip('0').lower(),
@@ -119,6 +130,8 @@ class options(template.Node):
         if isinstance(default, Variable):
             try:
                 default = default.resolve(context)
+                if isinstance(default, datetime):
+                    default = default.astimezone(EVENT_TIMEZONE)
             except:
                 default = ''
 
@@ -127,9 +140,11 @@ class options(template.Node):
             if len(listify(opt)) == 1:
                 opt = [opt, opt]
             val, desc = opt
-            selected = "selected" if str(val) == str(default) else ''
             if isinstance(val, datetime):
+                selected = 'selected' if val == default else ''
                 val = val.strftime(TIMESTAMP_FORMAT)
+            else:
+                selected = "selected" if str(val) == str(default) else ''
             val  = str(val).replace('"',  '&quot;').replace('\n', '')
             desc = str(desc).replace('"', '&quot;').replace('\n', '')
             results.append('<option value="{}" {}>{}</option>'.format(val, selected, desc))

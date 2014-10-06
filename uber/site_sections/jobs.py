@@ -2,7 +2,7 @@ from uber.common import *
 
 @all_renderable(PEOPLE)
 class Root:
-    def index(self, session, location=None):
+    def index(self, session, location=None, message=''):
         if location is None:
             if AT_THE_CON:
                 raise HTTPRedirect('signups')
@@ -19,7 +19,7 @@ class Root:
             'times':    [(t, t + timedelta(hours=1), by_start[t]) for i, t in enumerate(times)]
         }
 
-    def signups(self, session, location=None):
+    def signups(self, session, location=None, message=''):
         if location is None:
             location = cherrypy.session.get('prev_location') or ARCADE  # TODO: make this configurable
         cherrypy.session['prev_location'] = location
@@ -43,7 +43,7 @@ class Root:
                                              and localized_now() < job.start_time + timedelta(hours = job.duration)]
         }
 
-    def staffers(self, session, location=None):
+    def staffers(self, session, location=None, message=''):
         location = location or ARCADE  # TODO: make this configurable
         jobs, shifts, attendees = session.everything(location)
         attendees = [a for a in attendees if int(location) in a.assigned_depts_ints]

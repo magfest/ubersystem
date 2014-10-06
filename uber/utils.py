@@ -84,7 +84,7 @@ for _slug, _conf in SEASON_EVENTS.items():
 
 
 def hour_day_format(dt):
-    return dt.strftime('%I%p ').strip('0').lower() + dt.strftime('%a')
+    return dt.astimezone(EVENT_TIMEZONE).strftime('%I%p ').strip('0').lower() + dt.strftime('%a')
 
 
 def underscorize(s):

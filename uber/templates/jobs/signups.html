@@ -52,8 +52,8 @@
                         {% if shift.worked != SHIFT_UNMARKED %}
                             <i>{{ shift.worked_label }}</i>
                         {% else %}
-                            <select onChange="setStatus({{ shift.id }}, this)">
-                                {% options WORKED_OPTS shift.worked %}
+                            <select onChange="setStatus('{{ shift.id }}', this)">
+                                {% options WORKED_STATUS_OPTS shift.worked %}
                             </select>
                         {% endif %}
                     </td>
