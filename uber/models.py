@@ -352,6 +352,7 @@ class Group(MagModel, TakesPaymentMixin):
                     total += DEALER_BADGE_PRICE
                 else:
                     total += state.get_group_price(attendee.registered)
+            total -= attendee.age_discount
         return total
 
     @property
@@ -594,6 +595,30 @@ class Attendee(MagModel, TakesPaymentMixin):
         return case([
             (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
         ], else_ = func.lower(cls.last_name + ', ' + cls.first_name))
+        
+    @property
+    def can_volunteer(self):
+        if self.age_group: return self.age_group.can_volunteer
+        with Session() as session:
+            return session.age_group_from_birthdate(self.birthdate).can_volunteer
+            
+    @property
+    def can_register(self):
+        if self.age_group: return self.age_group.can_register
+        with Session() as session:
+            return session.age_group_from_birthdate(self.birthdate).can_register
+            
+    @property
+    def age_discount(self):
+        if self.age_group: return self.age_group.discount
+        with Session() as session:
+            return session.age_group_from_birthdate(self.birthdate).discount
+            
+    @property
+    def consent_form(self):
+        if self.age_group: return self.age_group.consent_form
+        with Session() as session:
+            return session.age_group_from_birthdate(self.birthdate).consent_form
 
     @property
     def banned(self):
