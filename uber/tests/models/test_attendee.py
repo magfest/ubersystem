@@ -230,8 +230,8 @@ class TestStaffingAdjustments:
         a._staffing_adjustments()
         assert a.badge_type == STAFF_BADGE
 
-    def test_under_18_at_con(self, at_con, unset_volunteering):
-        a = Attendee(age_group=UNDER_18)
+    def test_invalid_volunteer_at_con(self, at_con, unset_volunteering):
+        a = Attendee(not attendee.can_volunteer)
         a._staffing_adjustments()
         assert not unset_volunteering.called
 
