@@ -80,6 +80,10 @@ class Root:
     @check_if_can_reg
     def badge_choice(self, message=''):
         return {'message': message}
+        
+    @check_if_can_reg
+    def dealer_registration(self, message=''):
+        return self.form(badge_type=2)
 
     @check_if_can_reg
     def form(self, session, message='', edit_id=None, **params):
@@ -102,7 +106,10 @@ class Root:
             group = session.group(params, ignore_csrf=True, restricted=True)
 
         if attendee.badge_type not in state.PREREG_BADGE_TYPES:
-            raise HTTPRedirect('badge_choice?message={}', 'Dealer registration is not open' if attendee.is_dealer else 'Invalid badge type')
+            raise HTTPRedirect('badge_choice?message={}', 'Invalid badge type!')
+            
+        if attendee.is_dealer and not state.DEALER_REG_OPEN:
+            return render('static_views/dealer_reg_closed.html') if state.AFTER_DEALER_REG_SHUTDOWN else render('static_views/dealer_reg_not_open.html')
             
         if 'first_name' in params:
             message = check(attendee) or check_prereg_reqs(attendee)
