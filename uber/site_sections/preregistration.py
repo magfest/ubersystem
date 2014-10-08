@@ -80,6 +80,10 @@ class Root:
     @check_if_can_reg
     def badge_choice(self, message=''):
         return {'message': message}
+        
+    @check_if_can_reg
+    def dealer_registration(self, message=''):
+        return self.form(badge_type=2)
 
     @check_if_can_reg
     def form(self, session, message='', edit_id=None, **params):
