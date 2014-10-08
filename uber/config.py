@@ -74,9 +74,8 @@ class State:
 
     @property
     def PREREG_BADGE_TYPES(self):
-        types = [ATTENDEE_BADGE]
-        for reg_open, badge_type in [(self.DEALER_REG_OPEN, PSEUDO_DEALER_BADGE),
-                                     (self.BEFORE_GROUP_PREREG_TAKEDOWN, PSEUDO_GROUP_BADGE)]:
+        types = [ATTENDEE_BADGE, PSEUDO_DEALER_BADGE]
+        for reg_open, badge_type in [(self.BEFORE_GROUP_PREREG_TAKEDOWN, PSEUDO_GROUP_BADGE)]:
             if reg_open:
                 types.append(badge_type)
         return types
@@ -204,6 +203,7 @@ EVENT_DURATION_OPTS = [(i, '%.1f hour%s' % (i/2, 's' if i != 2 else '')) for i i
 
 
 EVENT_NAME_AND_YEAR = EVENT_NAME + (' {}'.format(YEAR) if YEAR else '')
+EVENT_YEAR = EPOCH.strftime('%Y')
 EVENT_MONTH = EPOCH.strftime('%B')
 EVENT_START_DAY = int(EPOCH.strftime('%d')) % 100
 EVENT_END_DAY = int(ESCHATON.strftime('%d')) % 100
