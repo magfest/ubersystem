@@ -20,30 +20,28 @@
     }
     $(staffingClicked);
 </script>
-<tr>
-    <td> <nobr><b>Age as of {{ EVENT_NAME_AND_YEAR }}:</b></nobr> </td>
-    <td>
-        <table style="border-spacing:0px ; width:auto">
-        <tr>
-            <td style="padding:0px">
-            {% if COLLECT_EXACT_BIRTHDATE %}
-                <input type="text" name="birthdate" value="{{ attendee.birthdate|date:"Y-m-d"|default:"Click to select" }}" readonly="true" class="datepicker">
-            {% else %}
-                <select name="age_group" onChange="ageGroupSelected()">
-                    {% options AGE_GROUP_OPTS attendee.age_group %}
-                </select>
-            {% endif %}
-            </td>
-            <td style="padding-left:15px">
-                <span id="age_disclaimer" style="font-style:italic">
+
+<div class="form-group">
+<label for="{% if COLLECT_EXACT_BIRTHDATE %}birthdate{% else %}age_group{% endif %}" class="col-sm-2 control-label">Age as of {{ EVENT_NAME_AND_YEAR }}:</label>
+<div class="col-sm-6">
+{% if COLLECT_EXACT_BIRTHDATE %}
+    <input type="text" class="form-control" name="birthdate" value="{{ attendee.birthdate|date:"Y-m-d"|default:"Click to select" }}" readonly="true" class="datepicker">
+{% else %}
+    <select name="age_group" class="form-control" onChange="ageGroupSelected()">
+        {% options AGE_GROUP_OPTS attendee.age_group %}
+    </select>
+{% endif %}
+</div>
+</div>
+
+    <div class="form-group">
+    <p class="help-block col-sm-6 col-sm-offset-2"><span id="age_disclaimer" style="font-style:italic">
                     {% if CONSENT_FORM_URL %}
                         Attendees under 18 <b>MUST</b> bring a signed and notarized parental
                         <nobr><a target="_blank" href="{{ CONSENT_FORM_URL }}">permission slip</a></nobr>.
                     {% endif %}
-                </span>
-            </td>
-        </tr>
-        </table>
-    </td>
-</tr>
+                </span></p>
+    </div>
+
+
 {% include "preregistration/staffing_option.html" %}

@@ -14,7 +14,7 @@
                 donationChanged();
                 var format = function(opt) {
                     if (opt.id == {{ SUPPORTER_LEVEL }} || opt.id == {{ SEASON_LEVEL }}) {
-                        return '<span class="select2-bolded">' + opt.text + '</span>';
+                        return '<span>' + opt.text + '</span>';
                     } else {
                         return opt.text;
                     }
@@ -40,41 +40,48 @@
     </script>
 
     {% if attendee.badge_type != PSEUDO_DEALER_BADGE %}
-        <tr class="extra-row">
-            <td valign="top" style="padding-top:15px"><b>Want to kick in extra?</b></td>
-            <td>
-                {% if AFTER_PRINTED_BADGE_DEADLINE and attendee.amount_extra >= SUPPORTER_LEVEL %}
+    <div class="extra-row form-group">
+    <label for="amount_extra" class="col-sm-2 control-label">Want to kick in extra?</label>
+    <div class="col-sm-6">
+      {% if AFTER_PRINTED_BADGE_DEADLINE and attendee.amount_extra >= SUPPORTER_LEVEL %}
                     {{ attendee.amount_extra_label }}
                     <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
                 {% else %}
-                    <select name="amount_extra" style="width:50%" onChange="donationChanged()" >
+                    <select name="amount_extra" onChange="donationChanged()" >
                         {% options PREREG_DONATION_OPTS attendee.amount_extra %}
                     </select>
                 {% endif %}
-                &nbsp;
-                <nobr>{% popup_link "../static_views/givingExtra.html" "Why do this?" %}</nobr>
-                <br/>
-                <font size="-2">Each level includes all lower levels.</font> <br/>
-                <font size="-2" color="red">Supporter level and higher {% if BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ SUPPORTER_DEADLINE|datetime }}.</font> 
-            </td>
-        </tr>
+    </div>
+  </div>
+    <div class="extra-row form-group">
+    <p class="help-block col-sm-6 col-sm-offset-2">{% popup_link "../static_views/givingExtra.html" "Why do this?" %}</p>
+    <p class="help-block col-sm-6 col-sm-offset-2">Each level includes all lower levels.</p>
+    <p class="help-block col-sm-6 col-sm-offset-2">Supporter level and higher {% if BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ SUPPORTER_DEADLINE|datetime }}.</p>
+    </div>
     {% endif %}
-    <tr class="badge-row extra-row" style="display:none">
-        <td> <b>Name Printed on Badge:</b> </td>
-        <td>
-            <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" {% if AFTER_PRINTED_BADGE_DEADLINE %}readonly{% endif %} />
-            {% if AFTER_PRINTED_BADGE_DEADLINE %}
-                <br/> <i>(custom badges have already been ordered, so you can no longer set this)</i>
-            {% endif %}
-        </td>
-    </tr>
-    <tr class="affiliate-row extra-row" style="display:none">
-        <td valign="top"> <b>Affiliate:</b> </td>
-        <td>
-            <input type="hidden" name="affiliate" style="width:30ex" />
-            &nbsp; <span class="popup">{% popup_link "../static_views/affiliates.html" "What's an affiliate?" %}</span>
-        </td>
-    </tr>
+
+    <div class="badge-row extra-row form-group" style="display:none">
+        <label for="badge_printed_name" class="col-sm-2 control-label">Name Printed on Badge:</label>
+        <div class="col-sm-6">
+            <input type="text" class="form-control" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" {% if AFTER_PRINTED_BADGE_DEADLINE %}readonly{% endif %} />
+        </div>
+    </div>
+    {% if AFTER_PRINTED_BADGE_DEADLINE %}
+    <div class="badge-row extra-row form-group" style="display:none">
+        <p class="help-block col-sm-6 col-sm-offset-2">(custom badges have already been ordered, so you can no longer set this)</p>
+    </div>
+    {% endif %}
+    
+
+<div class="affiliate-row extra-row form-group" style="display:none">
+    <label for="affiliate" class="col-sm-2 control-label">Affiliate:</label>
+    <div class="col-sm-6">
+        <input type="hidden" name="affiliate" style="width:30ex" />
+    </div>
+</div>
+<div class="affiliate-row extra-row form-group" style="display:none">
+    <p class="help-block col-sm-6 col-sm-offset-2 popup">{% popup_link "../static_views/affiliates.html" "What's an affiliate?" %}</p>
+</div>
 {% endif %}
 
 {% include "preregistration/shirt_selection.html" %}
