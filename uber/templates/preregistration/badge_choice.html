@@ -2,20 +2,36 @@
 {% block title %}Choose a Badge Type{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
+<div class="masthead">
+</div>
 
-<style type="text/css">
-    table.badges {
-        border-spacing: 0px;
-        border-collapse: collapse;
-    }
-    table.badges td {
-        padding: 5px;
-        border: 1px solid black;
-    }
-    table.badges td.nobr {
-        white-space: nowrap;
-    }
-</style>
+<div class="panel panel-default">
+<div class="row bs-wizard" style="border-bottom:0;border-top:0;">   
+    <div class="col-xs-3 bs-wizard-step complete">
+      <div class="text-center bs-wizard-stepnum">Step 1</div>
+      <div class="progress"><div class="progress-bar"></div></div>
+      <a class="bs-wizard-dot"></a>
+      <div class="bs-wizard-info text-center">Choose A Badge</div>
+    </div>  
+    <div class="col-xs-3 bs-wizard-step active">
+      <div class="text-center bs-wizard-stepnum">Step 2</div>
+      <div class="progress"><div class="progress-bar"></div></div>
+      <a class="bs-wizard-dot"></a>
+      <div class="bs-wizard-info text-center">Enter Info</div>
+    </div> 
+    <div class="col-xs-3 bs-wizard-step disabled">
+      <div class="text-center bs-wizard-stepnum">Step 3</div>
+      <div class="progress"><div class="progress-bar"></div></div>
+      <a class="bs-wizard-dot"></a>
+      <div class="bs-wizard-info text-center">Payment</div>
+    </div>
+    <div class="col-xs-3 bs-wizard-step disabled">
+      <div class="text-center bs-wizard-stepnum">Step 4</div>
+      <div class="progress"><div class="progress-bar"></div></div>
+      <a class="bs-wizard-dot"></a>
+      <div class="bs-wizard-info text-center">Done</div>
+    </div>
+</div>
 
 <script type="text/javascript">
     $(function(){
@@ -43,7 +59,6 @@
     };
 </script>
 
-<h2 style="margin-top:10px"> Choose a Badge </h2>
 <form method="post" id="badgechoice" action="form">
 
 <table class="badges">

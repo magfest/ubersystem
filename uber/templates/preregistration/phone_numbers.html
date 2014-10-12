@@ -1,30 +1,23 @@
-<tr>
-    <td> <b>Emergency Contact <br/> Phone Number:</b> </td>
-    <td>
-        <table style="border-spacing:0px ; width:auto">
-        <tr>
-            <td style="padding:0px">
-                <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" />
-            </td>
-            <td style="padding-left:15px">
-                <i>The person we should call if something happens to you.</i>
-            </td>
-        </tr>
-        </table>
-    </td>
-</tr>
-<tr>
-    <td id="phone"> <i>Your</i> Cellphone Number: </td>
-    <td>
-        <table style="border-spacing:0px ; width:auto">
-        <tr>
-            <td style="padding:0px">
-                <input type="text" name="cellphone" value="{{ attendee.cellphone }}" />
-            </td>
-            <td style="padding-left:15px">
-                <span id="nophone">{% checkbox attendee.no_cellphone %} I don't own a cellphone</span>
-            </td>
-        </tr>
-        </table>
-    </td>
-</tr>
+  <div class="form-group">
+    <label for="ec_phone" class="col-sm-2 control-label">Emergency Contact Phone Number</label>
+    <div class="col-sm-6">
+      <input type="text" name="ec_phone" id="ec_phone" value="{{ attendee.ec_phone }}" class="form-control" placeholder="Emergency Contact Phone">
+    </div>
+    </div>
+    <div class="form-group">
+    <p class="help-block col-sm-6 col-sm-offset-2">The person we should call if something happens to you.</p>
+    </div>
+  <div class="form-group">
+    <label for="cellphone" class="col-sm-2 control-label">Your Cellphone Number:</label>
+    <div class="col-sm-6">
+      <input type="text" name="cellphone" id="cellphone" value="{{ attendee.cellphone }}" class="form-control" placeholder="Your Cellphone Number">
+    </div>
+    </div>
+    <div class="form-group">
+    <div class="checkbox col-sm-6 col-sm-offset-2">
+    <label>
+    {% checkbox attendee.no_cellphone %}
+    I don't own a cellphone.
+    </label>
+    </div>
+  </div>

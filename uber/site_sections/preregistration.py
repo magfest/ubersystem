@@ -68,30 +68,27 @@ class Root:
     @check_if_can_reg
     def index(self, message=''):
         if not self.unpaid_preregs:
-            raise HTTPRedirect('badge_choice?message={}', message) if message else HTTPRedirect('badge_choice')
+            raise HTTPRedirect('form?message={}', message) if message else HTTPRedirect('form')
         else:
             return {
                 'message': message,
                 'charge': Charge(listify(self.unpaid_preregs.values()))
             }
-            
+              
     @check_if_can_reg
-    def badge_choice(self, message=''):
-        return {'message': message}
+    def dealer_registration(self, message=''):
+        return self.form(badge_type=2)
 
     @check_if_can_reg
-    def form(self, session, message='', edit_id=None, **params):
+    def form(self, session, message='', edit_id=None, badge_type=ATTENDEE_BADGE, **params):
         if MODE == 'magstock':
             if params.get('buy_shirt') != 'on':
                 params['shirt'] = NO_SHIRT
                 params['shirt_color'] = NO_SHIRT
 
-        if 'badge_type' not in params and edit_id is None:
-            raise HTTPRedirect('badge_choice?message={}', 'You must select a badge type')
-
         params['id'] = 'None'   # security!
         if edit_id is not None:
-            attendee, group = self._get_unsaved(edit_id, if_not_found=HTTPRedirect('badge_choice?message={}', 'That preregistration has already been finalized'))
+            attendee, group = self._get_unsaved(edit_id, if_not_found=HTTPRedirect('form?message={}', 'That preregistration has already been finalized'))
             attendee.apply(params, bools=_checkboxes)
             group.apply(params)
             params.setdefault('badges', group.badges)
@@ -100,7 +97,10 @@ class Root:
             group = session.group(params, ignore_csrf=True, restricted=True)
 
         if attendee.badge_type not in state.PREREG_BADGE_TYPES:
-            raise HTTPRedirect('badge_choice?message={}', 'Dealer registration is not open' if attendee.is_dealer else 'Invalid badge type')
+            raise HTTPRedirect('form?message={}', 'Invalid badge type!')
+            
+        if attendee.is_dealer and not state.DEALER_REG_OPEN:
+            return render('static_views/dealer_reg_closed.html') if state.AFTER_DEALER_REG_SHUTDOWN else render('static_views/dealer_reg_not_open.html')
             
         if 'first_name' in params:
             message = check(attendee) or check_prereg_reqs(attendee)
