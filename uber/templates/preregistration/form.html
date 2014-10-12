@@ -6,6 +6,13 @@
 </div>
 
 <script>
+
+{% if edit_id %}
+$(document).ready(function(){
+  
+});
+{% endif %}
+
 function setBadge(badgeType) {
         $(".badge_type_selector").removeClass("active");
         $(".group_fields").addClass("hide");
@@ -71,19 +78,7 @@ function setBadge(badgeType) {
   </a>
   </div>
 
-  <div class="col-sm-2">
-  <a id="featured1_select" onclick="setBadge('Featured1')" class="list-group-item badge_type_selector">
-    <h4 class="list-group-item-heading">Supporter</h4>
-    <p class="list-group-item-text">Get extra swag!</p>
-  </a>
-  </div>
-  <div class="col-sm-2">
-  <a id="featured2_select" onclick="setBadge('Featured2')" class="list-group-item badge_type_selector">
-    <h4 class="list-group-item-heading">Season Supporter</h4>
-    <p class="list-group-item-text">Extra swag for all our events this year!</p>
-  </a>
-  </div>
-
+{% if GROUPS_ENABLED %}
   <div class="col-sm-2 {% if not BEFORE_GROUP_PREREG_TAKEDOWN %}disabled{% endif %}">
   <a id="group_select" {% if BEFORE_GROUP_PREREG_TAKEDOWN %}onclick="setBadge('Group')"{% endif %} class="list-group-item badge_type_selector">
     <h4 class="list-group-item-heading">Group Leader</h4>
@@ -94,6 +89,25 @@ function setBadge(badgeType) {
     {% endif %}
   </a>
   </div>
+{% endif %}
+
+{% if SUPPORTERS_ENABLED %}
+  <div class="col-sm-2">
+  <a id="featured1_select" onclick="setBadge('Featured1')" class="list-group-item badge_type_selector">
+    <h4 class="list-group-item-heading">Supporter</h4>
+    <p class="list-group-item-text">Get extra swag!</p>
+  </a>
+  </div>
+{% endif %}
+
+{% if SEASON_SUPPORTERS_ENABLED %}
+  <div class="col-sm-2">
+  <a id="featured2_select" onclick="setBadge('Featured2')" class="list-group-item badge_type_selector">
+    <h4 class="list-group-item-heading">Season Supporter</h4>
+    <p class="list-group-item-text">Extra swag for all our events this year!</p>
+  </a>
+  </div>
+{% endif %}
 
 </div>
 </div>
