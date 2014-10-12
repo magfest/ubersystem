@@ -5,28 +5,50 @@
 <div class="masthead">
 </div>
 
+<script>
+function setBadge(badgeType) {
+        $(".badge_type_selector").removeClass("active");
+        $(".group_fields").addClass("hide");
+        if (badgeType == 'Attendee') {
+            $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}");
+            $("#attendee_select").addClass("active"); 
+            $.field("amount_extra").val('0').trigger("change");
+        }
+        if (badgeType == 'Group') {
+            $("input[name='badge_type']").val("{{ PSEUDO_GROUP_BADGE }}");
+            $(".group_fields").removeClass("hide");
+            $("#group_select").addClass("active");
+            $.field("amount_extra").val('0').trigger("change");
+        }
+        if (badgeType == 'Featured1') {
+            $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}");
+            $("#featured1_select").addClass("active");
+            $.field("amount_extra").val('60').trigger("change");
+        }
+        if (badgeType == 'Featured2') {
+            $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}");
+            $("#featured2_select").addClass("active");
+            $.field("amount_extra").val('160').trigger("change");
+        }
+    }
+</script>
+
 <div class="panel panel-default">
 <div class="row bs-wizard" style="border-bottom:0;border-top:0;">   
-    <div class="col-xs-3 bs-wizard-step complete">
+    <div class="col-xs-4 bs-wizard-step active">
       <div class="text-center bs-wizard-stepnum">Step 1</div>
-      <div class="progress"><div class="progress-bar"></div></div>
-      <a class="bs-wizard-dot"></a>
-      <div class="bs-wizard-info text-center">Choose A Badge</div>
-    </div>  
-    <div class="col-xs-3 bs-wizard-step active">
-      <div class="text-center bs-wizard-stepnum">Step 2</div>
       <div class="progress"><div class="progress-bar"></div></div>
       <a class="bs-wizard-dot"></a>
       <div class="bs-wizard-info text-center">Enter Info</div>
     </div> 
-    <div class="col-xs-3 bs-wizard-step disabled">
-      <div class="text-center bs-wizard-stepnum">Step 3</div>
+    <div class="col-xs-4 bs-wizard-step disabled">
+      <div class="text-center bs-wizard-stepnum">Step 2</div>
       <div class="progress"><div class="progress-bar"></div></div>
       <a class="bs-wizard-dot"></a>
-      <div class="bs-wizard-info text-center">Payment</div>
+      <div class="bs-wizard-info text-center">Review &amp; Pay</div>
     </div>
-    <div class="col-xs-3 bs-wizard-step disabled">
-      <div class="text-center bs-wizard-stepnum">Step 4</div>
+    <div class="col-xs-4 bs-wizard-step disabled">
+      <div class="text-center bs-wizard-stepnum">Step 3</div>
       <div class="progress"><div class="progress-bar"></div></div>
       <a class="bs-wizard-dot"></a>
       <div class="bs-wizard-info text-center">Done</div>
@@ -41,28 +63,65 @@
 
 <div class="form-group">
 <label for="badge" class="col-sm-2 control-label">Badge</label>
-<p class="help-block col-sm-6">
-{% if attendee.badge_type == PSEUDO_GROUP_BADGE %}
-            Group Registration
-        {% elif attendee.badge_type == PSEUDO_DEALER_BADGE %}
-            Dealer Application
-        {% else %}
-            {{ attendee.badge_type_label }}
-            {% if badge_type == ATTENDEE %}
-                (${{ BADGE_PRICE }})
-            {% endif %}
-        {% endif %}
-</p>
+<div class="list-group">
+  <div class="col-sm-2">
+  <a id="attendee_select" onclick="setBadge('Attendee')" class="list-group-item badge_type_selector active">
+    <h4 class="list-group-item-heading">Attendee</h4>
+    <p class="list-group-item-text">Register a single attendee.</p>
+  </a>
+  </div>
+
+  <div class="col-sm-2">
+  <a id="featured1_select" onclick="setBadge('Featured1')" class="list-group-item badge_type_selector">
+    <h4 class="list-group-item-heading">Supporter</h4>
+    <p class="list-group-item-text">Get extra swag!</p>
+  </a>
+  </div>
+  <div class="col-sm-2">
+  <a id="featured2_select" onclick="setBadge('Featured2')" class="list-group-item badge_type_selector">
+    <h4 class="list-group-item-heading">Season Supporter</h4>
+    <p class="list-group-item-text">Extra swag for all our events this year!</p>
+  </a>
+  </div>
+
+  <div class="col-sm-2 {% if not BEFORE_GROUP_PREREG_TAKEDOWN %}disabled{% endif %}">
+  <a id="group_select" {% if BEFORE_GROUP_PREREG_TAKEDOWN %}onclick="setBadge('Group')"{% endif %} class="list-group-item badge_type_selector">
+    <h4 class="list-group-item-heading">Group Leader</h4>
+    {% if BEFORE_GROUP_PREREG_TAKEDOWN %}
+    <p class="list-group-item-text">Register a group of 8 or more at discounted rates.</p>
+    {% else %}
+    <p class="list-group-item-text">The deadline for Group registration has passed, but you can still register as a regular attendee.</p>
+    {% endif %}
+  </a>
+  </div>
+
+</div>
 </div>
 
-{% if attendee.is_dealer or attendee.badge_type == PSEUDO_GROUP_BADGE %}
-    <tr>
-        <td><b><nobr>{{ attendee.is_dealer|yesno:"Business,Group" }} Name:</nobr></b></td>
-        <td> <input type="text" class="focus" name="name" value="{{ group.name }}" /> </td>
-    </tr>
-{% endif %}
+<div class="group_fields hide">
+    <div class="form-group">
+    <label for="name" class="col-sm-2 control-label">Group Name</label>
+    <div class="col-sm-6">
+      <input type="text" name="name" class="form-control" value="{{ group.name }}" />
+    </div>
+    </div>
+</div>
+
+<div class="group_fields hide">
+    <div class="form-group">
+    <label for="name" class="col-sm-2 control-label">Badges</label>
+    <div class="col-sm-6">
+      <select name="badges" class="form-control">{% int_options MIN_GROUP_SIZE MAX_GROUP_SIZE badges %}</select>
+            (${{ GROUP_PRICE }} each)
+    </div>
+    </div>
+</div>
 
 {% if attendee.is_dealer %}
+    <tr>
+        <td><b><nobr>Business Name:</nobr></b></td>
+        <td> <input type="text" class="focus" name="name" value="{{ group.name }}" /> </td>
+    </tr>
     <tr class="dealer">
         <td><b>Tables:</b></td>
         <td>
@@ -72,24 +131,14 @@
             <nobr>[<i>You may <a href="mailto:marketplace@magfest.org">send an email</a> to request more than {{ MAX_TABLES }} tables.</i>]</nobr>
         </td>
     </tr>
-{% endif %}
-
-{% if attendee.is_dealer or attendee.badge_type == PSEUDO_GROUP_BADGE %}
-    <tr>
+    <tr id="dealer_badges">
         <td><b>Badges:</b></td>
         <td>
-            {% if attendee.is_dealer %}
+            
                 <select name="badges">{% int_options 1 MAX_DEALERS badges %}</select>
                 (${{ DEALER_BADGE_PRICE }} each) &nbsp;&nbsp; <nobr>[<i>The number of people working your table.</i>]</nobr>
-            {% else %}
-                <select name="badges">{% int_options MIN_GROUP_SIZE MAX_GROUP_SIZE badges %}</select>
-                (${{ GROUP_PRICE }} each)
-            {% endif %}
         </td>
     </tr>
-{% endif %}
-
-{% if attendee.is_dealer %}
     <tr class="dealer">
         <td>
             <b>Address</b>
@@ -126,6 +175,7 @@
         <td> <textarea name="special_needs" rows="4" cols="30">{{ group.special_needs }}</textarea> </td>
     </tr>
 {% endif %}
+
 <div class="form-group">
     <label for="first_name" class="col-sm-2 control-label">First Name</label>
     <div class="col-sm-6">
