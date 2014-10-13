@@ -159,8 +159,11 @@ MarketplaceEmail('{EVENT_NAME} Dealer waitlist has been exhausted', 'dealers/wai
 # creates a "placeholder" registration.
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Panelist Badge Confirmation', 'placeholders/panelist.txt',
-               lambda a: a.placeholder and a.first_name and a.last_name
-                                       and (a.badge_type == GUEST_BADGE or a.ribbon == PANELIST_RIBBON),
+               lambda a: a.placeholder and a.first_name and a.last_name and a.ribbon == PANELIST_RIBBON,
+               sender = PANELS_EMAIL)
+
+AutomatedEmail(Attendee, '{EVENT_NAME} Guest Badge Confirmation', 'placeholders/guest.txt',
+               lambda a: a.placeholder and a.first_name and a.last_name and a.badge_type == GUEST_BADGE,
                sender = PANELS_EMAIL)
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Dealer Information Required', 'placeholders/dealer.txt',
