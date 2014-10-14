@@ -63,6 +63,9 @@ def attendee_misc(attendee):
     elif attendee.placeholder:
         return
 
+    if COLLECT_EXACT_BIRTHDATE and attendee.birthdate == 'Click to select':
+        return 'Please select a birthdate.'
+
     if (AT_THE_CON and attendee.email and not re.match(EMAIL_RE, attendee.email)) or (not AT_THE_CON and not re.match(EMAIL_RE, attendee.email)):
         return 'Enter a valid email address'
 
@@ -81,9 +84,6 @@ def attendee_misc(attendee):
 
     if not attendee.can_volunteer and attendee.staffing and attendee.badge_type != STAFF_BADGE and PRE_CON:
         return "Volunteers cannot be " + attendee.calculated_age_group.desc
-        
-    if COLLECT_EXACT_BIRTHDATE and attendee.birthdate == 'Click to select':
-        return 'Please select a birthdate.'
     
     if not attendee.can_register:
         return 'Attendees cannot be ' + age_group.desc
