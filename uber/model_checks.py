@@ -54,6 +54,9 @@ def group_paid(group):
 def _invalid_phone_number(s):
     return s.startswith('+') or len(re.findall(r'\d', s)) != 10
 
+def _invalid_zip_code(s):
+    return not len(re.findall(r'\d', s)) != 5 and not len(re.findall(r'\d', s)) != 9
+
 def attendee_misc(attendee):
     if attendee.group_id and not attendee.first_name.strip() and not attendee.last_name.strip():
         return
@@ -72,7 +75,7 @@ def attendee_misc(attendee):
         return 'Enter a valid email address'
 
     if not attendee.international and not AT_THE_CON:
-        if not re.match(r'^\d{5}$', attendee.zip_code):
+        if _invalid_zip_code(attendee.zip_code):
             return 'Enter a valid zip code'
 
         if _invalid_phone_number(attendee.ec_phone):
