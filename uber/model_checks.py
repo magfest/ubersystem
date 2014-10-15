@@ -55,7 +55,7 @@ def _invalid_phone_number(s):
     return s.startswith('+') or len(re.findall(r'\d', s)) != 10
 
 def _invalid_zip_code(s):
-    return not len(re.findall(r'\d', s)) != 5 and not len(re.findall(r'\d', s)) != 9
+    return len(re.findall(r'\d', s)) not in [5, 9]
 
 def attendee_misc(attendee):
     if attendee.group_id and not attendee.first_name.strip() and not attendee.last_name.strip():
