@@ -68,7 +68,7 @@ def attendee_misc(attendee):
 
     if COLLECT_EXACT_BIRTHDATE and attendee.birthdate == 'Click to select':
         return 'Please select a birthdate.'
-    if COLLECT_EXACT_BIRTHDATE and attendee.birthdate > datetime.now():
+    if COLLECT_EXACT_BIRTHDATE and attendee.birthdate > date.today():
         return 'You cannot be born in the future.'
 
     if (AT_THE_CON and attendee.email and not re.match(EMAIL_RE, attendee.email)) or (not AT_THE_CON and not re.match(EMAIL_RE, attendee.email)):

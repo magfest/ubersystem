@@ -173,7 +173,7 @@ class MagModel:
                     elif isinstance(column.type, UTCDateTime):
                         value = EVENT_TIMEZONE.localize(datetime.strptime(value, TIMESTAMP_FORMAT))
                     elif isinstance(column.type, Date):
-                        value = datetime.strptime(value, DATE_FORMAT)
+                        value = datetime.strptime(value, DATE_FORMAT).date()
                 except:
                     pass
 
