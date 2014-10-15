@@ -25,7 +25,7 @@
 <label for="{% if COLLECT_EXACT_BIRTHDATE %}birthdate{% else %}age_group{% endif %}" class="col-sm-2 control-label">Age as of {{ EVENT_NAME_AND_YEAR }}:</label>
 <div class="col-sm-6">
 {% if COLLECT_EXACT_BIRTHDATE %}
-    <input type="text" class="form-control" name="birthdate" value="{{ attendee.birthdate|date:"Y-m-d"|default:"Click to select" }}" readonly="true" class="datepicker">
+                    <input type='text' class="form-control date" name="birthdate" value="{{ attendee.birthdate|date:"Y-m-d"|default:"Click to select"}} "/>
 {% else %}
     <select name="age_group" class="form-control" onChange="ageGroupSelected()">
         {% options AGE_GROUP_OPTS attendee.age_group %}
