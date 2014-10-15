@@ -624,6 +624,12 @@ class Attendee(MagModel, TakesPaymentMixin):
             return session.age_group_from_birthdate(self.birthdate).consent_form
 
     @property
+    def age_group_desc(self):
+        if self.age_group: return self.age_group.desc
+        with Session() as session:
+            return session.age_group_from_birthdate(self.birthdate).desc
+
+    @property
     def banned(self):
         return self.full_name in BANNED_ATTENDEES
 

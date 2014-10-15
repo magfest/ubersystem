@@ -85,10 +85,10 @@ def attendee_misc(attendee):
         return "10-digit cellphone number is required for volunteers (unless you don't own a cellphone)"
 
     if not attendee.can_volunteer and attendee.staffing and attendee.badge_type != STAFF_BADGE and PRE_CON:
-        return "Volunteers cannot be " + attendee.calculated_age_group.desc
+        return "Volunteers cannot be " + attendee.age_group_desc
     
     if not attendee.can_register:
-        return 'Attendees cannot be ' + age_group.desc
+        return 'Attendees cannot be ' + attendee.age_group_desc
 
 
 def attendee_leadership(attendee):
