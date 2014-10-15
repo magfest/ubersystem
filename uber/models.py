@@ -1203,8 +1203,8 @@ class Session(SessionManager):
             
         def age_group_from_birthdate(self, birthdate):
             if not birthdate: return None
-            calc_date = EPOCH if localized_now() <= EPOCH else localized_now()
-            attendee_age = int((datetime.date(calc_date) - datetime.date(birthdate)).days / 365.2425)
+            calc_date = EPOCH.date() if date.today() <= EPOCH.date() else date.today()
+            attendee_age = int((calc_date - birthdate).days / 365.2425)
 
             age_groups = self.query(AgeGroup)
             for current_age_group in age_groups:
