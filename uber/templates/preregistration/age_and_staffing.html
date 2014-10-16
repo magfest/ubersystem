@@ -25,7 +25,7 @@
 {% if COLLECT_EXACT_BIRTHDATE %}
 <label for="birthdate" class="col-sm-2 control-label">Birthdate:</label>
 <div class="col-sm-6">
-                    <input type='text' class="form-control date" name="birthdate" value="{{ attendee.birthdate|date:"m/d/Y"|default:"Click to select"}} "/>
+                    <input type='text' class="form-control date" name="birthdate" value="{{ attendee.birthdate|date:"Y-m-d"}} "/>
 </div>
 {% else %}
 <label for="age_group" class="col-sm-2 control-label">Age as of {{ EVENT_NAME }}:</label>
