@@ -183,7 +183,7 @@
         <input type="text" style="width:10em" name="last_name"  value="{{ attendee.last_name }}"  />
     </td>
 </tr>
-{% if attendee.badge_type == STAFF_BADGE or attendee.badge_type == SUPPORTER_BADGE %}
+{% if attendee.badge_type in PREASSIGNED_BADGE_TYPES %}
     <tr>
         <td>Printed on Badge:</td>
         <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" {% if CUSTOM_BADGES_REALLY_ORDERED %}readonly{% endif %} /> </td>

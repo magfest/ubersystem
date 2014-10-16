@@ -662,7 +662,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def has_personalized_badge(self):
-        return self.badge_type in [STAFF_BADGE, SUPPORTER_BADGE]
+        return self.badge_type in PREASSIGNED_BADGE_TYPES
 
     @property
     def donation_swag(self):

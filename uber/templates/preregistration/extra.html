@@ -3,7 +3,7 @@
         var donationChanged = function() {
             setVisible(".affiliate-row", $.val("amount_extra") > 0);
             setVisible(".shirt-row", $.val("amount_extra") >= {{ SHIRT_LEVEL }});
-            {% if attendee.badge_type == STAFF_BADGE %}
+            {% if attendee.badge_type in PREASSIGNED_BADGE_TYPES %}
                 setVisible(".badge-row", true);
             {% else %}
                 setVisible(".badge-row", $.val("amount_extra") >= {{ SUPPORTER_LEVEL }});
