@@ -208,7 +208,7 @@
     {% if COLLECT_EXACT_BIRTHDATE %}
     <td> <nobr>{% bold_if AT_THE_CON %}Birthdate:{% end_bold_if %}</nobr> </td>
     <td>
-        <input type="text" name="birthdate" value="{{ attendee.birthdate|date:"m/d/Y"|default:"Click to select" }}" readonly="true" class="datepicker">
+        <input type="text" name="birthdate" value="{{ attendee.birthdate|date:"Y-m-d" }}" class="form-control date">
     </td>
     {% else %}
     <td> <nobr>{% bold_if AT_THE_CON %}Age as of {{ EVENT_NAME }}:{% end_bold_if %}</nobr> </td>
