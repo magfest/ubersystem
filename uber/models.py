@@ -173,7 +173,7 @@ class MagModel:
                     elif isinstance(column.type, UTCDateTime):
                         value = EVENT_TIMEZONE.localize(datetime.strptime(value, TIMESTAMP_FORMAT))
                     elif isinstance(column.type, Date):
-                        value = datetime.strptime(value, DATE_FORMAT)
+                        value = datetime.strptime(value, DATE_FORMAT).date()
                 except:
                     pass
 
@@ -622,6 +622,12 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.age_group: return self.age_group.consent_form
         with Session() as session:
             return session.age_group_from_birthdate(self.birthdate).consent_form
+
+    @property
+    def age_group_desc(self):
+        if self.age_group: return self.age_group.desc
+        with Session() as session:
+            return session.age_group_from_birthdate(self.birthdate).desc
 
     @property
     def banned(self):
@@ -1197,8 +1203,8 @@ class Session(SessionManager):
             
         def age_group_from_birthdate(self, birthdate):
             if not birthdate: return None
-            calc_date = EPOCH if localized_now() <= EPOCH else localized_now()
-            attendee_age = int((datetime.date(calc_date) - datetime.date(birthdate)).days / 365.2425)
+            calc_date = EPOCH.date() if date.today() <= EPOCH.date() else date.today()
+            attendee_age = int((calc_date - birthdate).days / 365.2425)
 
             age_groups = self.query(AgeGroup)
             for current_age_group in age_groups:
