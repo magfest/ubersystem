@@ -193,20 +193,59 @@
     <td class="maybe_bold" id="email"> Email Address: </td>
     <td> <input type="text" name="email" value="{{ attendee.email }}" /> </td>
 </tr>
+{% if COLLECT_FULL_ADDRESS %}
+    <tr>
+        <td class="maybe_bold" id="address">Address</td>
+        <td>
+            <input type="text" name="address1" placeholder="Address Line 1" value="{{ attendee.address1 }}" />
+        </td>
+    </tr>
+    <tr>
+        <td class="maybe_bold"></td>
+        <td>
+            <input type="text" name="address2" placeholder="Address Line 2" value="{{ attendee.address2 }}" />
+        </td>
+    </tr>
+    <tr>
+        <td class="maybe_bold">City</td>
+        <td>
+            <input type="text" name="city" placeholder="City" value="{{ attendee.city }}" />
+        </td>
+    </tr>
+    <tr>
+        <td class="maybe_bold">State</td>
+        <td>
+            <input type="text" name="region" placeholder="State/Province/Region" value="{{ attendee.region }}" />
+        </td>
+    </tr>
+    <tr>
+        <td class="maybe_bold">Postal Code</td>
+        <td>
+            <input type="text" name="zip_code" placeholder="ZIP/Postal Code" value="{{ attendee.zip_code }}" />
+        </td>
+    </tr>
+    <tr>
+        <td class="maybe_bold">Country</td>
+        <td>
+             <input type="text" name="country" placeholder="Country" value="{{ attendee.country }}" />
+        </td>
+    </tr>
+{% else %}
 <tr>
-    <td class="maybe_bold" id="zip_code"> Zip Code: </td>
+    <td class="maybe_bold" id="zip_code">Zip Code: </td>
     <td>
         <input type="text" name="zip_code" value="{{ attendee.zip_code }}" />
         {% checkbox attendee.international %} Attendee is from outside the US.
     </td>
 </tr>
+{% endif %}
 <tr>
     <td class="maybe_bold"> <nobr>Emergency Contact</nobr> <nobr>Phone Number:</nobr> </td>
     <td> <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" /> </td>
 </tr>
 <tr>
     {% if COLLECT_EXACT_BIRTHDATE %}
-    <td> <nobr>{% bold_if AT_THE_CON %}Birthdate:{% end_bold_if %}</nobr> </td>
+    <td> <nobr>{% bold_if AT_THE_CON %}Date of Birth:{% end_bold_if %}</nobr> </td>
     <td>
         <input type="text" name="birthdate" value="{{ attendee.birthdate|date:"Y-m-d" }}" class="form-control date">
     </td>
