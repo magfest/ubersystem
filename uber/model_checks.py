@@ -81,6 +81,9 @@ def attendee_misc(attendee):
         if not attendee.country:
             return 'Enter your country.'
 
+    if len(attendee.email) > 255:
+        return 'Email addresses cannot be longer than 255 characters.'
+
     if (AT_THE_CON and attendee.email and not re.match(EMAIL_RE, attendee.email)) or (not AT_THE_CON and not re.match(EMAIL_RE, attendee.email)):
         return 'Enter a valid email address'
 
