@@ -385,7 +385,7 @@ class stripe_form(template.Node):
 
         email = ""
         if charge.targets:
-            email = charge.models[0].email
+            email = charge.models[0].email[:255]
 
         if not charge.targets:
             regtext = 'On-Site Charge'

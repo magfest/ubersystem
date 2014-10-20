@@ -66,7 +66,7 @@ def attendee_misc(attendee):
     elif attendee.placeholder:
         return
 
-    if COLLECT_EXACT_BIRTHDATE and attendee.birthdate == 'Click to select':
+    if COLLECT_EXACT_BIRTHDATE and attendee.birthdate == '':
         return 'Enter your date of birth.'
     if COLLECT_EXACT_BIRTHDATE and attendee.birthdate > date.today():
         return 'You cannot be born in the future.'
@@ -83,6 +83,9 @@ def attendee_misc(attendee):
             return 'Enter your state, province, or region.'
         if not attendee.country:
             return 'Enter your country.'
+
+    if len(attendee.email) > 255:
+        return 'Email addresses cannot be longer than 255 characters.'
 
     if (AT_THE_CON and attendee.email and not re.match(EMAIL_RE, attendee.email)) or (not AT_THE_CON and not re.match(EMAIL_RE, attendee.email)):
         return 'Enter a valid email address'
