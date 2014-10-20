@@ -71,6 +71,9 @@ def attendee_misc(attendee):
     if COLLECT_EXACT_BIRTHDATE and attendee.birthdate > date.today():
         return 'You cannot be born in the future.'
 
+    if not attendee.age_group:
+        return 'Invalid age group. Please contact us about this error at ' + ADMIN_EMAIL + '.'
+
     if COLLECT_FULL_ADDRESS:
         if not attendee.address1:
             return 'Enter your street address.'
