@@ -1,0 +1,77 @@
+{% extends "base-admin.html" %}
+{% block title %}Department Checklist{% endblock %}
+{% block content %}
+
+<style type="text/css">
+    img {
+        height: 24px;
+        width: 24px;
+    }
+    tbody {
+        border: 3px solid black;
+    }
+    th div {
+        width: 1.2em;
+        display: block;
+        white-space: nowrap;
+        filter: flipv fliph;
+        writing-mode: tb-rl;
+        -webkit-transform: rotate(-90deg);
+        -moz-transform: rotate(-90deg);
+        -ms-transform: rotate(-90deg);
+        -o-transform: rotate(-90deg);
+        transform: rotate(-90deg);
+    }
+    .dept-head {
+        padding-right: 25px;
+    }
+    .dept {
+        text-align: center;
+        padding-top: 25px;
+        font-weight: bold;
+        font-style: italic;
+        text-decoration: underline;
+    }
+</style>
+
+<h2>Department Checklist</h2>
+
+<br/> <img src="../static/images/x.png" /> Department head has missed deadline for this step
+<br/> <img src="../static/images/warn.jpg" /> Deadline is approaching and step isn't yet complete
+<br/> <img src="../static/images/checkbox_checked.png" /> Department head has marked this step as complete
+<br/> <img src="../static/images/checkbox_unchecked.png" /> Department head hasn't yet completed this step, but the deadline isn't close
+<div style="height:{{ max_name_length|add:2 }}ex">&nbsp;</div>
+
+<table style="width:auto">
+<tr>
+    <th><div>Department Head</div></th>
+    {% for conf in checklist %}
+        <th><div>{{ conf.name }}</div></th>
+    {% endfor %}
+</tr>
+<tbody>
+{% for dept, dept_name, heads in overview %}
+    <tr><td colspan="checklist|length|add:1" class="dept">{{ dept_name }}</td></tr>
+    {% for attendee, items in heads %}
+        <tr>
+            <td class="dept-head"><a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a></td>
+            {% for item in items %}
+                <td>
+                    {% if item.done %}
+                        <img title="{{ item.name }}" src="../static/images/checkbox_checked.png" />
+                    {% elif item.approaching %}
+                        <img title="{{ item.name }}" src="../static/images/warn.jpg" />
+                    {% elif item.missed %}
+                        <img title="{{ item.name }}" src="../static/images/x.png" />
+                    {% else %}
+                        <img title="{{ item.name }}" src="../static/images/checkbox_unchecked.png" />
+                    {% endif %}
+                </td>
+            {% endfor %}
+        </tr>
+    {% endfor %}
+{% endfor %}
+</tbody>
+</table>
+
+{% endblock %}

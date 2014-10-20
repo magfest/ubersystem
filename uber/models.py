@@ -642,6 +642,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         return comma_and(stuff)
 
     @property
+    def is_single_dept_head(self):
+        return self.is_dept_head and len(self.assigned_depts_ints) == 1
+
+    @property
     def multiply_assigned(self):
         return len(self.assigned_depts_ints) > 1
 
@@ -770,7 +774,7 @@ class AdminAccount(MagModel):
     def admin_name():
         try:
             with Session() as session:
-                return session.admin_account(cherrypy.session['account_id']).attendee.full_name
+                return session.admin_attendee().full_name
         except:
             return None
 
@@ -859,6 +863,16 @@ class RoomAssignment(MagModel):
 
 class NoShirt(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
+
+class DeptChecklistItem(MagModel):
+    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    attendee    = relationship(Attendee, backref='dept_checklist_items', cascade='delete')
+    slug        = Column(UnicodeText)
+    comments    = Column(UnicodeText, default='')
+
+    __table_args__ = (
+        UniqueConstraint('attendee_id', 'slug', name='_dept_checklist_item_uniq'),
+    )
 
 
 class Job(MagModel):
@@ -1143,6 +1157,9 @@ class Session(SessionManager):
             return self.filter(*[func.lower(getattr(self.model, attr)) == func.lower(val) for attr, val in filters.items()])
 
     class SessionMixin:
+        def admin_attendee(self):
+            return self.admin_account(cherrypy.session['account_id']).attendee
+
         def logged_in_volunteer(self):
             return self.attendee(cherrypy.session['staffer_id'])
 

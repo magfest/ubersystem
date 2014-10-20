@@ -57,7 +57,12 @@ class Order:
         return self.order
 
 
-class SeasonEvent:
+class Registry:
+    @classmethod
+    def register(cls, slug, kwargs):
+        cls.instances[slug] = cls(slug, **kwargs)
+
+class SeasonEvent(Registry):
     instances = OrderedDict()
 
     def __init__(self, slug, **kwargs):
@@ -75,12 +80,25 @@ class SeasonEvent:
         else:
             self.deadline = (self.day - timedelta(days = 7)).replace(hour=23, minute=59)
 
-    @classmethod
-    def register(cls, slug, kwargs):
-        cls.instances[slug] = cls(slug, **kwargs)
+class DeptChecklistConf(Registry):
+    instances = OrderedDict()
+
+    def __init__(self, slug, description, deadline, name=None, path=None):
+        assert re.match('^[a-z0-9_]+$', slug), 'Dept Head checklist item sections must have separated_by_underscore names'
+        self.slug, self.description = slug, description
+        self.name = name or slug.replace('_', ' ').title()
+        self.path = path or '/dept_checklist/form?slug={}'.format(slug)
+        self.deadline = EVENT_TIMEZONE.localize(datetime.strptime(deadline, '%Y-%m-%d')).replace(hour=23, minute=59)
+
+    def completed(self, attendee):
+        return self.slug in {item.slug for item in attendee.dept_checklist_items}
+
 
 for _slug, _conf in SEASON_EVENTS.items():
     SeasonEvent.register(_slug, _conf)
+
+for _slug, _conf in DEPT_HEAD_CHECKLIST.items():
+    DeptChecklistConf.register(_slug, _conf)
 
 
 def hour_day_format(dt):

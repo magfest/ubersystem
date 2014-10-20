@@ -189,7 +189,7 @@ SHIFTLESS_DEPTS = {globals()[dept.upper()] for dept in SHIFTLESS_DEPTS}
 PREASSIGNED_BADGE_TYPES = [globals()[badge_type.upper()] for badge_type in PREASSIGNED_BADGE_TYPES]
 
 SEASON_EVENTS = _config['season_events']
-
+DEPT_HEAD_CHECKLIST = _config['dept_head_checklist']
 
 BADGE_LOCK = RLock()
 

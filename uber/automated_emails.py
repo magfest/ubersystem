@@ -91,6 +91,15 @@ class SeasonSupporterEmail(AutomatedEmail):
                                 needs_approval = True,
                                 extra_data = {'event': event})
 
+class DeptChecklistEmail(DeptHeadEmail):
+    def __init__(self, item):
+        AutomatedEmail.__init__(self,
+                                subject = '',
+                                template = '',
+                                filter = lambda a: a.admin_account and before(item.deadline),
+                                needs_approval = True,
+                                extra_data = {'item': item})
+
 before = lambda dt: bool(dt) and localized_now() < dt
 days_after = lambda days, dt: bool(dt) and (localized_now() > dt + timedelta(days=days))
 def days_before(days, dt, until=None):
