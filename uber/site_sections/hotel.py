@@ -2,12 +2,21 @@ from uber.common import *
 
 @all_renderable(PEOPLE)
 class Root:
-    def index(self, session):
-        by_dept = defaultdict(list)
-        for attendee in session.query(Attendee).filter_by(badge_type=STAFF_BADGE).order_by(Attendee.full_name).all():
-            for dept, disp in zip(attendee.assigned_depts_ints, attendee.assigned_depts_labels):
-                by_dept[dept, disp].append(attendee)
-        return {'by_dept': sorted(by_dept.items())}
+    def index(self, session, dept=None):
+        attendee = session.admin_attendee()
+        conf = DeptChecklistConf.instances['hotel_eligible']
+        dept = int(dept or JOB_LOCATION_OPTS[0][0])
+        return {
+            'conf': conf,
+            'department': dept,
+            'dept_name': JOB_LOCATIONS[dept],
+            'relevant': attendee.is_single_dept_head and [dept] == attendee.assigned_depts_ints,
+            'completed': conf.completed(attendee),
+            'attendees': session.query(Attendee)
+                                .filter_by(badge_type=STAFF_BADGE)
+                                .filter(Attendee.assigned_depts.contains(str(dept)))
+                                .order_by(Attendee.full_name).all()
+        }
 
     def requests(self, session):
         requests = session.query(HotelRequests).join(HotelRequests.attendee).order_by(Attendee.full_name).all()

@@ -21,6 +21,14 @@ def subtract(x, y):
 def remove_newlines(string):
     return string.replace('\n', ' ')
 
+@register.filter
+def form_link(attendee):
+    return SafeString('<a href="../registration/form?id={}">{}</a>'.format(attendee.id, attendee.full_name))
+
+@register.filter
+def dept_checklist_path(conf, attendee=None):
+    return SafeString(conf.path(attendee))
+
 def _getter(x, attrName):
     if '.' in attrName:
         first, rest = attrName.split('.', 1)

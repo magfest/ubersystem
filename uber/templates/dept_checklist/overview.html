@@ -46,7 +46,7 @@
 <tr>
     <th><div>Department Head</div></th>
     {% for conf in checklist %}
-        <th><div>{{ conf.name }}</div></th>
+        <th><div><a href="item?slug={{ conf.slug }}">{{ conf.name }}</a></div></th>
     {% endfor %}
 </tr>
 <tbody>
@@ -54,7 +54,7 @@
     <tr><td colspan="checklist|length|add:1" class="dept">{{ dept_name }}</td></tr>
     {% for attendee, items in heads %}
         <tr>
-            <td class="dept-head"><a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a></td>
+            <td class="dept-head">{{ attendee|form_link }}</td>
             {% for item in items %}
                 <td>
                     {% if item.done %}

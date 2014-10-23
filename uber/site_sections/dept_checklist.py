@@ -13,9 +13,17 @@ class Root:
             'checklist': [(conf, conf.completed(attendee)) for conf in DeptChecklistConf.instances.values()]
         }
 
-    def form(self, session, slug, csrf_token=None, comments=None):
-        conf = DeptChecklistConf.instances[slug]
+    @csrf_protected
+    def mark_item_complete(self, session, slug):
         attendee = session.admin_attendee()
+        conf = DeptChecklistConf.instances[slug]
+        if not conf.completed(attendee):
+            session.add(DeptChecklistItem(attendee=attendee, slug=slug))
+        raise HTTPRedirect('index?message={}', 'Checklist item marked as complete')
+
+    def form(self, session, slug, csrf_token=None, comments=None):
+        attendee = session.admin_attendee()
+        conf = DeptChecklistConf.instances[slug]
         try:
             [item] = [item for item in attendee.dept_checklist_items if item.slug == slug]
         except:
@@ -37,9 +45,7 @@ class Root:
         overview = []
         for dept, dept_name in JOB_LOCATION_OPTS:
             dept_heads = []
-            for attendee in session.query(Attendee) \
-                                   .filter_by(ribbon=DEPT_HEAD_RIBBON, assigned_depts=str(dept)) \
-                                   .order_by(Attendee.full_name).all():
+            for attendee in session.single_dept_heads(dept):
                 statuses = []
                 for item in checklist:
                     if item.completed(attendee):
@@ -59,4 +65,14 @@ class Root:
             'overview': overview,
             'checklist': checklist,
             'max_name_length': max(len(conf.name) for conf in checklist)
+        }
+
+    def item(self, session, slug):
+        conf = DeptChecklistConf.instances[slug]
+        return {
+            'conf': conf,
+            'overview': [
+                (dept, dept_name, [(attendee, conf.completed(attendee)) for attendee in session.single_dept_heads(dept)])
+                for dept, dept_name in JOB_LOCATION_OPTS
+            ]
         }

@@ -87,11 +87,16 @@ class DeptChecklistConf(Registry):
         assert re.match('^[a-z0-9_]+$', slug), 'Dept Head checklist item sections must have separated_by_underscore names'
         self.slug, self.description = slug, description
         self.name = name or slug.replace('_', ' ').title()
-        self.path = path or '/dept_checklist/form?slug={}'.format(slug)
+        self._path = path or '../dept_checklist/form?slug={slug}'
         self.deadline = EVENT_TIMEZONE.localize(datetime.strptime(deadline, '%Y-%m-%d')).replace(hour=23, minute=59)
 
+    def path(self, attendee):
+        dept = attendee and attendee.assigned_depts and attendee.assigned_depts_ints[0]
+        return self._path.format(slug=self.slug, department=dept)
+
     def completed(self, attendee):
-        return self.slug in {item.slug for item in attendee.dept_checklist_items}
+        matches = [item for item in attendee.dept_checklist_items if self.slug == item.slug]
+        return matches[0] if matches else None
 
 
 for _slug, _conf in SEASON_EVENTS.items():

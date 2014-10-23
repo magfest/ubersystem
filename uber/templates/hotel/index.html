@@ -2,18 +2,41 @@
 {% block title %}Hotel Eligible Staffers{% endblock %}}
 {% block content %}
 
-<h2>Hotel Eligible Staffers by Department</h2>
+<h2>{{ dept_name }} Hotel-Eligible Staffers</h2>
 
-{% for dept, staffers in by_dept %}
-    <a name="{{ dept.0 }}"></a><h3>{{ dept.1 }}</h3>
-    <table style="width:auto ; margin-left:25px">
-    {% for attendee in staffers %}
-        <tr>
-            <td><a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a></td>
-            <td>{% if not attendee.hotel_requests %}<b>[HAS NOT REQUESTED HOTEL SPACE]</b>{% endif %}</td>
-        </tr>
-    {% endfor %}
-    </table>
+<div class="center">
+    <select id="dept" onChange="deptChanged()">
+        {% options JOB_LOCATION_OPTS department %}
+    </select>
+    <script>
+        var deptChanged = function () {
+            window.location = 'index?dept=' + $('#dept').val();
+        };
+    </script>
+    <br/><br/>
+    {% if relevant %}
+        {% if completed %}
+            You've already indicated that this list is complete; emails STOPS if you completed this in error.
+        {% else %}
+            <a href="#" onClick="$('#complete').show(); return false;">I've reviewed this list and there's no one missing from it for my department.</a>
+            <div style="display:none" id="complete">
+                <form method="post" action="../dept_checklist/mark_item_complete">
+                {% csrf_token %}
+                <input type="hidden" name="slug" value="{{ conf.slug }}" />
+                <input type="submit" value="I Confirm This All Looks Fine To Me" />
+                </form>
+            </div>
+        {% endif %}
+    {% endif %}
+</div>
+
+<table style="width:auto ; margin-left:25px">
+{% for attendee in attendees %}
+    <tr>
+        <td>{{ attendee|form_link }}</td>
+        <td>{% if not attendee.hotel_requests %}<b>[HAS NOT REQUESTED HOTEL SPACE]</b>{% endif %}</td>
+    </tr>
 {% endfor %}
+</table>
 
 {% endblock %}

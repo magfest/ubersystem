@@ -1290,6 +1290,12 @@ class Session(SessionManager):
                        .options(joinedload(Attendee.group)) \
                        .order_by(Attendee.full_name)
 
+        def single_dept_heads(self, dept=None):
+            assigned = {'assigned_depts': str(dept)} if dept else {}
+            return self.query(Attendee) \
+                       .filter_by(ribbon=DEPT_HEAD_RIBBON, **assigned) \
+                       .order_by(Attendee.full_name).all()
+
         def match_to_group(self, attendee, group):
             with BADGE_LOCK:
                 available = [a for a in group.attendees if a.is_unassigned]
