@@ -13,7 +13,7 @@
         var JOBS = {{ jobs|jsonize }};  // the Job service checks for a global variable with this name to preload the data
         angular.module('signups')
             .controller('MainController', function ($scope) {
-                $scope.name = "{{ name }}";
+                $scope.name = '{{ name }}';
             });
     </script>
 </head>

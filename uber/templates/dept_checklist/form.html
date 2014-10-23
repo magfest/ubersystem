@@ -12,6 +12,9 @@
 <textarea name="comments" rows="5" cols="80">{{ item.comments|default:"" }}</textarea>
 <br/>
 <input type="submit" value="Upload" />
+{% if item.is_new %}
+    <i>Note: please submit this even if this doesn't apply to you so we know you don't need anything from us.</i>
+{% endif %}
 </form>
 
 {% endblock %}
