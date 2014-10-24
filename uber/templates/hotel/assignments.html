@@ -21,8 +21,8 @@
                 $scope.slug = '{{ conf.slug }}';
                 $scope.csrf_token = '{{ CSRF_TOKEN }}';
                 $scope.relevant = {{ relevant|jsonize }};
-                $scope.completed = {{ completed|jsonize }};
-                $scope.checklistDescription = '{{ conf.description }}';
+                $scope.completed = {{ completed|yesno:"true,false" }};
+                $scope.checklistDescription = {{ conf.description|jsonize }};
             });
     </script>
 </head>
