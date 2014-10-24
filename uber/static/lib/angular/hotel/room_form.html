@@ -1,0 +1,28 @@
+<h3> Enter Room Data </h3>
+
+<table style="width:auto">
+<tr>
+    <td valign="top"><b>Nights</b></td>
+    <td>
+        <input type="checkbox" ng-model="room.tuesday"   ng-true-value="{{ c.TUESDAY }}"   ng-false-value="" ng-checked="room.tuesday"  > Tuesday night (for early setup volunteers) <br/>
+        <input type="checkbox" ng-model="room.wednesday" ng-true-value="{{ c.WEDNESDAY }}" ng-false-value="" ng-checked="room.wednesday"> Wednesday night (for setup volunteers) <br/>
+        <input type="checkbox" ng-model="room.thursday"  ng-true-value="{{ c.THURSDAY }}"  ng-false-value="" ng-checked="room.thursday" > Thursday night <br/>
+        <input type="checkbox" ng-model="room.friday"    ng-true-value="{{ c.FRIDAY }}"    ng-false-value="" ng-checked="room.friday"   > Friday night <br/>
+        <input type="checkbox" ng-model="room.saturday"  ng-true-value="{{ c.SATURDAY }}"  ng-false-value="" ng-checked="room.saturday" > Saturday night <br/>
+        <input type="checkbox" ng-model="room.sunday"    ng-true-value="{{ c.SUNDAY }}"    ng-false-value="" ng-checked="room.sunday"   > Sunday night (for teardown volunteers)
+        <br/> <br/>
+        If you need nights before/after the range listed above, just mention it in the notes below.
+    </td>
+</tr>
+<tr>
+    <td>Special Notes</td>
+    <td> <input type="text" ng-model="room.notes" maxlength="255" /> </td>
+</tr>
+<tr>
+    <td></td>
+    <td>
+        <button ng-click="save()">Save</button> &nbsp;
+        <button ng-click="cancel()">Cancel</button>
+    </td>
+</tr>
+</table>

@@ -17,7 +17,7 @@ angular.module('hotel', ['ngRoute', 'magfest'])
                 assigned_elsewhere: [],
                 declined: [],
                 all_attendees: []
-            ],
+            },
             _set: function(dst, src) {
                 dst.splice.apply(dst, [0, dst.length].concat(src));
             },
@@ -25,15 +25,15 @@ angular.module('hotel', ['ngRoute', 'magfest'])
                 angular.forEach(self.lists, function(xs, name) {
                     self._set(xs, data[name] || []);
                 });
-                angular.forEach(self.lists, function (name) {
+                angular.forEach(self.lists, function (xs, name) {
                     if (name != 'rooms' && name != 'all_attendees') {
-                        self.all_attendees.push.apply(self.all_attendees, self.lists[name]);
+                        self.lists.all_attendees.push.apply(self.lists.all_attendees, xs);
                     }
                 });
             },
             get: function (name, id) {
                 for (var i=0, x; x=self.lists[name][i]; i++) {
-                    if (x.id == id) {
+                    if (x.id === id) {
                         return x;
                     }
                 }
@@ -46,14 +46,13 @@ angular.module('hotel', ['ngRoute', 'magfest'])
     })
     .config(function($routeProvider){
         $routeProvider
-            .when('/', {controller: 'HotelController', templateUrl: 'ng/schedule.html'})
-            .when('/create-room', {controller: 'CreateController', templateUrl: 'ng/room_form.html'})
-            .when('/edit-room/:roomId', {controller: 'EditController', templateUrl: 'ng/room_form.html'})
-            .when('/attendee/:id', {controller: 'AttendeeController', templateUrl: 'ng/attendee.html'})
+            .when('/', {controller: 'HotelController', templateUrl: '../static/lib/angular/hotel/schedule.html'})
+            .when('/create-room', {controller: 'CreateController', templateUrl: '../static/lib/angular/hotel/room_form.html'})
+            .when('/edit-room/:roomId', {controller: 'EditController', templateUrl: '../static/lib/angular/hotel/room_form.html'})
+            .when('/attendee/:id', {controller: 'AttendeeController', templateUrl: '../static/lib/angular/hotel/attendee.html'})
             .otherwise({redirectTo: '/'});
     })
-    .controller('HotelController', function($scope, $http, Hotel) {
-        $scope.lists = Hotel.lists;
+    .controller('HotelController', function($scope, $http, Hotel, errorHandler) {
         $scope.wrongNights = function (room, attendee) {
             return room.nights.replace('Tue / ', '') != attendee.nights;    // needs to be configurable
         };
@@ -76,9 +75,8 @@ angular.module('hotel', ['ngRoute', 'magfest'])
         };
     })
     .controller('CreateController', function($scope, $http, $location, magconsts, errorHandler, Hotel) {
-        $scope.c = magconsts;
         $scope.room = {
-            department: self.department,
+            department: $scope.department,
             thursday: magconsts.THURSDAY,   // needs to be configurable
             friday: magconsts.FRIDAY,
             saturday: magconsts.SATURDAY,
@@ -114,10 +112,10 @@ angular.module('hotel', ['ngRoute', 'magfest'])
             $location.path('/');
         };
     })
-    .controller('AddController', function($scope, $http, Hotel) {
+    .controller('AddController', function($scope, $http, Hotel, errorHandler) {
         $scope.assignment = {
             room_id: $scope.room.id,
-            attendee_id: $scope.unassigned[0] && $scope.unassigned[0].id
+            attendee_id: $scope.lists.unassigned[0] && $scope.lists.unassigned[0].id
         };
         $scope.add = function() {
             var room = Hotel.get('rooms', $scope.assignment.room_id);

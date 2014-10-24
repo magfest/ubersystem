@@ -3,15 +3,26 @@
 <head>
     <title>{{ dept_name }} Hotel Rooms</title>
     <link rel="stylesheet" type="text/css" href="../static/styles/styles.css" />
-    <script src="../static/lib/date/date.js" type="text/javascript"></script>
+    <script src="../static/lib/moment/moment.min.js"></script>
     <script src="../static/lib/jquery/jquery-1.7.2.min.js" type="text/javascript"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.1.5/angular.min.js"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.1.5/angular-resource.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.2.26/angular.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.2.26/angular-route.min.js"></script>
+    <script src="../static_views/magfest.js"></script>
+    <script src="../static/lib/angular/hotel/app.js"></script>
     <script type="text/javascript">
         var ROOM_DUMP = {{ dump|jsonize }};  // the Hotel service checks for a global variable with this name to preload the data
-        angular.module('signups')
-            .controller('MainController', function ($scope) {
-                $scope.department = '{{ dept_name }}';
+        angular.module('hotel')
+            .controller('MainController', function ($scope, magconsts, Hotel) {
+                $scope.c = magconsts;
+                $scope.lists = Hotel.lists;
+                $scope.department = {{ department }};
+                $scope.departmentName = '{{ department_name }}';
+
+                $scope.slug = '{{ conf.slug }}';
+                $scope.csrf_token = '{{ CSRF_TOKEN }}';
+                $scope.relevant = {{ relevant|jsonize }};
+                $scope.completed = {{ completed|jsonize }};
+                $scope.checklistDescription = '{{ conf.description }}';
             });
     </script>
 </head>

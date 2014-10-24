@@ -84,7 +84,6 @@ class Root:
             for a in group:
                 writerow(a, a.hotel_requests)
 
-    #@ng_renderable
     def assignments(self, session, department):
         if ROOMS_LOCKED_IN:
             cherrypy.response.headers['Content-Type'] = 'text/plain'
@@ -93,8 +92,13 @@ class Root:
                 'rooms': [room.to_dict() for room in session.query(Room).filter_by(department=department).all()]
             }, indent=4, cls=serializer)
         else:
+            attendee = session.admin_attendee()
+            conf = DeptChecklistConf.instances['hotel_assignments']
             return {
                 'department': department,
+                'conf': conf,
+                'completed': conf.completed(attendee),
+                'relevant': attendee.is_single_dept_head and attendee.assigned_depts == department,
                 'dump': _hotel_dump(session, department),
                 'department_name': dict(JOB_LOCATION_OPTS)[int(department)]
             }
@@ -114,8 +118,9 @@ class Root:
         return _hotel_dump(session, params['department'])
 
     @ajax
-    def delete_room(self, id):
-        session.delete(session.room(id))
+    def delete_room(self, session, id):
+        room = session.room(id)
+        session.delete(room)
         session.commit()
         return _hotel_dump(session, room.department)
 
@@ -123,10 +128,12 @@ class Root:
     @ajax
     def assign_to_room(self, session, attendee_id, room_id):
         if not session.query(RoomAssignment).filter_by(attendee_id=attendee_id).all():
-            ra = RoomAssignment(attendee_id=attendee_id, room_id=room_id)
+            room = session.room(room_id)
+            attendee = session.attendee(attendee_id)
+            ra = RoomAssignment(attendee=attendee, room=room)
             session.add(ra)
-            hr = ra.attendee.hotel_requests
-            if ra.room.wednesday or ra.room.sunday:
+            hr = attendee.hotel_requests
+            if room.wednesday or room.sunday:
                 hr.approved = True
             else:
                 hr.wednesday = hr.sunday = False
@@ -168,16 +175,16 @@ def _get_declined(session, department):
     return [_attendee_dict(a) for a in session.query(Attendee)
                                               .order_by(Attendee.full_name)
                                               .join(Attendee.hotel_requests)
-                                              .filter(hotelrequests__isnull=False,
-                                                      hotelrequests__nights='',
-                                                      assigned_depts__contains=department).all()]
+                                              .filter(Attendee.hotel_requests != None,
+                                                      HotelRequests.nights == '',
+                                                      Attendee.assigned_depts.contains(str(department))).all()]
 
 def _get_unconfirmed(session, department, assigned_ids):
     return [_attendee_dict(a) for a in session.query(Attendee)
                                               .order_by(Attendee.full_name)
                                               .filter(Attendee.badge_type == STAFF_BADGE,
                                                       Attendee.hotel_requests == None,
-                                                      Attendee.assigned_depts.like('%{}%'.format(department))).all()
+                                                      Attendee.assigned_depts.contains(str(department))).all()
                               if a not in assigned_ids]
 
 def _get_unassigned(session, department, assigned_ids):
@@ -198,7 +205,7 @@ def _get_assigned_elsewhere(session, department):
                                      Attendee.assigned_depts.like('%{}%'.format(department))).all()]
 
 def _hotel_dump(session, department):
-    rooms = [_room_json(session, room) for room in session.query(Room).filter_by(department=department).order_by(Room.created).all()]
+    rooms = [_room_dict(session, room) for room in session.query(Room).filter_by(department=department).order_by(Room.created).all()]
     assigned = sum([r['attendees'] for r in rooms], [])
     assigned_elsewhere = _get_assigned_elsewhere(session, department)
     assigned_ids = [a['id'] for a in assigned + assigned_elsewhere]

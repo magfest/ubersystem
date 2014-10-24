@@ -855,10 +855,11 @@ class Room(MagModel, NightsMixin):
     department = Column(Choice(JOB_LOCATION_OPTS))
     notes      = Column(UnicodeText)
     nights     = Column(MultiChoice(NIGHT_OPTS))
+    created    = Column(UTCDateTime, server_default=utcnow())
 
 class RoomAssignment(MagModel):
     room_id     = Column(UUID, ForeignKey('room.id'))
-    room        = relationship(Room, backref='room_assignments', cascade='delete')
+    room        = relationship(Room, backref='room_assignments')
     attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
 
 class NoShirt(MagModel):
