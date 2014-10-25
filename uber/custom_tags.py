@@ -72,30 +72,6 @@ def join_and(xs):
         xs = xs[:-1] + ['and ' + xs[-1]]
         return ', '.join(xs)
 
-@register.filter
-def setup_teardown_requests(department):
-    return [hr for hr in HotelRequests.in_dept(department) if hr.setup_teardown]
-
-@register.filter
-def dept_hotel_nights(department):
-    nights = defaultdict(list)
-    for hr in HotelRequests.in_dept(department):
-        if not hr.approved:
-            if hr.setup_teardown:
-                hr.not_yet_approved = True
-            hr.decline()    # this is safe because we're not saving
-        nights[hr.nights_display].append(hr)
-    return sorted(nights.items())
-
-@register.filter
-def dept_placeholders(department):
-    with Session() as session:
-        if department:
-            return session.query(Attendee).filter(Attendee.placeholder == True, Attendee.assigned_depts.like('%{}%'.format(department))).order_by(Attendee.full_name).all()
-        else:
-            return session.query(Attendee).filter_by(badge_type=STAFF_BADGE, placeholder=True).order_by(Attendee.full_name).all()
-
-
 @tag
 class maybe_anchor(template.Node):
     def __init__(self, name):

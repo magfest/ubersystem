@@ -696,3 +696,15 @@ class Root:
                 raise HTTPRedirect('../preregistration/confirm?id={}', attendee.id)
 
         return {'message': message}
+
+    def placeholders(self, session, department=''):
+        return {
+            'department': department,
+            'dept_name': JOB_LOCATIONS[int(department)] if department else 'All',
+            'checklist': session.checklist_status('placeholders', department),
+            'placeholders': [a for a in session.query(Attendee)
+                                               .filter(Attendee.placeholder == True,
+                                                       Attendee.staffing == True,
+                                                       Attendee.assigned_depts.contains(department))
+                                               .order_by(Attendee.full_name).all()]
+        }

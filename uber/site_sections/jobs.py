@@ -26,9 +26,10 @@ class Root:
 
         jobs, shifts, attendees = session.everything(location)
         return {
-            'location': location,
-            'jobs':     jobs,
-            'shifts':   Shift.dump(shifts)
+            'location':  location,
+            'jobs':      jobs,
+            'shifts':    Shift.dump(shifts),
+            'checklist': session.checklist_status('postcon_hours', location)
         }
 
     def everywhere(self, session, message='', show_restricted=''):

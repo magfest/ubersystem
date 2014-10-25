@@ -248,35 +248,5 @@ AutomatedEmail(Attendee, '{EVENT_NAME} parental consent form reminder', 'reg_wor
                lambda a: CONSENT_FORM_URL and a.age_group == UNDER_18 and days_before(7, EPOCH))
 
 
-# TODO: Turn these back on after implementing the department head checklist
-if False:
-    DeptHeadEmail('Last chance for {EVENT_NAME} Department Heads to get Staff badges for your people', 'personalized_badges/dept_head_reminder.txt',
-                  lambda a: STAFF_BADGE in PREASSIGNED_BADGE_TYPES and days_before(7, PRINTED_BADGE_DEADLINE))
-
-    DeptHeadEmail('MAGFest Department Ribbons', 'dept_head_ribbons.txt', lambda a: days_before(1, ROOM_DEADLINE),
-                  sender=REGDESK_EMAIL)
-
-    DeptHeadEmail('Assign {EVENT_NAME} hotel rooms for your department', 'room_assignments.txt',
-                  lambda a: days_before(45, ROOM_DEADLINE))
-
-    DeptHeadEmail('Reminder for {EVENT_NAME} department heads to double-check their staffers', 'dept_head_rooms.txt',
-                  lambda a: days_before(45, ROOM_DEADLINE))
-
-    DeptHeadEmail('Last reminder for {EVENT_NAME} department heads to double-check their staffers', 'dept_head_rooms.txt',
-                  lambda a: days_before(7, ROOM_DEADLINE))
-
-    DeptHeadEmail('Need help with {EVENT_NAME} setup/teardown?', 'dept_head_setup_teardown.txt',
-                  lambda a: days_before(14, ROOM_DEADLINE))
-
-    DeptHeadEmail('Final list of {EVENT_NAME} hotel allocations for your department', 'hotel_list.txt',
-                  lambda a: days_before(1, ROOM_DEADLINE + timedelta(days=6)))
-
-    DeptHeadEmail('Unconfirmed {EVENT_NAME} staffers in your department', 'dept_placeholders.txt',
-                  lambda a: days_before(21, UBER_TAKEDOWN))
-
-    DeptHeadEmail('{EVENT_NAME} staffers need to be marked and rated', 'shifts/postcon_hours.txt',
-                  lambda: SHIFTS_CREATED, post_con=True)
-
-
 for _event in SeasonEvent.instances.values():
     SeasonSupporterEmail(_event)
