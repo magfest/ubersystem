@@ -2,28 +2,33 @@ from uber.common import *
 
 @all_renderable(PEOPLE)
 class Root:
-    def index(self, session, dept=None):
+    def index(self, session, department=None):
         attendee = session.admin_attendee()
-        conf = DeptChecklistConf.instances['hotel_eligible']
-        dept = int(dept or JOB_LOCATION_OPTS[0][0])
+        department = int(department or JOB_LOCATION_OPTS[0][0])
         return {
-            'conf': conf,
-            'department': dept,
-            'dept_name': JOB_LOCATIONS[dept],
-            'relevant': attendee.is_single_dept_head and [dept] == attendee.assigned_depts_ints,
-            'completed': conf.completed(attendee),
+            'department': department,
+            'dept_name': JOB_LOCATIONS[department],
+            'checklist': session.checklist_status('hotel_eligible', department),
             'attendees': session.query(Attendee)
                                 .filter_by(badge_type=STAFF_BADGE)
-                                .filter(Attendee.assigned_depts.contains(str(dept)))
+                                .filter(Attendee.assigned_depts.contains(str(department)))
                                 .order_by(Attendee.full_name).all()
         }
 
-    def requests(self, session):
-        requests = session.query(HotelRequests).join(HotelRequests.attendee).order_by(Attendee.full_name).all()
+    def requests(self, session, department=None):
+        dept_filter = []
+        requests = session.query(HotelRequests).join(HotelRequests.attendee).options(joinedload(HotelRequests.attendee)).order_by(Attendee.full_name).all()
+        if department:
+            dept_filter = [Attendee.assigned_depts.contains(department)]
+            requests = [r for r in requests if r.attendee.assigned_to(department)]
+
         return {
-            'staffer_count': session.query(Attendee).filter_by(badge_type=STAFF_BADGE).count(),
+            'requests': requests,
+            'department': department,
             'declined_count': len([r for r in requests if r.nights == '']),
-            'requests': [r for r in requests if r.nights != '']
+            'dept_name': 'All' if not department else JOB_LOCATIONS[int(department)],
+            'checklist': session.checklist_status('approve_setup_teardown', department),
+            'staffer_count': session.query(Attendee).filter(Attendee.badge_type==STAFF_BADGE, *dept_filter).count()
         }
 
     def hours(self, session):
@@ -93,12 +98,9 @@ class Root:
             }, indent=4, cls=serializer)
         else:
             attendee = session.admin_attendee()
-            conf = DeptChecklistConf.instances['hotel_assignments']
             return {
                 'department': department,
-                'conf': conf,
-                'completed': conf.completed(attendee),
-                'relevant': attendee.is_single_dept_head and attendee.assigned_depts == department,
+                'checklist': session.checklist_status('hotel_assignments', department),
                 'dump': _hotel_dump(session, department),
                 'department_name': dict(JOB_LOCATION_OPTS)[int(department)]
             }

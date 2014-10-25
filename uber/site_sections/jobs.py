@@ -7,7 +7,7 @@ class Root:
             if AT_THE_CON:
                 raise HTTPRedirect('signups')
             else:
-                location = ARCADE   # TODO: make this configurable
+                location = JOB_LOCATION_OPTS[0][0]
 
         jobs, shifts, attendees = session.everything(location)
         by_start = defaultdict(list)
@@ -21,7 +21,7 @@ class Root:
 
     def signups(self, session, location=None, message=''):
         if location is None:
-            location = cherrypy.session.get('prev_location') or ARCADE  # TODO: make this configurable
+            location = cherrypy.session.get('prev_location') or JOB_LOCATION_OPTS[0][0]
         cherrypy.session['prev_location'] = location
 
         jobs, shifts, attendees = session.everything(location)
@@ -44,12 +44,14 @@ class Root:
         }
 
     def staffers(self, session, location=None, message=''):
-        location = location or ARCADE  # TODO: make this configurable
+        attendee = session.admin_attendee()
+        location = int(location or JOB_LOCATION_OPTS[0][0])
         jobs, shifts, attendees = session.everything(location)
         attendees = [a for a in attendees if int(location) in a.assigned_depts_ints]
         return {
             'location':           location,
             'attendees':          attendees,
+            'checklist':          session.checklist_status('assigned_volunteers', location),
             'emails':             ','.join(a.email for a in attendees),
             'regular_total':      sum(j.total_hours for j in jobs if not j.restricted),
             'restricted_total':   sum(j.total_hours for j in jobs if j.restricted),

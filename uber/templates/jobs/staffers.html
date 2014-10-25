@@ -13,6 +13,26 @@
 </tr>
 </table>
 
+{% if checklist.relevant %}
+    <br/>
+    {% if checklist.completed %}
+        You've already indicated that this list is valid, please email STOPS if this is incorrect.
+    {% else %}
+        <a href="#" onClick="$('#checkoff').show(); return false;">As a head of this department, this looks good to me.</a>
+        <form id="checkoff" style="display:none" method="post" action="../dept_checklist/mark_item_complete">
+        {% csrf_token %}
+        <input type="hidden" name="slug" value="{{ checklist.conf.slug }}" />
+        By clicking this button, you are telling us you've reviewed your volunteers and confirmed:
+        <ul>
+            <li>that no one is assigned to your department who shouldn't be, such as problem volunteers from previous years</li>
+            <li>that no one is missing who you'd expect to be assigned here, such as staffers from previous years</li>
+        </ul>
+        <input type="submit" value="I Confirm This All Looks Good" />
+        </form>
+        <br/>
+    {% endif %}
+{% endif %}
+
 <br/>
 <span style="font-size:14pt ; font-weight:bold"> Staffers Assigned to This Area</span>
 (<a href="mailto:eli@courtwright.org?bcc={{ emails }}">email these staffers</a>)<b>:</b>

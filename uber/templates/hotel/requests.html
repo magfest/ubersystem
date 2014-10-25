@@ -13,11 +13,36 @@
     }
 </script>
 
-<h2> Hotel Requests </h2>
+<h2> {{ dept_name }} Hotel Requests </h2>
+
+<div class="center">
+    <script>
+        var deptChanged = function () {
+            window.location = 'requests?department=' + $('#deptDropdown').val();
+        };
+    </script>
+    <select id="deptDropdown" onChange="deptChanged()">
+        <option value="">All Departments</option>
+        {% options JOB_LOCATION_OPTS department %}
+    </select>
+    {% if checklist.relevant %}
+        <br/>
+        {% if checklist.completed %}
+            You've already signed off that everyone who needs approval is here and no one is missing; email STOPS if this is a mistake.
+        {% else %}
+            <a href="#" onClick="$('#checkoff').show(); return false;">I have approved everyone who should be approved</a>
+            <form id="checkoff" style="display:none" method="post" action="../dept_checklist/mark_item_complete">
+            {% csrf_token %}
+            <input type="hidden" name="slug" value="{{ checklist.conf.slug }}" />
+            <input type="submit" value="No One Else Needs To Be Approved" />
+            </form>
+        {% endif %}
+    {% endif %}
+</div>
 
 <table style="text-align:center ; font-weight: bold" cellspacing="25"><tr/>
     <td>{{ staffer_count }} eligible Staffers</td>
-    <td>{{ requests.count }} requested hotel space</td>
+    <td>{{ requests|length }} requested hotel space</td>
     <td>{{ declined_count }} declined hotel space</td>
 </tr></table>
 

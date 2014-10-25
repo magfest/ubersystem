@@ -717,7 +717,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         return department in self.requested_depts_ints
 
     def assigned_to(self, department):
-        return department in self.assigned_depts_ints
+        return int(department or 0) in self.assigned_depts_ints
 
     def has_shifts_in(self, department):
         return any(shift.job.location == department for shift in self.shifts)
@@ -1163,6 +1163,15 @@ class Session(SessionManager):
 
         def logged_in_volunteer(self):
             return self.attendee(cherrypy.session['staffer_id'])
+
+        def checklist_status(self, slug, department):
+            attendee = self.admin_attendee()
+            conf = DeptChecklistConf.instances[slug]
+            return {
+                'conf': conf,
+                'relevant': attendee.is_single_dept_head and attendee.assigned_depts_ints == [int(department or 0)],
+                'completed': conf.completed(attendee)
+            }
 
         def jobs_for_signups(self):
             fields = ['name', 'location_label', 'description', 'weight', 'start_time_local', 'duration', 'weighted_hours', 'restricted', 'extra15', 'taken']

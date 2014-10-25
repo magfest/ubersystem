@@ -20,9 +20,9 @@
 
                 $scope.slug = '{{ conf.slug }}';
                 $scope.csrf_token = '{{ CSRF_TOKEN }}';
-                $scope.relevant = {{ relevant|jsonize }};
-                $scope.completed = {{ completed|yesno:"true,false" }};
-                $scope.checklistDescription = {{ conf.description|jsonize }};
+                $scope.relevant = {{ checklist.relevant|jsonize }};
+                $scope.completed = {{ checklist.completed|yesno:"true,false" }};
+                $scope.checklistDescription = {{ checklist.conf.description|jsonize }};
             });
     </script>
 </head>
