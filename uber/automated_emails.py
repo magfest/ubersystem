@@ -48,7 +48,7 @@ class AutomatedEmail:
             if raise_errors:
                 raise
 
-    # TODO: joinedload on other tables such as shifts as well, for performance
+    # TODO: joinedload on other tables such as shifts as well, for performance (this is WAY slower than it could be)
     @classmethod
     def send_all(cls, raise_errors=False):
         with Session() as session:
@@ -70,10 +70,6 @@ class GuestEmail(AutomatedEmail):
     def __init__(self, subject, template, filter=lambda a: True, needs_approval=True, **kwargs):
         AutomatedEmail.__init__(self, Attendee, subject, template, lambda a: a.badge_type == GUEST_BADGE and filter(a), needs_approval=needs_approval, sender=PANELS_EMAIL, **kwargs)
 
-class DeptHeadEmail(AutomatedEmail):
-    def __init__(self, subject, template, filter=lambda a: True, *, sender=STAFF_EMAIL, **kwargs):
-        AutomatedEmail.__init__(self, Attendee, subject, template, lambda a: a.ribbon == DEPT_HEAD_RIBBON and len(a.assigned) == 1 and filter(a), sender=sender, **kwargs)
-
 class GroupEmail(AutomatedEmail):
     def __init__(self, subject, template, filter, **kwargs):
         AutomatedEmail.__init__(self, Group, subject, template, lambda g: not g.is_dealer and filter(g), sender=REGDESK_EMAIL, **kwargs)
@@ -91,14 +87,14 @@ class SeasonSupporterEmail(AutomatedEmail):
                                 needs_approval = True,
                                 extra_data = {'event': event})
 
-class DeptChecklistEmail(DeptHeadEmail):
-    def __init__(self, item):
-        AutomatedEmail.__init__(self,
-                                subject = '',
-                                template = '',
-                                filter = lambda a: a.admin_account and before(item.deadline),
-                                needs_approval = True,
-                                extra_data = {'item': item})
+class DeptChecklistEmail(AutomatedEmail):
+    def __init__(self, conf):
+        AutomatedEmail.__init__(self, Attendee,
+                                subject = '{EVENT_NAME} Department Checklist: ' + conf.name,
+                                template = 'shifts/dept_checklist.txt',
+                                filter = lambda a: a.is_single_dept_head and a.admin_account and days_before(7, conf.deadline) and not conf.completed(a),
+                                sender = STAFF_EMAIL,
+                                extra_data = {'conf': conf})
 
 before = lambda dt: bool(dt) and localized_now() < dt
 days_after = lambda days, dt: bool(dt) and (localized_now() > dt + timedelta(days=days))
@@ -250,3 +246,6 @@ AutomatedEmail(Attendee, '{EVENT_NAME} parental consent form reminder', 'reg_wor
 
 for _event in SeasonEvent.instances.values():
     SeasonSupporterEmail(_event)
+
+for _conf in DeptChecklistConf.instances.values():
+    DeptChecklistEmail(_conf)
