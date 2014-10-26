@@ -116,7 +116,7 @@ class Root:
                                            and_(Email.model == 'Attendee', Email.fk_id == id)))
                                .order_by(Email.when).all(),
             'changes':  session.query(Tracking)
-                               .filter(or_(Tracking.links.like('attendee({})%'.format(id)),
+                               .filter(or_(Tracking.links.like('%attendee({})%'.format(id)),
                                            and_(Tracking.model == 'Attendee', Tracking.fk_id == id)))
                                .order_by(Tracking.when).all()
         }
