@@ -15,8 +15,9 @@ class Root:
             by_start[job.start_time_local].append(job)
         times = [EPOCH + timedelta(hours=i) for i in range(CON_LENGTH)]
         return {
-            'location': location,
-            'times':    [(t, t + timedelta(hours=1), by_start[t]) for i, t in enumerate(times)]
+            'location':  location,
+            'checklist': session.checklist_status('creating_shifts', location),
+            'times':     [(t, t + timedelta(hours=1), by_start[t]) for i, t in enumerate(times)]
         }
 
     def signups(self, session, location=None, message=''):
