@@ -189,7 +189,7 @@ SHIFTLESS_DEPTS = {globals()[dept.upper()] for dept in SHIFTLESS_DEPTS}
 PREASSIGNED_BADGE_TYPES = [globals()[badge_type.upper()] for badge_type in PREASSIGNED_BADGE_TYPES]
 
 SEASON_EVENTS = _config['season_events']
-
+DEPT_HEAD_CHECKLIST = _config['dept_head_checklist']
 
 BADGE_LOCK = RLock()
 
@@ -237,6 +237,11 @@ TABLE_OPTS = [
 
 NIGHT_DISPLAY_ORDER = [globals()[night.upper()] for night in NIGHT_DISPLAY_ORDER]
 NIGHT_NAMES = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+CORE_NIGHTS = []
+_day = EPOCH
+while _day.date() != ESCHATON.date():
+    CORE_NIGHTS.append(globals()[_day.strftime('%A').upper()])
+    _day += timedelta(days=1)
 
 PREREG_SHIRT_OPTS = SHIRT_OPTS[1:]
 MERCH_SHIRT_OPTS = [(SIZE_UNKNOWN, 'select a size')] + list(PREREG_SHIRT_OPTS)

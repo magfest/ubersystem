@@ -1,0 +1,11 @@
+{{ attendee.first_name }},
+
+As a department head for {{ attendee.assigned_depts_labels|join:'' }} we need some information from you about: {{ conf.name }}
+
+{{ conf.description }}
+
+Please fill out the form at {{ URL_BASE }}{{ conf|dept_checklist_path:attendee }} by {{ conf.deadline|datetime }}; we need you to submit the linked form even if this doesn't apply to your department so that we know you've looked at it.
+
+You can review the complete checklist of all information we'll eventually need from you at {{ URL_BASE }}/dept_checklist
+
+{{ STOPS_EMAIL_SIGNATURE }}

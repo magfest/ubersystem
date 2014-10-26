@@ -51,9 +51,9 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.sql.expression import FunctionElement
-from sqlalchemy.orm import Query, relationship, joinedload
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.schema import Column, ForeignKey, UniqueConstraint
+from sqlalchemy.orm import Query, relationship, joinedload, backref
 from sqlalchemy.types import UnicodeText, Boolean, Integer, Float, TypeDecorator
 
 from sideboard.lib.sa import declarative_base, SessionManager, UTCDateTime, UUID

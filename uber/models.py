@@ -215,7 +215,7 @@ class NightsMixin(object):
 
     @property
     def setup_teardown(self):
-        return self.wednesday or self.sunday
+        return any(night for night in self.nights_ints if night not in CORE_NIGHTS)
 
     locals().update({mutate(name): _night(mutate(name)) for name in NIGHT_NAMES for mutate in [str.upper, str.lower]})
 
@@ -425,11 +425,11 @@ class Attendee(MagModel, TakesPaymentMixin):
     nonshift_hours   = Column(Integer, default=0)
     past_years       = Column(UnicodeText)
 
-    no_shirt          = relationship('NoShirt', backref='attendee', uselist=False, cascade='delete')
-    admin_account     = relationship('AdminAccount', backref='attendee', uselist=False, cascade='delete')
-    hotel_requests    = relationship('HotelRequests', backref='attendee', uselist=False, cascade='delete')
-    room_assignments  = relationship('RoomAssignment', backref='attendee', uselist=False, cascade='delete')
-    food_restrictions = relationship('FoodRestrictions', backref='attendee', uselist=False, cascade='delete')
+    no_shirt          = relationship('NoShirt', backref=backref('attendee', load_on_pending=True), uselist=False, cascade='delete')
+    admin_account     = relationship('AdminAccount', backref=backref('attendee', load_on_pending=True), uselist=False, cascade='delete')
+    hotel_requests    = relationship('HotelRequests', backref=backref('attendee', load_on_pending=True), uselist=False, cascade='delete')
+    room_assignments  = relationship('RoomAssignment', backref=backref('attendee', load_on_pending=True), uselist=False, cascade='delete')
+    food_restrictions = relationship('FoodRestrictions', backref=backref('attendee', load_on_pending=True), uselist=False, cascade='delete')
 
     _repr_attr_names = ['full_name']
     _unrestricted = {'first_name', 'last_name', 'international', 'zip_code', 'ec_phone', 'cellphone', 'email', 'age_group',
@@ -642,6 +642,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         return comma_and(stuff)
 
     @property
+    def is_single_dept_head(self):
+        return self.is_dept_head and len(self.assigned_depts_ints) == 1
+
+    @property
     def multiply_assigned(self):
         return len(self.assigned_depts_ints) > 1
 
@@ -713,7 +717,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         return department in self.requested_depts_ints
 
     def assigned_to(self, department):
-        return department in self.assigned_depts_ints
+        return int(department or 0) in self.assigned_depts_ints
 
     def has_shifts_in(self, department):
         return any(shift.job.location == department for shift in self.shifts)
@@ -732,10 +736,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     def hotel_eligible(self):
         return ROOM_DEADLINE and self.badge_type == STAFF_BADGE
 
-    @cached_property
+    @property
     def hotel_nights(self):
         try:
-            return [dict(NIGHT_OPTS)[night] for night in map(int, self.hotel_requests.nights.split(','))]
+            return self.hotel_requests.nights
         except:
             return []
 
@@ -770,7 +774,7 @@ class AdminAccount(MagModel):
     def admin_name():
         try:
             with Session() as session:
-                return session.admin_account(cherrypy.session['account_id']).attendee.full_name
+                return session.admin_attendee().full_name
         except:
             return None
 
@@ -802,16 +806,8 @@ class HotelRequests(MagModel, NightsMixin):
 
     _unrestricted = ['attendee_id', 'nights', 'wanted_roommates', 'unwanted_roommates', 'special_needs']
 
-    # TODO: fix this to work with SQLAlchemy
-    @classmethod
-    def in_dept(cls, department):
-        return HotelRequests.objects.filter(attendee__assigned_depts__contains = department) \
-                                    .exclude(nights='') \
-                                    .order_by('attendee__first_name', 'attendee__last_name') \
-                                    .select_related()
-
     def decline(self):
-        self.nights = ','.join(night for night in self.nights.split(',') if int(night) in {THURSDAY, FRIDAY, SATURDAY})
+        self.nights = ','.join(night for night in self.nights.split(',') if int(night) in CORE_NIGHTS)
 
     def __repr__(self):
         return '<{self.attendee.full_name} Hotel Requests>'.format(self=self)
@@ -851,14 +847,25 @@ class Room(MagModel, NightsMixin):
     department = Column(Choice(JOB_LOCATION_OPTS))
     notes      = Column(UnicodeText)
     nights     = Column(MultiChoice(NIGHT_OPTS))
+    created    = Column(UTCDateTime, server_default=utcnow())
 
 class RoomAssignment(MagModel):
     room_id     = Column(UUID, ForeignKey('room.id'))
-    room        = relationship(Room, backref='room_assignments', cascade='delete')
+    room        = relationship(Room, backref='room_assignments')
     attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
 
 class NoShirt(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
+
+class DeptChecklistItem(MagModel):
+    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    attendee    = relationship(Attendee, backref='dept_checklist_items', cascade='delete')
+    slug        = Column(UnicodeText)
+    comments    = Column(UnicodeText, default='')
+
+    __table_args__ = (
+        UniqueConstraint('attendee_id', 'slug', name='_dept_checklist_item_uniq'),
+    )
 
 
 class Job(MagModel):
@@ -1051,7 +1058,7 @@ class Tracking(MagModel):
                 return '<bcrypted>'
             elif isinstance(column.type, MultiChoice):
                 opts = dict(column.type.choices)
-                return repr('' if not value else (','.join(opts[int(opt)] for opt in value.split(',') if opt in opts)))
+                return repr('' if not value else (','.join(opts[int(opt)] for opt in value.split(',') if int(opt or 0) in opts)))
             elif isinstance(column.type, Choice) and value is not None:
                 return repr(dict(column.type.choices).get(int(value), '<nonstandard>'))
             else:
@@ -1143,8 +1150,20 @@ class Session(SessionManager):
             return self.filter(*[func.lower(getattr(self.model, attr)) == func.lower(val) for attr, val in filters.items()])
 
     class SessionMixin:
+        def admin_attendee(self):
+            return self.admin_account(cherrypy.session['account_id']).attendee
+
         def logged_in_volunteer(self):
             return self.attendee(cherrypy.session['staffer_id'])
+
+        def checklist_status(self, slug, department):
+            attendee = self.admin_attendee()
+            conf = DeptChecklistConf.instances[slug]
+            return {
+                'conf': conf,
+                'relevant': attendee.is_single_dept_head and attendee.assigned_depts_ints == [int(department or 0)],
+                'completed': conf.completed(attendee)
+            }
 
         def jobs_for_signups(self):
             fields = ['name', 'location_label', 'description', 'weight', 'start_time_local', 'duration', 'weighted_hours', 'restricted', 'extra15', 'taken']
@@ -1272,6 +1291,12 @@ class Session(SessionManager):
                        .filter_by(staffing=True) \
                        .options(joinedload(Attendee.group)) \
                        .order_by(Attendee.full_name)
+
+        def single_dept_heads(self, dept=None):
+            assigned = {'assigned_depts': str(dept)} if dept else {}
+            return self.query(Attendee) \
+                       .filter_by(ribbon=DEPT_HEAD_RIBBON, **assigned) \
+                       .order_by(Attendee.full_name).all()
 
         def match_to_group(self, attendee, group):
             with BADGE_LOCK:
