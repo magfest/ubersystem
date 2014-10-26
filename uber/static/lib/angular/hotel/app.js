@@ -1,10 +1,7 @@
-//
-// TODO: nights should be configurable
-//
 angular.module('hotel', ['ngRoute', 'magfest'])
     .service('errorHandler', function () {
         return function () {
-            alert('I AM ERROR');
+            alert('I AM ERROR');  // TODO: better error handling
         };
     })
     .service('Hotel', function ($window) {
@@ -77,11 +74,15 @@ angular.module('hotel', ['ngRoute', 'magfest'])
     .controller('CreateController', function($scope, $http, $location, magconsts, errorHandler, Hotel) {
         $scope.room = {
             department: $scope.department,
-            thursday: magconsts.THURSDAY,   // needs to be configurable
-            friday: magconsts.FRIDAY,
-            saturday: magconsts.SATURDAY,
             notes: ''
         };
+        $scope.nights = [];
+        angular.forEach($scope.NIGHTS, function (night) {
+            $scope.nights.push(angular.extend({checked: night.core}, night));
+            if (night.core) {
+                $scope.room[night.name] = night.val;
+            }
+        });
         $scope.save = function() {
             $http({
                 method: 'post',
@@ -98,6 +99,10 @@ angular.module('hotel', ['ngRoute', 'magfest'])
     })
     .controller('EditController', function($scope, $http, $location, $routeParams, errorHandler, Hotel) {
         $scope.room = Hotel.get('rooms', $routeParams.roomId);
+        $scope.nights = [];
+        angular.forEach($scope.NIGHTS, function (night) {
+            $scope.nights.push(angular.extend({checked: $scope.room[night.name]}, night));
+        });
         $scope.save = function() {
             $http({
                 method: 'post',
@@ -117,12 +122,19 @@ angular.module('hotel', ['ngRoute', 'magfest'])
             room_id: $scope.room.id,
             attendee_id: $scope.lists.unassigned[0] && $scope.lists.unassigned[0].id
         };
+        $scope.isSetupOrTeardown = function (room) {    // TODO: this would be a one-liner in lodash
+            var nonCore = false;
+            angular.forEach($scope.NIGHTS, function (night) {
+                nonCore = nonCore || !night.core;
+            });
+            return nonCore;
+        };
         $scope.add = function() {
             var room = Hotel.get('rooms', $scope.assignment.room_id);
             var attendee = Hotel.get('unassigned', $scope.assignment.attendee_id);
-            var limited = $scope.wrongNights(room, attendee) 
-                       && (room.nights.indexOf('Wed') === -1 || room.nights.indexOf('Sun') === -1);
-            if (!limited || confirm('This attendee has requested setup/teardown and you are assigning them to a regular room, wnich will automatically decline their request to help with setup/teardown.')) {
+            var autoDecline = $scope.wrongNights(room, attendee) && $scope.isSetupOrTeardown(room);
+            // TODO: replace confirm with an async Angular-driven UI component (for better testability)
+            if (!autoDecline || confirm('This attendee has requested setup/teardown and you are assigning them to a regular room, wnich will automatically decline their request to help with setup/teardown.')) {
                 $http({
                     method: 'post',
                     url: 'assign_to_room',

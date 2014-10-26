@@ -98,11 +98,35 @@ class Root:
             }, indent=4, cls=serializer)
         else:
             attendee = session.admin_attendee()
+            two_days_before = (EPOCH - timedelta(days=2)).strftime('%A')
+            day_before = (EPOCH - timedelta(days=1)).strftime('%A')
+            day_after = (ESCHATON + timedelta(days=1)).strftime('%A')
             return {
                 'department': department,
                 'checklist': session.checklist_status('hotel_assignments', department),
                 'dump': _hotel_dump(session, department),
-                'department_name': dict(JOB_LOCATION_OPTS)[int(department)]
+                'department_name': dict(JOB_LOCATION_OPTS)[int(department)],
+                'nights': [{
+                    'core': False,
+                    'name': two_days_before.lower(),
+                    'val': globals()[two_days_before.upper()],
+                    'desc': two_days_before + ' night (for early setup volunteers)'
+                }, {
+                    'core': False,
+                    'name': day_before.lower(),
+                    'val': globals()[day_before.upper()],
+                    'desc': day_before + ' night (for setup volunteers)'
+                }] + [{
+                    'core': True,
+                    'name': NIGHTS[night].lower(),
+                    'val': night,
+                    'desc': NIGHTS[night]
+                } for night in CORE_NIGHTS] + [{
+                    'core': False,
+                    'name': day_after.lower(),
+                    'val': globals()[day_after.upper()],
+                    'desc': day_after + ' night (for teardown volunteers)'
+                }]
             }
 
     @ajax
@@ -126,7 +150,6 @@ class Root:
         session.commit()
         return _hotel_dump(session, room.department)
 
-    # TODO: default approval room nights need to be configurable
     @ajax
     def assign_to_room(self, session, attendee_id, room_id):
         if not session.query(RoomAssignment).filter_by(attendee_id=attendee_id).all():
@@ -135,10 +158,10 @@ class Root:
             ra = RoomAssignment(attendee=attendee, room=room)
             session.add(ra)
             hr = attendee.hotel_requests
-            if room.wednesday or room.sunday:
+            if room.setup_teardown:
                 hr.approved = True
             else:
-                hr.wednesday = hr.sunday = False
+                hr.decline()
             session.commit()
         return _hotel_dump(session, session.room(room_id).department)
 

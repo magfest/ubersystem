@@ -46,21 +46,21 @@
     {% if attendee.badge_type == STAFF_BADGE and attendee.registered < ROOM_DEADLINE %}
         {% if BEFORE_ROOM_DEADLINE %}
             <li>
-                {% checked_if attendee.hotelrequests %}
-                {% if not attendee.placeholder and attendee.food_restrictions and not attendee.hotelrequests %}
+                {% checked_if attendee.hotel_requests %}
+                {% if not attendee.placeholder and attendee.food_restrictions and not attendee.hotel_requests %}
                     <a href="hotel_requests">Tell us</a>
                 {% else %}
                     Tell us
                 {% endif %}
                 whether you want hotel room space no later than <b>{{ ROOM_DEADLINE|datetime }}</b>
-                {% if attendee.hotelrequests %}
+                {% if attendee.hotel_requests %}
                     (you may <a href="hotel_requests">edit your request</a> until then).
                 {% endif %}
             </li>
         {% else %}
             <li>
-                {% checked_if attendee.hotelrequests %}
-                {% if attendee.hotelrequests %}
+                {% checked_if attendee.hotel_requests %}
+                {% if attendee.hotel_requests %}
                     Thanks for filling out the hotel space request form before the deadline.
                 {% else %}
                     You didn't fill out the hotel request form before the deadline.

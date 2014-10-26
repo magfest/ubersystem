@@ -215,7 +215,7 @@ class NightsMixin(object):
 
     @property
     def setup_teardown(self):
-        return self.wednesday or self.sunday
+        return any(night for night in self.nights_ints if night not in CORE_NIGHTS)
 
     locals().update({mutate(name): _night(mutate(name)) for name in NIGHT_NAMES for mutate in [str.upper, str.lower]})
 
@@ -425,11 +425,11 @@ class Attendee(MagModel, TakesPaymentMixin):
     nonshift_hours   = Column(Integer, default=0)
     past_years       = Column(UnicodeText)
 
-    no_shirt          = relationship('NoShirt', backref='attendee', uselist=False, cascade='delete')
-    admin_account     = relationship('AdminAccount', backref='attendee', uselist=False, cascade='delete')
-    hotel_requests    = relationship('HotelRequests', backref='attendee', uselist=False, cascade='delete')
-    room_assignments  = relationship('RoomAssignment', backref='attendee', uselist=False, cascade='delete')
-    food_restrictions = relationship('FoodRestrictions', backref='attendee', uselist=False, cascade='delete')
+    no_shirt          = relationship('NoShirt', backref=backref('attendee', load_on_pending=True), uselist=False, cascade='delete')
+    admin_account     = relationship('AdminAccount', backref=backref('attendee', load_on_pending=True), uselist=False, cascade='delete')
+    hotel_requests    = relationship('HotelRequests', backref=backref('attendee', load_on_pending=True), uselist=False, cascade='delete')
+    room_assignments  = relationship('RoomAssignment', backref=backref('attendee', load_on_pending=True), uselist=False, cascade='delete')
+    food_restrictions = relationship('FoodRestrictions', backref=backref('attendee', load_on_pending=True), uselist=False, cascade='delete')
 
     _repr_attr_names = ['full_name']
     _unrestricted = {'first_name', 'last_name', 'international', 'zip_code', 'ec_phone', 'cellphone', 'email', 'age_group',
@@ -736,10 +736,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     def hotel_eligible(self):
         return ROOM_DEADLINE and self.badge_type == STAFF_BADGE
 
-    @cached_property
+    @property
     def hotel_nights(self):
         try:
-            return [dict(NIGHT_OPTS)[night] for night in map(int, self.hotel_requests.nights.split(','))]
+            return self.hotel_requests.nights
         except:
             return []
 
@@ -806,16 +806,8 @@ class HotelRequests(MagModel, NightsMixin):
 
     _unrestricted = ['attendee_id', 'nights', 'wanted_roommates', 'unwanted_roommates', 'special_needs']
 
-    # TODO: fix this to work with SQLAlchemy
-    @classmethod
-    def in_dept(cls, department):
-        return HotelRequests.objects.filter(attendee__assigned_depts__contains = department) \
-                                    .exclude(nights='') \
-                                    .order_by('attendee__first_name', 'attendee__last_name') \
-                                    .select_related()
-
     def decline(self):
-        self.nights = ','.join(night for night in self.nights.split(',') if int(night) in {THURSDAY, FRIDAY, SATURDAY})
+        self.nights = ','.join(night for night in self.nights.split(',') if int(night) in CORE_NIGHTS)
 
     def __repr__(self):
         return '<{self.attendee.full_name} Hotel Requests>'.format(self=self)
@@ -1066,7 +1058,7 @@ class Tracking(MagModel):
                 return '<bcrypted>'
             elif isinstance(column.type, MultiChoice):
                 opts = dict(column.type.choices)
-                return repr('' if not value else (','.join(opts[int(opt)] for opt in value.split(',') if opt in opts)))
+                return repr('' if not value else (','.join(opts[int(opt)] for opt in value.split(',') if int(opt or 0) in opts)))
             elif isinstance(column.type, Choice) and value is not None:
                 return repr(dict(column.type.choices).get(int(value), '<nonstandard>'))
             else:

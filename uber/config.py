@@ -237,6 +237,11 @@ TABLE_OPTS = [
 
 NIGHT_DISPLAY_ORDER = [globals()[night.upper()] for night in NIGHT_DISPLAY_ORDER]
 NIGHT_NAMES = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+CORE_NIGHTS = []
+_day = EPOCH
+while _day.date() != ESCHATON.date():
+    CORE_NIGHTS.append(globals()[_day.strftime('%A').upper()])
+    _day += timedelta(days=1)
 
 PREREG_SHIRT_OPTS = SHIRT_OPTS[1:]
 MERCH_SHIRT_OPTS = [(SIZE_UNKNOWN, 'select a size')] + list(PREREG_SHIRT_OPTS)

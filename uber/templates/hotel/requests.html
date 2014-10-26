@@ -67,7 +67,7 @@
         <td>{{ request.special_needs }}</td>
         <td class="nights">{{ request.attendee.hotel_nights|join:" / " }}</td>
         <td>
-            {% if not request.WEDNESDAY and not request.SUNDAY %}   <!-- TODO: make this configurable -->
+            {% if not request.setup_teardown %}
                 n/a
             {% else %}
                 {% if request.approved %}
