@@ -35,7 +35,7 @@
 
 <form method="post" action="form">
 {% csrf_token %}
-<input type="hidden" name="id" value="{{ event.id }}" />
+<input type="hidden" name="id" value="{{ event.db_id }}" />
 
 <table width="100%" cellspacing="5" cellpadding="5">
 <tr>
