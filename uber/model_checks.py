@@ -91,6 +91,8 @@ def attendee_misc(attendee):
         if _invalid_zip_code(attendee.zip_code):
             return 'Enter a valid zip code'
 
+        if not attendee.ec_name:
+            return 'Enter the name of your emergency contact.'
         if _invalid_phone_number(attendee.ec_phone):
             return 'Enter a 10-digit emergency contact number'
 
