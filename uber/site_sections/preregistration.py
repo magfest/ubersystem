@@ -77,10 +77,10 @@ class Root:
               
     @check_if_can_reg
     def dealer_registration(self, message=''):
-        return self.form(badge_type=2)
+        return self.form(badge_type=PSEUDO_DEALER_BADGE)
 
     @check_if_can_reg
-    def form(self, session, message='', edit_id=None, badge_type=ATTENDEE_BADGE, **params):
+    def form(self, session, message='', edit_id=None, **params):
         if MODE == 'magstock':
             if params.get('buy_shirt') != 'on':
                 params['shirt'] = NO_SHIRT
@@ -96,6 +96,8 @@ class Root:
             attendee = session.attendee(params, bools=_checkboxes, ignore_csrf=True, restricted=True)
             group = session.group(params, ignore_csrf=True, restricted=True)
 
+        if not attendee.badge_type:
+            attendee.badge_type = ATTENDEE_BADGE
         if attendee.badge_type not in state.PREREG_BADGE_TYPES:
             raise HTTPRedirect('form?message={}', 'Invalid badge type!')
             
