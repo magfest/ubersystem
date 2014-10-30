@@ -102,7 +102,7 @@ class DeptChecklistConf(Registry):
 for _slug, _conf in SEASON_EVENTS.items():
     SeasonEvent.register(_slug, _conf)
 
-for _slug, _conf in DEPT_HEAD_CHECKLIST.items():
+for _slug, _conf in sorted(DEPT_HEAD_CHECKLIST.items(), key=lambda tup: tup[1]['deadline']):
     DeptChecklistConf.register(_slug, _conf)
 
 

@@ -55,19 +55,23 @@
     {% for attendee, items in heads %}
         <tr>
             <td class="dept-head">{{ attendee|form_link }}</td>
-            {% for item in items %}
-                <td>
-                    {% if item.done %}
-                        <img title="{{ item.name }}" src="../static/images/checkbox_checked.png" />
-                    {% elif item.approaching %}
-                        <img title="{{ item.name }}" src="../static/images/warn.jpg" />
-                    {% elif item.missed %}
-                        <img title="{{ item.name }}" src="../static/images/x.png" />
-                    {% else %}
-                        <img title="{{ item.name }}" src="../static/images/checkbox_unchecked.png" />
-                    {% endif %}
-                </td>
-            {% endfor %}
+            {% if attendee.admin_account %}
+                {% for item in items %}
+                    <td>
+                        {% if item.done %}
+                            <img title="{{ item.name }}" src="../static/images/checkbox_checked.png" />
+                        {% elif item.approaching %}
+                            <img title="{{ item.name }}" src="../static/images/warn.jpg" />
+                        {% elif item.missed %}
+                            <img title="{{ item.name }}" src="../static/images/x.png" />
+                        {% else %}
+                            <img title="{{ item.name }}" src="../static/images/checkbox_unchecked.png" />
+                        {% endif %}
+                    </td>
+                {% endfor %}
+            {% else %}
+                <td colspan="{{ checklist|length }}"><i>This dept head doesn't have an admin account.</i></td>
+            {% endif %}
         </tr>
     {% endfor %}
 {% endfor %}
