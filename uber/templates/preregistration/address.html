@@ -37,9 +37,10 @@
     <div class="form-group address_details">
         <label for="first_name" class="col-sm-2 control-label">Country</label>
         <div class="col-sm-6">
-             <input type="text" name="country" class="form-control" placeholder="Country" value="{{ attendee.country }}" data-geo="country" />
+             <input type="text" name="country" onchange="setInternational()" class="form-control" placeholder="Country" value="{{ attendee.country }}" data-geo="country" />
         </div>
     </div>
+    {% checkbox attendee.international %}
 {% else %}
     <div class="form-group">
         <label for="first_name" class="col-sm-2 control-label">ZIP/Postal Code:</label>
