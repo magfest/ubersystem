@@ -87,14 +87,14 @@ def attendee_misc(attendee):
     if (AT_THE_CON and attendee.email and not re.match(EMAIL_RE, attendee.email)) or (not AT_THE_CON and not re.match(EMAIL_RE, attendee.email)):
         return 'Enter a valid email address'
 
-    if not attendee.ec_name:
+    if COLLECT_INTERESTS and not attendee.ec_name:
         return 'Enter the name of your emergency contact.'
 
     if not attendee.international and not AT_THE_CON:
         if _invalid_zip_code(attendee.zip_code):
             return 'Enter a valid zip code'
 
-        if _invalid_phone_number(attendee.ec_phone):
+        if COLLECT_INTERESTS and _invalid_phone_number(attendee.ec_phone):
             return 'Enter a 10-digit emergency contact number'
 
         if attendee.cellphone and _invalid_phone_number(attendee.cellphone):
