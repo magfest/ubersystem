@@ -74,7 +74,7 @@ class State:
 
     @property
     def PREREG_BADGE_TYPES(self):
-        types = [ATTENDEE_BADGE, PSEUDO_DEALER_BADGE]
+        types = [ATTENDEE_BADGE, PSEUDO_DEALER_BADGE, IND_DEALER_BADGE]
         for reg_open, badge_type in [(self.BEFORE_GROUP_PREREG_TAKEDOWN, PSEUDO_GROUP_BADGE)]:
             if reg_open:
                 types.append(badge_type)

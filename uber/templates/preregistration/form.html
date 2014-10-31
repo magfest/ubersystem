@@ -39,6 +39,20 @@ function setBadge(badgeType) {
         }
     }
 
+function setDealer() {
+    if ($('#dealeropt').is(':checked')) {
+        $("input[name='badge_type']").val("{{ IND_DEALER_BADGE }}");
+    } else {
+        $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}");
+    }
+}
+
+{% if attendee.badge_type == IND_DEALER_BADGE %}
+$(document).ready(function() {
+        $('#dealeropt').prop('checked', true);
+    }
+)
+
 {% if COLLECT_FULL_ADDRESS %}
 $(document).ready(function() {
     $("input[name='international']").hide()
@@ -54,7 +68,6 @@ function setInternational() {
         $("input[name='international']").prop('checked', true);
     }
 }
-
 {% endif %}
 </script>
 
@@ -265,9 +278,9 @@ function setInternational() {
 {% endif %}
 
   <div class="form-group">
-    <label for="email_optin" class="col-sm-2 control-label">Keep Me Updated</label>
+    <label for="email_option" class="col-sm-2 control-label">Dealer Registration</label>
     <div class="col-sm-6">
-      {% checkbox attendee.can_spam %} Send me emails relating to {% organization_and_event_name %} in future years.
+      <input type="checkbox" id="dealeropt" onchange="setDealer()" /> I'm applying to be a dealer.
     </div>
   </div>
 
