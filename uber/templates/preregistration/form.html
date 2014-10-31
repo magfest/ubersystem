@@ -38,6 +38,21 @@ function setBadge(badgeType) {
             $.field("amount_extra").val('160').trigger("change");
         }
     }
+
+function setDealer() {
+    if ($('#dealeropt').is(':checked')) {
+        $("input[name='badge_type']").val("{{ IND_DEALER_BADGE }}");
+    } else {
+        $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}");
+    }
+}
+
+$(document).ready(function() {
+        if ($("input[name='badge_type']").val("{{ IND_DEALER_BADGE }}")) {
+            $('#dealeropt').prop('checked', true);
+        }
+    }
+)
 </script>
 
 <div class="panel panel-default">
@@ -245,9 +260,9 @@ function setBadge(badgeType) {
   </div>
 
   <div class="form-group">
-    <label for="email_optin" class="col-sm-2 control-label">Keep Me Updated</label>
+    <label for="email_option" class="col-sm-2 control-label">Dealer Registration</label>
     <div class="col-sm-6">
-      {% checkbox attendee.can_spam %} Send me emails relating to {% organization_and_event_name %} in future years.
+      <input type="checkbox" id="dealeropt" onchange="setDealer()" /> I'm applying to be a dealer.
     </div>
   </div>
 
