@@ -47,12 +47,12 @@ function setDealer() {
     }
 }
 
+{% if attendee.badge_type == IND_DEALER_BADGE %}
 $(document).ready(function() {
-        if ($("input[name='badge_type']").val("{{ IND_DEALER_BADGE }}")) {
-            $('#dealeropt').prop('checked', true);
-        }
+        $('#dealeropt').prop('checked', true);
     }
 )
+{% endif %}
 </script>
 
 <div class="panel panel-default">
