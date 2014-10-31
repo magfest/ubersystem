@@ -12,14 +12,18 @@
     {% for attendee, item in heads %}
         <tr>
             <td valign="top">{{ attendee|form_link }}</td>
-            <td>
-            {% if item %}
-                <b>Completed</b>
+            {% if attendee.admin_account %}
+                <td>
+                {% if item %}
+                    <b>Completed</b>
+                {% else %}
+                    <i>not complete</i>
+                {% endif %}
+                </td>
+                <td>{{ item.comments }}</td>
             {% else %}
-                <i>not complete</i>
+                <td colspan="2"><i>This dept head doesn't have an admin account.</i></td>
             {% endif %}
-            </td>
-            <td>{{ item.comments }}</td>
         </tr>
     {% endfor %}
 {% endfor %}
