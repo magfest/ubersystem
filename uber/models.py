@@ -495,10 +495,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if self.badge_type == PSEUDO_GROUP_BADGE:
             self.badge_type = ATTENDEE_BADGE
-        elif self.badge_type == PSEUDO_DEALER_BADGE:
-            self.badge_type = ATTENDEE_BADGE
-            self.ribbon = DEALER_RIBBON
-        elif self.badge_type == IND_DEALER_BADGE:
+        elif self.badge_type == PSEUDO_DEALER_BADGE or self.badge_type == IND_DEALER_BADGE:
             self.badge_type = ATTENDEE_BADGE
             self.ribbon = DEALER_RIBBON
 
