@@ -255,12 +255,14 @@ function setInternational() {
     </div>
   </div>
 
+{% if COLLECT_INTERESTS %}
   <div class="form-group">
     <label for="comments" class="col-sm-2 control-label">Comments</label>
     <div class="col-sm-6">
       <input type="textarea" name="comments" id="comments" value="{{ attendee.comments }}" class="form-control" placeholder="Comments">
     </div>
   </div>
+{% endif %}
 
   <div class="form-group">
     <label for="email_optin" class="col-sm-2 control-label">Keep Me Updated</label>
