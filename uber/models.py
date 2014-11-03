@@ -869,12 +869,13 @@ class DeptChecklistItem(MagModel):
 
 
 class Job(MagModel):
+    type        = Column(Choice(JOB_TYPE_OPTS), default=REGULAR)
     name        = Column(UnicodeText)
     description = Column(UnicodeText)
     location    = Column(Choice(JOB_LOCATION_OPTS))
     start_time  = Column(UTCDateTime)
-    duration    = Column(Integer)
-    weight      = Column(Float)
+    duration    = Column(Integer, default=0)
+    weight      = Column(Float, default=1)
     slots       = Column(Integer)
     restricted  = Column(Boolean, default=False)
     extra15     = Column(Boolean, default=False)
