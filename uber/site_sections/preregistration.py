@@ -346,7 +346,7 @@ class Root:
 
     def transfer_badge(self, session, message='', **params):
         old = session.attendee(params['id'])
-        assert old.is_transferrable, 'This badge is not transferrable'
+        assert old.is_transferable, 'This badge is not transferable'
         session.expunge(old)
         attendee = session.attendee(params, bools=_checkboxes, restricted=True)
 

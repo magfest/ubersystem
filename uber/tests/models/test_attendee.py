@@ -70,17 +70,17 @@ def test_badge():
     assert Attendee(ribbon=VOLUNTEER_RIBBON).badge == 'Unpaid Attendee (Volunteer)'
 
 def test_is_transferrable(monkeypatch):
-    assert not Attendee(paid=HAS_PAID).is_transferrable
+    assert not Attendee(paid=HAS_PAID).is_transferable
     monkeypatch.setattr(Attendee, 'is_new', False)
 
-    assert Attendee(paid=HAS_PAID).is_transferrable
-    assert Attendee(paid=PAID_BY_GROUP).is_transferrable
-    assert not Attendee(paid=NOT_PAID).is_transferrable
+    assert Attendee(paid=HAS_PAID).is_transferable
+    assert Attendee(paid=PAID_BY_GROUP).is_transferable
+    assert not Attendee(paid=NOT_PAID).is_transferable
 
-    assert not Attendee(paid=HAS_PAID, trusted=True).is_transferrable
-    assert not Attendee(paid=HAS_PAID, checked_in=datetime.now(UTC)).is_transferrable
-    assert not Attendee(paid=HAS_PAID, badge_type=STAFF_BADGE).is_transferrable
-    assert not Attendee(paid=HAS_PAID, badge_type=GUEST_BADGE).is_transferrable
+    assert not Attendee(paid=HAS_PAID, trusted=True).is_transferable
+    assert not Attendee(paid=HAS_PAID, checked_in=datetime.now(UTC)).is_transferable
+    assert not Attendee(paid=HAS_PAID, badge_type=STAFF_BADGE).is_transferable
+    assert not Attendee(paid=HAS_PAID, badge_type=GUEST_BADGE).is_transferable
 
 def test_gets_shirt(monkeypatch):
     assert not Attendee().gets_shirt
