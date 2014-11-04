@@ -65,7 +65,7 @@
         <td>{{ request.wanted_roommates|linebreaksbr }}</td>
         <td>{{ request.unwanted_roommates|linebreaksbr }}</td>
         <td>{{ request.special_needs }}</td>
-        <td class="nights">{{ request.attendee.hotel_nights|join:" / " }}</td>
+        <td class="nights">{{ request.attendee.hotel_requests.nights_labels|join:" / " }}</td>
         <td>
             {% if not request.setup_teardown %}
                 n/a
@@ -73,8 +73,8 @@
                 {% if request.approved %}
                     approved
                 {% else %}
-                    <button onClick="setApproved('approved', {{ request.id }}, this)">Approve</button>
-                    <button onClick="setApproved('n/a',      {{ request.id }}, this)">Reject</button>
+                    <button onClick="setApproved('approved', '{{ request.id }}', this)">Approve</button>
+                    <button onClick="setApproved('n/a',      '{{ request.id }}', this)">Reject</button>
                 {% endif %}
             {% endif %}
         </td>

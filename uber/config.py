@@ -247,6 +247,8 @@ _day = EPOCH
 while _day.date() != ESCHATON.date():
     CORE_NIGHTS.append(globals()[_day.strftime('%A').upper()])
     _day += timedelta(days=1)
+SETUP_NIGHTS = NIGHT_DISPLAY_ORDER[:NIGHT_DISPLAY_ORDER.index(CORE_NIGHTS[0])]
+TEARDOWN_NIGHTS = NIGHT_DISPLAY_ORDER[1 + NIGHT_DISPLAY_ORDER.index(CORE_NIGHTS[-1]):]
 
 PREREG_SHIRT_OPTS = SHIRT_OPTS[1:]
 MERCH_SHIRT_OPTS = [(SIZE_UNKNOWN, 'select a size')] + list(PREREG_SHIRT_OPTS)

@@ -44,7 +44,7 @@ class Root:
         else:
             hr.decline()
         session.commit()
-        return {'nights': ' / '.join(hr.attendee.hotel_nights)}
+        return {'nights': ' / '.join(hr.nights_labels)}
 
     @csv_file
     def ordered(self, out, session):
