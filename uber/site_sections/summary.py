@@ -65,16 +65,23 @@ class Root:
         return {'staffers': [a for a in session.query(Attendee).filter_by(staffing=True).order_by(Attendee.full_name) if a.shifts]}
 
     def food_restrictions(self, session):
+        all_fr = session.query(FoodRestrictions).all()
         guests = session.query(Attendee).filter_by(badge_type=GUEST_BADGE).count()
-        volunteers = [a for a in session.query(Attendee).filter_by(staffing=True).all() if a.badge_type == STAFF_BADGE or a.weighted_hours]
+        volunteers = len([a for a in session.query(Attendee).filter_by(staffing=True).all()
+                            if a.badge_type == STAFF_BADGE or a.weighted_hours or not a.takes_shifts])
         return {
             'guests': guests,
-            'volunteers': len(volunteers),
-            'notes': filter(bool, [getattr(a.food_restrictions, 'freeform', '') for a in volunteers]),
+            'volunteers': volunteers,
+            'notes': filter(bool, [getattr(fr, 'freeform', '') for fr in all_fr]),
             'standard': {
-                category: len([a for a in volunteers if getattr(a.food_restrictions, category, False)])
-                for category in ['vegetarian', 'vegan', 'gluten']
-            }
+                FOOD_RESTRICTIONS[globals()[category]]: len([fr for fr in all_fr if getattr(fr, category)])
+                for category in FOOD_RESTRICTION_VARS
+            },
+            'sandwich_prefs': {
+                sandtype: len([fr for fr in all_fr if fr.sandwich_pref == globals()[sandtype]])
+                for sandtype in SANDWICH_VARS
+            },
+            'no_cheese': len([fr for fr in all_fr if fr.no_cheese])
         }
 
     def ratings(self, session):
