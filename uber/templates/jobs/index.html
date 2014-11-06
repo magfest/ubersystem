@@ -23,6 +23,21 @@
     <br/><br/>
 {% endif %}
 
+<div style="border:1px">
+    <h3>Setup Shifts</h3>
+    <a href="form?id=None&location={{ location }}&type={{ SETUP }}">Add a setup shift</a>
+    <ul>
+    {% for job in setup %}
+        <li>
+            [<b>{{ job.start_time|datetime:"%I %p %a" }}</b> for an expected ~{{ job.duration }} hours]
+            <a href="form?id={{ job.id }}">{{ job.name }}</a>:
+            {{ job.shifts|length }}/{{ job.slots }} Staffers <a href="staffers_by_job?id={{ job.id }}">Signed Up</a>
+        </li>
+    {% endfor %}
+    </ul>
+    <br/>
+</div>
+
 <table class="calendar">
 {% for curr_dt, prev_dt, jobs in times %}
     <tr>
@@ -52,5 +67,20 @@
     </tr>
 {% endfor %}
 </table>
+
+<div style="border:1px">
+    <h3>Teardown Shifts</h3>
+    <a href="form?id=None&location={{ location }}&type={{ TEARDOWN }}">Add a teardown shift</a>
+    <ul>
+    {% for job in teardown %}
+        <li>
+            [<b>{{ job.start_time|datetime:"%I %p %a" }}</b> for an expected ~{{ job.duration }} hours]
+            <a href="form?id={{ job.id }}">{{ job.name }}</a>:
+            {{ job.shifts|length }}/{{ job.slots }} Staffers <a href="staffers_by_job?id={{ job.id }}">Signed Up</a>
+        </li>
+    {% endfor %}
+    </ul>
+    <br/>
+</div>
 
 {% endblock %}

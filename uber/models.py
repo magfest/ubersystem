@@ -658,6 +658,16 @@ class Attendee(MagModel, TakesPaymentMixin):
         return bool(SHIFTS_CREATED and self.hotel_nights and self.ribbon != DEPT_HEAD_RIBBON and self.takes_shifts)
 
     @property
+    def approved_for_setup(self):
+        hr = self.hotel_requests
+        return bool(hr and hr.approved and set(hr.nights_ints).intersection(SETUP_NIGHTS))
+
+    @property
+    def approved_for_teardown(self):
+        hr = self.hotel_requests
+        return bool(hr and hr.approved and set(hr.nights_ints).intersection(TEARDOWN_NIGHTS))
+
+    @property
     def hours(self):
         all_hours = set()
         for shift in self.shifts:
@@ -684,6 +694,8 @@ class Attendee(MagModel, TakesPaymentMixin):
                                        .order_by(Job.start_time).all()
                         if job.slots > len(job.shifts)
                            and job.no_overlap(self)
+                           and (job.type != SETUP or self.approved_for_setup)
+                           and (job.type != TEARDOWN or self.approved_for_teardown)
                            and (not job.restricted or self.trusted)]
 
     @property
@@ -869,12 +881,13 @@ class DeptChecklistItem(MagModel):
 
 
 class Job(MagModel):
+    type        = Column(Choice(JOB_TYPE_OPTS), default=REGULAR)
     name        = Column(UnicodeText)
     description = Column(UnicodeText)
     location    = Column(Choice(JOB_LOCATION_OPTS))
     start_time  = Column(UTCDateTime)
     duration    = Column(Integer)
-    weight      = Column(Float)
+    weight      = Column(Float, default=1)
     slots       = Column(Integer)
     restricted  = Column(Boolean, default=False)
     extra15     = Column(Boolean, default=False)

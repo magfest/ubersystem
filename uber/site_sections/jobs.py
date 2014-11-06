@@ -12,10 +12,13 @@ class Root:
         jobs, shifts, attendees = session.everything(location)
         by_start = defaultdict(list)
         for job in jobs:
-            by_start[job.start_time_local].append(job)
+            if job.type == REGULAR:
+                by_start[job.start_time_local].append(job)
         times = [EPOCH + timedelta(hours=i) for i in range(CON_LENGTH)]
         return {
             'location':  location,
+            'setup':     [j for j in jobs if j.type == SETUP],
+            'teardown':  [j for j in jobs if j.type == TEARDOWN],
             'checklist': session.checklist_status('creating_shifts', location),
             'times':     [(t, t + timedelta(hours=1), by_start[t]) for i, t in enumerate(times)]
         }
@@ -70,7 +73,7 @@ class Root:
             params.update(defaults)
 
         job = session.job(params, bools=['restricted', 'extra15'],
-                                  allowed=['location', 'start_time'] + list(defaults.keys()))
+                                  allowed=['location', 'start_time', 'type'] + list(defaults.keys()))
         if cherrypy.request.method == 'POST':
             message = check(job)
             if not message:

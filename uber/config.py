@@ -194,11 +194,16 @@ DEPT_HEAD_CHECKLIST = _config['dept_head_checklist']
 BADGE_LOCK = RLock()
 
 CON_LENGTH = int((ESCHATON - EPOCH).total_seconds() // 3600)
-START_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (EPOCH + timedelta(hours = i) for i in range(CON_LENGTH))]
-DURATION_OPTS   = [(i, '%i hour%s'%(i,('s' if i > 1 else ''))) for i in range(1,8)]
+START_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (EPOCH + timedelta(hours=i) for i in range(CON_LENGTH))]
+DURATION_OPTS   = [(i, '%i hour%s' % (i, ('s' if i > 1 else ''))) for i in range(1, 9)]
 EVENT_START_TIME_OPTS = [(dt, dt.strftime('%I %p %a') if not dt.minute else dt.strftime('%I:%M %a'))
                          for dt in [EPOCH + timedelta(minutes = i * 30) for i in range(2 * CON_LENGTH)]]
 EVENT_DURATION_OPTS = [(i, '%.1f hour%s' % (i/2, 's' if i != 2 else '')) for i in range(1, 19)]
+SETUP_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (EPOCH - timedelta(days=2) + timedelta(hours=i) for i in range(16))] \
+                + [(dt, dt.strftime('%I %p %a')) for dt in (EPOCH - timedelta(days=1) + timedelta(hours=i) for i in range(16))]
+TEARDOWN_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (ESCHATON + timedelta(hours=i) for i in range(6))] \
+                   + [(dt, dt.strftime('%I %p %a')) for dt in
+                        ((ESCHATON + timedelta(days=1)).replace(hour=10) + timedelta(hours=i) for i in range(12))]
 
 
 EVENT_NAME_AND_YEAR = EVENT_NAME + (' {}'.format(YEAR) if YEAR else '')
@@ -242,6 +247,8 @@ _day = EPOCH
 while _day.date() != ESCHATON.date():
     CORE_NIGHTS.append(globals()[_day.strftime('%A').upper()])
     _day += timedelta(days=1)
+SETUP_NIGHTS = NIGHT_DISPLAY_ORDER[:NIGHT_DISPLAY_ORDER.index(CORE_NIGHTS[0])]
+TEARDOWN_NIGHTS = NIGHT_DISPLAY_ORDER[1 + NIGHT_DISPLAY_ORDER.index(CORE_NIGHTS[-1]):]
 
 PREREG_SHIRT_OPTS = SHIRT_OPTS[1:]
 MERCH_SHIRT_OPTS = [(SIZE_UNKNOWN, 'select a size')] + list(PREREG_SHIRT_OPTS)
