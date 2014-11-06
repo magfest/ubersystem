@@ -886,7 +886,7 @@ class Job(MagModel):
     description = Column(UnicodeText)
     location    = Column(Choice(JOB_LOCATION_OPTS))
     start_time  = Column(UTCDateTime)
-    duration    = Column(Integer, default=0)
+    duration    = Column(Integer)
     weight      = Column(Float, default=1)
     slots       = Column(Integer)
     restricted  = Column(Boolean, default=False)
