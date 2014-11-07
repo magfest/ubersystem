@@ -198,3 +198,16 @@ class Root:
                               'Circle One: worked / unworked',
                               'Comments:'])
             out.writerow([])
+    def add_volunteers_by_dept(self, session, message='', location=None):
+        location = location or JOB_LOCATION_OPTS[0][0]
+        return {
+            'message': message,
+            'location': location,
+            'not_already_here': [
+                (a.id, a.full_name)
+                for a in session.query(Attendee)
+                                .filter(Attendee.email != '',
+                                         ~Attendee.assigned_depts.contains(str(location)))
+                                .order_by(Attendee.full_name).all()
+            ]
+        }
