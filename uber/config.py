@@ -155,17 +155,19 @@ for _opt, _val in BADGE_PRICES['attendee'].items():
     PRICE_BUMPS[EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d'))] = _val
 
 def _make_enum(enum_name, section):
-    opts, lookup = [], {}
+    opts, lookup, varnames = [], {}, []
     for name, desc in section.items():
         if isinstance(name, int):
             val = name
         else:
+            varnames.append(name.upper())
             val = globals()[name.upper()] = int(sha512(name.upper().encode()).hexdigest()[:7], 16)
         opts.append((val, desc))
         lookup[val] = desc
 
     enum_name = enum_name.upper()
     globals()[enum_name + '_OPTS'] = opts
+    globals()[enum_name + '_VARS'] = varnames
     globals()[enum_name + ('' if enum_name.endswith('S') else 'S')] = lookup
 
 for _name, _section in _config['enums'].items():

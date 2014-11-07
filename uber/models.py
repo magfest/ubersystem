@@ -825,18 +825,22 @@ class HotelRequests(MagModel, NightsMixin):
         return '<{self.attendee.full_name} Hotel Requests>'.format(self=self)
 
 class FoodRestrictions(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
-    standard    = Column(MultiChoice(FOOD_RESTRICTION_OPTS))
-    freeform    = Column(UnicodeText)
+    attendee_id   = Column(UUID, ForeignKey('attendee.id'), unique=True)
+    standard      = Column(MultiChoice(FOOD_RESTRICTION_OPTS))
+    sandwich_pref = Column(Choice(SANDWICH_OPTS))
+    no_cheese     = Column(Boolean, default=False)
+    freeform      = Column(UnicodeText)
 
     def __getattr__(self, name):
-        restriction = getattr(config, name.upper())
-        if restriction not in dict(FOOD_RESTRICTION_OPTS):
-            raise AttributeError()
-        elif restriction == VEGETARIAN and str(VEGAN) in self.standard.split(','):
+        restriction = globals().get(name.upper())
+        if restriction not in FOOD_RESTRICTIONS:
+            return MagModel.__getattr__(self, name)
+        elif restriction == VEGETARIAN and VEGAN in self.standard_ints:
             return False
+        elif restriction == PORK and {VEGETARIAN, VEGAN}.intersection(self.standard_ints):
+            return True
         else:
-            return str(restriction) in self.standard.split(',')
+            return restriction in self.standard_ints
 
 class AssignedPanelist(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'))

@@ -31,21 +31,25 @@ class Root:
     @check_shutdown
     def food_restrictions(self, session, message='', **params):
         attendee = session.logged_in_volunteer()
+        fr = attendee.food_restrictions or FoodRestrictions()
         if params:
-            session.add(
-                session.food_restrictions(dict(params, attendee_id=attendee.id),
-                                          allowed     = ['attendee_id', 'freeform'],
-                                          checkgroups = ['standard']))
-            if attendee.badge_type == GUEST_BADGE:
-                raise HTTPRedirect('food_restrictions?message={}', 'Your info has been recorded, thanks a bunch!')
+            fr = session.food_restrictions(dict(params, attendee_id=attendee.id),
+                                          bools = ['no_cheese'],
+                                          checkgroups = ['standard'])
+            if not fr.sandwich_pref:
+                message = 'Please tell us your sandwich preference'
             else:
-                raise HTTPRedirect('index?message={}', 'Your dietary restrictions have been recorded')
-        else:
-            return {
-                'message': message,
-                'attendee': attendee,
-                'fr': attendee.food_restrictions or FoodRestrictions()
-            }
+                session.add(fr)
+                if attendee.badge_type == GUEST_BADGE:
+                    raise HTTPRedirect('food_restrictions?message={}', 'Your info has been recorded, thanks a bunch!')
+                else:
+                    raise HTTPRedirect('index?message={}', 'Your dietary restrictions have been recorded')
+
+        return {
+            'fr': fr,
+            'message': message,
+            'attendee': attendee
+        }
 
     @check_shutdown
     def hotel_requests(self, session, message='', decline=None, **params):
