@@ -106,8 +106,8 @@ function setInternational() {
   <div class="list-group">
     <div class="col-sm-2">
     <a id="attendee_select" onclick="setBadge('Attendee')" class="list-group-item badge_type_selector active">
-      <h4 class="list-group-item-heading">Attendee</h4>
-      <p class="list-group-item-text">Register a single attendee.</p>
+      <h4 class="list-group-item-heading">Attending</h4>
+      <p class="list-group-item-text">Allows access to the con for its duration.</p>
     </a>
     </div>
 
@@ -128,16 +128,14 @@ function setInternational() {
     <div class="col-sm-2">
     <a id="featured1_select" onclick="setBadge('Featured1')" class="list-group-item badge_type_selector">
       <h4 class="list-group-item-heading">Sponsor</h4>
-      <p class="list-group-item-text">Get extra swag!</p>
+      <p class="list-group-item-text">Donate extra and get perks on top of an attending membership.</p>
     </a>
     </div>
-  {% endif %}
 
-  {% if SEASON_SUPPORTERS_ENABLED %}
     <div class="col-sm-2">
     <a id="featured2_select" onclick="setBadge('Featured2')" class="list-group-item badge_type_selector">
       <h4 class="list-group-item-heading">Super Sponsor</h4>
-      <p class="list-group-item-text">Extra swag for all our events this year!</p>
+      <p class="list-group-item-text">The most generous option - get even more great perks!</p>
     </a>
     </div>
   {% endif %}
@@ -296,7 +294,10 @@ function setInternational() {
   <div class="form-group">
     <label for="email_option" class="col-sm-2 control-label">Dealer Registration</label>
     <div class="col-sm-6">
-      <input type="checkbox" id="dealeropt" onchange="setDealer()" /> I'm applying to be a dealer.
+        <input type="checkbox" id="dealeropt" onchange="setDealer()" /> I'm applying to be a dealer.
+        <br/>If you wish to have a dealer table at Anthrocon, you must purchase a membership here first.
+
+        <br/><br/>You will proceed to a special page that will allow you to purchase your table. Please be certain to read the Dealer Packet for 2015 and note that you must have a Pennsylvania Sales Tax License number in-hand before purchasing a table!
     </div>
   </div>
 
