@@ -206,16 +206,21 @@ class Root:
 
         self.unpaid_preregs.clear()
         self.paid_preregs.extend(charge.targets)
-        raise HTTPRedirect('paid_preregistrations?payment_received='+str(charge.total_cost))
+        raise HTTPRedirect('paid_preregistrations?payment_received={}', charge.dollar_amount)
 
-    def paid_preregistrations(self, payment_received=None):
+    def paid_preregistrations(self, session, payment_received=None):
         if not self.paid_preregs:
             raise HTTPRedirect('index')
         else:
-            total_cost = int(payment_received)/100 if payment_received else 0
+            preregs = [session.merge(Charge.from_sessionized(d)) for d in self.paid_preregs]
+            for prereg in preregs:
+                try:
+                    session.refresh(prereg)
+                except:
+                    pass  # this badge must have subsequently been transferred or deleted
             return {
-                'preregs': [Charge.from_sessionized(d) for d in self.paid_preregs],
-                'total_cost': "%.2f" % total_cost
+                'preregs': preregs,
+                'total_cost': payment_received
             }
 
     def delete(self, id):
