@@ -206,13 +206,17 @@ class Root:
 
         self.unpaid_preregs.clear()
         self.paid_preregs.extend(charge.targets)
-        raise HTTPRedirect('paid_preregistrations')
+        raise HTTPRedirect('paid_preregistrations?payment_received='+str(charge.total_cost))
 
-    def paid_preregistrations(self):
+    def paid_preregistrations(self, payment_received=None):
         if not self.paid_preregs:
             raise HTTPRedirect('index')
         else:
-            return {'preregs': [Charge.from_sessionized(d) for d in self.paid_preregs]}
+            total_cost = int(payment_received)/100 if payment_received else 0
+            return {
+                'preregs': [Charge.from_sessionized(d) for d in self.paid_preregs],
+                'total_cost': "%.2f" % total_cost
+            }
 
     def delete(self, id):
         self.unpaid_preregs.pop(id, None)
