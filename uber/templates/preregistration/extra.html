@@ -42,7 +42,7 @@
     </script>
 
     {% if attendee.badge_type != PSEUDO_DEALER_BADGE %}
-    <div class="extra-row form-group">
+    <div class="extra-row form-group" {% if not COLLECT_INTERESTS %}style="display:none;"{% endif %}>
     <label for="amount_extra" class="col-sm-2 control-label">Want to kick in extra?</label>
     <div class="col-sm-6">
       {% if AFTER_PRINTED_BADGE_DEADLINE and attendee.amount_extra >= SUPPORTER_LEVEL %}
@@ -55,11 +55,13 @@
                 {% endif %}
     </div>
   </div>
+    {% if COLLECT_INTERESTS %}
     <div class="extra-row form-group">
     <p class="help-block col-sm-6 col-sm-offset-2">{% popup_link "../static_views/givingExtra.html" "Why do this?" %}</p>
     <p class="help-block col-sm-6 col-sm-offset-2">Each level includes all lower levels.</p>
     <p class="help-block col-sm-6 col-sm-offset-2">Supporter level and higher {% if BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ SUPPORTER_DEADLINE|datetime }}.</p>
     </div>
+    {% endif %}
     {% endif %}
 
     <div class="badge-row extra-row form-group" style="display:none">
