@@ -76,7 +76,7 @@
     <td> <b>Slots:</b> </td>
     <td>
         <select name="slots">
-            {% int_options 1 10 job.slots %}
+            {% int_options 1 50 job.slots %}
         </select>
         {% if not job.is_new %}({{ job.shift_set.count }} filled){% endif %}
     </td>
