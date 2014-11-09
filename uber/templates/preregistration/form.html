@@ -102,7 +102,8 @@ function setInternational() {
 
 {% if not attendee.is_dealer %}
   <div class="form-group">
-  <label for="badge" class="col-sm-2 control-label">Badge</label>
+  <label for="badge" class="col-sm-2 control-label">Badge
+  <br/><br/><span class="popup">{% popup_link "../static_views/badge_descriptions.html" "What's the difference?" %}</span></label>
   <div class="list-group">
     <div class="col-sm-2">
     <a id="attendee_select" onclick="setBadge('Attendee')" class="list-group-item badge_type_selector active">
