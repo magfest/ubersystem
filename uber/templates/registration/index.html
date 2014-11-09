@@ -114,13 +114,13 @@
     <a class="btn btn-default" {% if not AT_THE_CON %}disabled="disabled"{% endif %} 
     	href="new">View Recent At-the-Door Registrations</a>
 </div>
-
+{% if COLLECT_INTERESTS %}
 <div class="panel col-md-4">
 <div class="col-md-6">{{ attendee_count }} Attendee{{ attendee_count|pluralize }}</div>
         <div class="col-md-6"><span id="checkin_count">{{ checkin_count }}</span> Checked In</div>
 </div>
+{% endif %}
 </div>
-
     {% if search_results %}
     <div class="panel panel-info">
     <a href="index?order={{ order }}">Click here</a> to view full attendee list instead of only search results.
