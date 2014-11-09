@@ -496,7 +496,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if not self.status == INVALID_STATUS:
             if self.paid == NOT_PAID:
                 self.status = NEW_STATUS
-            elif self.paid == HAS_PAID:
+            elif self.paid == HAS_PAID or self.paid == NEED_NOT_PAY:
                 self.status = COMPLETED_STATUS
             elif self.placeholder:
                 self.status = DEFERRED_STATUS
