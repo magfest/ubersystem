@@ -1,8 +1,8 @@
 {{ attendee.first_name }},
 
-As a department head for {{ attendee.assigned_depts_labels|join:'' }} we need some information from you about: {{ conf.name }}
+As a department head for {{ attendee.assigned_depts_labels|join:'' }} we need some information from you about: {{ conf.name|safe }}
 
-{{ conf.description }}
+{{ conf.description|safe }}
 
 Please fill out the form at {{ URL_BASE }}{{ conf|dept_checklist_path:attendee }} by {{ conf.deadline|datetime }}; we need you to submit the linked form even if this doesn't apply to your department so that we know you've looked at it.
 
