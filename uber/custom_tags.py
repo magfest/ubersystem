@@ -21,6 +21,14 @@ def subtract(x, y):
 def remove_newlines(string):
     return string.replace('\n', ' ')
 
+@register.filter
+def form_link(attendee):
+    return SafeString('<a href="../registration/form?id={}">{}</a>'.format(attendee.id, attendee.full_name))
+
+@register.filter
+def dept_checklist_path(conf, attendee=None):
+    return SafeString(conf.path(attendee))
+
 def _getter(x, attrName):
     if '.' in attrName:
         first, rest = attrName.split('.', 1)
@@ -63,30 +71,6 @@ def join_and(xs):
     else:
         xs = xs[:-1] + ['and ' + xs[-1]]
         return ', '.join(xs)
-
-@register.filter
-def setup_teardown_requests(department):
-    return [hr for hr in HotelRequests.in_dept(department) if hr.setup_teardown]
-
-@register.filter
-def dept_hotel_nights(department):
-    nights = defaultdict(list)
-    for hr in HotelRequests.in_dept(department):
-        if not hr.approved:
-            if hr.setup_teardown:
-                hr.not_yet_approved = True
-            hr.decline()    # this is safe because we're not saving
-        nights[hr.nights_display].append(hr)
-    return sorted(nights.items())
-
-@register.filter
-def dept_placeholders(department):
-    with Session() as session:
-        if department:
-            return session.query(Attendee).filter(Attendee.placeholder == True, Attendee.assigned_depts.like('%{}%'.format(department))).order_by(Attendee.full_name).all()
-        else:
-            return session.query(Attendee).filter_by(badge_type=STAFF_BADGE, placeholder=True).order_by(Attendee.full_name).all()
-
 
 @tag
 class maybe_anchor(template.Node):
@@ -230,18 +214,18 @@ class timespan(template.Node):
     @staticmethod
     def pretty(model, minute_increment=60):
         minutestr = lambda dt: ':30' if dt.minute == 30 else ''
-        endtime   = model.start_time + timedelta(minutes = minute_increment * model.duration)
-        startstr  = model.start_time.strftime('%I').lstrip('0') + minutestr(model.start_time)
+        endtime   = model.start_time_local + timedelta(minutes = minute_increment * model.duration)
+        startstr  = model.start_time_local.strftime('%I').lstrip('0') + minutestr(model.start_time_local)
         endstr    = endtime.strftime('%I').lstrip('0') + minutestr(endtime) + endtime.strftime('%p').lower()
 
-        if model.start_time.day==endtime.day:
+        if model.start_time_local.day == endtime.day:
             endstr += endtime.strftime(' %A')
-            if model.start_time.hour<12 and endtime.hour>=12:
+            if model.start_time_local.hour<12 and endtime.hour>=12:
                 return startstr + 'am - ' + endstr
             else:
                 return startstr + '-' + endstr
         else:
-            return startstr + model.start_time.strftime('pm %a - ') + endstr + endtime.strftime(' %a')
+            return startstr + model.start_time_local.strftime('pm %a - ') + endstr + endtime.strftime(' %a')
 
     def render(self, context):
         return self.pretty(self.model.resolve(context))

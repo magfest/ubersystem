@@ -19,9 +19,16 @@ when they know what kind of food restrictions we all have.
 <form method="post" action="food_restrictions">
     {% csrf_token %}
     <input type="hidden" name="id" value="{{ fr.db_id }}" />
-    
+
     {% checkgroup fr.standard %}
-    
+
+    <br/> <br/>
+    <select name="sandwich_pref">
+        <option value="">What is Your Preferred Sandwich?</option>
+        {% options SANDWICH_OPTS fr.sandwich_pref %}
+    </select>
+    {% checkbox fr.no_cheese %} No cheese
+
     <br/> <br/> Let us know if you have any other allergies or restrictions: <br/>
     <textarea name="freeform" rows="3" cols="80">{{ fr.freeform }}</textarea>
     

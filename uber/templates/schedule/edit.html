@@ -2,6 +2,7 @@
 {% block title %}Schedule{% endblock %}
 {% block content %}
 
+<script src="../static/lib/moment/moment.min.js"></script>
 <style type="text/css">
     .context-menu-item {
         padding: 2px 2px 2px 7px;
@@ -55,7 +56,7 @@
 <script type="text/javascript">
     var SLOT_COUNT = {{ CON_LENGTH }} * 2;
     var EVENTS = {{ events|jsonize }};
-    var EPOCH = Date.parse("{{ EPOCH|datetime:"%Y-%m-%d %H:%M:%S" }}");
+    var EPOCH = moment('{{ EPOCH|datetime:"%Y-%m-%d %H:%M:%S" }}', 'YYYY-MM-DD HH:mm:ss');
     
     var swapProps = function(x, y) {
         $.each($.makeArray(arguments).slice(2), function(i,name) {
@@ -75,12 +76,13 @@
         return deduped;
     };
     var formatDate = function(slot) {
-        var d = new Date(EPOCH).addMinutes(30 * slot);
-        var s = (d.getHours() == 0 || d.getHours() == 12) && d.getMinutes() == 0 ? d.toString("ddd ") : "";
-        if (d.getMinutes()) {
-            return ""; //return s + (parseInt(d.toString("h")) || 12) + ":" + d.getMinutes();
+        var d = EPOCH.clone().add(30 * slot, 'minutes');
+        if (d.minute()) {
+            return d.format('h:mm');
+        } else if (d.hour() == 0 || d.hour() == 12) {
+            return d.format('ha ddd');
         } else {
-            return s + (parseInt(d.toString("h")) || 12) + d.toString("tt").toLowerCase();
+            return d.format('ha');
         }
     };
     
@@ -212,7 +214,7 @@
         },
         create: function($td) {
             var slot = $td.parent("tr").data("slot");
-            var startTime = new Date(EPOCH).addMinutes(30 * slot).toString("yyyy-MM-dd HH:mm:ss");
+            var startTime = EPOCH.clone().add(30 * slot, 'minutes').format("YYYY-MM-DD HH:mm:ss");
             window.location = "form?id=None&location=" + $td.data("location") + "&start_time=" + startTime;
         },
         move: function(event) {

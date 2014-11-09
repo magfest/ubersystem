@@ -31,23 +31,26 @@ class Root:
     @check_shutdown
     def food_restrictions(self, session, message='', **params):
         attendee = session.logged_in_volunteer()
+        fr = attendee.food_restrictions or FoodRestrictions()
         if params:
-            session.add(
-                session.food_restrictions(dict(params, attendee_id=attendee.id),
-                                          allowed     = ['attendee_id', 'freeform'],
-                                          checkgroups = ['standard']))
-            if attendee.badge_type == GUEST_BADGE:
-                raise HTTPRedirect('food_restrictions?message={}', 'Your info has been recorded, thanks a bunch!')
+            fr = session.food_restrictions(dict(params, attendee_id=attendee.id),
+                                          bools = ['no_cheese'],
+                                          checkgroups = ['standard'])
+            if not fr.sandwich_pref:
+                message = 'Please tell us your sandwich preference'
             else:
-                raise HTTPRedirect('index?message={}', 'Your dietary restrictions have been recorded')
-        else:
-            return {
-                'message': message,
-                'attendee': attendee,
-                'fr': attendee.food_restrictions or FoodRestrictions()
-            }
+                session.add(fr)
+                if attendee.badge_type == GUEST_BADGE:
+                    raise HTTPRedirect('food_restrictions?message={}', 'Your info has been recorded, thanks a bunch!')
+                else:
+                    raise HTTPRedirect('index?message={}', 'Your dietary restrictions have been recorded')
 
-    # TODO: make nights configurable, which is needed both for 8.5 and MAGFest of this year
+        return {
+            'fr': fr,
+            'message': message,
+            'attendee': attendee
+        }
+
     @check_shutdown
     def hotel_requests(self, session, message='', decline=None, **params):
         attendee = session.logged_in_volunteer()
@@ -58,17 +61,30 @@ class Root:
                 requests.nights = ''
                 raise HTTPRedirect('index?message={}', "We've recorded that you've declined hotel room space")
             else:
-                nondefault = set(map(int, requests.nights.split(','))) - {THURSDAY, FRIDAY, SATURDAY}
-                if nondefault:
-                    days = ' / '.join(dict(NIGHTS_OPTS)[day] for day in sorted(nondefault))
-                    message = "Your hotel room request has been submitted.  We'll let you know whether your offer to help on {} is accepted, and who your roommates will be, in the first week of December.".format(days)
+                if requests.setup_teardown:
+                    days = ' / '.join(NIGHTS[day] for day in sorted(requests.nights_ints, key=NIGHT_DISPLAY_ORDER.index)
+                                                   if day not in CORE_NIGHTS)
+                    message = "Your hotel room request has been submitted.  We'll let you know whether your offer to help on {} is accepted, and who your roommates will be, a few weeks after the deadline.".format(days)
                 else:
-                    message = "You've accepted hotel room space for Thursday / Friday / Saturday.  We'll let you know your roommates in the first week of December."
+                    message = "You've accepted hotel room space for {}.  We'll let you know your roommates a few weeks after the deadline.".format(requests.nights_display)
                 raise HTTPRedirect('index?message={}', message)
         else:
             requests = attendee.hotel_requests or requests
+            if requests.is_new:
+                requests.nights = ','.join(map(str, CORE_NIGHTS))
+
+        nights = []
+        day_before = (EPOCH - timedelta(days=1)).strftime('%A')
+        day_after = (ESCHATON + timedelta(days=1)).strftime('%A')
+        nights.append([globals()[day_before.upper()], getattr(requests, day_before.upper()),
+                       "I'd like to help set up on " + day_before])
+        for night in CORE_NIGHTS:
+            nights.append([night, night in requests.nights_ints, NIGHTS[night]])
+        nights.append([globals()[day_after.upper()], getattr(requests, day_after.upper()),
+                       "I'd like to help tear down on {} / {}".format(ESCHATON.strftime('%A'), day_after)])
 
         return {
+            'nights':   nights,
             'message':  message,
             'requests': requests,
             'attendee': attendee

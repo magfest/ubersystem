@@ -302,7 +302,9 @@
 </tr>
 <tr>
     <td> <nobr>Personal Phone Number:</nobr> </td>
-    <td> <input type="text" name="cellphone" value="{{ attendee.cellphone }}" /> </td>
+    <td> <input type="text" name="cellphone" value="{{ attendee.cellphone }}" /> 
+                    <span id="nophone">{% checkbox attendee.no_cellphone %} Doesn't own a cellphone</span>
+            </td>
 </tr>
 <tr>
     <td> Attendee Comments: </td>

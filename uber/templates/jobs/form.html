@@ -31,6 +31,7 @@
 
 <form method="post" action="form">
 <input type="hidden" name="id" value="{{ job.db_id }}" />
+<input type="hidden" name="type" value="{{ job.type }}" />
 <input type="hidden" name="from_schedule" value="{{ from_schedule }}" />
 {% csrf_token %}
 
@@ -47,29 +48,37 @@
     <td> <b>Start Time:</b> </td>
     <td>
         <select name="start_time">
-            {% options START_TIME_OPTS job.start_time %}
+            {% if job.type == SETUP %}
+                {% options SETUP_TIME_OPTS job.start_time %}
+            {% elif job.type == TEARDOWN %}
+                {% options TEARDOWN_TIME_OPTS job.start_time %}
+            {% else %}
+                {% options START_TIME_OPTS job.start_time %}
+            {% endif %}
         </select>
     </td>
 </tr>
 <tr>
-    <td> <b>Duration:</b> </td>
+    <td><b>{% if job.type != REGULAR %}Expected Approximate {% endif %}Duration:</b></td>
     <td>
         <select name="duration">
             {% options DURATION_OPTS job.duration %}
         </select>
     </td>
 </tr>
-<tr>
-    <td> <b>Extra 15{% popup_link "../static_views/extra15.html" %}</b> </td>
-    <td> {% checkbox job.extra15 %} Yes </td>
-</tr>
+{% if job.type == REGULAR %}
+    <tr>
+        <td> <b>Extra 15{% popup_link "../static_views/extra15.html" %}</b> </td>
+        <td> {% checkbox job.extra15 %} Yes </td>
+    </tr>
+{% endif %}
 <tr>
     <td> <b>Slots:</b> </td>
     <td>
         <select name="slots">
-            {% int_options 1 10 job.slots %}
+            {% int_options 1 50 job.slots %}
         </select>
-        {% if job.id %}({{ job.shift_set.count }} filled){% endif %}
+        {% if not job.is_new %}({{ job.shift_set.count }} filled){% endif %}
     </td>
 </tr>
 <tr>
@@ -80,14 +89,16 @@
         </select>
     </td>
 </tr>
-<tr>
-    <td> <b>Weight:{% popup_link "../static_views/weightDesc.html" %}</b> </td>
-    <td>
-        <select name="weight">
-            {% options WEIGHT_OPTS job.weight %}
-        </select>
-    </td>
-</tr>
+{% if job.type == REGULAR %}
+    <tr>
+        <td> <b>Weight:{% popup_link "../static_views/weightDesc.html" %}</b> </td>
+        <td>
+            <select name="weight">
+                {% options WEIGHT_OPTS job.weight %}
+            </select>
+        </td>
+    </tr>
+{% endif %}
 <tr>
     <td> <b>Restricted:{% popup_link "../static_views/trustDesc.html" %}</b> </td>
     <td> {% checkbox job.restricted %} Yes </td>

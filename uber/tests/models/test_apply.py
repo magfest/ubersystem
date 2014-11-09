@@ -56,7 +56,7 @@ def test_integer_vals(attendee):
     assert attendee.paid == HAS_PAID
 
 def test_float_val(job):
-    assert job.weight is None
+    assert job.weight == 1.0
     job.apply({'weight': '1.5'}, restricted=False)
     assert job.weight == 1.5
 

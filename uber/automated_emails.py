@@ -48,7 +48,7 @@ class AutomatedEmail:
             if raise_errors:
                 raise
 
-    # TODO: joinedload on other tables such as shifts as well, for performance
+    # TODO: joinedload on other tables such as shifts as well, for performance (this is WAY slower than it could be)
     @classmethod
     def send_all(cls, raise_errors=False):
         with Session() as session:
@@ -70,10 +70,6 @@ class GuestEmail(AutomatedEmail):
     def __init__(self, subject, template, filter=lambda a: True, needs_approval=True, **kwargs):
         AutomatedEmail.__init__(self, Attendee, subject, template, lambda a: a.badge_type == GUEST_BADGE and filter(a), needs_approval=needs_approval, sender=PANELS_EMAIL, **kwargs)
 
-class DeptHeadEmail(AutomatedEmail):
-    def __init__(self, subject, template, filter=lambda a: True, *, sender=STAFF_EMAIL, **kwargs):
-        AutomatedEmail.__init__(self, Attendee, subject, template, lambda a: a.ribbon == DEPT_HEAD_RIBBON and len(a.assigned) == 1 and filter(a), sender=sender, **kwargs)
-
 class GroupEmail(AutomatedEmail):
     def __init__(self, subject, template, filter, **kwargs):
         AutomatedEmail.__init__(self, Group, subject, template, lambda g: not g.is_dealer and filter(g), sender=REGDESK_EMAIL, **kwargs)
@@ -90,6 +86,15 @@ class SeasonSupporterEmail(AutomatedEmail):
                                 filter = lambda a: before(event.deadline),
                                 needs_approval = True,
                                 extra_data = {'event': event})
+
+class DeptChecklistEmail(AutomatedEmail):
+    def __init__(self, conf):
+        AutomatedEmail.__init__(self, Attendee,
+                                subject = '{EVENT_NAME} Department Checklist: ' + conf.name,
+                                template = 'shifts/dept_checklist.txt',
+                                filter = lambda a: a.is_single_dept_head and a.admin_account and days_before(7, conf.deadline) and not conf.completed(a),
+                                sender = STAFF_EMAIL,
+                                extra_data = {'conf': conf})
 
 before = lambda dt: bool(dt) and localized_now() < dt
 days_after = lambda days, dt: bool(dt) and (localized_now() > dt + timedelta(days=days))
@@ -159,8 +164,11 @@ MarketplaceEmail('{EVENT_NAME} Dealer waitlist has been exhausted', 'dealers/wai
 # creates a "placeholder" registration.
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Panelist Badge Confirmation', 'placeholders/panelist.txt',
-               lambda a: a.placeholder and a.first_name and a.last_name
-                                       and (a.badge_type == GUEST_BADGE or a.ribbon == PANELIST_RIBBON),
+               lambda a: a.placeholder and a.first_name and a.last_name and a.ribbon == PANELIST_RIBBON,
+               sender = PANELS_EMAIL)
+
+AutomatedEmail(Attendee, '{EVENT_NAME} Guest Badge Confirmation', 'placeholders/guest.txt',
+               lambda a: a.placeholder and a.first_name and a.last_name and a.badge_type == GUEST_BADGE,
                sender = PANELS_EMAIL)
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Dealer Information Required', 'placeholders/dealer.txt',
@@ -239,35 +247,8 @@ AutomatedEmail(Attendee, '{EVENT_NAME} parental consent form reminder', 'reg_wor
                lambda a: CONSENT_FORM_URL and a.age_group and a.consent_form and days_before(7, EPOCH))
 
 
-# TODO: Turn these back on after implementing the department head checklist
-if False:
-    DeptHeadEmail('Last chance for {EVENT_NAME} Department Heads to get Staff badges for your people', 'personalized_badges/dept_head_reminder.txt',
-                  lambda a: STAFF_BADGE in PREASSIGNED_BADGE_TYPES and days_before(7, PRINTED_BADGE_DEADLINE))
-
-    DeptHeadEmail('MAGFest Department Ribbons', 'dept_head_ribbons.txt', lambda a: days_before(1, ROOM_DEADLINE),
-                  sender=REGDESK_EMAIL)
-
-    DeptHeadEmail('Assign {EVENT_NAME} hotel rooms for your department', 'room_assignments.txt',
-                  lambda a: days_before(45, ROOM_DEADLINE))
-
-    DeptHeadEmail('Reminder for {EVENT_NAME} department heads to double-check their staffers', 'dept_head_rooms.txt',
-                  lambda a: days_before(45, ROOM_DEADLINE))
-
-    DeptHeadEmail('Last reminder for {EVENT_NAME} department heads to double-check their staffers', 'dept_head_rooms.txt',
-                  lambda a: days_before(7, ROOM_DEADLINE))
-
-    DeptHeadEmail('Need help with {EVENT_NAME} setup/teardown?', 'dept_head_setup_teardown.txt',
-                  lambda a: days_before(14, ROOM_DEADLINE))
-
-    DeptHeadEmail('Final list of {EVENT_NAME} hotel allocations for your department', 'hotel_list.txt',
-                  lambda a: days_before(1, ROOM_DEADLINE + timedelta(days=6)))
-
-    DeptHeadEmail('Unconfirmed {EVENT_NAME} staffers in your department', 'dept_placeholders.txt',
-                  lambda a: days_before(21, UBER_TAKEDOWN))
-
-    DeptHeadEmail('{EVENT_NAME} staffers need to be marked and rated', 'shifts/postcon_hours.txt',
-                  lambda: SHIFTS_CREATED, post_con=True)
-
-
 for _event in SeasonEvent.instances.values():
     SeasonSupporterEmail(_event)
+
+for _conf in DeptChecklistConf.instances.values():
+    DeptChecklistEmail(_conf)

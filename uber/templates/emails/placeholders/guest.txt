@@ -1,0 +1,7 @@
+{{ attendee.first_name }},
+
+Thanks for coming out to {{ EVENT_NAME }} as a Guest!  We've added you to our registration database for your complimentary badge, but we don't have all of your personal information.  To ensure that you can pick up your badge with no hassles at our registration desk, please fill out the rest of your info at {{ URL_BASE }}/preregistration/confirm?id={{ attendee.id }} and then simply bring a photo ID to {{ EVENT_NAME }}.
+
+Please let us know if you have any questions.
+
+{{ GUEST_EMAIL_SIGNATURE }}

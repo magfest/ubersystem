@@ -90,12 +90,9 @@ def test_gets_shirt(monkeypatch):
 
     monkeypatch.setattr(Attendee, 'worked_hours', 5)
     assert not Attendee().gets_shirt
-    monkeypatch.setattr(Attendee, 'worked_hours', 18)
-    assert not Attendee().gets_shirt
-    monkeypatch.setattr(Attendee, 'worked_hours', 6)
-    assert Attendee().gets_shirt
-    monkeypatch.setattr(Attendee, 'worked_hours', 24)
-    assert Attendee().gets_shirt
+    for amount in [6, 18, 24, 30]:
+        monkeypatch.setattr(Attendee, 'worked_hours', amount)
+        assert Attendee().gets_shirt
 
 def test_has_personalized_badge():
     assert not Attendee().has_personalized_badge
