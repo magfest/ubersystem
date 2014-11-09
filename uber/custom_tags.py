@@ -214,18 +214,18 @@ class timespan(template.Node):
     @staticmethod
     def pretty(model, minute_increment=60):
         minutestr = lambda dt: ':30' if dt.minute == 30 else ''
-        endtime   = model.start_time + timedelta(minutes = minute_increment * model.duration)
-        startstr  = model.start_time.strftime('%I').lstrip('0') + minutestr(model.start_time)
+        endtime   = model.start_time_local + timedelta(minutes = minute_increment * model.duration)
+        startstr  = model.start_time_local.strftime('%I').lstrip('0') + minutestr(model.start_time_local)
         endstr    = endtime.strftime('%I').lstrip('0') + minutestr(endtime) + endtime.strftime('%p').lower()
 
-        if model.start_time.day==endtime.day:
+        if model.start_time_local.day == endtime.day:
             endstr += endtime.strftime(' %A')
-            if model.start_time.hour<12 and endtime.hour>=12:
+            if model.start_time_local.hour<12 and endtime.hour>=12:
                 return startstr + 'am - ' + endstr
             else:
                 return startstr + '-' + endstr
         else:
-            return startstr + model.start_time.strftime('pm %a - ') + endstr + endtime.strftime(' %a')
+            return startstr + model.start_time_local.strftime('pm %a - ') + endstr + endtime.strftime(' %a')
 
     def render(self, context):
         return self.pretty(self.model.resolve(context))
