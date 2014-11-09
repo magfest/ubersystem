@@ -129,13 +129,9 @@
 <tr>
     <td width="25%"><b>Status:</b></td>
     <td width="75%">
-        {% if attendee.is_new %}
-            New
-        {% else %}
-            <select name="status">
-                {% options BADGE_STATUS_OPTS attendee.status %}
-            </select>
-        {% endif %}
+        <select name="status">
+            {% options BADGE_STATUS_OPTS attendee.status %}
+        </select>
     </td>
 </tr>
 <tr>
