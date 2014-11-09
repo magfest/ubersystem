@@ -26,17 +26,8 @@
 	{% if not attendee.placeholder %}(you can still <a href="../preregistration/confirm?return_to=../signups/index&id={{ attendee.id }}">edit your info</a>){% endif %}
     </li>
     <li>
-        {% checked_if attendee.fire_safety_cert %}
-        {% if not attendee.placeholder and not attendee.fire_safety_cert %}
-            <a href="fire_safety">Certify yourself</a>
-        {% else %}
-            Certify yourself
-        {% endif %}
-        with fire safety training.
-    </li>
-    <li>
         {% checked_if attendee.food_restrictions %}
-        {% if not attendee.placeholder and attendee.fire_safety_cert %}
+        {% if not attendee.placeholder %}
             <a href="food_restrictions">Let us know</a>
         {% else %}
             Let us know
@@ -68,15 +59,17 @@
             </li>
         {% endif %}
     {% endif %}
-    <li>
-        {% checked_if attendee.shifts %}
-        {% if attendee.shift_prereqs_complete %}
-            <a href="shifts">Sign up</a>
-        {% else %}
-            Sign up
-        {% endif %}
-        for shifts.
-    </li>
+    {% if attendee.takes_shifts %}
+        <li>
+            {% checked_if attendee.shifts %}
+            {% if attendee.shift_prereqs_complete %}
+                <a href="shifts">Sign up</a>
+            {% else %}
+                Sign up
+            {% endif %}
+            for shifts.
+        </li>
+    {% endif %}
 </ol>
 
 {% endblock %}
