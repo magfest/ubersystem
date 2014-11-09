@@ -388,7 +388,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(Group, backref='attendees', foreign_keys=group_id)
 
-    status        = Column(Choice(BADGE_STATUS_OPTS), default=COMPLETED_STATUS)
+    status        = Column(Choice(BADGE_STATUS_OPTS), default=NEW_STATUS)
     placeholder   = Column(Boolean, default=False)
     first_name    = Column(UnicodeText)
     last_name     = Column(UnicodeText)
@@ -493,15 +493,12 @@ class Attendee(MagModel, TakesPaymentMixin):
                 setattr(self, attr, value.title())
 
     def _status_adjustments(self):
-        if not self.status == INVALID_STATUS:
-            if self.paid == NOT_PAID:
+        old_status = self.orig_value_of('status')
+        if old_status == self.status: # Only make adjustments if it was not manually changed
+            if self.paid == NOT_PAID or self.placeholder:
                 self.status = NEW_STATUS
             elif self.paid == HAS_PAID or self.paid == NEED_NOT_PAY:
                 self.status = COMPLETED_STATUS
-            elif self.placeholder:
-                self.status = DEFERRED_STATUS
-            elif self.amount_refunded == self.amount_paid:
-                self.status = REFUNDED_STATUS
 
     def _badge_adjustments(self):
         #_assert_badge_lock()
