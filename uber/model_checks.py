@@ -107,7 +107,7 @@ def attendee_misc(attendee):
         return "Volunteers cannot be " + attendee.age_group_desc
     
     if not attendee.can_register:
-        return 'Attendees cannot be ' + attendee.age_group_desc
+        return 'Attendees '+ attendee.age_group_desc +' years of age do not need to register, but MUST be accompanied by a parent at all times!'
 
 
 def attendee_leadership(attendee):
