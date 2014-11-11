@@ -12,6 +12,7 @@ import warnings
 import mimetypes
 import threading
 import traceback
+import binascii
 from glob import glob
 from uuid import uuid4
 from io import StringIO
