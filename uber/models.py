@@ -461,7 +461,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     def on_delete(self):
         #_assert_badge_lock()
-        if self.has_personalized_badge and not CUSTOM_BADGES_REALLY_ORDERED:
+        if self.has_personalized_badge and SHIFT_CUSTOM_BADGES:
             self.session.shift_badges(self.badge_type, self.badge_num, down=True)
 
     def presave_adjustments(self):
@@ -510,14 +510,14 @@ class Attendee(MagModel, TakesPaymentMixin):
             self.badge_type = ATTENDEE_BADGE
             self.ribbon = DEALER_RIBBON
 
-        if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE and not CUSTOM_BADGES_REALLY_ORDERED:
+        if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE:
             self.badge_type = SUPPORTER_BADGE
 
         if PRE_CON:
             if self.paid == NOT_PAID or not self.has_personalized_badge:
                 self.badge_num = 0
             elif self.has_personalized_badge and not self.badge_num:
-                if CUSTOM_BADGES_REALLY_ORDERED:
+                if not check_range(self.badge_type, self.session.next_badge_num(self.badge_type)):
                     self.badge_type, self.badge_num = ATTENDEE_BADGE, 0
                 elif self.paid != NOT_PAID:
                     self.badge_num = self.session.next_badge_num(self.badge_type)
@@ -525,8 +525,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def _staffing_adjustments(self):
         if self.ribbon == DEPT_HEAD_RIBBON:
             self.staffing = self.trusted = True
-            if not CUSTOM_BADGES_REALLY_ORDERED:
-                self.badge_type = STAFF_BADGE
+            self.badge_type = STAFF_BADGE
             if self.paid == NOT_PAID:
                 self.paid = NEED_NOT_PAY
 
@@ -1280,7 +1279,7 @@ class Session(SessionManager):
             assert not any(param for param in direction if param not in ['up', 'down']), 'unknown parameters'
             assert len(direction) < 2, 'you cannot specify both up and down parameters'
             down = (not direction['up']) if 'up' in direction else direction.get('down', True)
-            if not CUSTOM_BADGES_REALLY_ORDERED:
+            if SHIFT_CUSTOM_BADGES:
                 shift = -1 if down else 1
                 for a in self.query(Attendee).filter(Attendee.badge_type == badge_type,
                                                      Attendee.badge_num >= badge_num,
@@ -1297,14 +1296,9 @@ class Session(SessionManager):
             out_of_range = check_range(badge_num, badge_type)
             if out_of_range:
                 return out_of_range
-            elif CUSTOM_BADGES_REALLY_ORDERED:
-                if badge_type in PREASSIGNED_BADGE_TYPES and old_badge_type not in PREASSIGNED_BADGE_TYPES:
-                    return 'Custom badges have already been ordered; you can add new staffers by giving them an Attendee badge with a Volunteer Ribbon'
-                elif badge_type not in PREASSIGNED_BADGE_TYPES and old_badge_type in PREASSIGNED_BADGE_TYPES:
+            elif badge_type not in PREASSIGNED_BADGE_TYPES and old_badge_type in PREASSIGNED_BADGE_TYPES:
                     attendee.badge_num = 0
                     return 'Badge updated'
-                elif badge_type in PREASSIGNED_BADGE_TYPES and badge_num != old_badge_num:
-                    return 'Custom badges have already been ordered, so you cannot shift badge numbers'
 
             if AT_OR_POST_CON:
                 if not badge_num and badge_type in PREASSIGNED_BADGE_TYPES:

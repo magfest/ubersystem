@@ -194,7 +194,7 @@
 {% if attendee.badge_type in PREASSIGNED_BADGE_TYPES %}
     <tr>
         <td>Printed on Badge:</td>
-        <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" {% if CUSTOM_BADGES_REALLY_ORDERED %}readonly{% endif %} /> </td>
+        <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" {% if AFTER_PRINTED_BADGE_DEADLINE %}readonly{% endif %} /> </td>
     </tr>
 {% endif %}
 <tr>
