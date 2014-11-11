@@ -1,4 +1,5 @@
 from uber.common import *
+from uber.config_db import *
 
 @entry_point
 def insert_admin():
@@ -8,8 +9,7 @@ def insert_admin():
             first_name  = 'Test',
             last_name   = 'Developer',
             email       = 'magfest@example.com',
-            badge_type  = STAFF_BADGE,
-            ribbon      = DEPT_HEAD_RIBBON
+            badge_type  = ATTENDEE_BADGE,
         )
         session.add(attendee)
         session.add(AdminAccount(
