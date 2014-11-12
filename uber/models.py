@@ -517,9 +517,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             if self.paid == NOT_PAID or not self.has_personalized_badge:
                 self.badge_num = 0
             elif self.has_personalized_badge and not self.badge_num:
-                if not check_range(self.badge_type, self.session.next_badge_num(self.badge_type)):
-                    self.badge_type, self.badge_num = ATTENDEE_BADGE, 0
-                elif self.paid != NOT_PAID:
+                if self.paid != NOT_PAID:
                     self.badge_num = self.session.next_badge_num(self.badge_type)
 
     def _staffing_adjustments(self):
@@ -1296,7 +1294,8 @@ class Session(SessionManager):
             out_of_range = check_range(badge_num, badge_type)
             if out_of_range:
                 return out_of_range
-            elif badge_type not in PREASSIGNED_BADGE_TYPES and old_badge_type in PREASSIGNED_BADGE_TYPES:
+            else:
+                if badge_type not in PREASSIGNED_BADGE_TYPES and old_badge_type in PREASSIGNED_BADGE_TYPES:
                     attendee.badge_num = 0
                     return 'Badge updated'
 
