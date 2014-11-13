@@ -1182,7 +1182,12 @@ class Session(SessionManager):
 
         def jobs_for_signups(self):
             fields = ['name', 'location_label', 'description', 'weight', 'start_time_local', 'duration', 'weighted_hours', 'restricted', 'extra15', 'taken']
-            return [job.to_dict(fields) for job in self.logged_in_volunteer().possible_and_current]
+            jobs = self.logged_in_volunteer().possible_and_current
+            restricted_hours = set()
+            for job in jobs:
+                if job.restricted:
+                    restricted_hours.add(frozenset(job.hours))
+            return [job.to_dict(fields) for job in jobs if job.restricted or frozenset(job.hours) not in restricted_hours]
 
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
