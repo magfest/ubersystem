@@ -83,7 +83,7 @@ class Root:
                     defaults[params['location']] = {field: getattr(job,field) for field in JOB_DEFAULTS}
                     cherrypy.session['job_defaults'] = defaults
 
-                raise HTTPRedirect('index?location={}#{}', job.location, job.start_time)
+                raise HTTPRedirect('index?location={}#{}', job.location, job.start_time_local)
 
         return {
             'job':      job,
