@@ -45,7 +45,7 @@
             <nobr>{{ curr_dt|date:"gA"|lower }} {{ curr_dt|date:"D" }}</nobr>
             <br/> <br/>
             <nobr><a href="form?id=None&location={{ location }}&start_time={{ curr_dt|date:"Y-m-d H:i:s" }}">Add Shift</a></nobr>
-            <a name="{{ prev_dt|date:"Y-m-d H:i:s" }}"></a>
+            <a name="{{ prev_dt|stringformat:"s" }}"></a>
         </td>
         {% for job in jobs %}
             <td rowspan="{{ job.duration }}">
