@@ -557,6 +557,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.ribbon == DEPT_HEAD_RIBBON
 
     @property
+    def shirt_size_marked(self):
+        return self.shirt not in [NO_SHIRT, SIZE_UNKNOWN]
+
+    @property
     def unassigned_name(self):
         if self.group_id and self.is_unassigned:
             return '[Unassigned {self.badge}]'.format(self=self)
@@ -736,7 +740,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def shift_prereqs_complete(self):
-        return not self.placeholder and (self.badge_type != STAFF_BADGE or self.hotel_requests or not state.BEFORE_ROOM_DEADLINE)
+        return not self.placeholder and self.food_restrictions and self.shirt_size_marked \
+            and (self.badge_type != STAFF_BADGE or self.hotel_requests or not state.BEFORE_ROOM_DEADLINE)
 
     @property
     def past_years_json(self):

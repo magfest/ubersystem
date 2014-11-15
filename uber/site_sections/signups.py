@@ -52,6 +52,23 @@ class Root:
         }
 
     @check_shutdown
+    def shirt_size(self, session, message='', shirt=None, csrf_token=None):
+        attendee = session.logged_in_volunteer()
+        if shirt is not None:
+            check_csrf(csrf_token)
+            if not shirt:
+                message = 'You must select a shirt size'
+            else:
+                attendee.shirt = int(shirt)
+                raise HTTPRedirect('index?message={}', 'Shirt size uploaded')
+
+        return {
+            'message': message,
+            'attendee': attendee,
+            'opts': [('', 'Enter your shirt size')] + SHIRT_OPTS[1:]
+        }
+
+    @check_shutdown
     def hotel_requests(self, session, message='', decline=None, **params):
         attendee = session.logged_in_volunteer()
         requests = session.hotel_requests(params, checkgroups=['nights'], restricted=True)
