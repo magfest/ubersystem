@@ -614,6 +614,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.amount_extra >= SHIRT_LEVEL \
             or self.is_dept_head \
             or self.badge_type in [STAFF_BADGE, SUPPORTER_BADGE] \
+            or PRE_CON \
             or self.worked_hours >= 6
 
     @property
