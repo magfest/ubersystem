@@ -15,7 +15,7 @@
     <tr>
         <td> <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a> </td>
         <td> {{ attendee.assigned_depts_labels|join:" / " }} </td>
-        <td> {{ attendee.hotel_nights|join:" / " }} </td>
+        <td> {{ attendee.hotel_requests.nights_labels|join:" / " }} </td>
         <td> {{ attendee.weighted_hours }} </td>
     </tr>
 {% endfor %}
