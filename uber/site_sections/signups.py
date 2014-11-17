@@ -92,12 +92,13 @@ class Root:
 
         nights = []
         day_before = (EPOCH - timedelta(days=1)).strftime('%A')
+        last_day = ESCHATON.strftime('%A').upper()
         day_after = (ESCHATON + timedelta(days=1)).strftime('%A')
         nights.append([globals()[day_before.upper()], getattr(requests, day_before.upper()),
                        "I'd like to help set up on " + day_before])
         for night in CORE_NIGHTS:
             nights.append([night, night in requests.nights_ints, NIGHTS[night]])
-        nights.append([globals()[day_after.upper()], getattr(requests, day_after.upper()),
+        nights.append([globals()[last_day], getattr(requests, last_day),
                        "I'd like to help tear down on {} / {}".format(ESCHATON.strftime('%A'), day_after)])
 
         return {
