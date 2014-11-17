@@ -722,7 +722,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def weighted_hours(self):
-        wh = sum((shift.job.real_duration * shift.job.weight for shift in self.shifts), 0.0)
+        wh = sum((shift.job.weighted_hours for shift in self.shifts), 0.0)
         return wh + self.nonshift_hours
 
     @property
