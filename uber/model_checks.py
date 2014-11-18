@@ -98,7 +98,10 @@ def attendee_misc(attendee):
             return 'Enter a 10-digit emergency contact number'
 
         if attendee.cellphone and _invalid_phone_number(attendee.cellphone):
-            return 'Invalid 10-digit cellphone number'
+            return 'Invalid 10-digit phone number'
+
+        if not attendee.no_cellphone and _invalid_phone_number(attendee.cellphone):
+            return 'Please enter a 10-digit phone number'
 
     if not attendee.no_cellphone and attendee.staffing and _invalid_phone_number(attendee.cellphone):
         return "10-digit cellphone number is required for volunteers (unless you don't own a cellphone)"
