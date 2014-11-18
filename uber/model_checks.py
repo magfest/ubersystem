@@ -69,7 +69,7 @@ def attendee_misc(attendee):
     elif attendee.placeholder:
         return
 
-    if COLLECT_EXACT_BIRTHDATE and attendee.birthdate == None:
+    if COLLECT_EXACT_BIRTHDATE and attendee.birthdate is None:
         return 'Enter your date of birth.'
     if COLLECT_EXACT_BIRTHDATE and attendee.birthdate > date.today():
         return 'You cannot be born in the future.'
