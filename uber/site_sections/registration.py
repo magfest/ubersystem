@@ -696,3 +696,22 @@ class Root:
                 raise HTTPRedirect('../preregistration/confirm?id={}', attendee.id)
 
         return {'message': message}
+
+    def attendee_upload(self, session, message='', attendee_import = None):
+        if attendee_import:
+            data_file = attendee_import.file
+
+            result = csv.DictReader(attendee_import.file.read().decode('utf-8').split('\n'))
+            message = "Attendees uploaded."
+            for row in result:
+                row["badge_type"] = globals()[row["badge_type"].upper()]
+                row["ribbon"] = globals()[row["ribbon"].upper()]
+                row["birthdate"] = datetime.strptime(row["birthdate"], DATE_FORMAT).date()
+                try:
+                    session.add(Attendee(**row))
+                    session.commit()
+                except:
+                    raise
+                    message = "Upload unsuccessful"
+
+        return {'message' : message}
