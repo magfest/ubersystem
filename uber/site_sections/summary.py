@@ -112,3 +112,30 @@ class Root:
     def staff_badges(self, out, session):
         for a in session.query(Attendee).filter_by(badge_type=STAFF_BADGE).order_by('badge_num').all():
             out.writerow([a.badge_num, a.full_name])
+
+    @csv_file
+    def all_attendees(self, out, session):
+        out.writerow(["status","placeholder","badge_num","badge_type","ribbon","first_name","last_name",
+                     "email","birthdate","age_group_id","international","zip_code","address1","address2",
+                     "city","region","country","no_cellphone","ec_name","ec_phone","cellphone","interests",
+                     "found_how","comments","for_review","admin_notes","affiliate","shirt","can_spam",
+                     "regdesk_info","extra_merch","got_merch","reg_station","registered","checked_in",
+                     "paid","overridden_price","amount_paid","amount_extra","amount_refunded",
+                     "payment_method","staffing","badge_printed_name","fire_safety_cert","requested_depts",
+                     "assigned_depts","trusted","nonshift_hours","past_years","no_shirt","admin_account",
+                     "hotel_requests","room_assignments","food_restrictions","group_id"])
+        for a in session.query(Attendee).order_by('badge_num').all():
+            try:
+                birthdate = date.strftime(DATE_FORMAT, a.birthdate)
+            except:
+                raise
+            out.writerow([a.status_label, a.placeholder, a.badge_num, a.badge_type_label, a.ribbon_label, a.first_name,
+                          a.last_name, a.email, a.birthdate, a.age_group_id, a.international, a.zip_code,
+                          a.address1, a.address2, a.city, a.region, a.country, a.no_cellphone, a.ec_name,
+                          a.ec_phone, a.cellphone, a.interests, a.found_how, a.comments, a.for_review,
+                          a.admin_notes, a.affiliate, a.shirt, a.can_spam, a.regdesk_info, a.extra_merch,
+                          a.got_merch, a.reg_station, a.registered, a.checked_in, a.paid, a.overridden_price,
+                          a.amount_paid, a.amount_extra, a.amount_refunded, a.payment_method, a.staffing,
+                          a.badge_printed_name, a.fire_safety_cert, a.requested_depts, a.assigned_depts,
+                          a.trusted, a.nonshift_hours, a.past_years, a.no_shirt, a.admin_account,
+                          a.hotel_requests, a.room_assignments, a.food_restrictions, a.group_id])
