@@ -13,8 +13,8 @@ $(document).ready(function(){
 });
 {% endif %}
 
-var sponsor_addon = 50
-var super_sponsor_addon = 195
+var sponsor_addon = 50;
+var super_sponsor_addon = 195;
 
 $(document).ready(function(){
     var sponsor_badge_price = {{ BADGE_PRICE }} + sponsor_addon
@@ -22,6 +22,14 @@ $(document).ready(function(){
 
     var super_sponsor_badge_price = {{ BADGE_PRICE }} + super_sponsor_addon
     $('#featured2_select').html('<h4 class="list-group-item-heading">Super Sponsor: $'+super_sponsor_badge_price+'</h4><p class="list-group-item-text">The most generous option - get even more great perks!</p>');
+
+    if ($.field("amount_extra").val() == sponsor_addon) {
+        setBadge('Featured1');
+    } else if ($.field("amount_extra").val() == super_sponsor_addon) {
+        setBadge('Featured2');
+    } else {
+        setBadge('Attendee');
+    }
 })
 
 function setBadge(badgeType) {

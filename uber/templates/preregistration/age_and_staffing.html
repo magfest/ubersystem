@@ -18,7 +18,7 @@
             $.focus("email");
         }
     }
-    $(staffingClicked);
+    {% if COLLECT_INTERESTS %}$(staffingClicked);{% endif %}
 </script>
 
 <div class="form-group">
