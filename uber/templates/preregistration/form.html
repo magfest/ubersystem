@@ -307,17 +307,15 @@ function setInternational() {
       <input type="textarea" name="comments" id="comments" value="{{ attendee.comments }}" class="form-control" placeholder="Comments">
     </div>
   </div>
-{% endif %}
 
   <div class="form-group">
-    <label for="email_option" class="col-sm-2 control-label">Dealer Registration</label>
+    <label for="email_option" class="col-sm-2 control-label">Keep Me Updated:</label>
     <div class="col-sm-6">
-        <input type="checkbox" id="dealeropt" onchange="setDealer()" /> I'm applying to be a dealer.
-        <br/>If you wish to have a dealer table at Anthrocon, you must purchase a membership here first.
-
-        <br/><br/>You will proceed to a special page that will allow you to purchase your table. Please be certain to read the Dealer Packet for 2015 and note that you must have a Pennsylvania Sales Tax License number in-hand before purchasing a table!
+        {% checkbox attendee.can_spam %} Send me emails relating to {% organization_and_event_name %} in future years.
+        <span class="popup">{% popup_link "../static_views/privacy.html" "View Our Privacy Policy" %}</span>
     </div>
   </div>
+{% endif %}
 
  <div class="form-group">
  <div class="col-sm-6 col-sm-offset-2">
