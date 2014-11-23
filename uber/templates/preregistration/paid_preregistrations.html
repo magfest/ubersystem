@@ -57,12 +57,12 @@
     <td>{{ prereg.full_name }}</td>
     <td>{{ prereg.badge_printed_name }}</td>
     <td>{{ prereg.badge_num }}</td>
-    <td><a href="{{ URL_BASE }}/preregistration/confirm?id={{ prereg.id }}">Click Here</a></td>
+    <td><a href="{{ URL_BASE }}/preregistration/confirm?id={{ prereg.id }}" target="_blank">Click Here</a></td>
   </tr>
   {% else %}
   <tr>
     <td>{{ prereg.name }}</td>
-    <td colspan="3">(<a href="group_members?id={{ prereg.id }}">Click Here</a> to assign your group's badges)</td>
+    <td colspan="3">(<a href="group_members?id={{ prereg.id }}" target="_blank">Click Here</a> to assign your group's badges)</td>
   </tr>
   {% endif %}
   {% endfor %}

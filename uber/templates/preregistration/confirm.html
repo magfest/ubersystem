@@ -1,5 +1,5 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}Preregistraton Successful{% endblock %}
+{% block title %}Confirm Your Details{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
 <div class="masthead">
@@ -22,6 +22,7 @@
     });
 </script>
 
+<div class="panel panel-default">
 <form method="post" action="confirm" class="form-horizontal">
 {% csrf_token %}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
@@ -80,5 +81,6 @@
 </table>
 
 </form>
+</div>
 
 {% endblock %}
