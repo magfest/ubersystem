@@ -27,39 +27,54 @@
     </div>
 </div>
 
-<h2>Thanks for Preregistering!</h2>
 
-Your payment has been successfully processed; simply bring a photo ID to {{ EVENT_NAME }} and you should have no trouble picking up
-your badge at our registration desk.
-<br/><br/>
+<div class="row">
+  <div class="well col-md-offset-1 col-md-10">
+    <h1>Registration Complete</h1>
+    <p>
+      Congratulations! Your registration was successful, and your badge
+      numbers are listed below.
+    </p>
+    <p>
+      Your credit card was successfully charged for
+      <strong>${{ total_cost }}</strong>, and you will receive a confirmation
+      email sent to you shortly. If you paid for other registrations, those
+      attendees will get their own confirmation email.
+    </p>
+  </div>
+</div>
 
-<h2>Purchasing Dealer Tables</h2>
+<div class="row">
+  <div class="col-md-offset-1 col-md-10">
 
-Dealers must complete their registration by purchasing tables at the <a href="http://store.anthrocon.org/">{{ EVENT_NAME }} store.</a>
-<br/> <br/>
+<p>The following preregistrations have been made from this computer:</p>
 
-The following preregistrations have been made from this computer:
-<br/><br/>
-<ul>
-{% for prereg in preregs %}
-    {% if prereg.first_name %}
-        <li>
-            {{ prereg.full_name }}
-            {% if prereg.donation_swag %}
-                ({{ prereg.donation_swag|join:", " }})
-            {% endif %}
-        </li>
-    {% else %}
-        <li>
-            <b>{{ prereg.name }}</b>
-            (<a href="group_members?id={{ prereg.id }}">Click Here</a> to assign your group's badges)
-        </li>
-    {% endif %}
-{% endfor %}
-</ul>
-<br/>
+<table class="table footable">
+  <tr><td>Legal Name</td><td>Badge Name</td><td>Badge Number</td><td>Confirmation Link</td></tr>
+  {% for prereg in preregs %}
+  {% if prereg.first_name %}
+  <tr>
+    <td>{{ prereg.full_name }}</td>
+    <td>{{ prereg.badge_printed_name }}</td>
+    <td>{{ prereg.badge_num }}</td>
+    <td><a href="{{ URL_BASE }}/preregistration/confirm?id={{ prereg.id }}">Click Here</a></td>
+  </tr>
+  {% else %}
+  <tr>
+    <td>{{ prereg.name }}</td>
+    <td colspan="3">(<a href="group_members?id={{ prereg.id }}">Click Here</a> to assign your group's badges)</td>
+  </tr>
+  {% endif %}
+  {% endfor %}
+</table>
+</div>
+</div>
 
-<a href="index">Click Here</a> to return to the main preregistration form.
+<div class="row">
+  <div class="col-md-offset-1 col-md-10">
+    <a href="index">
+      <button class="btn btn-primary">Add Another Registration</button>
+    </a>
 
 {% include "preregistration/disclaimers.html" %}
 
