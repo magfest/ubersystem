@@ -153,7 +153,7 @@ $(document).ready(function() {
     <div class="form-group">
     <label for="name" class="col-sm-2 control-label">Group Name</label>
     <div class="col-sm-6">
-      <input type="text" name="name" class="form-control" value="{{ group.name }}" autocomplete="off" />
+      <input type="text" name="name" class="form-control" value="{{ group.name }}"  />
     </div>
     </div>
 </div>
@@ -243,13 +243,13 @@ $(document).ready(function() {
 <div class="form-group">
     <label for="first_name" class="col-sm-2 control-label">First Name</label>
     <div class="col-sm-6">
-      <input type="text" name="first_name" id="first_name" value="{{ attendee.first_name }}" class="form-control" placeholder="First Name" autocomplete="off">
+      <input type="text" name="first_name" id="first_name" value="{{ attendee.first_name }}" class="form-control" placeholder="First Name" >
     </div>
   </div>
   <div class="form-group">
     <label for="last_name" class="col-sm-2 control-label">Last Name</label>
     <div class="col-sm-6">
-      <input type="text" name="last_name" id="last_name" value="{{ attendee.last_name }}" class="form-control" placeholder="Last Name" autocomplete="off">
+      <input type="text" name="last_name" id="last_name" value="{{ attendee.last_name }}" class="form-control" placeholder="Last Name" >
     </div>
   </div>
     <div class="form-group">
@@ -283,7 +283,7 @@ $(document).ready(function() {
   <div class="form-group">
     <label for="email" class="col-sm-2 control-label">How did you find {{ EVENT_NAME }}?</label>
     <div class="col-sm-6">
-      <input type="text" name="found_how" id="found_how" value="{{ attendee.found_how }}" class="form-control" placeholder="How did you find {{ EVENT_NAME }}?" autocomplete="off">
+      <input type="text" name="found_how" id="found_how" value="{{ attendee.found_how }}" class="form-control" placeholder="How did you find {{ EVENT_NAME }}?" >
     </div>
   </div>
 
