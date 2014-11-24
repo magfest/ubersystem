@@ -13,6 +13,25 @@ $(document).ready(function(){
 });
 {% endif %}
 
+var sponsor_addon = 50;
+var super_sponsor_addon = 195;
+
+$(document).ready(function(){
+    var sponsor_badge_price = {{ BADGE_PRICE }} + sponsor_addon
+    $('#featured1_select').html('<h4 class="list-group-item-heading">Sponsor: $'+sponsor_badge_price+'</h4>{% if BEFORE_FIRST_PRICE_BUMP %}($105 after Jan 1)<br/>{% endif %}<p class="list-group-item-text">Donate extra and get perks on top of an attending membership.</p>');
+
+    var super_sponsor_badge_price = {{ BADGE_PRICE }} + super_sponsor_addon
+    $('#featured2_select').html('<h4 class="list-group-item-heading">Super Sponsor: $'+super_sponsor_badge_price+'</h4>{% if BEFORE_FIRST_PRICE_BUMP %}($250 after Jan 1)<br/>{% endif %}<p class="list-group-item-text">The most generous option - get even more great perks!</p>');
+
+    if ($.val('amount_extra') === sponsor_addon) {
+        setBadge('Featured1');
+    } else if ($.val('amount_extra') === super_sponsor_addon) {
+        setBadge('Featured2');
+    } else {
+        setBadge('Attendee');
+    }
+})
+
 function setBadge(badgeType) {
         $(".badge_type_selector").removeClass("active");
         $(".group_fields").addClass("hide");
@@ -30,12 +49,12 @@ function setBadge(badgeType) {
         if (badgeType == 'Featured1') {
             $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}");
             $("#featured1_select").addClass("active");
-            $.field("amount_extra").val('60').trigger("change");
+            $.field("amount_extra").val(sponsor_addon).trigger("change");
         }
         if (badgeType == 'Featured2') {
             $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}");
             $("#featured2_select").addClass("active");
-            $.field("amount_extra").val('160').trigger("change");
+            $.field("amount_extra").val(super_sponsor_addon).trigger("change");
         }
     }
 
@@ -52,23 +71,6 @@ $(document).ready(function() {
         $('#dealeropt').prop('checked', true);
     }
 )
-{% endif %}
-
-{% if COLLECT_FULL_ADDRESS %}
-$(document).ready(function() {
-    $("input[name='international']").hide()
-    setInternational()
-});
-
-function setInternational() {
-    countryName = $("input[name='country']").val();
-
-    if(countryName == "USA" || countryName == "US" || countryName == "United States") {
-        $("input[name='international']").prop('checked', false);
-    } else {
-        $("input[name='international']").prop('checked', true);
-    }
-}
 {% endif %}
 </script>
 
@@ -105,15 +107,16 @@ function setInternational() {
   <label for="badge" class="col-sm-2 control-label">Badge
   <br/><br/><span class="popup">{% popup_link "../static_views/badge_descriptions.html" "What's the difference?" %}</span></label>
   <div class="list-group">
-    <div class="col-sm-2">
+    <div class="col-sm-3">
     <a id="attendee_select" onclick="setBadge('Attendee')" class="list-group-item badge_type_selector active">
-      <h4 class="list-group-item-heading">Attending</h4>
-      <p class="list-group-item-text">Allows access to the con for its duration.</p>
+      <h4 class="list-group-item-heading">Attending: ${{ BADGE_PRICE }}</h4>
+        {% if BEFORE_FIRST_PRICE_BUMP %}($55 after Jan 1)<br/>{% endif %}
+      <p class="list-group-item-text">Allows access to the convention for its duration.</p>
     </a>
     </div>
 
   {% if GROUPS_ENABLED %}
-    <div class="col-sm-2 {% if not BEFORE_GROUP_PREREG_TAKEDOWN %}disabled{% endif %}">
+    <div class="col-sm-3 {% if not BEFORE_GROUP_PREREG_TAKEDOWN %}disabled{% endif %}">
     <a id="group_select" {% if BEFORE_GROUP_PREREG_TAKEDOWN %}onclick="setBadge('Group')"{% endif %} class="list-group-item badge_type_selector">
       <h4 class="list-group-item-heading">Group Leader</h4>
       {% if BEFORE_GROUP_PREREG_TAKEDOWN %}
@@ -125,24 +128,25 @@ function setInternational() {
     </div>
   {% endif %}
 
-  {% if SUPPORTERS_ENABLED %}
-    <div class="col-sm-2">
+    <div class="col-sm-3">
     <a id="featured1_select" onclick="setBadge('Featured1')" class="list-group-item badge_type_selector">
       <h4 class="list-group-item-heading">Sponsor</h4>
       <p class="list-group-item-text">Donate extra and get perks on top of an attending membership.</p>
     </a>
     </div>
 
-    <div class="col-sm-2">
+    <div class="col-sm-3">
     <a id="featured2_select" onclick="setBadge('Featured2')" class="list-group-item badge_type_selector">
       <h4 class="list-group-item-heading">Super Sponsor</h4>
       <p class="list-group-item-text">The most generous option - get even more great perks!</p>
     </a>
     </div>
-  {% endif %}
+  </div>
+  </div>
+<div class="form-group">
+    <p class="help-block col-sm-8 col-sm-offset-2"><strong>Dealers:</strong> {% if BEFORE_DEALER_REG_START %}Registrations for dealer memberships begins December 15.{% endif %}</p>
+</div>
 
-  </div>
-  </div>
 {% endif %}
 
 <div class="group_fields hide">
@@ -181,7 +185,7 @@ function setInternational() {
             
     </div>
     <div class="form-group">
-    <p class="help-block col-sm-6 col-sm-offset-2">[<i>You may <a href="mailto:marketplace@magfest.org">send an email</a> to request more than {{ MAX_TABLES }} tables.</i>]</p>
+    <p class="help-block col-sm-6 col-sm-offset-2">[<i>You may contact us via <a href='{{ CONTACT_URL }}'>{{ CONTACT_URL }}</a> to request more than {{ MAX_TABLES }} tables.</i>]</p>
     </div>
 
     <div class="form-group">
@@ -290,17 +294,15 @@ function setInternational() {
       <input type="textarea" name="comments" id="comments" value="{{ attendee.comments }}" class="form-control" placeholder="Comments">
     </div>
   </div>
-{% endif %}
 
   <div class="form-group">
-    <label for="email_option" class="col-sm-2 control-label">Dealer Registration</label>
+    <label for="email_option" class="col-sm-2 control-label">Keep Me Updated:</label>
     <div class="col-sm-6">
-        <input type="checkbox" id="dealeropt" onchange="setDealer()" /> I'm applying to be a dealer.
-        <br/>If you wish to have a dealer table at Anthrocon, you must purchase a membership here first.
-
-        <br/><br/>You will proceed to a special page that will allow you to purchase your table. Please be certain to read the Dealer Packet for 2015 and note that you must have a Pennsylvania Sales Tax License number in-hand before purchasing a table!
+        {% checkbox attendee.can_spam %} Send me emails relating to {% organization_and_event_name %} in future years.
+        <span class="popup">{% popup_link "../static_views/privacy.html" "View Our Privacy Policy" %}</span>
     </div>
   </div>
+{% endif %}
 
  <div class="form-group">
  <div class="col-sm-6 col-sm-offset-2">

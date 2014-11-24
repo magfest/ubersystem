@@ -25,13 +25,13 @@ badge{% if attendee.group %}
     (with the group <a href="group_members?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>)
 {% endif %}.
 
-If you have any questions then please email <a href="regdesk@magfest.org">regdesk@magfest.org</a>.
+If you have any questions then please contact us via <a href='{{ CONTACT_URL }}'>{{ CONTACT_URL }}</a>.
 
 {% if attendee.badge_type == STAFF_BADGE and attendee.registered == STAFFERS_IMPORTED %}
     <br/> <br/>
     You were registered automatically for a complementary Staff badge as thanks for volunteering
     last year.  You should have already received an email letting you know about this; if you didn't
-    then please email <a href="mailto:stops@magfest.org">stops@magfest.org</a> and let us know.
+    then please contact us via <a href='{{ CONTACT_URL }}'>{{ CONTACT_URL }}</a> and let us know.
 {% endif %}
 
 <br/> <br/>

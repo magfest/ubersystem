@@ -17,5 +17,22 @@
         });
     };
     setInterval(checkCap, 1000 * 1 * 15);
+
+{% if COLLECT_FULL_ADDRESS %}
+$(document).ready(function() {
+    $("#international").hide()
+    setInternational()
+});
+
+function setInternational() {
+    countryName = $("input[name='country']").val();
+
+    if(countryName == "USA" || countryName == "US" || countryName == "United States") {
+        $("input[name='international']").prop('checked', false);
+    } else {
+        $("input[name='international']").prop('checked', true);
+    }
+}
+{% endif %}
 </script>
 {% endblock header %}
