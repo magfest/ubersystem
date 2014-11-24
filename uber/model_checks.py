@@ -126,7 +126,7 @@ def attendee_banned_volunteer(attendee):
     if (attendee.ribbon == VOLUNTEER_RIBBON or attendee.staffing) and attendee.full_name in BANNED_STAFFERS:
         return "We've declined to invite {} back as a volunteer, {}".format(attendee.full_name,
                 'talk to Stops to override if necessary' if AT_THE_CON
-            else 'Please contact us via <a href='{{ CONTACT_URL }}'>{{ CONTACT_URL }}</a> if you believe this is in error')
+            else 'Please contact us via <a href="{{ CONTACT_URL }}">{{ CONTACT_URL }}</a> if you believe this is in error')
 
 def attendee_money(attendee):
     try:
