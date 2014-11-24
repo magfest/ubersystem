@@ -590,6 +590,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.ribbon == DEPT_HEAD_RIBBON
 
     @property
+    def shirt_size_marked(self):
+        return self.shirt not in [NO_SHIRT, SIZE_UNKNOWN]
+
+    @property
     def unassigned_name(self):
         if self.group_id and self.is_unassigned:
             return '[Unassigned {self.badge}]'.format(self=self)
@@ -673,6 +677,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.amount_extra >= SHIRT_LEVEL \
             or self.is_dept_head \
             or self.badge_type in [STAFF_BADGE, SUPPORTER_BADGE] \
+            or PRE_CON \
             or self.worked_hours >= 6
 
     @property
@@ -780,7 +785,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def weighted_hours(self):
-        wh = sum((shift.job.real_duration * shift.job.weight for shift in self.shifts), 0.0)
+        wh = sum((shift.job.weighted_hours for shift in self.shifts), 0.0)
         return wh + self.nonshift_hours
 
     @property
@@ -799,7 +804,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def shift_prereqs_complete(self):
-        return not self.placeholder and (self.badge_type != STAFF_BADGE or self.hotel_requests or not state.BEFORE_ROOM_DEADLINE)
+        return not self.placeholder and self.food_restrictions and self.shirt_size_marked \
+            and (self.badge_type != STAFF_BADGE or self.hotel_requests or not state.BEFORE_ROOM_DEADLINE)
 
     @property
     def past_years_json(self):
@@ -1245,7 +1251,12 @@ class Session(SessionManager):
 
         def jobs_for_signups(self):
             fields = ['name', 'location_label', 'description', 'weight', 'start_time_local', 'duration', 'weighted_hours', 'restricted', 'extra15', 'taken']
-            return [job.to_dict(fields) for job in self.logged_in_volunteer().possible_and_current]
+            jobs = self.logged_in_volunteer().possible_and_current
+            restricted_hours = set()
+            for job in jobs:
+                if job.restricted:
+                    restricted_hours.add(frozenset(job.hours))
+            return [job.to_dict(fields) for job in jobs if job.restricted or frozenset(job.hours) not in restricted_hours]
 
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()

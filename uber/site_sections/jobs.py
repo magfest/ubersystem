@@ -52,7 +52,12 @@ class Root:
         attendee = session.admin_attendee()
         location = int(location or JOB_LOCATION_OPTS[0][0])
         jobs, shifts, attendees = session.everything(location)
-        attendees = [a for a in attendees if int(location) in a.assigned_depts_ints]
+        attendees = [a for a in attendees if a.assigned_to(location)]
+        hours_here = defaultdict(int)
+        for shift in shifts:
+            hours_here[shift.attendee] += shift.job.weighted_hours 
+        for attendee in attendees:
+            attendee.hours_here = hours_here[attendee]
         return {
             'location':           location,
             'attendees':          attendees,
@@ -83,7 +88,7 @@ class Root:
                     defaults[params['location']] = {field: getattr(job,field) for field in JOB_DEFAULTS}
                     cherrypy.session['job_defaults'] = defaults
 
-                raise HTTPRedirect('index?location={}#{}', job.location, job.start_time)
+                raise HTTPRedirect('index?location={}#{}', job.location, job.start_time_local)
 
         return {
             'job':      job,

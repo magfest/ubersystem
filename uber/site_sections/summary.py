@@ -109,10 +109,13 @@ class Root:
 
     def food_eligible(self, session):
         cherrypy.response.headers['Content-Type'] = 'application/xml'
-        eligible = [a for a in session.query(Attendee).order_by(Attendee.full_name).all()
-                      if not a.is_unassigned
-                    and (a.badge_type in (STAFF_BADGE, GUEST_BADGE)
-                      or a.ribbon == VOLUNTEER_RIBBON and a.weighted_hours >= 12)]
+        eligible = {
+            a: {attr.lower(): getattr(a.food_restrictions, attr, False) for attr in FOOD_RESTRICTION_VARS}
+            for a in session.query(Attendee).order_by(Attendee.full_name).all()
+            if not a.is_unassigned
+                and (a.badge_type in (STAFF_BADGE, GUEST_BADGE)
+                  or a.ribbon == VOLUNTEER_RIBBON and a.weighted_hours >= 12)
+        }
         return render('summary/food_eligible.xml', {'attendees': eligible})
 
     @csv_file

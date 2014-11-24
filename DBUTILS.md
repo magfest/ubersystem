@@ -5,10 +5,10 @@ sudo bash
 su postgres
 
 
-# backup a database named 'mydbname' into a file named 'backupfile.sql'
+# backup a database named 'mydbname' into a file named 'uber-backup-2014-11-20.sql' (or whatever today's date is)
 sudo bash
 su postgres
-pg_dump mydbname -f backupfile.sql
+pg_dump mydbname -f uber-backup-`date +%F`.sql
 
 # restore a database named 'mydbname' from a file named 'backupfile.sql'
 sudo bash
@@ -19,7 +19,7 @@ psql
     CREATE DATABASE mydbname;
 psql -d mydbname -f backupfile.sql
 
-# select from an attende (this exact syntax is super-important)
+# select from an attende (this exact syntax and capitalization is super-important)
 SELECT * FROM "Attendee";
 
 # create a database cluster if you blew it up

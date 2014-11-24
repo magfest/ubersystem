@@ -107,7 +107,7 @@ for _slug, _conf in sorted(DEPT_HEAD_CHECKLIST.items(), key=lambda tup: tup[1]['
 
 
 def hour_day_format(dt):
-    return dt.astimezone(EVENT_TIMEZONE).strftime('%I%p ').strip('0').lower() + dt.strftime('%a')
+    return dt.astimezone(EVENT_TIMEZONE).strftime('%I%p ').strip('0').lower() + dt.astimezone(EVENT_TIMEZONE).strftime('%a')
 
 
 def underscorize(s):
