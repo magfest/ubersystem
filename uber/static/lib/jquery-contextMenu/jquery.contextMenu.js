@@ -988,7 +988,7 @@ var // currently active contextMenu trigger
                 
                     switch (item.type) {
                         case 'text':
-                            $input = $('<input type="text" value="1" name="context-menu-input-'+ key +'" value="">')
+                            $input = $('<input type="text" value="1" name="context-menu-input-'+ key +'" value="" autocomplete="off">')
                                 .val(item.value || "").appendTo($label);
                             break;
                     

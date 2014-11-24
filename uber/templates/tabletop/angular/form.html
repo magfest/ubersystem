@@ -6,15 +6,15 @@
 </tr>
 <tr>
     <td style="padding-right:25px"><b>Code:</b></td>
-    <td><input type="text" value="{{ code }}" style="font-family:courier" size="6" readonly /></td>
+    <td><input type="text" value="{{ code }}" style="font-family:courier" size="6" readonly autocomplete="off" /></td>
 </tr>
 <tr>
     <td><b>Game:</b></td>
-    <td><input type="text" ng-model="name" typeahead="g.name for g in games | limitTo:8" autofocus /></td>
+    <td><input type="text" ng-model="name" typeahead="g.name for g in games | limitTo:8" autofocus autocomplete="off" /></td>
 </tr>
 <tr>
     <td><b>Owner:</b></td>
-    <td><input type="text" size="30" ng-model="owner" typeahead-editable="false" typeahead="a as (a.name + ' (Badge #' + a.badge + ')') for a in attendees | filter:nameOrBadge($viewValue) | limitTo:8" /></td>
+    <td><input type="text" size="30" ng-model="owner" typeahead-editable="false" typeahead="a as (a.name + ' (Badge #' + a.badge + ')') for a in attendees | filter:nameOrBadge($viewValue) | limitTo:8" autocomplete="off" /></td>
 </tr>
 <tr>
     <td></td>

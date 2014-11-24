@@ -12,20 +12,20 @@
 <tr>
     <td width="25%"> <b><nobr>First and Last Name:</nobr></b> </td>
     <td width="75%">
-        <input type="text" style="width:10em" name="first_name" value="{{ attendee.first_name }}" class="focus" />
-        <input type="text" style="width:15em" name="last_name"  value="{{ attendee.last_name }}" />
+        <input type="text" style="width:10em" name="first_name" value="{{ attendee.first_name }}" class="focus" autocomplete="off" />
+        <input type="text" style="width:15em" name="last_name"  value="{{ attendee.last_name }}" autocomplete="off" />
     </td>
 </tr>
 {% include "preregistration/extra.html" %}
 {% include "preregistration/age_and_staffing.html" %}
 <tr>
     <td> <b>Email Address:</b> </td>
-    <td> <input type="text" name="email" value="{{ attendee.email }}" /> </td>
+    <td> <input type="text" name="email" value="{{ attendee.email }}" autocomplete="off" /> </td>
 </tr>
 <tr>
     <td> <b>Postal Code:</b> </td>
     <td>
-        <input type="text" name="zip_code" value="{{ attendee.zip_code }}" />
+        <input type="text" name="zip_code" value="{{ attendee.zip_code }}" autocomplete="off" />
         <input type="checkbox" name="international" value="1" {% if attendee.international %}checked{% endif %} />
         I'm coming from outside the US.
     </td>
@@ -37,11 +37,11 @@
 </tr>
 <tr>
     <td> <nobr>How did you</nobr> <nobr>find {{ EVENT_NAME }}?</nobr> </td>
-    <td> <input type="text" name="found_how" value="{{ attendee.found_how }}" /> </td>
+    <td> <input type="text" name="found_how" value="{{ attendee.found_how }}" autocomplete="off" /> </td>
 </tr>
 <tr>
     <td> Comments: </td>
-    <td> <input type="text" name="comments" value="{{ attendee.comments }}" />  </td>
+    <td> <input type="text" name="comments" value="{{ attendee.comments }}" autocomplete="off" />  </td>
 </tr>
 <tr>
     <td> <nobr>Keep Me Updated:</nobr> </td>

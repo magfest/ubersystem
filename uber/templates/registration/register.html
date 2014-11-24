@@ -59,7 +59,7 @@
     <td style="font-weight:bold"> <nobr>First and Last Name:</nobr> </td>
     <td>
         <input class="focus" type="text" style="width:10em" name="first_name" value="{{ attendee.first_name }}" />
-        <input type="text" style="width:10em" name="last_name"  value="{{ attendee.last_name }}"  />
+        <input type="text" style="width:10em" name="last_name"  value="{{ attendee.last_name }}"  autocomplete="off" />
     </td>
 </tr>
 <tr>
@@ -72,17 +72,17 @@
 </tr>
     <tr>
     <td style="font-weight:bold"> <nobr>Backup Phone Name:</nobr> </td>
-    <td> <input type="text" name="ec_name" value="{{ attendee.ec_name }}" /> </td>
+    <td> <input type="text" name="ec_name" value="{{ attendee.ec_name }}" autocomplete="off" /> </td>
 </tr>
 <tr>
     <td style="font-weight:bold"> <nobr>Backup Phone Number:</nobr> </td>
-    <td> <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" /> </td>
+    <td> <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" autocomplete="off" /> </td>
 </tr>
 <tr>
     {% if COLLECT_EXACT_BIRTHDATE %}
     <td style="font-weight: bold"> <nobr>Date of Birth:</nobr> </td>
     <td>
-        <input type="text" name="birthdate" value="{{ attendee.birthdate|date:"Y-m-d" }}" class="form-control date">
+        <input type="text" name="birthdate" value="{{ attendee.birthdate|date:"Y-m-d" }}" class="form-control date" autocomplete="off">
     </td>
     {% else %}
     <td style="font-weight: bold"> <nobr>Age:</nobr> </td>
@@ -95,19 +95,19 @@
 </tr>
 <tr>
     <td id="email"> Email Address: </td>
-    <td> <input type="text" name="email" value="{{ attendee.email }}" /> </td>
+    <td> <input type="text" name="email" value="{{ attendee.email }}" autocomplete="off" /> </td>
 </tr>
 <tr>
     <td> Zip Code: </td>
     <td>
-        <input type="text" name="zip_code" value="{{ attendee.zip_code }}" />
+        <input type="text" name="zip_code" value="{{ attendee.zip_code }}" autocomplete="off" />
         <input type="checkbox" name="international" value="1" {% if attendee.international %}checked{% endif %} />
         I'm from outside the US.
     </td>
 </tr>
 <tr>
     <td> <nobr>How did you</nobr> <nobr>find {{ EVENT_NAME }}?</nobr> </td>
-    <td> <input type="text" name="found_how" value="{{ attendee.found_how }}" style="width:80%" /> </td>
+    <td> <input type="text" name="found_how" value="{{ attendee.found_how }}" style="width:80%" autocomplete="off" /> </td>
 </tr>
 <tr>
     <td> <nobr>What are you</nobr> <nobr>interested in</nobr> <nobr>at {{ EVENT_NAME }}?</nobr> </td>

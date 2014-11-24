@@ -11,11 +11,11 @@
 	  <form class="form-signin" role="form">
 		<h2 class="form-signin-heading">Volunteer Login</h2>
 		<input type="text" class="form-control" placeholder="First and Last Name" 
-			name="full_name" value="{{ full_name }}" required autofocus>
+			name="full_name" value="{{ full_name }}" required autofocus autocomplete="off">
 		<input type="email" class="form-control" placeholder="Email address" name="email" 
 			value="{{ email }}" required>
 		<input type="text" class="form-control" placeholder="Zip Code" 
-			name="zip_code" value="{{ zip_code }}" required>
+			name="zip_code" value="{{ zip_code }}" required autocomplete="off">
 		<button class="btn btn-lg btn-primary btn-block" type="submit">Sign in</button>
 	  </form>
   {% else %}
