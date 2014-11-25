@@ -115,27 +115,29 @@ class Root:
 
     @csv_file
     def all_attendees(self, out, session):
-        out.writerow(["status","placeholder","badge_num","badge_type","ribbon","first_name","last_name",
-                     "email","birthdate","age_group_id","international","zip_code","address1","address2",
-                     "city","region","country","no_cellphone","ec_name","ec_phone","cellphone","interests",
-                     "found_how","comments","for_review","admin_notes","affiliate","shirt","can_spam",
-                     "regdesk_info","extra_merch","got_merch","reg_station","registered","checked_in",
-                     "paid","overridden_price","amount_paid","amount_extra","amount_refunded",
-                     "payment_method","staffing","badge_printed_name","fire_safety_cert","requested_depts",
-                     "assigned_depts","trusted","nonshift_hours","past_years","no_shirt","admin_account",
-                     "hotel_requests","room_assignments","food_restrictions","group_id"])
-        for a in session.query(Attendee).order_by('badge_num').all():
-            try:
-                birthdate = date.strftime(DATE_FORMAT, a.birthdate)
-            except:
-                raise
-            out.writerow([a.status_label, a.placeholder, a.badge_num, a.badge_type_label, a.ribbon_label, a.first_name,
-                          a.last_name, a.email, a.birthdate, a.age_group_id, a.international, a.zip_code,
-                          a.address1, a.address2, a.city, a.region, a.country, a.no_cellphone, a.ec_name,
-                          a.ec_phone, a.cellphone, a.interests, a.found_how, a.comments, a.for_review,
-                          a.admin_notes, a.affiliate, a.shirt, a.can_spam, a.regdesk_info, a.extra_merch,
-                          a.got_merch, a.reg_station, a.registered, a.checked_in, a.paid, a.overridden_price,
-                          a.amount_paid, a.amount_extra, a.amount_refunded, a.payment_method, a.staffing,
-                          a.badge_printed_name, a.fire_safety_cert, a.requested_depts, a.assigned_depts,
-                          a.trusted, a.nonshift_hours, a.past_years, a.no_shirt, a.admin_account,
-                          a.hotel_requests, a.room_assignments, a.food_restrictions, a.group_id])
+        cols = [getattr(Attendee, col.name) for col in Attendee.__table__.columns]
+        out.writerow([col.name for col in cols])
+
+        for attendee in session.query(Attendee).filter(Attendee.first_name != '').all():
+            row = []
+            for col in cols:
+                if isinstance(col.type, Choice):
+                    # Choice columns are integers with a single value with an automatic
+                    # _label property, e.g. the "shirt" column has a "shirt_label"
+                    # property, so we'll use that.
+                    row.append(getattr(attendee, col.name + '_label'))
+                elif isinstance(col.type, MultiChoice):
+                    # MultiChoice columns are comma-separated integer lists with an
+                    # automatic _labels property which is a list of string labels.
+                    # So we'll get that and then separate the labels with slashes.
+                    row.append(' / '.join(getattr(attendee, col.name + '_labels')))
+                elif isinstance(col.type, UTCDateTime):
+                    # Use the empty string if this is null, otherwise use strftime.
+                    # Also you should fill in whatever actual format you want.
+                    val = getattr(attendee, col.name)
+                    row.append(val.strftime('%Y-%m-%d %H:%M:%S') if val else '')
+                else:
+                    # For everything else we'll just dump the value, although we might
+                    # consider adding more special cases for things like foreign keys.
+                    row.append(getattr(attendee, col.name))
+            out.writerow(row)
