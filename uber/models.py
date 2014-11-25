@@ -352,7 +352,6 @@ class Group(MagModel, TakesPaymentMixin):
                     total += DEALER_BADGE_PRICE
                 else:
                     total += state.get_group_price(attendee.registered)
-            total -= attendee.age_discount
         return total
 
     @property
