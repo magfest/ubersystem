@@ -415,7 +415,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     for_review  = Column(UnicodeText)
     admin_notes = Column(UnicodeText)
 
-    badge_num  = Column(Integer, default=0)
+    badge_num  = Column(Integer, default=0, nullable=True)
     badge_type = Column(Choice(BADGE_OPTS), default=ATTENDEE_BADGE)
     ribbon     = Column(Choice(RIBBON_OPTS), default=NO_RIBBON)
 
