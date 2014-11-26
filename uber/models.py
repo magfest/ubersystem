@@ -548,7 +548,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.ribbon == VOLUNTEER_RIBBON:
             self.ribbon = NO_RIBBON
         if self.badge_type == STAFF_BADGE:
-            self.session.shift_badges(STAFF_BADGE, self.badge_num, down=True)
+            if SHIFT_CUSTOM_BADGES: self.session.shift_badges(STAFF_BADGE, self.badge_num, down=True)
             self.badge_type = ATTENDEE_BADGE
         del self.shifts[:]
 
