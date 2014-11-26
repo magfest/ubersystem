@@ -1256,7 +1256,7 @@ class Session(SessionManager):
             #assert_badge_locked()
             badge_type = int(badge_type)
 
-            sametype = self.query(Attendee).filter(Attendee.badge_type == badge_type, Attendee.badge_num > 0)
+            sametype = self.query(Attendee).filter(Attendee.badge_type == badge_type, Attendee.badge_num >= BADGE_RANGES[badge_type][0], Attendee.badge_num < BADGE_RANGES[badge_type][1])
             if sametype.count():
                 next = sametype.order_by(Attendee.badge_num.desc()).first().badge_num
                 if old_badge_num and next != old_badge_num:
@@ -1298,14 +1298,6 @@ class Session(SessionManager):
             else:
                 if not badge_num:
                     next = self.next_badge_num(badge_type, old_badge_num)
-
-                    # In some cases, there may be badges outside of their badge type range.
-                    # If this happens, we want to prevent tacking on more badges in the wrong range,
-                    # since next_badge_num is based on the current numbers in the system.
-                    next_out_of_range = check_range(next, badge_type)
-                    if next_out_of_range:
-                        return 'There\'s a problem with badge assignments! Please contact your system administrator.'
-
                     attendee.badge_num = next
                 elif not SHIFT_CUSTOM_BADGES:
                     existing = self.query(Attendee).filter_by(badge_type=badge_type, badge_num=badge_num)
