@@ -10,7 +10,7 @@
     </a>
     </div>
 
-  {% if GROUPS_ENABLED and attendee.is_new %}
+  {% if GROUPS_ENABLED and attendee.is_new and not group_id %}
     <div class="col-sm-3 {% if not BEFORE_GROUP_PREREG_TAKEDOWN %}disabled{% endif %}">
     <a id="group_select" {% if BEFORE_GROUP_PREREG_TAKEDOWN %}onclick="setBadge('Group')"{% endif %} class="list-group-item badge_type_selector">
       <h4 class="list-group-item-heading">Group Leader</h4>
