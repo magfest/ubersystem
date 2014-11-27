@@ -749,7 +749,6 @@ class Root:
                 try:
                     session.commit()
                 except:
-                    raise
                     message = "Upload unsuccessful"
 
         return {'message' : message}
