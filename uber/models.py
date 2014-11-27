@@ -1256,7 +1256,7 @@ class Session(SessionManager):
             #assert_badge_locked()
             badge_type = int(badge_type)
 
-            if badge_type not in PREASSIGNED_BADGE_TYPES and not attendee.checked_in:
+            if badge_type not in PREASSIGNED_BADGE_TYPES:
                 return 0
 
             sametype = self.query(Attendee).filter(Attendee.badge_type == badge_type, Attendee.badge_num >= BADGE_RANGES[badge_type][0], Attendee.badge_num < BADGE_RANGES[badge_type][1])
