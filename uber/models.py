@@ -1267,6 +1267,7 @@ class Session(SessionManager):
             else:
                 next = BADGE_RANGES[badge_type][0]
 
+            # Adjusts the badge number based on badges in the session
             for attendee in [m for m in chain(self.new, self.dirty) if isinstance(m, Attendee)]:
                 if attendee.badge_type == badge_type:
                     next = max(next, 1 + attendee.badge_num)
@@ -1306,6 +1307,8 @@ class Session(SessionManager):
             else:
                 if not badge_num:
                     next = self.next_badge_num(badge_type, old_badge_num)
+                    if next > BADGE_RANGES[badge_type][1]:
+                        return 'There are no more badges available for that type'
                     attendee.badge_num = next
                 elif not SHIFT_CUSTOM_BADGES:
                     existing = self.query(Attendee).filter_by(badge_type=badge_type, badge_num=badge_num)
