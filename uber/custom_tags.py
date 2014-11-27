@@ -368,7 +368,7 @@ class stripe_form(template.Node):
         cherrypy.session[payment_id] = charge.to_dict()
 
         email = ""
-        if charge.targets:
+        if charge.targets and charge.models[0].email:
             email = charge.models[0].email[:255]
 
         if not charge.targets:

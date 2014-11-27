@@ -19,21 +19,21 @@
     function highlight($tr) {
         if( $highlit )
             $highlit.css("border", "1px solid black");
-        
+
         $highlit = $tr.children("td").css("border-top", "3px solid green").css("border-bottom", "3px solid green");
         $highlit.filter(":first").css("border-left", "3px solid green");
         $highlit.filter(":last").css("border-right", "3px solid green");
-        
+
         if( $tr.find("select").val() == "{{ AGE_UNKNOWN }}" )
             $tr.find("select").parents("td").css("border", "3px solid red");
         if( $tr.find("td:nth(3)").text() == "no" )
             $tr.find("td:nth(3)").css("border", "3px solid red");
-        
+
         var badge_num = $tr.find(":text").val();
         if( badge_num && !badge_num.match(/^\d+$/) )
             $tr.find(":text").parents("td").css("border", "3px solid red");
     }
-            
+
     function check_in(id) {
         if( $("#age_" + id).val() == {{ AGE_UNKNOWN }} ) {
             alert("You may not check someone in without confirming their age.");
@@ -65,12 +65,12 @@
                     location.href += sep + "message=" + encodeURIComponent(s);
         });
     }
-    
+
     $(function(){
         $("#message").ajaxError(function(){
             showTop("Oh noes - the web server is down or something!!!!!");
         });
-        
+
         {% if AT_THE_CON %}
             $(".num").keypress(function(e){
                 if( (e.keyCode || e.which) == 13 )  // ENTER
@@ -111,7 +111,7 @@
 
 <div class="panel col-md-4">
 <a class="btn btn-primary" href="form?id=None">Add an attendee</a>
-    <a class="btn btn-default" {% if not AT_THE_CON %}disabled="disabled"{% endif %} 
+    <a class="btn btn-default" {% if not AT_THE_CON %}disabled="disabled"{% endif %}
     	href="new">View Recent At-the-Door Registrations</a>
 </div>
 {% if COLLECT_INTERESTS %}
@@ -135,8 +135,8 @@
             <a href="index?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}">{{ pagenum }}</a>
         {% endif %}
     {% endfor %}
-    
-<table class="table footable">
+
+<table class="table footable" data-page-size="9999999">
 <thead><tr>
     <th> <a href="index?order={{ order.last_first }}">Name</a> </th>
     <th data-hide="phone"> <a href="index?order={{ order.badge_num }}">Badge</a> </th>
