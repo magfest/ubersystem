@@ -21,7 +21,7 @@ to see an example certificate so you'll know where to find the certification num
 
 <form method="post" action="fire_safety">
 {% csrf_token %}
-Certification Number: <input type="text" class="focus" name="fire_safety_cert" value="{{ fire_safety_cert }}" />
+Certification Number: <input type="text" class="focus" name="fire_safety_cert" value="{{ fire_safety_cert }}" autocomplete="off" />
 <input type="submit" value="Submit Certification" />
 </form>
 

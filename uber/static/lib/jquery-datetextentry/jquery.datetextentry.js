@@ -500,7 +500,7 @@
         this.tip_text = options.tip_text;
         this.has_focus = false;
         this.empty = true;
-        this.$input = $('<input type="text" value="" />')
+        this.$input = $('<input type="text" value="" autocomplete="off" />')
             .addClass( 'jq-dte-' + this.name )
             .attr('aria-label', dte.options['field_tip_text_' + this.name])
             .focus( $.proxy(input, 'focus') )

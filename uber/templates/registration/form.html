@@ -168,7 +168,7 @@
 {% if attendee.badge_type == SUPPORTER_BADGE %}
     <tr>
         <td> Affiliate: </td>
-        <td> <input type="text" name="affiliate" value="{{ attendee.affiliate|default:"" }}" /> </td>
+        <td> <input type="text" name="affiliate" value="{{ attendee.affiliate|default:"" }}" autocomplete="off" autocomplete="off" /> </td>
     </tr>
 {% endif %}
 <tr>
@@ -188,78 +188,78 @@
     <td class="maybe_bold full_name"> <nobr>First and Last Name:</nobr> </td>
     <td>
         <input class="focus" type="text" style="width:10em" name="first_name" value="{{ attendee.first_name }}" />
-        <input type="text" style="width:10em" name="last_name"  value="{{ attendee.last_name }}"  />
+        <input type="text" style="width:10em" name="last_name"  value="{{ attendee.last_name }}" autocomplete="off" autocomplete="off" />
     </td>
 </tr>
 {% if attendee.badge_type in PREASSIGNED_BADGE_TYPES %}
     <tr>
         <td>Printed on Badge:</td>
-        <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" {% if AFTER_PRINTED_BADGE_DEADLINE %}readonly{% endif %} /> </td>
+        <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" {% if AFTER_PRINTED_BADGE_DEADLINE %}readonly{% endif %} autocomplete="off" /> </td>
     </tr>
 {% endif %}
 <tr>
     <td class="maybe_bold" id="email"> Email Address: </td>
-    <td> <input type="text" name="email" value="{{ attendee.email }}" /> </td>
+    <td> <input type="text" name="email" value="{{ attendee.email }}" autocomplete="off" /> </td>
 </tr>
 {% if COLLECT_FULL_ADDRESS %}
     <tr>
         <td class="maybe_bold" id="address">Address</td>
         <td>
-            <input type="text" name="address1" placeholder="Address Line 1" value="{{ attendee.address1 }}" />
+            <input type="text" name="address1" placeholder="Address Line 1" value="{{ attendee.address1 }}" autocomplete="off" />
         </td>
     </tr>
     <tr>
         <td class="maybe_bold"></td>
         <td>
-            <input type="text" name="address2" placeholder="Address Line 2" value="{{ attendee.address2 }}" />
+            <input type="text" name="address2" placeholder="Address Line 2" value="{{ attendee.address2 }}" autocomplete="off" />
         </td>
     </tr>
     <tr>
         <td class="maybe_bold">City</td>
         <td>
-            <input type="text" name="city" placeholder="City" value="{{ attendee.city }}" />
+            <input type="text" name="city" placeholder="City" value="{{ attendee.city }}" autocomplete="off" />
         </td>
     </tr>
     <tr>
         <td class="maybe_bold">State</td>
         <td>
-            <input type="text" name="region" placeholder="State/Province/Region" value="{{ attendee.region }}" />
+            <input type="text" name="region" placeholder="State/Province/Region" value="{{ attendee.region }}" autocomplete="off" />
         </td>
     </tr>
     <tr>
         <td class="maybe_bold">Postal Code</td>
         <td>
-            <input type="text" name="zip_code" placeholder="ZIP/Postal Code" value="{{ attendee.zip_code }}" />
+            <input type="text" name="zip_code" placeholder="ZIP/Postal Code" value="{{ attendee.zip_code }}" autocomplete="off" />
         </td>
     </tr>
     <tr>
         <td class="maybe_bold">Country</td>
         <td>
-             <input type="text" name="country" placeholder="Country" value="{{ attendee.country }}" />
+             <input type="text" name="country" placeholder="Country" value="{{ attendee.country }}" autocomplete="off" />
         </td>
     </tr>
 {% else %}
 <tr>
     <td class="maybe_bold" id="zip_code">Zip Code: </td>
     <td>
-        <input type="text" name="zip_code" value="{{ attendee.zip_code }}" />
+        <input type="text" name="zip_code" value="{{ attendee.zip_code }}" autocomplete="off" />
         {% checkbox attendee.international %} Attendee is from outside the US.
     </td>
 </tr>
 {% endif %}
 <tr>
     <td class="maybe_bold"> <nobr>Backup Phone Name:</nobr> </td>
-    <td> <input type="text" name="ec_name" value="{{ attendee.ec_name }}" /> </td>
+    <td> <input type="text" name="ec_name" value="{{ attendee.ec_name }}" autocomplete="off" /> </td>
 </tr>
 <tr>
     <td class="maybe_bold"> <nobr>Backup Phone Number:</nobr> </td>
-    <td> <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" /> </td>
+    <td> <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" autocomplete="off" /> </td>
 </tr>
 <tr>
     {% if COLLECT_EXACT_BIRTHDATE %}
     <td> <nobr>{% bold_if AT_THE_CON %}Date of Birth:{% end_bold_if %}</nobr> </td>
     <td>
-        <input type="text" name="birthdate" value="{{ attendee.birthdate|date:"Y-m-d" }}" class="form-control date">
+        <input type="text" name="birthdate" value="{{ attendee.birthdate|date:"Y-m-d" }}" class="form-control date" autocomplete="off">
     </td>
     {% else %}
     <td> <nobr>{% bold_if AT_THE_CON %}Age as of {{ EVENT_NAME }}:{% end_bold_if %}</nobr> </td>
@@ -289,7 +289,7 @@
 </tr>
 <tr>
     <td> <nobr>How did they</nobr> <nobr>find {{ EVENT_NAME }}?</nobr> </td>
-    <td> <input type="text" name="found_how" value="{{ attendee.found_how }}" style="width:80%" /> </td>
+    <td> <input type="text" name="found_how" value="{{ attendee.found_how }}" style="width:80%" autocomplete="off" /> </td>
 </tr>
 {% if AT_THE_CON and not attendee.is_new %}
     <tr>
@@ -310,11 +310,11 @@
 </tr>
 <tr>
     <td> <nobr>Personal Phone Number:</nobr> </td>
-    <td> <input type="text" name="cellphone" value="{{ attendee.cellphone }}" /> </td>
+    <td> <input type="text" name="cellphone" value="{{ attendee.cellphone }}" autocomplete="off" /> </td>
 </tr>
 <tr>
     <td> Attendee Comments: </td>
-    <td> <input type="text" name="comments" value="{{ attendee.comments }}" style="width:80%" />  </td>
+    <td> <input type="text" name="comments" value="{{ attendee.comments }}" style="width:80%" autocomplete="off" />  </td>
 </tr>
 <tr>
     <td> Paid: </td>
@@ -324,11 +324,11 @@
         </select>
         &nbsp;&nbsp;&nbsp;
         <span id="amount_paid">
-            Paid: $<input type="text" style="width:4em" name="amount_paid" value="{{ attendee.amount_paid }}" />
+            Paid: $<input type="text" style="width:4em" name="amount_paid" value="{{ attendee.amount_paid }}" autocomplete="off" />
         </span>
         &nbsp;&nbsp;&nbsp;
         <span id="amount_refunded">
-            Refunded: $<input type="text" style="width:4em" name="amount_refunded" value="{{ attendee.amount_refunded }}" />
+            Refunded: $<input type="text" style="width:4em" name="amount_refunded" value="{{ attendee.amount_refunded }}" autocomplete="off" />
         </span>
         &nbsp;&nbsp;&nbsp;
         {% include "registration/kicked_in_extra.html" %}
@@ -342,7 +342,7 @@
 {% include "registration/noise_levels.html" %}
 <tr>
     <td> Special Regdesk Instructions: </td>
-    <td> <input type="text" name="regdesk_info" value="{{ attendee.regdesk_info }}" style="width:80%" /> </td>
+    <td> <input type="text" name="regdesk_info" value="{{ attendee.regdesk_info }}" style="width:80%" autocomplete="off" /> </td>
 </tr>
 <tr>
     <td> Receive Newsletter: </td>

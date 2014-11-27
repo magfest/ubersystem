@@ -51,13 +51,13 @@
     <tr>
         <td> <nobr><b>Owner's First and Last Name:</b></nobr> </td>
         <td>
-            <input type="text" name="first_name" value="{{ first_name }}" style="width:10em" />
-            <input type="text" name="last_name" value="{{ last_name }}" style="width:15em" />
+            <input type="text" name="first_name" value="{{ first_name }}" style="width:10em" autocomplete="off" />
+            <input type="text" name="last_name" value="{{ last_name }}" style="width:15em" autocomplete="off" />
         </td>
     </tr>
     <tr>
         <td> <nobr><b>Owner's Email Address:</b></nobr> </td>
-        <td> <input type="text" name="email" value="{{ email }}" /> </td>
+        <td> <input type="text" name="email" value="{{ email }}" autocomplete="off" /> </td>
     </tr>
 {% endif %}
 <tr>
@@ -74,12 +74,12 @@
 </tr>
 <tr>
     <td> <b><nobr>Amount Paid:</nobr></b> </td>
-    <td> $<input type="text" style="width:4em" name="amount_paid" value="{{ group.amount_paid }}" /> </td>
+    <td> $<input type="text" style="width:4em" name="amount_paid" value="{{ group.amount_paid }}" autocomplete="off" /> </td>
 </tr>
 <tr>
     <td> <b><nobr>Total Group Price:</nobr></b> </td>
     <td>
-        $<input type="text" style="width:4em" name="cost" value="{{ group.cost }}" />
+        $<input type="text" style="width:4em" name="cost" value="{{ group.cost }}" autocomplete="off" />
         {% checkbox group.auto_recalc %} Automatically recalculate this number.
     </td>
 </tr>
@@ -125,7 +125,7 @@
     </tr>
     <tr>
         <td> <b>Website Address</b> </td>
-        <td> <input type="text" name="website" value="{{ group.website }}" />
+        <td> <input type="text" name="website" value="{{ group.website }}" autocomplete="off" />
     </tr>
     <tr>
         <td valign="top"> <b>Description</b> </td>

@@ -17,25 +17,25 @@ our Registration Desk; that will belong to whomever the badge is transferred.
 <tr>
     <td> <b>Name:</b> </td>
     <td>
-        <input type="text" style="width:10em" name="first_name" value="{{ attendee.first_name }}" class="focus" />
-        <input type="text" style="width:15em" name="last_name"  value="{{ attendee.last_name }}" />
+        <input type="text" style="width:10em" name="first_name" value="{{ attendee.first_name }}" class="focus"  />
+        <input type="text" style="width:15em" name="last_name"  value="{{ attendee.last_name }}"  />
     </td>
 </tr>
 {% if attendee.has_personalized_badge and not AFTER_PRINTED_BADGE_DEADLINE %}
     <tr>
         <td>Name Printed on Badge:</td>
-        <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" /> </td>
+        <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}"  /> </td>
     </tr>
 {% endif %}
 {% include "preregistration/age_and_staffing.html" %}
 <tr>
     <td> <b>Email Address:</b> </td>
-    <td> <input type="text" name="email" value="{{ attendee.email }}" class="focus" /> </td>
+    <td> <input type="text" name="email" value="{{ attendee.email }}" class="focus"  /> </td>
 </tr>
 <tr>
     <td> <b>Postal Code:</b> </td>
     <td>
-        <input type="text" name="zip_code" value="{{ attendee.zip_code }}" />
+        <input type="text" name="zip_code" value="{{ attendee.zip_code }}"  />
         {% checkbox attendee.international %} I'm coming from outside the US.
     </td>
 </tr>
