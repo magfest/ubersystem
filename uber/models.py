@@ -517,7 +517,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 self.badge_num = 0
             elif self.has_personalized_badge and not self.badge_num:
                 if self.paid != NOT_PAID:
-                    self.badge_num = self.session.next_badge_num(self.badge_type, 0)
+                    self.badge_num = self.session.next_badge_num(self.badge_type, old_badge_num=0)
 
     def _staffing_adjustments(self):
         if self.ribbon == DEPT_HEAD_RIBBON:
@@ -1264,10 +1264,15 @@ class Session(SessionManager):
             else:
                 next = BADGE_RANGES[badge_type][0]
 
+            for attendee in [m for m in chain(self.new, self.dirty) if isinstance(m, Attendee)]:
+                if attendee.badge_type == badge_type:
+                    next = max(next, 1 + attendee.badge_num)
+
             return next
 
         def shift_badges(self, badge_type, badge_num, *, until=MAX_BADGE, **direction):
             #assert_badge_locked()
+            assert SHIFT_CUSTOM_BADGES
             assert not any(param for param in direction if param not in ['up', 'down']), 'unknown parameters'
             assert len(direction) < 2, 'you cannot specify both up and down parameters'
             down = (not direction['up']) if 'up' in direction else direction.get('down', True)
