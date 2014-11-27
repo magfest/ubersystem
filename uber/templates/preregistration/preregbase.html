@@ -40,23 +40,21 @@ $(document).ready(function() {
         $('#featured2_select').html('<h4 class="list-group-item-heading">Super Sponsor: $'+super_sponsor_badge_price+'</h4>{% if BEFORE_FIRST_PRICE_BUMP %}($250 after Jan 1)<br/>{% endif %}<p class="list-group-item-text">The most generous option - get even more great perks!</p>');
     }
 
-    // If the attendee has already paid, they cannot downgrade their badge
-    if ({{ attendee.amount_extra }} === sponsor_addon) {
-        setBadge('Featured1');
-        $("#attendee_select").addClass("disabled");
-        $("#attendee_select").prop("onclick",null);
-    } else if ({{ attendee.amount_extra }} === super_sponsor_addon) {
-        setBadge('Featured2');
-        $("#attendee_select").addClass("disabled");
-        $("#featured1_select").addClass("disabled");
-        $("#attendee_select").prop("onclick",null);
-        $("#featured1_select").prop("onclick",null);
-    }
-
     // Sets the badge box to correspond to the the session's kick-in level
+    // If the attendee has already paid, they cannot downgrade their badge
     if ($.val('amount_extra') === sponsor_addon) {
+        if ({{ attendee.amount_paid }} >= sponsor_addon) {
+            $("#attendee_select").addClass("disabled");
+            $("#attendee_select").prop("onclick",null);
+        }
         setBadge('Featured1');
     } else if ($.val('amount_extra') === super_sponsor_addon) {
+        if ({{ attendee.amount_paid }} >= super_sponsor_addon) {
+            $("#attendee_select").addClass("disabled");
+            $("#featured1_select").addClass("disabled");
+            $("#attendee_select").prop("onclick",null);
+            $("#featured1_select").prop("onclick",null);
+        }
         setBadge('Featured2');
     } else {
         setBadge('Attendee');
@@ -74,6 +72,9 @@ function setInternational() {
 }
 
 function setBadge(badgeType) {
+    var sponsor_addon = 50;
+    var super_sponsor_addon = 195;
+
     $(".badge_type_selector").removeClass("active");
     $(".group_fields").addClass("hide");
     if (badgeType == 'Attendee') {
