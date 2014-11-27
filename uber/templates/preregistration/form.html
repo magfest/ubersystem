@@ -209,6 +209,7 @@ $(document).ready(function() {
     <p class="help-block col-sm-6 col-sm-offset-2">Please be detailed; include a link to view your wares if possible.</p>
     </div>
 
+    {% if COLLECT_INTERESTS %}
     <div class="form-group">
     <label for="website" class="col-sm-2 control-label">Website URL</label>
     <div class="col-sm-6">
@@ -218,11 +219,12 @@ $(document).ready(function() {
     <div class="form-group">
     <p class="help-block col-sm-6 col-sm-offset-2">The one you want us to link on our website, or n/a</p>
     </div>
+    {% endif %}
 
     <div class="form-group">
     <label for="description" class="col-sm-2 control-label">Description</label>
     <div class="col-sm-6">
-      <textarea class="form-control" name="description" rows="4">{{ group.description }}</textarea> 
+      <textarea class="form-control" name="description" rows="4" maxlength="400">{{ group.description }}</textarea>
     </div>
     </div>
     <div class="form-group">
@@ -232,7 +234,7 @@ $(document).ready(function() {
         <div class="form-group">
     <label for="special_needs" class="col-sm-2 control-label">Special Requests</label>
     <div class="col-sm-6">
-      <textarea class="form-control" name="special_needs" rows="4">{{ group.special_needs }}</textarea>
+      <textarea class="form-control" name="special_needs" rows="4" placeholder="E.g., power needs, who to sit next to, who not to sit next to.">{{ group.special_needs }}</textarea>
     </div>
     </div>
     <div class="form-group">
