@@ -18,6 +18,10 @@ def subtract(x, y):
     return x - y
 
 @register.filter
+def percent(numerator, denominator):
+    return '0/0' if denominator == 0 else '{} / {} ({}%)'.format(numerator, denominator, int(100 * numerator / denominator))
+
+@register.filter
 def remove_newlines(string):
     return string.replace('\n', ' ')
 

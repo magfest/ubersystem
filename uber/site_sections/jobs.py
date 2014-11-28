@@ -174,7 +174,7 @@ class Root:
         session.commit()
         return {}
 
-    def summary(self):
+    def summary(self, session):
         all_jobs, all_shifts, attendees = session.everything()
         locations = {}
         for loc, name in JOB_LOCATION_OPTS:
@@ -188,7 +188,11 @@ class Root:
                 'restricted_signups': sum(s.job.weighted_hours for s in shifts if s.job.restricted),
                 'all_signups':        sum(s.job.weighted_hours for s in shifts)
             }
-        return {'locations': sorted(locations.items(), key = lambda loc: loc[1]['regular_signups'] - loc[1]['regular_total'])}
+        totals = [('All Departments Combined', {
+            attr: sum(loc[attr] for loc in locations.values())
+            for attr in locations[name].keys()
+        })]
+        return {'locations': totals + sorted(locations.items(), key = lambda loc: loc[1]['regular_signups'] - loc[1]['regular_total'])}
 
     # TODO: fix this to work with SQLAlchemy
     @csv_file
