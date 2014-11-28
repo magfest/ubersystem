@@ -47,7 +47,7 @@
 <tr>
     <td> <b>Start Time:</b> </td>
     <td>
-f        <select name="start_time">
+        <select name="start_time">
             {% if job.type == SETUP %}
                 {% options SETUP_TIME_OPTS job.start_time %}
             {% elif job.type == TEARDOWN %}
