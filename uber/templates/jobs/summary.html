@@ -7,9 +7,9 @@
 {% for location, stats in locations %}
     <h3>{{ location }}</h3>
     <ul>
-        <li> {{ stats.regular_signups }} / {{ stats.regular_total }} hours of regular shifts taken </li>
-        <li> {{ stats.restricted_signups }} / {{ stats.restricted_total }} hours of restricted shifts taken </li>
-        <li> {{ stats.all_signups }} / {{ stats.all_total }} hours of total shifts taken </li>
+        <li> {{ stats.regular_signups|percent:stats.regular_total }} hours of regular shifts taken </li>
+        <li> {{ stats.restricted_signups|percent:stats.restricted_total }} hours of restricted shifts taken </li>
+        <li> {{ stats.all_signups|percent:stats.all_total }} hours of total shifts taken </li>
     </ul>
 {% endfor %}
 
