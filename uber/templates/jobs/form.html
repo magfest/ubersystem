@@ -78,7 +78,7 @@
         <select name="slots">
             {% int_options 1 50 job.slots %}
         </select>
-        {% if not job.is_new %}({{ job.shift_set.count }} filled){% endif %}
+        {% if not job.is_new %}({{ job.shifts|length }} filled){% endif %}
     </td>
 </tr>
 <tr>
