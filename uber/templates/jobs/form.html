@@ -47,7 +47,7 @@
 <tr>
     <td> <b>Start Time:</b> </td>
     <td>
-        <select name="start_time">
+f        <select name="start_time">
             {% if job.type == SETUP %}
                 {% options SETUP_TIME_OPTS job.start_time %}
             {% elif job.type == TEARDOWN %}
@@ -78,7 +78,7 @@
         <select name="slots">
             {% int_options 1 50 job.slots %}
         </select>
-        {% if not job.is_new %}({{ job.shift_set.count }} filled){% endif %}
+        {% if not job.is_new %}({{ job.shifts|length }} filled){% endif %}
     </td>
 </tr>
 <tr>
