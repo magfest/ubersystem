@@ -1143,9 +1143,14 @@ class Tracking(MagModel):
                 action = AUTO_BADGE_SHIFT
             elif not data:
                 return
+        elif instance == "Budget": # Vaguely horrifying special-casing where we make up fake data so we can insert this entry into the tracking DB
+            data = "Budget Page"
+            who = AdminAccount.admin_name() or (current_thread().name if current_thread().daemon else 'non-admin')
+            with Session() as session:
+                session.add(Tracking(model="Budget", fk_id=str(uuid4()),which="Budget",who=who,links='',action=action,data=data))
+            return
         else:
             data = 'id={}'.format(instance.id)
-
         links = ', '.join(
             '{}({})'.format(list(column.foreign_keys)[0].column.table.name, getattr(instance, name))
             for name, column in instance.__table__.columns.items()
@@ -1172,22 +1177,28 @@ class Tracking(MagModel):
     @classmethod
     def track_pageview(cls, url, query):
         # Don't count extra page loads (validation messages, creation, etc)
-        if "&" in url:
+        if "&" in query or not '=' in query:
+            return
+
+        id = query.split('=',1)[1]
+
+        # Skip new groups and attendees
+        if id == "None":
             return
 
         # Looking at an attendee's details
         if "registration" in url:
-            attendee_id = query.split('=',1)[1]
             with Session() as session:
-                attendee = session.query(Attendee).filter(Attendee.id == attendee_id).first()
+                attendee = session.query(Attendee).filter(Attendee.id == id).first()
                 Tracking.track(PAGE_VIEWED, attendee)
         # Looking at a group's details
         elif "groups" in url:
-            group_id = query.split('=', 1)[1]
             with Session() as session:
-                group = session.query(Group).filter(Group.id == group_id).first()
+                group = session.query(Group).filter(Group.id == id).first()
                 Tracking.track(PAGE_VIEWED, group)
-        
+        # Track any views of the budget pages
+        elif "budget" in url:
+            Tracking.track(PAGE_VIEWED, "Budget")
 
 
 Tracking.UNTRACKED = [Tracking, Email]
