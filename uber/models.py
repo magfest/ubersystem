@@ -1169,6 +1169,27 @@ class Tracking(MagModel):
             with Session() as session:
                 _insert(session)
 
+    @classmethod
+    def track_pageview(cls, url, query):
+        # Don't count extra page loads (validation messages, creation, etc)
+        if "&" in url:
+            return
+
+        # Looking at an attendee's details
+        if "registration" in url:
+            attendee_id = query.split('=',1)[1]
+            with Session() as session:
+                attendee = session.query(Attendee).filter(Attendee.id == attendee_id).first()
+                Tracking.track(PAGE_VIEWED, attendee)
+        # Looking at a group's details
+        elif "groups" in url:
+            group_id = query.split('=', 1)[1]
+            with Session() as session:
+                group = session.query(Group).filter(Group.id == group_id).first()
+                Tracking.track(PAGE_VIEWED, group)
+        
+
+
 Tracking.UNTRACKED = [Tracking, Email]
 
 
