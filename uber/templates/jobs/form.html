@@ -111,7 +111,7 @@
 
 </form>
 
-{% if job.id %}
+{% if not job.is_new %}
     <form method="post" action="delete">
     {% csrf_token %}
     <input type="hidden" name="id" value="{{ job.id }}" />
