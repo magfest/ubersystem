@@ -63,6 +63,7 @@ class Root:
             'attendee':       session.attendee(uploaded_id) if uploaded_id else None
         }
 
+    @log_pageview
     def form(self, session, message='', return_to='', omit_badge='', **params):
         attendee = session.attendee(params, checkgroups=['interests','requested_depts','assigned_depts'],
                                     bools=['staffing','trusted','international','placeholder','got_merch','can_spam'])

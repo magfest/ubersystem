@@ -1,5 +1,18 @@
 from uber.common import *
 
+def log_pageview(func):
+    @wraps(func)
+    def with_check(*args,**kwargs):
+        with Session() as session:
+            try:
+                attendee = session.admin_account(cherrypy.session['account_id'])
+            except:
+                pass  # we don't care about unrestricted pages for this version
+            else:
+                Tracking.track_pageview(cherrypy.request.path_info, cherrypy.request.query_string)
+        return func(*args,**kwargs)
+    return with_check
+
 def check_if_can_reg(func):
     @wraps(func)
     def with_check(*args,**kwargs):

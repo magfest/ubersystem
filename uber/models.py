@@ -1143,9 +1143,14 @@ class Tracking(MagModel):
                 action = AUTO_BADGE_SHIFT
             elif not data:
                 return
+        elif instance == "Budget": # Vaguely horrifying special-casing where we make up fake data so we can insert this entry into the tracking DB
+            data = "Budget Page"
+            who = AdminAccount.admin_name() or (current_thread().name if current_thread().daemon else 'non-admin')
+            with Session() as session:
+                session.add(Tracking(model="Budget", fk_id=str(uuid4()),which="Budget",who=who,links='',action=action,data=data))
+            return
         else:
             data = 'id={}'.format(instance.id)
-
         links = ', '.join(
             '{}({})'.format(list(column.foreign_keys)[0].column.table.name, getattr(instance, name))
             for name, column in instance.__table__.columns.items()
@@ -1168,6 +1173,29 @@ class Tracking(MagModel):
         else:
             with Session() as session:
                 _insert(session)
+
+    @classmethod
+    def track_pageview(cls, url, query):
+        # Track any views of the budget pages
+        if "budget" in url:
+            Tracking.track(PAGE_VIEWED, "Budget")
+        else:
+            # Only log the page view if there's a valid attendee ID
+            params = dict(parse_qsl(query))
+            if 'id' not in params or params['id'] == 'None':
+                return
+
+            # Looking at an attendee's details
+            if "registration" in url:
+                with Session() as session:
+                    attendee = session.query(Attendee).filter(Attendee.id == params['id']).first()
+                    Tracking.track(PAGE_VIEWED, attendee)
+            # Looking at a group's details
+            elif "groups" in url:
+                with Session() as session:
+                    group = session.query(Group).filter(Group.id == params['id']).first()
+                    Tracking.track(PAGE_VIEWED, group)
+
 
 Tracking.UNTRACKED = [Tracking, Email]
 
