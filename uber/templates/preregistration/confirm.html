@@ -27,7 +27,8 @@
 {% csrf_token %}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
-
+<br/>
+{% include "preregistration/badge_choice.html" %}
   <div class="form-group">
     <label for="email" class="col-sm-2 control-label">Name</label>
     <div class="col-sm-6">

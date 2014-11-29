@@ -26,14 +26,16 @@
                     escapeMarkup: function(m) { return m; },
                     width: "100%",
                 });
-                $.field("affiliate").select2({
-                    placeholder: "I don't care about this",
-                    createSearchChoice: function(term) {
-                        return {id: term, text: term};
-                    },
-                    data: {{ affiliates|jsonize }},
-                    width: "100%",
-                }).select2("val", {{ attendee.affiliate|default:""|jsonize }});
+                if ($.field("affiliate")) {
+                    $.field("affiliate").select2({
+                        placeholder: "I don't care about this",
+                        createSearchChoice: function(term) {
+                            return {id: term, text: term};
+                        },
+                        data: {{ affiliates|jsonize }},
+                        width: "100%",
+                    }).select2("val", {{ attendee.affiliate|default:""|jsonize }});
+                }
                 $("form").submit(function(){
                     $(":submit").attr("value", "Uploading Preregistration...").attr("disabled", true);
                 });
