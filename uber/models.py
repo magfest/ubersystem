@@ -1176,29 +1176,25 @@ class Tracking(MagModel):
 
     @classmethod
     def track_pageview(cls, url, query):
-        # Don't count extra page loads (validation messages, creation, etc)
-        if "&" in query or not '=' in query:
-            return
-
-        id = query.split('=',1)[1]
-
-        # Skip new groups and attendees
-        if id == "None":
-            return
-
-        # Looking at an attendee's details
-        if "registration" in url:
-            with Session() as session:
-                attendee = session.query(Attendee).filter(Attendee.id == id).first()
-                Tracking.track(PAGE_VIEWED, attendee)
-        # Looking at a group's details
-        elif "groups" in url:
-            with Session() as session:
-                group = session.query(Group).filter(Group.id == id).first()
-                Tracking.track(PAGE_VIEWED, group)
         # Track any views of the budget pages
-        elif "budget" in url:
+        if "budget" in url:
             Tracking.track(PAGE_VIEWED, "Budget")
+        else:
+            # Only log the page view if there's a valid attendee ID
+            params = dict(parse_qsl(query))
+            if 'id' not in params or params['id'] == 'None':
+                return
+
+            # Looking at an attendee's details
+            if "registration" in url:
+                with Session() as session:
+                    attendee = session.query(Attendee).filter(Attendee.id == params['id']).first()
+                    Tracking.track(PAGE_VIEWED, attendee)
+            # Looking at a group's details
+            elif "groups" in url:
+                with Session() as session:
+                    group = session.query(Group).filter(Group.id == params['id']).first()
+                    Tracking.track(PAGE_VIEWED, group)
 
 
 Tracking.UNTRACKED = [Tracking, Email]
