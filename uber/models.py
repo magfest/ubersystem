@@ -1329,8 +1329,10 @@ class Session(SessionManager):
                     attendee.badge_num = new_badge_num
 
                     if badge_num <= next:
+                        attendee.badge_type = badge_type
                         return 'That badge number was too high, so the next available badge was assigned instead'
 
+            attendee.badge_type = badge_type
             return 'Badge updated'
 
 
