@@ -12,7 +12,10 @@
 <script type="text/javascript">
     $(function(){
         {% if attendee.has_personalized_badge %}
-            $(".badge-row").show();
+            var show_badge_row = {{ SHOW_CUSTOM_BADGE_INPUT }};
+            if (show_badge_row) {
+                $(".badge-row").show();
+            }
         {% endif %}
         {% if attendee.amount_extra %}
             setTimeout(function(){  // make sure this happens after jQuery.select2
