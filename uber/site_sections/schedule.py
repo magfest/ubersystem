@@ -133,16 +133,20 @@ class Root:
             'upcoming': upcoming
         }
 
-    def form(self, session, message='', panelists=[], **params):
+    def form(self, session, message='', panelists=(), **params):
         event = session.event(params, allowed=['location', 'start_time'])
         if 'name' in params:
             session.add(event)
             message = check(event)
             if not message:
+                new_panelist_ids = set(listify(panelists))
+                old_panelist_ids = {ap.attendee_id for ap in event.assigned_panelists}
                 for ap in event.assigned_panelists:
-                    session.delete(ap)
-                for id in set(listify(panelists)):
-                    session.add(AssignedPanelist(event_id=event.id, attendee_id=id))
+                    if ap.attendee_id not in new_panelist_ids:
+                        session.delete(ap)
+                for attendee_id in new_panelist_ids:
+                    if attendee_id not in old_panelist_ids:
+                        session.add(AssignedPanelist(event_id=event.id, attendee_id=attendee_id))
                 raise HTTPRedirect('edit#{}', event.start_slot and (event.start_slot - 1))
 
         return {

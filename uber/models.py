@@ -847,10 +847,10 @@ class FoodRestrictions(MagModel):
             return restriction in self.standard_ints
 
 class AssignedPanelist(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    attendee    = relationship(Attendee, backref='assigned_panelists', cascade='delete')
-    event_id    = Column(UUID, ForeignKey('event.id'))
-    event       = relationship(Event, backref='assigned_panelists', cascade='delete')
+    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='cascade'))
+    attendee    = relationship(Attendee, backref='assigned_panelists')
+    event_id    = Column(UUID, ForeignKey('event.id', ondelete='cascade'))
+    event       = relationship(Event, backref='assigned_panelists')
 
     def __repr__(self):
         return '<{self.attendee.full_name} panelisting {self.event.name}>'.format(self=self)
