@@ -202,7 +202,7 @@ EVENT_START_TIME_OPTS = [(dt, dt.strftime('%I %p %a') if not dt.minute else dt.s
                          for dt in [EPOCH + timedelta(minutes = i * 30) for i in range(2 * CON_LENGTH)]]
 EVENT_DURATION_OPTS = [(i, '%.1f hour%s' % (i/2, 's' if i != 2 else '')) for i in range(1, 19)]
 SETUP_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (EPOCH - timedelta(days=2) + timedelta(hours=i) for i in range(16))] \
-                + [(dt, dt.strftime('%I %p %a')) for dt in (EPOCH - timedelta(days=1) + timedelta(hours=i) for i in range(16))]
+                + [(dt, dt.strftime('%I %p %a')) for dt in (EPOCH - timedelta(days=1) + timedelta(hours=i) for i in range(24))]
 TEARDOWN_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (ESCHATON + timedelta(hours=i) for i in range(6))] \
                    + [(dt, dt.strftime('%I %p %a')) for dt in
                         ((ESCHATON + timedelta(days=1)).replace(hour=10) + timedelta(hours=i) for i in range(12))]
