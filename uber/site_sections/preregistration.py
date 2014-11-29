@@ -13,7 +13,7 @@ def check_prereg_reqs(attendee):
         return 'You must select an age category'
     elif attendee.badge_type == PSEUDO_DEALER_BADGE and not attendee.cellphone:
         return 'Your phone number is required'
-    elif attendee.amount_extra >= SHIRT_LEVEL and attendee.shirt == NO_SHIRT:
+    elif SHIRT_SALES_ENABLED and attendee.amount_extra >= SHIRT_LEVEL and attendee.shirt == NO_SHIRT:
         return 'Your shirt size is required'
 
 def check_dealer(group):
