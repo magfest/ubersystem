@@ -635,19 +635,23 @@ class Root:
         session.delete(shift)
         raise HTTPRedirect('shifts?id={}&message={}', shift.attendee.id, 'Staffer unassigned from shift')
 
-    def feed(self, session, page='1', who='', what=''):
+    def feed(self, session, page='1', who='', what='', action=''):
         feed = session.query(Tracking).filter(Tracking.action != AUTO_BADGE_SHIFT).order_by(Tracking.when.desc())
         if who:
             feed = feed.filter_by(who=who)
         if what:
             like = '%' + what + '%'  # SQLAlchemy should have an icontains for this
             feed = feed.filter(or_(Tracking.data.ilike(like), Tracking.which.ilike(like)))
+        if action:
+            feed = feed.filter_by(action=action)
         return {
             'who': who,
             'what': what,
             'page': page,
+            'action': action,
             'count': feed.count(),
             'feed': get_page(page, feed),
+            'action_opts': [opt for opt in TRACKING_OPTS if opt[0] != AUTO_BADGE_SHIFT],
             'who_opts': [who for [who] in session.query(Tracking).distinct().order_by(Tracking.who).values(Tracking.who)]
         }
 
