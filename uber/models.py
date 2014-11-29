@@ -1259,10 +1259,12 @@ class Session(SessionManager):
             if badge_type not in PREASSIGNED_BADGE_TYPES:
                 return 0
 
-            sametype = self.query(Attendee).filter(Attendee.badge_type == badge_type, Attendee.badge_num >= BADGE_RANGES[badge_type][0], Attendee.badge_num < BADGE_RANGES[badge_type][1])
+            sametype = self.query(Attendee).filter(Attendee.badge_type == badge_type, Attendee.badge_num >= BADGE_RANGES[badge_type][0], Attendee.badge_num <= BADGE_RANGES[badge_type][1])
             if sametype.count():
                 next = sametype.order_by(Attendee.badge_num.desc()).first().badge_num
-                if old_badge_num and next != old_badge_num:
+                if old_badge_num and next == old_badge_num:
+                    next = next # Prevents incrementing if the current badge already has the highest badge number in the range.
+                else:
                     next += 1
             else:
                 next = BADGE_RANGES[badge_type][0]
@@ -1329,8 +1331,10 @@ class Session(SessionManager):
                     attendee.badge_num = new_badge_num
 
                     if badge_num <= next:
+                        attendee.badge_type = badge_type
                         return 'That badge number was too high, so the next available badge was assigned instead'
 
+            attendee.badge_type = badge_type
             return 'Badge updated'
 
 
