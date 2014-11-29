@@ -67,7 +67,6 @@ class Root:
     def form(self, session, message='', return_to='', omit_badge='', **params):
         attendee = session.attendee(params, checkgroups=['interests','requested_depts','assigned_depts'],
                                     bools=['staffing','trusted','international','placeholder','got_merch','can_spam'])
-        Tracking.track(PAGE_VIEWED, attendee)
         if 'first_name' in params:
             attendee.group_id = params['group_opt'] or None
             if AT_THE_CON and omit_badge:
