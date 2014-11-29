@@ -3,13 +3,8 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-<h2>Thanks for Preregistering!</h2>
+{%include "preregistration/prereg_complete_txt.html" %}
 
-Your payment has been successfully processed; simply bring a photo ID to {{ EVENT_NAME }} and you should have no trouble picking up
-your badge at our registration desk.
-<br/><br/>
-The following preregistrations have been made from this computer:
-<br/><br/>
 <ul>
 {% for prereg in preregs %}
     {% if prereg.first_name %}
