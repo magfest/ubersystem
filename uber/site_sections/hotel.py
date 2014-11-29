@@ -100,7 +100,7 @@ class Root:
             attendee = session.admin_attendee()
             two_days_before = (EPOCH - timedelta(days=2)).strftime('%A')
             day_before = (EPOCH - timedelta(days=1)).strftime('%A')
-            day_after = (ESCHATON + timedelta(days=1)).strftime('%A')
+            last_day = ESCHATON.strftime('%A')
             return {
                 'department': department,
                 'checklist': session.checklist_status('hotel_assignments', department),
@@ -123,9 +123,9 @@ class Root:
                     'desc': NIGHTS[night]
                 } for night in CORE_NIGHTS] + [{
                     'core': False,
-                    'name': day_after.lower(),
-                    'val': globals()[day_after.upper()],
-                    'desc': day_after + ' night (for teardown volunteers)'
+                    'name': last_day.lower(),
+                    'val': globals()[last_day.upper()],
+                    'desc': last_day + ' night (for teardown volunteers)'
                 }]
             }
 
