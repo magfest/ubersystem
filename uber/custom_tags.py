@@ -22,6 +22,10 @@ def percent(numerator, denominator):
     return '0/0' if denominator == 0 else '{} / {} ({}%)'.format(numerator, denominator, int(100 * numerator / denominator))
 
 @register.filter
+def percent_of(numerator, denominator):
+    return 'n/a' if denominator == 0 else '{}%'.format(int(100 * numerator / denominator))
+
+@register.filter
 def remove_newlines(string):
     return string.replace('\n', ' ')
 
