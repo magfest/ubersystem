@@ -71,9 +71,11 @@ class Root:
                     except:
                         pass
 
-        writerow = lambda a, hr: out.writerow([a.full_name, a.email, a.phone, ' / '.join(a.hotel_nights), ' / '.join(a.assigned_depts_labels),
-                                               hr.wanted_roommates, hr.unwanted_roommates, hr.special_needs])
-
+        writerow = lambda a, hr: out.writerow([
+            a.full_name, a.email, a.cellphone,
+            a.hotel_requests.nights_display, ' / '.join(a.assigned_depts_labels),
+            hr.wanted_roommates, hr.unwanted_roommates, hr.special_needs
+        ])
         grouped = {frozenset(group) for group in lookup.values()}
         out.writerow(['Name','Email','Phone','Nights','Departments','Roomate Requests','Roomate Anti-Requests','Special Needs'])
         # TODO: for better efficiency, a multi-level joinedload would be preferable here
