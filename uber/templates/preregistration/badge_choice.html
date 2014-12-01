@@ -2,7 +2,6 @@
   <label for="badge" class="col-sm-2 control-label">Badge
   <br/><br/><span class="popup">{% popup_link "../static_views/badge_descriptions.html" "What's the difference?" %}</span></label>
   <div class="list-group">
-    {% if attendee.badge_type_label == "Attendee" and attendee.ribbon_label == "no ribbon" %}
     <div class="col-sm-3">
     <a id="attendee_select" onclick="setBadge('Attendee')" class="list-group-item badge_type_selector active">
       <h4 class="list-group-item-heading">Attending: ${{ BADGE_PRICE }}</h4>
@@ -10,14 +9,6 @@
       <p class="list-group-item-text">Allows access to the convention for its duration.</p>
     </a>
     </div>
-    {% else %}
-    <div class="col-sm-3">
-    <a id="attendee_select" onclick="setBadge('Attendee')" class="list-group-item badge_type_selector active">
-      <h4 class="list-group-item-heading">{{ attendee.badge_type_label }}{% if attendee.ribbon_label != "no ribbon" %}/{{ attendee.ribbon_label }}{% endif %}{% if attendee.paid != NEED_NOT_PAY %}: ${{ BADGE_PRICE }}{% endif %}</h4>
-      <p class="list-group-item-text"></p>
-    </a>
-    </div>
-    {% endif %}
 
   {% if GROUPS_ENABLED and attendee.is_new and not group_id %}
     <div class="col-sm-3 {% if not BEFORE_GROUP_PREREG_TAKEDOWN %}disabled{% endif %}">

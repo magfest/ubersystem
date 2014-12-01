@@ -26,27 +26,56 @@ $(document).ready(function() {
     }
     {% endif %}
 
-    // This section populates the "badge" choices if they are drawn on the page
+    // Hard-coded "Sponsor" and "Super Sponsor" prices. This should probably grab from PREREG_DONATION_OPTS
     var sponsor_addon = 50;
     var super_sponsor_addon = 195;
-    var discount = {{ BADGE_PRICE }};
+
+    // Display the correct price based on the attendee's paid status
+    {% if attendee.paid == HAS_PAID %}
+        var display_price = {{ attendee.amount_paid }} - {{ attendee.amount_extra }};
+    {% elif attendee.paid == NEED_NOT_PAY %}
+        var display_price = 0;
+    {% else %}
+        var display_price = {{ BADGE_PRICE }};
+    {% endif %}
+
+    // Display the correct badge name based on Badge Type and Ribbon.
+    {% if attendee.badge_type != ATTENDEE_BADGE %}
+        badge_label = "{{ attendee.badge_type_label }}";
+        {% if attendee.ribbon != NO_RIBBON %}
+            badge_label += "/{{ attendee.ribbon_label }}";
+        {% endif %}
+    {% elif attendee.ribbon != NO_RIBBON %}
+        badge_label = "{{ attendee.ribbon_label }}";
+    {% else %}
+        badge_label = "Attending";
+    {% endif %}
+
+    // Populates the "badge" choices if they are drawn on the page
+    if ($('#attendee_select')) {
+        if (display_price > 0) { var display_price_display = ": $"+display_price; } else { var display_price_display = "" }
+        $('#attendee_select').html('<h4 class="list-group-item-heading">' +
+                badge_label + display_price_display +
+                '{% if BEFORE_FIRST_PRICE_BUMP and attendee.is_new %}($55 after Feb 1)<br/>{% endif %}</h4>' +
+                '<p class="list-group-item-text">Allows access to the convention for its duration.</p>');
+    }
 
     if($('#featured1_select')) {
-        var sponsor_badge_price = {{ BADGE_PRICE }} + sponsor_addon {% if attendee.badge_type_label != "Attendee" %} - discount {% endif %}
+        var sponsor_badge_price = display_price + sponsor_addon;
+        if (badge_label != "Attending") { var extra_badge_label = badge_label + "/" } else { var extra_badge_label = "" }
         $('#featured1_select').html('<h4 class="list-group-item-heading">' +
-                '{% if attendee.badge_type_label != "Attendee" %} {{ attendee.badge_type_label }}/{% endif %}' +
-                '{% if attendee.ribbon_label != "no ribbon" %}{{ attendee.ribbon_label }}/{% endif %}' +
-                'Sponsor: $'+sponsor_badge_price+'</h4>' +
-                '{% if BEFORE_FIRST_PRICE_BUMP and attendee.paid == NOT_PAID %}($105 after Feb 1)<br/>{% endif %}' +
+                extra_badge_label + 'Sponsor: $'+sponsor_badge_price+'</h4>' +
+                '{% if BEFORE_FIRST_PRICE_BUMP and attendee.is_new %}($105 after Feb 1)<br/>{% endif %}' +
                 '<p class="list-group-item-text">Donate extra and get perks on top of an attending membership.</p>');
     }
 
     if($('#featured2_select')) {
-        var super_sponsor_badge_price = {{ BADGE_PRICE }} + super_sponsor_addon {% if attendee.badge_type_label != "Attendee" %} - discount {% endif %}
+        var super_sponsor_badge_price = display_price + super_sponsor_addon;
+        if (badge_label != "Attending") { var extra_badge_label = badge_label + "/" } else { var extra_badge_label = "" }
         $('#featured2_select').html('<h4 class="list-group-item-heading">' +
-                '{% if attendee.badge_type_label != "Attendee" %} {{ attendee.badge_type_label }}/{% endif %}' +
+                extra_badge_label + '{% if attendee.badge_type_label != "Attendee" %} {{ attendee.badge_type_label }}/{% endif %}' +
                 'Super Sponsor: $'+super_sponsor_badge_price+'</h4>' +
-                '{% if BEFORE_FIRST_PRICE_BUMP and attendee.paid == NOT_PAID %}($250 after Feb 1)<br/>{% endif %}' +
+                '{% if BEFORE_FIRST_PRICE_BUMP and attendee.is_new %}($250 after Feb 1)<br/>{% endif %}' +
                 '<p class="list-group-item-text">The most generous option - get even more great perks!</p>');
     }
 
