@@ -19,13 +19,15 @@
                         return opt.text;
                     }
                 };
-                $.field("amount_extra").select2({
-                    formatResult: format,
-                    formatSelection: function(opt) { return opt.text; },
-                    minimumResultsForSearch: 99,
-                    escapeMarkup: function(m) { return m; },
-                    width: "100%",
-                });
+                if ($.field("amount_extra").is('select')) {
+                    $.field("amount_extra").select2({
+                        formatResult: format,
+                        formatSelection: function(opt) { return opt.text; },
+                        minimumResultsForSearch: 99,
+                        escapeMarkup: function(m) { return m; },
+                        width: "100%",
+                    });
+                }
                 if ($.field("affiliate")) {
                     $.field("affiliate").select2({
                         placeholder: "I don't care about this",
@@ -55,7 +57,7 @@
                         {% options PREREG_DONATION_OPTS attendee.amount_extra %}
                     </select>
         {% else %}
-        <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
+        <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" onChange="donationChanged()" />
                 {% endif %}
     </div>
   </div>
@@ -69,7 +71,7 @@
     {% endif %}
 
     <div class="badge-row extra-row form-group" style="display:none">
-        <label for="badge_printed_name" class="col-sm-2 control-label">Name Printed on Badge:</label>
+        <label for="badge_printed_name" class="col-sm-2 control-label">Name Printed on Badge</label>
         <div class="col-sm-6">
             <input type="text" class="form-control" name="badge_printed_name" maxlength="20" value="{{ attendee.badge_printed_name }}" {% if AFTER_PRINTED_BADGE_DEADLINE %}readonly{% endif %} />
         </div>

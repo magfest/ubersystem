@@ -30,15 +30,6 @@ $(document).ready(function() {
     var sponsor_addon = 50;
     var super_sponsor_addon = 195;
 
-    // Display the correct price based on the attendee's paid status
-    {% if attendee.paid == HAS_PAID %}
-        var display_price = {{ attendee.amount_paid }} - {{ attendee.amount_extra }};
-    {% elif attendee.paid == NEED_NOT_PAY %}
-        var display_price = 0;
-    {% else %}
-        var display_price = {{ BADGE_PRICE }};
-    {% endif %}
-
     // Display the correct badge name based on Badge Type and Ribbon.
     {% if attendee.badge_type != ATTENDEE_BADGE %}
         badge_label = "{{ attendee.badge_type_label }}";
@@ -53,15 +44,15 @@ $(document).ready(function() {
 
     // Populates the "badge" choices if they are drawn on the page
     if ($('#attendee_select')) {
-        if (display_price > 0) { var display_price_display = ": $"+display_price; } else { var display_price_display = "" }
+        if ({{ attendee.badge_cost }} > 0) { var price_display = ": ${{ attendee.badge_cost }}"; } else { var price_display = "" }
         $('#attendee_select').html('<h4 class="list-group-item-heading">' +
-                badge_label + display_price_display +
+                badge_label + price_display +
                 '</h4>{% if BEFORE_FIRST_PRICE_BUMP and attendee.is_new %}($55 after Feb 1)<br/>{% endif %}' +
                 '<p class="list-group-item-text">Allows access to the convention for its duration.</p>');
     }
 
     if($('#featured1_select')) {
-        var sponsor_badge_price = display_price + sponsor_addon;
+        var sponsor_badge_price = {{ attendee.badge_cost }} + sponsor_addon;
         if (badge_label != "Attending") { var extra_badge_label = badge_label + "/" } else { var extra_badge_label = "" }
         $('#featured1_select').html('<h4 class="list-group-item-heading">' +
                 extra_badge_label + 'Sponsor: $'+sponsor_badge_price+'</h4>' +
@@ -70,7 +61,7 @@ $(document).ready(function() {
     }
 
     if($('#featured2_select')) {
-        var super_sponsor_badge_price = display_price + super_sponsor_addon;
+        var super_sponsor_badge_price = {{ attendee.badge_cost }} + super_sponsor_addon;
         if (badge_label != "Attending") { var extra_badge_label = badge_label + "/" } else { var extra_badge_label = "" }
         $('#featured2_select').html('<h4 class="list-group-item-heading">' +
                 extra_badge_label + '{% if attendee.badge_type_label != "Attendee" %} {{ attendee.badge_type_label }}/{% endif %}' +
@@ -89,11 +80,11 @@ $(document).ready(function() {
     }
 
     // If the attendee has already paid, they cannot downgrade their badge
-    if ({{ attendee.amount_paid }} >= sponsor_addon) {
+    if ({{ attendee.amount_paid }} >= sponsor_badge_price) {
         $("#attendee_select").addClass("disabled");
         $("#attendee_select").prop("onclick",null);
     }
-    if ({{ attendee.amount_paid }} >= super_sponsor_addon) {
+    if ({{ attendee.amount_paid }} >= super_sponsor_badge_price) {
         $("#featured1_select").addClass("disabled");
         $("#featured1_select").prop("onclick",null);
     }
