@@ -71,7 +71,7 @@
     {% endif %}
 
     <div class="badge-row extra-row form-group" style="display:none">
-        <label for="badge_printed_name" class="col-sm-2 control-label">Name Printed on Badge:</label>
+        <label for="badge_printed_name" class="col-sm-2 control-label">Name Printed on Badge</label>
         <div class="col-sm-6">
             <input type="text" class="form-control" name="badge_printed_name" maxlength="20" value="{{ attendee.badge_printed_name }}" {% if AFTER_PRINTED_BADGE_DEADLINE %}readonly{% endif %} />
         </div>
