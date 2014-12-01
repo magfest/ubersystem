@@ -42,6 +42,8 @@ $(document).ready(function() {
         badge_label = "Attending";
     {% endif %}
 
+    if (badge_label != "Attending") { var extra_badge_label = badge_label + "/" } else { var extra_badge_label = "" }
+
     // Populates the "badge" choices if they are drawn on the page
     if ($('#attendee_select')) {
         if ({{ attendee.badge_cost }} > 0) { var price_display = ": ${{ attendee.badge_cost }}"; } else { var price_display = "" }
@@ -53,7 +55,6 @@ $(document).ready(function() {
 
     if($('#featured1_select')) {
         var sponsor_badge_price = {{ attendee.badge_cost }} + sponsor_addon;
-        if (badge_label != "Attending") { var extra_badge_label = badge_label + "/" } else { var extra_badge_label = "" }
         $('#featured1_select').html('<h4 class="list-group-item-heading">' +
                 extra_badge_label + 'Sponsor: $'+sponsor_badge_price+'</h4>' +
                 '{% if BEFORE_FIRST_PRICE_BUMP and attendee.is_new %}($105 after Feb 1)<br/>{% endif %}' +
@@ -62,10 +63,8 @@ $(document).ready(function() {
 
     if($('#featured2_select')) {
         var super_sponsor_badge_price = {{ attendee.badge_cost }} + super_sponsor_addon;
-        if (badge_label != "Attending") { var extra_badge_label = badge_label + "/" } else { var extra_badge_label = "" }
         $('#featured2_select').html('<h4 class="list-group-item-heading">' +
-                extra_badge_label + '{% if attendee.badge_type_label != "Attendee" %} {{ attendee.badge_type_label }}/{% endif %}' +
-                'Super Sponsor: $'+super_sponsor_badge_price+'</h4>' +
+                extra_badge_label + 'Super Sponsor: $'+super_sponsor_badge_price+'</h4>' +
                 '{% if BEFORE_FIRST_PRICE_BUMP and attendee.is_new %}($250 after Feb 1)<br/>{% endif %}' +
                 '<p class="list-group-item-text">The most generous option - get even more great perks!</p>');
     }
