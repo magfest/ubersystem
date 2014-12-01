@@ -80,23 +80,22 @@ $(document).ready(function() {
     }
 
     // Sets the badge box to correspond to the the session's kick-in level
-    // If the attendee has already paid, they cannot downgrade their badge
     if ($.val('amount_extra') === sponsor_addon) {
-        if ({{ attendee.amount_paid }} >= sponsor_addon) {
-            $("#attendee_select").addClass("disabled");
-            $("#attendee_select").prop("onclick",null);
-        }
         setBadge('Featured1');
     } else if ($.val('amount_extra') === super_sponsor_addon) {
-        if ({{ attendee.amount_paid }} >= super_sponsor_addon) {
-            $("#attendee_select").addClass("disabled");
-            $("#featured1_select").addClass("disabled");
-            $("#attendee_select").prop("onclick",null);
-            $("#featured1_select").prop("onclick",null);
-        }
         setBadge('Featured2');
     } else {
         setBadge('Attendee');
+    }
+
+    // If the attendee has already paid, they cannot downgrade their badge
+    if ({{ attendee.amount_paid }} >= sponsor_addon) {
+        $("#attendee_select").addClass("disabled");
+        $("#attendee_select").prop("onclick",null);
+    }
+    if ({{ attendee.amount_paid }} >= super_sponsor_addon) {
+        $("#featured1_select").addClass("disabled");
+        $("#featured1_select").prop("onclick",null);
     }
 })
 
