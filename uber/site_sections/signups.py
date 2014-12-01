@@ -74,6 +74,8 @@ class Root:
         if state.AFTER_ROOM_DEADLINE and not session.is_stops_admin():
             raise HTTPRedirect('index?message={}', 'The room deadline has passed')
         attendee = session.logged_in_volunteer()
+        if attendee.badge_type != STAFF_BADGE:
+            raise HTTPRedirect('index?message={}', 'Only Staffers can request hotel space')
         requests = session.hotel_requests(params, checkgroups=['nights'], restricted=True)
         if 'attendee_id' in params:
             session.add(requests)
