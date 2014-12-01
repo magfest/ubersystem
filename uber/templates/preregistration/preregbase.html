@@ -95,8 +95,6 @@ $(document).ready(function() {
             $("#featured1_select").prop("onclick",null);
         }
         setBadge('Featured2');
-    } else if ($.val('amount_extra') > super_sponsor_addon) {
-        $.field("amount_extra").val('0').trigger("change");
     } else {
         setBadge('Attendee');
     }
