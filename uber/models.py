@@ -1177,6 +1177,12 @@ class Session(SessionManager):
         def logged_in_volunteer(self):
             return self.attendee(cherrypy.session['staffer_id'])
 
+        def is_stops_admin(self):
+            try:
+                return self.admin_attendee().assigned_to(STOPS)
+            except:
+                return False
+
         def checklist_status(self, slug, department):
             attendee = self.admin_attendee()
             conf = DeptChecklistConf.instances[slug]
