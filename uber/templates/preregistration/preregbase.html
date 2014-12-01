@@ -56,7 +56,7 @@ $(document).ready(function() {
         if (display_price > 0) { var display_price_display = ": $"+display_price; } else { var display_price_display = "" }
         $('#attendee_select').html('<h4 class="list-group-item-heading">' +
                 badge_label + display_price_display +
-                '{% if BEFORE_FIRST_PRICE_BUMP and attendee.is_new %}($55 after Feb 1)<br/>{% endif %}</h4>' +
+                '</h4>{% if BEFORE_FIRST_PRICE_BUMP and attendee.is_new %}($55 after Feb 1)<br/>{% endif %}' +
                 '<p class="list-group-item-text">Allows access to the convention for its duration.</p>');
     }
 
@@ -95,6 +95,8 @@ $(document).ready(function() {
             $("#featured1_select").prop("onclick",null);
         }
         setBadge('Featured2');
+    } else if ($.val('amount_extra') > super_sponsor_addon) {
+        $.field("amount_extra").val('0').trigger("change");
     } else {
         setBadge('Attendee');
     }
