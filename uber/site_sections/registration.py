@@ -697,20 +697,23 @@ class Root:
 
         return {'message': message}
 
-    def attendee_upload(self, session, message='', attendee_import = None):
-        if attendee_import:
-            data_file = attendee_import.file
-            cols = {col.name: getattr(Attendee, col.name) for col in Attendee.__table__.columns}
+    def attendee_upload(self, session, message='', attendee_import = None, date_format = "%Y-%m-%d"):
+        attendees = None
 
+        if attendee_import:
+            cols = {col.name: getattr(Attendee, col.name) for col in Attendee.__table__.columns}
             result = csv.DictReader(attendee_import.file.read().decode('utf-8').split('\n'))
-            message = "Attendees uploaded."
+            id_list = []
 
             for row in result:
-                id = row.pop('id') # id needs special treatment
+                if 'id' in row:
+                    id = row.pop('id') # id needs special treatment
+
                 try:
                     # get the Attendee if it already exists
                     attendee = session.attendee(id)
                 except:
+                    session.rollback()
                     # otherwise, make a new one and add it to the session for when we commit
                     attendee = Attendee()
                     session.add(attendee)
@@ -736,9 +739,12 @@ class Root:
                     elif isinstance(col.type, UTCDateTime):
                         # we'll need to make sure we use whatever format string we used to
                         # export this date in the first place
-                        val = UTC.localize(datetime.strptime(val, '%Y-%m-%d %H:%M:%S'))
+                        try:
+                            val = UTC.localize(datetime.strptime(val, date_format + ' %H:%M:%S'))
+                        except:
+                            val = UTC.localize(datetime.strptime(val, date_format))
                     elif isinstance(col.type, Date):
-                        val = datetime.strptime(val, '%Y-%m-%d').date()
+                        val = datetime.strptime(val, date_format).date()
                     elif isinstance(col.type, Integer):
                         val = int(val)
 
@@ -749,6 +755,14 @@ class Root:
                 try:
                     session.commit()
                 except:
-                    message = "Upload unsuccessful"
+                    log.error('ImportError', exc_info=True)
+                    session.rollback()
+                    message = 'Import unsuccessful'
 
-        return {'message' : message}
+                id_list.append(attendee.id)
+
+            if id_list:
+                attendees = session.query(Attendee).filter(Attendee.id.in_(id_list)).all()
+
+        return {'message' : message,
+                'attendees' : attendees}
