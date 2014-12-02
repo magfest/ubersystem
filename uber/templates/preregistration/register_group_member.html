@@ -7,11 +7,12 @@
 </div>
 
 <div class="panel panel-default">
-<form method="post" action="register_group_member">
+<form method="post" action="register_group_member" class="form-horizontal">
 {% csrf_token %}
 <input type="hidden" name="id" value="{{ attendee.db_id }}" />
 <input type="hidden" name="group_id" value="{{ group_id }}" />
-
+<br/>
+{% include "preregistration/badge_choice.html" %}
   <div class="form-group">
     <label for="first_name" class="col-sm-2 control-label">First Name</label>
     <div class="col-sm-6">
@@ -46,6 +47,13 @@
 </div>
 {% endif %}
 
+<div class="form-group">
+  <div class="col-sm-6 col-sm-offset-2">
+    <button type="submit" class="btn btn-primary" id="updateButton">
+      Register
+    </button>
+  </div>
+</div>
 </form>
-
+</div>
 {% endblock %}
