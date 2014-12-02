@@ -27,12 +27,22 @@
 {% csrf_token %}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
-
+<br/>
+{% include "preregistration/badge_choice.html" %}
   <div class="form-group">
-    <label for="email" class="col-sm-2 control-label">Name</label>
+    <label for="email" class="col-sm-2 control-label">Legal Name</label>
     <div class="col-sm-6">
       {{ attendee.full_name }}
     </div>
+  </div>
+  <div class="form-group">
+    <label for="email" class="col-sm-2 control-label">Badge Number</label>
+    <div class="col-sm-6">
+      {{ attendee.badge_num }}
+    </div>
+  </div>
+  <div class="badge-row extra-row form-group" style="display:none">
+    <p class="help-block col-sm-6 col-sm-offset-2">Badge number is subject to change.</p>
   </div>
 {% include "preregistration/extra.html" %}
 {% include "preregistration/age_and_staffing.html" %}

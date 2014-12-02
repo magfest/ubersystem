@@ -1,11 +1,78 @@
 {% extends "base-admin.html" %}
 {% block title %}Attendee Mass Upload{% endblock %}
 {% block content %}
-{% include "registration/menu.html" %}
 
- <form action="attendee_upload" method="post" enctype="multipart/form-data">
-    filename: <input type="file" name="myFile" /><br />
-    <input type="submit" />
+<form action="attendee_upload" method="post" enctype="multipart/form-data">
+    <input type="file" name="attendee_import" /><br />
+    <select name="date_format">
+        <option selected="selected" value="%Y-%m-%d">YYYY-MM-DD</option>
+        <option value="%Y/%m/%d">YYYY/MM/DD</option>
+        <option value="%m/%d/%Y">MM/DD/YYYY</option>
+        <option value="%d/%m/%Y">DD/MM/YYYY</option>
+    </select>
+    <input type="submit" value="Upload" />
 </form>
+<br/>
+{% if attendees %}
+        <div class="control-group"><h4>Imported Attendees</h4></div>
+    <table class="table footable">
+<thead><tr>
+    <th> <a href="index?order={{ order.last_first }}">Name</a> </th>
+    <th data-hide="phone"> <a href="index?order={{ order.badge_num }}">Badge</a> </th>
+    <th data-hide="phone"> <a href="index?order={{ order.paid }}">Paid</a> </th>
+    <th data-hide="phone">Age</th>
+    {% if AT_THE_CON %}
+        <th> <a href="index?order={{ order.checked_in }}"><nobr>Checked In</nobr></a> </th>
+    {% endif %}
+</tr></thead>
+{% for attendee in attendees %}
+    <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
+        <td id="name_{{ attendee.id }}" style="text-align:left">
+            <a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a>
+            {% if attendee.group %}
+                <br/> <a style="font-size:8pt" href="../groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
+            {% endif %}
+        </td>
+        <td><nobr>
+            {% if AT_THE_CON and attendee.paid == NOT_PAID %}
+                {{ attendee.badge_type_label }}
+            {% elif AT_THE_CON and not attendee.badge_num %}
+                {{ attendee.badge_type_label }}
+                {% if attendee.is_unassigned %}
+                    <input type="hidden" id="num_{{ attendee.id }}" />
+                {% else %}
+                    #<input class="num" id="num_{{ attendee.id }}" type="text" size="3" />
+                {% endif %}
+                {% if attendee.ribbon != NO_RIBBON %}
+                    ({{ attendee.ribbon_label }})
+                {% endif %}
+            {% else %}
+                {{ attendee.badge }}
+            {% endif %}
+        </nobr></td>
+        <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
+        {% if attendee.checked_in or not AT_THE_CON %}
+            <td> <nobr>{{ attendee.age_group.desc }}</nobr> </td>
+            {% if AT_THE_CON %}
+                <td> {{ attendee.checked_in|time:"fA"|lower }} {{ attendee.checked_in|date:"D" }} </td>
+            {% endif %}
+        {% elif attendee.paid == NOT_PAID %}
+            <td colspan="2">
+                <a href="new?show_all=true">Go to at-the-door page to check in</a>
+            </td>
+        {% else %}
+            <td>
+                <select id="age_{{ attendee.id }}" onChange="highlight($(this).parents('tr'))">
+                    {% options AGE_GROUP_OPTS attendee.age_group %}
+                </select>
+            </td>
+            <td id="cin_{{ attendee.id }}">
+                <input type="submit" value="Check In" onClick="check_in({{ attendee.id }})" {% if attendee.is_unassigned %}disabled{% endif %} />
+            </td>
+        {% endif %}
+    </tr>
+{% endfor %}
+</table>
+{% endif %}
 
 {% endblock %}

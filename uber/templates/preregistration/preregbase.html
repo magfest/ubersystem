@@ -18,11 +18,76 @@
     };
     setInterval(checkCap, 1000 * 1 * 15);
 
-{% if COLLECT_FULL_ADDRESS %}
 $(document).ready(function() {
-    $("#international").hide()
-    setInternational()
-});
+    {% if COLLECT_FULL_ADDRESS %}
+    if($("input[name='international']")) {
+        $("#international").hide();
+        setInternational();
+    }
+    {% endif %}
+
+    // Hard-coded "Sponsor" and "Super Sponsor" prices. This should probably grab from PREREG_DONATION_OPTS
+    var sponsor_addon = 50;
+    var super_sponsor_addon = 195;
+
+    // Display the correct badge name based on Badge Type and Ribbon.
+    {% if attendee.badge_type != ATTENDEE_BADGE %}
+        badge_label = "{{ attendee.badge_type_label }}";
+        {% if attendee.ribbon != NO_RIBBON %}
+            badge_label += "/{{ attendee.ribbon_label }}";
+        {% endif %}
+    {% elif attendee.ribbon != NO_RIBBON %}
+        badge_label = "{{ attendee.ribbon_label }}";
+    {% else %}
+        badge_label = "Attending";
+    {% endif %}
+
+    if (badge_label != "Attending") { var extra_badge_label = badge_label + "/" } else { var extra_badge_label = "" }
+
+    // Populates the "badge" choices if they are drawn on the page
+    if ($('#attendee_select')) {
+        if ({{ attendee.badge_cost }} > 0) { var price_display = ": ${{ attendee.badge_cost }}"; } else { var price_display = "" }
+        $('#attendee_select').html('<h4 class="list-group-item-heading">' +
+                badge_label + price_display +
+                '</h4>{% if BEFORE_FIRST_PRICE_BUMP and attendee.is_new %}($55 after Feb 1)<br/>{% endif %}' +
+                '<p class="list-group-item-text">Allows access to the convention for its duration.</p>');
+    }
+
+    if($('#featured1_select')) {
+        var sponsor_badge_price = {{ attendee.badge_cost }} + sponsor_addon;
+        $('#featured1_select').html('<h4 class="list-group-item-heading">' +
+                extra_badge_label + 'Sponsor: $'+sponsor_badge_price+'</h4>' +
+                '{% if BEFORE_FIRST_PRICE_BUMP and attendee.is_new %}($105 after Feb 1)<br/>{% endif %}' +
+                '<p class="list-group-item-text">Donate extra and get perks on top of an attending membership.</p>');
+    }
+
+    if($('#featured2_select')) {
+        var super_sponsor_badge_price = {{ attendee.badge_cost }} + super_sponsor_addon;
+        $('#featured2_select').html('<h4 class="list-group-item-heading">' +
+                extra_badge_label + 'Super Sponsor: $'+super_sponsor_badge_price+'</h4>' +
+                '{% if BEFORE_FIRST_PRICE_BUMP and attendee.is_new %}($250 after Feb 1)<br/>{% endif %}' +
+                '<p class="list-group-item-text">The most generous option - get even more great perks!</p>');
+    }
+
+    // Sets the badge box to correspond to the the session's kick-in level
+    if ($.val('amount_extra') === sponsor_addon) {
+        setBadge('Featured1');
+    } else if ($.val('amount_extra') === super_sponsor_addon) {
+        setBadge('Featured2');
+    } else {
+        setBadge('Attendee');
+    }
+
+    // If the attendee has already paid, they cannot downgrade their badge
+    if ({{ attendee.amount_paid }} >= sponsor_badge_price) {
+        $("#attendee_select").addClass("disabled");
+        $("#attendee_select").prop("onclick",null);
+    }
+    if ({{ attendee.amount_paid }} >= super_sponsor_badge_price) {
+        $("#featured1_select").addClass("disabled");
+        $("#featured1_select").prop("onclick",null);
+    }
+})
 
 function setInternational() {
     countryName = $("input[name='country']").val();
@@ -33,6 +98,34 @@ function setInternational() {
         $("input[name='international']").prop('checked', true);
     }
 }
-{% endif %}
+
+function setBadge(badgeType) {
+    var sponsor_addon = 50;
+    var super_sponsor_addon = 195;
+
+    $(".badge_type_selector").removeClass("active");
+    $(".group_fields").addClass("hide");
+    if (badgeType == 'Attendee') {
+        if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}"); }
+        $("#attendee_select").addClass("active");
+        $.field("amount_extra").val('0').trigger("change");
+    }
+    if (badgeType == 'Group') {
+        if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ PSEUDO_GROUP_BADGE }}"); }
+        $(".group_fields").removeClass("hide");
+        $("#group_select").addClass("active");
+        $.field("amount_extra").val('0').trigger("change");
+    }
+    if (badgeType == 'Featured1') {
+        if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}"); }
+        $("#featured1_select").addClass("active");
+        $.field("amount_extra").val(sponsor_addon).trigger("change");
+    }
+    if (badgeType == 'Featured2') {
+        if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}"); }
+        $("#featured2_select").addClass("active");
+        $.field("amount_extra").val(super_sponsor_addon).trigger("change");
+    }
+}
 </script>
 {% endblock header %}

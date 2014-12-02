@@ -37,19 +37,32 @@ def change_badge(session, attendee, new_type, new_num=0, expected_num=None):
 
 class TestNextBadgeNum:
     def test_non_preassigned(self, session):
-        assert 0 == session.next_badge_num(ATTENDEE_BADGE)
+        assert 0 == session.next_badge_num(ATTENDEE_BADGE, old_badge_num=0)
 
     def test_next_basic(self, session):
-        assert 6 == session.next_badge_num(STAFF_BADGE)
+        assert 6 == session.next_badge_num(STAFF_BADGE, old_badge_num=0)
 
     def test_next_with_new(self, session):
         session.add(Attendee(badge_type=STAFF_BADGE, badge_num=6))
-        assert 7 == session.next_badge_num(STAFF_BADGE)
+        assert 7 == session.next_badge_num(STAFF_BADGE, old_badge_num=0)
 
     def test_next_with_dirty(self, session):
         session.supporter_five.badge_type, session.supporter_five.badge_num = STAFF_BADGE, 6
-        assert 7 == session.next_badge_num(STAFF_BADGE)
+        assert 7 == session.next_badge_num(STAFF_BADGE, old_badge_num=0)
         session.expunge(session.supporter_five)
+
+    def test_ignore_too_high(self, session):
+        over_max = BADGE_RANGES[STAFF_BADGE][1]+10
+        session.add(Attende(badge_type=STAFF_BADGE), badge_num=over_max)
+        assert 6 == session.next_badge_num(STAFF_BADGE, old_badge_num=0)
+
+    def test_ignore_too_low(self, session):
+        under_min = BADGE_RANGES[STAFF_BADGE][0]-10
+        session.add(Attende(badge_type=STAFF_BADGE), badge_num=under_min)
+        assert 6 == session.next_badge_num(STAFF_BADGE, old_badge_num=0)
+
+    def next_badge_when_already_highest(self, session):
+        assert 5 == session.next_badge_num(session.staff_five.badge_type, session.staff_five.badge_num)
 
 
 class TestShiftBadges:
