@@ -136,12 +136,12 @@
         {% endif %}
     {% endfor %}
 
-<table class="table footable" data-page-size="9999999">
+<table class="table footable" data-page-size="9999999" data-sort="false">
 <thead><tr>
     <th> <a href="index?order={{ order.last_first }}">Name</a> </th>
-    <th data-hide="phone"> <a href="index?order={{ order.badge_num }}">Badge</a> </th>
-    <th data-hide="phone"> <a href="index?order={{ order.paid }}">Paid</a> </th>
-    <th data-hide="phone">Age</th>
+    <th> <a href="index?order={{ order.badge_num }}">Badge</a> </th>
+    <th> <a href="index?order={{ order.paid }}">Paid</a> </th>
+    <th>Age</th>
     {% if AT_THE_CON %}
         <th> <a href="index?order={{ order.checked_in }}"><nobr>Checked In</nobr></a> </th>
     {% endif %}
