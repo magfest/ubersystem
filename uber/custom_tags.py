@@ -440,9 +440,9 @@ class Notice(template.Node):
             
         for day, price in sorted(PRICE_BUMPS.items()):
             if localized_now() < day:
-                return 'Price goes up to ${} at 11:59pm EST on {}'.format(price + amount_extra - discount, (day - timedelta(days=1)).strftime('%A, %b %e'))
+                return 'Price goes up to ${} at 11:59pm PST on {}'.format(price + amount_extra - discount, (day - timedelta(days=1)).strftime('%A, %b %e'))
         else:
-            return '{} closes at 11:59pm EST on {}'.format(label, takedown.strftime('%A, %b %e'))
+            return '{} closes at 11:59pm PST on {}'.format(label, takedown.strftime('%A, %b %e'))
 
 @tag
 class attendee_price_notice(Notice):
