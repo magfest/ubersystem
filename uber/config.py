@@ -170,17 +170,29 @@ def _make_enum(enum_name, section):
     globals()[enum_name + '_VARS'] = varnames
     globals()[enum_name + ('' if enum_name.endswith('S') else 'S')] = lookup
 
+def check_int(s):
+    if s[0] in ('-', '+'):
+    	return s[1:].isdigit()
+    return s.isdigit()
+
 for _name, _section in _config['enums'].items():
     _make_enum(_name, _section)
 
 for _name, _val in _config['integer_enums'].items():
     if isinstance(_val, int):
         globals()[_name.upper()] = _val
+
 for _name, _section in _config['integer_enums'].items():
     if isinstance(_section, dict):
         _interpolated = OrderedDict()
         for _desc, _val in _section.items():
-            _interpolated[int(_val) if _val.isdigit() else globals()[_val.upper()]] = _desc
+            if check_int(_val):
+                key = int(_val)
+            else:
+                key = globals()[_val.upper()]
+
+            _interpolated[key] = _desc
+
         _make_enum(_name, _interpolated)
 
 BADGE_RANGES = {}
