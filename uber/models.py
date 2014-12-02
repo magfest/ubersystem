@@ -473,6 +473,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         if not self.amount_extra:
             self.affiliate = ''
 
+        if self.birthdate == '':
+            self.birthdate = None
+
         if MODE != "magstock":
             if not self.gets_shirt:
                 self.shirt = NO_SHIRT
