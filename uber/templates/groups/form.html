@@ -73,6 +73,10 @@
     <td> <select name="badges">{% int_options 0 MAX_GROUP_SIZE group.badges_purchased %}</select> </td>
 </tr>
 <tr>
+    <td><b>Badge Type:</b></td>
+    <td> <select name="badge_type">{% options BADGE_OPTS group.leader.badge_type %}</select></td>
+</tr>
+<tr>
     <td> <b><nobr>Amount Paid:</nobr></b> </td>
     <td> $<input type="text" style="width:4em" name="amount_paid" value="{{ group.amount_paid }}" /> </td>
 </tr>

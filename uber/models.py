@@ -288,13 +288,6 @@ class Group(MagModel, TakesPaymentMixin):
         return [a for a in self.attendees if a.is_unassigned and a.paid == PAID_BY_GROUP]
 
     @property
-    def new_badge_type(self):
-        if GUEST_BADGE in {a.badge_type for a in self.attendees}:
-            return GUEST_BADGE
-        else:
-            return ATTENDEE_BADGE
-
-    @property
     def new_ribbon(self):
         ribbons = {a.ribbon for a in self.attendees}
         for ribbon in [DEALER_RIBBON, BAND_RIBBON]:
@@ -1417,11 +1410,11 @@ class Session(SessionManager):
             self.delete(attendee)
             group.attendees.remove(attendee)
 
-        def assign_badges(self, group, new_badge_count, **extra_create_args):
+        def assign_badges(self, group, new_badge_count, new_badge_type = ATTENDEE_BADGE, **extra_create_args):
             diff = int(new_badge_count) - group.badges
             if diff > 0:
                 for i in range(diff):
-                    group.attendees.append(Attendee(badge_type=group.new_badge_type, ribbon=group.new_ribbon, paid=PAID_BY_GROUP, **extra_create_args))
+                    group.attendees.append(Attendee(badge_type=new_badge_type, ribbon=group.new_ribbon, paid=PAID_BY_GROUP, **extra_create_args))
             elif diff < 0:
                 if len(group.floating) < abs(diff):
                     return 'You cannot reduce the number of badges for a group to below the number of assigned badges'
