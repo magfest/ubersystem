@@ -51,6 +51,7 @@
     <th data-type="numeric">Tables</th>
     <th data-type="numeric">Owed</th>
     <th data-type="numeric">Paid</th>
+    <th data-type="alphanumeric">Admin Notes</th>
 </tr></thead>
 {% for group in groups %}
     <tr>
@@ -66,6 +67,7 @@
         <td> {{ group.tables }} </td>
         <td> ${{ group.amount_unpaid }} </td>
         <td> ${{ group.amount_paid }} </td>
+        <td> {{ group.admin_notes }} </td>
     </tr>
 {% endfor %}
 	<caption align="bottom">
