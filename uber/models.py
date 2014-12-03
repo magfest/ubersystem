@@ -509,7 +509,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             self.badge_type = SUPPORTER_BADGE
 
         if PRE_CON:
-            if self.paid == NOT_PAID or not self.has_personalized_badge:
+            if self.paid == NOT_PAID or not self.has_personalized_badge or self.is_unassigned:
                 self.badge_num = 0
             elif self.has_personalized_badge and not self.badge_num:
                 if self.paid != NOT_PAID:
