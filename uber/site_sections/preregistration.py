@@ -319,8 +319,10 @@ class Root:
         except:
             log.error('unable to send group unset email', exc_info=True)
 
-        session.assign_badges(attendee.group, attendee.group.badges + 1, registered=attendee.registered)
-        session.delete_from_group(attendee, attendee.group)
+        session.assign_badges(attendee.group, attendee.group.badges + 1)
+        Tracking.track(DELETED, attendee)
+        #session.delete_from_group(attendee, attendee.group)
+        attendee.group.attendees.remove(attendee)
         raise HTTPRedirect('group_members?id={}&message={}', attendee.group_id, 'Attendee unset; you may now assign their badge to someone else')
 
     def add_group_members(self, session, id, count):

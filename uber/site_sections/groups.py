@@ -69,10 +69,10 @@ class Root:
             send_email(MARKETPLACE_EMAIL, group.email, subject, email, model = group)
         if action == 'waitlisted':
             group.status = WAITLISTED
-        else:
-            for attendee in group.attendees:
-                session.delete(attendee)
-            session.delete(group)
+        #else:
+            #for attendee in group.attendees:
+                #session.delete(attendee)
+            #session.delete(group)
         session.commit()
         return {'success': True}
 
@@ -82,9 +82,10 @@ class Root:
         if group.badges - group.unregistered_badges and not confirmed:
             raise HTTPRedirect('deletion_confirmation?id={}', id)
         else:
-            for attendee in group.attendees:
-                session.delete(attendee)
-            session.delete(group)
+            Tracking.track(DELETED, group)
+            #for attendee in group.attendees:
+                #session.delete(attendee)
+            #session.delete(group)
             raise HTTPRedirect('index?message={}', 'Group deleted')
 
     def deletion_confirmation(self, session, id):

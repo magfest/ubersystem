@@ -43,7 +43,8 @@ class Root:
         raise HTTPRedirect('index?message={}', message)
 
     def delete(self, session, id, **params):
-        session.delete(session.admin_account(id))
+        Tracking.track(DELETED, session.admin_account(id))
+        #session.delete(session.admin_account(id))
         raise HTTPRedirect('index?message={}', 'Account deleted')
 
     @unrestricted
