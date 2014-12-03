@@ -70,7 +70,7 @@ class Root:
         if action == 'waitlisted':
             group.status = WAITLISTED
         else:
-            for attendee in group.attendees:
+            #for attendee in group.attendees:
                 #session.delete(attendee)
             #session.delete(group)
         session.commit()
