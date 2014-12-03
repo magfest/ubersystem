@@ -17,31 +17,8 @@
     }
 </style>
 
-<script type="text/javascript">
-    $(function(){
-        $("td:first-child").contents().andSelf().mouseover(function(event){
-            $(event.target).find(":radio").focus();
-        }).click(function(event){
-            if (event.target.nodeName == "TD") {
-                $(event.target).find(":radio").click();
-            } else {
-                $(event.target).siblings(":radio").click();
-            }
-            badgeTypeChanged();
-        }).css("cursor", "default");
-    });
-
-    var badgeTypeChanged = function() {
-        // Set the kicked-in amount to either 0 or the supporter/season level
-        if ($("#supporter").is(":checked")){
-            $("input[name='amount_extra']").val({{ SUPPORTER_LEVEL }});
-        } else if ($("#season_supporter").is(":checked")){
-            $("input[name='amount_extra']").val({{ SEASON_LEVEL }});
-        } else {
-            $("input[name='amount_extra']").val(0);
-        }
-    };
-</script>
+<script src="../static_views/badge_choice.js" type="text/javascript"></script>
+<script src="../static_views/badge_type_changed.js" type="text/javascript"></script>
 
 <h2 style="margin-top:10px"> Choose a Badge </h2>
 <form method="post" id="badgechoice" action="form">
@@ -57,6 +34,7 @@
         </td>
         <td> {% popup_link "../static_views/attendees.html" "Details" %} </td>
     </tr>
+{% include "preregistration/extra_badge_types.html" %}
 {% if AFTER_PREREG_TAKEDOWN and ONE_DAYS_ENABLED %}
     <tr>
         <td> <b>Single Day Passes:</b> </td>
