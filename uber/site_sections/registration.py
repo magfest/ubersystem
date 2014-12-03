@@ -129,13 +129,14 @@ class Root:
             if attendee.group.leader_id == attendee.id:
                 message = 'You cannot delete the leader of a group; you must make someone else the leader first, or just delete the entire group'
             else:
-                session.add(Attendee(**{attr: getattr(attendee, attr) for attr in [
-                    'group', 'registered', 'badge_type', 'badge_num', 'paid', 'amount_paid', 'amount_extra'
-                ]}))
+                #session.add(Attendee(**{attr: getattr(attendee, attr) for attr in [
+                #    'group', 'registered', 'badge_type', 'badge_num', 'paid', 'amount_paid', 'amount_extra'
+                #]}))
+                session.assign_badges(attendee.group, attendee.group.badges + 1)
                 Tracking.track(DELETED, attendee)
                 #session.delete_from_group(attendee, attendee.group)
                 attendee.group.attendees.remove(attendee)
-                message = 'Attendee deleted, but this ' + attendee.badge + ' badge is still available to be assigned to someone else in the same group'
+                message = 'Attendee deleted, but this badge is still available to be assigned to someone else in the same group'
         else:
             Tracking.track(DELETED, attendee)
             #session.delete(attendee)

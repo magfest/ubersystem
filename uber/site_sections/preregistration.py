@@ -319,7 +319,7 @@ class Root:
         except:
             log.error('unable to send group unset email', exc_info=True)
 
-        session.assign_badges(attendee.group, attendee.group.badges + 1, registered=attendee.registered)
+        session.assign_badges(attendee.group, attendee.group.badges + 1)
         Tracking.track(DELETED, attendee)
         #session.delete_from_group(attendee, attendee.group)
         attendee.group.attendees.remove(attendee)
