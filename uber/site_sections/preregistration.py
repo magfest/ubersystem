@@ -105,6 +105,10 @@ class Root:
             attendee = session.attendee(params, bools=_checkboxes, ignore_csrf=True, restricted=True)
             group = session.group(params, ignore_csrf=True, restricted=True)
 
+        if 'is_student' in params and params['is_student'] == '1' and attendee.amount_paid == 0:
+            attendee.overridden_price = state.BADGE_PRICE - STUDENT_DISCOUNT
+            attendee.admin_notes = "|student discount!"
+
         if attendee.badge_type not in state.PREREG_BADGE_TYPES:
             raise HTTPRedirect('badge_choice?message={}', 'Invalid badge type!')
             

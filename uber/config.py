@@ -61,6 +61,10 @@ class State:
         return self.get_attendee_price(localized_now())
 
     @property
+    def STUDENT_BADGE_PRICE(self):
+        return self.get_attendee_price(localized_now()) - STUDENT_DISCOUNT
+
+    @property
     def SUPPORTER_BADGE_PRICE(self):
         return self.BADGE_PRICE + SUPPORTER_LEVEL
         
