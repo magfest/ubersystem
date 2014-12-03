@@ -443,14 +443,12 @@ class single_day_prices(template.Node):
         return prices + 'and ${} for other days'.format(BADGE_PRICES['default_single_day'])
 
 class Notice(template.Node):
-    def notice(self, label, takedown, discount=False, amount_extra=0):
-        discount = BADGE_PRICES['group_discount'] if discount else 0
-            
+    def notice(self, label, takedown, discount=0, amount_extra=0):
         for day, price in sorted(PRICE_BUMPS.items()):
-            if localized_now() < day:
-                return 'Price goes up to ${} at 11:59pm EST on {}'.format(price + amount_extra - discount, (day - timedelta(days=1)).strftime('%A, %b %e'))
-        else:
-            return '{} closes at 11:59pm EST on {}'.format(label, takedown.strftime('%A, %b %e'))
+            if day < takedown and localized_now() < day:
+                return 'Price goes up to ${} at 11:59pm PST on {}'.format(price + amount_extra - discount, (day - timedelta(days=1)).strftime('%A, %b %e'))
+
+        return '{} closes at 11:59pm PST on {}'.format(label, takedown.strftime('%A, %b %e'))
 
 @tag
 class attendee_price_notice(Notice):
@@ -460,7 +458,7 @@ class attendee_price_notice(Notice):
 @tag
 class group_price_notice(Notice):
     def render(self, context):
-        return self.notice('Group preregistration', GROUP_PREREG_TAKEDOWN, discount=True)
+        return self.notice('Group preregistration', GROUP_PREREG_TAKEDOWN, discount=BADGE_PRICES['group_discount'])
         
 @tag
 class supporter_price_notice(Notice):
@@ -471,6 +469,5 @@ class supporter_price_notice(Notice):
 class season_price_notice(Notice):
     def render(self, context):
         return self.notice('Season supporter preregistration', SUPPORTER_DEADLINE, amount_extra=SEASON_LEVEL)
-
 
 template.builtins.append(register)
