@@ -1442,7 +1442,7 @@ class Session(SessionManager):
             our presave_adjustments() code to update the group price.  So anytime we delete an attendee in a group,
             we should use this method.
             '''
-            self.delete(attendee)
+            #self.delete(attendee)
             group.attendees.remove(attendee)
 
         def assign_badges(self, group, new_badge_count, new_badge_type = ATTENDEE_BADGE, **extra_create_args):
@@ -1455,7 +1455,7 @@ class Session(SessionManager):
                     return 'You cannot reduce the number of badges for a group to below the number of assigned badges'
                 else:
                     for attendee in group.floating[:abs(diff)]:
-                        self.delete_from_group(attendee, group)
+                        #self.delete_from_group(attendee, group)
 
         def assign(self, attendee_id, job_id):
             job = self.job(job_id)

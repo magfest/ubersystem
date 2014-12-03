@@ -135,7 +135,7 @@ class Root:
                 session.delete_from_group(attendee, attendee.group)
                 message = 'Attendee deleted, but this ' + attendee.badge + ' badge is still available to be assigned to someone else in the same group'
         else:
-            session.delete(attendee)
+            #session.delete(attendee)
             message = 'Attendee deleted'
 
         raise HTTPRedirect(return_to + ('' if return_to[-1] == '?' else '&') + 'message={}', message)
