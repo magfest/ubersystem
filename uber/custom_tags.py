@@ -470,4 +470,5 @@ class season_price_notice(Notice):
     def render(self, context):
         return self.notice('Season supporter preregistration', SUPPORTER_DEADLINE, amount_extra=SEASON_LEVEL)
 
+        
 template.builtins.append(register)
