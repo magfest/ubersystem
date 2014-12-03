@@ -82,7 +82,7 @@ class Root:
         if group.badges - group.unregistered_badges and not confirmed:
             raise HTTPRedirect('deletion_confirmation?id={}', id)
         else:
-            Tracking.track(DELETED, group)
+            Tracking.track(INVALIDATED, group)
             #for attendee in group.attendees:
                 #session.delete(attendee)
             #session.delete(group)
