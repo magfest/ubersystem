@@ -12,7 +12,7 @@
 <script type="text/javascript">
     $(function(){
         {% if attendee.has_personalized_badge %}
-            var show_badge_row = {{ SHOW_CUSTOM_BADGE_INPUT }};
+            var show_badge_row = {{ SHOW_CUSTOM_BADGE_INPUT|yesno:"true,false" }};
             if (show_badge_row) {
                 $(".badge-row").show();
             }
