@@ -558,6 +558,11 @@ class Attendee(MagModel, TakesPaymentMixin):
             return self.badge_type_label
 
     @property
+    def created(self):
+        with Session() as session:
+            return session.get_account_created(self).who + " on " + session.get_account_created(self).when
+
+    @property
     def badge_cost(self):
         registered = self.registered or localized_now()
         if self.paid in [PAID_BY_GROUP, NEED_NOT_PAY]:
@@ -1114,7 +1119,11 @@ class Tracking(MagModel):
     def repr(cls, column, value):
         try:
             s = repr(value)
-            if column.name == 'hashed':
+            if isinstance(value, Attendee):
+                return "attendee_id = " + value.id
+            elif isinstance(value, Group):
+                return "group_id = " + value.id
+            elif column.name == 'hashed':
                 return '<bcrypted>'
             elif isinstance(column.type, MultiChoice):
                 opts = dict(column.type.choices)
@@ -1167,7 +1176,7 @@ class Tracking(MagModel):
             session.add(Tracking(
                 model = instance.__class__.__name__,
                 fk_id = instance.id,
-                which = repr(instance),
+                which = cls.repr(None, instance),
                 who = who,
                 links = links,
                 action = action,
@@ -1247,6 +1256,10 @@ class Session(SessionManager):
 
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
+
+        def get_account_created(self, attendee):
+            attendee_id = Tracking.repr(None, attendee)
+            return self.query(Tracking).filter(which=attendee_id, action=CREATED).first()
             
         def age_group_from_birthdate(self, birthdate):
             if not birthdate: return None
