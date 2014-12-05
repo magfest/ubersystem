@@ -73,6 +73,9 @@ class Root:
                 attendee.badge_num = 0
             message = check_everything(attendee)
             if not message:
+                # Free group badges are only considered 'registered' when they are actually claimed.
+                if attendee.paid == PAID_BY_GROUP and attendee.group.cost == 0:
+                    attendee.registered = localized_now()
                 session.add(attendee)
                 if return_to:
                     raise HTTPRedirect(return_to + '&message={}', 'Attendee data uploaded')
