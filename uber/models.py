@@ -549,6 +549,15 @@ class Attendee(MagModel, TakesPaymentMixin):
         del self.shifts[:]
 
     @property
+    def badge_type_with_ribbon(self):
+        if self.ribbon != NO_RIBBON and self.badge_type != ATTENDEE_BADGE:
+            return self.badge_type_label + "/" + self.ribbon_label
+        elif self.ribbon != NO_RIBBON:
+            return self.ribbon_label
+        else:
+            return self.badge_type_label
+
+    @property
     def badge_cost(self):
         registered = self.registered or localized_now()
         if self.paid in [PAID_BY_GROUP, NEED_NOT_PAY]:
