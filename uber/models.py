@@ -549,7 +549,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         del self.shifts[:]
 
     @property
-    def badge_type_with_ribbon(self):
+    def ribbon_and_or_badge(self):
         if self.ribbon != NO_RIBBON and self.badge_type != ATTENDEE_BADGE:
             return self.badge_type_label + "/" + self.ribbon_label
         elif self.ribbon != NO_RIBBON:
@@ -559,8 +559,11 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def created(self):
-        with Session() as session:
-            return session.get_account_created(self).who + " on " + session.get_account_created(self).when
+        return self.session.get_tracking_by_attendee(self, action=CREATED, last_only=True)
+
+    @property
+    def last_updated(self):
+        return self.session.get_tracking_by_attendee(self, action=UPDATED, last_only=True)
 
     @property
     def badge_cost(self):
@@ -1257,9 +1260,11 @@ class Session(SessionManager):
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
 
-        def get_account_created(self, attendee):
+        def get_tracking_by_attendee(self, attendee, action, last_only = True):
             attendee_id = Tracking.repr(None, attendee)
-            return self.query(Tracking).filter(which=attendee_id, action=CREATED).first()
+            result = self.query(Tracking).filter(Tracking.which == attendee_id, Tracking.action == action).order_by(Tracking.when.desc())
+            if result.all():
+                return result.one() if last_only else result.all()
             
         def age_group_from_birthdate(self, birthdate):
             if not birthdate: return None
