@@ -614,8 +614,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.amount_extra >= SHIRT_LEVEL \
             or self.is_dept_head \
             or self.badge_type in [STAFF_BADGE, SUPPORTER_BADGE] \
-            or PRE_CON \
-            or self.worked_hours >= 6
+            or self.staffing and not self.takes_shifts \
+            or PRE_CON and self.weighted_hours >= 6 \
+            or AT_OR_POST_CON and self.worked_hours >= 6
 
     @property
     def has_personalized_badge(self):

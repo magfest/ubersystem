@@ -82,17 +82,32 @@ def test_is_transferrable(monkeypatch):
     assert not Attendee(paid=HAS_PAID, badge_type=STAFF_BADGE).is_transferrable
     assert not Attendee(paid=HAS_PAID, badge_type=GUEST_BADGE).is_transferrable
 
-def test_gets_shirt(monkeypatch):
-    assert not Attendee().gets_shirt
-    assert Attendee(amount_extra=SHIRT_LEVEL).gets_shirt
-    assert Attendee(ribbon=DEPT_HEAD_RIBBON).gets_shirt
-    assert Attendee(badge_type=SUPPORTER_BADGE).gets_shirt
+class TestGetsShirt:
+    def test_basics(self, monkeypatch):
+        assert not Attendee().gets_shirt
+        assert Attendee(amount_extra=SHIRT_LEVEL).gets_shirt
+        assert Attendee(ribbon=DEPT_HEAD_RIBBON).gets_shirt
+        assert Attendee(badge_type=STAFF_BADGE).gets_shirt
+        assert Attendee(badge_type=SUPPORTER_BADGE).gets_shirt
 
-    monkeypatch.setattr(Attendee, 'worked_hours', 5)
-    assert not Attendee().gets_shirt
-    for amount in [6, 18, 24, 30]:
-        monkeypatch.setattr(Attendee, 'worked_hours', amount)
-        assert Attendee().gets_shirt
+    def test_shiftless_depts(self, monkeypatch):
+        monkeypatch.setattr(Attendee, 'takes_shifts', False)
+        assert not Attendee().gets_shirt
+        assert Attendee(staffing=True).gets_shirt
+
+    def test_precon_hours(self, monkeypatch, precon):
+        monkeypatch.setattr(Attendee, 'weighted_hours', 5)
+        assert not Attendee().gets_shirt
+        for amount in [6, 18, 24, 30]:
+            monkeypatch.setattr(Attendee, 'weighted_hours', amount)
+            assert Attendee().gets_shirt
+
+    def test_atcon_hours(self, monkeypatch, at_con):
+        monkeypatch.setattr(Attendee, 'worked_hours', 5)
+        assert not Attendee().gets_shirt
+        for amount in [6, 18, 24, 30]:
+            monkeypatch.setattr(Attendee, 'worked_hours', amount)
+            assert Attendee().gets_shirt
 
 def test_has_personalized_badge():
     assert not Attendee().has_personalized_badge
