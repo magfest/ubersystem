@@ -180,7 +180,7 @@ AutomatedEmail(Attendee, '{EVENT_NAME} Badge Confirmation', 'placeholders/regula
                                        and a.ribbon not in [DEALER_RIBBON, PANELIST_RIBBON, VOLUNTEER_RIBBON])
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Badge Confirmation Reminder', 'placeholders/reminder.txt',
-               lambda a: days_after(21, a.registered) and a.placeholder and a.first_name and a.last_name and not a.is_dealer)
+               lambda a: days_after(7, a.registered) and a.placeholder and a.first_name and a.last_name and not a.is_dealer)
 
 AutomatedEmail(Attendee, 'Last Chance to Accept Your {EVENT_NAME} Badge', 'placeholders/reminder.txt',
                lambda a: days_before(7, PLACEHOLDER_DEADLINE) and a.placeholder and a.first_name and a.last_name
