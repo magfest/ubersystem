@@ -253,7 +253,11 @@ class Root:
                     send_banned_email(attendee)
 
                 badge_being_claimed = group.floating[0]
+                if group.cost == 0:
+                    attendee.registered 
                 attendee.registered = badge_being_claimed.registered
+                attendee.badge_type = badge_being_claimed.badge_type
+                attendee.ribbon = badge_being_claimed.ribbon
                 session.delete_from_group(badge_being_claimed, group)
 
                 group.attendees.append(attendee)
