@@ -115,11 +115,11 @@
 <table width="100%" cellspacing="5" cellpadding="5">
 {% if not attendee.is_new %}
 <tr>
-    <td>Created by {{ attendee.created.who }} on {{ attendee.created.when }}</td>
+    <td>Created by {{ attendee.created.who }} on {{ attendee.created.when|full_datetime }}</td>
 </tr>
 {% if attendee.last_updated %}
 <tr>
-    <td>Last Updated by {{ attendee.last_updated.who }} on {{ attendee.last_updated.when }}</td>
+    <td>Last Updated by {{ attendee.last_updated.who }} on {{ attendee.last_updated.when|full_datetime }}</td>
 </tr>
 {% endif %}
 {% endif %}
