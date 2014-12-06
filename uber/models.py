@@ -109,6 +109,14 @@ class MagModel:
         return not instance_state(self).persistent
 
     @property
+    def created(self):
+        return self.get_tracking_by_instance(self, action=CREATED, last_only=True)
+
+    @property
+    def last_updated(self):
+        return self.get_tracking_by_instance(self, action=UPDATED, last_only=True)
+
+    @property
     def db_id(self):
         return None if self.is_new else self.id
 
@@ -153,6 +161,10 @@ class MagModel:
             return self.__class__.__name__.lower() == name[3:]
 
         raise AttributeError(self.__class__.__name__ + '.' + name)
+
+    def get_tracking_by_instance(self, instance, action, last_only=True):
+        query = self.session.query(Tracking).filter_by(fk_id=instance.id, action=action).order_by(Tracking.when.desc())
+        return query.first() if last_only else query.all()
 
     # NOTE: if we used from_dict() to implement this it might end up being simpler
     def apply(self, params, *, bools=(), checkgroups=(), restricted=True, ignore_csrf=True):
@@ -547,6 +559,15 @@ class Attendee(MagModel, TakesPaymentMixin):
             if SHIFT_CUSTOM_BADGES: self.session.shift_badges(STAFF_BADGE, self.badge_num, down=True)
             self.badge_type = ATTENDEE_BADGE
         del self.shifts[:]
+
+    @property
+    def ribbon_and_or_badge(self):
+        if self.ribbon != NO_RIBBON and self.badge_type != ATTENDEE_BADGE:
+            return self.badge_type_label + "/" + self.ribbon_label
+        elif self.ribbon != NO_RIBBON:
+            return self.ribbon_label
+        else:
+            return self.badge_type_label
 
     @property
     def badge_cost(self):

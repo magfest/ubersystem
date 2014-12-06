@@ -113,6 +113,16 @@
 <input type="hidden" name="id" value="{{ attendee.db_id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
 <table width="100%" cellspacing="5" cellpadding="5">
+{% if not attendee.is_new %}
+<tr>
+    <td>Created by {{ attendee.created.who }} on {{ attendee.created.when|full_datetime }}</td>
+</tr>
+{% if attendee.last_updated %}
+<tr>
+    <td>Last Updated by {{ attendee.last_updated.who }} on {{ attendee.last_updated.when|full_datetime }}</td>
+</tr>
+{% endif %}
+{% endif %}
 {% if not AT_THE_CON %}
     <tr>
         <td width="25%"> <b>Placeholder:</b> </td>
@@ -248,6 +258,10 @@
 </tr>
 {% endif %}
 <tr>
+    <td> <nobr>Personal Phone Number:</nobr> </td>
+    <td> <input type="text" name="cellphone" value="{{ attendee.cellphone }}" /> </td>
+</tr>
+<tr>
     <td class="maybe_bold"> <nobr>Backup Phone Name:</nobr> </td>
     <td> <input type="text" name="ec_name" value="{{ attendee.ec_name }}" /> </td>
 </tr>
@@ -307,10 +321,6 @@
         <nobr><input type="checkbox" onClick="$(':checkbox[name=interests]').attr('checked',this.checked)" /> All</nobr>
         {% checkgroup attendee.interests %}
     </td>
-</tr>
-<tr>
-    <td> <nobr>Personal Phone Number:</nobr> </td>
-    <td> <input type="text" name="cellphone" value="{{ attendee.cellphone }}" /> </td>
 </tr>
 <tr>
     <td> Attendee Comments: </td>
