@@ -10,9 +10,9 @@ class Root:
 
         schedule = defaultdict(lambda: defaultdict(list))
         for event in session.query(Event).all():
-            schedule[event.start_time][event.location].append(event)
+            schedule[event.start_time_local][event.location].append(event)
             for i in range(1, event.duration):
-                half_hour = event.start_time + timedelta(minutes = 30 * i)
+                half_hour = event.start_time_local + timedelta(minutes = 30 * i)
                 schedule[half_hour][event.location].append(EVENT_BOOKED)
 
         max_simul = {}
