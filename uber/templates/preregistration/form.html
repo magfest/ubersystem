@@ -65,8 +65,6 @@ $(document).ready(function() {
     <p class="help-block col-sm-8 col-sm-offset-2"><strong>Dealers:</strong> {% if BEFORE_DEALER_REG_START %}Registrations for dealer memberships begins December 15.{% endif %}</p>
 </div>
 
-{% endif %}
-
 <div class="group_fields hide">
     <div class="form-group">
     <label for="name" class="col-sm-2 control-label">Group Name</label>
@@ -85,6 +83,7 @@ $(document).ready(function() {
     </div>
     </div>
 </div>
+{% endif %}
 
 {% if attendee.is_dealer %}
     <div class="form-group">
