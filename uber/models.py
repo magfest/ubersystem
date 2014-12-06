@@ -1122,11 +1122,7 @@ class Tracking(MagModel):
     def repr(cls, column, value):
         try:
             s = repr(value)
-            if isinstance(value, Attendee):
-                return "attendee_id = " + value.id
-            elif isinstance(value, Group):
-                return "group_id = " + value.id
-            elif column.name == 'hashed':
+            if column.name == 'hashed':
                 return '<bcrypted>'
             elif isinstance(column.type, MultiChoice):
                 opts = dict(column.type.choices)
@@ -1179,7 +1175,7 @@ class Tracking(MagModel):
             session.add(Tracking(
                 model = instance.__class__.__name__,
                 fk_id = instance.id,
-                which = cls.repr(None, instance),
+                which = repr(instance),
                 who = who,
                 links = links,
                 action = action,
@@ -1260,9 +1256,8 @@ class Session(SessionManager):
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
 
-        def get_tracking_by_attendee(self, attendee, action, last_only = True):
-            attendee_id = Tracking.repr(None, attendee)
-            result = self.query(Tracking).filter(Tracking.which == attendee_id, Tracking.action == action).order_by(Tracking.when.desc())
+        def get_tracking_by_attendee(self, instance, action, last_only = True):
+            result = self.query(Tracking).filter(Tracking.fk_id == instance.id, Tracking.action == action).order_by(Tracking.when.desc())
             if result.all():
                 return result.one() if last_only else result.all()
             
