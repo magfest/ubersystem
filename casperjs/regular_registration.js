@@ -48,7 +48,7 @@ casper.test.begin('Adding a regular registration to the cart is successful', 10,
         test.assertSelectorHasText('.footable-visible', myAttendeeInfo.first_name + ' ' + myAttendeeInfo.last_name, 'Name matches')
         test.assertSelectorHasText('.footable-visible', '$60', 'Price is correct');
         this.click('button.stripe-button-el');
-        this.wait(5000);
+        this.wait(500);
     });
     casper.withFrame(0, function() {
       test.assertTitle("Stripe Checkout", "Stripe Checkout popup loaded");
@@ -63,7 +63,7 @@ casper.test.begin('Adding a regular registration to the cart is successful', 10,
     });
     //FIXME: probably should test more fields in the Stripe dialog are correct
     casper.waitForUrl(/paid_preregistrations/, function() {
-      this.echo(this.getCurrentUrl());
+      //this.echo(this.getCurrentUrl());
       test.assertUrlMatch(/paid_preregistrations/, 'Confirmation Screen Displayed');
       test.assertSelectorHasText('td', myAttendeeInfo.first_name + ' ' + myAttendeeInfo.last_name, 'Name matches')
       test.assertSelectorHasText('td', myAttendeeInfo.badge_printed_name, 'Badge Name matches');
