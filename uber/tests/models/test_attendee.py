@@ -109,6 +109,23 @@ class TestGetsShirt:
             monkeypatch.setattr(Attendee, 'worked_hours', amount)
             assert Attendee().gets_shirt
 
+class TestShirtEligible:
+    @pytest.fixture
+    def gets_shirt(self, monkeypatch):
+        monkeypatch.setattr(Attendee, 'gets_shirt', True)
+
+    @pytest.fixture
+    def gets_no_shirt(self, monkeypatch):
+        monkeypatch.setattr(Attendee, 'gets_shirt', False)
+
+    def test_gets_shirt_true(self, gets_shirt):
+        assert Attendee(staffing=False).shirt_eligible
+        assert Attendee(staffing=True).shirt_eligible
+
+    def test_gets_shirt_false(self, gets_no_shirt):
+        assert not Attendee(staffing=False).shirt_eligible
+        assert Attendee(staffing=True).shirt_eligible
+
 def test_has_personalized_badge():
     assert not Attendee().has_personalized_badge
     assert Attendee(badge_type=STAFF_BADGE).has_personalized_badge
