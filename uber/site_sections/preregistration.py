@@ -308,12 +308,10 @@ class Root:
         session.merge(attendee)
         message = charge.charge_cc(stripeToken)
         if message:
-            log.error('omgwtf: {}', message)
             attendee.amount_extra -= attendee.amount_unpaid
             raise HTTPRedirect('group_members?id={}&message={}', attendee.group_id, message)
         else:
             attendee.amount_paid += charge.dollar_amount
-            log.error('this should be working! amount_paid={} dollar_amount={} amount_extra={}', attendee.amount_paid, charge.dollar_amount, attendee.amount_extra)
             raise HTTPRedirect('group_members?id={}&message={}', attendee.group_id, 'Extra payment accepted')
 
     @csrf_protected
