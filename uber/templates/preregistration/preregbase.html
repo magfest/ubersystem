@@ -35,8 +35,13 @@ $(document).ready(function() {
     var super_sponsor_addon = 195;
 
     {% if attendee.badge_type != PSEUDO_DEALER_BADGE %}
+
     // Display the correct badge name based on Badge Type and Ribbon.
-    badge_label = "{{ attendee.ribbon_and_or_badge }}";
+    {% if not attendee.ribbon_and_or_badge %}
+        badge_label = "{{ attendee.badge_type_label }}";
+    {% else %}
+        badge_label = "{{ attendee.ribbon_and_or_badge }}";
+    {% endif %}
 
     if (badge_label != "Attending") { var extra_badge_label = badge_label + "/" } else { var extra_badge_label = "" }
 
