@@ -450,9 +450,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         if not self.amount_extra:
             self.affiliate = ''
 
-        if MODE != "magstock":
-            if not self.gets_shirt:
-                self.shirt = NO_SHIRT
+        if not self.shirt_eligible:
+            self.shirt = NO_SHIRT
 
         if self.paid != REFUNDED:
             self.amount_refunded = 0
@@ -619,16 +618,17 @@ class Attendee(MagModel, TakesPaymentMixin):
             or AT_OR_POST_CON and self.worked_hours >= 6
 
     @property
+    def shirt_eligible(self):
+        return self.gets_shirt or self.staffing
+
+    @property
     def has_personalized_badge(self):
         return self.badge_type in [STAFF_BADGE, SUPPORTER_BADGE]
 
     @property
     def donation_swag(self):
-        if MODE == "magstock":
-            return ['No shirt'] if self.shirt == NO_SHIRT else [self.shirt_label + ", " + self.shirt_color_label]
-        else:
-            extra = SUPPORTER_LEVEL if not self.amount_extra and self.badge_type == SUPPORTER_BADGE else self.amount_extra
-            return [desc for amount,desc in sorted(DONATION_TIERS.items()) if amount and extra >= amount]
+        extra = SUPPORTER_LEVEL if not self.amount_extra and self.badge_type == SUPPORTER_BADGE else self.amount_extra
+        return [desc for amount,desc in sorted(DONATION_TIERS.items()) if amount and extra >= amount]
 
     @property
     def merch(self):
