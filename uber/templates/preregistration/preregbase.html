@@ -19,6 +19,10 @@
     setInterval(checkCap, 1000 * 1 * 15);
 
 $(document).ready(function() {
+    {% if attendee.is_dealer %}
+        setBadgesLimit()
+    {% endif %}
+
     {% if COLLECT_FULL_ADDRESS %}
     if($("input[name='international']")) {
         $("#international").hide();
@@ -30,10 +34,9 @@ $(document).ready(function() {
     var sponsor_addon = 50;
     var super_sponsor_addon = 195;
 
-    // Display the correct badge name based on Badge Type and Ribbon.
     {% if attendee.badge_type != PSEUDO_DEALER_BADGE %}
-        badge_label = "{{ attendee.ribbon_and_or_badge }}";
-    {% endif %}
+    // Display the correct badge name based on Badge Type and Ribbon.
+    badge_label = "{{ attendee.ribbon_and_or_badge }}";
 
     if (badge_label != "Attending") { var extra_badge_label = badge_label + "/" } else { var extra_badge_label = "" }
 
@@ -80,6 +83,7 @@ $(document).ready(function() {
         $("#featured1_select").addClass("disabled");
         $("#featured1_select").prop("onclick",null);
     }
+    {% endif %}
 })
 
 function setInternational() {
@@ -120,5 +124,19 @@ function setBadge(badgeType) {
         $.field("amount_extra").val(super_sponsor_addon).trigger("change");
     }
 }
+{% if attendee.is_dealer %}
+    function setBadgesLimit() {
+        $("[name='badges']").empty();
+        if ($.val("tables") <= 1) {
+            var badge_num = 2;
+        } else {
+            var badge_num = $.val("tables") + 1;
+        }
+
+        for (i = 1; i <= badge_num; i++) {
+            $("[name='badges']").append('<option value="'+ i +'">'+ i +'</option>')
+        }
+    }
+{% endif %}
 </script>
 {% endblock header %}

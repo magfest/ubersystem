@@ -96,9 +96,9 @@ $(document).ready(function() {
     <div class="form-group">
     <label for="tables" class="col-sm-2 control-label">Tables</label>
     <div class="col-sm-6">
-      <select class="form-control" name="tables">
-                {% int_options 1 MAX_TABLES group.tables %}
-            </select> ({{ TABLE_PRICES }})
+      <select class="form-control" name="tables" onChange="setBadgesLimit()">
+                {% options TABLE_OPTS group.tables %}
+            </select> ({{ group.table_cost }})
             
     </div>
     <div class="form-group">
