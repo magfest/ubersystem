@@ -98,7 +98,7 @@ $(document).ready(function() {
     <div class="col-sm-6">
       <select class="form-control" name="tables" onChange="setBadgesLimit()">
                 {% options TABLE_OPTS group.tables %}
-            </select> ({{ group.table_cost }})
+            </select>
             
     </div>
     <div class="form-group">
@@ -106,10 +106,9 @@ $(document).ready(function() {
     </div>
 
     <div class="form-group">
-    <label for="badges" class="col-sm-2 control-label">Badges</label>
+    <label for="badges" class="col-sm-2 control-label">Dealer Assistants</label>
     <div class="col-sm-6">
       <select class="form-control" name="badges">{% int_options 1 MAX_DEALERS badges %}</select>
-                (${{ DEALER_BADGE_PRICE }} each)
     </div>
     </div>
     <div class="form-group">
