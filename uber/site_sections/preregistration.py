@@ -305,7 +305,7 @@ class Root:
     def process_group_member_payment(self, session, payment_id, stripeToken):
         charge = Charge.get(payment_id)
         [attendee] = charge.attendees
-        session.merge(attendee)
+        attendee = session.merge(attendee)
         message = charge.charge_cc(stripeToken)
         if message:
             attendee.amount_extra -= attendee.amount_unpaid
