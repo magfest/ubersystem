@@ -134,7 +134,7 @@ function setBadge(badgeType) {
         }
 
         for (i = 1; i <= badge_num; i++) {
-            $("[name='badges']").append('<option value="'+ i +'">'+ i +'</option>')
+            $("[name='badges']").append('<option value="'+ i +'">'+ (i - 1) +'</option>')
         }
     }
 {% endif %}
