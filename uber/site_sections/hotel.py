@@ -184,7 +184,8 @@ def _attendee_dict(attendee):
         'wanted_roommates': getattr(attendee.hotel_requests, 'wanted_roommates', ''),
         'unwanted_roommates': getattr(attendee.hotel_requests, 'unwanted_roommates', ''),
         'approved': int(getattr(attendee.hotel_requests, 'approved', False)),
-        'departments': ' / '.join(attendee.assigned_depts_labels)
+        'departments': ' / '.join(attendee.assigned_depts_labels),
+        'nights_lookup': {night: getattr(attendee.hotel_requests, night, False) for night in NIGHT_NAMES},
     }
 
 def _room_dict(session, room):
