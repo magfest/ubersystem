@@ -62,7 +62,7 @@ $(document).ready(function() {
 {% if not attendee.is_dealer %}
 {% include "preregistration/badge_choice.html" %}
 <div class="form-group">
-    <p class="help-block col-sm-8 col-sm-offset-2"><strong>Dealers:</strong> {% if BEFORE_DEALER_REG_START %}Registrations for dealer memberships begins December 15.{% endif %}</p>
+    <p class="help-block col-sm-8 col-sm-offset-2"><strong>Dealers:</strong> {% if BEFORE_DEALER_REG_START %}Registrations for dealer memberships begins December 15.</p>{% endif %}
 </div>
 
 <div class="group_fields hide">
@@ -87,6 +87,12 @@ $(document).ready(function() {
 
 {% if attendee.is_dealer %}
     <div class="form-group">
+        <label for="name" class="col-sm-2 control-label">Total Cost:</label>
+        <div class="col-sm-6" id="cost">
+        </div>
+    </div>
+
+    <div class="form-group">
     <label for="name" class="col-sm-2 control-label">Business Name</label>
     <div class="col-sm-6">
       <input class="form-control" type="text" class="focus" name="name" value="{{ group.name }}" />
@@ -96,7 +102,7 @@ $(document).ready(function() {
     <div class="form-group">
     <label for="tables" class="col-sm-2 control-label">Tables</label>
     <div class="col-sm-6">
-      <select class="form-control" name="tables" onChange="setBadgesLimit()">
+      <select class="form-control" name="tables" onChange="setBadgesLimit(); setExtraOpts(); setDealerCost()">
                 {% options TABLE_OPTS group.tables %}
             </select>
             
@@ -105,10 +111,17 @@ $(document).ready(function() {
     <p class="help-block col-sm-6 col-sm-offset-2">[<i>You may contact us via <a href='{{ CONTACT_URL }}'>{{ CONTACT_URL }}</a> to request more than {{ MAX_TABLES }} tables.</i>]</p>
     </div>
 
+    <div class="form-group" id="table_extras">
+        <label for="tables" class="col-sm-2 control-label">Table Extras</label>
+        <div class="col-sm-6">
+            {% checkgroup group.table_extras %}
+        </div>
+    </div>
+
     <div class="form-group">
     <label for="badges" class="col-sm-2 control-label">Dealer Assistants</label>
     <div class="col-sm-6">
-      <select class="form-control" name="badges">{% int_options 1 MAX_DEALERS badges %}</select>
+      <select class="form-control" name="badges" onChange="setDealerCost()">{% int_options 1 MAX_DEALERS badges %}</select>
     </div>
     </div>
     <div class="form-group">

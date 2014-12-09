@@ -259,6 +259,7 @@ class Group(MagModel, TakesPaymentMixin):
     cost          = Column(Integer, default=0)
     auto_recalc   = Column(Boolean, default=True)
     status        = Column(Choice(DEALER_STATUS_OPTS), default=UNAPPROVED)
+    table_extras  = Column(MultiChoice(TABLE_EXTRA_OPTS))
     can_add       = Column(Boolean, default=False)
     admin_notes   = Column(UnicodeText)
     registered    = Column(UTCDateTime, server_default=utcnow())
@@ -267,7 +268,7 @@ class Group(MagModel, TakesPaymentMixin):
     leader        = relationship('Attendee', foreign_keys=leader_id, post_update=True)
 
     _repr_attr_names = ['name']
-    _unrestricted = {'name', 'tables', 'address', 'website', 'wares', 'description', 'special_needs'}
+    _unrestricted = {'name', 'tables', 'address', 'website', 'wares', 'description', 'special_needs', 'table_extras'}
 
     def presave_adjustments(self):
         assigned = [a for a in self.attendees if not a.is_unassigned]
@@ -331,8 +332,13 @@ class Group(MagModel, TakesPaymentMixin):
     @property
     def table_cost(self):
         total = 0
-        for table in range(int(self.tables) + 1):
-            total += TABLE_PRICES.get(table, 999)
+
+        total += TABLE_PRICES.get(self.tables, 999)
+
+        if str(POWER_TABLE) in self.table_extras:
+            total += TABLE_EXTRA_PRICES.get(POWER_TABLE, 0)
+        if str(WALL_TABLE) in self.table_extras:
+            total += TABLE_EXTRA_PRICES.get(WALL_TABLE, 0)
         return total
 
     @property
@@ -340,10 +346,7 @@ class Group(MagModel, TakesPaymentMixin):
         total = 0
         for attendee in self.attendees:
             if attendee.paid == PAID_BY_GROUP:
-                if attendee.ribbon == DEALER_RIBBON:
-                    total += DEALER_BADGE_PRICE
-                else:
-                    total += state.get_group_price(attendee.registered)
+                total += state.get_group_price(attendee.registered)
         return total
 
     @property
