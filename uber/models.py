@@ -335,10 +335,9 @@ class Group(MagModel, TakesPaymentMixin):
 
         total += TABLE_PRICES.get(self.tables, 999)
 
-        if str(POWER_TABLE) in self.table_extras:
-            total += TABLE_EXTRA_PRICES.get(POWER_TABLE, 0)
-        if str(WALL_TABLE) in self.table_extras:
-            total += TABLE_EXTRA_PRICES.get(WALL_TABLE, 0)
+        for extra, amount in TABLE_EXTRA_PRICES.items():
+            if extra in self.table_extras_ints:
+                total += amount
         return total
 
     @property
