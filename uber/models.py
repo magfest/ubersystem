@@ -503,9 +503,10 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if self.badge_type == PSEUDO_GROUP_BADGE:
             self.badge_type = ATTENDEE_BADGE
-        elif self.badge_type == PSEUDO_DEALER_BADGE or self.badge_type == IND_DEALER_BADGE:
-            self.badge_type = ATTENDEE_BADGE
-            self.ribbon = DEALER_RIBBON
+            if self.is_group_leader:
+                self.ribbon = DEALER_RIBBON
+            else:
+                self.ribbon = DEALER_ASST_RIBBON
 
         if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE:
             self.badge_type = SUPPORTER_BADGE
@@ -585,6 +586,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def is_dept_head(self):
         return self.ribbon == DEPT_HEAD_RIBBON
+
+    @property
+    def is_group_leader(self):
+        return self.group and self.id == self.group.leader_id
 
     @property
     def unassigned_name(self):
