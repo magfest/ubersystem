@@ -93,7 +93,7 @@ $(document).ready(function() {
     </div>
 
     <div class="form-group">
-    <label for="name" class="col-sm-2 control-label">Business Name</label>
+    <label for="name" class="col-sm-2 control-label">Dealership Name</label>
     <div class="col-sm-6">
       <input class="form-control" type="text" class="focus" name="name" value="{{ group.name }}" />
     </div>
@@ -119,7 +119,7 @@ $(document).ready(function() {
     </div>
 
     <div class="form-group">
-    <label for="badges" class="col-sm-2 control-label">Dealer Assistants</label>
+    <label for="badges" class="col-sm-2 control-label">Memberships</label>
     <div class="col-sm-6">
       <select class="form-control" name="badges" onChange="setDealerCost()">{% int_options 1 MAX_DEALERS badges %}</select>
     </div>
@@ -157,13 +157,13 @@ $(document).ready(function() {
     </div>
     </div>
     <div class="form-group">
-    <p class="help-block col-sm-6 col-sm-offset-2">For our website; please keep to one sentence.</p>
+    <p class="help-block col-sm-6 col-sm-offset-2">Please keep to one sentence.</p>
     </div>
 
         <div class="form-group">
     <label for="special_needs" class="col-sm-2 control-label">Special Requests</label>
     <div class="col-sm-6">
-      <textarea class="form-control" name="special_needs" rows="4" placeholder="E.g., power needs, who to sit next to, who not to sit next to.">{{ group.special_needs }}</textarea>
+      <textarea class="form-control" name="special_needs" rows="4" placeholder="E.g., specific table, who you would like to sit near, who you would not like to sit near.">{{ group.special_needs }}</textarea>
     </div>
     </div>
     <div class="form-group">
