@@ -512,7 +512,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def _badge_adjustments(self):
         #_assert_badge_lock()
 
-        if self.badge_type == PSEUDO_GROUP_BADGE:
+        if self.badge_type == PSEUDO_GROUP_BADGE or PSEUDO_DEALER_BADGE:
             self.badge_type = ATTENDEE_BADGE
             if self.is_group_leader:
                 self.ribbon = DEALER_RIBBON
