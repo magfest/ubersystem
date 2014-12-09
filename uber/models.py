@@ -271,6 +271,7 @@ class Group(MagModel, TakesPaymentMixin):
     cost          = Column(Integer, default=0)
     auto_recalc   = Column(Boolean, default=True)
     status        = Column(Choice(DEALER_STATUS_OPTS), default=UNAPPROVED)
+    table_extras  = Column(MultiChoice(TABLE_EXTRA_OPTS))
     can_add       = Column(Boolean, default=False)
     admin_notes   = Column(UnicodeText)
     registered    = Column(UTCDateTime, server_default=utcnow())
@@ -279,7 +280,7 @@ class Group(MagModel, TakesPaymentMixin):
     leader        = relationship('Attendee', foreign_keys=leader_id, post_update=True)
 
     _repr_attr_names = ['name']
-    _unrestricted = {'name', 'tables', 'address', 'website', 'wares', 'description', 'special_needs'}
+    _unrestricted = {'name', 'tables', 'address', 'website', 'wares', 'description', 'special_needs', 'table_extras'}
 
     def presave_adjustments(self):
         assigned = [a for a in self.attendees if not a.is_unassigned]
@@ -342,10 +343,13 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def table_cost(self):
-        prices = {0: 0, 0.5: 0, 1: 125, 2: 175, 3: 250}
         total = 0
-        for table in range(int(self.tables) + 1):
-            total += prices.get(table, 350)
+
+        total += TABLE_PRICES.get(self.tables, 999)
+
+        for extra, amount in TABLE_EXTRA_PRICES.items():
+            if extra in self.table_extras_ints:
+                total += amount
         return total
 
     @property
@@ -353,10 +357,7 @@ class Group(MagModel, TakesPaymentMixin):
         total = 0
         for attendee in self.attendees:
             if attendee.paid == PAID_BY_GROUP:
-                if attendee.ribbon == DEALER_RIBBON:
-                    total += DEALER_BADGE_PRICE
-                else:
-                    total += state.get_group_price(attendee.registered)
+                total += state.get_group_price(attendee.registered)
         return total
 
     @property
@@ -513,9 +514,10 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if self.badge_type == PSEUDO_GROUP_BADGE:
             self.badge_type = ATTENDEE_BADGE
-        elif self.badge_type == PSEUDO_DEALER_BADGE or self.badge_type == IND_DEALER_BADGE:
-            self.badge_type = ATTENDEE_BADGE
-            self.ribbon = DEALER_RIBBON
+            if self.is_group_leader:
+                self.ribbon = DEALER_RIBBON
+            else:
+                self.ribbon = DEALER_ASST_RIBBON
 
         if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE:
             self.badge_type = SUPPORTER_BADGE
@@ -604,6 +606,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def is_dept_head(self):
         return self.ribbon == DEPT_HEAD_RIBBON
+
+    @property
+    def is_group_leader(self):
+        return self.group and self.id == self.group.leader_id
 
     @property
     def unassigned_name(self):

@@ -77,7 +77,7 @@ class Root:
               
     @check_if_can_reg
     def dealer_registration(self, message=''):
-        return self.form(badge_type=PSEUDO_DEALER_BADGE)
+        return self.form(badge_type=PSEUDO_DEALER_BADGE, message=message)
 
     @check_if_can_reg
     def form(self, session, message='', edit_id=None, **params):
@@ -110,6 +110,9 @@ class Root:
                 message = check(group)
             elif not message and attendee.badge_type == PSEUDO_DEALER_BADGE:
                 message = check_dealer(group)
+
+            if attendee.badge_type == PSEUDO_DEALER_BADGE and int(params['badges']) > MAX_DEALER_BADGES.get(float(params['tables']), 1):
+                raise HTTPRedirect('dealer_registration?message={}', 'Too many dealer assistants!')
 
             if not message:
                 if attendee.badge_type in [PSEUDO_DEALER_BADGE, PSEUDO_GROUP_BADGE]:

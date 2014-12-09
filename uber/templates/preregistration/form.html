@@ -62,10 +62,8 @@ $(document).ready(function() {
 {% if not attendee.is_dealer %}
 {% include "preregistration/badge_choice.html" %}
 <div class="form-group">
-    <p class="help-block col-sm-8 col-sm-offset-2"><strong>Dealers:</strong> {% if BEFORE_DEALER_REG_START %}Registrations for dealer memberships begins December 15.{% endif %}</p>
+    <p class="help-block col-sm-8 col-sm-offset-2"><strong>Dealers:</strong> {% if BEFORE_DEALER_REG_START %}Registrations for dealer memberships begins December 15.</p>{% endif %}
 </div>
-
-{% endif %}
 
 <div class="group_fields hide">
     <div class="form-group">
@@ -85,10 +83,17 @@ $(document).ready(function() {
     </div>
     </div>
 </div>
+{% endif %}
 
 {% if attendee.is_dealer %}
     <div class="form-group">
-    <label for="name" class="col-sm-2 control-label">Business Name</label>
+        <label for="name" class="col-sm-2 control-label">Total Cost:</label>
+        <div class="col-sm-6" id="cost">
+        </div>
+    </div>
+
+    <div class="form-group">
+    <label for="name" class="col-sm-2 control-label">Dealership Name</label>
     <div class="col-sm-6">
       <input class="form-control" type="text" class="focus" name="name" value="{{ group.name }}" />
     </div>
@@ -97,20 +102,26 @@ $(document).ready(function() {
     <div class="form-group">
     <label for="tables" class="col-sm-2 control-label">Tables</label>
     <div class="col-sm-6">
-      <select class="form-control" name="tables">
-                {% int_options 1 MAX_TABLES group.tables %}
-            </select> ({{ TABLE_PRICES }})
+      <select class="form-control" name="tables" onChange="setBadgesLimit(); setExtraOpts(); setDealerCost()">
+                {% options TABLE_OPTS group.tables %}
+            </select>
             
     </div>
     <div class="form-group">
     <p class="help-block col-sm-6 col-sm-offset-2">[<i>You may contact us via <a href='{{ CONTACT_URL }}'>{{ CONTACT_URL }}</a> to request more than {{ MAX_TABLES }} tables.</i>]</p>
     </div>
 
+    <div class="form-group" id="table_extras">
+        <label for="tables" class="col-sm-2 control-label">Table Extras</label>
+        <div class="col-sm-6">
+            {% checkgroup group.table_extras %}
+        </div>
+    </div>
+
     <div class="form-group">
-    <label for="badges" class="col-sm-2 control-label">Badges</label>
+    <label for="badges" class="col-sm-2 control-label">Memberships</label>
     <div class="col-sm-6">
-      <select class="form-control" name="badges">{% int_options 1 MAX_DEALERS badges %}</select>
-                (${{ DEALER_BADGE_PRICE }} each)
+      <select class="form-control" name="badges" onChange="setDealerCost()">{% int_options 1 MAX_DEALERS badges %}</select>
     </div>
     </div>
     <div class="form-group">
@@ -146,13 +157,13 @@ $(document).ready(function() {
     </div>
     </div>
     <div class="form-group">
-    <p class="help-block col-sm-6 col-sm-offset-2">For our website; please keep to one sentence.</p>
+    <p class="help-block col-sm-6 col-sm-offset-2">Please keep to one sentence.</p>
     </div>
 
         <div class="form-group">
     <label for="special_needs" class="col-sm-2 control-label">Special Requests</label>
     <div class="col-sm-6">
-      <textarea class="form-control" name="special_needs" rows="4" placeholder="E.g., power needs, who to sit next to, who not to sit next to.">{{ group.special_needs }}</textarea>
+      <textarea class="form-control" name="special_needs" rows="4" placeholder="E.g., specific table, who you would like to sit near, who you would not like to sit near.">{{ group.special_needs }}</textarea>
     </div>
     </div>
     <div class="form-group">
