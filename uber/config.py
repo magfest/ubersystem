@@ -234,13 +234,15 @@ JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'restricte
 
 TABLE_OPTS = [
     (0.5, 'Half Table'),
-    (1, 'Full Table'),
-    (2, 'Double Table'),
-    (3, 'Triple Table'),
-    (4, 'Island/Quad Table')
+    (1.0, 'Full Table'),
+    (2.0, 'Double Table'),
+    (3.0, 'Triple Table'),
+    (4.0, 'Island/Quad Table')
 ]
 
 TABLE_PRICES = {0: 0, 0.5: 40, 1: 100, 2: 350, 3: 600, 4: 999}
+
+TABLE_EXTRA_PRICES = {POWER_TABLE: 60, WALL_TABLE: 10}
 
 MAX_DEALER_BADGES = {0: 1, 0.5: 2, 1: 2, 2: 3, 3: 4, 4: 5}
 

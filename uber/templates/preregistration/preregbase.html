@@ -20,7 +20,11 @@
 
 $(document).ready(function() {
     {% if attendee.is_dealer %}
-        setBadgesLimit()
+        setBadgesLimit();
+        setDealerCost();
+        setExtraOpts();
+
+        $('[name="table_extras"]').attr("onClick","setDealerCost()");
     {% endif %}
 
     {% if COLLECT_FULL_ADDRESS %}
@@ -135,11 +139,56 @@ function setBadge(badgeType) {
         if ($.val("tables") <= 1) {
             var badge_num = 2;
         } else {
-            var badge_num = $.val("tables") + 1;
+            var badge_num = parseInt($.val("tables")) + 1;
         }
 
         for (i = 1; i <= badge_num; i++) {
             $("[name='badges']").append('<option value="'+ i +'">'+ (i - 1) +'</option>')
+        }
+    }
+
+    // This affects the display only.
+    function setDealerCost() {
+        $("#cost").empty();
+        var table_cost = 0;
+        var badge_cost = 0;
+        var extra_cost = 0;
+
+        // Cost for tables
+        if ($.val("tables") == 0.5) {
+            table_cost = 40;
+        } else if ($.val("tables") == 1) {
+            table_cost = 100;
+        } else if ($.val("tables") == 2) {
+            table_cost = 350;
+        } else if ($.val("tables") == 3) {
+            table_cost = 600;
+        } else if ($.val("tables") == 4) {
+            table_cost = 999;
+        }
+
+        // Cost for badges
+        badge_cost = {{ BADGE_PRICE }} * $.val("badges");
+
+        // Extra options cost
+        if ($("input[value='{{ POWER_TABLE }}']:checked").length) {
+            extra_cost += 60;
+        }
+
+        if ($("input[value='{{ WALL_TABLE }}']:checked").length) {
+            extra_cost += 10;
+        }
+
+        total_cost = table_cost + badge_cost + extra_cost;
+        $("#cost").html("$"+ total_cost);
+    }
+
+    function setExtraOpts() {
+        if ($.val("tables") == 4) {
+            $('[name="table_extras"]').prop('checked', false);
+            $('#table_extras').hide();
+        } else {
+            $('#table_extras').show();
         }
     }
 {% endif %}

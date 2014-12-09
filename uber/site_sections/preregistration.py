@@ -111,7 +111,7 @@ class Root:
             elif not message and attendee.badge_type == PSEUDO_DEALER_BADGE:
                 message = check_dealer(group)
 
-            if attendee.badge_type == PSEUDO_DEALER_BADGE and int(params['badges']) > MAX_DEALER_BADGES.get(params['tables'], 0):
+            if attendee.badge_type == PSEUDO_DEALER_BADGE and int(params['badges']) > MAX_DEALER_BADGES.get(float(params['tables']), 1):
                 raise HTTPRedirect('dealer_registration?message={}', 'Too many dealer assistants!')
 
             if not message:

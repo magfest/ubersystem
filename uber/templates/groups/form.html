@@ -69,6 +69,12 @@
     </td>
 </tr>
 <tr>
+    <td><b>Table Extras:</b></td>
+    <td>
+        {% checkgroup group.table_extras %}
+    </td>
+</tr>
+<tr>
     <td> <b>Badges:</b> </td>
     <td> <select name="badges">{% int_options 0 MAX_GROUP_SIZE group.badges_purchased %}</select> </td>
 </tr>
