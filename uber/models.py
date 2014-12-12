@@ -291,6 +291,9 @@ class Group(MagModel, TakesPaymentMixin):
         if self.status == APPROVED and not self.approved:
             self.approved = datetime.now(UTC)
 
+        if self.leader and self.is_dealer:
+            self.leader.ribbon = DEALER_RIBBON
+
     @property
     def sorted_attendees(self):
         self.attendees.sort(key=lambda a: (a.is_unassigned, a.id != self.leader_id, a.full_name))
@@ -307,7 +310,7 @@ class Group(MagModel, TakesPaymentMixin):
             if ribbon in ribbons:
                 return ribbon
         else:
-            return DEALER_RIBBON if self.is_dealer else NO_RIBBON
+            return DEALER_ASST_RIBBON if self.is_dealer else NO_RIBBON
 
     @property
     def is_dealer(self):
@@ -512,12 +515,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     def _badge_adjustments(self):
         #_assert_badge_lock()
 
-        if self.badge_type == PSEUDO_GROUP_BADGE or PSEUDO_DEALER_BADGE:
+        if self.badge_type in [PSEUDO_GROUP_BADGE, PSEUDO_DEALER_BADGE]:
             self.badge_type = ATTENDEE_BADGE
-            if self.is_group_leader:
+            if self.is_dealer:
                 self.ribbon = DEALER_RIBBON
-            else:
-                self.ribbon = DEALER_ASST_RIBBON
 
         if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE:
             self.badge_type = SUPPORTER_BADGE

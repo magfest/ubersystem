@@ -76,7 +76,7 @@
 </tr>
 <tr>
     <td> <b>Badges:</b> </td>
-    <td> <select name="badges">{% int_options 0 MAX_GROUP_SIZE group.badges_purchased %}</select> </td>
+    <td> <select name="badges">{% int_options 0 MAX_GROUP_SIZE group.badges %}</select> [{{ group.badges_purchased }} badge(s) purchased]</td>
 </tr>
 <tr>
     <td><b>Badge Type:</b></td>
@@ -134,7 +134,7 @@
         <td> <textarea rows="3" cols="30" name="wares">{{ group.wares }}</textarea>
     </tr>
     <tr>
-        <td> <b>Website Address</b> </td>
+        <td> <b>Tax ID</b> </td>
         <td> <input type="text" name="website" value="{{ group.website }}" />
     </tr>
     <tr>

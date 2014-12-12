@@ -23,6 +23,7 @@ $(document).ready(function() {
         setBadgesLimit();
         setDealerCost();
         setExtraOpts();
+        donationChanged();
 
         $('[name="table_extras"]').attr("onClick","setDealerCost()");
     {% endif %}

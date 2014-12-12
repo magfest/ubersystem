@@ -15,14 +15,17 @@ def check_prereg_reqs(attendee):
         return 'Your shirt size is required'
 
 def check_dealer(group):
-    if not group.address:
+    if not group.address and COLLECT_INTERESTS:
         return 'Dealers are required to provide an address for tax purposes'
     elif not group.wares:
         return 'You must provide a detail explanation of what you sell for us to evaluate your submission'
     elif not group.website:
-        return "Please enter your business' website address"
+        if COLLECT_INTERESTS:
+            return "Please enter your business' website address"
+        else:
+            return "You must enter a Pennsylvania Tax ID for your dealership"
     elif not group.description:
-        return "Please provide a brief description of your business for our website's Confirmed Vendors page"
+        return "Please provide a brief description of your business"
 
 def send_banned_email(attendee):
     try:
@@ -108,11 +111,10 @@ class Root:
             message = check(attendee) or check_prereg_reqs(attendee)
             if not message and attendee.badge_type in [PSEUDO_DEALER_BADGE, PSEUDO_GROUP_BADGE]:
                 message = check(group)
-            elif not message and attendee.badge_type == PSEUDO_DEALER_BADGE:
-                message = check_dealer(group)
-
-            if attendee.badge_type == PSEUDO_DEALER_BADGE and int(params['badges']) > MAX_DEALER_BADGES.get(float(params['tables']), 1):
-                raise HTTPRedirect('dealer_registration?message={}', 'Too many dealer assistants!')
+                if attendee.badge_type == PSEUDO_DEALER_BADGE:
+                    message = check_dealer(group)
+                    if int(params['badges']) > MAX_DEALER_BADGES.get(float(params['tables']), 1):
+                        message = "Too many dealer assistants!"
 
             if not message:
                 if attendee.badge_type in [PSEUDO_DEALER_BADGE, PSEUDO_GROUP_BADGE]:
@@ -121,13 +123,14 @@ class Root:
                     session.assign_badges(group, params['badges'])
                     if attendee.badge_type == PSEUDO_GROUP_BADGE:
                         group.tables = 0
-                    else:
+                    elif attendee.badge_type == PSEUDO_DEALER_BADGE:
                         group.status = WAITLISTED if state.AFTER_DEALER_REG_DEADLINE else UNAPPROVED
+                        attendee.ribbon = DEALER_RIBBON
 
                 if attendee.is_dealer:
                     session.add_all([attendee, group])
                     session.commit()
-                    send_email(MARKETPLACE_EMAIL, MARKETPLACE_EMAIL, 'Dealer application received',
+                    send_email(MARKETPLACE_EMAIL, MARKETPLACE_EMAIL, 'Dealer Application Received',
                                render('emails/dealers/reg_notification.txt', {'group': group}), model=group)
                     send_email(MARKETPLACE_EMAIL, group.leader.email, 'Dealer Application Received',
                                render('emails/dealers/dealer_received.txt', {'group': group}), model=group)
@@ -305,6 +308,9 @@ class Root:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
         else:
             group.amount_paid += charge.dollar_amount
+            if group.tables:
+                send_email(MARKETPLACE_EMAIL, MARKETPLACE_EMAIL, 'Dealer Payment Completed',
+                           render('emails/dealers/payment_notification.txt', {'group': group}), model=group)
             session.merge(group)
             raise HTTPRedirect('group_members?id={}&message={}', group.id, 'Your payment has been accepted!')
 
