@@ -127,7 +127,7 @@ class Root:
     @csv_file
     def can_spam(self, out, session):
         out.writerow(["fullname", "email", "zipcode"])
-        for a in session.query(Attendee).filter_by(can_spam=True).order_by('email').all():
+        for a in session.query(Attendee).filter_by(can_spam=True, placeholder=False).order_by('email').all():
             out.writerow([a.full_name, a.email, a.zip_code])
 
     @unrestricted
