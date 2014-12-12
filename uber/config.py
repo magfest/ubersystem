@@ -233,14 +233,16 @@ WEIGHT_OPTS = (
 JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'restricted', 'extra15']
 
 TABLE_OPTS = [
-    (0.5, 'Half Table: $40'),
-    (1.0, 'Full Table: $100'),
-    (2.0, 'Double Table: $350'),
-    (3.0, 'Triple Table: $600'),
-    (4.0, 'Island/Quad Table: $999')
+    (0.5, 'Half Table'),
+    (1.0, 'Full Table'),
+    (2.0, 'Double Table'),
+    (3.0, 'Triple Table'),
+    (4.0, 'Island/Quad Table')
 ]
 
 TABLE_PRICES = {0: 0, 0.5: 40, 1: 100, 2: 350, 3: 600, 4: 999}
+
+TABLE_OPTS = [(count, '{}: ${}'.format(desc, TABLE_PRICES[count])) for count, desc in TABLE_OPTS]
 
 TABLE_EXTRA_PRICES = {POWER_TABLE: 60, WALL_TABLE: 10}
 
