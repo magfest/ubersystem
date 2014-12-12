@@ -130,6 +130,13 @@ class Root:
         for a in session.query(Attendee).filter_by(can_spam=True, placeholder=False).order_by('email').all():
             out.writerow([a.full_name, a.email, a.zip_code])
 
+    # print out a CSV list of staffers (ignore can_spam for this since it's for internal staff mailing)
+    @csv_file
+    def staff_emails(self, out, session):
+        out.writerow(["fullname", "email", "zipcode"])
+        for a in session.query(Attendee).filter_by(staffing=True, placeholder=False).order_by('email').all():
+            out.writerow([a.full_name, a.email, a.zip_code])
+
     @unrestricted
     def sitemap(self):
         from uber import site_sections
