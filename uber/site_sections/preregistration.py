@@ -283,6 +283,7 @@ class Root:
         return {
             'message':  message,
             'group_id': group_id,
+            'group': group,
             'attendee': attendee,
             'affiliates': session.affiliates()
         }
