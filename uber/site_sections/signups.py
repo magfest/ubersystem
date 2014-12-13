@@ -8,8 +8,7 @@ class Root:
         else:
             return {
                 'message': message,
-                'attendee': session.logged_in_volunteer(),
-                'is_stops_admin': session.is_stops_admin()
+                'attendee': session.logged_in_volunteer()
             }
 
     @check_shutdown
@@ -71,7 +70,7 @@ class Root:
 
     @check_shutdown
     def hotel_requests(self, session, message='', decline=None, **params):
-        if state.AFTER_ROOM_DEADLINE and not session.is_stops_admin():
+        if state.AFTER_ROOM_DEADLINE and STAFF_ROOMS not in AdminAccount.access_set():
             raise HTTPRedirect('index?message={}', 'The room deadline has passed')
         attendee = session.logged_in_volunteer()
         if attendee.badge_type != STAFF_BADGE:

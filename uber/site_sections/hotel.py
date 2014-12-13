@@ -92,7 +92,7 @@ class Root:
                 writerow(a, a.hotel_requests)
 
     def assignments(self, session, department):
-        if ROOMS_LOCKED_IN:
+        if ROOMS_LOCKED_IN and STAFF_ROOMS not in AdminAccount.access_set():
             cherrypy.response.headers['Content-Type'] = 'text/plain'
             return json.dumps({
                 'message': 'Hotel rooms are currently locked in, email stops@magfest.org if you need a last-minute adjustment',
@@ -216,12 +216,13 @@ def _get_unconfirmed(session, department, assigned_ids):
                               if a not in assigned_ids]
 
 def _get_unassigned(session, department, assigned_ids):
+    assigned_to_dept = [] if STAFF_ROOMS in AdminAccount.access_set() else [Attendee.assigned_depts.like('%{}%'.format(department))]
     return [_attendee_dict(a) for a in session.query(Attendee)
                                               .order_by(Attendee.full_name)
                                               .join(Attendee.hotel_requests)
                                               .filter(Attendee.hotel_requests != None,
-                                                      Attendee.assigned_depts.like('%{}%'.format(department)),
-                                                      HotelRequests.nights != '').all()
+                                                      HotelRequests.nights != '',
+                                                      *assigned_to_dept).all()
                               if a.id not in assigned_ids]
 
 def _get_assigned_elsewhere(session, department):
