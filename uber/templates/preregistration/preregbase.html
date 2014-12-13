@@ -136,15 +136,21 @@ function setBadge(badgeType) {
 }
 {% if attendee.is_dealer %}
     function setBadgesLimit() {
-        $("[name='badges']").empty();
+        var current_options = $("[name='badges'] option").length;
         if ($.val("tables") <= 1) {
             var badge_num = 2;
         } else {
             var badge_num = parseInt($.val("tables")) + 1;
         }
 
-        for (i = 1; i <= badge_num; i++) {
-            $("[name='badges']").append('<option value="'+ i +'">'+ i +'</option>')
+        if (current_options > badge_num) {
+            for (i = badge_num + 1; i <= current_options; i++) {
+                $("[name='badges'] option[value='" + i + "']").remove()
+            }
+        } else if (current_options < badge_num) {
+            for (i = current_options + 1; i <= badge_num; i++) {
+                $("[name='badges']").append('<option value="'+ i +'">'+ i +'</option>')
+            }
         }
     }
 
