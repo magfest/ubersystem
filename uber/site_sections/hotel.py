@@ -216,12 +216,13 @@ def _get_unconfirmed(session, department, assigned_ids):
                               if a not in assigned_ids]
 
 def _get_unassigned(session, department, assigned_ids):
+    assigned_to_dept = [] if STAFF_ROOMS in AdminAccount.access_set() else [Attendee.assigned_depts.like('%{}%'.format(department))]
     return [_attendee_dict(a) for a in session.query(Attendee)
                                               .order_by(Attendee.full_name)
                                               .join(Attendee.hotel_requests)
                                               .filter(Attendee.hotel_requests != None,
-                                                      Attendee.assigned_depts.like('%{}%'.format(department)),
-                                                      HotelRequests.nights != '').all()
+                                                      HotelRequests.nights != '',
+                                                      *assigned_to_dept).all()
                               if a.id not in assigned_ids]
 
 def _get_assigned_elsewhere(session, department):
