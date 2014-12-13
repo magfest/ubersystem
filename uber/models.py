@@ -306,7 +306,7 @@ class Group(MagModel, TakesPaymentMixin):
     @property
     def new_ribbon(self):
         ribbons = {a.ribbon for a in self.attendees}
-        for ribbon in [DEALER_RIBBON, BAND_RIBBON]:
+        for ribbon in [BAND_RIBBON]:
             if ribbon in ribbons:
                 return ribbon
         else:
