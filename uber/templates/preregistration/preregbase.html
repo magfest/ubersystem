@@ -19,7 +19,7 @@
     setInterval(checkCap, 1000 * 1 * 15);
 
 $(document).ready(function() {
-    {% if attendee.is_dealer %}
+    {% if attendee.is_dealer and attendee.is_new %}
         setBadgesLimit();
         setDealerCost();
         setExtraOpts();
@@ -40,15 +40,18 @@ $(document).ready(function() {
     var super_sponsor_addon = 195;
 
     {% if attendee.badge_type != PSEUDO_DEALER_BADGE %}
-
-    // Display the correct badge name based on Badge Type and Ribbon.
-    {% if not attendee.ribbon_and_or_badge %}
-        badge_label = "{{ attendee.badge_type_label }}";
+        // Display the correct badge name based on Badge Type and Ribbon.
+        {% if not attendee.ribbon_and_or_badge %}
+            badge_label = "{{ attendee.badge_type_label }}";
+        {% else %}
+            badge_label = "{{ attendee.ribbon_and_or_badge }}";
+        {% endif %}
     {% else %}
-        badge_label = "{{ attendee.ribbon_and_or_badge }}";
+        // Hard-coded label for new dealers because reasons.
+        badge_label = "Dealer";
     {% endif %}
 
-    if (badge_label != "Attending") { var extra_badge_label = badge_label + "/" } else { var extra_badge_label = "" }
+    if (badge_label != "Attending") { var extra_badge_label = badge_label + " / " } else { var extra_badge_label = "" }
 
     // Populates the "badge" choices if they are drawn on the page
     if ($('#attendee_select')) {
@@ -93,7 +96,6 @@ $(document).ready(function() {
         $("#featured1_select").addClass("disabled");
         $("#featured1_select").prop("onclick",null);
     }
-    {% endif %}
 })
 
 function setInternational() {
@@ -113,7 +115,7 @@ function setBadge(badgeType) {
     $(".badge_type_selector").removeClass("active");
     $(".group_fields").addClass("hide");
     if (badgeType == 'Attendee') {
-        if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}"); }
+        {% if attendee.badge_type != PSEUDO_DEALER_BADGE %}if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}"); }{% endif %}
         $("#attendee_select").addClass("active");
         $.field("amount_extra").val('0').trigger("change");
     }
@@ -124,12 +126,12 @@ function setBadge(badgeType) {
         $.field("amount_extra").val('0').trigger("change");
     }
     if (badgeType == 'Featured1') {
-        if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}"); }
+        {% if attendee.badge_type != PSEUDO_DEALER_BADGE %}if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}"); }{% endif %}
         $("#featured1_select").addClass("active");
         $.field("amount_extra").val(sponsor_addon).trigger("change");
     }
     if (badgeType == 'Featured2') {
-        if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}"); }
+        {% if attendee.badge_type != PSEUDO_DEALER_BADGE %}if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}"); }{% endif %}
         $("#featured2_select").addClass("active");
         $.field("amount_extra").val(super_sponsor_addon).trigger("change");
     }
@@ -160,6 +162,7 @@ function setBadge(badgeType) {
         var table_cost = 0;
         var badge_cost = 0;
         var extra_cost = 0;
+        var kickin_cost = $.val("amount_extra");
 
         // Cost for tables
         if ($.val("tables") == 0.5) {
@@ -186,7 +189,7 @@ function setBadge(badgeType) {
             extra_cost += 10;
         }
 
-        total_cost = table_cost + badge_cost + extra_cost;
+        total_cost = table_cost + badge_cost + extra_cost + kickin_cost;
         $("#cost").html("$"+ total_cost);
     }
 

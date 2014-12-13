@@ -41,9 +41,11 @@ $(document).ready(function(){
 {% if edit_id %}
     <input type="hidden" name="edit_id" value="{{ edit_id }}" />
 {% endif %}
-
-{% if not attendee.is_dealer %}
+{% if attendee.is_dealer %}
+<span><h2>Dealer Application</h2></span>
+{% endif %}
 {% include "preregistration/badge_choice.html" %}
+{% if not attendee.is_dealer %}
 <div class="form-group">
     <p class="help-block col-sm-8 col-sm-offset-2"><strong>Dealers:</strong>
         {% if BEFORE_DEALER_REG_PUBLIC %}Registrations for dealer memberships begins December 15.

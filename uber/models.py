@@ -566,7 +566,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def ribbon_and_or_badge(self):
         if self.ribbon != NO_RIBBON and self.badge_type != ATTENDEE_BADGE:
-            return self.badge_type_label + "/" + self.ribbon_label
+            return self.badge_type_label + " / " + self.ribbon_label
         elif self.ribbon != NO_RIBBON:
             return self.ribbon_label
         else:
