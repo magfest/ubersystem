@@ -15,6 +15,7 @@ $(document).ready(function(){
 </script>
 
 <div class="panel panel-default">
+{% if not attendee.is_dealer %}
 <div class="row bs-wizard" style="border-bottom:0;border-top:0;">   
     <div class="col-xs-4 bs-wizard-step active">
       <div class="text-center bs-wizard-stepnum">Step 1</div>
@@ -35,6 +36,7 @@ $(document).ready(function(){
       <div class="bs-wizard-info text-center">Done</div>
     </div>
 </div>
+{% endif %}
 
 <form method="post" action="form" class="form-horizontal" role="form">
 <input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />

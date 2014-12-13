@@ -240,6 +240,8 @@ TABLE_OPTS = [
     (4.0, 'Island/Quad Table')
 ]
 
+ADMIN_TABLE_OPTS = [(0.0, 'No Table')] + TABLE_OPTS + [(float(i), str(i)) for i in range(5, 11)]
+
 TABLE_PRICES = {0: 0, 0.5: 40, 1: 100, 2: 350, 3: 600, 4: 999}
 
 TABLE_OPTS = [(count, '{}: ${}'.format(desc, TABLE_PRICES[count])) for count, desc in TABLE_OPTS]
