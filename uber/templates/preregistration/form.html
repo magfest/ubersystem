@@ -121,7 +121,7 @@ $(document).ready(function(){
     <input type="hidden" name="edit_id" value="{{ edit_id }}" />
 {% endif %}
 {% if attendee.is_dealer %}
-<span><h2>Dealer Application</h2></span>
+<span><center><h2>Dealer Application</h2></center></span>
 {% endif %}
 {% include "preregistration/badge_choice.html" %}
 {% if not attendee.is_dealer %}
