@@ -295,6 +295,10 @@ class Group(MagModel, TakesPaymentMixin):
             self.leader.ribbon = DEALER_RIBBON
 
     @property
+    def is_new(self):
+        return not instance_state(self).persistent
+
+    @property
     def sorted_attendees(self):
         self.attendees.sort(key=lambda a: (a.is_unassigned, a.id != self.leader_id, a.full_name))
         return self.attendees
