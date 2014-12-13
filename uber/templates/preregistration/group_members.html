@@ -6,7 +6,9 @@
     {% endif %}
 {% endblock %}
 {% block content %}
-
+<div class="masthead">
+</div>
+<div class="panel panel-default">
 <h2> Members of "{{ group.name }}" </h2>
 
 {% if group.amount_unpaid and group.status != WAITLISTED %}
@@ -104,5 +106,5 @@
         });
     </script>
 {% endif %}
-
+</div>
 {% endblock %}
