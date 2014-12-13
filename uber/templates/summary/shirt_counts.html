@@ -1,0 +1,20 @@
+{% extends "base-admin.html" %}
+{% block title %}Shirt Counts{% endblock %}
+{% block content %}
+
+<h2>Shirt Counts</h2>
+
+{% for name, category in categories.items %}
+    <h3>{{ name }} shirts</h3>
+    <table style="width:auto">
+    {% for label, counts in category %}
+        <tr>
+            <td>{{ label }}:</td>
+            <td>{{ counts.picked_up }} picked up</td>
+            <td>{{ counts.outstanding }} outstanding</td>
+        </tr>
+    {% endfor %}
+    </table>
+{% endfor %}
+
+{% endblock %}
