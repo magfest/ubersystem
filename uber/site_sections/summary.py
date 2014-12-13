@@ -122,3 +122,18 @@ class Root:
     def staff_badges(self, out, session):
         for a in session.query(Attendee).filter_by(badge_type=STAFF_BADGE).order_by('badge_num').all():
             out.writerow([a.badge_num, a.full_name])
+
+    def shirt_counts(self, session):
+        counts = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+        labels = ['size unknown'] + [label for val, label in SHIRT_OPTS][1:]
+        sort = lambda d: sorted(d.items(), key=lambda tup: labels.index(tup[0]))
+        label = lambda s: 'size unknown' if s == 'no shirt' else s
+        status = lambda got_merch: 'picked_up' if got_merch else 'outstanding'
+        for attendee in session.query(Attendee).all():
+            if attendee.gets_free_shirt:
+                counts['free'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
+            if attendee.gets_paid_shirt:
+                counts['paid'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
+        return {
+            'categories': {'Free': sort(counts['free']), 'Paid': sort(counts['paid'])}
+        }

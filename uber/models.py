@@ -609,13 +609,20 @@ class Attendee(MagModel, TakesPaymentMixin):
            and self.badge_type not in [STAFF_BADGE, GUEST_BADGE]
 
     @property
+    def gets_free_shirt(self):
+        return self.is_dept_head \
+            or self.badge_type == STAFF_BADGE \
+            or self.staffing and (not self.takes_shifts
+                               or PRE_CON and self.weighted_hours >= 6
+                               or AT_OR_POST_CON and self.worked_hours >= 6)
+
+    @property
+    def gets_paid_shirt(self):
+        return self.amount_extra >= SHIRT_LEVEL or self.badge_type == SUPPORTER_BADGE
+
+    @property
     def gets_shirt(self):
-        return self.amount_extra >= SHIRT_LEVEL \
-            or self.is_dept_head \
-            or self.badge_type in [STAFF_BADGE, SUPPORTER_BADGE] \
-            or self.staffing and not self.takes_shifts \
-            or PRE_CON and self.weighted_hours >= 6 \
-            or AT_OR_POST_CON and self.worked_hours >= 6
+        return self.gets_paid_shirt or self.gets_free_shirt
 
     @property
     def shirt_eligible(self):
