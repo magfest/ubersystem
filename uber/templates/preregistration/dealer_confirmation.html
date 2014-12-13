@@ -2,7 +2,9 @@
 {% block title %}Dealer Application Received{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
-
+<div class="masthead">
+</div>
+<div class="panel panel-default">
 <h2>{% if AFTER_DEALER_REG_DEADLINE %}You've been added to our waitlist!{% else %}Thanks for applying as a Dealer!{% endif %}</h2>
 
 We've received your application for {{ group.name }} to purchase a Dealer registration for {{ EVENT_NAME }}.
@@ -14,5 +16,5 @@ We've received your application for {{ group.name }} to purchase a Dealer regist
 {% endif %}
 
 {% include "preregistration/disclaimers.html" %}
-
+</div>
 {% endblock %}
