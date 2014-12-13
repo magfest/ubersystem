@@ -313,6 +313,16 @@ class Group(MagModel, TakesPaymentMixin):
             return DEALER_ASST_RIBBON if self.is_dealer else NO_RIBBON
 
     @property
+    def ribbon_and_or_badge(self):
+        badge_being_claimed = self.floating[0]
+        if badge_being_claimed.ribbon != NO_RIBBON and badge_being_claimed.badge_type != ATTENDEE_BADGE:
+            return badge_being_claimed.badge_type_label + " / " + self.ribbon_label
+        elif badge_being_claimed.ribbon != NO_RIBBON:
+            return badge_being_claimed.ribbon_label
+        else:
+            return badge_being_claimed.badge_type_label
+
+    @property
     def is_dealer(self):
         return bool(self.tables and (not self.registered or self.amount_paid or self.cost))
 
