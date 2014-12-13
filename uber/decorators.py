@@ -146,8 +146,8 @@ def renderable_data(data=None):
         pass
 
     access = AdminAccount.access_set()
-    for acctype in ['ACCOUNTS','PEOPLE','STUFF','MONEY','CHALLENGES','CHECKINS']:
-        data['HAS_' + acctype + '_ACCESS'] = getattr(config, acctype) in access
+    for acctype in ACCESS_VARS:
+        data['HAS_' + acctype + '_ACCESS'] = globals()[acctype] in access
 
     return data
 

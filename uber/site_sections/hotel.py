@@ -92,7 +92,7 @@ class Root:
                 writerow(a, a.hotel_requests)
 
     def assignments(self, session, department):
-        if ROOMS_LOCKED_IN:
+        if ROOMS_LOCKED_IN and STAFF_ROOMS not in AdminAccount.access_set():
             cherrypy.response.headers['Content-Type'] = 'text/plain'
             return json.dumps({
                 'message': 'Hotel rooms are currently locked in, email stops@magfest.org if you need a last-minute adjustment',

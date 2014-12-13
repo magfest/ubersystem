@@ -43,7 +43,7 @@
         {% endif %}
         your shirt size so that we can set aside a shirt in your size at our merch booth.
     </li>
-    {% if attendee.badge_type == STAFF_BADGE and AFTER_ROOM_DEADLINE and is_stops_admin %}
+    {% if attendee.badge_type == STAFF_BADGE and AFTER_ROOM_DEADLINE and HAS_STAFF_ROOMS_ACCESS %}
         <li>
             {% checked_if attendee.hotel_requests %}
             The deadline for editing hotel requests has passed, but as a STOPS admin, you can still
