@@ -30,7 +30,7 @@ class Root:
             item = DeptChecklistItem(slug=slug, attendee=attendee)
 
         if comments is not None:
-            check_csrf(csrf_token)  # since this form doesn't use our normal utility methods, we need to do this manuallu
+            check_csrf(csrf_token)  # since this form doesn't use our normal utility methods, we need to do this manually
             item.comments = comments
             session.add(item)
             raise HTTPRedirect('index?message={}', conf.name + ' checklist data uploaded')
@@ -76,3 +76,18 @@ class Root:
                 for dept, dept_name in JOB_LOCATION_OPTS
             ]
         }
+
+    def treasury(self, session, submitted=None, csrf_token=None, **params):
+        attendee = session.admin_attendee()
+        conf = DeptChecklistConf.instances['treasury']
+        if submitted:
+            try:
+                [item] = [item for item in attendee.dept_checklist_items if item.slug == 'treasury']
+            except:
+                item = DeptChecklistItem(slug='treasury', attendee=attendee)
+            check_csrf(csrf_token)  # since this form doesn't use our normal utility methods, we need to do this manually
+            item.comments = render('dept_checklist/treasury.txt', params).decode('utf-8')
+            session.add(item)
+            raise HTTPRedirect('index?message={}', 'Treasury checklist data uploaded')
+
+        return {}
