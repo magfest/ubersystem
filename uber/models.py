@@ -390,7 +390,10 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def amount_unpaid(self):
-        return (self.cost - self.amount_paid) if self.registered else self.default_cost
+        if self.registered:
+            return 0 if (self.cost - self.amount_paid) < 0 else (self.cost - self.amount_paid)
+        else:
+            return self.default_cost
 
     @property
     def dealer_max_badges(self):
