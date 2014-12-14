@@ -134,6 +134,12 @@ class Root:
                 counts['free'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
             if attendee.gets_paid_shirt:
                 counts['paid'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
+            if attendee.gets_free_shirt and attendee.gets_paid_shirt:
+                counts['both'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
         return {
-            'categories': {'Free': sort(counts['free']), 'Paid': sort(counts['paid'])}
+            'categories': [
+                ('Free', sort(counts['free'])),
+                ('Paid', sort(counts['paid'])),
+                ('Number of people who were counted in both of the above categories of', sort(counts['both']))
+            ]
         }
