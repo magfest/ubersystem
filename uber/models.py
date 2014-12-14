@@ -394,21 +394,20 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def dealer_max_badges(self):
-        if self.tables <= 1:
-            return 2
-        else:
-            return self.tables + 1
+        return math.ceil(self.tables) + 1
 
     @property
     def dealer_badges_remaining(self):
-        return (self.dealer_max_badges - self.badges)
+        return self.dealer_max_badges - self.badges
 
     @property
     def min_badges_addable(self):
         if self.is_dealer and self.badges >= self.dealer_max_badges:
             return 0
+        elif self.is_dealer or self.can_add:
+            return 1
         else:
-            return 1 if self.can_add else 5
+            return 5
 
 class AgeGroup(MagModel):
     desc          = Column(UnicodeText)
