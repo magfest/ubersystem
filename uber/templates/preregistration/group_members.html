@@ -89,13 +89,17 @@
         <form method="get" action="add_group_members">
         <input type="hidden" name="id" value="{{ group.id }}" />
         Enter a number of group members to add{% if group.min_badges_addable > 1 %} (you cannot add fewer than {{ group.min_badges_addable }} badges to an existing group){% endif %}: <br/>
-        <select name="count">{% int_options group.min_badges_addable 10 %}</select>
+        {% if group.is_dealer %}
+            <select name="count">{% int_options group.min_badges_addable group.dealer_badges_remaining %}</select>
+        {% else %}
+            <select name="count">{% int_options group.min_badges_addable 10 %}</select>
+        {% endif %}
         <input type="submit" value="Add Members to Group">
         </form>
     </div>
     <script type="text/javascript">
         $(function(){
-            $("body").append(
+            $(".panel").append(
                 $('<a style="cursor:pointer">Click here to add more members to your group.</a>').click(function(e){
                     $(e.target).hide();
                     $("#add").show();
