@@ -240,7 +240,7 @@ class Root:
         group = session.group(id)
         return {
             'group':   group,
-            'charge':  Charge(group),
+            'charge':  Charge([group, group.leader]),  # Include group leader's kick-in level if not paid-for
             'message': message
         }
 
@@ -304,15 +304,18 @@ class Root:
     def process_group_payment(self, session, payment_id, stripeToken):
         charge = Charge.get(payment_id)
         [group] = charge.groups
+        [attendee] = charge.attendees
         message = charge.charge_cc(stripeToken)
         if message:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
         else:
-            group.amount_paid += charge.dollar_amount
+            group.amount_paid += charge.dollar_amount - attendee.amount_extra
+            attendee.amount_paid = attendee.total_cost
             if group.tables:
                 send_email(MARKETPLACE_EMAIL, MARKETPLACE_EMAIL, 'Dealer Payment Completed',
                            render('emails/dealers/payment_notification.txt', {'group': group}), model=group)
             session.merge(group)
+            session.merge(attendee)
             raise HTTPRedirect('group_members?id={}&message={}', group.id, 'Your payment has been accepted!')
 
     @credit_card
