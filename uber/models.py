@@ -390,12 +390,27 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def amount_unpaid(self):
-        return (self.cost - self.amount_paid) if self.registered else self.default_cost
+        if self.registered:
+            return 0 if (self.cost - self.amount_paid) < 0 else (self.cost - self.amount_paid)
+        else:
+            return self.default_cost
+
+    @property
+    def dealer_max_badges(self):
+        return math.ceil(self.tables) + 1
+
+    @property
+    def dealer_badges_remaining(self):
+        return self.dealer_max_badges - self.badges
 
     @property
     def min_badges_addable(self):
-        return 1 if self.can_add else \
-               0 if self.is_dealer else 5
+        if self.is_dealer and self.badges >= self.dealer_max_badges:
+            return 0
+        elif self.is_dealer or self.can_add:
+            return 1
+        else:
+            return 5
 
 class AgeGroup(MagModel):
     desc          = Column(UnicodeText)
