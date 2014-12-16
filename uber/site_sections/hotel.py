@@ -154,15 +154,18 @@ class Root:
 
     @ajax
     def assign_to_room(self, session, attendee_id, room_id):
-        if not session.query(RoomAssignment).filter_by(attendee_id=attendee_id).all():
-            room = session.room(room_id)
+        room = session.room(room_id)
+        for other_room in session.query(RoomAssignment).filter_by(attendee_id=attendee_id).all():
+            if set(other_room.nights_ints).intersection(room.nights_ints):
+                break  # don't assign someone to a room which overlaps with an existing room assignment
+        else:
             attendee = session.attendee(attendee_id)
             ra = RoomAssignment(attendee=attendee, room=room)
             session.add(ra)
             hr = attendee.hotel_requests
             if room.setup_teardown:
                 hr.approved = True
-            else:
+            elif not hr.approved:
                 hr.decline()
             session.commit()
         return _hotel_dump(session, session.room(room_id).department)
@@ -216,7 +219,8 @@ def _get_unconfirmed(session, department, assigned_ids):
                               if a not in assigned_ids]
 
 def _get_unassigned(session, department, assigned_ids):
-    assigned_to_dept = [] if STAFF_ROOMS in AdminAccount.access_set() else [Attendee.assigned_depts.like('%{}%'.format(department))]
+    has_override_access = STAFF_ROOMS in AdminAccount.access_set()
+    assigned_to_dept = [] if has_override_access else [Attendee.assigned_depts.like('%{}%'.format(department))]
     return [_attendee_dict(a) for a in session.query(Attendee)
                                               .order_by(Attendee.full_name)
                                               .join(Attendee.hotel_requests)
