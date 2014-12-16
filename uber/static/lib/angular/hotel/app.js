@@ -132,7 +132,7 @@ angular.module('hotel', ['ngRoute', 'magfest'])
         $scope.add = function() {
             var room = Hotel.get('rooms', $scope.assignment.room_id);
             var attendee = Hotel.get('unassigned', $scope.assignment.attendee_id);
-            var autoDecline = $scope.isSetupOrTeardown(attendee.nights_lookup) && !$scope.isSetupOrTeardown(room);
+            var autoDecline = !attendee.approved && $scope.isSetupOrTeardown(attendee.nights_lookup) && !$scope.isSetupOrTeardown(room);
             // TODO: replace confirm with an async Angular-driven UI component (for better testability)
             if (!autoDecline || confirm('This attendee has requested setup/teardown and you are assigning them to a regular room, which will automatically decline their request to help with setup/teardown.')) {
                 $http({
