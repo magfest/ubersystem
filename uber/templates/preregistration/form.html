@@ -209,25 +209,6 @@ $(document).ready(function(){
     <p class="help-block col-sm-6 col-sm-offset-2">Please be detailed; include a link to view your wares if possible.</p>
     </div>
 
-    {% if COLLECT_INTERESTS %}
-    <div class="form-group">
-    <label for="website" class="col-sm-2 control-label">Website URL</label>
-    <div class="col-sm-6">
-      <input class="form-control" type="text" name="website" value="{{ group.website }}" size="40" />
-    </div>
-    </div>
-    <div class="form-group">
-    <p class="help-block col-sm-6 col-sm-offset-2">The one you want us to link on our website, or n/a</p>
-    </div>
-    {% else %}
-    <div class="form-group">
-    <label for="website" class="col-sm-2 control-label">Pennsylvania Tax ID</label>
-    <div class="col-sm-6">
-      <input class="form-control" type="text" name="website" value="{{ group.website }}" size="40" />
-    </div>
-    </div>
-    {% endif %}
-
     <div class="form-group">
     <label for="description" class="col-sm-2 control-label">Description</label>
     <div class="col-sm-6">
@@ -247,6 +228,26 @@ $(document).ready(function(){
     <div class="form-group">
     <p class="help-block col-sm-6 col-sm-offset-2">No guarantees that we can accommodate any requests.</p>
     </div>
+
+    {% if COLLECT_INTERESTS %}
+    <div class="form-group">
+    <label for="website" class="col-sm-2 control-label">Website URL</label>
+    <div class="col-sm-6">
+      <input class="form-control" type="text" name="website" value="{{ group.website }}" size="40" />
+    </div>
+    </div>
+    <div class="form-group">
+    <p class="help-block col-sm-6 col-sm-offset-2">The one you want us to link on our website, or n/a</p>
+    </div>
+    {% else %}
+    <div class="form-group">
+    <label for="website" class="col-sm-2 control-label">Pennsylvania Tax ID</label>
+    <div class="col-sm-6">
+      <input class="form-control" type="text" name="website" value="{{ group.website }}" size="40" />
+    </div>
+    </div>
+    {% endif %}
+
 {% endif %}
 
 <div class="form-group">
