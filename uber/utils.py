@@ -232,9 +232,11 @@ def genpasswd():
     except:
         return ''.join(chr(randrange(33, 127)) for i in range(8))
 
-# print all config values to stdout, used for debugging / status checking
-# useful if you want to verify that Ubersystem has pulled in the INI values you think it has.
 @entry_point
 def print_config():
+    """
+    print all config values to stdout, used for debugging / status checking
+    useful if you want to verify that Ubersystem has pulled in the INI values you think it has.
+    """
     from uber.config import _config
     pprint(_config.dict())
