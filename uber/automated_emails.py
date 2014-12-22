@@ -225,10 +225,10 @@ StopsEmail('Last chance to sign up for {EVENT_NAME} hotel room space', 'shifts/h
            lambda a: days_before(2, ROOM_DEADLINE) and a.hotel_eligible and not a.hotel_requests)
 
 StopsEmail('Reminder to meet your {EVENT_NAME} hotel room requirements', 'shifts/hotel_hours.txt',
-           lambda a: days_before(14, UBER_TAKEDOWN, 7) and a.hotel_shifts_required and a.weighted_hours < 30)
+           lambda a: days_after(14, ROOM_DEADLINE) and a.hotel_shifts_required and a.weighted_hours < 30)
 
 StopsEmail('Final reminder to meet your {EVENT_NAME} hotel room requirements', 'shifts/hotel_hours.txt',
-           lambda a: days_before(7, UBER_TAKEDOWN) and a.hotel_shifts_required and a.weighted_hours < 30)
+           lambda a: days_before(14, UBER_TAKEDOWN) and a.hotel_shifts_required and a.weighted_hours < 30)
 
 
 # For events with customized badges, these emails remind people to let us know what we want on their badges.  We have
