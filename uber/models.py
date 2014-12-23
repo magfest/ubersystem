@@ -1467,11 +1467,11 @@ class Session(SessionManager):
         def search(self, text, *filters):
             attendees = self.query(Attendee).outerjoin(Attendee.group).options(joinedload(Attendee.group)).filter(*filters)
             if ':' in text:
-                target, term = text.lower().split(':', 1)
+                target, term = text.split(':', 1)
                 if target == 'email':
-                    return attendees.filter_by(email=term)
+                    return attendees.icontains(Attendee.email, term.strip())
                 elif target == 'group':
-                    return attendees.icontains(Group.name, term)
+                    return attendees.icontains(Group.name, term.strip())
 
             terms = text.split()
             if len(terms) == 2:
@@ -1482,7 +1482,7 @@ class Session(SessionManager):
             elif len(terms) == 1 and terms[0].endswith(','):
                 return attendees.icontains(last_name=terms[0].rstrip(','))
             elif len(terms) == 1 and terms[0].isdigit():
-                return attendees.filter_by(badge_num=terms[0])
+                return attendees.filter(Attendee.badge_num == terms[0])
             elif len(terms) == 1 and re.match('[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}', terms[0]):
                 return attendees.filter(or_(Attendee.id == terms[0], Group.id == terms[0]))
             else:
