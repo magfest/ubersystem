@@ -240,6 +240,7 @@
         <td class="maybe_bold">Postal Code</td>
         <td>
             <input type="text" name="zip_code" placeholder="ZIP/Postal Code" value="{{ attendee.zip_code }}" />
+            {% checkbox attendee.international %} Attendee coming from outside the US.
         </td>
     </tr>
     <tr>
