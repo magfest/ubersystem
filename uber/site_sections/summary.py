@@ -164,3 +164,17 @@ class Root:
                 if overlapping:
                     flagged.append([attendee, sorted(overlapping.items(), key=lambda tup: tup[0].start_time)])
         return {'flagged': flagged}
+
+    def consecutive_threshold(self, session):
+        def exceeds_threshold(start_time, attendee):
+            time_slice = [start_time + timedelta(hours=i) for i in range(18)]
+            return len([h for h in attendee.hours if h in time_slice]) > 12
+        jobs, shifts, attendees = session.everything()
+        flagged = []
+        for attendee in attendees:
+            if attendee.staffing and attendee.weighted_hours > 12:
+                for start_time, desc in START_TIME_OPTS[::6]:
+                    if exceeds_threshold(start_time, attendee):
+                        flagged.append(attendee)
+                        break
+        return {'flagged': flagged}
