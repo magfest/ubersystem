@@ -100,6 +100,7 @@ class Root:
             }, indent=4, cls=serializer)
         else:
             attendee = session.admin_attendee()
+            three_days_before = (EPOCH - timedelta(days=3)).strftime('%A')
             two_days_before = (EPOCH - timedelta(days=2)).strftime('%A')
             day_before = (EPOCH - timedelta(days=1)).strftime('%A')
             last_day = ESCHATON.strftime('%A')
@@ -109,6 +110,11 @@ class Root:
                 'dump': _hotel_dump(session, department),
                 'department_name': dict(JOB_LOCATION_OPTS)[int(department)],
                 'nights': [{
+                    'core': False,
+                    'name': three_days_before.lower(),
+                    'val': globals()[three_days_before.upper()],
+                    'desc': three_days_before + ' night (for setup volunteers)'
+                }, {
                     'core': False,
                     'name': two_days_before.lower(),
                     'val': globals()[two_days_before.upper()],
