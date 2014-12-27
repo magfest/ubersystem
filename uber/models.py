@@ -929,6 +929,10 @@ class Job(MagModel):
                 or self.location == attendee.hour_map[after].location))
 
     @property
+    def slots_taken(self):
+        return len(self.shifts)
+
+    @property
     def real_duration(self):
         return self.duration + (0.25 if self.extra15 else 0)
 
