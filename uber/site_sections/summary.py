@@ -106,6 +106,9 @@ class Root:
     def personalized_badges(self, out, session):
         for a in session.query(Attendee).filter(Attendee.badge_num != 0).order_by('badge_num').all():
             out.writerow([a.badge_num, a.badge_type_label, a.badge_printed_name or a.full_name])
+        for a in session.query(Attendee).filter(Attendee.badge_type == STAFF_BADGE,
+                                                Attendee.amount_extra >= SUPPORTER_LEVEL).order_by(Attendee.full_name).all():
+            out.writerow(['', 'Supporter', a.badge_printed_name or a.full_name])
 
     def food_eligible(self, session):
         cherrypy.response.headers['Content-Type'] = 'application/xml'
