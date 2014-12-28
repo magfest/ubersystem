@@ -1,5 +1,8 @@
 from uber.common import *
 
+def cannot_modify_rooms():
+    return ROOMS_LOCKED_IN and STAFF_ROOMS not in AdminAccount.access_set()
+
 @all_renderable(PEOPLE)
 class Root:
     def index(self, session, department=None):
@@ -38,6 +41,8 @@ class Root:
 
     @ajax
     def approve(self, session, id, approved):
+        # TODO: turn this on in a week, and in the long run decide whether this should be a separate deadline
+        #assert not cannot_modify_rooms(), 'The deadline for modifying rooms has passed'
         hr = session.hotel_requests(id)
         if approved == 'approved':
             hr.approved = True
@@ -92,7 +97,7 @@ class Root:
                 writerow(a, a.hotel_requests)
 
     def assignments(self, session, department):
-        if ROOMS_LOCKED_IN and STAFF_ROOMS not in AdminAccount.access_set():
+        if cannot_modify_rooms():
             cherrypy.response.headers['Content-Type'] = 'text/plain'
             return json.dumps({
                 'message': 'Hotel rooms are currently locked in, email stops@magfest.org if you need a last-minute adjustment',
@@ -244,7 +249,8 @@ def _get_assigned_elsewhere(session, department):
                                      Attendee.assigned_depts.like('%{}%'.format(department))).all()]
 
 def _hotel_dump(session, department):
-    rooms = [_room_dict(session, room) for room in session.query(Room).filter_by(department=department).order_by(Room.created).all()]
+    room_filter = {'department': department} if cannot_modify_rooms() or int(department) != STOPS else {}
+    rooms = [_room_dict(session, room) for room in session.query(Room).filter_by(**room_filter).order_by(Room.created).all()]
     assigned = sum([r['attendees'] for r in rooms], [])
     assigned_elsewhere = _get_assigned_elsewhere(session, department)
     assigned_ids = [a['id'] for a in assigned + assigned_elsewhere]
