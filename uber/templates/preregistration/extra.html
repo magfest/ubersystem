@@ -19,12 +19,14 @@
                         return opt.text;
                     }
                 };
-                $.field("amount_extra").select2({
-                    formatResult: format,
-                    formatSelection: function(opt) { return opt.text; },
-                    minimumResultsForSearch: 99,
-                    escapeMarkup: function(m) { return m; }
-                });
+                if ($.field('amount_extra').is('select')) {
+                    $.field("amount_extra").select2({
+                        formatResult: format,
+                        formatSelection: function(opt) { return opt.text; },
+                        minimumResultsForSearch: 99,
+                        escapeMarkup: function(m) { return m; }
+                    });
+                }
                 $.field("affiliate").select2({
                     placeholder: "I don't care about this",
                     createSearchChoice: function(term) {
@@ -43,7 +45,7 @@
         <tr class="extra-row">
             <td valign="top" style="padding-top:15px"><b>Want to kick in extra?</b></td>
             <td>
-                {% if AFTER_PRINTED_BADGE_DEADLINE and attendee.amount_extra >= SUPPORTER_LEVEL %}
+                {% if AFTER_SUPPORTER_DEADLINE and attendee.amount_extra >= SUPPORTER_LEVEL %}
                     {{ attendee.amount_extra_label }}
                     <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
                 {% else %}
