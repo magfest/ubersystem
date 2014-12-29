@@ -119,11 +119,11 @@ AutomatedEmail(Attendee, '{EVENT_NAME} extra payment received', 'reg_workflow/gr
 # all events, because they will only be sent for groups with unregistered badges, so if group preregistration
 # has been turned off, they'll just never be sent.
 
-GroupEmail('Reminder to pre-assign {EVENT_NAME} group badges', 'reg_workflow/group_preassign_reminder.txt',
-           lambda g: days_after(30, g.registered) and state.BEFORE_GROUP_PREREG_TAKEDOWN and g.unregistered_badges)
+#GroupEmail('Reminder to pre-assign {EVENT_NAME} group badges', 'reg_workflow/group_preassign_reminder.txt',
+#           lambda g: days_after(30, g.registered) and state.BEFORE_GROUP_PREREG_TAKEDOWN and g.unregistered_badges)
 
-AutomatedEmail(Group, 'Last chance to pre-assign {EVENT_NAME} group badges', 'reg_workflow/group_preassign_reminder.txt',
-         lambda g: state.AFTER_GROUP_PREREG_TAKEDOWN and g.unregistered_badges and (not g.is_dealer or g.status == APPROVED))
+#AutomatedEmail(Group, 'Last chance to pre-assign {EVENT_NAME} group badges', 'reg_workflow/group_preassign_reminder.txt',
+#         lambda g: state.AFTER_GROUP_PREREG_TAKEDOWN and g.unregistered_badges and (not g.is_dealer or g.status == APPROVED))
 
 
 # Dealer emails; these are safe to be turned on for all events because even if the event doesn't have dealers,
