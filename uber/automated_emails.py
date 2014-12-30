@@ -226,11 +226,11 @@ StopsEmail('Final reminder to meet your {EVENT_NAME} hotel room requirements', '
 # For events with customized badges, these emails remind people to let us know what we want on their badges.  We have
 # one email for our volunteers who haven't bothered to confirm they're coming yet (bleh) and one for everyone else.
 
-StopsEmail('Last chance to personalize your {EVENT_NAME} badge', 'personalized_badges/volunteers.txt',
-           lambda a: days_before(7, PRINTED_BADGE_DEADLINE) and a.staffing and a.badge_type in PREASSIGNED_BADGE_TYPES and a.placeholder)
+#StopsEmail('Last chance to personalize your {EVENT_NAME} badge', 'personalized_badges/volunteers.txt',
+#           lambda a: days_before(7, PRINTED_BADGE_DEADLINE) and a.staffing and a.badge_type in PREASSIGNED_BADGE_TYPES and a.placeholder)
 
-AutomatedEmail(Attendee, 'Personalized {EVENT_NAME} badges will be ordered next week', 'personalized_badges/reminder.txt',
-               lambda a: days_before(7, PRINTED_BADGE_DEADLINE) and a.badge_type in PREASSIGNED_BADGE_TYPES and not a.placeholder)
+#AutomatedEmail(Attendee, 'Personalized {EVENT_NAME} badges will be ordered next week', 'personalized_badges/reminder.txt',
+#               lambda a: days_before(7, PRINTED_BADGE_DEADLINE) and a.badge_type in PREASSIGNED_BADGE_TYPES and not a.placeholder)
 
 
 # MAGFest requires signed and notarized parental consent forms for anyone under 18.  This automated email reminder to
