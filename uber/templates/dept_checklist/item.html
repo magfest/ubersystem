@@ -20,7 +20,7 @@
                     <i>not complete</i>
                 {% endif %}
                 </td>
-                <td>{{ item.comments }}</td>
+                <td>{{ item.comments|linebreaks }}</td>
             {% else %}
                 <td colspan="2"><i>This dept head doesn't have an admin account.</i></td>
             {% endif %}
