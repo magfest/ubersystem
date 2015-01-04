@@ -5,7 +5,7 @@
 <h2> Setup/Teardown Neglect </h2>
 
 {% for category, jobs in unfilled %}
-    <h3> Unfilled {{ category }} Shifts </h3>
+    <h3> {% if jobs|length %}{{ jobs|length }}{% endif %} Unfilled {{ category }} Shifts </h3>
     <table style="width:auto">
     {% for job in jobs %}
         <tr>
@@ -20,7 +20,7 @@
     </table>
 {% endfor %}
 
-<h3> Attendees Without Appropriate Shifts </h3>
+<h3> {{ attendees|length }} Attendees Without Appropriate Shifts </h3>
 
 <table style="width:auto">
 {% for attendee, reasons in attendees %}
