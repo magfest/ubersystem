@@ -929,6 +929,22 @@ class Job(MagModel):
                 or self.location == attendee.hour_map[after].location))
 
     @property
+    def slots_taken(self):
+        return len(self.shifts)
+
+    @property
+    def slots_untaken(self):
+        return max(0, self.slots - self.slots_taken)
+
+    @property
+    def is_setup(self):
+        return self.start_time < EPOCH
+
+    @property
+    def is_teardown(self):
+        return self.start_time > ESCHATON
+
+    @property
     def real_duration(self):
         return self.duration + (0.25 if self.extra15 else 0)
 

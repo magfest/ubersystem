@@ -106,6 +106,9 @@ class Root:
     def personalized_badges(self, out, session):
         for a in session.query(Attendee).filter(Attendee.badge_num != 0).order_by('badge_num').all():
             out.writerow([a.badge_num, a.badge_type_label, a.badge_printed_name or a.full_name])
+        for a in session.query(Attendee).filter(Attendee.badge_type == STAFF_BADGE,
+                                                Attendee.amount_extra >= SUPPORTER_LEVEL).order_by(Attendee.full_name).all():
+            out.writerow(['', 'Supporter', a.badge_printed_name or a.full_name])
 
     def food_eligible(self, session):
         cherrypy.response.headers['Content-Type'] = 'application/xml'
@@ -141,5 +144,60 @@ class Root:
                 ('Free', sort(counts['free'])),
                 ('Paid', sort(counts['paid'])),
                 ('Number of people who were counted in both of the above categories of', sort(counts['both']))
+            ]
+        }
+
+    def restricted_untaken(self, session):
+        jobs, shifts, attendees = session.everything()
+        untaken = defaultdict(lambda: defaultdict(list))
+        for job in jobs:
+            if job.restricted and job.slots_taken < job.slots:
+                for hour in job.hours:
+                    untaken[job.location][hour].append(job)
+        flagged = []
+        for attendee in attendees:
+            if attendee.trusted and not attendee.is_dept_head:
+                overlapping = defaultdict(set)
+                for shift in attendee.shifts:
+                    if not shift.job.restricted:
+                        for dept in attendee.assigned_depts_ints:
+                            for hour in shift.job.hours:
+                                if hour in untaken[dept]:
+                                    overlapping[shift.job].update(untaken[dept][hour])
+                if overlapping:
+                    flagged.append([attendee, sorted(overlapping.items(), key=lambda tup: tup[0].start_time)])
+        return {'flagged': flagged}
+
+    def consecutive_threshold(self, session):
+        def exceeds_threshold(start_time, attendee):
+            time_slice = [start_time + timedelta(hours=i) for i in range(18)]
+            return len([h for h in attendee.hours if h in time_slice]) > 12
+        jobs, shifts, attendees = session.everything()
+        flagged = []
+        for attendee in attendees:
+            if attendee.staffing and attendee.weighted_hours > 12:
+                for start_time, desc in START_TIME_OPTS[::6]:
+                    if exceeds_threshold(start_time, attendee):
+                        flagged.append(attendee)
+                        break
+        return {'flagged': flagged}
+
+    def setup_teardown_neglect(self, session):
+        attendees = []
+        for hr in session.query(HotelRequests).filter_by(approved=True).options(joinedload(HotelRequests.attendee)).all():
+            if hr.setup_teardown:
+                reasons = []
+                if hr.attendee.approved_for_setup and not any([shift.job.is_setup for shift in hr.attendee.shifts]):
+                    reasons.append('has no setup shifts')
+                if hr.attendee.approved_for_teardown and not any([shift.job.is_teardown for shift in hr.attendee.shifts]):
+                    reasons.append('has no teardown shifts')
+                if reasons:
+                    attendees.append([hr.attendee, reasons])
+
+        return {
+            'attendees': sorted(attendees, key=lambda tup: tup[0].full_name),
+            'unfilled': [
+                ('Setup', [job for job in session.query(Job).all() if job.is_setup and job.slots_untaken]),
+                ('Teardown', [job for job in session.query(Job).all() if job.is_teardown and job.slots_untaken])
             ]
         }
