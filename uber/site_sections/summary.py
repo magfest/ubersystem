@@ -185,7 +185,7 @@ class Root:
     def setup_teardown_neglect(self, session):
         attendees = []
         for hr in session.query(HotelRequests).filter_by(approved=True).options(joinedload(HotelRequests.attendee)).all():
-            if hr.setup_teardown:
+            if hr.setup_teardown and hr.attendee.takes_shifts:
                 reasons = []
                 if hr.attendee.approved_for_setup and not any([shift.job.is_setup for shift in hr.attendee.shifts]):
                     reasons.append('has no setup shifts')
