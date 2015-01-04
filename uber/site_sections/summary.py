@@ -181,3 +181,23 @@ class Root:
                         flagged.append(attendee)
                         break
         return {'flagged': flagged}
+
+    def setup_teardown_neglect(self, session):
+        attendees = []
+        for hr in session.query(HotelRequests).filter_by(approved=True).options(joinedload(HotelRequests.attendee)).all():
+            if hr.setup_teardown:
+                reasons = []
+                if hr.attendee.approved_for_setup and not any([shift.job.is_setup for shift in hr.attendee.shifts]):
+                    reasons.append('has no setup shifts')
+                if hr.attendee.approved_for_teardown and not any([shift.job.is_teardown for shift in hr.attendee.shifts]):
+                    reasons.append('has no teardown shifts')
+                if reasons:
+                    attendees.append([hr.attendee, reasons])
+
+        return {
+            'attendees': sorted(attendees, key=lambda tup: tup[0].full_name),
+            'unfilled': [
+                ('Setup', [job for job in session.query(Job).all() if job.is_setup and job.slots_untaken]),
+                ('Teardown', [job for job in session.query(Job).all() if job.is_teardown and job.slots_untaken])
+            ]
+        }
