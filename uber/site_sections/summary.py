@@ -193,9 +193,13 @@ class Root:
                     reasons.append('has no teardown shifts')
                 if reasons:
                     attendees.append([hr.attendee, reasons])
+        attendees = sorted(attendees, key=lambda tup: tup[0].full_name)
 
         return {
-            'attendees': sorted(attendees, key=lambda tup: tup[0].full_name),
+            'attendees': [
+                ('Department Heads', [tup for tup in attendees if tup[0].is_dept_head]),
+                ('Regular Staffers', [tup for tup in attendees if not tup[0].is_dept_head])
+            ],
             'unfilled': [
                 ('Setup', [job for job in session.query(Job).all() if job.is_setup and job.slots_untaken]),
                 ('Teardown', [job for job in session.query(Job).all() if job.is_teardown and job.slots_untaken])
