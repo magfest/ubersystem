@@ -942,7 +942,7 @@ class Job(MagModel):
 
     @property
     def is_teardown(self):
-        return self.start_time > ESCHATON
+        return self.start_time >= ESCHATON
 
     @property
     def real_duration(self):
