@@ -470,6 +470,8 @@ class Root:
 
         attendee = session.attendee(id)
         attendee.paid = HAS_PAID
+        if int(payment_method) == STRIPE_ERROR:
+            attendee.for_review += "Automated message: Stripe payment manually verified by admin."
         attendee.payment_method = payment_method
         attendee.amount_paid = attendee.total_cost
         attendee.reg_station = cherrypy.session['reg_station']
