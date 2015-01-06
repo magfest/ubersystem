@@ -365,7 +365,7 @@ class Root:
                     attendee.badge_num = 0
                     if not attendee.zip_code:
                         attendee.zip_code = '00000'
-                    attendee.save()
+                    session.add(attendee)
                     message = 'Thanks!  Please queue in the {} line and have your photo ID and {} ready.'
                     if attendee.payment_method == STRIPE:
                         raise HTTPRedirect('pay?id={}', attendee.id)
