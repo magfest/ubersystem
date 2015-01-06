@@ -52,7 +52,7 @@ def group_paid(group):
 
 
 def _invalid_phone_number(s):
-    return s.startswith('+') or len(re.findall(r'\d', s)) != 10
+    return s.startswith('+') or len(re.findall(r'\d', s)) != 10 or re.search(r'^(\d)\1+$', re.sub(r'[^0-9]','',s))
 
 def attendee_misc(attendee):
     if attendee.group_id and not attendee.first_name.strip() and not attendee.last_name.strip():
