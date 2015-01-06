@@ -151,7 +151,7 @@
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
                 <select name="payment_method" onChange="toggleMarkButton(this)">
                     <option value="">payment method</option>
-                    {% options NEW_REG_PAYMENT_OPTS attendee.payment_method %}
+                    {% options NEW_REG_PAYMENT_METHOD_OPTS attendee.payment_method %}
                 </select>
                 <input type="submit" disabled="disabled" value="Mark as Paid" />
                 </form>
