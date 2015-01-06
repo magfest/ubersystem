@@ -364,6 +364,8 @@ class Root:
                 elif attendee.badge_type not in [ATTENDEE_BADGE, ONE_DAY_BADGE]:
                     message = 'No hacking allowed!'
                 else:
+                    if params['under_13'] and attendee.age_group == UNDER_18:
+                        attendee.for_review += 'Automated message: Attendee marked as under 13 during registration.'
                     attendee.badge_num = 0
                     if not attendee.zip_code:
                         attendee.zip_code = '00000'
