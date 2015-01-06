@@ -353,9 +353,9 @@ class Root:
                     message = 'Please select a payment type'
                 elif not attendee.first_name or not attendee.last_name:
                     message = 'First and Last Name are required fields'
-                elif attendee.ec_phone[:1] != '+' and len(re.compile('[0-9]').findall(attendee.ec_phone)) != 10:
+                elif attendee.ec_phone[:1] != '+' and not attendee.international and len(re.compile('[0-9]').findall(attendee.ec_phone)) != 10:
                     message = 'Enter a 10-digit emergency contact number'
-                elif re.search(r'^(\d)\1+$', re.sub(r'[^0-9]','',attendee.ec_phone)):
+                elif re.search(SAME_NUMBER_REPEATED, re.sub(r'[^0-9]', '', attendee.ec_phone)):
                     message = 'Please enter a real emergency contact number'
                 elif attendee.age_group == AGE_UNKNOWN:
                     message = 'Please select an age category'
@@ -364,7 +364,7 @@ class Root:
                 elif attendee.badge_type not in [ATTENDEE_BADGE, ONE_DAY_BADGE]:
                     message = 'No hacking allowed!'
                 else:
-                    if params['under_13'] and attendee.age_group == UNDER_18:
+                    if params.get('under_13') and attendee.age_group == UNDER_18:
                         attendee.for_review += 'Automated message: Attendee marked as under 13 during registration.'
                     attendee.badge_num = 0
                     if not attendee.zip_code:
@@ -444,7 +444,7 @@ class Root:
             'groups':     sorted(groups, key = lambda tup: tup[1]),
             'recent':     session.query(Attendee).filter(Attendee.badge_num == 0, Attendee.first_name != '', *restrict_to)
                                                  .order_by(Attendee.registered).all(),
-            'remaining_badges': max(0,(MAX_BADGE_SALES - state.BADGES_SOLD))
+            'remaining_badges': max(0, MAX_BADGE_SALES - state.BADGES_SOLD)
         }
 
     def new_reg_station(self, reg_station='', message=''):
