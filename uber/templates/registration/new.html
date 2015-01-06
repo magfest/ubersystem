@@ -92,6 +92,10 @@
     <br/> <a href="arbitrary_charge_form">Click Here</a> to create arbitrary credit card charges if Square stops working
 </div>
 
+<div style="text-align:center; font-weight:bold; {% if remaining_badges < 50 %} font-size:18pt; {% endif %}">
+    <br/> Badges remaining: <font color="red">{{ remaining_badges }}</font>
+</div>
+
 <div id="transactions" style="text-align:center ; margin-top:5px ; padding:10px ; background:lightgray">
     <table> <tr>
         <td>Record a Fee: </td>
@@ -121,8 +125,8 @@
     <td align="left">Name</td>
     <td>Badge Type</td>
     <td>Age</td>
+    <td>Cost</td>
     <td>Paid</td>
-    <td>Emergency #</td>
     <td>Badge</td>
     <td></td>
 </tr>
@@ -136,31 +140,24 @@
         </td>
         <td>{{ attendee.badge_type_label }}</td>
         <td>{{ attendee.age_group_label }}</td>
+        <td>${{ attendee.total_cost }}</td>
         <td>
             {% if attendee.paid == HAS_PAID %}
                 paid
-            {% elif attendee.payment_method == GROUP %}
-                group
             {% else %}
                 <form method="post" action="mark_as_paid">
                 {% csrf_token %}
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
                 <select name="payment_method" onChange="toggleMarkButton(this)">
-                    <option value="">payment method</option>
-                    {% options NEW_REG_PAYMENT_OPTS attendee.payment_method %}
+                    <option value="">Payment Method</option>
+                    {% options NEW_REG_PAYMENT_METHOD_OPTS attendee.payment_method %}
                 </select>
                 <input type="submit" disabled="disabled" value="Mark as Paid" />
                 </form>
             {% endif %}
         </td>
         <form method="post" action="new_checkin">
-        <td> <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" size="12" /> </td>
         <td>
-            <a href="" style="display:none">View</a>
-            <select name="group" onChange="groupChosen(this)">
-                <option value="">No Group</option>
-                {% options groups %}
-            </select>
             &nbsp;&nbsp;&nbsp;&nbsp;
             <input type="text" name="badge_num" size="4" />
         </td>

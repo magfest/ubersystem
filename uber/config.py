@@ -261,3 +261,5 @@ FEE_ITEM_NAMES = [name for price,name in FEE_PRICE_OPTS]
 
 AT_OR_POST_CON = AT_THE_CON or POST_CON
 PRE_CON = not AT_OR_POST_CON
+
+SAME_NUMBER_REPEATED = r'^(\d)\1+$'
