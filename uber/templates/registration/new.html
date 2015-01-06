@@ -125,8 +125,8 @@
     <td align="left">Name</td>
     <td>Badge Type</td>
     <td>Age</td>
+    <td>Cost</td>
     <td>Paid</td>
-    <td>Emergency #</td>
     <td>Badge</td>
     <td></td>
 </tr>
@@ -140,17 +140,16 @@
         </td>
         <td>{{ attendee.badge_type_label }}</td>
         <td>{{ attendee.age_group_label }}</td>
+        <td>${{ attendee.total_cost }}</td>
         <td>
             {% if attendee.paid == HAS_PAID %}
                 paid
-            {% elif attendee.payment_method == GROUP %}
-                group
             {% else %}
                 <form method="post" action="mark_as_paid">
                 {% csrf_token %}
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
                 <select name="payment_method" onChange="toggleMarkButton(this)">
-                    <option value="">payment method</option>
+                    <option value="">Payment Method</option>
                     {% options NEW_REG_PAYMENT_METHOD_OPTS attendee.payment_method %}
                 </select>
                 <input type="submit" disabled="disabled" value="Mark as Paid" />
@@ -158,13 +157,7 @@
             {% endif %}
         </td>
         <form method="post" action="new_checkin">
-        <td> <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" size="12" /> </td>
         <td>
-            <a href="" style="display:none">View</a>
-            <select name="group" onChange="groupChosen(this)">
-                <option value="">No Group</option>
-                {% options groups %}
-            </select>
             &nbsp;&nbsp;&nbsp;&nbsp;
             <input type="text" name="badge_num" size="4" />
         </td>
