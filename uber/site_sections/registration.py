@@ -353,8 +353,10 @@ class Root:
                     message = 'Please select a payment type'
                 elif not attendee.first_name or not attendee.last_name:
                     message = 'First and Last Name are required fields'
-                elif attendee.ec_phone[:1] != '+' and len(re.compile('[0-9]').findall(attendee.ec_phone)) != 10 or re.search(r'^(\d)\1+$', re.sub(r'[^0-9]','',attendee.ec_phone)):
+                elif attendee.ec_phone[:1] != '+' and len(re.compile('[0-9]').findall(attendee.ec_phone)) != 10:
                     message = 'Enter a 10-digit emergency contact number'
+                elif re.search(r'^(\d)\1+$', re.sub(r'[^0-9]','',attendee.ec_phone)):
+                    message = 'Please enter a real emergency contact number'
                 elif attendee.age_group == AGE_UNKNOWN:
                     message = 'Please select an age category'
                 elif attendee.payment_method == MANUAL and not attendee.email:
