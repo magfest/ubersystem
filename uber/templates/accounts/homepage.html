@@ -37,21 +37,25 @@
 {% endif %}
 
 {% if HAS_PEOPLE_ACCESS %}
-    <div class="heading"> People </div>
-    <div class="indent"> Manage the people coming to and working for {{ EVENT_NAME }}. </div>
+    <div class="heading"> Registration </div>
+    <div class="indent"> Manage the people coming to {{ EVENT_NAME }}.</div>
     <ul>
-        <li> <a href="../registration/">Attendees</a> </li>
+        <li> <a href="../registration/">Attendee Check-In</a> </li>
+        <li> <a href="../registration/new">At-Door Badge Sales</a></li>
         <li> <a href="../groups/">Groups</a> </li>
-        {% if AT_THE_CON %}
-            <li> <a href="../jobs/everywhere">All untaken shifts for all departments</a> </li>
-        {% else %}
-            <li> <a href="../registration/staffers">Staffers</a> </li>
-        {% endif %}
-        <li> <a href="../jobs/">Jobs</a> </li>
         <li> <a href="../registration/feed">Feed of Database Changes</a> </li>
         {% if AT_OR_POST_CON %}
             <li> <a href="../registration/merch">Merch</a> </li>
         {% endif %}
+    </ul>
+    <div class="heading"> Staffing </div>
+    <div class="indent">Manage the people working for {{ EVENT_NAME }}.</div>
+    <ul>
+        {% if AT_THE_CON %}
+            <li> <a href="../jobs/everywhere">All untaken shifts for all departments</a> </li>
+        {% endif %}
+        <li> <a href="../registration/staffers">Staffers</a> </li>
+        <li> <a href="../jobs/">Jobs</a> </li>
     </ul>
 {% endif %}
 
