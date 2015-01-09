@@ -114,9 +114,9 @@
     });
 
     function selectGroup(id, attendee) {
-        selectedGroup = $("#group_" + attendee +" option[value='" + id + "']").val();
-        if (selectedGroup) {
-            $("#group_" + attendee +" option[value='" + id + "']").prop('selected',true);
+        selectedGroup = $("#group_" + attendee +" option[value='" + id + "']")
+        if (selectedGroup.val()) {
+            selectedGroup.prop('selected',true);
             return true
         } else {
             alert("Invalid group code!")
@@ -278,13 +278,9 @@
         </fieldset>
     </form>
 </div>
-    <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
-        <td id="name_{{ attendee.id }}" style="text-align:left">
-            <button class="attendee-checkin" data-attendeeid="{{ attendee.id }}">Popup</button>
-{% else %}
-    <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
-        <td id="name_{{ attendee.id }}" style="text-align:left">
 {% endif %}
+        <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
+        <td id="name_{{ attendee.id }}" style="text-align:left">
             <a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a>
             {% if attendee.group %}
                 <br/> <a style="font-size:8pt" href="../groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
@@ -315,7 +311,7 @@
                 {{ attendee.age_group_label }}
             </td>
             <td id="cin_{{ attendee.id }}">
-                <input type="submit" value="Check In" onClick="check_in({{ attendee.id }})" {% if attendee.is_unassigned %}disabled{% endif %} />
+                <button class="attendee-checkin" data-attendeeid="{{ attendee.id }}" {% if attendee.is_unassigned %} disabled {% endif %}>Check In</button>
             </td>
         {% endif %}
     </tr>
