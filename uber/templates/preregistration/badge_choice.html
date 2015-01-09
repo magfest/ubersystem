@@ -57,12 +57,6 @@
         </td>
         <td> {% popup_link "../static_views/attendees.html" "Details" %} </td>
     </tr>
-{% if AFTER_PREREG_TAKEDOWN and ONE_DAYS_ENABLED %}
-    <tr>
-        <td> <b>Single Day Passes:</b> </td>
-        <td><ul><li>Single days passes available for sale at the door for {% single_day_prices %}.</li></ul></td>
-    </tr>
-{% endif %}
 {% if SUPPORTERS_ENABLED %}
     <tr>
         <td class="nobr">
@@ -104,6 +98,12 @@
                 <ul><li>The deadline for Group registration has passed, but you can still register as a regular attendee.</li></ul>
             </td>
     {% endif %}
+    </tr>
+{% endif %}
+{% if DISPLAY_ONEDAY_BADGES %}
+    <tr>
+        <td> <b>Single Day Passes:</b> </td>
+        <td><ul><li>Single day passes available for sale at the door for {% single_day_prices %}.</li></ul></td>
     </tr>
 {% endif %}
 </table>

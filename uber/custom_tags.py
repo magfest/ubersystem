@@ -439,8 +439,12 @@ class single_day_prices(template.Node):
     def render(self, context):
         prices = ''
         for day, price in BADGE_PRICES['single_day'].items():
-            prices += '${} for {}, '.format(price, day)
-        return prices + 'and ${} for other days'.format(BADGE_PRICES['default_single_day'])
+            if day == datetime.strftime(ESCHATON, "%A"):
+                prices += 'and ${} for {}'.format(price, day)
+            else:
+                prices += '${} for {}, '.format(price, day)
+        #prices += 'and ${} for other days'.format(BADGE_PRICES['default_single_day'])
+        return prices
 
 class Notice(template.Node):
     def notice(self, label, takedown, discount=0, amount_extra=0):

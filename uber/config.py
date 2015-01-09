@@ -102,6 +102,10 @@ class State:
             opts.append((ONE_DAY_BADGE,  'Single Day Pass (${})'.format(self.ONEDAY_BADGE_PRICE)))
         return opts
 
+    @property
+    def DISPLAY_ONEDAY_BADGES(self):
+        return ONE_DAYS_ENABLED and days_before(30, EPOCH)
+
     def __getattr__(self, name):
         if name.split('_')[0] in ['BEFORE', 'AFTER']:
             date_setting = globals()[name.split('_', 1)[1]]
