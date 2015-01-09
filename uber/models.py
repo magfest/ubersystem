@@ -917,6 +917,10 @@ class Job(MagModel):
             hours.add(self.start_time + timedelta(hours=i))
         return hours
 
+    @property
+    def end_time(self):
+        return self.start_time + timedelta(hours=self.duration)
+
     def no_overlap(self, attendee):
         before = self.start_time - timedelta(hours=1)
         after  = self.start_time + timedelta(hours=self.duration)
