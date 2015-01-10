@@ -134,19 +134,14 @@ class Root:
         status = lambda got_merch: 'picked_up' if got_merch else 'outstanding'
         for attendee in session.query(Attendee).all():
             if attendee.gets_free_shirt:
-                if attendee.badge_type == STAFF_BADGE:
-                    counts['staff'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
-                    counts['all'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
-                elif attendee.staffing:
-                    counts['volunteer'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
-                    counts['all'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
+                counts['free'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
+                counts['all'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
             if attendee.gets_paid_shirt:
                 counts['paid'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
                 counts['all'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
         return {
             'categories': [
-                ('Staff', sort(counts['staff'])),
-                ('Eligible volunteer', sort(counts['volunteer'])),
+                ('Eligible free', sort(counts['free'])),
                 ('Paid', sort(counts['paid'])),
                 ('All pre-ordered', sort(counts['all']))
             ]

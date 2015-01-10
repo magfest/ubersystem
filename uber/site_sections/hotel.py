@@ -41,7 +41,7 @@ class Root:
 
     def no_shows(self, session):
         staffers = session.query(Attendee).filter_by(badge_type=STAFF_BADGE).order_by(Attendee.full_name).all()
-        staffers = [s for s in staffers if s.hotel_shifts_required and not s.checked_in]
+        staffers = [s for s in staffers if s.hotel_nights and not s.checked_in]
         return {'staffers': staffers}
 
     @ajax
