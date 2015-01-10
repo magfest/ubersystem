@@ -51,7 +51,8 @@ In addition to the Hospitality Suite, you can buy food at the Galaxy Cafe.  To g
             <td>{{ shift.job.name }}</td>
             <td>{{ shift.job.location_label }}</td>
             <td>{{ shift.job.start_time|time:"gA"|lower }} {{ shift.job.start_time|date:"D" }}</td>
-            <td>{{ shift.job.duration }}</td>
+            <td>{% if shift.job.is_setup or shift.job.is_teardown %}__________
+                {% else %}{{ shift.job.duration }}{% endif %}</td>
             <td>(x{{ shift.job.weight }})</td>
             <td>__________</td>
         </tr>
