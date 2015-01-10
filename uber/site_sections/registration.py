@@ -173,14 +173,14 @@ class Root:
         except:
             return {'success': False, 'message': 'No one has badge number {}'.format(badge_num)}
 
-        ome = OldMPointExchange(attendee=attendee, amount=mpoints)
+        ome = OldMPointExchange(attendee=attendee, mpoints=mpoints)
         message = check(ome)
         if message:
             return {'success': False, 'message': message}
         else:
             session.add(ome)
             session.commit()
-            message = "{ome.attendee.full_name} exchanged {ome.amount} of last year's MPoints".format(ome=ome)
+            message = "{ome.attendee.full_name} exchanged {ome.mpoints} of last year's MPoints".format(ome=ome)
             return {'id': ome.id, 'success': True, 'message': message}
 
     @ajax

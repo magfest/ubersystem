@@ -39,11 +39,6 @@ class Root:
         staffers = [s for s in staffers if s.hotel_shifts_required and s.weighted_hours < 30]
         return {'staffers': staffers}
 
-    def no_shows(self, session):
-        staffers = session.query(Attendee).filter_by(badge_type=STAFF_BADGE).order_by(Attendee.full_name).all()
-        staffers = [s for s in staffers if s.hotel_nights and not s.checked_in]
-        return {'staffers': staffers}
-
     @ajax
     def approve(self, session, id, approved):
         # TODO: turn this on in a week, and in the long run decide whether this should be a separate deadline

@@ -256,7 +256,7 @@ class must_contact(template.Node):
     def render(self, context):
         staffer = self.staffer.resolve(context)
         chairs = defaultdict(list)
-        for dept, head in DEPT_HEAD_OVERRIDES.items():
+        for dept, head in DEPT_CHAIR_OVERRIDES.items():
             chairs[dept].append(head)
         for head in staffer.session.query(Attendee).filter_by(ribbon=DEPT_HEAD_RIBBON).order_by('badge_num').all():
             for dept in head.assigned_depts_ints:
