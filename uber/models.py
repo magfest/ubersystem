@@ -642,6 +642,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         merch = self.donation_swag
         if self.gets_shirt and DONATION_TIERS[SHIRT_LEVEL] not in merch:
             merch.append(DONATION_TIERS[SHIRT_LEVEL])
+        elif self.gets_free_shirt:
+            merch.append("2nd " + DONATION_TIERS[SHIRT_LEVEL])
         if self.extra_merch:
             merch.append(self.extra_merch)
         return comma_and(merch)
@@ -916,6 +918,10 @@ class Job(MagModel):
         for i in range(self.duration):
             hours.add(self.start_time + timedelta(hours=i))
         return hours
+
+    @property
+    def end_time(self):
+        return self.start_time + timedelta(hours=self.duration)
 
     def no_overlap(self, attendee):
         before = self.start_time - timedelta(hours=1)

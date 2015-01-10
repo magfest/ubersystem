@@ -150,7 +150,7 @@ def job_conflicts(job):
 cashformpoints_amount = money_amount
 
 def oldmpointexchange_numbers(mpe):
-    if not str(mpe.mpoints).isdigit():
+    if not str(mpe.amount).isdigit():
         return 'MPoints must be a positive integer'
 
 sale_required = [('what',"What's being sold")]

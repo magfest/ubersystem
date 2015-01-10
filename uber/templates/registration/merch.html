@@ -43,7 +43,7 @@
     }
     
     function recordMPointExchange() {
-        $.post("record_mpoint_exchange", {
+        $.post("record_old_mpoint_exchange", {
                 badge_num:  $("#ex_badge_num").val(),
                 mpoints:    $("#ex_mpoints").val(),
                 csrf_token: csrf_token
@@ -146,6 +146,7 @@
 
 <div class="center" style="margin-bottom:10px ; font-style:italic">
     Square not working?  In a pinch, you can create arbitrary charges <a href="arbitrary_charge_form">here</a>.
+    <br/>See outstanding t-shirt counts <a href="../summary/shirt_counts">here</a>.
 </div>
 
 <table>
