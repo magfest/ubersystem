@@ -63,7 +63,7 @@
                                 <i>{{ shift.worked_label }}</i>
                             {% else %}
                                 <select onChange="setStatus({{ shift.id }}, this)">
-                                    {% options WORKED_OPTS shift.worked %}
+                                    {% options WORKED_STATUS_OPTS shift.worked %}
                                 </select>
                             {% endif %}
                         </td>
