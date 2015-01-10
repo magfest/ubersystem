@@ -134,18 +134,34 @@ class Root:
         status = lambda got_merch: 'picked_up' if got_merch else 'outstanding'
         for attendee in session.query(Attendee).all():
             if attendee.gets_free_shirt:
-                counts['free'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
+                if attendee.badge_type == STAFF_BADGE:
+                    counts['staff'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
+                    counts['all'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
+                elif attendee.staffing:
+                    counts['volunteer'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
+                    counts['all'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
             if attendee.gets_paid_shirt:
                 counts['paid'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
-            if attendee.gets_free_shirt and attendee.gets_paid_shirt:
-                counts['both'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
+                counts['all'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
         return {
             'categories': [
-                ('Free', sort(counts['free'])),
+                ('Staff', sort(counts['staff'])),
+                ('Eligible volunteer', sort(counts['volunteer'])),
                 ('Paid', sort(counts['paid'])),
-                ('Number of people who were counted in both of the above categories of', sort(counts['both']))
+                ('All pre-ordered', sort(counts['all']))
             ]
         }
+
+    def merch_summary(self, session):
+        attendees = session.everyone()
+        staff_shirts = len([a for a in attendees if a.gets_free_shirt and a.badge_type == STAFF_BADGE
+                            and not a.got_merch])
+        volunteer_shirts = len([a for a in attendees if a.gets_free_shirt and a.ribbon_type == VOLUNTEER_RIBBON
+                            and not a.got_merch])
+        paid_shirts = len([a for a in attendees if a.gets_paid_shirt and not a.got_merch])
+        return {'staff_shirts': staff_shirts,
+                'volunteer_shirts': volunteer_shirts,
+                'paid_shirts': paid_shirts}
 
     def restricted_untaken(self, session):
         jobs, shifts, attendees = session.everything()

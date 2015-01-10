@@ -642,6 +642,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         merch = self.donation_swag
         if self.gets_shirt and DONATION_TIERS[SHIRT_LEVEL] not in merch:
             merch.append(DONATION_TIERS[SHIRT_LEVEL])
+        elif self.gets_free_shirt:
+            merch.append("2nd " + DONATION_TIERS[SHIRT_LEVEL])
         if self.extra_merch:
             merch.append(self.extra_merch)
         return comma_and(merch)
