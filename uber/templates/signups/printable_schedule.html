@@ -9,12 +9,12 @@ If your shifts are not marked as worked, you won't
 get a free badge or free hotel room space next year.
 
 <br/> <br/>
-Free food is available in the Hospitality Suite in Room 6176 during the following times:
+Free food is available in the Hospitality Suite in Room 6135 during the following times:
 <ul>
-    <li>Breakfast: 7:00 am to 11:00 am</li>
-    <li>Lunch: 12:00 pm to 4:00 pm</li>
-    <li>Dinner: 5:00 pm to 9:00 pm</li>
-    <li>Overnight: 9:00 pm to 4:00 am (or until the hot food has run out, whichever occurs first)</li>
+    <li>Breakfast: 8am to 11am</li>
+    <li>Lunch: 1pm to 4pm</li>
+    <li>Dinner: 6pm to 10pm</li>
+    <li>Overnight: 12am to 5am</li>
 </ul>
 
 {% if attendee.badge_type == ATTENDEE_BADGE %}
@@ -25,9 +25,9 @@ Free food is available in the Hospitality Suite in Room 6176 during the followin
 <br/>
 In addition to the Hospitality Suite, you can buy food at the Galaxy Cafe.  To get there, go to the far back of the Maryland Ballroom foyer, then go through the doors and turn left.  Just before you get to the Security desk in the hallway, look to your left and there will be a wide set of stairs going down.  Go down those stairs and then the Galaxy Cafe will be on your right.  You can use the Galaxy Cafe during any of the following times:
 <ul>
-    <li>Breakfast ($13.00): 6:30am - 8:00am</li>
-    <li>Lunch ($15.00): 1:00pm - 2:30pm</li>
-    <li>Dinner ($15.00): 7:00pm - 9:00pm</li>
+    <li>Breakfast ($12.50): 6:30am - 8:00am</li>
+    <li>Lunch ($14.50): 1:00pm - 2:30pm</li>
+    <li>Dinner (14:50): 7:00pm - 9:00pm</li>
 </ul>
 
 {% if attendee.shifts %}
@@ -51,8 +51,7 @@ In addition to the Hospitality Suite, you can buy food at the Galaxy Cafe.  To g
             <td>{{ shift.job.name }}</td>
             <td>{{ shift.job.location_label }}</td>
             <td>{{ shift.job.start_time|time:"gA"|lower }} {{ shift.job.start_time|date:"D" }}</td>
-            <td>{% if shift.job.is_setup or shift.job.is_teardown %}__________
-                {% else %}{{ shift.job.duration }}{% endif %}</td>
+            <td>{{ shift.job.duration }}</td>
             <td>(x{{ shift.job.weight }})</td>
             <td>__________</td>
         </tr>
