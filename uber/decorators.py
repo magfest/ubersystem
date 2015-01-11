@@ -110,6 +110,42 @@ def credit_card(func):
     return charge
 
 
+def cached(func):
+    func.cached = True
+    return func
+
+
+def cached_page(func):
+    from sideboard.lib import config as sideboard_config
+    innermost = get_innermost(func)
+    func.lock = RLock()
+    @wraps(func)
+    def with_caching(*args, **kwargs):
+        if hasattr(innermost, 'cached'):
+            fpath = os.path.join(sideboard_config['root'], 'data', func.__module__ + '.' + func.__name__)
+            with func.lock:
+                if not os.path.exists(fpath) or datetime.now().timestamp() - os.stat(fpath).st_mtime > 60 * 15:
+                    contents = func(*args, **kwargs)
+                    with open(fpath, 'wb') as f:
+                        f.write(contents)
+                with open(fpath, 'rb') as f:
+                    return f.read()
+        else:
+            return func(*args, **kwargs)
+    return with_caching
+
+
+def timed(func):
+    @wraps(func)
+    def with_timing(*args, **kwargs):
+        before = datetime.now()
+        try:
+            return func(*args, **kwargs)
+        finally:
+            log.debug('{}.{} loaded in {} seconds'.format(func.__module__, func.__name__, (datetime.now() - before).total_seconds()))
+    return with_timing
+
+
 def sessionized(func):
     @wraps(func)
     def with_session(*args, **kwargs):
@@ -220,7 +256,7 @@ class all_renderable:
         for name,func in klass.__dict__.items():
             if hasattr(func, '__call__'):
                 func.restricted = getattr(func, 'restricted', self.needs_access)
-                new_func = sessionized(restricted(renderable(func)))
+                new_func = timed(cached_page(sessionized(restricted(renderable(func)))))
                 new_func.exposed = True
                 setattr(klass, name, new_func)
         return klass
