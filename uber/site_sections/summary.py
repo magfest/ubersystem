@@ -147,6 +147,9 @@ class Root:
             ]
         }
 
+    def extra_merch(self, session):
+        return {'attendees': session.query(Attendee).filter(Attendee.extra_merch != '').order_by(Attendee.full_name).all()}
+
     def restricted_untaken(self, session):
         jobs, shifts, attendees = session.everything()
         untaken = defaultdict(lambda: defaultdict(list))
