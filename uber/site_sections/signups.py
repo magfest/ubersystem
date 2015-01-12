@@ -11,6 +11,9 @@ class Root:
                 'attendee': session.logged_in_volunteer()
             }
 
+    def printable(self, session):
+        return {'attendee': session.logged_in_volunteer()}
+
     @check_shutdown
     def fire_safety(self, session, message='', fire_safety_cert=None, csrf_token=None):
         attendee = session.logged_in_volunteer()
