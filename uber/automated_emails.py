@@ -212,6 +212,11 @@ StopsEmail('Still want to volunteer at {EVENT_NAME}?', 'shifts/volunteer_check.t
               lambda a: SHIFTS_CREATED and days_before(5, UBER_TAKEDOWN)
                                        and a.ribbon == VOLUNTEER_RIBBON and a.takes_shifts and a.weighted_hours == 0)
 
+StopsEmail('Please tell us your {EVENT_NAME} shirt size', 'shifts/shirt_reminder.txt',
+           lambda a: SHIFTS_CREATED and a.shirt == NO_SHIRT and a.gets_shirt
+                                    and days_before(30, UBER_TAKEDOWN) and days_after(1, a.registered),
+           needs_approval=True)
+
 
 # MAGFest provides staff rooms for returning volunteers; leave ROOM_DEADLINE blank to keep these emails turned off.
 
