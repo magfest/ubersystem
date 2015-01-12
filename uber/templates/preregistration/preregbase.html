@@ -11,10 +11,10 @@
     var checkCap = function () {
         $.getJSON('check_prereg', function(check) {
             if (check.force_refresh) {
-                location.reload(); // Reload the page to prevent registering after reg is closed
+                location.reload();  // Reload the page to prevent registering after reg is closed
             }
         });
     };
-    setInterval(checkCap, 1000 * 1 * 15);
+    setInterval(checkCap, 1000 * 1 * 90);
 </script>
 {% endblock header %}

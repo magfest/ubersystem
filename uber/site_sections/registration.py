@@ -534,6 +534,7 @@ class Root:
 
         raise HTTPRedirect('new?message={}&checked_in={}', message, checked_in)
 
+    @unrestricted
     def arbitrary_charge_form(self, message='', amount=None, description=''):
         charge = None
         if amount is not None:
@@ -551,6 +552,7 @@ class Root:
             'description': description
         }
 
+    @unrestricted
     @credit_card
     def arbitrary_charge(self, session, payment_id, stripeToken):
         charge = Charge.get(payment_id)

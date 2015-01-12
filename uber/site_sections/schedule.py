@@ -4,6 +4,7 @@ from django.utils.text import normalize_newlines
 @all_renderable(STUFF)
 class Root:
     @unrestricted
+    @cached
     def index(self, session, message=''):
         if HIDE_SCHEDULE and not AdminAccount.access_set() and not cherrypy.session.get('staffer_id'):
             return "The " + EVENT_NAME + " schedule is being developed and will be made public when it's closer to being finalized."
