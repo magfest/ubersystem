@@ -612,9 +612,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def gets_free_shirt(self):
         return self.is_dept_head \
             or self.badge_type == STAFF_BADGE \
-            or self.staffing and (self.assigned_depts and not self.takes_shifts
-                               or PRE_CON and self.weighted_hours >= 6
-                               or AT_OR_POST_CON and self.worked_hours >= 6)
+            or self.staffing and (self.assigned_depts and not self.takes_shifts or self.weighted_hours >= 6)
 
     @property
     def gets_paid_shirt(self):
