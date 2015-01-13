@@ -623,7 +623,7 @@ class Root:
         if not re.match('^[0-9]+$', nonshift_hours):
             raise HTTPRedirect('shifts?id={}&message={}', attendee.id, 'Invalid integer')
         else:
-            attendee.nonshift_hours = nonshift_hours
+            attendee.nonshift_hours = int(nonshift_hours)
             raise HTTPRedirect('shifts?id={}&message={}', attendee.id, 'Non-shift hours updated')
 
     @csrf_protected
