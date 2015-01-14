@@ -274,6 +274,14 @@ class Root:
     def merch(self, message=''):
         return {'message': message}
 
+    def lost_badge(self, session, id):
+        a = session.attendee(id)
+        a.for_review += "Automated message: Badge reported lost on {}. Previous payment type: {}.".format(localized_now().strftime('%m/%d, %H:%M'),a.paid_label)
+        a.paid = LOST_BADGE
+        session.add(a)
+        session.commit()
+        raise HTTPRedirect('index?message={}', 'Badge has been recorded as lost.')
+
     @ajax
     def check_merch(self, session, badge_num):
         id = shirt = None

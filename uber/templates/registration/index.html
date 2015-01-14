@@ -233,7 +233,17 @@
         {% if attendee.checked_in or not AT_THE_CON %}
             <td> <nobr>{{ attendee.age_group_label }}</nobr> </td>
             {% if AT_THE_CON %}
-                <td> {{ attendee.checked_in|time:"fA"|lower }} {{ attendee.checked_in|date:"D" }} </td>
+                <td>
+                    {% if attendee.paid == LOST_BADGE %}
+                    <strong>Badge reported as lost!</strong>
+                    {% else %}
+                    {{ attendee.checked_in|time:"fA"|lower }} {{ attendee.checked_in|date:"D" }} <br/>
+                    <form method="post" action="lost_badge">
+                        <input type="hidden" name="id" value="{{ attendee.id }}" />
+                        <input type="submit" value="Report Lost Badge">
+                    </form>
+                    {% endif %}
+                </td>
             {% endif %}
         {% elif attendee.paid == NOT_PAID %}
             <td colspan="2">

@@ -316,6 +316,16 @@
             <br/><input type="submit" value="{% if attendee.group %}Unassign this group badge{% else %}Delete Attendee{% endif %}" />
         </form>
     </div>
+
+    {% if attendee.paid != LOST_BADGE %}
+        <br/>
+        <div style="margin-left:25%">
+            <form method="post" action="lost_badge">
+                <input type="hidden" name="id" value="{{ attendee.id }}" />
+                <input type="submit" value="Report Lost Badge">
+            </form>
+        </div>
+    {% endif %}
 {% endif %}
 
 {% endblock %}
