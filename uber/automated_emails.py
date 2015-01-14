@@ -130,6 +130,14 @@ GroupEmail('Reminder to pre-assign {EVENT_NAME} group badges', 'reg_workflow/gro
 AutomatedEmail(Group, 'Last chance to pre-assign {EVENT_NAME} group badges', 'reg_workflow/group_preassign_reminder.txt',
          lambda g: state.AFTER_GROUP_PREREG_TAKEDOWN and g.unregistered_badges and (not g.is_dealer or g.status == APPROVED))
 
+# Reminder emails for groups with a remaining balance to pay. These are sometimes necessary for when groups
+# add badges after registering.
+
+AutomatedEmail(Group, 'Reminder to pay for your {EVENT_NAME} group badges', 'reg_workflow/group_payment_reminder.txt',
+           lambda g: days_before(30, EPOCH) and g.amount_unpaid and (not g.is_dealer or g.status == APPROVED))
+
+AutomatedEmail(Group, 'Last chance to pay for your {EVENT_NAME} group badges', 'reg_workflow/group_payment_reminder.txt',
+           lambda g: days_before(7, EPOCH) and g.amount_unpaid and (not g.is_dealer or g.status == APPROVED))
 
 # Dealer emails; these are safe to be turned on for all events because even if the event doesn't have dealers,
 # none of these emails will be sent unless someone has applied to be a dealer, which they cannot do until
