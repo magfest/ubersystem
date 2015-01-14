@@ -86,10 +86,6 @@
             width: 350,
             modal: true,
             buttons: {
-                "Scan Group Barcode": function() {
-                    var groupCode = prompt("Scan group barcode : ", "");
-                    selectGroup(groupCode, attendee_id);
-                },
                 "Save & Check In": function() {
                     check_in(attendee_id);
                     dialog.dialog("close");
