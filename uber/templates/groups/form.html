@@ -197,9 +197,9 @@
                 {% if attendee == group.leader %}
                     (cannot unassign group leader)
                 {% elif attendee.checked_in %}
-                    Checked-in {{ attendee.checked_in|time:"fA"|lower }} {{ attendee.checked_in|date:"D" }}
+                    <b>Checked-in {{ attendee.checked_in|time:"fA"|lower }} {{ attendee.checked_in|date:"D" }}</b>
                 {% elif attendee.amount_extra %}
-                    (cannot unassign badges with kick-ins)
+                    <b>Kicked in an extra ${{ attendee.amount_extra }}!</b>
                 {% elif not attendee.is_unassigned %}
                     <form method="post" action="../registration/delete" onSubmit="return confirm('Are you sure you want to unassign this badge?');">
                         {% csrf_token %}
