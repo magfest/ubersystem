@@ -193,6 +193,20 @@
                     </form>
                 {% endif %}
             </td>
+            <td>
+                {% if attendee == group.leader %}
+                    (cannot unassign group leader)
+                {% elif attendee.checked_in %}
+                    Checked-in {{ attendee.checked_in|time:"fA"|lower }} {{ attendee.checked_in|date:"D" }}
+                {% elif not attendee.is_unassigned %}
+                    <form method="post" action="../registration/delete" onSubmit="return confirm('Are you sure you want to unassign this badge?');">
+                        {% csrf_token %}
+                        <input type="hidden" name="id" value="{{ attendee.id }}" />
+                        <input type="hidden" name="return_to" value="../groups/form?id={{ group.id }}" />
+                        <input type="submit" value="Unassign" />
+                    </form>
+                {% endif %}
+            </td>
         </tr>
     {% endfor %}
     </table>
