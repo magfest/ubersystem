@@ -170,9 +170,9 @@ def _make_enum(enum_name, section):
     globals()[enum_name + '_VARS'] = varnames
     globals()[enum_name + ('' if enum_name.endswith('S') else 'S')] = lookup
 
-def check_int(s):
-    if s[0] in ('-', '+'):
-    	return s[1:].isdigit()
+def _is_intstr(s):
+    if s and s[0] in ('-', '+'):
+        return s[1:].isdigit()
     return s.isdigit()
 
 for _name, _section in _config['enums'].items():
@@ -186,7 +186,7 @@ for _name, _section in _config['integer_enums'].items():
     if isinstance(_section, dict):
         _interpolated = OrderedDict()
         for _desc, _val in _section.items():
-            if check_int(_val):
+            if _is_intstr(_val):
                 key = int(_val)
             else:
                 key = globals()[_val.upper()]
