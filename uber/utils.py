@@ -11,9 +11,9 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
     def quote(self, s):
         return quote(s) if isinstance(s, str) else str(s)
 
-
 def localized_now():
-    return EVENT_TIMEZONE.localize(datetime.now())
+    utc_now = datetime.utcnow().replace(tzinfo=UTC)
+    return utc_now.astimezone(EVENT_TIMEZONE)
 
 
 def comma_and(xs):
