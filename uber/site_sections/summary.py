@@ -147,17 +147,6 @@ class Root:
             ]
         }
 
-    def merch_summary(self, session):
-        attendees = session.everyone()
-        staff_shirts = len([a for a in attendees if a.gets_free_shirt and a.badge_type == STAFF_BADGE
-                            and not a.got_merch])
-        volunteer_shirts = len([a for a in attendees if a.gets_free_shirt and a.ribbon_type == VOLUNTEER_RIBBON
-                            and not a.got_merch])
-        paid_shirts = len([a for a in attendees if a.gets_paid_shirt and not a.got_merch])
-        return {'staff_shirts': staff_shirts,
-                'volunteer_shirts': volunteer_shirts,
-                'paid_shirts': paid_shirts}
-
     def extra_merch(self, session):
         return {'attendees': session.query(Attendee).filter(Attendee.extra_merch != '').order_by(Attendee.full_name).all()}
 
