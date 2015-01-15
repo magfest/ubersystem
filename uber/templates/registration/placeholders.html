@@ -42,12 +42,20 @@ We create placeholder registrations for volunteers and ask them to fill out the 
 <tr class="header">
     <td>Name</td>
     <td>Badge</td>
+    <td>Group</td>
     <td>Departments</td>
 </tr>
 {% for attendee in placeholders %}
     <tr>
         <td>{{ attendee|form_link }}</td>
         <td>{{ attendee.badge }}</td>
+        <td>
+            {% if attendee.group %}
+                <a href="../groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
+            {% else %}
+                n/a
+            {% endif %}
+        </td>
         <td>{{ attendee.assigned_depts_labels|join:' / ' }}</td>
     </tr>
 {% endfor %}
