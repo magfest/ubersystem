@@ -97,7 +97,7 @@
     <script type="text/javascript">
         $(function(){
             $("body").append(
-                $('<a style="cursor:pointer">Click here to add more members to your group.</a>').click(function(e){
+                $('<a style="cursor:pointer">Click here to add more members to your group for ${{ group.new_badge_cost }} each.</a>').click(function(e){
                     $(e.target).hide();
                     $("#add").show();
                 }));

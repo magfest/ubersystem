@@ -341,6 +341,10 @@ class Group(MagModel, TakesPaymentMixin):
         return total
 
     @property
+    def new_badge_cost(self):
+        return DEALER_BADGE_PRICE if self.tables else state.get_group_price(localized_now())
+
+    @property
     def badge_cost(self):
         total = 0
         for attendee in self.attendees:
