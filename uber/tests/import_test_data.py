@@ -18,7 +18,7 @@ def random_group_name():
 def import_groups(session):
     for g in dump['groups']:
         secret_id = g.pop('secret_id')
-        g['cost'] = g.pop('amount_unpaid')
+        g['cost'] = g.pop('amount_owed')
         g['name'] = random_group_name()
         groups[secret_id] = Group(**g)
         session.add(groups[secret_id])
