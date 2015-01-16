@@ -40,8 +40,8 @@
     <div class="heading"> Registration </div>
     <div class="indent"> Manage the people coming to {{ EVENT_NAME }}.</div>
     <ul>
-        <li> <a href="../registration/">Attendee Check-In</a> </li>
-        <li> <a href="../registration/new">At-Door Badge Sales</a></li>
+        <li> <a href="../registration/">Attendees</a> </li>
+        {% if AT_THE_CON %}<li> <a href="../registration/new">At-Door Badge Sales</a></li>{% endif %}
         <li> <a href="../groups/">Groups</a> </li>
         <li> <a href="../registration/feed">Feed of Database Changes</a> </li>
         {% if AT_OR_POST_CON %}
