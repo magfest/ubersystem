@@ -341,6 +341,10 @@ class Group(MagModel, TakesPaymentMixin):
         return total
 
     @property
+    def new_badge_cost(self):
+        return DEALER_BADGE_PRICE if self.tables else state.get_group_price(localized_now())
+
+    @property
     def badge_cost(self):
         total = 0
         for attendee in self.attendees:
@@ -603,7 +607,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         return badge
 
     @property
-    def is_transferrable(self):
+    def is_transferable(self):
         return not self.is_new and not self.trusted and not self.checked_in \
            and self.paid in [HAS_PAID, PAID_BY_GROUP] \
            and self.badge_type not in [STAFF_BADGE, GUEST_BADGE]
