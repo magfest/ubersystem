@@ -225,6 +225,9 @@ StopsEmail('Please tell us your {EVENT_NAME} shirt size', 'shifts/shirt_reminder
                                     and days_before(30, UBER_TAKEDOWN) and days_after(1, a.registered),
            needs_approval=True)
 
+StopsEmail('Review your {EVENT_NAME} shift schedule', 'shifts/schedule.html',
+           lambda a: SHIFTS_CREATED and a.takes_shifts and a.hours and days_before(14, UBER_TAKEDOWN),
+           needs_approval=True)
 
 # MAGFest provides staff rooms for returning volunteers; leave ROOM_DEADLINE blank to keep these emails turned off.
 

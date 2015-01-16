@@ -1,0 +1,14 @@
+<html>
+<head></head>
+<body>
+{{ attendee.first_name }},
+
+<br/><br/>{{ EVENT_NAME_AND_YEAR }} is almost upon us! Please take one last look at your shift schedule below to verify
+that you are signed up for the shifts you want. You will be able to log in and change your shifts at
+<a href="{{ URL_BASE }}/signups/login">this link</a> anytime until {{ UBER_TAKEDOWN|datetime }}.
+
+<br/><br/>Don't forget to pick up a copy of your schedule at Staffing Ops after you check in!
+
+<br/><br/>{% include "signups/printable_schedule.html" %}
+</body>
+</html>
