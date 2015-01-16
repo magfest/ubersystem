@@ -58,12 +58,14 @@
     <td></td>
     <td> <input type="submit" value="{% if attendee.placeholder %}Register{% else %}Update My Info{% endif %}" id="updateButton"/> </td>
 </tr>
+{% if attendee.is_transferable %}
 <tr>
     <td></td>
     <td>
         <button type="button" onClick='location.href="transfer_badge?id={{ attendee.id }}"'>Transfer my Badge</button>
     </td>
 </tr>
+{% endif %}
 </table>
 
 </form>
