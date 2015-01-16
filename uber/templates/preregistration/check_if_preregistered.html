@@ -1,0 +1,26 @@
+{% extends "./preregistration/preregbase.html" %}
+{% block title %}Check Registration for {{ EVENT_NAME }}{% endblock %}
+{% block content %}
+
+<div align="center"><h3>Check Preregistration</h3></div>
+<div>If for any reason you are unsure that you're preregistered for {{ EVENT_NAME_AND_YEAR }}, please enter your email
+    address below.
+
+<br/><br/>If you are pre-registered, you will receive a confirmation email. If you do not receive this email within a few
+    hours, and it is not in your Spam or Junk folder, please contact us at <strong>regsupport@magfest.org.</strong></div>
+<br/>
+<form method="post" action="check_if_preregistered">
+    <table width="100%" cellspacing="5" cellpadding="5">
+        <tr>
+            <td> <b>Email Address:</b> </td>
+            <td> <input type="text" name="email" placeholder="Enter your email here" /> </td>
+            <td> <input type="submit" value="Check my preregistration!" /> </td>
+        </tr>
+    </table>
+</form>
+<br/>
+<div style="color:rgb(127, 127, 127);font-size:small;text-align:center">
+    <em>Please note that in order to avoid accidentally spamming people, we can only send a confirmation email once per week.</em>
+</div>
+
+{% endblock %}
