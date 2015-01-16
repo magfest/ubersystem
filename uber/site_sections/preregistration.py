@@ -69,28 +69,17 @@ class Root:
 
     def check_if_preregistered(self, session, message="", **params):
         if 'email' in params:
-            attendee = session.query(Attendee).filter(func.lower(Attendee.email) == func.lower(params['email'])).one()
+            attendee = session.query(Attendee).filter(func.lower(Attendee.email) == func.lower(params['email'])).first()
             message = "Thank you! You will receive a confirmation email if you are registered for "+EVENT_NAME_AND_YEAR+"."
             subject = EVENT_NAME_AND_YEAR+' Registration Confirmation'
-            email_text = '''<html>
-            <head></head>
-            <body>
-            Hi '''+attendee.first_name+''',
-
-            <br/><br/>Thank you for double-checking your registration for '''+EVENT_NAME_AND_YEAR+'''. To confirm that you
-            are ready to pick up your badge at the fest, please follow
-            <a href="'''+URL_BASE+'''/preregistration/confirm?id='''+attendee.id+'''">this link</a> and verify that your
-            information is correct and that you have no outstanding balance. If you have any questions about your badge,
-            please contact us at <strong>regsupport@magfest.org</strong>. Thank you!
-            </body>
-            </html>'''
 
             if attendee:
                 last_email = session.query(Email)\
                                   .filter(and_(Email.dest == attendee.email, Email.subject == subject))\
                                   .order_by(Email.when.desc()).first()
                 if not last_email or last_email.when < (localized_now() - timedelta(days=7)):
-                    send_email(REGDESK_EMAIL, attendee.email, subject, email_text, model=attendee)
+                    send_email(REGDESK_EMAIL, attendee.email, subject, render('emails/reg_workflow/prereg_check.html', {
+                        'attendee': attendee }), model=attendee)
         return {'message': message}
 
 
