@@ -213,7 +213,7 @@ StopsEmail('Reminder to sign up for {EVENT_NAME} shifts', 'shifts/reminder.txt',
                  and state.BEFORE_PREREG_TAKEDOWN and a.takes_shifts and not a.hours)
 
 StopsEmail('Last chance to sign up for {EVENT_NAME} shifts', 'shifts/reminder.txt',
-              lambda a: days_before(10, EPOCH) and state.AFTER_SHIFTS_CREATED and BEFORE_PREREG_TAKEDOWN
+              lambda a: days_before(10, EPOCH) and state.AFTER_SHIFTS_CREATED and state.BEFORE_PREREG_TAKEDOWN
                                                and a.takes_shifts and not a.hours)
 
 StopsEmail('Still want to volunteer at {EVENT_NAME}?', 'shifts/volunteer_check.txt',
