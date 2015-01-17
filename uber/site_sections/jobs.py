@@ -194,19 +194,23 @@ class Root:
         })]
         return {'locations': totals + sorted(locations.items(), key = lambda loc: loc[1]['regular_signups'] - loc[1]['regular_total'])}
 
-    # TODO: fix this to work with SQLAlchemy
     @csv_file
-    def all_shifts(self, out):
+    def all_shifts(self, out, session):
         for loc,name in JOB_LOCATION_OPTS:
             out.writerow([name])
-            for shift in session.Shift.objects.filter(job__location = loc).order_by('job__start_time','job__name').select_related():
-                out.writerow([shift.job.start_time.strftime('%I%p %a').lstrip('0'),
+            for shift in (session.query(Shift)
+                                 .join(Shift.job)
+                                 .filter(Job.location == loc)
+                                 .order_by(Job.start_time, Job.name)
+                                 .options(joinedload(Shift.job), joinedload(Shift.attendee)).all()):
+                out.writerow([shift.job.start_time_local.strftime('%I%p %a').lstrip('0'),
                               '{} hours'.format(shift.job.real_duration),
                               shift.job.name,
                               shift.attendee.full_name,
                               'Circle One: worked / unworked',
                               'Comments:'])
             out.writerow([])
+
     def add_volunteers_by_dept(self, session, message='', location=None):
         location = location or JOB_LOCATION_OPTS[0][0]
         return {

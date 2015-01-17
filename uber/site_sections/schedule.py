@@ -88,7 +88,7 @@ class Root:
         for event in sorted(session.query(Event).all(), key = lambda e: [e.start_time, e.location_label]):
             if 'Panel' in event.location_label or 'Autograph' in event.location_label:
                 out.writerow([event.name,
-                              event.start_time.strftime('%I%p %a').lstrip('0'),
+                              event.start_time_local.strftime('%I%p %a').lstrip('0'),
                               '{} minutes'.format(event.minutes),
                               event.location_label,
                               event.description,
