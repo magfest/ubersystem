@@ -71,25 +71,15 @@ class Root:
         cherrypy.response.headers['Content-Disposition'] = 'attachment;filename=Schedule-{}.tsv'.format(int(localized_now().timestamp()))
         schedule = defaultdict(list)
         for event in session.query(Event).order_by('start_time').all():
-            # strip newlines from event descriptions
-            event.description = normalize_newlines(event.description)
-            event.description = event.description.replace('\n', ' ')
-
-            # Guidebook wants a date
-            event.date = event.start_time.strftime('%m/%d/%Y')
-
-            # Guidebook wants an end time, not duration.
-            # also, duration is in half hours. duration=1 means 30 minutes.
-            event.end_time = event.start_time + timedelta(minutes = 30 * event.duration)
-
-            # now just display the times in these fields, not dates
-            event.end_time = event.end_time.strftime('%I:%M:%S %p')
-            event.start_time = event.start_time.strftime('%I:%M:%S %p')
-
-            schedule[event.location_label].append(event)
+            schedule[event.location_label].append(dict(event.to_dict(), **{
+                'date': event.start_time_local.strftime('%m/%d/%Y'),
+                'start_time': event.start_time_local.strftime('%I:%M:%S %p'),
+                'end_time': (event.start_time_local + timedelta(minutes=event.minutes)).strftime('%I:%M:%S %p'),
+                'description': normalize_newlines(event.description).replace('\n', ' ')
+            }))
 
         return render('schedule/schedule.tsv', {
-            'schedule': sorted(schedule.items(), key=lambda tup: ORDERED_EVENT_LOCS.index(tup[1][0].location))
+            'schedule': sorted(schedule.items(), key=lambda tup: ORDERED_EVENT_LOCS.index(tup[1][0]['location']))
         })
 
     @csv_file
