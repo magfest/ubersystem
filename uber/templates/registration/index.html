@@ -8,7 +8,7 @@
 {% block message %}
 
 <style type="text/css">
-    body { margin:0px ; padding:0px }
+    body { margin:0px ; padding:0px; display: "inline-block" !important; }
     table.list {
         width: 98%;
         margin-left: 1%;
@@ -35,21 +35,21 @@
     function highlight($tr) {
         if( $highlit )
             $highlit.css("border", "1px solid black");
-        
+
         $highlit = $tr.children("td").css("border-top", "3px solid green").css("border-bottom", "3px solid green");
         $highlit.filter(":first").css("border-left", "3px solid green");
         $highlit.filter(":last").css("border-right", "3px solid green");
-        
+
         if( $tr.find("select").val() == "{{ AGE_UNKNOWN }}" )
             $tr.find("select").parents("td").css("border", "3px solid red");
         if( $tr.find("td:nth(3)").text() == "no" )
             $tr.find("td:nth(3)").css("border", "3px solid red");
-        
+
         var badge_num = $tr.find(":text").val();
         if( badge_num && !badge_num.match(/^\d+$/) )
             $tr.find(":text").parents("td").css("border", "3px solid red");
     }
-        
+
     function recordMPointUsage() {
         $.post("record_old_mpoint_exchange", {
                     badge_num:  $("#badge_num").val(),
@@ -94,6 +94,12 @@
                     dialog.dialog("close");
                 }
             },
+            // FIXME: OMG TERRIBLE POSITION HAX
+            open: function () {
+              $('.ui-dialog').css("position","fixed")
+                .css("top","5%")
+                .css("left","25%");
+            },
             close: function () {
                 form[ 0 ].reset();
             }
@@ -118,7 +124,7 @@
             alert("Invalid group code!")
         }
     }
-    
+
     function check_in(id) {
         if( $("#age_" + id).val() == {{ AGE_UNKNOWN }} ) {
             alert("You may not check someone in without confirming their age.");
@@ -151,17 +157,17 @@
                     location.href += sep + "message=" + encodeURIComponent(s);
         });
     }
-    
+
     $(function(){
         $("#message").ajaxError(function(){
             showTop("Oh noes - the web server is down or something!!!!!");
         });
-        
+
         $("#badge_num,#amount").keypress(function(e){
             if( (e.keyCode || e.which) == 13 )  // ENTER
                 recordMPointUsage();
         });
-        
+
         {% if AT_THE_CON %}
             $(".num").keypress(function(e){
                 if( (e.keyCode || e.which) == 13 )  // ENTER
@@ -239,7 +245,7 @@
 
 <br/>
 
-<table class="list">
+<table class="list" id="attendee_list">
 <tr class="header">
     <td align="left"> <a href="index?order={{ order.last_first }}">Name</a> </td>
     <td> <a href="index?order={{ order.badge_num }}">Badge</a> </td>
