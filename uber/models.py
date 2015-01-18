@@ -892,6 +892,12 @@ class RoomAssignment(MagModel):
 class NoShirt(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
 
+class MerchPickup(MagModel):
+    picked_up_by_id  = Column(UUID, ForeignKey('attendee.id'))
+    picked_up_for_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
+    picked_up_by     = relationship(Attendee, primaryjoin='MerchPickup.picked_up_by_id == Attendee.id')
+    picked_up_for    = relationship(Attendee, primaryjoin='MerchPickup.picked_up_for_id == Attendee.id')
+
 class DeptChecklistItem(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
     attendee    = relationship(Attendee, backref=backref('dept_checklist_items', cascade='all,delete-orphan'))

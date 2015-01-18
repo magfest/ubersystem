@@ -274,6 +274,36 @@ class Root:
     def merch(self, message=''):
         return {'message': message}
 
+    def multi_merch_pickup(self, session, message="", csrf_token=None, picker_upper=None, badges=()):
+        picked_up = []
+        if csrf_token:
+            check_csrf(csrf_token)
+            try:
+                picker_upper = session.query(Attendee).filter_by(badge_num=int(picker_upper)).one()
+            except:
+                message = 'Please enter a valid badge number for the person picking up the merch: {} is not in the system'.format(picker_upper)
+            else:
+                for badge_num in set(badges):
+                    if badge_num:
+                        try:
+                            attendee = session.query(Attendee).filter_by(badge_num=int(badge_num)).one()
+                        except:
+                            picked_up.append('{!r} is not a valid badge number'.format(badge_num))
+                        else:
+                            if attendee.got_merch:
+                                picked_up.append('{a.full_name} (badge {a.badge_num}) already got their merch'.format(a=attendee))
+                            else:
+                                attendee.got_merch = True
+                                picked_up.append('{a.full_name} (badge {a.badge_num}): {a.merch}'.format(a=attendee))
+                                session.add(MerchPickup(picked_up_by=picker_upper, picked_up_for=attendee))
+                session.commit()
+
+        return {
+            'message': message,
+            'picked_up': picked_up,
+            'picker_upper': picker_upper
+        }
+
     def lost_badge(self, session, id):
         a = session.attendee(id)
         a.for_review += "Automated message: Badge reported lost on {}. Previous payment type: {}.".format(localized_now().strftime('%m/%d, %H:%M'),a.paid_label)
