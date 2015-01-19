@@ -45,7 +45,7 @@ class Root:
         groups = set()
         for a in session.query(Attendee).filter(Attendee.first_name == '', Attendee.group_id != None) \
                                         .options(joinedload(Attendee.group)).all():
-            groups.add((a.group.id, a.group.name or 'BLANK'))
+            groups.add((a.group.id, a.group.name+" ("+a.group.leader.full_name+")" or 'BLANK'))
 
         if search_text and count == total_count:
             message = 'No matches found'
