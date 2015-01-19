@@ -41,6 +41,12 @@ class Root:
             count = total_count
 
         attendees = attendees.order(order)
+
+        groups = set()
+        for a in session.query(Attendee).filter(Attendee.first_name == '', Attendee.group_id != None) \
+                                        .options(joinedload(Attendee.group)).all():
+            groups.add((a.group.id, a.group.name or 'BLANK'))
+
         if search_text and count == total_count:
             message = 'No matches found'
         elif search_text and count == 1 and (not AT_THE_CON or search_text.isdigit()):
@@ -57,6 +63,7 @@ class Root:
             'search_text':    search_text,
             'search_results': bool(search_text),
             'attendees':      attendees,
+            'groups':         sorted(groups, key = lambda tup: tup[1]),
             'order':          Order(order),
             'attendee_count': total_count,
             'checkin_count':  session.query(Attendee).filter(Attendee.checked_in == None).count(),
@@ -216,7 +223,7 @@ class Root:
         return 'Sale deleted'
 
     @ajax
-    def check_in(self, session, id, badge_num, age_group, message=''):
+    def check_in(self, session, id, badge_num, age_group, group, message=''):
         attendee = session.attendee(id)
         pre_badge = attendee.badge_num
         success, increment = True, False
@@ -231,11 +238,14 @@ class Root:
                 maybe_dupe = session.query(Attendee).filter_by(badge_num=badge_num, badge_type=attendee.badge_type)
                 if maybe_dupe.count():
                     message = 'That badge number already belongs to ' + maybe_dupe.first().full_name
+            if group:
+                session.match_to_group(attendee, session.group(group))
             success = not message
 
         if success and attendee.checked_in:
             message = attendee.full_name + ' was already checked in!'
         elif success:
+            message = ""
             attendee.checked_in = datetime.now(UTC)
             attendee.age_group = int(age_group)
             if not attendee.badge_num:
