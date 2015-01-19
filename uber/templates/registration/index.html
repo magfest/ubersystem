@@ -8,7 +8,7 @@
 {% block message %}
 
 <style type="text/css">
-    body { margin:0px ; padding:0px }
+    body { margin:0px ; padding:0px; display: "inline-block" !important; }
     table.list {
         width: 98%;
         margin-left: 1%;
@@ -29,30 +29,29 @@
 
 {% endblock %}
 {% block content %}
-
 <script type="text/javascript">
 <!--
     var $highlit = null;
     function highlight($tr) {
         if( $highlit )
             $highlit.css("border", "1px solid black");
-        
+
         $highlit = $tr.children("td").css("border-top", "3px solid green").css("border-bottom", "3px solid green");
         $highlit.filter(":first").css("border-left", "3px solid green");
         $highlit.filter(":last").css("border-right", "3px solid green");
-        
+
         if( $tr.find("select").val() == "{{ AGE_UNKNOWN }}" )
             $tr.find("select").parents("td").css("border", "3px solid red");
         if( $tr.find("td:nth(3)").text() == "no" )
             $tr.find("td:nth(3)").css("border", "3px solid red");
-        
+
         var badge_num = $tr.find(":text").val();
         if( badge_num && !badge_num.match(/^\d+$/) )
             $tr.find(":text").parents("td").css("border", "3px solid red");
     }
-        
+
     function recordMPointUsage() {
-        $.post("record_mpoint_usage", {
+        $.post("record_old_mpoint_exchange", {
                     badge_num:  $("#badge_num").val(),
                     amount:     $("#amount").val(),
                     csrf_token: csrf_token
@@ -70,11 +69,62 @@
                 }, "json");
     }
     function undoMPointUsage(id) {
-        $.post("undo_mpoint_usage", {"id": id, csrf_token: csrf_token}, function(s) {
+        $.post("undo_mpoint_exchange", {"id": id, csrf_token: csrf_token}, function(s) {
             $("#message").html(s);
         });
     }
-    
+
+    $(function() {
+        $(".dialog-form").dialog({ autoOpen: false });
+
+        $(".attendee-checkin").button().on("click", function () {
+        attendee_id = $(this).attr('data-attendeeid');
+
+        dialog = $("#" + attendee_id).dialog({
+            autoOpen: false,
+            height: 300,
+            width: 350,
+            modal: true,
+            buttons: {
+                "Save & Check In": function() {
+                    check_in(attendee_id);
+                    dialog.dialog("close");
+                },
+                Cancel: function () {
+                    dialog.dialog("close");
+                }
+            },
+            // FIXME: OMG TERRIBLE POSITION HAX
+            open: function () {
+              $('.ui-dialog').css("position","fixed")
+                .css("top","5%")
+                .css("left","25%");
+            },
+            close: function () {
+                form[ 0 ].reset();
+            }
+        });
+
+        form = dialog.find("form").on("submit", function (event) {
+            event.preventDefault();
+            check_in(attendee_id);
+            dialog.dialog("close");
+        });
+
+            dialog.dialog("open");
+        });
+    });
+
+    function selectGroup(id, attendee) {
+        selectedGroup = $("#group_" + attendee +" option[value='" + id + "']")
+        if (selectedGroup.val()) {
+            selectedGroup.prop('selected',true);
+            return true
+        } else {
+            alert("Invalid group code!")
+        }
+    }
+
     function check_in(id) {
         if( $("#age_" + id).val() == {{ AGE_UNKNOWN }} ) {
             alert("You may not check someone in without confirming their age.");
@@ -83,7 +133,8 @@
         $.post("check_in", {id: id,
                             csrf_token: csrf_token,
                             age_group:  $("#age_" + id).val(),
-                            badge_num:  $("#num_" + id).val() || ""},
+                            badge_num:  $("#num_" + id).val(),
+                            group: $("group_" + id).val() || ""},
                 function(json) {
                     var message = json.message;
                     if( json.success ) {
@@ -106,17 +157,17 @@
                     location.href += sep + "message=" + encodeURIComponent(s);
         });
     }
-    
+
     $(function(){
         $("#message").ajaxError(function(){
             showTop("Oh noes - the web server is down or something!!!!!");
         });
-        
+
         $("#badge_num,#amount").keypress(function(e){
             if( (e.keyCode || e.which) == 13 )  // ENTER
                 recordMPointUsage();
         });
-        
+
         {% if AT_THE_CON %}
             $(".num").keypress(function(e){
                 if( (e.keyCode || e.which) == 13 )  // ENTER
@@ -194,7 +245,7 @@
 
 <br/>
 
-<table class="list">
+<table class="list" id="attendee_list">
 <tr class="header">
     <td align="left"> <a href="index?order={{ order.last_first }}">Name</a> </td>
     <td> <a href="index?order={{ order.badge_num }}">Badge</a> </td>
@@ -205,7 +256,32 @@
     {% endif %}
 </tr>
 {% for attendee in attendees %}
-    <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
+{% if AT_THE_CON and attendee.paid != NOT_PAID and not attendee.is_unassigned and not attendee.checked_in %}
+<div class="dialog-form" id="{{ attendee.id }}" title="Quick Check-In">
+    <form>
+        <fieldset>
+            <label for="name">Name</label> {{ attendee.full_name }}
+            <br/><label for="badge_type">Badge Type</label> {{ attendee.badge_type_label }}
+            {% if attendee.ribbon != NO_RIBBON %}
+                ({{ attendee.ribbon_label }})
+            {% endif %}
+            <br/><label for="badge_num">Badge Number</label> #<input class="num" id="num_{{ attendee.id }}" type="text" size="3" />
+            <br/><label for="age_group">Age</label>
+            <select id="age_{{ attendee.id }}" onChange="highlight($(this).parents('tr'))">
+                {% options AGE_GROUP_OPTS attendee.age_group %}
+            </select>
+            <br/><label for="group">Group</label>
+            <select id="group_{{ attendee.id }}">
+                <option value="">No Group</option>
+                {% options groups %}
+            </select>
+            <!-- Allow form submission with keyboard without duplicating the dialog button -->
+            <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
+        </fieldset>
+    </form>
+</div>
+{% endif %}
+        <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
         <td id="name_{{ attendee.id }}" style="text-align:left">
             <a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a>
             {% if attendee.group %}
@@ -213,15 +289,8 @@
             {% endif %}
         </td>
         <td><nobr>
-            {% if AT_THE_CON and attendee.paid == NOT_PAID %}
+            {% if AT_THE_CON and not attendee.badge_num %}
                 {{ attendee.badge_type_label }}
-            {% elif AT_THE_CON and not attendee.badge_num %}
-                {{ attendee.badge_type_label }}
-                {% if attendee.is_unassigned %}
-                    <input type="hidden" id="num_{{ attendee.id }}" />
-                {% else %}
-                    #<input class="num" id="num_{{ attendee.id }}" type="text" size="3" />
-                {% endif %}
                 {% if attendee.ribbon != NO_RIBBON %}
                     ({{ attendee.ribbon_label }})
                 {% endif %}
@@ -251,12 +320,10 @@
             </td>
         {% else %}
             <td>
-                <select id="age_{{ attendee.id }}" onChange="highlight($(this).parents('tr'))">
-                    {% options AGE_GROUP_OPTS attendee.age_group %}
-                </select>
+                {{ attendee.age_group_label }}
             </td>
             <td id="cin_{{ attendee.id }}">
-                <input type="submit" value="Check In" onClick="check_in({{ attendee.id }})" {% if attendee.is_unassigned %}disabled{% endif %} />
+                <button class="attendee-checkin" data-attendeeid="{{ attendee.id }}" {% if attendee.is_unassigned %} disabled {% endif %}>Check In</button>
             </td>
         {% endif %}
     </tr>
