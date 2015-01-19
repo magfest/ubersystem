@@ -45,11 +45,12 @@
             alert("You may not check someone in without confirming their age.");
             return;
         }
+
         $.post("check_in", {id: id,
                             csrf_token: csrf_token,
                             age_group:  $("#age_" + id).val(),
                             badge_num:  $("#num_" + id).val(),
-                            group: $("group_" + id).val() || ""},
+                            group: $("#group_" + id).val() || ""},
                 function(json) {
                     var message = json.message;
                     if( json.success ) {
@@ -94,12 +95,14 @@
                     {% options AGE_GROUP_OPTS attendee.age_group %}
                 </select></td>
             </tr>
+            {% if attendee.paid == PAID_BY_GROUP %}
             <tr>
                 <td><strong>Group:</strong></td><td><select id="group_{{ attendee.id }}">
                     <option value="">No Group</option>
-                    {% options groups %}
+                    {% options groups attendee.group.id %}
                 </select></td>
             </tr>
+            {% endif %}
             <tr>
                 <td><strong>Emergency Contact:</strong></td><td>{{ attendee.ec_phone }}</td>
             </tr>

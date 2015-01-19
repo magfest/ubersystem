@@ -240,6 +240,9 @@ class Root:
                     message = 'That badge number already belongs to ' + maybe_dupe.first().full_name
             if group:
                 session.match_to_group(attendee, session.group(group))
+            elif attendee.paid == PAID_BY_GROUP:
+                message = 'You must select a group for this attendee.'
+
             success = not message
 
         if success and attendee.checked_in:
@@ -417,16 +420,17 @@ class Root:
                     attendee.badge_num = 0
                     if not attendee.zip_code:
                         attendee.zip_code = '00000'
-                    session.add(attendee)
                     message = 'Thanks!  Please queue in the {} line and have your photo ID and {} ready.'
                     if attendee.payment_method == STRIPE:
                         raise HTTPRedirect('pay?id={}', attendee.id)
                     elif attendee.payment_method == GROUP:
                         message = 'Please proceed to the preregistration line to pick up your badge.'
+                        attendee.paid = PAID_BY_GROUP
                     elif attendee.payment_method == CASH:
                         message = message.format('cash', '${}'.format(attendee.total_cost))
                     elif attendee.payment_method == MANUAL:
                         message = message.format('credit card', 'credit card')
+                    session.add(attendee)
                     raise HTTPRedirect('register?message={}', message)
 
             return {

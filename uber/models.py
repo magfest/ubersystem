@@ -1376,9 +1376,9 @@ class Session(SessionManager):
                 else:
                     for attr in ['group', 'paid', 'amount_paid', 'ribbon']:
                         setattr(attendee, attr, getattr(matching[0], attr))
-                    session.delete(matching[0])
-                    session.add(attendee)
-                    session.commit()
+                    self.delete(matching[0])
+                    self.add(attendee)
+                    self.commit()
 
         def everything(self, location=None):
             location_filter = [Job.location == location] if location else []
