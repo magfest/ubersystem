@@ -82,8 +82,8 @@
 
         dialog = $("#" + attendee_id).dialog({
             autoOpen: false,
-            height: 300,
-            width: 350,
+            height: 450,
+            width: 500,
             modal: true,
             buttons: {
                 "Save & Check In": function() {
@@ -243,7 +243,44 @@
     {% endif %}
 </div>
 
-<br/>
+<br/>{% for attendee in attendees %}
+{% if AT_THE_CON and attendee.paid != NOT_PAID and not attendee.is_unassigned and not attendee.checked_in %}
+<div class="dialog-form" id="{{ attendee.id }}" title="Quick Check-In">
+    <form>
+        <fieldset>
+            <table>
+            <tr>
+                <td><strong>Name:</strong></td><td>{{ attendee.full_name }}</td>
+            </tr>
+            <tr>
+                <td><strong>Badge Type:</strong></td><td>{{ attendee.badge_type_label }}
+            {% if attendee.ribbon != NO_RIBBON %}
+                ({{ attendee.ribbon_label }})
+            {% endif %}</td>
+            </tr>
+            <tr>
+                <td><strong>Badge Number:</strong></td><td>#<input class="num" id="num_{{ attendee.id }}" type="text" size="5" /></td>
+            </tr>
+            <tr>
+                <td><strong>Age Group:</strong></td><td><select id="age_{{ attendee.id }}" onChange="highlight($(this).parents('tr'))">
+                {% options AGE_GROUP_OPTS attendee.age_group %}
+            </select></td>
+            </tr>
+            <tr>
+                <td><strong>Group:</strong></td><td><select id="group_{{ attendee.id }}">
+                <option value="">No Group</option>
+                {% options groups %}
+            </select></td>
+            </tr>
+
+            <!-- Allow form submission with keyboard without duplicating the dialog button -->
+            <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
+            </table>
+        </fieldset>
+    </form>
+</div>
+{% endif %}
+{% endfor %}
 
 <table class="list" id="attendee_list">
 <tr class="header">
@@ -256,31 +293,6 @@
     {% endif %}
 </tr>
 {% for attendee in attendees %}
-{% if AT_THE_CON and attendee.paid != NOT_PAID and not attendee.is_unassigned and not attendee.checked_in %}
-<div class="dialog-form" id="{{ attendee.id }}" title="Quick Check-In">
-    <form>
-        <fieldset>
-            <label for="name">Name</label> {{ attendee.full_name }}
-            <br/><label for="badge_type">Badge Type</label> {{ attendee.badge_type_label }}
-            {% if attendee.ribbon != NO_RIBBON %}
-                ({{ attendee.ribbon_label }})
-            {% endif %}
-            <br/><label for="badge_num">Badge Number</label> #<input class="num" id="num_{{ attendee.id }}" type="text" size="3" />
-            <br/><label for="age_group">Age</label>
-            <select id="age_{{ attendee.id }}" onChange="highlight($(this).parents('tr'))">
-                {% options AGE_GROUP_OPTS attendee.age_group %}
-            </select>
-            <br/><label for="group">Group</label>
-            <select id="group_{{ attendee.id }}">
-                <option value="">No Group</option>
-                {% options groups %}
-            </select>
-            <!-- Allow form submission with keyboard without duplicating the dialog button -->
-            <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
-        </fieldset>
-    </form>
-</div>
-{% endif %}
         <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
         <td id="name_{{ attendee.id }}" style="text-align:left">
             <a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a>
