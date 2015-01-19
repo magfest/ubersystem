@@ -28,7 +28,7 @@ def check_everything(attendee):
         return "You must enter this attendee's age group"
 
 
-@all_renderable(PEOPLE)
+@all_renderable(PEOPLE, REG_AT_CON)
 class Root:
     def index(self, session, message='', page='1', search_text='', uploaded_id='', order='last_first'):
         total_count = session.query(Attendee).count()
