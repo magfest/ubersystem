@@ -48,7 +48,7 @@
     <td><attendee-link attendee="game.attendee" badge="true"></attendee-link></td>
     
     <td ng-if="game.checked_out">
-        Checked out by <attendee-link attendee="game.checked_out"></attendee-link>
+        Checked out by <attendee-link attendee="game.checked_out.attendee"></attendee-link>
         &nbsp; <button ng-click="returned(game)">Game Was Returned</button>
     </td>
     <td ng-if="!game.checked_out">
