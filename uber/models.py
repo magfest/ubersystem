@@ -1041,15 +1041,23 @@ class Game(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
     attendee    = relationship(Attendee, backref=backref('games', cascade='all,delete-orphan'))
     returned    = Column(Boolean, default=False)
-    checked_out = relationship('Checkout', backref='game', uselist=False, cascade='all,delete-orphan')
+
+    @property
+    def checked_out(self):
+        try:
+            return [c for c in self.checkouts if not c.returned][0]
+        except:
+            pass
 
     _repr_attr_names = ['name']
 
 class Checkout(MagModel):
-    game_id     = Column(UUID, ForeignKey('game.id'), unique=True)
+    game_id     = Column(UUID, ForeignKey('game.id'))
+    game        = relationship('Game', backref=backref('checkouts', cascade='all,delete-orphan'))
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
     attendee    = relationship(Attendee, backref=backref('checkouts', cascade='all,delete-orphan'))
-    when        = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    checked_out = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    returned    = Column(UTCDateTime, nullable=True)
 
 
 
