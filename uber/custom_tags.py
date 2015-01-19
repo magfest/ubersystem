@@ -228,7 +228,7 @@ class timespan(template.Node):
 
         if model.start_time_local.day == endtime.day:
             endstr += endtime.strftime(' %A')
-            if model.start_time_local.hour<12 and endtime.hour>=12:
+            if model.start_time_local.hour < 12 and endtime.hour >= 12:
                 return startstr + 'am - ' + endstr
             else:
                 return startstr + '-' + endstr

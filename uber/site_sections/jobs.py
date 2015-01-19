@@ -1,5 +1,28 @@
 from uber.common import *
 
+def shift_dict(shift):
+    return {
+        'id': shift.id,
+        'rating': shift.rating,
+        'worked': shift.worked,
+        'comment': shift.comment,
+        'worked_label': shift.worked_label,
+        'attendee_id': shift.attendee.id,
+        'attendee_name': shift.attendee.full_name
+    }
+
+def job_dict(job, shifts=None):
+    return {
+        'id': job.id,
+        'name': job.name,
+        'slots': job.slots,
+        'weight': job.weight,
+        'restricted': job.restricted,
+        'timespan': custom_tags.timespan.pretty(job),
+        'location_label': job.location_label,
+        'shifts': shifts or [shift_dict(shift) for shift in job.shifts]
+    }
+
 @all_renderable(PEOPLE)
 class Root:
     def index(self, session, location=None, message=''):
@@ -9,7 +32,7 @@ class Root:
             else:
                 location = JOB_LOCATION_OPTS[0][0]
 
-        jobs, shifts, attendees = session.everything(location)
+        jobs = session.query(Job).filter_by(location=location).order_by(Job.name, Job.start_time).all()
         by_start = defaultdict(list)
         for job in jobs:
             if job.type == REGULAR:
@@ -37,16 +60,54 @@ class Root:
         }
 
     def everywhere(self, session, message='', show_restricted=''):
-        jobs, shifts, attendees = session.everything()
+        shifts = defaultdict(list)
+        for shift in session.query(Shift).options(joinedload(Shift.attendee)).all():
+            shifts[shift.job_id].append(shift_dict(shift))
         return {
-            'message':   message,
-            'attendees': attendees,
-            'shifts':    Shift.dump(shifts),
+            'message': message,
             'show_restricted': show_restricted,
-            'jobs':      [job for job in jobs if (show_restricted or not job.restricted)
-                                             and job.location != MOPS  # TODO: make this configurable
-                                             and localized_now() < job.start_time + timedelta(hours = job.duration)]
+            'attendees': [{
+                'id': id,
+                'full_name': full_name.title()
+            } for id, full_name in session.query(Attendee.id, Attendee.full_name)
+                                          .filter_by(staffing=True)
+                                          .order_by(Attendee.full_name).all()],
+            'jobs': [job_dict(job, shifts[job.id])
+                     for job in session.query(Job)
+                                       .filter(Job.start_time > localized_now() - timedelta(hours=2))
+                                       .filter_by(**({} if show_restricted else {'restricted': False}))
+                                       .order_by(Job.start_time, Job.location).all()]
         }
+
+    @ajax
+    def assign_from_everywhere(self, session, job_id, staffer_id):
+        message = session.assign(staffer_id, job_id)
+        if message:
+            return {'error': message}
+        else:
+            return job_dict(session.job(job_id))
+
+    @ajax
+    def unassign_from_everywhere(self, session, id):
+        try:
+            shift = session.shift(id)
+            session.delete(shift)
+            session.commit()
+        except:
+            return {'error': 'Shift was already deleted'}
+        else:
+            return job_dict(session.job(shift.job_id))
+
+    @ajax
+    def set_worked_from_everywhere(self, session, id, status):
+        try:
+            shift = session.shift(id)
+            shift.worked = int(status)
+            session.commit()
+        except:
+            return {'error': 'Unexpected error setting status'}
+        else:
+            return job_dict(session.job(shift.job_id))
 
     def staffers(self, session, location=None, message=''):
         attendee = session.admin_attendee()
@@ -97,12 +158,13 @@ class Root:
         }
 
     def staffers_by_job(self, session, id, message = ''):
-        jobs, shifts, attendees = session.everything()
-        [job] = [job for job in jobs if job.id == id]
-        job._all_staffers = attendees
+        job = session.job(id)
         return {
-            'job':     job,
-            'message': message
+            'job':       job,
+            'message':   message,
+            'attendees': session.query(Attendee.id, Attendee.full_name)
+                                .filter_by(staffing=True, **({'trusted': True} if job.restricted else {}))
+                                .order_by(Attendee.full_name).all()
         }
 
     @csrf_protected
@@ -117,11 +179,6 @@ class Root:
     def assign_from_job(self, session, job_id, staffer_id):
         message = session.assign(staffer_id, job_id) or 'Staffer assigned to shift'
         raise HTTPRedirect('staffers_by_job?id={}&message={}', job_id, message)
-
-    @csrf_protected
-    def assign_from_everywhere(self, session, job_id, staffer_id):
-        message = session.assign(staffer_id, job_id) or 'Staffer assigned to shift'
-        raise HTTPRedirect('everywhere?message={}#{}', message, job_id)
 
     @csrf_protected
     def assign_from_list(self, session, job_id, staffer_id):
@@ -144,22 +201,15 @@ class Root:
         session.delete(shift)
         raise HTTPRedirect('signups?location={}#{}', shift.job.location, shift.job_id)
 
-    @csrf_protected
-    def unassign_from_everywhere(self, session, id):
-        shift = session.shift(id)
-        session.delete(shift)
-        raise HTTPRedirect('everywhere?#{}', shift.job_id)
-
-    # TODO: @ajax calls should probably just be objects all the time
     @ajax
     def set_worked(self, session, id, worked):
         try:
             shift = session.shift(id)
             shift.worked = int(worked)
             session.commit()
-            return shift.worked_label
+            return {'status_label': shift.worked_label}
         except:
-            return 'an unexpected error occured'
+            return {'error': 'an unexpected error occured'}
 
     @csrf_protected
     def undo_worked(self, session, id):

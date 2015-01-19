@@ -23,29 +23,30 @@ $.focus = function(field) {
 
 var RATINGS = {
     {{ RATED_GOOD }}: {
-        false: "../static/images/" + "check_blank.png",
-        true:  "../static/images/" + "check_filled.png"
+        false: '../static/images/check_blank.png',
+        true:  '../static/images/check_filled.png'
     },
     {{ RATED_BAD }}: {
-        prompt: "Please explain how this volunteer performed poorly:",
-        false: "../static/images/" + "lookofdisapproval.jpg",
-        true:  "../static/images/" + "lookofdisapproval_selected.jpg"
+        prompt: 'Please explain how this volunteer performed poorly:',
+        false: '../static/images/lookofdisapproval.jpg',
+        true:  '../static/images/lookofdisapproval_selected.jpg'
     },
     {{ RATED_GREAT }}: {
-        prompt: "Please explain how this volunteer went above and beyond:",
-        false: "../static/images/" + "aplus_blank.jpg",
-        true:  "../static/images/" + "aplus_filled.jpg"
+        prompt: 'Please explain how this volunteer went above and beyond:',
+        false: '../static/images/aplus_blank.jpg',
+        true:  '../static/images/aplus_filled.jpg'
     }
 };
-var renderRating = function(shiftId) {
-    var shift = SHIFTS[shiftId];
-    var $td = $("#rating" + shiftId).addClass("rating").data("shift", shift);
+var renderRating = function(shift, $td) {
+    shift = typeof shift === 'string' ? SHIFTS[shiftId] : shift;
+    $td = ($td || $('#rating' + shift.id)).addClass("rating").data("shift", shift);
     $.each([{{ RATED_GOOD }}, {{ RATED_BAD }}, {{ RATED_GREAT }}], function(i, rating) {
         $td.append(
-            $("<img/>").attr("src", RATINGS[rating][shift.rating == rating])
+            $("<img/>").attr("src", RATINGS[rating][shift.rating === rating])
                        .attr("title", shift.comment)
                        .data("rating", rating));
     });
+    return $td;
 };
 var setupRatingClickHandler = function() {
     $(document.body).on("click", "td.rating img", function(event) {
@@ -62,7 +63,7 @@ var setupRatingClickHandler = function() {
                 $img.parent().find("img").each(function(){
                     var r = $(this).data("rating");
                     $(this).attr("title", comment)
-                           .attr("src", RATINGS[r][r === rating]);
+                           .attr("src", RATINGS[r][r == rating]);
                 });
             }, "json");
         }
@@ -71,11 +72,15 @@ var setupRatingClickHandler = function() {
 var setStatus = function(shiftId, status) {
     var $status = $(status);
     $.post("../jobs/set_worked", {id: shiftId, worked: $status.val(), csrf_token: csrf_token}, function(result) {
-        $status.parent().empty()
-            .append("<i>" + result + "</i> &nbsp; ")
-            .append($undoForm("../jobs/undo_worked", {id: shiftId}));
-        if ($status.val() == {{ SHIFT_WORKED }}) {
-            renderRating(shiftId);
+        if (result.error) {
+            alert(result.error);
+        } else {
+            $status.parent().empty()
+                .append("<i>" + result.status_label + "</i> &nbsp; ")
+                .append($undoForm("../jobs/undo_worked", {id: shiftId}));
+            if ($status.val() == {{ SHIFT_WORKED }}) {
+                renderRating(shiftId);
+            }
         }
     });
 };
