@@ -1,10 +1,85 @@
 {% extends "base-admin.html" %}
-{% block title %}Shifts{% endblock %}
+{% block title %}All Shifts{% endblock %}
 {% block content %}
 
 <script type="text/javascript">
-    var SHIFTS = {{ shifts|jsonize }};
+    {% comment %}var SHIFTS = {{ shifts|jsonize }};{% endcomment %}
     $(setupRatingClickHandler);
+
+    var renderWorked = function (shiftId) {
+        return $('<select></select>').change(function (event) {
+            $.post('set_worked_from_everywhere', {
+                id: shiftId,
+                status: $(event.target).val(),
+                csrf_token: csrf_token
+            }, renderJob, 'json');
+        }).append($.map({{ WORKED_STATUS_OPTS|jsonize }}, function (opt) {
+            return $('<option></option>').val(opt[0]).text(opt[1]);
+        }));
+    };
+
+    var renderJob = function (job, $tbody) {
+        if (job.error) {
+            alert(job.error);
+            return;
+        }
+        $tbody = $tbody && $tbody.jquery ? $tbody : $('#job_' + job.id);
+        if (job.slots <= job.shifts.length) {
+            return $tbody.empty();
+        }
+        return $tbody
+            .empty()
+            .attr('id', 'job_' + job.id)
+            .append(
+                $('<tr></tr>')
+                    .append('<td><b>' + job.timespan + ':</b> [x' + job.weight + '] </td>')
+                    .append(
+                        '<td>' +
+                            (job.restricted ? '[R] ' : '') +
+                            '<a href="form?id=' + job.id + '"><b>' + job.name + '</b></a>' +
+                            ' (' + job.location_label + ')' +
+                        '</td>')
+                    .append('<td> <nobr>(' + job.shifts.length + '/' + job.slots + ' slots filled)</nobr> </td>')
+                    .append(
+                        $('<td></td>').append(
+                            $('<button>Assign</button>').click(function () {
+                                $.post('assign_from_everywhere', {
+                                    csrf_token: csrf_token,
+                                    job_id: job.id,
+                                    staffer_id: $('#attendee').val()
+                                }, renderJob, 'json');
+                            }))))
+            .append(
+                $('<tr></tr>')
+                    .append(
+                        $('<td colspan="4"></td>')
+                            .append('<table style="width:auto"></table>')
+                            .append($.map(job.shifts, function (shift) {
+                                return $('<tr></tr>')
+                                    .attr('id', 'shift_' + shift.id)
+                                    .append('<td> <ul><li></li></ul> </td>')
+                                    .append('<td> <a href="../registration/shifts?id=' + shift.attendee_id + '">' + shift.attendee_name + '</a>&nbsp;&nbsp; </td>')
+                                    .append(
+                                        $('<button>Unassign</button>').click(function () {
+                                            $.post('unassign_from_everywhere', {
+                                                csrf_token: csrf_token,
+                                                id: shift.id
+                                            }, renderJob, 'json');
+                                        }))
+                                    .append(
+                                        $('<td></td>').append(
+                                            shift.worked === {{ SHIFT_UNMARKED }} ? renderWorked(shift.id) : ('<i>' + shift.worked_label + '</i>')))
+                                    .append(shift.worked === {{ SHIFT_UNMARKED }} ? '' : renderRating(shift, $('<td></td>')));
+                            }))));
+    };
+
+    var renderAll = function () {
+        var $jobs = $('#jobs');
+        $.each({{ jobs|jsonize }}, function (i, job) {
+            $jobs.append(renderJob(job, $('<tbody></tbody>')));
+        });
+    };
+    $(renderAll);
 </script>
 
 <h2> All Jobs With Unfilled Shifts </h2>
@@ -19,73 +94,13 @@
 
 <div style="position:fixed ; top:25% ; right: 10%">
     <b>Assign someone to any of these positions:</b> <br/>
-    <select id="assignee">
+    <select id="attendee">
         {% for attendee in attendees %}
-            <option value="{{ attendee.id }}">{{ attendee.full_name }}{% if show_restricted and attendee.trusted %} [T]{% endif %}</option>
+            <option value="{{ attendee.id }}">{{ attendee.full_name }}</option>
         {% endfor %}
     </select>
 </div>
 
-<table style="width:66%">
-{% for job in jobs %}
-    {% if job.shifts|length < job.slots %}
-        <tr>
-            <td> <a name="{{ job.id }}"></a><b>{% timespan job %}:</b> [x{{ job.weight }}] </td>
-            <td>
-                {% if job.restricted %}[R]{% endif %}
-                <a href="form?id={{ job.id }}"><b>{{ job.name }}{% if job.restricted %}*{% endif %}</b></a>
-                ({{ job.location_label }})
-            </td>
-            <td> <nobr>({{ job.shifts|length }}/{{ job.slots }} slots filled)</nobr> </td>
-                {% if job.available_staffers %}
-                    <td>
-                        <form method="post" action="assign_from_everywhere" onSubmit="$(this).find('[name=staffer_id]').val($('#assignee').val())">
-                        {% csrf_token %}
-                        <input type="hidden" name="job_id" value="{{ job.id }}" />
-                        <input type="hidden" name="staffer_id" value="" />
-                        <input type="submit" value="Assign" />
-                        </form>
-                    </td>
-                {% else %}
-                    <td><i>(no extra available staffers)</i></td>
-                {% endif %}
-            </td>
-        </tr>
-        <tr>
-            <td colspan="4">
-                <table style="width:auto">
-                {% for shift in job.shifts %}
-                    <tr>
-                        <td> <ul><li></li></ul> </td>
-                        <td> <a href="../registration/shifts?id={{ shift.attendee.id }}">{{ shift.attendee.full_name }}</a>&nbsp;&nbsp; </td>
-                        <td>
-                            {% if shift.worked != SHIFT_UNMARKED %}
-                                <i>{{ shift.worked_label }}</i>
-                            {% else %}
-                                <select onChange="setStatus({{ shift.id }}, this)">
-                                    {% options WORKED_STATUS_OPTS shift.worked %}
-                                </select>
-                            {% endif %}
-                        </td>
-                        <form method="post" action="unassign_from_everywhere">
-                        <td>
-                            {% csrf_token %}
-                            <input type="hidden" name="id" value="{{ shift.id }}" />
-                            <input type="submit" value="Unassign" />
-                        </td>
-                        </form>
-                        <td id="rating{{ shift.id }}"></td>
-                        {% if shift.worked == SHIFT_WORKED %}
-                            <script type="text/javascript">renderRating({{ shift.id }});</script>
-                        {% endif %}
-                    </tr>
-                {% endfor %}
-                </table>
-                <br/>
-            </td>
-        </tr>
-    {% endif %}
-{% endfor %}
-</table>
+<table id="jobs" style="width:66%"></table>
 
 {% endblock %}

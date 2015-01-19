@@ -637,22 +637,18 @@ class Root:
         attendee.checked_in = attendee.group = None
         raise HTTPRedirect('new?message={}', 'Attendee un-checked-in')
 
-    # TODO: this AT_THE_CON check is kind of hacky, we should probably roll that into the possible_opts property
-    # TODO: un-special-case MOPS into something more configurable
     def shifts(self, session, id, shift_id='', message=''):
-        jobs, shifts, attendees = session.everything()
-        [attendee] = [a for a in attendees if a.id == id]
-        if AT_THE_CON:
-            attendee._possible = [job for job in jobs if localized_now() < job.start_time
-                                                     and job.slots > len(job.shifts)
-                                                     and (not job.restricted or attendee.trusted)
-                                                     and job.location != MOPS]
+        attendee = session.attendee(id)
         return {
             'message':  message,
             'shift_id': shift_id,
             'attendee': attendee,
             'possible': attendee.possible_opts,
-            'shifts':   Shift.dump(attendee.shifts)
+            'shifts':   Shift.dump(attendee.shifts),
+            'jobs':     session.query(Job.id, Job.name)
+                               .filter(Job.start_time > localized_now() - timedelta(hours=2))
+                               .filter_by(**({} if attendee.trusted else {'restricted': False}))
+                               .order_by(Job.start_time, Job.location).all()
         }
 
     @csrf_protected

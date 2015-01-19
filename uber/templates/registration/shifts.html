@@ -14,19 +14,15 @@
 <table width="100%">
 <tr>
     <td width="50%">
-        {% if possible %}
-            <form method="post" action="assign">
-            {% csrf_token %}
-            <input type="hidden" name="staffer_id" value="{{ attendee.id }}" />
-            <b>Add a Shift:</b>
-            <select name="job_id">
-                {% options possible %}
-            </select>
-            <input type="submit" value="Assign" />
-            </form>
-        {% else %}
-            <i> No additional shifts are available. </i>
-        {% endif %}
+        <form method="post" action="assign">
+        {% csrf_token %}
+        <input type="hidden" name="staffer_id" value="{{ attendee.id }}" />
+        <b>Add a Shift:</b>
+        <select name="job_id">
+            {% options jobs %}
+        </select>
+        <input type="submit" value="Assign" />
+        </form>
     </td>
     <td width="50%" align="right">
         <form method="post" action="update_nonshift">
