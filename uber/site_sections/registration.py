@@ -645,10 +645,14 @@ class Root:
             'attendee': attendee,
             'possible': attendee.possible_opts,
             'shifts':   Shift.dump(attendee.shifts),
-            'jobs':     session.query(Job.id, Job.name)
-                               .filter(Job.start_time > localized_now() - timedelta(hours=2))
-                               .filter_by(**({} if attendee.trusted else {'restricted': False}))
-                               .order_by(Job.start_time, Job.location).all()
+            'jobs':     [(job.id, '({}) [{}] {}'.format(custom_tags.timespan.pretty(job), job.location_label, job.name))
+                         for job in session.query(Job)
+                                           .outerjoin(Job.shifts)
+                                           .filter(Job.start_time > localized_now() - timedelta(hours=2),
+                                                   *([] if attendee.trusted else [Job.restricted == False]))
+                                           .group_by(Job.id)
+                                           .having(func.count(Shift.id) < Job.slots)
+                                           .order_by(Job.start_time, Job.location).all()]
         }
 
     @csrf_protected
