@@ -169,11 +169,7 @@
     {% endif %}
 </div>
 
-<br/>{% for attendee in attendees %}
-{% if AT_THE_CON and attendee.paid != NOT_PAID and not attendee.is_unassigned and not attendee.checked_in %}
-{% include "registration/checkin.html" %}
-{% endif %}
-{% endfor %}
+<br/>{% include "registration/checkin.html" %}
 
 <table class="list" id="attendee_list">
 <tr class="header">

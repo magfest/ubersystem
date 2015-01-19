@@ -7,7 +7,7 @@
 
         dialog = $("#" + attendee_id).dialog({
             autoOpen: false,
-            height: 400,
+            height: 450,
             width: 500,
             modal: true,
             buttons: {
@@ -74,7 +74,8 @@
         });
     }
 </script>
-
+{% for attendee in attendees %}
+{% if AT_THE_CON and attendee.paid != NOT_PAID and not attendee.is_unassigned and not attendee.checked_in %}
 <div class="dialog-form" id="{{ attendee.id }}" title="Quick Check-In">
     <form>
         <table>
@@ -93,7 +94,8 @@
             <tr>
                 <td><strong>Age Group:</strong></td><td><select id="age_{{ attendee.id }}">
                     {% options AGE_GROUP_OPTS attendee.age_group %}
-                </select></td>
+                </select>
+                </td>
             </tr>
             {% if attendee.paid == PAID_BY_GROUP %}
             <tr>
@@ -111,3 +113,5 @@
         </table>
     </form>
 </div>
+{% endif %}
+{% endfor %}
