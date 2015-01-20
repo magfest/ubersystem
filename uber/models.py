@@ -1384,9 +1384,9 @@ class Session(SessionManager):
                 else:
                     for attr in ['group', 'paid', 'amount_paid', 'ribbon']:
                         setattr(attendee, attr, getattr(matching[0], attr))
-                    session.delete(matching[0])
-                    session.add(attendee)
-                    session.commit()
+                    self.delete(matching[0])
+                    self.add(attendee)
+                    self.commit()
 
         def everything(self, location=None):
             location_filter = [Job.location == location] if location else []
@@ -1447,6 +1447,7 @@ class Session(SessionManager):
 
         def assign_badges(self, group, new_badge_count, **extra_create_args):
             diff = int(new_badge_count) - group.badges
+            sorted_unassigned = sorted(group.floating, key=lambda a: a.registered)
             if diff > 0:
                 for i in range(diff):
                     group.attendees.append(Attendee(badge_type=group.new_badge_type, ribbon=group.new_ribbon, paid=PAID_BY_GROUP, **extra_create_args))
@@ -1454,7 +1455,7 @@ class Session(SessionManager):
                 if len(group.floating) < abs(diff):
                     return 'You cannot reduce the number of badges for a group to below the number of assigned badges'
                 else:
-                    for attendee in group.floating[:abs(diff)]:
+                    for attendee in sorted_unassigned[:abs(diff)]:
                         self.delete_from_group(attendee, group)
 
         def assign(self, attendee_id, job_id):

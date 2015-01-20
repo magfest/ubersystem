@@ -28,7 +28,7 @@ def check_everything(attendee):
         return "You must enter this attendee's age group"
 
 
-@all_renderable(PEOPLE)
+@all_renderable(PEOPLE, REG_AT_CON)
 class Root:
     def index(self, session, message='', page='1', search_text='', uploaded_id='', order='last_first'):
         total_count = session.query(Attendee).count()
@@ -41,6 +41,12 @@ class Root:
             count = total_count
 
         attendees = attendees.order(order)
+
+        groups = set()
+        for a in session.query(Attendee).filter(Attendee.first_name == '', Attendee.group_id != None) \
+                                        .options(joinedload(Attendee.group)).all():
+            groups.add((a.group.id, a.group.name+" ("+a.group.leader.full_name+")" or 'BLANK'))
+
         if search_text and count == total_count:
             message = 'No matches found'
         elif search_text and count == 1 and (not AT_THE_CON or search_text.isdigit()):
@@ -57,6 +63,7 @@ class Root:
             'search_text':    search_text,
             'search_results': bool(search_text),
             'attendees':      attendees,
+            'groups':         sorted(groups, key = lambda tup: tup[1]),
             'order':          Order(order),
             'attendee_count': total_count,
             'checkin_count':  session.query(Attendee).filter(Attendee.checked_in == None).count(),
@@ -71,6 +78,14 @@ class Root:
             attendee.group_id = params['group_opt'] or None
             if AT_THE_CON and omit_badge:
                 attendee.badge_num = 0
+
+            if 'no_override' in params:
+                attendee.overridden_price = None
+            elif int(params['overridden_price']) == 0:
+                raise HTTPRedirect('form?id={}&message={}', attendee.id, 'Please set the payment type to "doesn\'t need to" instead of setting the badge price to 0.')
+            elif params['overridden_price'] != attendee.badge_cost:
+                attendee.overridden_price = params['overridden_price']
+
             message = check_everything(attendee)
             if not message:
                 session.add(attendee)
@@ -216,7 +231,7 @@ class Root:
         return 'Sale deleted'
 
     @ajax
-    def check_in(self, session, id, badge_num, age_group, message=''):
+    def check_in(self, session, id, badge_num, age_group, group, message=''):
         attendee = session.attendee(id)
         pre_badge = attendee.badge_num
         success, increment = True, False
@@ -231,11 +246,17 @@ class Root:
                 maybe_dupe = session.query(Attendee).filter_by(badge_num=badge_num, badge_type=attendee.badge_type)
                 if maybe_dupe.count():
                     message = 'That badge number already belongs to ' + maybe_dupe.first().full_name
+            if group:
+                session.match_to_group(attendee, session.group(group))
+            elif attendee.paid == PAID_BY_GROUP:
+                message = 'You must select a group for this attendee.'
+
             success = not message
 
         if success and attendee.checked_in:
             message = attendee.full_name + ' was already checked in!'
         elif success:
+            message = ""
             attendee.checked_in = datetime.now(UTC)
             attendee.age_group = int(age_group)
             if not attendee.badge_num:
@@ -407,16 +428,17 @@ class Root:
                     attendee.badge_num = 0
                     if not attendee.zip_code:
                         attendee.zip_code = '00000'
-                    session.add(attendee)
                     message = 'Thanks!  Please queue in the {} line and have your photo ID and {} ready.'
                     if attendee.payment_method == STRIPE:
                         raise HTTPRedirect('pay?id={}', attendee.id)
                     elif attendee.payment_method == GROUP:
                         message = 'Please proceed to the preregistration line to pick up your badge.'
+                        attendee.paid = PAID_BY_GROUP
                     elif attendee.payment_method == CASH:
                         message = message.format('cash', '${}'.format(attendee.total_cost))
                     elif attendee.payment_method == MANUAL:
                         message = message.format('credit card', 'credit card')
+                    session.add(attendee)
                     raise HTTPRedirect('register?message={}', message)
 
             return {
