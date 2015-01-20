@@ -79,13 +79,8 @@ class Root:
             attendee.group_id = params['group_opt'] or None
             if AT_THE_CON and omit_badge:
                 attendee.badge_num = 0
-
             if 'no_override' in params:
                 attendee.overridden_price = None
-            elif int(params['overridden_price']) == 0:
-                raise HTTPRedirect('form?id={}&message={}', attendee.id, 'Please set the payment type to "doesn\'t need to" instead of setting the badge price to 0.')
-            elif params['overridden_price'] != attendee.badge_cost:
-                attendee.overridden_price = params['overridden_price']
 
             message = check_everything(attendee)
             if not message:
