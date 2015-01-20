@@ -54,7 +54,7 @@
                 $("#message").html(json.message);
                 if (json.success) {
                     $("#badge_num").val("");
-                    $("#message").append(' &nbsp; <a href="#" onClick="undoSale(' + json.id + ') ; return false">Undo</a>');
+                    $("#message").append(' &nbsp; <a href="#" onClick="undoSale(\'' + json.id + '\') ; return false">Undo</a>');
                 }
             }, "json");
     };
@@ -144,6 +144,8 @@
         <td>
             {% if attendee.paid == HAS_PAID %}
                 paid
+            {% elif attendee.paid == PAID_BY_GROUP %}
+                paid by group
             {% else %}
                 <form method="post" action="mark_as_paid">
                 {% csrf_token %}
@@ -156,17 +158,23 @@
                 </form>
             {% endif %}
         </td>
-        <form method="post" action="new_checkin">
-        <td>
-            &nbsp;&nbsp;&nbsp;&nbsp;
-            <input type="text" name="badge_num" size="4" />
-        </td>
-        <td>
-            {% csrf_token %}
-            <input type="hidden" name="id" value="{{ attendee.id }}" />
-            <input type="submit" value="Check In" {% if attendee.paid == NOT_PAID %}disabled{% endif %} />
-        </td>
-        </form>
+        {% if attendee.paid == PAID_BY_GROUP %}
+            <td colspan="2">
+                check in group badges <a href="index?search_text={{ attendee.id }}">here</a>
+            </td>
+        {% else %}
+            <form method="post" action="new_checkin">
+            <td>
+                &nbsp;&nbsp;&nbsp;&nbsp;
+                <input type="text" name="badge_num" size="4" />
+            </td>
+            <td>
+                {% csrf_token %}
+                <input type="hidden" name="id" value="{{ attendee.id }}" />
+                <input type="submit" value="Check In" {% if attendee.paid == NOT_PAID %}disabled{% endif %} />
+            </td>
+            </form>
+        {% endif %}
     </tr>
 {% endfor %}
 </table>
