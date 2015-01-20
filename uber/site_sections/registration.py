@@ -43,9 +43,10 @@ class Root:
         attendees = attendees.order(order)
 
         groups = set()
-        for a in session.query(Attendee).filter(Attendee.first_name == '', Attendee.group_id != None) \
-                                        .options(joinedload(Attendee.group)).all():
-            groups.add((a.group.id, a.group.name+" ("+a.group.leader.full_name+")" or 'BLANK'))
+        for a in session.query(Attendee) \
+                        .filter(Attendee.first_name == '', Attendee.group_id != None) \
+                        .options(joinedload(Attendee.group)).all():
+            groups.add((a.group.id, a.group.name + (' ({})'.format(a.group.leader.full_name) if a.group.leader else '')))
 
         if search_text and count == total_count:
             message = 'No matches found'
@@ -68,7 +69,7 @@ class Root:
             'attendee_count': total_count,
             'checkin_count':  session.query(Attendee).filter(Attendee.checked_in == None).count(),
             'attendee':       session.attendee(uploaded_id) if uploaded_id else None,
-            'remaining_badges': max(0,(MAX_BADGE_SALES - state.BADGES_SOLD))
+            'remaining_badges': max(0, MAX_BADGE_SALES - state.BADGES_SOLD)
         }
 
     def form(self, session, message='', return_to='', omit_badge='', **params):
@@ -246,9 +247,10 @@ class Root:
                 maybe_dupe = session.query(Attendee).filter_by(badge_num=badge_num, badge_type=attendee.badge_type)
                 if maybe_dupe.count():
                     message = 'That badge number already belongs to ' + maybe_dupe.first().full_name
+
             if group:
                 session.match_to_group(attendee, session.group(group))
-            elif attendee.paid == PAID_BY_GROUP:
+            elif attendee.paid == PAID_BY_GROUP and not attendee.group:
                 message = 'You must select a group for this attendee.'
 
             success = not message
@@ -283,8 +285,8 @@ class Root:
 
     @csrf_protected
     def undo_checkin(self, session, id, pre_badge):
-        a = session.attendee(id)
-        a.checked_in, a.badge_num = None, pre_badge
+        attendee = session.attendee(id)
+        attendee.checked_in, attendee.badge_num = None, pre_badge
         session.add(attendee)
         session.commit()
         return 'Attendee successfully un-checked-in'

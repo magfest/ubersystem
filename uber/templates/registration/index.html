@@ -182,7 +182,7 @@
     {% endif %}
 </tr>
 {% for attendee in attendees %}
-        <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
+    <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
         <td id="name_{{ attendee.id }}" style="text-align:left">
             <a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a>
             {% if attendee.group %}
@@ -220,9 +220,7 @@
                 <a href="new?show_all=true">Go to at-the-door page to check in</a>
             </td>
         {% else %}
-            <td>
-                {{ attendee.age_group_label }}
-            </td>
+            <td>{{ attendee.age_group_label }}</td>
             <td id="cin_{{ attendee.id }}">
                 <button class="attendee-checkin" data-attendeeid="{{ attendee.id }}" {% if attendee.is_unassigned %} disabled {% endif %}>Check In</button>
             </td>

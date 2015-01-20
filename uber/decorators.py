@@ -233,15 +233,15 @@ def restricted(func):
                 if not cherrypy.session.get('staffer_id'):
                     raise HTTPRedirect('../signups/login?message=You+are+not+logged+in')
 
-            if REG_AT_CON in func.restricted:
-                if not AT_THE_CON:
-                    raise HTTPRedirect('../accounts/login?message=You+do+not+have+access')
-
             elif cherrypy.session.get('account_id') is None:
                 raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in')
 
             else:
-                if not set(func.restricted).intersection(AdminAccount.access_set()):
+                access = AdminAccount.access_set()
+                if not AT_THE_CON:
+                    access.discard(REG_AT_CON)
+
+                if not set(func.restricted).intersection(access):
                     if len(func.restricted) == 1:
                         return 'You need {} access for this page'.format(dict(ACCESS_OPTS)[func.restricted[0]])
                     else:

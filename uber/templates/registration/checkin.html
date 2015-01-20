@@ -1,117 +1,120 @@
 <script type="text/javascript">
     $(function() {
-        $(".dialog-form").dialog({ autoOpen: false });
+        $('.dialog-form').dialog({ autoOpen: false });
 
-        $(".attendee-checkin").button().on("click", function () {
-        attendee_id = $(this).attr('data-attendeeid');
-
-        dialog = $("#" + attendee_id).dialog({
-            autoOpen: false,
-            height: 450,
-            width: 500,
-            modal: true,
-            buttons: {
-                "Save & Check In": function() {
-                    check_in(attendee_id);
-                    dialog.dialog("close");
-                },
-                Cancel: function () {
-                    dialog.dialog("close");
+        $('.attendee-checkin').button().on('click', function () {
+            var attendee_id = $(this).attr('data-attendeeid');
+            var dialog = $('#' + attendee_id).dialog({
+                autoOpen: false,
+                height: 450,
+                width: 500,
+                modal: true,
+                buttons: [{
+                    text: 'Save & Check In',
+                    click: function() {
+                        check_in(attendee_id);
+                        dialog.dialog('close');
+                    }
+                }, {
+                    text: 'Cancel',
+                    click: function () {
+                        dialog.dialog('close');
+                    }
+                }],
+                // FIXME: OMG TERRIBLE POSITION HAX
+                open: function () {
+                  $('.ui-dialog').css('position', 'fixed')
+                    .css('top', '5%')
+                    .css('left', '33%');
                 }
-            },
-            // FIXME: OMG TERRIBLE POSITION HAX
-            open: function () {
-              $('.ui-dialog').css("position","fixed")
-                .css("top","5%")
-                .css("left","33%");
-            },
-            close: function () {
-                form[ 0 ].reset();
-            }
-        });
-
-        form = dialog.find("form").on("submit", function (event) {
-            event.preventDefault();
-            check_in(attendee_id);
-            dialog.dialog("close");
-        });
-
-            dialog.dialog("open");
+            });
+            dialog.find('input.num').keypress(function (event) {
+                if (event.keyCode === 13) {  // Enter key
+                    event.preventDefault();
+                    dialog.dialog('close');
+                }
+            });
+            dialog.dialog('open');
         });
     });
 
-    function check_in(id) {
-        if( $("#age_" + id).val() == {{ AGE_UNKNOWN }} ) {
-            alert("You may not check someone in without confirming their age.");
+    var check_in = function (id) {
+        if ($('#age_' + id).val() == {{ AGE_UNKNOWN }}) {
+            alert('You may not check someone in without confirming their age.');
             return;
         }
-
-        $.post("check_in", {id: id,
-                            csrf_token: csrf_token,
-                            age_group:  $("#age_" + id).val(),
-                            badge_num:  $("#num_" + id).val(),
-                            group: $("#group_" + id).val() || ""},
-                function(json) {
-                    var message = json.message;
-                    if( json.success ) {
-                        message += ' &nbsp; <a href="#" onClick="undoCheckin('+id+','+json.pre_badge+') ; return false">Undo</a>';
-                        $("#paid_" + id).html(json.paid);
-                        $("#cin_" + id).html(json.checked_in);
-                        $("#age_" + id).parent().html(json.age_group);
-                        $("#num_" + id).parent().html(json.badge);
-                    }
-                    showTop(message);
-                    if( json.increment )
-                        $("#checkin_count").html(1 + parseInt($("#checkin_count").html()));
-                },
-                "json");
-    }
-    function undoCheckin(id, pre_badge) {
-        $.post("undo_checkin", {id: id, csrf_token: csrf_token, pre_badge: pre_badge},
-                function(s) {
-                    var sep = location.href.indexOf("?")==-1 ? "?" : "&";
-                    location.href += sep + "message=" + encodeURIComponent(s);
+        $.post('check_in', {
+            id: id,
+            csrf_token: csrf_token,
+            age_group:  $('#age_' + id).val(),
+            badge_num:  $('#num_' + id).val(),
+            group: $('#group_' + id).val() || ''
+        }, function (json) {
+            var message = json.message;
+            if (json.success) {
+                message += ' &nbsp; <a href="#" onClick="undoCheckin(\'' + id + '\', ' + json.pre_badge + ') ; return false">Undo</a>';
+                $('#paid_' + id).html(json.paid);
+                $('#cin_' + id).html(json.checked_in);
+                $('#age_' + id).parent().html(json.age_group);
+                $('#num_' + id).parent().html(json.badge);
+            }
+            showTop(message);
+            if (json.increment) {
+                $('#checkin_count').html(1 + parseInt($("#checkin_count").html()));
+            }
+        }, 'json');
+    };
+    var undoCheckin = function (id, pre_badge) {
+        $.post('undo_checkin', {id: id, csrf_token: csrf_token, pre_badge: pre_badge}, function(s) {
+            var sep = location.href.indexOf('?') === -1 ? '?' : '&';
+            location.href += sep + 'message=' + encodeURIComponent(s);
         });
-    }
+    };
 </script>
 {% for attendee in attendees %}
-{% if AT_THE_CON and attendee.paid != NOT_PAID and not attendee.is_unassigned and not attendee.checked_in %}
-<div class="dialog-form" id="{{ attendee.id }}" title="Quick Check-In">
-    <form>
-        <table>
-            <tr>
-                <td><strong>Name:</strong></td><td>{{ attendee.full_name }}</td>
-            </tr>
-            <tr>
-                <td><strong>Badge Type:</strong></td><td>{{ attendee.badge_type_label }}
-                {% if attendee.ribbon != NO_RIBBON %}
-                    ({{ attendee.ribbon_label }})
-                {% endif %}</td>
-            </tr>
-            <tr>
-                <td><strong>Badge Number:</strong></td><td># <input class="num" id="num_{{ attendee.id }}" type="text" size="5" /></td>
-            </tr>
-            <tr>
-                <td><strong>Age Group:</strong></td><td><select id="age_{{ attendee.id }}">
-                    {% options AGE_GROUP_OPTS attendee.age_group %}
-                </select>
-                </td>
-            </tr>
-            {% if attendee.paid == PAID_BY_GROUP %}
-            <tr>
-                <td><strong>Group:</strong></td><td><select id="group_{{ attendee.id }}">
-                    <option value="">No Group</option>
-                    {% options groups attendee.group.id %}
-                </select></td>
-            </tr>
-            {% endif %}
-            <tr>
-                <td><strong>Emergency Contact:</strong></td><td>{{ attendee.ec_phone }}</td>
-            </tr>
-            <!-- Allow form submission with keyboard without duplicating the dialog button -->
-            <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
-        </table>
-    </form>
-</div>
-{% endif %}
+    {% if AT_THE_CON and attendee.paid != NOT_PAID and not attendee.is_unassigned and not attendee.checked_in %}
+        <div class="dialog-form" id="{{ attendee.id }}" title="Quick Check-In">
+            <table>
+                <tr>
+                    <td><strong>Name:</strong></td>
+                    <td>{{ attendee.full_name }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Badge Type:</strong></td>
+                    <td>{{ attendee.badge_type_label }}
+                        {% if attendee.ribbon != NO_RIBBON %}
+                            ({{ attendee.ribbon_label }})
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Badge Number:</strong></td>
+                    <td># <input class="num" id="num_{{ attendee.id }}" type="text" size="5" /></td>
+                </tr>
+                <tr>
+                    <td><strong>Age Group:</strong></td>
+                    <td>
+                        <select id="age_{{ attendee.id }}">
+                            {% options AGE_GROUP_OPTS attendee.age_group %}
+                        </select>
+                    </td>
+                </tr>
+                {% if attendee.paid == PAID_BY_GROUP and not attendee.group_id %}
+                    <tr>
+                        <td><strong>Group:</strong></td>
+                        <td>
+                            <select id="group_{{ attendee.id }}">
+                                <option value="">No Group</option>
+                                {% options groups attendee.group_id %}
+                            </select>
+                        </td>
+                    </tr>
+                {% endif %}
+                <tr>
+                    <td><strong>Emergency Contact:</strong></td>
+                    <td>{{ attendee.ec_phone }}</td>
+                </tr>
+            </table>
+        </div>
+    {% endif %}
 {% endfor %}
