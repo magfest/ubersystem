@@ -207,7 +207,7 @@ class Root:
         message = check(sale)
         if not message and badge_num is not None:
             try:
-                sale.attendee = Attendee.objects.get(badge_num=badge_num)
+                sale.attendee = session.query(Attendee).filter_by(badge_num=badge_num).one()
             except:
                 message = 'No attendee has that badge number'
 
@@ -416,11 +416,12 @@ class Root:
                     message = 'Please enter a real emergency contact number'
                 elif attendee.age_group == AGE_UNKNOWN:
                     message = 'Please select an age category'
-                elif attendee.payment_method == MANUAL and not attendee.email:
+                elif attendee.payment_method == MANUAL and not re.match(EMAIL_RE, attendee.email):
                     message = 'Email address is required to pay with a credit card at our registration desk'
                 elif attendee.badge_type not in [ATTENDEE_BADGE, ONE_DAY_BADGE]:
                     message = 'No hacking allowed!'
                 else:
+                    session.add(attendee)
                     if params.get('under_13') and attendee.age_group == UNDER_18:
                         attendee.for_review += 'Automated message: Attendee marked as under 13 during registration.'
                     attendee.badge_num = 0
@@ -436,7 +437,6 @@ class Root:
                         message = message.format('cash', '${}'.format(attendee.total_cost))
                     elif attendee.payment_method == MANUAL:
                         message = message.format('credit card', 'credit card')
-                    session.add(attendee)
                     raise HTTPRedirect('register?message={}', message)
 
             return {
@@ -467,12 +467,7 @@ class Root:
             else:
                 attendee.paid = HAS_PAID
                 attendee.amount_paid = attendee.total_cost
-
-                # HACK! need to fix this to save correctly.
-                if attendee.registered is None:
-                    attendee.registered = datetime.now()
-
-                session.add(attendee)
+                session.merge(attendee)
                 raise HTTPRedirect('register?message={}', 'Your payment has been accepted, please proceed to the Preregistration desk to pick up your badge')
 
     def comments(self, session, order='last_name'):
@@ -545,7 +540,6 @@ class Root:
             'charge': Charge(attendee)
         }
 
-    # TODO: need to fix this Charge stuff
     @credit_card
     def manual_reg_charge(self, session, payment_id, stripeToken):
         charge = Charge.get(payment_id)
@@ -556,6 +550,7 @@ class Root:
         else:
             attendee.paid = HAS_PAID
             attendee.amount_paid = attendee.total_cost
+            session.merge(attendee)
             raise HTTPRedirect('new?message={}', 'Payment accepted')
 
     @csrf_protected
