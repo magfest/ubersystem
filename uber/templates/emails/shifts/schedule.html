@@ -1,14 +1,19 @@
 <html>
 <head></head>
 <body>
+
 {{ attendee.first_name }},
+<br/><br/>
 
-<br/><br/>{{ EVENT_NAME_AND_YEAR }} is almost upon us! Please take one last look at your shift schedule below to verify
-that you are signed up for the shifts you want. You will be able to log in and change your shifts at
-<a href="{{ URL_BASE }}/signups/login">this link</a> anytime until {{ UBER_TAKEDOWN|datetime }}.
+{% if attendee.takes_shifts and attendee.shifts %}
+    The schedule of shifts you've signed up for is below; please print it out so that you can have your department managers
+    mark each shift as worked.
+    <br/> <br/>
+    If you forget to print out this sheet and would like to pick up a spare copy, or if you want to change your hours,
+    you can drop by Staffing Ops in the Fest Ops room during {{ EVENT_NAME }}.
+{% endif %}
 
-<br/><br/>Don't forget to pick up a copy of your schedule at Staffing Ops after you check in!
+{% include "signups/printable_schedule.html" %}
 
-<br/><br/>{% include "signups/printable_schedule.html" %}
 </body>
 </html>
