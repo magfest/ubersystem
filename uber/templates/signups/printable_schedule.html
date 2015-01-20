@@ -1,12 +1,14 @@
-You are signed up for {{ attendee.weighted_hours }} hours (after weighting)
+{% if attendee.takes_shifts %}
+    You are signed up for {{ attendee.weighted_hours }} hours (after weighting)
 
-<br/> <br/>
-After working each shift, make sure you get a department chair to initial under the <b>Worked</b> column below.
-If your shifts are not marked as worked, you won't
-{% if attendee.paid != NEED_NOT_PAY %}
-    get your badge refund, plus you won't
+    <br/> <br/>
+    After working each shift, make sure you get a department chair to initial under the <b>Worked</b> column below.
+    If your shifts are not marked as worked, you won't
+    {% if attendee.paid != NEED_NOT_PAY %}
+        get your badge refund, plus you won't
+    {% endif %}
+    get a free badge or free hotel room space next year.
 {% endif %}
-get a free badge or free hotel room space next year.
 
 <br/> <br/>
 Free food is available in the Hospitality Suite in Room 6176 during the following times:
@@ -17,9 +19,8 @@ Free food is available in the Hospitality Suite in Room 6176 during the followin
     <li>Overnight: 9:00 pm to 4:00 am (or until the hot food has run out, whichever occurs first)</li>
 </ul>
 
-{% if attendee.badge_type == ATTENDEE_BADGE %}
-    You'll become eligible for food after signing up for at least 12 weighted hours <b>AND</b> working at least 6 weighted hours.  Please come to Staffing Ops (in the Fest Ops room) to get your ribbon marked after working your first shift and getting your department head to sign this sheet.
-    <br/>
+{% if attendee.badge_type == ATTENDEE_BADGE and attendee.takes_shifts %}
+    You'll become eligible for food after signing up for at least 12 weighted hours <b>AND</b> working at least 6 weighted hours.  Please come to Staffing Ops (in the Fest Ops room) to get your ribbon marked after working your first shift and getting your department head to sign this sheet. <br/>
 {% endif %}
 
 <br/>
@@ -63,6 +64,6 @@ In addition to the Hospitality Suite, you can buy food at the Galaxy Cafe.  To g
         {% endif %}
     {% endfor %}
     </table>
-{% else %}
+{% elif attendee.takes_shifts %}
     <h3>You have not signed up for any shifts.</h3>
 {% endif %}

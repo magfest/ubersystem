@@ -97,6 +97,7 @@ class DeptChecklistEmail(AutomatedEmail):
                                 extra_data = {'conf': conf})
 
 before = lambda dt: bool(dt) and localized_now() < dt
+after = lambda dt: bool(dt) and localized_now() > dt
 days_after = lambda days, dt: bool(dt) and (localized_now() > dt + timedelta(days=days))
 def days_before(days, dt, until=None):
     if dt:
@@ -225,9 +226,10 @@ StopsEmail('Please tell us your {EVENT_NAME} shirt size', 'shifts/shirt_reminder
                                     and days_before(30, UBER_TAKEDOWN) and days_after(1, a.registered),
            needs_approval=True)
 
-StopsEmail('Review your {EVENT_NAME} shift schedule', 'shifts/schedule.html',
-           lambda a: SHIFTS_CREATED and a.takes_shifts and a.hours and days_before(14, UBER_TAKEDOWN),
+StopsEmail('Please print your {EVENT_NAME} shift schedule', 'shifts/schedule.html',
+           lambda a: SHIFTS_CREATED and after(UBER_TAKEDOWN) and a.takes_shifts and a.shifts,
            needs_approval=True)
+
 
 # MAGFest provides staff rooms for returning volunteers; leave ROOM_DEADLINE blank to keep these emails turned off.
 
