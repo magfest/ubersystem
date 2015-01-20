@@ -3,13 +3,12 @@ from uber.common import *
 def check_if_can_reg(func):
     @wraps(func)
     def with_check(*args,**kwargs):
-        if not DEV_BOX:
-            if state.BADGES_SOLD >= MAX_BADGE_SALES:
-                return render('static_views/prereg_soldout.html')
-            elif state.BEFORE_PREREG_OPEN:
-                return render('static_views/prereg_not_yet_open.html')
-            elif state.AFTER_PREREG_TAKEDOWN:
-                return render('static_views/prereg_closed.html')
+        if state.BADGES_SOLD >= MAX_BADGE_SALES:
+            return render('static_views/prereg_soldout.html')
+        elif state.BEFORE_PREREG_OPEN:
+            return render('static_views/prereg_not_yet_open.html')
+        elif state.AFTER_PREREG_TAKEDOWN:
+            return render('static_views/prereg_closed.html')
         return func(*args,**kwargs)
     return with_check
 
@@ -238,7 +237,11 @@ def restricted(func):
                 raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in')
 
             else:
-                if not set(func.restricted).intersection(AdminAccount.access_set()):
+                access = AdminAccount.access_set()
+                if not AT_THE_CON:
+                    access.discard(REG_AT_CON)
+
+                if not set(func.restricted).intersection(access):
                     if len(func.restricted) == 1:
                         return 'You need {} access for this page'.format(dict(ACCESS_OPTS)[func.restricted[0]])
                     else:

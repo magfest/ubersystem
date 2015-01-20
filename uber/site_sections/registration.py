@@ -28,7 +28,7 @@ def check_everything(attendee):
         return "You must enter this attendee's age group"
 
 
-@all_renderable(PEOPLE)
+@all_renderable(PEOPLE, REG_AT_CON)
 class Root:
     def index(self, session, message='', page='1', search_text='', uploaded_id='', order='last_first'):
         total_count = session.query(Attendee).count()
@@ -41,6 +41,13 @@ class Root:
             count = total_count
 
         attendees = attendees.order(order)
+
+        groups = set()
+        for a in session.query(Attendee) \
+                        .filter(Attendee.first_name == '', Attendee.group_id != None) \
+                        .options(joinedload(Attendee.group)).all():
+            groups.add((a.group.id, a.group.name + (' ({})'.format(a.group.leader.full_name) if a.group.leader else '')))
+
         if search_text and count == total_count:
             message = 'No matches found'
         elif search_text and count == 1 and (not AT_THE_CON or search_text.isdigit()):
@@ -57,11 +64,12 @@ class Root:
             'search_text':    search_text,
             'search_results': bool(search_text),
             'attendees':      attendees,
+            'groups':         sorted(groups, key = lambda tup: tup[1]),
             'order':          Order(order),
             'attendee_count': total_count,
             'checkin_count':  session.query(Attendee).filter(Attendee.checked_in == None).count(),
             'attendee':       session.attendee(uploaded_id) if uploaded_id else None,
-            'remaining_badges': max(0,(MAX_BADGE_SALES - state.BADGES_SOLD))
+            'remaining_badges': max(0, MAX_BADGE_SALES - state.BADGES_SOLD)
         }
 
     def form(self, session, message='', return_to='', omit_badge='', **params):
@@ -71,6 +79,9 @@ class Root:
             attendee.group_id = params['group_opt'] or None
             if AT_THE_CON and omit_badge:
                 attendee.badge_num = 0
+            if 'no_override' in params:
+                attendee.overridden_price = None
+
             message = check_everything(attendee)
             if not message:
                 session.add(attendee)
@@ -167,13 +178,13 @@ class Root:
         return 'MPoint usage deleted'
 
     @ajax
-    def record_old_mpoint_exchange(self, session, badge_num, mpoints):
+    def record_old_mpoint_exchange(self, session, badge_num, amount):
         try:
             attendee = session.attendee(badge_num=badge_num)
         except:
             return {'success': False, 'message': 'No one has badge number {}'.format(badge_num)}
 
-        ome = OldMPointExchange(attendee=attendee, amount=mpoints)
+        ome = OldMPointExchange(attendee=attendee, amount=amount)
         message = check(ome)
         if message:
             return {'success': False, 'message': message}
@@ -185,7 +196,8 @@ class Root:
 
     @ajax
     def undo_mpoint_exchange(self, session, id):
-        session.delete(session.old_mpoint_exchange(id))
+        session.delete(session.old_m_point_exchange(id))
+        session.commit()
         return 'MPoint exchange deleted'
 
     @ajax
@@ -216,7 +228,7 @@ class Root:
         return 'Sale deleted'
 
     @ajax
-    def check_in(self, session, id, badge_num, age_group, message=''):
+    def check_in(self, session, id, badge_num, age_group, group, message=''):
         attendee = session.attendee(id)
         pre_badge = attendee.badge_num
         success, increment = True, False
@@ -231,11 +243,18 @@ class Root:
                 maybe_dupe = session.query(Attendee).filter_by(badge_num=badge_num, badge_type=attendee.badge_type)
                 if maybe_dupe.count():
                     message = 'That badge number already belongs to ' + maybe_dupe.first().full_name
+
+            if group:
+                session.match_to_group(attendee, session.group(group))
+            elif attendee.paid == PAID_BY_GROUP and not attendee.group:
+                message = 'You must select a group for this attendee.'
+
             success = not message
 
         if success and attendee.checked_in:
             message = attendee.full_name + ' was already checked in!'
         elif success:
+            message = ""
             attendee.checked_in = datetime.now(UTC)
             attendee.age_group = int(age_group)
             if not attendee.badge_num:
@@ -262,8 +281,8 @@ class Root:
 
     @csrf_protected
     def undo_checkin(self, session, id, pre_badge):
-        a = session.attendee(id)
-        a.checked_in, a.badge_num = None, pre_badge
+        attendee = session.attendee(id)
+        attendee.checked_in, attendee.badge_num = None, pre_badge
         session.add(attendee)
         session.commit()
         return 'Attendee successfully un-checked-in'
@@ -407,16 +426,17 @@ class Root:
                     attendee.badge_num = 0
                     if not attendee.zip_code:
                         attendee.zip_code = '00000'
-                    session.add(attendee)
                     message = 'Thanks!  Please queue in the {} line and have your photo ID and {} ready.'
                     if attendee.payment_method == STRIPE:
                         raise HTTPRedirect('pay?id={}', attendee.id)
                     elif attendee.payment_method == GROUP:
                         message = 'Please proceed to the preregistration line to pick up your badge.'
+                        attendee.paid = PAID_BY_GROUP
                     elif attendee.payment_method == CASH:
                         message = message.format('cash', '${}'.format(attendee.total_cost))
                     elif attendee.payment_method == MANUAL:
                         message = message.format('credit card', 'credit card')
+                    session.add(attendee)
                     raise HTTPRedirect('register?message={}', message)
 
             return {
