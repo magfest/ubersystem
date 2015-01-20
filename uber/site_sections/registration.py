@@ -178,13 +178,13 @@ class Root:
         return 'MPoint usage deleted'
 
     @ajax
-    def record_old_mpoint_exchange(self, session, badge_num, mpoints):
+    def record_old_mpoint_exchange(self, session, badge_num, amount):
         try:
             attendee = session.attendee(badge_num=badge_num)
         except:
             return {'success': False, 'message': 'No one has badge number {}'.format(badge_num)}
 
-        ome = OldMPointExchange(attendee=attendee, amount=mpoints)
+        ome = OldMPointExchange(attendee=attendee, amount=amount)
         message = check(ome)
         if message:
             return {'success': False, 'message': message}
@@ -196,7 +196,8 @@ class Root:
 
     @ajax
     def undo_mpoint_exchange(self, session, id):
-        session.delete(session.old_mpoint_exchange(id))
+        session.delete(session.old_m_point_exchange(id))
+        session.commit()
         return 'MPoint exchange deleted'
 
     @ajax
