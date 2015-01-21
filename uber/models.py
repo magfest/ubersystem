@@ -1317,19 +1317,20 @@ class Session(SessionManager):
             elif CUSTOM_BADGES_REALLY_ORDERED:
                 if badge_type in PREASSIGNED_BADGE_TYPES and old_badge_type not in PREASSIGNED_BADGE_TYPES:
                     return 'Custom badges have already been ordered; you can add new staffers by giving them an Attendee badge with a Volunteer Ribbon'
-                elif badge_type not in PREASSIGNED_BADGE_TYPES and old_badge_type in PREASSIGNED_BADGE_TYPES:
+                elif PRE_CON and badge_type not in PREASSIGNED_BADGE_TYPES and old_badge_type in PREASSIGNED_BADGE_TYPES:
                     attendee.badge_num = 0
                     return 'Badge updated'
                 elif badge_type in PREASSIGNED_BADGE_TYPES and badge_num != old_badge_num:
                     return 'Custom badges have already been ordered, so you cannot shift badge numbers'
 
             if AT_OR_POST_CON:
-                if not badge_num and badge_type in PREASSIGNED_BADGE_TYPES:
+                if not CUSTOM_BADGES_REALLY_ORDERED and not badge_num and badge_type in PREASSIGNED_BADGE_TYPES:
                     return 'You must assign a badge number for pre-assigned badge types'
                 elif badge_num:
                     existing = self.query(Attendee).filter_by(badge_type=badge_type, badge_num=badge_num)
                     if existing.count():
                         return 'That badge number already belongs to {!r}'.format(existing.first().full_name)
+                    attendee.badge_type, attendee.badge_num = badge_type, int(badge_num)
             elif old_badge_num and old_badge_type == badge_type:
                 next = self.next_badge_num(badge_type) - 1
                 new_badge_num = min(int(badge_num or MAX_BADGE), next)
