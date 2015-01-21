@@ -202,7 +202,7 @@ class Root:
 
     @ajax
     def record_sale(self, session, badge_num=None, **params):
-        params['reg_station'] = cherrypy.session.get('reg_station')
+        params['reg_station'] = cherrypy.session.get('reg_station') or 0
         sale = session.sale(params)
         message = check(sale)
         if not message and badge_num is not None:

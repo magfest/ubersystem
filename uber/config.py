@@ -158,11 +158,14 @@ PRICE_BUMPS = {}
 for _opt, _val in BADGE_PRICES['attendee'].items():
     PRICE_BUMPS[EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d'))] = _val
 
-def _make_enum(enum_name, section):
+def _make_enum(enum_name, section, prices=False):
     opts, lookup, varnames = [], {}, []
     for name, desc in section.items():
         if isinstance(name, int):
-            val = name
+            if prices:
+                val, desc = desc, name
+            else:
+                val = name
         else:
             varnames.append(name.upper())
             val = globals()[name.upper()] = int(sha512(name.upper().encode()).hexdigest()[:7], 16)
@@ -197,7 +200,7 @@ for _name, _section in _config['integer_enums'].items():
 
             _interpolated[key] = _desc
 
-        _make_enum(_name, _interpolated)
+        _make_enum(_name, _interpolated, prices=_name.endswith('_price'))
 
 BADGE_RANGES = {}
 for _badge_type, _range in _config['badge_ranges'].items():
@@ -272,8 +275,8 @@ PREREG_SHIRT_OPTS = SHIRT_OPTS[1:]
 MERCH_SHIRT_OPTS = [(SIZE_UNKNOWN, 'select a size')] + list(PREREG_SHIRT_OPTS)
 DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt,desc) if amt else desc) for amt,desc in DONATION_TIER_OPTS]
 
-STORE_ITEM_NAMES = [name for price,name in STORE_PRICE_OPTS]
-FEE_ITEM_NAMES = [name for price,name in FEE_PRICE_OPTS]
+STORE_ITEM_NAMES = list(STORE_PRICES.keys())
+FEE_ITEM_NAMES = list(FEE_PRICES.keys())
 
 AT_OR_POST_CON = AT_THE_CON or POST_CON
 PRE_CON = not AT_OR_POST_CON
