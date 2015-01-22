@@ -7,7 +7,7 @@ def check_if_can_reg(func):
             return render('static_views/prereg_soldout.html')
         elif state.BEFORE_PREREG_OPEN:
             return render('static_views/prereg_not_yet_open.html')
-        elif state.AFTER_PREREG_TAKEDOWN:
+        elif state.AFTER_PREREG_TAKEDOWN and not AT_THE_CON:
             return render('static_views/prereg_closed.html')
         return func(*args,**kwargs)
     return with_check
@@ -85,7 +85,7 @@ def csv_file(func):
 def check_shutdown(func):
     @wraps(func)
     def with_check(self, *args, **kwargs):
-        if UBER_SHUT_DOWN:
+        if UBER_SHUT_DOWN or AT_THE_CON:
             raise HTTPRedirect('index?message={}', 'The page you requested is only available pre-event.')
         else:
             return func(self, *args, **kwargs)
