@@ -240,7 +240,16 @@
     </tr>
     <tr>
         <td> Signed Up </td>
-        <td> <i>{{ attendee.registered }}</i> </td>
+        <td>
+            <i>{{ attendee.registered_local }}</i>
+            {% if AT_THE_CON %}
+                {% if attendee.checked_in %}
+                    (checked in at {{ attendee.checked_in_local }})
+                {% else %}
+                    (has not checked in yet)
+                {% endif %}
+            {% endif %}
+        </td>
     </tr>
 {% endif %}
 <tr>
