@@ -226,7 +226,7 @@ StopsEmail('Please tell us your {EVENT_NAME} shirt size', 'shifts/shirt_reminder
                                     and days_before(30, UBER_TAKEDOWN) and days_after(1, a.registered),
            needs_approval=True)
 
-StopsEmail('Please print your {EVENT_NAME} shift schedule', 'shifts/schedule.html',
+StopsEmail('(CORRECTED) Please print your (FIXED) {EVENT_NAME} shift schedule', 'shifts/schedule.html',
            lambda a: SHIFTS_CREATED and after(UBER_TAKEDOWN) and a.takes_shifts and a.shifts,
            needs_approval=True)
 
