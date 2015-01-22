@@ -81,7 +81,7 @@
         <td> {% popup_link "../static_views/seasonPasses.html" "Details" %} </td>
     </tr>
 {% endif %}
-{% if GROUPS_ENABLED %}
+{% if GROUPS_ENABLED and not AT_THE_CON %}
     <tr>
     {% if BEFORE_GROUP_PREREG_TAKEDOWN %}
             <td class="nobr">

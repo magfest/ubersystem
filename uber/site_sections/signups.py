@@ -3,7 +3,7 @@ from uber.common import *
 @all_renderable(SIGNUPS)
 class Root:
     def index(self, session, message=''):
-        if UBER_SHUT_DOWN:
+        if UBER_SHUT_DOWN or AT_THE_CON:
             return render('signups/printable.html', {'attendee': session.logged_in_volunteer()})
         else:
             return {
