@@ -37,6 +37,10 @@ def form_link(attendee):
 def dept_checklist_path(conf, attendee=None):
     return SafeString(conf.path(attendee))
 
+@register.filter
+def numeric_range(count):
+    return range(count)
+
 def _getter(x, attrName):
     if '.' in attrName:
         first, rest = attrName.split('.', 1)
