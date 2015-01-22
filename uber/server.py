@@ -14,10 +14,8 @@ cherrypy.tools.add_email_to_error_page = cherrypy.Tool('after_error_response', _
 class UberShutDown:
     def default(self, *args, **kwargs):
         return render('closed.html')
-    
-    signups = signups.Root()
+
     schedule = schedule.Root()
-    preregistration = preregistration.Root()
 
 mimetypes.init()
 
