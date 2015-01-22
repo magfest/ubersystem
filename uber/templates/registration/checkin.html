@@ -89,7 +89,14 @@
                 </tr>
                 <tr>
                     <td><strong>Badge Number:</strong></td>
-                    <td># <input class="num" id="num_{{ attendee.id }}" type="text" size="5" /></td>
+                    <td>
+                        {% if attendee.badge_num %}
+                            {{ attendee.badge_num }}
+                            <input type="hidden" id="num_{{ attendee.id }}" value="{{ attendee.badge_num }}" />
+                        {% else %}
+                            # <input class="num" id="num_{{ attendee.id }}" type="text" size="5" />
+                        {% endif %}
+                    </td>
                 </tr>
                 <tr>
                     <td><strong>Age Group:</strong></td>
