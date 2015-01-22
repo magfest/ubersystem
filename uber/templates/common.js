@@ -1,18 +1,18 @@
-var csrf_token = "{% if CSRF_TOKEN %}{{ CSRF_TOKEN }}{% endif %}";
+var csrf_token = '{% if CSRF_TOKEN %}{{ CSRF_TOKEN }}{% endif %}';
 
 var setVisible = function(selector, visible) {
-    $(selector)[visible ? "show" : "hide"]();
+    $(selector)[visible ? 'show' : 'hide']();
 }
 
 $.field = function(field) {
-    var $field = $("[name=" + field + "]");
+    var $field = $('[name=' + field + ']');
     return $field.size() ? $field : null;
 };
 
 $.val = function(field) {
     var val = $.field(field).val();
-    if ($.field(field).is(":radio")) {
-        val = $.field(field).filter(":checked").val();
+    if ($.field(field).is(':radio')) {
+        val = $.field(field).filter(':checked').val();
     }
     return val.match(/^\W*\d+\W*$/) ? parseInt(val) : val;
 };
@@ -38,46 +38,46 @@ var RATINGS = {
     }
 };
 var renderRating = function(shift, $td) {
-    shift = typeof shift === 'string' ? SHIFTS[shiftId] : shift;
-    $td = ($td || $('#rating' + shift.id)).addClass("rating").data("shift", shift);
+    shift = typeof shift === 'string' ? SHIFTS[shift] : shift;
+    $td = ($td || $('#rating' + shift.id)).addClass('rating').data('shift', shift);
     $.each([{{ RATED_GOOD }}, {{ RATED_BAD }}, {{ RATED_GREAT }}], function(i, rating) {
         $td.append(
-            $("<img/>").attr("src", RATINGS[rating][shift.rating === rating])
-                       .attr("title", shift.comment)
-                       .data("rating", rating));
+            $('<img/>').attr('src', RATINGS[rating][shift.rating === rating])
+                       .attr('title', shift.comment)
+                       .data('rating', rating));
     });
     return $td;
 };
 var setupRatingClickHandler = function() {
-    $(document.body).on("click", "td.rating img", function(event) {
+    $(document.body).on('click', 'td.rating img', function(event) {
         var $img = $(event.target);
-        var shift = $img.parent().data("shift");
-        var rating = $img.data("rating");
-        var comment = "";
-        while (comment === "" && RATINGS[rating].prompt) {
+        var shift = $img.parent().data('shift');
+        var rating = $img.data('rating');
+        var comment = '';
+        while (comment === '' && RATINGS[rating].prompt) {
             comment = prompt(RATINGS[rating].prompt);
         }
         if (comment !== null ) {
             var params = {shift_id: shift.id, rating: rating, comment: comment, csrf_token: csrf_token};
-            $.post("../jobs/rate", params, function(json) {
-                $img.parent().find("img").each(function(){
-                    var r = $(this).data("rating");
-                    $(this).attr("title", comment)
-                           .attr("src", RATINGS[r][r == rating]);
+            $.post('../jobs/rate', params, function(json) {
+                $img.parent().find('img').each(function(){
+                    var r = $(this).data('rating');
+                    $(this).attr('title', comment)
+                           .attr('src', RATINGS[r][r == rating]);
                 });
-            }, "json");
+            }, 'json');
         }
     });
 };
 var setStatus = function(shiftId, status) {
     var $status = $(status);
-    $.post("../jobs/set_worked", {id: shiftId, worked: $status.val(), csrf_token: csrf_token}, function(result) {
+    $.post('../jobs/set_worked', {id: shiftId, worked: $status.val(), csrf_token: csrf_token}, function(result) {
         if (result.error) {
             alert(result.error);
         } else {
             $status.parent().empty()
-                .append("<i>" + result.status_label + "</i> &nbsp; ")
-                .append($undoForm("../jobs/undo_worked", {id: shiftId}));
+                .append('<i>' + result.status_label + '</i> &nbsp; ')
+                .append($undoForm('../jobs/undo_worked', {id: shiftId}));
             if ($status.val() == {{ SHIFT_WORKED }}) {
                 renderRating(shiftId);
             }

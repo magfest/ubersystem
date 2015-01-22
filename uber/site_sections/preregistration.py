@@ -347,7 +347,9 @@ class Root:
 
     def add_group_members(self, session, id, count):
         group = session.group(id)
-        if int(count) < group.min_badges_addable:
+        if AT_OR_POST_CON:
+            raise HTTPRedirect('group_members?id={}&message={}', group.id, 'You cannot add members after the event has started')
+        elif int(count) < group.min_badges_addable:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, 'This group cannot add fewer than {} badges'.format(group.min_badges_addable))
 
         charge = Charge(group, amount = 100 * int(count) * state.GROUP_PRICE, description = '{} extra badges for {}'.format(count, group.name))
