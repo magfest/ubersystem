@@ -245,22 +245,13 @@ class Root:
         })]
         return {'locations': totals + sorted(locations.items(), key = lambda loc: loc[1]['regular_signups'] - loc[1]['regular_total'])}
 
-    @csv_file
-    def all_shifts(self, out, session):
-        for loc,name in JOB_LOCATION_OPTS:
-            out.writerow([name])
-            for shift in (session.query(Shift)
-                                 .join(Shift.job)
-                                 .filter(Job.location == loc)
-                                 .order_by(Job.start_time, Job.name)
-                                 .options(joinedload(Shift.job), joinedload(Shift.attendee)).all()):
-                out.writerow([shift.job.start_time_local.strftime('%I%p %a').lstrip('0'),
-                              '{} hours'.format(shift.job.real_duration),
-                              shift.job.name,
-                              shift.attendee.full_name,
-                              'Circle One: worked / unworked',
-                              'Comments:'])
-            out.writerow([])
+    def all_shifts(self, session):
+        return {
+            'depts': [(name, session.query(Job)
+                                    .filter_by(location=loc)
+                                    .order_by(Job.start_time, Job.name).all())
+                      for loc, name in JOB_LOCATION_OPTS]
+        }
 
     def add_volunteers_by_dept(self, session, message='', location=None):
         location = location or JOB_LOCATION_OPTS[0][0]
