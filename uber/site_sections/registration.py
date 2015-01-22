@@ -67,7 +67,7 @@ class Root:
             'groups':         sorted(groups, key = lambda tup: tup[1]),
             'order':          Order(order),
             'attendee_count': total_count,
-            'checkin_count':  session.query(Attendee).filter(Attendee.checked_in == None).count(),
+            'checkin_count':  session.query(Attendee).filter(Attendee.checked_in != None).count(),
             'attendee':       session.attendee(uploaded_id) if uploaded_id else None,
             'remaining_badges': max(0, MAX_BADGE_SALES - state.BADGES_SOLD)
         }
