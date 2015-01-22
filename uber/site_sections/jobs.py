@@ -53,6 +53,7 @@ class Root:
 
         jobs, shifts, attendees = session.everything(location)
         return {
+            'message':   message,
             'location':  location,
             'jobs':      jobs,
             'shifts':    Shift.dump(shifts),
