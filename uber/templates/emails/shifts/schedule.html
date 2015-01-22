@@ -3,7 +3,10 @@
 <body>
 
 {{ attendee.first_name }},
-<br/><br/>
+<br/> <br/>
+
+Sorry for the mix-up, but due to a timezone bug, all of the shift times in the previous email were 5 hours off from their actual times.  Please disregard that email, as this email has the correct times.
+<br/> <br/>
 
 {% if attendee.takes_shifts and attendee.shifts %}
     The schedule of shifts you've signed up for is below; please print it out so that you can have your department managers
@@ -14,6 +17,8 @@
 {% endif %}
 
 {% include "signups/printable_schedule.html" %}
+
+<br/> {{ STOPS_EMAIL_SIGNATURE|linebreaksbr }}
 
 </body>
 </html>
