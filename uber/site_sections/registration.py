@@ -658,12 +658,12 @@ class Root:
             'message':  message,
             'shift_id': shift_id,
             'attendee': attendee,
-            'possible': attendee.possible_opts,
             'shifts':   Shift.dump(attendee.shifts),
             'jobs':     [(job.id, '({}) [{}] {}'.format(custom_tags.timespan.pretty(job), job.location_label, job.name))
                          for job in session.query(Job)
                                            .outerjoin(Job.shifts)
                                            .filter(Job.start_time > localized_now() - timedelta(hours=2),
+                                                   Job.location.in_(attendee.assigned_depts_ints),
                                                    *([] if attendee.trusted else [Job.restricted == False]))
                                            .group_by(Job.id)
                                            .having(func.count(Shift.id) < Job.slots)
