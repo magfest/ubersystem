@@ -1324,13 +1324,20 @@ class Session(SessionManager):
                     return 'Custom badges have already been ordered, so you cannot shift badge numbers'
 
             if AT_OR_POST_CON:
+                badge_num = int(badge_num)
                 if not CUSTOM_BADGES_REALLY_ORDERED and not badge_num and badge_type in PREASSIGNED_BADGE_TYPES:
                     return 'You must assign a badge number for pre-assigned badge types'
                 elif badge_num:
                     existing = self.query(Attendee).filter_by(badge_type=badge_type, badge_num=badge_num)
                     if existing.count():
                         return 'That badge number already belongs to {!r}'.format(existing.first().full_name)
-                    attendee.badge_type, attendee.badge_num = badge_type, int(badge_num)
+                    attendee.badge_type, attendee.badge_num = badge_type, badge_num
+                elif attendee.checked_in:
+                    return 'You cannot unset the badge number of a checked-in attendee'
+                elif attendee.badge_type in PREASSIGNED_BADGE_TYPES:
+                    return 'You cannot unset the badge number of a preassigned badge type'
+                else:
+                    attendee.badge_type, attendee.badge_num = badge_type, badge_num
             elif old_badge_num and old_badge_type == badge_type:
                 next = self.next_badge_num(badge_type) - 1
                 new_badge_num = min(int(badge_num or MAX_BADGE), next)
