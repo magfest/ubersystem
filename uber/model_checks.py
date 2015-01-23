@@ -134,9 +134,14 @@ def attendee_money(attendee):
 
 def attendee_badge_range(attendee):
     if AT_THE_CON:
-        min_num, max_num = BADGE_RANGES[attendee.badge_type]
-        if attendee.badge_num != 0 and not (min_num <= attendee.badge_num <= max_num):
-            return '{} badge numbers must fall within {} and {}'.format(attendee.badge_type_label, min_num, max_num)
+        try:
+            badge_num = int(attendee.badge_num)
+        except:
+            return '{!r} is not a valid badge number'.format(attendee.badge_num)
+        else:
+            min_num, max_num = BADGE_RANGES[attendee.badge_type]
+            if attendee.badge_num != 0 and not (min_num <= badge_num <= max_num):
+                return '{} badge numbers must fall within {} and {}'.format(attendee.badge_type_label, min_num, max_num)
 
 
 def money_amount(money):
