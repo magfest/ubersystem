@@ -16,10 +16,11 @@ class Root:
             'message':  message,
             'accounts': session.query(AdminAccount).join(Attendee)
                                .order_by(Attendee.first_name, Attendee.last_name).all(),
-            'all_attendees': [
-                (a.id, '{a.full_name} - {a.badge}'.format(a=a))
-                for a in session.query(Attendee).filter(Attendee.email != '').order_by(Attendee.full_name).all()
-            ]
+            'all_attendees': sorted([
+                (id, '{} - {}{}'.format(name.title(), BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
+                for id, name, badge_type, badge_num in session.query(Attendee.id, Attendee.full_name, Attendee.badge_type, Attendee.badge_num)
+                                                              .filter(Attendee.email != '').all()
+            ], key=lambda tup: tup[1])
         }
 
     def update(self, session, password='', **params):
