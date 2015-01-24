@@ -30,7 +30,7 @@ def check_everything(attendee):
 
 @all_renderable(PEOPLE, REG_AT_CON)
 class Root:
-    def index(self, session, message='', page='1', search_text='', uploaded_id='', order='last_first'):
+    def index(self, session, message='', page='0', search_text='', uploaded_id='', order='last_first'):
         total_count = session.query(Attendee).count()
         count = 0
         if search_text:
@@ -42,20 +42,26 @@ class Root:
 
         attendees = attendees.order(order)
 
-        groups = set()
-        for a in session.query(Attendee) \
-                        .filter(Attendee.first_name == '', Attendee.group_id != None) \
-                        .options(joinedload(Attendee.group)).all():
-            groups.add((a.group.id, a.group.name + (' ({})'.format(a.group.leader.full_name) if a.group.leader else '')))
-
-        if search_text and count == total_count:
-            message = 'No matches found'
-        elif search_text and count == 1 and (not AT_THE_CON or search_text.isdigit()):
-            raise HTTPRedirect('form?id={}&message={}', attendees.one().id, 'This attendee was the only search result')
+        groups = []
+        for group in session.query(Group) \
+                            .options(joinedload(Group.leader)) \
+                            .filter(Group.id.in_(
+                                session.query(Attendee.group_id)
+                                       .filter(Attendee.group_id != None, Attendee.first_name == '')
+                                       .distinct()
+                                       .subquery())).all():
+            groups.append((group.id, group.name + (' ({})'.format(group.leader.full_name) if group.leader else '')))
 
         page = int(page)
+        if search_text:
+            page = page or 1
+            if search_text and count == total_count:
+                message = 'No matches found'
+            elif search_text and count == 1 and (not AT_THE_CON or search_text.isdigit()):
+                raise HTTPRedirect('form?id={}&message={}', attendees.one().id, 'This attendee was the only search result')
+
         pages = range(1, int(math.ceil(count / 100)) + 1)
-        attendees = attendees[-100 + 100*page : 100*page]
+        attendees = attendees[-100 + 100*page : 100*page] if page else []
 
         return {
             'message':        message if isinstance(message, str) else message[-1],
@@ -64,7 +70,7 @@ class Root:
             'search_text':    search_text,
             'search_results': bool(search_text),
             'attendees':      attendees,
-            'groups':         sorted(groups, key = lambda tup: tup[1]),
+            'groups':         groups,
             'order':          Order(order),
             'attendee_count': total_count,
             'checkin_count':  session.query(Attendee).filter(Attendee.checked_in != None).count(),
