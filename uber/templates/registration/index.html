@@ -171,62 +171,68 @@
 
 <br/>{% include "registration/checkin.html" %}
 
-<table class="list" id="attendee_list">
-<tr class="header">
-    <td align="left"> <a href="index?order={{ order.last_first }}">Name</a> </td>
-    <td> <a href="index?order={{ order.badge_num }}">Badge</a> </td>
-    <td> <a href="index?order={{ order.paid }}">Paid</a> </td>
-    <td>Age</td>
-    {% if AT_THE_CON %}
-        <td> <a href="index?order={{ order.checked_in }}"><nobr>Checked In</nobr></a> </td>
-    {% endif %}
-</tr>
-{% for attendee in attendees %}
-    <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
-        <td id="name_{{ attendee.id }}" style="text-align:left">
-            <a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a>
-            {% if attendee.group %}
-                <br/> <a style="font-size:8pt" href="../groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
-            {% endif %}
-        </td>
-        <td><nobr>
-            {% if AT_THE_CON and not attendee.badge_num %}
-                {{ attendee.badge_type_label }}
-                {% if attendee.ribbon != NO_RIBBON %}
-                    ({{ attendee.ribbon_label }})
-                {% endif %}
-            {% else %}
-                {{ attendee.badge }}
-            {% endif %}
-        </nobr></td>
-        <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
-        {% if attendee.checked_in or not AT_THE_CON %}
-            <td> <nobr>{{ attendee.age_group_label }}</nobr> </td>
-            {% if AT_THE_CON %}
-                <td>
-                    {% if attendee.paid == LOST_BADGE %}
-                    <strong>Badge reported as lost!</strong>
-                    {% else %}
-                    {{ attendee.checked_in_local|time:"fA"|lower }} {{ attendee.checked_in_local|date:"D" }} <br/>
-                    <form method="post" action="lost_badge">
-                        <input type="hidden" name="id" value="{{ attendee.id }}" />
-                        <input type="submit" value="Report Lost Badge">
-                    </form>
-                    {% endif %}
-                </td>
-            {% endif %}
-        {% elif attendee.paid == NOT_PAID %}
-            <td colspan="2">
-                <a href="new?show_all=true">Go to at-the-door page to check in</a>
-            </td>
-        {% else %}
-            <td>{{ attendee.age_group_label }}</td>
-            <td id="cin_{{ attendee.id }}">
-                <button class="attendee-checkin" data-attendeeid="{{ attendee.id }}" {% if attendee.is_unassigned %} disabled {% endif %}>Check In</button>
-            </td>
+{% if page %}
+    <table class="list" id="attendee_list">
+    <tr class="header">
+        <td align="left"> <a href="index?order={{ order.last_first }}">Name</a> </td>
+        <td> <a href="index?order={{ order.badge_num }}">Badge</a> </td>
+        <td> <a href="index?order={{ order.paid }}">Paid</a> </td>
+        <td>Age</td>
+        {% if AT_THE_CON %}
+            <td> <a href="index?order={{ order.checked_in }}"><nobr>Checked In</nobr></a> </td>
         {% endif %}
     </tr>
-{% endfor %}
-</table>
+    {% for attendee in attendees %}
+        <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
+            <td id="name_{{ attendee.id }}" style="text-align:left">
+                <a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a>
+                {% if attendee.group %}
+                    <br/> <a style="font-size:8pt" href="../groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
+                {% endif %}
+            </td>
+            <td><nobr>
+                {% if AT_THE_CON and not attendee.badge_num %}
+                    {{ attendee.badge_type_label }}
+                    {% if attendee.ribbon != NO_RIBBON %}
+                        ({{ attendee.ribbon_label }})
+                    {% endif %}
+                {% else %}
+                    {{ attendee.badge }}
+                {% endif %}
+            </nobr></td>
+            <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
+            {% if attendee.checked_in or not AT_THE_CON %}
+                <td> <nobr>{{ attendee.age_group_label }}</nobr> </td>
+                {% if AT_THE_CON %}
+                    <td>
+                        {% if attendee.paid == LOST_BADGE %}
+                        <strong>Badge reported as lost!</strong>
+                        {% else %}
+                        {{ attendee.checked_in_local|time:"fA"|lower }} {{ attendee.checked_in_local|date:"D" }} <br/>
+                        <form method="post" action="lost_badge">
+                            <input type="hidden" name="id" value="{{ attendee.id }}" />
+                            <input type="submit" value="Report Lost Badge">
+                        </form>
+                        {% endif %}
+                    </td>
+                {% endif %}
+            {% elif attendee.paid == NOT_PAID %}
+                <td colspan="2">
+                    <a href="new?show_all=true">Go to at-the-door page to check in</a>
+                </td>
+            {% else %}
+                <td>{{ attendee.age_group_label }}</td>
+                <td id="cin_{{ attendee.id }}">
+                    <button class="attendee-checkin" data-attendeeid="{{ attendee.id }}" {% if attendee.is_unassigned %} disabled {% endif %}>Check In</button>
+                </td>
+            {% endif %}
+        </tr>
+    {% endfor %}
+    </table>
+{% else %}
+    <div class="center">
+        <em>Use the search box above to filter the attendees or select a page to browse all attendees.</em>
+    </div>
+{% endif %}
 
 {% endblock %}
