@@ -525,7 +525,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def badge_cost(self):
-        registered = self.registered_local or localized_now()
+        registered = self.registered_local if self.registered else localized_now()
         if self.paid in [PAID_BY_GROUP, NEED_NOT_PAY]:
             return 0
         elif self.overridden_price is not None:
