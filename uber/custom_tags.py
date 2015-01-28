@@ -482,5 +482,24 @@ class season_price_notice(Notice):
     def render(self, context):
         return self.notice('Season supporter preregistration', SUPPORTER_DEADLINE, amount_extra=SEASON_LEVEL)
 
-        
+# FIXME this can probably be cleaned up more
+@register.tag(name="random_hash")
+def random_hash(parser, token):
+    items = []
+    bits =  token.split_contents()
+    for item in bits:
+        items.append(item)
+    return RandomgenNode(items[1:])
+
+class RandomgenNode(template.Node):
+    def __init__(self, items):
+        self.items = []
+        for item in items:
+            self.items.append(item)
+
+    def render(self, context):
+        random = os.urandom(16)
+        result = binascii.hexlify(random)
+        return result
+
 template.builtins.append(register)
