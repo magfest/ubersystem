@@ -19,21 +19,25 @@
                         return opt.text;
                     }
                 };
-                $.field("amount_extra").select2({
-                    formatResult: format,
-                    formatSelection: function(opt) { return opt.text; },
-                    minimumResultsForSearch: 99,
-                    escapeMarkup: function(m) { return m; },
-                    width: "100%",
-                });
-                $.field("affiliate").select2({
-                    placeholder: "I don't care about this",
-                    createSearchChoice: function(term) {
-                        return {id: term, text: term};
-                    },
-                    data: {{ affiliates|jsonize }},
-                    width: "100%",
-                }).select2("val", {{ attendee.affiliate|default:""|jsonize }});
+                if ($.field("amount_extra").is('select')) {
+                    $.field("amount_extra").select2({
+                        formatResult: format,
+                        formatSelection: function(opt) { return opt.text; },
+                        minimumResultsForSearch: 99,
+                        escapeMarkup: function(m) { return m; },
+                        width: "100%",
+                    });
+                }
+                if ($.field("affiliate")) {
+                    $.field("affiliate").select2({
+                        placeholder: "I don't care about this",
+                        createSearchChoice: function(term) {
+                            return {id: term, text: term};
+                        },
+                        data: {{ affiliates|jsonize }},
+                        width: "100%",
+                    }).select2("val", {{ attendee.affiliate|default:""|jsonize }});
+                }
                 $("form").submit(function(){
                     $(":submit").attr("value", "Uploading Preregistration...").attr("disabled", true);
                 });
@@ -41,18 +45,20 @@
         });
     </script>
 
-    {% if attendee.badge_type != PSEUDO_DEALER_BADGE %}
+
     <div class="extra-row form-group" {% if not COLLECT_INTERESTS %}style="display:none;"{% endif %}>
     <label for="amount_extra" class="col-sm-2 control-label">Want to kick in extra?</label>
     <div class="col-sm-6">
-      {% if AFTER_PRINTED_BADGE_DEADLINE and attendee.amount_extra >= SUPPORTER_LEVEL %}
+        {% if AFTER_PRINTED_BADGE_DEADLINE and attendee.amount_extra >= SUPPORTER_LEVEL %}
                     {{ attendee.amount_extra_label }}
                     <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
-                {% else %}
+        {% elif COLLECT_INTERESTS %}
                     <select name="amount_extra" onChange="donationChanged()" >
                         {% options PREREG_DONATION_OPTS attendee.amount_extra %}
                     </select>
-                {% endif %}
+        {% else %}
+        <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" onChange="donationChanged()" />
+        {% endif %}
     </div>
   </div>
     {% if COLLECT_INTERESTS %}
@@ -62,10 +68,10 @@
     <p class="help-block col-sm-6 col-sm-offset-2">Supporter level and higher {% if BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ SUPPORTER_DEADLINE|datetime }}.</p>
     </div>
     {% endif %}
-    {% endif %}
+
 
     <div class="badge-row extra-row form-group" style="display:none">
-        <label for="badge_printed_name" class="col-sm-2 control-label">Name Printed on Badge:</label>
+        <label for="badge_printed_name" class="col-sm-2 control-label">Name Printed on Badge</label>
         <div class="col-sm-6">
             <input type="text" class="form-control" name="badge_printed_name" maxlength="20" value="{{ attendee.badge_printed_name }}" {% if AFTER_PRINTED_BADGE_DEADLINE %}readonly{% endif %} />
         </div>

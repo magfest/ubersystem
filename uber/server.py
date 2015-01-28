@@ -4,7 +4,7 @@ from uber.site_sections import schedule, signups, preregistration
 
 def _add_email():
     [body] = cherrypy.response.body
-    body = body.replace(b'<body>', b'''<body>Please contact us via <a href='{{ CONTACT_URL }}'>{{ CONTACT_URL }}</a> if you're not sure why you're seeing this page.''')
+    body = body.replace(b'<body>', b'''<body>Please contact us via <a href="CONTACT_URL">CONTACT_URL</a> if you're not sure why you're seeing this page.'''.replace(b'CONTACT_URL', CONTACT_URL.encode('utf-8')))
     cherrypy.response.headers['Content-Length'] = len(body)
     cherrypy.response.body = [body]
 cherrypy.tools.add_email_to_error_page = cherrypy.Tool('after_error_response', _add_email)

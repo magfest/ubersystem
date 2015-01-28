@@ -23,6 +23,7 @@ def sale_money(session):
 
 @all_renderable(MONEY)
 class Root:
+    @log_pageview
     def index(self, session):
         sales   = sale_money(session)
         preregs = prereg_money(session)
@@ -34,6 +35,7 @@ class Root:
         }
 
     # TODO: add joinedload options here for efficiency
+    @log_pageview
     def mpoints(self, session):
         groups = defaultdict(list)
         for mpu in session.query(MPointsForCash).all():

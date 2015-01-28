@@ -112,10 +112,10 @@ AutomatedEmail(Attendee, '{EVENT_NAME} payment received', 'reg_workflow/attendee
          lambda a: a.paid == HAS_PAID)
 
 AutomatedEmail(Group, '{EVENT_NAME} group payment received', 'reg_workflow/group_confirmation.html',
-         lambda g: g.amount_paid == g.cost)
+         lambda g: g.amount_paid == g.cost and g.cost != 0)
 
 AutomatedEmail(Attendee, '{EVENT_NAME} group registration confirmed', 'reg_workflow/attendee_confirmation.html',
-         lambda a: a.group and a != a.group.leader)
+         lambda a: a.group and a != a.group.leader and not a.placeholder)
 
 AutomatedEmail(Attendee, '{EVENT_NAME} extra payment received', 'reg_workflow/group_donation.txt',
          lambda a: a.paid == PAID_BY_GROUP and a.amount_extra and a.amount_paid == a.amount_extra)
@@ -125,11 +125,11 @@ AutomatedEmail(Attendee, '{EVENT_NAME} extra payment received', 'reg_workflow/gr
 # all events, because they will only be sent for groups with unregistered badges, so if group preregistration
 # has been turned off, they'll just never be sent.
 
-GroupEmail('Reminder to pre-assign {EVENT_NAME} group badges', 'reg_workflow/group_preassign_reminder.txt',
-           lambda g: days_after(30, g.registered) and state.BEFORE_GROUP_PREREG_TAKEDOWN and g.unregistered_badges)
+#GroupEmail('Reminder to pre-assign {EVENT_NAME} group badges', 'reg_workflow/group_preassign_reminder.txt',
+#           lambda g: days_after(30, g.registered) and state.BEFORE_GROUP_PREREG_TAKEDOWN and g.unregistered_badges)
 
-AutomatedEmail(Group, 'Last chance to pre-assign {EVENT_NAME} group badges', 'reg_workflow/group_preassign_reminder.txt',
-         lambda g: state.AFTER_GROUP_PREREG_TAKEDOWN and g.unregistered_badges and (not g.is_dealer or g.status == APPROVED))
+#AutomatedEmail(Group, 'Last chance to pre-assign {EVENT_NAME} group badges', 'reg_workflow/group_preassign_reminder.txt',
+#         lambda g: state.AFTER_GROUP_PREREG_TAKEDOWN and g.unregistered_badges and (not g.is_dealer or g.status == APPROVED))
 
 
 # Dealer emails; these are safe to be turned on for all events because even if the event doesn't have dealers,
@@ -235,11 +235,11 @@ StopsEmail('Final reminder to meet your {EVENT_NAME} hotel room requirements', '
 # For events with customized badges, these emails remind people to let us know what we want on their badges.  We have
 # one email for our volunteers who haven't bothered to confirm they're coming yet (bleh) and one for everyone else.
 
-StopsEmail('Last chance to personalize your {EVENT_NAME} badge', 'personalized_badges/volunteers.txt',
-           lambda a: days_before(7, PRINTED_BADGE_DEADLINE) and a.staffing and a.badge_type in PREASSIGNED_BADGE_TYPES and a.placeholder)
+#StopsEmail('Last chance to personalize your {EVENT_NAME} badge', 'personalized_badges/volunteers.txt',
+#           lambda a: days_before(7, PRINTED_BADGE_DEADLINE) and a.staffing and a.badge_type in PREASSIGNED_BADGE_TYPES and a.placeholder)
 
-AutomatedEmail(Attendee, 'Personalized {EVENT_NAME} badges will be ordered next week', 'personalized_badges/reminder.txt',
-               lambda a: days_before(7, PRINTED_BADGE_DEADLINE) and a.badge_type in PREASSIGNED_BADGE_TYPES and not a.placeholder)
+#AutomatedEmail(Attendee, 'Personalized {EVENT_NAME} badges will be ordered next week', 'personalized_badges/reminder.txt',
+#               lambda a: days_before(7, PRINTED_BADGE_DEADLINE) and a.badge_type in PREASSIGNED_BADGE_TYPES and not a.placeholder)
 
 
 # MAGFest requires signed and notarized parental consent forms for anyone under 18.  This automated email reminder to

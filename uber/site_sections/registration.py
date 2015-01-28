@@ -78,6 +78,7 @@ class Root:
             'remaining_badges': max(0, MAX_BADGE_SALES - state.BADGES_SOLD)
         }
 
+    @log_pageview
     def form(self, session, message='', return_to='', omit_badge='', **params):
         attendee = session.attendee(params, checkgroups=['interests','requested_depts','assigned_depts'],
                                     bools=['staffing','trusted','international','placeholder','got_merch','can_spam'])
@@ -90,6 +91,9 @@ class Root:
 
             message = check_everything(attendee)
             if not message:
+                # Free group badges are only considered 'registered' when they are actually claimed.
+                if attendee.paid == PAID_BY_GROUP and attendee.group.cost == 0:
+                    attendee.registered = localized_now()
                 session.add(attendee)
                 if return_to:
                     raise HTTPRedirect(return_to + '&message={}', 'Attendee data uploaded')
@@ -145,14 +149,21 @@ class Root:
         if attendee.group:
             if attendee.group.leader_id == attendee.id:
                 message = 'You cannot delete the leader of a group; you must make someone else the leader first, or just delete the entire group'
-            else:
-                session.add(Attendee(**{attr: getattr(attendee, attr) for attr in [
-                    'group', 'registered', 'badge_type', 'badge_num', 'paid', 'amount_paid', 'amount_extra'
-                ]}))
+            elif attendee.is_unassigned:
                 session.delete_from_group(attendee, attendee.group)
-                message = 'Attendee deleted, but this ' + attendee.badge + ' badge is still available to be assigned to someone else in the same group'
+                message = 'Unassigned badge removed.'
+            else:
+                #session.add(Attendee(**{attr: getattr(attendee, attr) for attr in [
+                #    'group', 'registered', 'badge_type', 'badge_num', 'paid', 'amount_paid', 'amount_extra'
+                #]}))
+                session.assign_badges(attendee.group, attendee.group.badges + 1, attendee.badge_type)
+                Tracking.track(INVALIDATED, attendee)
+                #session.delete_from_group(attendee, attendee.group)
+                attendee.group.attendees.remove(attendee)
+                message = 'Attendee deleted, but this badge is still available to be assigned to someone else in the same group'
         else:
-            session.delete(attendee)
+            Tracking.track(INVALIDATED, attendee)
+            #session.delete(attendee)
             message = 'Attendee deleted'
 
         raise HTTPRedirect(return_to + ('' if return_to[-1] == '?' else '&') + 'message={}', message)
@@ -769,6 +780,75 @@ class Root:
 
         return {'message': message}
 
+    def attendee_upload(self, session, message='', attendee_import = None, date_format = "%Y-%m-%d"):
+        attendees = None
+
+        if attendee_import:
+            cols = {col.name: getattr(Attendee, col.name) for col in Attendee.__table__.columns}
+            result = csv.DictReader(attendee_import.file.read().decode('utf-8').split('\n'))
+            id_list = []
+
+            for row in result:
+                if 'id' in row:
+                    id = row.pop('id') # id needs special treatment
+
+                try:
+                    # get the Attendee if it already exists
+                    attendee = session.attendee(id)
+                except:
+                    session.rollback()
+                    # otherwise, make a new one and add it to the session for when we commit
+                    attendee = Attendee()
+                    session.add(attendee)
+
+                for colname, val in row.items():
+                    col = cols[colname]
+                    if not val:
+                        # in a lot of cases we'll just have the empty string, so we'll just
+                        # do nothing for those cases
+                        continue
+                    if isinstance(col.type, Choice):
+                        # the export has labels, and we want to convert those back into their
+                        # integer values, so let's look that up (note: we could theoretically
+                        # modify the Choice class to do this automatically in the future)
+                        label_lookup = {val: key for key, val in col.type.choices.items()}
+                        val = label_lookup[val]
+                    elif isinstance(col.type, MultiChoice):
+                        # the export has labels separated by ' / ' and we want to convert that
+                        # back into a comma-separate list of integers
+                        label_lookup = {val: key for key, val in col.type.choices}
+                        vals = [label_lookup[label] for label in val.split(' / ')]
+                        val = ','.join(map(str, vals))
+                    elif isinstance(col.type, UTCDateTime):
+                        # we'll need to make sure we use whatever format string we used to
+                        # export this date in the first place
+                        try:
+                            val = UTC.localize(datetime.strptime(val, date_format + ' %H:%M:%S'))
+                        except:
+                            val = UTC.localize(datetime.strptime(val, date_format))
+                    elif isinstance(col.type, Date):
+                        val = datetime.strptime(val, date_format).date()
+                    elif isinstance(col.type, Integer):
+                        val = int(val)
+
+                    # now that we've converted val to whatever it actually needs to be, we
+                    # can just set it on the attendee
+                    setattr(attendee, colname, val)
+
+                try:
+                    session.commit()
+                except:
+                    log.error('ImportError', exc_info=True)
+                    session.rollback()
+                    message = 'Import unsuccessful'
+
+                id_list.append(attendee.id)
+
+            if id_list:
+                attendees = session.query(Attendee).filter(Attendee.id.in_(id_list)).all()
+
+        return {'message' : message,
+                'attendees' : attendees}
     def placeholders(self, session, department=''):
         return {
             'department': department,

@@ -28,6 +28,7 @@ from contextlib import closing
 from time import sleep, mktime
 from urllib.parse import quote
 from urllib.parse import urlparse
+from urllib.parse import parse_qsl
 from collections import defaultdict, OrderedDict
 from os.path import abspath, dirname, exists, join
 from datetime import date, time, datetime, timedelta

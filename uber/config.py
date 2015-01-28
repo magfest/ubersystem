@@ -259,9 +259,22 @@ WEIGHT_OPTS = (
 JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'restricted', 'extra15']
 
 TABLE_OPTS = [
-    (0,   'no table'),
-    (0.5, 'half-table')
-] + [(float(i), i) for i in range(1, 11)]
+    (0.5, 'Half Table'),
+    (1.0, 'Full Table'),
+    (2.0, 'Double Table'),
+    (3.0, 'Triple Table'),
+    (4.0, 'Island/Quad Table')
+]
+
+ADMIN_TABLE_OPTS = [(0.0, 'No Table')] + TABLE_OPTS + [(float(i), str(i)) for i in range(5, 11)]
+
+TABLE_PRICES = {0: 0, 0.5: 40, 1: 100, 2: 350, 3: 600, 4: 999}
+
+TABLE_OPTS = [(count, '{}: ${}'.format(desc, TABLE_PRICES[count])) for count, desc in TABLE_OPTS]
+
+TABLE_EXTRA_PRICES = {POWER_TABLE: 60, WALL_TABLE: 10}
+
+MAX_DEALER_BADGES = {0: 1, 0.5: 2, 1: 2, 2: 3, 3: 4, 4: 5}
 
 NIGHT_DISPLAY_ORDER = [globals()[night.upper()] for night in NIGHT_DISPLAY_ORDER]
 NIGHT_NAMES = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']

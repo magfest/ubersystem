@@ -145,21 +145,26 @@
 {% include "registration/checkin.html" %}
 <table class="table footable" data-page-size="9999999">
 <thead><tr>
-    <th> <a href="index?order={{ order.last_first }}">Name</a> </th>
-    <th data-hide="phone"> <a href="index?order={{ order.badge_num }}">Badge</a> </th>
-    <th data-hide="phone"> <a href="index?order={{ order.paid }}">Paid</a> </th>
-    <th data-hide="phone">Age</th>
+    <th> <a href="index?order={{ order.group_id }}">Group Name</a> </th>
+    <th> <a href="index?order={{ order.last_first }}">Legal Name</a> </th>
+    <th> <a href="index?order={{ order.badge_printed_name }}">Badge Name</a> </th>
+    <th> <a href="index?order={{ order.badge_type }}">Membership Type</a></th>
+    <th> <a href="index?order={{ order.badge_num }}">Badge #</a> </th>
+    <th> <a href="index?order={{ order.ribbon }}">Badge Ribbon</a></th>
+    <th> <a href="index?order={{ order.amount_extra }}">Upgrade</a></th>
+    <th> <a href="index?order={{ order.paid }}">Paid</a> </th>
+    <th>Age</th>
     {% if AT_THE_CON %}
         <th> <a href="index?order={{ order.checked_in }}"><nobr>Checked In</nobr></a> </th>
     {% endif %}
 </tr></thead>
 {% for attendee in attendees %}
     <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
+        <td id="group_{{ attendee.id }}">
+            <a href="../groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
+        </td>
         <td id="name_{{ attendee.id }}" style="text-align:left">
             <a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a>
-            {% if attendee.group %}
-                <br/> <a style="font-size:8pt" href="../groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
-            {% endif %}
         </td>
         <td><nobr>
             {% if AT_THE_CON and attendee.paid == NOT_PAID %}
@@ -198,7 +203,9 @@
                     <button class="attendee-checkin" data-attendeeid="{{ attendee.id }}" {% if attendee.is_unassigned %} disabled {% endif %}>Check In</button>
                 </td>
             {% endif %}
-        </nobr></td>
+        </td>
+        <td id="ribbon_{{ attendee.id }}">{{ attendee.ribbon_label }}</td>
+        <td id="amount_extra_{{ attendee.id }}">{{ attendee.amount_extra_label }}</td>
         <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
         {% if attendee.checked_in or not AT_THE_CON %}
             <td> <nobr>{{ attendee.age_group.desc }}</nobr> </td>

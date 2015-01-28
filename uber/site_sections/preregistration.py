@@ -15,14 +15,17 @@ def check_prereg_reqs(attendee):
         return 'Your shirt size is required'
 
 def check_dealer(group):
-    if not group.address:
+    if not group.address and COLLECT_INTERESTS:
         return 'Dealers are required to provide an address for tax purposes'
     elif not group.wares:
-        return 'You must provide a detail explanation of what you sell for us to evaluate your submission'
+        return 'You must provide a detailed explanation of what you sell for us to evaluate your submission'
     elif not group.website:
-        return "Please enter your business' website address"
+        if COLLECT_INTERESTS:
+            return "Please enter your business' website address"
+        else:
+            return "You must enter a Pennsylvania Tax ID for your dealership"
     elif not group.description:
-        return "Please provide a brief description of your business for our website's Confirmed Vendors page"
+        return "Please provide a brief description of your business"
 
 def send_banned_email(attendee):
     try:
@@ -97,7 +100,7 @@ class Root:
         
     @check_if_can_reg
     def dealer_registration(self, message=''):
-        return self.form(badge_type=2)
+        return self.form(badge_type=PSEUDO_DEALER_BADGE, message=message)
 
     @check_if_can_reg
     def form(self, session, message='', edit_id=None, **params):
@@ -119,7 +122,7 @@ class Root:
         if not attendee.badge_type:
             attendee.badge_type = ATTENDEE_BADGE
         if attendee.badge_type not in state.PREREG_BADGE_TYPES:
-            raise HTTPRedirect('badge_choice?message={}', 'Invalid badge type!')
+            raise HTTPRedirect('form?message={}', 'Invalid badge type!')
             
         if attendee.is_dealer and not state.DEALER_REG_OPEN:
             return render('static_views/dealer_reg_closed.html') if state.AFTER_DEALER_REG_SHUTDOWN else render('static_views/dealer_reg_not_open.html')
@@ -128,8 +131,10 @@ class Root:
             message = check(attendee) or check_prereg_reqs(attendee)
             if not message and attendee.badge_type in [PSEUDO_DEALER_BADGE, PSEUDO_GROUP_BADGE]:
                 message = check(group)
-            elif not message and attendee.badge_type == PSEUDO_DEALER_BADGE:
-                message = check_dealer(group)
+                if attendee.badge_type == PSEUDO_DEALER_BADGE:
+                    message = check_dealer(group)
+                    if int(params['badges']) > MAX_DEALER_BADGES.get(float(params['tables']), 1):
+                        message = "Too many dealer assistants!"
 
             if not message:
                 if attendee.badge_type in [PSEUDO_DEALER_BADGE, PSEUDO_GROUP_BADGE]:
@@ -138,13 +143,14 @@ class Root:
                     session.assign_badges(group, params['badges'])
                     if attendee.badge_type == PSEUDO_GROUP_BADGE:
                         group.tables = 0
-                    else:
+                    elif attendee.badge_type == PSEUDO_DEALER_BADGE:
                         group.status = WAITLISTED if state.AFTER_DEALER_REG_DEADLINE else UNAPPROVED
+                        attendee.ribbon = DEALER_RIBBON
 
                 if attendee.is_dealer:
                     session.add_all([attendee, group])
                     session.commit()
-                    send_email(MARKETPLACE_EMAIL, MARKETPLACE_EMAIL, 'Dealer application received',
+                    send_email(MARKETPLACE_EMAIL, MARKETPLACE_EMAIL, 'Dealer Application Received',
                                render('emails/dealers/reg_notification.txt', {'group': group}), model=group)
                     send_email(MARKETPLACE_EMAIL, group.leader.email, 'Dealer Application Received',
                                render('emails/dealers/dealer_received.txt', {'group': group}), model=group)
@@ -254,7 +260,7 @@ class Root:
         group = session.group(id)
         return {
             'group':   group,
-            'charge':  Charge(group),
+            'charge':  Charge([group, group.leader]),  # Include group leader's kick-in level if not paid-for
             'message': message
         }
 
@@ -273,7 +279,13 @@ class Root:
                     send_banned_email(attendee)
 
                 badge_being_claimed = group.floating[0]
-                attendee.registered = badge_being_claimed.registered
+
+                # Free group badges are only considered 'registered' when they are actually claimed.
+                if group.cost == 0:
+                    attendee.registered = localized_now()
+                else:
+                    attendee.registered = badge_being_claimed.registered
+
                 attendee.badge_type = badge_being_claimed.badge_type
                 attendee.ribbon = badge_being_claimed.ribbon
                 session.delete_from_group(badge_being_claimed, group)
@@ -291,6 +303,7 @@ class Root:
         return {
             'message':  message,
             'group_id': group_id,
+            'group': group,
             'attendee': attendee,
             'affiliates': session.affiliates()
         }
@@ -311,12 +324,18 @@ class Root:
     def process_group_payment(self, session, payment_id, stripeToken):
         charge = Charge.get(payment_id)
         [group] = charge.groups
+        [attendee] = charge.attendees
         message = charge.charge_cc(stripeToken)
         if message:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
         else:
-            group.amount_paid += charge.dollar_amount
+            group.amount_paid += charge.dollar_amount - attendee.amount_extra
+            attendee.amount_paid = attendee.total_cost
+            if group.tables:
+                send_email(MARKETPLACE_EMAIL, MARKETPLACE_EMAIL, 'Dealer Payment Completed',
+                           render('emails/dealers/payment_notification.txt', {'group': group}), model=group)
             session.merge(group)
+            session.merge(attendee)
             raise HTTPRedirect('group_members?id={}&message={}', group.id, 'Your payment has been accepted!')
 
     @credit_card
@@ -341,8 +360,10 @@ class Root:
         except:
             log.error('unable to send group unset email', exc_info=True)
 
-        session.assign_badges(attendee.group, attendee.group.badges + 1, registered=attendee.registered)
-        session.delete_from_group(attendee, attendee.group)
+        session.assign_badges(attendee.group, attendee.group.badges + 1)
+        Tracking.track(INVALIDATED, attendee)
+        #session.delete_from_group(attendee, attendee.group)
+        attendee.group.attendees.remove(attendee)
         raise HTTPRedirect('group_members?id={}&message={}', attendee.group_id, 'Attendee unset; you may now assign their badge to someone else')
 
     def add_group_members(self, session, id, count):

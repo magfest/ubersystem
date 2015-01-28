@@ -12,69 +12,87 @@ $(document).ready(function(){
   
 });
 {% endif %}
-
-var sponsor_addon = 50;
-var super_sponsor_addon = 195;
-
-$(document).ready(function(){
-    var sponsor_badge_price = {{ BADGE_PRICE }} + sponsor_addon
-    $('#featured1_select').html('<h4 class="list-group-item-heading">Sponsor: $'+sponsor_badge_price+'</h4>{% if BEFORE_FIRST_PRICE_BUMP %}($105 after Jan 1)<br/>{% endif %}<p class="list-group-item-text">Donate extra and get perks on top of an attending membership.</p>');
-
-    var super_sponsor_badge_price = {{ BADGE_PRICE }} + super_sponsor_addon
-    $('#featured2_select').html('<h4 class="list-group-item-heading">Super Sponsor: $'+super_sponsor_badge_price+'</h4>{% if BEFORE_FIRST_PRICE_BUMP %}($250 after Jan 1)<br/>{% endif %}<p class="list-group-item-text">The most generous option - get even more great perks!</p>');
-
-    if ($.val('amount_extra') === sponsor_addon) {
-        setBadge('Featured1');
-    } else if ($.val('amount_extra') === super_sponsor_addon) {
-        setBadge('Featured2');
-    } else {
-        setBadge('Attendee');
-    }
-})
-
-function setBadge(badgeType) {
-        $(".badge_type_selector").removeClass("active");
-        $(".group_fields").addClass("hide");
-        if (badgeType == 'Attendee') {
-            $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}");
-            $("#attendee_select").addClass("active"); 
-            $.field("amount_extra").val('0').trigger("change");
-        }
-        if (badgeType == 'Group') {
-            $("input[name='badge_type']").val("{{ PSEUDO_GROUP_BADGE }}");
-            $(".group_fields").removeClass("hide");
-            $("#group_select").addClass("active");
-            $.field("amount_extra").val('0').trigger("change");
-        }
-        if (badgeType == 'Featured1') {
-            $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}");
-            $("#featured1_select").addClass("active");
-            $.field("amount_extra").val(sponsor_addon).trigger("change");
-        }
-        if (badgeType == 'Featured2') {
-            $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}");
-            $("#featured2_select").addClass("active");
-            $.field("amount_extra").val(super_sponsor_addon).trigger("change");
-        }
-    }
-
-function setDealer() {
-    if ($('#dealeropt').is(':checked')) {
-        $("input[name='badge_type']").val("{{ IND_DEALER_BADGE }}");
-    } else {
-        $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}");
-    }
-}
-
-{% if attendee.badge_type == IND_DEALER_BADGE %}
-$(document).ready(function() {
-        $('#dealeropt').prop('checked', true);
-    }
-)
-{% endif %}
 </script>
+{% if attendee.is_dealer %}
+<script type="text/javascript">
+    $(document).ready(function() {
+        setBadgesLimit();
+        setDealerCost();
+        setExtraOpts();
+        donationChanged();
+
+        $('[name="table_extras"]').attr("onClick","setDealerCost()");
+    });
+
+    function setBadgesLimit() {
+        var current_options = $("[name='badges'] option").length;
+        if ($.val("tables") <= 1) {
+            var badge_num = 2;
+        } else {
+            var badge_num = parseInt($.val("tables")) + 1;
+        }
+
+        if (current_options > badge_num) {
+            for (i = badge_num + 1; i <= current_options; i++) {
+                $("[name='badges'] option[value='" + i + "']").remove()
+            }
+        } else if (current_options < badge_num) {
+            for (i = current_options + 1; i <= badge_num; i++) {
+                $("[name='badges']").append('<option value="'+ i +'">'+ i +'</option>')
+            }
+        }
+    }
+
+    // This affects the display only.
+    function setDealerCost() {
+        $("#cost").empty();
+        var table_cost = 0;
+        var badge_cost = 0;
+        var extra_cost = 0;
+        var kickin_cost = $.val("amount_extra");
+
+        // Cost for tables
+        if ($.val("tables") == 0.5) {
+            table_cost = 40;
+        } else if ($.val("tables") == 1) {
+            table_cost = 100;
+        } else if ($.val("tables") == 2) {
+            table_cost = 350;
+        } else if ($.val("tables") == 3) {
+            table_cost = 600;
+        } else if ($.val("tables") == 4) {
+            table_cost = 999;
+        }
+
+        // Cost for badges
+        badge_cost = {{ BADGE_PRICE }} * $.val("badges");
+
+        // Extra options cost
+        if ($("input[value='{{ POWER_TABLE }}']:checked").length) {
+            extra_cost += 60;
+        }
+
+        if ($("input[value='{{ WALL_TABLE }}']:checked").length) {
+            extra_cost += 10;
+        }
+
+        total_cost = table_cost + badge_cost + extra_cost + kickin_cost;
+        $("#cost").html("$"+ total_cost);
+    }
+
+    function setExtraOpts() {
+        if ($.val("tables") == 4) {
+            $('[name="table_extras"]').prop('checked', false);
+            $('#table_extras').hide();
+        } else {
+            $('#table_extras').show();
+        }
+    }
+</script>
+{% endif %}
 
 <div class="panel panel-default">
+{% if not attendee.is_dealer %}
 <div class="row bs-wizard" style="border-bottom:0;border-top:0;">   
     <div class="col-xs-4 bs-wizard-step active">
       <div class="text-center bs-wizard-stepnum">Step 1</div>
@@ -95,59 +113,24 @@ $(document).ready(function() {
       <div class="bs-wizard-info text-center">Done</div>
     </div>
 </div>
+{% endif %}
 
 <form method="post" action="form" class="form-horizontal" role="form">
 <input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
 {% if edit_id %}
     <input type="hidden" name="edit_id" value="{{ edit_id }}" />
 {% endif %}
-
-{% if not attendee.is_dealer %}
-  <div class="form-group">
-  <label for="badge" class="col-sm-2 control-label">Badge
-  <br/><br/><span class="popup">{% popup_link "../static_views/badge_descriptions.html" "What's the difference?" %}</span></label>
-  <div class="list-group">
-    <div class="col-sm-3">
-    <a id="attendee_select" onclick="setBadge('Attendee')" class="list-group-item badge_type_selector active">
-      <h4 class="list-group-item-heading">Attending: ${{ BADGE_PRICE }}</h4>
-        {% if BEFORE_FIRST_PRICE_BUMP %}($55 after Jan 1)<br/>{% endif %}
-      <p class="list-group-item-text">Allows access to the convention for its duration.</p>
-    </a>
-    </div>
-
-  {% if GROUPS_ENABLED %}
-    <div class="col-sm-3 {% if not BEFORE_GROUP_PREREG_TAKEDOWN %}disabled{% endif %}">
-    <a id="group_select" {% if BEFORE_GROUP_PREREG_TAKEDOWN %}onclick="setBadge('Group')"{% endif %} class="list-group-item badge_type_selector">
-      <h4 class="list-group-item-heading">Group Leader</h4>
-      {% if BEFORE_GROUP_PREREG_TAKEDOWN %}
-      <p class="list-group-item-text">Register a group of 8 or more at discounted rates.</p>
-      {% else %}
-      <p class="list-group-item-text">The deadline for Group registration has passed, but you can still register as a regular attendee.</p>
-      {% endif %}
-    </a>
-    </div>
-  {% endif %}
-
-    <div class="col-sm-3">
-    <a id="featured1_select" onclick="setBadge('Featured1')" class="list-group-item badge_type_selector">
-      <h4 class="list-group-item-heading">Sponsor</h4>
-      <p class="list-group-item-text">Donate extra and get perks on top of an attending membership.</p>
-    </a>
-    </div>
-
-    <div class="col-sm-3">
-    <a id="featured2_select" onclick="setBadge('Featured2')" class="list-group-item badge_type_selector">
-      <h4 class="list-group-item-heading">Super Sponsor</h4>
-      <p class="list-group-item-text">The most generous option - get even more great perks!</p>
-    </a>
-    </div>
-  </div>
-  </div>
-<div class="form-group">
-    <p class="help-block col-sm-8 col-sm-offset-2"><strong>Dealers:</strong> {% if BEFORE_DEALER_REG_START %}Registrations for dealer memberships begins December 15.{% endif %}</p>
-</div>
-
+{% if attendee.is_dealer %}
+<span class="text-center"><h2>Dealer Application</h2></span>
 {% endif %}
+{% include "preregistration/badge_choice.html" %}
+{% if not attendee.is_dealer %}
+<div class="form-group">
+    <p class="help-block col-sm-8 col-sm-offset-2"><strong>Dealers:</strong>
+        {% if BEFORE_DEALER_REG_PUBLIC %}Registrations for dealer memberships begins December 15.
+        {% else %}Please register <a href="{{ URL_BASE }}/preregistration/dealer_registration">here</a>.
+        {% endif %}</p>
+</div>
 
 <div class="group_fields hide">
     <div class="form-group">
@@ -167,36 +150,53 @@ $(document).ready(function() {
     </div>
     </div>
 </div>
+{% endif %}
 
 {% if attendee.is_dealer %}
     <div class="form-group">
-    <label for="name" class="col-sm-2 control-label">Business Name</label>
+        <label for="name" class="col-sm-2 control-label">Total Cost:</label>
+        <div class="col-sm-6" id="cost">
+        </div>
+    </div>
+
+    <div class="form-group">
+    <label for="name" class="col-sm-2 control-label">Dealership Name</label>
     <div class="col-sm-6">
-      <input class="form-control" type="text" class="focus" name="name" value="{{ group.name }}" />
+      <input class="form-control" type="text" class="focus" name="name" value="{{ group.name }}" maxlength="40" />
     </div>
     </div>
 
     <div class="form-group">
     <label for="tables" class="col-sm-2 control-label">Tables</label>
     <div class="col-sm-6">
-      <select class="form-control" name="tables">
-                {% int_options 1 MAX_TABLES group.tables %}
-            </select> ({{ TABLE_PRICES }})
-            
+      <select class="form-control" name="tables" onChange="setBadgesLimit(); setExtraOpts(); setDealerCost()">
+                {% options TABLE_OPTS group.tables %}
+            </select>
     </div>
+    </div>
+
     <div class="form-group">
     <p class="help-block col-sm-6 col-sm-offset-2">[<i>You may contact us via <a href='{{ CONTACT_URL }}'>{{ CONTACT_URL }}</a> to request more than {{ MAX_TABLES }} tables.</i>]</p>
     </div>
 
+    <div class="form-group" id="table_extras">
+        <label for="tables" class="col-sm-2 control-label">Table Extras</label>
+        <div class="col-sm-6">
+            {% checkgroup group.table_extras %}
+        </div>
+    </div>
     <div class="form-group">
-    <label for="badges" class="col-sm-2 control-label">Badges</label>
+        <p class="help-block col-sm-6 col-sm-offset-2">Island/Quad table includes two 120V outlets.</p>
+    </div>
+
+    <div class="form-group">
+    <label for="badges" class="col-sm-2 control-label">Memberships</label>
     <div class="col-sm-6">
-      <select class="form-control" name="badges">{% int_options 1 MAX_DEALERS badges %}</select>
-                (${{ DEALER_BADGE_PRICE }} each)
+      <select class="form-control" name="badges" onChange="setDealerCost()">{% int_options 1 MAX_DEALERS badges %}</select>
     </div>
     </div>
     <div class="form-group">
-    <p class="help-block col-sm-6 col-sm-offset-2">The number of people working your table.</p>
+    <p class="help-block col-sm-6 col-sm-offset-2">The number of people working your table, including yourself.</p>
     </div>
 
     <div class="form-group">
@@ -210,6 +210,27 @@ $(document).ready(function() {
     </div>
 
     <div class="form-group">
+    <label for="description" class="col-sm-2 control-label">Description</label>
+    <div class="col-sm-6">
+      <textarea class="form-control" name="description" rows="4" maxlength="400">{{ group.description }}</textarea>
+    </div>
+    </div>
+    <div class="form-group">
+    <p class="help-block col-sm-6 col-sm-offset-2">Please keep to one sentence.</p>
+    </div>
+
+        <div class="form-group">
+    <label for="special_needs" class="col-sm-2 control-label">Table Requests and Special Requests</label>
+    <div class="col-sm-6">
+      <textarea class="form-control" name="special_needs" rows="4" placeholder="E.g., specific table, who you would like to sit near, who you would not like to sit near.">{{ group.special_needs }}</textarea>
+    </div>
+    </div>
+    <div class="form-group">
+    <p class="help-block col-sm-6 col-sm-offset-2">No guarantees that we can accommodate any requests.</p>
+    </div>
+
+    {% if COLLECT_INTERESTS %}
+    <div class="form-group">
     <label for="website" class="col-sm-2 control-label">Website URL</label>
     <div class="col-sm-6">
       <input class="form-control" type="text" name="website" value="{{ group.website }}" size="40" />
@@ -218,26 +239,15 @@ $(document).ready(function() {
     <div class="form-group">
     <p class="help-block col-sm-6 col-sm-offset-2">The one you want us to link on our website, or n/a</p>
     </div>
-
+    {% else %}
     <div class="form-group">
-    <label for="description" class="col-sm-2 control-label">Description</label>
+    <label for="website" class="col-sm-2 control-label">Pennsylvania Tax ID</label>
     <div class="col-sm-6">
-      <textarea class="form-control" name="description" rows="4">{{ group.description }}</textarea> 
+      <input class="form-control" type="text" name="website" value="{{ group.website }}" size="40" />
     </div>
     </div>
-    <div class="form-group">
-    <p class="help-block col-sm-6 col-sm-offset-2">For our website; please keep to one sentence.</p>
-    </div>
+    {% endif %}
 
-        <div class="form-group">
-    <label for="special_needs" class="col-sm-2 control-label">Special Requests</label>
-    <div class="col-sm-6">
-      <textarea class="form-control" name="special_needs" rows="4">{{ group.special_needs }}</textarea>
-    </div>
-    </div>
-    <div class="form-group">
-    <p class="help-block col-sm-6 col-sm-offset-2">No guarantees that we can accommodate any requests.</p>
-    </div>
 {% endif %}
 
 <div class="form-group">
