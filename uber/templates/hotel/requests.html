@@ -65,7 +65,7 @@
         <td>{{ request.wanted_roommates|linebreaksbr }}</td>
         <td>{{ request.unwanted_roommates|linebreaksbr }}</td>
         <td>{{ request.special_needs }}</td>
-        <td class="nights">{{ request.attendee.hotel_requests.nights_labels|join:" / " }}</td>
+        <td class="nights">{{ request.attendee.hotel_requests.nights_display }}</td>
         <td>
             {% if not request.setup_teardown %}
                 n/a

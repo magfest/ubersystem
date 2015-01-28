@@ -102,6 +102,10 @@ class State:
             opts.append((ONE_DAY_BADGE,  'Single Day Pass (${})'.format(self.ONEDAY_BADGE_PRICE)))
         return opts
 
+    @property
+    def DISPLAY_ONEDAY_BADGES(self):
+        return ONE_DAYS_ENABLED and days_before(30, EPOCH)
+
     def __getattr__(self, name):
         if name.split('_')[0] in ['BEFORE', 'AFTER']:
             date_setting = globals()[name.split('_', 1)[1]]
@@ -155,11 +159,14 @@ PRICE_BUMPS = {}
 for _opt, _val in BADGE_PRICES['attendee'].items():
     PRICE_BUMPS[EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d'))] = _val
 
-def _make_enum(enum_name, section):
+def _make_enum(enum_name, section, prices=False):
     opts, lookup, varnames = [], {}, []
     for name, desc in section.items():
         if isinstance(name, int):
-            val = name
+            if prices:
+                val, desc = desc, name
+            else:
+                val = name
         else:
             varnames.append(name.upper())
             val = globals()[name.upper()] = int(sha512(name.upper().encode()).hexdigest()[:7], 16)
@@ -171,18 +178,30 @@ def _make_enum(enum_name, section):
     globals()[enum_name + '_VARS'] = varnames
     globals()[enum_name + ('' if enum_name.endswith('S') else 'S')] = lookup
 
+def _is_intstr(s):
+    if s and s[0] in ('-', '+'):
+        return s[1:].isdigit()
+    return s.isdigit()
+
 for _name, _section in _config['enums'].items():
     _make_enum(_name, _section)
 
 for _name, _val in _config['integer_enums'].items():
     if isinstance(_val, int):
         globals()[_name.upper()] = _val
+
 for _name, _section in _config['integer_enums'].items():
     if isinstance(_section, dict):
         _interpolated = OrderedDict()
         for _desc, _val in _section.items():
-            _interpolated[int(_val) if _val.isdigit() else globals()[_val.upper()]] = _desc
-        _make_enum(_name, _interpolated)
+            if _is_intstr(_val):
+                key = int(_val)
+            else:
+                key = globals()[_val.upper()]
+
+            _interpolated[key] = _desc
+
+        _make_enum(_name, _interpolated, prices=_name.endswith('_price'))
 
 BADGE_RANGES = {}
 for _badge_type, _range in _config['badge_ranges'].items():
@@ -204,7 +223,7 @@ EVENT_START_TIME_OPTS = [(dt, dt.strftime('%I %p %a') if not dt.minute else dt.s
                          for dt in [EPOCH + timedelta(minutes = i * 30) for i in range(2 * CON_LENGTH)]]
 EVENT_DURATION_OPTS = [(i, '%.1f hour%s' % (i/2, 's' if i != 2 else '')) for i in range(1, 19)]
 SETUP_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (EPOCH - timedelta(days=2) + timedelta(hours=i) for i in range(16))] \
-                + [(dt, dt.strftime('%I %p %a')) for dt in (EPOCH - timedelta(days=1) + timedelta(hours=i) for i in range(16))]
+                + [(dt, dt.strftime('%I %p %a')) for dt in (EPOCH - timedelta(days=1) + timedelta(hours=i) for i in range(24))]
 TEARDOWN_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (ESCHATON + timedelta(hours=i) for i in range(6))] \
                    + [(dt, dt.strftime('%I %p %a')) for dt in
                         ((ESCHATON + timedelta(days=1)).replace(hour=10) + timedelta(hours=i) for i in range(12))]
@@ -258,8 +277,10 @@ PREREG_SHIRT_OPTS = SHIRT_OPTS[1:]
 MERCH_SHIRT_OPTS = [(SIZE_UNKNOWN, 'select a size')] + list(PREREG_SHIRT_OPTS)
 DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt,desc) if amt else desc) for amt,desc in DONATION_TIER_OPTS]
 
-STORE_ITEM_NAMES = [name for price,name in STORE_PRICE_OPTS]
-FEE_ITEM_NAMES = [name for price,name in FEE_PRICE_OPTS]
+STORE_ITEM_NAMES = list(STORE_PRICES.keys())
+FEE_ITEM_NAMES = list(FEE_PRICES.keys())
 
 AT_OR_POST_CON = AT_THE_CON or POST_CON
 PRE_CON = not AT_OR_POST_CON
+
+SAME_NUMBER_REPEATED = r'^(\d)\1+$'

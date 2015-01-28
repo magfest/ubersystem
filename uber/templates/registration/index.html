@@ -12,7 +12,6 @@
 
 {% endblock %}
 {% block content %}
-
 <script type="text/javascript">
 <!--
     var $highlit = null;
@@ -34,42 +33,50 @@
             $tr.find(":text").parents("td").css("border", "3px solid red");
     }
 
-    function check_in(id) {
-        if( $("#age_" + id).val() == {{ AGE_UNKNOWN }} ) {
-            alert("You may not check someone in without confirming their age.");
-            return;
-        }
-        $.post("check_in", {id: id,
-                            csrf_token: csrf_token,
-                            age_group:  $("#age_" + id).val(),
-                            badge_num:  $("#num_" + id).val() || ""},
-                function(json) {
-                    var message = json.message;
+    function recordMPointUsage() {
+        $.post("record_old_mpoint_exchange", {
+                    badge_num:  $("#badge_num").val(),
+                    amount:     $("#amount").val(),
+                    csrf_token: csrf_token
+                }, function(json) {
+                    $("#message").html(json.message);
                     if( json.success ) {
-                        message += ' &nbsp; <a href="#" onClick="undoCheckin('+id+','+json.pre_badge+') ; return false">Undo</a>';
-                        $("#paid_" + id).html(json.paid);
-                        $("#cin_" + id).html(json.checked_in);
-                        $("#age_" + id).parent().html(json.age_group);
-                        $("#num_" + id).parent().html(json.badge);
+                        $("#badge_num,#amount").val("");
+                        $("#badge_num").focus();
+                        $("#message").append(' &nbsp; ').append(
+                            $('<a href="#">Undo</a>').click(function(){
+                                undoMPointUsage(json.id);
+                                return false;
+                            }));
                     }
-                    showTop(message);
-                    if( json.increment )
-                        $("#checkin_count").html(1 + parseInt($("#checkin_count").html()));
-                },
-                "json");
+                }, "json");
     }
-    function undoCheckin(id, pre_badge) {
-        $.post("undo_checkin", {id: id, csrf_token: csrf_token, pre_badge: pre_badge},
-                function(s) {
-                    var sep = location.href.indexOf("?")==-1 ? "?" : "&";
-                    location.href += sep + "message=" + encodeURIComponent(s);
+    function undoMPointUsage(id) {
+        $.post("undo_mpoint_exchange", {"id": id, csrf_token: csrf_token}, function(s) {
+            $("#message").html(s);
         });
+    }
+
+    function selectGroup(id, attendee) {
+        selectedGroup = $("#group_" + attendee +" option[value='" + id + "']")
+        if (selectedGroup.val()) {
+            selectedGroup.prop('selected',true);
+            return true
+        } else {
+            alert("Invalid group code!")
+        }
     }
 
     $(function(){
         $("#message").ajaxError(function(){
             showTop("Oh noes - the web server is down or something!!!!!");
         });
+
+        $("#badge_num,#amount").keypress(function(e){
+            if( (e.keyCode || e.which) == 13 )  // ENTER
+                recordMPointUsage();
+        });
+
 
         {% if AT_THE_CON %}
             $(".num").keypress(function(e){
@@ -135,7 +142,7 @@
             <a href="index?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}">{{ pagenum }}</a>
         {% endif %}
     {% endfor %}
-
+{% include "registration/checkin.html" %}
 <table class="table footable" data-page-size="9999999">
 <thead><tr>
     <th> <a href="index?order={{ order.last_first }}">Name</a> </th>
@@ -162,13 +169,34 @@
                 {% if attendee.is_unassigned %}
                     <input type="hidden" id="num_{{ attendee.id }}" />
                 {% else %}
-                    #<input class="num" id="num_{{ attendee.id }}" type="text" size="3" />
+                    {{ attendee.badge }}
                 {% endif %}
-                {% if attendee.ribbon != NO_RIBBON %}
-                    ({{ attendee.ribbon_label }})
+            </nobr></td>
+            <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
+            {% if attendee.checked_in or not AT_THE_CON %}
+                <td> <nobr>{{ attendee.age_group_label }}</nobr> </td>
+                {% if AT_THE_CON %}
+                    <td>
+                        {% if attendee.paid == LOST_BADGE %}
+                        <strong>Badge reported as lost!</strong>
+                        {% else %}
+                        {{ attendee.checked_in_local|time:"fA"|lower }} {{ attendee.checked_in_local|date:"D" }} <br/>
+                        <form method="post" action="lost_badge">
+                            <input type="hidden" name="id" value="{{ attendee.id }}" />
+                            <input type="submit" value="Report Lost Badge">
+                        </form>
+                        {% endif %}
+                    </td>
                 {% endif %}
+            {% elif attendee.paid == NOT_PAID %}
+                <td colspan="2">
+                    <a href="new?show_all=true">Go to at-the-door page to check in</a>
+                </td>
             {% else %}
-                {{ attendee.badge }}
+                <td>{{ attendee.age_group_label }}</td>
+                <td id="cin_{{ attendee.id }}">
+                    <button class="attendee-checkin" data-attendeeid="{{ attendee.id }}" {% if attendee.is_unassigned %} disabled {% endif %}>Check In</button>
+                </td>
             {% endif %}
         </nobr></td>
         <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
@@ -195,5 +223,13 @@
 {% endfor %}
 </table>
 </div>
+        </tr>
+    {% endfor %}
+    </table>
+{% else %}
+    <div class="center">
+        <em>Use the search box above to filter the attendees or select a page to browse all attendees.</em>
+    </div>
+{% endif %}
 
 {% endblock %}

@@ -97,6 +97,7 @@ class DeptChecklistEmail(AutomatedEmail):
                                 extra_data = {'conf': conf})
 
 before = lambda dt: bool(dt) and localized_now() < dt
+after = lambda dt: bool(dt) and localized_now() > dt
 days_after = lambda days, dt: bool(dt) and (localized_now() > dt + timedelta(days=days))
 def days_before(days, dt, until=None):
     if dt:
@@ -244,7 +245,7 @@ AutomatedEmail(Attendee, 'Personalized {EVENT_NAME} badges will be ordered next 
 # MAGFest requires signed and notarized parental consent forms for anyone under 18.  This automated email reminder to
 # bring the consent form only happens if this feature is turned on by setting the CONSENT_FORM_URL config option.
 AutomatedEmail(Attendee, '{EVENT_NAME} parental consent form reminder', 'reg_workflow/under_18_reminder.txt',
-               lambda a: CONSENT_FORM_URL and a.age_group and a.consent_form and days_before(7, EPOCH))
+               lambda a: CONSENT_FORM_URL and a.age_group == UNDER_18 and days_before(7, EPOCH))
 
 
 for _event in SeasonEvent.instances.values():

@@ -108,6 +108,8 @@ $(document).ready(function() {
             {% endif %}
         });
     </script>
+
+    {% block head_additional %}{% endblock %}
 </head>
 <body>
 <div class="loader"><a class="loader_link" href="../static_views/slow_load.html" target="_blank"></a></div>

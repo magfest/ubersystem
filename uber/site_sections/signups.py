@@ -3,13 +3,16 @@ from uber.common import *
 @all_renderable(SIGNUPS)
 class Root:
     def index(self, session, message=''):
-        if UBER_SHUT_DOWN:
+        if UBER_SHUT_DOWN or AT_THE_CON:
             return render('signups/printable.html', {'attendee': session.logged_in_volunteer()})
         else:
             return {
                 'message': message,
                 'attendee': session.logged_in_volunteer()
             }
+
+    def printable(self, session):
+        return {'attendee': session.logged_in_volunteer()}
 
     @check_shutdown
     def fire_safety(self, session, message='', fire_safety_cert=None, csrf_token=None):
@@ -70,7 +73,11 @@ class Root:
 
     @check_shutdown
     def hotel_requests(self, session, message='', decline=None, **params):
+        if state.AFTER_ROOM_DEADLINE and STAFF_ROOMS not in AdminAccount.access_set():
+            raise HTTPRedirect('index?message={}', 'The room deadline has passed')
         attendee = session.logged_in_volunteer()
+        if attendee.badge_type != STAFF_BADGE:
+            raise HTTPRedirect('index?message={}', 'Only Staffers can request hotel space')
         requests = session.hotel_requests(params, checkgroups=['nights'], restricted=True)
         if 'attendee_id' in params:
             session.add(requests)

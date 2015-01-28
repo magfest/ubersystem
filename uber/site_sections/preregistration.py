@@ -65,6 +65,22 @@ class Root:
     def check_prereg(self):
         return json.dumps({'force_refresh': state.AFTER_PREREG_TAKEDOWN or state.BADGES_SOLD >= MAX_BADGE_SALES})
 
+    def check_if_preregistered(self, session, message="", **params):
+        if 'email' in params:
+            attendee = session.query(Attendee).filter(func.lower(Attendee.email) == func.lower(params['email'])).first()
+            message = "Thank you! You will receive a confirmation email if you are registered for "+EVENT_NAME_AND_YEAR+"."
+            subject = EVENT_NAME_AND_YEAR+' Registration Confirmation'
+
+            if attendee:
+                last_email = session.query(Email)\
+                                  .filter(and_(Email.dest == attendee.email, Email.subject == subject))\
+                                  .order_by(Email.when.desc()).first()
+                if not last_email or last_email.when < (localized_now() - timedelta(days=7)):
+                    send_email(REGDESK_EMAIL, attendee.email, subject, render('emails/reg_workflow/prereg_check.html', {
+                        'attendee': attendee }), model=attendee)
+        return {'message': message}
+
+
     @check_if_can_reg
     def index(self, message=''):
         if not self.unpaid_preregs:
@@ -258,6 +274,8 @@ class Root:
 
                 badge_being_claimed = group.floating[0]
                 attendee.registered = badge_being_claimed.registered
+                attendee.badge_type = badge_being_claimed.badge_type
+                attendee.ribbon = badge_being_claimed.ribbon
                 session.delete_from_group(badge_being_claimed, group)
 
                 group.attendees.append(attendee)
@@ -305,7 +323,7 @@ class Root:
     def process_group_member_payment(self, session, payment_id, stripeToken):
         charge = Charge.get(payment_id)
         [attendee] = charge.attendees
-        session.merge(attendee)
+        attendee = session.merge(attendee)
         message = charge.charge_cc(stripeToken)
         if message:
             attendee.amount_extra -= attendee.amount_unpaid
@@ -359,7 +377,7 @@ class Root:
 
     def transfer_badge(self, session, message='', **params):
         old = session.attendee(params['id'])
-        assert old.is_transferable, 'This badge is not transferable'
+        assert old.is_transferable, 'This badge is not transferrable'
         session.expunge(old)
         attendee = session.attendee(params, bools=_checkboxes, restricted=True)
 

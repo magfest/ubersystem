@@ -51,7 +51,7 @@ angular.module('hotel', ['ngRoute', 'magfest'])
     })
     .controller('HotelController', function($scope, $http, Hotel, errorHandler) {
         $scope.wrongNights = function (room, attendee) {
-            return room.nights.replace('Tue / ', '') != attendee.nights;    // needs to be configurable
+            return room.nights != attendee.nights;
         };
         $scope.remove = function (attendee_id) {
             $http({
@@ -122,19 +122,19 @@ angular.module('hotel', ['ngRoute', 'magfest'])
             room_id: $scope.room.id,
             attendee_id: $scope.lists.unassigned[0] && $scope.lists.unassigned[0].id
         };
-        $scope.isSetupOrTeardown = function (room) {    // TODO: this would be a one-liner in lodash
+        $scope.isSetupOrTeardown = function (modelWithNights) {    // TODO: this would be a one-liner in lodash
             var nonCore = false;
             angular.forEach($scope.NIGHTS, function (night) {
-                nonCore = nonCore || !night.core;
+                nonCore = nonCore || !night.core && modelWithNights[night.name];
             });
-            return nonCore;
+            return Boolean(nonCore);
         };
         $scope.add = function() {
             var room = Hotel.get('rooms', $scope.assignment.room_id);
             var attendee = Hotel.get('unassigned', $scope.assignment.attendee_id);
-            var autoDecline = $scope.wrongNights(room, attendee) && $scope.isSetupOrTeardown(room);
+            var autoDecline = !attendee.approved && $scope.isSetupOrTeardown(attendee.nights_lookup) && !$scope.isSetupOrTeardown(room);
             // TODO: replace confirm with an async Angular-driven UI component (for better testability)
-            if (!autoDecline || confirm('This attendee has requested setup/teardown and you are assigning them to a regular room, wnich will automatically decline their request to help with setup/teardown.')) {
+            if (!autoDecline || confirm('This attendee has requested setup/teardown and you are assigning them to a regular room, which will automatically decline their request to help with setup/teardown.')) {
                 $http({
                     method: 'post',
                     url: 'assign_to_room',

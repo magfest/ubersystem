@@ -81,7 +81,7 @@
                     </form>
                     <td id="rating{{ shift.id }}"></td>
                     {% if shift.worked == SHIFT_WORKED %}
-                        <script type="text/javascript">renderRating({{ shift.id }});</script>
+                        <script type="text/javascript">renderRating('{{ shift.id }}');</script>
                     {% endif %}
                 </tr>
             {% endfor %}
