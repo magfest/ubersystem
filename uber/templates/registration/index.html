@@ -143,6 +143,7 @@
         {% endif %}
     {% endfor %}
 {% include "registration/checkin.html" %}
+{% if page %}
 <table class="table footable" data-page-size="9999999">
 <thead><tr>
     <th> <a href="index?order={{ order.group_id }}">Group Name</a> </th>
@@ -176,6 +177,7 @@
                 {% else %}
                     {{ attendee.badge }}
                 {% endif %}
+            {% endif %}
             </nobr></td>
             <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
             {% if attendee.checked_in or not AT_THE_CON %}
@@ -230,9 +232,6 @@
 {% endfor %}
 </table>
 </div>
-        </tr>
-    {% endfor %}
-    </table>
 {% else %}
     <div class="center">
         <em>Use the search box above to filter the attendees or select a page to browse all attendees.</em>
