@@ -13,7 +13,7 @@ def check_prereg_reqs(attendee):
         return 'You must select an age category'
     elif attendee.badge_type == PSEUDO_DEALER_BADGE and not attendee.cellphone:
         return 'Your phone number is required'
-    elif attendee.amount_extra >= SHIRT_LEVEL and attendee.shirt == NO_SHIRT:
+    elif SHIRT_SALES_ENABLED and attendee.amount_extra >= SHIRT_LEVEL and attendee.shirt == NO_SHIRT:
         return 'Your shirt size is required'
 
 def check_dealer(group):
@@ -120,6 +120,10 @@ class Root:
         else:
             attendee = session.attendee(params, bools=_checkboxes, ignore_csrf=True, restricted=True)
             group = session.group(params, ignore_csrf=True, restricted=True)
+
+        if 'is_student' in params and params['is_student'] == '1' and attendee.amount_paid == 0:
+            attendee.overridden_price = state.BADGE_PRICE - STUDENT_DISCOUNT
+            attendee.admin_notes = "|student discount!"
 
         if attendee.badge_type not in state.PREREG_BADGE_TYPES:
             raise HTTPRedirect('badge_choice?message={}', 'Invalid badge type!')

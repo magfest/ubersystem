@@ -2,13 +2,20 @@
     {% if not AT_THE_CON %}
         <script type="text/javascript">
             var donationChanged = function() {
-                setVisible(".affiliate-row", $.val("amount_extra") > 0);
-                setVisible(".shirt-row", $.val("amount_extra") >= {{ SHIRT_LEVEL }});
-                {% if attendee.badge_type == STAFF_BADGE %}
-                    setVisible(".badge-row", true);
-                {% else %}
-                    setVisible(".badge-row", $.val("amount_extra") >= {{ SUPPORTER_LEVEL }});
-                {% endif %}
+                var shirt_sales_enabled = {{ SHIRT_SALES_ENABLED|yesno:"true,false" }};     // set from django template
+                var show_affiliates = {{ SHOW_AFFILIATES|yesno:"true,false" }};             // set from django template
+                var show_badge_row = {{ SHOW_CUSTOM_BADGE_INPUT|yesno:"true,false" }};      // set from django template
+            
+                setVisible(".affiliate-row", show_affiliates && $.val("amount_extra") > 0);
+                setVisible(".shirt-row", shirt_sales_enabled && $.val("amount_extra") >= {{ SHIRT_LEVEL }});
+            
+                if (show_badge_row) {
+                    {% if attendee.badge_type == STAFF_BADGE %}
+                        setVisible(".badge-row", true);
+                    {% else %}
+                        setVisible(".badge-row", $.val("amount_extra") >= {{ SUPPORTER_LEVEL }});
+                    {% endif %}
+                }
             };
             $(function(){
                 if ($.field("amount_extra")) {
