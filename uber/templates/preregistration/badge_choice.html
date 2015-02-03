@@ -35,12 +35,6 @@
         <td> {% popup_link "../static_views/attendees.html" "Details" %} </td>
     </tr>
 {% include "preregistration/extra_badge_types.html" %}
-{% if AFTER_PREREG_TAKEDOWN and ONE_DAYS_ENABLED %}
-    <tr>
-        <td> <b>Single Day Passes:</b> </td>
-        <td><ul><li>Single days passes available for sale at the door for {% single_day_prices %}.</li></ul></td>
-    </tr>
-{% endif %}
 {% if SUPPORTERS_ENABLED %}
     <tr>
         <td class="nobr">
@@ -65,7 +59,7 @@
         <td> {% popup_link "../static_views/seasonPasses.html" "Details" %} </td>
     </tr>
 {% endif %}
-{% if GROUPS_ENABLED %}
+{% if GROUPS_ENABLED and not AT_THE_CON %}
     <tr>
     {% if BEFORE_GROUP_PREREG_TAKEDOWN %}
             <td class="nobr">
@@ -82,6 +76,22 @@
                 <ul><li>The deadline for Group registration has passed, but you can still register as a regular attendee.</li></ul>
             </td>
     {% endif %}
+    </tr>
+{% endif %}
+{% if DISPLAY_ONEDAY_BADGES or AT_THE_CON %}
+    <tr>
+        <td> <b>Single Day Passes:</b> </td>
+        <td>
+            <ul>
+                <li>Single day passes available for sale at the door for {% single_day_prices %}.</li>
+                {% if AT_THE_CON %}
+                    <li>
+                        If you'd like to register for a Single Day pass for <b>TODAY</b>, you can use the page
+                        our on-site kiosks are using by <a href="../registration/register">clicking here</a>.
+                    </li>
+                {% endif %}
+            </ul>
+        </td>
     </tr>
 {% endif %}
 </table>

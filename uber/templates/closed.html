@@ -1,14 +1,10 @@
 {% extends "base-admin.html" %}
-{% block title %}We'll see you at {{ EVENT_NAME }}{% endblock %}
+{% block title %}{{ EVENT_NAME }} server is being moved{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
 
-<h2 style="color:red">The {{ EVENT_NAME }} registration/staffing database is now offline.</h2>
+<h2 style="color:red">The {{ EVENT_NAME }} registration/volunteer wesite is temporarily offline</h2>
 
-We'll see everyone on January 2 - 5.
-<br/> <br/>
-Full weekend passes are available at the door for ${{ DOOR_BADGE_PRICE }}, and single day passes will be $20 for Thursday or Sunday, and $40 for Friday or Saturday.
-<br/> <br/>
-If you're a staffer, you can still view and print out your shift schedule <a href="{{ URL_BASE }}/signups/login">here</a>.
+We'll be back online shortly, at which point you'll again be able to access the page you were trying to load.
 
 {% endblock %}

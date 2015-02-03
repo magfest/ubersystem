@@ -32,6 +32,7 @@ def import_attendees(session):
 
     for f in dump['food']:
         f['attendee'] = attendees[f.pop('attendee_id')]
+        f.setdefault('sandwich_pref', PBJ)  # sandwich_pref didn't exist when the dump was taken
         session.add(FoodRestrictions(**f))
 
     for h in dump['hotel']:

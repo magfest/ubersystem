@@ -1,4 +1,4 @@
 <ul>
     <li>All-access, four-day pass</li>
-    {% if PRICE_BUMPS_ENABLED %}<li style="color:red">{% attendee_price_notice %}</li>{% endif %}
+    {% if PRICE_BUMPS_ENABLED and not AT_THE_CON %}<li style="color:red">{% attendee_price_notice %}</li>{% endif %}
 </ul>

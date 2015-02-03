@@ -14,10 +14,8 @@ cherrypy.tools.add_email_to_error_page = cherrypy.Tool('after_error_response', _
 class UberShutDown:
     def default(self, *args, **kwargs):
         return render('closed.html')
-    
-    signups = signups.Root()
+
     schedule = schedule.Root()
-    preregistration = preregistration.Root()
 
 mimetypes.init()
 
@@ -88,9 +86,13 @@ class Redirector:
 cherrypy.tree.mount(Root(), PATH, APPCONF)
 
 if SEND_EMAILS or DEV_BOX:
-    DaemonTask(AutomatedEmail.send_all, interval=300)
+    if not AT_THE_CON:
+        DaemonTask(AutomatedEmail.send_all, interval=300)
     if PRE_CON:
         DaemonTask(detect_duplicates, interval=300)
         DaemonTask(check_unassigned, interval=300)
         if CHECK_PLACEHOLDERS:
             DaemonTask(check_placeholders, interval=300)
+
+# this should be replaced by something a little cleaner, but it's a useful debugging tool, so we'll go with it for now
+DaemonTask(lambda: log.error(Session.engine.pool.status()), interval=5)

@@ -18,6 +18,14 @@ def subtract(x, y):
     return x - y
 
 @register.filter
+def percent(numerator, denominator):
+    return '0/0' if denominator == 0 else '{} / {} ({}%)'.format(numerator, denominator, int(100 * numerator / denominator))
+
+@register.filter
+def percent_of(numerator, denominator):
+    return 'n/a' if denominator == 0 else '{}%'.format(int(100 * numerator / denominator))
+
+@register.filter
 def remove_newlines(string):
     return string.replace('\n', ' ')
 
@@ -28,6 +36,10 @@ def form_link(attendee):
 @register.filter
 def dept_checklist_path(conf, attendee=None):
     return SafeString(conf.path(attendee))
+
+@register.filter
+def numeric_range(count):
+    return range(count)
 
 def _getter(x, attrName):
     if '.' in attrName:
@@ -220,7 +232,7 @@ class timespan(template.Node):
 
         if model.start_time_local.day == endtime.day:
             endstr += endtime.strftime(' %A')
-            if model.start_time_local.hour<12 and endtime.hour>=12:
+            if model.start_time_local.hour < 12 and endtime.hour >= 12:
                 return startstr + 'am - ' + endstr
             else:
                 return startstr + '-' + endstr
@@ -248,7 +260,7 @@ class must_contact(template.Node):
     def render(self, context):
         staffer = self.staffer.resolve(context)
         chairs = defaultdict(list)
-        for dept, head in DEPT_CHAIR_OVERRIDES.items():
+        for dept, head in DEPT_HEAD_OVERRIDES.items():
             chairs[dept].append(head)
         for head in staffer.session.query(Attendee).filter_by(ribbon=DEPT_HEAD_RIBBON).order_by('badge_num').all():
             for dept in head.assigned_depts_ints:
@@ -372,7 +384,10 @@ class stripe_form(template.Node):
             email = charge.models[0].email
 
         if not charge.targets:
-            regtext = 'On-Site Charge'
+            if AT_THE_CON:
+                regtext = 'On-Site Charge'
+            else:
+                regtext = 'Charge'
         elif AT_THE_CON:
             regtext = 'Registration'
         else:
@@ -431,14 +446,21 @@ class single_day_prices(template.Node):
     def render(self, context):
         prices = ''
         for day, price in BADGE_PRICES['single_day'].items():
-            prices += '${} for {}, '.format(price, day)
-        return prices + 'and ${} for other days'.format(BADGE_PRICES['default_single_day'])
+            if day == datetime.strftime(ESCHATON, "%A"):
+                prices += 'and ${} for {}'.format(price, day)
+            else:
+                prices += '${} for {}, '.format(price, day)
+        #prices += 'and ${} for other days'.format(BADGE_PRICES['default_single_day'])
+        return prices
 
 class Notice(template.Node):
     def notice(self, label, takedown, discount=0, amount_extra=0):
         for day, price in sorted(PRICE_BUMPS.items()):
             if day < takedown and localized_now() < day:
-                return 'Price goes up to ${} at 11:59pm PST on {}'.format(price + amount_extra - discount, (day - timedelta(days=1)).strftime('%A, %b %e'))
+                return 'Price goes up to ${} at 11:59pm EST on {}'.format(price + amount_extra - discount, (day - timedelta(days=1)).strftime('%A, %b %e'))
+            elif localized_now() < day:
+                return '{} closes at 11:59pm EST on {}. Price goes up to ${} at-door.'.format(label, takedown.strftime('%A, %b %e'), price + amount_extra - discount, (day - timedelta(days=1)).strftime('%A, %b %e'))
+        return '{} closes at 11:59pm EST on {}'.format(label, takedown.strftime('%A, %b %e'))
 
         return '{} closes at 11:59pm PST on {}'.format(label, takedown.strftime('%A, %b %e'))
 

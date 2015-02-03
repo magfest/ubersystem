@@ -15,16 +15,16 @@
 <tr>
     <td><i>All Departments</i></td>
     <td>{{ hour_total }}</td>
-    <td>{{ shift_total }}</td>
-    <td>{{ hour_total|subtract:shift_total }}</td>
+    <td>{{ shift_total }} ({{ shift_total|percent_of:hour_total }})</td>
+    <td>{{ hour_total|subtract:shift_total }} ({{ hour_total|subtract:shift_total|percent_of:hour_total }})</td>
     <td>{{ volunteers }}</td>
 </tr>
 {% for stats in departments %}
 <tr>
     <td>{{ stats.department }}</td>
     <td>{{ stats.total_hours }}</td>
-    <td>{{ stats.taken_hours }}</td>
-    <td>{{ stats.total_hours|subtract:stats.taken_hours }}</td>
+    <td>{{ stats.taken_hours }} ({{ stats.taken_hours|percent_of:stats.total_hours }})</td>
+    <td>{{ stats.total_hours|subtract:stats.taken_hours }} ({{ stats.total_hours|subtract:stats.taken_hours|percent_of:stats.total_hours }})</td>
     <td>{{ stats.assigned }}</td>
 </tr>
 {% endfor %}

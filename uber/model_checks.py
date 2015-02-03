@@ -52,7 +52,8 @@ def group_paid(group):
 
 
 def _invalid_phone_number(s):
-    return s.startswith('+') or len(re.findall(r'\d', s)) != 10
+    if not s.startswith('+'):
+        return len(re.findall(r'\d', s)) != 10 or re.search(SAME_NUMBER_REPEATED, re.sub(r'[^0-9]','',s))
 
 def attendee_misc(attendee):
     if attendee.group_id and not attendee.first_name.strip() and not attendee.last_name.strip():
@@ -109,6 +110,17 @@ def attendee_money(attendee):
     except:
         return 'Invalid amount extra ({})'.format(attendee.amount_extra)
 
+    if attendee.overridden_price is not None:
+        try:
+            overridden_price = int(float(attendee.overridden_price))
+            if overridden_price < 0:
+                return 'Overridden price must be a positive integer'
+        except:
+            return 'Invalid overridden price ({})'.format(attendee.overridden_price)
+        else:
+            if attendee.overridden_price == 0:
+                return 'Please set the payment type to "doesn\'t need to" instead of setting the badge price to 0.'
+
     try:
         amount_refunded = int(float(attendee.amount_refunded))
         if amount_refunded < 0:
@@ -122,9 +134,14 @@ def attendee_money(attendee):
 
 def attendee_badge_range(attendee):
     if AT_THE_CON:
-        min_num, max_num = BADGE_RANGES[attendee.badge_type]
-        if attendee.badge_num != 0 and not (min_num <= attendee.badge_num <= max_num):
-            return '{} badge numbers must fall within {} and {}'.format(attendee.badge_type_label, min_num, max_num)
+        try:
+            badge_num = int(attendee.badge_num)
+        except:
+            return '{!r} is not a valid badge number'.format(attendee.badge_num)
+        else:
+            min_num, max_num = BADGE_RANGES[attendee.badge_type]
+            if attendee.badge_num != 0 and not (min_num <= badge_num <= max_num):
+                return '{} badge numbers must fall within {} and {}'.format(attendee.badge_type_label, min_num, max_num)
 
 
 def money_amount(money):
@@ -149,7 +166,7 @@ def job_conflicts(job):
 cashformpoints_amount = money_amount
 
 def oldmpointexchange_numbers(mpe):
-    if not str(mpe.mpoints).isdigit():
+    if not str(mpe.amount).isdigit():
         return 'MPoints must be a positive integer'
 
 sale_required = [('what',"What's being sold")]

@@ -11,12 +11,9 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
     def quote(self, s):
         return quote(s) if isinstance(s, str) else str(s)
 
-utc_timezone = pytz.timezone("UTC")
-
 def localized_now():
-    utc_now = datetime.utcnow().replace(tzinfo=utc_timezone)
-    now_dt = utc_now.astimezone(EVENT_TIMEZONE)
-    return now_dt
+    utc_now = datetime.utcnow().replace(tzinfo=UTC)
+    return utc_now.astimezone(EVENT_TIMEZONE)
 
 
 def comma_and(xs):
@@ -234,3 +231,12 @@ def genpasswd():
             return ' '.join(random.choice(words) for i in range(4))
     except:
         return ''.join(chr(randrange(33, 127)) for i in range(8))
+
+@entry_point
+def print_config():
+    """
+    print all config values to stdout, used for debugging / status checking
+    useful if you want to verify that Ubersystem has pulled in the INI values you think it has.
+    """
+    from uber.config import _config
+    pprint(_config.dict())

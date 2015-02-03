@@ -36,22 +36,28 @@
     </ul>
 {% endif %}
 
-{% if HAS_PEOPLE_ACCESS %}
-    <div class="heading"> People </div>
-    <div class="indent"> Manage the people coming to and working for {{ EVENT_NAME }}. </div>
+{% if HAS_PEOPLE_ACCESS or HAS_REG_AT_CON_ACCESS %}
+    <div class="heading"> Registration </div>
+    <div class="indent"> Manage the people coming to {{ EVENT_NAME }}.</div>
     <ul>
         <li> <a href="../registration/">Attendees</a> </li>
+        {% if AT_THE_CON %}<li> <a href="../registration/new">At-Door Badge Sales</a></li>{% endif %}
         <li> <a href="../groups/">Groups</a> </li>
-        {% if AT_THE_CON %}
-            <li> <a href="../jobs/everywhere">All untaken shifts for all departments</a> </li>
-        {% else %}
-            <li> <a href="../registration/staffers">Staffers</a> </li>
-        {% endif %}
-        <li> <a href="../jobs/">Jobs</a> </li>
         <li> <a href="../registration/feed">Feed of Database Changes</a> </li>
         {% if AT_OR_POST_CON %}
             <li> <a href="../registration/merch">Merch</a> </li>
         {% endif %}
+    </ul>
+    <div class="heading"> Staffing </div>
+    <div class="indent">Manage the people working for {{ EVENT_NAME }}.</div>
+    <ul>
+        {% if AT_THE_CON %}
+            <li> <a href="../jobs/everywhere">All untaken shifts for all departments</a> </li>
+            <li> <a href="../registration/">Attendees (search by badge number)</a>
+        {% else %}
+            <li> <a href="../registration/staffers">Staffers</a> </li>
+        {% endif %}
+        <li> <a href="../jobs/">Jobs</a> </li>
     </ul>
 {% endif %}
 
@@ -71,7 +77,7 @@
     {% if POST_CON %}
         <ul> <li> <a href="../budget/mpoints">M-Point usage</a> </li> </ul>
     {% endif %}
-    <ul> <li> <a href="../analytics">{{ EVENT_NAME }} analytics</a> (graphs, stats, etc) </li></ul>
+    <ul> <li> <a href="../graphs">{{ EVENT_NAME }} analytics</a> (graphs, stats, etc) </li></ul>
 {% endif %}
 
 {% if HAS_CHALLENGES_ACCESS %}
