@@ -155,7 +155,7 @@
     <th> <a href="index?order={{ order.amount_extra }}">Upgrade</a></th>
     <th> <a href="index?order={{ order.paid }}">Paid</a> </th>
     <th>Age</th>
-    {% if AT_THE_CON %}
+    {% if AT_THE_CON and COLLECT_INTERESTS %}
         <th> <a href="index?order={{ order.checked_in }}"><nobr>Checked In</nobr></a> </th>
     {% endif %}
 </tr></thead>
@@ -181,7 +181,7 @@
             </nobr></td>
             <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
             {% if attendee.checked_in or not AT_THE_CON %}
-                <td> <nobr>{{ attendee.age_group_label }}</nobr> </td>
+                <td> <nobr>{{ attendee.age_group_desc }}</nobr> </td>
                 {% if AT_THE_CON %}
                     <td>
                         {% if attendee.paid == LOST_BADGE %}
@@ -200,7 +200,7 @@
                     <a href="new?show_all=true">Go to at-the-door page to check in</a>
                 </td>
             {% else %}
-                <td>{{ attendee.age_group_label }}</td>
+                <td>{{ attendee.age_group_desc }}</td>
                 <td id="cin_{{ attendee.id }}">
                     <button class="attendee-checkin" data-attendeeid="{{ attendee.id }}" {% if attendee.is_unassigned %} disabled {% endif %}>Check In</button>
                 </td>
@@ -210,7 +210,7 @@
         <td id="amount_extra_{{ attendee.id }}">{{ attendee.amount_extra_label }}</td>
         <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
         {% if attendee.checked_in or not AT_THE_CON %}
-            <td> <nobr>{{ attendee.age_group.desc }}</nobr> </td>
+            <td> <nobr>{{ attendee.age_group_desc }}</nobr> </td>
             {% if AT_THE_CON %}
                 <td> {{ attendee.checked_in|time:"fA"|lower }} {{ attendee.checked_in|date:"D" }} </td>
             {% endif %}
