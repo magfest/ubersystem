@@ -10,13 +10,21 @@
         <option value="">{% if who %}Show all{% else %}Choose an admin{% endif %}</option>
         {% options who_opts who %}
     </select>
-    
+
     &nbsp;&nbsp;&nbsp;&nbsp;
-    
     <i>and/or</i>
-    
     &nbsp;&nbsp;&nbsp;&nbsp;
-    
+
+    Search by action:
+    <select name="action" onChange="$(this).parents('form').submit()">
+        <option value="">{% if action %}Show all{% else %}Choose an action{% endif %}</option>
+        {% options action_opts action %}
+    </select>
+
+    &nbsp;&nbsp;&nbsp;&nbsp;
+    <i>and/or</i>
+    &nbsp;&nbsp;&nbsp;&nbsp;
+
     Search by keyword:
     <input type="text" name="what" value="{{ what }}" />
 </form>

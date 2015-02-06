@@ -1,0 +1,29 @@
+{% extends "base-admin.html" %}
+{% block title %}Trusted Volunteers and Untaken Trusted Shifts{% endblock %}
+{% block content %}
+
+<h2>Trusted Volunteers and Untaken Trusted Shifts</h2>
+
+<b>{{ flagged|length }}</b> trusted volunteers have taken unrestricted shifts which overlap with at least one restricted shift:
+<ul>
+{% for attendee, overlapping in flagged %}
+    <li>
+        {{ attendee|form_link }} has signed up for {{ overlapping|length }} regular shift{{ overlapping|length|pluralize }} which overlap with one or more restricted shifts:
+        <ul>
+            {% for taken_job, untaken_jobs in overlapping %}
+                <li>
+                    <i><a href="../jobs/form?id={{ taken_job.id }}">{{ taken_job.name }}</a> ({{ taken_job.location_label }}) [{% timespan taken_job %}]</i>
+                    overlaps with the following:
+                    <ul>
+                        {% for untaken_job in untaken_jobs %}
+                            <li> <a href="../jobs/form?id={{ untaken_job.id }}">{{ untaken_job.name }}</a> ({{ untaken_job.location_label }}) [{% timespan untaken_job %}]
+                        {% endfor %}
+                    </ul>
+                </li>
+            {% endfor %}
+        </ul>
+    </li>
+{% endfor %}
+</ul>
+
+{% endblock %}

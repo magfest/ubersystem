@@ -54,7 +54,7 @@
                 {% endif %}
             </td>
             <td>
-                {% if attendee.is_transferrable %}
+                {% if attendee.is_transferable %}
                     {% if attendee != group.leader and not attendee.amount_extra %}
                         <form method="post" action="unset_group_member">
                         {% csrf_token %}
@@ -85,7 +85,7 @@
 
 <br/>
 
-{% if group.min_badges_addable and not group.amount_unpaid %}
+{% if PRE_CON and group.min_badges_addable and not group.amount_unpaid %}
     <div id="add" style="display:none">
         <form method="get" action="add_group_members">
         <input type="hidden" name="id" value="{{ group.id }}" />
@@ -97,7 +97,7 @@
     <script type="text/javascript">
         $(function(){
             $("body").append(
-                $('<a style="cursor:pointer">Click here to add more members to your group.</a>').click(function(e){
+                $('<a style="cursor:pointer">Click here to add more members to your group for ${{ group.new_badge_cost }} each.</a>').click(function(e){
                     $(e.target).hide();
                     $("#add").show();
                 }));

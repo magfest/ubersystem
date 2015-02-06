@@ -1,0 +1,12 @@
+<html>
+<head></head>
+<body>
+Hi {{ attendee.first_name }},
+
+<br/><br/>Thank you for double-checking your registration for {{ EVENT_NAME_AND_YEAR }}. To confirm that you are ready
+to pick up your badge at the fest, please follow
+<a href="{{ URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">this link</a> and verify that your information is
+correct and that you have no outstanding balance. If you have any questions about your badge, please contact us at
+<strong>regsupport@magfest.org</strong>. Thank you!
+</body>
+</html>

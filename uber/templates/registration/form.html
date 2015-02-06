@@ -152,7 +152,7 @@
         {% endif %}
         {% if attendee.badge_type == STAFF_BADGE %}
             &nbsp;&nbsp; [{{ attendee.hotel_status }}]
-        {% elif attendee.is_transferrable %}
+        {% elif attendee.is_transferable %}
             &nbsp;&nbsp; [<a href="../preregistration/confirm?id={{ attendee.id }}">Confirm/Transfer</a>]
         {% endif %}
     </td>
@@ -240,7 +240,16 @@
     </tr>
     <tr>
         <td> Signed Up </td>
-        <td> <i>{{ attendee.registered }}</i> </td>
+        <td>
+            <i>{{ attendee.registered_local }}</i>
+            {% if AT_THE_CON %}
+                {% if attendee.checked_in %}
+                    (checked in at {{ attendee.checked_in_local }})
+                {% else %}
+                    (has not checked in yet)
+                {% endif %}
+            {% endif %}
+        </td>
     </tr>
 {% endif %}
 <tr>
@@ -261,6 +270,14 @@
     <td> <input type="text" name="comments" value="{{ attendee.comments }}" style="width:80%" />  </td>
 </tr>
 <tr>
+    <td width="25%">Badge Price:</td>
+    <td width="75%">Base Price: $<input type="text" style="width:4em" name="overridden_price" value="{{ attendee.badge_cost }}" />
+        <input type="checkbox" name="no_override" {% if not attendee.overridden_price %} checked {% endif %}> Automatically recalculate badge price.
+        <br/>
+        {% include "registration/kicked_in_extra.html" %}
+    </td>
+</tr>
+<tr>
     <td> Paid: </td>
     <td>
         <select name="paid" onChange="showOrHideAmounts(true)">
@@ -274,8 +291,6 @@
         <span id="amount_refunded">
             Refunded: $<input type="text" style="width:4em" name="amount_refunded" value="{{ attendee.amount_refunded }}" />
         </span>
-        &nbsp;&nbsp;&nbsp;
-        {% include "registration/kicked_in_extra.html" %}
 
         {% if AT_THE_CON and attendee.staffing %}
             <br/> ({{ attendee.worked_hours }} out of {{ attendee.weighted_hours }} hours worked)
@@ -292,12 +307,10 @@
     <td> Receive Newsletter: </td>
     <td> {% checkbox attendee.can_spam %} Yes </td>
 </tr>
-{% if AT_OR_POST_CON %}
-    <tr>
-        <td valign="top"> Notes for Later Review: </td>
-        <td> <textarea name="for_review" rows="3" style="width:66%">{{ attendee.for_review }}</textarea> </td>
-    </tr>
-{% endif %}
+<tr>
+    <td valign="top"> Notes for Later Review: </td>
+    <td> <textarea name="for_review" rows="3" style="width:66%">{{ attendee.for_review }}</textarea> </td>
+</tr>
 <tr>
     <td valign="top"> Admin Notes: </td>
     <td> <textarea name="admin_notes" rows="3" style="width:66%">{{ attendee.admin_notes }}</textarea> </td>
@@ -318,6 +331,16 @@
             <br/><input type="submit" value="{% if attendee.group %}Unassign this group badge{% else %}Delete Attendee{% endif %}" />
         </form>
     </div>
+
+    {% if attendee.paid != LOST_BADGE %}
+        <br/>
+        <div style="margin-left:25%">
+            <form method="post" action="lost_badge">
+                <input type="hidden" name="id" value="{{ attendee.id }}" />
+                <input type="submit" value="Report Lost Badge">
+            </form>
+        </div>
+    {% endif %}
 {% endif %}
 
 {% endblock %}

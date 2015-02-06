@@ -54,7 +54,7 @@
     <tr><td colspan="checklist|length|add:1" class="dept">{{ dept_name }}</td></tr>
     {% for attendee, items in heads %}
         <tr>
-            <td class="dept-head">{{ attendee|form_link }}</td>
+            <td class="dept-head" title="{{ attendee.email }} / {{ attendee.cellphone }}">{{ attendee|form_link }}</td>
             {% if attendee.admin_account %}
                 {% for item in items %}
                     <td>
