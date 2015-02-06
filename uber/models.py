@@ -1279,9 +1279,9 @@ class Session(SessionManager):
 
             log.error("next_badge_num()")
 
-            if badge_type not in PREASSIGNED_BADGE_TYPES:
-                log.error("skipping because not in preassigned types")
-                return 0
+            #if badge_type not in PREASSIGNED_BADGE_TYPES:
+            #    log.error("skipping because not in preassigned types")
+            #    return 0
 
             log.error("not skipping")
 
