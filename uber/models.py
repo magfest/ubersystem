@@ -1277,8 +1277,13 @@ class Session(SessionManager):
             #assert_badge_locked()
             badge_type = int(badge_type)
 
+            console.log("next_badge_num()")
+
             if badge_type not in PREASSIGNED_BADGE_TYPES:
+                console.log("skipping because not in preassigned types")
                 return 0
+
+            console.log("not skipping")
 
             sametype = self.query(Attendee).filter(Attendee.badge_type == badge_type, Attendee.badge_num > 0)
             if sametype.count():
