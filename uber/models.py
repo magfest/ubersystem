@@ -1290,6 +1290,8 @@ class Session(SessionManager):
                 if attendee.badge_type == badge_type:
                     next = max(next, 1 + attendee.badge_num)
 
+            console.log("next avail = " + next)
+
             return next
 
         def shift_badges(self, badge_type, badge_num, *, until=MAX_BADGE, **direction):
