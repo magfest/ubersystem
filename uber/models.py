@@ -1277,13 +1277,13 @@ class Session(SessionManager):
             #assert_badge_locked()
             badge_type = int(badge_type)
 
-            console.log("next_badge_num()")
+            log.info("next_badge_num()")
 
             if badge_type not in PREASSIGNED_BADGE_TYPES:
-                console.log("skipping because not in preassigned types")
+                log.info("skipping because not in preassigned types")
                 return 0
 
-            console.log("not skipping")
+            log.info("not skipping")
 
             sametype = self.query(Attendee).filter(Attendee.badge_type == badge_type, Attendee.badge_num > 0)
             if sametype.count():
@@ -1295,7 +1295,7 @@ class Session(SessionManager):
                 if attendee.badge_type == badge_type:
                     next = max(next, 1 + attendee.badge_num)
 
-            console.log("next avail = " + next)
+            log.info("next avail = " + next)
 
             return next
 
