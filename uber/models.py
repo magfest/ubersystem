@@ -604,6 +604,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.ribbon != NO_RIBBON:
             badge += ' ({})'.format(self.ribbon_label)
 
+        if 'student discount' in self.admin_notes:
+            badge += ' | Student Discount'
+
         return badge
 
     @property
@@ -1295,7 +1298,7 @@ class Session(SessionManager):
                 if attendee.badge_type == badge_type:
                     next = max(next, 1 + attendee.badge_num)
 
-            log.error("next avail = " + next)
+            log.error("next avail = {}", next)
 
             return next
 

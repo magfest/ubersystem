@@ -234,7 +234,7 @@ class Root:
         return 'Sale deleted'
 
     @ajax
-    def check_in(self, session, id, badge_num, age_group, group, message=''):
+    def check_in(self, session, id, age_group, group, message='', badge_num=0):
         attendee = session.attendee(id)
         pre_badge = attendee.badge_num
         success, increment = True, False

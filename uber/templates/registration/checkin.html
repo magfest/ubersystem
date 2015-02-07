@@ -47,7 +47,7 @@
             id: id,
             csrf_token: csrf_token,
             age_group:  $('#age_' + id).val(),
-            badge_num:  $('#num_' + id).val(),
+//            badge_num:  $('#num_' + id).val(),
             group: $('#group_' + id).val() || ''
         }, function (json) {
             var message = json.message;
@@ -85,8 +85,12 @@
                         {% if attendee.ribbon != NO_RIBBON %}
                             ({{ attendee.ribbon_label }})
                         {% endif %}
+                        {% if attendee.admin_notes %}
+                            <b>{{ attendee.admin_notes }}</b>
+                        {% endif %}
                     </td>
                 </tr>
+<!--
                 <tr>
                     <td><strong>Badge Number:</strong></td>
                     <td>
@@ -98,6 +102,7 @@
                         {% endif %}
                     </td>
                 </tr>
+-->
                 <tr>
                     <td><strong>Age Group:</strong></td>
                     <td>
