@@ -1607,7 +1607,7 @@ class Session(SessionManager):
 
         def assign_badges(self, group, new_badge_count, new_badge_type = ATTENDEE_BADGE, **extra_create_args):
             diff = int(new_badge_count) - group.badges
-            sorted_unassigned = sorted(group.floating, key=lambda a: a.registered)
+            sorted_unassigned = sorted(group.floating, key=lambda a: a.registered, reverse=True)
             if diff > 0:
                 for i in range(diff):
                     group.attendees.append(Attendee(badge_type=new_badge_type, ribbon=group.new_ribbon, paid=PAID_BY_GROUP, **extra_create_args))
