@@ -329,7 +329,12 @@ class Root:
         if message:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
         else:
-            group.amount_paid += charge.dollar_amount - attendee.amount_extra
+            group.amount_paid += charge.dollar_amount
+
+            # Subtract an attendee's kick-in level, if it's not already paid for.
+            if attendee.amount_paid < attendee.total_cost:
+                group.amount_paid -= attendee.total_cost - attendee.amount_paid
+            
             attendee.amount_paid = attendee.total_cost
             if group.tables:
                 send_email(MARKETPLACE_EMAIL, MARKETPLACE_EMAIL, 'Dealer Payment Completed',
