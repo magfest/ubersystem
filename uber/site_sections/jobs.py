@@ -1,5 +1,28 @@
 from uber.common import *
 
+def shift_dict(shift):
+    return {
+        'id': shift.id,
+        'rating': shift.rating,
+        'worked': shift.worked,
+        'comment': shift.comment,
+        'worked_label': shift.worked_label,
+        'attendee_id': shift.attendee.id,
+        'attendee_name': shift.attendee.full_name
+    }
+
+def job_dict(job, shifts=None):
+    return {
+        'id': job.id,
+        'name': job.name,
+        'slots': job.slots,
+        'weight': job.weight,
+        'restricted': job.restricted,
+        'timespan': custom_tags.timespan.pretty(job),
+        'location_label': job.location_label,
+        'shifts': shifts or [shift_dict(shift) for shift in job.shifts]
+    }
+
 @all_renderable(PEOPLE)
 class Root:
     def index(self, session, location=None, message=''):
@@ -7,49 +30,100 @@ class Root:
             if AT_THE_CON:
                 raise HTTPRedirect('signups')
             else:
-                location = ARCADE   # TODO: make this configurable
+                location = JOB_LOCATION_OPTS[0][0]
 
-        jobs, shifts, attendees = session.everything(location)
+        jobs = session.query(Job).filter_by(location=location).order_by(Job.name, Job.start_time).all()
         by_start = defaultdict(list)
         for job in jobs:
-            by_start[job.start_time_local].append(job)
+            if job.type == REGULAR:
+                by_start[job.start_time_local].append(job)
         times = [EPOCH + timedelta(hours=i) for i in range(CON_LENGTH)]
         return {
-            'location': location,
-            'times':    [(t, t + timedelta(hours=1), by_start[t]) for i, t in enumerate(times)]
+            'location':  location,
+            'setup':     [j for j in jobs if j.type == SETUP],
+            'teardown':  [j for j in jobs if j.type == TEARDOWN],
+            'checklist': session.checklist_status('creating_shifts', location),
+            'times':     [(t, t + timedelta(hours=1), by_start[t]) for i, t in enumerate(times)]
         }
 
     def signups(self, session, location=None, message=''):
         if location is None:
-            location = cherrypy.session.get('prev_location') or ARCADE  # TODO: make this configurable
+            location = cherrypy.session.get('prev_location') or JOB_LOCATION_OPTS[0][0]
         cherrypy.session['prev_location'] = location
 
         jobs, shifts, attendees = session.everything(location)
         return {
-            'location': location,
-            'jobs':     jobs,
-            'shifts':   Shift.dump(shifts)
+            'message':   message,
+            'location':  location,
+            'jobs':      jobs,
+            'shifts':    Shift.dump(shifts),
+            'checklist': session.checklist_status('postcon_hours', location)
         }
 
     def everywhere(self, session, message='', show_restricted=''):
-        jobs, shifts, attendees = session.everything()
+        shifts = defaultdict(list)
+        for shift in session.query(Shift).options(joinedload(Shift.attendee)).all():
+            shifts[shift.job_id].append(shift_dict(shift))
         return {
-            'message':   message,
-            'attendees': attendees,
-            'shifts':    Shift.dump(shifts),
+            'message': message,
             'show_restricted': show_restricted,
-            'jobs':      [job for job in jobs if (show_restricted or not job.restricted)
-                                             and job.location != MOPS  # TODO: make this configurable
-                                             and localized_now() < job.start_time + timedelta(hours = job.duration)]
+            'attendees': [{
+                'id': id,
+                'full_name': full_name.title()
+            } for id, full_name in session.query(Attendee.id, Attendee.full_name)
+                                          .filter_by(staffing=True)
+                                          .order_by(Attendee.full_name).all()],
+            'jobs': [job_dict(job, shifts[job.id])
+                     for job in session.query(Job)
+                                       .filter(Job.start_time > localized_now() - timedelta(hours=2))
+                                       .filter_by(**({} if show_restricted else {'restricted': False}))
+                                       .order_by(Job.start_time, Job.location).all()]
         }
 
+    @ajax
+    def assign_from_everywhere(self, session, job_id, staffer_id):
+        message = session.assign(staffer_id, job_id)
+        if message:
+            return {'error': message}
+        else:
+            return job_dict(session.job(job_id))
+
+    @ajax
+    def unassign_from_everywhere(self, session, id):
+        try:
+            shift = session.shift(id)
+            session.delete(shift)
+            session.commit()
+        except:
+            return {'error': 'Shift was already deleted'}
+        else:
+            return job_dict(session.job(shift.job_id))
+
+    @ajax
+    def set_worked_from_everywhere(self, session, id, status):
+        try:
+            shift = session.shift(id)
+            shift.worked = int(status)
+            session.commit()
+        except:
+            return {'error': 'Unexpected error setting status'}
+        else:
+            return job_dict(session.job(shift.job_id))
+
     def staffers(self, session, location=None, message=''):
-        location = location or ARCADE  # TODO: make this configurable
+        attendee = session.admin_attendee()
+        location = int(location or JOB_LOCATION_OPTS[0][0])
         jobs, shifts, attendees = session.everything(location)
-        attendees = [a for a in attendees if int(location) in a.assigned_depts_ints]
+        attendees = [a for a in attendees if a.assigned_to(location)]
+        hours_here = defaultdict(int)
+        for shift in shifts:
+            hours_here[shift.attendee] += shift.job.weighted_hours 
+        for attendee in attendees:
+            attendee.hours_here = hours_here[attendee]
         return {
             'location':           location,
             'attendees':          attendees,
+            'checklist':          session.checklist_status('assigned_volunteers', location),
             'emails':             ','.join(a.email for a in attendees),
             'regular_total':      sum(j.total_hours for j in jobs if not j.restricted),
             'restricted_total':   sum(j.total_hours for j in jobs if j.restricted),
@@ -66,7 +140,7 @@ class Root:
             params.update(defaults)
 
         job = session.job(params, bools=['restricted', 'extra15'],
-                                  allowed=['location', 'start_time'] + list(defaults.keys()))
+                                  allowed=['location', 'start_time', 'type'] + list(defaults.keys()))
         if cherrypy.request.method == 'POST':
             message = check(job)
             if not message:
@@ -76,7 +150,7 @@ class Root:
                     defaults[params['location']] = {field: getattr(job,field) for field in JOB_DEFAULTS}
                     cherrypy.session['job_defaults'] = defaults
 
-                raise HTTPRedirect('index?location={}#{}', job.location, job.start_time)
+                raise HTTPRedirect('index?location={}#{}', job.location, job.start_time_local)
 
         return {
             'job':      job,
@@ -85,12 +159,13 @@ class Root:
         }
 
     def staffers_by_job(self, session, id, message = ''):
-        jobs, shifts, attendees = session.everything()
-        [job] = [job for job in jobs if job.id == id]
-        job._all_staffers = attendees
+        job = session.job(id)
         return {
-            'job':     job,
-            'message': message
+            'job':       job,
+            'message':   message,
+            'attendees': session.query(Attendee.id, Attendee.full_name)
+                                .filter_by(staffing=True, **({'trusted': True} if job.restricted else {}))
+                                .order_by(Attendee.full_name).all()
         }
 
     @csrf_protected
@@ -105,11 +180,6 @@ class Root:
     def assign_from_job(self, session, job_id, staffer_id):
         message = session.assign(staffer_id, job_id) or 'Staffer assigned to shift'
         raise HTTPRedirect('staffers_by_job?id={}&message={}', job_id, message)
-
-    @csrf_protected
-    def assign_from_everywhere(self, session, job_id, staffer_id):
-        message = session.assign(staffer_id, job_id) or 'Staffer assigned to shift'
-        raise HTTPRedirect('everywhere?message={}#{}', message, job_id)
 
     @csrf_protected
     def assign_from_list(self, session, job_id, staffer_id):
@@ -132,22 +202,15 @@ class Root:
         session.delete(shift)
         raise HTTPRedirect('signups?location={}#{}', shift.job.location, shift.job_id)
 
-    @csrf_protected
-    def unassign_from_everywhere(self, session, id):
-        shift = session.shift(id)
-        session.delete(shift)
-        raise HTTPRedirect('everywhere?#{}', shift.job_id)
-
-    # TODO: @ajax calls should probably just be objects all the time
     @ajax
     def set_worked(self, session, id, worked):
         try:
             shift = session.shift(id)
             shift.worked = int(worked)
             session.commit()
-            return shift.worked_label
+            return {'status_label': shift.worked_label}
         except:
-            return 'an unexpected error occured'
+            return {'error': 'an unexpected error occured'}
 
     @csrf_protected
     def undo_worked(self, session, id):
@@ -162,7 +225,7 @@ class Root:
         session.commit()
         return {}
 
-    def summary(self):
+    def summary(self, session):
         all_jobs, all_shifts, attendees = session.everything()
         locations = {}
         for loc, name in JOB_LOCATION_OPTS:
@@ -176,18 +239,30 @@ class Root:
                 'restricted_signups': sum(s.job.weighted_hours for s in shifts if s.job.restricted),
                 'all_signups':        sum(s.job.weighted_hours for s in shifts)
             }
-        return {'locations': sorted(locations.items(), key = lambda loc: loc[1]['regular_signups'] - loc[1]['regular_total'])}
+        totals = [('All Departments Combined', {
+            attr: sum(loc[attr] for loc in locations.values())
+            for attr in locations[name].keys()
+        })]
+        return {'locations': totals + sorted(locations.items(), key = lambda loc: loc[1]['regular_signups'] - loc[1]['regular_total'])}
 
-    # TODO: fix this to work with SQLAlchemy
-    @csv_file
-    def all_shifts(self, out):
-        for loc,name in JOB_LOCATION_OPTS:
-            out.writerow([name])
-            for shift in session.Shift.objects.filter(job__location = loc).order_by('job__start_time','job__name').select_related():
-                out.writerow([shift.job.start_time.strftime('%I%p %a').lstrip('0'),
-                              '{} hours'.format(shift.job.real_duration),
-                              shift.job.name,
-                              shift.attendee.full_name,
-                              'Circle One: worked / unworked',
-                              'Comments:'])
-            out.writerow([])
+    def all_shifts(self, session):
+        return {
+            'depts': [(name, session.query(Job)
+                                    .filter_by(location=loc)
+                                    .order_by(Job.start_time, Job.name).all())
+                      for loc, name in JOB_LOCATION_OPTS]
+        }
+
+    def add_volunteers_by_dept(self, session, message='', location=None):
+        location = location or JOB_LOCATION_OPTS[0][0]
+        return {
+            'message': message,
+            'location': location,
+            'not_already_here': [
+                (a.id, a.full_name)
+                for a in session.query(Attendee)
+                                .filter(Attendee.email != '',
+                                         ~Attendee.assigned_depts.contains(str(location)))
+                                .order_by(Attendee.full_name).all()
+            ]
+        }

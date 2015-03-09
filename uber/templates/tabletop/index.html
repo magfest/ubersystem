@@ -1,153 +1,27 @@
 <!doctype html>
-<html ng-app="tabletop">
+<html>
 <head>
-    <title>Tabletop Game Checkins</title>
+    <title>Tabletop Checkins</title>
     <link rel="stylesheet" type="text/css" href="../static/styles/styles.css" />
-    <link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" />
-    <script src="../static/lib/jquery/jquery-1.10.2.min.js"></script>
-    <script src="../static/lib/jquery/jquery-ui-1.10.3.min.js"></script>
-    <script src="../static/lib/angular/angular.min.js"></script>
-    <script src="../static/lib/angular/angular-route.js"></script>
-    <script src="../static/lib/angular/bootstrap.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.2.26/angular.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.2.26/angular-route.min.js"></script>
     <script src="../static/lib/angular/ui-bootstrap-tpls-0.7.0.js"></script>
-    <script type="text/javascript">
-        angular.module("tabletop", ["ngRoute", "ui.bootstrap"])
-            .directive("attendeeLink", function() {
-                return {
-                    restrict: 'E',
-                    template: '<span>' +
-                                  '<a target="_blank" href="../registration/form?id={{ attendee.id }}">{{ attendee.name }}</a>' +
-                                  '<span ng-if="badge"> (Badge #{{ attendee.badge }})</span>' +
-                              '</span>',
-                    scope: {
-                        attendee: '=attendee',
-                        badge: '=badge'
-                    }
-                };
-            })
-            .factory("MatchMaker", function() {
-                return function() {
-                    var args = arguments;
-                    return function(expected) {
-                        return function(actual) {
-                            var concatted = "";
-                            angular.forEach(args, function(key) {
-                                concatted += actual[key];
-                            });
-                            return concatted.toLowerCase().indexOf(expected.toLowerCase()) !== -1;
-                        };
-                    };
-                };
-            })
-            .factory("Random", function() {
-                return {
-                    randInt: function(x) {
-                        return Math.floor(x * Math.random());
-                    },
-                    choice: function(xs) {
-                        return xs[this.randInt(xs.length)];
-                    },
-                    id: function() {
-                        var id = "";
-                        for(var i=0; i<3; i++) {
-                            id += this.choice("ABCDEFGHJKMNPRSTUVWXYZ") + (2 + this.randInt(8));
-                        }
-                        return id;
-                    }
-                };
-            })
-            .factory("Attendees", function($http) {
-                return {
-                    attendees: %__attendees,
-                    set: function(xs) {
-                        this.attendees.splice.apply(this.attendees, [0, this.attendees.length].concat(xs));
-                    },
-                    update: function() {
-                        var self = this;
-                        $http({
-                            url: "badged_attendees"
-                        }).then(function(response) {
-                            self.set(response.data);
-                        })
-                    }
-                };
-            })
-            .factory("Games", function($http, Random) {
-                $http.defaults.headers.common = {"CSRF-Token": "%__CSRF_TOKEN"};
-                return {
-                    games: %__games,
-                    set: function(xs) {
-                        this.games.splice.apply(this.games, [0, this.games.length].concat(xs));
-                    }
-                };
-            })
-            .config(function($routeProvider){
-                $routeProvider
-                    .when("/", {controller: "GameListController", templateUrl: "ng/game_list.html"})
-                    .when("/form", {controller: "GameFormController", templateUrl: "ng/form.html"})
-                    .otherwise({redirectTo:"/"});
-            })
-            .controller("GameListController", function($scope, $http, Games, Attendees, MatchMaker) {
-                $scope.games = Games.games;
-                $scope.attendees = Attendees.attendees;
-                $scope.nameOrCode = MatchMaker("name", "code");
-                $scope.nameOrBadge = MatchMaker("name", "badge");
-                $scope.checkout = function(game, attendee) {
-                    $http({
-                        method: "post",
-                        url: "checkout",
-                        params: {
-                            game_id: game.id,
-                            attendee_id: attendee.id
-                        }
-                    }).then(function(response) {
-                        Games.set(response.data.games);
-                    });
-                    $scope.game = $scope.attendee = "";
-                };
-                $scope.returned = function(game) {
-                    $http({
-                        method: "post",
-                        url: "returned",
-                        params: {game_id: game.id}
-                    }).then(function(response) {
-                        Games.set(response.data.games);
-                    });
-                    $scope.game = "";
-                };
-                $scope.returnToOwner = function(game) {
-                    $http({
-                        method: "post",
-                        url: "return_to_owner",
-                        params: {id: game.id}
-                    }).then(function(response) {
-                        Games.set(response.data.games);
-                    });
-                };
-            })
-            .controller("GameFormController", function($scope, $http, $location, Random, Games, Attendees, MatchMaker) {
-                $scope.games = Games.games;
-                $scope.attendees = Attendees.attendees;
-                $scope.code = Random.id();
-                $scope.nameOrBadge = MatchMaker("name", "badge");
-                $scope.create = function() {
-                    $http({
-                        method: "post",
-                        url: "add_game",
-                        params: {
-                            code: $scope.code,
-                            name: $scope.name,
-                            attendee_id: $scope.owner.id
-                        }
-                    }).then(function(response) {
-                        Games.set(response.data.games);
-                        $location.path("/");
-                    });
-                };
+    <script src="../static/lib/moment/moment.min.js"></script>
+    <script src="../static_views/magfest.js"></script>
+    <script src="../static/lib/angular/tabletop/app.js"></script>
+    <script>
+        var GAMES = {{ games|jsonize }};          // Game service checks for this global variable to get preloaded data
+        var ATTENDEES = {{ attendees|jsonize }};  // Attendee service checks for this global variable to get preloaded data
+        angular.module('tabletop')
+            .controller('MainController', function ($scope, $http) {
+                $http.defaults.headers.common = {'CSRF-Token': '{{ CSRF_TOKEN }}'};
             });
     </script>
 </head>
-<body>
-    <div ng-view></div>
+<body ng-app="tabletop">
+    <div ng-controller="MainController">
+        <div ng-view></div>
+    </div>
 </body>
 </html>

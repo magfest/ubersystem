@@ -6,6 +6,11 @@ from sideboard.tests import patch_session
 
 @pytest.fixture(scope='session', autouse=True)
 def init_db(request):
+    for module in modules:
+        setattr(module, 'PRE_CON', True)
+        setattr(module, 'AT_THE_CON', False)
+        setattr(module, 'AT_OR_POST_CON', False)
+        setattr(module, 'CUSTOM_BADGES_REALLY_ORDERED', False)
     patch_session(Session, request)
     register_session_listeners()
     with Session() as session:

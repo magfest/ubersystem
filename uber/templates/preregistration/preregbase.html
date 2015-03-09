@@ -12,10 +12,27 @@
     var checkCap = function () {
         $.getJSON('check_prereg', function(check) {
             if (check.force_refresh) {
-                location.reload(); // Reload the page to prevent registering after reg is closed
+                location.reload();  // Reload the page to prevent registering after reg is closed
             }
         });
     };
-    setInterval(checkCap, 1000 * 1 * 15);
+    setInterval(checkCap, 1000 * 1 * 90);
+
+{% if COLLECT_FULL_ADDRESS %}
+$(document).ready(function() {
+    $("#international").hide()
+    setInternational()
+});
+
+function setInternational() {
+    countryName = $("input[name='country']").val();
+
+    if(countryName == "USA" || countryName == "US" || countryName == "United States") {
+        $("input[name='international']").prop('checked', false);
+    } else {
+        $("input[name='international']").prop('checked', true);
+    }
+}
+{% endif %}
 </script>
 {% endblock header %}

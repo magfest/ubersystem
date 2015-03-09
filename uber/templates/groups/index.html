@@ -49,6 +49,7 @@
     <th data-type="alpha">Approved</th>
     <th data-type="numeric">Badges{% popup_link "../static_views/badgeCounts.html" %}</th>
     <th data-type="numeric">Tables</th>
+    <th data-type="numeric">Cost</th>
     <th data-type="numeric">Owed</th>
     <th data-type="numeric">Paid</th>
     <th data-type="alphanumeric">Admin Notes</th>
@@ -65,6 +66,7 @@
         </td>
         <td> {{ group.badges_purchased }} / {{ group.badges }} </td>
         <td> {{ group.tables }} </td>
+        <td> ${{ group.cost }} </td>
         <td> ${{ group.amount_unpaid }} </td>
         <td> ${{ group.amount_paid }} </td>
         <td> {{ group.admin_notes }} </td>

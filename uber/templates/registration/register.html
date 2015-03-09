@@ -39,6 +39,7 @@
     
     var showOrHide = function() {
         setVisible("#underage", $("[name=age_group]").val() == {{ UNDER_18 }});
+        setVisible("#under13", $("[name=age_group]").val() == {{ UNDER_18 }});
     };
     {% if not COLLECT_EXACT_BIRTHDATE %} $(showOrHide); {% endif %}
 </script>
@@ -90,6 +91,7 @@
             {% options AGE_GROUP_OPTS attendee.age_group %}
         </select>
         <span id="underage" style="color:red ; display:none">Attendees under 18 <b>MUST</b> have a parental consent form signed to receive a badge.</span>
+        <br/><span id="under13" style="display:none"><input type="checkbox" name="under_13"> This attendee is under 13.</span>
     </td>
     {% endif %}
 </tr>

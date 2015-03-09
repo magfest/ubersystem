@@ -11,9 +11,9 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
     def quote(self, s):
         return quote(s) if isinstance(s, str) else str(s)
 
-
 def localized_now():
-    return EVENT_TIMEZONE.localize(datetime.now())
+    utc_now = datetime.utcnow().replace(tzinfo=UTC)
+    return utc_now.astimezone(EVENT_TIMEZONE)
 
 
 def comma_and(xs):
@@ -57,7 +57,12 @@ class Order:
         return self.order
 
 
-class SeasonEvent:
+class Registry:
+    @classmethod
+    def register(cls, slug, kwargs):
+        cls.instances[slug] = cls(slug, **kwargs)
+
+class SeasonEvent(Registry):
     instances = OrderedDict()
 
     def __init__(self, slug, **kwargs):
@@ -75,16 +80,34 @@ class SeasonEvent:
         else:
             self.deadline = (self.day - timedelta(days = 7)).replace(hour=23, minute=59)
 
-    @classmethod
-    def register(cls, slug, kwargs):
-        cls.instances[slug] = cls(slug, **kwargs)
+class DeptChecklistConf(Registry):
+    instances = OrderedDict()
+
+    def __init__(self, slug, description, deadline, name=None, path=None):
+        assert re.match('^[a-z0-9_]+$', slug), 'Dept Head checklist item sections must have separated_by_underscore names'
+        self.slug, self.description = slug, description
+        self.name = name or slug.replace('_', ' ').title()
+        self._path = path or '/dept_checklist/form?slug={slug}'
+        self.deadline = EVENT_TIMEZONE.localize(datetime.strptime(deadline, '%Y-%m-%d')).replace(hour=23, minute=59)
+
+    def path(self, attendee):
+        dept = attendee and attendee.assigned_depts and attendee.assigned_depts_ints[0]
+        return self._path.format(slug=self.slug, department=dept)
+
+    def completed(self, attendee):
+        matches = [item for item in attendee.dept_checklist_items if self.slug == item.slug]
+        return matches[0] if matches else None
+
 
 for _slug, _conf in SEASON_EVENTS.items():
     SeasonEvent.register(_slug, _conf)
 
+for _slug, _conf in sorted(DEPT_HEAD_CHECKLIST.items(), key=lambda tup: tup[1]['deadline']):
+    DeptChecklistConf.register(_slug, _conf)
+
 
 def hour_day_format(dt):
-    return dt.astimezone(EVENT_TIMEZONE).strftime('%I%p ').strip('0').lower() + dt.strftime('%a')
+    return dt.astimezone(EVENT_TIMEZONE).strftime('%I%p ').strip('0').lower() + dt.astimezone(EVENT_TIMEZONE).strftime('%a')
 
 
 def underscorize(s):
@@ -208,3 +231,12 @@ def genpasswd():
             return ' '.join(random.choice(words) for i in range(4))
     except:
         return ''.join(chr(randrange(33, 127)) for i in range(8))
+
+@entry_point
+def print_config():
+    """
+    print all config values to stdout, used for debugging / status checking
+    useful if you want to verify that Ubersystem has pulled in the INI values you think it has.
+    """
+    from uber.config import _config
+    pprint(_config.dict())

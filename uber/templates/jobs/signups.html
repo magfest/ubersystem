@@ -9,6 +9,21 @@
     $(setupRatingClickHandler);
 </script>
 
+{% if POST_CON and checklist.relevant %}
+    <div class="center">
+        {% if checklist.completed %}
+            You've already indicated that you've marked all of the shifts you can remember.  Don't forgot to also mark non-shift hours as needed.
+        {% else %}
+            <a href="#" onClick="$('#checkoff').show(); return false;">I've marked everything I can remember.</a>
+            <form id="checkoff" style="display:none" method="post" action="../dept_checklist/mark_item_complete">
+            {% csrf_token %}
+            <input type="hidden" name="slug" value="{{ checklist.conf.slug }}" />
+            <input type="submit" value="I've marked everything I remember" />
+            </form>
+        {% endif %}
+    </div>
+{% endif %}
+
 <table>
 {% for job in jobs %}
     <tr>
@@ -66,7 +81,7 @@
                     </form>
                     <td id="rating{{ shift.id }}"></td>
                     {% if shift.worked == SHIFT_WORKED %}
-                        <script type="text/javascript">renderRating({{ shift.id }});</script>
+                        <script type="text/javascript">renderRating('{{ shift.id }}');</script>
                     {% endif %}
                 </tr>
             {% endfor %}

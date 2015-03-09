@@ -84,7 +84,7 @@
 
 <br/>
 
-{% if group.min_badges_addable and not group.amount_unpaid %}
+{% if PRE_CON and group.min_badges_addable and not group.amount_unpaid %}
     <div id="add" style="display:none">
         <form method="get" action="add_group_members">
         <input type="hidden" name="id" value="{{ group.id }}" />

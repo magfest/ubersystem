@@ -15,22 +15,20 @@ at the bottom of this page.
 
 <form method="post" action="hotel_requests">
 {% csrf_token %}
-<input type="hidden" name="id" value="{{ requests.id }}" />
+<input type="hidden" name="id" value="{{ requests.db_id }}" />
 <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
 <table>
 <tr>
     <td valign="top"><b><nobr>Which Nights?</nobr></b></td>
     <td>
         {{ EVENT_NAME }} runs from {{ EPOCH|datetime:"%A, %B %d" }} through {{ ESCHATON|datetime:"%A, %B %d" }},
-        so by default you're eligible for rooms on Thursday, Friday, and Saturday nights.
+        so by default you're eligible for rooms on the nights between those days.
         Let us know if you're interested in helping with setup and teardown, and if we
         haven't already selected enough volunteers to help, you'll be approved for the
         extra night(s). <br/>
-        <input type="checkbox" name="nights" value="{{ WEDNESDAY }}" {% if requests.wednesday %}checked{% endif %} /> I'm willing to help set up on Wednesday <br/>
-        <input type="checkbox" name="nights" value="{{ THURSDAY }}"  {% if requests.thursday %}checked{% endif %}  /> Thursday <br/>
-        <input type="checkbox" name="nights" value="{{ FRIDAY }}"    {% if requests.friday %}checked{% endif %}    /> Friday <br/>
-        <input type="checkbox" name="nights" value="{{ SATURDAY }}"  {% if requests.saturday %}checked{% endif %}  /> Saturday <br/>
-        <input type="checkbox" name="nights" value="{{ SUNDAY }}"    {% if requests.sunday %}checked{% endif %}    /> I'm willing to help tear down on Sunday/Monday
+        {% for night, checked, desc in nights %}
+            <input type="checkbox" name="nights" value="{{ night }}" {% if checked %}checked{% endif %} /> {{ desc }} <br/>
+        {% endfor %}
     </td>
 </tr>
 <tr>

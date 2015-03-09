@@ -1,60 +1,85 @@
 from uber.common import *
 
+def _attendees(session):
+    return [{
+        'id': id,
+        'name': name,
+        'badge': num
+    } for (id, name, num) in session.query(Attendee.id, Attendee.full_name, Attendee.badge_num)
+                                    .filter(Attendee.badge_num != 0)
+                                    .order_by(Attendee.badge_num).all()]
+
+def _attendee(a):
+    return a and {
+        'id': a.id,
+        'name': a.full_name,
+        'badge': a.badge_num
+    }
+
+def _checked_out(c):
+    return c and {
+        'checked_out': c.checked_out,
+        'attendee': _attendee(c.attendee)
+    }
+
+def _games(session):
+    return [{
+        'id': g.id,
+        'code': g.code,
+        'name': g.name,
+        'returned': g.returned,
+        'attendee_id': g.attendee_id,
+        'attendee': _attendee(g.attendee),
+        'checked_out': _checked_out(g.checked_out)
+    } for g in session.query(Game).options(joinedload(Game.attendee)).order_by(Game.name).all()]
+
 @all_renderable(CHECKINS)
 class Root:
-    @property
-    def attendees(self):
-        return [{
-            'id': a.id,
-            'name': a.full_name,
-            'badge': a.badge_num
-        } for a in Attendee.objects.exclude(badge_num=0).order_by('badge_num')]
-    
-    @property
-    def games(self):
-        return [g.to_dict() for g in Game.objects.order_by('name').select_related()]
-    
-    #@ng_renderable
-    def index(self):
+    def index(self, session):
         return {
-            'games': json.dumps(self.games, cls=serializer),
-            'attendees': json.dumps(self.attendees, cls=serializer),
+            'games': _games(session),
+            'attendees': _attendees(session)
         }
-    
-    @ajax
-    def badged_attendees(self):
-        return self.attendees
 
     @ajax
-    def add_game(self, code, name, attendee_id):
-        Game.objects.create(code=code, name=name, attendee_id=attendee_id)
-        return {
-            'message': 'Success!',
-            'games': self.games
-        }
-    
+    def badged_attendees(self, session):
+        return _attendees(session)
+
     @ajax
-    def checkout(self, game_id, attendee_id):
-        Checkout.objects.create(game_id=game_id, attendee_id=attendee_id)
+    def add_game(self, session, code, name, attendee_id):
+        session.add(Game(code=code, name=name, attendee_id=attendee_id))
+        session.commit()
         return {
             'message': 'Success!',
-            'games': self.games
+            'games': _games(session)
         }
-    
+
     @ajax
-    def returned(self, game_id):
-        Checkout.objects.get(game_id=game_id).delete()
+    def checkout(self, session, game_id, attendee_id):
+        session.add(Checkout(game_id=game_id, attendee_id=attendee_id))
+        session.commit()
         return {
             'message': 'Success!',
-            'games': self.games
+            'games': _games(session)
         }
-    
+
     @ajax
-    def return_to_owner(self, id):
-        game = Game.get(id)
-        game.returned = True
-        game.save()
+    def returned(self, session, game_id):
+        try:
+            session.game(game_id).checked_out.returned = localized_now()
+            session.commit()
+        except:
+            pass
         return {
             'message': 'Success!',
-            'games': self.games
+            'games': _games(session)
+        }
+
+    @ajax
+    def return_to_owner(self, session, game_id):
+        session.game(game_id).returned = True
+        session.commit()
+        return {
+            'message': 'Success!',
+            'games': _games(session)
         }
