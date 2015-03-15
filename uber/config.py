@@ -98,6 +98,14 @@ class Config:
     def DISPLAY_ONEDAY_BADGES(self):
         return self.ONE_DAYS_ENABLED and days_before(30, self.EPOCH)
 
+    @property
+    def AT_OR_POST_CON(self):
+        return self.AT_THE_CON or self.POST_CON
+
+    @property
+    def PRE_CON(self):
+        return not c.AT_OR_POST_CON
+
     def __getattr__(self, name):
         if name.split('_')[0] in ['BEFORE', 'AFTER']:
             date_setting = getattr(c, name.split('_', 1)[1])
@@ -293,8 +301,5 @@ c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt,desc) if amt else desc) for
 
 c.STORE_ITEM_NAMES = list(c.STORE_PRICES.keys())
 c.FEE_ITEM_NAMES = list(c.FEE_PRICES.keys())
-
-c.AT_OR_POST_CON = c.AT_THE_CON or c.POST_CON
-c.PRE_CON = not c.AT_OR_POST_CON
 
 c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'

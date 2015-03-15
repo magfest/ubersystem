@@ -34,7 +34,30 @@ def send_banned_email(attendee):
     except:
         log.error('unable to send banned email about {}', attendee)
 
+def check_post_con(klass):
+    def wrapper(func):
+        @wraps(func)
+        def wrapped(self, *args, **kwargs):
+            if c.POST_CON:  # TODO: replace this with a template and make that suitably generic
+                return """
+                    <html><head></head><body style='text-align:center'>
+                        <h2 style='color:red'>Hope you had a great MAGFest!</h2>
+                        Preregistration for MAGFest 13 will open in the summer.
+                    </body></html>
+                """
+            else:
+                return func(self, *args, **kwargs)
+        return wrapped
+
+    for name in dir(klass):
+        method = getattr(klass, name)
+        if not name.startswith('_') and hasattr(method, '__call__'):
+            setattr(klass, name, wrapper(method))
+    return klass
+
+
 @all_renderable()
+@check_post_con
 class Root:
     @property
     def unpaid_preregs(self):
@@ -66,7 +89,7 @@ class Root:
         })
 
     def check_prereg(self):
-        return json.dumps({'force_refresh': c.AFTER_PREREG_TAKEDOWN or state.BADGES_SOLD >= c.MAX_BADGE_SALES})
+        return json.dumps({'force_refresh': c.AFTER_PREREG_TAKEDOWN or c.BADGES_SOLD >= c.MAX_BADGE_SALES})
 
     def check_if_preregistered(self, session, message="", **params):
         if 'email' in params:
@@ -104,7 +127,7 @@ class Root:
 
     @check_if_can_reg
     def form(self, session, message='', edit_id=None, **params):
-        if MODE == 'magstock':
+        if c.MODE == 'magstock':
             if params.get('buy_shirt') != 'on':
                 params['shirt'] = c.NO_SHIRT
                 params['shirt_color'] = c.NO_SHIRT
@@ -523,32 +546,21 @@ class Root:
     def credit_card_retry(self):
         return {}
 
-if c.POST_CON:
-    @all_renderable()
-    class Root:
-        def default(self, *args, **kwargs):
-            return """
-                <html><head></head><body style='text-align:center'>
-                    <h2 style='color:red'>Hope you had a great MAGFest!</h2>
-                    Preregistration for MAGFest 13 will open in the summer.
-                </body></html>
-            """
+    # TODO: figure out if this is the best way to handle the issue of people not getting shirts
+    def shirt_reorder(self, session, message = '', **params):
+        attendee = session.attendee(params, restricted = True)
+        assert attendee.owed_shirt, "There's no record of {} being owed a tshirt".format(attendee.full_name)
+        if 'address' in params:
+            if attendee.shirt in [c.NO_SHIRT, c.SIZE_UNKNOWN]:
+                message = 'Please select a shirt size.'
+            elif not attendee.address:
+                message = 'Your address is required.'
+            else:
+                raise HTTPRedirect('shirt?id={}', attendee.id)
+        elif attendee.address:
+            message = "We've recorded your shirt size and address, which you may update anytime before Jan 31st."
 
-        # TODO: figure out if this is the best way to handle the issue of people not getting shirts
-        def shirt_reorder(self, session, message = '', **params):
-            attendee = session.attendee(params, restricted = True)
-            assert attendee.owed_shirt, "There's no record of {} being owed a tshirt".format(attendee.full_name)
-            if 'address' in params:
-                if attendee.shirt in [c.NO_SHIRT, c.SIZE_UNKNOWN]:
-                    message = 'Please select a shirt size.'
-                elif not attendee.address:
-                    message = 'Your address is required.'
-                else:
-                    raise HTTPRedirect('shirt?id={}', attendee.id)
-            elif attendee.address:
-                message = "We've recorded your shirt size and address, which you may update anytime before Jan 31st."
-
-            return {
-                'message': message,
-                'attendee': attendee
-            }
+        return {
+            'message': message,
+            'attendee': attendee
+        }

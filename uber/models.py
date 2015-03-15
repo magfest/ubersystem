@@ -357,8 +357,9 @@ class Session(SessionManager):
 
             return next
 
-        def shift_badges(self, badge_type, badge_num, *, until=c.MAX_BADGE, **direction):
+        def shift_badges(self, badge_type, badge_num, *, until=None, **direction):
             #assert_badge_locked()
+            until = until or c.MAX_BADGE
             assert c.SHIFT_CUSTOM_BADGES
             assert not any(param for param in direction if param not in ['up', 'down']), 'unknown parameters'
             assert len(direction) < 2, 'you cannot specify both up and down parameters'
@@ -508,7 +509,8 @@ class Session(SessionManager):
             self.delete(attendee)
             group.attendees.remove(attendee)
 
-        def assign_badges(self, group, new_badge_count, new_badge_type = c.ATTENDEE_BADGE, **extra_create_args):
+        def assign_badges(self, group, new_badge_count, new_badge_type=None, **extra_create_args):
+            new_badge_type = new_badge_type or c.ATTENDEE_BADGE
             diff = int(new_badge_count) - group.badges
             sorted_unassigned = sorted(group.floating, key=lambda a: a.registered, reverse=True)
             if diff > 0:
@@ -683,14 +685,14 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def new_badge_cost(self):
-        return c.DEALER_BADGE_PRICE if self.tables else state.get_group_price(localized_now())
+        return c.DEALER_BADGE_PRICE if self.tables else c.get_group_price(localized_now())
 
     @property
     def badge_cost(self):
         total = 0
         for attendee in self.attendees:
             if attendee.paid == c.PAID_BY_GROUP:
-                total += state.get_group_price(attendee.registered)
+                total += c.get_group_price(attendee.registered)
         return total
 
     @property
@@ -926,9 +928,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         elif self.overridden_price is not None:
             return self.overridden_price
         elif self.badge_type == c.ONE_DAY_BADGE:
-            return state.get_oneday_price(registered)
+            return c.get_oneday_price(registered)
         else:
-            return state.get_attendee_price(registered)
+            return c.get_attendee_price(registered)
 
     @property
     def total_cost(self):

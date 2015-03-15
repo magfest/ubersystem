@@ -7,12 +7,13 @@ from uber.common import *
 class AutomatedEmail:
     instances = OrderedDict()
 
-    def __init__(self, model, subject, template, filter, *, sender=c.REGDESK_EMAIL, extra_data=None, cc=None, bcc=None, post_con=False, needs_approval=False):
-        self.model, self.template, self.sender, self.needs_approval = model, template, sender, needs_approval
+    def __init__(self, model, subject, template, filter, *, sender=None, extra_data=None, cc=None, bcc=None, post_con=False, needs_approval=False):
+        self.model, self.template, self.needs_approval = model, template, needs_approval
         self.subject = subject.format(EVENT_NAME=c.EVENT_NAME)
         self.cc = cc or []
         self.bcc = bcc or []
         self.extra_data = extra_data or {}
+        self.sender = sender or c.REGDESK_EMAIL
         self.instances[self.subject] = self
         if post_con:
             self.filter = lambda x: c.POST_CON and filter(x)
@@ -48,19 +49,20 @@ class AutomatedEmail:
             if raise_errors:
                 raise
 
-    # TODO: joinedload on other tables such as shifts as well, for performance (this is WAY slower than it could be)
+    # TODO: joinedload on other tables such as shifts as well, for performance (this method is WAY slower than it could be)
     @classmethod
     def send_all(cls, raise_errors=False):
-        with Session() as session:
-            attendees, groups = session.everyone()
-            approved = {ae.subject for ae in session.query(ApprovedEmail).all()}
-            models = {Attendee: attendees, Group: groups, 'SeasonPass': session.season_passes()}
-            all_sent = {(e.model, e.fk_id, e.subject): e for e in session.query(Email).all()}
-            for rem in cls.instances.values():
-                if not rem.needs_approval or rem.subject in approved:
-                    for x in models[rem.model]:
-                        if rem.should_send(x, all_sent):
-                            rem.send(x, raise_errors=raise_errors)
+        if not c.AT_THE_CON and (c.DEV_BOX or c.SEND_EMAILS):
+            with Session() as session:
+                attendees, groups = session.everyone()
+                approved = {ae.subject for ae in session.query(ApprovedEmail).all()}
+                models = {Attendee: attendees, Group: groups, 'SeasonPass': session.season_passes()}
+                all_sent = {(e.model, e.fk_id, e.subject): e for e in session.query(Email).all()}
+                for rem in cls.instances.values():
+                    if not rem.needs_approval or rem.subject in approved:
+                        for x in models[rem.model]:
+                            if rem.should_send(x, all_sent):
+                                rem.send(x, raise_errors=raise_errors)
 
 class StopsEmail(AutomatedEmail):
     def __init__(self, subject, template, filter, **kwargs):
@@ -125,11 +127,11 @@ AutomatedEmail(Attendee, '{EVENT_NAME} extra payment received', 'reg_workflow/gr
 # all events, because they will only be sent for groups with unregistered badges, so if group preregistration
 # has been turned off, they'll just never be sent.
 
-#GroupEmail('Reminder to pre-assign {EVENT_NAME} group badges', 'reg_workflow/group_preassign_reminder.txt',
-#           lambda g: days_after(30, g.registered) and state.BEFORE_GROUP_PREREG_TAKEDOWN and g.unregistered_badges)
+GroupEmail('Reminder to pre-assign {EVENT_NAME} group badges', 'reg_workflow/group_preassign_reminder.txt',
+           lambda g: days_after(30, g.registered) and c.BEFORE_GROUP_PREREG_TAKEDOWN and g.unregistered_badges)
 
-#AutomatedEmail(Group, 'Last chance to pre-assign {EVENT_NAME} group badges', 'reg_workflow/group_preassign_reminder.txt',
-#         lambda g: state.AFTER_GROUP_PREREG_TAKEDOWN and g.unregistered_badges and (not g.is_dealer or g.status == APPROVED))
+AutomatedEmail(Group, 'Last chance to pre-assign {EVENT_NAME} group badges', 'reg_workflow/group_preassign_reminder.txt',
+         lambda g: c.AFTER_GROUP_PREREG_TAKEDOWN and g.unregistered_badges and (not g.is_dealer or g.status == APPROVED))
 
 
 # Dealer emails; these are safe to be turned on for all events because even if the event doesn't have dealers,

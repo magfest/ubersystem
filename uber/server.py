@@ -9,14 +9,6 @@ def _add_email():
     cherrypy.response.body = [body]
 cherrypy.tools.add_email_to_error_page = cherrypy.Tool('after_error_response', _add_email)
 
-
-@all_renderable()
-class UberShutDown:
-    def default(self, *args, **kwargs):
-        return render('closed.html')
-
-    schedule = schedule.Root()
-
 mimetypes.init()
 
 class StaticViews:
@@ -57,7 +49,7 @@ class StaticViews:
         return cherrypy.lib.static.serve_fileobj(content, name=content_filename, content_type=guessed_content_type)
 
 @all_renderable()
-class Uber:
+class Root:
     def index(self):
         return render('index.html')
 
@@ -71,9 +63,8 @@ _sections = [path.split('/')[-1][:-3] for path in glob(os.path.join(c.MODULE_ROO
                                       if not path.endswith('__init__.py')]
 for _section in _sections:
     _module = __import__('uber.site_sections.' + _section, fromlist=['Root'])
-    setattr(Uber, _section, _module.Root())
+    setattr(Root, _section, _module.Root())
 
-Root = UberShutDown if c.UBER_SHUT_DOWN else Uber
 
 class Redirector:
     @cherrypy.expose
@@ -85,14 +76,10 @@ class Redirector:
 
 cherrypy.tree.mount(Root(), c.PATH, c.APPCONF)
 
-if c.SEND_EMAILS or c.DEV_BOX:
-    if not c.AT_THE_CON:
-        DaemonTask(AutomatedEmail.send_all, interval=300)
-    if c.PRE_CON:
-        DaemonTask(detect_duplicates, interval=300)
-        DaemonTask(check_unassigned, interval=300)
-        if c.CHECK_PLACEHOLDERS:
-            DaemonTask(check_placeholders, interval=300)
+DaemonTask(check_unassigned, interval=300)
+DaemonTask(detect_duplicates, interval=300)
+DaemonTask(check_placeholders, interval=300)
+DaemonTask(AutomatedEmail.send_all, interval=300)
 
 # this should be replaced by something a little cleaner, but it's a useful debugging tool, so we'll go with it for now
-DaemonTask(lambda: log.error(Session.engine.pool.status()), interval=5)
+#DaemonTask(lambda: log.error(Session.engine.pool.status()), interval=5)

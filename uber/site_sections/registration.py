@@ -9,7 +9,7 @@ def check_everything(attendee):
 
     if c.AT_THE_CON and attendee.id is None:
         if isinstance(attendee.badge_num, str) or attendee.badge_num < 0:
-            if MODE != 'magstock':
+            if c.MODE != 'magstock':
                 return 'Invalid badge number'
             else:
                 attendee.badge_num = next_badge_num(attendee.badge_type)
@@ -26,6 +26,16 @@ def check_everything(attendee):
 
     if c.AT_THE_CON and not attendee.age_group and attendee.is_new:
         return "You must enter this attendee's age group"
+
+
+def check_atd(func):
+    @wraps(func)
+    def checking_at_the_door(self, *args, **kwargs):
+        if c.AT_THE_CON or c.DEV_BOX:
+            return func(self, *args, **kwargs)
+        else:
+            raise HTTPRedirect('index')
+    return checking_at_the_door
 
 
 @all_renderable(c.PEOPLE, c.REG_AT_CON)
@@ -251,7 +261,7 @@ class Root:
         success, increment = True, False
 
         if not attendee.badge_num:
-            if MODE == 'magstock':
+            if c.MODE == 'magstock':
                 if not badge_num or badge_num == 0:
                     badge_num = next_badge_num(attendee.badge_type)
 
@@ -417,74 +427,76 @@ class Root:
         session.commit()
         return '{a.full_name} ({a.badge}) merch handout canceled'.format(a=attendee)
 
-    if c.AT_THE_CON or c.DEV_BOX:
-        @unrestricted
-        def register(self, session, message='', **params):
-            params['id'] = 'None'
-            attendee = session.attendee(params, bools=['international'], checkgroups=['interests'], restricted=True, ignore_csrf=True)
-            if 'first_name' in params:
-                if not attendee.payment_method:
-                    message = 'Please select a payment type'
-                elif not attendee.first_name or not attendee.last_name:
-                    message = 'First and Last Name are required fields'
-                elif attendee.ec_phone[:1] != '+' and not attendee.international and len(re.compile('[0-9]').findall(attendee.ec_phone)) != 10:
-                    message = 'Enter a 10-digit emergency contact number'
-                elif re.search(c.SAME_NUMBER_REPEATED, re.sub(r'[^0-9]', '', attendee.ec_phone)):
-                    message = 'Please enter a real emergency contact number'
-                elif not attendee.age_group:
-                    message = 'Please select an age category'
-                elif attendee.payment_method == c.MANUAL and not re.match(c.EMAIL_RE, attendee.email):
-                    message = 'Email address is required to pay with a credit card at our registration desk'
-                elif attendee.badge_type not in [c.ATTENDEE_BADGE, c.ONE_DAY_BADGE]:
-                    message = 'No hacking allowed!'
-                else:
-                    session.add(attendee)
-                    attendee.badge_num = 0
-                    if not attendee.zip_code:
-                        attendee.zip_code = '00000'
-                    attendee.save()
-                    message = 'Thanks!  Please queue in the {} line and have your photo ID and {} ready.'
-                    if attendee.payment_method == c.STRIPE:
-                        raise HTTPRedirect('pay?id={}', attendee.id)
-                    elif attendee.payment_method == c.GROUP:
-                        message = 'Please proceed to the preregistration line to pick up your badge.'
-                        attendee.paid = c.PAID_BY_GROUP
-                    elif attendee.payment_method == c.CASH:
-                        message = message.format('cash', '${}'.format(attendee.total_cost))
-                    elif attendee.payment_method == c.MANUAL:
-                        message = message.format('credit card', 'credit card')
-                    raise HTTPRedirect('register?message={}', message)
+    @unrestricted
+    @check_atd
+    def register(self, session, message='', **params):
+        params['id'] = 'None'
+        attendee = session.attendee(params, bools=['international'], checkgroups=['interests'], restricted=True, ignore_csrf=True)
+        if 'first_name' in params:
+            if not attendee.payment_method:
+                message = 'Please select a payment type'
+            elif not attendee.first_name or not attendee.last_name:
+                message = 'First and Last Name are required fields'
+            elif attendee.ec_phone[:1] != '+' and not attendee.international and len(re.compile('[0-9]').findall(attendee.ec_phone)) != 10:
+                message = 'Enter a 10-digit emergency contact number'
+            elif re.search(c.SAME_NUMBER_REPEATED, re.sub(r'[^0-9]', '', attendee.ec_phone)):
+                message = 'Please enter a real emergency contact number'
+            elif not attendee.age_group:
+                message = 'Please select an age category'
+            elif attendee.payment_method == c.MANUAL and not re.match(c.EMAIL_RE, attendee.email):
+                message = 'Email address is required to pay with a credit card at our registration desk'
+            elif attendee.badge_type not in [c.ATTENDEE_BADGE, c.ONE_DAY_BADGE]:
+                message = 'No hacking allowed!'
+            else:
+                session.add(attendee)
+                attendee.badge_num = 0
+                if not attendee.zip_code:
+                    attendee.zip_code = '00000'
+                attendee.save()
+                message = 'Thanks!  Please queue in the {} line and have your photo ID and {} ready.'
+                if attendee.payment_method == c.STRIPE:
+                    raise HTTPRedirect('pay?id={}', attendee.id)
+                elif attendee.payment_method == c.GROUP:
+                    message = 'Please proceed to the preregistration line to pick up your badge.'
+                    attendee.paid = c.PAID_BY_GROUP
+                elif attendee.payment_method == c.CASH:
+                    message = message.format('cash', '${}'.format(attendee.total_cost))
+                elif attendee.payment_method == c.MANUAL:
+                    message = message.format('credit card', 'credit card')
+                raise HTTPRedirect('register?message={}', message)
 
+        return {
+            'message':  message,
+            'attendee': attendee
+        }
+
+    @unrestricted
+    @check_atd
+    def pay(self, session, id, message=''):
+        attendee = session.attendee(id)
+        if attendee.paid == c.HAS_PAID:
+            raise HTTPRedirect('register?message={}', 'You are already paid and should proceed to the preregistration desk to pick up your badge')
+        else:
             return {
-                'message':  message,
-                'attendee': attendee
+                'message': message,
+                'attendee': attendee,
+                'charge': Charge(attendee, description=attendee.full_name)
             }
 
-        @unrestricted
-        def pay(self, session, id, message=''):
-            attendee = session.attendee(id)
-            if attendee.paid == c.HAS_PAID:
-                raise HTTPRedirect('register?message={}', 'You are already paid and should proceed to the preregistration desk to pick up your badge')
-            else:
-                return {
-                    'message': message,
-                    'attendee': attendee,
-                    'charge': Charge(attendee, description=attendee.full_name)
-                }
-
-        @unrestricted
-        @credit_card
-        def take_payment(self, session, payment_id, stripeToken):
-            charge = Charge.get(payment_id)
-            [attendee] = charge.attendees
-            message = charge.charge_cc(stripeToken)
-            if message:
-                raise HTTPRedirect('pay?id={}&message={}', attendee.id, message)
-            else:
-                attendee.paid = c.HAS_PAID
-                attendee.amount_paid = attendee.total_cost
-                session.merge(attendee)
-                raise HTTPRedirect('register?message={}', 'Your payment has been accepted, please proceed to the Preregistration desk to pick up your badge')
+    @unrestricted
+    @check_atd
+    @credit_card
+    def take_payment(self, session, payment_id, stripeToken):
+        charge = Charge.get(payment_id)
+        [attendee] = charge.attendees
+        message = charge.charge_cc(stripeToken)
+        if message:
+            raise HTTPRedirect('pay?id={}&message={}', attendee.id, message)
+        else:
+            attendee.paid = c.HAS_PAID
+            attendee.amount_paid = attendee.total_cost
+            session.merge(attendee)
+            raise HTTPRedirect('register?message={}', 'Your payment has been accepted, please proceed to the Preregistration desk to pick up your badge')
 
     def comments(self, session, order='last_name'):
         return {
@@ -575,7 +587,7 @@ class Root:
         badge_num = int(badge_num) if badge_num.isdigit() else 0
         attendee = session.attendee(id)
 
-        if MODE == 'magstock' and not badge_num:
+        if c.MODE == 'magstock' and not badge_num:
             badge_num = next_badge_num(attendee.badge_type)
 
         existing = session.query(Attendee).filter_by(badge_num=badge_num).all()
@@ -849,6 +861,7 @@ class Root:
 
         return {'message' : message,
                 'attendees' : attendees}
+
     def placeholders(self, session, department=''):
         return {
             'department': department,

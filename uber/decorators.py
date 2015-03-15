@@ -13,6 +13,7 @@ def log_pageview(func):
         return func(*args,**kwargs)
     return with_check
 
+
 def check_if_can_reg(func):
     @wraps(func)
     def with_check(*args,**kwargs):
@@ -38,6 +39,7 @@ def site_mappable(func):
 def suffix_property(func):
     func._is_suffix_property = True
     return func
+
 
 def _suffix_property_check(inst, name):
     if not name.startswith('_'):
@@ -212,19 +214,24 @@ def _get_module_name(class_or_func):
 def _get_template_filename(func):
     return os.path.join(_get_module_name(func), func.__name__ + '.html')
 
+
 def renderable(func):
     @wraps(func)
     def with_rendering(*args, **kwargs):
         result = func(*args, **kwargs)
-        if isinstance(result, dict):
+        if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
+            return render('closed.html')
+        elif isinstance(result, dict):
             return render(_get_template_filename(func), result)
         else:
             return result
     return with_rendering
 
+
 def unrestricted(func):
     func.restricted = False
     return func
+
 
 def restricted(func):
     @wraps(func)
@@ -251,6 +258,7 @@ def restricted(func):
 
         return func(*args, **kwargs)
     return with_restrictions
+
 
 class all_renderable:
     def __init__(self, *needs_access):
