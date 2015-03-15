@@ -1,6 +1,6 @@
 from uber.common import *
 
-@all_renderable(PEOPLE)
+@all_renderable(c.PEOPLE)
 class Root:
     def index(self, session, page='1'):
         emails = session.query(Email).order_by(Email.when.desc())

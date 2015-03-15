@@ -6,7 +6,7 @@
 
 <script type="text/javascript">
     function isPreassignedBadgeType(badge_type) {
-        return $.inArray(parseInt(badge_type), [{{ STAFF_BADGE }}, {{ SUPPORTER_BADGE }}]) >= 0;
+        return $.inArray(parseInt(badge_type), [{{ c.STAFF_BADGE }}, {{ c.SUPPORTER_BADGE }}]) >= 0;
     }
     
     function setGroupLink() {
@@ -29,13 +29,13 @@
     
     var setAmountPaid = function(focus) {
         {% if attendee.is_new %}
-            var amount = {{ BADGE_PRICE }};
-            if( $.val("badge_type") == {{ ONE_DAY_BADGE }} )
-                amount = {{ ONEDAY_BADGE_PRICE }};
+            var amount = {{ c.BADGE_PRICE }};
+            if( $.val("badge_type") == {{ c.ONE_DAY_BADGE }} )
+                amount = {{ c.ONEDAY_BADGE_PRICE }};
             
-            if( $.val("paid") === {{ HAS_PAID }} )
+            if( $.val("paid") === {{ c.HAS_PAID }} )
                 $.field("amount_paid").val(amount);
-            else if( $.val("paid") === {{ NOT_PAID }} )
+            else if( $.val("paid") === {{ c.NOT_PAID }} )
                 $.field("amount_paid").val(0);
         {% endif %}
         
@@ -47,8 +47,8 @@
     function showOrHideAmounts(focus) {
         var paid = $.val("paid"),
             extra = $.val("amount_extra");
-        setVisible("#amount_paid", paid !== {{ NEED_NOT_PAY }} && paid !== {{ PAID_BY_GROUP }} || extra > 0);
-        setVisible("#amount_refunded", paid === {{ REFUNDED }});
+        setVisible("#amount_paid", paid !== {{ c.NEED_NOT_PAY }} && paid !== {{ c.PAID_BY_GROUP }} || extra > 0);
+        setVisible("#amount_refunded", paid === {{ c.REFUNDED }});
         setAmountPaid(focus);
     }
     
@@ -62,7 +62,7 @@
                 $(".maybe_bold").css("font-weight", "normal");
             else {
                 $(".maybe_bold").css("font-weight", "bold");
-                {% if AT_THE_CON %}
+                {% if c.AT_THE_CON %}
                     $("#email,#zip_code").css("font-weight", "normal");
                 {% endif %}
             }
@@ -71,7 +71,7 @@
     
     function setPreassigned() {
         if( $.field("placeholder").is(":checked") ) {
-            $.field("paid").val("{{ NEED_NOT_PAY }}");
+            $.field("paid").val("{{ c.NEED_NOT_PAY }}");
         }
         showOrHideAmounts();
     }
@@ -96,14 +96,14 @@
         showOrHideAmounts();
         showOrHideStaffStuff();
         $.field("staffing").on("click", showOrHideStaffStuff);
-        {% if AT_THE_CON and attendee.is_new %}
-            $.field("paid").val({{ HAS_PAID }});
-            $.field("amount_paid").val({{ BADGE_PRICE }});
+        {% if c.AT_THE_CON and attendee.is_new %}
+            $.field("paid").val({{ c.HAS_PAID }});
+            $.field("amount_paid").val({{ c.BADGE_PRICE }});
         {% endif %}
     });
 </script>
 
-{% if AT_THE_CON %}
+{% if c.AT_THE_CON %}
     <div style="display:none">
         <input type="checkbox" name="placeholder" /> TODO: this is a big hack, figure this out
     </div>
@@ -123,7 +123,7 @@
 </tr>
 {% endif %}
 {% endif %}
-{% if not AT_THE_CON %}
+{% if not c.AT_THE_CON %}
     <tr>
         <td width="25%"> <b>Placeholder:</b> </td>
         <td width="75%">
@@ -140,7 +140,7 @@
     <td width="25%"><b>Status:</b></td>
     <td width="75%">
         <select name="status">
-            {% options BADGE_STATUS_OPTS attendee.status %}
+            {% options c.BADGE_STATUS_OPTS attendee.status %}
         </select>
     </td>
 </tr>
@@ -153,9 +153,9 @@
             &nbsp;&nbsp; [<a href="change_badge?id={{ attendee.id }}">Change</a>]
         {% else %}
             <select name="badge_type" onChange="boldOrRegular(); setBadgeMessage(); setAmountPaid();">
-                {% options BADGE_OPTS attendee.badge_type %}
+                {% options c.BADGE_OPTS attendee.badge_type %}
             </select>
-            {% if AT_THE_CON %}
+            {% if c.AT_THE_CON %}
                 #<input class="focus" type="text" style="width:4em" name="badge_num" value='{{ attendee.badge_num|default:"" }}' />
             {% else %}
                 <span id="badge_message" style="font-style:italic"></span>
@@ -163,19 +163,19 @@
         {% endif %}
         &nbsp;&nbsp;
         <select name="ribbon">
-            {% options RIBBON_OPTS attendee.ribbon %}
+            {% options c.RIBBON_OPTS attendee.ribbon %}
         </select>
-        {% if AT_THE_CON and not attendee.badge_num %}
+        {% if c.AT_THE_CON and not attendee.badge_num %}
             <br/> <input type="checkbox" name="omit_badge" value="yes" {% if omit_badge %}checked{% endif %} /> Omit badge number
         {% endif %}
-        {% if attendee.badge_type == STAFF_BADGE %}
+        {% if attendee.badge_type == c.STAFF_BADGE %}
             &nbsp;&nbsp; [{{ attendee.hotel_status }}]
         {% elif attendee.is_transferable %}
             &nbsp;&nbsp; [<a href="../preregistration/confirm?id={{ attendee.id }}">Confirm/Transfer</a>]
         {% endif %}
     </td>
 </tr>
-{% if attendee.badge_type == SUPPORTER_BADGE %}
+{% if attendee.badge_type == c.SUPPORTER_BADGE %}
     <tr>
         <td> Affiliate: </td>
         <td> <input type="text" name="affiliate" value="{{ attendee.affiliate|default:"" }}" /> </td>
@@ -201,17 +201,17 @@
         <input type="text" style="width:10em" name="last_name"  value="{{ attendee.last_name }}"  />
     </td>
 </tr>
-{% if attendee.badge_type in PREASSIGNED_BADGE_TYPES %}
+{% if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES %}
     <tr>
         <td>Printed on Badge:</td>
-        <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" {% if AFTER_PRINTED_BADGE_DEADLINE %}readonly{% endif %} /> </td>
+        <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" {% if c.AFTER_PRINTED_BADGE_DEADLINE %}readonly{% endif %} /> </td>
     </tr>
 {% endif %}
 <tr>
     <td class="maybe_bold" id="email"> Email Address: </td>
     <td> <input type="text" name="email" value="{{ attendee.email }}" /> </td>
 </tr>
-{% if COLLECT_FULL_ADDRESS %}
+{% if c.COLLECT_FULL_ADDRESS %}
     <tr>
         <td class="maybe_bold" id="address">Address</td>
         <td>
@@ -271,16 +271,16 @@
     <td> <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" /> </td>
 </tr>
 <tr>
-    {% if COLLECT_EXACT_BIRTHDATE %}
-    <td> <nobr>{% bold_if AT_THE_CON %}Date of Birth:{% end_bold_if %}</nobr> </td>
+    {% if c.COLLECT_EXACT_BIRTHDATE %}
+    <td> <nobr>{% bold_if c.AT_THE_CON %}Date of Birth:{% end_bold_if %}</nobr> </td>
     <td>
         <input type="text" name="birthdate" value="{{ attendee.birthdate|date:"Y-m-d" }}" class="form-control date">
     </td>
     {% else %}
-    <td> <nobr>{% bold_if AT_THE_CON %}Age as of {{ EVENT_NAME }}:{% end_bold_if %}</nobr> </td>
+    <td> <nobr>{% bold_if c.AT_THE_CON %}Age as of {{ c.EVENT_NAME }}:{% end_bold_if %}</nobr> </td>
     <td>
         <select name="age_group">
-            {% options AGE_GROUP_OPTS attendee.age_group %}
+            {% options c.AGE_GROUP_OPTS attendee.age_group %}
         </select>
     </td>
     {% endif %}
@@ -303,10 +303,10 @@
     <td> {% checkgroup attendee.assigned_depts %} </td>
 </tr>
 <tr>
-    <td> <nobr>How did they</nobr> <nobr>find {{ EVENT_NAME }}?</nobr> </td>
+    <td> <nobr>How did they</nobr> <nobr>find {{ c.EVENT_NAME }}?</nobr> </td>
     <td> <input type="text" name="found_how" value="{{ attendee.found_how }}" style="width:80%" /> </td>
 </tr>
-{% if AT_THE_CON and not attendee.is_new %}
+{% if c.AT_THE_CON and not attendee.is_new %}
     <tr>
         <td> Received Merch </td>
         <td> {% checkbox attendee.got_merch %} Yes </td>
@@ -315,7 +315,7 @@
         <td> Signed Up </td>
         <td>
             <i>{{ attendee.registered_local }}</i>
-            {% if AT_THE_CON %}
+            {% if c.AT_THE_CON %}
                 {% if attendee.checked_in %}
                     (checked in at {{ attendee.checked_in_local }})
                 {% else %}
@@ -348,7 +348,7 @@
     <td> Paid: </td>
     <td>
         <select name="paid" onChange="showOrHideAmounts(true)">
-            {% options PAYMENT_OPTS attendee.paid %}
+            {% options c.PAYMENT_OPTS attendee.paid %}
         </select>
         &nbsp;&nbsp;&nbsp;
         <span id="amount_paid">
@@ -359,7 +359,7 @@
             Refunded: $<input type="text" style="width:4em" name="amount_refunded" value="{{ attendee.amount_refunded }}" />
         </span>
 
-        {% if AT_THE_CON and attendee.staffing %}
+        {% if c.AT_THE_CON and attendee.staffing %}
             <br/> ({{ attendee.worked_hours }} out of {{ attendee.weighted_hours }} hours worked)
         {% endif %}
     </td>
@@ -399,7 +399,7 @@
         </form>
     </div>
 
-    {% if attendee.paid != LOST_BADGE %}
+    {% if attendee.paid != c.LOST_BADGE %}
         <br/>
         <div style="margin-left:25%">
             <form method="post" action="lost_badge">

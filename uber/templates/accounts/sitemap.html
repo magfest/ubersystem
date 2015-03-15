@@ -7,11 +7,11 @@
 {% for section, pagelist in pages %}
     <div class="panel panel-default">
     <div class="panel-heading">{{ section|title }}</div>
-		<ul class="nav nav-pills">
-		{% for page in pagelist %}
-			<li><a href="{{ URL_BASE }}{{ page.path }}">{{ page.name }}</a></li>
-		{% endfor %}
-		</ul>
+        <ul class="nav nav-pills">
+        {% for page in pagelist %}
+            <li><a href="{{ c.URL_BASE }}{{ page.path }}">{{ page.name }}</a></li>
+        {% endfor %}
+        </ul>
     </div>
 {% endfor %}
 

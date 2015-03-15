@@ -1,26 +1,26 @@
 from uber.common import *
 from django.utils.text import normalize_newlines
 
-@all_renderable(STUFF)
+@all_renderable(c.STUFF)
 class Root:
     @unrestricted
     @cached
     def index(self, session, message=''):
-        if HIDE_SCHEDULE and not AdminAccount.access_set() and not cherrypy.session.get('staffer_id'):
-            return "The " + EVENT_NAME + " schedule is being developed and will be made public when it's closer to being finalized."
+        if c.HIDE_SCHEDULE and not AdminAccount.access_set() and not cherrypy.session.get('staffer_id'):
+            return "The " + c.EVENT_NAME + " schedule is being developed and will be made public when it's closer to being finalized."
 
         schedule = defaultdict(lambda: defaultdict(list))
         for event in session.query(Event).all():
             schedule[event.start_time_local][event.location].append(event)
             for i in range(1, event.duration):
                 half_hour = event.start_time_local + timedelta(minutes = 30 * i)
-                schedule[half_hour][event.location].append(EVENT_BOOKED)
+                schedule[half_hour][event.location].append(c.EVENT_BOOKED)
 
         max_simul = {}
-        for id,name in EVENT_LOCATION_OPTS:
+        for id,name in c.EVENT_LOCATION_OPTS:
             max_events = 1
-            for i in range(2 * CON_LENGTH):
-                half_hour = EPOCH + timedelta(minutes = 30 * i)
+            for i in range(2 * c.CON_LENGTH):
+                half_hour = c.EPOCH + timedelta(minutes = 30 * i)
                 max_events = max(max_events, len(schedule[half_hour][id]))
             max_simul[id] = max_events
 
@@ -31,22 +31,22 @@ class Root:
                         simul = max(len(schedule[half_hour][event.location]) for half_hour in event.half_hours)
                         event.colspan = 1 if simul > 1 else max_simul[event.location]
                         for i in range(1, event.duration):
-                            schedule[half_hour + timedelta(minutes=30*i)][event.location].remove(EVENT_BOOKED)
+                            schedule[half_hour + timedelta(minutes=30*i)][event.location].remove(c.EVENT_BOOKED)
                             schedule[half_hour + timedelta(minutes=30*i)][event.location].append(event.colspan)
 
         for half_hour in schedule:
-            for id, name in EVENT_LOCATION_OPTS:
+            for id, name in c.EVENT_LOCATION_OPTS:
                 span_sum = sum(getattr(e,'colspan',e) for e in schedule[half_hour][id])
                 for i in range(max_simul[id] - span_sum):
-                    schedule[half_hour][id].append(EVENT_OPEN)
+                    schedule[half_hour][id].append(c.EVENT_OPEN)
 
-            schedule[half_hour] = sorted(schedule[half_hour].items(), key=lambda tup: ORDERED_EVENT_LOCS.index(tup[0]))
+            schedule[half_hour] = sorted(schedule[half_hour].items(), key=lambda tup: c.ORDERED_EVENT_LOCS.index(tup[0]))
 
-        max_simul = [(id, EVENT_LOCATIONS[id], colspan) for id,colspan in max_simul.items()]
+        max_simul = [(id, c.EVENT_LOCATIONS[id], colspan) for id,colspan in max_simul.items()]
         return {
             'message':   message,
             'schedule':  sorted(schedule.items()),
-            'max_simul': sorted(max_simul, key=lambda tup: ORDERED_EVENT_LOCS.index(tup[0]))
+            'max_simul': sorted(max_simul, key=lambda tup: c.ORDERED_EVENT_LOCS.index(tup[0]))
         }
 
     @unrestricted
@@ -62,7 +62,7 @@ class Root:
         for event in session.query(Event).order_by('start_time').all():
             schedule[event.location_label].append(event)
         return render('schedule/schedule.xml', {
-            'schedule': sorted(schedule.items(), key=lambda tup: ORDERED_EVENT_LOCS.index(tup[1][0].location))
+            'schedule': sorted(schedule.items(), key=lambda tup: c.ORDERED_EVENT_LOCS.index(tup[1][0].location))
         })
 
     @unrestricted
@@ -79,7 +79,7 @@ class Root:
             }))
 
         return render('schedule/schedule.tsv', {
-            'schedule': sorted(schedule.items(), key=lambda tup: ORDERED_EVENT_LOCS.index(tup[1][0]['location']))
+            'schedule': sorted(schedule.items(), key=lambda tup: c.ORDERED_EVENT_LOCS.index(tup[1][0]['location']))
         })
 
     @csv_file
@@ -97,12 +97,12 @@ class Root:
     @unrestricted
     def now(self, session, when=None):
         if when:
-            now = EVENT_TIMEZONE.localize(datetime(*map(int, when.split(','))))
+            now = c.EVENT_TIMEZONE.localize(datetime(*map(int, when.split(','))))
         else:
-            now = EVENT_TIMEZONE.localize(datetime.combine(localized_now().date(), time(localized_now().hour)))
+            now = c.EVENT_TIMEZONE.localize(datetime.combine(localized_now().date(), time(localized_now().hour)))
 
         current, upcoming = [], []
-        for loc,desc in EVENT_LOCATION_OPTS:
+        for loc,desc in c.EVENT_LOCATION_OPTS:
             approx = session.query(Event).filter(Event.location == loc,
                                                  Event.start_time >= now - timedelta(hours=6),
                                                  Event.start_time <= now).all()
@@ -146,8 +146,8 @@ class Root:
             'assigned': [ap.attendee_id for ap in sorted(event.assigned_panelists, reverse=True, key=lambda a: a.attendee.first_name)],
             'panelists': [(a.id, a.full_name)
                           for a in session.query(Attendee)
-                                          .filter(or_(Attendee.ribbon == PANELIST_RIBBON,
-                                                      Attendee.badge_type == GUEST_BADGE))
+                                          .filter(or_(Attendee.ribbon == c.PANELIST_RIBBON,
+                                                      Attendee.badge_type == c.GUEST_BADGE))
                                           .order_by(Attendee.full_name).all()]
         }
 
@@ -160,7 +160,7 @@ class Root:
     def move(self, session, id, location, start_slot):
         event = session.event(id)
         event.location = int(location)
-        event.start_time = EPOCH + timedelta(minutes = 30 * int(start_slot))
+        event.start_time = c.EPOCH + timedelta(minutes = 30 * int(start_slot))
         resp = {'error': check(event)}
         if not resp['error']:
             session.commit()

@@ -5,7 +5,7 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
         args = [self.quote(s) for s in args]
         kwargs = {k:self.quote(v) for k,v in kwargs.items()}
         cherrypy.HTTPRedirect.__init__(self, page.format(*args, **kwargs))
-        if URL_BASE.startswith('https'):
+        if c.URL_BASE.startswith('https'):
             self.urls[0] = self.urls[0].replace('http://', 'https://')
 
     def quote(self, s):
@@ -13,7 +13,7 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
 
 def localized_now():
     utc_now = datetime.utcnow().replace(tzinfo=UTC)
-    return utc_now.astimezone(EVENT_TIMEZONE)
+    return utc_now.astimezone(c.EVENT_TIMEZONE)
 
 
 def comma_and(xs):
@@ -72,11 +72,11 @@ class SeasonEvent(Registry):
 
         self.slug = slug
         self.name = kwargs['name'] or slug.replace('_', ' ').title()
-        self.day = EVENT_TIMEZONE.localize(datetime.strptime(kwargs['day'], '%Y-%m-%d'))
+        self.day = c.EVENT_TIMEZONE.localize(datetime.strptime(kwargs['day'], '%Y-%m-%d'))
         self.url = kwargs['url']
         self.location = kwargs['location']
         if kwargs['deadline']:
-            self.deadline = EVENT_TIMEZONE.localize(datetime.strptime(kwargs['deadline'], '%Y-%m-%d'))
+            self.deadline = c.EVENT_TIMEZONE.localize(datetime.strptime(kwargs['deadline'], '%Y-%m-%d'))
         else:
             self.deadline = (self.day - timedelta(days = 7)).replace(hour=23, minute=59)
 
@@ -88,7 +88,7 @@ class DeptChecklistConf(Registry):
         self.slug, self.description = slug, description
         self.name = name or slug.replace('_', ' ').title()
         self._path = path or '/dept_checklist/form?slug={slug}'
-        self.deadline = EVENT_TIMEZONE.localize(datetime.strptime(deadline, '%Y-%m-%d')).replace(hour=23, minute=59)
+        self.deadline = c.EVENT_TIMEZONE.localize(datetime.strptime(deadline, '%Y-%m-%d')).replace(hour=23, minute=59)
 
     def path(self, attendee):
         dept = attendee and attendee.assigned_depts and attendee.assigned_depts_ints[0]
@@ -99,15 +99,15 @@ class DeptChecklistConf(Registry):
         return matches[0] if matches else None
 
 
-for _slug, _conf in SEASON_EVENTS.items():
+for _slug, _conf in c.SEASON_EVENTS.items():
     SeasonEvent.register(_slug, _conf)
 
-for _slug, _conf in sorted(DEPT_HEAD_CHECKLIST.items(), key=lambda tup: tup[1]['deadline']):
+for _slug, _conf in sorted(c.DEPT_HEAD_CHECKLIST.items(), key=lambda tup: tup[1]['deadline']):
     DeptChecklistConf.register(_slug, _conf)
 
 
 def hour_day_format(dt):
-    return dt.astimezone(EVENT_TIMEZONE).strftime('%I%p ').strip('0').lower() + dt.astimezone(EVENT_TIMEZONE).strftime('%a')
+    return dt.astimezone(c.EVENT_TIMEZONE).strftime('%I%p ').strip('0').lower() + dt.astimezone(c.EVENT_TIMEZONE).strftime('%a')
 
 
 def underscorize(s):
@@ -116,15 +116,15 @@ def underscorize(s):
 
 
 def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=None):
-    subject = subject.format(EVENT_NAME=EVENT_NAME)
+    subject = subject.format(EVENT_NAME=c.EVENT_NAME)
     to, cc, bcc = map(listify, [dest, cc, bcc])
-    if DEV_BOX:
+    if c.DEV_BOX:
         for xs in [to, cc, bcc]:
-            xs[:] = [email for email in xs if email.endswith('mailinator.com') or DEVELOPER_EMAIL in email]
+            xs[:] = [email for email in xs if email.endswith('mailinator.com') or c.DEVELOPER_EMAIL in email]
 
-    if SEND_EMAILS and to:
+    if c.SEND_EMAILS and to:
         message = EmailMessage(subject=subject, **{'bodyText' if format == 'text' else 'bodyHtml': body})
-        AmazonSES(AWS_ACCESS_KEY, AWS_SECRET_KEY).sendEmail(
+        AmazonSES(c.AWS_ACCESS_KEY, c.AWS_SECRET_KEY).sendEmail(
             source = source,
             toAddresses = to,
             ccAddresses = cc,

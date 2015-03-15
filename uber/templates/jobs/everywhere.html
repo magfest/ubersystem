@@ -20,7 +20,7 @@
                 status: $(event.target).val(),
                 csrf_token: csrf_token
             }, renderJob, 'json');
-        }).append($.map({{ WORKED_STATUS_OPTS|jsonize }}, function (opt) {
+        }).append($.map({{ c.WORKED_STATUS_OPTS|jsonize }}, function (opt) {
             return $('<option></option>').val(opt[0]).text(opt[1]);
         }));
     };
@@ -75,8 +75,8 @@
                                         }))
                                     .append(
                                         $('<td></td>').append(
-                                            shift.worked === {{ SHIFT_UNMARKED }} ? renderWorked(shift.id) : ('<i>' + shift.worked_label + '</i>')))
-                                    .append(shift.worked === {{ SHIFT_UNMARKED }} ? '' : renderRating(shift, $('<td></td>')));
+                                            shift.worked === {{ c.SHIFT_UNMARKED }} ? renderWorked(shift.id) : ('<i>' + shift.worked_label + '</i>')))
+                                    .append(shift.worked === {{ c.SHIFT_UNMARKED }} ? '' : renderRating(shift, $('<td></td>')));
                             }))));
     };
 

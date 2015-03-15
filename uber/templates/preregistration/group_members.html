@@ -1,7 +1,7 @@
 {% extends "./preregistration/preregbase.html" %}
 {% block title %}Group Members{% endblock %}
 {% block backlink %}
-    {% if HAS_PEOPLE_ACCESS %}
+    {% if c.HAS_PEOPLE_ACCESS %}
         <a href="../groups/form?id={{ group.id }}" style="float:right">Return to Group Admin Form</a>
     {% endif %}
 {% endblock %}
@@ -11,8 +11,8 @@
 <div class="panel panel-default">
 <h2> Members of "{{ group.name }}" </h2>
 
-{% if group.amount_unpaid and group.status != WAITLISTED %}
-    {% if not group.is_dealer or group.status != UNAPPROVED %}
+{% if group.amount_unpaid and group.status != c.WAITLISTED %}
+    {% if not group.is_dealer or group.status != c.UNAPPROVED %}
         <div style="text-align:center">
             {% stripe_form process_group_payment charge %}
         </div>
@@ -30,7 +30,7 @@
     If a {{ group.is_dealer|yesno:"planned Dealer Assistant,group member" }} cannot attend, you may use the "This person
     isn't coming" button next to their entry on the list below to unset their badge, which may then be assigned to
     someone else. Upgraded badges may only be transferred directly between two people; please contact us at
-    <a href="{{ CONTACT_URL }}">{{ CONTACT_URL }}</a> if you wish to transfer badges.
+    <a href="{{ c.CONTACT_URL }}">{{ c.CONTACT_URL }}</a> if you wish to transfer badges.
 </div>
 
 <br/> <b>Here are the badges for your group:</b>
@@ -84,7 +84,7 @@
 
 <br/>
 
-{% if PRE_CON and group.min_badges_addable and not group.amount_unpaid %}
+{% if c.PRE_CON and group.min_badges_addable and not group.amount_unpaid %}
     <div id="add" style="display:none">
         <form method="get" action="add_group_members">
         <input type="hidden" name="id" value="{{ group.id }}" />

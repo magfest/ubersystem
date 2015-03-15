@@ -16,11 +16,11 @@ def log_pageview(func):
 def check_if_can_reg(func):
     @wraps(func)
     def with_check(*args,**kwargs):
-        if state.BADGES_SOLD >= MAX_BADGE_SALES:
+        if c.BADGES_SOLD >= c.MAX_BADGE_SALES:
             return render('static_views/prereg_soldout.html')
-        elif state.BEFORE_PREREG_OPEN:
+        elif c.BEFORE_PREREG_OPEN:
             return render('static_views/prereg_not_yet_open.html')
-        elif state.AFTER_PREREG_TAKEDOWN and not AT_THE_CON:
+        elif c.AFTER_PREREG_TAKEDOWN and not c.AT_THE_CON:
             return render('static_views/prereg_closed.html')
         return func(*args,**kwargs)
     return with_check
@@ -98,7 +98,7 @@ def csv_file(func):
 def check_shutdown(func):
     @wraps(func)
     def with_check(self, *args, **kwargs):
-        if UBER_SHUT_DOWN or AT_THE_CON:
+        if c.UBER_SHUT_DOWN or c.AT_THE_CON:
             raise HTTPRedirect('index?message={}', 'The page you requested is only available pre-event.')
         else:
             return func(self, *args, **kwargs)
@@ -115,7 +115,7 @@ def credit_card(func):
         except HTTPRedirect:
             raise
         except:
-            send_email(ADMIN_EMAIL, [ADMIN_EMAIL, 'dom@magfest.org'], 'MAGFest Stripe error',
+            send_email(c.ADMIN_EMAIL, [c.ADMIN_EMAIL, 'dom@magfest.org'], 'MAGFest Stripe error',
                        'Got an error while calling charge(self, payment_id={!r}, stripeToken={!r}, ignored={}):\n{}'
                        .format(payment_id, stripeToken, ignored, traceback.format_exc()))
             return traceback.format_exc()
@@ -178,25 +178,13 @@ def sessionized(func):
 
 def renderable_data(data=None):
     data = data or {}
+    data['c'] = c
     data['PAGE'] = cherrypy.request.path_info.split('/')[-1]
     data.update({m.__name__: m for m in Session.all_models()})
-    data.update({k: v for k,v in config.__dict__.items() if re.match('^[_A-Z0-9]*$', k)})
-    data.update({k: getattr(state, k) for k in dir(state) if re.match('^[_A-Z0-9]*$', k)})
-    for date in DATES:
-        before, after = 'BEFORE_' + date, 'AFTER_' + date
-        data.update({
-            before: getattr(state, before),
-            after:  getattr(state, after)
-        })
     try:
         data['CSRF_TOKEN'] = cherrypy.session['csrf_token']
     except:
         pass
-
-    access = AdminAccount.access_set()
-    for acctype in ACCESS_VARS:
-        data['HAS_' + acctype + '_ACCESS'] = globals()[acctype] in access
-
     return data
 
 # render using the first template that actually exists in template_name_list
@@ -212,7 +200,7 @@ def render(template_name_list, data=None):
 # Nick gets mad when people call Magfest a 'convention'. He always says 'It's not a convention, it's a festival'
 # So........ if Nick is logged in.... let's annoy him a bit :)
 def screw_you_nick(rendered, template):
-    if not AT_THE_CON and AdminAccount.is_nick() and 'emails' not in template and 'history' not in template and 'form' not in rendered:
+    if not c.AT_THE_CON and AdminAccount.is_nick() and 'emails' not in template and 'history' not in template and 'form' not in rendered:
         return rendered.replace('festival', 'convention').replace('Fest', 'Con') # lolz.
     else:
         return rendered
@@ -242,7 +230,7 @@ def restricted(func):
     @wraps(func)
     def with_restrictions(*args, **kwargs):
         if func.restricted:
-            if func.restricted == (SIGNUPS,):
+            if func.restricted == (c.SIGNUPS,):
                 if not cherrypy.session.get('staffer_id'):
                     raise HTTPRedirect('../signups/login?message=You+are+not+logged+in')
 
@@ -251,15 +239,15 @@ def restricted(func):
 
             else:
                 access = AdminAccount.access_set()
-                if not AT_THE_CON:
-                    access.discard(REG_AT_CON)
+                if not c.AT_THE_CON:
+                    access.discard(c.REG_AT_CON)
 
                 if not set(func.restricted).intersection(access):
                     if len(func.restricted) == 1:
-                        return 'You need {} access for this page'.format(dict(ACCESS_OPTS)[func.restricted[0]])
+                        return 'You need {} access for this page'.format(dict(c.ACCESS_OPTS)[func.restricted[0]])
                     else:
                         return ('You need at least one of the following access levels to view this page: '
-                            + ', '.join(dict(ACCESS_OPTS)[r] for r in func.restricted))
+                            + ', '.join(dict(c.ACCESS_OPTS)[r] for r in func.restricted))
 
         return func(*args, **kwargs)
     return with_restrictions

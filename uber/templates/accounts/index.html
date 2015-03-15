@@ -23,8 +23,8 @@
     <label for="password" class="sr-only">Password</label>
     <input type="password" class="form-control" id="password" name="password"
        placeholder="Password" 
-       {% if not AT_THE_CON %}disabled{% endif %}>
-  	{% if not AT_THE_CON %}
+       {% if not c.AT_THE_CON %}disabled{% endif %}>
+  	{% if not c.AT_THE_CON %}
   		<span class="input-group-addon glyphicon glyphicon-ban-circle">
   		</span>
   	{% endif %}

@@ -11,7 +11,6 @@
         return $.map(xs, function(xy){ return [[Date.parse(xy[0]).getTime() ,xy[1]]] });
     }
 
-
     function flotable2(xs) {
         return $.map(xs, function(xy){ return [[xy[0] ,xy[1]]] });
     }
@@ -93,8 +92,6 @@
 
             $.plot($("#graph"), data, conf);
    });
-
-
 </script>
 
 <br/> <br/>

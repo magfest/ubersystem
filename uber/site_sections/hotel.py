@@ -1,19 +1,19 @@
 from uber.common import *
 
 def cannot_modify_rooms():
-    return ROOMS_LOCKED_IN and STAFF_ROOMS not in AdminAccount.access_set()
+    return c.ROOMS_LOCKED_IN and c.STAFF_ROOMS not in AdminAccount.access_set()
 
-@all_renderable(PEOPLE)
+@all_renderable(c.PEOPLE)
 class Root:
     def index(self, session, department=None):
         attendee = session.admin_attendee()
-        department = int(department or JOB_LOCATION_OPTS[0][0])
+        department = int(department or c.JOB_LOCATION_OPTS[0][0])
         return {
             'department': department,
-            'dept_name': JOB_LOCATIONS[department],
+            'dept_name': c.JOB_LOCATIONS[department],
             'checklist': session.checklist_status('hotel_eligible', department),
             'attendees': session.query(Attendee)
-                                .filter_by(badge_type=STAFF_BADGE)
+                                .filter_by(badge_type=c.STAFF_BADGE)
                                 .filter(Attendee.assigned_depts.contains(str(department)))
                                 .order_by(Attendee.full_name).all()
         }
@@ -29,18 +29,18 @@ class Root:
             'requests': requests,
             'department': department,
             'declined_count': len([r for r in requests if r.nights == '']),
-            'dept_name': 'All' if not department else JOB_LOCATIONS[int(department)],
+            'dept_name': 'All' if not department else c.JOB_LOCATIONS[int(department)],
             'checklist': session.checklist_status('approve_setup_teardown', department),
-            'staffer_count': session.query(Attendee).filter(Attendee.badge_type==STAFF_BADGE, *dept_filter).count()
+            'staffer_count': session.query(Attendee).filter(Attendee.badge_type==c.STAFF_BADGE, *dept_filter).count()
         }
 
     def hours(self, session):
-        staffers = session.query(Attendee).filter_by(badge_type=STAFF_BADGE).order_by(Attendee.full_name).all()
+        staffers = session.query(Attendee).filter_by(badge_type=c.STAFF_BADGE).order_by(Attendee.full_name).all()
         staffers = [s for s in staffers if s.hotel_shifts_required and s.weighted_hours < 30]
         return {'staffers': staffers}
 
     def no_shows(self, session):
-        staffers = session.query(Attendee).filter_by(badge_type=STAFF_BADGE).order_by(Attendee.full_name).all()
+        staffers = session.query(Attendee).filter_by(badge_type=c.STAFF_BADGE).order_by(Attendee.full_name).all()
         staffers = [s for s in staffers if s.hotel_nights and not s.checked_in]
         return {'staffers': staffers}
 
@@ -110,15 +110,15 @@ class Root:
             }, indent=4, cls=serializer)
         else:
             attendee = session.admin_attendee()
-            three_days_before = (EPOCH - timedelta(days=3)).strftime('%A')
-            two_days_before = (EPOCH - timedelta(days=2)).strftime('%A')
-            day_before = (EPOCH - timedelta(days=1)).strftime('%A')
-            last_day = ESCHATON.strftime('%A')
+            three_days_before = (c.EPOCH - timedelta(days=3)).strftime('%A')
+            two_days_before = (c.EPOCH - timedelta(days=2)).strftime('%A')
+            day_before = (c.EPOCH - timedelta(days=1)).strftime('%A')
+            last_day = c.ESCHATON.strftime('%A')
             return {
                 'department': department,
                 'checklist': session.checklist_status('hotel_assignments', department),
                 'dump': _hotel_dump(session, department),
-                'department_name': dict(JOB_LOCATION_OPTS)[int(department)],
+                'department_name': dict(c.JOB_LOCATION_OPTS)[int(department)],
                 'nights': [{
                     'core': False,
                     'name': three_days_before.lower(),
@@ -136,10 +136,10 @@ class Root:
                     'desc': day_before + ' night (for setup volunteers)'
                 }] + [{
                     'core': True,
-                    'name': NIGHTS[night].lower(),
+                    'name': c.NIGHTS[night].lower(),
                     'val': night,
-                    'desc': NIGHTS[night]
-                } for night in CORE_NIGHTS] + [{
+                    'desc': c.NIGHTS[night]
+                } for night in c.CORE_NIGHTS] + [{
                     'core': False,
                     'name': last_day.lower(),
                     'val': globals()[last_day.upper()],
@@ -149,14 +149,14 @@ class Root:
 
     @ajax
     def create_room(self, session, **params):
-        params['nights'] = list(filter(bool, [params.pop(night, None) for night in NIGHT_NAMES]))
+        params['nights'] = list(filter(bool, [params.pop(night, None) for night in c.NIGHT_NAMES]))
         session.add(session.room(params))
         session.commit()
         return _hotel_dump(session, params['department'])
 
     @ajax
     def edit_room(self, session, **params):
-        params['nights'] = list(filter(bool, [params.pop(night, None) for night in NIGHT_NAMES]))
+        params['nights'] = list(filter(bool, [params.pop(night, None) for night in c.NIGHT_NAMES]))
         session.room(params)
         session.commit()
         return _hotel_dump(session, params['department'])
@@ -204,7 +204,7 @@ def _attendee_dict(attendee):
         'unwanted_roommates': getattr(attendee.hotel_requests, 'unwanted_roommates', ''),
         'approved': int(getattr(attendee.hotel_requests, 'approved', False)),
         'departments': ' / '.join(attendee.assigned_depts_labels),
-        'nights_lookup': {night: getattr(attendee.hotel_requests, night, False) for night in NIGHT_NAMES},
+        'nights_lookup': {night: getattr(attendee.hotel_requests, night, False) for night in c.NIGHT_NAMES},
     }
 
 def _room_dict(session, room):
@@ -215,7 +215,7 @@ def _room_dict(session, room):
         'department': room.department,
         'attendees': [_attendee_dict(ra.attendee) for ra in sorted(room.room_assignments, key=lambda ra: ra.attendee.full_name)]
     }, **{
-        night: getattr(room, night) for night in NIGHT_NAMES
+        night: getattr(room, night) for night in c.NIGHT_NAMES
     })
 
 def _get_declined(session, department):
@@ -229,13 +229,13 @@ def _get_declined(session, department):
 def _get_unconfirmed(session, department, assigned_ids):
     return [_attendee_dict(a) for a in session.query(Attendee)
                                               .order_by(Attendee.full_name)
-                                              .filter(Attendee.badge_type == STAFF_BADGE,
+                                              .filter(Attendee.badge_type == c.STAFF_BADGE,
                                                       Attendee.hotel_requests == None,
                                                       Attendee.assigned_depts.contains(str(department))).all()
                               if a not in assigned_ids]
 
 def _get_unassigned(session, department, assigned_ids):
-    has_override_access = STAFF_ROOMS in AdminAccount.access_set()
+    has_override_access = c.STAFF_ROOMS in AdminAccount.access_set()
     assigned_to_dept = [] if has_override_access else [Attendee.assigned_depts.like('%{}%'.format(department))]
     return [_attendee_dict(a) for a in session.query(Attendee)
                                               .order_by(Attendee.full_name)
@@ -254,7 +254,7 @@ def _get_assigned_elsewhere(session, department):
                                      Attendee.assigned_depts.like('%{}%'.format(department))).all()]
 
 def _hotel_dump(session, department):
-    room_filter = {'department': department} if cannot_modify_rooms() or int(department) != STOPS else {}
+    room_filter = {'department': department} if cannot_modify_rooms() or int(department) != c.STOPS else {}
     rooms = [_room_dict(session, room) for room in session.query(Room).filter_by(**room_filter).order_by(Room.created).all()]
     assigned = sum([r['attendees'] for r in rooms], [])
     assigned_elsewhere = _get_assigned_elsewhere(session, department)

@@ -15,7 +15,7 @@ def run_git_cmd(cmd):
     uber_base_dir = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..'))
     return run_shell_cmd(git + " " + cmd, working_dir=uber_base_dir)
 
-@all_renderable(PEOPLE)
+@all_renderable(c.PEOPLE)
 class Root:
     def index(self):
         return {}

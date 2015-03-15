@@ -23,7 +23,7 @@
         $highlit.filter(":first").css("border-left", "3px solid green");
         $highlit.filter(":last").css("border-right", "3px solid green");
 
-        if( $tr.find("select").val() == "{{ AGE_UNKNOWN }}" )
+        if( $tr.find("select").val() == "{{ c.AGE_UNKNOWN }}" )
             $tr.find("select").parents("td").css("border", "3px solid red");
         if( $tr.find("td:nth(3)").text() == "no" )
             $tr.find("td:nth(3)").css("border", "3px solid red");
@@ -78,7 +78,7 @@
         });
 
 
-        {% if AT_THE_CON %}
+        {% if c.AT_THE_CON %}
             $(".num").keypress(function(e){
                 if( (e.keyCode || e.which) == 13 )  // ENTER
                     check_in( e.target.id.split("_")[1] );
@@ -118,10 +118,10 @@
 
 <div class="panel col-md-4">
 <a class="btn btn-primary" href="form?id=None">Add an attendee</a>
-    <a class="btn btn-default" {% if not AT_THE_CON %}disabled="disabled"{% endif %}
+    <a class="btn btn-default" {% if not c.AT_THE_CON %}disabled="disabled"{% endif %}
     	href="new">View Recent At-the-Door Registrations</a>
 </div>
-{% if COLLECT_INTERESTS %}
+{% if c.COLLECT_INTERESTS %}
 <div class="panel col-md-4">
 <div class="col-md-6">{{ attendee_count }} Attendee{{ attendee_count|pluralize }}</div>
         <div class="col-md-6"><span id="checkin_count">{{ checkin_count }}</span> Checked In</div>
@@ -155,7 +155,7 @@
     <th> <a href="index?order={{ order.amount_extra }}">Upgrade</a></th>
     <th> <a href="index?order={{ order.paid }}">Paid</a> </th>
     <th>Age</th>
-    {% if AT_THE_CON %}
+    {% if c.AT_THE_CON %}
         <th> <a href="index?order={{ order.checked_in }}"><nobr>Checked In</nobr></a> </th>
     {% endif %}
 </tr></thead>
@@ -176,9 +176,9 @@
         <td id="amount_extra_{{ attendee.id }}">{{ attendee.amount_extra_label }}</td>
         <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
         <td> <nobr>{{ attendee.age_group_desc }}</nobr> </td>
-        {% if AT_THE_CON and attendee.checked_in %}
+        {% if c.AT_THE_CON and attendee.checked_in %}
                 <td>
-                    {% if attendee.paid == LOST_BADGE %}
+                    {% if attendee.paid == c.LOST_BADGE %}
                         <strong>Badge reported as lost!</strong>
                     {% else %}
                         {{ attendee.checked_in_local|time:"fA"|lower }} {{ attendee.checked_in_local|date:"D" }} <br/>
@@ -188,7 +188,7 @@
                         </form>
                     {% endif %}
                 </td>
-        {% elif AT_THE_CON and attendee.paid != NOT_PAID %}
+        {% elif c.AT_THE_CON and attendee.paid != c.NOT_PAID %}
             <td id="cin_{{ attendee.id }}">
                 <button class="attendee-checkin" data-attendeeid="{{ attendee.id }}" {% if attendee.is_unassigned %} disabled {% endif %}>Check In</button>
             </td>

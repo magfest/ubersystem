@@ -32,10 +32,10 @@
     <th data-type="alpha">Paid</th>
     <th data-type="alpha">Assigned To</th>
     <th data-type="numeric">Hours</th>
-    {% if AT_OR_POST_CON %}
+    {% if c.AT_OR_POST_CON %}
         <th data-type="numeric">Worked</th>
     {% endif %}
-    {% if AT_THE_CON %}
+    {% if c.AT_THE_CON %}
         <th data-type="alpha">Checked In</th>
     {% endif %}
 </tr></thead>
@@ -54,10 +54,10 @@
             </ul>
         </td>
         <td> <a href="shifts?id={{ attendee.id }}">{{ attendee.weighted_hours }}</a> </td>
-        {% if AT_OR_POST_CON %}
+        {% if c.AT_OR_POST_CON %}
             <td> <a href="shifts?id={{ attendee.id }}">{{ attendee.worked_hours }}</a> </td>
         {% endif %}
-        {% if AT_THE_CON %}
+        {% if c.AT_THE_CON %}
             <td>{{ attendee.checked_in|yesno:"Checked In,Not Checked In" }}</td>
         {% endif %}
     </tr>

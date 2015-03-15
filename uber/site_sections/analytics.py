@@ -5,7 +5,7 @@
 from uber.common import *
 import copy
 
-@all_renderable(PEOPLE, STATS)
+@all_renderable(c.PEOPLE, c.STATS)
 class Root:
     def index(self):
         return {'test': 'test'}

@@ -2,8 +2,8 @@
     <label for="shirt" class="col-sm-2 control-label">Shirt Size</label>
     <div class="col-sm-6">
         <select name="shirt" class="form-control">
-        <option value="{{ NO_SHIRT }}">Select a shirt size</option>
-        {% options PREREG_SHIRT_OPTS attendee.shirt %}
+        <option value="{{ c.NO_SHIRT }}">Select a shirt size</option>
+        {% options c.PREREG_SHIRT_OPTS attendee.shirt %}
     </select>
     </div>
 </div>

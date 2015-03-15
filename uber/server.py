@@ -4,7 +4,7 @@ from uber.site_sections import schedule, signups, preregistration
 
 def _add_email():
     [body] = cherrypy.response.body
-    body = body.replace(b'<body>', b'''<body>Please contact us via <a href="CONTACT_URL">CONTACT_URL</a> if you're not sure why you're seeing this page.'''.replace(b'CONTACT_URL', CONTACT_URL.encode('utf-8')))
+    body = body.replace(b'<body>', b'''<body>Please contact us via <a href="CONTACT_URL">CONTACT_URL</a> if you're not sure why you're seeing this page.'''.replace(b'CONTACT_URL', c.CONTACT_URL.encode('utf-8')))
     cherrypy.response.headers['Content-Length'] = len(body)
     cherrypy.response.body = [body]
 cherrypy.tools.add_email_to_error_page = cherrypy.Tool('after_error_response', _add_email)
@@ -32,7 +32,7 @@ class StaticViews:
     @cherrypy.expose
     def magfest_js(self):
         """
-        We have several Angular apps which need to be able to access our constants like ATTENDEE_BADGE and such.
+        We have several Angular apps which need to be able to access our constants like c.ATTENDEE_BADGE and such.
         We also need those apps to be able to make HTTP requests with CSRF tokens, so we set that default.
         """
         cherrypy.response.headers['Content-Type'] = 'text/javascript'
@@ -67,31 +67,31 @@ class Uber:
 
     static_views = StaticViews()
 
-_sections = [path.split('/')[-1][:-3] for path in glob(os.path.join(MODULE_ROOT, 'site_sections', '*.py'))
+_sections = [path.split('/')[-1][:-3] for path in glob(os.path.join(c.MODULE_ROOT, 'site_sections', '*.py'))
                                       if not path.endswith('__init__.py')]
 for _section in _sections:
     _module = __import__('uber.site_sections.' + _section, fromlist=['Root'])
     setattr(Uber, _section, _module.Root())
 
-Root = UberShutDown if UBER_SHUT_DOWN else Uber
+Root = UberShutDown if c.UBER_SHUT_DOWN else Uber
 
 class Redirector:
     @cherrypy.expose
     def index(self):
-        if AT_THE_CON:
-            raise HTTPRedirect(PATH + '/accounts/homepage')
+        if c.AT_THE_CON:
+            raise HTTPRedirect(c.PATH + '/accounts/homepage')
         else:
-            raise HTTPRedirect(PATH)
+            raise HTTPRedirect(c.PATH)
 
-cherrypy.tree.mount(Root(), PATH, APPCONF)
+cherrypy.tree.mount(Root(), c.PATH, c.APPCONF)
 
-if SEND_EMAILS or DEV_BOX:
-    if not AT_THE_CON:
+if c.SEND_EMAILS or c.DEV_BOX:
+    if not c.AT_THE_CON:
         DaemonTask(AutomatedEmail.send_all, interval=300)
-    if PRE_CON:
+    if c.PRE_CON:
         DaemonTask(detect_duplicates, interval=300)
         DaemonTask(check_unassigned, interval=300)
-        if CHECK_PLACEHOLDERS:
+        if c.CHECK_PLACEHOLDERS:
             DaemonTask(check_placeholders, interval=300)
 
 # this should be replaced by something a little cleaner, but it's a useful debugging tool, so we'll go with it for now

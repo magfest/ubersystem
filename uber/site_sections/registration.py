@@ -1,13 +1,13 @@
 from uber.common import *
 
 def check_everything(attendee):
-    if MODE == 'magstock':
-        shirt_size_selected = attendee.shirt != NO_SHIRT
-        shirt_color_selected = attendee.shirt_color != NO_SHIRT
+    if c.MODE == 'magstock':
+        shirt_size_selected = attendee.shirt != c.NO_SHIRT
+        shirt_color_selected = attendee.shirt_color != c.NO_SHIRT
         if shirt_size_selected != shirt_color_selected:
             return 'Shirt color/size not valid combination. Either set both or remove both'
 
-    if AT_THE_CON and attendee.id is None:
+    if c.AT_THE_CON and attendee.id is None:
         if isinstance(attendee.badge_num, str) or attendee.badge_num < 0:
             if MODE != 'magstock':
                 return 'Invalid badge number'
@@ -24,11 +24,11 @@ def check_everything(attendee):
     if message:
         return message
 
-    if AT_THE_CON and not attendee.age_group and attendee.is_new:
+    if c.AT_THE_CON and not attendee.age_group and attendee.is_new:
         return "You must enter this attendee's age group"
 
 
-@all_renderable(PEOPLE, REG_AT_CON)
+@all_renderable(c.PEOPLE, c.REG_AT_CON)
 class Root:
     def index(self, session, message='', page='0', search_text='', uploaded_id='', order='last_first'):
         total_count = session.query(Attendee).count()
@@ -57,7 +57,7 @@ class Root:
             page = page or 1
             if search_text and count == total_count:
                 message = 'No matches found'
-            elif search_text and count == 1 and (not AT_THE_CON or search_text.isdigit()):
+            elif search_text and count == 1 and (not c.AT_THE_CON or search_text.isdigit()):
                 raise HTTPRedirect('form?id={}&message={}', attendees.one().id, 'This attendee was the only search result')
 
         pages = range(1, int(math.ceil(count / 100)) + 1)
@@ -75,7 +75,7 @@ class Root:
             'attendee_count': total_count,
             'checkin_count':  session.query(Attendee).filter(Attendee.checked_in != None).count(),
             'attendee':       session.attendee(uploaded_id) if uploaded_id else None,
-            'remaining_badges': max(0, MAX_BADGE_SALES - state.BADGES_SOLD)
+            'remaining_badges': max(0, c.MAX_BADGE_SALES - c.BADGES_SOLD)
         }
 
     @log_pageview
@@ -84,7 +84,7 @@ class Root:
                                     bools=['staffing','trusted','international','placeholder','got_merch','can_spam'])
         if 'first_name' in params:
             attendee.group_id = params['group_opt'] or None
-            if AT_THE_CON and omit_badge:
+            if c.AT_THE_CON and omit_badge:
                 attendee.badge_num = 0
             if 'no_override' in params:
                 attendee.overridden_price = None
@@ -92,14 +92,14 @@ class Root:
             message = check_everything(attendee)
             if not message:
                 # Free group badges are only considered 'registered' when they are actually claimed.
-                if attendee.paid == PAID_BY_GROUP and attendee.group.cost == 0:
+                if attendee.paid == c.PAID_BY_GROUP and attendee.group.cost == 0:
                     attendee.registered = localized_now()
                 session.add(attendee)
                 if return_to:
                     raise HTTPRedirect(return_to + '&message={}', 'Attendee data uploaded')
                 else:
                     raise HTTPRedirect('index?uploaded_id={}&message={}&search_text={}', attendee.id, 'has been uploaded',
-                        '{} {}'.format(attendee.first_name, attendee.last_name) if AT_THE_CON else '')
+                        '{} {}'.format(attendee.first_name, attendee.last_name) if c.AT_THE_CON else '')
 
         return {
             'message':    message,
@@ -116,7 +116,7 @@ class Root:
     def change_badge(self, session, id, message='', **params):
         attendee = session.attendee(id)
         if 'badge_type' in params:
-            preassigned = AT_THE_CON or attendee.badge_type in PREASSIGNED_BADGE_TYPES
+            preassigned = c.AT_THE_CON or attendee.badge_type in c.PREASSIGNED_BADGE_TYPES
             if preassigned:
                 message = check(attendee)
 
@@ -157,12 +157,12 @@ class Root:
                 #    'group', 'registered', 'badge_type', 'badge_num', 'paid', 'amount_paid', 'amount_extra'
                 #]}))
                 session.assign_badges(attendee.group, attendee.group.badges + 1, attendee.badge_type)
-                Tracking.track(INVALIDATED, attendee)
+                Tracking.track(c.INVALIDATED, attendee)
                 #session.delete_from_group(attendee, attendee.group)
                 attendee.group.attendees.remove(attendee)
                 message = 'Attendee deleted, but this badge is still available to be assigned to someone else in the same group'
         else:
-            Tracking.track(INVALIDATED, attendee)
+            Tracking.track(c.INVALIDATED, attendee)
             #session.delete(attendee)
             message = 'Attendee deleted'
 
@@ -263,7 +263,7 @@ class Root:
 
             if group:
                 session.match_to_group(attendee, session.group(group))
-            elif attendee.paid == PAID_BY_GROUP and not attendee.group:
+            elif attendee.paid == c.PAID_BY_GROUP and not attendee.group:
                 message = 'You must select a group for this attendee.'
 
             success = not message
@@ -276,8 +276,8 @@ class Root:
             attendee.age_group = age_group
             if not attendee.badge_num:
                 attendee.badge_num = int(badge_num)
-            if attendee.paid == NOT_PAID:
-                attendee.paid = HAS_PAID
+            if attendee.paid == c.NOT_PAID:
+                attendee.paid = c.HAS_PAID
                 attendee.amount_paid = attendee.total_cost
                 message = '<b>This attendee has not paid for their badge; make them pay ${0}!</b> <br/>'.format(attendee.total_cost)
             session.add(attendee)
@@ -343,7 +343,7 @@ class Root:
     def lost_badge(self, session, id):
         a = session.attendee(id)
         a.for_review += "Automated message: Badge reported lost on {}. Previous payment type: {}.".format(localized_now().strftime('%m/%d, %H:%M'),a.paid_label)
-        a.paid = LOST_BADGE
+        a.paid = c.LOST_BADGE
         session.add(a)
         session.commit()
         raise HTTPRedirect('index?message={}', 'Badge has been recorded as lost.')
@@ -365,7 +365,7 @@ class Root:
                     message = '{a.full_name} ({a.badge}) already got {a.merch}'.format(a = attendee)
                 else:
                     id = attendee.id
-                    shirt = (attendee.shirt or SIZE_UNKNOWN) if attendee.gets_shirt else NO_SHIRT
+                    shirt = (attendee.shirt or c.SIZE_UNKNOWN) if attendee.gets_shirt else c.NO_SHIRT
                     message = '{a.full_name} ({a.badge}) has not yet received {a.merch}'.format(a=attendee)
         return {
             'id': id,
@@ -386,7 +386,7 @@ class Root:
             message = '{} has no merch'.format(attendee.full_name)
         elif attendee.got_merch:
             message = '{} already got {}'.format(attendee.full_name, attendee.merch)
-        elif shirt_size == SIZE_UNKNOWN:
+        elif shirt_size == c.SIZE_UNKNOWN:
             message = 'You must select a shirt size'
         else:
             if no_shirt:
@@ -417,7 +417,7 @@ class Root:
         session.commit()
         return '{a.full_name} ({a.badge}) merch handout canceled'.format(a=attendee)
 
-    if AT_THE_CON or DEV_BOX:
+    if c.AT_THE_CON or c.DEV_BOX:
         @unrestricted
         def register(self, session, message='', **params):
             params['id'] = 'None'
@@ -429,13 +429,13 @@ class Root:
                     message = 'First and Last Name are required fields'
                 elif attendee.ec_phone[:1] != '+' and not attendee.international and len(re.compile('[0-9]').findall(attendee.ec_phone)) != 10:
                     message = 'Enter a 10-digit emergency contact number'
-                elif re.search(SAME_NUMBER_REPEATED, re.sub(r'[^0-9]', '', attendee.ec_phone)):
+                elif re.search(c.SAME_NUMBER_REPEATED, re.sub(r'[^0-9]', '', attendee.ec_phone)):
                     message = 'Please enter a real emergency contact number'
                 elif not attendee.age_group:
                     message = 'Please select an age category'
-                elif attendee.payment_method == MANUAL and not re.match(EMAIL_RE, attendee.email):
+                elif attendee.payment_method == c.MANUAL and not re.match(c.EMAIL_RE, attendee.email):
                     message = 'Email address is required to pay with a credit card at our registration desk'
-                elif attendee.badge_type not in [ATTENDEE_BADGE, ONE_DAY_BADGE]:
+                elif attendee.badge_type not in [c.ATTENDEE_BADGE, c.ONE_DAY_BADGE]:
                     message = 'No hacking allowed!'
                 else:
                     session.add(attendee)
@@ -444,14 +444,14 @@ class Root:
                         attendee.zip_code = '00000'
                     attendee.save()
                     message = 'Thanks!  Please queue in the {} line and have your photo ID and {} ready.'
-                    if attendee.payment_method == STRIPE:
+                    if attendee.payment_method == c.STRIPE:
                         raise HTTPRedirect('pay?id={}', attendee.id)
-                    elif attendee.payment_method == GROUP:
+                    elif attendee.payment_method == c.GROUP:
                         message = 'Please proceed to the preregistration line to pick up your badge.'
-                        attendee.paid = PAID_BY_GROUP
-                    elif attendee.payment_method == CASH:
+                        attendee.paid = c.PAID_BY_GROUP
+                    elif attendee.payment_method == c.CASH:
                         message = message.format('cash', '${}'.format(attendee.total_cost))
-                    elif attendee.payment_method == MANUAL:
+                    elif attendee.payment_method == c.MANUAL:
                         message = message.format('credit card', 'credit card')
                     raise HTTPRedirect('register?message={}', message)
 
@@ -463,7 +463,7 @@ class Root:
         @unrestricted
         def pay(self, session, id, message=''):
             attendee = session.attendee(id)
-            if attendee.paid == HAS_PAID:
+            if attendee.paid == c.HAS_PAID:
                 raise HTTPRedirect('register?message={}', 'You are already paid and should proceed to the preregistration desk to pick up your badge')
             else:
                 return {
@@ -481,7 +481,7 @@ class Root:
             if message:
                 raise HTTPRedirect('pay?id={}&message={}', attendee.id, message)
             else:
-                attendee.paid = HAS_PAID
+                attendee.paid = c.HAS_PAID
                 attendee.amount_paid = attendee.total_cost
                 session.merge(attendee)
                 raise HTTPRedirect('register?message={}', 'Your payment has been accepted, please proceed to the Preregistration desk to pick up your badge')
@@ -502,7 +502,7 @@ class Root:
             groups.add((a.group.id, a.group.name or 'BLANK'))
 
         if show_all:
-            restrict_to = [Attendee.paid == NOT_PAID, Attendee.placeholder == False]
+            restrict_to = [Attendee.paid == c.NOT_PAID, Attendee.placeholder == False]
         else:
             restrict_to = [Attendee.registered > datetime.now(UTC) - timedelta(minutes=90)]
 
@@ -513,7 +513,7 @@ class Root:
             'groups':     sorted(groups, key = lambda tup: tup[1]),
             'recent':     session.query(Attendee).filter(Attendee.badge_num == 0, Attendee.first_name != '', *restrict_to)
                                                  .order_by(Attendee.registered).all(),
-            'remaining_badges': max(0, MAX_BADGE_SALES - state.BADGES_SOLD)
+            'remaining_badges': max(0, c.MAX_BADGE_SALES - c.BADGES_SOLD)
         }
 
     def new_reg_station(self, reg_station='', message=''):
@@ -534,12 +534,12 @@ class Root:
     def mark_as_paid(self, session, id, payment_method):
         if cherrypy.session['reg_station'] == 0:
             raise HTTPRedirect('new_reg_station?message={}', 'Reg station 0 is for prereg only and may not accept payments')
-        elif int(payment_method) == MANUAL:
+        elif int(payment_method) == c.MANUAL:
             raise HTTPRedirect('manual_reg_charge_form?id={}', id)
 
         attendee = session.attendee(id)
-        attendee.paid = HAS_PAID
-        if int(payment_method) == STRIPE_ERROR:
+        attendee.paid = c.HAS_PAID
+        if int(payment_method) == c.STRIPE_ERROR:
             attendee.for_review += "Automated message: Stripe payment manually verified by admin."
         attendee.payment_method = payment_method
         attendee.amount_paid = attendee.total_cost
@@ -548,7 +548,7 @@ class Root:
 
     def manual_reg_charge_form(self, session, id):
         attendee = session.attendee(id)
-        if attendee.paid != NOT_PAID:
+        if attendee.paid != c.NOT_PAID:
             raise HTTPRedirect('new?message={}{}', attendee.full_name, ' is already marked as paid')
 
         return {
@@ -564,7 +564,7 @@ class Root:
         if message:
             raise HTTPRedirect('new_credit_form?id={}&message={}', attendee.id, message)
         else:
-            attendee.paid = HAS_PAID
+            attendee.paid = c.HAS_PAID
             attendee.amount_paid = attendee.total_cost
             session.merge(attendee)
             raise HTTPRedirect('new?message={}', 'Payment accepted')
@@ -591,7 +591,7 @@ class Root:
                 attendee.badge_type, attendee.badge_num = badge_type, badge_num
                 if group:
                     session.match_to_group(attendee, session.group(group))
-                elif attendee.paid != HAS_PAID:
+                elif attendee.paid != c.HAS_PAID:
                     message = 'You must mark this attendee as paid before you can check them in'
 
         if not message:
@@ -638,8 +638,8 @@ class Root:
 
     def reg_take_report(self, session, **params):
         if params:
-            start = EVENT_TIMEZONE.localize(datetime.strptime('{startday} {starthour}:{startminute}'.format(**params), '%Y-%m-%d %H:%M'))
-            end = EVENT_TIMEZONE.localize(datetime.strptime('{endday} {endhour}:{endminute}'.format(**params), '%Y-%m-%d %H:%M'))
+            start = c.EVENT_TIMEZONE.localize(datetime.strptime('{startday} {starthour}:{startminute}'.format(**params), '%Y-%m-%d %H:%M'))
+            end = c.EVENT_TIMEZONE.localize(datetime.strptime('{endday} {endhour}:{endminute}'.format(**params), '%Y-%m-%d %H:%M'))
             sales = session.query(Sale).filter(Sale.reg_station == params['reg_station'],
                                                Sale.when > start, Sale.when <= end).all()
             attendees = session.query(Attendee).filter(Attendee.reg_station == params['reg_station'], Attendee.amount_paid > 0,
@@ -648,8 +648,8 @@ class Root:
             params['attendees'] = attendees
             params['total_cash'] = sum(a.amount_paid for a in attendees if a.payment_method == CASH) \
                                  + sum(s.cash for s in sales if s.payment_method == CASH)
-            params['total_credit'] = sum(a.amount_paid for a in attendees if a.payment_method in [STRIPE, SQUARE, MANUAL]) \
-                                   + sum(s.cash for s in sales if s.payment_method == CREDIT)
+            params['total_credit'] = sum(a.amount_paid for a in attendees if a.payment_method in [c.STRIPE, c.SQUARE, c.MANUAL]) \
+                                   + sum(s.cash for s in sales if s.payment_method == c.CREDIT)
         else:
             params['endday'] = localized_now().strftime('%Y-%m-%d')
             params['endhour'] = localized_now().strftime('%H')
@@ -663,7 +663,7 @@ class Root:
     def undo_new_checkin(self, session, id):
         attendee = session.attendee(id)
         if attendee.group:
-            session.add(Attendee(group=attendee.group, paid=PAID_BY_GROUP, badge_type=attendee.badge_type, ribbon=attendee.ribbon))
+            session.add(Attendee(group=attendee.group, paid=c.PAID_BY_GROUP, badge_type=attendee.badge_type, ribbon=attendee.ribbon))
         attendee.badge_num = 0
         attendee.checked_in = attendee.group = None
         raise HTTPRedirect('new?message={}', 'Attendee un-checked-in')
@@ -715,7 +715,7 @@ class Root:
         raise HTTPRedirect('shifts?id={}&message={}', shift.attendee.id, 'Staffer unassigned from shift')
 
     def feed(self, session, page='1', who='', what='', action=''):
-        feed = session.query(Tracking).filter(Tracking.action != AUTO_BADGE_SHIFT).order_by(Tracking.when.desc())
+        feed = session.query(Tracking).filter(Tracking.action != c.AUTO_BADGE_SHIFT).order_by(Tracking.when.desc())
         if who:
             feed = feed.filter_by(who=who)
         if what:
@@ -730,7 +730,7 @@ class Root:
             'action': action,
             'count': feed.count(),
             'feed': get_page(page, feed),
-            'action_opts': [opt for opt in TRACKING_OPTS if opt[0] != AUTO_BADGE_SHIFT],
+            'action_opts': [opt for opt in c.TRACKING_OPTS if opt[0] != c.AUTO_BADGE_SHIFT],
             'who_opts': [who for [who] in session.query(Tracking).distinct().order_by(Tracking.who).values(Tracking.who)]
         }
 
@@ -769,13 +769,13 @@ class Root:
                 message = 'First and Last Name are required'
             elif not attendee.overridden_price:
                 message = 'Discounted Price is required'
-            elif attendee.overridden_price > state.BADGE_PRICE:
+            elif attendee.overridden_price > c.BADGE_PRICE:
                 message = 'You cannot create a discounted badge that costs more than the regular price!'
 
             if not message:
                 session.add(attendee)
                 attendee.placeholder = True
-                attendee.badge_type = ATTENDEE_BADGE
+                attendee.badge_type = c.ATTENDEE_BADGE
                 raise HTTPRedirect('../preregistration/confirm?id={}', attendee.id)
 
         return {'message': message}
@@ -852,7 +852,7 @@ class Root:
     def placeholders(self, session, department=''):
         return {
             'department': department,
-            'dept_name': JOB_LOCATIONS[int(department)] if department else 'All',
+            'dept_name': c.JOB_LOCATIONS[int(department)] if department else 'All',
             'checklist': session.checklist_status('placeholders', department),
             'placeholders': [a for a in session.query(Attendee)
                                                .filter(Attendee.placeholder == True,

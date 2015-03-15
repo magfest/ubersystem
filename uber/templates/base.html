@@ -13,7 +13,7 @@
 	<meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ EVENT_NAME }} - {% block title %}{% endblock %}</title>
+    <title>{{ c.EVENT_NAME }} - {% block title %}{% endblock %}</title>
     {% block sectionStyle %}{% endblock %}
     <style>
     .navbar {
@@ -91,7 +91,7 @@ $(document).ready(function() {
             }
 
             // prevent people from paying after prereg closes
-            {% if PRE_CON %}
+            {% if c.PRE_CON %}
                 if ($("form.stripe").length) {
                     var prevHour = new Date().getHours();
                     var checkHour = function() {
@@ -139,7 +139,7 @@ $(document).ready(function() {
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
       </button>
-      <a class="navbar-brand" href="../accounts/homepage">{{ EVENT_NAME }}</a>
+      <a class="navbar-brand" href="../accounts/homepage">{{ c.EVENT_NAME }}</a>
     </div>
 
     <!-- Collect the nav links, forms, and other content for toggling -->
@@ -157,26 +157,26 @@ $(document).ready(function() {
 </ul>
 
       <ul class="nav navbar-nav">
-{% if HAS_ACCOUNTS_ACCESS %}
+{% if c.HAS_ACCOUNTS_ACCESS %}
      <li> <a href="../accounts/">Accounts</a> </li>
 {% endif %}
 
-{% if HAS_PEOPLE_ACCESS %}
+{% if c.HAS_PEOPLE_ACCESS %}
 <li class="dropdown">
 <a href="#" class="dropdown-toggle" data-toggle="dropdown">People<span class="caret"></span></a>
     <ul class="dropdown-menu" role="menu">
         <li> <a href="../registration/">Attendees</a> </li>
         <li> <a href="../groups/">Groups</a> </li>
-        <li class="{% if not AT_THE_CON %}disabled{% endif %}"> <a {% if AT_THE_CON %}href="../jobs/everywhere"{% endif %}>All untaken shifts</a> </li>
+        <li class="{% if not c.AT_THE_CON %}disabled{% endif %}"> <a {% if c.AT_THE_CON %}href="../jobs/everywhere"{% endif %}>All untaken shifts</a> </li>
         <li> <a href="../registration/staffers">Staffers</a> </li>
         <li> <a href="../jobs/">Jobs</a> </li>
         <li> <a href="../registration/feed">Feed of Database Changes</a> </li>
-        <li class="{% if not AT_OR_POST_CON %}disabled{% endif %}"> <a {% if AT_OR_POST_CON %}href="../registration/merch"{% endif %}>Merch</a> </li>
+        <li class="{% if not c.AT_OR_POST_CON %}disabled{% endif %}"> <a {% if c.AT_OR_POST_CON %}href="../registration/merch"{% endif %}>Merch</a> </li>
     </ul>
 </li>
 {% endif %}
 
-{% if HAS_STUFF_ACCESS %}
+{% if c.HAS_STUFF_ACCESS %}
 <li class="dropdown">
 <a href="#" class="dropdown-toggle" data-toggle="dropdown">Schedule<span class="caret"></span></a>
     <ul class="dropdown-menu" role="menu">
@@ -186,22 +186,22 @@ $(document).ready(function() {
 </li>
 {% endif %}
 
-{% if HAS_MONEY_ACCESS %}
+{% if c.HAS_MONEY_ACCESS %}
     <li class="dropdown">
 <a href="#" class="dropdown-toggle" data-toggle="dropdown">Money<span class="caret"></span></a>
     <ul class="dropdown-menu" role="menu">
      <li> <a href="../budget/">Budget</a> </li>
-    <li class="{% if not POST_CON %}disabled{% endif %}"> <a {% if POST_CON %}href="../budget/mpoints"{% endif %}>M-Point usage</a> </li>
+    <li class="{% if not c.POST_CON %}disabled{% endif %}"> <a {% if c.POST_CON %}href="../budget/mpoints"{% endif %}>M-Point usage</a> </li>
     </ul>
 </li>
 {% endif %}
 
-{% if HAS_CHALLENGES_ACCESS %}
+{% if c.HAS_CHALLENGES_ACCESS %}
         <li> <a href="../challenges/">Challenges</a> </li>
 {% endif %}
 
-{% if HAS_CHECKINS_ACCESS %}
-        <li class="{% if not AT_THE_CON %}disabled{% endif %}"> <a {% if AT_THE_CON %}href="../tabletop/"{% endif %}>Tabletop</a> </li>
+{% if c.HAS_CHECKINS_ACCESS %}
+        <li class="{% if not c.AT_THE_CON %}disabled{% endif %}"> <a {% if c.AT_THE_CON %}href="../tabletop/"{% endif %}>Tabletop</a> </li>
 {% endif %}
     </ul>
     </div><!-- /.navbar-collapse -->

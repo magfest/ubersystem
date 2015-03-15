@@ -5,12 +5,12 @@
 <div class="masthead">
 </div>
 <div class="panel panel-default" style="padding:15px;">
-    <h2>{% if AFTER_DEALER_REG_DEADLINE %}You've been added to our waitlist!{% else %}Thanks for applying as a Dealer!{% endif %}</h2>
+    <h2>{% if c.AFTER_DEALER_REG_DEADLINE %}You've been added to our waitlist!{% else %}Thanks for applying as a Dealer!{% endif %}</h2>
 
-    We've received your application for {{ group.name }} to purchase a Dealer registration for {{ EVENT_NAME }}.
+    We've received your application for {{ group.name }} to purchase a Dealer registration for {{ c.EVENT_NAME }}.
 
     <br/><br/>
-    {% if AFTER_DEALER_REG_DEADLINE %}
+    {% if c.AFTER_DEALER_REG_DEADLINE %}
         Since the Dealer's Room is currently full, you've been added to our waitlist, and we'll let you know by the end
         of May if a spot opens up for you.
     {% else %}

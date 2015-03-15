@@ -65,14 +65,14 @@ $(document).ready(function(){
         }
 
         // Cost for badges
-        badge_cost = {{ BADGE_PRICE }} * $.val("badges");
+        badge_cost = {{ c.BADGE_PRICE }} * $.val("badges");
 
         // Extra options cost
-        if ($("input[value='{{ POWER_TABLE }}']:checked").length) {
+        if ($("input[value='{{ c.POWER_TABLE }}']:checked").length) {
             extra_cost += 60;
         }
 
-        if ($("input[value='{{ WALL_TABLE }}']:checked").length) {
+        if ($("input[value='{{ c.WALL_TABLE }}']:checked").length) {
             extra_cost += 10;
         }
 
@@ -127,8 +127,8 @@ $(document).ready(function(){
 {% if not attendee.is_dealer %}
 <div class="form-group">
     <p class="help-block col-sm-8 col-sm-offset-2"><strong>Dealers:</strong>
-        {% if BEFORE_DEALER_REG_PUBLIC %}Registrations for dealer memberships begins December 15.
-        {% else %}Please register <a href="{{ URL_BASE }}/preregistration/dealer_registration">here</a>.
+        {% if c.BEFORE_DEALER_REG_PUBLIC %}Registrations for dealer memberships begins December 15.
+        {% else %}Please register <a href="{{ c.URL_BASE }}/preregistration/dealer_registration">here</a>.
         {% endif %}</p>
 </div>
 
@@ -145,8 +145,8 @@ $(document).ready(function(){
     <div class="form-group">
     <label for="name" class="col-sm-2 control-label">Badges</label>
     <div class="col-sm-6">
-      <select name="badges" class="form-control">{% int_options MIN_GROUP_SIZE MAX_GROUP_SIZE badges %}</select>
-            (${{ GROUP_PRICE }} each)
+      <select name="badges" class="form-control">{% int_options c.MIN_GROUP_SIZE c.MAX_GROUP_SIZE badges %}</select>
+            (${{ c.GROUP_PRICE }} each)
     </div>
     </div>
 </div>
@@ -169,14 +169,14 @@ $(document).ready(function(){
     <div class="form-group">
     <label for="tables" class="col-sm-2 control-label">Tables</label>
     <div class="col-sm-6">
-      <select class="form-control" name="tables" onChange="setBadgesLimit(); setExtraOpts(); setDealerCost()">
-                {% options TABLE_OPTS group.tables %}
-            </select>
+        <select class="form-control" name="tables" onChange="setBadgesLimit(); setExtraOpts(); setDealerCost()">
+            {% options c.TABLE_OPTS group.tables %}
+        </select>
     </div>
     </div>
 
     <div class="form-group">
-    <p class="help-block col-sm-6 col-sm-offset-2">[<i>You may contact us via <a href='{{ CONTACT_URL }}'>{{ CONTACT_URL }}</a> to request more than {{ MAX_TABLES }} tables.</i>]</p>
+    <p class="help-block col-sm-6 col-sm-offset-2">[<i>You may contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a> to request more than {{ c.MAX_TABLES }} tables.</i>]</p>
     </div>
 
     <div class="form-group" id="table_extras">
@@ -192,7 +192,7 @@ $(document).ready(function(){
     <div class="form-group">
     <label for="badges" class="col-sm-2 control-label">Memberships</label>
     <div class="col-sm-6">
-      <select class="form-control" name="badges" onChange="setDealerCost()">{% int_options 1 MAX_DEALERS badges %}</select>
+      <select class="form-control" name="badges" onChange="setDealerCost()">{% int_options 1 c.MAX_DEALERS badges %}</select>
     </div>
     </div>
     <div class="form-group">
@@ -229,7 +229,7 @@ $(document).ready(function(){
     <p class="help-block col-sm-6 col-sm-offset-2">No guarantees that we can accommodate any requests.</p>
     </div>
 
-    {% if COLLECT_INTERESTS %}
+    {% if c.COLLECT_INTERESTS %}
     <div class="form-group">
     <label for="website" class="col-sm-2 control-label">Website URL</label>
     <div class="col-sm-6">
@@ -281,7 +281,7 @@ $(document).ready(function(){
 {% include "preregistration/address.html" %}
 {% include "preregistration/phone_numbers.html" %}
 
-{% if COLLECT_INTERESTS %}
+{% if c.COLLECT_INTERESTS %}
   <div class="form-group">
     <label class="col-sm-2 control-label">What interests you?</label>
     <div class="col-sm-10">
@@ -291,13 +291,13 @@ $(document).ready(function(){
 {% endif %}
 
   <div class="form-group">
-    <label for="email" class="col-sm-2 control-label">How did you find {{ EVENT_NAME }}?</label>
+    <label for="email" class="col-sm-2 control-label">How did you find {{ c.EVENT_NAME }}?</label>
     <div class="col-sm-6">
-      <input type="text" name="found_how" id="found_how" value="{{ attendee.found_how }}" class="form-control" placeholder="How did you find {{ EVENT_NAME }}?">
+      <input type="text" name="found_how" id="found_how" value="{{ attendee.found_how }}" class="form-control" placeholder="How did you find {{ c.EVENT_NAME }}?">
     </div>
   </div>
 
-{% if COLLECT_INTERESTS %}
+{% if c.COLLECT_INTERESTS %}
   <div class="form-group">
     <label for="comments" class="col-sm-2 control-label">Comments</label>
     <div class="col-sm-6">

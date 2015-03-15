@@ -78,7 +78,7 @@ from uber import config_db
 from uber.tests import import_test_data
 
 import stripe
-stripe.api_key = STRIPE_SECRET_KEY
+stripe.api_key = c.STRIPE_SECRET_KEY
 
 # kludgy hack because I love "from <module> import *" way too much
 for _module in ['config', 'utils', 'models', 'custom_tags', 'decorators']:

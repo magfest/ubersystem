@@ -36,12 +36,12 @@ def get_graphs_data():
 
     m12_regs = [
         Attendee.objects.filter(
-            Q(paid=HAS_PAID) |
-            Q(paid=PAID_BY_GROUP, group__amount_paid__gt=0)).count(),
-        Attendee.objects.filter(paid=NOT_PAID).count()
+            Q(paid=c.HAS_PAID) |
+            Q(paid=c.PAID_BY_GROUP, group__amount_paid__gt=0)).count(),
+        Attendee.objects.filter(paid=c.NOT_PAID).count()
     ]
     curr = graphable()
-    until = (EPOCH.date() - date.today()).days
+    until = (c.EPOCH.date() - date.today()).days
 
     # TODO: replace hardcoded dates below with these
     # these are END DATES
@@ -102,7 +102,7 @@ def get_graphs_data():
     }
 
 
-@all_renderable(PEOPLE)
+@all_renderable(c.PEOPLE)
 class Root:
     def index(self):
         return {
@@ -113,19 +113,19 @@ class Root:
     def graphs(self):
         m10_regs = [
             Attendee.objects.filter(
-                Q(paid=HAS_PAID) |
-                Q(paid=PAID_BY_GROUP, group__amount_paid__gt=0)).count(),
-            Attendee.objects.filter(paid=NOT_PAID).count()
+                Q(paid=c.HAS_PAID) |
+                Q(paid=c.PAID_BY_GROUP, group__amount_paid__gt=0)).count(),
+            Attendee.objects.filter(paid=c.NOT_PAID).count()
         ]
         curr = graphable()
-        until = (EPOCH.date() - date.today()).days
+        until = (c.EPOCH.date() - date.today()).days
         return {
             "until": until,
             "needed": Money.objects.filter(
                 Q(pledged=False) |
                 Q(pre_con=True),
-                paid_by=MAGFEST_FUNDS,
-                type=DEBIT).aggregate(Sum('amount')).values()[0],
+                paid_by=c.MAGFEST_FUNDS,
+                type=c.DEBIT).aggregate(Sum('amount')).values()[0],
 
             "curr_total": max(curr.values()),
             "m6_by_now":  m6[(date(2008, 1, 3) - timedelta(days=until)).strftime("%Y-%m-%d")],
@@ -159,6 +159,6 @@ class Root:
     def graphs3(self):
         return get_graphs_data()
 
-    graphs.restricted = (PEOPLE, MONEY)
-    graphs2.restricted = (PEOPLE, MONEY)
-    graphs3.restricted = (PEOPLE, MONEY)
+    graphs.restricted = (c.PEOPLE, c.MONEY)
+    graphs2.restricted = (c.PEOPLE, c.MONEY)
+    graphs3.restricted = (c.PEOPLE, c.MONEY)

@@ -1,6 +1,6 @@
 from uber.common import *
 
-@all_renderable(PEOPLE)
+@all_renderable(c.PEOPLE)
 class Root:
     def index(self, session, message=''):
         attendee = session.admin_attendee()
@@ -43,7 +43,7 @@ class Root:
     def overview(self, session, message=''):
         checklist = list(DeptChecklistConf.instances.values())
         overview = []
-        for dept, dept_name in JOB_LOCATION_OPTS:
+        for dept, dept_name in c.JOB_LOCATION_OPTS:
             dept_heads = []
             for attendee in session.single_dept_heads(dept):
                 statuses = []
@@ -73,7 +73,7 @@ class Root:
             'conf': conf,
             'overview': [
                 (dept, dept_name, [(attendee, conf.completed(attendee)) for attendee in session.single_dept_heads(dept)])
-                for dept, dept_name in JOB_LOCATION_OPTS
+                for dept, dept_name in c.JOB_LOCATION_OPTS
             ]
         }
 

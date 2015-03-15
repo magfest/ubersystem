@@ -53,7 +53,7 @@ def group_paid(group):
 
 def _invalid_phone_number(s):
     if not s.startswith('+'):
-        return len(re.findall(r'\d', s)) != 10 or re.search(SAME_NUMBER_REPEATED, re.sub(r'[^0-9]','',s))
+        return len(re.findall(r'\d', s)) != 10 or re.search(c.SAME_NUMBER_REPEATED, re.sub(r'[^0-9]','',s))
 
 def _invalid_zip_code(s):
     return len(re.findall(r'\d', s)) not in [5, 9]
@@ -62,7 +62,7 @@ def attendee_misc(attendee):
     if attendee.group_id and not attendee.first_name.strip() and not attendee.last_name.strip():
         return
 
-    if COLLECT_EXACT_BIRTHDATE and attendee.birthdate == '':
+    if c.COLLECT_EXACT_BIRTHDATE and attendee.birthdate == '':
         attendee.birthdate = None # Prevent insertion errors for placeholder attendees
 
     if not attendee.first_name or not attendee.last_name:
@@ -70,12 +70,12 @@ def attendee_misc(attendee):
     elif attendee.placeholder:
         return
 
-    if COLLECT_EXACT_BIRTHDATE and attendee.birthdate is None:
+    if c.COLLECT_EXACT_BIRTHDATE and attendee.birthdate is None:
         return 'Enter your date of birth.'
-    if COLLECT_EXACT_BIRTHDATE and attendee.birthdate > date.today():
+    if c.COLLECT_EXACT_BIRTHDATE and attendee.birthdate > date.today():
         return 'You cannot be born in the future.'
 
-    if COLLECT_FULL_ADDRESS:
+    if c.COLLECT_FULL_ADDRESS:
         if not attendee.address1:
             return 'Enter your street address.'
         if not attendee.city:
@@ -88,17 +88,17 @@ def attendee_misc(attendee):
     if len(attendee.email) > 255:
         return 'Email addresses cannot be longer than 255 characters.'
 
-    if (AT_THE_CON and attendee.email and not re.match(EMAIL_RE, attendee.email)) or (not AT_THE_CON and not re.match(EMAIL_RE, attendee.email)):
+    if (c.AT_THE_CON and attendee.email and not re.match(c.EMAIL_RE, attendee.email)) or (not c.AT_THE_CON and not re.match(c.EMAIL_RE, attendee.email)):
         return 'Enter a valid email address'
 
-    if COLLECT_INTERESTS and not attendee.ec_name:
+    if c.COLLECT_INTERESTS and not attendee.ec_name:
         return 'Enter the name of your emergency contact.'
 
-    if not attendee.international and not AT_THE_CON:
+    if not attendee.international and not c.AT_THE_CON:
         if _invalid_zip_code(attendee.zip_code):
             return 'Enter a valid zip code'
 
-        if COLLECT_INTERESTS and _invalid_phone_number(attendee.ec_phone):
+        if c.COLLECT_INTERESTS and _invalid_phone_number(attendee.ec_phone):
             return 'Enter a 10-digit emergency contact number'
 
         if attendee.cellphone and _invalid_phone_number(attendee.cellphone):
@@ -110,7 +110,7 @@ def attendee_misc(attendee):
     if not attendee.no_cellphone and attendee.staffing and _invalid_phone_number(attendee.cellphone):
         return "10-digit cellphone number is required for volunteers (unless you don't own a cellphone)"
 
-    if not attendee.can_volunteer and attendee.staffing and attendee.badge_type != STAFF_BADGE and PRE_CON:
+    if not attendee.can_volunteer and attendee.staffing and attendee.badge_type != c.STAFF_BADGE and c.PRE_CON:
         return "Volunteers cannot be " + attendee.age_group_desc
     
     if not attendee.can_register:
@@ -124,10 +124,10 @@ def attendee_leadership(attendee):
             return 'You cannot remove the leader of a group from that group; make someone else the leader first'
 
 def attendee_banned_volunteer(attendee):
-    if (attendee.ribbon == VOLUNTEER_RIBBON or attendee.staffing) and attendee.full_name in BANNED_STAFFERS:
+    if (attendee.ribbon == c.VOLUNTEER_RIBBON or attendee.staffing) and attendee.full_name in c.BANNED_STAFFERS:
         return "We've declined to invite {} back as a volunteer, {}".format(attendee.full_name,
-                'talk to Stops to override if necessary' if AT_THE_CON
-            else '''Please contact us via CONTACT_URL if you believe this is in error'''.replace('CONTACT_URL', CONTACT_URL))
+                'talk to Stops to override if necessary' if c.AT_THE_CON
+            else '''Please contact us via CONTACT_URL if you believe this is in error'''.replace('CONTACT_URL', c.CONTACT_URL))
 
 def attendee_money(attendee):
     try:
@@ -161,19 +161,19 @@ def attendee_money(attendee):
             return 'Amount Refunded must be positive'
         elif amount_refunded > amount_paid:
             return 'Amount Refunded cannot be greater than Amount Paid'
-        elif attendee.paid == REFUNDED and amount_refunded == 0:
+        elif attendee.paid == c.REFUNDED and amount_refunded == 0:
             return 'Amount Refunded may not be 0 if the attendee is marked Paid and Refunded'
     except:
         return "What you entered for Amount Refunded ({}) wasn't even a number".format(attendee.amount_refunded)
 
 def attendee_badge_range(attendee):
-    if AT_THE_CON:
+    if c.AT_THE_CON:
         try:
             badge_num = int(attendee.badge_num)
         except:
             return '{!r} is not a valid badge number'.format(attendee.badge_num)
         else:
-            min_num, max_num = BADGE_RANGES[attendee.badge_type]
+            min_num, max_num = c.BADGE_RANGES[attendee.badge_type]
             if attendee.badge_num != 0 and not (min_num <= badge_num <= max_num):
                 return '{} badge numbers must fall within {} and {}'.format(attendee.badge_type_label, min_num, max_num)
 

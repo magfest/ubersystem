@@ -2,7 +2,7 @@ from uber.common import *
 
 @register.filter
 def datetime(dt, fmt='11:59pm EST on %A, %b %e'):
-    return ' '.join(dt.astimezone(EVENT_TIMEZONE).strftime(fmt).split())
+    return ' '.join(dt.astimezone(c.EVENT_TIMEZONE).strftime(fmt).split())
 
 @register.filter
 def timestamp(dt):
@@ -54,12 +54,12 @@ def sortBy(xs, attrName):
 
 @register.filter
 def time_day(dt):
-    return SafeString('<nobr>{} {}</nobr>'.format(dt.astimezone(EVENT_TIMEZONE).strftime('%I:%M%p').lstrip('0').lower(),
-                                                  dt.astimezone(EVENT_TIMEZONE).strftime('%a')))
+    return SafeString('<nobr>{} {}</nobr>'.format(dt.astimezone(c.EVENT_TIMEZONE).strftime('%I:%M%p').lstrip('0').lower(),
+                                                  dt.astimezone(c.EVENT_TIMEZONE).strftime('%a')))
 
 @register.filter
 def full_datetime(dt):
-    return dt.astimezone(EVENT_TIMEZONE).strftime('%H:%M on %B %d %Y')
+    return dt.astimezone(c.EVENT_TIMEZONE).strftime('%H:%M on %B %d %Y')
 
 @register.filter
 def idize(s):
@@ -74,7 +74,7 @@ def maybe_red(amount, comp):
 
 @register.filter
 def maybe_last_year(day):
-    return 'last year' if day <= STAFFERS_IMPORTED else day
+    return 'last year' if day <= c.STAFFERS_IMPORTED else day
 
 @register.filter
 def join_and(xs):
@@ -127,7 +127,7 @@ class options(template.Node):
             try:
                 default = default.resolve(context)
                 if isinstance(default, datetime):
-                    default = default.astimezone(EVENT_TIMEZONE)
+                    default = default.astimezone(c.EVENT_TIMEZONE)
             except:
                 default = ''
 
@@ -138,7 +138,7 @@ class options(template.Node):
             val, desc = opt
             if isinstance(val, datetime):
                 selected = 'selected' if val == default else ''
-                val = val.strftime(TIMESTAMP_FORMAT)
+                val = val.strftime(c.TIMESTAMP_FORMAT)
             else:
                 selected = "selected" if str(val) == str(default) else ''
             val  = str(val).replace('"',  '&quot;').replace('\n', '')
@@ -260,14 +260,14 @@ class must_contact(template.Node):
     def render(self, context):
         staffer = self.staffer.resolve(context)
         chairs = defaultdict(list)
-        for dept, head in DEPT_HEAD_OVERRIDES.items():
+        for dept, head in c.DEPT_HEAD_OVERRIDES.items():
             chairs[dept].append(head)
-        for head in staffer.session.query(Attendee).filter_by(ribbon=DEPT_HEAD_RIBBON).order_by('badge_num').all():
+        for head in staffer.session.query(Attendee).filter_by(ribbon=c.DEPT_HEAD_RIBBON).order_by('badge_num').all():
             for dept in head.assigned_depts_ints:
                 chairs[dept].append(head.full_name)
 
         locations = [s.job.location for s in staffer.shifts]
-        dept_names = dict(JOB_LOCATION_OPTS)
+        dept_names = dict(c.JOB_LOCATION_OPTS)
         return '<br/>'.join(sorted({'({}) {}'.format(dept_names[dept], ' / '.join(chairs[dept])) for dept in locations}))
 
 @tag
@@ -384,11 +384,11 @@ class stripe_form(template.Node):
             email = charge.models[0].email[:255]
 
         if not charge.targets:
-            if AT_THE_CON:
+            if c.AT_THE_CON:
                 regtext = 'On-Site Charge'
             else:
                 regtext = 'Charge'
-        elif AT_THE_CON:
+        elif c.AT_THE_CON:
             regtext = 'Registration'
         else:
             regtext = 'Preregistration'
@@ -428,34 +428,34 @@ class BoldIfNode(template.Node):
 @tag
 class organization_and_event_name(template.Node):
     def render(self, context):
-        if EVENT_NAME.lower() != ORGANIZATION_NAME.lower():
-            return EVENT_NAME + ' and ' + ORGANIZATION_NAME
+        if c.EVENT_NAME.lower() != c.ORGANIZATION_NAME.lower():
+            return c.EVENT_NAME + ' and ' + c.ORGANIZATION_NAME
         else:
-            return EVENT_NAME
+            return c.EVENT_NAME
 
 @tag
 class organization_or_event_name(template.Node):
     def render(self, context):
-        if EVENT_NAME.lower() != ORGANIZATION_NAME.lower():
-            return EVENT_NAME + ' or ' + ORGANIZATION_NAME
+        if c.EVENT_NAME.lower() != c.ORGANIZATION_NAME.lower():
+            return c.EVENT_NAME + ' or ' + c.ORGANIZATION_NAME
         else:
-            return EVENT_NAME
+            return c.EVENT_NAME
 
 @tag
 class single_day_prices(template.Node):
     def render(self, context):
         prices = ''
-        for day, price in BADGE_PRICES['single_day'].items():
-            if day == datetime.strftime(ESCHATON, "%A"):
+        for day, price in c.BADGE_PRICES['single_day'].items():
+            if day == datetime.strftime(c.ESCHATON, "%A"):
                 prices += 'and ${} for {}'.format(price, day)
             else:
                 prices += '${} for {}, '.format(price, day)
-        #prices += 'and ${} for other days'.format(BADGE_PRICES['default_single_day'])
+        #prices += 'and ${} for other days'.format(c.BADGE_PRICES['default_single_day'])
         return prices
 
 class Notice(template.Node):
     def notice(self, label, takedown, discount=0, amount_extra=0):
-        for day, price in sorted(PRICE_BUMPS.items()):
+        for day, price in sorted(c.PRICE_BUMPS.items()):
             if day < takedown and localized_now() < day:
                 return 'Price goes up to ${} at 11:59pm EST on {}'.format(price + amount_extra - discount, (day - timedelta(days=1)).strftime('%A, %b %e'))
             elif localized_now() < day:
@@ -465,22 +465,22 @@ class Notice(template.Node):
 @tag
 class attendee_price_notice(Notice):
     def render(self, context):
-        return self.notice('Preregistration', PREREG_TAKEDOWN)
+        return self.notice('Preregistration', c.PREREG_TAKEDOWN)
 
 @tag
 class group_price_notice(Notice):
     def render(self, context):
-        return self.notice('Group preregistration', GROUP_PREREG_TAKEDOWN, discount=BADGE_PRICES['group_discount'])
+        return self.notice('Group preregistration', c.GROUP_PREREG_TAKEDOWN, discount=c.BADGE_PRICES['group_discount'])
         
 @tag
 class supporter_price_notice(Notice):
     def render(self, context):
-        return self.notice('Supporter preregistration', SUPPORTER_DEADLINE, amount_extra=SUPPORTER_LEVEL)
+        return self.notice('Supporter preregistration', c.SUPPORTER_DEADLINE, amount_extra=c.SUPPORTER_LEVEL)
         
 @tag
 class season_price_notice(Notice):
     def render(self, context):
-        return self.notice('Season supporter preregistration', SUPPORTER_DEADLINE, amount_extra=SEASON_LEVEL)
+        return self.notice('Season supporter preregistration', c.SUPPORTER_DEADLINE, amount_extra=c.SEASON_LEVEL)
 
 # FIXME this can probably be cleaned up more
 @register.tag(name="random_hash")

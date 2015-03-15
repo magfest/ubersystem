@@ -1,12 +1,12 @@
 {% extends "./preregistration/preregbase.html" %}
 {% block backlink %}{% endblock %}
-{% block title %}Transfer Your {{ EVENT_NAME }} Registration{% endblock %}
+{% block title %}Transfer Your {{ c.EVENT_NAME }} Registration{% endblock %}
 {% block content %}
 
 <h2> Transfer {{ old.full_name }}'s Registration </h2>
 
-By filling out this form, you will be transferring {{ old.full_name }}'s {{ EVENT_NAME }} registration
-to someone else.  {{ old.full_name }} will no longer have a paid {{ EVENT_NAME }} badge waiting at
+By filling out this form, you will be transferring {{ old.full_name }}'s {{ c.EVENT_NAME }} registration
+to someone else.  {{ old.full_name }} will no longer have a paid {{ c.EVENT_NAME }} badge waiting at
 our Registration Desk; that will belong to whomever the badge is transferred.
 
 <form method="POST" action="transfer_badge">
@@ -21,7 +21,7 @@ our Registration Desk; that will belong to whomever the badge is transferred.
         <input type="text" style="width:15em" name="last_name"  value="{{ attendee.last_name }}" />
     </td>
 </tr>
-{% if attendee.has_personalized_badge and not AFTER_PRINTED_BADGE_DEADLINE %}
+{% if attendee.has_personalized_badge and not c.AFTER_PRINTED_BADGE_DEADLINE %}
     <tr>
         <td>Name Printed on Badge:</td>
         <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" /> </td>

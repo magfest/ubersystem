@@ -1,11 +1,11 @@
 <html>
 <head></head>
 <body style='text-align:center'>
-    <h2 style='color:red'>Unfortunately, {{ EVENT_NAME_AND_YEAR }} has sold out.</h2>
+    <h2 style='color:red'>Unfortunately, {{ c.EVENT_NAME_AND_YEAR }} has sold out.</h2>
     Thanks to everyone who pre-registered! <br/>
     <br/>
-    We'll see you {{ EVENT_MONTH }} {{ EVENT_START_DAY }} - {{ EVENT_END_DAY }}.<br/>
+    We'll see you {{ c.EVENT_MONTH }} {{ c.EVENT_START_DAY }} - {{ c.EVENT_END_DAY }}.<br/>
     <br/>
-    Please <a href="{{ CONTACT_URL }}">contact us</a> if you have any questions.<br/>
+    Please <a href="{{ c.CONTACT_URL }}">contact us</a> if you have any questions.<br/>
 </body>
 </html>

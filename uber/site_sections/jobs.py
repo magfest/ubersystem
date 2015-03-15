@@ -23,32 +23,32 @@ def job_dict(job, shifts=None):
         'shifts': shifts or [shift_dict(shift) for shift in job.shifts]
     }
 
-@all_renderable(PEOPLE)
+@all_renderable(c.PEOPLE)
 class Root:
     def index(self, session, location=None, message=''):
         if location is None:
-            if AT_THE_CON:
+            if c.AT_THE_CON:
                 raise HTTPRedirect('signups')
             else:
-                location = JOB_LOCATION_OPTS[0][0]
+                location = c.JOB_LOCATION_OPTS[0][0]
 
         jobs = session.query(Job).filter_by(location=location).order_by(Job.name, Job.start_time).all()
         by_start = defaultdict(list)
         for job in jobs:
-            if job.type == REGULAR:
+            if job.type == c.REGULAR:
                 by_start[job.start_time_local].append(job)
-        times = [EPOCH + timedelta(hours=i) for i in range(CON_LENGTH)]
+        times = [c.EPOCH + timedelta(hours=i) for i in range(c.CON_LENGTH)]
         return {
             'location':  location,
-            'setup':     [j for j in jobs if j.type == SETUP],
-            'teardown':  [j for j in jobs if j.type == TEARDOWN],
+            'setup':     [j for j in jobs if j.type == c.SETUP],
+            'teardown':  [j for j in jobs if j.type == c.TEARDOWN],
             'checklist': session.checklist_status('creating_shifts', location),
             'times':     [(t, t + timedelta(hours=1), by_start[t]) for i, t in enumerate(times)]
         }
 
     def signups(self, session, location=None, message=''):
         if location is None:
-            location = cherrypy.session.get('prev_location') or JOB_LOCATION_OPTS[0][0]
+            location = cherrypy.session.get('prev_location') or c.JOB_LOCATION_OPTS[0][0]
         cherrypy.session['prev_location'] = location
 
         jobs, shifts, attendees = session.everything(location)
@@ -112,7 +112,7 @@ class Root:
 
     def staffers(self, session, location=None, message=''):
         attendee = session.admin_attendee()
-        location = int(location or JOB_LOCATION_OPTS[0][0])
+        location = int(location or c.JOB_LOCATION_OPTS[0][0])
         jobs, shifts, attendees = session.everything(location)
         attendees = [a for a in attendees if a.assigned_to(location)]
         hours_here = defaultdict(int)
@@ -147,7 +147,7 @@ class Root:
                 session.add(job)
                 if params['id'] == 'None':
                     defaults = cherrypy.session.get('job_defaults', defaultdict(dict))
-                    defaults[params['location']] = {field: getattr(job,field) for field in JOB_DEFAULTS}
+                    defaults[params['location']] = {field: getattr(job,field) for field in c.JOB_DEFAULTS}
                     cherrypy.session['job_defaults'] = defaults
 
                 raise HTTPRedirect('index?location={}#{}', job.location, job.start_time_local)
@@ -215,7 +215,7 @@ class Root:
     @csrf_protected
     def undo_worked(self, session, id):
         shift = session.shift(id)
-        shift.worked = SHIFT_UNMARKED
+        shift.worked = c.SHIFT_UNMARKED
         raise HTTPRedirect(cherrypy.request.headers['Referer'])
 
     @ajax
@@ -228,7 +228,7 @@ class Root:
     def summary(self, session):
         all_jobs, all_shifts, attendees = session.everything()
         locations = {}
-        for loc, name in JOB_LOCATION_OPTS:
+        for loc, name in c.JOB_LOCATION_OPTS:
             jobs = [j for j in all_jobs if j.location == loc]
             shifts = [s for s in all_shifts if s.job.location == loc]
             locations[name] = {
@@ -250,11 +250,11 @@ class Root:
             'depts': [(name, session.query(Job)
                                     .filter_by(location=loc)
                                     .order_by(Job.start_time, Job.name).all())
-                      for loc, name in JOB_LOCATION_OPTS]
+                      for loc, name in c.JOB_LOCATION_OPTS]
         }
 
     def add_volunteers_by_dept(self, session, message='', location=None):
-        location = location or JOB_LOCATION_OPTS[0][0]
+        location = location or c.JOB_LOCATION_OPTS[0][0]
         return {
             'message': message,
             'location': location,

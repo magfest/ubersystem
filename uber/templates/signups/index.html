@@ -9,7 +9,7 @@
     If you aren't {{ attendee.full_name }}, <a href="login">click here</a> to log in as yourself.
 </div>
 
-<br/> Thanks for volunteering to help out at {{ EVENT_NAME }}.  The following is a list of things you need to do <b>in order</b> as soon as possible.
+<br/> Thanks for volunteering to help out at {{ c.EVENT_NAME }}.  The following is a list of things you need to do <b>in order</b> as soon as possible.
 
 <style type="text/css">
     ol li { margin-bottom: 10px; }
@@ -22,7 +22,7 @@
         {% else %}
             Confirm
         {% endif %}
-        you are coming to {{ EVENT_NAME }}.
+        you are coming to {{ c.EVENT_NAME }}.
 	{% if not attendee.placeholder %}(you can still <a href="../preregistration/confirm?return_to=../signups/index&id={{ attendee.id }}">edit your info</a>){% endif %}
     </li>
     <li>
@@ -43,7 +43,7 @@
         {% endif %}
         your shirt size so that we can set aside a shirt in your size at our merch booth.
     </li>
-    {% if attendee.badge_type == STAFF_BADGE and AFTER_ROOM_DEADLINE and HAS_STAFF_ROOMS_ACCESS %}
+    {% if attendee.badge_type == c.STAFF_BADGE and c.AFTER_ROOM_DEADLINE and c.HAS_STAFF_ROOMS_ACCESS %}
         <li>
             {% checked_if attendee.hotel_requests %}
             The deadline for editing hotel requests has passed, but as a STOPS admin, you can still
@@ -54,8 +54,8 @@
             {% endif %}
             this staffer's hotel room space requests.
         </li>
-    {% elif attendee.badge_type == STAFF_BADGE and attendee.registered < ROOM_DEADLINE %}
-        {% if BEFORE_ROOM_DEADLINE %}
+    {% elif attendee.badge_type == c.STAFF_BADGE and attendee.registered < c.ROOM_DEADLINE %}
+        {% if c.BEFORE_ROOM_DEADLINE %}
             <li>
                 {% checked_if attendee.hotel_requests %}
                 {% if not attendee.placeholder and attendee.food_restrictions and attendee.shirt_size_marked and not attendee.hotel_requests %}
@@ -63,7 +63,7 @@
                 {% else %}
                     Tell us
                 {% endif %}
-                whether you want hotel room space no later than <b>{{ ROOM_DEADLINE|datetime }}</b>
+                whether you want hotel room space no later than <b>{{ c.ROOM_DEADLINE|datetime }}</b>
                 {% if attendee.hotel_requests %}
                     (you may <a href="hotel_requests">edit your request</a> until then).
                 {% endif %}

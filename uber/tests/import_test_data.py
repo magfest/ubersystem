@@ -1,10 +1,10 @@
 from uber.common import *
 
 groups, attendees = {}, {}
-with open(join(MODULE_ROOT, 'tests', 'test_data.json')) as f:
+with open(join(c.MODULE_ROOT, 'tests', 'test_data.json')) as f:
     dump = json.load(f)
 
-offset_from = EPOCH
+offset_from = c.EPOCH
 def offset_to_datetime(offset):
     return offset_from + timedelta(hours=offset)
 
@@ -40,7 +40,7 @@ def import_attendees(session):
         session.add(HotelRequests(**h))
 
 def import_events(session):
-    event_locs, _ = zip(*EVENT_LOCATION_OPTS)
+    event_locs, _ = zip(*c.EVENT_LOCATION_OPTS)
     for e in dump['events']:
         if e['location'] in event_locs:
             e['start_time'] = offset_to_datetime(e['start_time'])
@@ -51,7 +51,7 @@ def import_events(session):
                 session.add(AssignedPanelist(event=event, attendee=attendees[secret_id]))
 
 def import_jobs(session):
-    job_locs, _ = zip(*JOB_LOCATION_OPTS)
+    job_locs, _ = zip(*c.JOB_LOCATION_OPTS)
     for j in dump['jobs']:
         if j['location'] in job_locs:
             j['start_time'] = offset_to_datetime(j['start_time'])

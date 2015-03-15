@@ -1,6 +1,6 @@
 from uber.common import *
 
-@all_renderable(PEOPLE, REG_AT_CON)
+@all_renderable(c.PEOPLE, c.REG_AT_CON)
 class Root:
     def index(self, session, message='', order='name', show='all'):
         which = {
@@ -24,9 +24,9 @@ class Root:
             'tabled_groups':     len([g for g in groups if g.tables]),
             'untabled_groups':   len([g for g in groups if not g.tables]),
             'tables':            sum(g.tables for g in groups),
-            'unapproved_tables': sum(g.tables for g in groups if g.status == UNAPPROVED),
-            'waitlisted_tables': sum(g.tables for g in groups if g.status == WAITLISTED),
-            'approved_tables':   sum(g.tables for g in groups if g.status == APPROVED)
+            'unapproved_tables': sum(g.tables for g in groups if g.status == c.UNAPPROVED),
+            'waitlisted_tables': sum(g.tables for g in groups if g.status == c.WAITLISTED),
+            'approved_tables':   sum(g.tables for g in groups if g.status == c.APPROVED)
         }
 
     @log_pageview
@@ -45,7 +45,7 @@ class Root:
                         leader = group.leader = group.attendees[0]
                         leader.first_name, leader.last_name, leader.email = first_name, last_name, email
                         leader.placeholder = True
-                        if group.status == APPROVED:
+                        if group.status == c.APPROVED:
                             raise HTTPRedirect('../preregistration/group_members?id={}', group.id)
                         else:
                             raise HTTPRedirect('index?message={}', group.name + ' is uploaded and ' + group.status_label)
@@ -66,9 +66,9 @@ class Root:
         group = session.group(id)
         subject = 'Your {EVENT_NAME} Dealer registration has been ' + action
         if group.email:
-            send_email(MARKETPLACE_EMAIL, group.email, subject, email, model = group)
+            send_email(c.MARKETPLACE_EMAIL, group.email, subject, email, model = group)
         if action == 'waitlisted':
-            group.status = WAITLISTED
+            group.status = c.WAITLISTED
         #else:
             #for attendee in group.attendees:
                 #session.delete(attendee)
@@ -82,7 +82,7 @@ class Root:
         if group.badges - group.unregistered_badges and not confirmed:
             raise HTTPRedirect('deletion_confirmation?id={}', id)
         else:
-            Tracking.track(INVALIDATED, group)
+            Tracking.track(c.INVALIDATED, group)
             #for attendee in group.attendees:
                 #session.delete(attendee)
             #session.delete(group)

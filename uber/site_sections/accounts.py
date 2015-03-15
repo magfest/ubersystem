@@ -9,7 +9,7 @@ def valid_password(password, account):
     all_hashed = [account.hashed] + ([pr.hashed] if pr else [])
     return any(bcrypt.hashpw(password, hashed) == hashed for hashed in all_hashed)
 
-@all_renderable(ACCOUNTS)
+@all_renderable(c.ACCOUNTS)
 class Root:
     def index(self, session, message=''):
         return {
@@ -17,7 +17,7 @@ class Root:
             'accounts': session.query(AdminAccount).join(Attendee)
                                .order_by(Attendee.first_name, Attendee.last_name).all(),
             'all_attendees': sorted([
-                (id, '{} - {}{}'.format(name.title(), BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
+                (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
                 for id, name, badge_type, badge_num in session.query(Attendee.id, Attendee.full_name, Attendee.badge_type, Attendee.badge_num)
                                                               .filter(Attendee.email != '').all()
             ], key=lambda tup: tup[1])
@@ -26,7 +26,7 @@ class Root:
     def update(self, session, password='', **params):
         account = session.admin_account(params, checkgroups=['access'])
         if account.is_new:
-            password = password if AT_THE_CON else genpasswd()
+            password = password if c.AT_THE_CON else genpasswd()
             account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
 
         message = check(account)
@@ -34,17 +34,17 @@ class Root:
             message = 'Account settings uploaded'
             account.attendee = session.attendee(account.attendee_id)   # dumb temporary hack, will fix later with tests
             session.add(account)
-            if account.is_new and not AT_THE_CON:
+            if account.is_new and not c.AT_THE_CON:
                 body = render('emails/accounts/new_account.txt', {
                     'account': account,
                     'password': password
                 })
-                send_email(ADMIN_EMAIL, session.attendee(account.attendee_id).email, 'New ' + EVENT_NAME + ' Ubersystem Account', body)
+                send_email(c.ADMIN_EMAIL, session.attendee(account.attendee_id).email, 'New ' + c.EVENT_NAME + ' Ubersystem Account', body)
 
         raise HTTPRedirect('index?message={}', message)
 
     def delete(self, session, id, **params):
-        Tracking.track(DELETED, session.admin_account(id))
+        Tracking.track(c.DELETED, session.admin_account(id))
         #session.delete(session.admin_account(id))
         raise HTTPRedirect('index?message={}', 'Account deleted')
 
@@ -98,7 +98,7 @@ class Root:
                     'name': account.attendee.full_name,
                     'password':  password
                 })
-                send_email(ADMIN_EMAIL, account.attendee.email, EVENT_NAME +' Admin Password Reset', body)
+                send_email(c.ADMIN_EMAIL, account.attendee.email, c.EVENT_NAME +' Admin Password Reset', body)
                 raise HTTPRedirect('login?message={}', 'Your new password has been emailed to you')
 
         return {
@@ -157,8 +157,8 @@ class Root:
                             'path': '/{}/{}'.format(module_name, name)
                         })
 
-        if PEOPLE in AdminAccount.access_set():
-            for dept,desc in JOB_LOCATION_OPTS:
+        if c.PEOPLE in AdminAccount.access_set():
+            for dept,desc in c.JOB_LOCATION_OPTS:
                 pages['hotel assignments'].append({
                     'name': desc,
                     'path': '/hotel/assignments?department={}'.format(dept)

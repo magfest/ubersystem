@@ -1,10 +1,10 @@
 <script type="text/javascript">
 $(document).ready(function() {
-    // Hard-coded "Sponsor" and "Supersponsor" prices. This should probably grab from PREREG_DONATION_OPTS
+    // TODO: Hard-coded "Sponsor" and "Supersponsor" prices should instead grab from PREREG_DONATION_OPTS
     var sponsor_addon = 50;
     var super_sponsor_addon = 195;
 
-    {% if attendee.badge_type != PSEUDO_DEALER_BADGE %}
+    {% if attendee.badge_type != c.PSEUDO_DEALER_BADGE %}
         // Display the correct badge name based on Badge Type and Ribbon.
         {% if attendee.is_new and group.ribbon_and_or_badge %}
             badge_label = "{{ group.ribbon_and_or_badge }}";
@@ -28,7 +28,7 @@ $(document).ready(function() {
     {% endif %}
 
     // Custom price bump warning
-    {% if BEFORE_FIRST_PRICE_BUMP and attendee.is_new %}
+    {% if c.BEFORE_FIRST_PRICE_BUMP and attendee.is_new %}
         if (badge_price > 0) {
             attendee_bump_warning = "($55 after Feb 1)<br/>";
             sponsor_bump_warning = "($105 after Feb 1)<br/>";
@@ -88,23 +88,23 @@ function setBadge(badgeType) {
     $(".badge_type_selector").removeClass("active");
     $(".group_fields").addClass("hide");
     if (badgeType == 'Attendee') {
-        {% if attendee.badge_type != PSEUDO_DEALER_BADGE %}if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}"); }{% endif %}
+        {% if attendee.badge_type != c.PSEUDO_DEALER_BADGE %}if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ c.ATTENDEE_BADGE }}"); }{% endif %}
         $("#attendee_select").addClass("active");
         $.field("amount_extra").val('0').trigger("change");
     }
     if (badgeType == 'Group') {
-        if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ PSEUDO_GROUP_BADGE }}"); }
+        if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ c.PSEUDO_GROUP_BADGE }}"); }
         $(".group_fields").removeClass("hide");
         $("#group_select").addClass("active");
         $.field("amount_extra").val('0').trigger("change");
     }
     if (badgeType == 'Featured1') {
-        {% if attendee.badge_type != PSEUDO_DEALER_BADGE %}if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}"); }{% endif %}
+        {% if attendee.badge_type != c.PSEUDO_DEALER_BADGE %}if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ c.ATTENDEE_BADGE }}"); }{% endif %}
         $("#featured1_select").addClass("active");
         $.field("amount_extra").val(sponsor_addon).trigger("change");
     }
     if (badgeType == 'Featured2') {
-        {% if attendee.badge_type != PSEUDO_DEALER_BADGE %}if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}"); }{% endif %}
+        {% if attendee.badge_type != c.PSEUDO_DEALER_BADGE %}if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ c.ATTENDEE_BADGE }}"); }{% endif %}
         $("#featured2_select").addClass("active");
         $.field("amount_extra").val(super_sponsor_addon).trigger("change");
     }
@@ -115,18 +115,18 @@ function setBadge(badgeType) {
   <br/><br/><span class="popup">{% popup_link "../static_views/badge_descriptions.html" "What's the difference?" %}</span></label>
   <div class="list-group">
     <div class="col-sm-3">
-    <a id="attendee_select" onclick="setBadge('Attendee'); {% if attendee.badge_type = PSEUDO_DEALER_BADGE %}setDealerCost();{% endif %}" class="list-group-item badge_type_selector active">
-      <h4 class="list-group-item-heading">Attending: ${{ BADGE_PRICE }}</h4>
-        {% if BEFORE_FIRST_PRICE_BUMP %}($55 after Jan 1)<br/>{% endif %}
+    <a id="attendee_select" onclick="setBadge('Attendee'); {% if attendee.badge_type = c.PSEUDO_DEALER_BADGE %}setDealerCost();{% endif %}" class="list-group-item badge_type_selector active">
+      <h4 class="list-group-item-heading">Attending: ${{ c.BADGE_PRICE }}</h4>
+        {% if c.BEFORE_FIRST_PRICE_BUMP %}($55 after Jan 1)<br/>{% endif %}
       <p class="list-group-item-text">Allows access to the convention for its duration.</p>
     </a>
     </div>
 
-  {% if GROUPS_ENABLED and attendee.is_new and not group_id %}
-    <div class="col-sm-3 {% if not BEFORE_GROUP_PREREG_TAKEDOWN %}disabled{% endif %}">
-    <a id="group_select" {% if BEFORE_GROUP_PREREG_TAKEDOWN %}onclick="setBadge('Group')"{% endif %} class="list-group-item badge_type_selector">
+  {% if c.GROUPS_ENABLED and attendee.is_new and not group_id %}
+    <div class="col-sm-3 {% if not c.BEFORE_GROUP_PREREG_TAKEDOWN %}disabled{% endif %}">
+    <a id="group_select" {% if c.BEFORE_GROUP_PREREG_TAKEDOWN %}onclick="setBadge('Group')"{% endif %} class="list-group-item badge_type_selector">
       <h4 class="list-group-item-heading">Group Leader</h4>
-      {% if BEFORE_GROUP_PREREG_TAKEDOWN %}
+      {% if c.BEFORE_GROUP_PREREG_TAKEDOWN %}
       <p class="list-group-item-text">Register a group of 8 or more at discounted rates.</p>
       {% else %}
       <p class="list-group-item-text">The deadline for Group registration has passed, but you can still register as a regular attendee.</p>
@@ -136,14 +136,14 @@ function setBadge(badgeType) {
   {% endif %}
 
     <div class="col-sm-3">
-    <a id="featured1_select" onclick="setBadge('Featured1'); {% if attendee.badge_type = PSEUDO_DEALER_BADGE %}setDealerCost();{% endif %}" class="list-group-item badge_type_selector">
+    <a id="featured1_select" onclick="setBadge('Featured1'); {% if attendee.badge_type = c.PSEUDO_DEALER_BADGE %}setDealerCost();{% endif %}" class="list-group-item badge_type_selector">
       <h4 class="list-group-item-heading">Sponsor</h4>
       <p class="list-group-item-text">Donate extra and get perks on top of an attending membership.</p>
     </a>
     </div>
 
     <div class="col-sm-3">
-    <a id="featured2_select" onclick="setBadge('Featured2'); {% if attendee.badge_type = PSEUDO_DEALER_BADGE %}setDealerCost();{% endif %}" class="list-group-item badge_type_selector">
+    <a id="featured2_select" onclick="setBadge('Featured2'); {% if attendee.badge_type = c.PSEUDO_DEALER_BADGE %}setDealerCost();{% endif %}" class="list-group-item badge_type_selector">
       <h4 class="list-group-item-heading">Super Sponsor</h4>
       <p class="list-group-item-text">The most generous option - get even more great perks!</p>
     </a>

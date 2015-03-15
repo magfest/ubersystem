@@ -33,7 +33,7 @@ def _games(session):
         'checked_out': _checked_out(g.checked_out)
     } for g in session.query(Game).options(joinedload(Game.attendee)).order_by(Game.name).all()]
 
-@all_renderable(CHECKINS)
+@all_renderable(c.CHECKINS)
 class Root:
     def index(self, session):
         return {

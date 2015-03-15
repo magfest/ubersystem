@@ -7,17 +7,17 @@ from uber.common import *
 class AutomatedEmail:
     instances = OrderedDict()
 
-    def __init__(self, model, subject, template, filter, *, sender=REGDESK_EMAIL, extra_data=None, cc=None, bcc=None, post_con=False, needs_approval=False):
+    def __init__(self, model, subject, template, filter, *, sender=c.REGDESK_EMAIL, extra_data=None, cc=None, bcc=None, post_con=False, needs_approval=False):
         self.model, self.template, self.sender, self.needs_approval = model, template, sender, needs_approval
-        self.subject = subject.format(EVENT_NAME=EVENT_NAME)
+        self.subject = subject.format(EVENT_NAME=c.EVENT_NAME)
         self.cc = cc or []
         self.bcc = bcc or []
         self.extra_data = extra_data or {}
         self.instances[self.subject] = self
         if post_con:
-            self.filter = lambda x: POST_CON and filter(x)
+            self.filter = lambda x: c.POST_CON and filter(x)
         else:
-            self.filter = lambda x: not POST_CON and filter(x)
+            self.filter = lambda x: not c.POST_CON and filter(x)
 
     def __repr__(self):
         return '<{}: {!r}>'.format(self.__class__.__name__, self.subject)
@@ -64,24 +64,24 @@ class AutomatedEmail:
 
 class StopsEmail(AutomatedEmail):
     def __init__(self, subject, template, filter, **kwargs):
-        AutomatedEmail.__init__(self, Attendee, subject, template, lambda a: a.staffing and filter(a), sender=STAFF_EMAIL, **kwargs)
+        AutomatedEmail.__init__(self, Attendee, subject, template, lambda a: a.staffing and filter(a), sender=c.STAFF_EMAIL, **kwargs)
 
 class GuestEmail(AutomatedEmail):
     def __init__(self, subject, template, filter=lambda a: True, needs_approval=True, **kwargs):
-        AutomatedEmail.__init__(self, Attendee, subject, template, lambda a: a.badge_type == GUEST_BADGE and filter(a), needs_approval=needs_approval, sender=PANELS_EMAIL, **kwargs)
+        AutomatedEmail.__init__(self, Attendee, subject, template, lambda a: a.badge_type == c.GUEST_BADGE and filter(a), needs_approval=needs_approval, sender=c.PANELS_EMAIL, **kwargs)
 
 class GroupEmail(AutomatedEmail):
     def __init__(self, subject, template, filter, **kwargs):
-        AutomatedEmail.__init__(self, Group, subject, template, lambda g: not g.is_dealer and filter(g), sender=REGDESK_EMAIL, **kwargs)
+        AutomatedEmail.__init__(self, Group, subject, template, lambda g: not g.is_dealer and filter(g), sender=c.REGDESK_EMAIL, **kwargs)
 
 class MarketplaceEmail(AutomatedEmail):
     def __init__(self, subject, template, filter, **kwargs):
-        AutomatedEmail.__init__(self, Group, subject, template, lambda g: g.is_dealer and filter(g), sender=MARKETPLACE_EMAIL, **kwargs)
+        AutomatedEmail.__init__(self, Group, subject, template, lambda g: g.is_dealer and filter(g), sender=c.MARKETPLACE_EMAIL, **kwargs)
 
 class SeasonSupporterEmail(AutomatedEmail):
     def __init__(self, event):
         AutomatedEmail.__init__(self, 'SeasonPass',
-                                subject = 'Claim your {} tickets with your {} Season Pass'.format(event.name, EVENT_NAME),
+                                subject = 'Claim your {} tickets with your {} Season Pass'.format(event.name, c.EVENT_NAME),
                                 template = 'reg_workflow/season_supporter_event_invite.txt',
                                 filter = lambda a: before(event.deadline),
                                 needs_approval = True,
@@ -93,7 +93,7 @@ class DeptChecklistEmail(AutomatedEmail):
                                 subject = '{EVENT_NAME} Department Checklist: ' + conf.name,
                                 template = 'shifts/dept_checklist.txt',
                                 filter = lambda a: a.is_single_dept_head and a.admin_account and days_before(7, conf.deadline) and not conf.completed(a),
-                                sender = STAFF_EMAIL,
+                                sender = c.STAFF_EMAIL,
                                 extra_data = {'conf': conf})
 
 before = lambda dt: bool(dt) and localized_now() < dt
@@ -109,7 +109,7 @@ def days_before(days, dt, until=None):
 # won't get sent if group registration is turned off.
 
 AutomatedEmail(Attendee, '{EVENT_NAME} payment received', 'reg_workflow/attendee_confirmation.html',
-         lambda a: a.paid == HAS_PAID)
+         lambda a: a.paid == c.HAS_PAID)
 
 AutomatedEmail(Group, '{EVENT_NAME} group payment received', 'reg_workflow/group_confirmation.html',
          lambda g: g.amount_paid == g.cost and g.cost != 0)
@@ -118,7 +118,7 @@ AutomatedEmail(Attendee, '{EVENT_NAME} group registration confirmed', 'reg_workf
          lambda a: a.group and a != a.group.leader and not a.placeholder)
 
 AutomatedEmail(Attendee, '{EVENT_NAME} extra payment received', 'reg_workflow/group_donation.txt',
-         lambda a: a.paid == PAID_BY_GROUP and a.amount_extra and a.amount_paid == a.amount_extra)
+         lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid == a.amount_extra)
 
 
 # Reminder emails for groups to allocated their unassigned badges.  These emails are safe to be turned on for
@@ -137,19 +137,19 @@ AutomatedEmail(Attendee, '{EVENT_NAME} extra payment received', 'reg_workflow/gr
 # dealer registration has been turned on.
 
 MarketplaceEmail('Your {EVENT_NAME} Dealer registration has been approved', 'dealers/approved.html',
-                 lambda g: g.status == APPROVED)
+                 lambda g: g.status == c.APPROVED)
 
 MarketplaceEmail('Reminder to pay for your {EVENT_NAME} Dealer registration', 'dealers/payment_reminder.txt',
-                 lambda g: g.status == APPROVED and days_after(30, g.approved) and g.is_unpaid)
+                 lambda g: g.status == c.APPROVED and days_after(30, g.approved) and g.is_unpaid)
 
 MarketplaceEmail('Your {EVENT_NAME} Dealer registration is due in one week', 'dealers/payment_reminder.txt',
-                 lambda g: g.status == APPROVED and days_before(7, DEALER_PAYMENT_DUE, 2) and g.is_unpaid)
+                 lambda g: g.status == c.APPROVED and days_before(7, c.DEALER_PAYMENT_DUE, 2) and g.is_unpaid)
 
 MarketplaceEmail('Last chance to pay for your {EVENT_NAME} Dealer registration', 'dealers/payment_reminder.txt',
-                 lambda g: g.status == APPROVED and days_before(2, DEALER_PAYMENT_DUE) and g.is_unpaid)
+                 lambda g: g.status == c.APPROVED and days_before(2, c.DEALER_PAYMENT_DUE) and g.is_unpaid)
 
 MarketplaceEmail('{EVENT_NAME} Dealer waitlist has been exhausted', 'dealers/waitlist_closing.txt',
-                 lambda g: state.AFTER_DEALER_WAITLIST_CLOSED and g.status == WAITLISTED)
+                 lambda g: c.AFTER_DEALER_WAITLIST_CLOSED and g.status == c.WAITLISTED)
 
 
 # Placeholder badge emails; when an admin creates a "placeholder" badge, we send one of three different emails depending
@@ -165,87 +165,87 @@ MarketplaceEmail('{EVENT_NAME} Dealer waitlist has been exhausted', 'dealers/wai
 # creates a "placeholder" registration.
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Panelist Badge Confirmation', 'placeholders/panelist.txt',
-               lambda a: a.placeholder and a.first_name and a.last_name and a.ribbon == PANELIST_RIBBON,
-               sender = PANELS_EMAIL)
+               lambda a: a.placeholder and a.first_name and a.last_name and a.ribbon == c.PANELIST_RIBBON,
+               sender = c.PANELS_EMAIL)
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Guest Badge Confirmation', 'placeholders/guest.txt',
-               lambda a: a.placeholder and a.first_name and a.last_name and a.badge_type == GUEST_BADGE,
-               sender = PANELS_EMAIL)
+               lambda a: a.placeholder and a.first_name and a.last_name and a.badge_type == c.GUEST_BADGE,
+               sender = c.PANELS_EMAIL)
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Dealer Information Required', 'placeholders/dealer.txt',
-               lambda a: a.placeholder and a.is_dealer and a.group.status == APPROVED,
-               sender=MARKETPLACE_EMAIL)
+               lambda a: a.placeholder and a.is_dealer and a.group.status == c.APPROVED,
+               sender=c.MARKETPLACE_EMAIL)
 
 StopsEmail('Want to staff {EVENT_NAME} again?', 'placeholders/imported_volunteer.txt',
-           lambda a: a.placeholder and a.staffing and a.registered_local <= PREREG_OPEN)
+           lambda a: a.placeholder and a.staffing and a.registered_local <= c.PREREG_OPEN)
 
 StopsEmail('{EVENT_NAME} Volunteer Badge Confirmation', 'placeholders/volunteer.txt',
            lambda a: a.placeholder and a.first_name and a.last_name
-                                      and a.registered_local > PREREG_OPEN)
+                                      and a.registered_local > c.PREREG_OPEN)
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Badge Confirmation', 'placeholders/regular.txt',
                lambda a: a.placeholder and a.first_name and a.last_name
-                                       and a.badge_type not in [GUEST_BADGE, STAFF_BADGE]
-                                       and a.ribbon not in [DEALER_RIBBON, PANELIST_RIBBON, VOLUNTEER_RIBBON])
+                                       and a.badge_type not in [c.GUEST_BADGE, c.STAFF_BADGE]
+                                       and a.ribbon not in [c.DEALER_RIBBON, c.PANELIST_RIBBON, c.VOLUNTEER_RIBBON])
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Badge Confirmation Reminder', 'placeholders/reminder.txt',
                lambda a: days_after(7, a.registered) and a.placeholder and a.first_name and a.last_name and not a.is_dealer)
 
 AutomatedEmail(Attendee, 'Last Chance to Accept Your {EVENT_NAME} Badge', 'placeholders/reminder.txt',
-               lambda a: days_before(7, PLACEHOLDER_DEADLINE) and a.placeholder and a.first_name and a.last_name
-                                                              and not a.is_dealer)
+               lambda a: days_before(7, c.PLACEHOLDER_DEADLINE) and a.placeholder and a.first_name and a.last_name
+                                                                and not a.is_dealer)
 
 
 # Volunteer emails; none of these will be sent unless SHIFTS_CREATED is set.
 
 StopsEmail('{EVENT_NAME} shifts available', 'shifts/created.txt',
-           lambda a: state.AFTER_SHIFTS_CREATED and a.takes_shifts)
+           lambda a: c.AFTER_SHIFTS_CREATED and a.takes_shifts)
 
 StopsEmail('Reminder to sign up for {EVENT_NAME} shifts', 'shifts/reminder.txt',
-           lambda a: state.AFTER_SHIFTS_CREATED and days_after(30, max(a.registered_local, SHIFTS_CREATED))
-                 and state.BEFORE_PREREG_TAKEDOWN and a.takes_shifts and not a.hours)
+           lambda a: c.AFTER_SHIFTS_CREATED and days_after(30, max(a.registered_local, c.SHIFTS_CREATED))
+                 and c.BEFORE_PREREG_TAKEDOWN and a.takes_shifts and not a.hours)
 
 StopsEmail('Last chance to sign up for {EVENT_NAME} shifts', 'shifts/reminder.txt',
-              lambda a: days_before(10, EPOCH) and state.AFTER_SHIFTS_CREATED and BEFORE_PREREG_TAKEDOWN
-                                               and a.takes_shifts and not a.hours)
+              lambda a: days_before(10, c.EPOCH) and c.AFTER_SHIFTS_CREATED and c.BEFORE_PREREG_TAKEDOWN
+                                                 and a.takes_shifts and not a.hours)
 
 StopsEmail('Still want to volunteer at {EVENT_NAME}?', 'shifts/volunteer_check.txt',
-              lambda a: SHIFTS_CREATED and days_before(5, UBER_TAKEDOWN)
-                                       and a.ribbon == VOLUNTEER_RIBBON and a.takes_shifts and a.weighted_hours == 0)
+              lambda a: c.SHIFTS_CREATED and days_before(5, c.UBER_TAKEDOWN)
+                                         and a.ribbon == c.VOLUNTEER_RIBBON and a.takes_shifts and a.weighted_hours == 0)
 
 
 # MAGFest provides staff rooms for returning volunteers; leave ROOM_DEADLINE blank to keep these emails turned off.
 
 StopsEmail('Want volunteer hotel room space at {EVENT_NAME}?', 'shifts/hotel_rooms.txt',
-           lambda a: days_before(45, ROOM_DEADLINE, 14) and state.AFTER_SHIFTS_CREATED and a.hotel_eligible)
+           lambda a: days_before(45, c.ROOM_DEADLINE, 14) and c.AFTER_SHIFTS_CREATED and a.hotel_eligible)
 
 StopsEmail('Reminder to sign up for {EVENT_NAME} hotel room space', 'shifts/hotel_reminder.txt',
-           lambda a: days_before(14, ROOM_DEADLINE, 2) and a.hotel_eligible and not a.hotel_requests)
+           lambda a: days_before(14, c.ROOM_DEADLINE, 2) and a.hotel_eligible and not a.hotel_requests)
 
 StopsEmail('Last chance to sign up for {EVENT_NAME} hotel room space', 'shifts/hotel_reminder.txt',
-           lambda a: days_before(2, ROOM_DEADLINE) and a.hotel_eligible and not a.hotel_requests)
+           lambda a: days_before(2, c.ROOM_DEADLINE) and a.hotel_eligible and not a.hotel_requests)
 
 StopsEmail('Reminder to meet your {EVENT_NAME} hotel room requirements', 'shifts/hotel_hours.txt',
-           lambda a: days_before(14, UBER_TAKEDOWN, 7) and a.hotel_shifts_required and a.weighted_hours < 30)
+           lambda a: days_before(14, c.UBER_TAKEDOWN, 7) and a.hotel_shifts_required and a.weighted_hours < 30)
 
 StopsEmail('Final reminder to meet your {EVENT_NAME} hotel room requirements', 'shifts/hotel_hours.txt',
-           lambda a: days_before(7, UBER_TAKEDOWN) and a.hotel_shifts_required and a.weighted_hours < 30)
+           lambda a: days_before(7, c.UBER_TAKEDOWN) and a.hotel_shifts_required and a.weighted_hours < 30)
 
 
 # For events with customized badges, these emails remind people to let us know what we want on their badges.  We have
 # one email for our volunteers who haven't bothered to confirm they're coming yet (bleh) and one for everyone else.
 
-#StopsEmail('Last chance to personalize your {EVENT_NAME} badge', 'personalized_badges/volunteers.txt',
-#           lambda a: days_before(7, PRINTED_BADGE_DEADLINE) and a.staffing and a.badge_type in PREASSIGNED_BADGE_TYPES and a.placeholder)
+StopsEmail('Last chance to personalize your {EVENT_NAME} badge', 'personalized_badges/volunteers.txt',
+           lambda a: days_before(7, c.PRINTED_BADGE_DEADLINE) and a.staffing and a.badge_type in c.PREASSIGNED_BADGE_TYPES and a.placeholder)
 
-#AutomatedEmail(Attendee, 'Personalized {EVENT_NAME} badges will be ordered next week', 'personalized_badges/reminder.txt',
-#               lambda a: days_before(7, PRINTED_BADGE_DEADLINE) and a.badge_type in PREASSIGNED_BADGE_TYPES and not a.placeholder)
+AutomatedEmail(Attendee, 'Personalized {EVENT_NAME} badges will be ordered next week', 'personalized_badges/reminder.txt',
+               lambda a: days_before(7, c.PRINTED_BADGE_DEADLINE) and a.badge_type in c.PREASSIGNED_BADGE_TYPES and not a.placeholder)
 
 
 # MAGFest requires signed and notarized parental consent forms for anyone under 18.  This automated email reminder to
 # bring the consent form only happens if this feature is turned on by setting the CONSENT_FORM_URL config option.
 AutomatedEmail(Attendee, '{EVENT_NAME} parental consent form reminder', 'reg_workflow/under_18_reminder.txt',
-               lambda a: CONSENT_FORM_URL and a.age_group == UNDER_18 and days_before(7, EPOCH))
+               lambda a: c.CONSENT_FORM_URL and a.age_group == c.UNDER_18 and days_before(7, c.EPOCH))
 
 
 for _event in SeasonEvent.instances.values():
