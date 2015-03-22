@@ -1,15 +1,17 @@
 from uber.common import *
+import uber as sa  # avoid circular dependency import issues for SQLAlchemy models
+
 
 def log_pageview(func):
     @wraps(func)
     def with_check(*args,**kwargs):
-        with Session() as session:
+        with sa.Session() as session:
             try:
                 attendee = session.admin_account(cherrypy.session['account_id'])
             except:
                 pass  # we don't care about unrestricted pages for this version
             else:
-                Tracking.track_pageview(cherrypy.request.path_info, cherrypy.request.query_string)
+                sa.Tracking.track_pageview(cherrypy.request.path_info, cherrypy.request.query_string)
         return func(*args,**kwargs)
     return with_check
 
@@ -167,7 +169,7 @@ def sessionized(func):
         if 'session' not in inspect.getfullargspec(innermost).args:
             return func(*args, **kwargs)
         else:
-            with Session() as session:
+            with sa.Session() as session:
                 try:
                     retval = func(*args, session=session, **kwargs)
                     session.expunge_all()
@@ -182,12 +184,16 @@ def renderable_data(data=None):
     data = data or {}
     data['c'] = c
     data['PAGE'] = cherrypy.request.path_info.split('/')[-1]
-    data.update({m.__name__: m for m in Session.all_models()})
+    data.update({m.__name__: m for m in sa.Session.all_models()})
+
+    # we use a try/except here instead of an "in" check because cherrypy.session won't exist in a Python REPL
     try:
         data['CSRF_TOKEN'] = cherrypy.session['csrf_token']
     except:
         pass
+
     return data
+
 
 # render using the first template that actually exists in template_name_list
 def render(template_name_list, data=None):
@@ -199,17 +205,18 @@ def render(template_name_list, data=None):
 
 
 # this is a Magfest inside joke.
-# Nick gets mad when people call Magfest a 'convention'. He always says 'It's not a convention, it's a festival'
+# Nick gets mad when people call Magfest a "convention".  He always says "It's not a convention, it's a festival"
 # So........ if Nick is logged in.... let's annoy him a bit :)
 def screw_you_nick(rendered, template):
-    if not c.AT_THE_CON and AdminAccount.is_nick() and 'emails' not in template and 'history' not in template and 'form' not in rendered:
-        return rendered.replace('festival', 'convention').replace('Fest', 'Con') # lolz.
+    if not c.AT_THE_CON and sa.AdminAccount.is_nick() and 'emails' not in template and 'history' not in template and 'form' not in rendered:
+        return rendered.replace('festival', 'convention').replace('Fest', 'Con')  # lolz.
     else:
         return rendered
 
 
 def _get_module_name(class_or_func):
     return class_or_func.__module__.split('.')[-1]
+
 
 def _get_template_filename(func):
     return os.path.join(_get_module_name(func), func.__name__ + '.html')
@@ -245,7 +252,7 @@ def restricted(func):
                 raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in')
 
             else:
-                access = AdminAccount.access_set()
+                access = sa.AdminAccount.access_set()
                 if not c.AT_THE_CON:
                     access.discard(c.REG_AT_CON)
 

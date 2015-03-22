@@ -1,5 +1,6 @@
 from uber.common import *
-from uber.site_sections import schedule, signups, preregistration
+
+mimetypes.init()
 
 
 def _add_email():
@@ -9,7 +10,6 @@ def _add_email():
     cherrypy.response.body = [body]
 cherrypy.tools.add_email_to_error_page = cherrypy.Tool('after_error_response', _add_email)
 
-mimetypes.init()
 
 class StaticViews:
     def path_args_to_string(self, path_args):
@@ -48,6 +48,7 @@ class StaticViews:
         guessed_content_type = mimetypes.guess_type(content_filename)[0]
         return cherrypy.lib.static.serve_fileobj(content, name=content_filename, content_type=guessed_content_type)
 
+
 @all_renderable()
 class Root:
     def index(self):
@@ -81,5 +82,5 @@ DaemonTask(detect_duplicates, interval=300)
 DaemonTask(check_placeholders, interval=300)
 DaemonTask(AutomatedEmail.send_all, interval=300)
 
-# this should be replaced by something a little cleaner, but it's a useful debugging tool, so we'll go with it for now
+# TODO: this should be replaced by something a little cleaner, because it's a useful debugging tool
 #DaemonTask(lambda: log.error(Session.engine.pool.status()), interval=5)

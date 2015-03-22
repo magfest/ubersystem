@@ -1,15 +1,18 @@
 from uber.common import *
+import uber as sa  # avoid circular import issues for our SQLAlchemy models
+
 
 class HTTPRedirect(cherrypy.HTTPRedirect):
     def __init__(self, page, *args, **kwargs):
         args = [self.quote(s) for s in args]
-        kwargs = {k:self.quote(v) for k,v in kwargs.items()}
+        kwargs = {k: self.quote(v) for k, v in kwargs.items()}
         cherrypy.HTTPRedirect.__init__(self, page.format(*args, **kwargs))
         if c.URL_BASE.startswith('https'):
             self.urls[0] = self.urls[0].replace('http://', 'https://')
 
     def quote(self, s):
         return quote(s) if isinstance(s, str) else str(s)
+
 
 def localized_now():
     utc_now = datetime.utcnow().replace(tzinfo=UTC)
@@ -31,6 +34,7 @@ def check_csrf(csrf_token):
         raise AssertionError('CSRF check failed')
     else:
         cherrypy.request.headers['CSRF-Token'] = csrf_token
+
 
 def check(model):
     prefix = model.__class__.__name__.lower() + '_'
@@ -62,6 +66,7 @@ class Registry:
     def register(cls, slug, kwargs):
         cls.instances[slug] = cls(slug, **kwargs)
 
+
 class SeasonEvent(Registry):
     instances = OrderedDict()
 
@@ -79,6 +84,7 @@ class SeasonEvent(Registry):
             self.deadline = c.EVENT_TIMEZONE.localize(datetime.strptime(kwargs['deadline'], '%Y-%m-%d'))
         else:
             self.deadline = (self.day - timedelta(days = 7)).replace(hour=23, minute=59)
+
 
 class DeptChecklistConf(Registry):
     instances = OrderedDict()
@@ -138,8 +144,8 @@ def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=
     if model and dest:
         body = body.decode('utf-8') if isinstance(body, bytes) else body
         fk = {'model': 'n/a'} if model == 'n/a' else {'fk_id': model.id, 'model': model.__class__.__name__}
-        with Session() as session:
-            session.add(Email(subject=subject, dest=','.join(listify(dest)), body=body, **fk))
+        with sa.Session() as session:
+            session.add(sa.Email(subject=subject, dest=','.join(listify(dest)), body=body, **fk))
 
 
 class Charge:
@@ -152,10 +158,10 @@ class Charge:
     def to_sessionized(m):
         if isinstance(m, dict):
             return m
-        elif isinstance(m, Attendee):
+        elif isinstance(m, sa.Attendee):
             return m.to_dict()
-        elif isinstance(m, Group):
-            return m.to_dict(Group.to_dict_default_attrs + ['attendees'])
+        elif isinstance(m, sa.Group):
+            return m.to_dict(sa.Group.to_dict_default_attrs + ['attendees'])
         else:
             raise AssertionError('{} is not an attendee or group'.format(m))
 
@@ -163,8 +169,8 @@ class Charge:
     def from_sessionized(d):
         assert d['_model'] in {'Attendee', 'Group'}
         if d['_model'] == 'Group':
-            d = dict(d, attendees=[Attendee(**a) for a in d.get('attendees', [])])
-        return Session.resolve_model(d['_model'])(**d)
+            d = dict(d, attendees=[sa.Attendee(**a) for a in d.get('attendees', [])])
+        return sa.Session.resolve_model(d['_model'])(**d)
 
     @staticmethod
     def get(payment_id):
@@ -199,11 +205,11 @@ class Charge:
 
     @property
     def attendees(self):
-        return [m for m in self.models if isinstance(m, Attendee)]
+        return [m for m in self.models if isinstance(m, sa.Attendee)]
 
     @property
     def groups(self):
-        return [m for m in self.models if isinstance(m, Group)]
+        return [m for m in self.models if isinstance(m, sa.Group)]
 
     def charge_cc(self, token):
         try:
@@ -231,6 +237,7 @@ def genpasswd():
             return ' '.join(random.choice(words) for i in range(4))
     except:
         return ''.join(chr(randrange(33, 127)) for i in range(8))
+
 
 @entry_point
 def print_config():

@@ -4,6 +4,8 @@ from uber.common import *
 def datetime(dt, fmt='11:59pm EST on %A, %b %e'):
     return ' '.join(dt.astimezone(c.EVENT_TIMEZONE).strftime(fmt).split())
 
+from datetime import datetime  # now that we've registered our filter, re-import the "datetime" class to avoid conflicts
+
 @register.filter
 def timestamp(dt):
     from time import mktime

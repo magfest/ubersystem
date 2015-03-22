@@ -1,6 +1,8 @@
 from uber.common import *
+import uber as sa  # avoid circular dependency import issues for SQLAlchemy models
 
 __all__ = ['c']
+
 
 class Config:
     """
@@ -37,11 +39,11 @@ class Config:
 
     @property
     def BADGES_SOLD(self):
-        with Session() as session:
-            attendees = session.query(Attendee)
-            individuals = attendees.filter(or_(Attendee.paid == self.HAS_PAID, Attendee.paid == self.REFUNDED)).count()
-            group_badges = attendees.join(Attendee.group).filter(Attendee.paid == self.PAID_BY_GROUP,
-                                                                 Group.amount_paid > 0).count()
+        with sa.Session() as session:
+            attendees = session.query(sa.Attendee)
+            individuals = attendees.filter(or_(sa.Attendee.paid == self.HAS_PAID, sa.Attendee.paid == self.REFUNDED)).count()
+            group_badges = attendees.join(sa.Attendee.group).filter(sa.Attendee.paid == self.PAID_BY_GROUP,
+                                                                    sa.Group.amount_paid > 0).count()
             return individuals + group_badges
 
     @property
@@ -116,13 +118,14 @@ class Config:
             else:
                 return localized_now() > date_setting
         elif name.startswith('HAS_') and name.endswith('_ACCESS'):
-            return getattr(c, name.split('_')[1]) in AdminAccount.access_set()
+            return getattr(c, name.split('_')[1]) in sa.AdminAccount.access_set()
         else:
             raise AttributeError('no such attribute {}'.format(name))
 
 c = Config()
 
 _config = parse_config(__file__)  # outside this module, we use the above c global instead of using this directly
+
 
 django.conf.settings.configure(**_config['django'].dict())
 
@@ -303,3 +306,5 @@ c.STORE_ITEM_NAMES = list(c.STORE_PRICES.keys())
 c.FEE_ITEM_NAMES = list(c.FEE_PRICES.keys())
 
 c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
+
+stripe.api_key = c.STRIPE_SECRET_KEY

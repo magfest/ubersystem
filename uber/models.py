@@ -373,6 +373,7 @@ class Session(SessionManager):
 
         def change_badge(self, attendee, badge_type, badge_num=None):
             #assert_badge_locked()
+            from uber.badge_funcs import check_range
             badge_type = int(badge_type)
             old_badge_num = attendee.badge_num
 
@@ -418,7 +419,6 @@ class Session(SessionManager):
 
             attendee.badge_type = badge_type
             return 'Badge updated'
-
 
         def everyone(self):
             attendees = self.query(Attendee).options(joinedload(Attendee.group)).all()

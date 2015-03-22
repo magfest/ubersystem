@@ -1,4 +1,5 @@
 from uber.common import *
+import uber as sa  # avoid circular dependency import issues for SQLAlchemy models
 
 
 def check_range(badge_num, badge_type):

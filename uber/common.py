@@ -36,6 +36,7 @@ from threading import Thread, RLock, local, current_thread
 
 import pytz
 import bcrypt
+import stripe
 import cherrypy
 import django.conf
 from pytz import UTC
@@ -63,8 +64,7 @@ from sideboard.lib import log, parse_config, entry_point, listify, DaemonTask, s
 
 import uber
 from uber.amazon_ses import AmazonSES, EmailMessage  # TODO: replace this after boto adds Python 3 support
-from uber.config import *
-from uber import config
+from uber.config import c
 from uber.utils import *
 from uber.decorators import *
 from uber.models import *
@@ -72,14 +72,7 @@ from uber.automated_emails import *
 from uber.badge_funcs import *
 from uber import model_checks
 from uber import custom_tags
-from uber.server import *
+from uber import server
 from uber import reset_db
 from uber import config_db
 from uber.tests import import_test_data
-
-import stripe
-stripe.api_key = c.STRIPE_SECRET_KEY
-
-# kludgy hack because I love "from <module> import *" way too much
-for _module in ['config', 'utils', 'models', 'custom_tags', 'decorators']:
-    __import__('uber.' + _module, fromlist='*').__dict__.update(globals())
