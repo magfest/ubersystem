@@ -525,7 +525,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if AT_THE_CON and self.badge_num and self.is_new:
             self.checked_in = datetime.now(UTC)
-            
+
         if COLLECT_EXACT_BIRTHDATE:
             self.age_group = self.session.age_group_from_birthdate(self.birthdate)
 
@@ -675,25 +675,26 @@ class Attendee(MagModel, TakesPaymentMixin):
         return case([
             (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
         ], else_ = func.lower(cls.last_name + ', ' + cls.first_name))
-        
+
     @property
     def can_volunteer(self):
         if self.age_group: return self.age_group.can_volunteer
         with Session() as session:
             return session.age_group_from_birthdate(self.birthdate).can_volunteer
-            
+
     @property
     def can_register(self):
+        return True # OMG HAX
         if self.age_group: return self.age_group.can_register
         with Session() as session:
             return session.age_group_from_birthdate(self.birthdate).can_register
-            
+
     @property
     def age_discount(self):
         if self.age_group: return self.age_group.discount
         with Session() as session:
             return session.age_group_from_birthdate(self.birthdate).discount
-            
+
     @property
     def consent_form(self):
         if self.age_group: return self.age_group.consent_form
@@ -1392,7 +1393,7 @@ class Session(SessionManager):
 
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
-            
+
         def age_group_from_birthdate(self, birthdate):
             if not birthdate: return None
             calc_date = EPOCH.date() if date.today() <= EPOCH.date() else date.today()
