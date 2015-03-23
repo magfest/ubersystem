@@ -63,7 +63,7 @@ class State:
     @property
     def SUPPORTER_BADGE_PRICE(self):
         return self.BADGE_PRICE + SUPPORTER_LEVEL
-        
+
     @property
     def SEASON_BADGE_PRICE(self):
         return self.BADGE_PRICE + SEASON_LEVEL
@@ -97,9 +97,11 @@ class State:
 
     @property
     def AT_THE_DOOR_BADGE_OPTS(self):
-        opts = [(ATTENDEE_BADGE, 'Full Weekend Pass (${})'.format(self.BADGE_PRICE))]
+        opts = [(ATTENDEE_BADGE, '12+ Full Weekend Pass (${})'.format(self.BADGE_PRICE))]
         if ONE_DAYS_ENABLED:
-            opts.append((ONE_DAY_BADGE,  'Single Day Pass (${})'.format(self.ONEDAY_BADGE_PRICE)))
+            opts.append((ONE_DAY_BADGE,  '12+ Single Day Pass (${})'.format(self.ONEDAY_BADGE_PRICE)))
+        opts.append((YOUTH_BADGE,  '5-12 Full Weekend Pass($20)'))
+        opts.append((KID_BADGE,  'Under 5 Full Weekend Pass($0)'))
         return opts
 
     @property
@@ -118,7 +120,7 @@ class State:
         else:
             raise AttributeError('no such attribute {}'.format(name))
 
-state = State()    
+state = State()
 
 def _unrepr(d):
     for opt in d:
