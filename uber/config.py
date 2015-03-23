@@ -278,6 +278,11 @@ TABLE_EXTRA_PRICES = {POWER_TABLE: 60, WALL_TABLE: 10}
 
 MAX_DEALER_BADGES = {0: 1, 0.5: 2, 1: 2, 2: 3, 3: 4, 4: 5}
 
+PUBLIC_RIBBON_OPTS = [
+    (EVIL_RIBBON, 'Evil Side'),
+    (GOOD_RIBBON, 'Good Side')
+]
+
 NIGHT_DISPLAY_ORDER = [globals()[night.upper()] for night in NIGHT_DISPLAY_ORDER]
 NIGHT_NAMES = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 CORE_NIGHTS = []
