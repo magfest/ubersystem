@@ -1,16 +1,16 @@
 <html>
 <head></head>
 <body>
-    <h3>{{ EVENT_NAME_AND_YEAR }}<br/>{{ dupes|length }} people have duplicate registrations</h3>
+    <h3>{{ c.EVENT_NAME_AND_YEAR }}<br/>{{ dupes|length }} people have duplicate registrations</h3>
     {% for ident, attendees in dupes %}
         {{ ident.0 }} ({{ ident.1 }}) has {{ attendees|length }} registrations:
         <ul style="margin-top:0px ; margin-bottom:10px">
             {% for attendee in attendees %}
                 <li>
-                    <a href="{{ URL_BASE }}/registration/form?id={{ attendee.id }}">{{ attendee.badge_type_label }}</a>
+                    <a href="{{ c.URL_BASE }}/registration/form?id={{ attendee.id }}">{{ attendee.badge_type_label }}</a>
                     [{{ attendee.paid_label }}]
                     {% if attendee.group %}
-                        (<a href="{{ URL_BASE }}/groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
+                        (<a href="{{ c.URL_BASE }}/groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
                         {% if not attendee.group.amount_unpaid %}
                             has paid)
                         {% else %}

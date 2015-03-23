@@ -39,7 +39,7 @@
     
     var showOrHide = function() {
         setVisible("#underage", $("[name=age_group]").val() == {{ c.UNDER_18 }});
-        setVisible("#under13", $("[name=age_group]").val() == {{ c.UNDER_18 }});
+        setVisible("#under13", $("[name=age_group]").val() == {{ c.UNDER_13 }});
     };
     {% if not c.COLLECT_EXACT_BIRTHDATE %} $(showOrHide); {% endif %}
 </script>

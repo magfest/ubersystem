@@ -71,6 +71,7 @@ class MagModel:
 
     _unrestricted = ()
     _propertized = ()
+    required = ()
 
     def __init__(self, *args, **kwargs):
         if '_model' in kwargs:
@@ -85,6 +86,10 @@ class MagModel:
 
     def on_delete(self):
         pass
+
+    @property
+    def validators(self):
+        return sa.validation.validations[self.__class__.__name__].values()
 
     @property
     def session(self):
@@ -293,17 +298,6 @@ class Session(SessionManager):
 
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
-            
-        def age_group_from_birthdate(self, birthdate):
-            if not birthdate: return None
-            calc_date = c.EPOCH.date() if date.today() <= c.EPOCH.date() else date.today()
-            attendee_age = int((calc_date - birthdate).days / 365.2425)
-
-            age_groups = self.query(AgeGroup)
-            for current_age_group in age_groups:
-                if current_age_group.min_age <= attendee_age <= current_age_group.max_age:
-                    return current_age_group
-            return None
 
         def no_email(self, subject):
             return not self.query(Email).filter_by(subject=subject).all()
@@ -685,7 +679,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def new_badge_cost(self):
-        return c.DEALER_BADGE_PRICE if self.tables else c.get_group_price(localized_now())
+        return c.DEALER_BADGE_PRICE if self.tables else c.get_group_price(sa.localized_now())
 
     @property
     def badge_cost(self):
@@ -731,16 +725,6 @@ class Group(MagModel, TakesPaymentMixin):
             return 5
 
 
-class AgeGroup(MagModel):
-    desc          = Column(UnicodeText)
-    min_age       = Column(Integer)
-    max_age       = Column(Integer)
-    discount      = Column(Integer)
-    can_register  = Column(Boolean, default=True)
-    can_volunteer = Column(Boolean, default=True)
-    consent_form  = Column(Boolean, default=False)
-
-
 class Attendee(MagModel, TakesPaymentMixin):
     group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(Group, backref='attendees', foreign_keys=group_id)
@@ -750,9 +734,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     first_name    = Column(UnicodeText)
     last_name     = Column(UnicodeText)
     email         = Column(UnicodeText)
-    age_group_id  = Column(UUID, ForeignKey('age_group.id', ondelete='SET NULL'), nullable=True)
-    age_group     = relationship(AgeGroup, backref='attendees', foreign_keys=age_group_id)
     birthdate     = Column(Date, nullable=True, default=None)
+    age_group     = Column(Choice(c.AGE_GROUPS), default=c.AGE_UNKNOWN, nullable=True)
 
     international = Column(Boolean, default=False)
     zip_code      = Column(UnicodeText)
@@ -922,7 +905,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def badge_cost(self):
-        registered = self.registered_local if self.registered else localized_now()
+        registered = self.registered_local if self.registered else sa.localized_now()
         if self.paid in [c.PAID_BY_GROUP, c.NEED_NOT_PAY]:
             return 0
         elif self.overridden_price is not None:
@@ -931,6 +914,19 @@ class Attendee(MagModel, TakesPaymentMixin):
             return c.get_oneday_price(registered)
         else:
             return c.get_attendee_price(registered)
+
+    @property
+    def age_group_conf(self):
+        if self.age_group:
+            return c.AGE_GROUP_CONFIGS[self.age_group]
+        elif self.birthdate:
+            day = c.EPOCH.date() if date.today() <= c.EPOCH.date() else sa.localized_now().date()
+            attendee_age = (day - birthdate).days / 365.2425
+            for name, age_group in c.AGE_GROUP_CONFIGS.values():
+                if name != 'age_unknown' and age_group['min_age'] <= attendee_age <= age_group['max_age']:
+                    return age_group
+        else:
+            return c.AGE_GROUP_CONFIGS[c.AGE_UNKNOWN]
 
     @property
     def total_cost(self):
@@ -992,36 +988,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         return case([
             (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
         ], else_ = func.lower(cls.last_name + ', ' + cls.first_name))
-        
-    @property
-    def can_volunteer(self):
-        if self.age_group: return self.age_group.can_volunteer
-        with Session() as session:
-            return session.age_group_from_birthdate(self.birthdate).can_volunteer
-            
-    @property
-    def can_register(self):
-        if self.age_group: return self.age_group.can_register
-        with Session() as session:
-            return session.age_group_from_birthdate(self.birthdate).can_register
-            
-    @property
-    def age_discount(self):
-        if self.age_group: return self.age_group.discount
-        with Session() as session:
-            return session.age_group_from_birthdate(self.birthdate).discount
-            
-    @property
-    def consent_form(self):
-        if self.age_group: return self.age_group.consent_form
-        with Session() as session:
-            return session.age_group_from_birthdate(self.birthdate).consent_form
-
-    @property
-    def age_group_desc(self):
-        if self.age_group: return self.age_group.desc
-        with Session() as session:
-            return session.age_group_from_birthdate(self.birthdate).desc
 
     @property
     def banned(self):
@@ -1156,7 +1122,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def possible_opts(self):
         return [(job.id, '(%s) [%s] %s' % (hour_day_format(job.start_time), job.location_label, job.name))
-                for job in self.possible if localized_now() < job.start_time]
+                for job in self.possible if sa.localized_now() < job.start_time]
 
     @property
     def possible_and_current(self):

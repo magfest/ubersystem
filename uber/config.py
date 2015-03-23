@@ -1,5 +1,4 @@
 from uber.common import *
-import uber as sa  # avoid circular dependency import issues for SQLAlchemy models
 
 __all__ = ['c']
 
@@ -48,11 +47,11 @@ class Config:
 
     @property
     def ONEDAY_BADGE_PRICE(self):
-        return self.get_oneday_price(localized_now())
+        return self.get_oneday_price(sa.localized_now())
 
     @property
     def BADGE_PRICE(self):
-        return self.get_attendee_price(localized_now())
+        return self.get_attendee_price(sa.localized_now())
 
     @property
     def SUPPORTER_BADGE_PRICE(self):
@@ -64,7 +63,7 @@ class Config:
 
     @property
     def GROUP_PRICE(self):
-        return self.get_group_price(localized_now())
+        return self.get_group_price(sa.localized_now())
 
     @property
     def PREREG_BADGE_TYPES(self):
@@ -76,7 +75,7 @@ class Config:
 
     @property
     def PREREG_DONATION_OPTS(self):
-        if localized_now() < self.SUPPORTER_DEADLINE:
+        if sa.localized_now() < self.SUPPORTER_DEADLINE:
             return self.DONATION_TIER_OPTS
         else:
             return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS if amt < self.SUPPORTER_LEVEL]
@@ -97,6 +96,10 @@ class Config:
         return opts
 
     @property
+    def PREREG_AGE_GROUP_OPTS(self):
+        return [opt for opt in self.AGE_GROUP_OPTS if opt[0] != self.AGE_UNKNOWN]
+
+    @property
     def DISPLAY_ONEDAY_BADGES(self):
         return self.ONE_DAYS_ENABLED and days_before(30, self.EPOCH)
 
@@ -114,9 +117,9 @@ class Config:
             if not date_setting:
                 return False
             elif name.startswith('BEFORE_'):
-                return localized_now() < date_setting
+                return sa.localized_now() < date_setting
             else:
-                return localized_now() > date_setting
+                return sa.localized_now() > date_setting
         elif name.startswith('HAS_') and name.endswith('_ACCESS'):
             return getattr(c, name.split('_')[1]) in sa.AdminAccount.access_set()
         else:
@@ -126,9 +129,7 @@ c = Config()
 
 _config = parse_config(__file__)  # outside this module, we use the above c global instead of using this directly
 
-
 django.conf.settings.configure(**_config['django'].dict())
-
 
 def _unrepr(d):
     for opt in d:
@@ -218,6 +219,11 @@ for _name, _section in _config['integer_enums'].items():
 c.BADGE_RANGES = {}
 for _badge_type, _range in _config['badge_ranges'].items():
     c.BADGE_RANGES[getattr(c, _badge_type.upper())] = _range
+
+_make_enum('age_group', OrderedDict([(name, section['desc']) for name, section in _config['age_groups'].items()]))
+c.AGE_GROUP_CONFIGS = {}
+for _name, _section in _config['age_groups'].items():
+    c.AGE_GROUP_CONFIGS[getattr(c, _name.upper())] = _section.dict()
 
 c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
 c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]

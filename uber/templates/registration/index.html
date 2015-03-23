@@ -175,7 +175,7 @@
         <td id="ribbon_{{ attendee.id }}">{{ attendee.ribbon_label }}</td>
         <td id="amount_extra_{{ attendee.id }}">{{ attendee.amount_extra_label }}</td>
         <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
-        <td> <nobr>{{ attendee.age_group_desc }}</nobr> </td>
+        <td> <nobr>{{ attendee.age_group_conf.desc }}</nobr> </td>
         {% if c.AT_THE_CON and attendee.checked_in %}
                 <td>
                     {% if attendee.paid == c.LOST_BADGE %}

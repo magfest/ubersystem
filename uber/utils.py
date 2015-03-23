@@ -1,5 +1,4 @@
 from uber.common import *
-import uber as sa  # avoid circular import issues for our SQLAlchemy models
 
 
 class HTTPRedirect(cherrypy.HTTPRedirect):
@@ -37,17 +36,14 @@ def check_csrf(csrf_token):
 
 
 def check(model):
-    prefix = model.__class__.__name__.lower() + '_'
-
-    for field,name in getattr(model_checks, prefix + 'required', []):
-        if not str(getattr(model,field)).strip():
+    for field, name in model.required:
+        if not str(getattr(model, field)).strip():
             return name + ' is a required field'
 
-    for name,attr in model_checks.__dict__.items():
-        if name.startswith(prefix) and hasattr(attr, '__call__'):
-            message = attr(model)
-            if message:
-                return message
+    for validator in model.validators:
+        message = validator(model)
+        if message:
+            return message
 
 
 class Order:

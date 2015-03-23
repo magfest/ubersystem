@@ -1,33 +1,33 @@
 """
 When an admin submits a form to create/edit an attendee/group/job/etc we usually want to perform some basic validations
 on the data that was entered.  We put those validations here.  To make a validation for the Attendee model, you can
-just write a function prefixed with "attendee_" like the "attendee_money" function below, which checks the values for
-things like amount_paid and amount_extra.  That function should return None on success and an error string on failure.
+just write a function decorated with the @validation.Attendee decorator.  That function should return None on success
+and an error string on failure.
 
-In addition, you can define a set of required fields by suffixing the lower-cased model name with "_required", like
-the "adminaccount_required" list below.  This should be a list of tuples where the first tuple element is the name of
-the field, and the second is the name that should be displayed in the "XXX is a required field" error message.
+In addition, you can define a set of required fields by setting the .required field like the AdminAccount.required list
+below.  This should be a list of tuples where the first tuple element is the name of the field, and the second is the
+name that should be displayed in the "XXX is a required field" error message.
 
 To perform these validations, call the "check" method on the instance you're validating.  That method returns None
 on success and a string error message on validation failure.
 """
 from uber.common import *
 
-# TODO: there are no unit tests for any of this :(
 
+AdminAccount.required = [('attendee', 'Attendee'), ('hashed','Password')]
 
-adminaccount_required = [('attendee', 'Attendee'), ('hashed','Password')]
-
-def adminaccount_misc(account):
+@validation.AdminAccount
+def duplicate_admin(account):
     if account.is_new:
         with Session() as session:
             if session.query(AdminAccount).filter_by(attendee_id=account.attendee_id).all():
                 return 'That attendee already has an admin account'
 
 
-event_required = [('name', 'Event Name')]
+Event.required = [('name', 'Event Name')]
 
-def event_overlaps(event, other_event_id=None):
+@validation.Event
+def overlapping_events(event, other_event_id=None):
     existing = {}
     for e in event.session.query(Event).filter(Event.location == event.location,
                                                Event.id != event.id,
@@ -40,8 +40,9 @@ def event_overlaps(event, other_event_id=None):
             return '"{}" overlaps with the time/duration you specified for "{}"'.format(existing[hh], event.name)
 
 
-group_required = [('name','Group Name')]
+Group.required = [('name', 'Group Name')]
 
+@validation.Group
 def group_paid(group):
     try:
         amount = int(float(group.amount_paid))
@@ -58,22 +59,25 @@ def _invalid_phone_number(s):
 def _invalid_zip_code(s):
     return len(re.findall(r'\d', s)) not in [5, 9]
 
+@validation.Attendee
 def attendee_misc(attendee):
     if attendee.group_id and not attendee.first_name.strip() and not attendee.last_name.strip():
         return
 
+    # TODO: try to avoid making changes in validators; we can probably just check for falsey-ness and leave it as ''
     if c.COLLECT_EXACT_BIRTHDATE and attendee.birthdate == '':
-        attendee.birthdate = None # Prevent insertion errors for placeholder attendees
+        attendee.birthdate = None  # Prevent insertion errors for placeholder attendees
 
     if not attendee.first_name or not attendee.last_name:
         return 'First Name and Last Name are required'
     elif attendee.placeholder:
         return
 
-    if c.COLLECT_EXACT_BIRTHDATE and attendee.birthdate is None:
-        return 'Enter your date of birth.'
-    if c.COLLECT_EXACT_BIRTHDATE and attendee.birthdate > date.today():
-        return 'You cannot be born in the future.'
+    if c.COLLECT_EXACT_BIRTHDATE:
+        if attendee.birthdate is None:
+            return 'Enter your date of birth.'
+        elif attendee.birthdate > date.today():
+            return 'You cannot be born in the future.'
 
     if c.COLLECT_FULL_ADDRESS:
         if not attendee.address1:
@@ -110,25 +114,31 @@ def attendee_misc(attendee):
     if not attendee.no_cellphone and attendee.staffing and _invalid_phone_number(attendee.cellphone):
         return "10-digit cellphone number is required for volunteers (unless you don't own a cellphone)"
 
-    if not attendee.can_volunteer and attendee.staffing and attendee.badge_type != c.STAFF_BADGE and c.PRE_CON:
-        return "Volunteers cannot be " + attendee.age_group_desc
-    
-    if not attendee.can_register:
-        return 'Attendees '+ attendee.age_group_desc +' years of age do not need to register, but MUST be accompanied by a parent at all times!'
+@validation.Attendee
+def allowed_to_volunteer(attendee):
+    if attendee.staffing and not attendee.age_group_conf['can_volunteer'] and attendee.badge_type != c.STAFF_BADGE and c.PRE_CON:
+        return 'Volunteers cannot be ' + attendee.age_group_conf['desc']
 
+@validation.Attendee
+def allowed_to_register(attendee):
+    if not attendee.age_group_conf['can_register']:
+        return 'Attendees ' + attendee.age_group_conf['desc'] + ' years of age do not need to register, but MUST be accompanied by a parent at all times!'
 
-def attendee_leadership(attendee):
+@validation.Attendee
+def group_leadership(attendee):
     if attendee.session and not attendee.group_id:
         orig_group_id = attendee.orig_value_of('group_id')
         if orig_group_id and attendee.id == attendee.session.group(orig_group_id).leader_id:
             return 'You cannot remove the leader of a group from that group; make someone else the leader first'
 
-def attendee_banned_volunteer(attendee):
+@validation.Attendee
+def banned_volunteer(attendee):
     if (attendee.ribbon == c.VOLUNTEER_RIBBON or attendee.staffing) and attendee.full_name in c.BANNED_STAFFERS:
         return "We've declined to invite {} back as a volunteer, {}".format(attendee.full_name,
                 'talk to Stops to override if necessary' if c.AT_THE_CON
             else '''Please contact us via CONTACT_URL if you believe this is in error'''.replace('CONTACT_URL', c.CONTACT_URL))
 
+@validation.Attendee
 def attendee_money(attendee):
     try:
         amount_paid = int(float(attendee.amount_paid))
@@ -166,7 +176,8 @@ def attendee_money(attendee):
     except:
         return "What you entered for Amount Refunded ({}) wasn't even a number".format(attendee.amount_refunded)
 
-def attendee_badge_range(attendee):
+@validation.Attendee
+def badge_range(attendee):
     if c.AT_THE_CON:
         try:
             badge_num = int(attendee.badge_num)
@@ -178,18 +189,22 @@ def attendee_badge_range(attendee):
                 return '{} badge numbers must fall within {} and {}'.format(attendee.badge_type_label, min_num, max_num)
 
 
-def money_amount(money):
-    if not str(money.amount).isdigit():
+@validation.MPointsForCash
+@validation.OldMPointExchange
+def money_amount(model):
+    if not str(model.amount).isdigit():
         return 'Amount must be a positive number'
 
 
-job_required = [('name','Job Name')]
+Job.required = [('name', 'Job Name')]
 
-def job_slots(job):
+@validation.Job
+def slots(job):
     if job.slots < len(job.shifts):
         return 'You cannot reduce the number of slots to below the number of staffers currently signed up for this job'
 
-def job_conflicts(job):
+@validation.Job
+def time_conflicts(job):
     if not job.is_new:
         original_hours = Job(start_time=job.orig_value_of('start_time'), duration=job.orig_value_of('duration')).hours
         for shift in job.shifts:
@@ -197,14 +212,16 @@ def job_conflicts(job):
                 return 'You cannot change this job to this time, because {} is already working a shift then'.format(shift.attendee.full_name)
 
 
-cashformpoints_amount = money_amount
-
+@validation.OldMPointExchange
 def oldmpointexchange_numbers(mpe):
     if not str(mpe.amount).isdigit():
         return 'MPoints must be a positive integer'
 
-sale_required = [('what',"What's being sold")]
-def sale_amounts(sale):
+
+Sale.required = [('what', "What's being sold")]
+
+@validation.Sale
+def cash_and_mpoints(sale):
     if not str(sale.cash).isdigit() or int(sale.cash) < 0:
         return 'Cash must be a positive integer'
     if not str(sale.mpoints).isdigit() or int(sale.mpoints) < 0:

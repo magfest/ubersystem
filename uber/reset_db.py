@@ -1,5 +1,4 @@
 from uber.common import *
-from uber.config_db import *
 
 @entry_point
 def insert_admin():
@@ -23,4 +22,3 @@ def reset_uber_db():
     assert c.DEV_BOX, 'reset_uber_db is only available on development boxes'
     Session.initialize_db(drop=True)
     insert_admin()
-    add_age_groups()

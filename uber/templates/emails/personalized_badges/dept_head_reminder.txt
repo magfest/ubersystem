@@ -2,6 +2,6 @@
 
 We're asking all department heads to make sure that their staffers get into the system before we place the order for our customized staff badgs.  Any staffer who gets added after that will not receive one of these super-cool badges.
 
-Please add anyone in your department who should get a staff badge and isn't already in the system by {{ PRINTED_BADGE_DEADLINE|datetime }}.  After that, staffers will have to take a regular Attendee badge with a volunteer ribbon.
+Please add anyone in your department who should get a staff badge and isn't already in the system by {{ c.PRINTED_BADGE_DEADLINE|datetime }}.  After that, staffers will have to take a regular Attendee badge with a volunteer ribbon.
 
-{{ STOPS_EMAIL_SIGNATURE }}
+{{ c.STOPS_EMAIL_SIGNATURE }}

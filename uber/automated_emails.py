@@ -247,7 +247,7 @@ AutomatedEmail(Attendee, 'Personalized {EVENT_NAME} badges will be ordered next 
 # MAGFest requires signed and notarized parental consent forms for anyone under 18.  This automated email reminder to
 # bring the consent form only happens if this feature is turned on by setting the CONSENT_FORM_URL config option.
 AutomatedEmail(Attendee, '{EVENT_NAME} parental consent form reminder', 'reg_workflow/under_18_reminder.txt',
-               lambda a: c.CONSENT_FORM_URL and a.age_group == c.UNDER_18 and days_before(7, c.EPOCH))
+               lambda a: c.CONSENT_FORM_URL and a.age_group_conf['consent_form'] and days_before(7, c.EPOCH))
 
 
 for _event in SeasonEvent.instances.values():

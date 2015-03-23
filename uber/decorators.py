@@ -1,5 +1,4 @@
 from uber.common import *
-import uber as sa  # avoid circular dependency import issues for SQLAlchemy models
 
 
 def log_pageview(func):
@@ -287,3 +286,16 @@ def tag(klass):
     def tagged(parser, token):
         return klass(*token.split_contents()[1:])
     return klass
+
+
+class Validation(object):
+    def __init__(self):
+        self.validations = defaultdict(OrderedDict)
+
+    def __getattr__(self, model_name):
+        def wrapper(func):
+            self.validations[model_name][func.__name__] = func
+            return func
+        return wrapper
+
+validation = Validation()

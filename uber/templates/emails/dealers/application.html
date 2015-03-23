@@ -8,7 +8,7 @@ Your group ({{ attendee.group.name}}) has successfully submitted a request for t
     <li> {{ attendee.group.badges }} badge{{ attendee.group.badges|pluralize }} (${{ attendee.group.badge_cost }}) </li>
 </ul>
 
-{% if AFTER_DEALER_REG_DEADLINE %}
+{% if c.AFTER_DEALER_REG_DEADLINE %}
     Because our marketplace is currently full, your submission has been automatically placed on our waitlist.  We'll let you know if your application is later approved.
 {% else %}
     We will review your request and provide you with a payment link once your application has been approved.
