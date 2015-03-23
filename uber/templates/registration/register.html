@@ -27,7 +27,7 @@
         $("#message").css("float", null);
     });
     window.setTimeout(function(){ $("#message").hide(); }, 10000);
-    
+
     var maybeBold = function() {
         if ($("[name=payment_method]").val() == {{ MANUAL }}) {
             $("#email").css("font-weight", "bold");
@@ -36,7 +36,7 @@
         }
     };
     $(maybeBold);
-    
+
     var showOrHide = function() {
         setVisible("#underage", $("[name=age_group]").val() == {{ UNDER_18 }});
         setVisible("#under13", $("[name=age_group]").val() == {{ UNDER_18 }});
@@ -88,7 +88,7 @@
     {% else %}
     <td style="font-weight: bold"> <nobr>Age:</nobr> </td>
         <select name="age_group" onChange="showOrHide()">
-            {% options AGE_GROUP_OPTS attendee.age_group %}
+          {% options AGE_GROUP_OPTS any_age %}
         </select>
         <span id="underage" style="color:red ; display:none">Attendees under 18 <b>MUST</b> have a parental consent form signed to receive a badge.</span>
         <br/><span id="under13" style="display:none"><input type="checkbox" name="under_13"> This attendee is under 13.</span>
