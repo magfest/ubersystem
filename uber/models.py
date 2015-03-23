@@ -678,6 +678,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def can_volunteer(self):
+        return True
         if self.age_group: return self.age_group.can_volunteer
         with Session() as session:
             return session.age_group_from_birthdate(self.birthdate).can_volunteer
