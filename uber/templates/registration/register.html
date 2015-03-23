@@ -88,7 +88,7 @@
     {% else %}
     <td style="font-weight: bold"> <nobr>Age:</nobr> </td>
         <select name="age_group" onChange="showOrHide()">
-          {% options AGE_GROUP_OPTS any_age %}
+          {% options AGE_GROUP_OPTS ANY_AGE %}
         </select>
         <span id="underage" style="color:red ; display:none">Attendees under 18 <b>MUST</b> have a parental consent form signed to receive a badge.</span>
         <br/><span id="under13" style="display:none"><input type="checkbox" name="under_13"> This attendee is under 13.</span>
@@ -107,6 +107,7 @@
         I'm from outside the US.
     </td>
 </tr>
+    {% include "preregistration/extra.html" %}
 <tr>
     <td> <nobr>How did you</nobr> <nobr>find {{ EVENT_NAME }}?</nobr> </td>
     <td> <input type="text" name="found_how" value="{{ attendee.found_how }}" style="width:80%" /> </td>

@@ -431,7 +431,7 @@ class Root:
                     message = 'Enter a 10-digit emergency contact number'
                 elif re.search(SAME_NUMBER_REPEATED, re.sub(r'[^0-9]', '', attendee.ec_phone)):
                     message = 'Please enter a real emergency contact number'
-                elif not attendee.age_group:
+                elif not attendee.age_group and COLLECT_EXACT_BIRTHDATE:
                     message = 'Please select an age category'
                 elif attendee.payment_method == MANUAL and not re.match(EMAIL_RE, attendee.email):
                     message = 'Email address is required to pay with a credit card at our registration desk'
@@ -442,7 +442,7 @@ class Root:
                     attendee.badge_num = 0
                     if not attendee.zip_code:
                         attendee.zip_code = '00000'
-                    attendee.save()
+                    session.commit()
                     message = 'Thanks!  Please queue in the {} line and have your photo ID and {} ready.'
                     if attendee.payment_method == STRIPE:
                         raise HTTPRedirect('pay?id={}', attendee.id)
