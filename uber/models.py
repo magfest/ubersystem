@@ -529,6 +529,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         if COLLECT_EXACT_BIRTHDATE:
             self.age_group = self.session.age_group_from_birthdate(self.birthdate)
 
+        if self.ribbon in [EVIL_RIBBON, GOOD_RIBBON] and self.amount_extra == 0:
+            self.ribbon = NO_RIBBON
+
         for attr in ['first_name', 'last_name']:
             value = getattr(self, attr)
             if value.isupper() or value.islower():
@@ -550,6 +553,16 @@ class Attendee(MagModel, TakesPaymentMixin):
             self.badge_type = ATTENDEE_BADGE
             if self.is_dealer:
                 self.ribbon = DEALER_RIBBON
+
+        if self.badge_type == ONE_DAY_BADGE:
+            one_day_check = self.registered if self.registered else localized_now()
+            if EPOCH < one_day_check < ESCHATON:
+                if one_day_check.strftime('%A') == "Friday":
+                    self.badge_type = FRIDAY_BADGE
+                elif one_day_check.strftime('%A') == "Saturday":
+                    self.badge_type = SATURDAY_BADGE
+                elif one_day_check.strftime('%A') == "Sunday":
+                    self.badge_type = SUNDAY_BADGE
 
         if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE:
             self.badge_type = SUPPORTER_BADGE
