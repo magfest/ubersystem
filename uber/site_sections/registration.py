@@ -24,7 +24,7 @@ def check_everything(attendee):
     if message:
         return message
 
-    if AT_THE_CON and not attendee.age_group and attendee.is_new:
+    if AT_THE_CON and not attendee.age_group and attendee.is_new and COLLECT_AGE_GROUP:
         return "You must enter this attendee's age group"
 
 
@@ -273,7 +273,8 @@ class Root:
         elif success:
             message = ""
             attendee.checked_in = datetime.now(UTC)
-            attendee.age_group = age_group
+            if COLLECT_AGE_GROUP:
+                attendee.age_group = age_group if COLLECT_EXACT_BIRTHDATE else int(age_group)
             if not attendee.badge_num:
                 attendee.badge_num = int(badge_num)
             if attendee.paid == NOT_PAID:
@@ -291,7 +292,7 @@ class Root:
             'increment':  increment,
             'badge':      attendee.badge,
             'paid':       attendee.paid_label,
-            'age_group':  attendee.age_group.desc,
+            'age_group':  attendee.age_group.desc if COLLECT_EXACT_BIRTHDATE else attendee.age_group,
             'pre_badge':  pre_badge,
             'checked_in': attendee.checked_in and hour_day_format(attendee.checked_in)
         }
@@ -431,7 +432,7 @@ class Root:
                     message = 'Enter a 10-digit emergency contact number'
                 elif re.search(SAME_NUMBER_REPEATED, re.sub(r'[^0-9]', '', attendee.ec_phone)):
                     message = 'Please enter a real emergency contact number'
-                elif not attendee.age_group and COLLECT_EXACT_BIRTHDATE:
+                elif not attendee.age_group and COLLECT_AGE_GROUP:
                     message = 'Please select an age category'
                 elif attendee.payment_method == MANUAL and not re.match(EMAIL_RE, attendee.email):
                     message = 'Email address is required to pay with a credit card at our registration desk'

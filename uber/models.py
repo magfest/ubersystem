@@ -691,14 +691,14 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def can_volunteer(self):
-        return True
+        if not COLLECT_AGE_GROUP: return True
         if self.age_group: return self.age_group.can_volunteer
         with Session() as session:
             return session.age_group_from_birthdate(self.birthdate).can_volunteer
 
     @property
     def can_register(self):
-        return True # OMG HAX
+        if not COLLECT_AGE_GROUP: return True
         if self.age_group: return self.age_group.can_register
         with Session() as session:
             return session.age_group_from_birthdate(self.birthdate).can_register
