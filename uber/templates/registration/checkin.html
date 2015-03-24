@@ -39,7 +39,7 @@
     });
 
     var check_in = function (id) {
-        if ($('#age_' + id).val() == {{ AGE_UNKNOWN }}) {
+        if ($('#age_' + id).val() == {{ AGE_UNKNOWN }} && {{ COLLECT_AGE_GROUP }}) {
             alert('You may not check someone in without confirming their age.');
             return;
         }
@@ -98,6 +98,7 @@
                         {% endif %}
                     </td>
                 </tr>
+                {% if COLLECT_AGE_GROUP %}
                 <tr>
                     <td><strong>Age Group:</strong></td>
                     <td>
@@ -106,6 +107,7 @@
                         </select>
                     </td>
                 </tr>
+                {% endif %}
                 {% if attendee.paid == PAID_BY_GROUP and not attendee.group_id %}
                     <tr>
                         <td><strong>Group:</strong></td>

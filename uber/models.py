@@ -789,7 +789,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def accoutrements(self):
         stuff = [] if self.ribbon == NO_RIBBON else ['a ' + self.ribbon_label + ' ribbon']
-        stuff.append('a {} wristband'.format(WRISTBAND_COLORS[self.age_group]))
+        if COLLECT_AGE_GROUP: stuff.append('a {} wristband'.format(WRISTBAND_COLORS[self.age_group]))
         if self.regdesk_info:
             stuff.append(self.regdesk_info)
         return comma_and(stuff)

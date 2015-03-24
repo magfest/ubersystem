@@ -85,7 +85,7 @@
     <td>
         <input type="text" name="birthdate" value="{{ attendee.birthdate|date:"Y-m-d" }}" class="form-control date">
     </td>
-    {% else %}
+    {% elif COLLECT_AGE_GROUP %}
     <td style="font-weight: bold"> <nobr>Age:</nobr> </td>
         <select name="age_group" onChange="showOrHide()">
           {% options AGE_GROUP_OPTS ANY_AGE %}
