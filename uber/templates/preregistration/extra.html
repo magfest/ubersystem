@@ -61,14 +61,6 @@
         {% endif %}
     </div>
   </div>
-    {% if COLLECT_INTERESTS %}
-    <div class="extra-row form-group">
-    <p class="help-block col-sm-6 col-sm-offset-2">{% popup_link "../static_views/givingExtra.html" "Why do this?" %}</p>
-    <p class="help-block col-sm-6 col-sm-offset-2">Each level includes all lower levels.</p>
-    <p class="help-block col-sm-6 col-sm-offset-2">Supporter level and higher {% if BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ SUPPORTER_DEADLINE|datetime }}.</p>
-    </div>
-    {% endif %}
-
 
     <div class="badge-row extra-row form-group" style="display:none">
         <label for="badge_printed_name" class="col-sm-2 control-label">Name Printed on Badge</label>
