@@ -464,6 +464,8 @@ class Root:
         @unrestricted
         def pay(self, session, id, message=''):
             attendee = session.attendee(id)
+            if attendee.badge_type == KID_BADGE:
+                raise HTTPRedirect('register?message={}', 'Please proceed to the preregistration desk to pick up your badge')
             if attendee.paid == HAS_PAID:
                 raise HTTPRedirect('register?message={}', 'You are already paid and should proceed to the preregistration desk to pick up your badge')
             else:
