@@ -775,13 +775,13 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def merch(self):
         merch = self.donation_swag
-        if self.gets_shirt and DONATION_TIERS[SHIRT_LEVEL] not in merch:
-            merch.append(DONATION_TIERS[SHIRT_LEVEL])
-        elif self.gets_free_shirt:
-            shirt = '2nd ' + DONATION_TIERS[SHIRT_LEVEL]
-            if self.takes_shifts and self.worked_hours < 6:
-                shirt += ' (tell them they will be reported if they take their shirt and then do not work their shifts)'
-            merch.append(shirt)
+        #if self.gets_shirt and DONATION_TIERS[SHIRT_LEVEL] not in merch:
+        #    merch.append(DONATION_TIERS[SHIRT_LEVEL])
+        #elif self.gets_free_shirt:
+        #    shirt = '2nd ' + DONATION_TIERS[SHIRT_LEVEL]
+        #    if self.takes_shifts and self.worked_hours < 6:
+        #        shirt += ' (tell them they will be reported if they take their shirt and then do not work their shifts)'
+        #    merch.append(shirt)
         if self.extra_merch:
             merch.append(self.extra_merch)
         return comma_and(merch)
