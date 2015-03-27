@@ -47,7 +47,7 @@
 
 
     <div class="extra-row form-group" {% if not COLLECT_INTERESTS %}style="display:none;"{% endif %}>
-    <label for="amount_extra" class="col-sm-2 control-label">Want to kick in extra?</label>
+    <label for="amount_extra" class="col-sm-2 control-label">VIP Level</label>
     <div class="col-sm-6">
         {% if AFTER_PRINTED_BADGE_DEADLINE and attendee.amount_extra >= SUPPORTER_LEVEL %}
                     {{ attendee.amount_extra_label }}
@@ -84,12 +84,12 @@
         <p class="help-block col-sm-6 col-sm-offset-2">(custom badges have already been ordered, so you can no longer set this)</p>
     </div>
     {% endif %}
-    
+
 {% if COLLECT_INTERESTS %}
 <div class="affiliate-row extra-row form-group" style="display:none">
             <label for="war_side" class="col-sm-2 control-label">War Games Side:</label>
             <div class="col-sm-6">
-                <select name="ribbon">
+                <select name="ribbon" class="form-control">
                 {% options PUBLIC_RIBBON_OPTS attendee.ribbon %}
                 </select>
             </div>
