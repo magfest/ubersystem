@@ -564,8 +564,8 @@ class Attendee(MagModel, TakesPaymentMixin):
                 elif one_day_check.strftime('%A') == "Sunday":
                     self.badge_type = SUNDAY_BADGE
 
-        if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE:
-            self.badge_type = SUPPORTER_BADGE
+        #if self.amount_extra >= SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == ATTENDEE_BADGE:
+        #    self.badge_type = SUPPORTER_BADGE
 
         if PRE_CON:
             if self.paid == NOT_PAID or not self.has_personalized_badge or self.is_unassigned:
