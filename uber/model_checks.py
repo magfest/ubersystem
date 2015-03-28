@@ -91,15 +91,15 @@ def attendee_misc(attendee):
     if (AT_THE_CON and attendee.email and not re.match(EMAIL_RE, attendee.email)) or (not AT_THE_CON and not re.match(EMAIL_RE, attendee.email)):
         return 'Enter a valid email address'
 
-    if COLLECT_INTERESTS and not attendee.ec_name:
-        return 'Enter the name of your emergency contact.'
+    #if COLLECT_INTERESTS and not attendee.ec_name:
+    #    return 'Enter the name of your emergency contact.'
 
     if not attendee.international and not AT_THE_CON:
         if _invalid_zip_code(attendee.zip_code):
             return 'Enter a valid zip code'
 
-        if COLLECT_INTERESTS and _invalid_phone_number(attendee.ec_phone):
-            return 'Enter a 10-digit emergency contact number'
+        #if COLLECT_INTERESTS and _invalid_phone_number(attendee.ec_phone):
+        #    return 'Enter a 10-digit emergency contact number'
 
         if attendee.cellphone and _invalid_phone_number(attendee.cellphone):
             return 'Invalid 10-digit phone number'
@@ -112,7 +112,7 @@ def attendee_misc(attendee):
 
     if not attendee.can_volunteer and attendee.staffing and attendee.badge_type != STAFF_BADGE and PRE_CON:
         return "Volunteers cannot be " + attendee.age_group_desc
-    
+
     if not attendee.can_register:
         return 'Attendees '+ attendee.age_group_desc +' years of age do not need to register, but MUST be accompanied by a parent at all times!'
 
