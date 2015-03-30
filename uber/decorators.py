@@ -182,15 +182,7 @@ def sessionized(func):
 def renderable_data(data=None):
     data = data or {}
     data['c'] = c
-    data['PAGE'] = cherrypy.request.path_info.split('/')[-1]
     data.update({m.__name__: m for m in sa.Session.all_models()})
-
-    # we use a try/except here instead of an "in" check because cherrypy.session won't exist in a Python REPL
-    try:
-        data['CSRF_TOKEN'] = cherrypy.session['csrf_token']
-    except:
-        pass
-
     return data
 
 

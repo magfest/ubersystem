@@ -111,6 +111,18 @@ class Config:
     def PRE_CON(self):
         return not c.AT_OR_POST_CON
 
+    @property
+    def CSRF_TOKEN(self):
+        return cherrypy.session['csrf_token']
+
+    @property
+    def PAGE_PATH(self):
+        return cherrypy.request.path_info
+
+    @property
+    def PAGE(self):
+        return cherrypy.request.path_info.split('/')[-1]
+
     def __getattr__(self, name):
         if name.split('_')[0] in ['BEFORE', 'AFTER']:
             date_setting = getattr(c, name.split('_', 1)[1])
@@ -223,7 +235,8 @@ for _badge_type, _range in _config['badge_ranges'].items():
 _make_enum('age_group', OrderedDict([(name, section['desc']) for name, section in _config['age_groups'].items()]))
 c.AGE_GROUP_CONFIGS = {}
 for _name, _section in _config['age_groups'].items():
-    c.AGE_GROUP_CONFIGS[getattr(c, _name.upper())] = _section.dict()
+    _val = getattr(c, _name.upper())
+    c.AGE_GROUP_CONFIGS[_val] = dict(_section.dict(), val=_val)
 
 c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
 c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]
@@ -275,24 +288,6 @@ c.WEIGHT_OPTS = (
     ('2.5', 'x2.5'),
 )
 c.JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'restricted', 'extra15']
-
-c.TABLE_OPTS = [
-    (0.5, 'Half Table'),
-    (1.0, 'Full Table'),
-    (2.0, 'Double Table'),
-    (3.0, 'Triple Table'),
-    (4.0, 'Island/Quad Table')
-]
-
-c.ADMIN_TABLE_OPTS = [(0.0, 'No Table')] + c.TABLE_OPTS + [(float(i), str(i)) for i in range(5, 11)]
-
-c.TABLE_PRICES = {0: 0, 0.5: 40, 1: 100, 2: 350, 3: 600, 4: 999}
-
-c.TABLE_OPTS = [(count, '{}: ${}'.format(desc, c.TABLE_PRICES[count])) for count, desc in c.TABLE_OPTS]
-
-c.TABLE_EXTRA_PRICES = {c.POWER_TABLE: 60, c.WALL_TABLE: 10}
-
-c.MAX_DEALER_BADGES = {0: 1, 0.5: 2, 1: 2, 2: 3, 3: 4, 4: 5}
 
 c.NIGHT_DISPLAY_ORDER = [getattr(c, night.upper()) for night in c.NIGHT_DISPLAY_ORDER]
 c.NIGHT_NAMES = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']

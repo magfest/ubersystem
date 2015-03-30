@@ -64,17 +64,13 @@ def attendee_misc(attendee):
     if attendee.group_id and not attendee.first_name.strip() and not attendee.last_name.strip():
         return
 
-    # TODO: try to avoid making changes in validators; we can probably just check for falsey-ness and leave it as ''
-    if c.COLLECT_EXACT_BIRTHDATE and attendee.birthdate == '':
-        attendee.birthdate = None  # Prevent insertion errors for placeholder attendees
-
     if not attendee.first_name or not attendee.last_name:
         return 'First Name and Last Name are required'
     elif attendee.placeholder:
         return
 
     if c.COLLECT_EXACT_BIRTHDATE:
-        if attendee.birthdate is None:
+        if not attendee.birthdate:
             return 'Enter your date of birth.'
         elif attendee.birthdate > date.today():
             return 'You cannot be born in the future.'

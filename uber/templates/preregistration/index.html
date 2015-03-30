@@ -56,7 +56,7 @@
         <td>{{ attendee.full_name }}</td>
         <td>
             <ul style="padding-left:15px">
-                <li>Membership for Anthrocon</li>
+                <li>Membership for {{ c.EVENT_NAME }}</li>
                 {% for swag in attendee.donation_swag %}
                     <li>{{ swag }}</li>
                 {% endfor %}

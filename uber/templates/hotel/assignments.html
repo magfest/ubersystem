@@ -19,7 +19,7 @@
                 $scope.departmentName = '{{ department_name }}';
 
                 $scope.NIGHTS = {{ nights|jsonize }};
-                $scope.csrf_token = '{{ CSRF_TOKEN }}';
+                $scope.csrf_token = '{{ c.CSRF_TOKEN }}';
                 $scope.slug = '{{ checklist.conf.slug }}';
                 $scope.relevant = {{ checklist.relevant|jsonize }};
                 $scope.completed = {{ checklist.completed|yesno:"true,false" }};

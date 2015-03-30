@@ -15,7 +15,7 @@
         var ATTENDEES = {{ attendees|jsonize }};  // Attendee service checks for this global variable to get preloaded data
         angular.module('tabletop')
             .controller('MainController', function ($scope, $http) {
-                $http.defaults.headers.common = {'CSRF-Token': '{{ CSRF_TOKEN }}'};
+                $http.defaults.headers.common = {'CSRF-Token': '{{ c.CSRF_TOKEN }}'};
             });
     </script>
 </head>

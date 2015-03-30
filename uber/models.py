@@ -826,8 +826,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         if c.AT_THE_CON and self.badge_num and self.is_new:
             self.checked_in = datetime.now(UTC)
 
-        if c.COLLECT_EXACT_BIRTHDATE:
-            self.age_group = self.session.age_group_from_birthdate(self.birthdate)
+        if self.birthdate and not self.age_group:
+            self.age_group = self.age_group_conf['val']
 
         for attr in ['first_name', 'last_name']:
             value = getattr(self, attr)

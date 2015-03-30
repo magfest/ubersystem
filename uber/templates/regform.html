@@ -1,486 +1,96 @@
 
-{% if attendee.is_dealer %}
 <script type="text/javascript">
-    $(document).ready(function() {
-        setBadgesLimit();
-        setDealerCost();
-        setExtraOpts();
-        donationChanged();
-
-        $('[name="table_extras"]').on("click", setDealerCost);
-    });
-
-    function setBadgesLimit() {
-        var current_options = $("[name='badges'] option").length;
-        if ($.val("tables") <= 1) {
-            var badge_num = 2;
-        } else {
-            var badge_num = parseInt($.val("tables")) + 1;
-        }
-
-        if (current_options > badge_num) {
-            for (i = badge_num + 1; i <= current_options; i++) {
-                $("[name='badges'] option[value='" + i + "']").remove()
+    // TODO: what if they enter an exact birthdate?
+    var AGE_GROUPS = {{ c.AGE_GROUP_CONFIGS|jsonize }};
+    var ageGroupSelected = function () {
+        {% if not c.COLLECT_EXACT_BIRTHDATE %}
+            setVisible('#age_disclaimer', AGE_GROUPS[$.val('age_group')].consent_form);
+            if (!$.field('badge_type') || $.val('badge_type') !== {{ c.PSEUDO_DEALER_BADGE }}) {
+                setVisible('.staffing', AGE_GROUPS[$.val('age_group')].can_volunteer);
+                staffingClicked();
             }
-        } else if (current_options < badge_num) {
-            for (i = current_options + 1; i <= badge_num; i++) {
-                $("[name='badges']").append('<option value="'+ i +'">'+ i +'</option>')
-            }
-        }
-    }
-
-    // This affects the display only.
-    function setDealerCost() {
-        {% if attendee.badge_type == c.PSEUDO_DEALER_BADGE %}
-            $("#cost").empty();
-            var table_cost = 0;
-            var badge_cost = 0;
-            var extra_cost = 0;
-            var kickin_cost = $.val("amount_extra");
-
-            // Cost for tables
-            if ($.val("tables") == 0.5) {
-                table_cost = 40;
-            } else if ($.val("tables") == 1) {
-                table_cost = 100;
-            } else if ($.val("tables") == 2) {
-                table_cost = 350;
-            } else if ($.val("tables") == 3) {
-                table_cost = 600;
-            } else if ($.val("tables") == 4) {
-                table_cost = 999;
-            }
-
-            // Cost for badges
-            badge_cost = {{ c.BADGE_PRICE }} * $.val("badges");
-
-            // Extra options cost
-            if ($("input[value='{{ c.POWER_TABLE }}']:checked").length) {
-                extra_cost += 60;
-            }
-
-            if ($("input[value='{{ c.WALL_TABLE }}']:checked").length) {
-                extra_cost += 10;
-            }
-
-            total_cost = table_cost + badge_cost + extra_cost + kickin_cost;
-            $("#cost").html("$"+ total_cost);
         {% endif %}
-    }
-
-    function setExtraOpts() {
-        if ($.val("tables") == 4) {
-            $('[name="table_extras"]').prop('checked', false);
-            $('#table_extras').hide();
-        } else {
-            $('#table_extras').show();
-        }
-    }
-
-    $(document).ready(function() {
-        // TODO: Hard-coded "Sponsor" and "Supersponsor" prices should instead grab from PREREG_DONATION_OPTS
-        var sponsor_addon = 50;
-        var super_sponsor_addon = 195;
-
-        {% if attendee.badge_type != c.PSEUDO_DEALER_BADGE %}
-            // Display the correct badge name based on Badge Type and Ribbon.
-            {% if attendee.is_new and group.ribbon_and_or_badge %}
-                badge_label = "{{ group.ribbon_and_or_badge }}";
-            {% elif attendee.ribbon_and_or_badge %}
-                badge_label = "{{ attendee.ribbon_and_or_badge }}";
-            {% else %}
-                badge_label = "{{ attendee.badge_type_label }}";
-            {% endif %}
-        {% else %}
-            // Hard-coded label for new dealers because reasons.
-            badge_label = "Dealer";
-        {% endif %}
-
-        if (badge_label != "Attending") { var extra_badge_label = badge_label + " / " } else { var extra_badge_label = "" }
-
-        // Special-cases the display price for attendees claiming badges in a group
-        {% if attendee.is_new and not group.is_new %}
-            badge_price = 0;
-        {% else %}
-            badge_price = {{ attendee.badge_cost }};
-        {% endif %}
-
-        // Custom price bump warning
-        {% if c.BEFORE_FIRST_PRICE_BUMP and attendee.is_new %}
-            if (badge_price > 0) {
-                attendee_bump_warning = "($55 after Feb 1)<br/>";
-                sponsor_bump_warning = "($105 after Feb 1)<br/>";
-                ss_bump_warning = "($250 after Feb 1)<br/>";
-            } else {
-                attendee_bump_warning = "";
-                sponsor_bump_warning = "";
-                ss_bump_warning = "";
-            }
-        {% else %}
-            attendee_bump_warning = "";
-            sponsor_bump_warning = "";
-            ss_bump_warning = "";
-        {% endif %}
-
-        // Populates the "badge" choices
-        if (badge_price > 0) { var price_display = ": $"+badge_price; } else { var price_display = "" }
-        $('#attendee_select').html('<h4 class="list-group-item-heading">' +
-                                    badge_label + price_display +
-                                    '</h4>' + attendee_bump_warning +
-                                    '<p class="list-group-item-text">Allows access to the convention for its duration.</p>');
-
-        var sponsor_badge_price = badge_price + sponsor_addon;
-        $('#featured1_select').html('<h4 class="list-group-item-heading">' +
-                                    extra_badge_label + 'Sponsor: $'+sponsor_badge_price+'</h4>' + sponsor_bump_warning +
-                                    '<p class="list-group-item-text">Donate extra and get perks on top of an attending membership.</p>');
-
-        var super_sponsor_badge_price = badge_price + super_sponsor_addon;
-        $('#featured2_select').html('<h4 class="list-group-item-heading">' +
-                                    extra_badge_label + 'Supersponsor: $'+super_sponsor_badge_price+'</h4>' + ss_bump_warning +
-                                    '<p class="list-group-item-text">The most generous option - get even more great perks!</p>');
-
-        // Sets the badge box to correspond to the the session's kick-in level
-        if ($.val('amount_extra') === sponsor_addon) {
-            setBadge('Featured1');
-        } else if ($.val('amount_extra') === super_sponsor_addon) {
-            setBadge('Featured2');
-        } else {
-            setBadge('Attendee');
-        }
-
-        // If the attendee has already paid, they cannot downgrade their badge
-        if ({{ attendee.amount_paid }} >= sponsor_badge_price) {
-            $("#attendee_select").addClass("disabled");
-            $("#attendee_select").prop("onclick",null);
-        }
-        if ({{ attendee.amount_paid }} >= super_sponsor_badge_price) {
-            $("#featured1_select").addClass("disabled");
-            $("#featured1_select").prop("onclick",null);
-        }
-    })
-
-    function setBadge(badgeType) {
-        var sponsor_addon = 50;
-        var super_sponsor_addon = 195;
-
-        $(".badge_type_selector").removeClass("active");
-        $(".group_fields").addClass("hide");
-        if (badgeType == 'Attendee') {
-            {% if attendee.badge_type != c.PSEUDO_DEALER_BADGE %}if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ c.ATTENDEE_BADGE }}"); }{% endif %}
-            $("#attendee_select").addClass("active");
-            $.field("amount_extra").val('0').trigger("change");
-        }
-        if (badgeType == 'Group') {
-            if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ c.PSEUDO_GROUP_BADGE }}"); }
-            $(".group_fields").removeClass("hide");
-            $("#group_select").addClass("active");
-            $.field("amount_extra").val('0').trigger("change");
-        }
-        if (badgeType == 'Featured1') {
-            {% if attendee.badge_type != c.PSEUDO_DEALER_BADGE %}if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ c.ATTENDEE_BADGE }}"); }{% endif %}
-            $("#featured1_select").addClass("active");
-            $.field("amount_extra").val(sponsor_addon).trigger("change");
-        }
-        if (badgeType == 'Featured2') {
-            {% if attendee.badge_type != c.PSEUDO_DEALER_BADGE %}if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ c.ATTENDEE_BADGE }}"); }{% endif %}
-            $("#featured2_select").addClass("active");
-            $.field("amount_extra").val(super_sponsor_addon).trigger("change");
-        }
-    }
-
-    $(document).ready(function() {
-        if ($("input[name='international']")) {
-            $("#international").hide();
-            setInternational();
-        }
-    });
-
-    function setInternational() {
-        countryName = $("input[name='country']").val();
-
-        if(countryName == "USA" || countryName == "US" || countryName == "United States") {
-            $("input[name='international']").prop('checked', false);
-        } else {
-            $("input[name='international']").prop('checked', true);
-        }
-    }
-
-    var ageGroupSelected = function() {
-        setVisible("#age_disclaimer", $.val("age_group") === {{ c.UNDER_18 }});
-        if (!$.field("badge_type") || $.val("badge_type") !== {{ c.PSEUDO_DEALER_BADGE }}) {
-            setVisible(".staffing", $.val("age_group") !== {{ c.UNDER_18}});
-            staffingClicked(true);
-        }
     }
     $(ageGroupSelected);
 
-    var staffingClicked = function(nonGui) {
-        var checked = $.field("staffing").is(":visible:checked");
-        setVisible("#departments", checked);
-        setVisible("#nophone", checked);
-        $("#phone").css("font-weight", checked ? "bold" : "normal");
-        if (!nonGui) {
-            $.focus("email");
-        }
+    var staffingClicked = function () {
+        var checked = $.field('staffing').is(':visible:checked');
+        setVisible('#departments', checked);
+
+        // TODO: maybe change the wording, since you don't need to provide a phone number anyway...
+        //setVisible($('input[name=no_cellphone]').parents('.form-group'), checked);
+
+        // TODO: different styling for required and optional fields?
+        //$('#cellphone').css('font-weight', checked ? 'bold' : 'normal');
     }
-    $(staffingClicked);
+    $(staffingClicked);    
 </script>
-{% endif %}
 
-<div class="panel panel-default">
-    {% if not attendee.is_dealer %}
-    <div class="row bs-wizard" style="border-bottom:0;border-top:0;">   
-        <div class="col-xs-4 bs-wizard-step active">
-            <div class="text-center bs-wizard-stepnum">Step 1</div>
-            <div class="progress"><div class="progress-bar"></div></div>
-            <a class="bs-wizard-dot"></a>
-            <div class="bs-wizard-info text-center">Enter Info</div>
-        </div> 
-        <div class="col-xs-4 bs-wizard-step disabled">
-            <div class="text-center bs-wizard-stepnum">Step 2</div>
-            <div class="progress"><div class="progress-bar"></div></div>
-            <a class="bs-wizard-dot"></a>
-            <div class="bs-wizard-info text-center">Review &amp; Pay</div>
-        </div>
-        <div class="col-xs-4 bs-wizard-step disabled">
-            <div class="text-center bs-wizard-stepnum">Step 3</div>
-            <div class="progress"><div class="progress-bar"></div></div>
-            <a class="bs-wizard-dot"></a>
-            <div class="bs-wizard-info text-center">Done</div>
-        </div>
-    </div>
-    {% endif %}
+<div class="form-group"></div> <!-- spacing -->
 
-<form method="post" action="form" class="form-horizontal" role="form">
-<input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
-{% if edit_id %}
-    <input type="hidden" name="edit_id" value="{{ edit_id }}" />
-{% endif %}
-{% if attendee.is_dealer %}
-    <span class="text-center"><h2>Dealer Application</h2></span>
-{% endif %}
-
-<div class="form-group">
-    <label for="badge" class="col-sm-2 control-label">Badge
-    <br/><br/><span class="popup">{% popup_link "../static_views/badge_descriptions.html" "What's the difference?" %}</span></label>
-
-    <div class="list-group">
-        <div class="col-sm-3">
-            <a id="attendee_select" onclick="setBadge('Attendee'); setDealerCost();" class="list-group-item badge_type_selector active">
-                <h4 class="list-group-item-heading">Attending: ${{ c.BADGE_PRICE }}</h4>
-                {% if c.BEFORE_FIRST_PRICE_BUMP %}($55 after Jan 1)<br/>{% endif %}
-                <!-- TODO: fix price bump display -->
-                <p class="list-group-item-text">Allows access to the convention for its duration.</p>
-            </a>
-        </div>
-
-        {% if c.GROUPS_ENABLED and attendee.is_new and not group_id %}
-            <div class="col-sm-3 {% if not c.BEFORE_GROUP_PREREG_TAKEDOWN %}disabled{% endif %}">
-                <a id="group_select" {% if c.BEFORE_GROUP_PREREG_TAKEDOWN %}onclick="setBadge('Group')"{% endif %} class="list-group-item badge_type_selector">
-                    <h4 class="list-group-item-heading">Group Leader</h4>
-                    {% if c.BEFORE_GROUP_PREREG_TAKEDOWN %}
-                        <p class="list-group-item-text">Register a group of 8 or more at discounted rates.</p>
-                    {% else %}
-                        <p class="list-group-item-text">The deadline for Group registration has passed, but you can still register as a regular attendee.</p>
-                    {% endif %}
-                </a>
-            </div>
-        {% endif %}
-
-        <div class="col-sm-3">
-            <a id="featured1_select" onclick="setBadge('Featured1'); setDealerCost();" class="list-group-item badge_type_selector">
-                <h4 class="list-group-item-heading">Sponsor</h4>
-                <p class="list-group-item-text">Donate extra and get perks on top of an attending membership.</p>
-            </a>
-        </div>
-
-        <div class="col-sm-3">
-            <a id="featured2_select" onclick="setBadge('Featured2'); setDealerCost();" class="list-group-item badge_type_selector">
-                <h4 class="list-group-item-heading">Super Sponsor</h4>
-                <p class="list-group-item-text">The most generous option - get even more great perks!</p>
-            </a>
-        </div>
-    </div>
-</div>
-
-{% if not attendee.is_dealer %}
-<div class="form-group">
-    <p class="help-block col-sm-8 col-sm-offset-2"><strong>Dealers:</strong>
-        {% if c.BEFORE_DEALER_REG_PUBLIC %}Registrations for dealer memberships begins December 15.
-        {% else %}Please register <a href="{{ c.URL_BASE }}/preregistration/dealer_registration">here</a>.
-        {% endif %}</p>
-</div>
-
-<div class="group_fields hide">
+{% if c.PAGE == 'confirm' %}
     <div class="form-group">
-    <label for="name" class="col-sm-2 control-label">Group Name</label>
-    <div class="col-sm-6">
-      <input type="text" name="name" class="form-control" value="{{ group.name }}" />
+        <label for="email" class="col-sm-2 control-label">Legal Name</label>
+        <div class="col-sm-6">{{ attendee.full_name }}</div>
     </div>
-    </div>
-</div>
-
-<div class="group_fields hide">
+{% else %}
     <div class="form-group">
-    <label for="name" class="col-sm-2 control-label">Badges</label>
-    <div class="col-sm-6">
-      <select name="badges" class="form-control">{% int_options c.MIN_GROUP_SIZE c.MAX_GROUP_SIZE badges %}</select>
-            (${{ c.GROUP_PRICE }} each)
-    </div>
-    </div>
-</div>
-{% endif %}
-
-{% if attendee.is_dealer %}
-    <div class="form-group">
-        <label for="name" class="col-sm-2 control-label">Total Cost:</label>
-        <div class="col-sm-6" id="cost">
-        </div>
-    </div>
-
-    <div class="form-group">
-        <label for="name" class="col-sm-2 control-label">Dealership Name</label>
+        <label for="first_name" class="col-sm-2 control-label">First Name</label>
         <div class="col-sm-6">
-            <input class="form-control" type="text" class="focus" name="name" value="{{ group.name }}" maxlength="40" />
+            <input type="text" name="first_name" id="first_name" value="{{ attendee.first_name }}" class="form-control" placeholder="First Name">
         </div>
     </div>
 
     <div class="form-group">
-        <label for="tables" class="col-sm-2 control-label">Tables</label>
+        <label for="last_name" class="col-sm-2 control-label">Last Name</label>
         <div class="col-sm-6">
-            <select class="form-control" name="tables" onChange="setBadgesLimit(); setExtraOpts(); setDealerCost()">
-                {% options c.TABLE_OPTS group.tables %}
-            </select>
+            <input type="text" name="last_name" id="last_name" value="{{ attendee.last_name }}" class="form-control" placeholder="Last Name">
         </div>
-    </div>
-    <div class="form-group">
-        <p class="help-block col-sm-6 col-sm-offset-2">[<i>You may contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a> to request more than {{ c.MAX_TABLES }} tables.</i>]</p>
-    </div>
-
-    <div class="form-group" id="table_extras">
-        <label for="tables" class="col-sm-2 control-label">Table Extras</label>
-        <div class="col-sm-6">
-            {% checkgroup group.table_extras %}
-        </div>
-    </div>
-    <div class="form-group">
-        <p class="help-block col-sm-6 col-sm-offset-2">Island/Quad table includes two 120V outlets.</p>
     </div>
 
     <div class="form-group">
-        <label for="badges" class="col-sm-2 control-label">Memberships</label>
-        <div class="col-sm-6">
-            <select class="form-control" name="badges" onChange="setDealerCost()">{% int_options 1 c.MAX_DEALERS badges %}</select>
-        </div>
-    </div>
-    <div class="form-group">
-        <p class="help-block col-sm-6 col-sm-offset-2">The number of people working your table, including yourself.</p>
-    </div>
-
-    <div class="form-group">
-        <label for="wares" class="col-sm-2 control-label">What do you sell?</label>
-        <div class="col-sm-6">
-            <textarea class="form-control" name="wares" rows="4">{{ group.wares }}</textarea>
-        </div>
-    </div>
-    <div class="form-group">
-        <p class="help-block col-sm-6 col-sm-offset-2">Please be detailed; include a link to view your wares if possible.</p>
-    </div>
-
-    <div class="form-group">
-        <label for="description" class="col-sm-2 control-label">Description</label>
-        <div class="col-sm-6">
-            <textarea class="form-control" name="description" rows="4" maxlength="400">{{ group.description }}</textarea>
-        </div>
-    </div>
-    <div class="form-group">
-        <p class="help-block col-sm-6 col-sm-offset-2">Please keep to one sentence.</p>
-    </div>
-
-    <div class="form-group">
-        <label for="special_needs" class="col-sm-2 control-label">Table Requests and Special Requests</label>
-        <div class="col-sm-6">
-            <textarea class="form-control" name="special_needs" rows="4" placeholder="E.g., specific table, who you would like to sit near, who you would not like to sit near.">{{ group.special_needs }}</textarea>
-        </div>
-    </div>
-    <div class="form-group">
-        <p class="help-block col-sm-6 col-sm-offset-2">No guarantees that we can accommodate any requests.</p>
-    </div>
-
-    <div class="form-group">
-        <label for="website" class="col-sm-2 control-label">Website URL</label>
-        <div class="col-sm-6">
-            <input class="form-control" type="text" name="website" value="{{ group.website }}" size="40" />
-        </div>
-    </div>
-    <div class="form-group">
-        <p class="help-block col-sm-6 col-sm-offset-2">The one you want us to link on our website, or n/a</p>
+        <p class="help-block col-sm-6 col-sm-offset-2">
+            These must be your legal name.
+            <span class="popup">{% popup_link "../static_views/legal_name.html" "What does this mean?" %}</span>
+        </p>
     </div>
 {% endif %}
 
-<div class="form-group">
-    <label for="first_name" class="col-sm-2 control-label">First Name</label>
-    <div class="col-sm-6">
-        <input type="text" name="first_name" id="first_name" value="{{ attendee.first_name }}" class="form-control" placeholder="First Name">
-    </div>
-</div>
-
-<div class="form-group">
-    <label for="last_name" class="col-sm-2 control-label">Last Name</label>
-    <div class="col-sm-6">
-        <input type="text" name="last_name" id="last_name" value="{{ attendee.last_name }}" class="form-control" placeholder="Last Name">
-    </div>
-</div>
-
-<div class="form-group">
-    <p class="help-block col-sm-6 col-sm-offset-2">
-        These must be your legal name.
-        <span class="popup">{% popup_link "../static_views/legal_name.html" "What does this mean?" %}</span>
-    </p>
-</div>
-
-{% if c.DONATIONS_ENABLED %}
+{% if c.DONATIONS_ENABLED and not attendee.is_dealer %}
     <script type="text/javascript">
-        var donationChanged = function() {
-            setVisible(".affiliate-row", $.val("amount_extra") > 0);
-            setVisible(".shirt-row", $.val("amount_extra") >= {{ c.SHIRT_LEVEL }});
+        var donationChanged = function () {
+            setVisible('.affiliate-row', $.val('amount_extra') > 0);
+            setVisible('.shirt-row', $.val('amount_extra') >= {{ c.SHIRT_LEVEL }});
             {% if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES %}
-                setVisible(".badge-row", true);
+                setVisible('.badge-row', true);
             {% else %}
-                setVisible(".badge-row", $.val("amount_extra") >= {{ c.SUPPORTER_LEVEL }});
+                setVisible('.badge-row', $.val('amount_extra') >= {{ c.SUPPORTER_LEVEL }});
             {% endif %}
         };
         $(function(){
-            if ($.field("amount_extra")) {
+            if ($.field('amount_extra')) {
                 donationChanged();
-                var format = function(opt) {
-                    if (opt.id == {{ c.SUPPORTER_LEVEL }} || opt.id == {{ c.SEASON_LEVEL }}) {
-                        return '<span>' + opt.text + '</span>';
-                    } else {
-                        return opt.text;
-                    }
-                };
-                if ($.field("amount_extra").is('select')) {
-                    $.field("amount_extra").select2({
-                        formatResult: format,
-                        formatSelection: function(opt) { return opt.text; },
+                if ($.field('amount_extra').is('select')) {
+                    $.field('amount_extra').select2({
+                        formatResult: function (opt) { return opt.text; },
+                        formatSelection: function (opt) { return opt.text; },
                         minimumResultsForSearch: 99,
-                        escapeMarkup: function(m) { return m; },
-                        width: "100%",
+                        escapeMarkup: function (m) { return m; },
+                        width: '100%',
                     });
                 }
-                if ($.field("affiliate")) {
-                    $.field("affiliate").select2({
+                if ($.field('affiliate')) {
+                    $.field('affiliate').select2({
                         placeholder: "I don't care about this",
                         createSearchChoice: function(term) {
                             return {id: term, text: term};
                         },
                         data: {{ affiliates|jsonize }},
-                        width: "100%",
-                    }).select2("val", {{ attendee.affiliate|default:""|jsonize }});
+                        width: '100%',
+                    }).select2('val', {{ attendee.affiliate|default:''|jsonize }});
                 }
-                $("form").submit(function(){
-                    $(":submit").attr("value", "Uploading Preregistration...").attr("disabled", true);
+                $('form').submit(function(){
+                    $(':submit').attr('value', 'Uploading Preregistration...').attr('disabled', true);
                 });
             }
         });
@@ -562,9 +172,9 @@
     {% endif %}
 </div>
 
-<div class="form-group">
+<div class="form-group" id="age_disclaimer">
     <p class="help-block col-sm-6 col-sm-offset-2">
-        <span id="age_disclaimer" style="font-style:italic">
+        <span style="font-style:italic">
             {% if c.CONSENT_FORM_URL %}
                 Attendees under 18 <b>MUST</b> bring a signed and notarized parental
                 <nobr><a target="_blank" href="{{ c.CONSENT_FORM_URL }}">permission slip</a></nobr>.
@@ -576,9 +186,9 @@
 <div class="form-group staffing">
     <label for="staffing" class="col-sm-2 control-label">Want to Volunteer?</label>
     <div class="col-sm-6">
-		<input type="checkbox" name="staffing" value="1" {% if attendee.staffing %}checked{% endif %} onClick="staffingClicked()" /> Sign me up! &nbsp;
+        <input type="checkbox" name="staffing" value="1" {% if attendee.staffing %}checked{% endif %} onClick="staffingClicked()" /> Sign me up! &nbsp;
         <span class="popup">{% popup_link "../static_views/stafferComps.html" "What do I get for volunteering?" %}</span>
-  	</div>
+    </div>
 </div>
 
 <div class="form-group staffing" id="departments">
@@ -659,6 +269,13 @@
 <div class="form-group">
     <label for="cellphone" class="col-sm-2 control-label">Your Phone Number</label>
     <div class="col-sm-6">
+      <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" class="form-control" placeholder="Who we should contact if something happens to you">
+    </div>
+</div>
+
+<div class="form-group">
+    <label for="cellphone" class="col-sm-2 control-label">Your Phone Number</label>
+    <div class="col-sm-6">
       <input type="text" name="cellphone" id="cellphone" value="{{ attendee.cellphone }}" class="form-control" placeholder="Your Phone Number">
     </div>
 </div>
@@ -673,17 +290,6 @@
         </div>
     </div>
 {% endif %}
-
-<div class="form-group">
-    <label for="ec_phone" class="col-sm-2 control-label">Backup Phone Number</label>
-    <div class="col-sm-6">
-        <input type="text" name="ec_name" id="ec_name" value="{{ attendee.ec_name }}" class="form-control" placeholder="Backup Phone Name">
-    </div>
-    <br /><br />
-    <div class="col-sm-6">
-        <input type="text" name="ec_phone" id="ec_phone" value="{{ attendee.ec_phone }}" class="form-control" placeholder="Backup Phone Number">
-    </div>
-</div>
 
 <div class="form-group">
     <label class="col-sm-2 control-label">What interests you?</label>
@@ -711,15 +317,5 @@
     <div class="col-sm-6">
         {% checkbox attendee.can_spam %} Send me emails relating to {% organization_and_event_name %} in future years.
         <span class="popup">{% popup_link "../static_views/privacy.html" "View Our Privacy Policy" %}</span>
-    </div>
-</div>
-
-<div class="form-group">
-    <div class="col-sm-6 col-sm-offset-2">
-        {% if attendee.is_dealer %}
-            <button type="submit" class="btn btn-primary" value="Submit Application">Submit Application</button>
-        {% else %}
-            <button type="submit" class="btn btn-primary" value="Preregister">Preregister</button>
-        {% endif %}
     </div>
 </div>

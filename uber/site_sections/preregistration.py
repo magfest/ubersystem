@@ -106,7 +106,6 @@ class Root:
                         'attendee': attendee }), model=attendee)
         return {'message': message}
 
-
     @check_if_can_reg
     def index(self, message=''):
         if not self.unpaid_preregs:
@@ -116,22 +115,17 @@ class Root:
                 'message': message,
                 'charge': Charge(listify(self.unpaid_preregs.values()))
             }
-              
+
     @check_if_can_reg
     def badge_choice(self, message=''):
         return {'message': message}
-        
+
     @check_if_can_reg
     def dealer_registration(self, message=''):
         return self.form(badge_type=c.PSEUDO_DEALER_BADGE, message=message)
 
     @check_if_can_reg
     def form(self, session, message='', edit_id=None, **params):
-        if c.MODE == 'magstock':
-            if params.get('buy_shirt') != 'on':
-                params['shirt'] = c.NO_SHIRT
-                params['shirt_color'] = c.NO_SHIRT
-
         params['id'] = 'None'   # security!
         if edit_id is not None:
             attendee, group = self._get_unsaved(edit_id, if_not_found=HTTPRedirect('form?message={}', 'That preregistration has already been finalized'))
@@ -146,10 +140,10 @@ class Root:
             attendee.badge_type = c.ATTENDEE_BADGE
         if attendee.badge_type not in c.PREREG_BADGE_TYPES:
             raise HTTPRedirect('form?message={}', 'Invalid badge type!')
-            
+
         if attendee.is_dealer and not c.DEALER_REG_OPEN:
             return render('static_views/dealer_reg_closed.html') if c.AFTER_DEALER_REG_SHUTDOWN else render('static_views/dealer_reg_not_open.html')
-            
+
         if 'first_name' in params:
             message = check(attendee) or check_prereg_reqs(attendee)
             if not message and attendee.badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE]:

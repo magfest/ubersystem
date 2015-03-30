@@ -4,7 +4,219 @@
 
 <div class="masthead"></div>
 
+<div class="panel panel-default">
+{% if attendee.is_dealer %}
+    <span class="text-center"><h2>Dealer Application</h2></span>
+{% else %}
+    <script type="text/javascript">
+        var BADGE_TYPES = [{
+            title: 'Attending: ${{ c.BADGE_PRICE }}',
+            description: 'Allows access to the convention for its duration.'
+        }];
+        {% if c.GROUPS_ENABLED and attendee.is_new and not group_id %}
+            BADGE_TYPES.push({
+                title: 'Group Leader',
+                {% if c.BEFORE_GROUP_PREREG_TAKEDOWN %}
+                    description: '<p class="list-group-item-text">Register a group of {{ c.MIN_GROUP_SIZE }} or more and save ${{ c.GROUP_DISCOUNT }} per badge.</p>',
+                {% else %}
+                    description: '<p class="list-group-item-text">The deadline for Group registration has passed, but you can still register as a regular attendee.</p>'
+                {% endif %}
+                onClick: function () {
+                    $('.group_fields').removeClass('hide');
+                    $('input[name="badge_type"]').val('{{ c.PSEUDO_GROUP_BADGE }}');
+                }
+            });
+        {% endif %}
+        BADGE_TYPES.push({
+            title: 'Supporter: ${{ c.BADGE_PRICE|add:c.SUPPORTER_LEVEL }}',
+            description: 'Donate extra and get perks on top of an attending membership.',
+            extra: {{ c.SUPPORTER_LEVEL }}
+        });
+        BADGE_TYPES.push({
+            title: 'Season Supporter: ${{ c.BADGE_PRICE|add:c.SEASON_LEVEL }}',
+            description: 'Fill this in later',
+            extra: {{ c.SEASON_LEVEL }}
+        });
+
+        var setBadge = function (badgeTypeIndex) {
+            var badgeType = BADGE_TYPES[badgeTypeIndex];
+            $('.group_fields').addClass('hide');
+            $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
+            $('.badge_type_selector').removeClass('active');
+            $('.badge_type_selector').slice(badgeTypeIndex, 1 + badgeTypeIndex).addClass('active');
+            $.field('amount_extra').val(badgeType.extra || 0).trigger('change');
+            (badgeType.onClick || $.noop)();
+        }
+        $(function () {
+            $.each(BADGE_TYPES, function (index, badgeType) {
+                $('#badge_types').append(
+                    $('<div class="col-sm-3"></div>').append(
+                        $('<a class="list-group-item badge_type_selector"></a>').click(function () {
+                            setBadge(index);
+                        }).append(
+                            $('<h4 class="list-group-item-heading"></h4>').html(badgeType.title)
+                        ).append(
+                            $('<p class="list-group-item-text"></p>').html(badgeType.description))));
+            });
+        });
+    </script>
+
+    <div class="row bs-wizard" style="border-bottom:0;border-top:0;">   
+        <div class="col-xs-4 bs-wizard-step active">
+            <div class="text-center bs-wizard-stepnum">Step 1</div>
+            <div class="progress">
+                <div class="progress-bar"></div>
+            </div>
+            <a class="bs-wizard-dot"></a>
+            <div class="bs-wizard-info text-center">Enter Info</div>
+        </div> 
+        <div class="col-xs-4 bs-wizard-step disabled">
+            <div class="text-center bs-wizard-stepnum">Step 2</div>
+            <div class="progress">
+                <div class="progress-bar"></div>
+            </div>
+            <a class="bs-wizard-dot"></a>
+            <div class="bs-wizard-info text-center">Review &amp; Pay</div>
+        </div>
+        <div class="col-xs-4 bs-wizard-step disabled">
+            <div class="text-center bs-wizard-stepnum">Step 3</div>
+            <div class="progress">
+                <div class="progress-bar"></div>
+            </div>
+            <a class="bs-wizard-dot"></a>
+            <div class="bs-wizard-info text-center">Done</div>
+        </div>
+    </div>
+
+    <div class="form-group" id="badge_types">
+        <label for="badge" class="col-sm-2 control-label">
+            Badge <br/><br/>
+            <span class="popup">{% popup_link "../static_views/badge_descriptions.html" "What's the difference?" %}</span>
+        </label>
+    </div>
+
+    <div class="form-group">
+        <p class="help-block col-sm-8 col-sm-offset-2">
+            <strong>Dealers:</strong>
+            {% if c.BEFORE_DEALER_REG_PUBLIC %}
+                Registrations for dealer memberships begin December 15.
+            {% else %}
+                Please register <a href="{{ c.URL_BASE }}/preregistration/dealer_registration">here</a>.
+            {% endif %}
+        </p>
+    </div>
+{% endif %}
+
+<form method="post" action="form" class="form-horizontal" role="form">
+
+<input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
+{% if edit_id %}
+    <input type="hidden" name="edit_id" value="{{ edit_id }}" />
+{% endif %}
+
+{% if not attendee.is_dealer %}
+    <div class="group_fields hide">
+        <div class="form-group">
+            <label for="name" class="col-sm-2 control-label">Group Name</label>
+            <div class="col-sm-6">
+                <input type="text" name="name" class="form-control" value="{{ group.name }}" />
+            </div>
+        </div>
+    </div>
+
+    <div class="group_fields hide">
+        <div class="form-group">
+            <label for="name" class="col-sm-2 control-label">Badges</label>
+            <div class="col-sm-6">
+                <select name="badges" class="form-control">{% int_options c.MIN_GROUP_SIZE c.MAX_GROUP_SIZE badges %}</select>
+                (${{ c.GROUP_PRICE }} each)
+            </div>
+        </div>
+    </div>
+{% else %}
+    <div class="form-group">
+        <label for="name" class="col-sm-2 control-label">Dealership Name</label>
+        <div class="col-sm-6">
+            <input class="form-control" type="text" class="focus" name="name" value="{{ group.name }}" maxlength="40" />
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="tables" class="col-sm-2 control-label">Tables</label>
+        <div class="col-sm-6">
+            <select class="form-control" name="tables">
+                {% options c.TABLE_OPTS group.tables %}
+            </select>
+        </div>
+    </div>
+    <div class="form-group">
+        <p class="help-block col-sm-6 col-sm-offset-2">[<i>You may contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a> to request more than {{ c.MAX_TABLES }} tables.</i>]</p>
+    </div>
+
+    <div class="form-group">
+        <label for="badges" class="col-sm-2 control-label">Badges</label>
+        <div class="col-sm-6">
+            <select class="form-control" name="badges" onChange="setDealerCost()">{% int_options 1 c.MAX_DEALERS badges %}</select>
+        </div>
+    </div>
+    <div class="form-group">
+        <p class="help-block col-sm-6 col-sm-offset-2">The number of people working your table, including yourself.</p>
+    </div>
+
+    <div class="form-group">
+        <label for="wares" class="col-sm-2 control-label">What do you sell?</label>
+        <div class="col-sm-6">
+            <textarea class="form-control" name="wares" rows="4">{{ group.wares }}</textarea>
+        </div>
+    </div>
+    <div class="form-group">
+        <p class="help-block col-sm-6 col-sm-offset-2">Please be detailed; include a link to view your wares if possible.</p>
+    </div>
+
+    <div class="form-group">
+        <label for="description" class="col-sm-2 control-label">Description</label>
+        <div class="col-sm-6">
+            <textarea class="form-control" name="description" rows="4" maxlength="400">{{ group.description }}</textarea>
+        </div>
+    </div>
+    <div class="form-group">
+        <p class="help-block col-sm-6 col-sm-offset-2">Please keep to one sentence.</p>
+    </div>
+
+    <div class="form-group">
+        <label for="special_needs" class="col-sm-2 control-label">Table Requests and Special Requests</label>
+        <div class="col-sm-6">
+            <textarea class="form-control" name="special_needs" rows="4" placeholder="E.g., specific table, who you would like to sit near, who you would not like to sit near.">{{ group.special_needs }}</textarea>
+        </div>
+    </div>
+    <div class="form-group">
+        <p class="help-block col-sm-6 col-sm-offset-2">No guarantees that we can accommodate any requests.</p>
+    </div>
+
+    <div class="form-group">
+        <label for="website" class="col-sm-2 control-label">Website URL</label>
+        <div class="col-sm-6">
+            <input class="form-control" type="text" name="website" value="{{ group.website }}" size="40" />
+        </div>
+    </div>
+    <div class="form-group">
+        <p class="help-block col-sm-6 col-sm-offset-2">The one you want us to link on our website, or n/a</p>
+    </div>
+{% endif %}
+
 {% include "regform.html" %}
+
+<div class="form-group">
+    <div class="col-sm-6 col-sm-offset-2">
+        {% if attendee.is_dealer %}
+            <button type="submit" class="btn btn-primary" value="Submit Application">Submit Application</button>
+        {% else %}
+            <button type="submit" class="btn btn-primary" value="Preregister">Preregister</button>
+        {% endif %}
+    </div>
+</div>
+
+</form>
 
 {% include "preregistration/disclaimers.html" %}
 

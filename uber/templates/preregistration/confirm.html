@@ -2,17 +2,17 @@
 {% block title %}Confirm Your Details{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
-<div class="masthead">
-</div>
+
+<div class="masthead"></div>
 
 <script type="text/javascript">
     $(function(){
         {% if attendee.has_personalized_badge %}
-            $(".badge-row").show();
+            $('.badge-row').show();
         {% endif %}
         {% if attendee.amount_extra %}
-            setTimeout(function(){  // make sure this happens after jQuery.select2
-                $.field("amount_extra").find("option").each(function(){
+            setTimeout(function () {  // make sure this happens after jQuery.select2
+                $.field('amount_extra').find('option').each(function(){
                     if ($(this).val() < {{ attendee.amount_extra }}) {
                         $(this).remove();
                     }
@@ -27,53 +27,19 @@
 {% csrf_token %}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
-<br/>
-{% include "preregistration/badge_choice.html" %}
-  <div class="form-group">
-    <label for="email" class="col-sm-2 control-label">Legal Name</label>
-    <div class="col-sm-6">
-      {{ attendee.full_name }}
-    </div>
-  </div>
-  <div class="form-group">
-    <label for="email" class="col-sm-2 control-label">Badge Number</label>
-    <div class="col-sm-6">
-      {{ attendee.badge_num }}
-    </div>
-  </div>
-  <div class="badge-row extra-row form-group" style="display:none">
-    <p class="help-block col-sm-6 col-sm-offset-2">Badge number is subject to change.</p>
-  </div>
-{% include "preregistration/extra.html" %}
-{% include "preregistration/age_and_staffing.html" %}
-<div class="form-group">
-  <label for="email" class="col-sm-2 control-label">Email Address</label>
-  <div class="col-sm-6">
-    <input type="email" name="email" id="email" value="{{ attendee.email }}" class="form-control" placeholder="Email Address">
-  </div>
-</div>
-{% include "preregistration/address.html" %}
-{% include "preregistration/phone_numbers.html" %}
-{% if c.COLLECT_INTERESTS %}
-<div class="form-group">
-  <label class="col-sm-2 control-label">What interests you?</label>
-  <div class="col-sm-10">
-    {% checkgroup attendee.interests %}
-  </div>
-</div>
-{% endif %}
+
+{% include "regform.html" %}
 
 <div class="form-group">
-  <div class="col-sm-6 col-sm-offset-2">
-    <button type="submit" class="btn btn-primary" id="updateButton">
-      {% if attendee.placeholder %}Register{% else %}Update My Info{% endif %}
-    </button>
-    {% if attendee.is_transferable %}
-    <button type="button" class="btn" onClick='location.href="transfer_badge?id={{ attendee.id }}"'>Transfer my Badge</button>
-    {% endif %}
-  </div>
+    <div class="col-sm-6 col-sm-offset-2">
+        <button type="submit" class="btn btn-primary" id="updateButton">
+            {% if attendee.placeholder %}Register{% else %}Update My Info{% endif %}
+        </button>
+        {% if attendee.is_transferable %}
+            <button type="button" class="btn" onClick='location.href="transfer_badge?id={{ attendee.id }}"'>Transfer my Badge</button>
+        {% endif %}
+    </div>
 </div>
-
 
 </form>
 </div>
