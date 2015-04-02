@@ -12,7 +12,6 @@
 
 {% endblock %}
 {% block content %}
-
 <script type="text/javascript">
 <!--
     var $highlit = null;
@@ -34,42 +33,50 @@
             $tr.find(":text").parents("td").css("border", "3px solid red");
     }
 
-    function check_in(id) {
-        if( $("#age_" + id).val() == {{ AGE_UNKNOWN }} ) {
-            alert("You may not check someone in without confirming their age.");
-            return;
-        }
-        $.post("check_in", {id: id,
-                            csrf_token: csrf_token,
-                            age_group:  $("#age_" + id).val(),
-                            badge_num:  $("#num_" + id).val() || ""},
-                function(json) {
-                    var message = json.message;
+    function recordMPointUsage() {
+        $.post("record_old_mpoint_exchange", {
+                    badge_num:  $("#badge_num").val(),
+                    amount:     $("#amount").val(),
+                    csrf_token: csrf_token
+                }, function(json) {
+                    $("#message").html(json.message);
                     if( json.success ) {
-                        message += ' &nbsp; <a href="#" onClick="undoCheckin('+id+','+json.pre_badge+') ; return false">Undo</a>';
-                        $("#paid_" + id).html(json.paid);
-                        $("#cin_" + id).html(json.checked_in);
-                        $("#age_" + id).parent().html(json.age_group);
-                        $("#num_" + id).parent().html(json.badge);
+                        $("#badge_num,#amount").val("");
+                        $("#badge_num").focus();
+                        $("#message").append(' &nbsp; ').append(
+                            $('<a href="#">Undo</a>').click(function(){
+                                undoMPointUsage(json.id);
+                                return false;
+                            }));
                     }
-                    showTop(message);
-                    if( json.increment )
-                        $("#checkin_count").html(1 + parseInt($("#checkin_count").html()));
-                },
-                "json");
+                }, "json");
     }
-    function undoCheckin(id, pre_badge) {
-        $.post("undo_checkin", {id: id, csrf_token: csrf_token, pre_badge: pre_badge},
-                function(s) {
-                    var sep = location.href.indexOf("?")==-1 ? "?" : "&";
-                    location.href += sep + "message=" + encodeURIComponent(s);
+    function undoMPointUsage(id) {
+        $.post("undo_mpoint_exchange", {"id": id, csrf_token: csrf_token}, function(s) {
+            $("#message").html(s);
         });
+    }
+
+    function selectGroup(id, attendee) {
+        selectedGroup = $("#group_" + attendee +" option[value='" + id + "']")
+        if (selectedGroup.val()) {
+            selectedGroup.prop('selected',true);
+            return true
+        } else {
+            alert("Invalid group code!")
+        }
     }
 
     $(function(){
         $("#message").ajaxError(function(){
             showTop("Oh noes - the web server is down or something!!!!!");
         });
+
+        $("#badge_num,#amount").keypress(function(e){
+            if( (e.keyCode || e.which) == 13 )  // ENTER
+                recordMPointUsage();
+        });
+
 
         {% if AT_THE_CON %}
             $(".num").keypress(function(e){
@@ -135,8 +142,9 @@
             <a href="index?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}">{{ pagenum }}</a>
         {% endif %}
     {% endfor %}
-
-<table class="table footable" data-page-size="9999999" data-sort="false">
+{% include "registration/checkin.html" %}
+{% if page %}
+<table class="table footable" data-page-size="9999999">
 <thead><tr>
     <th> <a href="index?order={{ order.group_id }}">Group Name</a> </th>
     <th> <a href="index?order={{ order.last_first }}">Legal Name</a> </th>
@@ -159,38 +167,41 @@
         <td id="name_{{ attendee.id }}" style="text-align:left">
             <a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a>
         </td>
-        <td id="badge_printed_name_{{ attendee.id }}">{{ attendee.badge_printed_name }}</td>
-        <td id="badge_type_{{ attendee.id }}">{{ attendee.badge_type_label }}</td>
-        <td id="badge_num_{{ attendee.id }}">
-            {% if attendee.badge_num != 0 %}
-                {{ attendee.badge_num }}
-            {% endif %}
+        <td>
+            {{ attendee.badge_printed_name }}
         </td>
+        <td><nobr>{{ attendee.badge_type_label }}</nobr></td>
+        <td>{{ attendee.badge_num }}</td>
         <td id="ribbon_{{ attendee.id }}">{{ attendee.ribbon_label }}</td>
         <td id="amount_extra_{{ attendee.id }}">{{ attendee.amount_extra_label }}</td>
         <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
-        {% if attendee.checked_in or not AT_THE_CON %}
-            <td> <nobr>{{ attendee.age_group.desc }}</nobr> </td>
-            {% if AT_THE_CON %}
-                <td> {{ attendee.checked_in|time:"fA"|lower }} {{ attendee.checked_in|date:"D" }} </td>
-            {% endif %}
-        {% elif attendee.paid == NOT_PAID %}
-            <td colspan="2">
-                <a href="new?show_all=true">Go to at-the-door page to check in</a>
-            </td>
-        {% else %}
-            <td>
-                <select id="age_{{ attendee.id }}" onChange="highlight($(this).parents('tr'))">
-                    {% options AGE_GROUP_OPTS attendee.age_group %}
-                </select>
-            </td>
+        <td> <nobr>{{ attendee.age_group_desc }}</nobr> </td>
+        {% if AT_THE_CON and attendee.checked_in %}
+                <td>
+                    {% if attendee.paid == LOST_BADGE %}
+                        <strong>Badge reported as lost!</strong>
+                    {% else %}
+                        {{ attendee.checked_in_local|time:"fA"|lower }} {{ attendee.checked_in_local|date:"D" }} <br/>
+                        <form method="post" action="lost_badge">
+                            <input type="hidden" name="id" value="{{ attendee.id }}" />
+                            <input type="submit" value="Report Lost Badge">
+                        </form>
+                    {% endif %}
+                </td>
+        {% elif AT_THE_CON and attendee.paid != NOT_PAID %}
             <td id="cin_{{ attendee.id }}">
-                <input type="submit" value="Check In" onClick="check_in({{ attendee.id }})" {% if attendee.is_unassigned %}disabled{% endif %} />
+                <button class="attendee-checkin" data-attendeeid="{{ attendee.id }}" {% if attendee.is_unassigned %} disabled {% endif %}>Check In</button>
             </td>
         {% endif %}
+        </td>
     </tr>
 {% endfor %}
 </table>
 </div>
+{% else %}
+    <div class="center">
+        <em>Use the search box above to filter the attendees or select a page to browse all attendees.</em>
+    </div>
+{% endif %}
 
 {% endblock %}

@@ -1,0 +1,11 @@
+{% extends "base-admin.html" %}
+{% block title %}Extra Merch{% endblock %}
+{% block content %}
+
+<h2> {{ attendees|length }} Attendees with Extra Merch </h2>
+
+{% for attendee in attendees %}
+    <li>{{ attendee|form_link }}: {{ attendee.extra_merch }}</li>
+{% endfor %}
+
+{% endblock %}

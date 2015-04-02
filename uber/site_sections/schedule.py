@@ -4,15 +4,16 @@ from django.utils.text import normalize_newlines
 @all_renderable(STUFF)
 class Root:
     @unrestricted
+    @cached
     def index(self, session, message=''):
         if HIDE_SCHEDULE and not AdminAccount.access_set() and not cherrypy.session.get('staffer_id'):
             return "The " + EVENT_NAME + " schedule is being developed and will be made public when it's closer to being finalized."
 
         schedule = defaultdict(lambda: defaultdict(list))
         for event in session.query(Event).all():
-            schedule[event.start_time][event.location].append(event)
+            schedule[event.start_time_local][event.location].append(event)
             for i in range(1, event.duration):
-                half_hour = event.start_time + timedelta(minutes = 30 * i)
+                half_hour = event.start_time_local + timedelta(minutes = 30 * i)
                 schedule[half_hour][event.location].append(EVENT_BOOKED)
 
         max_simul = {}
@@ -70,25 +71,15 @@ class Root:
         cherrypy.response.headers['Content-Disposition'] = 'attachment;filename=Schedule-{}.tsv'.format(int(localized_now().timestamp()))
         schedule = defaultdict(list)
         for event in session.query(Event).order_by('start_time').all():
-            # strip newlines from event descriptions
-            event.description = normalize_newlines(event.description)
-            event.description = event.description.replace('\n', ' ')
-
-            # Guidebook wants a date
-            event.date = event.start_time.strftime('%m/%d/%Y')
-
-            # Guidebook wants an end time, not duration.
-            # also, duration is in half hours. duration=1 means 30 minutes.
-            event.end_time = event.start_time + timedelta(minutes = 30 * event.duration)
-
-            # now just display the times in these fields, not dates
-            event.end_time = event.end_time.strftime('%I:%M:%S %p')
-            event.start_time = event.start_time.strftime('%I:%M:%S %p')
-
-            schedule[event.location_label].append(event)
+            schedule[event.location_label].append(dict(event.to_dict(), **{
+                'date': event.start_time_local.strftime('%m/%d/%Y'),
+                'start_time': event.start_time_local.strftime('%I:%M:%S %p'),
+                'end_time': (event.start_time_local + timedelta(minutes=event.minutes)).strftime('%I:%M:%S %p'),
+                'description': normalize_newlines(event.description).replace('\n', ' ')
+            }))
 
         return render('schedule/schedule.tsv', {
-            'schedule': sorted(schedule.items(), key=lambda tup: ORDERED_EVENT_LOCS.index(tup[1][0].location))
+            'schedule': sorted(schedule.items(), key=lambda tup: ORDERED_EVENT_LOCS.index(tup[1][0]['location']))
         })
 
     @csv_file
@@ -97,7 +88,7 @@ class Root:
         for event in sorted(session.query(Event).all(), key = lambda e: [e.start_time, e.location_label]):
             if 'Panel' in event.location_label or 'Autograph' in event.location_label:
                 out.writerow([event.name,
-                              event.start_time.strftime('%I%p %a').lstrip('0'),
+                              event.start_time_local.strftime('%I%p %a').lstrip('0'),
                               '{} minutes'.format(event.minutes),
                               event.location_label,
                               event.description,
@@ -133,16 +124,20 @@ class Root:
             'upcoming': upcoming
         }
 
-    def form(self, session, message='', panelists=[], **params):
+    def form(self, session, message='', panelists=(), **params):
         event = session.event(params, allowed=['location', 'start_time'])
         if 'name' in params:
             session.add(event)
             message = check(event)
             if not message:
+                new_panelist_ids = set(listify(panelists))
+                old_panelist_ids = {ap.attendee_id for ap in event.assigned_panelists}
                 for ap in event.assigned_panelists:
-                    session.delete(ap)
-                for id in set(listify(panelists)):
-                    session.add(AssignedPanelist(event_id=event.id, attendee_id=id))
+                    if ap.attendee_id not in new_panelist_ids:
+                        session.delete(ap)
+                for attendee_id in new_panelist_ids:
+                    if attendee_id not in old_panelist_ids:
+                        session.add(AssignedPanelist(event=event, attendee_id=attendee_id))
                 raise HTTPRedirect('edit#{}', event.start_slot and (event.start_slot - 1))
 
         return {

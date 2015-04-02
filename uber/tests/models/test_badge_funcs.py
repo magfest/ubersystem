@@ -34,7 +34,6 @@ def change_badge(session, attendee, new_type, new_num=0, expected_num=None):
     assert (new_num if expected_num is None else expected_num) == attendee.badge_num
 
 
-
 class TestNextBadgeNum:
     def test_non_preassigned(self, session):
         assert 0 == session.next_badge_num(ATTENDEE_BADGE, old_badge_num=0)
@@ -67,7 +66,7 @@ class TestNextBadgeNum:
 
 class TestShiftBadges:
     @pytest.fixture(autouse=True)
-    def preconditions(self, precon): pass
+    def preconditions(self, precon, custom_badges_not_ordered): pass
 
     def staff_badges(self, session):
         return sorted(a.badge_num for a in session.query(Attendee).filter_by(badge_type=STAFF_BADGE).all())

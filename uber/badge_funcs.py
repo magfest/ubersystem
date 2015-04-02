@@ -56,14 +56,16 @@ def check_placeholders():
         ['Attendee', REGDESK_EMAIL, not_(or_(Attendee.staffing == True, Attendee.badge_type == GUEST_BADGE, Attendee.ribbon == PANELIST_RIBBON))]
     ]
     with Session() as session:
-        for badge_type, dest, query in emails.items():
-            subject = '{} {} Placeholder Badge Report for {}'.format(EVENT_NAME, badge_type, localized_now().strftime('%Y-%m-%d'))
+        for badge_type, dest, per_email_filter in emails:
+            weeks_until = (EPOCH - localized_now()).days // 7
+            subject = '{} {} Placeholder Badge Report ({} weeks to go)'.format(EVENT_NAME, badge_type, weeks_until)
             if session.no_email(subject):
-                placeholders = session.query(Attendee) \
-                                      .filter(Attendee.registered < localized_now() - timedelta(days=30), *query) \
-                                      .filter_by(placeholder=True) \
-                                      .options(joinedload(Attendee.group)) \
-                                      .order_by(Attendee.registered, Attendee.full_name).all()
+                placeholders = (session.query(Attendee)
+                                       .filter(Attendee.placeholder == True,
+                                               Attendee.registered < localized_now() - timedelta(days=3),
+                                               per_email_filter)
+                                       .options(joinedload(Attendee.group))
+                                       .order_by(Attendee.registered, Attendee.full_name).all())
                 if placeholders:
                     body = render('emails/daily_checks/placeholders.html', {'placeholders': placeholders})
                     send_email(ADMIN_EMAIL, dest, subject, body, format='html', model='n/a')

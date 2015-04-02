@@ -1,0 +1,36 @@
+{% extends "base-admin.html" %}
+{% block title %}All Shifts for All Departments{% endblock %}
+{% block content %}
+
+{% for dept_name, jobs in depts %}
+    {% if jobs %}
+        <div style="page-break-after:always ; font-size:10pt">
+            <h2> {{ dept_name }} </h2>
+            <table>
+            {% for job in jobs %}
+                {% for shift in job.shifts %}
+                    <tr>
+                        <td>{{ job.name }}</td>
+                        <td>{% timespan job %}</td>
+                        <td>{{ shift.attendee.full_name }}</td>
+                        <td><b>Circle One:</b> &nbsp; <i>worked</i> &nbsp; <b>/</b> &nbsp; <i>didn't show up</i></td>
+                        <td>Comments: _____________________________________________</td>
+                    </tr>
+                {% endfor %}
+                {% for i in job.slots_untaken|numeric_range %}
+                    <tr>
+                        <td>{{ job.name }}</td>
+                        <td>{% timespan job %}</td>
+                        <td>____________________<i>(open slot)</i></td>
+                        <td><b>Circle One:</b> &nbsp; <i>worked</i> &nbsp; <b>/</b> &nbsp; <i>didn't show up</i></td>
+                        <td>Comments: _____________________________________________</td>
+                    </tr>
+                {% endfor %}
+                <tr><td colspan="5"><hr/></td></tr>
+            {% endfor %}
+            </table>
+        </div>
+    {% endif %}
+{% endfor %}
+
+{% endblock %}

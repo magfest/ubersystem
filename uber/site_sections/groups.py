@@ -1,6 +1,6 @@
 from uber.common import *
 
-@all_renderable(PEOPLE)
+@all_renderable(PEOPLE, REG_AT_CON)
 class Root:
     def index(self, session, message='', order='name', show='all'):
         which = {
