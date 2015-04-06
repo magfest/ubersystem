@@ -670,12 +670,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def table_cost(self):
-        total = 0
-        total += c.TABLE_PRICES.get(self.tables, 999)
-        for extra, amount in c.TABLE_EXTRA_PRICES.items():
-            if extra in self.table_extras_ints:
-                total += amount
-        return total
+        return sum(c.TABLE_PRICES[i] for i in range(1, 1 + int(self.tables)))
 
     @property
     def new_badge_cost(self):

@@ -443,7 +443,7 @@ class Root:
                 else:
                     raise HTTPRedirect('confirm?id={}&message={}', attendee.id, 'Your registration has been transferred')
         else:
-            for attr in ['first_name','last_name','email','zip_code','international','ec_phone','cellphone','interests','age_group','staffing','requested_depts']:
+            for attr in c.UNTRANSFERABLE_ATTRS:
                 setattr(attendee, attr, getattr(Attendee(), attr))
 
         return {

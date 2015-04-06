@@ -238,6 +238,9 @@ for _name, _section in _config['age_groups'].items():
     _val = getattr(c, _name.upper())
     c.AGE_GROUP_CONFIGS[_val] = dict(_section.dict(), val=_val)
 
+c.TABLE_PRICES = defaultdict(lambda: _config['table_prices']['default_price'],
+                             {int(k): v for k, v in _config['table_prices'].items() if k != 'default_price'})
+
 c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
 c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]
 c.TRANSFERABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.TRANSFERABLE_BADGE_TYPES]

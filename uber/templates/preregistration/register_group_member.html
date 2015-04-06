@@ -3,57 +3,22 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-<div class="masthead">
-</div>
+<div class="masthead"></div>
 
 <div class="panel panel-default">
 <form method="post" action="register_group_member" class="form-horizontal">
 {% csrf_token %}
 <input type="hidden" name="id" value="{{ attendee.db_id }}" />
 <input type="hidden" name="group_id" value="{{ group_id }}" />
-<br/>
-{% include "preregistration/badge_choice.html" %}
-  <div class="form-group">
-    <label for="first_name" class="col-sm-2 control-label">First Name</label>
-    <div class="col-sm-6">
-      <input type="text" name="first_name" id="first_name" value="{{ attendee.first_name }}" class="form-control" placeholder="First Name">
-    </div>
-  </div>
-  <div class="form-group">
-    <label for="last_name" class="col-sm-2 control-label">Last Name</label>
-    <div class="col-sm-6">
-      <input type="text" name="last_name" id="last_name" value="{{ attendee.last_name }}" class="form-control" placeholder="Last Name">
-    </div>
-  </div>
-    <div class="form-group">
-    <p class="help-block col-sm-6 col-sm-offset-2">These must be your legal name. <span class="popup">{% popup_link "../static_views/legal_name.html" "What does this mean?" %}</span></p>
-    </div>
-{% include "preregistration/extra.html" %}
-{% include "preregistration/age_and_staffing.html" %}
-<div class="form-group">
-  <label for="email" class="col-sm-2 control-label">Email Address</label>
-  <div class="col-sm-6">
-    <input type="email" name="email" id="email" value="{{ attendee.email }}" class="form-control" placeholder="Email Address">
-  </div>
-</div>
-{% include "preregistration/address.html" %}
-{% include "preregistration/phone_numbers.html" %}
-{% if c.COLLECT_INTERESTS %}
-<div class="form-group">
-  <label class="col-sm-2 control-label">What interests you?</label>
-  <div class="col-sm-10">
-    {% checkgroup attendee.interests %}
-  </div>
-</div>
-{% endif %}
+
+{% include "regform.html" %}
 
 <div class="form-group">
-  <div class="col-sm-6 col-sm-offset-2">
-    <button type="submit" class="btn btn-primary" id="updateButton">
-      Register
-    </button>
-  </div>
+    <div class="col-sm-6 col-sm-offset-2">
+        <button type="submit" class="btn btn-primary" id="updateButton">Register</button>
+    </div>
 </div>
 </form>
 </div>
+
 {% endblock %}

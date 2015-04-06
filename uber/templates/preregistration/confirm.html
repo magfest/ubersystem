@@ -36,7 +36,7 @@
             {% if attendee.placeholder %}Register{% else %}Update My Info{% endif %}
         </button>
         {% if attendee.is_transferable %}
-            <button type="button" class="btn" onClick='location.href="transfer_badge?id={{ attendee.id }}"'>Transfer my Badge</button>
+            <button type="button" class="btn btn-primary" onClick='location.href="transfer_badge?id={{ attendee.id }}"'>Transfer my Badge</button>
         {% endif %}
     </div>
 </div>

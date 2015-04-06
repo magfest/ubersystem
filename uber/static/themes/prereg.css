@@ -42,3 +42,7 @@ background-repeat: repeat-x repeat-y;
 float: none;
 margin: 0 auto;
 }
+
+.badge_type_selector {
+    cursor: pointer;
+}
