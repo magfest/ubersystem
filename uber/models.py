@@ -81,11 +81,21 @@ class MagModel:
             if col.default:
                 self.__dict__.setdefault(attr, col.default.execute())
 
+    def _invoke_adjustment_callbacks(self, label):
+        callbacks = []
+        for attr_name in dir(self.__class__):
+            class_attr = getattr(self.__class__, attr_name)
+            if hasattr(class_attr, '__call__') and hasattr(class_attr, label):
+                callbacks.append(getattr(self, attr_name))
+        callbacks.sort(key=lambda f: getattr(f, label))
+        for func in callbacks:
+            func()
+
     def presave_adjustments(self):
-        pass
+        self._invoke_adjustment_callbacks('presave_adjustment')
 
     def on_delete(self):
-        pass
+        self._invoke_adjustment_callbacks('on_delete')
 
     @property
     def validators(self):
@@ -544,6 +554,17 @@ class Session(SessionManager):
                 'total': max(0, amt)
             } for aff, amt in sorted(amounts.items(), key=lambda tup: -tup[1])]
 
+    @classmethod
+    def model_mixin(cls, model):
+        for m in cls.all_models():
+            if m.__name__ == model.__name__:
+                for attr in dir(model):
+                    if not attr.startswith('_'):
+                        setattr(m, attr, getattr(model, attr))
+                break
+        else:
+            raise ValueError('No existing model with name {}'.format(model.__name__))
+
 
 class Event(MagModel):
     location    = Column(Choice(c.EVENT_LOCATION_OPTS))
@@ -580,10 +601,10 @@ class Group(MagModel, TakesPaymentMixin):
     amount_paid   = Column(Integer, default=0)
     cost          = Column(Integer, default=0)
     auto_recalc   = Column(Boolean, default=True)
-    status        = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED)
     table_extras  = Column(MultiChoice(c.TABLE_EXTRA_OPTS))
     can_add       = Column(Boolean, default=False)
     admin_notes   = Column(UnicodeText)
+    status        = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED)
     registered    = Column(UTCDateTime, server_default=utcnow())
     approved      = Column(UTCDateTime, nullable=True)
     leader_id     = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader'), nullable=True)
@@ -592,7 +613,8 @@ class Group(MagModel, TakesPaymentMixin):
     _repr_attr_names = ['name']
     _unrestricted = {'name', 'tables', 'address', 'website', 'wares', 'description', 'special_needs', 'table_extras'}
 
-    def presave_adjustments(self):
+    @presave_adjustment
+    def _cost_and_leader(self):
         assigned = [a for a in self.attendees if not a.is_unassigned]
         if len(assigned) == 1:
             [self.leader] = assigned
@@ -600,7 +622,6 @@ class Group(MagModel, TakesPaymentMixin):
             self.cost = self.default_cost
         if self.status == c.APPROVED and not self.approved:
             self.approved = datetime.now(UTC)
-
         if self.leader and self.is_dealer:
             self.leader.ribbon = c.DEALER_RIBBON
 
@@ -724,7 +745,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(Group, backref='attendees', foreign_keys=group_id)
 
-    status        = Column(Choice(c.BADGE_STATUS_OPTS), default=c.NEW_STATUS)
     placeholder   = Column(Boolean, default=False)
     first_name    = Column(UnicodeText)
     last_name     = Column(UnicodeText)
@@ -799,12 +819,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.has_personalized_badge and c.SHIFT_CUSTOM_BADGES:
             self.session.shift_badges(self.badge_type, self.badge_num, down=True)
 
-    def presave_adjustments(self):
-        self._staffing_adjustments()
-        self._badge_adjustments()
-        self._status_adjustments()
-        self._misc_adjustments()
-
+    @presave_adjustment
     def _misc_adjustments(self):
         if not self.amount_extra:
             self.affiliate = ''
@@ -829,15 +844,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             if value.isupper() or value.islower():
                 setattr(self, attr, value.title())
 
-    def _status_adjustments(self):
-        old_status = self.orig_value_of('status')
-        old_amount_paid = self.orig_value_of('amount_paid')
-        if old_status == self.status and old_amount_paid != self.amount_paid:
-            if self.paid == c.NOT_PAID or self.placeholder:
-                self.status = c.NEW_STATUS
-            elif self.paid == c.HAS_PAID or self.paid == c.NEED_NOT_PAY:
-                self.status = c.COMPLETED_STATUS
-
+    @presave_adjustment
     def _badge_adjustments(self):
         #_assert_badge_lock()
 
@@ -856,6 +863,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 if self.paid != c.NOT_PAID:
                     self.badge_num = self.session.next_badge_num(self.badge_type, old_badge_num=0)
 
+    @presave_adjustment
     def _staffing_adjustments(self):
         if self.ribbon == c.DEPT_HEAD_RIBBON:
             self.staffing = self.trusted = True
@@ -1676,5 +1684,3 @@ def register_session_listeners():
     listen(Session.session_factory, 'after_flush', _release_badge_lock)
     listen(Session.engine, 'dbapi_error', _release_badge_lock_on_error)
 register_session_listeners()
-
-__all__ = ['Session'] + [model.__name__ for model in Session.all_models()]

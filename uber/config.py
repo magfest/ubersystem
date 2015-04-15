@@ -309,6 +309,8 @@ c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt,desc) if amt else desc) for
 c.STORE_ITEM_NAMES = list(c.STORE_PRICES.keys())
 c.FEE_ITEM_NAMES = list(c.FEE_PRICES.keys())
 
+c.WRISTBAND_COLORS = defaultdict(lambda: c.DEFAULT_WRISTBAND, c.WRISTBAND_COLORS)
+
 c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
 
 stripe.api_key = c.STRIPE_SECRET_KEY

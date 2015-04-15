@@ -21,7 +21,6 @@ from copy import deepcopy
 from pprint import pformat
 from hashlib import sha512
 from functools import wraps
-from itertools import chain
 from xml.dom import minidom
 from random import randrange
 from contextlib import closing
@@ -29,6 +28,7 @@ from time import sleep, mktime
 from urllib.parse import quote
 from urllib.parse import urlparse
 from urllib.parse import parse_qsl
+from itertools import chain, count
 from collections import defaultdict, OrderedDict
 from os.path import abspath, dirname, exists, join
 from datetime import date, time, datetime, timedelta

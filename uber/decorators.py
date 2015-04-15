@@ -291,3 +291,14 @@ class Validation(object):
         return wrapper
 
 validation = Validation()
+
+
+adjustment_counter = count().__next__
+
+def presave_adjustment(func):
+    func.presave_adjustment = adjustment_counter()
+    return func
+
+def on_delete(func):
+    func.on_delete = adjustment_counter()
+    return func
