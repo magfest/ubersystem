@@ -132,13 +132,6 @@
 
     <div class="form-group">
         <label class="col-sm-2 control-label">Status</label>
-        <div class="col-sm-6">
-
-        </div>
-    </div>
-
-    <div class="form-group">
-        <label class="col-sm-2 control-label"></label>
         <div id="status" class="col-sm-6">
             {% if new_dealer %}
                 <select name="status">
@@ -198,6 +191,8 @@
         </div>
     </div>
 {% endif %}
+
+{% include "groupextra.html" %}
 
 <div class="form-group">
     <label class="col-sm-2 control-label">Admin Notes</label>

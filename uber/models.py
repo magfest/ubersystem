@@ -20,6 +20,7 @@ def Column(*args, **kwargs):
 sqlalchemy_relationship = relationship
 def relationship(*args, **kwargs):
     kwargs.setdefault('load_on_pending', True)
+    kwargs.setdefault('cascade', 'all,delete-orphan')
     return sqlalchemy_relationship(*args, **kwargs)
 
 
@@ -94,8 +95,8 @@ class MagModel:
     def presave_adjustments(self):
         self._invoke_adjustment_callbacks('presave_adjustment')
 
-    def on_delete(self):
-        self._invoke_adjustment_callbacks('on_delete')
+    def predelete_adjustments(self):
+        self._invoke_adjustment_callbacks('predelete_adjustment')
 
     @property
     def validators(self):
@@ -573,6 +574,8 @@ class Event(MagModel):
     name        = Column(UnicodeText, nullable=False)
     description = Column(UnicodeText)
 
+    assigned_panelists = relationship('AssignedPanelist', backref='event')
+
     @property
     def half_hours(self):
         half_hours = set()
@@ -607,7 +610,7 @@ class Group(MagModel, TakesPaymentMixin):
     registered    = Column(UTCDateTime, server_default=utcnow())
     approved      = Column(UTCDateTime, nullable=True)
     leader_id     = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader'), nullable=True)
-    leader        = relationship('Attendee', foreign_keys=leader_id, post_update=True)
+    leader        = relationship('Attendee', foreign_keys=leader_id, post_update=True, cascade='all')
 
     _repr_attr_names = ['name']
     _unrestricted = {'name', 'tables', 'address', 'website', 'wares', 'description', 'special_needs'}
@@ -742,7 +745,7 @@ class Group(MagModel, TakesPaymentMixin):
 
 class Attendee(MagModel, TakesPaymentMixin):
     group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
-    group = relationship(Group, backref='attendees', foreign_keys=group_id)
+    group = relationship(Group, backref='attendees', foreign_keys=group_id, cascade='all')
 
     placeholder   = Column(Boolean, default=False)
     first_name    = Column(UnicodeText)
@@ -801,11 +804,20 @@ class Attendee(MagModel, TakesPaymentMixin):
     nonshift_hours   = Column(Integer, default=0)
     past_years       = Column(UnicodeText)
 
-    no_shirt          = relationship('NoShirt', backref=backref('attendee', load_on_pending=True), uselist=False, cascade='all,delete-orphan')
-    admin_account     = relationship('AdminAccount', backref=backref('attendee', load_on_pending=True), uselist=False, cascade='all,delete-orphan')
-    hotel_requests    = relationship('HotelRequests', backref=backref('attendee', load_on_pending=True), uselist=False, cascade='all,delete-orphan')
-    room_assignments  = relationship('RoomAssignment', backref=backref('attendee', load_on_pending=True), uselist=False, cascade='all,delete-orphan')
-    food_restrictions = relationship('FoodRestrictions', backref=backref('attendee', load_on_pending=True), uselist=False, cascade='all,delete-orphan')
+    no_shirt          = relationship('NoShirt', backref=backref('attendee', load_on_pending=True), uselist=False)
+    admin_account     = relationship('AdminAccount', backref=backref('attendee', load_on_pending=True), uselist=False)
+    hotel_requests    = relationship('HotelRequests', backref=backref('attendee', load_on_pending=True), uselist=False)
+    room_assignments  = relationship('RoomAssignment', backref=backref('attendee', load_on_pending=True), uselist=False)
+    food_restrictions = relationship('FoodRestrictions', backref=backref('attendee', load_on_pending=True), uselist=False)
+
+    games  = relationship('Game', backref='attendee')
+    shifts = relationship('Shift', backref='attendee')
+    checkouts = relationship('Checkout', backref='attendee')
+    sales = relationship('Sale', backref='attendee', cascade='all')
+    mpoints_for_cash = relationship('MPointsForCash', backref='attendee')
+    assigned_panelists = relationship('AssignedPanelist', backref='attendee')
+    old_mpoint_exchanges = relationship('OldMPointExchange', backref='attendee')
+    dept_checklist_items = relationship('DeptChecklistItem', backref='attendee')
 
     _repr_attr_names = ['full_name']
     _unrestricted = {'first_name', 'last_name', 'international', 'zip_code', 'address1', 'address2', 'city', 'region', 'country', 'ec_name',
@@ -813,7 +825,8 @@ class Attendee(MagModel, TakesPaymentMixin):
                      'affiliate', 'shirt', 'can_spam', 'no_cellphone', 'badge_printed_name', 'staffing', 'fire_safety_cert', 'requested_depts',
                      'amount_extra', 'payment_method'}
 
-    def on_delete(self):
+    @predelete_adjustment
+    def _shift_badges(self):
         #_assert_badge_lock()
         if self.has_personalized_badge and c.SHIFT_CUSTOM_BADGES:
             self.session.shift_badges(self.badge_type, self.badge_num, down=True)
@@ -1195,7 +1208,7 @@ class AdminAccount(MagModel):
     hashed      = Column(UnicodeText)
     access      = Column(MultiChoice(c.ACCESS_OPTS))
 
-    password_reset = relationship('PasswordReset', backref='admin_account', uselist=False, cascade='all,delete-orphan')
+    password_reset = relationship('PasswordReset', backref='admin_account', uselist=False)
 
     def __repr__(self):
         return '<{}>'.format(self.attendee.full_name)
@@ -1269,9 +1282,7 @@ class FoodRestrictions(MagModel):
 
 class AssignedPanelist(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='cascade'))
-    attendee    = relationship(Attendee, backref=backref('assigned_panelists', cascade='all,delete-orphan'))
     event_id    = Column(UUID, ForeignKey('event.id', ondelete='cascade'))
-    event       = relationship(Event, backref=backref('assigned_panelists', cascade='all,delete-orphan'))
 
     def __repr__(self):
         return '<{self.attendee.full_name} panelisting {self.event.name}>'.format(self=self)
@@ -1291,11 +1302,11 @@ class Room(MagModel, NightsMixin):
     notes      = Column(UnicodeText)
     nights     = Column(MultiChoice(c.NIGHT_OPTS))
     created    = Column(UTCDateTime, server_default=utcnow())
+    room_assignments = relationship('RoomAssignment', backref='room')
 
 
 class RoomAssignment(MagModel):
     room_id     = Column(UUID, ForeignKey('room.id'))
-    room        = relationship(Room, backref='room_assignments')
     attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
 
 
@@ -1306,13 +1317,12 @@ class NoShirt(MagModel):
 class MerchPickup(MagModel):
     picked_up_by_id  = Column(UUID, ForeignKey('attendee.id'))
     picked_up_for_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
-    picked_up_by     = relationship(Attendee, primaryjoin='MerchPickup.picked_up_by_id == Attendee.id')
-    picked_up_for    = relationship(Attendee, primaryjoin='MerchPickup.picked_up_for_id == Attendee.id')
+    picked_up_by     = relationship(Attendee, primaryjoin='MerchPickup.picked_up_by_id == Attendee.id', cascade='all')
+    picked_up_for    = relationship(Attendee, primaryjoin='MerchPickup.picked_up_for_id == Attendee.id', cascade='all')
 
 
 class DeptChecklistItem(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    attendee    = relationship(Attendee, backref=backref('dept_checklist_items', cascade='all,delete-orphan'))
     slug        = Column(UnicodeText)
     comments    = Column(UnicodeText, default='')
 
@@ -1332,6 +1342,7 @@ class Job(MagModel):
     slots       = Column(Integer)
     restricted  = Column(Boolean, default=False)
     extra15     = Column(Boolean, default=False)
+    shifts      = relationship('Shift', backref='job')
 
     _repr_attr_names = ['name']
 
@@ -1399,9 +1410,7 @@ class Job(MagModel):
 
 class Shift(MagModel):
     job_id      = Column(UUID, ForeignKey('job.id', ondelete='cascade'))
-    job         = relationship(Job, backref='shifts')
     attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='cascade'))
-    attendee    = relationship(Attendee, backref='shifts')
     worked      = Column(Choice(c.WORKED_STATUS_OPTS), default=c.SHIFT_UNMARKED)
     rating      = Column(Choice(c.RATING_OPTS), default=c.UNRATED)
     comment     = Column(UnicodeText)
@@ -1417,21 +1426,18 @@ class Shift(MagModel):
 
 class MPointsForCash(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    attendee    = relationship(Attendee, backref=backref('mpoints_for_cash', cascade='all,delete-orphan'))
     amount      = Column(Integer)
     when        = Column(UTCDateTime, default=lambda: datetime.now(UTC))
 
 
 class OldMPointExchange(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    attendee    = relationship(Attendee, backref=backref('old_mpoint_exchanges', cascade='all,delete-orphan'))
     amount      = Column(Integer)
     when        = Column(UTCDateTime, default=lambda: datetime.now(UTC))
 
 
 class Sale(MagModel):
     attendee_id    = Column(UUID, ForeignKey('attendee.id', ondelete='set null'), nullable=True)
-    attendee       = relationship(Attendee, backref=backref('sales', cascade='all'))
     what           = Column(UnicodeText)
     cash           = Column(Integer, default=0)
     mpoints        = Column(Integer, default=0)
@@ -1453,8 +1459,8 @@ class Game(MagModel):
     code        = Column(UnicodeText)
     name        = Column(UnicodeText)
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    attendee    = relationship(Attendee, backref=backref('games', cascade='all,delete-orphan'))
     returned    = Column(Boolean, default=False)
+    checkouts   = relationship('Checkout', backref='game')
 
     @property
     def checked_out(self):
@@ -1468,9 +1474,7 @@ class Game(MagModel):
 
 class Checkout(MagModel):
     game_id     = Column(UUID, ForeignKey('game.id'))
-    game        = relationship('Game', backref=backref('checkouts', cascade='all,delete-orphan'))
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    attendee    = relationship(Attendee, backref=backref('checkouts', cascade='all,delete-orphan'))
     checked_out = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     returned    = Column(UTCDateTime, nullable=True)
 
@@ -1561,6 +1565,7 @@ class Tracking(MagModel):
                 diff[attr] = "'{} -> {}'".format(cls.repr(column, old_val), cls.repr(column, new_val))
         return diff
 
+    # TODO: add new table for page views to eliminated track_pageview method and to eliminate Budget special case
     @classmethod
     def track(cls, action, instance):
         if action in [c.CREATED, c.UNPAID_PREREG, c.EDITED_PREREG]:
@@ -1573,11 +1578,19 @@ class Tracking(MagModel):
                 action = c.AUTO_BADGE_SHIFT
             elif not data:
                 return
-        elif instance == "Budget": # Vaguely horrifying special-casing where we make up fake data so we can insert this entry into the tracking DB
-            data = "Budget Page"
+        elif instance == 'Budget':  # Vaguely horrifying special-casing where we make up fake data so we can insert this entry into the tracking DB
+            data = 'Budget Page'
             who = AdminAccount.admin_name() or (current_thread().name if current_thread().daemon else 'non-admin')
             with Session() as session:
-                session.add(Tracking(model="Budget", fk_id=str(uuid4()),which="Budget",who=who,links='',action=action,data=data))
+                session.add(Tracking(
+                    model='Budget',
+                    fk_id=str(uuid4()),
+                    which='Budget',
+                    who=who,
+                    links='',
+                    action=action,
+                    data=data
+                ))
             return
         else:
             data = 'id={}'.format(instance.id)
@@ -1657,7 +1670,7 @@ def _presave_adjustments(session, context, instances='deprecated'):
     for model in chain(session.dirty, session.new):
         model.presave_adjustments()
     for model in session.deleted:
-        model.on_delete()
+        model.predelete_adjustments()
 
 def _release_badge_lock(session, context):
     try:

@@ -299,6 +299,6 @@ def presave_adjustment(func):
     func.presave_adjustment = adjustment_counter()
     return func
 
-def on_delete(func):
-    func.on_delete = adjustment_counter()
+def predelete_adjustment(func):
+    func.predelete_adjustment = adjustment_counter()
     return func

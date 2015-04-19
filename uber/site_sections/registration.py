@@ -163,17 +163,15 @@ class Root:
                 session.delete_from_group(attendee, attendee.group)
                 message = 'Unassigned badge removed.'
             else:
-                #session.add(Attendee(**{attr: getattr(attendee, attr) for attr in [
-                #    'group', 'registered', 'badge_type', 'badge_num', 'paid', 'amount_paid', 'amount_extra'
-                #]}))
+                session.add(Attendee(**{attr: getattr(attendee, attr) for attr in [
+                    'group', 'registered', 'badge_type', 'badge_num', 'paid', 'amount_paid', 'amount_extra'
+                ]}))
                 session.assign_badges(attendee.group, attendee.group.badges + 1, attendee.badge_type)
-                Tracking.track(c.INVALIDATED, attendee)
-                #session.delete_from_group(attendee, attendee.group)
+                session.delete_from_group(attendee, attendee.group)
                 attendee.group.attendees.remove(attendee)
                 message = 'Attendee deleted, but this badge is still available to be assigned to someone else in the same group'
         else:
-            Tracking.track(c.INVALIDATED, attendee)
-            #session.delete(attendee)
+            session.delete(attendee)
             message = 'Attendee deleted'
 
         raise HTTPRedirect(return_to + ('' if return_to[-1] == '?' else '&') + 'message={}', message)
