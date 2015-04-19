@@ -601,7 +601,6 @@ class Group(MagModel, TakesPaymentMixin):
     amount_paid   = Column(Integer, default=0)
     cost          = Column(Integer, default=0)
     auto_recalc   = Column(Boolean, default=True)
-    table_extras  = Column(MultiChoice(c.TABLE_EXTRA_OPTS))
     can_add       = Column(Boolean, default=False)
     admin_notes   = Column(UnicodeText)
     status        = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED)
@@ -611,7 +610,7 @@ class Group(MagModel, TakesPaymentMixin):
     leader        = relationship('Attendee', foreign_keys=leader_id, post_update=True)
 
     _repr_attr_names = ['name']
-    _unrestricted = {'name', 'tables', 'address', 'website', 'wares', 'description', 'special_needs', 'table_extras'}
+    _unrestricted = {'name', 'tables', 'address', 'website', 'wares', 'description', 'special_needs'}
 
     @presave_adjustment
     def _cost_and_leader(self):

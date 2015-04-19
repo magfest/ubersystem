@@ -74,6 +74,5 @@ from uber.badge_funcs import *
 from uber import model_checks
 from uber import custom_tags
 from uber import server
-from uber import reset_db
-from uber import config_db
+from uber import sep_commands
 from uber.tests import import_test_data

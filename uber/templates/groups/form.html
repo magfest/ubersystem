@@ -30,83 +30,116 @@
     });
 </script>
 
+<div class="panel panel-default">
+
 <h2> Group Info </h2>
 
 <div style="text-align:center">
     <a href="index">Return to group list</a>
 </div>
 
-<form method="post" action="form">
+<form method="post" action="form" class="form-horizontal">
 {% csrf_token %}
 <input type="hidden" name="id" value="{{ group.db_id }}" />
 <input type="hidden" name="new_dealer" value="{{ new_dealer }}" />
 
-<table>
-<tr>
-    <td width="25%"> <b><nobr>Name of Group:</nobr></b> </td>
-    <td width="75%"> <input class="focus" type="text" name="name" value="{{ group.name }}" /> </td>
-</tr>
-<!-- we need to register a placeholder group leader with this new group -->
+<div class="form-group">
+    <label class="col-sm-2 control-label">Name of Group</label>
+    <div class="col-sm-6">
+        <input class="focus" type="text" name="name" value="{{ group.name }}" />
+    </div>
+</div>
+
+<!-- we need to register a placeholder group leader for new dealers -->
 {% if new_dealer %}
-    <tr>
-        <td> <nobr><b>Owner's First and Last Name:</b></nobr> </td>
-        <td>
+    <div class="form-group">
+        <label class="col-sm-2 control-label">Owner's First and Last Name</label>
+        <div class="col-sm-6">
             <input type="text" name="first_name" value="{{ first_name }}" style="width:10em" />
             <input type="text" name="last_name" value="{{ last_name }}" style="width:15em" />
-        </td>
-    </tr>
-    <tr>
-        <td> <nobr><b>Owner's Email Address:</b></nobr> </td>
-        <td> <input type="text" name="email" value="{{ email }}" /> </td>
-    </tr>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-2 control-label">Owner's Email Address</label>
+        <div class="col-sm-6">
+            <input type="text" name="email" value="{{ email }}" />
+        </div>
+    </div>
 {% endif %}
-<tr>
-    <td> <b>Tables:</b> </td>
-    <td>
+
+<div class="form-group">
+    <label class="col-sm-2 control-label">Tables</label>
+    <div class="col-sm-6">
         <select name="tables">
-            {% options c.ADMIN_TABLE_OPTS group.tables %}
+            {% int_options 0 9 group.tables %}
         </select>
-    </td>
-</tr>
-<tr>
-    <td><b>Table Extras:</b></td>
-    <td>
-        {% checkgroup group.table_extras %}
-    </td>
-</tr>
-<tr>
-    <td> <b>Badges:</b> </td>
-    <td> <select name="badges">{% int_options 0 c.MAX_GROUP_SIZE group.badges %}</select> [{{ group.badges_purchased }} badge(s) purchased]</td>
-</tr>
-<tr>
-    <td><b>Badge Type:</b></td>
-    <td> <select name="badge_type">{% options c.BADGE_OPTS group.leader.badge_type %}</select></td>
-</tr>
-<tr>
-    <td> <b><nobr>Amount Paid:</nobr></b> </td>
-    <td> $<input type="text" style="width:4em" name="amount_paid" value="{{ group.amount_paid }}" /> </td>
-</tr>
-<tr>
-    <td> <b><nobr>Total Group Price:</nobr></b> </td>
-    <td>
+    </div>
+</div>
+
+<div class="form-group">
+    <label class="col-sm-2 control-label">Badges</label>
+    <div class="col-sm-6">
+        <select name="badges">
+            {% int_options 0 c.MAX_GROUP_SIZE group.badges %}
+        </select>
+        {% if not group.is_new %}
+            [{{ group.badges_purchased }} badge(s) purchased]
+        {% endif %}
+    </div>
+</div>
+
+<div class="form-group">
+    <label class="col-sm-2 control-label">Badge Type</label>
+    <div class="col-sm-6">
+        <select name="badge_type">
+            {% options c.BADGE_OPTS group.leader.badge_type %}
+        </select>
+    </div>
+</div>
+
+<div class="form-group">
+    <label class="col-sm-2 control-label">Amount Paid</label>
+    <div class="col-sm-6">
+        $<input type="text" style="width:4em" name="amount_paid" value="{{ group.amount_paid }}" />
+    </div>
+</div>
+
+<div class="form-group">
+    <label class="col-sm-2 control-label">Total Group Price</label>
+    <div class="col-sm-6">
         $<input type="text" style="width:4em" name="cost" value="{{ group.cost }}" />
         {% checkbox group.auto_recalc %} Automatically recalculate this number.
-    </td>
-</tr>
-<tr>
-    <td> <b><nobr>Can Add Badges:</nobr></b> </td>
-    <td> {% checkbox group.can_add %} Allow this group to add badges </td>
-</tr>
+    </div>
+</div>
+
+<div class="form-group">
+    <label class="col-sm-2 control-label">Can Add Badges</label>
+    <div class="col-sm-6">
+        {% checkbox group.can_add %} Allow this group to add badges
+    </div>
+</div>
+
 {% if new_dealer or group.is_dealer %}
     {% if group.leader %}
-        <tr>
-            <td> <b>Phone Number</b> </td>
-            <td> {{ group.leader.cellphone }} </td>
-        </tr>
+        <div class="form-group">
+            <label class="col-sm-2 control-label">Phone Number</label>
+            <div class="col-sm-6">
+                {{ group.leader.cellphone }}
+            </div>
+        </div>
     {% endif %}
-    <tr>
-        <td valign="top"> <b>Status</b> </td>
-        <td id="status">
+
+    <div class="form-group">
+        <label class="col-sm-2 control-label">Status</label>
+        <div class="col-sm-6">
+
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-2 control-label"></label>
+        <div id="status" class="col-sm-6">
             {% if new_dealer %}
                 <select name="status">
                     <option value="{{ c.APPROVED }}">Approved</option>
@@ -127,44 +160,63 @@
                     </div>
                 {% endif %}
             {% endif %}
-        </td>
-    </tr>
-    <tr>
-        <td valign="top"> <b>What do they sell?</b> </td>
-        <td> <textarea rows="3" cols="30" name="wares">{{ group.wares }}</textarea>
-    </tr>
-    <tr>
-        <td> <b>Tax ID</b> </td>
-        <td> <input type="text" name="website" value="{{ group.website }}" />
-    </tr>
-    <tr>
-        <td valign="top"> <b>Description</b> </td>
-        <td> <textarea rows="3" cols="30" name="description">{{ group.description }}</textarea>
-    </tr>
-    <tr>
-        <td valign="top"> <b>Special Requests</b> </td>
-        <td> <textarea rows="3" cols="30" name="special_needs">{{ group.special_needs }}</textarea>
-    </tr>
-    <tr>
-        <td valign="top"> <b>Address</b> </td>
-        <td> <textarea rows="3" cols="30" name="address">{{ group.address }}</textarea>
-    </tr>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-2 control-label">What do they sell?</label>
+        <div class="col-sm-6">
+            <textarea rows="3" cols="30" name="wares">{{ group.wares }}</textarea>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-2 control-label">Tax ID</label>
+        <div class="col-sm-6">
+            <input type="text" name="website" value="{{ group.website }}" />
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-2 control-label">Description</label>
+        <div class="col-sm-6">
+            <textarea rows="3" cols="30" name="description">{{ group.description }}</textarea>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-2 control-label">Special Requests</label>
+        <div class="col-sm-6">
+            <textarea rows="3" cols="30" name="special_needs">{{ group.special_needs }}</textarea>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-2 control-label">Address</label>
+        <div class="col-sm-6">
+            <textarea rows="3" cols="30" name="address">{{ group.address }}</textarea>
+        </div>
+    </div>
 {% endif %}
-<tr>
-    <td valign="top"> <nobr>Admin Notes:</nobr> </td>
-    <td> <textarea name="admin_notes" rows="3" style="width:66%">{{ group.admin_notes }}</textarea> </td>
-</tr>
-</table>
 
-<br/>
+<div class="form-group">
+    <label class="col-sm-2 control-label">Admin Notes</label>
+    <div class="col-sm-6">
+        <textarea name="admin_notes" rows="3" style="width:66%">{{ group.admin_notes }}</textarea>
+    </div>
+</div>
 
-<div style="margin-left:25%">
-    <input type="submit" value="Upload Info" />
-    &nbsp;&nbsp;&nbsp;&nbsp;
-    <a href="index">Return to Group List</a>
+<div class="form-group">
+    <div class="col-sm-6 col-sm-offset-2">
+        <button type="submit" class="btn btn-primary" value="Upload">Upload</button>
+    </div>
 </div>
 
 </form>
+
+<div style="text-align:center">
+    <a href="index">Return to group list</a>
+</div>
 
 {% if not group.is_new %}
     <br/>
@@ -223,5 +275,7 @@
     {% endfor %}
     </table>
 {% endif %}
+
+</div>
 
 {% endblock %}
