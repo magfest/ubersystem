@@ -110,7 +110,7 @@ class Config:
 
     @property
     def CSRF_TOKEN(self):
-        return cherrypy.session['csrf_token']
+        return cherrypy.session['csrf_token'] if 'csrf_token' in cherrypy.session else ''
 
     @property
     def PAGE_PATH(self):
