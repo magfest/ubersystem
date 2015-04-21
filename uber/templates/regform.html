@@ -79,7 +79,7 @@
                             minimumResultsForSearch: 99,
                             escapeMarkup: function (m) { return m; },
                             width: '100%',
-                        });
+                        }).select2('val', {{ attendee.amount_extra }});
                     }
                 {% endif %}
                 if ($.field('affiliate')) {

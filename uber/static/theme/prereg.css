@@ -1,6 +1,6 @@
 .masthead{
     height:200px;
-    background-image:url("//www.anthrocon.org/sites/all/themes/anthrocon-2015/images/anthrocon-2015/banner.png");
+    background-image:url("../theme/banner.png");
     background-repeat:no-repeat;
     background-position: center;
 }
@@ -11,7 +11,7 @@
 
 body {
 background-color: #856145;
-background-image: url("//www.anthrocon.org/sites/all/themes/anthrocon-2015/images/anthrocon-2015/tile-background.jpg");
+background-image: url("../theme/tile-background.jpg");
 background-repeat: repeat-x repeat-y;
 }
 

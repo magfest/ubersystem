@@ -562,7 +562,7 @@ class Session(SessionManager):
                 for attr in dir(model):
                     if not attr.startswith('_'):
                         setattr(m, attr, getattr(model, attr))
-                break
+                return m
         else:
             raise ValueError('No existing model with name {}'.format(model.__name__))
 

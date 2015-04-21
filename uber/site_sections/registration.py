@@ -1,18 +1,9 @@
 from uber.common import *
 
 def check_everything(attendee):
-    if c.MODE == 'magstock':
-        shirt_size_selected = attendee.shirt != c.NO_SHIRT
-        shirt_color_selected = attendee.shirt_color != c.NO_SHIRT
-        if shirt_size_selected != shirt_color_selected:
-            return 'Shirt color/size not valid combination. Either set both or remove both'
-
     if c.AT_THE_CON and attendee.id is None:
         if isinstance(attendee.badge_num, str) or attendee.badge_num < 0:
-            if c.MODE != 'magstock':
-                return 'Invalid badge number'
-            else:
-                attendee.badge_num = next_badge_num(attendee.badge_type)
+            return 'Invalid badge number'
 
         if attendee.id is None and attendee.badge_num != 0 and attendee.session.query(Attendee).filter_by(badge_type=attendee.badge_type, badge_num=attendee.badge_num).count():
             return 'Another attendee already exists with that badge number'
@@ -259,10 +250,6 @@ class Root:
         success, increment = True, False
 
         if not attendee.badge_num:
-            if c.MODE == 'magstock':
-                if not badge_num or badge_num == 0:
-                    badge_num = next_badge_num(attendee.badge_type)
-
             message = check_range(badge_num, attendee.badge_type)
             if not message:
                 maybe_dupe = session.query(Attendee).filter_by(badge_num=badge_num, badge_type=attendee.badge_type)
@@ -584,10 +571,6 @@ class Root:
         checked_in = ''
         badge_num = int(badge_num) if badge_num.isdigit() else 0
         attendee = session.attendee(id)
-
-        if c.MODE == 'magstock' and not badge_num:
-            badge_num = next_badge_num(attendee.badge_type)
-
         existing = session.query(Attendee).filter_by(badge_num=badge_num).all()
         if 'reg_station' not in cherrypy.session:
             raise HTTPRedirect('new_reg_station')

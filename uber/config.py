@@ -1,8 +1,5 @@
 from uber.common import *
 
-__all__ = ['c']
-
-
 class Config:
     """
     We have two types of configuration.  One is the values which come directly from our config file, such

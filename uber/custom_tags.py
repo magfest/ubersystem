@@ -139,10 +139,10 @@ class options(template.Node):
                 opt = [opt, opt]
             val, desc = opt
             if isinstance(val, datetime):
-                selected = 'selected' if val == default else ''
+                selected = 'selected="selected"' if val == default else ''
                 val = val.strftime(c.TIMESTAMP_FORMAT)
             else:
-                selected = "selected" if str(val) == str(default) else ''
+                selected = 'selected="selected"' if str(val) == str(default) else ''
             val  = str(val).replace('"',  '&quot;').replace('\n', '')
             desc = str(desc).replace('"', '&quot;').replace('\n', '')
             results.append('<option value="{}" {}>{}</option>'.format(val, selected, desc))
@@ -194,7 +194,7 @@ class int_options(template.Node):
 
         results = []
         for i in range(minval, maxval+1):
-            selected = 'selected' if i==default else ''
+            selected = 'selected="selected"' if i==default else ''
             results.append('<option value="{val}" {selected}>{val}</option>'.format(val=i, selected=selected))
         return '\n'.join(results)
 

@@ -63,7 +63,7 @@ class Root:
 _sections = [path.split('/')[-1][:-3] for path in glob(os.path.join(c.MODULE_ROOT, 'site_sections', '*.py'))
                                       if not path.endswith('__init__.py')]
 for _section in _sections:
-    _module = __import__('uber.site_sections.' + _section, fromlist=['Root'])
+    _module = importlib.import_module('uber.site_sections.' + _section)
     setattr(Root, _section, _module.Root())
 
 
@@ -76,11 +76,12 @@ class Redirector:
             raise HTTPRedirect(c.PATH)
 
 cherrypy.tree.mount(Root(), c.PATH, c.APPCONF)
+static_overrides(join(c.MODULE_ROOT, 'static'))
 
 DaemonTask(check_unassigned, interval=300)
 DaemonTask(detect_duplicates, interval=300)
 DaemonTask(check_placeholders, interval=300)
 DaemonTask(AutomatedEmail.send_all, interval=300)
 
-# TODO: this should be replaced by something a little cleaner, because it's a useful debugging tool
+# TODO: this should be replaced by something a little cleaner, but it can be a useful debugging tool
 #DaemonTask(lambda: log.error(Session.engine.pool.status()), interval=5)

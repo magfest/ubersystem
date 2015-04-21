@@ -27,16 +27,20 @@
                 }
             });
         {% endif %}
-        BADGE_TYPES.push({
-            title: 'Supporter: ${{ c.BADGE_PRICE|add:c.SUPPORTER_LEVEL }}',
-            description: 'Donate extra and get perks on top of an attending membership.',
-            extra: {{ c.SUPPORTER_LEVEL }}
-        });
-        BADGE_TYPES.push({
-            title: 'Season Supporter: ${{ c.BADGE_PRICE|add:c.SEASON_LEVEL }}',
-            description: 'Fill this in later',
-            extra: {{ c.SEASON_LEVEL }}
-        });
+        {% if c.SUPPORTER_LEVEL in c.DONATION_TIERS %}
+            BADGE_TYPES.push({
+                title: 'Supporter: ${{ c.BADGE_PRICE|add:c.SUPPORTER_LEVEL }}',
+                description: 'Donate extra and get perks on top of an attending membership.',
+                extra: {{ c.SUPPORTER_LEVEL }}
+            });
+        {% endif %}
+        {% if c.SEASON_LEVEL in c.DONATION_TIERS %}
+            BADGE_TYPES.push({
+                title: 'Season Supporter: ${{ c.BADGE_PRICE|add:c.SEASON_LEVEL }}',
+                description: 'Fill this in later',
+                extra: {{ c.SEASON_LEVEL }}
+            });
+        {% endif %}
 
         var setBadge = function (badgeTypeIndex) {
             var badgeType = BADGE_TYPES[badgeTypeIndex];
@@ -58,6 +62,15 @@
                         ).append(
                             $('<p class="list-group-item-text"></p>').html(badgeType.description))));
             });
+            var target = $.val('name') ? 1 : 0;  // default to attendee or group
+            if (target !== 1) {
+                $.each(BADGE_TYPES, function (i, badgeType) {
+                    if (badgeType.extra && badgeType.extra <= $.val('amount_extra')) {
+                        target = i;
+                    }
+                });
+            }
+            setBadge(target);
         });
     </script>
 

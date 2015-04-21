@@ -235,11 +235,27 @@ def genpasswd():
         return ''.join(chr(randrange(33, 127)) for i in range(8))
 
 
-@entry_point
-def print_config():
+def template_overrides(dirname):
     """
-    print all config values to stdout, used for debugging / status checking
-    useful if you want to verify that Ubersystem has pulled in the INI values you think it has.
+    Each event can have its own plugin and override our default templates with
+    its own by calling this method and passing its templates directory.
     """
-    from uber.config import _config
-    pprint(_config.dict())
+    django.conf.settings.TEMPLATE_DIRS.insert(0, dirname)
+
+
+def static_overrides(dirname):
+    """
+    We want plugins to be able to specify their own static files to override the
+    ones which we provide by default.  The main files we expect to be overridden
+    are the theme image files, but theoretically a plugin can override anything
+    it wants by calling this method and passing its static directory.
+    """
+    appconf = cherrypy.tree.apps['/uber'].config
+    basedir = os.path.abspath(dirname).rstrip('/')
+    for dpath, dirs, files in os.walk(basedir):
+        relpath = dpath[len(basedir):]
+        for fname in files:
+            appconf['/static' + relpath + '/' + fname] = {
+                'tools.staticfile.on': True,
+                'tools.staticfile.filename': os.path.join(dpath, fname)
+            }

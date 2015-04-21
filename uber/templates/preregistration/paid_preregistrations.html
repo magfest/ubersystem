@@ -50,22 +50,23 @@
 <p>The following preregistrations have been made from this computer:</p>
 
 <table class="table footable">
-  <tr><td>Legal Name</td><td>Badge Name</td><td>Badge Number</td><td>Confirmation Link</td></tr>
-  {% for prereg in preregs %}
-  {% if prereg.first_name %}
-  <tr>
-    <td>{{ prereg.full_name }}</td>
-    <td>{{ prereg.badge_printed_name }}</td>
-    <td>{{ prereg.badge_num }}</td>
-    <td><a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ prereg.id }}" target="_blank">Click Here</a></td>
-  </tr>
-  {% else %}
-  <tr>
-    <td>{{ prereg.name }}</td>
-    <td colspan="3">(<a href="group_members?id={{ prereg.id }}" target="_blank">Click Here</a> to assign your group's badges)</td>
-  </tr>
-  {% endif %}
-  {% endfor %}
+<tr>
+    <td>Legal Name</td>
+    <td>Confirmation Link</td>
+</tr>
+{% for prereg in preregs %}
+    {% if prereg.first_name %}
+        <tr>
+            <td>{{ prereg.full_name }}</td>
+            <td><a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ prereg.id }}" target="_blank">Click Here</a></td>
+        </tr>
+    {% else %}
+        <tr>
+            <td>{{ prereg.name }}</td>
+            <td colspan="3">(<a href="group_members?id={{ prereg.id }}" target="_blank">Click Here</a> to assign your group's badges)</td>
+        </tr>
+    {% endif %}
+{% endfor %}
 </table>
 </div>
 </div>
