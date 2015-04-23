@@ -108,6 +108,7 @@
         </label>
     </div>
 
+{% if c.DEALER_REG_START %}
     <div class="form-group">
         <p class="help-block col-sm-8 col-sm-offset-2">
             <strong>Dealers:</strong>
@@ -118,6 +119,7 @@
             {% endif %}
         </p>
     </div>
+{% endif %}
 {% endif %}
 
 <form method="post" action="form" class="form-horizontal" role="form">
