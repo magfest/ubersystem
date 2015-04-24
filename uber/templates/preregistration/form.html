@@ -27,7 +27,7 @@
                 }
             });
         {% endif %}
-        {% if c.SUPPORTER_LEVEL in c.DONATION_TIERS %}
+        {% if c.SUPPORTER_LEVEL in c.DONATION_TIERS and c.SUPPORTER_AVAILABLE %}
             BADGE_TYPES.push({
                 title: 'Supporter: ${{ c.BADGE_PRICE|add:c.SUPPORTER_LEVEL }}',
                 description: 'Donate extra and get perks on top of an attending membership.',
@@ -131,7 +131,6 @@
 
 {% if not attendee.is_dealer %}
     <div class="form-group"></div> <!-- spacing -->
-
     <div class="group_fields hide">
         <div class="form-group">
             <label for="name" class="col-sm-2 control-label">Group Name</label>

@@ -120,6 +120,18 @@ class Config:
     def PAGE(self):
         return cherrypy.request.path_info.split('/')[-1]
 
+    @property
+    def SUPPORTER_COUNT(self):
+        with sa.Session() as session:
+            attendees = session.query(sa.Attendee)
+            individual_supporters = attendees.filter(or_(sa.Attendee.paid == self.HAS_PAID,
+                                                         sa.Attendee.paid == self.REFUNDED),
+                                                         sa.Attendee.amount_extra == c.SUPPORTER_LEVEL).count()
+            group_supporters = attendees.join(sa.Attendee.group).filter(sa.Attendee.paid == self.PAID_BY_GROUP,
+                                                                        sa.Attendee.amount_extra == c.SUPPORTER_LEVEL,
+                                                                        sa.Group.amount_paid > 0).count()
+            return individual_supporters + group_supporters
+
     def __getattr__(self, name):
         if name.split('_')[0] in ['BEFORE', 'AFTER']:
             date_setting = getattr(c, name.split('_', 1)[1])
@@ -131,6 +143,16 @@ class Config:
                 return sa.localized_now() > date_setting
         elif name.startswith('HAS_') and name.endswith('_ACCESS'):
             return getattr(c, name.split('_')[1]) in sa.AdminAccount.access_set()
+        elif name.endswith('_AVAILABLE'):
+            item_check = name.split('_', 1)[0]
+            stock_setting = getattr(c, item_check+'_STOCK', None)
+            count_check = getattr(self, item_check+'_COUNT', None)
+            if count_check is None:
+                return False # Fails quietly - is it better to throw an error?
+            elif stock_setting is None:
+                return True # Defaults to unlimited stock for any stock not configured
+            else:
+                return count_check < stock_setting
         else:
             raise AttributeError('no such attribute {}'.format(name))
 
