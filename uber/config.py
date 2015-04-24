@@ -72,7 +72,7 @@ class Config:
 
     @property
     def PREREG_DONATION_OPTS(self):
-        if sa.localized_now() < self.SUPPORTER_DEADLINE:
+        if sa.localized_now() < self.SUPPORTER_DEADLINE and c.SUPPORTER_AVAILABLE:
             return self.DONATION_TIER_OPTS
         else:
             return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS if amt < self.SUPPORTER_LEVEL]
