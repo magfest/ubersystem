@@ -9,23 +9,32 @@
                 staffingClicked();
             }
         {% endif %}
-    }
+    };
     $(ageGroupSelected);
 
     var staffingClicked = function () {
         var checked = $.field('staffing').is(':visible:checked');
         setVisible('#departments', checked);
+        setVisible($.field('no_cellphone').parents('.checkbox'), checked);
+        $('#cellphone').parents('.form-group').find('label:first').css('font-weight', checked ? 'bold' : 'normal');
+    };
+    $(staffingClicked);
 
-        // TODO: maybe change the wording, since you don't need to provide a phone number anyway...
-        //setVisible($('input[name=no_cellphone]').parents('.form-group'), checked);
-
-        // TODO: different styling for required and optional fields?
-        //$('#cellphone').css('font-weight', checked ? 'bold' : 'normal');
-    }
-    $(staffingClicked);    
+    var noCellphoneClicked = function () {
+        setVisible($.field('cellphone'), $.field('no_cellphone').is(':not(:checked)'));
+    };
+    $(function () {
+        noCellphoneClicked();
+        $.field('no_cellphone').on('click', noCellphoneClicked);
+    });
 </script>
 
 <div class="form-group"></div> <!-- spacing -->
+
+<div class="form-group">
+    <label class="col-sm-2 control-label">&nbsp;</label>
+    <div class="col-sm-6 heading-label">Bold fields are required</div>
+</div>
 
 {% if c.PAGE == 'confirm' %}
     <div class="form-group">
@@ -111,12 +120,11 @@
                 </select>
             {% endif %}
         </div>
-    </div>
-
-    <div class="extra-row form-group">
-        <p class="help-block col-sm-6 col-sm-offset-2">{% popup_link "../static_views/givingExtra.html" "Why do this?" %}</p>
-        <p class="help-block col-sm-6 col-sm-offset-2">Each level includes all lower levels.</p>
-        <p class="help-block col-sm-6 col-sm-offset-2">Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime }}.</p>
+        {% popup_link "../static_views/givingExtra.html" "Why do this?" %}
+        <p class="help-block col-sm-6">
+            Each level includes all lower levels. <br/>
+            Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime }}.
+        </p>
     </div>
 
     <div class="badge-row extra-row form-group" style="display:none">
@@ -137,7 +145,7 @@
     {% endif %}
     
     <div class="affiliate-row extra-row form-group" style="display:none">
-        <label for="affiliate" class="col-sm-2 control-label">Affiliate</label>
+        <label for="affiliate" class="col-sm-2 control-label optional-field">Affiliate</label>
         <div class="col-sm-6">
             <input type="hidden" name="affiliate" style="width:30ex" />
         </div>
@@ -155,6 +163,21 @@
             <option value="{{ c.NO_SHIRT }}">Select a shirt size</option>
             {% options c.PREREG_SHIRT_OPTS attendee.shirt %}
         </select>
+    </div>
+</div>
+
+<div class="form-group staffing">
+    <label for="staffing" class="col-sm-2 control-label">Want to Volunteer?</label>
+    <div class="col-sm-6">
+        <input type="checkbox" name="staffing" value="1" {% if attendee.staffing %}checked{% endif %} onClick="staffingClicked()" /> Sign me up! &nbsp;
+        <span class="popup">{% popup_link "../static_views/stafferComps.html" "What do I get for volunteering?" %}</span>
+    </div>
+</div>
+
+<div class="form-group staffing" id="departments">
+    <label for="requested_depts" class="col-sm-2 control-label">Where do you want to help?</label>
+    <div class="col-sm-6">
+        {% checkgroup attendee.requested_depts %}
     </div>
 </div>
 
@@ -184,21 +207,6 @@
             {% endif %}
         </span>
     </p>
-</div>
-
-<div class="form-group staffing">
-    <label for="staffing" class="col-sm-2 control-label">Want to Volunteer?</label>
-    <div class="col-sm-6">
-        <input type="checkbox" name="staffing" value="1" {% if attendee.staffing %}checked{% endif %} onClick="staffingClicked()" /> Sign me up! &nbsp;
-        <span class="popup">{% popup_link "../static_views/stafferComps.html" "What do I get for volunteering?" %}</span>
-    </div>
-</div>
-
-<div class="form-group staffing" id="departments">
-    <label for="requested_depts" class="col-sm-2 control-label">Where do you want to help?</label>
-    <div class="col-sm-6">
-        {% checkgroup attendee.requested_depts %}
-    </div>
 </div>
 
 <div class="form-group">
@@ -257,68 +265,62 @@
         <div class="col-sm-6">
             <input type="text" name="zip_code" class="form-control" value="{{ attendee.zip_code }}" />
         </div>
-    </div>
-{% endif %}
-
-<div class="form-group" id="international">
-    <div class="checkbox col-sm-6 col-sm-offset-2">
-        <label>
-            {% checkbox attendee.international %}
-            I'm coming from outside the US.
-        </label>
-    </div>
-</div>
-
-<div class="form-group">
-    <label for="cellphone" class="col-sm-2 control-label">Emergency Contact Phone Number</label>
-    <div class="col-sm-6">
-      <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" class="form-control" placeholder="Who we should contact if something happens to you">
-    </div>
-</div>
-
-<div class="form-group">
-    <label for="cellphone" class="col-sm-2 control-label">Your Phone Number</label>
-    <div class="col-sm-6">
-      <input type="text" name="cellphone" id="cellphone" value="{{ attendee.cellphone }}" class="form-control" placeholder="Your Phone Number">
-    </div>
-</div>
-
-{% if not attendee.is_dealer %}
-    <div class="form-group">
         <div class="checkbox col-sm-6 col-sm-offset-2">
             <label>
-                {% checkbox attendee.no_cellphone %}
-                I don't wish to provide a phone number.
+                {% checkbox attendee.international %}
+                I'm coming from outside the US.
             </label>
         </div>
     </div>
 {% endif %}
 
 <div class="form-group">
-    <label class="col-sm-2 control-label">What interests you?</label>
+    <label for="ec_phone" class="col-sm-2 control-label">Emergency Contact Phone Number</label>
+    <div class="col-sm-6">
+        <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" class="form-control" placeholder="Who we should contact if something happens to you">
+    </div>
+</div>
+
+<div class="form-group">
+    <label for="cellphone" class="col-sm-2 control-label optional-field">Your Cellphone Number</label>
+    <div class="col-sm-6">
+        <input type="text" name="cellphone" id="cellphone" value="{{ attendee.cellphone }}" class="form-control" placeholder="Your Personal Cellphone Number">
+    </div>
+    {% if not attendee.is_dealer %}
+        <div class="checkbox col-sm-6">
+            <label class="cellphone-excuse">
+                {% checkbox attendee.no_cellphone %}
+                I don't own a cellphone.
+            </label>
+        </div>
+    {% endif %}
+</div>
+
+<div class="form-group">
+    <label class="col-sm-2 control-label optional-field">What interests you?</label>
     <div class="col-sm-10">
         {% checkgroup attendee.interests %}
     </div>
 </div>
 
 <div class="form-group">
-    <label for="email" class="col-sm-2 control-label">How did you find {{ c.EVENT_NAME }}?</label>
+    <label for="email" class="col-sm-2 control-label optional-field">How did you find {{ c.EVENT_NAME }}?</label>
     <div class="col-sm-6">
         <input type="text" name="found_how" id="found_how" value="{{ attendee.found_how }}" class="form-control" placeholder="How did you find {{ c.EVENT_NAME }}?">
     </div>
 </div>
 
 <div class="form-group">
-    <label for="comments" class="col-sm-2 control-label">Comments</label>
+    <label for="comments" class="col-sm-2 control-label optional-field">Comments</label>
     <div class="col-sm-6">
         <input type="textarea" name="comments" id="comments" value="{{ attendee.comments }}" class="form-control" placeholder="Comments">
     </div>
 </div>
 
 <div class="form-group">
-    <label for="email_option" class="col-sm-2 control-label">Keep Me Updated</label>
+    <label for="email_option" class="col-sm-2 control-label optional-field">Keep Me Updated</label>
     <div class="col-sm-6">
-        {% checkbox attendee.can_spam %} Send me emails relating to {% organization_and_event_name %} in future years.
+        {% checkbox attendee.can_spam %} Send me emails relating to {% organization_and_event_name %} in future years. <br/>
         <span class="popup">{% popup_link "../static_views/privacy.html" "View Our Privacy Policy" %}</span>
     </div>
 </div>
