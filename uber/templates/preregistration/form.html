@@ -51,6 +51,19 @@
             $.field('amount_extra').val(badgeType.extra || 0).trigger('change');
             (badgeType.onClick || $.noop)();
         }
+        var makeBadgeMatchExtra = function () {
+            var target = $.val('name') ? 1 : 0;  // default to attendee or group
+            if (target !== 1) {
+                $.each(BADGE_TYPES, function (i, badgeType) {
+                    if (badgeType.extra && badgeType.extra <= $.val('amount_extra')) {
+                        target = i;
+                    }
+                });
+            }
+            if (!$('.badge_type_selector:nth(' + target + ')').is('.active')) {
+                setBadge(target);
+            }
+        };
         $(function () {
             $.each(BADGE_TYPES, function (index, badgeType) {
                 $('#badge_types').append(
@@ -62,15 +75,10 @@
                         ).append(
                             $('<p class="list-group-item-text"></p>').html(badgeType.description))));
             });
-            var target = $.val('name') ? 1 : 0;  // default to attendee or group
-            if (target !== 1) {
-                $.each(BADGE_TYPES, function (i, badgeType) {
-                    if (badgeType.extra && badgeType.extra <= $.val('amount_extra')) {
-                        target = i;
-                    }
-                });
+            makeBadgeMatchExtra();
+            if ($.field('amount_extra')) {
+                $.field('amount_extra').on('change', makeBadgeMatchExtra);
             }
-            setBadge(target);
         });
     </script>
 

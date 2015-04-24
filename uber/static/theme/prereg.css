@@ -1,4 +1,4 @@
-.masthead{
+.masthead {
     height:200px;
     background-image:url("../theme/banner.png");
     background-repeat:no-repeat;
@@ -6,16 +6,18 @@
 }
 
 #mainContainer{
-	max-width:840px;
+    max-width:840px;
 }
 
 body {
-background-color: #856145;
-background-image: url("../theme/tile-background.jpg");
-background-repeat: repeat-x repeat-y;
+    background-color: #856145;
+    background-image: url("../theme/tile-background.jpg");
+    background-repeat: repeat-x repeat-y;
 }
 
-.bs-wizard {margin-top: 40px;}
+.bs-wizard {
+    margin-top: 40px;
+}
 
 /*Form Wizard*/
 .bs-wizard {border-bottom: solid 1px #e0e0e0; padding: 0 0 10px 0;}
@@ -39,10 +41,18 @@ background-repeat: repeat-x repeat-y;
 /*END Form Wizard*/
 
 .col-centered{
-float: none;
-margin: 0 auto;
+    float: none;
+    margin: 0 auto;
 }
 
 .badge_type_selector {
     cursor: pointer;
+}
+
+.optional-field {
+    font-weight: normal;
+}
+
+.heading-label {
+    font-weight: 700;
 }
