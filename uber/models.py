@@ -771,7 +771,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     region        = Column(UnicodeText)
     country       = Column(UnicodeText)
     no_cellphone  = Column(Boolean, default=False)
-    ec_name       = Column(UnicodeText)
     ec_phone      = Column(UnicodeText)
     cellphone     = Column(UnicodeText)
 
@@ -829,7 +828,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     dept_checklist_items = relationship('DeptChecklistItem', backref='attendee')
 
     _repr_attr_names = ['full_name']
-    _unrestricted = {'first_name', 'last_name', 'international', 'zip_code', 'address1', 'address2', 'city', 'region', 'country', 'ec_name',
+    _unrestricted = {'first_name', 'last_name', 'international', 'zip_code', 'address1', 'address2', 'city', 'region', 'country',
                      'ec_phone', 'cellphone', 'email', 'age_group', 'birthdate', 'interests', 'found_how', 'comments', 'badge_type',
                      'affiliate', 'shirt', 'can_spam', 'no_cellphone', 'badge_printed_name', 'staffing', 'fire_safety_cert', 'requested_depts',
                      'amount_extra', 'payment_method'}

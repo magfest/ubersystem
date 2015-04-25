@@ -18,7 +18,10 @@
         setVisible($.field('no_cellphone').parents('.checkbox'), checked);
         $('#cellphone').parents('.form-group').find('label:first').css('font-weight', checked ? 'bold' : 'normal');
     };
-    $(staffingClicked);
+    $(function () {
+        staffingClicked();
+        $.field('staffing').on('click', staffingClicked);
+    });
 
     var noCellphoneClicked = function () {
         setVisible($.field('cellphone'), $.field('no_cellphone').is(':not(:checked)'));
@@ -160,7 +163,7 @@
 <div class="form-group staffing">
     <label for="staffing" class="col-sm-2 control-label">Want to Volunteer?</label>
     <div class="col-sm-6">
-        <input type="checkbox" name="staffing" value="1" {% if attendee.staffing %}checked{% endif %} onClick="staffingClicked()" /> Sign me up! &nbsp;
+        {% checkbox attendee.staffing %} Sign me up! &nbsp;
         <span class="popup">{% popup_link "../static_views/stafferComps.html" "What do I get for volunteering?" %}</span>
     </div>
 </div>
