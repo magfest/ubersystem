@@ -64,22 +64,40 @@ def _invalid_zip_code(s):
     return len(re.findall(r'\d', s)) not in [5, 9]
 
 
+def ignore_unassigned_and_placeholders(func):
+    @wraps(func)
+    def with_skipping(attendee):
+        unassigned_group_reg = attendee.group_id and not attendee.first_name and not attendee.last_name
+        valid_placeholder = attendee.placeholder and attendee.first_name and attendee.last_name
+        if not unassigned_group_reg and not valid_placeholder:
+            return func(attendee)
+    return with_skipping
+
+
 @validation.Attendee
-def attendee_misc(attendee):
-    if attendee.group_id and not attendee.first_name.strip() and not attendee.last_name.strip():
-        return
+@ignore_unassigned_and_placeholders
+def full_name(attendee):
+    if not attendee.first_name:
+        return 'First Name is a required field'
+    elif not attendee.last_name:
+        return 'Last Name is a required field'
 
-    if not attendee.first_name or not attendee.last_name:
-        return 'First Name and Last Name are required'
-    elif attendee.placeholder:
-        return
 
+@validation.Attendee
+@ignore_unassigned_and_placeholders
+def age(attendee):
     if c.COLLECT_EXACT_BIRTHDATE:
         if not attendee.birthdate:
             return 'Enter your date of birth.'
         elif attendee.birthdate > date.today():
             return 'You cannot be born in the future.'
+    elif not attendee.age_group:
+        return 'Please enter your age group'
 
+
+@validation.Attendee
+@ignore_unassigned_and_placeholders
+def address(attendee):
     if c.COLLECT_FULL_ADDRESS:
         if not attendee.address1:
             return 'Enter your street address.'
@@ -90,30 +108,40 @@ def attendee_misc(attendee):
         if not attendee.country:
             return 'Enter your country.'
 
+
+@validation.Attendee
+@ignore_unassigned_and_placeholders
+def email(attendee):
     if len(attendee.email) > 255:
         return 'Email addresses cannot be longer than 255 characters.'
 
     if (c.AT_THE_CON and attendee.email and not re.match(c.EMAIL_RE, attendee.email)) or (not c.AT_THE_CON and not re.match(c.EMAIL_RE, attendee.email)):
         return 'Enter a valid email address'
 
-    if c.COLLECT_INTERESTS and not attendee.ec_name:
-        return 'Enter the name of your emergency contact.'
 
-    if not attendee.international and not c.AT_THE_CON:
-        if _invalid_zip_code(attendee.zip_code):
-            return 'Enter a valid zip code'
+@validation.Attendee
+@ignore_unassigned_and_placeholders
+def emergency_contact(attendee):
+    if not attendee.international and _invalid_phone_number(attendee.ec_phone):
+        return 'Enter a 10-digit emergency contact number'
 
-        if c.COLLECT_INTERESTS and _invalid_phone_number(attendee.ec_phone):
-            return 'Enter a 10-digit emergency contact number'
 
-        if attendee.cellphone and _invalid_phone_number(attendee.cellphone):
-            return 'Invalid 10-digit phone number'
-
-        if not attendee.no_cellphone and _invalid_phone_number(attendee.cellphone):
-            return 'Please enter a 10-digit phone number'
+@validation.Attendee
+@ignore_unassigned_and_placeholders
+def cellphone(attendee):
+    if attendee.cellphone and _invalid_phone_number(attendee.cellphone):
+        return 'Your cellphone number was not a valid 10-digit phone number'
 
     if not attendee.no_cellphone and attendee.staffing and _invalid_phone_number(attendee.cellphone):
         return "10-digit cellphone number is required for volunteers (unless you don't own a cellphone)"
+
+
+@validation.Attendee
+@ignore_unassigned_and_placeholders
+def zip_code(attendee):
+    if not attendee.international and not c.AT_THE_CON:
+        if _invalid_zip_code(attendee.zip_code):
+            return 'Enter a valid zip code'
 
 
 @validation.Attendee
