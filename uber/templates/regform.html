@@ -54,16 +54,13 @@
         <div class="col-sm-6">
             <input type="text" name="last_name" id="last_name" value="{{ attendee.last_name }}" class="form-control" placeholder="Last Name">
         </div>
-    </div>
-
-    {% if c.PAGE_PATH != '/registration/form' %}
-        <div class="form-group">
+        {% if c.PAGE_PATH != '/registration/form' %}
             <p class="help-block col-sm-6 col-sm-offset-2">
                 These must be your legal name.
                 <span class="popup">{% popup_link "../static_views/legal_name.html" "What does this mean?" %}</span>
             </p>
-        </div>
-    {% endif %}
+        {% endif %}
+    </div>
 {% endif %}
 
 {% if c.DONATIONS_ENABLED and not attendee.is_dealer and c.PAGE_PATH != '/registration/form' %}
@@ -132,10 +129,7 @@
         <div class="col-sm-6">
             <input type="text" class="form-control" name="badge_printed_name" maxlength="20" value="{{ attendee.badge_printed_name }}" {% if c.AFTER_PRINTED_BADGE_DEADLINE %}readonly{% endif %} />
         </div>
-    </div>
-
-    <div class="badge-row extra-row form-group" style="display:none">
-        <p class="help-block col-sm-6 col-sm-offset-2">Badge names have a maximum of 20 characters.</p>
+        <p class="help-block col-sm-6">Badge names have a maximum of 20 characters.</p>
     </div>
 
     {% if c.AFTER_PRINTED_BADGE_DEADLINE %}
@@ -149,10 +143,7 @@
         <div class="col-sm-6">
             <input type="hidden" name="affiliate" style="width:30ex" />
         </div>
-    </div>
-
-    <div class="affiliate-row extra-row form-group" style="display:none">
-        <p class="help-block col-sm-6 col-sm-offset-2 popup">{% popup_link "../static_views/affiliates.html" "What's an affiliate?" %}</p>
+        {% popup_link "../static_views/affiliates.html" "What's an affiliate?" %}
     </div>
 {% endif %}
 
