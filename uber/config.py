@@ -126,10 +126,10 @@ class Config:
             attendees = session.query(sa.Attendee)
             individual_supporters = attendees.filter(or_(sa.Attendee.paid == self.HAS_PAID,
                                                          sa.Attendee.paid == self.REFUNDED),
-                                                         sa.Attendee.amount_extra == c.SUPPORTER_LEVEL).count()
+                                                         sa.Attendee.amount_extra >= c.SUPPORTER_LEVEL).count()
             group_supporters = attendees.join(sa.Attendee.group).filter(sa.Attendee.paid == self.PAID_BY_GROUP,
-                                                                        sa.Attendee.amount_extra == c.SUPPORTER_LEVEL,
-                                                                        sa.Group.amount_paid > 0).count()
+                                                                        sa.Attendee.amount_extra >= c.SUPPORTER_LEVEL,
+                                                                        sa.Attendee.amount_paid >= c.SUPPORTER_LEVEL).count()
             return individual_supporters + group_supporters
 
     def __getattr__(self, name):
@@ -144,8 +144,8 @@ class Config:
         elif name.startswith('HAS_') and name.endswith('_ACCESS'):
             return getattr(c, name.split('_')[1]) in sa.AdminAccount.access_set()
         elif name.endswith('_AVAILABLE'):
-            item_check = name.split('_', 1)[0]
-            stock_setting = getattr(c, item_check+'_STOCK', None)
+            item_check = name.rsplit('_', 1)[0]
+            stock_setting = getattr(self, item_check+'_STOCK', None)
             count_check = getattr(self, item_check+'_COUNT', None)
             if count_check is None:
                 return False # Fails quietly - is it better to throw an error?
