@@ -1,7 +1,9 @@
 from uber.common import *
 
+
 def cannot_modify_rooms():
     return c.ROOMS_LOCKED_IN and c.STAFF_ROOMS not in AdminAccount.access_set()
+
 
 @all_renderable(c.PEOPLE)
 class Root:
@@ -31,7 +33,7 @@ class Root:
             'declined_count': len([r for r in requests if r.nights == '']),
             'dept_name': 'All' if not department else c.JOB_LOCATIONS[int(department)],
             'checklist': session.checklist_status('approve_setup_teardown', department),
-            'staffer_count': session.query(Attendee).filter(Attendee.badge_type==c.STAFF_BADGE, *dept_filter).count()
+            'staffer_count': session.query(Attendee).filter(Attendee.badge_type == c.STAFF_BADGE, *dept_filter).count()
         }
 
     def hours(self, session):
@@ -47,7 +49,7 @@ class Root:
     @ajax
     def approve(self, session, id, approved):
         # TODO: turn this on in a week, and in the long run decide whether this should be a separate deadline
-        #assert not cannot_modify_rooms(), 'The deadline for modifying rooms has passed'
+        # assert not cannot_modify_rooms(), 'The deadline for modifying rooms has passed'
         hr = session.hotel_requests(id)
         if approved == 'approved':
             hr.approved = True
@@ -87,7 +89,7 @@ class Root:
             hr.wanted_roommates, hr.unwanted_roommates, hr.special_needs
         ])
         grouped = {frozenset(group) for group in lookup.values()}
-        out.writerow(['Name','Email','Phone','Nights','Departments','Roomate Requests','Roomate Anti-Requests','Special Needs'])
+        out.writerow(['Name', 'Email', 'Phone', 'Nights', 'Departments', 'Roomate Requests', 'Roomate Anti-Requests', 'Special Needs'])
         # TODO: for better efficiency, a multi-level joinedload would be preferable here
         for room in session.query(Room).options(joinedload(Room.room_assignments)).order_by(Room.department).all():
             for i in range(3):
@@ -207,6 +209,7 @@ def _attendee_dict(attendee):
         'nights_lookup': {night: getattr(attendee.hotel_requests, night, False) for night in c.NIGHT_NAMES},
     }
 
+
 def _room_dict(session, room):
     return dict({
         'id': room.id,
@@ -218,6 +221,7 @@ def _room_dict(session, room):
         night: getattr(room, night) for night in c.NIGHT_NAMES
     })
 
+
 def _get_declined(session, department):
     return [_attendee_dict(a) for a in session.query(Attendee)
                                               .order_by(Attendee.full_name)
@@ -226,6 +230,7 @@ def _get_declined(session, department):
                                                       HotelRequests.nights == '',
                                                       Attendee.assigned_depts.contains(str(department))).all()]
 
+
 def _get_unconfirmed(session, department, assigned_ids):
     return [_attendee_dict(a) for a in session.query(Attendee)
                                               .order_by(Attendee.full_name)
@@ -233,6 +238,7 @@ def _get_unconfirmed(session, department, assigned_ids):
                                                       Attendee.hotel_requests == None,
                                                       Attendee.assigned_depts.contains(str(department))).all()
                               if a not in assigned_ids]
+
 
 def _get_unassigned(session, department, assigned_ids):
     has_override_access = c.STAFF_ROOMS in AdminAccount.access_set()
@@ -245,6 +251,7 @@ def _get_unassigned(session, department, assigned_ids):
                                                       *assigned_to_dept).all()
                               if a.id not in assigned_ids]
 
+
 def _get_assigned_elsewhere(session, department):
     return [_attendee_dict(ra.attendee)
             for ra in session.query(RoomAssignment)
@@ -252,6 +259,7 @@ def _get_assigned_elsewhere(session, department):
                              .join(RoomAssignment.room, RoomAssignment.attendee)
                              .filter(Room.department != department,
                                      Attendee.assigned_depts.like('%{}%'.format(department))).all()]
+
 
 def _hotel_dump(session, department):
     room_filter = {'department': department} if cannot_modify_rooms() or int(department) != c.STOPS else {}

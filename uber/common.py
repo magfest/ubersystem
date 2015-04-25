@@ -44,6 +44,7 @@ from pytz import UTC
 
 from django import template
 from django.utils.safestring import SafeString
+from django.utils.text import normalize_newlines
 from django.template import loader, Context, Variable, TemplateSyntaxError
 
 import sqlalchemy

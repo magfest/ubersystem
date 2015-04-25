@@ -14,7 +14,8 @@ on success and a string error message on validation failure.
 from uber.common import *
 
 
-AdminAccount.required = [('attendee', 'Attendee'), ('hashed','Password')]
+AdminAccount.required = [('attendee', 'Attendee'), ('hashed', 'Password')]
+
 
 @validation.AdminAccount
 def duplicate_admin(account):
@@ -25,6 +26,7 @@ def duplicate_admin(account):
 
 
 Event.required = [('name', 'Event Name')]
+
 
 @validation.Event
 def overlapping_events(event, other_event_id=None):
@@ -42,6 +44,7 @@ def overlapping_events(event, other_event_id=None):
 
 Group.required = [('name', 'Group Name')]
 
+
 @validation.Group
 def group_paid(group):
     try:
@@ -54,10 +57,12 @@ def group_paid(group):
 
 def _invalid_phone_number(s):
     if not s.startswith('+'):
-        return len(re.findall(r'\d', s)) != 10 or re.search(c.SAME_NUMBER_REPEATED, re.sub(r'[^0-9]','',s))
+        return len(re.findall(r'\d', s)) != 10 or re.search(c.SAME_NUMBER_REPEATED, re.sub(r'[^0-9]', '', s))
+
 
 def _invalid_zip_code(s):
     return len(re.findall(r'\d', s)) not in [5, 9]
+
 
 @validation.Attendee
 def attendee_misc(attendee):
@@ -110,15 +115,18 @@ def attendee_misc(attendee):
     if not attendee.no_cellphone and attendee.staffing and _invalid_phone_number(attendee.cellphone):
         return "10-digit cellphone number is required for volunteers (unless you don't own a cellphone)"
 
+
 @validation.Attendee
 def allowed_to_volunteer(attendee):
     if attendee.staffing and not attendee.age_group_conf['can_volunteer'] and attendee.badge_type != c.STAFF_BADGE and c.PRE_CON:
         return 'Volunteers cannot be ' + attendee.age_group_conf['desc']
 
+
 @validation.Attendee
 def allowed_to_register(attendee):
     if not attendee.age_group_conf['can_register']:
         return 'Attendees ' + attendee.age_group_conf['desc'] + ' years of age do not need to register, but MUST be accompanied by a parent at all times!'
+
 
 @validation.Attendee
 def group_leadership(attendee):
@@ -127,12 +135,14 @@ def group_leadership(attendee):
         if orig_group_id and attendee.id == attendee.session.group(orig_group_id).leader_id:
             return 'You cannot remove the leader of a group from that group; make someone else the leader first'
 
+
 @validation.Attendee
 def banned_volunteer(attendee):
     if (attendee.ribbon == c.VOLUNTEER_RIBBON or attendee.staffing) and attendee.full_name in c.BANNED_STAFFERS:
-        return "We've declined to invite {} back as a volunteer, {}".format(attendee.full_name,
-                'talk to Stops to override if necessary' if c.AT_THE_CON
-            else '''Please contact us via CONTACT_URL if you believe this is in error'''.replace('CONTACT_URL', c.CONTACT_URL))
+        return "We've declined to invite {} back as a volunteer, ".format(attendee.full_name) + (
+                    'talk to Stops to override if necessary' if c.AT_THE_CON else
+                    'Please contact us via {} if you believe this is in error'.format(c.CONTACT_URL))
+
 
 @validation.Attendee
 def attendee_money(attendee):
@@ -172,6 +182,7 @@ def attendee_money(attendee):
     except:
         return "What you entered for Amount Refunded ({}) wasn't even a number".format(attendee.amount_refunded)
 
+
 @validation.Attendee
 def badge_range(attendee):
     if c.AT_THE_CON:
@@ -194,10 +205,12 @@ def money_amount(model):
 
 Job.required = [('name', 'Job Name')]
 
+
 @validation.Job
 def slots(job):
     if job.slots < len(job.shifts):
         return 'You cannot reduce the number of slots to below the number of staffers currently signed up for this job'
+
 
 @validation.Job
 def time_conflicts(job):
@@ -215,6 +228,7 @@ def oldmpointexchange_numbers(mpe):
 
 
 Sale.required = [('what', "What's being sold")]
+
 
 @validation.Sale
 def cash_and_mpoints(sale):

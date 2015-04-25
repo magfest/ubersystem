@@ -8,6 +8,9 @@ default_constructor = _get_defaults(declarative.declarative_base)['constructor']
 
 
 SQLAlchemyColumn = Column
+sqlalchemy_relationship = relationship
+
+
 def Column(*args, **kwargs):
     kwargs.setdefault('nullable', False)
     if args[0] is UnicodeText or isinstance(args[0], (UnicodeText, MultiChoice)):
@@ -17,7 +20,7 @@ def Column(*args, **kwargs):
         kwargs.setdefault('server_default', str(default))
     return SQLAlchemyColumn(*args, **kwargs)
 
-sqlalchemy_relationship = relationship
+
 def relationship(*args, **kwargs):
     kwargs.setdefault('load_on_pending', True)
     kwargs.setdefault('cascade', 'all,delete-orphan')
@@ -27,14 +30,15 @@ def relationship(*args, **kwargs):
 class utcnow(FunctionElement):
     type = UTCDateTime()
 
+
 @compiles(utcnow, 'postgresql')
 def pg_utcnow(element, compiler, **kw):
     return "timezone('utc', current_timestamp)"
 
+
 @compiles(utcnow, 'sqlite')
 def sqlite_utcnow(element, compiler, **kw):
     return "(datetime('now', 'utc'))"
-
 
 
 class Choice(TypeDecorator):
@@ -220,22 +224,27 @@ class MagModel:
 class TakesPaymentMixin(object):
     @property
     def payment_deadline(self):
-        return min(c.UBER_TAKEDOWN - timedelta(days = 2),
-                   datetime.combine((self.registered + timedelta(days = 14)).date(), time(23, 59)))
+        return min(c.UBER_TAKEDOWN - timedelta(days=2),
+                   datetime.combine((self.registered + timedelta(days=14)).date(), time(23, 59)))
+
 
 def _night(name):
     day = getattr(c, name.upper())
+
     def lookup(self):
         return day if day in self.nights_ints else ''
     lookup.__name__ = name
     lookup = property(lookup)
+
     def setter(self, val):
         if val:
             self.nights = '{},{}'.format(self.nights, day).strip(',')
         else:
             self.nights = ','.join([str(night) for night in self.nights_ints if night != day])
     setter.__name__ = name
+
     return lookup.setter(setter)
+
 
 class NightsMixin(object):
     @property
@@ -337,7 +346,7 @@ class Session(SessionManager):
             raise ValueError('attendee not found')
 
         def next_badge_num(self, badge_type, old_badge_num):
-            #assert_badge_locked()
+            # assert_badge_locked()
             badge_type = int(badge_type)
 
             if badge_type not in c.PREASSIGNED_BADGE_TYPES:
@@ -349,7 +358,7 @@ class Session(SessionManager):
             if sametype.count():
                 next = sametype.order_by(Attendee.badge_num.desc()).first().badge_num
                 if old_badge_num and next == old_badge_num:
-                    next = next # Prevents incrementing if the current badge already has the highest badge number in the range.
+                    next = next  # Prevents incrementing if the current badge already has the highest badge number in the range.
                 else:
                     next += 1
             else:
@@ -363,7 +372,7 @@ class Session(SessionManager):
             return next
 
         def shift_badges(self, badge_type, badge_num, *, until=None, **direction):
-            #assert_badge_locked()
+            # assert_badge_locked()
             until = until or c.MAX_BADGE
             assert c.SHIFT_CUSTOM_BADGES
             assert not any(param for param in direction if param not in ['up', 'down']), 'unknown parameters'
@@ -377,7 +386,7 @@ class Session(SessionManager):
                 a.badge_num += shift
 
         def change_badge(self, attendee, badge_type, badge_num=None):
-            #assert_badge_locked()
+            # assert_badge_locked()
             from uber.badge_funcs import check_range
             badge_type = int(badge_type)
             old_badge_num = attendee.badge_num
@@ -545,7 +554,7 @@ class Session(SessionManager):
             self.commit()
 
         def affiliates(self):
-            amounts = defaultdict(int, {a:-i for i,a in enumerate(c.DEFAULT_AFFILIATES)})
+            amounts = defaultdict(int, {a: -i for i, a in enumerate(c.DEFAULT_AFFILIATES)})
             for aff, amt in self.query(Attendee.affiliate, Attendee.amount_extra) \
                                 .filter(and_(Attendee.amount_extra > 0, Attendee.affiliate != '')):
                 amounts[aff] += amt
@@ -580,7 +589,7 @@ class Event(MagModel):
     def half_hours(self):
         half_hours = set()
         for i in range(self.duration):
-            half_hours.add(self.start_time + timedelta(minutes = 30 * i))
+            half_hours.add(self.start_time + timedelta(minutes=30 * i))
         return half_hours
 
     @property
@@ -827,7 +836,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @predelete_adjustment
     def _shift_badges(self):
-        #_assert_badge_lock()
+        # _assert_badge_lock()
         if self.has_personalized_badge and c.SHIFT_CUSTOM_BADGES:
             self.session.shift_badges(self.badge_type, self.badge_num, down=True)
 
@@ -858,7 +867,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def _badge_adjustments(self):
-        #_assert_badge_lock()
+        # _assert_badge_lock()
 
         if self.badge_type in [c.PSEUDO_GROUP_BADGE, c.PSEUDO_DEALER_BADGE]:
             self.badge_type = c.ATTENDEE_BADGE
@@ -905,7 +914,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.ribbon == c.VOLUNTEER_RIBBON:
             self.ribbon = c.NO_RIBBON
         if self.badge_type == c.STAFF_BADGE:
-            if c.SHIFT_CUSTOM_BADGES: self.session.shift_badges(c.STAFF_BADGE, self.badge_num, down=True)
+            if c.SHIFT_CUSTOM_BADGES:
+                self.session.shift_badges(c.STAFF_BADGE, self.badge_num, down=True)
             self.badge_type = c.ATTENDEE_BADGE
         del self.shifts[:]
 
@@ -992,7 +1002,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def full_name(cls):
         return case([
             (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
-        ], else_ = func.lower(cls.first_name + ' ' + cls.last_name))
+        ], else_=func.lower(cls.first_name + ' ' + cls.last_name))
 
     @hybrid_property
     def last_first(self):
@@ -1002,7 +1012,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def last_first(cls):
         return case([
             (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
-        ], else_ = func.lower(cls.last_name + ', ' + cls.first_name))
+        ], else_=func.lower(cls.last_name + ', ' + cls.first_name))
 
     @property
     def banned(self):
@@ -1053,7 +1063,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def donation_swag(self):
         extra = c.SUPPORTER_LEVEL if not self.amount_extra and self.badge_type == c.SUPPORTER_BADGE else self.amount_extra
-        return [desc for amount,desc in sorted(c.DONATION_TIERS.items()) if amount and extra >= amount]
+        return [desc for amount, desc in sorted(c.DONATION_TIERS.items()) if amount and extra >= amount]
 
     @property
     def merch(self):
@@ -1233,6 +1243,7 @@ class AdminAccount(MagModel):
                 return set(session.admin_account(id).access_ints)
         except:
             return set()
+
 
 class PasswordReset(MagModel):
     account_id = Column(UUID, ForeignKey('admin_account.id'), unique=True)
@@ -1537,7 +1548,7 @@ class Tracking(MagModel):
 
     @classmethod
     def format(cls, values):
-        return ', '.join('{}={}'.format(k, v) for k,v in values.items())
+        return ', '.join('{}={}'.format(k, v) for k, v in values.items())
 
     @classmethod
     def repr(cls, column, value):
@@ -1603,13 +1614,13 @@ class Tracking(MagModel):
 
         def _insert(session):
             session.add(Tracking(
-                model = instance.__class__.__name__,
-                fk_id = instance.id,
-                which = repr(instance),
-                who = who,
-                links = links,
-                action = action,
-                data = data
+                model=instance.__class__.__name__,
+                fk_id=instance.id,
+                which=repr(instance),
+                who=who,
+                links=links,
+                action=action,
+                data=data
             ))
         if instance.session:
             _insert(instance.session)
@@ -1662,8 +1673,10 @@ def _make_getter(model):
             return inst
     return getter
 
+
 for _model in Session.all_models():
     setattr(Session.SessionMixin, _model.__tablename__, _make_getter(_model))
+
 
 def _presave_adjustments(session, context, instances='deprecated'):
     c.BADGE_LOCK.acquire()
@@ -1672,11 +1685,13 @@ def _presave_adjustments(session, context, instances='deprecated'):
     for model in session.deleted:
         model.predelete_adjustments()
 
+
 def _release_badge_lock(session, context):
     try:
         c.BADGE_LOCK.release()
     except:
         log.error('failed releasing c.BADGE_LOCK after session flush; this should never actually happen, but we want to just keep going if it ever does')
+
 
 def _release_badge_lock_on_error(*args, **kwargs):
     try:
@@ -1684,11 +1699,13 @@ def _release_badge_lock_on_error(*args, **kwargs):
     except:
         log.warn('failed releasing c.BADGE_LOCK on db error; these errors should not happen in the first place and we do not expect releasing the lock to fail when they do, but we still want to keep going if/when this does occur')
 
+
 def _track_changes(session, context, instances='deprecated'):
     for action, instances in {c.CREATED: session.new, c.UPDATED: session.dirty, c.DELETED: session.deleted}.items():
         for instance in instances:
             if instance.__class__ not in Tracking.UNTRACKED:
                 Tracking.track(action, instance)
+
 
 def register_session_listeners():
     listen(Session.session_factory, 'before_flush', _presave_adjustments)

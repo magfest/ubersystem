@@ -2,17 +2,20 @@ from uber.common import *
 
 _checkboxes = ['staffing', 'can_spam', 'international', 'no_cellphone']
 
+
 def to_sessionized(attendee, group):
     if group.badges:
         return Charge.to_sessionized(group)
     else:
         return Charge.to_sessionized(attendee)
 
+
 def check_prereg_reqs(attendee):
     if attendee.badge_type == c.PSEUDO_DEALER_BADGE and not attendee.cellphone:
         return 'Your phone number is required'
     elif attendee.amount_extra >= c.SHIRT_LEVEL and attendee.shirt == c.NO_SHIRT:
         return 'Your shirt size is required'
+
 
 def check_dealer(group):
     if not group.address and c.COLLECT_INTERESTS:
@@ -27,12 +30,14 @@ def check_dealer(group):
     elif not group.description:
         return "Please provide a brief description of your business"
 
+
 def send_banned_email(attendee):
     try:
         send_email(c.REGDESK_EMAIL, c.REGDESK_EMAIL, 'Banned attendee registration',
                    render('emails/reg_workflow/banned_attendee.txt', {'attendee': attendee}), model='n/a')
     except:
         log.error('unable to send banned email about {}', attendee)
+
 
 def check_post_con(klass):
     def wrapper(func):
@@ -103,7 +108,8 @@ class Root:
                                   .order_by(Email.when.desc()).first()
                 if not last_email or last_email.when < (localized_now() - timedelta(days=7)):
                     send_email(c.REGDESK_EMAIL, attendee.email, subject, render('emails/reg_workflow/prereg_check.html', {
-                        'attendee': attendee }), model=attendee)
+                        'attendee': attendee
+                    }), model=attendee)
         return {'message': message}
 
     @check_if_can_reg
@@ -329,7 +335,7 @@ class Root:
         attendee = session.attendee(id)
         return {
             'attendee': attendee,
-            'charge':   Charge(attendee, description = '{} kicking in extra'.format(attendee.full_name))
+            'charge':   Charge(attendee, description='{} kicking in extra'.format(attendee.full_name))
         }
 
     def group_undo_extra_payment(self, session, id):
@@ -351,7 +357,7 @@ class Root:
             # Subtract an attendee's kick-in level, if it's not already paid for.
             if attendee.amount_paid < attendee.total_cost:
                 group.amount_paid -= attendee.total_cost - attendee.amount_paid
-            
+
             attendee.amount_paid = attendee.total_cost
             if group.tables:
                 send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Payment Completed',
@@ -383,9 +389,7 @@ class Root:
             log.error('unable to send group unset email', exc_info=True)
 
         session.assign_badges(attendee.group, attendee.group.badges + 1)
-        Tracking.track(c.INVALIDATED, attendee)
-        #session.delete_from_group(attendee, attendee.group)
-        attendee.group.attendees.remove(attendee)
+        session.delete_from_group(attendee, attendee.group)
         raise HTTPRedirect('group_members?id={}&message={}', attendee.group_id, 'Attendee unset; you may now assign their badge to someone else')
 
     def add_group_members(self, session, id, count):
@@ -393,7 +397,7 @@ class Root:
         if int(count) < group.min_badges_addable:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, 'This group cannot add fewer than {} badges'.format(group.min_badges_addable))
 
-        charge = Charge(group, amount = 100 * int(count) * c.GROUP_PRICE, description = '{} extra badges for {}'.format(count, group.name))
+        charge = Charge(group, amount=100 * int(count) * c.GROUP_PRICE, description='{} extra badges for {}'.format(count, group.name))
         return {
             'count': count,
             'group': group,
@@ -433,7 +437,7 @@ class Root:
                 try:
                     send_email(c.REGDESK_EMAIL, [old.email, attendee.email, c.REGDESK_EMAIL], subject, body, model=attendee)
                 except:
-                    log.error('unable to send badge change email', exc_info = True)
+                    log.error('unable to send badge change email', exc_info=True)
 
                 if attendee.full_name in c.BANNED_ATTENDEES:
                     send_banned_email(attendee)
@@ -499,7 +503,7 @@ class Root:
         return {
             'message': message,
             'attendee': attendee,
-            'charge': Charge(attendee, description = '{}{}'.format(attendee.full_name, '' if attendee.overridden_price else ' kicking in extra'))
+            'charge': Charge(attendee, description='{}{}'.format(attendee.full_name, '' if attendee.overridden_price else ' kicking in extra'))
         }
 
     def undo_attendee_donation(self, session, id):
@@ -541,8 +545,8 @@ class Root:
         return {}
 
     # TODO: figure out if this is the best way to handle the issue of people not getting shirts
-    def shirt_reorder(self, session, message = '', **params):
-        attendee = session.attendee(params, restricted = True)
+    def shirt_reorder(self, session, message='', **params):
+        attendee = session.attendee(params, restricted=True)
         assert attendee.owed_shirt, "There's no record of {} being owed a tshirt".format(attendee.full_name)
         if 'address' in params:
             if attendee.shirt in [c.NO_SHIRT, c.SIZE_UNKNOWN]:

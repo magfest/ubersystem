@@ -3,7 +3,7 @@ from uber.common import *
 
 def log_pageview(func):
     @wraps(func)
-    def with_check(*args,**kwargs):
+    def with_check(*args, **kwargs):
         with sa.Session() as session:
             try:
                 attendee = session.admin_account(cherrypy.session['account_id'])
@@ -11,20 +11,20 @@ def log_pageview(func):
                 pass  # we don't care about unrestricted pages for this version
             else:
                 sa.Tracking.track_pageview(cherrypy.request.path_info, cherrypy.request.query_string)
-        return func(*args,**kwargs)
+        return func(*args, **kwargs)
     return with_check
 
 
 def check_if_can_reg(func):
     @wraps(func)
-    def with_check(*args,**kwargs):
+    def with_check(*args, **kwargs):
         if c.BADGES_SOLD >= c.MAX_BADGE_SALES:
             return render('static_views/prereg_soldout.html')
         elif c.BEFORE_PREREG_OPEN:
             return render('static_views/prereg_not_yet_open.html')
         elif c.AFTER_PREREG_TAKEDOWN and not c.AT_THE_CON:
             return render('static_views/prereg_closed.html')
-        return func(*args,**kwargs)
+        return func(*args, **kwargs)
     return with_check
 
 
@@ -134,6 +134,7 @@ def cached_page(func):
     from sideboard.lib import config as sideboard_config
     innermost = get_innermost(func)
     func.lock = RLock()
+
     @wraps(func)
     def with_caching(*args, **kwargs):
         if hasattr(innermost, 'cached'):
@@ -263,7 +264,7 @@ class all_renderable:
         self.needs_access = needs_access
 
     def __call__(self, klass):
-        for name,func in klass.__dict__.items():
+        for name, func in klass.__dict__.items():
             if hasattr(func, '__call__'):
                 func.restricted = getattr(func, 'restricted', self.needs_access)
                 new_func = timed(cached_page(sessionized(restricted(renderable(func)))))
@@ -273,6 +274,8 @@ class all_renderable:
 
 
 register = template.Library()
+
+
 def tag(klass):
     @register.tag(klass.__name__)
     def tagged(parser, token):
@@ -295,9 +298,11 @@ validation = Validation()
 
 adjustment_counter = count().__next__
 
+
 def presave_adjustment(func):
     func.presave_adjustment = adjustment_counter()
     return func
+
 
 def predelete_adjustment(func):
     func.predelete_adjustment = adjustment_counter()

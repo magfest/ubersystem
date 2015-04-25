@@ -1,5 +1,6 @@
 from uber.common import *
 
+
 def shift_dict(shift):
     return {
         'id': shift.id,
@@ -10,6 +11,7 @@ def shift_dict(shift):
         'attendee_id': shift.attendee.id,
         'attendee_name': shift.attendee.full_name
     }
+
 
 def job_dict(job, shifts=None):
     return {
@@ -22,6 +24,7 @@ def job_dict(job, shifts=None):
         'location_label': job.location_label,
         'shifts': shifts or [shift_dict(shift) for shift in job.shifts]
     }
+
 
 @all_renderable(c.PEOPLE)
 class Root:
@@ -117,7 +120,7 @@ class Root:
         attendees = [a for a in attendees if a.assigned_to(location)]
         hours_here = defaultdict(int)
         for shift in shifts:
-            hours_here[shift.attendee] += shift.job.weighted_hours 
+            hours_here[shift.attendee] += shift.job.weighted_hours
         for attendee in attendees:
             attendee.hours_here = hours_here[attendee]
         return {
@@ -147,7 +150,7 @@ class Root:
                 session.add(job)
                 if params['id'] == 'None':
                     defaults = cherrypy.session.get('job_defaults', defaultdict(dict))
-                    defaults[params['location']] = {field: getattr(job,field) for field in c.JOB_DEFAULTS}
+                    defaults[params['location']] = {field: getattr(job, field) for field in c.JOB_DEFAULTS}
                     cherrypy.session['job_defaults'] = defaults
 
                 raise HTTPRedirect('index?location={}#{}', job.location, job.start_time_local)
@@ -158,7 +161,7 @@ class Root:
             'defaults': 'defaults' in locals() and defaults
         }
 
-    def staffers_by_job(self, session, id, message = ''):
+    def staffers_by_job(self, session, id, message=''):
         job = session.job(id)
         return {
             'job':       job,
@@ -219,7 +222,7 @@ class Root:
         raise HTTPRedirect(cherrypy.request.headers['Referer'])
 
     @ajax
-    def rate(self, session, shift_id, rating, comment = ''):
+    def rate(self, session, shift_id, rating, comment=''):
         shift = session.shift(shift_id)
         shift.rating, shift.comment = int(rating), comment
         session.commit()
@@ -243,7 +246,7 @@ class Root:
             attr: sum(loc[attr] for loc in locations.values())
             for attr in locations[name].keys()
         })]
-        return {'locations': totals + sorted(locations.items(), key = lambda loc: loc[1]['regular_signups'] - loc[1]['regular_total'])}
+        return {'locations': totals + sorted(locations.items(), key=lambda loc: loc[1]['regular_signups'] - loc[1]['regular_total'])}
 
     def all_shifts(self, session):
         return {

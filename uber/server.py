@@ -84,4 +84,4 @@ DaemonTask(check_placeholders, interval=300)
 DaemonTask(AutomatedEmail.send_all, interval=300)
 
 # TODO: this should be replaced by something a little cleaner, but it can be a useful debugging tool
-#DaemonTask(lambda: log.error(Session.engine.pool.status()), interval=5)
+# DaemonTask(lambda: log.error(Session.engine.pool.status()), interval=5)

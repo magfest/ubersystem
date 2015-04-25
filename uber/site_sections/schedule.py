@@ -1,5 +1,5 @@
 from uber.common import *
-from django.utils.text import normalize_newlines
+
 
 @all_renderable(c.STUFF)
 class Root:
@@ -13,14 +13,14 @@ class Root:
         for event in session.query(Event).all():
             schedule[event.start_time_local][event.location].append(event)
             for i in range(1, event.duration):
-                half_hour = event.start_time_local + timedelta(minutes = 30 * i)
+                half_hour = event.start_time_local + timedelta(minutes=30 * i)
                 schedule[half_hour][event.location].append(c.EVENT_BOOKED)
 
         max_simul = {}
-        for id,name in c.EVENT_LOCATION_OPTS:
+        for id, name in c.EVENT_LOCATION_OPTS:
             max_events = 1
             for i in range(2 * c.CON_LENGTH):
-                half_hour = c.EPOCH + timedelta(minutes = 30 * i)
+                half_hour = c.EPOCH + timedelta(minutes=30 * i)
                 max_events = max(max_events, len(schedule[half_hour][id]))
             max_simul[id] = max_events
 
@@ -36,13 +36,13 @@ class Root:
 
         for half_hour in schedule:
             for id, name in c.EVENT_LOCATION_OPTS:
-                span_sum = sum(getattr(e,'colspan',e) for e in schedule[half_hour][id])
+                span_sum = sum(getattr(e, 'colspan', e) for e in schedule[half_hour][id])
                 for i in range(max_simul[id] - span_sum):
                     schedule[half_hour][id].append(c.EVENT_OPEN)
 
             schedule[half_hour] = sorted(schedule[half_hour].items(), key=lambda tup: c.ORDERED_EVENT_LOCS.index(tup[0]))
 
-        max_simul = [(id, c.EVENT_LOCATIONS[id], colspan) for id,colspan in max_simul.items()]
+        max_simul = [(id, c.EVENT_LOCATIONS[id], colspan) for id, colspan in max_simul.items()]
         return {
             'message':   message,
             'schedule':  sorted(schedule.items()),
@@ -84,8 +84,8 @@ class Root:
 
     @csv_file
     def panels(self, out, session):
-        out.writerow(['Panel','Time','Duration','Room','Description','Panelists'])
-        for event in sorted(session.query(Event).all(), key = lambda e: [e.start_time, e.location_label]):
+        out.writerow(['Panel', 'Time', 'Duration', 'Room', 'Description', 'Panelists'])
+        for event in sorted(session.query(Event).all(), key=lambda e: [e.start_time, e.location_label]):
             if 'Panel' in event.location_label or 'Autograph' in event.location_label:
                 out.writerow([event.name,
                               event.start_time_local.strftime('%I%p %a').lstrip('0'),
@@ -102,7 +102,7 @@ class Root:
             now = c.EVENT_TIMEZONE.localize(datetime.combine(localized_now().date(), time(localized_now().hour)))
 
         current, upcoming = [], []
-        for loc,desc in c.EVENT_LOCATION_OPTS:
+        for loc, desc in c.EVENT_LOCATION_OPTS:
             approx = session.query(Event).filter(Event.location == loc,
                                                  Event.start_time >= now - timedelta(hours=6),
                                                  Event.start_time <= now).all()
@@ -160,7 +160,7 @@ class Root:
     def move(self, session, id, location, start_slot):
         event = session.event(id)
         event.location = int(location)
-        event.start_time = c.EPOCH + timedelta(minutes = 30 * int(start_slot))
+        event.start_time = c.EPOCH + timedelta(minutes=30 * int(start_slot))
         resp = {'error': check(event)}
         if not resp['error']:
             session.commit()
@@ -183,7 +183,7 @@ class Root:
 
         events = []
         for e in session.query(Event).order_by('start_time').all():
-            d = {attr: getattr(e, attr) for attr in ['id','name','duration','start_slot','location','description']}
+            d = {attr: getattr(e, attr) for attr in ['id', 'name', 'duration', 'start_slot', 'location', 'description']}
             d['panelists'] = panelists[e.id]
             events.append(d)
 

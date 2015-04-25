@@ -1,5 +1,6 @@
 from uber.common import *
 
+
 @all_renderable(c.PEOPLE)
 class Root:
     def index(self, session, message=''):

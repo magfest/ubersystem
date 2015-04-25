@@ -1,9 +1,6 @@
-# -*- coding: utf-8 *-*
-# Magfest ubersystem analytics
-# Dominic Cerquetti, Aug 2012
-
 from uber.common import *
 import copy
+
 
 @all_renderable(c.PEOPLE, c.STATS)
 class Root:

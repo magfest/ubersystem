@@ -1,5 +1,6 @@
 from uber.common import *
 
+
 def valid_password(password, account):
     pr = account.password_reset
     if pr and pr.is_expired:
@@ -8,6 +9,7 @@ def valid_password(password, account):
 
     all_hashed = [account.hashed] + ([pr.hashed] if pr else [])
     return any(bcrypt.hashpw(password, hashed) == hashed for hashed in all_hashed)
+
 
 @all_renderable(c.ACCOUNTS)
 class Root:
@@ -97,7 +99,7 @@ class Root:
                     'name': account.attendee.full_name,
                     'password':  password
                 })
-                send_email(c.ADMIN_EMAIL, account.attendee.email, c.EVENT_NAME +' Admin Password Reset', body)
+                send_email(c.ADMIN_EMAIL, account.attendee.email, c.EVENT_NAME + ' Admin Password Reset', body)
                 raise HTTPRedirect('login?message={}', 'Your new password has been emailed to you')
 
         return {
@@ -157,7 +159,7 @@ class Root:
                         })
 
         if c.PEOPLE in AdminAccount.access_set():
-            for dept,desc in c.JOB_LOCATION_OPTS:
+            for dept, desc in c.JOB_LOCATION_OPTS:
                 pages['hotel assignments'].append({
                     'name': desc,
                     'path': '/hotel/assignments?department={}'.format(dept)

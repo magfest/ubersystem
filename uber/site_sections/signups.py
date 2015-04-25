@@ -1,5 +1,6 @@
 from uber.common import *
 
+
 @all_renderable(c.SIGNUPS)
 class Root:
     def index(self, session, message=''):
@@ -37,8 +38,8 @@ class Root:
         fr = attendee.food_restrictions or FoodRestrictions()
         if params:
             fr = session.food_restrictions(dict(params, attendee_id=attendee.id),
-                                          bools = ['no_cheese'],
-                                          checkgroups = ['standard'])
+                                          bools=['no_cheese'],
+                                          checkgroups=['standard'])
             if not fr.sandwich_pref:
                 message = 'Please tell us your sandwich preference'
             else:

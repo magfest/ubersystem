@@ -1,5 +1,6 @@
 from uber.common import *
 
+
 def check_everything(attendee):
     if c.AT_THE_CON and attendee.id is None:
         if isinstance(attendee.badge_num, str) or attendee.badge_num < 0:
@@ -62,7 +63,7 @@ class Root:
                 raise HTTPRedirect('form?id={}&message={}', attendees.one().id, 'This attendee was the only search result')
 
         pages = range(1, int(math.ceil(count / 100)) + 1)
-        attendees = attendees[-100 + 100*page : 100*page] if page else []
+        attendees = attendees[-100 + 100*page: 100*page] if page else []
 
         return {
             'message':        message if isinstance(message, str) else message[-1],
@@ -81,8 +82,8 @@ class Root:
 
     @log_pageview
     def form(self, session, message='', return_to='', omit_badge='', **params):
-        attendee = session.attendee(params, checkgroups=['interests','requested_depts','assigned_depts'],
-                                    bools=['staffing','trusted','international','placeholder','got_merch','can_spam'])
+        attendee = session.attendee(params, checkgroups=['interests', 'requested_depts', 'assigned_depts'],
+                                    bools=['staffing', 'trusted', 'international', 'placeholder', 'got_merch', 'can_spam'])
         if 'first_name' in params:
             attendee.group_id = params['group_opt'] or None
             if c.AT_THE_CON and omit_badge:
@@ -145,7 +146,7 @@ class Root:
         }
 
     @csrf_protected
-    def delete(self, session, id, return_to = 'index?'):
+    def delete(self, session, id, return_to='index?'):
         attendee = session.attendee(id)
         if attendee.group:
             if attendee.group.leader_id == attendee.id:
@@ -337,7 +338,7 @@ class Root:
 
     def lost_badge(self, session, id):
         a = session.attendee(id)
-        a.for_review += "Automated message: Badge reported lost on {}. Previous payment type: {}.".format(localized_now().strftime('%m/%d, %H:%M'),a.paid_label)
+        a.for_review += "Automated message: Badge reported lost on {}. Previous payment type: {}.".format(localized_now().strftime('%m/%d, %H:%M'), a.paid_label)
         a.paid = c.LOST_BADGE
         session.add(a)
         session.commit()
@@ -355,9 +356,9 @@ class Root:
             else:
                 attendee = results.one()
                 if not attendee.merch:
-                    message = '{a.full_name} ({a.badge}) has no merch'.format(a = attendee)
+                    message = '{a.full_name} ({a.badge}) has no merch'.format(a=attendee)
                 elif attendee.got_merch:
-                    message = '{a.full_name} ({a.badge}) already got {a.merch}'.format(a = attendee)
+                    message = '{a.full_name} ({a.badge}) already got {a.merch}'.format(a=attendee)
                 else:
                     id = attendee.id
                     shirt = (attendee.shirt or c.SIZE_UNKNOWN) if attendee.gets_shirt else c.NO_SHIRT
@@ -507,7 +508,7 @@ class Root:
             'message':    message,
             'show_all':   show_all,
             'checked_in': checked_in,
-            'groups':     sorted(groups, key = lambda tup: tup[1]),
+            'groups':     sorted(groups, key=lambda tup: tup[1]),
             'recent':     session.query(Attendee).filter(Attendee.badge_num == 0, Attendee.first_name != '', *restrict_to)
                                                  .order_by(Attendee.registered).all(),
             'remaining_badges': max(0, c.MAX_BADGE_SALES - c.BADGES_SOLD)
@@ -591,7 +592,7 @@ class Root:
             attendee.ec_phone = ec_phone
             attendee.checked_in = datetime.now(UTC)
             attendee.reg_station = cherrypy.session['reg_station']
-            message = '{a.full_name} checked in as {a.badge} with {a.accoutrements}'.format(a = attendee)
+            message = '{a.full_name} checked in as {a.badge} with {a.accoutrements}'.format(a=attendee)
             checked_in = attendee.id
 
         raise HTTPRedirect('new?message={}&checked_in={}', message, checked_in)
@@ -605,7 +606,7 @@ class Root:
             elif not description:
                 message = "You must enter a brief description of what's being sold"
             else:
-                charge = Charge(amount = 100 * int(amount), description = description)
+                charge = Charge(amount=100 * int(amount), description=description)
 
         return {
             'charge': charge,
@@ -623,9 +624,9 @@ class Root:
             raise HTTPRedirect('arbitrary_charge_form?message={}', message)
         else:
             session.add(ArbitraryCharge(
-                amount = charge.dollar_amount,
-                what = charge.description,
-                reg_station = cherrypy.session.get('reg_station')
+                amount=charge.dollar_amount,
+                what=charge.description,
+                reg_station=cherrypy.session.get('reg_station')
             ))
             raise HTTPRedirect('arbitrary_charge_form?message={}', 'Charge successfully processed')
 
@@ -773,7 +774,7 @@ class Root:
 
         return {'message': message}
 
-    def attendee_upload(self, session, message='', attendee_import = None, date_format = "%Y-%m-%d"):
+    def attendee_upload(self, session, message='', attendee_import=None, date_format="%Y-%m-%d"):
         attendees = None
 
         if attendee_import:
@@ -783,7 +784,7 @@ class Root:
 
             for row in result:
                 if 'id' in row:
-                    id = row.pop('id') # id needs special treatment
+                    id = row.pop('id')  # id needs special treatment
 
                 try:
                     # get the Attendee if it already exists
@@ -840,8 +841,10 @@ class Root:
             if id_list:
                 attendees = session.query(Attendee).filter(Attendee.id.in_(id_list)).all()
 
-        return {'message' : message,
-                'attendees' : attendees}
+        return {
+            'message': message,
+             'attendees': attendees
+        }
 
     def placeholders(self, session, department=''):
         return {

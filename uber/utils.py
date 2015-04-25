@@ -51,7 +51,7 @@ class Order:
         self.order = order
 
     def __getitem__(self, field):
-        return ('-' + field) if field==self.order else field
+        return ('-' + field) if field == self.order else field
 
     def __str__(self):
         return self.order
@@ -79,7 +79,7 @@ class SeasonEvent(Registry):
         if kwargs['deadline']:
             self.deadline = c.EVENT_TIMEZONE.localize(datetime.strptime(kwargs['deadline'], '%Y-%m-%d'))
         else:
-            self.deadline = (self.day - timedelta(days = 7)).replace(hour=23, minute=59)
+            self.deadline = (self.day - timedelta(days=7)).replace(hour=23, minute=59)
 
 
 class DeptChecklistConf(Registry):
@@ -127,11 +127,11 @@ def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=
     if c.SEND_EMAILS and to:
         message = EmailMessage(subject=subject, **{'bodyText' if format == 'text' else 'bodyHtml': body})
         AmazonSES(c.AWS_ACCESS_KEY, c.AWS_SECRET_KEY).sendEmail(
-            source = source,
-            toAddresses = to,
-            ccAddresses = cc,
-            bccAddresses = bcc,
-            message = message
+            source=source,
+            toAddresses=to,
+            ccAddresses=cc,
+            bccAddresses=bcc,
+            message=message
         )
         sleep(0.1)  # avoid hitting rate limit
     else:
@@ -223,7 +223,7 @@ class Charge:
 
 
 def get_page(page, queryset):
-    return queryset[(int(page) - 1) * 100 : int(page) * 100]
+    return queryset[(int(page) - 1) * 100: int(page) * 100]
 
 
 def genpasswd():

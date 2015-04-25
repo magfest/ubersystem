@@ -1,5 +1,6 @@
 from uber.common import *
 
+
 class Config:
     """
     We have two types of configuration.  One is the values which come directly from our config file, such
@@ -53,7 +54,7 @@ class Config:
     @property
     def SUPPORTER_BADGE_PRICE(self):
         return self.BADGE_PRICE + self.SUPPORTER_LEVEL
-        
+
     @property
     def SEASON_BADGE_PRICE(self):
         return self.BADGE_PRICE + self.SEASON_LEVEL
@@ -139,6 +140,7 @@ c = Config()
 _config = parse_config(__file__)  # outside this module, we use the above c global instead of using this directly
 
 django.conf.settings.configure(**_config['django'].dict())
+
 
 def _unrepr(d):
     for opt in d:
@@ -251,7 +253,7 @@ c.CON_LENGTH = int((c.ESCHATON - c.EPOCH).total_seconds() // 3600)
 c.START_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (c.EPOCH + timedelta(hours=i) for i in range(c.CON_LENGTH))]
 c.DURATION_OPTS = [(i, '%i hour%s' % (i, ('s' if i > 1 else ''))) for i in range(1, 9)]
 c.EVENT_START_TIME_OPTS = [(dt, dt.strftime('%I %p %a') if not dt.minute else dt.strftime('%I:%M %a'))
-                           for dt in [c.EPOCH + timedelta(minutes = i * 30) for i in range(2 * c.CON_LENGTH)]]
+                           for dt in [c.EPOCH + timedelta(minutes=i * 30) for i in range(2 * c.CON_LENGTH)]]
 c.EVENT_DURATION_OPTS = [(i, '%.1f hour%s' % (i/2, 's' if i != 2 else '')) for i in range(1, 19)]
 c.SETUP_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (c.EPOCH - timedelta(days=2) + timedelta(hours=i) for i in range(16))] \
                   + [(dt, dt.strftime('%I %p %a')) for dt in (c.EPOCH - timedelta(days=1) + timedelta(hours=i) for i in range(24))]
@@ -301,7 +303,7 @@ c.TEARDOWN_NIGHTS = c.NIGHT_DISPLAY_ORDER[1 + c.NIGHT_DISPLAY_ORDER.index(c.CORE
 
 c.PREREG_SHIRT_OPTS = c.SHIRT_OPTS[1:]
 c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + list(c.PREREG_SHIRT_OPTS)
-c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt,desc) if amt else desc) for amt,desc in c.DONATION_TIER_OPTS]
+c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt, desc) if amt else desc) for amt, desc in c.DONATION_TIER_OPTS]
 
 c.STORE_ITEM_NAMES = list(c.STORE_PRICES.keys())
 c.FEE_ITEM_NAMES = list(c.FEE_PRICES.keys())

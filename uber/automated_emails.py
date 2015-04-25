@@ -1,8 +1,9 @@
-### WARNING - changing the email subject line for an email causes ALL of those emails to be re-sent!
-#   Note that since the EVENT_NAME is used in most of these emails, changing the event name mid-year
-#   could cause literally thousands of emails to be re-sent!
+# WARNING - changing the email subject line for an email causes ALL of those emails to be re-sent!
+# Note that since c.EVENT_NAME is used in most of these emails, changing the event name mid-year
+# could cause literally thousands of emails to be re-sent!
 
 from uber.common import *
+
 
 class AutomatedEmail:
     instances = OrderedDict()
@@ -23,7 +24,7 @@ class AutomatedEmail:
     def __repr__(self):
         return '<{}: {!r}>'.format(self.__class__.__name__, self.subject)
 
-    def prev(self, x, all_sent = None):
+    def prev(self, x, all_sent=None):
         if all_sent:
             return all_sent.get((x.__class__.__name__, x.id, self.subject))
         else:
@@ -64,43 +65,51 @@ class AutomatedEmail:
                             if rem.should_send(x, all_sent):
                                 rem.send(x, raise_errors=raise_errors)
 
+
 class StopsEmail(AutomatedEmail):
     def __init__(self, subject, template, filter, **kwargs):
         AutomatedEmail.__init__(self, Attendee, subject, template, lambda a: a.staffing and filter(a), sender=c.STAFF_EMAIL, **kwargs)
+
 
 class GuestEmail(AutomatedEmail):
     def __init__(self, subject, template, filter=lambda a: True, needs_approval=True, **kwargs):
         AutomatedEmail.__init__(self, Attendee, subject, template, lambda a: a.badge_type == c.GUEST_BADGE and filter(a), needs_approval=needs_approval, sender=c.PANELS_EMAIL, **kwargs)
 
+
 class GroupEmail(AutomatedEmail):
     def __init__(self, subject, template, filter, **kwargs):
         AutomatedEmail.__init__(self, Group, subject, template, lambda g: not g.is_dealer and filter(g), sender=c.REGDESK_EMAIL, **kwargs)
+
 
 class MarketplaceEmail(AutomatedEmail):
     def __init__(self, subject, template, filter, **kwargs):
         AutomatedEmail.__init__(self, Group, subject, template, lambda g: g.is_dealer and filter(g), sender=c.MARKETPLACE_EMAIL, **kwargs)
 
+
 class SeasonSupporterEmail(AutomatedEmail):
     def __init__(self, event):
         AutomatedEmail.__init__(self, 'SeasonPass',
-                                subject = 'Claim your {} tickets with your {} Season Pass'.format(event.name, c.EVENT_NAME),
-                                template = 'reg_workflow/season_supporter_event_invite.txt',
-                                filter = lambda a: before(event.deadline),
-                                needs_approval = True,
-                                extra_data = {'event': event})
+                                subject='Claim your {} tickets with your {} Season Pass'.format(event.name, c.EVENT_NAME),
+                                template='reg_workflow/season_supporter_event_invite.txt',
+                                filter=lambda a: before(event.deadline),
+                                needs_approval=True,
+                                extra_data={'event': event})
+
 
 class DeptChecklistEmail(AutomatedEmail):
     def __init__(self, conf):
         AutomatedEmail.__init__(self, Attendee,
-                                subject = '{EVENT_NAME} Department Checklist: ' + conf.name,
-                                template = 'shifts/dept_checklist.txt',
-                                filter = lambda a: a.is_single_dept_head and a.admin_account and days_before(7, conf.deadline) and not conf.completed(a),
-                                sender = c.STAFF_EMAIL,
-                                extra_data = {'conf': conf})
+                                subject='{EVENT_NAME} Department Checklist: ' + conf.name,
+                                template='shifts/dept_checklist.txt',
+                                filter=lambda a: a.is_single_dept_head and a.admin_account and days_before(7, conf.deadline) and not conf.completed(a),
+                                sender=c.STAFF_EMAIL,
+                                extra_data={'conf': conf})
 
 before = lambda dt: bool(dt) and localized_now() < dt
 after = lambda dt: bool(dt) and localized_now() > dt
 days_after = lambda days, dt: bool(dt) and (localized_now() > dt + timedelta(days=days))
+
+
 def days_before(days, dt, until=None):
     if dt:
         until = (dt - timedelta(days=until)) if until else dt
@@ -168,11 +177,11 @@ MarketplaceEmail('{EVENT_NAME} Dealer waitlist has been exhausted', 'dealers/wai
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Panelist Badge Confirmation', 'placeholders/panelist.txt',
                lambda a: a.placeholder and a.first_name and a.last_name and a.ribbon == c.PANELIST_RIBBON,
-               sender = c.PANELS_EMAIL)
+               sender=c.PANELS_EMAIL)
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Guest Badge Confirmation', 'placeholders/guest.txt',
                lambda a: a.placeholder and a.first_name and a.last_name and a.badge_type == c.GUEST_BADGE,
-               sender = c.PANELS_EMAIL)
+               sender=c.PANELS_EMAIL)
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Dealer Information Required', 'placeholders/dealer.txt',
                lambda a: a.placeholder and a.is_dealer and a.group.status == c.APPROVED,

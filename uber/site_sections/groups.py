@@ -1,5 +1,6 @@
 from uber.common import *
 
+
 @all_renderable(c.PEOPLE, c.REG_AT_CON)
 class Root:
     def index(self, session, message='', order='name', show='all'):
@@ -31,7 +32,7 @@ class Root:
 
     @log_pageview
     def form(self, session, new_dealer='', first_name='', last_name='', email='', message='', **params):
-        group = session.group(params, bools=['auto_recalc','can_add'])
+        group = session.group(params, bools=['auto_recalc', 'can_add'])
         if 'name' in params:
             message = check(group)
             if not message:
@@ -66,18 +67,18 @@ class Root:
         group = session.group(id)
         subject = 'Your {EVENT_NAME} Dealer registration has been ' + action
         if group.email:
-            send_email(c.MARKETPLACE_EMAIL, group.email, subject, email, model = group)
+            send_email(c.MARKETPLACE_EMAIL, group.email, subject, email, model=group)
         if action == 'waitlisted':
             group.status = c.WAITLISTED
-        #else:
-            #for attendee in group.attendees:
-                #session.delete(attendee)
-            #session.delete(group)
+        else:
+            for attendee in group.attendees:
+                session.delete(attendee)
+            session.delete(group)
         session.commit()
         return {'success': True}
 
     @csrf_protected
-    def delete(self, session, id, confirmed = None):
+    def delete(self, session, id, confirmed=None):
         group = session.group(id)
         if group.badges - group.unregistered_badges and not confirmed:
             raise HTTPRedirect('deletion_confirmation?id={}', id)

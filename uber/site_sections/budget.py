@@ -1,5 +1,6 @@
 from uber.common import *
 
+
 def prereg_money(session):
     preregs = defaultdict(int)
     for attendee in session.query(Attendee).all():
@@ -13,6 +14,7 @@ def prereg_money(session):
     preregs['dealer_badges'] = sum(d.badge_cost for d in dealers)
 
     return preregs
+
 
 def sale_money(session):
     sales = defaultdict(int)
@@ -41,5 +43,5 @@ class Root:
         for mpu in session.query(MPointsForCash).all():
             groups[mpu.attendee and mpu.attendee.group].append(mpu)
         all = [(sum(mpu.amount for mpu in mpus), group, mpus)
-               for group,mpus in groups.items()]
+               for group, mpus in groups.items()]
         return {'all': sorted(all, reverse=True)}

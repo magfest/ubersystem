@@ -1,5 +1,6 @@
 from uber.common import *
 
+
 @all_renderable(c.STATS)
 class Root:
     def index(self, session):
@@ -14,11 +15,11 @@ class Root:
             'checkin_count': count(checked_in=None),
             'paid_noshows':  count(paid=c.HAS_PAID, checked_in=None) + len([a for a in attendees if a.paid == c.PAID_BY_GROUP and a.group.amount_paid and not a.checked_in]),
             'free_noshows':  count(paid=c.NEED_NOT_PAY, checked_in=None),
-            'interests':     [(desc, len([a for a in attendees if a.paid==c.NOT_PAID and dept in a.interests_ints])) for dept, desc in c.INTEREST_OPTS],
+            'interests':     [(desc, len([a for a in attendees if a.paid == c.NOT_PAID and dept in a.interests_ints])) for dept, desc in c.INTEREST_OPTS],
             'age_counts':    [(desc, count(age_group=ag)) for ag, desc in c.AGE_GROUP_OPTS],
             'paid_group':    len([a for a in attendees if a.paid == c.PAID_BY_GROUP and a.group.amount_paid]),
             'free_group':    len([a for a in attendees if a.paid == c.PAID_BY_GROUP and not a.group.amount_paid]),
-            'shirt_sales':   [(i, len([a for a in attendees if a.registered <= datetime.now(UTC) - timedelta(days = i * 7) and a.shirt != c.NO_SHIRT])) for i in range(50)],
+            'shirt_sales':   [(i, len([a for a in attendees if a.registered <= datetime.now(UTC) - timedelta(days=i * 7) and a.shirt != c.NO_SHIRT])) for i in range(50)],
             'ribbons':       [(desc, count(ribbon=val)) for val, desc in c.RIBBON_OPTS if val != c.NO_RIBBON],
         }
 
@@ -46,7 +47,7 @@ class Root:
             'counts': sorted(counts.items(), key=lambda tup: -tup[-1].total),
             'registrations': session.query(Attendee).filter_by(paid=c.NEED_NOT_PAY).count(),
             'quantities': [(desc, session.query(Attendee).filter(Attendee.amount_extra >= amount).count())
-                           for amount,desc in sorted(c.DONATION_TIERS.items()) if amount]
+                           for amount, desc in sorted(c.DONATION_TIERS.items()) if amount]
         }
 
     def departments(self, session):
@@ -154,6 +155,7 @@ class Root:
                     # consider adding more special cases for things like foreign keys.
                     row.append(getattr(attendee, col.name))
             out.writerow(row)
+
     def shirt_counts(self, session):
         counts = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
         labels = ['size unknown'] + [label for val, label in c.SHIRT_OPTS][1:]
