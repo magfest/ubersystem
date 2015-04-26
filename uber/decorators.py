@@ -283,7 +283,7 @@ def tag(klass):
     return klass
 
 
-class Validation(object):
+class Validation:
     def __init__(self):
         self.validations = defaultdict(OrderedDict)
 
@@ -307,3 +307,6 @@ def presave_adjustment(func):
 def predelete_adjustment(func):
     func.predelete_adjustment = adjustment_counter()
     return func
+
+
+class cost_property(property): pass

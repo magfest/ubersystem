@@ -86,12 +86,15 @@ class MagModel:
             if col.default:
                 self.__dict__.setdefault(attr, col.default.execute())
 
+    @property
+    def _class_attrs(self):
+        return {name: getattr(self.__class__, name) for name in dir(self.__class__)}
+
     def _invoke_adjustment_callbacks(self, label):
         callbacks = []
-        for attr_name in dir(self.__class__):
-            class_attr = getattr(self.__class__, attr_name)
-            if hasattr(class_attr, '__call__') and hasattr(class_attr, label):
-                callbacks.append(getattr(self, attr_name))
+        for name, attr in self._class_attrs.items():
+            if hasattr(attr, '__call__') and hasattr(attr, label):
+                callbacks.append(getattr(self, name))
         callbacks.sort(key=lambda f: getattr(f, label))
         for func in callbacks:
             func()
@@ -101,6 +104,10 @@ class MagModel:
 
     def predelete_adjustments(self):
         self._invoke_adjustment_callbacks('predelete_adjustment')
+
+    @property
+    def default_cost(self):
+        return sum([getattr(self, name) for name, attr in self._class_attrs.items() if isinstance(attr, cost_property)], 0)
 
     @property
     def validators(self):
@@ -700,7 +707,7 @@ class Group(MagModel, TakesPaymentMixin):
     def unregistered_badges(self):
         return len([a for a in self.attendees if a.is_unassigned])
 
-    @property
+    @cost_property
     def table_cost(self):
         return sum(c.TABLE_PRICES[i] for i in range(1, 1 + int(self.tables)))
 
@@ -708,7 +715,7 @@ class Group(MagModel, TakesPaymentMixin):
     def new_badge_cost(self):
         return c.DEALER_BADGE_PRICE if self.tables else c.get_group_price(sa.localized_now())
 
-    @property
+    @cost_property
     def badge_cost(self):
         total = 0
         for attendee in self.attendees:
@@ -716,11 +723,7 @@ class Group(MagModel, TakesPaymentMixin):
                 total += c.get_group_price(attendee.registered)
         return total
 
-    @property
-    def default_cost(self):
-        return self.table_cost + self.badge_cost + self.amount_extra
-
-    @property
+    @cost_property
     def amount_extra(self):
         if self.is_new:
             return sum(a.amount_unpaid for a in self.attendees if a.paid == c.PAID_BY_GROUP)
@@ -927,7 +930,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         else:
             return self.badge_type_label
 
-    @property
+    @cost_property
     def badge_cost(self):
         registered = self.registered_local if self.registered else sa.localized_now()
         if self.paid in [c.PAID_BY_GROUP, c.NEED_NOT_PAY]:
@@ -954,7 +957,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def total_cost(self):
-        return self.badge_cost + self.amount_extra
+        return self.default_cost + self.amount_extra
 
     @property
     def amount_unpaid(self):
