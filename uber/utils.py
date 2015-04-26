@@ -250,7 +250,7 @@ def static_overrides(dirname):
     are the theme image files, but theoretically a plugin can override anything
     it wants by calling this method and passing its static directory.
     """
-    appconf = cherrypy.tree.apps['/uber'].config
+    appconf = cherrypy.tree.apps[c.PATH].config
     basedir = os.path.abspath(dirname).rstrip('/')
     for dpath, dirs, files in os.walk(basedir):
         relpath = dpath[len(basedir):]
