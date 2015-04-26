@@ -67,7 +67,7 @@ from sideboard.lib.sa import declarative_base, SessionManager, UTCDateTime, UUID
 import uber
 import uber as sa  # used to avoid circular dependency import issues for SQLAlchemy models
 from uber.amazon_ses import AmazonSES, EmailMessage  # TODO: replace this after boto adds Python 3 support
-from uber.config import c
+from uber.config import c, Config
 from uber.utils import *
 from uber.decorators import *
 from uber.models import *

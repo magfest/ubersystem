@@ -106,6 +106,10 @@ class MagModel:
         self._invoke_adjustment_callbacks('predelete_adjustment')
 
     @property
+    def addons(self):
+        return []
+
+    @property
     def default_cost(self):
         return sum([getattr(self, name) for name, attr in self._class_attrs.items() if isinstance(attr, cost_property)], 0)
 

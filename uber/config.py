@@ -132,6 +132,13 @@ class Config:
                                                 sa.Attendee.amount_paid >= self.SUPPORTER_LEVEL).count()
             return individual_supporters + group_supporters
 
+    @classmethod
+    def mixin(cls, klass):
+        for attr in dir(klass):
+            if not attr.startswith('_'):
+                setattr(cls, attr, getattr(klass, attr))
+        return cls
+
     def __getattr__(self, name):
         if name.split('_')[0] in ['BEFORE', 'AFTER']:
             date_setting = getattr(c, name.split('_', 1)[1])

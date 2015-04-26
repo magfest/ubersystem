@@ -9,39 +9,39 @@
 <div class="panel panel-default">
 <div class="row bs-wizard" style="border-bottom:0;border-top:0;">   
     <div class="col-xs-4 bs-wizard-step complete">
-      <div class="text-center bs-wizard-stepnum">Step 1</div>
-      <div class="progress"><div class="progress-bar"></div></div>
-      <a class="bs-wizard-dot"></a>
-      <div class="bs-wizard-info text-center">Enter Info</div>
+        <div class="text-center bs-wizard-stepnum">Step 1</div>
+        <div class="progress"><div class="progress-bar"></div></div>
+        <a class="bs-wizard-dot"></a>
+        <div class="bs-wizard-info text-center">Enter Info</div>
     </div> 
     <div class="col-xs-4 bs-wizard-step active">
-      <div class="text-center bs-wizard-stepnum">Step 2</div>
-      <div class="progress"><div class="progress-bar"></div></div>
-      <a class="bs-wizard-dot"></a>
-      <div class="bs-wizard-info text-center">Review &amp; Pay</div>
+        <div class="text-center bs-wizard-stepnum">Step 2</div>
+        <div class="progress"><div class="progress-bar"></div></div>
+        <a class="bs-wizard-dot"></a>
+        <div class="bs-wizard-info text-center">Review &amp; Pay</div>
     </div>
     <div class="col-xs-4 bs-wizard-step disabled">
-      <div class="text-center bs-wizard-stepnum">Step 3</div>
-      <div class="progress"><div class="progress-bar"></div></div>
-      <a class="bs-wizard-dot"></a>
-      <div class="bs-wizard-info text-center">Done</div>
+        <div class="text-center bs-wizard-stepnum">Step 3</div>
+        <div class="progress"><div class="progress-bar"></div></div>
+        <a class="bs-wizard-dot"></a>
+        <div class="bs-wizard-info text-center">Done</div>
     </div>
 </div>
 
 <div class="row">
-<div class="row">
-<div class="col-sm-8 col-sm-offset-2">
-    <div class="col-sm-5 text-center">
-        {% stripe_form prereg_payment charge %}
+    <div class="row">
+        <div class="col-sm-8 col-sm-offset-2">
+            <div class="col-sm-5 text-center">
+                {% stripe_form prereg_payment charge %}
+            </div>
+            <div class="col-sm-2 text-center">
+                or
+            </div>
+            <div class="col-sm-5 text-center">
+                <a href="form">{% stripe_button "Add Another Prereg" %}</a>
+            </div>
+        </div>
     </div>
-    <div class="col-sm-2 text-center">
-        or
-    </div>
-    <div class="col-sm-5 text-center">
-        <a href="form">{% stripe_button "Add Another Prereg" %}</a>
-    </div>
-</div>
-</div>
 </div>
 
 <table class="charge table footable" data-sort="false">
@@ -57,7 +57,7 @@
         <td>
             <ul style="padding-left:15px">
                 <li>Membership for {{ c.EVENT_NAME }}</li>
-                {% for swag in attendee.donation_swag %}
+                {% for swag in attendee.donation_swag|add:attendee.addons %}
                     <li>{{ swag }}</li>
                 {% endfor %}
             </ul>
@@ -75,7 +75,7 @@
         <td>
             <ul>
                 <li>{{ group.badges }} badges</li>
-                {% for swag in group.attendees.0.donation_swag %}
+                {% for swag in group.attendees.0.donation_swag|add:group.addons %}
                     <li>{{ swag }}</li>
                 {% endfor %}
             </ul>
