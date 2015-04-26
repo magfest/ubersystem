@@ -30,7 +30,7 @@
         {% if c.SUPPORTER_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE %}
             BADGE_TYPES.push({
                 title: 'Supporter: ${{ c.BADGE_PRICE|add:c.SUPPORTER_LEVEL }}',
-                description: 'Donate extra and get perks on top of an attending membership.',
+                description: 'Donate extra and get swag with your membership.',
                 extra: {{ c.SUPPORTER_LEVEL }}
             });
         {% endif %}
