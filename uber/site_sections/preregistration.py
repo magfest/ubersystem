@@ -18,15 +18,12 @@ def check_prereg_reqs(attendee):
 
 
 def check_dealer(group):
-    if not group.address and c.COLLECT_INTERESTS:
+    if not group.address:
         return 'Dealers are required to provide an address for tax purposes'
     elif not group.wares:
         return 'You must provide a detailed explanation of what you sell for us to evaluate your submission'
     elif not group.website:
-        if c.COLLECT_INTERESTS:
-            return "Please enter your business' website address"
-        else:
-            return "You must enter a Pennsylvania Tax ID for your dealership"
+        return "Please enter your business' website address"
     elif not group.description:
         return "Please provide a brief description of your business"
 

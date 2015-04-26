@@ -905,7 +905,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 self.staffing = True
                 if self.ribbon == c.NO_RIBBON:
                     self.ribbon = c.VOLUNTEER_RIBBON
-            elif c.COLLECT_INTERESTS and old_staffing and not self.staffing or self.ribbon != c.VOLUNTEER_RIBBON and old_ribbon == c.VOLUNTEER_RIBBON:
+            elif old_staffing and not self.staffing or self.ribbon != c.VOLUNTEER_RIBBON and old_ribbon == c.VOLUNTEER_RIBBON:
                 self.unset_volunteering()
 
         if self.badge_type == c.STAFF_BADGE and self.ribbon == c.VOLUNTEER_RIBBON:

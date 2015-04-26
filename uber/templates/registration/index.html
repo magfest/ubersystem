@@ -13,7 +13,6 @@
 {% endblock %}
 {% block content %}
 <script type="text/javascript">
-<!--
     var $highlit = null;
     function highlight($tr) {
         if( $highlit )
@@ -93,7 +92,6 @@
             });
         {% endif %}
     });
--->
 </script>
 
 <ol class="breadcrumb">
@@ -117,16 +115,14 @@
 </div>
 
 <div class="panel col-md-4">
-<a class="btn btn-primary" href="form?id=None">Add an attendee</a>
+    <a class="btn btn-primary" href="form?id=None">Add an attendee</a>
     <a class="btn btn-default" {% if not c.AT_THE_CON %}disabled="disabled"{% endif %}
-    	href="new">View Recent At-the-Door Registrations</a>
+       href="new">View Recent At-the-Door Registrations</a>
 </div>
-{% if c.COLLECT_INTERESTS %}
 <div class="panel col-md-4">
-<div class="col-md-6">{{ attendee_count }} Attendee{{ attendee_count|pluralize }}</div>
-        <div class="col-md-6"><span id="checkin_count">{{ checkin_count }}</span> Checked In</div>
+    <div class="col-md-6">{{ attendee_count }} Attendee{{ attendee_count|pluralize }}</div>
+    <div class="col-md-6"><span id="checkin_count">{{ checkin_count }}</span> Checked In</div>
 </div>
-{% endif %}
 </div>
     {% if search_results %}
     <div class="panel panel-info">
