@@ -309,4 +309,5 @@ def predelete_adjustment(func):
     return func
 
 
-class cost_property(property): pass
+class cost_property(property):
+    pass
