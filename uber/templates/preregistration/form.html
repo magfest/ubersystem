@@ -30,7 +30,7 @@
         {% if c.SUPPORTER_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE %}
             BADGE_TYPES.push({
                 title: 'Supporter: ${{ c.BADGE_PRICE|add:c.SUPPORTER_LEVEL }}',
-                description: 'Donate extra and get swag with your membership.',
+                description: 'Donate extra and get more swag with your membership.',
                 extra: {{ c.SUPPORTER_LEVEL }}
             });
         {% endif %}
@@ -110,10 +110,7 @@
     </div>
 
     <div class="form-group" id="badge_types">
-        <label for="badge" class="col-sm-2 control-label">
-            Badge <br/><br/>
-            <span class="popup">{% popup_link "../static_views/badge_descriptions.html" "What's the difference?" %}</span>
-        </label>
+        <label for="badge" class="col-sm-2 control-label">&nbsp;</label>
     </div>
 
 {% if c.DEALER_REG_START %}
