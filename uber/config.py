@@ -73,18 +73,22 @@ class Config:
 
     @property
     def PREREG_DONATION_OPTS(self):
-        if sa.localized_now() < self.SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
+        if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
             return self.DONATION_TIER_OPTS
         else:
             return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS if amt < self.SUPPORTER_LEVEL]
 
     @property
+    def PREREG_DONATION_TIERS(self):
+        return dict(self.PREREG_DONATION_OPTS)
+
+    @property
     def SUPPORTERS_ENABLED(self):
-        return self.SUPPORTER_LEVEL in dict(self.PREREG_DONATION_OPTS)
+        return self.SUPPORTER_LEVEL in self.PREREG_DONATION_TIERS
 
     @property
     def SEASON_SUPPORTERS_ENABLED(self):
-        return self.SEASON_LEVEL in dict(self.PREREG_DONATION_OPTS)
+        return self.SEASON_LEVEL in self.PREREG_DONATION_TIERS
 
     @property
     def AT_THE_DOOR_BADGE_OPTS(self):
