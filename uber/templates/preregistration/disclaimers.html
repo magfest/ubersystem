@@ -5,8 +5,10 @@
 <ul>
     <li> Your registration is non-refundable but may be sold/transferred. </li>
     <li> If you don't pay for your registration, it will be be deleted and you will have to pay full price at the door. </li>
-    <li> Attendees (including dealers) must abide by our <a target="_blank" href="{{ c.CODE_OF_CONDUCT_URL }}">code of conduct</a>. </li>
-    <li> Submitting this form as a Dealer does not guarantee you will be selected for the Dealers Room - it is only the application. </li>
+    <li> Attendees {% if c.DEALER_REG_START %}(including dealers){% endif %} must abide by our <a target="_blank" href="{{ c.CODE_OF_CONDUCT_URL }}">code of conduct</a>. </li>
+    {% if c.DEALER_REG_START %}
+        <li> Submitting this form as a Dealer does not guarantee you will be selected for the Dealers Room - it is only the application. </li>
+    {% endif %}
 </ul>
 <br/>
 
