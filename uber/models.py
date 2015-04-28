@@ -210,6 +210,8 @@ class MagModel:
                 try:
                     if isinstance(column.type, Float):
                         value = float(value)
+                    elif isinstance(column.type, Choice) and value == '':
+                        value = None
                     elif isinstance(column.type, (Choice, Integer)):
                         value = int(float(value))
                     elif isinstance(column.type, UTCDateTime):
@@ -1565,7 +1567,7 @@ class Tracking(MagModel):
             elif isinstance(column.type, MultiChoice):
                 opts = dict(column.type.choices)
                 return repr('' if not value else (','.join(opts[int(opt)] for opt in value.split(',') if int(opt or 0) in opts)))
-            elif isinstance(column.type, Choice) and value is not None:
+            elif isinstance(column.type, Choice) and value not in [None, '']:
                 return repr(dict(column.type.choices).get(int(value), '<nonstandard>'))
             else:
                 return s
