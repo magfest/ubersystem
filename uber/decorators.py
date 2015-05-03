@@ -63,7 +63,7 @@ def csrf_protected(func):
 
 
 def ajax(func):
-    '''decorator for Ajax POST requests which require a CSRF token and return JSON'''
+    """decorator for Ajax POST requests which require a CSRF token and return JSON"""
     @wraps(func)
     def returns_json(*args, **kwargs):
         cherrypy.response.headers['Content-Type'] = 'application/json'
@@ -74,12 +74,12 @@ def ajax(func):
 
 
 def ajax_gettable(func):
-    '''
+    """
     Decorator for page handlers which return JSON.  Unlike the above @ajax decorator,
     this allows either GET or POST and does not check for a CSRF token, so this can
     be used for pages which supply data to external APIs as well as pages used for
     periodically polling the server for new data by our own Javascript code.
-    '''
+    """
     @wraps(func)
     def returns_json(*args, **kwargs):
         cherrypy.response.headers['Content-Type'] = 'application/json'
@@ -300,14 +300,37 @@ adjustment_counter = count().__next__
 
 
 def presave_adjustment(func):
+    """
+    Decorate methods on a model class with this decorator to ensure that the
+    method is called immediately before the model is saved so that you can
+    make any adjustments, e.g. setting a ribbon based on other information.
+    """
     func.presave_adjustment = adjustment_counter()
     return func
 
 
 def predelete_adjustment(func):
+    """
+    Decorate methods on a model class with this decorator to ensure that the
+    method is called immediately before the model is deleted, e.g. to shift
+    badges around the now-open slot.
+    """
     func.predelete_adjustment = adjustment_counter()
     return func
 
 
 class cost_property(property):
-    pass
+    """
+    Different events have extra things they charge money for to attendees and
+    groups.  Those events can use the @Session.model_mixin decorator and then
+    define a @cost_property which returns the amount added.  For example, we
+    have code in the MAGStock repo which looks vaguely like this:
+
+        @Session.model_mixin
+        class Attendee:
+            purchased_food = Column(Boolean, default=False)
+
+            @cost_property
+            def food_price(self):
+                return c.FOOD_PRICE if self.purchased_food else 0
+    """

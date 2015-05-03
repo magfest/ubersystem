@@ -2,6 +2,14 @@ from uber.common import *
 
 
 class HTTPRedirect(cherrypy.HTTPRedirect):
+    """
+    CherryPy uses exceptions to indicate things like HTTP 303 redirects.  This
+    subclasses the standard CherryPy exception to add string formatting and
+    automatic quoting.  So instead of saying
+        raise HTTPRedirect('foo?message={}'.format(quote(bar)))
+    we can say
+        raise HTTPRedirect('foo?message={}', bar)
+    """
     def __init__(self, page, *args, **kwargs):
         args = [self.quote(s) for s in args]
         kwargs = {k: self.quote(v) for k, v in kwargs.items()}
@@ -14,17 +22,30 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
 
 
 def localized_now():
+    """Returns datetime.now() but localized to the event's configured timezone."""
     utc_now = datetime.utcnow().replace(tzinfo=UTC)
     return utc_now.astimezone(c.EVENT_TIMEZONE)
 
 
 def comma_and(xs):
+    """
+    Accepts a list of strings and separates them with commas as grammatically
+    appropriate with an "and" before the final entry.  For example:
+        ['foo']               => 'foo'
+        ['foo', 'bar']        => 'foo and bar'
+        ['foo', 'bar', 'baz'] => 'foo, bar, and baz'
+    """
     if len(xs) > 1:
         xs[-1] = 'and ' + xs[-1]
     return (', ' if len(xs) > 2 else ' ').join(xs)
 
 
 def check_csrf(csrf_token):
+    """
+    Accepts a csrf token (and checks the request headers if None is provided)
+    and compares it to the token stored in the session.  An exception is raised
+    if the values do not match or if no token is found.
+    """
     if csrf_token is None:
         csrf_token = cherrypy.request.headers.get('CSRF-Token')
     assert csrf_token, 'CSRF token missing'
@@ -36,6 +57,11 @@ def check_csrf(csrf_token):
 
 
 def check(model):
+    """
+    Runs all default validations against the supplied model instance.  Returns
+    either a string error message if any validation fails and returns None if
+    all validations passed.
+    """
     for field, name in model.required:
         if not str(getattr(model, field)).strip():
             return name + ' is a required field'
@@ -109,12 +135,11 @@ for _slug, _conf in sorted(c.DEPT_HEAD_CHECKLIST.items(), key=lambda tup: tup[1]
 
 
 def hour_day_format(dt):
+    """
+    Accepts a localized datetime object and returns a formatted string showing
+    only the day and hour, e.g "7pm Thu" or "10am Sun".
+    """
     return dt.astimezone(c.EVENT_TIMEZONE).strftime('%I%p ').strip('0').lower() + dt.astimezone(c.EVENT_TIMEZONE).strftime('%a')
-
-
-def underscorize(s):
-    s = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', s)
-    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s).lower()
 
 
 def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=None):
@@ -227,6 +252,11 @@ def get_page(page, queryset):
 
 
 def genpasswd():
+    """
+    Admin accounts have passwords auto-generated; this function tries to combine
+    three random dictionary words but returns a string of 8 random characters if
+    no dictionary is installed.
+    """
     try:
         with open('/usr/share/dict/words') as f:
             words = [s.strip() for s in f.readlines() if "'" not in s and s.islower() and 3 < len(s) < 8]

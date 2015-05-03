@@ -12,6 +12,14 @@ sqlalchemy_relationship = relationship
 
 
 def Column(*args, **kwargs):
+    """
+    Returns a SQLAlchemy Column with the given parameters, except that instead
+    of the regular defaults, we've overridden the following defaults if no
+    value is provided for the following parameters:
+        nullable now defaults to True
+        Unicode field values now default to ''
+        server_default now defaults to the same value as 'default'
+    """
     kwargs.setdefault('nullable', False)
     if args[0] is UnicodeText or isinstance(args[0], (UnicodeText, MultiChoice)):
         kwargs.setdefault('default', '')
@@ -22,12 +30,38 @@ def Column(*args, **kwargs):
 
 
 def relationship(*args, **kwargs):
+    """
+    Returns a SQLAlchemy relationship with the given parameters, except that
+    instead of the regular defaults, we've overridden the following defaults if
+    no value is provided for the following parameters:
+        load_on_pending now defaults to True
+        cascade now defaults to 'all,delete-orphan'
+    """
     kwargs.setdefault('load_on_pending', True)
     kwargs.setdefault('cascade', 'all,delete-orphan')
     return sqlalchemy_relationship(*args, **kwargs)
 
 
 class utcnow(FunctionElement):
+    """
+    We have some tables where we want to save a timestamp on each row indicating
+    when the row was first created.  Normally we could do something like this:
+
+        created = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+
+    Unfortunately, there are some cases where we instantiate a model and then
+    don't save it until sometime later.  This happens when someone registers
+    themselves and then doesn't pay until later, since we don't save them to the
+    database until they've paid.  Therefore, we use this class so that we can
+    set a timestamp based on when the row was inserted rather than when the
+    model was instantiated:
+
+        created = Column(UTCDateTime, server_default=utcnow())
+
+    The pg_utcnow and sqlite_utcnow functions below define the implementation
+    for postgres and sqlite, and new functions will need to be written if/when
+    we decided to support other databases.
+    """
     type = UTCDateTime()
 
 
@@ -42,9 +76,21 @@ def sqlite_utcnow(element, compiler, **kw):
 
 
 class Choice(TypeDecorator):
+    """
+    Utility class for storing the results of a dropdown as a database column.
+    """
     impl = Integer
 
     def __init__(self, choices, *, allow_unspecified=False, **kwargs):
+        """
+        choices: an array of tuples, where the first element of each tuple is
+                 the integer being stored and the second element is a string
+                 description of the value
+        allow_unspecified: by default, an exception is raised if you try to save
+                           a row with a value which is not in the choices list
+                           passed to this class; set this to True if you want to
+                           allow non-default values
+        """
         self.choices = dict(choices)
         self.allow_unspecified = allow_unspecified
         TypeDecorator.__init__(self, **kwargs)
@@ -60,6 +106,12 @@ class Choice(TypeDecorator):
 
 
 class MultiChoice(TypeDecorator):
+    """
+    Utility class for storing the results of a group of checkboxes.  Each value
+    is represented by an integer, so we store them as a comma-separated string.
+    This can be marginally more convenient than a many-to-many table.  Like the
+    Choice class, this takes an array of tuples of integers and strings.
+    """
     impl = UnicodeText
 
     def __init__(self, choices, **kwargs):
