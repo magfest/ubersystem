@@ -10,7 +10,7 @@
         {% if attendee.has_personalized_badge %}
             $('.badge-row').show();
         {% endif %}
-        {% if attendee.amount_extra %}
+        {% if attendee.amount_extra and not attendee.amount_unpaid %}
             setTimeout(function () {  // make sure this happens after jQuery.select2
                 $.field('amount_extra').find('option').each(function(){
                     if ($(this).val() < {{ attendee.amount_extra }}) {
@@ -27,6 +27,19 @@
 {% csrf_token %}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
+<input type="hidden" name="undoing_extra" value="{{ undoing_extra }}" />
+
+{% if attendee.amount_unpaid %}
+    <br/>
+    <div class="form-group">
+        <div class="col-sm-6 col-sm-offset-2 warning">
+            You currently have an outstanding balance of ${{ attendee.amount_unpaid }} due to having requested
+            registration add-ons and then not completing the payment form.  Please either 
+            <a href="attendee_donation_form?id={{ attendee.id }}">click here</a> to pay, or alter your registration below to
+            eliminate whichever addons you've decided not to select.
+        </div>
+    </div>
+{% endif %}
 
 {% include "regform.html" %}
 

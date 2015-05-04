@@ -82,8 +82,7 @@ class Root:
 
     @log_pageview
     def form(self, session, message='', return_to='', omit_badge='', **params):
-        attendee = session.attendee(params, checkgroups=['interests', 'requested_depts', 'assigned_depts'],
-                                    bools=['staffing', 'trusted', 'international', 'placeholder', 'got_merch', 'can_spam'])
+        attendee = session.attendee(params, checkgroups=Attendee.all_checkgroups, bools=Attendee.all_bools)
         if 'first_name' in params:
             attendee.group_id = params['group_opt'] or None
             if c.AT_THE_CON and omit_badge:
@@ -100,7 +99,8 @@ class Root:
                 if return_to:
                     raise HTTPRedirect(return_to + '&message={}', 'Attendee data uploaded')
                 else:
-                    raise HTTPRedirect('index?uploaded_id={}&message={}&search_text={}', attendee.id, 'has been uploaded',
+                    raise HTTPRedirect('index?uploaded_id={}&message={}&search_text={}', attendee.id,
+                        '{} has been uploaded'.format(attendee.full_name),
                         '{} {}'.format(attendee.first_name, attendee.last_name) if c.AT_THE_CON else '')
 
         return {
@@ -417,7 +417,7 @@ class Root:
     @check_atd
     def register(self, session, message='', **params):
         params['id'] = 'None'
-        attendee = session.attendee(params, bools=['international'], checkgroups=['interests'], restricted=True, ignore_csrf=True)
+        attendee = session.attendee(params, restricted=True, ignore_csrf=True)
         if 'first_name' in params:
             if not attendee.payment_method:
                 message = 'Please select a payment type'

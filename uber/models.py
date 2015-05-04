@@ -11,14 +11,22 @@ SQLAlchemyColumn = Column
 sqlalchemy_relationship = relationship
 
 
-def Column(*args, **kwargs):
+def Column(*args, admin_only=False, **kwargs):
     """
     Returns a SQLAlchemy Column with the given parameters, except that instead
     of the regular defaults, we've overridden the following defaults if no
     value is provided for the following parameters:
-        nullable now defaults to True
-        Unicode field values now default to ''
-        server_default now defaults to the same value as 'default'
+
+        Field           Old Default     New Default
+        -----           ------------    -----------
+        nullable        True            False
+        default         None            ''  (only for UnicodeText fields)
+        server_default  None            <same value as 'default'>
+
+    We also have an "admin_only" parameter, which is set as an attribute on
+    the column instance, indicating whether the column should be settable by
+    regular attendees filling out one of the registration forms or if only a
+    logged-in admin user should be able to set it.
     """
     kwargs.setdefault('nullable', False)
     if args[0] is UnicodeText or isinstance(args[0], (UnicodeText, MultiChoice)):
@@ -26,7 +34,9 @@ def Column(*args, **kwargs):
     default = kwargs.get('default')
     if isinstance(default, (int, str)):
         kwargs.setdefault('server_default', str(default))
-    return SQLAlchemyColumn(*args, **kwargs)
+    col = SQLAlchemyColumn(*args, **kwargs)
+    col.admin_only = admin_only or args[0] in [UUID, UTCDateTime]
+    return col
 
 
 def relationship(*args, **kwargs):
@@ -126,8 +136,6 @@ class MultiChoice(TypeDecorator):
 class MagModel:
     id = Column(UUID, primary_key=True, default=lambda: str(uuid4()))
 
-    _unrestricted = ()
-    _propertized = ()
     required = ()
 
     def __init__(self, *args, **kwargs):
@@ -159,22 +167,83 @@ class MagModel:
 
     @property
     def addons(self):
+        """
+        This exists only to be overridden by other events; it should return a
+        list of strings are the extra things which an attendee or group has
+        purchased.  For example, in the MAGStock codebase, we've got code which
+        looks something like this:
+
+            @Session.model_mixin
+            class Attendee:
+                purchased_food = Column(Boolean, default=False)
+
+                @property
+                def addons(self):
+                    return ['Food'] if self.purchased_food else []
+
+        Our various templates use this information to display a summary to the
+        user of what they have purchased, e.g. in the prereg confirmation page
+        and in their confirmation emails.
+        """
         return []
 
     @property
+    def cost_property_names(self):
+        """Returns the names of all cost properties on this model."""
+        return [name for name, attr in self._class_attrs.items() if isinstance(attr, cost_property)]
+
+    @property
     def default_cost(self):
-        return sum([getattr(self, name) for name, attr in self._class_attrs.items() if isinstance(attr, cost_property)], 0)
+        """Returns the sum of all @cost_property values for this model instance."""
+        return sum([getattr(self, name) for name in self.cost_property_names], 0)
+
+    @class_property
+    def unrestricted(cls):
+        """
+        Returns a set of column names which are allowed to be set by non-admin
+        attendees filling out one of the registration forms.
+        """
+        return {col.name for col in cls.__table__.columns if not getattr(col, 'admin_only', True)}
+
+    @class_property
+    def all_bools(cls):
+        """Returns the set of Boolean column names for this table."""
+        return {col.name for col in cls.__table__.columns if isinstance(col.type, Boolean)}
+
+    @class_property
+    def all_checkgroups(cls):
+        """Returns the set of MultiChoice column names for this table."""
+        return {col.name for col in cls.__table__.columns if isinstance(col.type, MultiChoice)}
+
+    @class_property
+    def regform_bools(cls):
+        """Returns the set of non-admin-only Boolean columns for this table."""
+        return {colname for colname in cls.all_bools if colname in cls.unrestricted}
+
+    @class_property
+    def regform_checkgroups(cls):
+        """Returns the set of non-admin-only MultiChoice columns for this table."""
+        return {colname for colname in cls.all_checkgroups if colname in cls.unrestricted}
 
     @property
     def validators(self):
+        """
+        Returns a list of all validation functions which should be called on
+        this model instance before it is saved.
+        """
         return sa.validation.validations[self.__class__.__name__].values()
 
     @property
     def session(self):
+        """
+        Returns the session object which this model instance is attached to, or
+        None if this instance is not attached to a session.
+        """
         return Session.session_factory.object_session(self)
 
     @classmethod
     def get_field(cls, name):
+        """Returns the column object with the provided name for this model."""
         return cls.__table__.columns[name]
 
     def __eq__(self, m):
@@ -188,6 +257,11 @@ class MagModel:
 
     @property
     def is_new(self):
+        """
+        Boolean property indicating whether or not this instance has already
+        been saved to the database or if it's a new instance which has never
+        been saved and thus has no corresponding row in its database table.
+        """
         return not instance_state(self).persistent
 
     @property
@@ -200,9 +274,23 @@ class MagModel:
 
     @property
     def db_id(self):
+        """
+        A common convention in our forms is to pass an "id" parameter of "None"
+        for new objects and to pass the actual id for objects which already
+        exist in our database, which lets the backend know whether to perform a
+        save or an update.  This method returns "None" for new objects and the
+        id for existing objects, for use in such forms.
+        """
         return None if self.is_new else self.id
 
     def orig_value_of(self, name):
+        """
+        Sometimes we mutate a model instance but then want to get the original
+        value of a column before we changed it before we perform a save.  This
+        method returns the original value (i.e. the value currently in the db)
+        for the column whose name is provided.  If the value has not changed,
+        this just returns the current value of that field.
+        """
         hist = get_history(self, name)
         return (hist.deleted or hist.unchanged or [getattr(self, name)])[0]
 
@@ -248,10 +336,11 @@ class MagModel:
         query = self.session.query(Tracking).filter_by(fk_id=instance.id, action=action).order_by(Tracking.when.desc())
         return query.first() if last_only else query.all()
 
-    # NOTE: if we used from_dict() to implement this it might end up being simpler
     def apply(self, params, *, bools=(), checkgroups=(), restricted=True, ignore_csrf=True):
+        bools = self.regform_bools if restricted else bools
+        checkgroups = self.regform_checkgroups if restricted else bools
         for column in self.__table__.columns:
-            if (not restricted or column.name in self._unrestricted) and column.name in params and column.name != 'id':
+            if (not restricted or column.name in self.unrestricted) and column.name in params and column.name != 'id':
                 if isinstance(params[column.name], list):
                     value = ','.join(map(str, params[column.name]))
                 elif isinstance(params[column.name], bool):
@@ -675,19 +764,18 @@ class Group(MagModel, TakesPaymentMixin):
     wares         = Column(UnicodeText)
     description   = Column(UnicodeText)
     special_needs = Column(UnicodeText)
-    amount_paid   = Column(Integer, default=0)
-    cost          = Column(Integer, default=0)
-    auto_recalc   = Column(Boolean, default=True)
-    can_add       = Column(Boolean, default=False)
-    admin_notes   = Column(UnicodeText)
-    status        = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED)
+    amount_paid   = Column(Integer, default=0, admin_only=True)
+    cost          = Column(Integer, default=0, admin_only=True)
+    auto_recalc   = Column(Boolean, default=True, admin_only=True)
+    can_add       = Column(Boolean, default=False, admin_only=True)
+    admin_notes   = Column(UnicodeText, admin_only=True)
+    status        = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
     registered    = Column(UTCDateTime, server_default=utcnow())
     approved      = Column(UTCDateTime, nullable=True)
     leader_id     = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader'), nullable=True)
     leader        = relationship('Attendee', foreign_keys=leader_id, post_update=True, cascade='all')
 
     _repr_attr_names = ['name']
-    _unrestricted = {'name', 'tables', 'address', 'website', 'wares', 'description', 'special_needs'}
 
     @presave_adjustment
     def _cost_and_leader(self):
@@ -791,7 +879,7 @@ class Group(MagModel, TakesPaymentMixin):
     @property
     def amount_unpaid(self):
         if self.registered:
-            return 0 if (self.cost - self.amount_paid) < 0 else (self.cost - self.amount_paid)
+            return max(0, self.cost - self.amount_paid)
         else:
             return self.default_cost
 
@@ -817,7 +905,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(Group, backref='attendees', foreign_keys=group_id, cascade='all')
 
-    placeholder   = Column(Boolean, default=False)
+    placeholder   = Column(Boolean, default=False, admin_only=True)
     first_name    = Column(UnicodeText)
     last_name     = Column(UnicodeText)
     email         = Column(UnicodeText)
@@ -838,40 +926,40 @@ class Attendee(MagModel, TakesPaymentMixin):
     interests   = Column(MultiChoice(c.INTEREST_OPTS))
     found_how   = Column(UnicodeText)
     comments    = Column(UnicodeText)
-    for_review  = Column(UnicodeText)
-    admin_notes = Column(UnicodeText)
+    for_review  = Column(UnicodeText, admin_only=True)
+    admin_notes = Column(UnicodeText, admin_only=True)
 
-    badge_num  = Column(Integer, default=0, nullable=True)
-    badge_type = Column(Choice(c.BADGE_OPTS), default=c.ATTENDEE_BADGE)
-    ribbon     = Column(Choice(c.RIBBON_OPTS), default=c.NO_RIBBON)
+    badge_num  = Column(Integer, default=0, nullable=True, admin_only=True)
+    badge_type = Column(Choice(c.BADGE_OPTS), default=c.ATTENDEE_BADGE, admin_only=True)
+    ribbon     = Column(Choice(c.RIBBON_OPTS), default=c.NO_RIBBON, admin_only=True)
 
     affiliate    = Column(UnicodeText)
     shirt        = Column(Choice(c.SHIRT_OPTS), default=c.NO_SHIRT)
     can_spam     = Column(Boolean, default=False)
-    regdesk_info = Column(UnicodeText)
-    extra_merch  = Column(UnicodeText)
-    got_merch    = Column(Boolean, default=False)
+    regdesk_info = Column(UnicodeText, admin_only=True)
+    extra_merch  = Column(UnicodeText, admin_only=True)
+    got_merch    = Column(Boolean, default=False, admin_only=True)
 
-    reg_station   = Column(Integer, nullable=True)
+    reg_station   = Column(Integer, nullable=True, admin_only=True)
     registered = Column(UTCDateTime, server_default=utcnow())
     checked_in = Column(UTCDateTime, nullable=True)
 
-    paid             = Column(Choice(c.PAYMENT_OPTS), default=c.NOT_PAID)
-    overridden_price = Column(Integer, nullable=True)
-    amount_paid      = Column(Integer, default=0)
+    paid             = Column(Choice(c.PAYMENT_OPTS), default=c.NOT_PAID, admin_only=True)
+    overridden_price = Column(Integer, nullable=True, admin_only=True)
+    amount_paid      = Column(Integer, default=0, admin_only=True)
     amount_extra     = Column(Choice(c.DONATION_TIER_OPTS, allow_unspecified=True), default=0)
-    amount_refunded  = Column(Integer, default=0)
-    payment_method   = Column(Choice(c.PAYMENT_METHOD_OPTS), nullable=True)
+    amount_refunded  = Column(Integer, default=0, admin_only=True)
+    payment_method   = Column(Choice(c.PAYMENT_METHOD_OPTS), nullable=True, admin_only=True)
 
     badge_printed_name = Column(UnicodeText)
 
     staffing         = Column(Boolean, default=False)
     fire_safety_cert = Column(UnicodeText)
     requested_depts  = Column(MultiChoice(c.JOB_INTEREST_OPTS))
-    assigned_depts   = Column(MultiChoice(c.JOB_LOCATION_OPTS))
-    trusted          = Column(Boolean, default=False)
-    nonshift_hours   = Column(Integer, default=0)
-    past_years       = Column(UnicodeText)
+    assigned_depts   = Column(MultiChoice(c.JOB_LOCATION_OPTS), admin_only=True)
+    trusted          = Column(Boolean, default=False, admin_only=True)
+    nonshift_hours   = Column(Integer, default=0, admin_only=True)
+    past_years       = Column(UnicodeText, admin_only=True)
 
     no_shirt          = relationship('NoShirt', backref=backref('attendee', load_on_pending=True), uselist=False)
     admin_account     = relationship('AdminAccount', backref=backref('attendee', load_on_pending=True), uselist=False)
@@ -889,10 +977,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     dept_checklist_items = relationship('DeptChecklistItem', backref='attendee')
 
     _repr_attr_names = ['full_name']
-    _unrestricted = {'first_name', 'last_name', 'international', 'zip_code', 'address1', 'address2', 'city', 'region', 'country',
-                     'ec_phone', 'cellphone', 'email', 'age_group', 'birthdate', 'interests', 'found_how', 'comments', 'badge_type',
-                     'affiliate', 'shirt', 'can_spam', 'no_cellphone', 'badge_printed_name', 'staffing', 'fire_safety_cert', 'requested_depts',
-                     'amount_extra', 'payment_method'}
 
     @predelete_adjustment
     def _shift_badges(self):
@@ -1321,9 +1405,7 @@ class HotelRequests(MagModel, NightsMixin):
     wanted_roommates   = Column(UnicodeText)
     unwanted_roommates = Column(UnicodeText)
     special_needs      = Column(UnicodeText)
-    approved           = Column(Boolean, default=False)
-
-    _unrestricted = ['attendee_id', 'nights', 'wanted_roommates', 'unwanted_roommates', 'special_needs']
+    approved           = Column(Boolean, default=False, admin_only=True)
 
     def decline(self):
         self.nights = ','.join(night for night in self.nights.split(',') if int(night) in c.CORE_NIGHTS)

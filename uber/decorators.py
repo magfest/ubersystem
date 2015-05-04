@@ -334,3 +334,12 @@ class cost_property(property):
             def food_price(self):
                 return c.FOOD_PRICE if self.purchased_food else 0
     """
+
+
+class class_property(object):
+    """Read-only property for classes rather than instances."""
+    def __init__(self, func):
+        self.func = func
+
+    def __get__(self, obj, owner):
+        return self.func(owner)

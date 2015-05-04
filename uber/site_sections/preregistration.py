@@ -1,7 +1,5 @@
 from uber.common import *
 
-_checkboxes = ['staffing', 'can_spam', 'international', 'no_cellphone']
-
 
 def to_sessionized(attendee, group):
     if group.badges:
@@ -132,11 +130,11 @@ class Root:
         params['id'] = 'None'   # security!
         if edit_id is not None:
             attendee, group = self._get_unsaved(edit_id, if_not_found=HTTPRedirect('form?message={}', 'That preregistration has already been finalized'))
-            attendee.apply(params, bools=_checkboxes)
-            group.apply(params)
+            attendee.apply(params, restricted=True)
+            group.apply(params, restricted=True)
             params.setdefault('badges', group.badges)
         else:
-            attendee = session.attendee(params, bools=_checkboxes, ignore_csrf=True, restricted=True)
+            attendee = session.attendee(params, ignore_csrf=True, restricted=True)
             group = session.group(params, ignore_csrf=True, restricted=True)
 
         if not attendee.badge_type:
@@ -244,7 +242,7 @@ class Root:
             group.amount_paid = group.default_cost - group.amount_extra
             for attendee in group.attendees:
                 if attendee.amount_extra:
-                    attendee.amount_paid = attendee.amount_extra
+                    attendee.amount_paid = attendee.total_cost
             session.add(group)
             session.commit()  # commit now so group.leader will resolve
             if group.leader.full_name in c.BANNED_ATTENDEES:
@@ -286,7 +284,7 @@ class Root:
 
     def register_group_member(self, session, group_id, message='', **params):
         group = session.group(group_id)
-        attendee = session.attendee(params, bools=_checkboxes, restricted=True)
+        attendee = session.attendee(params, restricted=True)
         if 'first_name' in params:
             message = check(attendee) or check_prereg_reqs(attendee)
             if not message and not params['first_name']:
@@ -330,15 +328,11 @@ class Root:
 
     def group_extra_payment_form(self, session, id):
         attendee = session.attendee(id)
+        cherrypy.session['return_to'] = 'group_members?id={}&message=Extra+payment+undone'.format(attendee.group_id)
         return {
             'attendee': attendee,
             'charge':   Charge(attendee, description='{} kicking in extra'.format(attendee.full_name))
         }
-
-    def group_undo_extra_payment(self, session, id):
-        attendee = session.attendee(id)
-        attendee.amount_extra -= attendee.amount_unpaid
-        raise HTTPRedirect('group_members?id={}&message={}', attendee.group_id, 'Extra payment undone')
 
     @credit_card
     def process_group_payment(self, session, payment_id, stripeToken):
@@ -423,7 +417,7 @@ class Root:
         old = session.attendee(params['id'])
         assert old.is_transferable, 'This badge is not transferrable'
         session.expunge(old)
-        attendee = session.attendee(params, bools=_checkboxes, restricted=True)
+        attendee = session.attendee(params, restricted=True)
 
         if 'first_name' in params:
             message = check(attendee) or check_prereg_reqs(attendee)
@@ -453,8 +447,8 @@ class Root:
             'message':  message
         }
 
-    def confirm(self, session, message='', return_to='confirm', **params):
-        attendee = session.attendee(params, bools=_checkboxes, restricted=True)
+    def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
+        attendee = session.attendee(params, restricted=True)
 
         placeholder = attendee.placeholder
         if 'email' in params:
@@ -473,7 +467,7 @@ class Root:
                 else:
                     raise HTTPRedirect(page + 'message=' + message)
 
-        elif attendee.amount_unpaid and attendee.zip_code:  # don't skip to payment until the form is filled out
+        elif attendee.amount_unpaid and attendee.zip_code and not undoing_extra:  # don't skip to payment until the form is filled out
             raise HTTPRedirect('attendee_donation_form?id={}&message={}', attendee.id, message)
 
         attendee.placeholder = placeholder
@@ -483,10 +477,11 @@ class Root:
             message = 'You are already registered but you may update your information with this form.'
 
         return {
-            'return_to':  return_to,
-            'attendee':   attendee,
-            'message':    message,
-            'affiliates': session.affiliates()
+            'undoing_extra': undoing_extra,
+            'return_to':     return_to,
+            'attendee':      attendee,
+            'message':       message,
+            'affiliates':    session.affiliates()
         }
 
     def guest_food(self, session, id):
@@ -505,8 +500,11 @@ class Root:
 
     def undo_attendee_donation(self, session, id):
         attendee = session.attendee(id)
-        attendee.amount_extra = max(0, attendee.amount_extra - attendee.amount_unpaid)
-        raise HTTPRedirect(cherrypy.session.pop('return_to', 'confirm?id=' + id))
+        if len(attendee.cost_property_names) > 1:  # core Uber only has one cost property
+            raise HTTPRedirect('confirm?id={}&undoing_extra=true&message={}', attendee.id, 'Please revert your registration to the extras you wish to pay for, if any')
+        else:
+            attendee.amount_extra = max(0, attendee.amount_extra - attendee.amount_unpaid)
+            raise HTTPRedirect(cherrypy.session.pop('return_to', 'confirm?id=' + id))
 
     @credit_card
     def process_attendee_donation(self, session, payment_id, stripeToken):

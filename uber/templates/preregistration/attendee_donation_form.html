@@ -20,9 +20,9 @@
 {% else %}
     <h2> Extra Payment for {{ attendee.full_name }} </h2>
 
-    Thanks for offering to kick in ${{ charge.dollar_amount }} extra to help make {{ c.EVENT_NAME }} better.  As thanks, your total donation of ${{ attendee.amount_extra }} entitles you to the following:
+    Thanks for offering to kick in money to help make {{ c.EVENT_NAME }} better.  As thanks, your total donation (of which ${{ attendee.amount_unpaid }} is outstanding) entitles you to the following:
     <ul>
-        {% for swag in attendee.donation_swag %}
+        {% for swag in attendee.donation_swag|add:attendee.addons %}
             <li>{{ swag }}</li>
         {% endfor %}
     </ul>

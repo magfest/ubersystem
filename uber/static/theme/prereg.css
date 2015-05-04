@@ -56,3 +56,8 @@ body {
 .heading-label {
     font-weight: 700;
 }
+
+.warning {
+    font-weight: bold;
+    background-color: pink;
+}

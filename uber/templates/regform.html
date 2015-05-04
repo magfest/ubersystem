@@ -34,10 +34,12 @@
 
 <div class="form-group"></div> <!-- spacing -->
 
-<div class="form-group">
-    <label class="col-sm-2 control-label">&nbsp;</label>
-    <div class="col-sm-6 heading-label">Bold fields are required</div>
-</div>
+{% if c.PAGE_PATH != '/registration/form' %}
+    <div class="form-group">
+        <label class="col-sm-2 control-label">&nbsp;</label>
+        <div class="col-sm-6 heading-label">Bold fields are required</div>
+    </div>
+{% endif %}
 
 {% if c.PAGE == 'confirm' %}
     <div class="form-group">
