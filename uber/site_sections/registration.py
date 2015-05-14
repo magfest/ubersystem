@@ -492,7 +492,7 @@ class Root:
             'attendees': session.query(Attendee).filter(Attendee.comments != '').order_by(order).all()
         }
 
-    def print(self, session, show_all='', message=''):
+    def printable_badges(self, session, show_all='', message=''):
         if show_all:
             badges = session.query(Attendee) \
                     .filter((Attendee.status == COMPLETED_STATUS) | (Attendee.status == PRINTED_STATUS)) \
