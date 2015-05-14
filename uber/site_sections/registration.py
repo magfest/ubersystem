@@ -492,6 +492,56 @@ class Root:
             'attendees': session.query(Attendee).filter(Attendee.comments != '').order_by(order).all()
         }
 
+    def print(self, session, show_all='', message=''):
+        if show_all:
+            badges = session.query(Attendee) \
+                    .filter((Attendee.status == COMPLETED_STATUS) | (Attendee.status == PRINTED_STATUS)) \
+                    .order_by(Attendee.badge_num).all()
+        else:
+            badges = session.query(Attendee).filter(Attendee.status == COMPLETED_STATUS) \
+                                            .order_by(Attendee.badge_num).all()
+
+        return {
+            'message':    message,
+            'show_all':   show_all,
+            'badges':     badges
+        }
+
+    def print_badge(self, session, id = None):
+        if id:
+            attendee = session.attendee(id)
+            load_next = False
+        else:
+            # This involves a lot of calls to the DB...
+            attendee = session.query(Attendee).filter(Attendee.status == COMPLETED_STATUS) \
+                                              .order_by(Attendee.badge_num).first()
+            load_next = True
+
+        if not attendee:
+            raise HTTPRedirect('print?message={}', 'No more badges to print!')
+
+        badge_type = attendee.ribbon_and_or_badge
+
+        if attendee.staffing and attendee.badge_type != STAFF_BADGE:
+            badge_type += "/Volunteer"
+
+        # These are hardcoded values because there is no real support for multiple costs of the same kick-in level
+        if attendee.amount_extra == [50, 333]:
+            badge_type += "/Sponsor"
+        elif attendee.amount_extra == [195, 190, 444]:
+            badge_type += "/Supersponsor"
+
+        attendee.status = PRINTED_STATUS
+        session.add(attendee)
+        session.commit()
+
+        return {
+            'badge_type': badge_type,
+            'badge_num': attendee.badge_num,
+            'badge_name': attendee.badge_printed_name,
+            'load_next': load_next
+        }
+
     def new(self, session, show_all='', message='', checked_in=''):
         if 'reg_station' not in cherrypy.session:
             raise HTTPRedirect('new_reg_station')
