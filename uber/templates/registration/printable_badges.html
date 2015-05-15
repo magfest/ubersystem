@@ -8,12 +8,12 @@
 
 <div style="text-align:center">
     {% if show_all %}
-        <a href="print">Click Here</a> to see only unprinted badges
+        <a href="printable_badges">Click Here</a> to see only unprinted badges
     {% else %}
         <form method="post" action="print_badge" target="_blank">
             <input type="submit" value="Print All Badges" />
         </form>
-        <a href="print?show_all=true">Click Here</a> to see all printable badges instead of only unprinted ones
+        <a href="printable_badges?show_all=true">Click Here</a> to see all printable badges instead of only unprinted ones
     {% endif %}
     <br/> <a href="index">Click Here</a> to view the preregistered and checked in attendee list
 </div>
