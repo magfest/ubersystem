@@ -518,7 +518,7 @@ class Root:
             load_next = True
 
         if not attendee:
-            raise HTTPRedirect('print?message={}', 'No more badges to print!')
+            raise HTTPRedirect('printable_badges?message={}', 'No more badges to print!')
 
         badge_type = attendee.ribbon_and_or_badge
 
@@ -526,10 +526,16 @@ class Root:
             badge_type += "/Volunteer"
 
         # These are hardcoded values because there is no real support for multiple costs of the same kick-in level
-        if attendee.amount_extra == [50, 333]:
+        if attendee.amount_extra in [50, 333]:
             badge_type += "/Sponsor"
-        elif attendee.amount_extra == [195, 190, 444]:
+        elif attendee.amount_extra in [195, 190, 444]:
             badge_type += "/Supersponsor"
+
+        if attendee.age_group.max_age < 18:
+            minor_status = True
+        else:
+            minor_status = False
+
 
         attendee.status = PRINTED_STATUS
         session.add(attendee)
@@ -539,7 +545,8 @@ class Root:
             'badge_type': badge_type,
             'badge_num': attendee.badge_num,
             'badge_name': attendee.badge_printed_name,
-            'load_next': load_next
+            'load_next': load_next,
+            'minor_status': minor_status
         }
 
     def new(self, session, show_all='', message='', checked_in=''):
