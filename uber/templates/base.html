@@ -1,98 +1,89 @@
 <!DOCTYPE HTML>
 <html>
 <head>
-	<!--[if lte IE 7]>
-    <script>
-        if (!document.documentMode) { //if documentMode exists, this is a later IE in compatibility mode
-            alert("This website requires IE 8 or later.");
-        }
-    </script>
-	<![endif]-->
-	<!-- TODO: update version of jQuery -->
-	<script type="text/javascript" src="../static/lib/jquery/jquery-1.7.2.min.js"></script>
-	<meta charset="utf-8">
+    <!--[if lte IE 7]>
+        <script>
+            if (!document.documentMode) { //if documentMode exists, this is a later IE in compatibility mode
+                alert("This website requires IE 8 or later.");
+            }
+        </script>
+    <![endif]-->
+    <title>{{ c.EVENT_NAME }} - {% block title %}{% endblock %}</title>
+    <link rel="icon" href="{{ c.URL_BASE }}/static/images/favicon.png" type="image/x-icon" />
+    <link rel="stylesheet" href="../static/deps/combined.css" />
+    <script type="text/javascript" src="../static/deps/combined.js"></script>
+    <script src="../common.js" type="text/javascript"></script>
+    <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ c.EVENT_NAME }} - {% block title %}{% endblock %}</title>
     {% block sectionStyle %}{% endblock %}
+    {% block additional_styles %}{% endblock %}
     <style>
-    .navbar {
-        margin-bottom: 0px;
-    	}
-		.loader_link {
-				position: fixed;
-				top: 50%;
-  			left: 50%;
-  			transform: translate(-50%, -50%);
-				width: 60%;
-				height: 25%;
-				z-index: 9999;
-				background: rgb(249,249,249) url('../static/images/loading.gif?{% random_hash %}') no-repeat center center;
-				background-size: 50%;
-			}
-			.loader {
-					position: fixed;
-					top: 0;
-					left: 0;
-					width: 100%;
-					height: 100%;
-					z-index: 9998;
-					background: rgb(249,249,249);
-				}
+        .navbar {
+            margin-bottom: 0px;
+        }
+        .loader_link {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60%;
+            height: 25%;
+            z-index: 9999;
+            background: rgb(249,249,249) url('../static/images/loading.gif?{% random_hash %}') no-repeat center center;
+            background-size: 50%;
+        }
+        .loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9998;
+            background: rgb(249,249,249);
+        }
     </style>
-
-<script>
-$(document).ready(function() {
-    $(window).load(function() {
-        $(".loader").fadeOut("fast");
-    });
-});
-
-
-$(document).ready(function() {
-    toastr.options = {
-  "closeButton": true,
-  "debug": false,
-  "positionClass": "toast-top-full-width",
-  "onclick": null,
-  "showDuration": "300",
-  "hideDuration": "1000",
-  "timeOut": "0",
-  "extendedTimeOut": "0",
-  "showEasing": "swing",
-  "hideEasing": "linear",
-  "showMethod": "fadeIn",
-  "hideMethod": "fadeOut"
-    }
-    var message = "{{message}}";
-    if (message.length) {toastr.info(message)};
-	$('.footable').footable();
-    $('.date').datetextentry({
-        field_order: 'MDY',
-    });
-
-    $(".geolocator").geocomplete({
-        details: ".address_details",
-        detailsAttribute: "data-geo"
-    });
-});
-
-</script>
-
-    {% block additional_styles %}{%  endblock %}
-    <script type="text/javascript">
+    <script>
         var DISABLE_STRIPE_BUTTONS_ON_CLICK = true;
-        $(function(){
-            $(".focus:first").focus();
-            if (DISABLE_STRIPE_BUTTONS_ON_CLICK) {
-                $("form.stripe").on("click", "button", function() {
-                    $("a > .stripe-button-el").unwrap().attr("disabled", true).unwrap()
+        $(function() {
+            $(window).load(function() {
+                $(".loader").fadeOut("fast");
+            });
+            toastr.options = {
+                closeButton: true,
+                debug: false,
+                positionClass: "toast-top-full-width",
+                onclick: null,
+                showDuration: "300",
+                hideDuration: "1000",
+                timeOut: "0",
+                extendedTimeOut: "0",
+                showEasing: "swing",
+                hideEasing: "linear",
+                showMethod: "fadeIn",
+                hideMethod: "fadeOut"
+            }
+            var message = '{{ message }}';
+            if (message.length) {
+                toastr.info(message);
+            }
+            $('.footable').footable();
+            $('.date').datetextentry({
+                field_order: 'MDY'
+            });
+            $('.geolocator').geocomplete({
+                details: '.address_details',
+                detailsAttribute: 'data-geo'
+            });
+            $('.focus:first').focus();
+            if (window.DISABLE_STRIPE_BUTTONS_ON_CLICK) {
+                $('form.stripe').on('click', 'button', function() {
+                    $('a > .stripe-button-el').unwrap().attr('disabled', true).unwrap()
                 });
             }
-
             // prevent people from paying after prereg closes
             {% if c.PRE_CON %}
-                if ($("form.stripe").length) {
+                if ($('form.stripe').length) {
                     var prevHour = new Date().getHours();
                     var checkHour = function() {
                         var currHour = new Date().getHours();
@@ -108,156 +99,108 @@ $(document).ready(function() {
             {% endif %}
         });
     </script>
-
     {% block head_additional %}{% endblock %}
 </head>
 <body>
-<div class="loader"><a class="loader_link" href="../static_views/slow_load.html" target="_blank"></a></div>
-{% block top_of_body_additional %}{%  endblock %}
-<div id="mainContainer" class="container-fluid">
-{% block top %}
-    <div id="top" style="display:none">
-        <table style="width:100% ; background:orange ; margin-bottom:5px ; position:fixed">
-        <tr>
-            <td style="width:auto"></td>
-            <td style="width:30px">
-                <a onClick="hideTop()" class="closer">x</a>
-            </td>
-        </tr>
-        </table>
-        <br/><br/>
+    <div class="loader"><a class="loader_link" href="../static_views/slow_load.html" target="_blank"></a></div>
+    {% block top_of_body_additional %}{% endblock %}
+    <div id="mainContainer" class="container-fluid">
+        {% block top %}
+            <div id="top" style="display:none">
+                <table style="width:100% ; background:orange ; margin-bottom:5px ; position:fixed">
+                <tr>
+                    <td style="width:auto"></td>
+                    <td style="width:30px">
+                        <a onClick="hideTop()" class="closer">x</a>
+                    </td>
+                </tr>
+                </table>
+                <br/><br/>
+            </div>
+        {% endblock %}
+        {% block message %}<span id="message" style="float:left ; color:red">{{ message }}</span>{% endblock %}
+        {% block backlink %}
+            <nav class="navbar navbar-default navbar-static-top" role="navigation">
+                <!-- Brand and toggle get grouped for better mobile display -->
+                <div class="navbar-header">
+                  <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#main-navbar-collapse-1">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                  </button>
+                  <a class="navbar-brand" href="../accounts/homepage">{{ c.EVENT_NAME }}</a>
+                </div>
+                <!-- Collect the nav links, forms, and other content for toggling -->
+                <div class="collapse navbar-collapse" id="main-navbar-collapse-1">
+                    <ul class="nav navbar-nav navbar-right">
+                        <li><a href="https://github.com/magfest/ubersystem/issues"><span class="glyphicon glyphicon-book"></span></a></li>
+                        <li><a href="../accounts/sitemap"><span class="glyphicon glyphicon-road"></span></a></li>
+                        <li class="dropdown">
+                            <a href="#" class="dropdown-toggle" data-toggle="dropdown"><span class="glyphicon glyphicon-cog"></span><span class="caret"></span></a>
+                            <ul class="dropdown-menu" role="menu">
+                                <li><a href="../accounts/change_password">Change Password</a></li>
+                                <li><a href="../accounts/logout">Logout</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <ul class="nav navbar-nav">
+                        {% if c.HAS_ACCOUNTS_ACCESS %}
+                            <li> <a href="../accounts/">Accounts</a> </li>
+                        {% endif %}
+                        {% if c.HAS_PEOPLE_ACCESS %}
+                            <li class="dropdown">
+                                <a href="#" class="dropdown-toggle" data-toggle="dropdown">People<span class="caret"></span></a>
+                                <ul class="dropdown-menu" role="menu">
+                                    <li> <a href="../registration/">Attendees</a> </li>
+                                    <li> <a href="../groups/">Groups</a> </li>
+                                    <li class="{% if not c.AT_THE_CON %}disabled{% endif %}"> <a {% if c.AT_THE_CON %}href="../jobs/everywhere"{% endif %}>All untaken shifts</a> </li>
+                                    <li> <a href="../registration/staffers">Staffers</a> </li>
+                                    <li> <a href="../jobs/">Jobs</a> </li>
+                                    <li> <a href="../registration/feed">Feed of Database Changes</a> </li>
+                                    <li class="{% if not c.AT_OR_POST_CON %}disabled{% endif %}"> <a {% if c.AT_OR_POST_CON %}href="../registration/merch"{% endif %}>Merch</a> </li>
+                                </ul>
+                            </li>
+                        {% endif %}
+                        {% if c.HAS_STUFF_ACCESS %}
+                            <li class="dropdown">
+                            <a href="#" class="dropdown-toggle" data-toggle="dropdown">Schedule<span class="caret"></span></a>
+                                <ul class="dropdown-menu" role="menu">
+                                    <li> <a href="../schedule/">View Schedule</a></li>
+                                    <li> <a href="../schedule/edit">Edit Schedule</a> </li>
+                                </ul>
+                            </li>
+                        {% endif %}
+                        {% if c.HAS_MONEY_ACCESS %}
+                            <li class="dropdown">
+                                <a href="#" class="dropdown-toggle" data-toggle="dropdown">Money<span class="caret"></span></a>
+                                <ul class="dropdown-menu" role="menu">
+                                    <li> <a href="../budget/">Budget</a> </li>
+                                    <li class="{% if not c.POST_CON %}disabled{% endif %}"> <a {% if c.POST_CON %}href="../budget/mpoints"{% endif %}>M-Point usage</a> </li>
+                                </ul>
+                            </li>
+                        {% endif %}
+                        {% if c.HAS_CHALLENGES_ACCESS %}
+                            <li> <a href="../challenges/">Challenges</a> </li>
+                        {% endif %}
+                        {% if c.HAS_CHECKINS_ACCESS %}
+                            <li class="{% if not c.AT_THE_CON %}disabled{% endif %}"> <a {% if c.AT_THE_CON %}href="../tabletop/"{% endif %}>Tabletop</a> </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </nav>
+        {% endblock %}
+        {% block header %}{% endblock %}
+        {% block content %}{% endblock %}
+        <div id="bottomAnchor" /></div>
     </div>
-{% endblock %}
-{% block message %}<span id="message" style="float:left ; color:red">{{ message }}</span>{% endblock %}
-{% block backlink %}
-<nav class="navbar navbar-default navbar-static-top" role="navigation">
-    <!-- Brand and toggle get grouped for better mobile display -->
-    <div class="navbar-header">
-      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#main-navbar-collapse-1">
-        <span class="sr-only">Toggle navigation</span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-      </button>
-      <a class="navbar-brand" href="../accounts/homepage">{{ c.EVENT_NAME }}</a>
-    </div>
-
-    <!-- Collect the nav links, forms, and other content for toggling -->
-    <div class="collapse navbar-collapse" id="main-navbar-collapse-1">
-
-      <ul class="nav navbar-nav navbar-right">
-      <li><a href="https://github.com/magfest/ubersystem/issues"><span class="glyphicon glyphicon-book"></span></a></li>
-      <li><a href="../accounts/sitemap"><span class="glyphicon glyphicon-road"></span></a></li>
-            <li class="dropdown">
-<a href="#" class="dropdown-toggle" data-toggle="dropdown"><span class="glyphicon glyphicon-cog"></span><span class="caret"></span></a>
-    <ul class="dropdown-menu" role="menu">
-      <li><a href="../accounts/change_password">Change Password</a></li>
-      <li><a href="../accounts/logout">Logout</a></li>
-    </ul>
-</ul>
-
-      <ul class="nav navbar-nav">
-{% if c.HAS_ACCOUNTS_ACCESS %}
-     <li> <a href="../accounts/">Accounts</a> </li>
-{% endif %}
-
-{% if c.HAS_PEOPLE_ACCESS %}
-<li class="dropdown">
-<a href="#" class="dropdown-toggle" data-toggle="dropdown">People<span class="caret"></span></a>
-    <ul class="dropdown-menu" role="menu">
-        <li> <a href="../registration/">Attendees</a> </li>
-        <li> <a href="../groups/">Groups</a> </li>
-        <li class="{% if not c.AT_THE_CON %}disabled{% endif %}"> <a {% if c.AT_THE_CON %}href="../jobs/everywhere"{% endif %}>All untaken shifts</a> </li>
-        <li> <a href="../registration/staffers">Staffers</a> </li>
-        <li> <a href="../jobs/">Jobs</a> </li>
-        <li> <a href="../registration/feed">Feed of Database Changes</a> </li>
-        <li class="{% if not c.AT_OR_POST_CON %}disabled{% endif %}"> <a {% if c.AT_OR_POST_CON %}href="../registration/merch"{% endif %}>Merch</a> </li>
-    </ul>
-</li>
-{% endif %}
-
-{% if c.HAS_STUFF_ACCESS %}
-<li class="dropdown">
-<a href="#" class="dropdown-toggle" data-toggle="dropdown">Schedule<span class="caret"></span></a>
-    <ul class="dropdown-menu" role="menu">
-        <li> <a href="../schedule/">View Schedule</a></li>
-        <li> <a href="../schedule/edit">Edit Schedule</a> </li>
-    </ul>
-</li>
-{% endif %}
-
-{% if c.HAS_MONEY_ACCESS %}
-    <li class="dropdown">
-<a href="#" class="dropdown-toggle" data-toggle="dropdown">Money<span class="caret"></span></a>
-    <ul class="dropdown-menu" role="menu">
-     <li> <a href="../budget/">Budget</a> </li>
-    <li class="{% if not c.POST_CON %}disabled{% endif %}"> <a {% if c.POST_CON %}href="../budget/mpoints"{% endif %}>M-Point usage</a> </li>
-    </ul>
-</li>
-{% endif %}
-
-{% if c.HAS_CHALLENGES_ACCESS %}
-        <li> <a href="../challenges/">Challenges</a> </li>
-{% endif %}
-
-{% if c.HAS_CHECKINS_ACCESS %}
-        <li class="{% if not c.AT_THE_CON %}disabled{% endif %}"> <a {% if c.AT_THE_CON %}href="../tabletop/"{% endif %}>Tabletop</a> </li>
-{% endif %}
-    </ul>
-    </div><!-- /.navbar-collapse -->
-</nav>
-{% endblock %}
-
-{% block header %}{% endblock %}
-{% block content %}{% endblock %}
-
-<div id="bottomAnchor" /></div> <!-- end mainContainer -->
-</div>
-{% block scripts %}
-<!-- Note that jQuery itself is loaded in the HEAD because we really need it on the page early!
-     Everything else is loaded here instead
-     TODO: Move most of this to a lazy loader on demand -->
-<script type="text/javascript" src="../static/lib/jquery-ui/jquery-ui-1.9.0.custom.min.js"></script>
-<script src="../static/lib/jquery-dimensions/jquery.dimensions.js" type="text/javascript"></script>
-<script src="../static/lib/jquery-hoverIntent/jquery.hoverIntent.js" type="text/javascript"></script>
-<script src="../static/lib/jquery-cluetip/jquery.cluetip.js" type="text/javascript"></script>
-<script src="../static/lib/select2/select2.min.js" type="text/javascript"></script>
-<script src="../static/lib/jquery-contextMenu/jquery.contextMenu.js" type="text/javascript"></script>
-<script src="../static/lib/jquery-confirm/jquery.confirm.min.js"></script>
-<script src="../common.js" type="text/javascript"></script>
-
-<link rel="stylesheet" href="../static/lib/select2/select2.css" type="text/css" />
-<link rel="stylesheet" href="../static/lib/select2/select2-bootstrap.css" type="text/css" />
-<link rel="stylesheet" href="../static/lib/jquery-cluetip/jquery.cluetip.css" type="text/css" />
-<link rel="stylesheet" href="../static/lib/jquery-contextMenu/jquery.contextMenu.css" type="text/css" />
-<link rel="stylesheet" href="../static/lib/jquery-ui/ui-lightness/jquery-ui-1.9.0.custom.css" type="text/css" />
-<link rel="icon" href="{{ c.URL_BASE }}/static/images/favicon.png" type="image/x-icon" />
-
-<script src="../static/lib/toastr/toastr.min.js"></script>
-<link href="../static/lib/toastr/toastr.min.css" rel="stylesheet">
-
-<script src="../static/lib/bootstrap/js/bootstrap.min.js"></script>
-<link href="../static/lib/bootstrap/css/bootstrap.min.css" rel="stylesheet">
-<link href="../static/lib/bootstrap/css/bootstrap-theme.min.css" rel="stylesheet">
-
-<link href="../static/lib/footable/css/footable.core.min.css" rel="stylesheet" type="text/css" />
-<script src="../static/lib/footable/js/footable.js" type="text/javascript"></script>
-<script src="../static/lib/footable/js/footable.sort.js" type="text/javascript"></script>
-<script src="../static/lib/footable/js/footable.filter.js" type="text/javascript"></script>
-<script src="../static/lib/footable/js/footable.paginate.js" type="text/javascript"></script>
-
-<script src="../static/lib/jquery-datetextentry/jquery.datetextentry.js" type="text/javascript"></script>
-<link href="../static/lib/jquery-datetextentry/jquery.datetextentry.css" rel="stylesheet">
-
-<script src="https://maps.googleapis.com/maps/api/js?sensor=false&amp;libraries=places"></script>
-<script src="../static/lib/ubilabs-geocomplete/jquery.geocomplete.js"></script>
-
-<!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
-<!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
-<!--[if lt IE 9]>
-	<script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
-	<script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
-<![endif]-->
-{% endblock %}
+    {% block scripts %}
+        <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+        <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+        <!--[if lt IE 9]>
+            <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+            <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+        <![endif]-->
+    {% endblock %}
 </body>
 </html>
