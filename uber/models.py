@@ -720,14 +720,19 @@ class Session(SessionManager):
 
     @classmethod
     def model_mixin(cls, model):
-        for m in cls.all_models():
-            if m.__name__ == model.__name__:
-                for attr in dir(model):
-                    if not attr.startswith('_'):
-                        setattr(m, attr, getattr(model, attr))
-                return m
+        if model.__name__ in ['SessionMixin', 'QuerySubclass']:
+            target = getattr(cls, model.__name__)
         else:
-            raise ValueError('No existing model with name {}'.format(model.__name__))
+            for target in cls.all_models():
+                if target.__name__ == model.__name__:
+                    break
+            else:
+                raise ValueError('No existing model with name {}'.format(model.__name__))
+
+        for attr in dir(model):
+            if not attr.startswith('_'):
+                setattr(target, attr, getattr(model, attr))
+        return target
 
 
 class Event(MagModel):
