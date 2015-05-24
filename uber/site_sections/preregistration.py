@@ -1,4 +1,7 @@
 from uber.common import *
+from string import Template
+from django.utils.safestring import mark_safe
+import json
 
 
 def to_sessionized(attendee, group):
@@ -318,12 +321,41 @@ class Root:
         else:
             attendee.can_spam = True    # only defaults to true for these forms
 
+        badges = [
+            {
+                'type': 'attending',
+                'title': 'Attending: $0',
+                'description': 'Allows access to the convention for its duration'
+            }
+        ]
+        if (c.SUPPORTER_LEVEL in c.PREREG_DONATION_TIERS and
+                c.SUPPORTER_AVAILABLE):
+            title = {'price': '$' + str(c.SUPPORTER_LEVEL)}
+            badges.append({
+                'type': 'supporter',
+                'title': Template('Supporter: $price').substitute(title),
+                'description': 'Donate extra and get more swag with your membership',
+                'extra': c.SUPPORTER_LEVEL
+            })
+
+        if (c.SEASON_LEVEL in c.PREREG_DONATION_TIERS and
+                c.SUPPORTER_AVAIALABLE):
+            title = {'price': '$' + str(c.SEASON_LEVEL)}
+            badges.append({
+                'type': 'season_supporter',
+                'title': Template('Season Supporter: $price')
+                    .substitute(title),
+                'description': 'Fill this in later',
+                'extra': c.SEASON_LEVEL
+            })
+
         return {
             'message':  message,
             'group_id': group_id,
             'group': group,
             'attendee': attendee,
-            'affiliates': session.affiliates()
+            'affiliates': session.affiliates(),
+            'badges': mark_safe(json.dumps(badges))
         }
 
     def group_extra_payment_form(self, session, id):
