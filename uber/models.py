@@ -481,23 +481,17 @@ class Session(SessionManager):
             badge types to display for an attendee.
             """
             params = cherrypy.lib.httputil.parse_query_string(cherrypy.request.query_string)
-            group_id = params['group_id'] if 'group_id' in params else None
-            attendee_id = params['id'] if 'id' in params else None
+            group = self.group(params['group_id']) if 'group_id' in params else None
+            attendee = self.attendee(params['id']) if 'id' in params else None
 
-            if group_id:
-                group = self.group(group_id)
-
-            if attendee_id:
-                attendee = self.attendee(attendee_id)
-
-            if attendee_id == None:
+            if not attendee:
                 # Inherits the group's badge type if it's an attendee claiming a badge in a group
-                base_badge_name = group.ribbon_and_or_badge if group_id else c.BADGES.get(c.ATTENDEE_BADGE)
+                base_badge_name = group.ribbon_and_or_badge if group else c.BADGES.get(c.ATTENDEE_BADGE)
             else:
                 base_badge_name = attendee.ribbon_and_or_badge
 
             donation_prepend = '' if base_badge_name == c.BADGES.get(c.ATTENDEE_BADGE) else base_badge_name + ' / '
-            badge_cost = attendee.badge_cost if attendee_id else c.BADGE_PRICE
+            badge_cost = attendee.badge_cost if attendee else c.BADGE_PRICE
 
             badge_types = {}
             badge_types['base_option'] = {
@@ -506,7 +500,7 @@ class Session(SessionManager):
                 'extra': 0
             }
 
-            if c.GROUPS_ENABLED and not attendee_id and not group_id:
+            if c.GROUPS_ENABLED and not attendee and not group:
                 if c.BEFORE_GROUP_PREREG_TAKEDOWN:
                     group_description = '<p class="list-group-item-text">Register a group of ' + \
                                         str(c.MIN_GROUP_SIZE) + ' or more and save $' + str(c.GROUP_DISCOUNT) + \
