@@ -289,3 +289,12 @@ def static_overrides(dirname):
                 'tools.staticfile.on': True,
                 'tools.staticfile.filename': os.path.join(dpath, fname)
             }
+
+
+def mount_site_sections(module_root):
+    from uber.server import Root
+    sections = [path.split('/')[-1][:-3] for path in glob(os.path.join(module_root, 'site_sections', '*.py'))
+                                         if not path.endswith('__init__.py')]
+    for section in sections:
+        module = importlib.import_module(basename(module_root) + '.site_sections.' + section)
+        setattr(Root, section, module.Root())
