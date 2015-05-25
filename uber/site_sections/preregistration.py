@@ -276,9 +276,10 @@ class Root:
 
     def group_members(self, session, id, message=''):
         group = session.group(id)
+        charge = Charge([group, group.leader]) if group.leader else Charge(group, group.leader)
         return {
             'group':   group,
-            'charge':  Charge([group, group.leader]),  # Include group leader's kick-in level if not paid-for
+            'charge':  charge,
             'message': message
         }
 
