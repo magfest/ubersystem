@@ -82,6 +82,10 @@
         });
     </script>
 
+{% for key,value in badge_types.items %}
+{{ value }}
+{% endfor %}
+
     <div class="row bs-wizard" style="border-bottom:0;border-top:0;">   
         <div class="col-xs-4 bs-wizard-step active">
             <div class="text-center bs-wizard-stepnum">Step 1</div>

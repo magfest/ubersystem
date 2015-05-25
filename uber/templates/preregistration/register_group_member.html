@@ -11,6 +11,10 @@
 <input type="hidden" name="id" value="{{ attendee.db_id }}" />
 <input type="hidden" name="group_id" value="{{ group_id }}" />
 
+    {% for key,value in badge_types.items %}
+{{ value }}
+{% endfor %}
+
 {% include "regform.html" %}
 
 <div class="form-group">

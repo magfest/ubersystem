@@ -29,6 +29,10 @@
 <input type="hidden" name="return_to" value="{{ return_to }}" />
 <input type="hidden" name="undoing_extra" value="{{ undoing_extra }}" />
 
+    {% for key,value in badge_types.items %}
+        {{ value }}
+    {% endfor %}
+
 {% if attendee.amount_unpaid %}
     <br/>
     <div class="form-group">
