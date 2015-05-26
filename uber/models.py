@@ -604,6 +604,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.ribbon != NO_RIBBON:
             badge += ' ({})'.format(self.ribbon_label)
 
+        if 'student discount' in self.admin_notes:
+            badge += ' | Student Discount'
+
         return badge
 
     @property
@@ -1277,8 +1280,13 @@ class Session(SessionManager):
             #assert_badge_locked()
             badge_type = int(badge_type)
 
-            if badge_type not in PREASSIGNED_BADGE_TYPES:
-                return 0
+            log.error("next_badge_num()")
+
+            #if badge_type not in PREASSIGNED_BADGE_TYPES:
+            #    log.error("skipping because not in preassigned types")
+            #    return 0
+
+            log.error("not skipping")
 
             sametype = self.query(Attendee).filter(Attendee.badge_type == badge_type, Attendee.badge_num > 0)
             if sametype.count():
@@ -1289,6 +1297,8 @@ class Session(SessionManager):
             for attendee in [m for m in chain(self.new, self.dirty) if isinstance(m, Attendee)]:
                 if attendee.badge_type == badge_type:
                     next = max(next, 1 + attendee.badge_num)
+
+            log.error("next avail = {}", next)
 
             return next
 

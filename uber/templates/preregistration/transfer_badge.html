@@ -21,7 +21,7 @@ our Registration Desk; that will belong to whomever the badge is transferred.
         <input type="text" style="width:15em" name="last_name"  value="{{ attendee.last_name }}" />
     </td>
 </tr>
-{% if attendee.has_personalized_badge and not AFTER_PRINTED_BADGE_DEADLINE %}
+{% if SHOW_CUSTOM_BADGE_INPUT and attendee.has_personalized_badge and not AFTER_PRINTED_BADGE_DEADLINE %}
     <tr>
         <td>Name Printed on Badge:</td>
         <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" /> </td>

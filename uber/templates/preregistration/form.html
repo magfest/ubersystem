@@ -11,19 +11,7 @@
 
 <table class="form">
 <tr>
-    <td><b>Badge:</b></td>
-    <td>
-        {% if attendee.badge_type == PSEUDO_GROUP_BADGE %}
-            Group Registration
-        {% elif attendee.badge_type == PSEUDO_DEALER_BADGE %}
-            Dealer Application
-        {% else %}
-            {{ attendee.badge_type_label }}
-            {% if badge_type == ATTENDEE %}
-                (${{ BADGE_PRICE }})
-            {% endif %}
-        {% endif %}
-    </td>
+    {% include "preregistration/badge_description.html" %}
 </tr>
 {% if attendee.is_dealer or attendee.badge_type == PSEUDO_GROUP_BADGE %}
     <tr>

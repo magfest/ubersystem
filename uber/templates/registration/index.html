@@ -196,6 +196,7 @@
                     {% if attendee.ribbon != NO_RIBBON %}
                         ({{ attendee.ribbon_label }})
                     {% endif %}
+                    {% if attendee.admin_notes %}<b>{{ attendee.admin_notes }}</b>{% endif %}
                 {% else %}
                     {{ attendee.badge }}
                 {% endif %}

@@ -457,10 +457,12 @@ class Notice(template.Node):
     def notice(self, label, takedown, discount=0, amount_extra=0):
         for day, price in sorted(PRICE_BUMPS.items()):
             if day < takedown and localized_now() < day:
-                return 'Price goes up to ${} at 11:59pm EST on {}'.format(price + amount_extra - discount, (day - timedelta(days=1)).strftime('%A, %b %e'))
+                return 'Price goes up to ${} at 11:59pm PST on {}'.format(price + amount_extra - discount, (day - timedelta(days=1)).strftime('%A, %b %e'))
             elif localized_now() < day:
-                return '{} closes at 11:59pm EST on {}. Price goes up to ${} at-door.'.format(label, takedown.strftime('%A, %b %e'), price + amount_extra - discount, (day - timedelta(days=1)).strftime('%A, %b %e'))
-        return '{} closes at 11:59pm EST on {}'.format(label, takedown.strftime('%A, %b %e'))
+                return '{} closes at 11:59pm PST on {}. Price goes up to ${} at-door.'.format(label, takedown.strftime('%A, %b %e'), price + amount_extra - discount, (day - timedelta(days=1)).strftime('%A, %b %e'))
+        return '{} closes at 11:59pm PST on {}'.format(label, takedown.strftime('%A, %b %e'))
+
+        return '{} closes at 11:59pm PST on {}'.format(label, takedown.strftime('%A, %b %e'))
 
 @tag
 class attendee_price_notice(Notice):
@@ -482,5 +484,9 @@ class season_price_notice(Notice):
     def render(self, context):
         return self.notice('Season supporter preregistration', SUPPORTER_DEADLINE, amount_extra=SEASON_LEVEL)
 
-        
+@tag
+class student_price_notice(Notice):
+    def render(self, context):
+        return self.notice('Student Preregistration', PREREG_TAKEDOWN, discount=STUDENT_DISCOUNT)
+
 template.builtins.append(register)
