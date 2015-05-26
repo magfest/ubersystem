@@ -200,8 +200,7 @@ class Root:
             'group':      group,
             'edit_id':    edit_id,
             'badges':     params.get('badges'),
-            'affiliates': session.affiliates(),
-            'badge_types': session.available_badge_types()
+            'affiliates': session.affiliates()
         }
 
     def duplicate(self, session, id):
@@ -325,8 +324,7 @@ class Root:
             'group_id': group_id,
             'group': group,
             'attendee': attendee,
-            'affiliates': session.affiliates(),
-            'badge_types': session.available_badge_types()
+            'affiliates': session.affiliates()
         }
 
     def group_extra_payment_form(self, session, id):
@@ -484,8 +482,7 @@ class Root:
             'return_to':     return_to,
             'attendee':      attendee,
             'message':       message,
-            'affiliates':    session.affiliates(),
-            'badge_types':   session.available_badge_types()
+            'affiliates':    session.affiliates()
         }
 
     def guest_food(self, session, id):

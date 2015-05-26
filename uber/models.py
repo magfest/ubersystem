@@ -470,67 +470,6 @@ class Session(SessionManager):
                     restricted_hours.add(frozenset(job.hours))
             return [job.to_dict(fields) for job in jobs if job.restricted or frozenset(job.hours) not in restricted_hours]
 
-        def available_badge_types(self):
-            """
-            There are several contexts where we want to display different badge types to select:
-            - A new attendee registering for the event
-            - An attendee claiming a blank badge in an existing group
-            - An existing attendee editing their registration
-
-            This function uses the parameters in the session to figure out the context and return the correct
-            badge types to display for an attendee.
-            """
-            params = cherrypy.lib.httputil.parse_query_string(cherrypy.request.query_string)
-            group = self.group(params['group_id']) if 'group_id' in params else None
-            attendee = self.attendee(params['id']) if 'id' in params else None
-
-            if not attendee:
-                # Inherits the group's badge type if it's an attendee claiming a badge in a group
-                base_badge_name = group.ribbon_and_or_badge if group else c.BADGES.get(c.ATTENDEE_BADGE)
-            else:
-                base_badge_name = attendee.ribbon_and_or_badge
-
-            donation_prepend = '' if base_badge_name == c.BADGES.get(c.ATTENDEE_BADGE) else base_badge_name + ' / '
-            badge_cost = attendee.badge_cost if attendee else c.BADGE_PRICE
-
-            badge_types = {}
-            badge_types['base_option'] = {
-                'title': base_badge_name + ': $' + str(badge_cost),
-                'description': 'Allows access to the convention for its duration.',
-                'extra': 0
-            }
-
-            if c.GROUPS_ENABLED and not attendee and not group:
-                if c.BEFORE_GROUP_PREREG_TAKEDOWN:
-                    group_description = '<p class="list-group-item-text">Register a group of ' + \
-                                        str(c.MIN_GROUP_SIZE) + ' or more and save $' + str(c.GROUP_DISCOUNT) + \
-                                        ' per badge.</p>',
-                else:
-                    group_description = '<p class="list-group-item-text">The deadline for Group registration has' + \
-                                        'passed, but you can still register as a regular attendee.</p>'
-
-                badge_types['group_option'] = {
-                    'title': 'Group Leader',
-                    'description': group_description,
-                    'extra': 0
-                }
-
-            if c.SUPPORTER_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE:
-                badge_types['supporter_option'] = {
-                    'title': donation_prepend + 'Supporter: $' + str(badge_cost + c.SUPPORTER_LEVEL),
-                    'description': 'Donate extra and get more swag with your membership.',
-                    'extra': c.SUPPORTER_LEVEL
-                }
-
-            if c.SEASON_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE:
-                badge_types['season_option'] = {
-                    'title': donation_prepend + 'Season Supporter: $' + str(badge_cost + c.SEASON_LEVEL),
-                    'description': 'Fill this in later',
-                    'extra': c.SEASON_LEVEL
-                }
-
-            return badge_types
-
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
 
@@ -1194,10 +1133,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def shirt_size_marked(self):
         return self.shirt not in [c.NO_SHIRT, c.SIZE_UNKNOWN]
-
-    @property
-    def is_group_leader(self):
-        return self.group and self.id == self.group.leader_id
 
     @property
     def unassigned_name(self):
