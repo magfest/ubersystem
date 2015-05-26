@@ -282,3 +282,21 @@ AT_OR_POST_CON = AT_THE_CON or POST_CON
 PRE_CON = not AT_OR_POST_CON
 
 SAME_NUMBER_REPEATED = r'^(\d)\1+$'
+
+def get_sqlalchemy_url():
+    # <hack in Docker DB support>
+    # TODO: our config class should support changing SQLALCHEMY_URL if the appropriate env vars are set by Docker
+    # examples:
+    # DB_PORT_5432_TCP_ADDR="172.17.0.8"
+    # DB_PORT_5432_TCP_PORT="5432"
+    docker_db_addr = os.environ.get('DB_PORT_5432_TCP_ADDR')
+    docker_db_port = os.environ.get('DB_PORT_5432_TCP_PORT')
+
+    if docker_db_addr is not None and docker_db_port is not None:
+        return "postgresql://m13:m13@" + docker_db_addr + ":" + docker_db_port + "/m13"
+    else:
+        return SQLALCHEMY_URL
+
+    # </hack in Docker DB support>
+
+SQLALCHEMY_FINAL_URL = get_sqlalchemy_url()
