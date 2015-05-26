@@ -60,11 +60,7 @@ class Root:
 
     static_views = StaticViews()
 
-_sections = [path.split('/')[-1][:-3] for path in glob(os.path.join(c.MODULE_ROOT, 'site_sections', '*.py'))
-                                      if not path.endswith('__init__.py')]
-for _section in _sections:
-    _module = importlib.import_module('uber.site_sections.' + _section)
-    setattr(Root, _section, _module.Root())
+mount_site_sections(c.MODULE_ROOT)
 
 
 class Redirector:
