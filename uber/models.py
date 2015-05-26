@@ -908,7 +908,7 @@ class Group(MagModel, TakesPaymentMixin):
 
 class Attendee(MagModel, TakesPaymentMixin):
     group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
-    group = relationship(Group, backref='attendees', foreign_keys=group_id, cascade='all')
+    group = relationship(Group, backref='attendees', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
 
     placeholder   = Column(Boolean, default=False, admin_only=True)
     first_name    = Column(UnicodeText)
@@ -975,7 +975,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     games  = relationship('Game', backref='attendee')
     shifts = relationship('Shift', backref='attendee')
     checkouts = relationship('Checkout', backref='attendee')
-    sales = relationship('Sale', backref='attendee', cascade='all')
+    sales = relationship('Sale', backref='attendee', cascade='save-update,merge,refresh-expire,expunge')
     mpoints_for_cash = relationship('MPointsForCash', backref='attendee')
     assigned_panelists = relationship('AssignedPanelist', backref='attendee')
     old_mpoint_exchanges = relationship('OldMPointExchange', backref='attendee')
@@ -1475,8 +1475,8 @@ class NoShirt(MagModel):
 class MerchPickup(MagModel):
     picked_up_by_id  = Column(UUID, ForeignKey('attendee.id'))
     picked_up_for_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
-    picked_up_by     = relationship(Attendee, primaryjoin='MerchPickup.picked_up_by_id == Attendee.id', cascade='all')
-    picked_up_for    = relationship(Attendee, primaryjoin='MerchPickup.picked_up_for_id == Attendee.id', cascade='all')
+    picked_up_by     = relationship(Attendee, primaryjoin='MerchPickup.picked_up_by_id == Attendee.id', cascade='save-update,merge,refresh-expire,expunge')
+    picked_up_for    = relationship(Attendee, primaryjoin='MerchPickup.picked_up_for_id == Attendee.id', cascade='save-update,merge,refresh-expire,expunge')
 
 
 class DeptChecklistItem(MagModel):
