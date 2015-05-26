@@ -40,11 +40,11 @@ def check_post_con(klass):
         def wrapped(self, *args, **kwargs):
             if c.POST_CON:  # TODO: replace this with a template and make that suitably generic
                 return """
-                    <html><head></head><body style='text-align:center'>
-                        <h2 style='color:red'>Hope you had a great MAGFest!</h2>
-                        Preregistration for MAGFest 13 will open in the summer.
-                    </body></html>
-                """
+                <html><head></head><body style='text-align:center'>
+                    <h2 style='color:red'>Hope you had a great {event}!</h2>
+                    Preregistration for {event} {year} will open in a few months.
+                </body></html>
+                """.format(event=EVENT_NAME, year=(1 + int(YEAR)) if YEAR else '')
             else:
                 return func(self, *args, **kwargs)
         return wrapped
