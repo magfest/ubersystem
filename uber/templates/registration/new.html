@@ -139,7 +139,7 @@
             {% endif %}
         </td>
         <td>{{ attendee.badge_type_label }}</td>
-        <td>{{ attendee.age_group_label }}</td>
+        <td>{{ attendee.age_group.desc }}</td>
         <td>${{ attendee.total_cost }}</td>
         <td>
             {% if attendee.paid == HAS_PAID %}

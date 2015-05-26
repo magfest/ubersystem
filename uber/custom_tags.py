@@ -208,7 +208,7 @@ class radio(template.Node):
         default = self.default.resolve(context)
         checked = 'checked' if str(value)==str(default) else ''
 
-        return """<input type="radio" name="%s" value="%s" %s />""" % (self.name, value, checked)
+        return """<div class="radio"><input type="radio" name="%s" value="%s" %s /></div>""" % (self.name, value, checked)
 
 @tag
 class hour_day(template.Node):
@@ -380,8 +380,8 @@ class stripe_form(template.Node):
         cherrypy.session[payment_id] = charge.to_dict()
 
         email = ""
-        if charge.targets:
-            email = charge.models[0].email
+        if charge.targets and charge.models[0].email:
+            email = charge.models[0].email[:255]
 
         if not charge.targets:
             if AT_THE_CON:
@@ -482,5 +482,24 @@ class season_price_notice(Notice):
     def render(self, context):
         return self.notice('Season supporter preregistration', SUPPORTER_DEADLINE, amount_extra=SEASON_LEVEL)
 
-        
+# FIXME this can probably be cleaned up more
+@register.tag(name="random_hash")
+def random_hash(parser, token):
+    items = []
+    bits =  token.split_contents()
+    for item in bits:
+        items.append(item)
+    return RandomgenNode(items[1:])
+
+class RandomgenNode(template.Node):
+    def __init__(self, items):
+        self.items = []
+        for item in items:
+            self.items.append(item)
+
+    def render(self, context):
+        random = os.urandom(16)
+        result = binascii.hexlify(random)
+        return result
+
 template.builtins.append(register)

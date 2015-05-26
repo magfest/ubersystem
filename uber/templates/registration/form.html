@@ -113,6 +113,16 @@
 <input type="hidden" name="id" value="{{ attendee.db_id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
 <table width="100%" cellspacing="5" cellpadding="5">
+{% if not attendee.is_new %}
+<tr>
+    <td>Created by {{ attendee.created.who }} on {{ attendee.created.when|full_datetime }}</td>
+</tr>
+{% if attendee.last_updated %}
+<tr>
+    <td>Last Updated by {{ attendee.last_updated.who }} on {{ attendee.last_updated.when|full_datetime }}</td>
+</tr>
+{% endif %}
+{% endif %}
 {% if not AT_THE_CON %}
     <tr>
         <td width="25%"> <b>Placeholder:</b> </td>
@@ -126,6 +136,14 @@
         </td>
     </tr>
 {% endif %}
+<tr>
+    <td width="25%"><b>Status:</b></td>
+    <td width="75%">
+        <select name="status">
+            {% options BADGE_STATUS_OPTS attendee.status %}
+        </select>
+    </td>
+</tr>
 <tr>
     <td width="25%"> <b>Badge:<b> </td>
     <td width="75%">
@@ -183,34 +201,89 @@
         <input type="text" style="width:10em" name="last_name"  value="{{ attendee.last_name }}"  />
     </td>
 </tr>
-{% if attendee.badge_type == STAFF_BADGE or attendee.badge_type == SUPPORTER_BADGE %}
+{% if attendee.badge_type in PREASSIGNED_BADGE_TYPES %}
     <tr>
         <td>Printed on Badge:</td>
-        <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" {% if CUSTOM_BADGES_REALLY_ORDERED %}readonly{% endif %} /> </td>
+        <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" {% if AFTER_PRINTED_BADGE_DEADLINE %}readonly{% endif %} /> </td>
     </tr>
 {% endif %}
 <tr>
     <td class="maybe_bold" id="email"> Email Address: </td>
     <td> <input type="text" name="email" value="{{ attendee.email }}" /> </td>
 </tr>
+{% if COLLECT_FULL_ADDRESS %}
+    <tr>
+        <td class="maybe_bold" id="address">Address</td>
+        <td>
+            <input type="text" name="address1" placeholder="Address Line 1" value="{{ attendee.address1 }}" />
+        </td>
+    </tr>
+    <tr>
+        <td class="maybe_bold"></td>
+        <td>
+            <input type="text" name="address2" placeholder="Address Line 2" value="{{ attendee.address2 }}" />
+        </td>
+    </tr>
+    <tr>
+        <td class="maybe_bold">City</td>
+        <td>
+            <input type="text" name="city" placeholder="City" value="{{ attendee.city }}" />
+        </td>
+    </tr>
+    <tr>
+        <td class="maybe_bold">State</td>
+        <td>
+            <input type="text" name="region" placeholder="State/Province/Region" value="{{ attendee.region }}" />
+        </td>
+    </tr>
+    <tr>
+        <td class="maybe_bold">Postal Code</td>
+        <td>
+            <input type="text" name="zip_code" placeholder="ZIP/Postal Code" value="{{ attendee.zip_code }}" />
+            {% checkbox attendee.international %} Attendee coming from outside the US.
+        </td>
+    </tr>
+    <tr>
+        <td class="maybe_bold">Country</td>
+        <td>
+             <input type="text" name="country" placeholder="Country" value="{{ attendee.country }}" />
+        </td>
+    </tr>
+{% else %}
 <tr>
-    <td class="maybe_bold" id="zip_code"> Zip Code: </td>
+    <td class="maybe_bold" id="zip_code">Zip Code: </td>
     <td>
         <input type="text" name="zip_code" value="{{ attendee.zip_code }}" />
         {% checkbox attendee.international %} Attendee is from outside the US.
     </td>
 </tr>
+{% endif %}
 <tr>
-    <td class="maybe_bold"> <nobr>Emergency Contact</nobr> <nobr>Phone Number:</nobr> </td>
+    <td> <nobr>Personal Phone Number:</nobr> </td>
+    <td> <input type="text" name="cellphone" value="{{ attendee.cellphone }}" /> </td>
+</tr>
+<tr>
+    <td class="maybe_bold"> <nobr>Backup Phone Name:</nobr> </td>
+    <td> <input type="text" name="ec_name" value="{{ attendee.ec_name }}" /> </td>
+</tr>
+<tr>
+    <td class="maybe_bold"> <nobr>Backup Phone Number:</nobr> </td>
     <td> <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" /> </td>
 </tr>
 <tr>
+    {% if COLLECT_EXACT_BIRTHDATE %}
+    <td> <nobr>{% bold_if AT_THE_CON %}Date of Birth:{% end_bold_if %}</nobr> </td>
+    <td>
+        <input type="text" name="birthdate" value="{{ attendee.birthdate|date:"Y-m-d" }}" class="form-control date">
+    </td>
+    {% else %}
     <td> <nobr>{% bold_if AT_THE_CON %}Age as of {{ EVENT_NAME }}:{% end_bold_if %}</nobr> </td>
     <td>
         <select name="age_group">
             {% options AGE_GROUP_OPTS attendee.age_group %}
         </select>
     </td>
+    {% endif %}
 </tr>
 <tr>
     <td valign="top"> Staffing </td>
@@ -258,12 +331,6 @@
         <nobr><input type="checkbox" onClick="$(':checkbox[name=interests]').attr('checked',this.checked)" /> All</nobr>
         {% checkgroup attendee.interests %}
     </td>
-</tr>
-<tr>
-    <td> <nobr>Personal Phone Number:</nobr> </td>
-    <td> <input type="text" name="cellphone" value="{{ attendee.cellphone }}" /> 
-                    <span id="nophone">{% checkbox attendee.no_cellphone %} Doesn't own a cellphone</span>
-            </td>
 </tr>
 <tr>
     <td> Attendee Comments: </td>

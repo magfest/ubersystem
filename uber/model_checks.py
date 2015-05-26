@@ -55,32 +55,66 @@ def _invalid_phone_number(s):
     if not s.startswith('+'):
         return len(re.findall(r'\d', s)) != 10 or re.search(SAME_NUMBER_REPEATED, re.sub(r'[^0-9]','',s))
 
+def _invalid_zip_code(s):
+    return len(re.findall(r'\d', s)) not in [5, 9]
+
 def attendee_misc(attendee):
     if attendee.group_id and not attendee.first_name.strip() and not attendee.last_name.strip():
         return
+
+    if COLLECT_EXACT_BIRTHDATE and attendee.birthdate == '':
+        attendee.birthdate = None # Prevent insertion errors for placeholder attendees
 
     if not attendee.first_name or not attendee.last_name:
         return 'First Name and Last Name are required'
     elif attendee.placeholder:
         return
 
+    if COLLECT_EXACT_BIRTHDATE and attendee.birthdate is None:
+        return 'Enter your date of birth.'
+    if COLLECT_EXACT_BIRTHDATE and attendee.birthdate > date.today():
+        return 'You cannot be born in the future.'
+
+    if COLLECT_FULL_ADDRESS:
+        if not attendee.address1:
+            return 'Enter your street address.'
+        if not attendee.city:
+            return 'Enter your city.'
+        if not attendee.region:
+            return 'Enter your state, province, or region.'
+        if not attendee.country:
+            return 'Enter your country.'
+
+    if len(attendee.email) > 255:
+        return 'Email addresses cannot be longer than 255 characters.'
+
     if (AT_THE_CON and attendee.email and not re.match(EMAIL_RE, attendee.email)) or (not AT_THE_CON and not re.match(EMAIL_RE, attendee.email)):
         return 'Enter a valid email address'
 
+    if COLLECT_INTERESTS and not attendee.ec_name:
+        return 'Enter the name of your emergency contact.'
+
     if not attendee.international and not AT_THE_CON:
-        if not re.match(r'^\d{5}$', attendee.zip_code):
+        if _invalid_zip_code(attendee.zip_code):
             return 'Enter a valid zip code'
 
-        if _invalid_phone_number(attendee.ec_phone):
+        if COLLECT_INTERESTS and _invalid_phone_number(attendee.ec_phone):
             return 'Enter a 10-digit emergency contact number'
 
         if attendee.cellphone and _invalid_phone_number(attendee.cellphone):
-            return 'Invalid 10-digit cellphone number'
+            return 'Invalid 10-digit phone number'
+
+        if not attendee.no_cellphone and _invalid_phone_number(attendee.cellphone):
+            return 'Please enter a 10-digit phone number'
 
     if not attendee.no_cellphone and attendee.staffing and _invalid_phone_number(attendee.cellphone):
         return "10-digit cellphone number is required for volunteers (unless you don't own a cellphone)"
-    if attendee.age_group == UNDER_18 and attendee.staffing and attendee.badge_type != STAFF_BADGE and PRE_CON:
-        return "Attendees must be 18 years of age or older to volunteer"
+
+    if not attendee.can_volunteer and attendee.staffing and attendee.badge_type != STAFF_BADGE and PRE_CON:
+        return "Volunteers cannot be " + attendee.age_group_desc
+    
+    if not attendee.can_register:
+        return 'Attendees '+ attendee.age_group_desc +' years of age do not need to register, but MUST be accompanied by a parent at all times!'
 
 
 def attendee_leadership(attendee):
@@ -93,7 +127,7 @@ def attendee_banned_volunteer(attendee):
     if (attendee.ribbon == VOLUNTEER_RIBBON or attendee.staffing) and attendee.full_name in BANNED_STAFFERS:
         return "We've declined to invite {} back as a volunteer, {}".format(attendee.full_name,
                 'talk to Stops to override if necessary' if AT_THE_CON
-            else 'email stops@magfest.org if you believe this is in error')
+            else '''Please contact us via CONTACT_URL if you believe this is in error'''.replace('CONTACT_URL', CONTACT_URL))
 
 def attendee_money(attendee):
     try:

@@ -41,7 +41,7 @@
         setVisible("#underage", $("[name=age_group]").val() == {{ UNDER_18 }});
         setVisible("#under13", $("[name=age_group]").val() == {{ UNDER_18 }});
     };
-    $(showOrHide);
+    {% if not COLLECT_EXACT_BIRTHDATE %} $(showOrHide); {% endif %}
 </script>
 
 <form method="post" action="register" autocomplete="off">
@@ -71,19 +71,29 @@
         </select>
     </td>
 </tr>
+    <tr>
+    <td style="font-weight:bold"> <nobr>Backup Phone Name:</nobr> </td>
+    <td> <input type="text" name="ec_name" value="{{ attendee.ec_name }}" /> </td>
+</tr>
 <tr>
-    <td style="font-weight:bold"> <nobr>Emergency Contact</nobr> <nobr>Phone Number:</nobr> </td>
+    <td style="font-weight:bold"> <nobr>Backup Phone Number:</nobr> </td>
     <td> <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" /> </td>
 </tr>
 <tr>
-    <td style="font-weight: bold"> <nobr>Age:</nobr> </td>
+    {% if COLLECT_EXACT_BIRTHDATE %}
+    <td style="font-weight: bold"> <nobr>Date of Birth:</nobr> </td>
     <td>
+        <input type="text" name="birthdate" value="{{ attendee.birthdate|date:"Y-m-d" }}" class="form-control date">
+    </td>
+    {% else %}
+    <td style="font-weight: bold"> <nobr>Age:</nobr> </td>
         <select name="age_group" onChange="showOrHide()">
             {% options AGE_GROUP_OPTS attendee.age_group %}
         </select>
         <span id="underage" style="color:red ; display:none">Attendees under 18 <b>MUST</b> have a parental consent form signed to receive a badge.</span>
         <br/><span id="under13" style="display:none"><input type="checkbox" name="under_13"> This attendee is under 13.</span>
     </td>
+    {% endif %}
 </tr>
 <tr>
     <td id="email"> Email Address: </td>

@@ -64,13 +64,23 @@
     <td> <b>Tables:</b> </td>
     <td>
         <select name="tables">
-            {% options TABLE_OPTS group.tables %}
+            {% options ADMIN_TABLE_OPTS group.tables %}
         </select>
     </td>
 </tr>
 <tr>
+    <td><b>Table Extras:</b></td>
+    <td>
+        {% checkgroup group.table_extras %}
+    </td>
+</tr>
+<tr>
     <td> <b>Badges:</b> </td>
-    <td> <select name="badges">{% int_options 0 MAX_GROUP_SIZE group.badges %}</select> </td>
+    <td> <select name="badges">{% int_options 0 MAX_GROUP_SIZE group.badges %}</select> [{{ group.badges_purchased }} badge(s) purchased]</td>
+</tr>
+<tr>
+    <td><b>Badge Type:</b></td>
+    <td> <select name="badge_type">{% options BADGE_OPTS group.leader.badge_type %}</select></td>
 </tr>
 <tr>
     <td> <b><nobr>Amount Paid:</nobr></b> </td>
@@ -91,7 +101,7 @@
     {% if group.leader %}
         <tr>
             <td> <b>Phone Number</b> </td>
-            <td> {{ group.leader.phone }} </td>
+            <td> {{ group.leader.cellphone }} </td>
         </tr>
     {% endif %}
     <tr>
@@ -124,7 +134,7 @@
         <td> <textarea rows="3" cols="30" name="wares">{{ group.wares }}</textarea>
     </tr>
     <tr>
-        <td> <b>Website Address</b> </td>
+        <td> <b>Tax ID</b> </td>
         <td> <input type="text" name="website" value="{{ group.website }}" />
     </tr>
     <tr>
@@ -166,10 +176,10 @@
         </form>
     </div>
 {% endif %}
-
+{% if not group.is_new %} <a style="font-size:10pt" href="../preregistration/group_members?id={{ group.id }}">Link for group leader</a> {% endif %}
 {% if not group.is_new and group.sorted_attendees %}
     <hr/>
-    <h3> Badges: &nbsp; <a style="font-size:10pt" href="../preregistration/group_members?id={{ group.id }}">Link for group leader</a> </h3>
+    <h3> Badges: &nbsp; </h3>
     <table style="width:auto">
     {% for attendee in group.attendees %}
         <tr>

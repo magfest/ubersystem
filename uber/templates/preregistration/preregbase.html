@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% block sectionStyle %}
-    <link rel="stylesheet" type="text/css" href="../static_views/prereg.css" />
+    <!-- <link rel="stylesheet" type="text/css" href="../static_views/prereg.css" /> -->
+{% endblock %}
+{% block backlink %}
+
+
 {% endblock %}
 {% block header %}
-<div id="header">
-    <span class="pageTitle">Preregistration</span>
-</div>
-
+<link href="../static/themes/prereg.css" rel="stylesheet">
 <script type="text/javascript">
     var checkCap = function () {
         $.getJSON('check_prereg', function(check) {
@@ -16,5 +17,22 @@
         });
     };
     setInterval(checkCap, 1000 * 1 * 90);
+
+{% if COLLECT_FULL_ADDRESS %}
+$(document).ready(function() {
+    $("#international").hide()
+    setInternational()
+});
+
+function setInternational() {
+    countryName = $("input[name='country']").val();
+
+    if(countryName == "USA" || countryName == "US" || countryName == "United States") {
+        $("input[name='international']").prop('checked', false);
+    } else {
+        $("input[name='international']").prop('checked', true);
+    }
+}
+{% endif %}
 </script>
 {% endblock header %}

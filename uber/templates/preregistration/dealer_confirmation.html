@@ -2,17 +2,40 @@
 {% block title %}Dealer Application Received{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
+<div class="masthead">
+</div>
+<div class="panel panel-default" style="padding:15px;">
+    <h2>{% if AFTER_DEALER_REG_DEADLINE %}You've been added to our waitlist!{% else %}Thanks for applying as a Dealer!{% endif %}</h2>
 
-<h2>{% if AFTER_DEALER_REG_DEADLINE %}You've been added to our waitlist!{% else %}Thanks for applying as a Dealer!{% endif %}</h2>
+    We've received your application for {{ group.name }} to purchase a Dealer registration for {{ EVENT_NAME }}.
 
-We've received your application for {{ group.name }} to purchase a Dealer registration for {{ EVENT_NAME }}.
+    <br/><br/>
+    {% if AFTER_DEALER_REG_DEADLINE %}
+        Since the Dealer's Room is currently full, you've been added to our waitlist, and we'll let you know by the end
+        of May if a spot opens up for you.
+    {% else %}
+        We receive a flood of applications every year, which we respond to in the order in which we receive them.
+        Approvals will be done as promptly as possible; usually within <strong>two weeks</strong> from application.
+    {% endif %}
 
-{% if AFTER_DEALER_REG_DEADLINE %}
-    Since our Marketplace is currently full, you've been added to our waitlist, and we'll let you know by the end of November if a spot opens up for you.
-{% else %}
-    We receive a flood of applications every year, which we respond to in the order in which we receive them, and you'll be emailed when we process yours.
-{% endif %}
+    <h3>What Happens Next</h3>
+    After approval, you will be emailed a link to manage your Dealership. From this link, you will be able to:
+    <ul>
+        <li>Pay for your Dealership, which includes the cost of tables and memberships.</li>
+        <li>Register your selected Dealer Assistants.</li>
+        <li>After your Membership and Table payment is received, you may add and pay for additional Dealer Assistants.
+            They may also register and pay their own.</li>
+    </ul>
 
-{% include "preregistration/disclaimers.html" %}
+    Your Dealership Payment includes your table cost, your Dealer Membership, and any selected Dealer Assistant
+    Memberships.  After payment, you'll be sent a link by email to follow if you wish to later upgrade your membership.
+    Your Dealer Assistants will be able to upgrade their own memberships and pay for those upgrades on their own.
 
+    <br/><br/>Later, you will receive an additional email about your placement within the Dealer's Room.
+
+    <br/><br/>In the event we cannot accommodate your Dealership, you will receive an email. By default, you will still
+    receive a Membership to Anthrocon, and it will be changed from Dealer to Attending (or Dealer+Sponsor to Sponsor, etc).
+
+    {% include "preregistration/disclaimers.html" %}
+</div>
 {% endblock %}

@@ -1,13 +1,9 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}
-    {% if attendee.placeholder %}
-        Finalize Your {{ EVENT_NAME }} Registration
-    {% else %}
-        Update Your {{ EVENT_NAME }} Registration
-    {% endif %}
-{% endblock %}
+{% block title %}Confirm Your Details{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
+<div class="masthead">
+</div>
 
 <script type="text/javascript">
     $(function(){
@@ -26,48 +22,62 @@
     });
 </script>
 
-<form method="post" action="confirm">
+<div class="panel panel-default">
+<form method="post" action="confirm" class="form-horizontal">
 {% csrf_token %}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
-
-<table class="form">
-<tr>
-    <td> <b><nobr>Name:</nobr></b> </td>
-    <td>{{ attendee.full_name }}</td>
-</tr>
+<br/>
+{% include "preregistration/badge_choice.html" %}
+  <div class="form-group">
+    <label for="email" class="col-sm-2 control-label">Legal Name</label>
+    <div class="col-sm-6">
+      {{ attendee.full_name }}
+    </div>
+  </div>
+  <div class="form-group">
+    <label for="email" class="col-sm-2 control-label">Badge Number</label>
+    <div class="col-sm-6">
+      {{ attendee.badge_num }}
+    </div>
+  </div>
+  <div class="badge-row extra-row form-group" style="display:none">
+    <p class="help-block col-sm-6 col-sm-offset-2">Badge number is subject to change.</p>
+  </div>
 {% include "preregistration/extra.html" %}
 {% include "preregistration/age_and_staffing.html" %}
-<tr>
-    <td> <b>Email Address:</b> </td>
-    <td> <input type="text" name="email" value="{{ attendee.email }}" class="focus" /> </td>
-</tr>
-<tr>
-    <td> <b>Postal Code:</b> </td>
-    <td>
-        <input type="text" name="zip_code" value="{{ attendee.zip_code }}" />
-        {% checkbox attendee.international %} I'm coming from outside the US.
-    </td>
-</tr>
+<div class="form-group">
+  <label for="email" class="col-sm-2 control-label">Email Address</label>
+  <div class="col-sm-6">
+    <input type="email" name="email" id="email" value="{{ attendee.email }}" class="form-control" placeholder="Email Address">
+  </div>
+</div>
+{% include "preregistration/address.html" %}
 {% include "preregistration/phone_numbers.html" %}
-<tr>
-    <td> What interests you? </td>
-    <td> {% checkgroup attendee.interests %} </td>
-</tr>
-<tr>
-    <td></td>
-    <td> <input type="submit" value="{% if attendee.placeholder %}Register{% else %}Update My Info{% endif %}" id="updateButton"/> </td>
-</tr>
-{% if attendee.is_transferable %}
-<tr>
-    <td></td>
-    <td>
-        <button type="button" onClick='location.href="transfer_badge?id={{ attendee.id }}"'>Transfer my Badge</button>
-    </td>
-</tr>
+{% if COLLECT_INTERESTS %}
+<div class="form-group">
+  <label class="col-sm-2 control-label">What interests you?</label>
+  <div class="col-sm-10">
+    {% checkgroup attendee.interests %}
+  </div>
+</div>
 {% endif %}
-</table>
+
+
+
+<div class="form-group">
+  <div class="col-sm-6 col-sm-offset-2">
+    <button type="submit" class="btn btn-primary" id="updateButton">
+      {% if attendee.placeholder %}Register{% else %}Update My Info{% endif %}
+    </button>
+    {% if attendee.is_transferable %}
+    <button type="button" class="btn" onClick='location.href="transfer_badge?id={{ attendee.id }}"'>Transfer my Badge</button>
+    {% endif %}
+  </div>
+</div>
+
 
 </form>
+</div>
 
 {% endblock %}

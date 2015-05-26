@@ -81,5 +81,5 @@ def at_con(monkeypatch):
 _make_setting_fixture('shifts_created', 'SHIFTS_CREATED', localized_now())
 _make_setting_fixture('shifts_not_created', 'SHIFTS_CREATED', '')
 
-_make_setting_fixture('custom_badges_ordered', 'CUSTOM_BADGES_REALLY_ORDERED', True)
-_make_setting_fixture('custom_badges_not_ordered', 'CUSTOM_BADGES_REALLY_ORDERED', False)
+_make_setting_fixture('custom_badges_ordered', 'SHIFT_CUSTOM_BADGES', False)
+_make_setting_fixture('custom_badges_not_ordered', 'SHIFT_CUSTOM_BADGES', True)

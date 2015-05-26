@@ -74,7 +74,7 @@ class State:
 
     @property
     def PREREG_BADGE_TYPES(self):
-        types = [ATTENDEE_BADGE, PSEUDO_DEALER_BADGE]
+        types = [ATTENDEE_BADGE, PSEUDO_DEALER_BADGE, IND_DEALER_BADGE]
         for reg_open, badge_type in [(self.BEFORE_GROUP_PREREG_TAKEDOWN, PSEUDO_GROUP_BADGE)]:
             if reg_open:
                 types.append(badge_type)
@@ -142,6 +142,7 @@ for _opt, _val in chain(_config.items(), BADGE_PRICES.items()):
 
 DATES = {}
 TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S'
+DATE_FORMAT = '%Y-%m-%d'
 EVENT_TIMEZONE = pytz.timezone(EVENT_TIMEZONE)
 for _opt, _val in _config['dates'].items():
     if not _val:
@@ -208,6 +209,7 @@ for _badge_type, _range in _config['badge_ranges'].items():
 
 SHIFTLESS_DEPTS = {globals()[dept.upper()] for dept in SHIFTLESS_DEPTS}
 PREASSIGNED_BADGE_TYPES = [globals()[badge_type.upper()] for badge_type in PREASSIGNED_BADGE_TYPES]
+TRANSFERABLE_BADGE_TYPES = [globals()[badge_type.upper()] for badge_type in TRANSFERABLE_BADGE_TYPES]
 
 SEASON_EVENTS = _config['season_events']
 DEPT_HEAD_CHECKLIST = _config['dept_head_checklist']
@@ -257,9 +259,22 @@ WEIGHT_OPTS = (
 JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'restricted', 'extra15']
 
 TABLE_OPTS = [
-    (0,   'no table'),
-    (0.5, 'half-table')
-] + [(float(i), i) for i in range(1, 11)]
+    (0.5, 'Half Table'),
+    (1.0, 'Full Table'),
+    (2.0, 'Double Table'),
+    (3.0, 'Triple Table'),
+    (4.0, 'Island/Quad Table')
+]
+
+ADMIN_TABLE_OPTS = [(0.0, 'No Table')] + TABLE_OPTS + [(float(i), str(i)) for i in range(5, 11)]
+
+TABLE_PRICES = {0: 0, 0.5: 40, 1: 100, 2: 350, 3: 600, 4: 999}
+
+TABLE_OPTS = [(count, '{}: ${}'.format(desc, TABLE_PRICES[count])) for count, desc in TABLE_OPTS]
+
+TABLE_EXTRA_PRICES = {POWER_TABLE: 60, WALL_TABLE: 10}
+
+MAX_DEALER_BADGES = {0: 1, 0.5: 2, 1: 2, 2: 3, 3: 4, 4: 5}
 
 NIGHT_DISPLAY_ORDER = [globals()[night.upper()] for night in NIGHT_DISPLAY_ORDER]
 NIGHT_NAMES = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']

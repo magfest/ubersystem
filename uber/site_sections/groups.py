@@ -29,13 +29,14 @@ class Root:
             'approved_tables':   sum(g.tables for g in groups if g.status == APPROVED)
         }
 
+    @log_pageview
     def form(self, session, new_dealer='', first_name='', last_name='', email='', message='', **params):
-        group = session.group(params, bools=['auto_recalc','can_add'])
+        group = session.group(params, checkgroups=['table_extras'], bools=['auto_recalc','can_add'])
         if 'name' in params:
             message = check(group)
             if not message:
                 session.add(group)
-                message = session.assign_badges(group, params['badges'])
+                message = session.assign_badges(group, params['badges'], params['badge_type'])
                 if not message and new_dealer and not (first_name and last_name and email and group.badges):
                     message = 'When registering a new Dealer, you must enter the name and email address of the group leader and must allocate at least one badge'
                 if not message:
@@ -68,10 +69,10 @@ class Root:
             send_email(MARKETPLACE_EMAIL, group.email, subject, email, model = group)
         if action == 'waitlisted':
             group.status = WAITLISTED
-        else:
-            for attendee in group.attendees:
-                session.delete(attendee)
-            session.delete(group)
+        #else:
+            #for attendee in group.attendees:
+                #session.delete(attendee)
+            #session.delete(group)
         session.commit()
         return {'success': True}
 
@@ -81,9 +82,10 @@ class Root:
         if group.badges - group.unregistered_badges and not confirmed:
             raise HTTPRedirect('deletion_confirmation?id={}', id)
         else:
-            for attendee in group.attendees:
-                session.delete(attendee)
-            session.delete(group)
+            Tracking.track(INVALIDATED, group)
+            #for attendee in group.attendees:
+                #session.delete(attendee)
+            #session.delete(group)
             raise HTTPRedirect('index?message={}', 'Group deleted')
 
     def deletion_confirmation(self, session, id):

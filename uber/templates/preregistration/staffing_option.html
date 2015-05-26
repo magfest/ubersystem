@@ -1,11 +1,14 @@
-<tr class="staffing">
-    <td> Want to Volunteer? </td>
-    <td>
-        <input type="checkbox" name="staffing" value="1" {% if attendee.staffing %}checked{% endif %} onClick="staffingClicked()" /> Sign me up! &nbsp;
+  <div class="form-group staffing">
+    <label for="staffing" class="col-sm-2 control-label">Want to Volunteer?</label>
+    <div class="col-sm-6">
+		<input type="checkbox" name="staffing" value="1" {% if attendee.staffing %}checked{% endif %} onClick="staffingClicked()" /> Sign me up! &nbsp;
         <span class="popup">{% popup_link "../static_views/stafferComps.html" "What do I get for volunteering?" %}</span>
-    </td>
-</tr>
-<tr class="staffing" id="departments">
-    <td> <b>Where do you<br/>want to help?</b> </td>
-    <td> {% checkgroup attendee.requested_depts %} </td>
-</tr>
+  	</div>
+  </div>
+
+<div class="form-group staffing" id="departments">
+    <label for="requested_depts" class="col-sm-2 control-label">Where do you want to help?</label>
+    <div class="col-sm-6">
+{% checkgroup attendee.requested_depts %}
+</div>
+</div>
