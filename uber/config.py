@@ -136,6 +136,19 @@ class Config:
                                                 sa.Attendee.amount_paid >= self.SUPPORTER_LEVEL).count()
             return individual_supporters + group_supporters
 
+    @property
+    def SQLALCHEMY_FINAL_URL(self):
+        # support reading the DB connection info from an environment var (used with Docker containers)
+        # DB_PORT_5432_TCP_ADDR="172.17.0.8"
+        # DB_PORT_5432_TCP_PORT="5432"
+        docker_db_addr = os.environ.get('DB_PORT_5432_TCP_ADDR')
+        docker_db_port = os.environ.get('DB_PORT_5432_TCP_PORT')
+
+        if docker_db_addr is not None and docker_db_port is not None:
+            return "postgresql://m13:m13@" + docker_db_addr + ":" + docker_db_port + "/m13"
+        else:
+            return self.SQLALCHEMY_URL
+
     @classmethod
     def mixin(cls, klass):
         for attr in dir(klass):
@@ -345,19 +358,3 @@ c.WRISTBAND_COLORS = defaultdict(lambda: c.DEFAULT_WRISTBAND, c.WRISTBAND_COLORS
 c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
 
 stripe.api_key = c.STRIPE_SECRET_KEY
-
-def get_sqlalchemy_url():
-    # <hack in Docker DB support>
-    # DB_PORT_5432_TCP_ADDR="172.17.0.8"
-    # DB_PORT_5432_TCP_PORT="5432"
-    docker_db_addr = os.environ.get('DB_PORT_5432_TCP_ADDR')
-    docker_db_port = os.environ.get('DB_PORT_5432_TCP_PORT')
-
-    if docker_db_addr is not None and docker_db_port is not None:
-        return "postgresql://m13:m13@" + docker_db_addr + ":" + docker_db_port + "/m13"
-    else:
-        return SQLALCHEMY_URL
-
-    # </hack in Docker DB support>
-
-c.SQLALCHEMY_FINAL_URL = get_sqlalchemy_url()
