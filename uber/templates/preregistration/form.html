@@ -8,56 +8,6 @@
 {% if attendee.is_dealer %}
     <span class="text-center"><h2>Dealer Application</h2></span>
 {% else %}
-    <script type="text/javascript">
-        var BADGE_TYPES = [{
-            title: 'Attending: ${{ c.BADGE_PRICE }}',
-            description: 'Allows access to the convention for its duration.'
-        }];
-
-        {% for opt in c.BADGE_DISPLAY_TYPES %}
-            BADGE_TYPES.push({ {{ opt|jsonify }} })
-        {% endfor %}
-
-        var setBadge = function (badgeTypeIndex) {
-            var badgeType = BADGE_TYPES[badgeTypeIndex];
-            $('.group_fields').addClass('hide');
-            $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
-            $('.badge_type_selector').removeClass('active');
-            $('.badge_type_selector').slice(badgeTypeIndex, 1 + badgeTypeIndex).addClass('active');
-            $.field('amount_extra').val(badgeType.extra || 0).trigger('change');
-            (badgeType.onClick || $.noop)();
-        };
-        var makeBadgeMatchExtra = function () {
-            var target = $.val('name') ? 1 : 0;  // default to attendee or group
-            if (target !== 1) {
-                $.each(BADGE_TYPES, function (i, badgeType) {
-                    if (badgeType.extra && badgeType.extra <= $.val('amount_extra')) {
-                        target = i;
-                    }
-                });
-            }
-            if (!$('.badge_type_selector:nth(' + target + ')').is('.active')) {
-                setBadge(target);
-            }
-        };
-        $(function () {
-            $.each(BADGE_TYPES, function (index, badgeType) {
-                $('#badge_types').append(
-                    $('<div class="col-sm-3"></div>').append(
-                        $('<a class="list-group-item badge_type_selector"></a>').click(function () {
-                            setBadge(index);
-                        }).append(
-                            $('<h4 class="list-group-item-heading"></h4>').html(badgeType.title)
-                        ).append(
-                            $('<p class="list-group-item-text"></p>').html(badgeType.description))));
-            });
-            makeBadgeMatchExtra();
-            if ($.field('amount_extra')) {
-                $.field('amount_extra').on('change', makeBadgeMatchExtra);
-            }
-        });
-    </script>
-
     <div class="row bs-wizard" style="border-bottom:0;border-top:0;">   
         <div class="col-xs-4 bs-wizard-step active">
             <div class="text-center bs-wizard-stepnum">Step 1</div>

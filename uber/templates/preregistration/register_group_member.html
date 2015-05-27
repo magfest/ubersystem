@@ -11,9 +11,9 @@
 <input type="hidden" name="id" value="{{ attendee.db_id }}" />
 <input type="hidden" name="group_id" value="{{ group_id }}" />
 
-{% for key,value in c.BADGE_DISPLAY_TYPES.items %}
-{{ value }}
-{% endfor %}
+<div class="form-group" id="badge_types">
+    <label for="badge" class="col-sm-2 control-label">&nbsp;</label>
+</div>
 
 {% include "regform.html" %}
 
