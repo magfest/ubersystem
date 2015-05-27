@@ -148,7 +148,7 @@ class Config:
         docker_db_port = os.environ.get('DB_PORT_5432_TCP_PORT')
 
         if docker_db_addr is not None and docker_db_port is not None:
-            return "postgresql://m13:m13@" + docker_db_addr + ":" + docker_db_port + "/m13"
+            return "postgresql://uber_db:uber_db@" + docker_db_addr + ":" + docker_db_port + "/uber_db"
         else:
             return _config['sqlalchemy_url']
 
