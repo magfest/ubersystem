@@ -205,7 +205,7 @@ c.APPCONF = _config['appconf'].dict()
 
 c.BADGE_PRICES = _config['badge_prices']
 for _opt, _val in chain(_config.items(), c.BADGE_PRICES.items()):
-    if not isinstance(_val, dict):
+    if not isinstance(_val, dict) and not hasattr(c, _opt.upper()):
         setattr(c, _opt.upper(), _val)
 
 c.DATES = {}
