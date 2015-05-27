@@ -3,19 +3,15 @@
 <head>
     <title>Tabletop Checkins</title>
     <link rel="stylesheet" type="text/css" href="../static/styles/styles.css" />
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
-    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.2.26/angular.min.js"></script>
-    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.2.26/angular-route.min.js"></script>
-    <script src="../static/lib/angular/ui-bootstrap-tpls-0.7.0.js"></script>
-    <script src="../static/lib/moment/moment.min.js"></script>
+    <script src="../static/deps/combined.js"></script>
     <script src="../static_views/magfest.js"></script>
-    <script src="../static/lib/angular/tabletop/app.js"></script>
+    <script src="../static/angular-apps/tabletop/app.js"></script>
     <script>
         var GAMES = {{ games|jsonize }};          // Game service checks for this global variable to get preloaded data
         var ATTENDEES = {{ attendees|jsonize }};  // Attendee service checks for this global variable to get preloaded data
         angular.module('tabletop')
             .controller('MainController', function ($scope, $http) {
-                $http.defaults.headers.common = {'CSRF-Token': '{{ CSRF_TOKEN }}'};
+                $http.defaults.headers.common = {'CSRF-Token': '{{ c.CSRF_TOKEN }}'};
             });
     </script>
 </head>

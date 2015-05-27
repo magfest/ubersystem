@@ -5,7 +5,7 @@
 {% if checked_in %}
     <a href="undo_new_checkin?id={{ checked_in }}">Undo</a>
 {% endif %}
-<script src="../static/lib/utils/servertimecheck.js" type="text/javascript"></script>
+<script src="../static/js/servertimecheck.js" type="text/javascript"></script>
 
 <script type="text/javascript">
     // automatically log out after 15 minutes of inactivity
@@ -70,7 +70,7 @@
             $("#store_cash").val("");
         }
         else {
-            var prices = {{ FEE_PRICES|safe }};
+            var prices = {{ c.FEE_PRICES|safe }};
             $("#what_text").val("").hide();
             $("#store_cash").val( prices[$("#what_select").val()] );
             if( !page_loading )
@@ -102,13 +102,13 @@
         <td>
             Payment Method:
             <select id="payment_method">
-                {% options FEE_PAYMENT_METHOD_OPTS %}
+                {% options c.FEE_PAYMENT_METHOD_OPTS %}
             </select>
         </td>
         <td>Badge Num: <input type="text" id="badge_num" size="4" class="focus" /></td>
         <td>
             <select id="what_select" onChange="showOrHideWhatText()">
-                {% options FEE_ITEM_NAMES %}
+                {% options c.FEE_ITEM_NAMES %}
                 <option value="">Other...</option>
             </select>
             <input type="text" id="what_text" size="20" maxlength="50" />
@@ -139,12 +139,12 @@
             {% endif %}
         </td>
         <td>{{ attendee.badge_type_label }}</td>
-        <td>{{ attendee.age_group_label }}</td>
+        <td>{{ attendee.age_group.desc }}</td>
         <td>${{ attendee.total_cost }}</td>
         <td>
-            {% if attendee.paid == HAS_PAID %}
+            {% if attendee.paid == c.HAS_PAID %}
                 paid
-            {% elif attendee.paid == PAID_BY_GROUP %}
+            {% elif attendee.paid == c.PAID_BY_GROUP %}
                 paid by group
             {% else %}
                 <form method="post" action="mark_as_paid">
@@ -152,13 +152,13 @@
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
                 <select name="payment_method" onChange="toggleMarkButton(this)">
                     <option value="">Payment Method</option>
-                    {% options NEW_REG_PAYMENT_METHOD_OPTS attendee.payment_method %}
+                    {% options c.NEW_REG_PAYMENT_METHOD_OPTS attendee.payment_method %}
                 </select>
                 <input type="submit" disabled="disabled" value="Mark as Paid" />
                 </form>
             {% endif %}
         </td>
-        {% if attendee.paid == PAID_BY_GROUP %}
+        {% if attendee.paid == c.PAID_BY_GROUP %}
             <td colspan="2">
                 check in group badges <a href="index?search_text={{ attendee.id }}">here</a>
             </td>
@@ -171,7 +171,7 @@
             <td>
                 {% csrf_token %}
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
-                <input type="submit" value="Check In" {% if attendee.paid == NOT_PAID %}disabled{% endif %} />
+                <input type="submit" value="Check In" {% if attendee.paid == c.NOT_PAID %}disabled{% endif %} />
             </td>
             </form>
         {% endif %}

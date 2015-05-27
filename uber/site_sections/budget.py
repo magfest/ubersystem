@@ -1,5 +1,6 @@
 from uber.common import *
 
+
 def prereg_money(session):
     preregs = defaultdict(int)
     for attendee in session.query(Attendee).all():
@@ -14,6 +15,7 @@ def prereg_money(session):
 
     return preregs
 
+
 def sale_money(session):
     sales = defaultdict(int)
     for sale in session.query(Sale).all():
@@ -21,8 +23,9 @@ def sale_money(session):
     return dict(sales)  # converted to a dict so we can say sales.items in our template
 
 
-@all_renderable(MONEY)
+@all_renderable(c.MONEY)
 class Root:
+    @log_pageview
     def index(self, session):
         sales   = sale_money(session)
         preregs = prereg_money(session)
@@ -34,10 +37,11 @@ class Root:
         }
 
     # TODO: add joinedload options here for efficiency
+    @log_pageview
     def mpoints(self, session):
         groups = defaultdict(list)
         for mpu in session.query(MPointsForCash).all():
             groups[mpu.attendee and mpu.attendee.group].append(mpu)
         all = [(sum(mpu.amount for mpu in mpus), group, mpus)
-               for group,mpus in groups.items()]
+               for group, mpus in groups.items()]
         return {'all': sorted(all, reverse=True)}

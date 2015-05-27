@@ -14,5 +14,8 @@ workspace.xml
 tasks.xml
 distribute-*.tar.gz
 *.swp
-
 up.bat
+add_table_extras.sql
+alembic*
+bower_components/
+node_modules/

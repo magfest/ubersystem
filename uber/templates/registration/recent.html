@@ -9,7 +9,7 @@
         <td> <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a> </td>
         <td>
             {{ attendee.badge_type_label }}
-            {% if attendee.badge_type == DEALER_BADGE %}
+            {% if attendee.badge_type == c.DEALER_BADGE %}
                 ({{ attendee.group.name }})
             {% endif %}
         </td>

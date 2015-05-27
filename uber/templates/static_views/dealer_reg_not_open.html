@@ -1,8 +1,8 @@
 <html><head></head><body style='text-align:center'>
-    Marketplace vendor applications for {{ EVENT_NAME_AND_YEAR }} ({{ EVENT_MONTH }} {{ EVENT_YEAR }}) are not yet open.
-    Please check back on {{ DEALER_REG_START }}.<br/>
+    Dealers room applications for {{ c.EVENT_NAME_AND_YEAR }} ({{ c.EVENT_MONTH }} {{ c.EVENT_YEAR }}) are not yet open.
+    Please check back on {{ c.DEALER_REG_START }}.<br/>
     <br/>
-    To register as a non-vendor attendee for MAGFest 13, click <a href="../preregistration/badge_choice">here</a>.<br/>
+    To register as a non-vendor attendee for {{ c.EVENT_NAME_AND_YEAR }}, click <a href="../preregistration/">here</a>.<br/>
     <br/>
-    Please <a href="http://magfest.org/contact">contact us</a> if you have any questions.
+    Please <a href="{{ c.CONTACT_URL }}">contact us</a> if you have any questions.
 </body></html>

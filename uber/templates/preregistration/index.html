@@ -3,30 +3,61 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-<h2> {{ EVENT_NAME }} Preregistration </h2>
+<div class="masthead">
+</div>
 
-<table style="width:auto ; margin-left:auto ; margin-right: auto"><tr>
-    <td>{% stripe_form prereg_payment charge %}</td>
-    <td style="width:100px ; text-align:center">or</td>
-    <td><a href="badge_choice">{% stripe_button "Add Another Prereg" %}</a></td>
-</tr></table>
+<div class="panel panel-default">
+<div class="row bs-wizard" style="border-bottom:0;border-top:0;">   
+    <div class="col-xs-4 bs-wizard-step complete">
+        <div class="text-center bs-wizard-stepnum">Step 1</div>
+        <div class="progress"><div class="progress-bar"></div></div>
+        <a class="bs-wizard-dot"></a>
+        <div class="bs-wizard-info text-center">Enter Info</div>
+    </div> 
+    <div class="col-xs-4 bs-wizard-step active">
+        <div class="text-center bs-wizard-stepnum">Step 2</div>
+        <div class="progress"><div class="progress-bar"></div></div>
+        <a class="bs-wizard-dot"></a>
+        <div class="bs-wizard-info text-center">Review &amp; Pay</div>
+    </div>
+    <div class="col-xs-4 bs-wizard-step disabled">
+        <div class="text-center bs-wizard-stepnum">Step 3</div>
+        <div class="progress"><div class="progress-bar"></div></div>
+        <a class="bs-wizard-dot"></a>
+        <div class="bs-wizard-info text-center">Done</div>
+    </div>
+</div>
 
-<br/>
+<div class="row">
+    <div class="row">
+        <div class="col-sm-8 col-sm-offset-2">
+            <div class="col-sm-5 text-center">
+                {% stripe_form prereg_payment charge %}
+            </div>
+            <div class="col-sm-2 text-center">
+                or
+            </div>
+            <div class="col-sm-5 text-center">
+                <a href="form">{% stripe_button "Add Another Prereg" %}</a>
+            </div>
+        </div>
+    </div>
+</div>
 
-<table class="charge">
+<table class="charge table footable" data-sort="false">
 <thead><tr>
-    <td>Preregistration</td>
-    <td>Details</td>
-    <td>Price</td>
-    <td></td>
+    <th>Preregistration</th>
+    <th data-hide="phone" data-sort-ignore="true">Details</th>
+    <th data-type="numeric">Price</th>
+    <th data-sort-ignore="true"></th>
 </tr></thead>
 {% for attendee in charge.attendees %}
     <tr>
         <td>{{ attendee.full_name }}</td>
         <td>
             <ul style="padding-left:15px">
-                <li>Full weekend pass</li>
-                {% for swag in attendee.donation_swag %}
+                <li>Membership for {{ c.EVENT_NAME }}</li>
+                {% for swag in attendee.donation_swag|add:attendee.addons %}
                     <li>{{ swag }}</li>
                 {% endfor %}
             </ul>
@@ -44,7 +75,7 @@
         <td>
             <ul>
                 <li>{{ group.badges }} badges</li>
-                {% for swag in group.attendees.0.donation_swag %}
+                {% for swag in group.attendees.0.donation_swag|add:group.addons %}
                     <li>{{ swag }}</li>
                 {% endfor %}
             </ul>
@@ -56,15 +87,20 @@
         </td>
     </tr>
 {% endfor %}
+
 {% if charge.targets|length > 1 %}
+<tfoot>
     <tr>
-        <td></td>
-        <td style="text-align:right ; padding-right:20px"><i>Total:</i></td>
-        <td><b>${{ charge.dollar_amount }}</b></td>
+        <th></th>
+        <th style="text-align:right;"><i>Total:</i></th>
+        <th><b>${{ charge.dollar_amount }}</b></th>
+        <th></th>
     </tr>
-{% endif %}
+</tfoot>
+
 </table>
+{% endif %}
 
 {% include "preregistration/disclaimers.html" %}
-
+</div>
 {% endblock %}

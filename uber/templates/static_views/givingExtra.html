@@ -14,17 +14,17 @@ things (except the tshirt) will be for sale, so this is the only way to get them
 
 <br/> <br/>
 
-If you've registered as a <a href="supporters.html">Supporter</a> in the past, that's
-still available as a donation level.  It's pretty much the same as always, except that
-now you can donate even more if you'd like, and we'll even kick in a few extra mementos
-as thanks.  We also have an even higher
+The main donation tier is our <a href="supporters.html">Supporter package</a>.
+{% if c.SEASON_LEVEL in c.DONATION_TIERS %}
+We also have an even higher
 <a href="seasonPasses.html">Season Supporter Pass</a> level for those interested in other
-{{ EVENT_NAME }} events.
+{{ c.EVENT_NAME }} events.
+{% endif %}
 
 <br/> <br/>
 
 We also let you identify an <a href="affiliates.html">affiliate</a>; basically, this tells
-us which groups are throwing the most financial support into {{ EVENT_NAME }} so that we can
+us which groups are throwing the most financial support into {{ c.EVENT_NAME }} so that we can
 reciprocate by doing cool things for those groups.
 
 </body>

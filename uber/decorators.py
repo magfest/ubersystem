@@ -1,15 +1,30 @@
 from uber.common import *
 
+
+def log_pageview(func):
+    @wraps(func)
+    def with_check(*args, **kwargs):
+        with sa.Session() as session:
+            try:
+                attendee = session.admin_account(cherrypy.session['account_id'])
+            except:
+                pass  # we don't care about unrestricted pages for this version
+            else:
+                sa.Tracking.track_pageview(cherrypy.request.path_info, cherrypy.request.query_string)
+        return func(*args, **kwargs)
+    return with_check
+
+
 def check_if_can_reg(func):
     @wraps(func)
-    def with_check(*args,**kwargs):
-        if state.BADGES_SOLD >= MAX_BADGE_SALES:
+    def with_check(*args, **kwargs):
+        if c.BADGES_SOLD >= c.MAX_BADGE_SALES:
             return render('static_views/prereg_soldout.html')
-        elif state.BEFORE_PREREG_OPEN:
+        elif c.BEFORE_PREREG_OPEN:
             return render('static_views/prereg_not_yet_open.html')
-        elif state.AFTER_PREREG_TAKEDOWN and not AT_THE_CON:
+        elif c.AFTER_PREREG_TAKEDOWN and not c.AT_THE_CON:
             return render('static_views/prereg_closed.html')
-        return func(*args,**kwargs)
+        return func(*args, **kwargs)
     return with_check
 
 
@@ -25,6 +40,7 @@ def site_mappable(func):
 def suffix_property(func):
     func._is_suffix_property = True
     return func
+
 
 def _suffix_property_check(inst, name):
     if not name.startswith('_'):
@@ -47,7 +63,7 @@ def csrf_protected(func):
 
 
 def ajax(func):
-    '''decorator for Ajax POST requests which require a CSRF token and return JSON'''
+    """decorator for Ajax POST requests which require a CSRF token and return JSON"""
     @wraps(func)
     def returns_json(*args, **kwargs):
         cherrypy.response.headers['Content-Type'] = 'application/json'
@@ -58,12 +74,12 @@ def ajax(func):
 
 
 def ajax_gettable(func):
-    '''
+    """
     Decorator for page handlers which return JSON.  Unlike the above @ajax decorator,
     this allows either GET or POST and does not check for a CSRF token, so this can
     be used for pages which supply data to external APIs as well as pages used for
     periodically polling the server for new data by our own Javascript code.
-    '''
+    """
     @wraps(func)
     def returns_json(*args, **kwargs):
         cherrypy.response.headers['Content-Type'] = 'application/json'
@@ -85,7 +101,7 @@ def csv_file(func):
 def check_shutdown(func):
     @wraps(func)
     def with_check(self, *args, **kwargs):
-        if UBER_SHUT_DOWN or AT_THE_CON:
+        if c.UBER_SHUT_DOWN or c.AT_THE_CON:
             raise HTTPRedirect('index?message={}', 'The page you requested is only available pre-event.')
         else:
             return func(self, *args, **kwargs)
@@ -102,7 +118,7 @@ def credit_card(func):
         except HTTPRedirect:
             raise
         except:
-            send_email(ADMIN_EMAIL, [ADMIN_EMAIL, 'dom@magfest.org'], 'MAGFest Stripe error',
+            send_email(c.ADMIN_EMAIL, [c.ADMIN_EMAIL, 'dom@magfest.org'], 'MAGFest Stripe error',
                        'Got an error while calling charge(self, payment_id={!r}, stripeToken={!r}, ignored={}):\n{}'
                        .format(payment_id, stripeToken, ignored, traceback.format_exc()))
             return traceback.format_exc()
@@ -118,6 +134,7 @@ def cached_page(func):
     from sideboard.lib import config as sideboard_config
     innermost = get_innermost(func)
     func.lock = RLock()
+
     @wraps(func)
     def with_caching(*args, **kwargs):
         if hasattr(innermost, 'cached'):
@@ -152,7 +169,7 @@ def sessionized(func):
         if 'session' not in inspect.getfullargspec(innermost).args:
             return func(*args, **kwargs)
         else:
-            with Session() as session:
+            with sa.Session() as session:
                 try:
                     retval = func(*args, session=session, **kwargs)
                     session.expunge_all()
@@ -165,26 +182,10 @@ def sessionized(func):
 
 def renderable_data(data=None):
     data = data or {}
-    data['PAGE'] = cherrypy.request.path_info.split('/')[-1]
-    data.update({m.__name__: m for m in Session.all_models()})
-    data.update({k: v for k,v in config.__dict__.items() if re.match('^[_A-Z0-9]*$', k)})
-    data.update({k: getattr(state, k) for k in dir(state) if re.match('^[_A-Z0-9]*$', k)})
-    for date in DATES:
-        before, after = 'BEFORE_' + date, 'AFTER_' + date
-        data.update({
-            before: getattr(state, before),
-            after:  getattr(state, after)
-        })
-    try:
-        data['CSRF_TOKEN'] = cherrypy.session['csrf_token']
-    except:
-        pass
-
-    access = AdminAccount.access_set()
-    for acctype in ACCESS_VARS:
-        data['HAS_' + acctype + '_ACCESS'] = globals()[acctype] in access
-
+    data['c'] = c
+    data.update({m.__name__: m for m in sa.Session.all_models()})
     return data
+
 
 # render using the first template that actually exists in template_name_list
 def render(template_name_list, data=None):
@@ -196,11 +197,11 @@ def render(template_name_list, data=None):
 
 
 # this is a Magfest inside joke.
-# Nick gets mad when people call Magfest a 'convention'. He always says 'It's not a convention, it's a festival'
+# Nick gets mad when people call Magfest a "convention".  He always says "It's not a convention, it's a festival"
 # So........ if Nick is logged in.... let's annoy him a bit :)
 def screw_you_nick(rendered, template):
-    if not AT_THE_CON and AdminAccount.is_nick() and 'emails' not in template and 'history' not in template and 'form' not in rendered:
-        return rendered.replace('festival', 'convention').replace('Fest', 'Con') # lolz.
+    if not c.AT_THE_CON and sa.AdminAccount.is_nick() and 'emails' not in template and 'history' not in template and 'form' not in rendered:
+        return rendered.replace('festival', 'convention').replace('Fest', 'Con')  # lolz.
     else:
         return rendered
 
@@ -208,28 +209,34 @@ def screw_you_nick(rendered, template):
 def _get_module_name(class_or_func):
     return class_or_func.__module__.split('.')[-1]
 
+
 def _get_template_filename(func):
     return os.path.join(_get_module_name(func), func.__name__ + '.html')
+
 
 def renderable(func):
     @wraps(func)
     def with_rendering(*args, **kwargs):
         result = func(*args, **kwargs)
-        if isinstance(result, dict):
+        if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
+            return render('closed.html')
+        elif isinstance(result, dict):
             return render(_get_template_filename(func), result)
         else:
             return result
     return with_rendering
 
+
 def unrestricted(func):
     func.restricted = False
     return func
+
 
 def restricted(func):
     @wraps(func)
     def with_restrictions(*args, **kwargs):
         if func.restricted:
-            if func.restricted == (SIGNUPS,):
+            if func.restricted == (c.SIGNUPS,):
                 if not cherrypy.session.get('staffer_id'):
                     raise HTTPRedirect('../signups/login?message=You+are+not+logged+in')
 
@@ -237,26 +244,27 @@ def restricted(func):
                 raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in')
 
             else:
-                access = AdminAccount.access_set()
-                if not AT_THE_CON:
-                    access.discard(REG_AT_CON)
+                access = sa.AdminAccount.access_set()
+                if not c.AT_THE_CON:
+                    access.discard(c.REG_AT_CON)
 
                 if not set(func.restricted).intersection(access):
                     if len(func.restricted) == 1:
-                        return 'You need {} access for this page'.format(dict(ACCESS_OPTS)[func.restricted[0]])
+                        return 'You need {} access for this page'.format(dict(c.ACCESS_OPTS)[func.restricted[0]])
                     else:
                         return ('You need at least one of the following access levels to view this page: '
-                            + ', '.join(dict(ACCESS_OPTS)[r] for r in func.restricted))
+                            + ', '.join(dict(c.ACCESS_OPTS)[r] for r in func.restricted))
 
         return func(*args, **kwargs)
     return with_restrictions
+
 
 class all_renderable:
     def __init__(self, *needs_access):
         self.needs_access = needs_access
 
     def __call__(self, klass):
-        for name,func in klass.__dict__.items():
+        for name, func in klass.__dict__.items():
             if hasattr(func, '__call__'):
                 func.restricted = getattr(func, 'restricted', self.needs_access)
                 new_func = timed(cached_page(sessionized(restricted(renderable(func)))))
@@ -266,8 +274,72 @@ class all_renderable:
 
 
 register = template.Library()
+
+
 def tag(klass):
     @register.tag(klass.__name__)
     def tagged(parser, token):
         return klass(*token.split_contents()[1:])
     return klass
+
+
+class Validation:
+    def __init__(self):
+        self.validations = defaultdict(OrderedDict)
+
+    def __getattr__(self, model_name):
+        def wrapper(func):
+            self.validations[model_name][func.__name__] = func
+            return func
+        return wrapper
+
+validation = Validation()
+
+
+adjustment_counter = count().__next__
+
+
+def presave_adjustment(func):
+    """
+    Decorate methods on a model class with this decorator to ensure that the
+    method is called immediately before the model is saved so that you can
+    make any adjustments, e.g. setting a ribbon based on other information.
+    """
+    func.presave_adjustment = adjustment_counter()
+    return func
+
+
+def predelete_adjustment(func):
+    """
+    Decorate methods on a model class with this decorator to ensure that the
+    method is called immediately before the model is deleted, e.g. to shift
+    badges around the now-open slot.
+    """
+    func.predelete_adjustment = adjustment_counter()
+    return func
+
+
+class cost_property(property):
+    """
+    Different events have extra things they charge money for to attendees and
+    groups.  Those events can use the @Session.model_mixin decorator and then
+    define a @cost_property which returns the amount added.  For example, we
+    have code in the MAGStock repo which looks vaguely like this:
+
+        @Session.model_mixin
+        class Attendee:
+            purchased_food = Column(Boolean, default=False)
+
+            @cost_property
+            def food_price(self):
+                return c.FOOD_PRICE if self.purchased_food else 0
+    """
+
+
+class class_property(object):
+    """Read-only property for classes rather than instances."""
+    def __init__(self, func):
+        self.func = func
+
+    def __get__(self, obj, owner):
+        return self.func(owner)

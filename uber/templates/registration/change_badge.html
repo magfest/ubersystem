@@ -4,11 +4,11 @@
 
 <script type="text/javascript">
     function badgeTypeChanged() {
-        {% if not AT_THE_CON %}
+        {% if not c.AT_THE_CON %}
             var badge_type = parseInt($("[name=badge_type]").val());
             var radio = badge_type === {{ attendee.badge_type}} ? "manual" : "auto";
             $("[value=" + radio + "]").attr("checked", true);
-            setVisible("#badge_num_row", {{ PREASSIGNED_BADGE_TYPES }}.indexOf(badge_type) >= 0);
+            setVisible("#badge_num_row", {{ c.PREASSIGNED_BADGE_TYPES }}.indexOf(badge_type) >= 0);
             assignChanged();
         {% endif %}
     }
@@ -39,7 +39,7 @@
     <td width="25%"> <b>Badge Type:</b> </td>
     <td width="75%">
         <select name="badge_type">
-            {% options BADGE_OPTS attendee.badge_type %}
+            {% options c.BADGE_OPTS attendee.badge_type %}
         </select>
     </td>
 </tr>
@@ -48,7 +48,7 @@
     <td>
         <input type="radio" name="assign" value="manual" checked />
         Badge #<input class="focus" type="text" style="width:4em" name="newnum" />
-        {% if not AT_THE_CON %}
+        {% if not c.AT_THE_CON %}
             <br/> &nbsp;&nbsp;&nbsp;&nbsp; <i>or</i> <br/>
             <input type="radio" name="assign" value="auto" /> Next Available Badge
         {% endif %}

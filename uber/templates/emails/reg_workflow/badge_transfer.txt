@@ -1,9 +1,9 @@
 {{ old.first_name }} and {{ new.first_name }},
 
-Our records indicate that {{ old.full_name }} ({{ old.email }}) has transferred their {{ EVENT_NAME }} {{ old.badge_type_label }} registration to {{ new.full_name }} ({{ new.email }}).  So {{ old.full_name }} no longer has a paid registration, and {{ new.full_name }} should have no trouble picking up the badge at our registration desk.
+Our records indicate that {{ old.full_name }} ({{ old.email }}) has transferred their {{ c.EVENT_NAME }} {{ old.badge_type_label }} registration to {{ new.full_name }} ({{ new.email }}).  So {{ old.full_name }} no longer has a paid registration, and {{ new.full_name }} should have no trouble picking up the badge at our registration desk.
 
 Badges are not mailed out before the event, so your badge will be available for pickup at the registration desk when you arrive at MAGFest. Simply bring a photo ID to the registration desk, where you'll be provided with your badge. If you ordered bonus items such as a ribbon, t-shirt, or supporter package, you can pick those up at our merchandise booth. The location and hours of the registration desk and merchandise booth will be e-mailed prior to the event.
 
-If this has happened in error, please contact {{ REGDESK_EMAIL|safe }}.
+If this has happened in error, please contact {{ c.REGDESK_EMAIL|safe }}.
 
-{{ REGDESK_EMAIL_SIGNATURE }}
+{{ c.REGDESK_EMAIL_SIGNATURE }}

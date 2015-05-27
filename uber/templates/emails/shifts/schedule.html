@@ -13,12 +13,12 @@ Sorry for the mix-up, but due to a timezone bug, all of the shift times in the p
     mark each shift as worked.
     <br/> <br/>
     If you forget to print out this sheet and would like to pick up a spare copy, or if you want to change your hours,
-    you can drop by Staffing Ops in the Fest Ops room during {{ EVENT_NAME }}.
+    you can drop by Staffing Ops in the Fest Ops room during {{ c.EVENT_NAME }}.
 {% endif %}
 
 {% include "signups/printable_schedule.html" %}
 
-<br/> {{ STOPS_EMAIL_SIGNATURE|linebreaksbr }}
+<br/> {{ c.STOPS_EMAIL_SIGNATURE|linebreaksbr }}
 
 </body>
 </html>

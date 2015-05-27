@@ -1,7 +1,7 @@
 {{ attendee.first_name }},
 
-You're eligible for a personalized Staff badge, but you haven't told us what you want printed on it!  If you don't fill out the form at {{ URL_BASE }}/preregistration/confirm?id={{ attendee.id }} by {{ PRINTED_BADGE_DEADLINE|datetime }} then you won't receive a personalized badge.
+You're eligible for a personalized Staff badge, but you haven't told us what you want printed on it!  If you don't fill out the form at {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }} by {{ c.PRINTED_BADGE_DEADLINE|datetime }} then you won't receive a personalized badge.
 
-{{ STOPS_EMAIL_SIGNATURE }}
+{{ c.STOPS_EMAIL_SIGNATURE }}
 
-{% if attendee.ribbon == DEPT_HEAD_RIBBON %}PS: Even though you're a department head, we can't personalize your badge unless you tell us what you want printed on it!  So this email applies to you as well, don't ignore it!{% endif %}
+{% if attendee.ribbon == c.DEPT_HEAD_RIBBON %}PS: Even though you're a department head, we can't personalize your badge unless you tell us what you want printed on it!  So this email applies to you as well, don't ignore it!{% endif %}

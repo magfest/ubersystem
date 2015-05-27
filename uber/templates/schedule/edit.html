@@ -2,7 +2,6 @@
 {% block title %}Schedule{% endblock %}
 {% block content %}
 
-<script src="../static/lib/moment/moment.min.js"></script>
 <style type="text/css">
     .context-menu-item {
         padding: 2px 2px 2px 7px;
@@ -54,9 +53,9 @@
 </style>
 
 <script type="text/javascript">
-    var SLOT_COUNT = {{ CON_LENGTH }} * 2;
+    var SLOT_COUNT = {{ c.CON_LENGTH }} * 2;
     var EVENTS = {{ events|jsonize }};
-    var EPOCH = moment('{{ EPOCH|datetime:"%Y-%m-%d %H:%M:%S" }}', 'YYYY-MM-DD HH:mm:ss');
+    var EPOCH = moment('{{ c.EPOCH|datetime:"%Y-%m-%d %H:%M:%S" }}', 'YYYY-MM-DD HH:mm:ss');
     
     var swapProps = function(x, y) {
         $.each($.makeArray(arguments).slice(2), function(i,name) {
@@ -307,7 +306,7 @@
         var $schedHead = $schedule.find("thead tr");
         var $schedBody = $schedule.find("tbody");
         var $emptyRow = $("<tr/>");
-        $.each({{ EVENT_LOCATION_OPTS|jsonize }}, function(i,loc) {
+        $.each({{ c.EVENT_LOCATION_OPTS|jsonize }}, function(i,loc) {
             if (loc[1].indexOf("(") >= 0) {
                 loc[1] = loc[1].replace("(", "<nobr>(").replace(")", ")</nobr>");
             } else {

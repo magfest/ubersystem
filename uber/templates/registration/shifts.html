@@ -9,7 +9,7 @@
 
 {% include "registration/menu.html" %} <br/>
 
-<h2>{{ attendee.full_name }} {% if AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
+<h2>{{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
 
 <table width="100%">
 <tr>
@@ -41,7 +41,7 @@
 {% if attendee.shifts %}
     <b>
         Shifts signed up for by {{ attendee.full_name }}
-        {% if AT_THE_CON %}
+        {% if c.AT_THE_CON %}
             {% if attendee.checked_in %}
                 <i>[checked in]</i>
             {% else %}
@@ -50,7 +50,7 @@
         {% endif %}
         ({{ attendee.weighted_hours }} weighted hours,
         {{ attendee.hours|length|add:attendee.nonshift_hours }} actual hours): </b>
-        {% if AT_OR_POST_CON %}<br />{{ attendee.worked_hours }} hours worked.{% endif %}
+        {% if c.AT_OR_POST_CON %}<br />{{ attendee.worked_hours }} hours worked.{% endif %}
     <br/> <br/>
     <table width="95%" align="center">
     <tr style="font-weight:bold">
@@ -70,11 +70,11 @@
             <td>{% hour_day shift.job.end_time %}</td>
             <td>{{ shift.job.duration }} (x{{ shift.job.weight }})</td>
             <td>
-                {% if shift.worked != SHIFT_UNMARKED %}
+                {% if shift.worked != c.SHIFT_UNMARKED %}
                     <i>{{ shift.worked_label }}</i>
                 {% else %}
                     <select onChange="setStatus('{{ shift.id }}', this)">
-                        {% options WORKED_STATUS_OPTS shift.worked %}
+                        {% options c.WORKED_STATUS_OPTS shift.worked %}
                     </select>
                 {% endif %}
             </td>
@@ -84,7 +84,7 @@
             <td> <input type="submit" value="Unassign" /> </td>
             </form>
             <td id="rating{{ shift.id }}"></td>
-            {% if shift.worked == SHIFT_WORKED %}
+            {% if shift.worked == c.SHIFT_WORKED %}
                 <script type="text/javascript">renderRating('{{ shift.id }}');</script>
             {% endif %}
         </tr>

@@ -1,6 +1,7 @@
 from uber.common import *
 
-@all_renderable(PEOPLE, REG_AT_CON)
+
+@all_renderable(c.PEOPLE, c.REG_AT_CON)
 class Root:
     def index(self, session, message='', order='name', show='all'):
         which = {
@@ -24,18 +25,19 @@ class Root:
             'tabled_groups':     len([g for g in groups if g.tables]),
             'untabled_groups':   len([g for g in groups if not g.tables]),
             'tables':            sum(g.tables for g in groups),
-            'unapproved_tables': sum(g.tables for g in groups if g.status == UNAPPROVED),
-            'waitlisted_tables': sum(g.tables for g in groups if g.status == WAITLISTED),
-            'approved_tables':   sum(g.tables for g in groups if g.status == APPROVED)
+            'unapproved_tables': sum(g.tables for g in groups if g.status == c.UNAPPROVED),
+            'waitlisted_tables': sum(g.tables for g in groups if g.status == c.WAITLISTED),
+            'approved_tables':   sum(g.tables for g in groups if g.status == c.APPROVED)
         }
 
+    @log_pageview
     def form(self, session, new_dealer='', first_name='', last_name='', email='', message='', **params):
-        group = session.group(params, bools=['auto_recalc','can_add'])
+        group = session.group(params, bools=['auto_recalc', 'can_add'])
         if 'name' in params:
             message = check(group)
             if not message:
                 session.add(group)
-                message = session.assign_badges(group, params['badges'])
+                message = session.assign_badges(group, params['badges'], params['badge_type'])
                 if not message and new_dealer and not (first_name and last_name and email and group.badges):
                     message = 'When registering a new Dealer, you must enter the name and email address of the group leader and must allocate at least one badge'
                 if not message:
@@ -44,7 +46,7 @@ class Root:
                         leader = group.leader = group.attendees[0]
                         leader.first_name, leader.last_name, leader.email = first_name, last_name, email
                         leader.placeholder = True
-                        if group.status == APPROVED:
+                        if group.status == c.APPROVED:
                             raise HTTPRedirect('../preregistration/group_members?id={}', group.id)
                         else:
                             raise HTTPRedirect('index?message={}', group.name + ' is uploaded and ' + group.status_label)
@@ -65,9 +67,9 @@ class Root:
         group = session.group(id)
         subject = 'Your {EVENT_NAME} Dealer registration has been ' + action
         if group.email:
-            send_email(MARKETPLACE_EMAIL, group.email, subject, email, model = group)
+            send_email(c.MARKETPLACE_EMAIL, group.email, subject, email, model=group)
         if action == 'waitlisted':
-            group.status = WAITLISTED
+            group.status = c.WAITLISTED
         else:
             for attendee in group.attendees:
                 session.delete(attendee)
@@ -76,7 +78,7 @@ class Root:
         return {'success': True}
 
     @csrf_protected
-    def delete(self, session, id, confirmed = None):
+    def delete(self, session, id, confirmed=None):
         group = session.group(id)
         if group.badges - group.unregistered_badges and not confirmed:
             raise HTTPRedirect('deletion_confirmation?id={}', id)

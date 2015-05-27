@@ -1,0 +1,9 @@
+{
+    "name": "uber",
+    "version": "14.0.0",
+    "devDependencies": {
+        "grunt": "0.4.5",
+        "grunt-wiredep": "2.0.0",
+        "grunt-bower-concat": "0.4.0"
+    }
+}

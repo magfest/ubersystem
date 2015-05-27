@@ -1,0 +1,324 @@
+
+<script type="text/javascript">
+    var AGE_GROUPS = {{ c.AGE_GROUP_CONFIGS|jsonize }};
+    var ageGroupSelected = function () {
+        {% if not c.COLLECT_EXACT_BIRTHDATE %}
+            setVisible('#age_disclaimer', AGE_GROUPS[$.val('age_group')].consent_form);
+            if (!$.field('badge_type') || $.val('badge_type') !== {{ c.PSEUDO_DEALER_BADGE }}) {
+                setVisible('.staffing', AGE_GROUPS[$.val('age_group')].can_volunteer);
+                staffingClicked();
+            }
+        {% endif %}
+    };
+    $(ageGroupSelected);
+
+    var staffingClicked = function () {
+        var checked = $.field('staffing').is(':visible:checked');
+        setVisible('#departments', checked);
+        setVisible($.field('no_cellphone').parents('.checkbox'), checked);
+        $('#cellphone').parents('.form-group').find('label:first').css('font-weight', checked ? 'bold' : 'normal');
+    };
+    $(function () {
+        staffingClicked();
+        $.field('staffing').on('click', staffingClicked);
+    });
+
+    var noCellphoneClicked = function () {
+        setVisible($.field('cellphone'), $.field('no_cellphone').is(':not(:checked)'));
+    };
+    $(function () {
+        noCellphoneClicked();
+        $.field('no_cellphone').on('click', noCellphoneClicked);
+    });
+</script>
+
+<div class="form-group"></div> <!-- spacing -->
+
+{% if c.PAGE_PATH != '/registration/form' %}
+    <div class="form-group">
+        <label class="col-sm-2 control-label">&nbsp;</label>
+        <div class="col-sm-6 heading-label">Bold fields are required</div>
+    </div>
+{% endif %}
+
+{% if c.PAGE == 'confirm' %}
+    <div class="form-group">
+        <label for="email" class="col-sm-2 control-label">Legal Name</label>
+        <div class="col-sm-6">{{ attendee.full_name }}</div>
+    </div>
+{% else %}
+    <div class="form-group">
+        <label for="first_name" class="col-sm-2 control-label">First Name</label>
+        <div class="col-sm-6">
+            <input type="text" name="first_name" id="first_name" value="{{ attendee.first_name }}" class="form-control" placeholder="First Name">
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="last_name" class="col-sm-2 control-label">Last Name</label>
+        <div class="col-sm-6">
+            <input type="text" name="last_name" id="last_name" value="{{ attendee.last_name }}" class="form-control" placeholder="Last Name">
+        </div>
+        {% if c.PAGE_PATH != '/registration/form' %}
+            <p class="help-block col-sm-6 col-sm-offset-2">
+                These must be your legal name.
+                <span class="popup">{% popup_link "../static_views/legal_name.html" "What does this mean?" %}</span>
+            </p>
+        {% endif %}
+    </div>
+{% endif %}
+
+{% if c.DONATIONS_ENABLED and c.PREREG_DONATION_OPTS and not attendee.is_dealer and c.PAGE_PATH != '/registration/form' %}
+    <script type="text/javascript">
+        var donationChanged = function () {
+            setVisible('.affiliate-row', $.val('amount_extra') > 0);
+            setVisible('.shirt-row', $.val('amount_extra') >= {{ c.SHIRT_LEVEL }});
+            {% if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES %}
+                setVisible('.badge-row', true);
+            {% else %}
+                setVisible('.badge-row', $.val('amount_extra') >= {{ c.SUPPORTER_LEVEL }});
+            {% endif %}
+        };
+        $(function(){
+            if ($.field('amount_extra')) {
+                donationChanged();
+                {% if c.PAGE_PATH != '/registration/form' %}
+                    if ($.field('amount_extra').is('select')) {
+                        $.field('amount_extra').select2({
+                            formatResult: function (opt) { return opt.text; },
+                            formatSelection: function (opt) { return opt.text; },
+                            minimumResultsForSearch: 99,
+                            escapeMarkup: function (m) { return m; },
+                            width: '100%',
+                        }).select2('val', {{ attendee.amount_extra }});
+                    }
+                {% endif %}
+                if ($.field('affiliate')) {
+                    $.field('affiliate').select2({
+                        placeholder: "I don't care about this",
+                        createSearchChoice: function(term) {
+                            return {id: term, text: term};
+                        },
+                        data: {{ affiliates|jsonize }},
+                        width: '100%',
+                    }).select2('val', {{ attendee.affiliate|default:''|jsonize }});
+                }
+                $('form').submit(function(){
+                    $(':submit').attr('value', 'Uploading Preregistration...').attr('disabled', true);
+                });
+            }
+        });
+    </script>
+
+    <div class="extra-row form-group">
+        <label for="amount_extra" class="col-sm-2 control-label">Want to kick in extra?</label>
+        <div class="col-sm-6">
+            {% if c.AFTER_PRINTED_BADGE_DEADLINE and attendee.amount_extra >= c.SUPPORTER_LEVEL %}
+                {{ attendee.amount_extra_label }}
+                <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
+            {% else %}
+                <select name="amount_extra" onChange="donationChanged()" >
+                    {% options c.PREREG_DONATION_OPTS attendee.amount_extra %}
+                </select>
+            {% endif %}
+        </div>
+        {% popup_link "../static_views/givingExtra.html" "Why do this?" %}
+        <p class="help-block col-sm-6">
+            Each level includes all lower levels. <br/>
+            Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime }}.
+        </p>
+    </div>
+
+    <div class="badge-row extra-row form-group" style="display:none">
+        <label for="badge_printed_name" class="col-sm-2 control-label">Name Printed on Badge</label>
+        <div class="col-sm-6">
+            <input type="text" class="form-control" name="badge_printed_name" maxlength="20" value="{{ attendee.badge_printed_name }}" {% if c.AFTER_PRINTED_BADGE_DEADLINE %}readonly{% endif %} />
+        </div>
+        <p class="help-block col-sm-6">Badge names have a maximum of 20 characters.</p>
+    </div>
+
+    {% if c.AFTER_PRINTED_BADGE_DEADLINE %}
+        <div class="badge-row extra-row form-group" style="display:none">
+            <p class="help-block col-sm-6 col-sm-offset-2">(custom badges have already been ordered, so you can no longer set this)</p>
+        </div>
+    {% endif %}
+    
+    <div class="affiliate-row extra-row form-group" style="display:none">
+        <label for="affiliate" class="col-sm-2 control-label optional-field">Affiliate</label>
+        <div class="col-sm-6">
+            <input type="hidden" name="affiliate" style="width:30ex" />
+        </div>
+        {% popup_link "../static_views/affiliates.html" "What's an affiliate?" %}
+    </div>
+{% endif %}
+
+<div class="shirt-row extra-row form-group" style="display:none">
+    <label for="shirt" class="col-sm-2 control-label">Shirt Size</label>
+    <div class="col-sm-6">
+        <select name="shirt" class="form-control">
+            <option value="{{ c.NO_SHIRT }}">Select a shirt size</option>
+            {% options c.PREREG_SHIRT_OPTS attendee.shirt %}
+        </select>
+    </div>
+</div>
+
+<div class="form-group staffing">
+    <label for="staffing" class="col-sm-2 control-label">Want to Volunteer?</label>
+    <div class="col-sm-6">
+        {% checkbox attendee.staffing %} Sign me up! &nbsp;
+        <span class="popup">{% popup_link "../static_views/stafferComps.html" "What do I get for volunteering?" %}</span>
+    </div>
+</div>
+
+<div class="form-group staffing" id="departments">
+    <label for="requested_depts" class="col-sm-2 control-label">Where do you want to help?</label>
+    <div class="col-sm-6">
+        {% checkgroup attendee.requested_depts %}
+    </div>
+</div>
+
+<div class="form-group">
+    {% if c.COLLECT_EXACT_BIRTHDATE %}
+        <label for="birthdate" class="col-sm-2 control-label">Date of Birth</label>
+        <div class="col-sm-6">
+            <input type='text' class="form-control date" name="birthdate" value="{{ attendee.birthdate|date:"Y-m-d"}} "/>
+        </div>
+    {% else %}
+        <label for="age_group" class="col-sm-2 control-label">Age as of {{ c.EVENT_NAME }}</label>
+        <div class="col-sm-6">
+            <select name="age_group" class="form-control" onChange="ageGroupSelected()">
+                <option value="{{ c.AGE_UNKNOWN }}">Please indicate your age</option>
+                {% options c.PREREG_AGE_GROUP_OPTS attendee.age_group %}
+            </select>
+        </div>
+    {% endif %}
+</div>
+
+<div class="form-group" id="age_disclaimer">
+    <p class="help-block col-sm-6 col-sm-offset-2">
+        <span style="font-style:italic">
+            {% if c.CONSENT_FORM_URL %}
+                Attendees under 18 <b>MUST</b> bring a signed and notarized parental
+                <nobr><a target="_blank" href="{{ c.CONSENT_FORM_URL }}">permission slip</a></nobr>.
+            {% endif %}
+        </span>
+    </p>
+</div>
+
+<div class="form-group">
+    <label for="email" class="col-sm-2 control-label">Email Address</label>
+    <div class="col-sm-6">
+        <input type="email" name="email" id="email" value="{{ attendee.email }}" class="form-control" placeholder="Email Address">
+    </div>
+</div>
+
+{% if c.COLLECT_FULL_ADDRESS or attendee.is_dealer %}
+    <div class="form-group">
+        <label for="full_address" class="col-sm-2 control-label">Address</label>
+        <div class="col-sm-6">
+            <input type="text" name="full_address" class="form-control geolocator" placeholder="Search for your address here." />
+            <img src="../static/images/powered-by-google-on-white.png" alt="Powered by Google." />
+        </div>
+    </div>
+    <div class="form-group address_details">
+        <label for="address1" class="col-sm-2 control-label"></label>
+        <div class="col-sm-6">
+            <input type="text" name="address1" class="form-control" placeholder="Address Line 1" value="{{ attendee.address1 }}" data-geo="name" />
+        </div>
+    </div>
+    <div class="form-group address_details">
+        <label for="address2" class="col-sm-2 control-label"></label>
+        <div class="col-sm-6">
+            <input type="text" name="address2" class="form-control" placeholder="Address Line 2" value="{{ attendee.address2 }}" />
+        </div>
+    </div>
+    <div class="form-group address_details">
+        <label for="city" class="col-sm-2 control-label">City</label>
+        <div class="col-sm-6">
+            <input type="text" name="city" class="form-control" placeholder="City" value="{{ attendee.city }}" data-geo="locality" />
+        </div>
+    </div>
+    <div class="form-group address_details">
+        <label for="region" class="col-sm-2 control-label">State</label>
+        <div class="col-sm-3">
+            <input type="text" name="region" class="form-control" placeholder="State/Province/Region" value="{{ attendee.region }}" data-geo="administrative_area_level_1" />
+        </div>
+
+        <label for="zip_code" class="col-sm-1 control-label">ZIP</label>
+        <div class="col-sm-2">
+            <input type="text" name="zip_code" class="form-control" placeholder="ZIP/PostCode" value="{{ attendee.zip_code }}" data-geo="postal_code" />
+        </div>
+    </div>
+    <div class="form-group address_details">
+        <label for="country" class="col-sm-2 control-label">Country</label>
+        <div class="col-sm-6">
+             <input type="text" name="country" onchange="setInternational()" class="form-control" placeholder="Country" value="{{ attendee.country }}" data-geo="country" />
+        </div>
+    </div>
+{% else %}
+    <div class="form-group">
+        <label for="zip_code" class="col-sm-2 control-label">ZIP/Postal Code</label>
+        <div class="col-sm-6">
+            <input type="text" name="zip_code" class="form-control" value="{{ attendee.zip_code }}" />
+        </div>
+        <div class="checkbox col-sm-6 col-sm-offset-2">
+            <label>
+                {% checkbox attendee.international %}
+                I'm coming from outside the US.
+            </label>
+        </div>
+    </div>
+{% endif %}
+
+<div class="form-group">
+    <label for="ec_phone" class="col-sm-2 control-label">Emergency Contact Phone Number</label>
+    <div class="col-sm-6">
+        <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" class="form-control" placeholder="Who we should contact if something happens to you">
+    </div>
+</div>
+
+<div class="form-group">
+    <label for="cellphone" class="col-sm-2 control-label optional-field">Your Cellphone Number</label>
+    <div class="col-sm-6">
+        <input type="text" name="cellphone" id="cellphone" value="{{ attendee.cellphone }}" class="form-control" placeholder="Your Personal Cellphone Number">
+    </div>
+    {% if not attendee.is_dealer %}
+        <div class="checkbox col-sm-6">
+            <label class="cellphone-excuse">
+                {% checkbox attendee.no_cellphone %}
+                I don't own a cellphone.
+            </label>
+        </div>
+    {% endif %}
+</div>
+
+<div class="form-group">
+    <label class="col-sm-2 control-label optional-field">What interests you?</label>
+    <div class="col-sm-10">
+        {% checkgroup attendee.interests %}
+    </div>
+</div>
+
+<div class="form-group">
+    <label for="email" class="col-sm-2 control-label optional-field">How did you find {{ c.EVENT_NAME }}?</label>
+    <div class="col-sm-6">
+        <input type="text" name="found_how" id="found_how" value="{{ attendee.found_how }}" class="form-control" placeholder="How did you find {{ c.EVENT_NAME }}?">
+    </div>
+</div>
+
+<div class="form-group">
+    <label for="comments" class="col-sm-2 control-label optional-field">Comments</label>
+    <div class="col-sm-6">
+        <input type="textarea" name="comments" id="comments" value="{{ attendee.comments }}" class="form-control" placeholder="Comments">
+    </div>
+</div>
+
+<div class="form-group">
+    <label for="email_option" class="col-sm-2 control-label optional-field">Keep Me Updated</label>
+    <div class="col-sm-6">
+        {% checkbox attendee.can_spam %} Send me emails relating to {% organization_and_event_name %} in future years. <br/>
+        <span class="popup">{% popup_link "../static_views/privacy.html" "View Our Privacy Policy" %}</span>
+    </div>
+</div>
+
+{% include "regextra.html" %}

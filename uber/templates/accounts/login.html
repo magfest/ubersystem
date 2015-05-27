@@ -3,40 +3,31 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-<h2 align="center"> Admin Login </h2>
+<!-- Custom styles for this template -->
+<link href="../static/styles/login.css" rel="stylesheet">
 
-<form method="post" action="login">
-
-<table>
-<tr style="text-align:center">
-    <td width="50%">
-        <b>Email Address:</b> <br/>
-        <input class="focus" type="text" name="email" value="{{ email }}" />
-    </td>
-    <td width="50%">
-        <b>Password:</b> <br/>
-        <input type="password" name="password" />
-    </td>
-</tr>
-</table>
-
-<div style="text-align:center">
-    <input type="submit" value="Login" />
-    {% if not AT_THE_CON %}
-        <br/> <br/>
+<div class="container">
+  <form class="form-signin" role="form" method="post" action="login">
+	<h2 class="form-signin-heading">Admin Login</h2>
+	<input type="email" class="form-control" placeholder="Email address" name="email" 
+		value="{{ email }}" required autofocus>
+	<input type="password" class="form-control" placeholder="Password" name="password" 
+		required>
+	<button class="btn btn-lg btn-primary btn-block" type="submit">Sign in</button>
+ 
+ <div class="text-center">
+	{% if c.AT_THE_CON %}
+		Contact STOPS if you've forgotten your username/password.
+    {% else %}
         <a href="reset">Forgot your password?</a>
     {% endif %}
 </div>
-
-</form>
-
-<div style="margin:20px ; font-style:italic">
-    {% if AT_THE_CON %}
-        Contact STOPS if you've forgotten your username/password.
-    {% else %}
-        Note: This login is for administrators only.  If you are a staffer wanting to sign
-        up for shifts, you may <a href="../signups/login">log in here</a>.
-    {% endif %}
+<br>
+<div class="well">
+	Note: This login is for administrators only.  If you are a staffer wanting to sign
+	up for shifts, you may <a href="../signups/login">log in here</a>.
+</div> 
+  </form>
 </div>
 
 {% endblock %}

@@ -3,12 +3,9 @@
 <head>
     <title>{{ name }}'s shifts</title>
     <link rel="stylesheet" type="text/css" href="../static/styles/styles.css" />
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
-    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.2.26/angular.min.js"></script>
-    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.2.26/angular-route.min.js"></script>
-    <script src="../static/lib/moment/moment.min.js"></script>
+    <script src="../static/deps/combined.js"></script>
     <script src="../static_views/magfest.js"></script>
-    <script src="../static/lib/angular/signups/app.js"></script>
+    <script src="../static/angular-apps/signups/app.js"></script>
     <script>
         var JOBS = {{ jobs|jsonize }};  // the Job service checks for a global variable with this name to preload the data
         angular.module('signups')

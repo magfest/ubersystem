@@ -1,22 +1,18 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}
-    {% if attendee.placeholder %}
-        Finalize Your {{ EVENT_NAME }} Registration
-    {% else %}
-        Update Your {{ EVENT_NAME }} Registration
-    {% endif %}
-{% endblock %}
+{% block title %}Confirm Your Details{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
+
+<div class="masthead"></div>
 
 <script type="text/javascript">
     $(function(){
         {% if attendee.has_personalized_badge %}
-            $(".badge-row").show();
+            $('.badge-row').show();
         {% endif %}
-        {% if attendee.amount_extra %}
-            setTimeout(function(){  // make sure this happens after jQuery.select2
-                $.field("amount_extra").find("option").each(function(){
+        {% if attendee.amount_extra and not attendee.amount_unpaid %}
+            setTimeout(function () {  // make sure this happens after jQuery.select2
+                $.field('amount_extra').find('option').each(function(){
                     if ($(this).val() < {{ attendee.amount_extra }}) {
                         $(this).remove();
                     }
@@ -26,48 +22,39 @@
     });
 </script>
 
-<form method="post" action="confirm">
+<div class="panel panel-default">
+<form method="post" action="confirm" class="form-horizontal">
 {% csrf_token %}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
+<input type="hidden" name="undoing_extra" value="{{ undoing_extra }}" />
 
-<table class="form">
-<tr>
-    <td> <b><nobr>Name:</nobr></b> </td>
-    <td>{{ attendee.full_name }}</td>
-</tr>
-{% include "preregistration/extra.html" %}
-{% include "preregistration/age_and_staffing.html" %}
-<tr>
-    <td> <b>Email Address:</b> </td>
-    <td> <input type="text" name="email" value="{{ attendee.email }}" class="focus" /> </td>
-</tr>
-<tr>
-    <td> <b>Postal Code:</b> </td>
-    <td>
-        <input type="text" name="zip_code" value="{{ attendee.zip_code }}" />
-        {% checkbox attendee.international %} I'm coming from outside the US.
-    </td>
-</tr>
-{% include "preregistration/phone_numbers.html" %}
-<tr>
-    <td> What interests you? </td>
-    <td> {% checkgroup attendee.interests %} </td>
-</tr>
-<tr>
-    <td></td>
-    <td> <input type="submit" value="{% if attendee.placeholder %}Register{% else %}Update My Info{% endif %}" id="updateButton"/> </td>
-</tr>
-{% if attendee.is_transferable %}
-<tr>
-    <td></td>
-    <td>
-        <button type="button" onClick='location.href="transfer_badge?id={{ attendee.id }}"'>Transfer my Badge</button>
-    </td>
-</tr>
+{% if attendee.amount_unpaid %}
+    <br/>
+    <div class="form-group">
+        <div class="col-sm-6 col-sm-offset-2 warning">
+            You currently have an outstanding balance of ${{ attendee.amount_unpaid }} due to having requested
+            registration add-ons and then not completing the payment form.  Please either 
+            <a href="attendee_donation_form?id={{ attendee.id }}">click here</a> to pay, or alter your registration below to
+            eliminate whichever addons you've decided not to select.
+        </div>
+    </div>
 {% endif %}
-</table>
+
+{% include "regform.html" %}
+
+<div class="form-group">
+    <div class="col-sm-6 col-sm-offset-2">
+        <button type="submit" class="btn btn-primary" id="updateButton">
+            {% if attendee.placeholder %}Register{% else %}Update My Info{% endif %}
+        </button>
+        {% if attendee.is_transferable %}
+            <button type="button" class="btn btn-primary" onClick='location.href="transfer_badge?id={{ attendee.id }}"'>Transfer my Badge</button>
+        {% endif %}
+    </div>
+</div>
 
 </form>
+</div>
 
 {% endblock %}

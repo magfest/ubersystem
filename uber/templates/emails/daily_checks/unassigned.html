@@ -1,14 +1,14 @@
 <html>
 <head></head>
 <body>
-    <h3>{{ EVENT_NAME_AND_YEAR }}<br/>{{ unassigned|length }} volunteers are not assigned to any department:</h3>
+    <h3>{{ c.EVENT_NAME_AND_YEAR }}<br/>{{ unassigned|length }} volunteers are not assigned to any department:</h3>
     <ul style="margin-top:0px ; margin-bottom:10px">
     {% for attendee in unassigned %}
             <li>
-                <a href="{{ URL_BASE }}/registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a>
+                <a href="{{ c.URL_BASE }}/registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a>
                 [{{ attendee.badge }}]
                 {% if attendee.group %}
-                    (<a href="{{ URL_BASE }}/groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>)
+                    (<a href="{{ c.URL_BASE }}/groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>)
                 {% endif %}
             </li>
     {% endfor %}
