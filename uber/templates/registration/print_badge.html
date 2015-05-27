@@ -1,4 +1,6 @@
 <html>
+<script type="text/javascript" src="/uber/static/lib/printing/printerWidget.js" />
+<!--
 <script type="text/javascript">
 {% if load_next %}
     // automatically reload to print the next badge after 15 seconds
@@ -12,7 +14,8 @@
     }, 15000);
 {% endif %}
 </script>
-
+-->
+<form><input type="button" name="#edit-button" value="Print"/></form>
 <span id="badge_type">{{ badge_type }}</span>
 <span id="badge_num">{{ badge_num }}</span>
 <span id="badge_name">{{ badge_name }}</span>
