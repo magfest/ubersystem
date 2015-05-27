@@ -414,7 +414,7 @@ class NightsMixin(object):
 
 
 class Session(SessionManager):
-    engine = sqlalchemy.create_engine(c.SQLALCHEMY_FINAL_URL, pool_size=50, max_overflow=100)
+    engine = sqlalchemy.create_engine(c.SQLALCHEMY_URL, pool_size=50, max_overflow=100)
 
     class QuerySubclass(Query):
         @property

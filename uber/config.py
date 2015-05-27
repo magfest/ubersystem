@@ -137,7 +137,7 @@ class Config:
             return individual_supporters + group_supporters
 
     @property
-    def SQLALCHEMY_FINAL_URL(self):
+    def SQLALCHEMY_URL(self):
         """
         support reading the DB connection info from an environment var (used with Docker containers)
         example env vars:
@@ -150,7 +150,7 @@ class Config:
         if docker_db_addr is not None and docker_db_port is not None:
             return "postgresql://m13:m13@" + docker_db_addr + ":" + docker_db_port + "/m13"
         else:
-            return self.SQLALCHEMY_URL
+            return _config['sqlalchemy_url']
 
     @classmethod
     def mixin(cls, klass):
