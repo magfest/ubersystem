@@ -1,5 +1,6 @@
 from uber.common import *
 
+
 def _attendees(session):
     return [{
         'id': id,
@@ -9,6 +10,7 @@ def _attendees(session):
                                     .filter(Attendee.badge_num != 0)
                                     .order_by(Attendee.badge_num).all()]
 
+
 def _attendee(a):
     return a and {
         'id': a.id,
@@ -16,11 +18,13 @@ def _attendee(a):
         'badge': a.badge_num
     }
 
+
 def _checked_out(c):
     return c and {
         'checked_out': c.checked_out,
         'attendee': _attendee(c.attendee)
     }
+
 
 def _games(session):
     return [{
@@ -33,7 +37,8 @@ def _games(session):
         'checked_out': _checked_out(g.checked_out)
     } for g in session.query(Game).options(joinedload(Game.attendee)).order_by(Game.name).all()]
 
-@all_renderable(CHECKINS)
+
+@all_renderable(c.CHECKINS)
 class Root:
     def index(self, session):
         return {

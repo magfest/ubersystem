@@ -18,15 +18,15 @@
 </tr>
 <tr>
     <td>Start Time:</td>
-    <td><select name="startday">{% options DAYS startday %}</select></td>
-    <td><select name="starthour">{% options HOURS starthour %}</select></td>
-    <td><select name="startminute">{% options MINUTES startminute %}</select></td>
+    <td><select name="startday">{% options c.DAYS startday %}</select></td>
+    <td><select name="starthour">{% options c.HOURS starthour %}</select></td>
+    <td><select name="startminute">{% options c.MINUTES startminute %}</select></td>
 </tr>
 <tr>
     <td>End Time:</td>
-    <td><select name="endday">{% options DAYS endday %}</select></td>
-    <td><select name="endhour">{% options HOURS endhour %}</select></td>
-    <td><select name="endminute">{% options MINUTES endminute %}</select></td>
+    <td><select name="endday">{% options c.DAYS endday %}</select></td>
+    <td><select name="endhour">{% options c.HOURS endhour %}</select></td>
+    <td><select name="endminute">{% options c.MINUTES endminute %}</select></td>
 </tr>
 <tr>
     <td></td>

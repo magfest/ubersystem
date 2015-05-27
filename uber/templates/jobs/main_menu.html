@@ -9,12 +9,12 @@
 <tr>
     <td width="50%">
         <select id="location" style="font-size:14pt ; font-weight:bold" onChange="mainMenuDropdownChanged()">
-            {% options JOB_LOCATION_OPTS location %}
+            {% options c.JOB_LOCATION_OPTS location %}
         </select>
     </td>
     <td width="50%">
         <select id="page" style="font-size:14pt ; font-weight:bold" onChange="mainMenuDropdownChanged()">
-            {% options JOB_PAGE_OPTS PAGE %}
+            {% options c.JOB_PAGE_OPTS PAGE %}
         </select>
     </td>
 </tr>

@@ -18,7 +18,7 @@ a, a:visited, a:hover, a:active {
 
 
 #header {
-	background: url('{{THEME_DIR}}/logo.png') no-repeat left bottom;
+	background: url('../static/theme/logo.png') no-repeat left bottom;
 	padding-left: 400px;
 	
 	font-size: 30px;

@@ -1,7 +1,7 @@
 {{ attendee.first_name }},
 
-Thanks again for volunteering to help at {{ EVENT_NAME }}.  You're eligible for a tshirt as thanks for your help, but we need your shirt size to set aside a shirt for you at our merch booth.
+Thanks again for volunteering to help at {{ c.EVENT_NAME }}.  You're eligible for a tshirt as thanks for your help, but we need your shirt size to set aside a shirt for you at our merch booth.
 
-You can tell us your shirt size by filling out the volunteer checklist at {{ URL_BASE }}/signups/login
+You can tell us your shirt size by filling out the volunteer checklist at {{ c.URL_BASE }}/signups/login
 
-{{ STOPS_EMAIL_SIGNATURE }}
+{{ c.STOPS_EMAIL_SIGNATURE }}

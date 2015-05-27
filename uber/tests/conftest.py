@@ -43,10 +43,12 @@ def init_db(request):
             ))
             session.commit()
 
+
 @pytest.fixture(autouse=True)
 def db(request, init_db):
     shutil.copy('/tmp/uber.db', '/tmp/uber.db.backup')
     request.addfinalizer(lambda: shutil.move('/tmp/uber.db.backup', '/tmp/uber.db'))
+
 
 @pytest.fixture(autouse=True)
 def cp_session():
@@ -57,6 +59,7 @@ for modname in os.listdir(os.path.join(MODULE_ROOT, 'site_sections')):
     if modname.endswith('.py') and not modname.startswith('_'):
         modules.append(__import__('uber.site_sections.' + modname[:-3], fromlist='*'))
 
+
 def _make_setting_fixture(name, setting, val):
     def func(monkeypatch):
         for module in modules:
@@ -64,12 +67,14 @@ def _make_setting_fixture(name, setting, val):
     func.__name__ = name
     globals()[name] = pytest.fixture(func)
 
+
 @pytest.fixture
 def precon(monkeypatch):
     for module in modules:
         monkeypatch.setattr(module, 'PRE_CON', True)
         monkeypatch.setattr(module, 'AT_THE_CON', False)
         monkeypatch.setattr(module, 'AT_OR_POST_CON', False)
+
 
 @pytest.fixture
 def at_con(monkeypatch):
@@ -81,5 +86,5 @@ def at_con(monkeypatch):
 _make_setting_fixture('shifts_created', 'SHIFTS_CREATED', localized_now())
 _make_setting_fixture('shifts_not_created', 'SHIFTS_CREATED', '')
 
-_make_setting_fixture('custom_badges_ordered', 'CUSTOM_BADGES_REALLY_ORDERED', True)
-_make_setting_fixture('custom_badges_not_ordered', 'CUSTOM_BADGES_REALLY_ORDERED', False)
+_make_setting_fixture('custom_badges_ordered', 'SHIFT_CUSTOM_BADGES', False)
+_make_setting_fixture('custom_badges_not_ordered', 'SHIFT_CUSTOM_BADGES', True)

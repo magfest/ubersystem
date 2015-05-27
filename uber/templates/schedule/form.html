@@ -42,7 +42,7 @@
     <td width="25%"><b>Location:</b></td>
     <td width="75%">
         <select name="location">
-            {% options EVENT_LOCATION_OPTS event.location %}
+            {% options c.EVENT_LOCATION_OPTS event.location %}
         </select>
     </td>
 </tr>
@@ -50,7 +50,7 @@
     <td><b>Time:</b></td>
     <td>
         <select name="start_time">
-            {% options EVENT_START_TIME_OPTS event.start_time_local %}
+            {% options c.EVENT_START_TIME_OPTS event.start_time_local %}
         </select>
     </td>
 </tr>
@@ -58,7 +58,7 @@
     <td><b>Duration:</b></td>
     <td>
         <select name="duration">
-            {% options EVENT_DURATION_OPTS event.duration %}
+            {% options c.EVENT_DURATION_OPTS event.duration %}
         </select>
     </td>
 </tr>

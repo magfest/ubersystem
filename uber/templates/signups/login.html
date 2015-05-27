@@ -3,41 +3,28 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-<h2> Volunteer Login </h2>
+<!-- Custom styles for this template -->
+<link href="../static/styles/login.css" rel="stylesheet">
 
-<div style="text-align:center ; font-size:10pt ; margin-bottom:10px">
-    {% popup_link "../static_views/howToStaff.html" "How do I volunteer?" %}
+<div class="container">
+    {% if c.DEV_BOX or c.AFTER_SHIFTS_CREATED %}
+        <form class="form-signin" role="form">
+            <h2 class="form-signin-heading">Volunteer Login</h2>
+            <input type="text" class="form-control" placeholder="First and Last Name" name="full_name" value="{{ full_name }}" required autofocus>
+            <input type="email" class="form-control" placeholder="Email address" name="email" value="{{ email }}" required>
+            <input type="text" class="form-control" placeholder="Zip Code" name="zip_code" value="{{ zip_code }}" required>
+            <button class="btn btn-lg btn-primary btn-block" type="submit">Sign in</button>
+        </form>
+    {% else %}
+        <div class="well">
+            Shifts are not yet available. If you are signed up as a volunteer, you will 
+            be emailed when shifts become available.  Thanks so much for volunteering!
+        </div>
+    {% endif %}
 </div>
 
-{% if DEV_BOX or AFTER_SHIFTS_CREATED %}
-    <form method="post" action="login">
-    <table width="100%" style="text-align:center">
-    <tr style="font-weight:bold">
-        <td width="33%">
-            First and Last Name: <br/>
-            <input class="focus" type="text" style="width:75%" name="full_name" value="{{ full_name }}" />
-        </td>
-        <td width="33%">
-            Email Address: <br/>
-            <input type="text" style="width:75%" name="email" value="{{ email }}" />
-        </td>
-        <td width="33%">
-            Zip Code: <br/>
-            <input type="text" style="width:75%" name="zip_code" value="{{ zip_code }}" />
-        </td>
-    </tr>
-    <tr>
-        <td colspan="3">
-            <br/> <input type="submit" value="Login" />
-        </td>
-    </tr>
-    </table>
-    </form>
-{% else %}
-    <div style="text-align:center ; margin-top:25px ; font-style:italic">
-        Shifts are not yet available.  If you are signed up as a volunteer, you will be emailed when shifts
-        become available.  Thanks so much for volunteering!
-    </div>
-{% endif %}
+<div class="text-center">
+    {% popup_link "../static_views/howToStaff.html" "How do I volunteer?" %}
+</div>
 
 {% endblock %}

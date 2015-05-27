@@ -6,7 +6,7 @@
 
 <div class="center">
     <select id="dept" onChange="deptChanged()">
-        {% options JOB_LOCATION_OPTS department %}
+        {% options c.JOB_LOCATION_OPTS department %}
     </select>
     <script>
         var deptChanged = function () {

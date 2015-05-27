@@ -1,55 +1,29 @@
 {% extends "./preregistration/preregbase.html" %}
 {% block backlink %}{% endblock %}
-{% block title %}Transfer Your {{ EVENT_NAME }} Registration{% endblock %}
+{% block title %}Transfer Your {{ c.EVENT_NAME }} Registration{% endblock %}
 {% block content %}
 
+<div class="masthead"></div>
+<div class="panel panel-default">
 <h2> Transfer {{ old.full_name }}'s Registration </h2>
 
-By filling out this form, you will be transferring {{ old.full_name }}'s {{ EVENT_NAME }} registration
-to someone else.  {{ old.full_name }} will no longer have a paid {{ EVENT_NAME }} badge waiting at
+By filling out this form, you will be transferring {{ old.full_name }}'s {{ c.EVENT_NAME }} registration
+to someone else.  {{ old.full_name }} will no longer have a paid {{ c.EVENT_NAME }} badge waiting at
 our Registration Desk; that will belong to whomever the badge is transferred.
 
-<form method="POST" action="transfer_badge">
+<form method="POST" action="transfer_badge" class="form-horizontal">
 {% csrf_token %}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 
-<table class="form">
-<tr>
-    <td> <b>Name:</b> </td>
-    <td>
-        <input type="text" style="width:10em" name="first_name" value="{{ attendee.first_name }}" class="focus" />
-        <input type="text" style="width:15em" name="last_name"  value="{{ attendee.last_name }}" />
-    </td>
-</tr>
-{% if attendee.has_personalized_badge and not AFTER_PRINTED_BADGE_DEADLINE %}
-    <tr>
-        <td>Name Printed on Badge:</td>
-        <td> <input type="text" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" /> </td>
-    </tr>
-{% endif %}
-{% include "preregistration/age_and_staffing.html" %}
-<tr>
-    <td> <b>Email Address:</b> </td>
-    <td> <input type="text" name="email" value="{{ attendee.email }}" class="focus" /> </td>
-</tr>
-<tr>
-    <td> <b>Postal Code:</b> </td>
-    <td>
-        <input type="text" name="zip_code" value="{{ attendee.zip_code }}" />
-        {% checkbox attendee.international %} I'm coming from outside the US.
-    </td>
-</tr>
-{% include "preregistration/phone_numbers.html" %}
-<tr>
-    <td> <nobr>What interests you?</nobr> </td>
-    <td> {% checkgroup attendee.interests %} </td>
-</tr>
-<tr>
-    <td></td>
-    <td> <input type="submit" value="Transfer this Badge" /> </td>
-</tr>
-</table>
+{% include "regform.html" %}
+
+<div class="form-group">
+    <div class="col-sm-6 col-sm-offset-2">
+        <button type="submit" class="btn btn-primary" id="updateButton">Transfer This Badge</button>
+    </div>
+</div>
 
 </form>
+</div>
 
 {% endblock %}

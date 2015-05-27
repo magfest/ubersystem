@@ -4,7 +4,7 @@
 
 <script type="text/javascript">
     var $shirtOpts = $('<select/>').attr('id', 'shirt');
-    $.each({{ MERCH_SHIRT_OPTS|jsonize }}, function(i,size) {
+    $.each({{ c.MERCH_SHIRT_OPTS|jsonize }}, function(i,size) {
         $shirtOpts.append($('<option/>').val(size[0]).text(size[1]));
     });
 
@@ -35,7 +35,7 @@
             $('#store_cash').val('');
         }
         else {
-            var prices = {{ STORE_PRICES|jsonize }};
+            var prices = {{ c.STORE_PRICES|jsonize }};
             $('#what_text').val('').hide();
             $('#store_cash').val( prices[$('#what_select').val()] );
             if (!pageLoading) {
@@ -121,7 +121,7 @@
                                         .replace(' received ', ' received<br/>- ')
                                         .replace(/,/g, '<br/>- ')
                                   + '<br/>');
-                    if (resp.shirt != {{ NO_SHIRT }}) {
+                    if (resp.shirt != {{ c.NO_SHIRT }}) {
                         $('#give').append('Choose a shirt size:').append($shirtOpts);
                         $('#give select').val(resp.shirt);
                     }
@@ -131,7 +131,7 @@
                             return false;
                         })
                     );
-                    {% if OUT_OF_SHIRTS %}
+                    {% if c.OUT_OF_SHIRTS %}
                         $("#give").append(
                             $('<button>Give Merch Without Shirt</button>').click(function() {
                                 giveMerch('no_shirt', resp.id, $('#shirt').val());
@@ -164,7 +164,7 @@
     <td> Record a Sale: </td>
     <td>
         <select id="what_select" onChange="showOrHideWhatText()">
-            {% options STORE_ITEM_NAMES %}
+            {% options c.STORE_ITEM_NAMES %}
             <option value="">Other...</option>
         </select>
         <input type="text" id="what_text" size="20" maxlength="50" />

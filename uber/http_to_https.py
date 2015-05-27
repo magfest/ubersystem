@@ -1,5 +1,6 @@
 from uber.common import *
 
+
 class Redirector:
     @cherrypy.expose
     def default(self, *args, **kwargs):

@@ -1,7 +1,7 @@
 {% extends "base-admin.html" %}
 {% block title %}Schedule{% endblock %}
 {% block backlink %}
-    {% if HAS_STUFF_ACCESS %}
+    {% if c.HAS_STUFF_ACCESS %}
         <span style="float:right"> <a href="../accounts/homepage">Return Home</a></span>
     {% endif %}
 {% endblock %}
@@ -48,7 +48,7 @@
         {% if not time.hour and not time.minute %}
             <td class="border">{{ time|date:"D" }}</td>
         {% else %}
-            {% ifequal time EPOCH %}
+            {% ifequal time c.EPOCH %}
                 <td class="border">{{ time|date:"D" }}</td>
             {% else %}
                 {% ifequal time.hour 12 %}
@@ -94,7 +94,7 @@
         {% if not time.hour and not time.minute %}
             <td class="border">{{ time|date:"D" }}</td>
         {% else %}
-            {% ifequal time EPOCH %}
+            {% ifequal time c.EPOCH %}
                 <td class="border">{{ time|date:"D" }}</td>
             {% else %}
                 {% ifequal time.hour 12 %}

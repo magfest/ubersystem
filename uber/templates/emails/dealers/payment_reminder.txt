@@ -1,7 +1,7 @@
 {{ group.leader.first_name }},
 
-Thanks again for registering as a Dealer for this year's {{ EVENT_NAME }}.  Our records indicate that your Dealer registration ({{ group.name }}) is still unpaid, and if we do not receive payment by {{ DEALER_PAYMENT_DUE|datetime }} then it will be deleted.
+Thanks again for registering as a Dealer for this year's {{ c.EVENT_NAME }}.  Our records indicate that your Dealer registration ({{ group.name }}) is still unpaid, and if we do not receive payment by {{ c.DEALER_PAYMENT_DUE|datetime }} then it will be deleted.
 
-You can use the credit card button on your group's page to pay the ${{ group.amount_unpaid }} that you owe: {{ URL_BASE }}/preregistration/group_members?id={{ group.id }}
+You can use the credit card button on your group's page to pay the ${{ group.amount_unpaid }} that you owe: {{ c.URL_BASE }}/preregistration/group_members?id={{ group.id }}
 
-{{ MARKETPLACE_EMAIL_SIGNATURE }}
+{{ c.MARKETPLACE_EMAIL_SIGNATURE }}

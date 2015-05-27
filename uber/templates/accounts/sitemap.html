@@ -2,15 +2,18 @@
 {% block title %}Site Map{% endblock %}
 {% block content %}
 
-<h2> Site Map </h2>
+<div class="page-header"><h1>Site Map</h1></div>
 
 {% for section, pagelist in pages %}
-    <h3>{{ section|title }}</h3>
-    <ul>
-    {% for page in pagelist %}
-        <li><a href="{{ URL_BASE }}{{ page.path }}">{{ page.name }}</a></li>
-    {% endfor %}
-    </ul>
+    <div class="panel panel-default">
+    <div class="panel-heading">{{ section|title }}</div>
+        <ul class="nav nav-pills">
+        {% for page in pagelist %}
+            <li><a href="{{ c.URL_BASE }}{{ page.path }}">{{ page.name }}</a></li>
+        {% endfor %}
+        </ul>
+    </div>
 {% endfor %}
 
+</div>
 {% endblock %}

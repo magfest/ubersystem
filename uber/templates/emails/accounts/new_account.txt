@@ -1,4 +1,4 @@
-An admin account has been created for you ({{ account.attendee.full_name }}) on the {{ EVENT_NAME }} ubersystem at {{ URL_BASE }}
+An admin account has been created for you ({{ account.attendee.full_name }}) on the {{ c.EVENT_NAME }} ubersystem at {{ c.URL_BASE }}
 
 The email address we used is: {{ account.attendee.email }}
 Your password is: {{ password|safe }}
