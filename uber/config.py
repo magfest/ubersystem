@@ -84,8 +84,14 @@ class Config:
         """
         with sa.Session() as session:
             params = cherrypy.lib.httputil.parse_query_string(cherrypy.request.query_string)
-            group = session.group(params['group_id']) if 'group_id' in params else None
-            attendee = session.attendee(params['id']) if 'id' in params else None
+
+            # This isn't ideal, but bypasses cases where "id" refers to a group id.
+            try:
+                group = session.group(params['group_id']) if 'group_id' in params else None
+                attendee = session.attendee(params['id']) if 'id' in params else None
+            except:
+                group = None
+                attendee = None
 
             if not attendee:
                 # Inherits the group's badge type if it's an attendee claiming a badge in a group
@@ -110,18 +116,14 @@ class Config:
             badge_types['base'] = {
                 'value': c.ATTENDEE_BADGE,
                 'title': base_badge_name + ': $' + str(badge_cost),
-                'description': base_description,
-                'extra': 0
+                'description': base_description
             }
 
             if c.GROUPS_ENABLED and not attendee and not group:
                 badge_types['group'] = {
                     'value': c.PSEUDO_GROUP_BADGE,
                     'title': 'Group Leader',
-                    'description': group_description,
-                    'extra': 0,
-                    'onClick': "function () { $('.group_fields').removeClass('hide'); " + \
-                               "$('input[name=\"badge_type\"]').val('{{ c.PSEUDO_GROUP_BADGE }}'); }"
+                    'description': group_description
                 }
 
             # The rest of the badges are added in via config
