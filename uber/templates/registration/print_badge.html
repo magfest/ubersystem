@@ -1,23 +1,31 @@
 <html>
 <script type="text/javascript" src="/uber/static/lib/printing/printerWidget.js" />
-<!--
+
 <script type="text/javascript">
-{% if load_next %}
-    // automatically reload to print the next badge after 15 seconds
-    setTimeout(function() {
-        window.location = "print_badge";
-    }, 15000);
-{% else %}
-    // or, close this page instead
-    setTimeout(function() {
-        window.close();
-    }, 15000);
-{% endif %}
+    $( function() {
+    var id = $("#badge_num").text();
+    var badge_name = $("#badge_name").text();
+    var badge_num = $("#badge_num").text();
+    var membership_type = $("#badge_type").text();
+
+        print_successful = jQuery.fn.printerWidget.printBadge(id, badge_name, badge_num, membership_type);
+
+        if (print_successful) {
+                {% if load_next %}
+                    // reload to print the next badge
+                    window.location = "print_badge";
+                {% else %}
+                    // or, close this page instead
+                    window.close();
+                {% endif %}
+            } else {
+                window.location = 'printable_badges?message="There was an error with badge printing!"';
+            }
+    });
 </script>
--->
 <form><input type="button" name="#edit-button" value="Print"/></form>
 <span id="badge_type">{{ badge_type }}</span>
-<span id="badge_num">{{ badge_num }}</span>
+<span id="badge_num">2015-{{ badge_num|stringformat:"04d" }}</span>
 <span id="badge_name">{{ badge_name }}</span>
 
 </html>

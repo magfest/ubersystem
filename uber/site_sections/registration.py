@@ -518,7 +518,7 @@ class Root:
             load_next = True
 
         if not attendee:
-            raise HTTPRedirect('print?message={}', 'No more badges to print!')
+            raise HTTPRedirect('printable_badges?message={}', 'No more badges to print!')
 
         badge_type = attendee.ribbon_and_or_badge
 

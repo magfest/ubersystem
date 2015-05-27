@@ -193,6 +193,10 @@ jQuery.fn.printerWidget.printBadge = function(id, badge_name, badge_num,
 		return(null);
 	}
 
+    // Decode the badge name value.  Helpful for folks use used unicode in their
+    // badge names, such as Davin Wärter ;-)
+    var badge_name = decodeURIComponent(badge_name);
+
 	//	
 	//	Debging while not in MSIE?
 	//	
@@ -239,17 +243,17 @@ jQuery.fn.printerWidget.printBadge = function(id, badge_name, badge_num,
 	// and mark the job as printed.
 	//
 	//$("#edit-interval").parent().append(id); // Debugging
-	var url = jQuery.fn.printerWidget.base_url 
-		+ "/admin/reg/utils/print/client/ajax/update/" + id + "/printed";
+	//var url = jQuery.fn.printerWidget.base_url
+	//	+ "/admin/reg/utils/print/client/ajax/update/" + id + "/printed";
 	//$("#edit-interval").parent().append(url); // Debugging
 
 	//
-	// No callback because nothing is returned.
+	// Tell the calling page that printing was successful
 	//
-	$.get(url);
+	return true
 
 
-} // End of printBadge()
+}; // End of printBadge()
 
 
 /**
@@ -271,7 +275,7 @@ jQuery.fn.printerWidget.stopWord = function() {
 
 /**
 * Return our current interval, in milliseconds.
-*/
+
 jQuery.fn.printerWidget.getInterval = function() {
 
 	//
@@ -300,7 +304,9 @@ jQuery.fn.printerWidget.getInterval = function() {
 /**
 * Our main printing loop.  This will ask the server for a badge to print,
 *	print up that badge, and then loop.
-*/
+
+DISABLED for use in RAMS!
+
 jQuery.fn.printerWidget.printLoop = function() {
 
 	//
@@ -333,12 +339,14 @@ jQuery.fn.printerWidget.printLoop = function() {
 	$.get(url, {}, jQuery.fn.printerWidget.fetchCallback);
 
 } // End of printLoop()
-
+*/
 
 
 /**
 * This function called when an AJAX request to our webserver is successful.
-*/
+
+DISABLED for use in RAMS!
+
 jQuery.fn.printerWidget.fetchCallback = function(data) {
 
 	//data = "foobar"; // Set to force undefined badges
@@ -372,7 +380,7 @@ jQuery.fn.printerWidget.fetchCallback = function(data) {
 	setTimeout(jQuery.fn.printerWidget.printLoop, interval);
 
 } // End of fetchCallback()
-
+*/
 
 /**
 * Parse a string of GET method data and turn it into a Javascript hash table.
@@ -381,7 +389,7 @@ jQuery.fn.printerWidget.fetchCallback = function(data) {
 *	version of PHP...
 *
 * @param string data The GET method data
-*/
+
 jQuery.fn.printerWidget.parseGetData = function(data) {
 
 	var retval = {};
@@ -413,7 +421,7 @@ jQuery.fn.printerWidget.parseGetData = function(data) {
 
 /**
 * Start printing, set up our event loop.
-*/
+
 jQuery.fn.printerWidget.printStart = function() {
 
 	jQuery.fn.printerWidget.startWord();
@@ -428,11 +436,11 @@ jQuery.fn.printerWidget.printStart = function() {
 
 /**
 * Stop printing.
-*/
+
 jQuery.fn.printerWidget.printStop = function() {
 
 	jQuery.fn.printerWidget.stopWord();
 
 } // End of printStop()
 
-
+*/
