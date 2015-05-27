@@ -138,9 +138,12 @@ class Config:
 
     @property
     def SQLALCHEMY_FINAL_URL(self):
-        # support reading the DB connection info from an environment var (used with Docker containers)
-        # DB_PORT_5432_TCP_ADDR="172.17.0.8"
-        # DB_PORT_5432_TCP_PORT="5432"
+        """
+        support reading the DB connection info from an environment var (used with Docker containers)
+        example env vars:
+        DB_PORT_5432_TCP_ADDR="172.17.0.8"
+        DB_PORT_5432_TCP_PORT="5432"
+        """
         docker_db_addr = os.environ.get('DB_PORT_5432_TCP_ADDR')
         docker_db_port = os.environ.get('DB_PORT_5432_TCP_PORT')
 
