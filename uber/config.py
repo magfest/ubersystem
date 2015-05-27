@@ -108,6 +108,7 @@ class Config:
 
             badge_types = {}
             badge_types['base'] = {
+                'value': c.ATTENDEE_BADGE,
                 'title': base_badge_name + ': $' + str(badge_cost),
                 'description': base_description,
                 'extra': 0
@@ -115,15 +116,19 @@ class Config:
 
             if c.GROUPS_ENABLED and not attendee and not group:
                 badge_types['group'] = {
+                    'value': c.PSEUDO_GROUP_BADGE,
                     'title': 'Group Leader',
                     'description': group_description,
-                    'extra': 0
+                    'extra': 0,
+                    'onClick': "function () { $('.group_fields').removeClass('hide'); " + \
+                               "$('input[name=\"badge_type\"]').val('{{ c.PSEUDO_GROUP_BADGE }}'); }"
                 }
 
             # The rest of the badges are added in via config
             for name, option in c.BADGE_DISPLAY_CONFIGS.items():
                 if int(option['extra']) in c.PREREG_DONATION_TIERS:
                     badge_types[name] = {
+                        'value': c.ATTENDEE_BADGE,
                         'title': donation_prepend + option['name'] + ': $' + str(badge_cost + int(option['extra'])),
                         'description': option['description'],
                         'extra': option['extra']

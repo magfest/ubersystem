@@ -53,6 +53,9 @@ def dept_checklist_path(conf, attendee=None):
 def numeric_range(count):
     return range(count)
 
+@register.filter
+def jsonify(object):
+    return json.dumps(object)
 
 def _getter(x, attrName):
     if '.' in attrName:
