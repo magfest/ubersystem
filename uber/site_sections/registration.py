@@ -507,18 +507,19 @@ class Root:
             'badges':     badges
         }
 
+    printable_attendees = {}
     def print_badge(self, session, id = None):
         if id:
             attendee = session.attendee(id)
             load_next = False
         else:
-            # This involves a lot of calls to the DB...
-            attendee = session.query(Attendee).filter(Attendee.status == COMPLETED_STATUS) \
-                                              .order_by(Attendee.badge_num).first()
+            self.printable_attendees = session.query(Attendee).filter(Attendee.status == COMPLETED_STATUS)\
+                                            .order_by(Attendee.badge_num).all()
             load_next = True
-
-        if not attendee:
-            raise HTTPRedirect('printable_badges?message={}', 'No more badges to print!')
+            try:
+                attendee = self.printable_attendees.pop(0)
+            except:
+                raise HTTPRedirect('badge_waiting')
 
         badge_type = attendee.ribbon_and_or_badge
 
@@ -539,8 +540,12 @@ class Root:
             'badge_type': badge_type,
             'badge_num': attendee.badge_num,
             'badge_name': attendee.badge_printed_name,
-            'load_next': load_next
+            'load_next': load_next,
+            'badge': True
         }
+
+    def badge_waiting(self, message=''):
+        return {'message': message}
 
     def new(self, session, show_all='', message='', checked_in=''):
         if 'reg_station' not in cherrypy.session:
