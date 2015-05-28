@@ -53,6 +53,7 @@ def dept_checklist_path(conf, attendee=None):
 def numeric_range(count):
     return range(count)
 
+
 def _getter(x, attrName):
     if '.' in attrName:
         first, rest = attrName.split('.', 1)
