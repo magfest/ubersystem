@@ -136,6 +136,22 @@ class Config:
                                                 sa.Attendee.amount_paid >= self.SUPPORTER_LEVEL).count()
             return individual_supporters + group_supporters
 
+    @property
+    def SQLALCHEMY_URL(self):
+        """
+        support reading the DB connection info from an environment var (used with Docker containers)
+        example env vars:
+        DB_PORT_5432_TCP_ADDR="172.17.0.8"
+        DB_PORT_5432_TCP_PORT="5432"
+        """
+        docker_db_addr = os.environ.get('DB_PORT_5432_TCP_ADDR')
+        docker_db_port = os.environ.get('DB_PORT_5432_TCP_PORT')
+
+        if docker_db_addr is not None and docker_db_port is not None:
+            return "postgresql://uber_db:uber_db@" + docker_db_addr + ":" + docker_db_port + "/uber_db"
+        else:
+            return _config['sqlalchemy_url']
+
     @classmethod
     def mixin(cls, klass):
         for attr in dir(klass):
@@ -189,7 +205,7 @@ c.APPCONF = _config['appconf'].dict()
 
 c.BADGE_PRICES = _config['badge_prices']
 for _opt, _val in chain(_config.items(), c.BADGE_PRICES.items()):
-    if not isinstance(_val, dict):
+    if not isinstance(_val, dict) and not hasattr(c, _opt.upper()):
         setattr(c, _opt.upper(), _val)
 
 c.DATES = {}
