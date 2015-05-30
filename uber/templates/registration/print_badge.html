@@ -13,10 +13,9 @@
         {% endif %}
 
     </script>
-    <!-- Stylesheets per-browser -->
-    <script type="text/javascript" href="../static/lib/bowser/bowser.js">
-    <!-- Chrome Stylesheet -->
-    <script type="text/javascript">
+    <!-- FIXME: Stylesheets per-browser -->
+    <!-- script type="text/javascript" href="../static/lib/bowser/bowser.js" -->
+    <!-- script type="text/javascript">
       var link  = document.createElement('link');
       link.rel  = 'stylesheet';
       link.type = 'text/css';
@@ -31,8 +30,10 @@
       }
       link.media = 'all';
       document.getElementsByTagName( "head" )[0].appendChild( link );
-    </script>
+    </script -->
     <!-- end per-browser styles -->
+    <!-- force chrome style for now -->
+    <style type="text/css" href="../static/lib/printing/chrome-badge.css"/>
 </head>
 <body>
     <div id="container">
