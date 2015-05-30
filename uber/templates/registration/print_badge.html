@@ -14,7 +14,27 @@
 
     </script>
     <!-- Stylesheets per-browser -->
-    <link href="../static/lib/printing/default-badge.css" rel="stylesheet">
+    <link href="../static/lib/bowser/bowser.js">
+    <!-- Chrome Stylesheet -->
+    <script type="text/javascript">
+      var head  = document.getElementsByTagName('head')[0];
+      var link  = document.createElement('link');
+      link.id   = cssId;
+      link.rel  = 'stylesheet';
+      link.type = 'text/css';
+      if (bowser.chrome) {
+        link.href = '../static/lib/printing/chrome-badge.css';
+      } else if (bowser.firefox) {
+        link.href = '../static/lib/printing/firefox-badge.css';
+      } else if (bowser.msie) {
+        link.href = '../static/lib/printing/explorer-badge.css';
+      } else {
+        link.href = '../static/lib/printing/default-badge.css';
+      }
+      link.media = 'all';
+      head.appendChild(link);
+    </script>
+    <!-- end per-browser styles -->
 </head>
 <body>
     <div id="container">
