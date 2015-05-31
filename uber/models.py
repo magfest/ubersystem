@@ -1,6 +1,7 @@
 from uber.common import *
 from sideboard.lib import stopped, on_startup
 
+
 def _get_defaults(func):
     spec = inspect.getfullargspec(func)
     return dict(zip(reversed(spec.args), reversed(spec.defaults)))
@@ -1893,6 +1894,7 @@ if this fails, keep trying until we're able to connect.
 This should be the ONLY spot (except for maintenance tools) in all of core ubersystem or any plugins
 that attempts to create tables by passing modify_tables=True to Session.initialize_db()
 """
+
 def initialize_db():
     num_tries_remaining = 10
     while not stopped.is_set():
