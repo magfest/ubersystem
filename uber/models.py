@@ -1,5 +1,5 @@
 from uber.common import *
-
+from sideboard.lib import stopped, on_startup
 
 def _get_defaults(func):
     spec = inspect.getfullargspec(func)
@@ -415,6 +415,25 @@ class NightsMixin(object):
 
 class Session(SessionManager):
     engine = sqlalchemy.create_engine(c.SQLALCHEMY_URL, pool_size=50, max_overflow=100)
+
+    """
+    Initializes the database connection for use, and attempt to create any
+    tables registered in our metadata which do not actually exist yet in the
+    database.
+
+    This calls the underlying sideboard function, HOWEVER, in order to actually create
+    any tables, you must specify modify_tables=True.  The reason is, we need to wait for
+    all models from all plugins to insert their mixin data, so we wait until one spot
+    in order to create the database tables.
+
+    Any calls to initialize_db() that do not specify modify_tables=True are ignored.
+
+    drop: USE WITH CAUTION: If True, then we will drop any tables in the database.
+    """
+    @classmethod
+    def initialize_db(cls, modify_tables=False, drop=False):
+        if modify_tables:
+            super(Session, cls).initialize_db(drop=drop)
 
     class QuerySubclass(Query):
         @property
@@ -1860,3 +1879,34 @@ def register_session_listeners():
     listen(Session.session_factory, 'after_flush', _release_badge_lock)
     listen(Session.engine, 'dbapi_error', _release_badge_lock_on_error)
 register_session_listeners()
+
+
+"""
+Initialize the database on startup
+
+We want to do this only after all other plugins have had a chance to initialize
+and add their 'mixin' data (i.e. extra colums) into the models.
+
+Also, it's possible that the DB is still initializing and isn't ready to accept connections, so,
+if this fails, keep trying until we're able to connect.
+
+This should be the ONLY spot (except for maintenance tools) in all of core ubersystem or any plugins
+that attempts to create tables by passing modify_tables=True to Session.initialize_db()
+"""
+def initialize_db():
+    num_tries_remaining = 10
+    while not stopped.is_set():
+        try:
+            Session.initialize_db(modify_tables=True)
+        except KeyboardInterrupt:
+            log.critical("DB initialize: Someone hit Ctrl+C while we were starting up")
+        except:
+            num_tries_remaining -= 1
+            if num_tries_remaining == 0:
+                log.error("DB initialize: couldn't connect to DB, we're giving up")
+                raise
+            log.error("DB initialize: can't connect to + initialize DB, will try again in 5 seconds", exc_info=True)
+            stopped.wait(5)
+        else:
+            break
+on_startup(initialize_db, priority=1)
