@@ -492,34 +492,39 @@ class Root:
             'attendees': session.query(Attendee).filter(Attendee.comments != '').order_by(order).all()
         }
 
-    def printable_badges(self, session, show_all='', message=''):
-        if show_all:
-            badges = session.query(Attendee) \
-                    .filter((Attendee.status == COMPLETED_STATUS) | (Attendee.status == PRINTED_STATUS)) \
-                    .order_by(Attendee.badge_num).all()
-        else:
-            badges = session.query(Attendee).filter(Attendee.status == COMPLETED_STATUS) \
+    def printed_badges(self, session, message='', id = None):
+        if id:
+            attendee = session.attendee(id)
+            attendee.status = COMPLETED_STATUS
+            attendee.for_review += "Automated message: Badge marked for reprint by {} on {}."\
+                .format(session.admin_attendee().full_name,localized_now().strftime('%m/%d, %H:%M'))
+            session.add(attendee)
+            session.commit()
+            message = "Badge marked for re-print!"
+
+        badges = session.query(Attendee).filter(Attendee.status == PRINTED_STATUS) \
                                             .order_by(Attendee.badge_num).all()
 
         return {
             'message':    message,
-            'show_all':   show_all,
             'badges':     badges
         }
 
     printable_attendees = {}
-    def print_badge(self, session, id = None):
-        if id:
-            attendee = session.attendee(id)
-            load_next = False
+
+    def print_badges(self, session, minor = None):
+        if not minor:
+            self.printable_attendees = session.query(Attendee).join(Attendee.age_group)\
+                .filter(Attendee.status == COMPLETED_STATUS).filter(AgeGroup.min_age >= 18)\
+                                        .order_by(Attendee.badge_num).all()
         else:
-            self.printable_attendees = session.query(Attendee).filter(Attendee.status == COMPLETED_STATUS)\
-                                            .order_by(Attendee.badge_num).all()
-            load_next = True
-            try:
-                attendee = self.printable_attendees.pop(0)
-            except:
-                raise HTTPRedirect('badge_waiting')
+            self.printable_attendees = session.query(Attendee).join(Attendee.age_group)\
+                .filter(Attendee.status == COMPLETED_STATUS).filter(AgeGroup.min_age < 18)\
+                                        .order_by(Attendee.badge_num).all()
+        try:
+            attendee = self.printable_attendees.pop(0)
+        except:
+            raise HTTPRedirect('badge_waiting?minor={}'.format(minor))
 
         badge_type = attendee.ribbon_and_or_badge
 
@@ -540,12 +545,14 @@ class Root:
             'badge_type': badge_type,
             'badge_num': attendee.badge_num,
             'badge_name': attendee.badge_printed_name,
-            'load_next': load_next,
             'badge': True
         }
 
-    def badge_waiting(self, message=''):
-        return {'message': message}
+    def badge_waiting(self, message='', minor = None):
+        return {
+            'message': message,
+            'minor': minor
+        }
 
     def new(self, session, show_all='', message='', checked_in=''):
         if 'reg_station' not in cherrypy.session:

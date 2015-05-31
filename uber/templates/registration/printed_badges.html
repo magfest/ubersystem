@@ -4,17 +4,9 @@
 
 <script src="../static/lib/utils/servertimecheck.js" type="text/javascript"></script>
 
-<h2> {% if not show_all %}Unprinted{% endif %} Badge Printing </h2>
+<h2> Printed Badges </h2>
 
 <div style="text-align:center">
-    {% if show_all %}
-        <a href="print">Click Here</a> to see only unprinted badges
-    {% else %}
-        <form method="post" action="print_badge" target="_blank">
-            <input type="submit" value="Print All Badges" />
-        </form>
-        <a href="printable_badges?show_all=true">Click Here</a> to see all printable badges instead of only unprinted ones
-    {% endif %}
     <br/> <a href="index">Click Here</a> to view the preregistered and checked in attendee list
 </div>
 
@@ -26,8 +18,8 @@
     <th>Badge Number</th>
     <th>Badge Name</th>
     <th>Kickin Level</th>
-    <th>Volunteer</th>
     <th>Ribbon</th>
+    <th>Age Group</th>
     <th></th>
 </tr></thead>
 {% for attendee in badges %}
@@ -38,12 +30,12 @@
             {{ attendee.badge_printed_name }}
         </td>
         <td id="amount_extra_{{ attendee.id }}">{{ attendee.amount_extra_label }}</td>
-        <td>{{ attendee.staffing }}</td>
         <td id="ribbon_{{ attendee.id }}">{{ attendee.ribbon_label }}</td>
-        <form method="post" action="print_badge" target="_blank">
+        <td>{{ attendee.age_group_desc }}</td>
+        <form method="post" action="printed_badges">
         <td>
             <input type="hidden" name="id" value="{{ attendee.id }}" />
-            <input type="submit" value="Print" {% if attendee.paid == NOT_PAID %}disabled{% endif %} />
+            <input type="submit" value="Mark for Reprint" {% if attendee.paid == NOT_PAID %}disabled{% endif %} />
         </td>
         </form>
     </tr>
