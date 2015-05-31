@@ -1895,6 +1895,7 @@ This should be the ONLY spot (except for maintenance tools) in all of core ubers
 that attempts to create tables by passing modify_tables=True to Session.initialize_db()
 """
 
+
 def initialize_db():
     num_tries_remaining = 10
     while not stopped.is_set():
