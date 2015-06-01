@@ -749,9 +749,16 @@ class Session(SessionManager):
             else:
                 raise ValueError('No existing model with name {}'.format(model.__name__))
 
-        for attr in dir(model):
-            if not attr.startswith('_'):
-                setattr(target, attr, getattr(model, attr))
+        for name in dir(model):
+            if not name.startswith('_'):
+                attr = getattr(model, name)
+                if name in target.__table__.c:
+                    attr.key = attr.key or name
+                    attr.name = attr.name or name
+                    attr.table = target.__table__
+                    target.__table__.c.replace(attr)
+                else:
+                    setattr(target, name, attr)
         return target
 
 
