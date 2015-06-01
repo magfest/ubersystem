@@ -492,7 +492,7 @@ class Root:
             'attendees': session.query(Attendee).filter(Attendee.comments != '').order_by(order).all()
         }
 
-    def printed_badges(self, session, message='', id = None):
+    def printed_badges(self, session, message='', id=None, pending=None):
         if id:
             attendee = session.attendee(id)
             attendee.status = COMPLETED_STATUS
@@ -502,28 +502,24 @@ class Root:
             session.commit()
             message = "Badge marked for re-print!"
 
-        badges = session.query(Attendee).filter(Attendee.status == PRINTED_STATUS) \
-                                            .order_by(Attendee.badge_num).all()
+        if pending:
+            badges = session.query(Attendee).filter(Attendee.status == COMPLETED_STATUS).order_by(Attendee.badge_num).all()
+        else:
+            badges = session.query(Attendee).filter(Attendee.status == PRINTED_STATUS).order_by(Attendee.badge_num).all()
 
         return {
             'message':    message,
-            'badges':     badges
+            'badges':     badges,
+            'pending': pending
         }
 
-    printable_attendees = {}
+    def print_badges(self, session, minor=None):
+        badge_list = session.query(Attendee).join(Attendee.age_group).filter(Attendee.status == COMPLETED_STATUS)
+        badge_list = badge_list.filter(AgeGroup.min_age < 18) if minor else badge_list.filter(AgeGroup.min_age >= 18)
 
-    def print_badges(self, session, minor = None):
-        if not minor:
-            self.printable_attendees = session.query(Attendee).join(Attendee.age_group)\
-                .filter(Attendee.status == COMPLETED_STATUS).filter(AgeGroup.min_age >= 18)\
-                                        .order_by(Attendee.badge_num).all()
-        else:
-            self.printable_attendees = session.query(Attendee).join(Attendee.age_group)\
-                .filter(Attendee.status == COMPLETED_STATUS).filter(AgeGroup.min_age < 18)\
-                                        .order_by(Attendee.badge_num).all()
-        try:
-            attendee = self.printable_attendees.pop(0)
-        except:
+        attendee = badge_list.order_by(Attendee.badge_num).first()
+
+        if not self.printable_attendees:
             raise HTTPRedirect('badge_waiting?minor={}'.format(minor))
 
         badge_type = attendee.ribbon_and_or_badge
