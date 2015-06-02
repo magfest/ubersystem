@@ -519,7 +519,7 @@ class Root:
 
         attendee = badge_list.order_by(Attendee.badge_num).first()
 
-        if not self.printable_attendees:
+        if not attendee:
             raise HTTPRedirect('badge_waiting?minor={}'.format(minor))
 
         badge_type = attendee.ribbon_and_or_badge
