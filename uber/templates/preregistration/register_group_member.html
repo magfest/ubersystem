@@ -3,22 +3,64 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
+<style>
+    .bs-wizard {
+      border-bottom: 0;
+    }
+</style>
+
 <div class="masthead"></div>
 
 <div class="panel panel-default">
-<form method="post" action="register_group_member" class="form-horizontal">
-{% csrf_token %}
-<input type="hidden" name="id" value="{{ attendee.db_id }}" />
-<input type="hidden" name="group_id" value="{{ group_id }}" />
-
-{% include "regform.html" %}
-
-<div class="form-group">
-    <div class="col-sm-6 col-sm-offset-2">
-        <button type="submit" class="btn btn-primary" id="updateButton">Register</button>
+    <div class="row bs-wizard">
+        <div class="form-group" id="badge_types">
+            <label for="badge" class="col-sm-2 control-label">&nbsp;</label>
+        </div>
     </div>
+    <form method="post" action="register_group_member" class="form-horizontal">
+        {% csrf_token %}
+        <input type="hidden" name="id" value="{{ attendee.db_id }}" />
+        <input type="hidden" name="group_id" value="{{ group_id }}" />
+
+        {% include "regform.html" %}
+
+        <div class="form-group">
+            <div class="col-sm-6 col-sm-offset-2">
+                <button type="submit" class="btn btn-primary" id="updateButton">Register</button>
+            </div>
+        </div>
+    </form>
 </div>
-</form>
-</div>
+<script>
+    var badges = {{ badges }};
+    var badgesElem = $('#badge_types');
+
+    var setBadge = function (idx) {
+        var badge = badges[idx];
+        $('.group_fields').addClass('hide');
+        $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
+        $('.badge_type_selector').removeClass('active');
+        $('.badge_type_selector').slice(idx, 1 + idx).addClass('active');
+        $.field('amount_extra').val(badge.extra || 0).trigger('change');
+        (badge.onClick || $.noop)();
+    };
+
+    var createBadgeHtml = function (badge, idx) {
+      badgesElem.append(
+          $('<div class="col-sm-3"></div>').append(
+              $('<a class="list-group-item badge_type_selector"></a>').click(function () {
+                  setBadge(idx);
+              }).append(
+                  $('<h4 class="list-group-item-heading"></h4>').html(badge.title)
+              ).append(
+                  $('<p class="list-group-item-text"></p>').html(badge.description)
+              )
+          )
+      );
+    };
+
+    badges.forEach(createBadgeHtml);
+    setBadge(0);
+</script>
 
 {% endblock %}
