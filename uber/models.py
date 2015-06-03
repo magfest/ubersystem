@@ -1135,10 +1135,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.shirt not in [c.NO_SHIRT, c.SIZE_UNKNOWN]
 
     @property
-    def is_group_leader(self):
-        return self.group and self.id == self.group.leader_id
-
-    @property
     def unassigned_name(self):
         if self.group_id and self.is_unassigned:
             return '[Unassigned {self.badge}]'.format(self=self)

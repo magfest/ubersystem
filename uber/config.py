@@ -72,6 +72,72 @@ class Config:
         return types
 
     @property
+    def BADGE_DISPLAY_TYPES(self):
+        """
+        There are several contexts where we want to display different badge types to select:
+        - A new attendee registering for the event
+        - An attendee claiming a blank badge in an existing group
+        - An existing attendee editing their registration
+
+        This property uses the parameters in the URL to figure out the context and return the correct
+        badge types to display for an attendee.
+        """
+        with sa.Session() as session:
+            params = cherrypy.lib.httputil.parse_query_string(cherrypy.request.query_string)
+
+            # This isn't ideal, but bypasses cases where "id" refers to a group id.
+            try:
+                group = session.group(params['group_id']) if 'group_id' in params else None
+                attendee = session.attendee(params['id']) if 'id' in params else None
+            except:
+                group = None
+                attendee = None
+
+            if not attendee:
+                # Inherits the group's badge type if it's an attendee claiming a badge in a group
+                base_badge_name = group.ribbon_and_or_badge if group else c.BADGES.get(c.ATTENDEE_BADGE)
+            else:
+                base_badge_name = attendee.ribbon_and_or_badge
+
+            donation_prepend = '' if base_badge_name == c.BADGES.get(c.ATTENDEE_BADGE) else base_badge_name + ' / '
+            badge_cost = attendee.badge_cost if attendee else c.BADGE_PRICE
+
+            # The base badge and the group badge are special, so they're given default values and added manually
+            base_description = 'Allows access to the convention for its duration.'
+
+            if c.BEFORE_GROUP_PREREG_TAKEDOWN:
+                group_description = 'Register a group of ' + str(c.MIN_GROUP_SIZE) + ' or more and save $' + \
+                                    str(c.GROUP_DISCOUNT) + ' per badge.'
+            else:
+                group_description = 'The deadline for Group registration has passed, but you can still register as ' + \
+                                    'a regular attendee.'
+
+            badge_types = {}
+            badge_types['base'] = {
+                'value': c.ATTENDEE_BADGE,
+                'title': base_badge_name + ': $' + str(badge_cost),
+                'description': base_description
+            }
+
+            if c.GROUPS_ENABLED and not attendee and not group:
+                badge_types['group'] = {
+                    'value': c.PSEUDO_GROUP_BADGE,
+                    'title': 'Group Leader',
+                    'description': group_description
+                }
+
+            # The rest of the badges are added in via config
+            for name, option in c.BADGE_DISPLAY_CONFIGS.items():
+                if int(option['extra']) in c.PREREG_DONATION_TIERS:
+                    badge_types[name] = {
+                        'value': c.ATTENDEE_BADGE,
+                        'title': donation_prepend + option['name'] + ': $' + str(badge_cost + int(option['extra'])),
+                        'description': option['description'],
+                        'extra': option['extra']
+                    }
+            return badge_types
+
+    @property
     def PREREG_DONATION_OPTS(self):
         if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
             return self.DONATION_TIER_OPTS
@@ -262,6 +328,12 @@ for _name, _section in _config['integer_enums'].items():
 c.BADGE_RANGES = {}
 for _badge_type, _range in _config['badge_ranges'].items():
     c.BADGE_RANGES[getattr(c, _badge_type.upper())] = _range
+
+_make_enum('badge_display', OrderedDict([(name, section['name']) for name, section in _config['badge_display'].items()]))
+c.BADGE_DISPLAY_CONFIGS = {}
+for _name, _section in _config['badge_display'].items():
+    _val = getattr(c, _name.upper())
+    c.BADGE_DISPLAY_CONFIGS[_val] = dict(_section.dict(), val=_val)
 
 _make_enum('age_group', OrderedDict([(name, section['desc']) for name, section in _config['age_groups'].items()]))
 c.AGE_GROUP_CONFIGS = {}

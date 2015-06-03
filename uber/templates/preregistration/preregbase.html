@@ -31,5 +31,63 @@ function setInternational() {
     }
 }
 {% endif %}
+
+    {% if not attendee.is_dealer %}
+        var BADGE_TYPES = [];
+        var i = 0;
+
+        {% for opt, values in c.BADGE_DISPLAY_TYPES.items %}
+
+            BADGE_TYPES.push(
+                {{ values|jsonize }}
+            )
+            {% if opt == 'group' %}
+                BADGE_TYPES[i].onClick = function () {
+                    $('.group_fields').removeClass('hide');
+                    $('input[name="badge_type"]').val('{{ c.PSEUDO_GROUP_BADGE }}');
+                }
+            {% endif %}
+            i++;
+        {% endfor %}
+
+        var setBadge = function (badgeTypeIndex) {
+            var badgeType = BADGE_TYPES[badgeTypeIndex];
+            $('.group_fields').addClass('hide');
+            $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
+            $('.badge_type_selector').removeClass('active');
+            $('.badge_type_selector').eq(badgeTypeIndex).addClass('active');
+            $.field('amount_extra').val(badgeType.extra || 0).trigger('change');
+            (badgeType.onClick || $.noop)();
+        };
+        var makeBadgeMatchExtra = function () {
+            var target = $.val('name') ? 1 : 0;  // default to attendee or group
+            if (target !== 1) {
+                $.each(BADGE_TYPES, function (i, badgeType) {
+                    if (badgeType.extra && badgeType.extra <= $.val('amount_extra')) {
+                        target = i;
+                    }
+                });
+            }
+            if (!$('.badge_type_selector:nth(' + target + ')').is('.active')) {
+                setBadge(target);
+            }
+        };
+        $(function () {
+            $.each(BADGE_TYPES, function (index, badgeType) {
+                $('#badge_types').append(
+                    $('<div class="col-sm-3"></div>').append(
+                        $('<a class="list-group-item badge_type_selector"></a>').click(function () {
+                            setBadge(index);
+                        }).append(
+                            $('<h4 class="list-group-item-heading"></h4>').html(badgeType.title)
+                        ).append(
+                            $('<p class="list-group-item-text"></p>').html(badgeType.description))));
+            });
+            makeBadgeMatchExtra();
+            if ($.field('amount_extra')) {
+                $.field('amount_extra').on('change', makeBadgeMatchExtra);
+            }
+        });
+    {% endif %}
 </script>
 {% endblock header %}
