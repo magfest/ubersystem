@@ -52,7 +52,7 @@ class StaticViews:
 @all_renderable()
 class Root:
     def index(self):
-        return render('index.html')
+        raise HTTPRedirect('common/')
 
     def common_js(self):
         cherrypy.response.headers['Content-Type'] = 'text/javascript'
