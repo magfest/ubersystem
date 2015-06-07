@@ -9,6 +9,12 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
         raise HTTPRedirect('foo?message={}'.format(quote(bar)))
     we can say
         raise HTTPRedirect('foo?message={}', bar)
+
+    EXTREMELY IMPORTANT: If you pass in a relative URL, this class will use the
+    current querystring to build an absolute URL.  Therefore it's EXTREMELY IMPORTANT
+    that the only time you create this class is in the context of a pageload.
+
+    Do not persist this class, only create it when needed.
     """
     def __init__(self, page, *args, **kwargs):
         args = [self.quote(s) for s in args]
