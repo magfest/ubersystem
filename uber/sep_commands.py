@@ -32,5 +32,5 @@ def insert_admin():
 @entry_point
 def reset_uber_db():
     assert c.DEV_BOX, 'reset_uber_db is only available on development boxes'
-    Session.initialize_db(drop=True)
+    Session.initialize_db(drop=True, modify_tables=True)
     insert_admin()
