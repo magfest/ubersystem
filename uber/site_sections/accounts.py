@@ -149,7 +149,6 @@ class Root:
 
         raise HTTPRedirect('login?message={}', msg)
 
-
     @unrestricted
     def sitemap(self):
         from uber import site_sections
