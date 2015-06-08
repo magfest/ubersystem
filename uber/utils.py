@@ -308,10 +308,10 @@ def insert_test_admin_account(session):
     :param session: database session object
     :return: True if success, False if failure
     """
-    if session.query(AdminAccount).count() != 0:
+    if session.query(sa.AdminAccount).count() != 0:
         return False
 
-    attendee = Attendee(
+    attendee = sa.Attendee(
         placeholder=True,
         first_name='Test',
         last_name='Developer',
@@ -319,7 +319,7 @@ def insert_test_admin_account(session):
         badge_type=c.ATTENDEE_BADGE,
     )
     session.add(attendee)
-    session.add(AdminAccount(
+    session.add(sa.AdminAccount(
         attendee=attendee,
         access=','.join(str(level) for level, name in c.ACCESS_OPTS),
         hashed=bcrypt.hashpw('magfest', bcrypt.gensalt())
