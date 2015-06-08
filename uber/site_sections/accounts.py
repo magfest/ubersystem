@@ -141,6 +141,16 @@ class Root:
             out.writerow([a.full_name, a.email, a.zip_code])
 
     @unrestricted
+    def insert_test_admin(self, session):
+        if insert_test_admin_account(session):
+            msg = "Test admin account created successfully"
+        else:
+            msg = "Not allowed to create admin account at this time"
+
+        raise HTTPRedirect('login?message={}', msg)
+
+
+    @unrestricted
     def sitemap(self):
         from uber import site_sections
         modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}
