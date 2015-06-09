@@ -142,7 +142,7 @@ class Root:
 
     @unrestricted
     def insert_test_admin(self, session):
-        if insert_test_admin_account(session):
+        if session.insert_test_admin_account():
             msg = "Test admin account created successfully"
         else:
             msg = "Not allowed to create admin account at this time"
