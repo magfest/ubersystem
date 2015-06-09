@@ -13,8 +13,9 @@ def print_config():
 
 @entry_point
 def insert_admin():
+    Session.initialize_db(modify_tables=True)
     with Session() as session:
-        if insert_test_admin_account(session):
+        if session.insert_test_admin_account():
             print("Test admin account created successfully")
         else:
             print("Not allowed to create admin account at this time")
