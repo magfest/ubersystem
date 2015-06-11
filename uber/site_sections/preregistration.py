@@ -28,7 +28,7 @@ def check_dealer(group):
 
 def send_banned_email(attendee):
     try:
-        send_email(c.REGDESK_EMAIL, c.REGDESK_EMAIL, 'Banned attendee registration',
+        send_email([c.REGDESK_EMAIL, c.SECURITY_EMAIL], [c.REGDESK_EMAIL, c.SECURITY_EMAIL], 'Banned attendee registration',
                    render('emails/reg_workflow/banned_attendee.txt', {'attendee': attendee}), model='n/a')
     except:
         log.error('unable to send banned email about {}', attendee)
