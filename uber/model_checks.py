@@ -23,6 +23,8 @@ def duplicate_admin(account):
         with Session() as session:
             if session.query(AdminAccount).filter_by(attendee_id=account.attendee_id).all():
                 return 'That attendee already has an admin account'
+            elif session.query(Attendee).filter_by(id=account.attendee_id).first().email == '':
+                return "Attendee doesn't have a valid email set"
 
 
 Event.required = [('name', 'Event Name')]
