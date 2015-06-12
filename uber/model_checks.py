@@ -26,7 +26,7 @@ def duplicate_admin(account):
 
 
 @validation.AdminAccount
-def duplicate_admin(account):
+def has_email_address(account):
     if account.is_new:
         with Session() as session:
             if session.query(Attendee).filter_by(id=account.attendee_id).first().email == '':
