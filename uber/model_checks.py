@@ -24,6 +24,7 @@ def duplicate_admin(account):
             if session.query(AdminAccount).filter_by(attendee_id=account.attendee_id).all():
                 return 'That attendee already has an admin account'
 
+
 @validation.AdminAccount
 def duplicate_admin(account):
     if account.is_new:
