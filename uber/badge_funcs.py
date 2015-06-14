@@ -2,27 +2,31 @@ from uber.common import *
 
 
 def check_range(badge_num, badge_type):
-    try:
-        badge_num = int(badge_num)
-    except:
-        return '"{}" is not a valid badge number (should be an integer)'.format(badge_num)
+    if badge_num is not None:
+        try:
+            badge_num = int(badge_num)
+        except:
+            return '"{}" is not a valid badge number (should be an integer)'.format(badge_num)
 
-    if badge_num:
-        min_num, max_num = c.BADGE_RANGES[int(badge_type)]
-        if not min_num <= badge_num <= max_num:
-            return '{} badge numbers must fall within the range {} - {}'.format(dict(c.BADGE_OPTS)[badge_type], min_num, max_num)
+        if badge_num:
+            min_num, max_num = c.BADGE_RANGES[int(badge_type)]
+            if not min_num <= badge_num <= max_num:
+                return '{} badge numbers must fall within the range {} - {}'.format(dict(c.BADGE_OPTS)[badge_type], min_num, max_num)
 
 
 # TODO: returning (result, error) is not a convention we're using anywhere else,
 #       so maybe change this to be more idiomatic if convenient, but not a big deal
 def get_badge_type(badge_num):
-    try:
-        for (badge_type, (lowest, highest)) in c.BADGE_RANGES.items():
-            if int(badge_num) in range(lowest, highest + 1):
-                return badge_type, ''
-        return None, "{0!r} isn't a valid badge number; it's not in the range of any badge type".format(badge_num)
-    except:
-        return None, '{0!r} is not a valid integer'.format(badge_num)
+    if not c.NUMBERED_BADGES:
+        return c.ATTENDEE_BADGE, ''
+    else:
+        try:
+            for (badge_type, (lowest, highest)) in c.BADGE_RANGES.items():
+                if int(badge_num) in range(lowest, highest + 1):
+                    return badge_type, ''
+            return None, "{0!r} isn't a valid badge number; it's not in the range of any badge type".format(badge_num)
+        except:
+            return None, '{0!r} is not a valid integer'.format(badge_num)
 
 
 def detect_duplicates():

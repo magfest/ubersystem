@@ -13,14 +13,16 @@
     $(ageGroupSelected);
 
     var staffingClicked = function () {
-        var checked = $.field('staffing').is(':visible:checked');
+        var checked = $.field('staffing') && $.field('staffing').is(':visible:checked');
         setVisible('#departments', checked);
         setVisible($.field('no_cellphone').parents('.checkbox'), checked);
         $('#cellphone').parents('.form-group').find('label:first').css('font-weight', checked ? 'bold' : 'normal');
     };
     $(function () {
         staffingClicked();
-        $.field('staffing').on('click', staffingClicked);
+        if ($.field('staffing')) {
+            $.field('staffing').on('click', staffingClicked);
+        }
     });
 
     var noCellphoneClicked = function () {
@@ -35,7 +37,7 @@
 <div class="form-group"></div> <!-- spacing -->
 
 {% if c.PAGE_PATH != '/registration/form' %}
-    <div class="form-group">
+    <div id="bold-field-message" class="form-group">
         <label class="col-sm-2 control-label">&nbsp;</label>
         <div class="col-sm-6 heading-label">Bold fields are required</div>
     </div>
