@@ -13,14 +13,16 @@
     $(ageGroupSelected);
 
     var staffingClicked = function () {
-        var checked = $.field('staffing').is(':visible:checked');
+        var checked = $.field('staffing') && $.field('staffing').is(':visible:checked');
         setVisible('#departments', checked);
         setVisible($.field('no_cellphone').parents('.checkbox'), checked);
         $('#cellphone').parents('.form-group').find('label:first').css('font-weight', checked ? 'bold' : 'normal');
     };
     $(function () {
         staffingClicked();
-        $.field('staffing').on('click', staffingClicked);
+        if ($.field('staffing')) {
+            $.field('staffing').on('click', staffingClicked);
+        }
     });
 
     var noCellphoneClicked = function () {

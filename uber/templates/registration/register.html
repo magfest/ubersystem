@@ -18,8 +18,15 @@
     };
     $(maybeBold);
 
+    var removeDonationRows = function () {
+        $('.extra-row').remove();
+    };
+    var removeVolunteerRows = function () {
+        $('.staffing').remove();
+    };
     $(function () {
-        $('.extra-row,.staffing').remove();
+        removeDonationRows();
+        removeVolunteerRows();
         $('#bold-field-message').detach().prependTo('.form-horizontal');
     });
 </script>
