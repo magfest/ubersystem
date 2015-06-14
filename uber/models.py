@@ -986,7 +986,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     amount_paid      = Column(Integer, default=0, admin_only=True)
     amount_extra     = Column(Choice(c.DONATION_TIER_OPTS, allow_unspecified=True), default=0)
     amount_refunded  = Column(Integer, default=0, admin_only=True)
-    payment_method   = Column(Choice(c.PAYMENT_METHOD_OPTS), nullable=True, admin_only=True)
+    payment_method   = Column(Choice(c.PAYMENT_METHOD_OPTS), nullable=True)
 
     badge_printed_name = Column(UnicodeText)
 
@@ -1038,7 +1038,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if c.AT_THE_CON and self.badge_num and self.is_new:
             self.checked_in = datetime.now(UTC)
 
-        if self.birthdate and not self.age_group:
+        if self.birthdate and not self.age_group or self.age_group == c.AGE_UNKNOWN:
             self.age_group = self.age_group_conf['val']
 
         for attr in ['first_name', 'last_name']:
@@ -1123,16 +1123,16 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def age_group_conf(self):
-        if self.age_group:
+        if self.age_group and self.age_group != c.AGE_UNKNOWN:
             return c.AGE_GROUP_CONFIGS[self.age_group]
         elif self.birthdate:
             day = c.EPOCH.date() if date.today() <= c.EPOCH.date() else sa.localized_now().date()
-            attendee_age = (day - birthdate).days / 365.2425
-            for name, age_group in c.AGE_GROUP_CONFIGS.values():
-                if name != 'age_unknown' and age_group['min_age'] <= attendee_age <= age_group['max_age']:
+            attendee_age = (day - self.birthdate).days / 365.2425
+            for val, age_group in c.AGE_GROUP_CONFIGS.items():
+                if val != c.AGE_UNKNOWN and age_group['min_age'] <= attendee_age <= age_group['max_age']:
                     return age_group
-        else:
-            return c.AGE_GROUP_CONFIGS[c.AGE_UNKNOWN]
+
+        return c.AGE_GROUP_CONFIGS[c.AGE_UNKNOWN]
 
     @property
     def total_cost(self):
