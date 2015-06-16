@@ -81,7 +81,7 @@ class Root:
         }
 
     @log_pageview
-    def form(self, session, message='', return_to='', omit_badge='', **params):
+    def form(self, session, message='', return_to='', omit_badge='', check_in='', **params):
         attendee = session.attendee(params, checkgroups=Attendee.all_checkgroups, bools=Attendee.all_bools)
         if 'first_name' in params:
             attendee.group_id = params['group_opt'] or None
@@ -95,6 +95,8 @@ class Root:
                 # Free group badges are only considered 'registered' when they are actually claimed.
                 if attendee.paid == c.PAID_BY_GROUP and attendee.group.cost == 0:
                     attendee.registered = localized_now()
+                if check_in:
+                    attendee.checked_in = localized_now()
                 session.add(attendee)
                 if return_to:
                     raise HTTPRedirect(return_to + '&message={}', 'Attendee data uploaded')
@@ -106,6 +108,7 @@ class Root:
         return {
             'message':    message,
             'attendee':   attendee,
+            'check_in':   check_in,
             'return_to':  return_to,
             'omit_badge': omit_badge,
             'group_opts': [(g.id, g.name) for g in session.query(Group).order_by(Group.name).all()],
@@ -245,12 +248,12 @@ class Root:
         return 'Sale deleted'
 
     @ajax
-    def check_in(self, session, id, badge_num, age_group, group, message=''):
+    def check_in(self, session, id, age_group, group, badge_num=None, message=''):
         attendee = session.attendee(id)
         pre_badge = attendee.badge_num
         success, increment = True, False
 
-        if not attendee.badge_num:
+        if not attendee.badge_num and c.NUMBERED_BADGES:
             message = check_range(badge_num, attendee.badge_type)
             if not message:
                 maybe_dupe = session.query(Attendee).filter_by(badge_num=badge_num, badge_type=attendee.badge_type)
@@ -270,7 +273,7 @@ class Root:
             message = ""
             attendee.checked_in = datetime.now(UTC)
             attendee.age_group = age_group
-            if not attendee.badge_num:
+            if not attendee.badge_num and c.NUMBERED_BADGES:
                 attendee.badge_num = int(badge_num)
             if attendee.paid == c.NOT_PAID:
                 attendee.paid = c.HAS_PAID
@@ -287,7 +290,7 @@ class Root:
             'increment':  increment,
             'badge':      attendee.badge,
             'paid':       attendee.paid_label,
-            'age_group':  attendee.age_group.desc,
+            'age_group':  attendee.age_group_conf['desc'],
             'pre_badge':  pre_badge,
             'checked_in': attendee.checked_in and hour_day_format(attendee.checked_in)
         }
@@ -419,26 +422,16 @@ class Root:
         params['id'] = 'None'
         attendee = session.attendee(params, restricted=True, ignore_csrf=True)
         if 'first_name' in params:
+            message = check(attendee)
             if not attendee.payment_method:
                 message = 'Please select a payment type'
-            elif not attendee.first_name or not attendee.last_name:
-                message = 'First and Last Name are required fields'
-            elif attendee.ec_phone[:1] != '+' and not attendee.international and len(re.compile('[0-9]').findall(attendee.ec_phone)) != 10:
-                message = 'Enter a 10-digit emergency contact number'
-            elif re.search(c.SAME_NUMBER_REPEATED, re.sub(r'[^0-9]', '', attendee.ec_phone)):
-                message = 'Please enter a real emergency contact number'
-            elif not attendee.age_group:
-                message = 'Please select an age category'
             elif attendee.payment_method == c.MANUAL and not re.match(c.EMAIL_RE, attendee.email):
                 message = 'Email address is required to pay with a credit card at our registration desk'
             elif attendee.badge_type not in [c.ATTENDEE_BADGE, c.ONE_DAY_BADGE]:
                 message = 'No hacking allowed!'
             else:
                 session.add(attendee)
-                attendee.badge_num = 0
-                if not attendee.zip_code:
-                    attendee.zip_code = '00000'
-                attendee.save()
+                session.commit()
                 message = 'Thanks!  Please queue in the {} line and have your photo ID and {} ready.'
                 if attendee.payment_method == c.STRIPE:
                     raise HTTPRedirect('pay?id={}', attendee.id)
@@ -509,7 +502,7 @@ class Root:
             'show_all':   show_all,
             'checked_in': checked_in,
             'groups':     sorted(groups, key=lambda tup: tup[1]),
-            'recent':     session.query(Attendee).filter(Attendee.badge_num == 0, Attendee.first_name != '', *restrict_to)
+            'recent':     session.query(Attendee).filter(Attendee.checked_in == None, Attendee.first_name != '', *restrict_to)
                                                  .order_by(Attendee.registered).all(),
             'remaining_badges': max(0, c.MAX_BADGE_SALES - c.BADGES_SOLD)
         }
@@ -568,14 +561,14 @@ class Root:
             raise HTTPRedirect('new?message={}', 'Payment accepted')
 
     @csrf_protected
-    def new_checkin(self, session, id, badge_num, ec_phone='', message='', group=''):
+    def new_checkin(self, session, id, badge_num='', ec_phone='', message='', group=''):
         checked_in = ''
         badge_num = int(badge_num) if badge_num.isdigit() else 0
         attendee = session.attendee(id)
-        existing = session.query(Attendee).filter_by(badge_num=badge_num).all()
+        existing = session.query(Attendee).filter_by(badge_num=badge_num).all() if badge_num else []
         if 'reg_station' not in cherrypy.session:
             raise HTTPRedirect('new_reg_station')
-        elif not badge_num:
+        elif c.NUMBERED_BADGES and not badge_num:
             message = "You didn't enter a valid badge number"
         elif existing:
             message = '{a.badge} already belongs to {a.full_name}'.format(a=existing[0])

@@ -35,6 +35,7 @@
                 }
             });
             dialog.dialog('open');
+            dialog.dialog('option', 'position', {at: 'center', of: window});
         });
     });
 
@@ -87,17 +88,19 @@
                         {% endif %}
                     </td>
                 </tr>
-                <tr>
-                    <td><strong>Badge Number:</strong></td>
-                    <td>
-                        {% if attendee.badge_num %}
-                            {{ attendee.badge_num }}
-                            <input type="hidden" id="num_{{ attendee.id }}" value="{{ attendee.badge_num }}" />
-                        {% else %}
-                            # <input class="num" id="num_{{ attendee.id }}" type="text" size="5" />
-                        {% endif %}
-                    </td>
-                </tr>
+                {% if c.NUMBERED_BADGES %}
+                    <tr>
+                        <td><strong>Badge Number:</strong></td>
+                        <td>
+                            {% if attendee.badge_num %}
+                                {{ attendee.badge_num }}
+                                <input type="hidden" id="num_{{ attendee.id }}" value="{{ attendee.badge_num }}" />
+                            {% else %}
+                                # <input class="num" id="num_{{ attendee.id }}" type="text" size="5" />
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endif %}
                 <tr>
                     <td><strong>Age Group:</strong></td>
                     <td>
