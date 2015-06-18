@@ -535,7 +535,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 setattr(self, attr, value.title())
 
     def _status_adjustments(self):
-        if self.status == NEW_STATUS and [self.paid == HAS_PAID or self.paid == NEED_NOT_PAY] and not self.placeholder:
+        if self.status == NEW_STATUS and not self.placeholder and (self.paid == HAS_PAID or self.paid == NEED_NOT_PAY):
             self.status = COMPLETED_STATUS
 
     def _badge_adjustments(self):
@@ -1512,8 +1512,8 @@ class Session(SessionManager):
 
 
         def everyone(self):
-            attendees = self.query(Attendee).options(joinedload(Attendee.group)).all()
-            groups = self.query(Group).options(joinedload(Group.attendees)).all()
+            attendees = self.query(Attendee).filter(Attendee.status.in_([NEW_STATUS, COMPLETED_STATUS])).options(joinedload(Attendee.group)).all()
+            groups = self.query(Group).filter(Group.status != DECLINED).options(joinedload(Group.attendees)).all()
             return attendees, groups
 
         def staffers(self):
