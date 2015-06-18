@@ -69,10 +69,10 @@ class Root:
             send_email(MARKETPLACE_EMAIL, group.email, subject, email, model = group)
         if action == 'waitlisted':
             group.status = WAITLISTED
-        #else:
-            #for attendee in group.attendees:
-                #session.delete(attendee)
-            #session.delete(group)
+        else:
+            for attendee in group.attendees:
+                attendee.status = INVALID_STATUS
+            group.status = DECLINED
         session.commit()
         return {'success': True}
 
