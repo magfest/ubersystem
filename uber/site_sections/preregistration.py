@@ -367,7 +367,8 @@ class Root:
 
         session.assign_badges(attendee.group, attendee.group.badges + 1)
         Tracking.track(INVALIDATED, attendee)
-        #session.delete_from_group(attendee, attendee.group)
+        attendee.paid = NOT_PAID
+        attendee.status = INVALID_STATUS
         attendee.group.attendees.remove(attendee)
         raise HTTPRedirect('group_members?id={}&message={}', attendee.group_id, 'Attendee unset; you may now assign their badge to someone else')
 
