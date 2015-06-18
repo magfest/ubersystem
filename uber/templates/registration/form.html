@@ -408,6 +408,16 @@
             </form>
         </div>
     {% endif %}
+
+    {% if attendee.group and attendee.first_name %}
+        <br/>
+        <div style="margin-left:25%">
+            <form method="post" action="convert_group_badge">
+                <input type="hidden" name="id" value="{{ attendee.id }}" />
+                <input type="submit" value="Convert to Individual Badge">
+            </form>
+        </div>
+    {% endif %}
 {% endif %}
 
 {% endblock %}

@@ -346,6 +346,14 @@ class Root:
         session.commit()
         raise HTTPRedirect('index?message={}', 'Badge has been recorded as lost.')
 
+    def convert_group_badge(self, session, id):
+        attendee = session.attendee(id)
+        session.assign_badges(attendee.group, attendee.group.badges + 1, attendee.badge_type)
+        attendee.paid = NOT_PAID
+        attendee.status = NEW_STATUS
+        attendee.group.attendees.remove(attendee)
+        raise HTTPRedirect('form?id={}', attendee.id)
+
     @ajax
     def check_merch(self, session, badge_num):
         id = shirt = None
