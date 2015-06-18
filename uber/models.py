@@ -535,13 +535,8 @@ class Attendee(MagModel, TakesPaymentMixin):
                 setattr(self, attr, value.title())
 
     def _status_adjustments(self):
-        old_status = self.orig_value_of('status')
-        old_amount_paid = self.orig_value_of('amount_paid')
-        if old_status == self.status and old_amount_paid != self.amount_paid:
-            if self.paid == NOT_PAID or self.placeholder:
-                self.status = NEW_STATUS
-            elif self.paid == HAS_PAID or self.paid == NEED_NOT_PAY:
-                self.status = COMPLETED_STATUS
+        if self.status == NEW_STATUS and [self.paid == HAS_PAID or self.paid == NEED_NOT_PAY] and not self.placeholder:
+            self.status = COMPLETED_STATUS
 
     def _badge_adjustments(self):
         #_assert_badge_lock()
