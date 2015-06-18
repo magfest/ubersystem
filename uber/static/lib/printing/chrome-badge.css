@@ -1,0 +1,32 @@
+body {margin: 0; padding: 0;}
+#container {position: relative; height: 455px; width: 800px;}
+#badge_type {
+	position: absolute; 
+	top: 30px; 
+	left: 30px;
+	font-size: 14pt;
+	font-family: "palantino";
+	font-weight: bold;
+}
+#badge_num {
+	position: absolute; 
+	top: 30px; 
+	right: 30px;
+	font-size: 14pt;
+	font-family: "palantino";
+	font-weight: bold;
+}
+#badge_name {
+	display:block; 
+	position: absolute; 
+	width: 600px; 
+	left: 0; 
+	right: 0; 
+	margin-left: auto; 
+	margin-right: auto; 
+	bottom: 10px; 
+	text-align: center;
+	font-size: 24pt;
+	font-family: arial;
+	font-weight: bold;
+}

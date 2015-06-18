@@ -4,48 +4,46 @@
 
 <script src="../static/lib/utils/servertimecheck.js" type="text/javascript"></script>
 
-<h2> {% if not show_all %}Unprinted{% endif %} Badge Printing </h2>
+<h2> Printed Badges {% if pending %}Queue{% endif %}</h2>
 
 <div style="text-align:center">
-    {% if show_all %}
-        <a href="printable_badges">Click Here</a> to see only unprinted badges
-    {% else %}
-        <form method="post" action="print_badge" target="_blank">
-            <input type="submit" value="Print All Badges" />
-        </form>
-        <a href="printable_badges?show_all=true">Click Here</a> to see all printable badges instead of only unprinted ones
-    {% endif %}
     <br/> <a href="index">Click Here</a> to view the preregistered and checked in attendee list
+    {% if pending %}<br/><a href="printed_badges">Click here</a> to view the badges that have been printed.
+    {% else %}<br/><a href="printed_badges?pending=True">Click here</a> to view the badges waiting to be printed.{% endif %}
 </div>
 
 <br/>
 
 <table class="table footable" data-page-size="9999999">
 <thead><tr>
+    <th>Legal Name</th>
     <th>Badge Type</th>
     <th>Badge Number</th>
     <th>Badge Name</th>
     <th>Kickin Level</th>
-    <th>Volunteer</th>
     <th>Ribbon</th>
-    <th></th>
+    <th>Age Group</th>
+    {% if not pending %}<th></th>{% endif %}
 </tr></thead>
 {% for attendee in badges %}
     <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
+        <td id="name_{{ attendee.id }}" style="text-align:left">
+            <a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a>
+        </td>
         <td><nobr>{{ attendee.badge_type_label }}</nobr></td>
         <td>{{ attendee.badge_num }}</td>
         <td>
             {{ attendee.badge_printed_name }}
         </td>
         <td id="amount_extra_{{ attendee.id }}">{{ attendee.amount_extra_label }}</td>
-        <td>{{ attendee.staffing }}</td>
         <td id="ribbon_{{ attendee.id }}">{{ attendee.ribbon_label }}</td>
-        <form method="post" action="print_badge" target="_blank">
+        <td>{{ attendee.age_group_desc }}</td>
+        {% if not pending %}<form method="post" action="printed_badges">
         <td>
             <input type="hidden" name="id" value="{{ attendee.id }}" />
-            <input type="submit" value="Print" {% if attendee.paid == NOT_PAID %}disabled{% endif %} />
+            <input type="submit" value="Mark for Reprint" {% if attendee.paid == NOT_PAID %}disabled{% endif %} />
         </td>
-        </form>
+        </form>{% endif %}
     </tr>
 {% endfor %}
 </table>
