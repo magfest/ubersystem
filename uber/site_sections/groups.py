@@ -70,9 +70,7 @@ class Root:
         if action == 'waitlisted':
             group.status = WAITLISTED
         else:
-            for attendee in group.attendees:
-                attendee.status = INVALID_STATUS
-            group.status = DECLINED
+            self.delete()
         session.commit()
         return {'success': True}
 
@@ -83,9 +81,9 @@ class Root:
             raise HTTPRedirect('deletion_confirmation?id={}', id)
         else:
             Tracking.track(INVALIDATED, group)
-            #for attendee in group.attendees:
-                #session.delete(attendee)
-            #session.delete(group)
+            for attendee in group.attendees:
+                attendee.status = INVALID_STATUS
+            group.status = DECLINED
             raise HTTPRedirect('index?message={}', 'Group deleted')
 
     def deletion_confirmation(self, session, id):

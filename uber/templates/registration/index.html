@@ -160,7 +160,11 @@
     {% endif %}
 </tr></thead>
 {% for attendee in attendees %}
+    {% if attendee.status == INVALID_STATUS %}
+    <tr bgcolor="#FFE4E1">
+    {% else %}
     <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
+    {% endif %}
         <td id="group_{{ attendee.id }}">
             <a href="../groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
         </td>
