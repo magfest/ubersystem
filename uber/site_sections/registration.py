@@ -30,14 +30,16 @@ def check_everything(attendee):
 
 @all_renderable(PEOPLE, REG_AT_CON)
 class Root:
-    def index(self, session, message='', page='0', search_text='', uploaded_id='', order='last_first'):
-        total_count = session.query(Attendee).count()
+    def index(self, session, message='', page='0', search_text='', uploaded_id='', order='last_first', invalid=''):
+        filter = Attendee.status.in_([NEW_STATUS, COMPLETED_STATUS]) if not invalid else None
+        attendees = session.query(Attendee) if invalid else session.query(Attendee).filter(filter)
+        total_count = attendees.count()
         count = 0
         if search_text:
-            attendees = session.search(search_text)
+            attendees = session.search(search_text) if invalid else session.search(search_text, filter)
             count = attendees.count()
         if not count:
-            attendees = session.query(Attendee).options(joinedload(Attendee.group))
+            attendees = attendees.options(joinedload(Attendee.group))
             count = total_count
 
         attendees = attendees.order(order)
@@ -68,6 +70,7 @@ class Root:
             'page':           page,
             'pages':          pages,
             'search_text':    search_text,
+            'invalid':        invalid,
             'search_results': bool(search_text),
             'attendees':      attendees,
             'groups':         groups,

@@ -116,10 +116,15 @@
 </form>
 </div>
 
-<div class="panel col-md-4">
+<div class="panel col-md-5">
 <a class="btn btn-primary" href="form?id=None">Add an attendee</a>
     <a class="btn btn-default" {% if not AT_THE_CON %}disabled="disabled"{% endif %}
     	href="new">View Recent At-the-Door Registrations</a>
+{% if invalid %}
+    <a class="btn btn-info" href="index?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode }}">Hide invalid badges</a>
+{% else %}
+    <a class="btn btn-warning" href="index?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid=True">Show invalid badges</a>
+{% endif %}
 </div>
 {% if COLLECT_INTERESTS %}
 <div class="panel col-md-4">
@@ -130,7 +135,7 @@
 </div>
     {% if search_results %}
     <div class="panel panel-info">
-    <a href="index?order={{ order }}">Click here</a> to view full attendee list instead of only search results.
+    <a href="index?order={{ order }}&page=1&invalid={{ invalid }}">Click here</a> to view full attendee list instead of only search results.
     </div>
     {% endif %}
 
@@ -139,7 +144,7 @@
         {% if pagenum == page %}
             {{ pagenum }}
         {% else %}
-            <a href="index?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}">{{ pagenum }}</a>
+            <a href="index?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">{{ pagenum }}</a>
         {% endif %}
     {% endfor %}
 {% include "registration/checkin.html" %}
