@@ -525,7 +525,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if AT_THE_CON and self.badge_num and self.is_new:
             self.checked_in = datetime.now(UTC)
-            
+
         if COLLECT_EXACT_BIRTHDATE:
             self.age_group = self.session.age_group_from_birthdate(self.birthdate)
 
@@ -537,6 +537,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     def _status_adjustments(self):
         if self.status == NEW_STATUS and not self.placeholder and (self.paid == HAS_PAID or self.paid == NEED_NOT_PAY):
             self.status = COMPLETED_STATUS
+        if self.status == INVALID_STATUS and self.admin_account:
+            Tracking.track(DELETED, self.admin_account)
+            self.session.delete(self.admin_account)
 
     def _badge_adjustments(self):
         #_assert_badge_lock()
@@ -643,10 +646,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.shirt not in [NO_SHIRT, SIZE_UNKNOWN]
 
     @property
-    def is_group_leader(self):
-        return self.group and self.id == self.group.leader_id
-
-    @property
     def unassigned_name(self):
         if self.group_id and self.is_unassigned:
             return '[Unassigned {self.badge}]'.format(self=self)
@@ -670,25 +669,25 @@ class Attendee(MagModel, TakesPaymentMixin):
         return case([
             (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
         ], else_ = func.lower(cls.last_name + ', ' + cls.first_name))
-        
+
     @property
     def can_volunteer(self):
         if self.age_group: return self.age_group.can_volunteer
         with Session() as session:
             return session.age_group_from_birthdate(self.birthdate).can_volunteer
-            
+
     @property
     def can_register(self):
         if self.age_group: return self.age_group.can_register
         with Session() as session:
             return session.age_group_from_birthdate(self.birthdate).can_register
-            
+
     @property
     def age_discount(self):
         if self.age_group: return self.age_group.discount
         with Session() as session:
             return session.age_group_from_birthdate(self.birthdate).discount
-            
+
     @property
     def consent_form(self):
         if self.age_group: return self.age_group.consent_form
@@ -769,7 +768,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def accoutrements(self):
         stuff = [] if self.ribbon == NO_RIBBON else ['a ' + self.ribbon_label + ' ribbon']
-        stuff.append('a {} wristband'.format(WRISTBAND_COLORS[self.age_group]))
         if self.regdesk_info:
             stuff.append(self.regdesk_info)
         return comma_and(stuff)
@@ -1387,7 +1385,7 @@ class Session(SessionManager):
 
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
-            
+
         def age_group_from_birthdate(self, birthdate):
             if not birthdate: return None
             calc_date = EPOCH.date() if date.today() <= EPOCH.date() else date.today()
