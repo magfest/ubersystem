@@ -711,7 +711,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def watchlist_entry(self):
         try:
             with Session() as session:
-                return session.get_attendee_watchentry(self)
+                return session.get_attendee_watchentry(self).__dict__
         except:
             return None
 
@@ -1410,7 +1410,7 @@ class Session(SessionManager):
         def get_attendee_watchentry(self, attendee):
             return self.query(WatchList).filter(and_(WatchList.first_name == attendee.first_name,
                                                      WatchList.last_name == attendee.last_name,
-                                                     WatchList.disabled == False)).count()
+                                                     WatchList.disabled == False)).one()
 
         def age_group_from_birthdate(self, birthdate):
             if not birthdate: return None

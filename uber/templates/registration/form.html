@@ -113,7 +113,6 @@
 <input type="hidden" name="id" value="{{ attendee.db_id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
 <table width="100%" cellspacing="5" cellpadding="5">
-    {{ attendee.watchlist_entry }}
 {% if not attendee.is_new %}
 <tr>
     <td>Created by {{ attendee.created.who }} on {{ attendee.created.when|full_datetime }}</td>
@@ -383,6 +382,25 @@
     <td valign="top"> Admin Notes: </td>
     <td> <textarea name="admin_notes" rows="3" style="width:66%">{{ attendee.admin_notes }}</textarea> </td>
 </tr>
+{% if HAS_WATCHLIST_ACCESS and attendee.watchlist_entry %}
+    <tr>
+        <td valign="top">Watchlist Reason: </td>
+        <td> {{ attendee.watchlist_entry.reason }} </td>
+    </tr>
+    <tr>
+        <td valign="top">Watchlist Action: </td>
+        <td> {{ attendee.watchlist_entry.action }} </td>
+    </tr>
+    <tr>
+        <td></td>
+        <td>
+            <form method="post" action="form">
+                <input type="hidden" name="watchlist_id" value="{{ attendee.watchlist_entry.id }}" />
+                <button class="btn btn-success">Disable Watchlist Entry</button>
+            </form>
+        </td>
+    </tr>
+{% endif %}
 </table>
 <br/>
 <div style="margin-left:25%">
