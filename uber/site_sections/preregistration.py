@@ -163,7 +163,8 @@ class Root:
                     if group.badges:
                         Tracking.track(track_type, group)
 
-                if session.query(Attendee).filter_by(first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).count():
+                if session.query(Attendee).filter(Attendee.status != INVALID_STATUS)\
+                        .filter_by(first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).count():
                     raise HTTPRedirect('duplicate?id={}', group.id if attendee.paid == PAID_BY_GROUP else attendee.id)
 
                 if attendee.full_name in BANNED_ATTENDEES:

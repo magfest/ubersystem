@@ -643,7 +643,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def can_check_in(self):
-        return attendee.paid != NOT_PAID and attendee.status in [COMPLETED_STATUS, PRINTED_STATUS] and not attendee.is_unassigned
+        return self.paid != NOT_PAID and self.status in [COMPLETED_STATUS, PRINTED_STATUS] and not self.is_unassigned
 
     @property
     def shirt_size_marked(self):
@@ -1514,7 +1514,7 @@ class Session(SessionManager):
 
 
         def everyone(self):
-            attendees = self.query(Attendee).filter(Attendee.status.in_([NEW_STATUS, COMPLETED_STATUS])).options(joinedload(Attendee.group)).all()
+            attendees = self.query(Attendee).filter(Attendee.status.in_([NEW_STATUS, COMPLETED_STATUS, PRINTED_STATUS])).options(joinedload(Attendee.group)).all()
             groups = self.query(Group).filter(Group.status != DECLINED).options(joinedload(Group.attendees)).all()
             return attendees, groups
 
