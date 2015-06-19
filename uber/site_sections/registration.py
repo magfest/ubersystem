@@ -31,7 +31,7 @@ def check_everything(attendee):
 @all_renderable(PEOPLE, REG_AT_CON)
 class Root:
     def index(self, session, message='', page='0', search_text='', uploaded_id='', order='last_first', invalid=''):
-        filter = Attendee.status.in_([NEW_STATUS, COMPLETED_STATUS]) if not invalid else None
+        filter = Attendee.status.in_([NEW_STATUS, COMPLETED_STATUS, PRINTED_STATUS]) if not invalid else None
         attendees = session.query(Attendee) if invalid else session.query(Attendee).filter(filter)
         total_count = attendees.count()
         count = 0
@@ -267,6 +267,9 @@ class Root:
             elif attendee.paid == PAID_BY_GROUP and not attendee.group:
                 message = 'You must select a group for this attendee.'
 
+            if attendee.status not in [COMPLETED_STATUS, PRINTED_STATUS]:
+                message = 'This badge is {0} and cannot be checked in.'.format(attendee.status_label)
+
             success = not message
 
         if success and attendee.checked_in:
@@ -274,7 +277,7 @@ class Root:
         elif success:
             message = ""
             attendee.checked_in = datetime.now(UTC)
-            attendee.age_group = age_group
+            if not COLLECT_EXACT_BIRTHDATE: attendee.age_group = age_group
             if not attendee.badge_num:
                 attendee.badge_num = int(badge_num)
             if attendee.paid == NOT_PAID:

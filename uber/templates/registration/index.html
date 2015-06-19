@@ -123,7 +123,7 @@
 {% if invalid %}
     <a class="btn btn-info" href="index?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode }}">Hide invalid badges</a>
 {% else %}
-    <a class="btn btn-warning" href="index?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid=True">Show invalid badges</a>
+    <a class="btn btn-info" href="index?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid=True">Show all badges</a>
 {% endif %}
 </div>
 {% if COLLECT_INTERESTS %}
@@ -197,9 +197,9 @@
                         </form>
                     {% endif %}
                 </td>
-        {% elif AT_THE_CON and attendee.paid != NOT_PAID %}
+        {% elif AT_THE_CON and attendee.can_check_in %}
             <td id="cin_{{ attendee.id }}">
-                <button class="attendee-checkin" data-attendeeid="{{ attendee.id }}" {% if attendee.is_unassigned %} disabled {% endif %}>Check In</button>
+                <button class="attendee-checkin" data-attendeeid="{{ attendee.id }}">Check In</button>
             </td>
         {% endif %}
         </td>
