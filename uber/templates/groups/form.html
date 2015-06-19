@@ -188,11 +188,11 @@
     {% for attendee in group.attendees %}
         <tr>
             <td> <ul><li></li></ul> </td>
-            <td> <a href="../registration/form?id={{ attendee.id }}&return_to=../groups/form?id={{ group.id }}">{{ attendee.full_name }}</a> </td>
+            <td> <a href="../registration/form?id={{ attendee.id }}&return_to=../groups/form?id={{ group.id }}">{{ attendee.full_name }}</a>&nbsp;"{{ attendee.badge_printed_name }}"</td>
             <td>
                 <i>
-                    (paid => {{ attendee.paid_label }}, &nbsp;&nbsp;
-                     badge => {{ attendee.badge }})
+                    &nbsp;(paid => {{ attendee.paid_label }}, &nbsp;&nbsp;
+                     badge => {{ attendee.badge }})&nbsp;
                 </i>
             </td>
             <td>
