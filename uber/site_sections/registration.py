@@ -814,6 +814,32 @@ class Root:
             'who_opts': [who for [who] in session.query(Tracking).distinct().order_by(Tracking.who).values(Tracking.who)]
         }
 
+    def watch_list(self, session, message='', **params):
+        watched_attendees = session.query(WatchList).order_by(WatchList.last_name).all()
+        watch_entry = session.watch_list(params, bools=['disabled'])
+
+        if 'first_name' in params:
+            if not watch_entry.first_name or not watch_entry.last_name:
+                message = 'First and last name are required.'
+            elif not watch_entry.reason or not watch_entry.action:
+                message = 'Reason and action are required.'
+
+            if not message:
+                session.add(watch_entry)
+                if not watch_entry.id:
+                    message = 'New watch list item added.'
+                else:
+                    message = 'Watch list item updated.'
+                session.commit()
+
+                watch_entry = WatchList()
+
+        return {
+            'new_watch': watch_entry,
+            'watched_attendees': watched_attendees,
+            'message': message
+        }
+
     def staffers(self, session, message='', order='first_name', search_text=''):
         jobs, shifts, staffers = session.everything()
         if search_text:

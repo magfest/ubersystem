@@ -901,6 +901,12 @@ class Attendee(MagModel, TakesPaymentMixin):
         else:
             return 'Hotel nights: ' + hr.nights_display
 
+class WatchList(MagModel):
+    first_name = Column(UnicodeText)
+    last_name = Column(UnicodeText)
+    disabled = Column(Boolean, default=False)
+    reason = Column(UnicodeText)
+    action = Column(UnicodeText)
 
 class AdminAccount(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
