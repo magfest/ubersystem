@@ -85,6 +85,7 @@ class Root:
     def form(self, session, message='', return_to='', omit_badge='', **params):
         attendee = session.attendee(params, checkgroups=['interests','requested_depts','assigned_depts'],
                                     bools=['staffing','trusted','international','placeholder','got_merch','can_spam'])
+
         if 'first_name' in params:
             attendee.group_id = params['group_opt'] or None
             if AT_THE_CON and omit_badge:
@@ -98,7 +99,10 @@ class Root:
                 if attendee.paid == PAID_BY_GROUP and attendee.group.cost == 0:
                     attendee.registered = localized_now()
                 session.add(attendee)
-                if return_to:
+
+                if params['status'] == INVALID_STATUS:
+                    self.delete(attendee.id)
+                elif return_to:
                     raise HTTPRedirect(return_to + '&message={}', 'Attendee data uploaded')
                 else:
                     raise HTTPRedirect('index?uploaded_id={}&message={}&search_text={}', attendee.id, 'has been uploaded',
