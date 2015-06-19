@@ -535,9 +535,12 @@ class Attendee(MagModel, TakesPaymentMixin):
                 setattr(self, attr, value.title())
 
     def _status_adjustments(self):
+        if self.watchlist_entry and self.status == NEW_STATUS:
+            self.status = DEFERRED_STATUS
+
         if self.status == NEW_STATUS and not self.placeholder and (self.paid == HAS_PAID or self.paid == NEED_NOT_PAY):
             self.status = COMPLETED_STATUS
-        if self.status == INVALID_STATUS and self.admin_account:
+        elif self.status == INVALID_STATUS and self.admin_account:
             Tracking.track(DELETED, self.admin_account)
             self.session.delete(self.admin_account)
 
@@ -703,6 +706,14 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.age_group: return self.age_group.desc
         with Session() as session:
             return session.age_group_from_birthdate(self.birthdate).desc
+
+    @property
+    def watchlist_entry(self):
+        try:
+            with Session() as session:
+                return session.get_attendee_watchentry(self)
+        except:
+            return None
 
     @property
     def banned(self):
@@ -1395,6 +1406,11 @@ class Session(SessionManager):
 
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
+
+        def get_attendee_watchentry(self, attendee):
+            return self.query(WatchList).filter(and_(WatchList.first_name == attendee.first_name,
+                                                     WatchList.last_name == attendee.last_name,
+                                                     WatchList.disabled == False)).count()
 
         def age_group_from_birthdate(self, birthdate):
             if not birthdate: return None

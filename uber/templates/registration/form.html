@@ -113,6 +113,7 @@
 <input type="hidden" name="id" value="{{ attendee.db_id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
 <table width="100%" cellspacing="5" cellpadding="5">
+    {{ attendee.watchlist_entry }}
 {% if not attendee.is_new %}
 <tr>
     <td>Created by {{ attendee.created.who }} on {{ attendee.created.when|full_datetime }}</td>
