@@ -2,7 +2,11 @@
 $(document).ready(function() {
     // Hard-coded "Sponsor" and "Supersponsor" prices. This should probably grab from PREREG_DONATION_OPTS
     var sponsor_addon = 50;
+    {% if AT_THE_CON %}
+    var super_sponsor_addon = 190;
+    {% else %}
     var super_sponsor_addon = 195;
+    {% endif %}
 
     {% if attendee.badge_type != PSEUDO_DEALER_BADGE %}
         // Display the correct badge name based on Badge Type and Ribbon.
@@ -83,7 +87,11 @@ $(document).ready(function() {
 
 function setBadge(badgeType) {
     var sponsor_addon = 50;
+    {% if AT_THE_CON %}
+    var super_sponsor_addon = 190;
+    {% else %}
     var super_sponsor_addon = 195;
+    {% endif %}
 
     $(".badge_type_selector").removeClass("active");
     $(".group_fields").addClass("hide");
