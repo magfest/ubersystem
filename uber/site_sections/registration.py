@@ -519,12 +519,12 @@ class Root:
             'attendees': session.query(Attendee).filter(Attendee.comments != '').order_by(order).all()
         }
 
-    def printed_badges(self, session, message='', id=None, pending=None):
+    def printed_badges(self, session, message='', id=None, pending=None, reprint_reason=''):
         if id:
             attendee = session.attendee(id)
             attendee.status = COMPLETED_STATUS
-            attendee.for_review += "Automated message: Badge marked for reprint by {} on {}."\
-                .format(session.admin_attendee().full_name,localized_now().strftime('%m/%d, %H:%M'))
+            attendee.for_review += "Automated message: Badge marked for reprint by {} on {}. Reason: {}"\
+                .format(session.admin_attendee().full_name,localized_now().strftime('%m/%d, %H:%M'),reprint_reason)
             session.add(attendee)
             session.commit()
             message = "Badge marked for re-print!"

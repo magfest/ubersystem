@@ -22,7 +22,6 @@
     <th>Badge Name</th>
     <th>Kickin Level</th>
     <th>Ribbon</th>
-    <th>Age Group</th>
     {% if not pending %}<th></th>{% endif %}
 </tr></thead>
 {% for attendee in badges %}
@@ -43,10 +42,10 @@
             {% endif %}
         </td>
         <td id="ribbon_{{ attendee.id }}">{{ attendee.ribbon_label }}</td>
-        <td>{{ attendee.age_group_desc }}</td>
         {% if not pending %}<form method="post" action="printed_badges">
         <td>
             <input type="hidden" name="id" value="{{ attendee.id }}" />
+            <input type="text" name="reprint_reason" placeholder="Reason for free reprint" />
             <input type="submit" value="Mark for Reprint" {% if attendee.paid == NOT_PAID %}disabled{% endif %} />
         </td>
         </form>{% endif %}
