@@ -24,7 +24,7 @@ def check_everything(attendee):
     if message:
         return message
 
-    if AT_THE_CON and not attendee.age_group and attendee.is_new:
+    if AT_THE_CON and not COLLECT_EXACT_BIRTHDATE and not attendee.age_group and attendee.is_new:
         return "You must enter this attendee's age group"
 
 
