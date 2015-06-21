@@ -1,4 +1,8 @@
-         Kicked in extra:
+         Paid:
         <select name="amount_extra" onChange="showOrHideAmounts(true)">
             {% options DONATION_TIER_OPTS attendee.amount_extra %}
         </select>
+         Comped:
+         <select name="donation_tier">
+             {% options ADMIN_DONATION_OPTS attendee.donation_tier %}
+         </select>

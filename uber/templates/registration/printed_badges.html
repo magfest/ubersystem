@@ -35,7 +35,13 @@
         <td>
             {{ attendee.badge_printed_name }}
         </td>
-        <td id="amount_extra_{{ attendee.id }}">{{ attendee.amount_extra_label }}</td>
+        <td id="amount_extra_{{ attendee.id }}">
+            {% if attendee.donation_tier != NO_DONATION %}
+                {{ attendee.donation_tier_label }} (Comped) <br/>
+            {% else %}
+                {{ attendee.amount_extra_label }}
+            {% endif %}
+        </td>
         <td id="ribbon_{{ attendee.id }}">{{ attendee.ribbon_label }}</td>
         <td>{{ attendee.age_group_desc }}</td>
         {% if not pending %}<form method="post" action="printed_badges">

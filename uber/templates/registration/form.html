@@ -340,10 +340,12 @@
     <td width="25%">Badge Price:</td>
     <td width="75%">Base Price: $<input type="text" style="width:4em" name="overridden_price" value="{{ attendee.badge_cost }}" />
         <input type="checkbox" name="no_override" {% if not attendee.overridden_price %} checked {% endif %}> Automatically recalculate badge price.
-        <br/>
-        {% include "registration/kicked_in_extra.html" %}
     </td>
 </tr>
+    <tr>
+        <td width="25%">Donation Level:</td>
+        <td width="75%">{% include "registration/kicked_in_extra.html" %}</td>
+    </tr>
 <tr>
     <td> Paid: </td>
     <td>
