@@ -519,11 +519,40 @@ class Root:
             'attendees': session.query(Attendee).filter(Attendee.comments != '').order_by(order).all()
         }
 
+    def reprint_fee(self, session, attendee_id=None, message='', fee_amount=0, reprint_reason='', refund=None):
+        attendee = session.attendee(attendee_id)
+        fee_amount = int(fee_amount)
+        if not fee_amount and not reprint_reason:
+            message = "You must charge a fee or enter a reason for a free reprint!"
+        if not fee_amount and refund:
+            message = "You can't refund a fee of $0!"
+
+        if not message:
+            if not fee_amount:
+                attendee.for_review += "Automated message: Badge marked for free reprint by {} on {}. Reason: {}"\
+                    .format(session.admin_attendee().full_name,localized_now().strftime('%m/%d, %H:%M'),reprint_reason)
+                message = 'Free reprint recorded and badge sent to printer.'
+                attendee.status = COMPLETED_STATUS
+            elif refund:
+                attendee.paid = REFUNDED
+                attendee.amount_refunded += fee_amount
+                attendee.for_review += "Automated message: Reprint fee of ${} refunded by {} on {}. Reason: {}"\
+                    .format(fee_amount, session.admin_attendee().full_name,localized_now().strftime('%m/%d, %H:%M'),reprint_reason)
+                message = 'Reprint fee of ${} refunded.'.format(fee_amount)
+            else:
+                attendee.amount_paid += fee_amount
+                attendee.for_review += "Automated message: Reprint fee of ${} charged by {} on {}. Reason: {}"\
+                    .format(fee_amount, session.admin_attendee().full_name,localized_now().strftime('%m/%d, %H:%M'),reprint_reason)
+                message = 'Reprint fee of ${} charged. Badge sent to printer.'.format(fee_amount)
+                attendee.status = COMPLETED_STATUS
+
+        raise HTTPRedirect('form?id={}&message={}', attendee_id, message)
+
     def printed_badges(self, session, message='', id=None, pending=None, reprint_reason=''):
         if id:
             attendee = session.attendee(id)
             attendee.status = COMPLETED_STATUS
-            attendee.for_review += "Automated message: Badge marked for reprint by {} on {}. Reason: {}"\
+            attendee.for_review += "Automated message: Badge marked for free reprint by {} on {}. Reason: {}"\
                 .format(session.admin_attendee().full_name,localized_now().strftime('%m/%d, %H:%M'),reprint_reason)
             session.add(attendee)
             session.commit()
