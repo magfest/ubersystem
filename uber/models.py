@@ -1608,6 +1608,9 @@ class Session(SessionManager):
                 return attendees.filter(Attendee.badge_num == terms[0])
             elif len(terms) == 1 and re.match('[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}', terms[0]):
                 return attendees.filter(or_(Attendee.id == terms[0], Group.id == terms[0]))
+            elif len(terms) == 1 and re.match('[0-9]+-[0-9]+', terms[0]):
+                first_num, second_num = terms[0].split('-')
+                return attendees.filter(Attendee.badge_num.between(first_num, second_num))
             else:
                 checks = [Group.name.ilike('%' + text + '%')]
                 for attr in ['first_name', 'last_name', 'badge_printed_name', 'email', 'comments', 'admin_notes', 'for_review']:
