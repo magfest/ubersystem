@@ -85,7 +85,7 @@ class Root:
 
 
     @check_if_can_reg
-    def index(self, message=''):
+    def index(self, message='', payment_method=''):
         if not self.unpaid_preregs:
             raise HTTPRedirect('form?message={}', message) if message else HTTPRedirect('form')
         else:
@@ -162,13 +162,17 @@ class Root:
                     Tracking.track(track_type, attendee)
                     if group.badges:
                         Tracking.track(track_type, group)
+                    attendee.registered = localized_now()
+                    session.merge(attendee)
 
-                if session.query(Attendee).filter(Attendee.status != INVALID_STATUS)\
+                if session.query(Attendee).filter(Attendee.status != INVALID_STATUS, Attendee.id != attendee.id)\
                         .filter_by(first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).count():
                     raise HTTPRedirect('duplicate?id={}', group.id if attendee.paid == PAID_BY_GROUP else attendee.id)
 
                 if attendee.full_name in BANNED_ATTENDEES:
                     raise HTTPRedirect('banned?id={}', group.id if attendee.paid == PAID_BY_GROUP else attendee.id)
+
+                session.commit()
 
                 raise HTTPRedirect('index')
         else:
