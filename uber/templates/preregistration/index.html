@@ -3,6 +3,21 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
+<script type="text/javascript">
+function PopIt() { if($('.stripe_checkout_app').filter(":hidden").length){
+        /* don't return anything */
+        } else {
+        return "You're not done registering! Please wait until you see the confirmation page.";
+    } }
+function UnPopIt()  { /* nothing to return */ }
+
+jQuery(document).ready(function() {
+window.onbeforeunload = PopIt;
+jQuery("a").click(function(){ window.onbeforeunload = UnPopIt; });
+$(".buttonsView").children().click(function(){ window.onbeforeunload = UnPopIt; });
+});
+</script>
+
 <div class="masthead">
 </div>
 
