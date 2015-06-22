@@ -83,11 +83,17 @@ class Root:
                         'attendee': attendee }), model=attendee)
         return {'message': message}
 
-
     @check_if_can_reg
-    def index(self, message='', payment_method=''):
+    def index(self, session, message='', payment_method=None):
         if not self.unpaid_preregs:
             raise HTTPRedirect('form?message={}', message) if message else HTTPRedirect('form')
+        elif payment_method and int(payment_method) in NEW_REG_PAYMENT_METHODS:
+            for id in self.unpaid_preregs:
+                attendee = session.attendee(id)
+                attendee.payment_method = payment_method
+                session.merge(attendee)
+            self.unpaid_preregs.clear()
+            raise HTTPRedirect('form?message={}', 'Please queue in the payment line with your Photo ID and payment ready.')
         else:
             return {
                 'message': message,

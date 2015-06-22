@@ -105,9 +105,9 @@ $(".buttonsView").children().click(function(){ window.onbeforeunload = UnPopIt; 
 <div>
     <div class="text-center">
         {% if AT_THE_CON %}
-            <a href="index?payment_method=cash"><button class="btn btn-success">Pay with Cash</button></a>
+            <a href="index?payment_method={{ CASH }}"><button class="btn btn-success">Pay with Cash</button></a>
             {% stripe_form take_payment charge %}
-            <a href="index?payment_method=manual"><button class="btn btn-info">Pay with Card at the Desk</button></a>
+            <a href="index?payment_method={{ SQUARE }}"><button class="btn btn-info">Pay with Card at the Desk</button></a>
         {% else %}
             {% stripe_form take_payment charge %}
         {% endif %}
