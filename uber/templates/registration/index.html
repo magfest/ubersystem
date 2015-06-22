@@ -103,16 +103,6 @@
 </ol>
 
 <div class="row">
-    <div class="panel col-md-4">
-        <form role="form" method="post" action="reprint_fee">
-            <input type="hidden" name="attendee_id" value="{{ attendee.id }}">
-            <input type="text" name="fee_amount" value="{{ ONEDAY_BADGE_PRICE }}">
-            <button cls="btn btn-warning" type="submit">Record Reprint Fee</button>
-        </form>
-    </div>
-</div>
-
-<div class="row">
 <div class="panel col-md-4">
 <form role="form" method="get" action="index">
 <input type="hidden" name="order" value="{{ order }}" />
