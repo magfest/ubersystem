@@ -17,6 +17,7 @@ function setInternational() {
     }
 }
 </script>
+{% if not AT_THE_CON %}
     <div class="form-group">
         <label for="full_address" class="col-sm-2 control-label">Address</label>
         <div class="col-sm-6">
@@ -26,6 +27,10 @@ function setInternational() {
     </div>
     <div class="form-group address_details">
         <label for="address1" class="col-sm-2 control-label"></label>
+{% else %}
+    <div class="form-group address_details">
+        <label for="address1" class="col-sm-2 control-label">Address</label>
+{% endif %}
         <div class="col-sm-6">
             <input type="text" name="address1" class="form-control" placeholder="Address Line 1" value="{{ attendee.address1 }}" data-geo="name" />
         </div>
