@@ -57,7 +57,7 @@
             $(".maybe_bold").css("font-weight", "normal");
             $(".full_name").css("font-weight", "bold");
         } else {
-            var form = document.forms[0];
+            var form = document.forms[2];
             if( form.group_opt.selectedIndex > 0 )
                 $(".maybe_bold").css("font-weight", "normal");
             else {
@@ -102,6 +102,18 @@
         {% endif %}
     });
 </script>
+
+<div class="row">
+    <div class="panel">
+        <form role="form" method="post" action="reprint_fee">
+            <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
+            $<input type="text" style="width:4em" name="fee_amount" value="{{ ONEDAY_BADGE_PRICE }}" />
+            <span id="reprint_reason">Reason: <input type="text" name="reprint_reason" style="width:20em" placeholder="Reason for reprinting." /></span>
+            <button class="btn btn-warning" type="submit">Record Reprint Fee</button>
+            <button class="btn btn-success" type="submit" name="refund" value="True">Refund Reprint Fee</button>
+        </form>
+    </div>
+</div>
 
 {% if AT_THE_CON %}
     <div style="display:none">
