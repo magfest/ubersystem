@@ -148,11 +148,11 @@ class Root:
                     # Use the empty string if this is null, otherwise use strftime.
                     # Also you should fill in whatever actual format you want.
                     val = getattr(attendee, col.name)
-                    row.append(val.strftime(date_format + ' %H:%M:%S') if val else '')
+                    row.append(val.strftime('%Y-%m-%d %H:%M:%S') if val else '')
                 elif isinstance(col.type, UnicodeText):
                     # Remove newlines and replace them with \r\n to prevent issues with multiline fields
                     val = getattr(attendee, col.name).splitlines()
-                    row.append("\n".join(val))
+                    row.append(r"\n".join(val))
                 else:
                     # For everything else we'll just dump the value, although we might
                     # consider adding more special cases for things like foreign keys.
