@@ -83,11 +83,17 @@ class Root:
                         'attendee': attendee }), model=attendee)
         return {'message': message}
 
-
     @check_if_can_reg
-    def index(self, message=''):
+    def index(self, session, message='', payment_method=None):
         if not self.unpaid_preregs:
             raise HTTPRedirect('form?message={}', message) if message else HTTPRedirect('form')
+        elif payment_method and int(payment_method) in NEW_REG_PAYMENT_METHODS:
+            for id in self.unpaid_preregs:
+                attendee = session.attendee(id)
+                attendee.payment_method = payment_method
+                session.merge(attendee)
+            self.unpaid_preregs.clear()
+            raise HTTPRedirect('form?message={}', 'Please queue in the payment line with your Photo ID and payment ready.')
         else:
             return {
                 'message': message,
@@ -162,13 +168,17 @@ class Root:
                     Tracking.track(track_type, attendee)
                     if group.badges:
                         Tracking.track(track_type, group)
+                    attendee.registered = localized_now()
+                    session.merge(attendee)
 
-                if session.query(Attendee).filter(Attendee.status != INVALID_STATUS)\
+                if session.query(Attendee).filter(Attendee.status != INVALID_STATUS, Attendee.id != attendee.id)\
                         .filter_by(first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).count():
                     raise HTTPRedirect('duplicate?id={}', group.id if attendee.paid == PAID_BY_GROUP else attendee.id)
 
                 if attendee.full_name in BANNED_ATTENDEES:
                     raise HTTPRedirect('banned?id={}', group.id if attendee.paid == PAID_BY_GROUP else attendee.id)
+
+                session.commit()
 
                 raise HTTPRedirect('index')
         else:
@@ -250,9 +260,12 @@ class Root:
                 'total_cost': payment_received
             }
 
-    def delete(self, id):
+    def delete(self, session, id):
+        attendee = session.attendee(id)
+        attendee.status = INVALID_STATUS
+        session.merge(attendee)
         self.unpaid_preregs.pop(id, None)
-        raise HTTPRedirect('index?message={}', 'Preregistration deleted')
+        raise HTTPRedirect('index?message={}', 'Registration removed.')
 
     def dealer_confirmation(self, session, id):
         return {'group': session.group(id)}

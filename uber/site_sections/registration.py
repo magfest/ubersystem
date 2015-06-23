@@ -611,7 +611,7 @@ class Root:
             raise HTTPRedirect('new_reg_station')
 
         groups = set()
-        for a in session.query(Attendee).filter(Attendee.first_name == '', Attendee.group_id != None) \
+        for a in session.query(Attendee).filter(Attendee.first_name == '', Attendee.group_id != None, Attendee.status == NEW_STATUS) \
                                         .options(joinedload(Attendee.group)).all():
             groups.add((a.group.id, a.group.name or 'BLANK'))
 
@@ -625,7 +625,7 @@ class Root:
             'show_all':   show_all,
             'checked_in': checked_in,
             'groups':     sorted(groups, key = lambda tup: tup[1]),
-            'recent':     session.query(Attendee).filter(Attendee.badge_num == 0, Attendee.first_name != '', *restrict_to)
+            'recent':     session.query(Attendee).filter(Attendee.badge_num == 0, Attendee.first_name != '', Attendee.status == NEW_STATUS, *restrict_to)
                                                  .order_by(Attendee.registered).all(),
             'remaining_badges': max(0, MAX_BADGE_SALES - state.BADGES_SOLD)
         }
@@ -986,7 +986,10 @@ class Root:
                         val = datetime.strptime(val, date_format).date()
                     elif isinstance(col.type, Integer):
                         val = int(val)
-
+                    elif isinstance(col.type, UnicodeText):
+                        # Replace "\n" with newlines
+                        val = val.split(r"\n")
+                        val = '\n'.join(val)
                     # now that we've converted val to whatever it actually needs to be, we
                     # can just set it on the attendee
                     setattr(attendee, colname, val)

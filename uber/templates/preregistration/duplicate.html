@@ -3,7 +3,7 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-<h2> You are already registered </h2>
+<div class="panel"><h2> You are already registered </h2>
 
 We already have a {{ attendee.full_name }} with email address {{ attendee.email }} in our database with a
 {% if attendee.paid == PAID_BY_GROUP and attendee.group.status == WAITLISTED %}
@@ -48,6 +48,6 @@ If you're absolutely sure that this is someone else, you can continue and pay fo
 {% endif %}
     <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>
     <td><a href="delete?id={% if duplicate.group %}{{ duplicate.group.id }}{% else %}{{ duplicate.id }}{% endif %}">Well never mind then!</a></td>
-</tr></table>
+</tr></table></div>
 
 {% endblock %}
