@@ -100,6 +100,16 @@ function setBadge(badgeType) {
         $("#attendee_select").addClass("active");
         $.field("amount_extra").val('0').trigger("change");
     }
+    if (badgeType == 'Weekend') {
+        {% if attendee.badge_type != PSEUDO_DEALER_BADGE %}if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}"); }{% endif %}
+        $("#weekend_select").addClass("active");
+        $.field("amount_extra").val('0').trigger("change");
+    }
+    if (badgeType == 'OneDay') {
+        {% if attendee.badge_type != PSEUDO_DEALER_BADGE %}if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ ONE_DAY_BADGE }}"); }{% endif %}
+        $("#oneday_select").addClass("active");
+        $.field("amount_extra").val('0').trigger("change");
+    }
     if (badgeType == 'Group') {
         if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ PSEUDO_GROUP_BADGE }}"); }
         $(".group_fields").removeClass("hide");
@@ -123,10 +133,22 @@ function setBadge(badgeType) {
   <br/><br/><span class="popup">{% popup_link "../static_views/badge_descriptions.html" "What's the difference?" %}</span></label>
   <div class="list-group">
     <div class="col-sm-3">
-    <a id="attendee_select" onclick="setBadge('Attendee'); {% if attendee.badge_type = PSEUDO_DEALER_BADGE %}setDealerCost();{% endif %}" class="list-group-item badge_type_selector active">
-      <h4 class="list-group-item-heading">Attending: ${{ BADGE_PRICE }}</h4>
+        {% if AT_THE_CON and ONE_DAYS_ENABLED %}
+        <div class="list-group-item"><h4 class="list-group-item-heading">Attending</h4>
+            <p class="list-group-item-text">Allows access to the convention.</p>
+        <a id="weekend_select" onclick="setBadge('Weekend'); {% if attendee.badge_type = PSEUDO_DEALER_BADGE %}setDealerCost();{% endif %}" class="list-group-item badge_type_selector">
+         <h7 class="list-group-item-heading">Full Weekend: ${{ BADGE_PRICE }}</h7>
+        </a>
+            <a id="oneday_select" onclick="setBadge('OneDay');" class="list-group-item badge_type_selector">
+                <h7 class="list-group-item-heading">One-Day: ${{ ONEDAY_BADGE_PRICE }}</h7>
+            </a>
+        </div>
+      {% else %}
+      <a id="attendee_select" onclick="setBadge('Attendee'); {% if attendee.badge_type = PSEUDO_DEALER_BADGE %}setDealerCost();{% endif %}" class="list-group-item active">
+        <h4 class="list-group-item-heading">Attending: ${{ BADGE_PRICE }}</h4>
         {% if BEFORE_FIRST_PRICE_BUMP %}($55 after Jan 1)<br/>{% endif %}
       <p class="list-group-item-text">Allows access to the convention for its duration.</p>
+      {% endif %}
     </a>
     </div>
 
@@ -142,6 +164,8 @@ function setBadge(badgeType) {
     </a>
     </div>
   {% endif %}
+
+
 
     <div class="col-sm-3">
     <a id="featured1_select" onclick="setBadge('Featured1'); {% if attendee.badge_type = PSEUDO_DEALER_BADGE %}setDealerCost();{% endif %}" class="list-group-item badge_type_selector">
