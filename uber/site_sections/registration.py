@@ -86,6 +86,17 @@ class Root:
         attendee = session.attendee(params, checkgroups=['interests','requested_depts','assigned_depts'],
                                     bools=['staffing','trusted','international','placeholder','got_merch','can_spam'])
 
+        if 'watchlist_id' in params:
+            watchlist_entry = session.watch_list(params['watchlist_id'])
+            watchlist_entry.disabled = True
+            session.add(watchlist_entry)
+            session.commit() # Need to commit now or the attendee will be automatically set to Deferred
+
+            if attendee.status == DEFERRED_STATUS:
+                attendee.status = NEW_STATUS
+            session.add(attendee)
+            raise HTTPRedirect('form?id={}&message={}', attendee.id, 'Watchlist entry disabled')
+
         if 'first_name' in params:
             attendee.group_id = params['group_opt'] or None
             if AT_THE_CON and omit_badge:
@@ -812,6 +823,48 @@ class Root:
             'feed': get_page(page, feed),
             'action_opts': [opt for opt in TRACKING_OPTS if opt[0] != AUTO_BADGE_SHIFT],
             'who_opts': [who for [who] in session.query(Tracking).distinct().order_by(Tracking.who).values(Tracking.who)]
+        }
+
+    def watch_list(self, session, message='', **params):
+        watched_attendees = session.query(WatchList).order_by(WatchList.last_name).all()
+        watch_entry = session.watch_list(params, bools=['disabled'])
+
+        if 'first_name' in params:
+            if not watch_entry.first_name or not watch_entry.last_name:
+                message = 'First and last name are required.'
+            elif not watch_entry.reason or not watch_entry.action:
+                message = 'Reason and action are required.'
+
+            if not message:
+                session.add(watch_entry)
+                if not watch_entry.id:
+                    message = 'New watch list item added.'
+                else:
+                    message = 'Watch list item updated.'
+
+                try:
+                    matching_attendee = session.query(Attendee).filter(and_(Attendee.first_name == watch_entry.first_name,
+                                                                        Attendee.last_name == watch_entry.last_name)).one()
+                except:
+                    matching_attendee = None
+
+                if matching_attendee:
+                    if not watch_entry.disabled and matching_attendee.status in [NEW_STATUS, COMPLETED_STATUS, PRINTED_STATUS]:
+                        if not watch_entry.id or matching_attendee.status == NEW_STATUS:
+                            matching_attendee.status = DEFERRED_STATUS
+                    elif watch_entry.disabled and matching_attendee.status == DEFERRED_STATUS:
+                        matching_attendee.status = NEW_STATUS
+                    message += ' Attendee {0.full_name} is now {0.status_label} status.'.format(matching_attendee)
+                    session.add(matching_attendee)
+
+                session.commit()
+
+                watch_entry = WatchList()
+
+        return {
+            'new_watch': watch_entry,
+            'watched_attendees': watched_attendees,
+            'message': message
         }
 
     def staffers(self, session, message='', order='first_name', search_text=''):

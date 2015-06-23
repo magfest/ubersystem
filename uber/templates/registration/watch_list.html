@@ -1,0 +1,48 @@
+{% extends "base-admin.html" %}
+{% block title %}Watch List{% endblock %}
+{% block message %}
+{% endblock %}
+{% block content %}
+<ol class="breadcrumb">
+  <li><a href="../accounts/homepage">Home</a></li>
+  <li>People</li>
+  <li class="active">Watch List</li>
+</ol>
+
+<div class="panel panel-default">
+<table class="table table-striped footable" data-filter="#filter" data-page-navigation=".pagination" data-limit-navigation="20">
+    <thead><tr>
+        <th data-type="alpha">Name</th>
+        <th data-type="alpha">Reason</th>
+        <th data-type="alpha">Action</th>
+        <th data-type="numeric">Disabled?</th>
+        <th></th>
+    </tr></thead>
+    <tr>
+        <form method="post" action="watch_list">{% csrf_token %}
+        <td><input type="text" name="first_name" placeholder="First Name" value="{{ new_watch.first_name }}" />
+        <input type="text" name="last_name" placeholder="Last Name" value="{{ new_watch.last_name }}" /></td>
+        <td><textarea name="reason" placeholder="The reason they're on the watch list.">{{ new_watch.reason }}</textarea></td>
+        <td><textarea name="action" placeholder="What they need to do before checking in.">{{ new_watch.action }}</textarea></td>
+        <td>{% checkbox new_watch.disabled %}</td>
+        <td><button class="btn btn-success">Add</button></td></form>
+    </tr>
+{% for attendee in watched_attendees %}
+    <tr>
+        <form method="post" action="watch_list">{% csrf_token %}<input type="hidden" name="id" value="{{ attendee.id }}" />
+        <td><input type="text" name="first_name" placeholder="First Name" value="{{ attendee.first_name }}" />
+        <input type="text" name="last_name" placeholder="Last Name" value="{{ attendee.last_name }}" /></td>
+        <td><textarea name="reason" placeholder="The reason they're on the watch list.">{{ attendee.reason }}</textarea></td>
+        <td><textarea name="action" placeholder="What they need to do before checking in.">{{ attendee.action }}</textarea></td>
+        <td>{% checkbox attendee.disabled %}</td>
+        <td><button class="btn btn-primary">Edit</button></td></form>
+    </tr>
+{% endfor %}
+
+    <caption align="bottom">
+		<ul class="pagination"></ul>
+	</caption>
+</table>
+</div>
+
+{% endblock %}

@@ -17,5 +17,4 @@ distribute-*.tar.gz
 up.bat
 anthrocon_plugin/
 add_table_extras.sql
-alembic*
 *.save

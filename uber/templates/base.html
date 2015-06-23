@@ -171,6 +171,7 @@ $(document).ready(function() {
         <li> <a href="../registration/staffers">Staffers</a> </li>
         <li> <a href="../jobs/">Jobs</a> </li>
         <li> <a href="../registration/feed">Feed of Database Changes</a> </li>
+        {% if HAS_WATCHLIST_ACCESS %} <li><a href="../registration/watch_list">Watch List</a></li> {% endif %}
         <li class="{% if not AT_OR_POST_CON %}disabled{% endif %}"> <a {% if AT_OR_POST_CON %}href="../registration/merch"{% endif %}>Merch</a> </li>
     </ul>
 </li>
