@@ -124,7 +124,7 @@ $(document).ready(function(){
 <span class="text-center"><h2>Dealer Application</h2></span>
 {% endif %}
 {% include "preregistration/badge_choice.html" %}
-{% if not attendee.is_dealer %}
+{% if not attendee.is_dealer and not AT_THE_CON %}
 <div class="form-group">
     <p class="help-block col-sm-8 col-sm-offset-2"><strong>Dealers:</strong>
         {% if BEFORE_DEALER_REG_PUBLIC %}Registrations for dealer memberships begins December 15.
