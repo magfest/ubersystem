@@ -9,29 +9,36 @@
 <div class="masthead">
 </div>
 <div class="panel panel-default">
-<h2> Members of "{{ group.name }}" </h2>
+{% if group.status == DECLINED %}
+    <h2>Sorry - Maybe Next Year!</h2>
+    <div style="margin:15px">
+        Your group "{{ group.name }}" has been <strong>declined</strong> for {{ EVENT_NAME_AND_YEAR }}. Please contact us at {{ MARKETPLACE_EMAIL }} if you have any questions.
+    </div>
+{% else %}
+    <h2> Members of "{{ group.name }}" </h2>
 
-{% if group.amount_unpaid and group.status != WAITLISTED %}
-    {% if not group.is_dealer or group.status != UNAPPROVED %}
-        <div style="text-align:center">
-            {% stripe_form process_group_payment charge %}
-        </div>
+    {% if group.amount_unpaid and group.status != WAITLISTED %}
+        {% if not group.is_dealer or group.status != UNAPPROVED %}
+            <div style="text-align:center">
+                {% stripe_form process_group_payment charge %}
+            </div>
+        {% endif %}
     {% endif %}
+
+    <div style="margin:15px">
+        {% if group.unregistered_badges and group.tables %}
+            Some of your Dealer Assistant badges are not yet assigned to a specific person. Please assign these badges
+            between now (using the links below) and the close of preregistation; any badges unclaimed at that time will be
+            invalid. You may also distribute each of the registration links below to the individual members of your group,
+            which will allow them to fill in their own information as well as purchase any upgrades on their own.
+            <br/> <br/>
+        {% endif %}
+        If a {{ group.is_dealer|yesno:"planned Dealer Assistant,group member" }} cannot attend, you may use the "This person
+        isn't coming" button next to their entry on the list below to unset their badge, which may then be assigned to
+        someone else. Upgraded badges may only be transferred directly between two people; please contact us at
+        <a href="{{ CONTACT_URL }}">{{ CONTACT_URL }}</a> if you wish to transfer badges.
+    </div>
 {% endif %}
-
-<div style="margin:15px">
-    {% if group.unregistered_badges and group.tables %}
-        Some of your Dealer Assistant badges are not yet assigned to a specific person. Please assign these badges
-        between now (using the links below) and the close of preregistation; any badges unclaimed at that time will be
-        invalid. You may also distribute each of the registration links below to the individual members of your group,
-        which will allow them to fill in their own information as well as purchase any upgrades on their own.
-        <br/> <br/>
-    {% endif %}
-    If a {{ group.is_dealer|yesno:"planned Dealer Assistant,group member" }} cannot attend, you may use the "This person
-    isn't coming" button next to their entry on the list below to unset their badge, which may then be assigned to
-    someone else. Upgraded badges may only be transferred directly between two people; please contact us at
-    <a href="{{ CONTACT_URL }}">{{ CONTACT_URL }}</a> if you wish to transfer badges.
-</div>
 
 <br/> <b>Here are the badges for your group:</b>
 <table style="width:auto">
@@ -55,7 +62,7 @@
                 {% endif %}
             </td>
             <td>
-                {% if attendee != group.leader and not attendee.amount_extra %}
+                {% if attendee != group.leader and not attendee.amount_extra and group.status != DECLINED %}
                     <form method="post" action="unset_group_member">
                     {% csrf_token %}
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
@@ -70,7 +77,11 @@
                 {% endif %}
             </td>
         {% else %}
-            <td> <a style="font-size:10pt" href="register_group_member?group_id={{ group.id }}">Register someone for this badge</a>: </td>
+            <td>
+                {% if group.status != DECLINED %}
+                    <a style="font-size:10pt" href="register_group_member?group_id={{ group.id }}">Register someone for this badge</a>:
+                {% endif %}
+            </td>
             <td colspan="3">
                 {{ attendee.badge }}
                 {% if attendee.amount_extra %}

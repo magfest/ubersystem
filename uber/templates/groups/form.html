@@ -150,6 +150,10 @@
         <td> <textarea rows="3" cols="30" name="address">{{ group.address }}</textarea>
     </tr>
 {% endif %}
+    <tr>
+        <td valign="top"> <b>Status</b> </td>
+        <td id="status">{{ group.status_label }}</td>
+    </tr>
 <tr>
     <td valign="top"> <nobr>Admin Notes:</nobr> </td>
     <td> <textarea name="admin_notes" rows="3" style="width:66%">{{ group.admin_notes }}</textarea> </td>

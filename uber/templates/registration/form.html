@@ -395,7 +395,7 @@
             {% csrf_token %}
             <input type="hidden" name="id" value="{{ attendee.id }}" />
             {% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}" />{% endif %}
-            <br/><input type="submit" value="{% if attendee.group %}Unassign this group badge{% else %}Delete Attendee{% endif %}" />
+            <br/><input type="submit" value="{% if attendee.group %}Unassign this group badge{% else %}Invalidate Attendee{% endif %}" />
         </form>
     </div>
 
@@ -405,6 +405,16 @@
             <form method="post" action="lost_badge">
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
                 <input type="submit" value="Report Lost Badge">
+            </form>
+        </div>
+    {% endif %}
+
+    {% if attendee.group and attendee.first_name %}
+        <br/>
+        <div style="margin-left:25%">
+            <form method="post" action="convert_group_badge">
+                <input type="hidden" name="id" value="{{ attendee.id }}" />
+                <input type="submit" value="Convert to Individual Badge">
             </form>
         </div>
     {% endif %}

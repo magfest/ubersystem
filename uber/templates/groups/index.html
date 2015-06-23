@@ -55,7 +55,11 @@
     <th data-type="alphanumeric">Admin Notes</th>
 </tr></thead>
 {% for group in groups %}
+    {% if group.status == DECLINED %}
+    <tr bgcolor="#FFE4E1">
+    {% else %}
     <tr>
+    {% endif %}
         <td style="text-align:left"> <a href="form?id={{ group.id }}">{{ group.name|default:"?????" }}</a> </td>
         <td>
             {% if group.is_dealer %}

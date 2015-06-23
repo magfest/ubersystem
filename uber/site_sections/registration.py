@@ -30,14 +30,16 @@ def check_everything(attendee):
 
 @all_renderable(PEOPLE, REG_AT_CON)
 class Root:
-    def index(self, session, message='', page='0', search_text='', uploaded_id='', order='last_first'):
-        total_count = session.query(Attendee).count()
+    def index(self, session, message='', page='0', search_text='', uploaded_id='', order='last_first', invalid=''):
+        filter = Attendee.status.in_([NEW_STATUS, COMPLETED_STATUS, PRINTED_STATUS]) if not invalid else None
+        attendees = session.query(Attendee) if invalid else session.query(Attendee).filter(filter)
+        total_count = attendees.count()
         count = 0
         if search_text:
-            attendees = session.search(search_text)
+            attendees = session.search(search_text) if invalid else session.search(search_text, filter)
             count = attendees.count()
         if not count:
-            attendees = session.query(Attendee).options(joinedload(Attendee.group))
+            attendees = attendees.options(joinedload(Attendee.group))
             count = total_count
 
         attendees = attendees.order(order)
@@ -68,6 +70,7 @@ class Root:
             'page':           page,
             'pages':          pages,
             'search_text':    search_text,
+            'invalid':        invalid,
             'search_results': bool(search_text),
             'attendees':      attendees,
             'groups':         groups,
@@ -82,6 +85,7 @@ class Root:
     def form(self, session, message='', return_to='', omit_badge='', **params):
         attendee = session.attendee(params, checkgroups=['interests','requested_depts','assigned_depts'],
                                     bools=['staffing','trusted','international','placeholder','got_merch','can_spam'])
+
         if 'first_name' in params:
             attendee.group_id = params['group_opt'] or None
             if AT_THE_CON and omit_badge:
@@ -95,7 +99,10 @@ class Root:
                 if attendee.paid == PAID_BY_GROUP and attendee.group.cost == 0:
                     attendee.registered = localized_now()
                 session.add(attendee)
-                if return_to:
+
+                if params['status'] == INVALID_STATUS:
+                    self.delete(attendee.id)
+                elif return_to:
                     raise HTTPRedirect(return_to + '&message={}', 'Attendee data uploaded')
                 else:
                     raise HTTPRedirect('index?uploaded_id={}&message={}&search_text={}', attendee.id, 'has been uploaded',
@@ -153,18 +160,16 @@ class Root:
                 session.delete_from_group(attendee, attendee.group)
                 message = 'Unassigned badge removed.'
             else:
-                #session.add(Attendee(**{attr: getattr(attendee, attr) for attr in [
-                #    'group', 'registered', 'badge_type', 'badge_num', 'paid', 'amount_paid', 'amount_extra'
-                #]}))
                 session.assign_badges(attendee.group, attendee.group.badges + 1, attendee.badge_type)
                 Tracking.track(INVALIDATED, attendee)
-                #session.delete_from_group(attendee, attendee.group)
                 attendee.group.attendees.remove(attendee)
+                attendee.status = INVALID_STATUS
+                attendee.paid = NOT_PAID
                 message = 'Attendee deleted, but this badge is still available to be assigned to someone else in the same group'
         else:
             Tracking.track(INVALIDATED, attendee)
-            #session.delete(attendee)
-            message = 'Attendee deleted'
+            attendee.status = INVALID_STATUS
+            message = 'Attendee invalidated'
 
         raise HTTPRedirect(return_to + ('' if return_to[-1] == '?' else '&') + 'message={}', message)
 
@@ -266,6 +271,9 @@ class Root:
             elif attendee.paid == PAID_BY_GROUP and not attendee.group:
                 message = 'You must select a group for this attendee.'
 
+            if attendee.status not in [COMPLETED_STATUS, PRINTED_STATUS]:
+                message = 'This badge is {0} and cannot be checked in.'.format(attendee.status_label)
+
             success = not message
 
         if success and attendee.checked_in:
@@ -273,7 +281,7 @@ class Root:
         elif success:
             message = ""
             attendee.checked_in = datetime.now(UTC)
-            attendee.age_group = age_group
+            if not COLLECT_EXACT_BIRTHDATE: attendee.age_group = age_group
             if not attendee.badge_num:
                 attendee.badge_num = int(badge_num)
             if attendee.paid == NOT_PAID:
@@ -347,6 +355,14 @@ class Root:
         session.add(a)
         session.commit()
         raise HTTPRedirect('index?message={}', 'Badge has been recorded as lost.')
+
+    def convert_group_badge(self, session, id):
+        attendee = session.attendee(id)
+        session.assign_badges(attendee.group, attendee.group.badges + 1, attendee.badge_type)
+        attendee.paid = NOT_PAID
+        attendee.status = NEW_STATUS
+        attendee.group.attendees.remove(attendee)
+        raise HTTPRedirect('form?id={}', attendee.id)
 
     @ajax
     def check_merch(self, session, badge_num):
