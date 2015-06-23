@@ -131,7 +131,7 @@ class Root:
         cols = [getattr(Attendee, col.name) for col in Attendee.__table__.columns]
         out.writerow([col.name for col in cols])
 
-        for attendee in session.query(Attendee).filter(Attendee.first_name != '').order_by(Attendee.badge_num).all():
+        for attendee in session.query(Attendee).filter(Attendee.first_name != '').filter(Attendee.status != INVALID_STATUS).order_by(Attendee.badge_num).all():
             row = []
             for col in cols:
                 if isinstance(col.type, Choice):
@@ -148,12 +148,17 @@ class Root:
                     # Use the empty string if this is null, otherwise use strftime.
                     # Also you should fill in whatever actual format you want.
                     val = getattr(attendee, col.name)
-                    row.append(val.strftime('%Y-%m-%d %H:%M:%S') if val else '')
+                    row.append(val.strftime(date_format + ' %H:%M:%S') if val else '')
+                elif isinstance(col.type, UnicodeText):
+                    # Remove newlines and replace them with \r\n to prevent issues with multiline fields
+                    val = getattr(attendee, col.name).splitlines()
+                    row.append("\n".join(val))
                 else:
                     # For everything else we'll just dump the value, although we might
                     # consider adding more special cases for things like foreign keys.
                     row.append(getattr(attendee, col.name))
             out.writerow(row)
+
     def shirt_counts(self, session):
         counts = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
         labels = ['size unknown'] + [label for val, label in SHIRT_OPTS][1:]
