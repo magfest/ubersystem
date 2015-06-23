@@ -473,6 +473,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     paid             = Column(Choice(PAYMENT_OPTS), default=NOT_PAID)
     overridden_price = Column(Integer, nullable=True)
     amount_paid      = Column(Integer, default=0)
+    donation_tier    = Column(Choice(ADMIN_DONATION_OPTS), default=NO_DONATION)
     amount_extra     = Column(Choice(DONATION_TIER_OPTS, allow_unspecified=True), default=0)
     amount_refunded  = Column(Integer, default=0)
     payment_method   = Column(Choice(PAYMENT_METHOD_OPTS), nullable=True)
