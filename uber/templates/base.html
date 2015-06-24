@@ -240,7 +240,6 @@ $(document).ready(function() {
 <link rel="stylesheet" href="../static/lib/jquery-cluetip/jquery.cluetip.css" type="text/css" />
 <link rel="stylesheet" href="../static/lib/jquery-contextMenu/jquery.contextMenu.css" type="text/css" />
 <link rel="stylesheet" href="../static/lib/jquery-ui/ui-lightness/jquery-ui-1.9.0.custom.css" type="text/css" />
-<link rel="icon" href="https://www.anthrocon.org/sites/all/themes/anthrocon-2015/images/anthrocon-2015/favicon.gif" type="image/x-icon" />
 
 <script src="../static/lib/toastr/toastr.min.js"></script>
 <link href="../static/lib/toastr/toastr.min.css" rel="stylesheet">
@@ -258,15 +257,18 @@ $(document).ready(function() {
 <script src="../static/lib/jquery-datetextentry/jquery.datetextentry.js" type="text/javascript"></script>
 <link href="../static/lib/jquery-datetextentry/jquery.datetextentry.css" rel="stylesheet">
 
-<script src="https://maps.googleapis.com/maps/api/js?sensor=false&amp;libraries=places"></script>
 <script src="../static/lib/ubilabs-geocomplete/jquery.geocomplete.js"></script>
 
+{% if not OFFLINE_MODE %}
+<script src="https://maps.googleapis.com/maps/api/js?sensor=false&amp;libraries=places"></script>
+<link rel="icon" href="https://www.anthrocon.org/sites/all/themes/anthrocon-2015/images/anthrocon-2015/favicon.gif" type="image/x-icon" />
 <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
 <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
 <!--[if lt IE 9]>
 	<script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
 	<script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
 <![endif]-->
+{% endif %}
 {% endblock %}
 </body>
 </html>
