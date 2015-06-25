@@ -445,10 +445,12 @@ class organization_or_event_name(template.Node):
 class single_day_prices(template.Node):
     def render(self, context):
         prices = ''
+        skiprest = ''
         for day, price in BADGE_PRICES['single_day'].items():
             if day == datetime.strftime(ESCHATON, "%A"):
                 prices += 'and ${} for {}'.format(price, day)
-            else:
+                skiprest = 'YES'
+            elif skiprest == '':
                 prices += '${} for {}, '.format(price, day)
         #prices += 'and ${} for other days'.format(BADGE_PRICES['default_single_day'])
         return prices

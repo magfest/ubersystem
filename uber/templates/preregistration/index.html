@@ -44,7 +44,8 @@ $(".stripe").css('display', 'inline');
     </div>
 </div>
 
-<div class="panel"><table class="charge table footable" data-sort="false">
+<div class="panel">
+    <table class="charge table footable" data-sort="false">
 <thead><tr>
     <th>Preregistration</th>
     <th data-hide="phone" data-sort-ignore="true">Details</th>
@@ -109,8 +110,8 @@ $(".stripe").css('display', 'inline');
             <br/>If you pay now and cannot pick up your badge, there are no refunds!</strong></div>
         <div class="row">
             <a href="index?payment_method={{ CASH }}"><button class="btn btn-success">Pay with Cash</button></a>
-            {% stripe_form take_payment charge %}
-            <a href="index?payment_method={{ SQUARE }}"><button class="btn btn-info">Pay with Card at the Desk</button></a></div>
+            {% if not OFFLINE_MODE %}{% stripe_form take_payment charge %}{% endif %}
+            <a href="index?payment_method={{ SQUARE }}"><button class="btn btn-info">Pay with Card at the Desk</button></a>
         {% else %}
             {% stripe_form take_payment charge %}
         {% endif %}
