@@ -15,6 +15,7 @@ jQuery(document).ready(function() {
 window.onbeforeunload = PopIt;
 jQuery("a").click(function(){ window.onbeforeunload = UnPopIt; });
 $(".buttonsView").children().click(function(){ window.onbeforeunload = UnPopIt; });
+$(".stripe").css('display', 'inline');
 });
 </script>
 
@@ -103,9 +104,11 @@ $(".buttonsView").children().click(function(){ window.onbeforeunload = UnPopIt; 
 
 <div class="row">
 <div class="row">
-<div>
     <div class="text-center">
         {% if AT_THE_CON %}
+        <div class="bg-danger" style="margin: 20px; padding: 10px;"><strong>NOTE: A government-issued ID is required to pick up your badge.
+            <br/>If you pay now and cannot pick up your badge, there are no refunds!</strong></div>
+        <div class="row">
             <a href="index?payment_method={{ CASH }}"><button class="btn btn-success">Pay with Cash</button></a>
             {% if not OFFLINE_MODE %}{% stripe_form take_payment charge %}{% endif %}
             <a href="index?payment_method={{ SQUARE }}"><button class="btn btn-info">Pay with Card at the Desk</button></a>

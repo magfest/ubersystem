@@ -5,14 +5,16 @@
 <div class="masthead">
 </div>
 <div class="panel panel-default">
-<h2> Extra Payment for {{ attendee.full_name }} </h2>
-
-Thanks for offering to kick in ${{ charge.dollar_amount }} extra to help make {{ EVENT_NAME }} better.  As thanks, this entitles you to the following:
-<ul>
+<h2> Payment for {{ attendee.full_name }} </h2>
+    To complete your registration, please complete your payment of ${{ charge.dollar_amount }}.
+     Your basic membership is {% if attendee.badge_cost %}${{ attendee.badge_cost }}{% else %}paid-for{% endif %}{% if not attendee.amount_extra %}.
+    {% else %} and your donation of ${{ attendee.amount_extra }} entitles you to the following:
+    <ul>
     {% for swag in attendee.donation_swag %}
         <li>{{ swag }}</li>
     {% endfor %}
-</ul>
+    </ul>
+{% endif %}
 
 <table style="width:auto ; margin-left:auto ; margin-right: auto"><tr>
     <td>{% stripe_form process_group_member_payment charge %}</td>
