@@ -127,7 +127,7 @@ class Root:
 
         if not attendee.badge_type:
             attendee.badge_type = ATTENDEE_BADGE
-        if attendee.badge_type not in state.PREREG_BADGE_TYPES:
+        if attendee.badge_type not in state.PREREG_BADGE_TYPES and not AT_THE_CON:
             raise HTTPRedirect('form?message={}', 'Invalid badge type!')
             
         if attendee.is_dealer and not state.DEALER_REG_OPEN:
