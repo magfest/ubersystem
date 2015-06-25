@@ -52,7 +52,7 @@ class StaticViews:
 @all_renderable()
 class Root:
     def index(self):
-        return render('index.html')
+        raise HTTPRedirect('common/')
 
     def common_js(self):
         cherrypy.response.headers['Content-Type'] = 'text/javascript'
@@ -61,15 +61,6 @@ class Root:
     static_views = StaticViews()
 
 mount_site_sections(c.MODULE_ROOT)
-
-
-class Redirector:
-    @cherrypy.expose
-    def index(self):
-        if c.AT_THE_CON:
-            raise HTTPRedirect(c.PATH + '/accounts/homepage')
-        else:
-            raise HTTPRedirect(c.PATH)
 
 cherrypy.tree.mount(Root(), c.PATH, c.APPCONF)
 static_overrides(join(c.MODULE_ROOT, 'static'))
