@@ -17,6 +17,7 @@ import sqlalchemy as sa
 
 
 def upgrade():
+    op.alter_column('job', 'weight', server_default=1)    
     op.create_table(
         'watch_list',
         sa.Column('id', UUID, primary_key=True, default=lambda: str(uuid4())),
