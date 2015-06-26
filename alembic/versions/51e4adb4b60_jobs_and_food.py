@@ -18,7 +18,6 @@ from sideboard.lib.sa import UUID
 
 
 def upgrade():
-    op.add_column('job', sa.Column('type',sa.Integer(), default=252034462))
     op.add_column('food_restrictions', sa.Column('sandwich_pref',sa.Integer(), nullable=False, default=127073423))
     op.add_column('food_restrictions', sa.Column('no_cheese',sa.Boolean(), nullable=False, default=False))
 

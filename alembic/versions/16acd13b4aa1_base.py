@@ -17,6 +17,7 @@ import sqlalchemy as sa
 
 
 def upgrade():
+    op.add_column('job', sa.Column('type',sa.Integer(), default=252034462))    
     op.alter_column('job', 'weight', server_default=1)    
     op.create_table(
         'watch_list',
