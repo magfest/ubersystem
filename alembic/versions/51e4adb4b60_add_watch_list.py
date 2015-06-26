@@ -28,6 +28,15 @@ def upgrade():
         sa.Column('action', sa.UnicodeText(), nullable=False),
     )
 
+    op.add_column('job', sa.Column('type',sa.Integer(), default=252034462))
+    op.alter_column('job', 'weight', server_default=1)
+    op.add_column('food_restrictions', sa.Column('sandwich_pref',sa.Integer(), nullable=False, default=127073423))
+    op.add_column('food_restrictions', sa.Column('no_cheese',sa.Boolean(), nullable=False, default=False))
+
+    op.drop_table('room_assignment')
+    op.drop_table('room')
+    op.drop_table('checkout')
+
 
 def downgrade():
     op.drop_table('watch_list')

@@ -18,7 +18,7 @@ import sqlalchemy as sa
 
 def upgrade():
     op.add_column('attendee',
-        sa.Column('donation_tier', sa.Integer())
+        sa.Column('donation_tier', sa.Integer(), server_default=243383191)
     )
 
 
