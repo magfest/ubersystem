@@ -18,7 +18,9 @@ import sqlalchemy as sa
 
 def upgrade():
     op.add_column('job', sa.Column('type',sa.Integer(), default=252034462))    
-    op.alter_column('job', 'weight', server_default=1)    
+    op.alter_column('job', 'weight', server_default=1)
+    op.add_column('food_restrictions', sa.Column('sandwich_pref',sa.Integer(), nullable=False, default=127073423))
+    op.add_column('food_restrictions', sa.Column('no_cheese',sa.Boolean(), nullable=False, default=False))
     op.create_table(
         'watch_list',
         sa.Column('id', UUID, primary_key=True, default=lambda: str(uuid4())),
