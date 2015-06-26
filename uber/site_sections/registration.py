@@ -893,9 +893,9 @@ class Root:
     def temp_fix_badge_status(self, session, message=''):
         attendees, groups = session.everyone()
         for attendee in attendees:
-            if attendee.status == NEW_STATUS and not attendee.placeholder and (attendee.paid == HAS_PAID or attendee.paid == NEED_NOT_PAY):
-                attendee.status = COMPLETED_STATUS
-                session.add(attendee)
+            if self.status == NEW_STATUS and not self.placeholder and self.first_name:
+                if (self.paid == HAS_PAID or self.paid == NEED_NOT_PAY) or (self.paid == PAID_BY_GROUP and not self.group.amount_unpaid):
+                    self.status = COMPLETED_STATUS
             elif attendee.paid == PAID_BY_GROUP and not attendee.group:
                 attendee.paid = NOT_PAID
                 attendee.status = INVALID_STATUS
