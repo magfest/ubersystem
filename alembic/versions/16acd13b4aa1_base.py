@@ -17,8 +17,16 @@ import sqlalchemy as sa
 
 
 def upgrade():
-    pass
-
+    op.create_table(
+        'watch_list',
+        sa.Column('id', UUID, primary_key=True, default=lambda: str(uuid4())),
+        sa.Column('first_name', sa.UnicodeText(), nullable=False),
+        sa.Column('last_name', sa.UnicodeText(), nullable=False),
+        sa.Column('disabled', sa.Boolean(), default=False),
+        sa.Column('reason', sa.UnicodeText(), nullable=False),
+        sa.Column('action', sa.UnicodeText(), nullable=False),
+    )
 
 def downgrade():
-    pass
+    op.drop_table('watch_list')
+    

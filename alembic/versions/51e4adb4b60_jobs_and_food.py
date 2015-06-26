@@ -18,16 +18,6 @@ from sideboard.lib.sa import UUID
 
 
 def upgrade():
-    op.create_table(
-        'watch_list',
-        sa.Column('id', UUID, primary_key=True, default=lambda: str(uuid4())),
-        sa.Column('first_name', sa.UnicodeText(), nullable=False),
-        sa.Column('last_name', sa.UnicodeText(), nullable=False),
-        sa.Column('disabled', sa.Boolean(), default=False),
-        sa.Column('reason', sa.UnicodeText(), nullable=False),
-        sa.Column('action', sa.UnicodeText(), nullable=False),
-    )
-
     op.add_column('job', sa.Column('type',sa.Integer(), default=252034462))
     op.alter_column('job', 'weight', server_default=1)
     op.add_column('food_restrictions', sa.Column('sandwich_pref',sa.Integer(), nullable=False, default=127073423))
@@ -39,4 +29,4 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_table('watch_list')
+    pass
