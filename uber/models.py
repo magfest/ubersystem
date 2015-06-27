@@ -744,6 +744,34 @@ class Session(SessionManager):
                 'total': max(0, amt)
             } for aff, amt in sorted(amounts.items(), key=lambda tup: -tup[1])]
 
+        def insert_test_admin_account(self):
+            """
+            insert a test admin into the database with username "magfest@example.com" password "magfest"
+            this is ONLY allowed if no other admins already exist in the database.
+
+            :param session: database session object
+            :return: True if success, False if failure
+            """
+            if self.query(sa.AdminAccount).count() != 0:
+                return False
+
+            attendee = sa.Attendee(
+                placeholder=True,
+                first_name='Test',
+                last_name='Developer',
+                email='magfest@example.com',
+                badge_type=c.ATTENDEE_BADGE,
+            )
+            self.add(attendee)
+
+            self.add(sa.AdminAccount(
+                attendee=attendee,
+                access=','.join(str(level) for level, name in c.ACCESS_OPTS),
+                hashed=bcrypt.hashpw('magfest', bcrypt.gensalt())
+            ))
+
+            return True
+
     @classmethod
     def model_mixin(cls, model):
         if model.__name__ in ['SessionMixin', 'QuerySubclass']:
