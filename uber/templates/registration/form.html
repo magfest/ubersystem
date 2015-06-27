@@ -142,7 +142,7 @@
             <select name="badge_type" onChange="boldOrRegular(); setBadgeMessage(); setAmountPaid();">
                 {% options c.BADGE_OPTS attendee.badge_type %}
             </select>
-            {% if c.AT_THE_CON %}
+            {% if c.AT_THE_CON and c.NUMBERED_BADGES %}
                 #<input class="focus" type="text" style="width:4em" name="badge_num" value='{{ attendee.badge_num|default:"" }}' />
             {% else %}
                 <span id="badge_message" style="font-style:italic"></span>
@@ -152,8 +152,10 @@
         <select name="ribbon">
             {% options c.RIBBON_OPTS attendee.ribbon %}
         </select>
-        {% if c.AT_THE_CON and not attendee.badge_num %}
+        {% if c.AT_THE_CON and not attendee.badge_num and c.NUMBERED_BADGES %}
             <br/> <input type="checkbox" name="omit_badge" value="yes" {% if omit_badge %}checked{% endif %} /> Omit badge number
+        {% elif c.AT_THE_CON and not attendee.checked_in and not c.NUMBERED_BADGES %}
+            <br/> <input type="checkbox" name="check_in" value="yes" {% if check_in %}checked{% endif %} /> Check in this attendee
         {% endif %}
         {% if attendee.badge_type == c.STAFF_BADGE %}
             &nbsp;&nbsp; [{{ attendee.hotel_status }}]
