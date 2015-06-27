@@ -576,7 +576,8 @@ class Session(SessionManager):
                 return out_of_range
 
             # Keeps non-preassigned badges numberless unless they've already been checked in.
-            if badge_type not in c.PREASSIGNED_BADGE_TYPES and not attendee.checked_in:
+            if badge_type not in c.PREASSIGNED_BADGE_TYPES and (not c.NUMBERED_BADGES or not attendee.checked_in):
+                attendee.badge_type = badge_type
                 attendee.badge_num = 0
                 return 'Badge updated'
 
