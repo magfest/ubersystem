@@ -21,7 +21,7 @@ class Root:
             'all_attendees': sorted([
                 (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
                 for id, name, badge_type, badge_num in session.query(Attendee.id, Attendee.full_name, Attendee.badge_type, Attendee.badge_num)
-                                                              .filter(Attendee.email != '').all()
+                                    .filter(Attendee.first_name != '').all()
             ], key=lambda tup: tup[1])
         }
 
@@ -139,6 +139,15 @@ class Root:
         out.writerow(["fullname", "email", "zipcode"])
         for a in session.query(Attendee).filter_by(staffing=True, placeholder=False).order_by('email').all():
             out.writerow([a.full_name, a.email, a.zip_code])
+
+    @unrestricted
+    def insert_test_admin(self, session):
+        if session.insert_test_admin_account():
+            msg = "Test admin account created successfully"
+        else:
+            msg = "Not allowed to create admin account at this time"
+
+        raise HTTPRedirect('login?message={}', msg)
 
     @unrestricted
     def sitemap(self):

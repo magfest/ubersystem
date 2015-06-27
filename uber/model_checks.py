@@ -25,6 +25,14 @@ def duplicate_admin(account):
                 return 'That attendee already has an admin account'
 
 
+@validation.AdminAccount
+def has_email_address(account):
+    if account.is_new:
+        with Session() as session:
+            if session.query(Attendee).filter_by(id=account.attendee_id).first().email == '':
+                return "Attendee doesn't have a valid email set"
+
+
 Event.required = [('name', 'Event Name')]
 
 
