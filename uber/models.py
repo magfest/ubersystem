@@ -539,8 +539,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.watchlist_entry and self.status == NEW_STATUS:
             self.status = DEFERRED_STATUS
 
-        if self.status == NEW_STATUS and not self.placeholder and (self.paid == HAS_PAID or self.paid == NEED_NOT_PAY):
-            self.status = COMPLETED_STATUS
+        if self.status == NEW_STATUS and not self.placeholder and self.first_name:
+            if (self.paid == HAS_PAID or self.paid == NEED_NOT_PAY) or (self.paid == PAID_BY_GROUP and not self.group.amount_unpaid):
+                self.status = COMPLETED_STATUS
         elif self.status == INVALID_STATUS and self.admin_account:
             Tracking.track(DELETED, self.admin_account)
             self.session.delete(self.admin_account)
