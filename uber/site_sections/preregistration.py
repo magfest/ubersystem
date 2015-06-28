@@ -67,7 +67,11 @@ class Root:
     def paid_preregs(self):
         return cherrypy.session.setdefault('paid_preregs', [])
 
-    def _get_unsaved(self, id, if_not_found=HTTPRedirect('index')):
+    def _get_unsaved(self, id, if_not_found=None):
+        """
+        if_not_found:  pass in an HTTPRedirect() class to raise if the unsaved attendee is not found.
+                       by default we will redirect to the index page
+        """
         if id in self.unpaid_preregs:
             target = Charge.from_sessionized(self.unpaid_preregs[id])
             if isinstance(target, Attendee):
@@ -76,7 +80,7 @@ class Root:
                 [leader] = [a for a in target.attendees if not a.is_unassigned]
                 return leader, target
         else:
-            raise if_not_found
+            raise HTTPRedirect('index') if if_not_found is None else if_not_found
 
     def stats(self):
         cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
