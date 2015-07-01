@@ -12,7 +12,8 @@
 body {margin: 0; padding: 0;}
 #container {position: relative; height: 600px; width: 800px;}
 #badge_type {
-	position: absolute; 
+	position: absolute;
+    text-align: right;
 	top: 10px; 
 	right: 20px;
 	font-size: 32pt;
@@ -46,7 +47,7 @@ body {margin: 0; padding: 0;}
 </head>
 <body>
     <div id="container">
-        <span id="badge_type">{{ badge_type }}</span>
+        <span id="badge_type">{{ badge_type|safe }}</span>
         <span id="badge_num">2015-{{ badge_num|stringformat:"04d" }}</span>
         <span id="badge_name">{{ badge_name }}</span>
     </div>
