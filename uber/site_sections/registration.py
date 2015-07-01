@@ -598,7 +598,8 @@ class Root:
             'badge_type': badge_type,
             'badge_num': attendee.badge_num,
             'badge_name': attendee.badge_printed_name,
-            'badge': True
+            'badge': True,
+            'minor': minor
         }
 
     def badge_waiting(self, message='', minor = None):
