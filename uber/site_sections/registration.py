@@ -578,16 +578,17 @@ class Root:
         if not attendee:
             raise HTTPRedirect('badge_waiting?minor={}'.format(minor))
 
-        badge_type = attendee.ribbon_and_or_badge
-
-        if attendee.staffing and attendee.badge_type != STAFF_BADGE:
-            badge_type += "/Volunteer"
+        ribbon_and_or_badge_type = attendee.ribbon_and_or_badge.split(' / ')
+        if len(ribbon_and_or_badge_type) > 1:
+            badge_type = ribbon_and_or_badge_type[0] + "<br />" + ribbon_and_or_badge_type[1]
+        else:
+            badge_type = ribbon_and_or_badge_type[0]
 
         # These are hardcoded values because there is no real support for multiple costs of the same kick-in level
         if attendee.amount_extra in [50] or attendee.donation_tier == SPONSOR:
-            badge_type += "/Sponsor"
+            badge_type += "<br />Sponsor"
         elif attendee.amount_extra in [195, 190] or attendee.donation_tier == SUPERSPONSOR:
-            badge_type += "/Supersponsor"
+            badge_type += "<br />Supersponsor"
 
         attendee.status = PRINTED_STATUS
         session.add(attendee)
