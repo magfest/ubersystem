@@ -569,7 +569,7 @@ class Root:
             'pending': pending
         }
 
-    def print_badges(self, session, minor=None):
+    def print_badges(self, session, minor=''):
         badge_list = session.query(Attendee).join(Attendee.age_group).filter(Attendee.status == COMPLETED_STATUS)
         badge_list = badge_list.filter(AgeGroup.min_age < 18) if minor else badge_list.filter(AgeGroup.min_age >= 18)
 
@@ -602,7 +602,7 @@ class Root:
             'minor': minor
         }
 
-    def badge_waiting(self, message='', minor = None):
+    def badge_waiting(self, message='', minor=''):
         return {
             'message': message,
             'minor': minor
