@@ -44,17 +44,17 @@
 <table class="table footable">
 <thead><tr>
     <th></th>
-    <th>Name</th>
-    <th>Email</th>
+    <th data-type="alpha">Name</th>
+    <th data-type="alpha">Email</th>
     <th data-hide="phone">Access</th>
 </tr></thead>
 
 <tbody>
 {% for account in accounts %}
-	<form class="form" method="post" action="update">
-		<tr id="{{ account.email|idize }}">
-			<td>
-			<div class="btn-group-vertical">
+    <tr>
+        <form class="form" method="post" action="update">
+			<td id="{{ account.email|idize }}">
+			<div class="btn-group-horizontal">
 				<button type="submit" class="btn btn-primary"><span class="glyphicon glyphicon-floppy-disk"></span></button>
 				<button type="button" class="btn btn-danger deleteButton"><span class="glyphicon glyphicon-trash"></span></button>
 			</div>
@@ -68,10 +68,13 @@
 				{% csrf_token %}
 				<div class="form-group">{% checkgroup account.access %}</div>
 			</td>
-		</tr>
-    </form>
+		</form>
+    </tr>
 {% endfor %}
 </tbody>
+	<caption align="bottom">
+		<ul class="pagination"></ul>
+	</caption>
 </table>
 </div>
 
