@@ -1,4 +1,30 @@
 <script type="text/javascript">
+    // Populates the "badge" choices
+        function setBadgeHTML(badge_price, sponsor_addon, super_sponsor_addon)
+        {
+            if (badge_label != "Attending") { var extra_badge_label = badge_label + " / " } else { var extra_badge_label = "" }
+
+            if (badge_price > 0) {
+                var price_display = ": $" + badge_price;
+            } else {
+                var price_display = ""
+            }
+            $('#attendee_select').html('<h4 class="list-group-item-heading">' +
+                    badge_label + price_display +
+                    '</h4>' + attendee_bump_warning +
+                    '<p class="list-group-item-text">Allows access to the convention{% if AT_THE_CON and ONE_DAYS_ENABLED %}.{% else %} for its duration.{% endif %}</p>');
+
+            var sponsor_badge_price = badge_price + sponsor_addon;
+            $('#featured1_select').html('<h4 class="list-group-item-heading">' +
+                    extra_badge_label + 'Sponsor: $' + sponsor_badge_price + '</h4>' + sponsor_bump_warning +
+                    '<p class="list-group-item-text">Donate extra and get perks on top of an attending membership.</p>');
+
+            var super_sponsor_badge_price = badge_price + super_sponsor_addon;
+            $('#featured2_select').html('<h4 class="list-group-item-heading">' +
+                    extra_badge_label + 'Supersponsor: $' + super_sponsor_badge_price + '</h4>' + ss_bump_warning +
+                    '<p class="list-group-item-text">The most generous option - get even more great perks!</p>');
+        }
+
 $(document).ready(function() {
     // Hard-coded "Sponsor" and "Supersponsor" prices. This should probably grab from PREREG_DONATION_OPTS
     var sponsor_addon = 50;
@@ -48,22 +74,10 @@ $(document).ready(function() {
         ss_bump_warning = "";
     {% endif %}
 
-    // Populates the "badge" choices
-    if (badge_price > 0) { var price_display = ": $"+badge_price; } else { var price_display = "" }
-    $('#attendee_select').html('<h4 class="list-group-item-heading">' +
-                                badge_label + price_display +
-                                '</h4>' + attendee_bump_warning +
-                                '<p class="list-group-item-text">Allows access to the convention{% if AT_THE_CON and ONE_DAYS_ENABLED %}.{% else %} for its duration.{% endif %}</p>');
+        var sponsor_badge_price = badge_price + sponsor_addon;
+        var super_sponsor_badge_price = badge_price + super_sponsor_addon;
 
-    var sponsor_badge_price = badge_price + sponsor_addon;
-    $('#featured1_select').html('<h4 class="list-group-item-heading">' +
-                                extra_badge_label + 'Sponsor: $'+sponsor_badge_price+'</h4>' + sponsor_bump_warning +
-                                '<p class="list-group-item-text">Donate extra and get perks on top of an attending membership.</p>');
-
-    var super_sponsor_badge_price = badge_price + super_sponsor_addon;
-    $('#featured2_select').html('<h4 class="list-group-item-heading">' +
-                                extra_badge_label + 'Supersponsor: $'+super_sponsor_badge_price+'</h4>' + ss_bump_warning +
-                                '<p class="list-group-item-text">The most generous option - get even more great perks!</p>');
+        setBadgeHTML(badge_price, sponsor_addon, super_sponsor_addon);
 
     // Sets the badge box to correspond to the the session's kick-in level
     if ($.val('amount_extra') === sponsor_addon) {
@@ -109,11 +123,13 @@ function setBadge(badgeType) {
         $(".badge_duration_selector").removeClass("active");
         {% if attendee.badge_type != PSEUDO_DEALER_BADGE %}if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ ATTENDEE_BADGE }}"); }{% endif %}
         $("#weekend_select").addClass("active");
+            setBadgeHTML({{ BADGE_PRICE }}, sponsor_addon, super_sponsor_addon);
     }
     if (badgeType == 'OneDay') {
         $(".badge_duration_selector").removeClass("active");
         {% if attendee.badge_type != PSEUDO_DEALER_BADGE %}if ("input[name='badge_type']") { $("input[name='badge_type']").val("{{ ONE_DAY_BADGE }}"); }{% endif %}
         $("#oneday_select").addClass("active");
+            setBadgeHTML({{ ONEDAY_BADGE_PRICE }}, sponsor_addon, super_sponsor_addon);
     }
     if (badgeType == 'Group') {
         $(".badge_type_selector").removeClass("active");
