@@ -453,6 +453,9 @@ class Root:
     def confirm(self, session, message='', return_to='confirm', **params):
         attendee = session.attendee(params, bools=_checkboxes, restricted=True)
 
+        if attendee.status == INVALID_STATUS:
+            return render('static_views/invalid_badge.html')
+
         placeholder = attendee.placeholder
         if 'email' in params:
             attendee.placeholder = False
