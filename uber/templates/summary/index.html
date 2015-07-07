@@ -13,16 +13,47 @@
 <tr>
     <td></td>
     <td><u>Badge Type</u></td>
-    <td><u>Paid Badges</u></td>
+    <td><u>Paid/Comped Badges</u></td>
     <td><u>Unpaid Badges</u></td>
+    <td><u>Refunded Badges</u></td>
+    <td><u>Deferred Badges</u></td>
+    <td><u>All Valid Badges</u></td>
     <td><u>All Badges</u></td>
 </tr>
-{% for desc,total,unpaid,paid in badge_counts %}
+{% for desc,total,valid,unpaid,paid,refunded,deferred in badge_counts %}
     <tr>
         <td> <ul><li></li></ul> </td>
         <td> <i>{{ desc }}</i> </td>
         <td align="center"> {{ paid }} </td>
         <td align="center"> {{ unpaid }} </td>
+        <td align="center"> {{ refunded }} </td>
+        <td align="center"> {{ deferred }} </td>
+        <td align="center"> {{ valid }} </td>
+        <td align="center"> {{ total }} </td>
+    </tr>
+{% endfor %}
+</table>
+
+<br/>
+<b>Registrations By Status</b>
+<table style="width:auto ; border-spacing:0px">
+<tr>
+    <td></td>
+    <td><u>Badge Status</u></td>
+    <td><u>New</u></td>
+    <td><u>Completed/Printed</u></td>
+    <td><u>Refunded</u></td>
+    <td><u>Deferred</u></td>
+    <td><u>All Badges</u></td>
+</tr>
+{% for desc,total,new,complete,refunded,deferred in alt_badge_counts %}
+    <tr>
+        <td> <ul><li></li></ul> </td>
+        <td> <i>{{ desc }}</i> </td>
+        <td align="center"> {{ new }} </td>
+        <td align="center"> {{ complete }} </td>
+        <td align="center"> {{ refunded }} </td>
+        <td align="center"> {{ deferred }} </td>
         <td align="center"> {{ total }} </td>
     </tr>
 {% endfor %}
