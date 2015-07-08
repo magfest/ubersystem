@@ -548,7 +548,7 @@ class Root:
 
         raise HTTPRedirect('form?id={}&message={}', attendee_id, message)
 
-    def printed_badges(self, session, page='1', message='', id=None, pending=None, reprint_reason=''):
+    def printed_badges(self, session, page='1', message='', id=None, pending='', reprint_reason=''):
         if id:
             attendee = session.attendee(id)
             attendee.status = COMPLETED_STATUS
