@@ -18,7 +18,7 @@
         {% if pagenum == page %}
             {{ pagenum }}
         {% else %}
-            <a href="index?page={{ pagenum }}">{{ pagenum }}</a>
+            <a href="printed_badges?pending={{ pending }}&page={{ pagenum }}">{{ pagenum }}</a>
         {% endif %}
     {% endfor %}
 {% if page %}
