@@ -548,7 +548,7 @@ class Root:
 
         raise HTTPRedirect('form?id={}&message={}', attendee_id, message)
 
-    def printed_badges(self, session, message='', id=None, pending=None, reprint_reason=''):
+    def printed_badges(self, session, page='1', message='', id=None, pending=None, reprint_reason=''):
         if id:
             attendee = session.attendee(id)
             attendee.status = COMPLETED_STATUS
@@ -563,7 +563,14 @@ class Root:
         else:
             badges = session.query(Attendee).filter(Attendee.status == PRINTED_STATUS).order_by(Attendee.badge_num).all()
 
+        page = int(page)
+        count = len(badges)
+        pages = range(1, int(math.ceil(count / 100)) + 1)
+        badges = badges[-100 + 100*page : 100*page] if page else []
+
         return {
+            'page':           page,
+            'pages':          pages,
             'message':    message,
             'badges':     badges,
             'pending': pending

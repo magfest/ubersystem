@@ -13,7 +13,15 @@
 </div>
 
 <br/>
-
+<div class="panel panel-default">
+    {% for pagenum in pages %}
+        {% if pagenum == page %}
+            {{ pagenum }}
+        {% else %}
+            <a href="index?page={{ pagenum }}">{{ pagenum }}</a>
+        {% endif %}
+    {% endfor %}
+{% if page %}
 <table class="table footable" data-page-size="9999999">
 <thead><tr>
     <th>Legal Name</th>
@@ -52,5 +60,6 @@
     </tr>
 {% endfor %}
 </table>
+    {% endif %}
 
 {% endblock %}
