@@ -13,6 +13,8 @@
 <table class="table table-striped footable" data-filter="#filter" data-page-navigation=".pagination" data-limit-navigation="20">
     <thead><tr>
         <th data-type="alpha">Name</th>
+        <th data-type="alpha">Email Address</th>
+        <th data-type="numeric">Date of Birth</th>
         <th data-type="alpha">Reason</th>
         <th data-type="alpha">Action</th>
         <th data-type="numeric">Disabled?</th>
@@ -22,6 +24,8 @@
         <form method="post" action="watch_list">{% csrf_token %}
         <td><input type="text" name="first_name" placeholder="First Name" value="{{ new_watch.first_name }}" />
         <input type="text" name="last_name" placeholder="Last Name" value="{{ new_watch.last_name }}" /></td>
+        <td><input type="text" name="email" placeholder="Email Address" value="{{ new_watch.email }}"/> </td>
+        <td><input type='text' class="form-control date" name="birthdate" value="{{ new_watch.birthdate|date:'Y-m-d'}}"/></td>
         <td><textarea name="reason" placeholder="The reason they're on the watch list.">{{ new_watch.reason }}</textarea></td>
         <td><textarea name="action" placeholder="What they need to do before checking in.">{{ new_watch.action }}</textarea></td>
         <td>{% checkbox new_watch.disabled %}</td>
@@ -32,6 +36,8 @@
         <form method="post" action="watch_list">{% csrf_token %}<input type="hidden" name="id" value="{{ attendee.id }}" />
         <td><input type="text" name="first_name" placeholder="First Name" value="{{ attendee.first_name }}" />
         <input type="text" name="last_name" placeholder="Last Name" value="{{ attendee.last_name }}" /></td>
+        <td><input type="text" name="email" placeholder="Email Address" value="{{ attendee.email }}"/> </td>
+        <td><input type='text' class="form-control date" name="birthdate" value="{{ attendee.birthdate|date:'Y-m-d'}}"/></td>
         <td><textarea name="reason" placeholder="The reason they're on the watch list.">{{ attendee.reason }}</textarea></td>
         <td><textarea name="action" placeholder="What they need to do before checking in.">{{ attendee.action }}</textarea></td>
         <td>{% checkbox attendee.disabled %}</td>
