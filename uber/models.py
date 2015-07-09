@@ -870,12 +870,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def new_ribbon(self):
-        ribbons = {a.ribbon for a in self.attendees}
-        for ribbon in [c.BAND_RIBBON]:
-            if ribbon in ribbons:
-                return ribbon
-        else:
-            return c.DEALER_ASST_RIBBON if self.is_dealer else c.NO_RIBBON
+        return c.DEALER_RIBBON if self.is_dealer else c.NO_RIBBON
 
     @property
     def ribbon_and_or_badge(self):
@@ -996,7 +991,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     admin_notes = Column(UnicodeText, admin_only=True)
 
     badge_num  = Column(Integer, default=0, nullable=True, admin_only=True)
-    badge_type = Column(Choice(c.BADGE_OPTS), default=c.ATTENDEE_BADGE, admin_only=True)
+    badge_type = Column(Choice(c.BADGE_OPTS), default=c.ATTENDEE_BADGE)
     ribbon     = Column(Choice(c.RIBBON_OPTS), default=c.NO_RIBBON, admin_only=True)
 
     affiliate    = Column(UnicodeText)
