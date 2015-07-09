@@ -869,29 +869,27 @@ class Root:
 
             if not message:
                 session.add(watch_entry)
-                if not watch_entry.id:
+                if not watch_entry.id in watched_attendees:
                     message = 'New watch list item added.'
                 else:
                     message = 'Watch list item updated.'
 
-                try:
-                    matching_attendee = session.query(Attendee).filter(and_(Attendee.first_name == watch_entry.first_name,
-                                                                        Attendee.last_name == watch_entry.last_name)).one()
-                except:
-                    matching_attendee = None
+                matching_attendee = session.query(Attendee).filter(and_(Attendee.first_name == watch_entry.first_name,
+                                                                        Attendee.last_name == watch_entry.last_name))
 
-                if matching_attendee:
-                    if not watch_entry.disabled and matching_attendee.status in [NEW_STATUS, COMPLETED_STATUS, PRINTED_STATUS]:
-                        if not watch_entry.id or matching_attendee.status == NEW_STATUS:
-                            matching_attendee.status = DEFERRED_STATUS
-                    elif watch_entry.disabled and matching_attendee.status == DEFERRED_STATUS:
-                        matching_attendee.status = NEW_STATUS
-                    message += ' Attendee {0.full_name} is now {0.status_label} status.'.format(matching_attendee)
-                    session.add(matching_attendee)
+                for attendee in matching_attendee:
+                    if not watch_entry.disabled and attendee.status in [NEW_STATUS, COMPLETED_STATUS, PRINTED_STATUS]:
+                        if not watch_entry.id in watched_attendees or attendee.status == NEW_STATUS:
+                            attendee.status = DEFERRED_STATUS
+                    elif watch_entry.disabled and attendee.status == DEFERRED_STATUS:
+                        attendee.status = NEW_STATUS
+                    message += ' Attendee {0.full_name} is now {0.status_label} status.'.format(attendee)
+                    session.add(attendee)
 
                 session.commit()
 
                 watch_entry = WatchList()
+                watched_attendees = session.query(WatchList).order_by(WatchList.last_name).all()
 
         return {
             'new_watch': watch_entry,
