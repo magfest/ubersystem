@@ -563,6 +563,10 @@ class Attendee(MagModel, TakesPaymentMixin):
             elif self.has_personalized_badge and not self.badge_num:
                 if self.paid != NOT_PAID:
                     self.badge_num = self.session.next_badge_num(self.badge_type, old_badge_num=0)
+        elif AT_THE_CON:
+            if self.has_personalized_badge and not self.badge_num:
+                if self.paid != NOT_PAID:
+                    self.badge_num = self.session.next_badge_num(self.badge_type, old_badge_num=0)
 
     def _staffing_adjustments(self):
         if self.ribbon == DEPT_HEAD_RIBBON:
