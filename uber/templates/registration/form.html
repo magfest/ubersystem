@@ -178,7 +178,7 @@
             {% options RIBBON_OPTS attendee.ribbon %}
         </select>
         {% if AT_THE_CON and not attendee.badge_num %}
-            <br/> <input type="checkbox" name="omit_badge" value="yes" {% if omit_badge %}checked{% endif %} /> Omit badge number
+            <br/> <input type="checkbox" name="omit_badge" value="yes" checked /> Omit badge number
         {% endif %}
         {% if attendee.badge_type == STAFF_BADGE %}
             &nbsp;&nbsp; [{{ attendee.hotel_status }}]
