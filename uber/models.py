@@ -608,7 +608,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         elif self.ribbon in [DEALER_RIBBON, DEALER_ASST_RIBBON]:
             return self.ribbon_label
         else:
-            return self.badge_type_label
+            if self.badge_type == STAFF_OVERFLOW:
+                return "Staff"
+            else:
+                return self.badge_type_label
 
     @property
     def badge_cost(self):
