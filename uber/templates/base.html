@@ -112,7 +112,7 @@ $(document).ready(function() {
     {% block head_additional %}{% endblock %}
 </head>
 <body>
-{% if not OFFLINE_MODE %}<div class="loader"><a class="loader_link" href="../static_views/slow_load.html" target="_blank"></a></div>{% endif %}
+{% if not OFFLINE_MODE and not COLLECT_INTERESTS %}<div class="loader"><a class="loader_link" href="../static_views/slow_load.html" target="_blank"></a></div>{% endif %}
 {% block top_of_body_additional %}{%  endblock %}
 <div id="mainContainer" class="container-fluid">
 {% block top %}
@@ -211,6 +211,10 @@ $(document).ready(function() {
 
 {% if HAS_CHECKINS_ACCESS %}
         <li class="{% if not AT_THE_CON %}disabled{% endif %}"> <a {% if AT_THE_CON %}href="../tabletop/"{% endif %}>Tabletop</a> </li>
+{% endif %}
+
+{% if HAS_STATS_ACCESS %}
+        <li> <a href="../summary/">Stats Summary</a> </li>
 {% endif %}
     </ul>
     </div><!-- /.navbar-collapse -->
