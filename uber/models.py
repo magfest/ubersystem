@@ -606,6 +606,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.ribbon in [DEALER_RIBBON, DEALER_ASST_RIBBON] and self.badge_type != ATTENDEE_BADGE:
             if self.badge_type == STAFF_OVERFLOW:
                 return "Staff / " + self.ribbon_label
+            elif self.badge_type == ONE_DAY_BADGE:
+                return datetime.strftime(localized_now(), "%A") + " / " + self.ribbon_label
             else:
                 return self.badge_type_label + " / " + self.ribbon_label
         elif self.ribbon in [DEALER_RIBBON, DEALER_ASST_RIBBON]:
@@ -613,6 +615,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         else:
             if self.badge_type == STAFF_OVERFLOW:
                 return "Staff"
+            elif self.badge_type == ONE_DAY_BADGE:
+                return datetime.strftime(localized_now(), "%A")
             else:
                 return self.badge_type_label
 
