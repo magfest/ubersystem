@@ -3,22 +3,6 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-<script type="text/javascript">
-function PopIt() { if($('.stripe_checkout_app').filter(":hidden").length){
-        /* don't return anything */
-        } else {
-        return "You're not done registering! Please wait until you see the confirmation page.";
-    } }
-function UnPopIt()  { /* nothing to return */ }
-
-jQuery(document).ready(function() {
-window.onbeforeunload = PopIt;
-jQuery("a").click(function(){ window.onbeforeunload = UnPopIt; });
-$(".buttonsView").children().click(function(){ window.onbeforeunload = UnPopIt; });
-$(".stripe").css('display', 'inline');
-});
-</script>
-
 <div class="masthead">
 </div>
 
@@ -98,9 +82,9 @@ $(".stripe").css('display', 'inline');
         <th></th>
     </tr>
 </tfoot>
+{% endif %}
 
 </table></div>
-{% endif %}
 
 <div class="row">
 <div class="row">
@@ -110,10 +94,10 @@ $(".stripe").css('display', 'inline');
             <br/>If you pay now and cannot pick up your badge, there are no refunds!</strong></div>
         <div class="row">
             <a href="index?payment_method={{ CASH }}"><button class="btn btn-success">Pay with Cash</button></a>
-            {% if not OFFLINE_MODE %}{% stripe_form take_payment charge %}{% endif %}
+            {% if not OFFLINE_MODE %}{% stripe_form prereg_payment charge %}{% endif %}
             <a href="index?payment_method={{ SQUARE }}"><button class="btn btn-info">Pay with Card at the Desk</button></a>
         {% else %}
-            {% stripe_form take_payment charge %}
+            {% stripe_form prereg_payment charge %}
         {% endif %}
     </div>
     <div class="text-center">
@@ -121,9 +105,11 @@ $(".stripe").css('display', 'inline');
         <a href="form"><button class="btn btn-default">Add Another Person</button></a>
     </div>
 </div>
+
 </div>
+{% include "preregistration/disclaimers.html" %}
+
 </div>
 
-{% include "preregistration/disclaimers.html" %}
 </div>
 {% endblock %}
