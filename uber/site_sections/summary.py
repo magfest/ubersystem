@@ -5,12 +5,42 @@ class Root:
     def index(self, session):
         attendees, groups = session.everyone()
         count = lambda **kwargs: len([a for a in attendees if all(val == getattr(a, name) for name, val in kwargs.items())])
+        badge_counts = [(desc, count(badge_type=bt),
+                         len([a for a in attendees if a.badge_type == bt and not a.donation_tier and not a.amount_extra and a.status in [NEW_STATUS, COMPLETED_STATUS, PRINTED_STATUS]]),
+                         len([a for a in attendees if a.paid == NOT_PAID and a.badge_type == bt and a.status in [NEW_STATUS, COMPLETED_STATUS, PRINTED_STATUS]]),
+                         len([a for a in attendees if a.paid != NOT_PAID and a.badge_type == bt and a.status in [NEW_STATUS, COMPLETED_STATUS, PRINTED_STATUS]]),
+                         count(status=REFUNDED_STATUS, badge_type=bt),
+                         count(status=DEFERRED_STATUS, badge_type=bt)) for bt, desc in BADGE_OPTS]
+        badge_counts += [("Sponsor", len([a for a in attendees if a.amount_extra == 50 or a.donation_tier == SPONSOR]),
+                          len([a for a in attendees if a.amount_extra == 50 or a.donation_tier == SPONSOR and a.status in [NEW_STATUS, COMPLETED_STATUS, PRINTED_STATUS]]),
+                          len([a for a in attendees if a.amount_extra == 50 or a.donation_tier == SPONSOR and a.status in [NEW_STATUS, COMPLETED_STATUS, PRINTED_STATUS] and a.paid == NOT_PAID]),
+                          len([a for a in attendees if a.amount_extra == 50 or a.donation_tier == SPONSOR and a.status in [NEW_STATUS, COMPLETED_STATUS, PRINTED_STATUS] and a.paid != NOT_PAID]),
+                          len([a for a in attendees if a.amount_extra == 50 or a.donation_tier == SPONSOR and a.status == REFUNDED_STATUS]),
+                          len([a for a in attendees if a.amount_extra == 50 or a.donation_tier == SPONSOR and a.status == DEFERRED_STATUS]))]
+        badge_counts += [("Supersponsor", len([a for a in attendees if a.amount_extra in [190, 195] or a.donation_tier == SUPERSPONSOR]),
+                          len([a for a in attendees if a.amount_extra in [190, 195] or a.donation_tier == SUPERSPONSOR and a.status in [NEW_STATUS, COMPLETED_STATUS, PRINTED_STATUS]]),
+                          len([a for a in attendees if a.amount_extra in [190, 195] or a.donation_tier == SUPERSPONSOR and a.status in [NEW_STATUS, COMPLETED_STATUS, PRINTED_STATUS] and a.paid == NOT_PAID]),
+                          len([a for a in attendees if a.amount_extra in [190, 195] or a.donation_tier == SUPERSPONSOR and a.status in [NEW_STATUS, COMPLETED_STATUS, PRINTED_STATUS] and a.paid != NOT_PAID]),
+                          len([a for a in attendees if a.amount_extra in [190, 195] or a.donation_tier == SUPERSPONSOR and a.status == REFUNDED_STATUS]),
+                          len([a for a in attendees if a.amount_extra in [190, 195] or a.donation_tier == SUPERSPONSOR and a.status == DEFERRED_STATUS]))]
+        alt_badge_counts = [(desc, count(badge_type=bt), count(status=NEW_STATUS, badge_type=bt), count(status=PRINTED_STATUS, badge_type=bt) + count(status=COMPLETED_STATUS, badge_type=bt), count(status=REFUNDED_STATUS, badge_type=bt), count(status=DEFERRED_STATUS, badge_type=bt)) for bt, desc in BADGE_OPTS]
+        alt_badge_counts += [("Sponsor", len([a for a in attendees if a.amount_extra == 50 or a.donation_tier == SPONSOR]),
+                              len([a for a in attendees if a.amount_extra == 50 or a.donation_tier == SPONSOR and a.status == NEW_STATUS]),
+                              len([a for a in attendees if a.amount_extra == 50 or a.donation_tier == SPONSOR and a.status in [COMPLETED_STATUS, PRINTED_STATUS]]),
+                              len([a for a in attendees if a.amount_extra == 50 or a.donation_tier == SPONSOR and a.status == REFUNDED_STATUS]),
+                              len([a for a in attendees if a.amount_extra == 50 or a.donation_tier == SPONSOR and a.status == DEFERRED_STATUS]))]
+        alt_badge_counts += [("Supersponsor", len([a for a in attendees if a.amount_extra in [190, 195] or a.donation_tier == SUPERSPONSOR]),
+                              len([a for a in attendees if a.amount_extra in [190, 195] or a.donation_tier == SUPERSPONSOR and a.status == NEW_STATUS]),
+                              len([a for a in attendees if a.amount_extra in [190, 195] or a.donation_tier == SUPERSPONSOR and a.status in [COMPLETED_STATUS, PRINTED_STATUS]]),
+                              len([a for a in attendees if a.amount_extra in [190, 195] or a.donation_tier == SUPERSPONSOR and a.status == REFUNDED_STATUS]),
+                              len([a for a in attendees if a.amount_extra in [190, 195] or a.donation_tier == SUPERSPONSOR and a.status == DEFERRED_STATUS]))]
+        alt_badge_counts += [("Total", count(), count(status=NEW_STATUS), count(status=PRINTED_STATUS) + count(status=COMPLETED_STATUS), count(status=REFUNDED_STATUS), count(status=DEFERRED_STATUS))]
         return {
             'total_count':   len(attendees),
             'shirt_sizes':   [(desc, count(shirt=shirt)) for shirt, desc in SHIRT_OPTS],
             'paid_counts':   [(desc, count(paid=status)) for status, desc in PAYMENT_OPTS],
-            'badge_counts':  [(desc, count(badge_type=bt), len([a for a in attendees if a.badge_type == bt and a.status in [NEW_STATUS, COMPLETED_STATUS, PRINTED_STATUS]]), len([a for a in attendees if a.paid == NOT_PAID and a.badge_type == bt and a.status in [NEW_STATUS, COMPLETED_STATUS, PRINTED_STATUS]]), len([a for a in attendees if a.paid != NOT_PAID and a.badge_type == bt and a.status in [NEW_STATUS, COMPLETED_STATUS, PRINTED_STATUS]]), count(status=REFUNDED_STATUS, badge_type=bt), count(status=DEFERRED_STATUS, badge_type=bt)) for bt, desc in BADGE_OPTS],
-            'alt_badge_counts':  [(desc, count(badge_type=bt), count(status=NEW_STATUS, badge_type=bt), count(status=PRINTED_STATUS, badge_type=bt) + count(status=COMPLETED_STATUS, badge_type=bt), count(status=REFUNDED_STATUS, badge_type=bt), count(status=DEFERRED_STATUS, badge_type=bt)) for bt, desc in BADGE_OPTS],
+            'badge_counts':  badge_counts,
+            'alt_badge_counts':  alt_badge_counts,
             'aff_counts':    [(aff['text'], count(badge_type=SUPPORTER_BADGE, affiliate=aff['text'], paid=HAS_PAID), count(badge_type=SUPPORTER_BADGE, affiliate=aff['text'], paid=NOT_PAID)) for aff in session.affiliates()],
             'checkin_count': len([a for a in attendees if a.checked_in]),
             'paid_noshows':  count(paid=HAS_PAID, checked_in=None) + len([a for a in attendees if a.paid == PAID_BY_GROUP and a.group and a.group.amount_paid and not a.checked_in]),
