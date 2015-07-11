@@ -244,8 +244,12 @@ class Root:
                 send_banned_email(group.leader)
 
         self.unpaid_preregs.clear()
-        self.paid_preregs.extend(charge.targets)
-        raise HTTPRedirect('paid_preregistrations?payment_received={}', charge.dollar_amount)
+        if PRE_CON:
+            self.paid_preregs.extend(charge.targets)
+            raise HTTPRedirect('paid_preregistrations?payment_received={}', charge.dollar_amount)
+        else:
+            self.paid_preregs.clear()
+            raise HTTPRedirect('form?message={}', "Thank you! Please proceed to the registration line to check in and get your badge.")
 
     def paid_preregistrations(self, session, payment_received=None):
         if not self.paid_preregs:
