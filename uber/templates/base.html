@@ -98,13 +98,17 @@
             });
             $('.focus:first').focus();
             if (window.DISABLE_STRIPE_BUTTONS_ON_CLICK) {
-                $('form.stripe').on('click', 'button', function() {
-                    $('a > .stripe-button-el').unwrap().attr('disabled', true).unwrap()
+                // we can't intercept the Javascript form submit, so once someone has clicked the Stripe
+                // submit button, listen for us leaving the page and disable the buttons then
+                $(document).on('click', 'form > .stripe-button-el', function () {
+                    $(window).on('beforeunload', function () {
+                        $('a > .stripe-button-el').unwrap().prop('disabled', true).unwrap();
+                    });
                 });
             }
             // prevent people from paying after prereg closes
             {% if c.PRE_CON %}
-                if ($('form.stripe').length) {
+                if ($('form.stripe').size()) {
                     var prevHour = new Date().getHours();
                     var checkHour = function() {
                         var currHour = new Date().getHours();

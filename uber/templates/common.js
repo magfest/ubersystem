@@ -97,18 +97,18 @@ var $undoForm = function (path, params, linkText) {
 };
 
 function showTop (message) {
-    $("#top").show("fast").find("td:first").html(message);
+    $('#top').show('fast').find('td:first').html(message);
 }
 function hideTop () {
-    $("#top").hide("fast");
+    $('#top').hide('fast');
 }
 
 $(function () {
-    $(".datepicker").datepicker({
+    $('.datepicker').datepicker({
         changeMonth: true,
         changeYear: true,
-        yearRange: "-100:+0",
-        defaultDate: "-20y",
-        dateFormat: "yy-mm-dd"
+        yearRange: '-100:+0',
+        defaultDate: '-20y',
+        dateFormat: 'yy-mm-dd'
     });
 });
