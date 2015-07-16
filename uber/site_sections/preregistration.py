@@ -40,11 +40,11 @@ def check_post_con(klass):
         def wrapped(self, *args, **kwargs):
             if c.POST_CON:  # TODO: replace this with a template and make that suitably generic
                 return """
-                    <html><head></head><body style='text-align:center'>
-                        <h2 style='color:red'>Hope you had a great MAGFest!</h2>
-                        Preregistration for MAGFest 13 will open in the summer.
-                    </body></html>
-                """
+                <html><head></head><body style='text-align:center'>
+                    <h2 style='color:red'>Hope you had a great {event}!</h2>
+                    Preregistration for {event} {year} will open in a few months.
+                </body></html>
+                """.format(event=EVENT_NAME, year=(1 + int(YEAR)) if YEAR else '')
             else:
                 return func(self, *args, **kwargs)
         return wrapped
@@ -67,7 +67,11 @@ class Root:
     def paid_preregs(self):
         return cherrypy.session.setdefault('paid_preregs', [])
 
-    def _get_unsaved(self, id, if_not_found=HTTPRedirect('index')):
+    def _get_unsaved(self, id, if_not_found=None):
+        """
+        if_not_found:  pass in an HTTPRedirect() class to raise if the unsaved attendee is not found.
+                       by default we will redirect to the index page
+        """
         if id in self.unpaid_preregs:
             target = Charge.from_sessionized(self.unpaid_preregs[id])
             if isinstance(target, Attendee):
@@ -76,7 +80,7 @@ class Root:
                 [leader] = [a for a in target.attendees if not a.is_unassigned]
                 return leader, target
         else:
-            raise if_not_found
+            raise HTTPRedirect('index') if if_not_found is None else if_not_found
 
     def stats(self):
         cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
@@ -276,7 +280,7 @@ class Root:
 
     def group_members(self, session, id, message=''):
         group = session.group(id)
-        charge = Charge([group, group.leader]) if group.leader else Charge(group, group.leader)
+        charge = Charge([group, group.leader]) if group.leader else Charge(group)
         return {
             'group':   group,
             'charge':  charge,

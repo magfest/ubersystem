@@ -13,24 +13,16 @@ def print_config():
 
 @entry_point
 def insert_admin():
+    Session.initialize_db(modify_tables=True)
     with Session() as session:
-        attendee = Attendee(
-            placeholder=True,
-            first_name='Test',
-            last_name='Developer',
-            email='magfest@example.com',
-            badge_type=c.ATTENDEE_BADGE,
-        )
-        session.add(attendee)
-        session.add(AdminAccount(
-            attendee=attendee,
-            access=','.join(str(level) for level, name in c.ACCESS_OPTS),
-            hashed=bcrypt.hashpw('magfest', bcrypt.gensalt())
-        ))
+        if session.insert_test_admin_account():
+            print("Test admin account created successfully")
+        else:
+            print("Not allowed to create admin account at this time")
 
 
 @entry_point
 def reset_uber_db():
     assert c.DEV_BOX, 'reset_uber_db is only available on development boxes'
-    Session.initialize_db(drop=True)
+    Session.initialize_db(drop=True, modify_tables=True)
     insert_admin()

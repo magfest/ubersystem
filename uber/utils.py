@@ -9,13 +9,17 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
         raise HTTPRedirect('foo?message={}'.format(quote(bar)))
     we can say
         raise HTTPRedirect('foo?message={}', bar)
+
+    EXTREMELY IMPORTANT: If you pass in a relative URL, this class will use the
+    current querystring to build an absolute URL.  Therefore it's EXTREMELY IMPORTANT
+    that the only time you create this class is in the context of a pageload.
+
+    Do not persist this class, only create it when needed.
     """
     def __init__(self, page, *args, **kwargs):
         args = [self.quote(s) for s in args]
         kwargs = {k: self.quote(v) for k, v in kwargs.items()}
         cherrypy.HTTPRedirect.__init__(self, page.format(*args, **kwargs))
-        if c.URL_BASE.startswith('https'):
-            self.urls[0] = self.urls[0].replace('http://', 'https://')
 
     def quote(self, s):
         return quote(s) if isinstance(s, str) else str(s)
@@ -289,3 +293,12 @@ def static_overrides(dirname):
                 'tools.staticfile.on': True,
                 'tools.staticfile.filename': os.path.join(dpath, fname)
             }
+
+
+def mount_site_sections(module_root):
+    from uber.server import Root
+    sections = [path.split('/')[-1][:-3] for path in glob(os.path.join(module_root, 'site_sections', '*.py'))
+                                         if not path.endswith('__init__.py')]
+    for section in sections:
+        module = importlib.import_module(basename(module_root) + '.site_sections.' + section)
+        setattr(Root, section, module.Root())

@@ -416,6 +416,31 @@ class NightsMixin(object):
 class Session(SessionManager):
     engine = sqlalchemy.create_engine(c.SQLALCHEMY_URL, pool_size=50, max_overflow=100)
 
+    @classmethod
+    def initialize_db(cls, modify_tables=False, drop=False):
+        """
+        Initialize the database and optionally create/drop tables
+
+        Initializes the database connection for use, and attempt to create any
+        tables registered in our metadata which do not actually exist yet in the
+        database.
+
+        This calls the underlying sideboard function, HOWEVER, in order to actually create
+        any tables, you must specify modify_tables=True.  The reason is, we need to wait for
+        all models from all plugins to insert their mixin data, so we wait until one spot
+        in order to create the database tables.
+
+        Any calls to initialize_db() that do not specify modify_tables=True are ignored.
+        i.e. anywhere in Sideboard that calls initialize_db() will be ignored
+        i.e. ubersystem is forcing all calls that don't specify modify_tables=True to be ignored
+
+        Keyword Arguments:
+        modify_tables -- If False, this function does nothing.
+        drop -- USE WITH CAUTION: If True, then we will drop any tables in the database
+        """
+        if modify_tables:
+            super(Session, cls).initialize_db(drop=drop)
+
     class QuerySubclass(Query):
         @property
         def is_single_table_query(self):
@@ -551,7 +576,8 @@ class Session(SessionManager):
                 return out_of_range
 
             # Keeps non-preassigned badges numberless unless they've already been checked in.
-            if badge_type not in c.PREASSIGNED_BADGE_TYPES and not attendee.checked_in:
+            if badge_type not in c.PREASSIGNED_BADGE_TYPES and (not c.NUMBERED_BADGES or not attendee.checked_in):
+                attendee.badge_type = badge_type
                 attendee.badge_num = 0
                 return 'Badge updated'
 
@@ -718,6 +744,34 @@ class Session(SessionManager):
                 'total': max(0, amt)
             } for aff, amt in sorted(amounts.items(), key=lambda tup: -tup[1])]
 
+        def insert_test_admin_account(self):
+            """
+            insert a test admin into the database with username "magfest@example.com" password "magfest"
+            this is ONLY allowed if no other admins already exist in the database.
+
+            :param session: database session object
+            :return: True if success, False if failure
+            """
+            if self.query(sa.AdminAccount).count() != 0:
+                return False
+
+            attendee = sa.Attendee(
+                placeholder=True,
+                first_name='Test',
+                last_name='Developer',
+                email='magfest@example.com',
+                badge_type=c.ATTENDEE_BADGE,
+            )
+            self.add(attendee)
+
+            self.add(sa.AdminAccount(
+                attendee=attendee,
+                access=','.join(str(level) for level, name in c.ACCESS_OPTS),
+                hashed=bcrypt.hashpw('magfest', bcrypt.gensalt())
+            ))
+
+            return True
+
     @classmethod
     def model_mixin(cls, model):
         if model.__name__ in ['SessionMixin', 'QuerySubclass']:
@@ -729,9 +783,16 @@ class Session(SessionManager):
             else:
                 raise ValueError('No existing model with name {}'.format(model.__name__))
 
-        for attr in dir(model):
-            if not attr.startswith('_'):
-                setattr(target, attr, getattr(model, attr))
+        for name in dir(model):
+            if not name.startswith('_'):
+                attr = getattr(model, name)
+                if hasattr('target', '__table__') and name in target.__table__.c:
+                    attr.key = attr.key or name
+                    attr.name = attr.name or name
+                    attr.table = target.__table__
+                    target.__table__.c.replace(attr)
+                else:
+                    setattr(target, name, attr)
         return target
 
 
@@ -809,12 +870,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def new_ribbon(self):
-        ribbons = {a.ribbon for a in self.attendees}
-        for ribbon in [c.BAND_RIBBON]:
-            if ribbon in ribbons:
-                return ribbon
-        else:
-            return c.DEALER_ASST_RIBBON if self.is_dealer else c.NO_RIBBON
+        return c.DEALER_RIBBON if self.is_dealer else c.NO_RIBBON
 
     @property
     def ribbon_and_or_badge(self):
@@ -908,7 +964,7 @@ class Group(MagModel, TakesPaymentMixin):
 
 class Attendee(MagModel, TakesPaymentMixin):
     group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
-    group = relationship(Group, backref='attendees', foreign_keys=group_id, cascade='all')
+    group = relationship(Group, backref='attendees', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
 
     placeholder   = Column(Boolean, default=False, admin_only=True)
     first_name    = Column(UnicodeText)
@@ -935,7 +991,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     admin_notes = Column(UnicodeText, admin_only=True)
 
     badge_num  = Column(Integer, default=0, nullable=True, admin_only=True)
-    badge_type = Column(Choice(c.BADGE_OPTS), default=c.ATTENDEE_BADGE, admin_only=True)
+    badge_type = Column(Choice(c.BADGE_OPTS), default=c.ATTENDEE_BADGE)
     ribbon     = Column(Choice(c.RIBBON_OPTS), default=c.NO_RIBBON, admin_only=True)
 
     affiliate    = Column(UnicodeText)
@@ -954,7 +1010,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     amount_paid      = Column(Integer, default=0, admin_only=True)
     amount_extra     = Column(Choice(c.DONATION_TIER_OPTS, allow_unspecified=True), default=0)
     amount_refunded  = Column(Integer, default=0, admin_only=True)
-    payment_method   = Column(Choice(c.PAYMENT_METHOD_OPTS), nullable=True, admin_only=True)
+    payment_method   = Column(Choice(c.PAYMENT_METHOD_OPTS), nullable=True)
 
     badge_printed_name = Column(UnicodeText)
 
@@ -975,7 +1031,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     games  = relationship('Game', backref='attendee')
     shifts = relationship('Shift', backref='attendee')
     checkouts = relationship('Checkout', backref='attendee')
-    sales = relationship('Sale', backref='attendee', cascade='all')
+    sales = relationship('Sale', backref='attendee', cascade='save-update,merge,refresh-expire,expunge')
     mpoints_for_cash = relationship('MPointsForCash', backref='attendee')
     assigned_panelists = relationship('AssignedPanelist', backref='attendee')
     old_mpoint_exchanges = relationship('OldMPointExchange', backref='attendee')
@@ -1006,7 +1062,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if c.AT_THE_CON and self.badge_num and self.is_new:
             self.checked_in = datetime.now(UTC)
 
-        if self.birthdate and not self.age_group:
+        if self.birthdate and not self.age_group or self.age_group == c.AGE_UNKNOWN:
             self.age_group = self.age_group_conf['val']
 
         for attr in ['first_name', 'last_name']:
@@ -1091,16 +1147,16 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def age_group_conf(self):
-        if self.age_group:
+        if self.age_group and self.age_group != c.AGE_UNKNOWN:
             return c.AGE_GROUP_CONFIGS[self.age_group]
         elif self.birthdate:
             day = c.EPOCH.date() if date.today() <= c.EPOCH.date() else sa.localized_now().date()
-            attendee_age = (day - birthdate).days / 365.2425
-            for name, age_group in c.AGE_GROUP_CONFIGS.values():
-                if name != 'age_unknown' and age_group['min_age'] <= attendee_age <= age_group['max_age']:
+            attendee_age = (day - self.birthdate).days / 365.2425
+            for val, age_group in c.AGE_GROUP_CONFIGS.items():
+                if val != c.AGE_UNKNOWN and age_group['min_age'] <= attendee_age <= age_group['max_age']:
                     return age_group
-        else:
-            return c.AGE_GROUP_CONFIGS[c.AGE_UNKNOWN]
+
+        return c.AGE_GROUP_CONFIGS[c.AGE_UNKNOWN]
 
     @property
     def total_cost(self):
@@ -1471,8 +1527,8 @@ class NoShirt(MagModel):
 class MerchPickup(MagModel):
     picked_up_by_id  = Column(UUID, ForeignKey('attendee.id'))
     picked_up_for_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
-    picked_up_by     = relationship(Attendee, primaryjoin='MerchPickup.picked_up_by_id == Attendee.id', cascade='all')
-    picked_up_for    = relationship(Attendee, primaryjoin='MerchPickup.picked_up_for_id == Attendee.id', cascade='all')
+    picked_up_by     = relationship(Attendee, primaryjoin='MerchPickup.picked_up_by_id == Attendee.id', cascade='save-update,merge,refresh-expire,expunge')
+    picked_up_for    = relationship(Attendee, primaryjoin='MerchPickup.picked_up_for_id == Attendee.id', cascade='save-update,merge,refresh-expire,expunge')
 
 
 class DeptChecklistItem(MagModel):
@@ -1856,3 +1912,35 @@ def register_session_listeners():
     listen(Session.session_factory, 'after_flush', _release_badge_lock)
     listen(Session.engine, 'dbapi_error', _release_badge_lock_on_error)
 register_session_listeners()
+
+
+def initialize_db():
+    """
+    Initialize the database on startup
+
+    We want to do this only after all other plugins have had a chance to initialize
+    and add their 'mixin' data (i.e. extra colums) into the models.
+
+    Also, it's possible that the DB is still initializing and isn't ready to accept connections, so,
+    if this fails, keep trying until we're able to connect.
+
+    This should be the ONLY spot (except for maintenance tools) in all of core ubersystem or any plugins
+    that attempts to create tables by passing modify_tables=True to Session.initialize_db()
+    """
+    num_tries_remaining = 10
+    while not stopped.is_set():
+        try:
+            Session.initialize_db(modify_tables=True)
+        except KeyboardInterrupt:
+            log.critical('DB initialize: Someone hit Ctrl+C while we were starting up')
+        except:
+            num_tries_remaining -= 1
+            if num_tries_remaining == 0:
+                log.error("DB initialize: couldn't connect to DB, we're giving up")
+                raise
+            log.error("DB initialize: can't connect to / initialize DB, will try again in 5 seconds", exc_info=True)
+            stopped.wait(5)
+        else:
+            break
+
+on_startup(initialize_db, priority=1)

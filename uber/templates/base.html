@@ -9,7 +9,7 @@
         </script>
     <![endif]-->
     <title>{{ c.EVENT_NAME }} - {% block title %}{% endblock %}</title>
-    <link rel="icon" href="{{ c.URL_BASE }}/static/images/favicon.png" type="image/x-icon" />
+    <link rel="icon" href="../static/images/favicon.png" type="image/x-icon" />
     <link rel="stylesheet" href="../static/deps/combined.css" />
     <script type="text/javascript" src="../static/deps/combined.js"></script>
     <script src="../common.js" type="text/javascript"></script>
@@ -45,6 +45,27 @@
     </style>
     <script>
         var DISABLE_STRIPE_BUTTONS_ON_CLICK = true;
+        var MENU = [
+            {% if c.HAS_ACCOUNTS_ACCESS %}
+                {Accounts: '../accounts/'},
+            {% endif %}
+            {% if c.HAS_PEOPLE_ACCESS %}
+                {People: [
+                    {Attendees: '../registration/'},
+                    {Groups: '../groups/'},
+                    {'All Untaken Shifts': ''},
+                    {Staffers: '../registration/staffers'},
+                    {Jobs: '../jobs/'},
+                    {'Feed of Database Changes': '../registration/feed'}
+                ]},
+            {% endif %}
+            {% if c.HAS_STUFF_ACCESS %}
+                {Schedule: [
+                    {'View Schedule': '../schedule/'},
+                    {'Edit Schedule': '../schedule/edit'}
+                ]}
+            {% endif %}
+        ];
         $(function() {
             $(window).load(function() {
                 $(".loader").fadeOut("fast");
@@ -62,7 +83,7 @@
                 hideEasing: "linear",
                 showMethod: "fadeIn",
                 hideMethod: "fadeOut"
-            }
+            };
             var message = '{{ message }}';
             if (message.length) {
                 toastr.info(message);
@@ -77,13 +98,17 @@
             });
             $('.focus:first').focus();
             if (window.DISABLE_STRIPE_BUTTONS_ON_CLICK) {
-                $('form.stripe').on('click', 'button', function() {
-                    $('a > .stripe-button-el').unwrap().attr('disabled', true).unwrap()
+                // we can't intercept the Javascript form submit, so once someone has clicked the Stripe
+                // submit button, listen for us leaving the page and disable the buttons then
+                $(document).on('click', 'form > .stripe-button-el', function () {
+                    $(window).on('beforeunload', function () {
+                        $('a > .stripe-button-el').unwrap().prop('disabled', true).unwrap();
+                    });
                 });
             }
             // prevent people from paying after prereg closes
             {% if c.PRE_CON %}
-                if ($('form.stripe').length) {
+                if ($('form.stripe').size()) {
                     var prevHour = new Date().getHours();
                     var checkHour = function() {
                         var currHour = new Date().getHours();
@@ -97,6 +122,33 @@
                     checkHour();
                 }
             {% endif %}
+            var $menu = $('#main-menu');
+            $.each(MENU, function (i, section) {
+                var name = _.keys(section)[0], links = _.values(section)[0];
+                if (typeof links === 'string') {
+                    $menu.append(
+                        $('<li></li>').append(
+                            $('<a></a>').attr('href', links).text(name)));
+                } else {
+                    var $submenu = $('<ul class="dropdown-menu" role="menu"></ul>');
+                    $.each(links, function (i, link) {
+                        var label = _.keys(link)[0], href = _.values(link)[0];
+                        var $li = $('<li></li>');
+                        var $link = $('<a></a>').text(label);
+                        if (href) {
+                            $link.attr('href', href);
+                        } else {
+                            $li.addClass('disabled');
+                        }
+                        $submenu.append($li.append($link));
+                    });
+                    $('<li></li>')
+                        .addClass('dropdown')
+                        .append('<a href="#" class="dropdown-toggle" data-toggle="dropdown">' + name + '<span class="caret"></span></a>')
+                        .append($submenu)
+                        .appendTo($menu);
+                }
+            });
         });
     </script>
     {% block head_additional %}{% endblock %}
@@ -144,49 +196,7 @@
                             </ul>
                         </li>
                     </ul>
-                    <ul class="nav navbar-nav">
-                        {% if c.HAS_ACCOUNTS_ACCESS %}
-                            <li> <a href="../accounts/">Accounts</a> </li>
-                        {% endif %}
-                        {% if c.HAS_PEOPLE_ACCESS %}
-                            <li class="dropdown">
-                                <a href="#" class="dropdown-toggle" data-toggle="dropdown">People<span class="caret"></span></a>
-                                <ul class="dropdown-menu" role="menu">
-                                    <li> <a href="../registration/">Attendees</a> </li>
-                                    <li> <a href="../groups/">Groups</a> </li>
-                                    <li class="{% if not c.AT_THE_CON %}disabled{% endif %}"> <a {% if c.AT_THE_CON %}href="../jobs/everywhere"{% endif %}>All untaken shifts</a> </li>
-                                    <li> <a href="../registration/staffers">Staffers</a> </li>
-                                    <li> <a href="../jobs/">Jobs</a> </li>
-                                    <li> <a href="../registration/feed">Feed of Database Changes</a> </li>
-                                    <li class="{% if not c.AT_OR_POST_CON %}disabled{% endif %}"> <a {% if c.AT_OR_POST_CON %}href="../registration/merch"{% endif %}>Merch</a> </li>
-                                </ul>
-                            </li>
-                        {% endif %}
-                        {% if c.HAS_STUFF_ACCESS %}
-                            <li class="dropdown">
-                            <a href="#" class="dropdown-toggle" data-toggle="dropdown">Schedule<span class="caret"></span></a>
-                                <ul class="dropdown-menu" role="menu">
-                                    <li> <a href="../schedule/">View Schedule</a></li>
-                                    <li> <a href="../schedule/edit">Edit Schedule</a> </li>
-                                </ul>
-                            </li>
-                        {% endif %}
-                        {% if c.HAS_MONEY_ACCESS %}
-                            <li class="dropdown">
-                                <a href="#" class="dropdown-toggle" data-toggle="dropdown">Money<span class="caret"></span></a>
-                                <ul class="dropdown-menu" role="menu">
-                                    <li> <a href="../budget/">Budget</a> </li>
-                                    <li class="{% if not c.POST_CON %}disabled{% endif %}"> <a {% if c.POST_CON %}href="../budget/mpoints"{% endif %}>M-Point usage</a> </li>
-                                </ul>
-                            </li>
-                        {% endif %}
-                        {% if c.HAS_CHALLENGES_ACCESS %}
-                            <li> <a href="../challenges/">Challenges</a> </li>
-                        {% endif %}
-                        {% if c.HAS_CHECKINS_ACCESS %}
-                            <li class="{% if not c.AT_THE_CON %}disabled{% endif %}"> <a {% if c.AT_THE_CON %}href="../tabletop/"{% endif %}>Tabletop</a> </li>
-                        {% endif %}
-                    </ul>
+                    <ul class="nav navbar-nav" id="main-menu"></ul>
                 </div>
             </nav>
         {% endblock %}
@@ -201,6 +211,7 @@
             <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
             <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
         <![endif]-->
+        {% include "baseextra.html" %}
     {% endblock %}
 </body>
 </html>

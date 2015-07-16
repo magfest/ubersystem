@@ -52,7 +52,7 @@ class StaticViews:
 @all_renderable()
 class Root:
     def index(self):
-        return render('index.html')
+        raise HTTPRedirect('common/')
 
     def common_js(self):
         cherrypy.response.headers['Content-Type'] = 'text/javascript'
@@ -60,20 +60,7 @@ class Root:
 
     static_views = StaticViews()
 
-_sections = [path.split('/')[-1][:-3] for path in glob(os.path.join(c.MODULE_ROOT, 'site_sections', '*.py'))
-                                      if not path.endswith('__init__.py')]
-for _section in _sections:
-    _module = importlib.import_module('uber.site_sections.' + _section)
-    setattr(Root, _section, _module.Root())
-
-
-class Redirector:
-    @cherrypy.expose
-    def index(self):
-        if c.AT_THE_CON:
-            raise HTTPRedirect(c.PATH + '/accounts/homepage')
-        else:
-            raise HTTPRedirect(c.PATH)
+mount_site_sections(c.MODULE_ROOT)
 
 cherrypy.tree.mount(Root(), c.PATH, c.APPCONF)
 static_overrides(join(c.MODULE_ROOT, 'static'))

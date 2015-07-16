@@ -2,6 +2,13 @@
 {% block title %}Preregistration{% endblock %}
 {% block content %}
 
+<script>
+    $(function () {
+        $('#form-begin-spacer').prependTo('form.form-horizontal');
+        $('#bold-field-message').insertAfter('#form-begin-spacer');
+    });
+</script>
+
 <div class="masthead"></div>
 
 <div class="panel panel-default">
@@ -39,18 +46,18 @@
         <label for="badge" class="col-sm-2 control-label">&nbsp;</label>
     </div>
 
-{% if c.DEALER_REG_START %}
-    <div class="form-group">
-        <p class="help-block col-sm-8 col-sm-offset-2">
-            <strong>Dealers:</strong>
-            {% if c.BEFORE_DEALER_REG_PUBLIC %}
-                Registrations for dealer memberships begin December 15.
-            {% else %}
-                Please register <a href="{{ c.URL_BASE }}/preregistration/dealer_registration">here</a>.
-            {% endif %}
-        </p>
-    </div>
-{% endif %}
+    {% if c.DEALER_REG_START %}
+        <div class="form-group">
+            <p class="help-block col-sm-8 col-sm-offset-2">
+                <strong>Dealers:</strong>
+                {% if c.BEFORE_DEALER_REG_PUBLIC %}
+                    Registrations for dealer memberships begin {{ c.DEALER_REG_START|datetime }}.
+                {% else %}
+                    Please register <a href="{{ c.URL_BASE }}/preregistration/dealer_registration">here</a>.
+                {% endif %}
+            </p>
+        </div>
+    {% endif %}
 {% endif %}
 
 <form method="post" action="form" class="form-horizontal" role="form">
@@ -61,7 +68,6 @@
 {% endif %}
 
 {% if not attendee.is_dealer %}
-    <div class="form-group"></div> <!-- spacing -->
     <div class="group_fields hide">
         <div class="form-group">
             <label for="name" class="col-sm-2 control-label">Group Name</label>
@@ -76,8 +82,8 @@
             <label for="name" class="col-sm-2 control-label">Badges</label>
             <div class="col-sm-6">
                 <select name="badges" class="form-control">{% int_options c.MIN_GROUP_SIZE c.MAX_GROUP_SIZE badges %}</select>
-                (${{ c.GROUP_PRICE }} each)
             </div>
+            (${{ c.GROUP_PRICE }} each)
         </div>
     </div>
 {% else %}
@@ -158,7 +164,7 @@
         {% if attendee.is_dealer %}
             <button type="submit" class="btn btn-primary" value="Submit Application">Submit Application</button>
         {% else %}
-            <button type="submit" class="btn btn-primary" value="Preregister">Preregister</button>
+            <button type="submit" class="btn btn-primary" value="Add to Cart">Add to Cart</button>
         {% endif %}
     </div>
 </div>
