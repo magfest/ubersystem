@@ -72,6 +72,39 @@ class Config:
         return types
 
     @property
+    def PREREG_BADGE_DISPLAY(self):
+        """
+        During pre-registration, attendees may be able to select certain special registration types,
+        the most common being 'single attendee' and 'group leader.' This returns a dict with available
+        options.
+        :return:
+        """
+        if c.BEFORE_GROUP_PREREG_TAKEDOWN:
+            group_description = 'Register a group of ' + str(c.MIN_GROUP_SIZE) + ' or more and save $' + \
+                                str(c.GROUP_DISCOUNT) + ' per badge.'
+        else:
+            group_description = 'The deadline for Group registration has passed, but you can still register as ' + \
+                                'a single attendee.'
+
+        base_description = 'A single attendee badge.'
+
+        prereg_badge_types = {}
+        prereg_badge_types['single'] = {
+            'value': c.ATTENDEE_BADGE,
+            'title': 'Single Badge',
+            'description': base_description
+        }
+
+        if c.GROUPS_ENABLED:
+            prereg_badge_types['group'] = {
+                'value': c.PSEUDO_GROUP_BADGE,
+                'title': 'Group Leader',
+                'description': group_description
+            }
+
+        return prereg_badge_types
+
+    @property
     def BADGE_DISPLAY_TYPES(self):
         """
         There are several contexts where we want to display different badge types to select:
@@ -102,15 +135,8 @@ class Config:
             donation_prepend = '' if base_badge_name == c.BADGES.get(c.ATTENDEE_BADGE) else base_badge_name + ' / '
             badge_cost = attendee.badge_cost if attendee else c.BADGE_PRICE
 
-            # The base badge and the group badge are special, so they're given default values and added manually
-            base_description = 'Allows access to the convention for its duration.'
-
-            if c.BEFORE_GROUP_PREREG_TAKEDOWN:
-                group_description = 'Register a group of ' + str(c.MIN_GROUP_SIZE) + ' or more and save $' + \
-                                    str(c.GROUP_DISCOUNT) + ' per badge.'
-            else:
-                group_description = 'The deadline for Group registration has passed, but you can still register as ' + \
-                                    'a regular attendee.'
+            # The base badge is special, so it's given default values and added manually
+            base_description = 'Allows access to '+ c.EVENT_NAME_AND_YEAR +' for its duration.'
 
             badge_types = {}
             badge_types['base'] = {
@@ -118,13 +144,6 @@ class Config:
                 'title': base_badge_name + ': $' + str(badge_cost),
                 'description': base_description
             }
-
-            if c.GROUPS_ENABLED and not attendee and not group:
-                badge_types['group'] = {
-                    'value': c.PSEUDO_GROUP_BADGE,
-                    'title': 'Group Leader',
-                    'description': group_description
-                }
 
             # The rest of the badges are added in via config
             for name, option in c.BADGE_DISPLAY_CONFIGS.items():
