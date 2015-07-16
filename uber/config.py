@@ -88,7 +88,7 @@ class Config:
 
         base_description = 'A single attendee badge.'
 
-        prereg_badge_types = {}
+        prereg_badge_types = OrderedDict()
         prereg_badge_types['single'] = {
             'value': c.ATTENDEE_BADGE,
             'title': 'Single Badge',
@@ -138,7 +138,7 @@ class Config:
             # The base badge is special, so it's given default values and added manually
             base_description = 'Allows access to '+ c.EVENT_NAME_AND_YEAR +' for its duration.'
 
-            badge_types = {}
+            badge_types = OrderedDict()
             badge_types['base'] = {
                 'value': c.ATTENDEE_BADGE,
                 'title': base_badge_name + ': $' + str(badge_cost),
