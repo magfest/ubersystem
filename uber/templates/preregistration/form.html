@@ -6,6 +6,44 @@
     $(function () {
         $('#form-begin-spacer').prependTo('form.form-horizontal');
         $('#bold-field-message').insertAfter('#form-begin-spacer');
+
+        var PREREG_BADGE_TYPES = [];
+        var i = 0;
+
+        {% for opt, values in c.PREREG_BADGE_DISPLAY.items %}
+
+            PREREG_BADGE_TYPES.push(
+                {{ values|jsonize }}
+            )
+            {% if opt == 'group' %}
+                PREREG_BADGE_TYPES[i].onClick = function () {
+                    $('.group_fields').removeClass('hide');
+                    $('input[name="badge_type"]').val('{{ c.PSEUDO_GROUP_BADGE }}');
+                }
+            {% endif %}
+            i++;
+        {% endfor %}
+
+        $.each(PREREG_BADGE_TYPES, function (index, badgeType) {
+            if (badgeType.value != {{ c.PSEUDO_GROUP_BADGE }}) {
+                attachBadgeChanges = function () {
+                    setBadge(index, true, '.prereg_badge_type_selector');
+                };
+            } else {
+                attachBadgeChanges = function () {
+                    setBadge(index, true, '.prereg_badge_type_selector');
+                    $('.group_fields').removeClass('hide');
+                    $('input[name="badge_type"]').val('{{ c.PSEUDO_GROUP_BADGE }}');
+                };
+            }
+
+                $('#prereg_badge_types').append(
+                    $('<div class="col-sm-3"></div>').append(
+                        $('<a class="list-group-item prereg_badge_type_selector"></a>').click(attachBadgeChanges).append(
+                            $('<h4 class="list-group-item-heading"></h4>').html(badgeType.title)
+                        ).append(
+                            $('<p class="list-group-item-text"></p>').html(badgeType.description))));
+            });
     });
 </script>
 
@@ -15,83 +53,6 @@
 {% if attendee.is_dealer %}
     <span class="text-center"><h2>Dealer Application</h2></span>
 {% else %}
-    <script type="text/javascript">
-        var BADGE_TYPES = [{
-            title: 'Attending: ${{ c.BADGE_PRICE }}',
-            description: 'Allows access to the convention for its duration.'
-        }];
-        {% if c.GROUPS_ENABLED and attendee.is_new and not group_id %}
-            BADGE_TYPES.push({
-                title: 'Group Leader',
-                {% if c.BEFORE_GROUP_PREREG_TAKEDOWN %}
-                    description: '<p class="list-group-item-text">Register a group of {{ c.MIN_GROUP_SIZE }} or more and save ${{ c.GROUP_DISCOUNT }} per badge.</p>',
-                {% else %}
-                    description: '<p class="list-group-item-text">The deadline for Group registration has passed, but you can still register as a regular attendee.</p>'
-                {% endif %}
-                extra: null,  // indicates that we shouldn't change the amount_extra dropdown
-                onClick: function () {
-                    $('.group_fields').removeClass('hide');
-                    $('input[name="badge_type"]').val('{{ c.PSEUDO_GROUP_BADGE }}');
-                }
-            });
-        {% endif %}
-        {% if c.SUPPORTER_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE %}
-            BADGE_TYPES.push({
-                title: 'Supporter: ${{ c.BADGE_PRICE|add:c.SUPPORTER_LEVEL }}',
-                description: 'Donate extra and get more swag with your membership.',
-                extra: {{ c.SUPPORTER_LEVEL }}
-            });
-        {% endif %}
-        {% if c.SEASON_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE %}
-            BADGE_TYPES.push({
-                title: 'Season Supporter: ${{ c.BADGE_PRICE|add:c.SEASON_LEVEL }}',
-                description: 'Fill this in later',
-                extra: {{ c.SEASON_LEVEL }}
-            });
-        {% endif %}
-
-        var setBadge = function (badgeTypeIndex) {
-            var badgeType = BADGE_TYPES[badgeTypeIndex];
-            $('.group_fields').addClass('hide');
-            $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
-            $('.badge_type_selector').removeClass('active');
-            $('.badge_type_selector').slice(badgeTypeIndex, 1 + badgeTypeIndex).addClass('active');
-            (badgeType.onClick || $.noop)();
-            if (badgeType.extra !== null) {
-                $.field('amount_extra').val(badgeType.extra || 0).trigger('change');
-            }
-        }
-        var makeBadgeMatchExtra = function () {
-            var target = $.val('name') ? 1 : 0;  // default to attendee or group
-            if (target !== 1) {
-                $.each(BADGE_TYPES, function (i, badgeType) {
-                    if (badgeType.extra && badgeType.extra <= $.val('amount_extra')) {
-                        target = i;
-                    }
-                });
-            }
-            if (!$('.badge_type_selector:nth(' + target + ')').is('.active')) {
-                setBadge(target);
-            }
-        };
-        $(function () {
-            $.each(BADGE_TYPES, function (index, badgeType) {
-                $('#badge_types').append(
-                    $('<div class="col-sm-3"></div>').append(
-                        $('<a class="list-group-item badge_type_selector"></a>').click(function () {
-                            setBadge(index);
-                        }).append(
-                            $('<h4 class="list-group-item-heading"></h4>').html(badgeType.title)
-                        ).append(
-                            $('<p class="list-group-item-text"></p>').html(badgeType.description))));
-            });
-            makeBadgeMatchExtra();
-            if ($.field('amount_extra')) {
-                $.field('amount_extra').on('change', makeBadgeMatchExtra);
-            }
-        });
-    </script>
-
     <div class="row bs-wizard" style="border-bottom:0;border-top:0;">   
         <div class="col-xs-4 bs-wizard-step active">
             <div class="text-center bs-wizard-stepnum">Step 1</div>
@@ -119,7 +80,7 @@
         </div>
     </div>
 
-    <div class="form-group" id="badge_types">
+    <div class="form-group" id="prereg_badge_types">
         <label for="badge" class="col-sm-2 control-label">&nbsp;</label>
     </div>
 
@@ -139,7 +100,7 @@
 
 <form method="post" action="form" class="form-horizontal" role="form">
 
-<input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
+<input type="hidden" id="badge_type" name="badge_type" value="{{ attendee.badge_type }}" />
 {% if edit_id %}
     <input type="hidden" name="edit_id" value="{{ edit_id }}" />
 {% endif %}
