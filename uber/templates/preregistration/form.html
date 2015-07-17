@@ -6,6 +6,44 @@
     $(function () {
         $('#form-begin-spacer').prependTo('form.form-horizontal');
         $('#bold-field-message').insertAfter('#form-begin-spacer');
+
+        var PREREG_BADGE_TYPES = [];
+        var i = 0;
+
+        {% for opt, values in c.PREREG_BADGE_DISPLAY.items %}
+
+            PREREG_BADGE_TYPES.push(
+                {{ values|jsonize }}
+            )
+            {% if opt == 'group' %}
+                PREREG_BADGE_TYPES[i].onClick = function () {
+                    $('.group_fields').removeClass('hide');
+                    $('input[name="badge_type"]').val('{{ c.PSEUDO_GROUP_BADGE }}');
+                }
+            {% endif %}
+            i++;
+        {% endfor %}
+
+        $.each(PREREG_BADGE_TYPES, function (index, badgeType) {
+            if (badgeType.value != {{ c.PSEUDO_GROUP_BADGE }}) {
+                attachBadgeChanges = function () {
+                    setBadge(index, true, '.prereg_badge_type_selector');
+                };
+            } else {
+                attachBadgeChanges = function () {
+                    setBadge(index, true, '.prereg_badge_type_selector');
+                    $('.group_fields').removeClass('hide');
+                    $('input[name="badge_type"]').val('{{ c.PSEUDO_GROUP_BADGE }}');
+                };
+            }
+
+                $('#prereg_badge_types').append(
+                    $('<div class="col-sm-3"></div>').append(
+                        $('<a class="list-group-item prereg_badge_type_selector"></a>').click(attachBadgeChanges).append(
+                            $('<h4 class="list-group-item-heading"></h4>').html(badgeType.title)
+                        ).append(
+                            $('<p class="list-group-item-text"></p>').html(badgeType.description))));
+            });
     });
 </script>
 
@@ -42,7 +80,7 @@
         </div>
     </div>
 
-    <div class="form-group" id="badge_types">
+    <div class="form-group" id="prereg_badge_types">
         <label for="badge" class="col-sm-2 control-label">&nbsp;</label>
     </div>
 

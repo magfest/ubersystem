@@ -136,7 +136,7 @@ class Config:
             badge_cost = attendee.badge_cost if attendee else c.BADGE_PRICE
 
             # The base badge is special, so it's given default values and added manually
-            base_description = 'Allows access to '+ c.EVENT_NAME_AND_YEAR +' for its duration.'
+            base_description = 'Allows access to ' + c.EVENT_NAME_AND_YEAR + ' for its duration.'
 
             badge_types = OrderedDict()
             badge_types['base'] = {
