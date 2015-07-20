@@ -1,16 +1,5 @@
 {% extends "base-admin.html" %}
 {% block title %}Attendee Admin{% endblock %}
-{% block message %}
-
-<span id="message" style="float:left ; color:red ; margin-top:4px ; margin-left:4px">
-{% if attendee %}
-    <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a> {{ message }}
-{% else %}
-    {{ message }}
-{% endif %}
-</span>
-
-{% endblock %}
 {% block content %}
 <script type="text/javascript">
     var $highlit = null;

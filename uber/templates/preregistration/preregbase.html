@@ -1,35 +1,135 @@
 {% extends "base.html" %}
-{% block backlink %}
-
-
-{% endblock %}
+{% block backlink %}{% endblock %}
 {% block header %}
-<link href="../static/theme/prereg.css" rel="stylesheet">
-<script type="text/javascript">
-    var checkCap = function () {
-        $.getJSON('../preregistration/check_prereg', function(check) {
-            if (check.force_refresh) {
-                location.reload();  // Reload the page to prevent registering after reg is closed
+    <link href="../static/theme/prereg.css" rel="stylesheet">
+    <script type="text/javascript">
+        var PREREG_CHECK_INTERVAL = 15 * 60 * 1000;
+        var checkCap = function () {
+            $.getJSON('../preregistration/check_prereg', function (check) {
+                if (check.force_refresh) {
+                    location.reload();  // Reload the page to prevent registering after reg is closed
+                } else {
+                    setTimeout(checkCap, PREREG_CHECK_INTERVAL);
+                }
+            });
+        };
+        setTimeout(checkCap, PREREG_CHECK_INTERVAL);
+
+        {% if c.COLLECT_FULL_ADDRESS %}
+            var setInternational = function () {
+                countryName = $('input[name="country"]').val();
+                if(countryName == 'USA' || countryName == 'US' || countryName == 'United States') {
+                    $('input[name="international"]').prop('checked', false);
+                } else {
+                    $('input[name="international"]').prop('checked', true);
+                }
+            }
+            $(function() {
+                $('#international').hide()
+                setInternational()
+            });
+        {% endif %}
+
+        var REG_TYPES = {
+            row: '#reg-types',
+            selector: '.reg-type-selector',
+            options: [{
+                title: 'Single Attendee',
+                description: 'A single registration; you can register more before paying',
+                onClick: function () {
+                    $('.group_fields').addClass('hide');
+                    $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
+                }
+            }]
+        };
+        {% if c.GROUPS_ENABLED and attendee.is_new and not group_id %}
+            REG_TYPES.options.push({
+                title: 'Group Leader',
+                {% if c.BEFORE_GROUP_PREREG_TAKEDOWN %}
+                    description: '<p class="list-group-item-text">Register a group of {{ c.MIN_GROUP_SIZE }} or more and save ${{ c.GROUP_DISCOUNT }} per badge.</p>',
+                {% else %}
+                    description: '<p class="list-group-item-text">The deadline for Group registration has passed, but you can still register as a regular attendee.</p>'
+                {% endif %}
+                onClick: function () {
+                    $('.group_fields').removeClass('hide');
+                    $('input[name="badge_type"]').val('{{ c.PSEUDO_GROUP_BADGE }}');
+                }
+            });
+        {% endif %}
+        var BADGE_TYPES = {
+            row: '#badge-types',
+            selector: '.badge-type-selector',
+            options: [{
+                title: 'Attending{% if c.PAGE_PATH == "/preregistration/form" %}: ${{ c.BADGE_PRICE }}{% endif %}',
+                description: 'Allows access to the convention for its duration.',
+                extra: 0
+            }]
+        };
+        {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS %}
+            BADGE_TYPES.options.push({
+                title: 'Add a tshirt: {{ c.SHIRT_LEVEL|price_or_extra }}',
+                description: 'Attendee level plus a {{ c.EVENT_NAME }} themed t-shirt.',
+                extra: {{ c.SHIRT_LEVEL }}
+            });
+        {% endif %}
+        {% if c.SUPPORTER_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE %}
+            BADGE_TYPES.options.push({
+                title: 'Supporter: {{ c.SUPPORTER_LEVEL|price_or_extra }}',
+                description: 'Donate extra and get more swag with your membership.',
+                extra: {{ c.SUPPORTER_LEVEL }}
+            });
+        {% endif %}
+        {% if c.SEASON_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE %}
+            BADGE_TYPES.options.push({
+                title: 'Season Supporter: ${{ c.SEASON_LEVEL|price_or_extra }}',
+                description: 'Access to all {{ c.ORGANIZATION_NAME }} events for the year.',
+                extra: {{ c.SEASON_LEVEL }}
+            });
+        {% endif %}
+
+        var setBadge = function (types, index) {
+            var type = types.options[index];
+            $(types.selector)
+                .removeClass('active')
+                .slice(index, 1 + index)
+                .addClass('active');
+            (type.onClick || $.noop)();
+            if (type.extra !== undefined && type.extra !== null) {
+                $.field('amount_extra').val(type.extra || 0).trigger('change');
+            }
+        }
+        var makeBadgeMatchExtra = function () {
+            if ($(BADGE_TYPES.row).size()) {
+                var target = 0;
+                $.each(BADGE_TYPES.options, function (i, badgeType) {
+                    if (badgeType.extra && badgeType.extra <= $.val('amount_extra')) {
+                        target = i;
+                    }
+                });
+                if (!$(BADGE_TYPES.selector).slice(target, 1 + target).is('.active')) {
+                    setBadge(BADGE_TYPES, target);
+                }
+            }
+        };
+        $(function () {
+            $.each([REG_TYPES, BADGE_TYPES], function (i, types) {
+                $.each(types.options, function (index, type) {
+                    $(types.row).append(
+                        $('<div class="col-sm-3"></div>').append(
+                            $('<a class="list-group-item"></a>').addClass(types.selector.substring(1)).click(function () {
+                                setBadge(types, index);
+                            }).append(
+                                $('<h4 class="list-group-item-heading"></h4>').html(type.title)
+                            ).append(
+                                $('<p class="list-group-item-text"></p>').html(type.description))));
+                });
+                $(types.row).append('<div style="clear:both">&nbsp;</div>');
+            });
+            setBadge(REG_TYPES, $.field('name') && $.val('name') ? 1 : 0);  // default to attendee or group
+            makeBadgeMatchExtra();
+            if ($.field('amount_extra')) {
+                $.field('amount_extra').on('change', makeBadgeMatchExtra);
             }
         });
-    };
-    setInterval(checkCap, 1000 * 1 * 90);
-
-{% if c.COLLECT_FULL_ADDRESS %}
-$(document).ready(function() {
-    $("#international").hide()
-    setInternational()
-});
-
-function setInternational() {
-    countryName = $("input[name='country']").val();
-
-    if(countryName == "USA" || countryName == "US" || countryName == "United States") {
-        $("input[name='international']").prop('checked', false);
-    } else {
-        $("input[name='international']").prop('checked', true);
-    }
-}
-{% endif %}
-</script>
+    </script>
 {% endblock header %}

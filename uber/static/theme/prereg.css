@@ -15,10 +15,6 @@ body {
     background-repeat: repeat-x repeat-y;
 }
 
-.bs-wizard {
-    margin-top: 40px;
-}
-
 /*Form Wizard*/
 .bs-wizard {border-bottom: solid 1px #e0e0e0; padding: 0 0 10px 0;}
 .bs-wizard > .bs-wizard-step {padding: 0; position: relative;}
@@ -45,7 +41,10 @@ body {
     margin: 0 auto;
 }
 
-.badge_type_selector {
+#badge-types {
+    margin-bottom: 0px;
+}
+.reg-type-selector, .badge-type-selector {
     cursor: pointer;
 }
 
@@ -60,4 +59,8 @@ body {
 .warning {
     font-weight: bold;
     background-color: pink;
+}
+
+.panel.panel-default {
+    padding-top: 15px;
 }

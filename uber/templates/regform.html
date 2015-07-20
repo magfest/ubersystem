@@ -32,9 +32,13 @@
         noCellphoneClicked();
         $.field('no_cellphone').on('click', noCellphoneClicked);
     });
-</script>
 
-<div id="form-begin-spacer" class="form-group"></div>
+    {% if not attendee.is_new %}
+        while (window.BADGE_TYPES && BADGE_TYPES.options[0].extra < {{ attendee.amount_extra }}) {
+            BADGE_TYPES.options.splice(0, 1);
+        }
+    {% endif %}
+</script>
 
 {% if c.PAGE_PATH != '/registration/form' %}
     <div id="bold-field-message" class="form-group">

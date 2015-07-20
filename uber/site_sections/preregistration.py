@@ -438,7 +438,10 @@ class Root:
                 if attendee.full_name in c.BANNED_ATTENDEES:
                     send_banned_email(attendee)
 
-                if attendee.group_id:
+                if attendee.amount_unpaid:
+                    cherrypy.session['return_to'] = 'group_members?id={}&'.format(attendee.group_id)
+                    raise HTTPRedirect('attendee_donation_form?id={}', attendee.id)
+                elif attendee.group_id:
                     raise HTTPRedirect('group_members?id={}&message={}', attendee.group_id, 'Registration successfully transferred')
                 else:
                     raise HTTPRedirect('confirm?id={}&message={}', attendee.id, 'Your registration has been transferred')
