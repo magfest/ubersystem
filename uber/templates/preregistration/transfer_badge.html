@@ -15,6 +15,10 @@ our Registration Desk; that will belong to whomever the badge is transferred.
 {% csrf_token %}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 
+<div class="form-group" id="badge-types">
+    <label class="col-sm-2 control-label">Badge Level</label>
+</div>
+
 {% include "regform.html" %}
 
 <div class="form-group">
