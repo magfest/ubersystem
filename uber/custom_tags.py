@@ -105,14 +105,6 @@ def join_and(xs):
         return ', '.join(xs)
 
 
-@register.filter
-def price_or_extra(amount_extra):
-    if c.PAGE_PATH == '/preregistration/form':
-        return '${}'.format(c.BADGE_PRICE + amount_extra)
-    else:
-        return '+${}'.format(amount_extra)
-
-
 @tag
 class maybe_anchor(template.Node):
     def __init__(self, name):
