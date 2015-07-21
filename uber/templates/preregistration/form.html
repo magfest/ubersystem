@@ -39,14 +39,14 @@
         <label class="col-sm-2 control-label" style="white-space:nowrap">Registration Type</label>
     </div>
 
-    {% if c.DEALER_REG_START %}
+    {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC != '' %}
         <div class="form-group">
             <p class="help-block col-sm-8 col-sm-offset-2">
                 <strong>Dealers:</strong>
                 {% if c.BEFORE_DEALER_REG_PUBLIC %}
                     Registrations for dealer memberships begin {{ c.DEALER_REG_START|datetime }}.
                 {% else %}
-                    Please register <a href="{{ c.URL_BASE }}/preregistration/dealer_registration">here</a>.
+                    Please register <a href="dealer_registration">here</a>.
                 {% endif %}
             </p>
         </div>
