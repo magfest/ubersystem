@@ -39,6 +39,8 @@
                 onClick: function () {
                     $('.group_fields').addClass('hide');
                     $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
+                    $('#bold-field-message').insertBefore($.field('first_name').parents('.form-group'));
+                    togglePrices();
                 }
             }]
         };
@@ -53,6 +55,8 @@
                 onClick: function () {
                     $('.group_fields').removeClass('hide');
                     $('input[name="badge_type"]').val('{{ c.PSEUDO_GROUP_BADGE }}');
+                    $('#bold-field-message').insertBefore($.field('name').parents('.form-group'));
+                    togglePrices();
                 }
             });
         {% endif %}
@@ -60,33 +64,37 @@
             row: '#badge-types',
             selector: '.badge-type-selector',
             options: [{
-                title: 'Attending{% if c.PAGE_PATH == "/preregistration/form" %}: ${{ c.BADGE_PRICE }}{% endif %}',
-                description: 'Allows access to the convention for its duration.',
+                title: 'Attending',
+                description: 'Allows access to the convention for its duration. {% price_notice "Preregistration" c.PREREG_TAKEDOWN %}',
                 extra: 0
             }]
         };
         {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS %}
             BADGE_TYPES.options.push({
-                title: 'Add a tshirt: {{ c.SHIRT_LEVEL|price_or_extra }}',
-                description: 'Attendee level plus a {{ c.EVENT_NAME }} themed t-shirt.',
+                title: 'Add a tshirt',
+                description: 'Attendee level plus a {{ c.EVENT_NAME }} themed t-shirt. {% price_notice "Preregistration" c.PREREG_TAKEDOWN c.SHIRT_LEVEL %}',
                 extra: {{ c.SHIRT_LEVEL }}
             });
         {% endif %}
         {% if c.SUPPORTER_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE %}
             BADGE_TYPES.options.push({
-                title: 'Supporter: {{ c.SUPPORTER_LEVEL|price_or_extra }}',
-                description: 'Donate extra and get more swag with your membership.',
+                title: 'Supporter',
+                description: 'Donate extra and get more swag with your membership. {% price_notice "Supporter registration" c.SUPPORTER_DEADLINE c.SUPPORTER_LEVEL %}',
                 extra: {{ c.SUPPORTER_LEVEL }}
             });
         {% endif %}
-        {% if c.SEASON_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE %}
-            BADGE_TYPES.options.push({
-                title: 'Season Supporter: ${{ c.SEASON_LEVEL|price_or_extra }}',
-                description: 'Access to all {{ c.ORGANIZATION_NAME }} events for the year.',
-                extra: {{ c.SEASON_LEVEL }}
-            });
-        {% endif %}
 
+        var togglePrices = function () {
+            var showTotalPrices = {% if c.PAGE_PATH == '/preregistration/form' %}$.val('badge_type') === {{ c.ATTENDEE_BADGE }}{% else %}false{% endif %};
+            $.each(BADGE_TYPES.options, function (i, type) {
+                var $price = $(BADGE_TYPES.selector).slice(i, i + 1).find('.price').empty();
+                if (showTotalPrices) {
+                    $price.append(': $').append(type.extra + {{ c.BADGE_PRICE }});
+                } else if (type.extra) {
+                    $price.append(': +$').append(type.extra);
+                }
+            });
+        };
         var setBadge = function (types, index) {
             var type = types.options[index];
             $(types.selector)
@@ -112,23 +120,27 @@
             }
         };
         $(function () {
-            $.each([REG_TYPES, BADGE_TYPES], function (i, types) {
-                $.each(types.options, function (index, type) {
-                    $(types.row).append(
-                        $('<div class="col-sm-3"></div>').append(
-                            $('<a class="list-group-item"></a>').addClass(types.selector.substring(1)).click(function () {
-                                setBadge(types, index);
-                            }).append(
-                                $('<h4 class="list-group-item-heading"></h4>').html(type.title)
-                            ).append(
-                                $('<p class="list-group-item-text"></p>').html(type.description))));
+            if ($(BADGE_TYPES.row).size()) {
+                $.each([REG_TYPES, BADGE_TYPES], function (i, types) {
+                    $.each(types.options, function (index, type) {
+                        $(types.row).append(
+                            $('<div class="col-sm-3"></div>').append(
+                                $('<a class="list-group-item"></a>').addClass(types.selector.substring(1)).click(function () {
+                                    setBadge(types, index);
+                                }).append(
+                                    $('<h4 class="list-group-item-heading"></h4>')
+                                        .append(type.title)
+                                        .append('<span class="price"></span>')
+                                ).append(
+                                    $('<p class="list-group-item-text"></p>').html(type.description))));
+                    });
+                    $(types.row).append('<div style="clear:both">&nbsp;</div>');
                 });
-                $(types.row).append('<div style="clear:both">&nbsp;</div>');
-            });
-            setBadge(REG_TYPES, $.field('name') && $.val('name') ? 1 : 0);  // default to attendee or group
-            makeBadgeMatchExtra();
-            if ($.field('amount_extra')) {
-                $.field('amount_extra').on('change', makeBadgeMatchExtra);
+                setBadge(REG_TYPES, $.field('name') && $.val('name') ? 1 : 0);  // default to attendee or group
+                makeBadgeMatchExtra();
+                if ($.field('amount_extra')) {
+                    $.field('amount_extra').on('change', makeBadgeMatchExtra);
+                }
             }
         });
     </script>
