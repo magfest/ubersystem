@@ -79,7 +79,7 @@
         {% if c.SUPPORTER_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE %}
             BADGE_TYPES.options.push({
                 title: 'Supporter',
-                description: 'Donate extra and get more swag with your membership. {% price_notice "Supporter registration" c.SUPPORTER_DEADLINE c.SUPPORTER_LEVEL %}',
+                description: 'Donate extra and get more swag with your registration. {% price_notice "Supporter registration" c.SUPPORTER_DEADLINE c.SUPPORTER_LEVEL %}',
                 extra: {{ c.SUPPORTER_LEVEL }}
             });
         {% endif %}
