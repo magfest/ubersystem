@@ -45,10 +45,6 @@
         <label class="col-sm-2 control-label" style="white-space:nowrap">Registration Type</label>
     </div>
 
-    <div class="form-group" id="badge-types">
-        <label class="col-sm-2 control-label">Badge Level</label>
-    </div>
-
     {% if c.DEALER_REG_START %}
         <div class="form-group">
             <p class="help-block col-sm-8 col-sm-offset-2">
@@ -159,6 +155,10 @@
         <p class="help-block col-sm-6 col-sm-offset-2">The one you want us to link on our website, or n/a</p>
     </div>
 {% endif %}
+
+    <div class="form-group" id="badge-types">
+        <label class="col-sm-2 control-label">Badge Level</label>
+    </div>
 
 {% include "regform.html" %}
 
