@@ -61,29 +61,22 @@
             selector: '.badge-type-selector',
             options: [{
                 title: 'Attending{% if c.PAGE_PATH == "/preregistration/form" %}: ${{ c.BADGE_PRICE }}{% endif %}',
-                description: 'Allows access to the convention for its duration.',
+                description: 'Allows access to the convention for its duration. {% price_notice "Preregistration" c.PREREG_TAKEDOWN %}',
                 extra: 0
             }]
         };
         {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS %}
             BADGE_TYPES.options.push({
                 title: 'Add a tshirt: {{ c.SHIRT_LEVEL|price_or_extra }}',
-                description: 'Attendee level plus a {{ c.EVENT_NAME }} themed t-shirt.',
+                description: 'Attendee level plus a {{ c.EVENT_NAME }} themed t-shirt. {% price_notice "Preregistration" c.PREREG_TAKEDOWN c.SHIRT_LEVEL %}',
                 extra: {{ c.SHIRT_LEVEL }}
             });
         {% endif %}
         {% if c.SUPPORTER_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE %}
             BADGE_TYPES.options.push({
                 title: 'Supporter: {{ c.SUPPORTER_LEVEL|price_or_extra }}',
-                description: 'Donate extra and get more swag with your membership.',
+                description: 'Donate extra and get more swag with your membership. {% price_notice "Supporter registration" c.SUPPORTER_DEADLINE c.SUPPORTER_LEVEL %}',
                 extra: {{ c.SUPPORTER_LEVEL }}
-            });
-        {% endif %}
-        {% if c.SEASON_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE %}
-            BADGE_TYPES.options.push({
-                title: 'Season Supporter: ${{ c.SEASON_LEVEL|price_or_extra }}',
-                description: 'Access to all {{ c.ORGANIZATION_NAME }} events for the year.',
-                extra: {{ c.SEASON_LEVEL }}
             });
         {% endif %}
 

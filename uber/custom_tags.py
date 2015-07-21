@@ -447,7 +447,7 @@ class stripe_form(template.Node):
         return render('preregistration/stripeForm.html', params)
 
 
-@register.tag("bold_if")
+@register.tag('bold_if')
 def do_bold_if(parser, token):
     [cond] = token.split_contents()[1:]
     nodelist = parser.parse(('end_bold_if',))
@@ -500,42 +500,34 @@ class single_day_prices(template.Node):
         return prices
 
 
-class Notice(template.Node):
-    def notice(self, label, takedown, discount=0, amount_extra=0):
-        for day, price in sorted(c.PRICE_BUMPS.items()):
-            if day < takedown and localized_now() < day:
-                return 'Price goes up to ${} at 11:59pm EST on {}'.format(price + amount_extra - discount, (day - timedelta(days=1)).strftime('%A, %b %e'))
-            elif localized_now() < day:
-                return '{} closes at 11:59pm EST on {}. Price goes up to ${} at-door.'.format(label, takedown.strftime('%A, %b %e'), price + amount_extra - discount, (day - timedelta(days=1)).strftime('%A, %b %e'))
-        return '{} closes at 11:59pm EST on {}'.format(label, takedown.strftime('%A, %b %e'))
+@register.tag(name='price_notice')
+def price_notice(parser, token):
+    return PriceNotice(*token.split_contents()[1:])
 
 
-@tag
-class attendee_price_notice(Notice):
+class PriceNotice(template.Node):
+    def __init__(self, label, takedown, amount_extra='0'):
+        self.label = label.strip('"').strip("'")
+        self.takedown, self.amount_extra = Variable(takedown), Variable(amount_extra)
+
+    def _notice(self, label, takedown, amount_extra):
+        if c.PAGE_PATH != '/preregistration/form':
+            return ''  # we only display notices on the main prereg form
+        else:
+            for day, price in sorted(c.PRICE_BUMPS.items()):
+                if day < takedown and localized_now() < day:
+                    return 'Price goes up to ${} at 11:59pm EST on {}'.format(price + amount_extra, (day - timedelta(days=1)).strftime('%A, %b %e'))
+                elif localized_now() < day:
+                    return '{} closes at 11:59pm EST on {}. Price goes up to ${} at-door.'.format(label, takedown.strftime('%A, %b %e'), price + amount_extra, (day - timedelta(days=1)).strftime('%A, %b %e'))
+            return '{} closes at 11:59pm EST on {}'.format(label, takedown.strftime('%A, %b %e'))
+
     def render(self, context):
-        return self.notice('Preregistration', c.PREREG_TAKEDOWN)
-
-
-@tag
-class group_price_notice(Notice):
-    def render(self, context):
-        return self.notice('Group preregistration', c.GROUP_PREREG_TAKEDOWN, discount=c.BADGE_PRICES['group_discount'])
-
-
-@tag
-class supporter_price_notice(Notice):
-    def render(self, context):
-        return self.notice('Supporter preregistration', c.SUPPORTER_DEADLINE, amount_extra=c.SUPPORTER_LEVEL)
-
-
-@tag
-class season_price_notice(Notice):
-    def render(self, context):
-        return self.notice('Season supporter preregistration', c.SUPPORTER_DEADLINE, amount_extra=c.SEASON_LEVEL)
+        notice = self._notice(self.label, self.takedown.resolve(context), self.amount_extra.resolve(context))
+        return '<div class="prereg-price-notice">{}</div>'.format(notice) if notice else ''
 
 
 # FIXME this can probably be cleaned up more
-@register.tag(name="random_hash")
+@register.tag(name='random_hash')
 def random_hash(parser, token):
     items = []
     bits = token.split_contents()
