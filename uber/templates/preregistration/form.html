@@ -160,8 +160,10 @@
     <div class="col-sm-6 col-sm-offset-2">
         {% if attendee.is_dealer %}
             <button type="submit" class="btn btn-primary" value="Submit Application">Submit Application</button>
-        {% else %}
+        {% elif not edit_id %}
             <button type="submit" class="btn btn-primary" value="Add to Cart">Add to Cart</button>
+        {% else %}
+            <button type="submit" class="btn btn-primary" value="Update">Update</button>
         {% endif %}
     </div>
 </div>
