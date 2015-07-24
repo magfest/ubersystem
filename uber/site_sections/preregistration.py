@@ -86,7 +86,7 @@ class Root:
         cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
         return json.dumps({
             'badges_sold': c.BADGES_SOLD,
-            'remaining_badges': max(0, c.MAX_BADGE_SALES - c.BADGES_SOLD),
+            'remaining_badges': c.REMAINING_BADGES,
 
             'server_current_timestamp': int(datetime.utcnow().timestamp()),
             'warn_if_server_browser_time_mismatch': c.WARN_IF_SERVER_BROWSER_TIME_MISMATCH
