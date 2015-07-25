@@ -76,8 +76,7 @@ class Root:
             'order':          Order(order),
             'attendee_count': total_count,
             'checkin_count':  session.query(Attendee).filter(Attendee.checked_in != None).count(),
-            'attendee':       session.attendee(uploaded_id) if uploaded_id else None,
-            'remaining_badges': max(0, c.MAX_BADGE_SALES - c.BADGES_SOLD)
+            'attendee':       session.attendee(uploaded_id) if uploaded_id else None
         }
 
     @log_pageview
@@ -503,8 +502,7 @@ class Root:
             'checked_in': checked_in,
             'groups':     sorted(groups, key=lambda tup: tup[1]),
             'recent':     session.query(Attendee).filter(Attendee.checked_in == None, Attendee.first_name != '', *restrict_to)
-                                                 .order_by(Attendee.registered).all(),
-            'remaining_badges': max(0, c.MAX_BADGE_SALES - c.BADGES_SOLD)
+                                                 .order_by(Attendee.registered).all()
         }
 
     def new_reg_station(self, reg_station='', message=''):
