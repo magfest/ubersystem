@@ -1079,9 +1079,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             if self.is_dealer:
                 self.ribbon = c.DEALER_RIBBON
 
-        if self.amount_extra >= c.SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == c.ATTENDEE_BADGE:
-            self.badge_type = c.SUPPORTER_BADGE
-
         if c.PRE_CON:
             if self.paid == c.NOT_PAID or not self.has_personalized_badge or self.is_unassigned:
                 self.badge_num = 0
@@ -1290,6 +1287,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         stuff.append('a {} wristband'.format(c.WRISTBAND_COLORS[self.age_group]))
         if self.regdesk_info:
             stuff.append(self.regdesk_info)
+        if self.amount_extra >= c.SUPPORTER_LEVEL:
+            stuff.append('their Supporter badge')
         return comma_and(stuff)
 
     @property
