@@ -60,8 +60,7 @@ class Root:
             'location':  location,
             'jobs':      jobs,
             'shifts':    Shift.dump(shifts),
-            'checklist': session.checklist_status('postcon_hours', location),
-            'page': 'signups'
+            'checklist': session.checklist_status('postcon_hours', location)
         }
 
     def everywhere(self, session, message='', show_restricted=''):
@@ -134,8 +133,7 @@ class Root:
             'all_total':          sum(j.total_hours for j in jobs),
             'regular_signups':    sum(s.job.weighted_hours for s in shifts if not s.job.restricted),
             'restricted_signups': sum(s.job.weighted_hours for s in shifts if s.job.restricted),
-            'all_signups':        sum(s.job.weighted_hours for s in shifts),
-            'page': 'staffers'
+            'all_signups':        sum(s.job.weighted_hours for s in shifts)
         }
 
     def form(self, session, message='', **params):
