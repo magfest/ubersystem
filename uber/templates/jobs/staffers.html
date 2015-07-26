@@ -4,14 +4,12 @@
 
 {% include "jobs/main_menu.html" %}
 
-<table style="text-align:center ; font-weight:bold">
-<tr>
-    <td>{{ attendees|length }} Staffers</td>
-    <td>{{ regular_signups }} / {{ regular_total }} Regular Hours Taken</td>
-    <td>{{ restricted_signups }} / {{ restricted_total }} Restricted Hours Taken</td>
-    <td>{{ all_signups }} / {{ all_total }} Total Hours Taken</td>
-</tr>
-</table>
+<div class="row">
+    <div class="col-md-2">{{ attendees|length }} Staffers</div>
+    <div class="col-md-2">{{ regular_signups }} / {{ regular_total }} Regular Hours Taken</div>
+    <div class="col-md-2">{{ restricted_signups }} / {{ restricted_total }} Restricted Hours Taken</div>
+    <div class="col-md-2">{{ all_signups }} / {{ all_total }} Total Hours Taken</div>
+</div>
 
 {% if checklist.relevant %}
     <br/>
