@@ -1248,7 +1248,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def gets_paid_shirt(self):
-        return self.amount_extra >= c.SHIRT_LEVEL or self.badge_type == c.SUPPORTER_BADGE
+        return self.amount_extra >= c.SHIRT_LEVEL
 
     @property
     def gets_shirt(self):
@@ -1264,7 +1264,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def donation_swag(self):
-        extra = c.SUPPORTER_LEVEL if not self.amount_extra and self.badge_type == c.SUPPORTER_BADGE else self.amount_extra
+        extra = self.amount_extra
         return [desc for amount, desc in sorted(c.DONATION_TIERS.items()) if amount and extra >= amount]
 
     @property

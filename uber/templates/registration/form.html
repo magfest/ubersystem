@@ -6,7 +6,7 @@
 
 <script type="text/javascript">
     var isPreassignedBadgeType = function (badge_type) {
-        return $.inArray(parseInt(badge_type), [{{ c.STAFF_BADGE }}, {{ c.SUPPORTER_BADGE }}]) >= 0;
+        return $.inArray(parseInt(badge_type), [{{ c.PREASSIGNED_BADGE_TYPES }}]) >= 0;
     };
 
     var setGroupLink = function () {
