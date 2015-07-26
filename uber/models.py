@@ -1079,9 +1079,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             if self.is_dealer:
                 self.ribbon = c.DEALER_RIBBON
 
-        if self.amount_extra >= c.SUPPORTER_LEVEL and not self.amount_unpaid and self.badge_type == c.ATTENDEE_BADGE:
-            self.badge_type = c.SUPPORTER_BADGE
-
         if c.PRE_CON:
             if self.paid == c.NOT_PAID or not self.has_personalized_badge or self.is_unassigned:
                 self.badge_num = 0
@@ -1251,7 +1248,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def gets_paid_shirt(self):
-        return self.amount_extra >= c.SHIRT_LEVEL or self.badge_type == c.SUPPORTER_BADGE
+        return self.amount_extra >= c.SHIRT_LEVEL
 
     @property
     def gets_shirt(self):
@@ -1267,7 +1264,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def donation_swag(self):
-        extra = c.SUPPORTER_LEVEL if not self.amount_extra and self.badge_type == c.SUPPORTER_BADGE else self.amount_extra
+        extra = self.amount_extra
         return [desc for amount, desc in sorted(c.DONATION_TIERS.items()) if amount and extra >= amount]
 
     @property
@@ -1290,6 +1287,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         stuff.append('a {} wristband'.format(c.WRISTBAND_COLORS[self.age_group]))
         if self.regdesk_info:
             stuff.append(self.regdesk_info)
+        if self.amount_extra >= c.SUPPORTER_LEVEL:
+            stuff.append('their Supporter badge')
         return comma_and(stuff)
 
     @property
