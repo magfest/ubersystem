@@ -17,6 +17,7 @@
 		<div class="col-md-6">
 <div class="input-group">
 <input class="form-control" type="text" name="filter" id="filter" placeholder="Type Here to Search"/>
+<input type="hidden" name="order" value="{{ order }}" />
 <span class="input-group-addon"><span class="glyphicon glyphicon-search"></span></span>
 </div>
 		</div>
@@ -27,16 +28,16 @@
 
 <table class="table footable" data-filter="#filter" data-page-navigation=".pagination" data-limit-navigation="5">
 <thead><tr>
-    <th data-type="alpha">Name</th>
-    <th data-type="alpha">Badge</th>
-    <th data-type="alpha">Paid</th>
-    <th data-type="alpha">Assigned To</th>
-    <th data-type="numeric">Hours</th>
+    <th data-type="alpha"><a href="index?order={{ order.first_name }}">Name</a></th>
+    <th data-type="alpha"><a href="staffers?order={{ order.badge_num }}">Badge</a></th>
+    <th data-type="alpha"><a href="staffers?order={{ order.paid }}">Paid</a></th>
+    <th data-type="alpha"><a href="staffers?order={{ order.assigned_depts }}">Assigned To</a></th>
+    <th data-type="numeric"><a href="staffers?order={{ order.weighted_hours }}">Hours</a></th>
     {% if c.AT_OR_POST_CON %}
-        <th data-type="numeric">Worked</th>
+        <th data-type="numeric"><a href="staffers?order={{ order.hours_worked }}">Worked</a></th>
     {% endif %}
     {% if c.AT_THE_CON %}
-        <th data-type="alpha">Checked In</th>
+        <th data-type="alpha"><a href="staffers?order={{ order.checked_in }}"><nobr>Checked In</nobr></a></th>
     {% endif %}
 </tr></thead>
 {% for attendee in staffers %}
