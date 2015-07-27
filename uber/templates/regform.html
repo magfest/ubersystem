@@ -78,7 +78,11 @@
     <script type="text/javascript">
         var donationChanged = function () {
             setVisible('.affiliate-row', $.val('amount_extra') > 0);
-            setVisible('.shirt-row', $.val('amount_extra') >= {{ c.SHIRT_LEVEL }});
+            {% if attendee.badge_type == c.STAFF_BADGE %}
+                setVisible('.shirt-row', true);
+            {% else %}
+                setVisible('.shirt-row', $.val('amount_extra') >= {{ c.SHIRT_LEVEL }});
+            {% endif %}
             {% if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES %}
                 setVisible('.badge-row', true);
             {% else %}

@@ -39,7 +39,9 @@
                 onClick: function () {
                     $('.group_fields').addClass('hide');
                     $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
-                    $('#bold-field-message').insertBefore($.field('first_name').parents('.form-group'));
+                    if ($.field('first_name')) {
+                        $('#bold-field-message').insertBefore($.field('first_name').parents('.form-group'));
+                    }
                     togglePrices();
                 }
             }]
@@ -69,7 +71,7 @@
                 extra: 0
             }]
         };
-        {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS %}
+        {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS and attendee.badge_type != c.STAFF_BADGE %}
             BADGE_TYPES.options.push({
                 title: 'Add a tshirt',
                 description: 'Attendee level plus a {{ c.EVENT_NAME }} themed t-shirt. {% price_notice "Preregistration" c.PREREG_TAKEDOWN c.SHIRT_LEVEL %}',
