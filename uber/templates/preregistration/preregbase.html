@@ -66,7 +66,7 @@
             row: '#badge-types',
             selector: '.badge-type-selector',
             options: [{
-                title: 'Attending',
+                title: '{% if attendee.badge_type == c.STAFF_BADGE %}Staffer{% else %}Attending{% endif %}',
                 description: 'Allows access to the convention for its duration. {% price_notice "Preregistration" c.PREREG_TAKEDOWN %}',
                 extra: 0
             }]
