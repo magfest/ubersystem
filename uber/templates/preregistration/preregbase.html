@@ -66,12 +66,12 @@
             row: '#badge-types',
             selector: '.badge-type-selector',
             options: [{
-                title: '{{ attendee.ribbon_and_or_badge }}',
+                title: '{% if c.PAGE_PATH == "/preregistration/form" %}Attending{% else %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
                 description: 'Allows access to the convention for its duration. {% price_notice "Preregistration" c.PREREG_TAKEDOWN %}',
                 extra: 0
             }]
         };
-        {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS and attendee.badge_type != c.STAFF_BADGE %}
+        {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS and not attendee.gets_free_shirt %}
             BADGE_TYPES.options.push({
                 title: 'Add a tshirt',
                 description: 'Add a {{ c.EVENT_NAME }} themed t-shirt to your registration. {% price_notice "Preregistration" c.PREREG_TAKEDOWN c.SHIRT_LEVEL %}',
