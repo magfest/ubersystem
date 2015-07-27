@@ -66,7 +66,7 @@
             row: '#badge-types',
             selector: '.badge-type-selector',
             options: [{
-                title: '{% if attendee.badge_type == c.STAFF_BADGE %}Staffer{% else %}Attending{% endif %}',
+                title: '{{ attendee.ribbon_and_or_badge }}',
                 description: 'Allows access to the convention for its duration. {% price_notice "Preregistration" c.PREREG_TAKEDOWN %}',
                 extra: 0
             }]
@@ -74,7 +74,7 @@
         {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS and attendee.badge_type != c.STAFF_BADGE %}
             BADGE_TYPES.options.push({
                 title: 'Add a tshirt',
-                description: 'Attendee level plus a {{ c.EVENT_NAME }} themed t-shirt. {% price_notice "Preregistration" c.PREREG_TAKEDOWN c.SHIRT_LEVEL %}',
+                description: 'Add a {{ c.EVENT_NAME }} themed t-shirt to your registration. {% price_notice "Preregistration" c.PREREG_TAKEDOWN c.SHIRT_LEVEL %}',
                 extra: {{ c.SHIRT_LEVEL }}
             });
         {% endif %}
