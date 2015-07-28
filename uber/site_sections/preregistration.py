@@ -110,9 +110,16 @@ class Root:
         return {'message': message}
 
     @check_if_can_reg
-    def index(self, message=''):
+    def index(self, session, message='', payment_method=None):
         if not self.unpaid_preregs:
             raise HTTPRedirect('form?message={}', message) if message else HTTPRedirect('form')
+        elif payment_method and int(payment_method) in NEW_REG_PAYMENT_METHODS:
+            for id in self.unpaid_preregs:
+                attendee = session.attendee(id)
+                attendee.payment_method = payment_method
+                session.merge(attendee)
+            self.unpaid_preregs.clear()
+            raise HTTPRedirect('form?message={}', 'Please queue in the payment line with your Photo ID and payment ready.')
         else:
             return {
                 'message': message,
@@ -141,7 +148,7 @@ class Root:
 
         if not attendee.badge_type:
             attendee.badge_type = c.ATTENDEE_BADGE
-        if attendee.badge_type not in c.PREREG_BADGE_TYPES:
+        if attendee.badge_type not in c.PREREG_BADGE_TYPES and not c.AT_THE_CON:
             raise HTTPRedirect('form?message={}', 'Invalid badge type!')
 
         if attendee.is_dealer and not c.DEALER_REG_OPEN:
@@ -180,12 +187,18 @@ class Root:
                     Tracking.track(track_type, attendee)
                     if group.badges:
                         Tracking.track(track_type, group)
+                        group.registered = localized_now()
+                    attendee.registered = localized_now()
+                    session.merge(attendee)
 
-                if session.query(Attendee).filter_by(first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).count():
+                if session.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS, Attendee.id != attendee.id)\
+                    .filter_by(first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).count():
                     raise HTTPRedirect('duplicate?id={}', group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
 
                 if attendee.full_name in c.BANNED_ATTENDEES:
                     raise HTTPRedirect('banned?id={}', group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
+
+                session.commit()
 
                 raise HTTPRedirect('index')
         else:
@@ -234,16 +247,21 @@ class Root:
         for attendee in charge.attendees:
             attendee.paid = c.HAS_PAID
             attendee.amount_paid = attendee.total_cost
-            session.add(attendee)
+            attendee.registered = localized_now()
+            session.merge(attendee)
             if attendee.full_name in c.BANNED_ATTENDEES:
                 send_banned_email(attendee)
 
         for group in charge.groups:
             group.amount_paid = group.default_cost - group.amount_extra
+            group.registered = localized_now()
+            session.merge(group)
+            session.commit()
             for attendee in group.attendees:
+                attendee.registered = localized_now()
                 if attendee.amount_extra:
                     attendee.amount_paid = attendee.total_cost
-            session.add(group)
+                session.merge(attendee)
             session.commit()  # commit now so group.leader will resolve
             if group.leader.full_name in c.BANNED_ATTENDEES:
                 send_banned_email(group.leader)
@@ -267,9 +285,16 @@ class Root:
                 'total_cost': payment_received
             }
 
-    def delete(self, id):
+    def delete(self, session, id):
+        try:
+            attendee = session.attendee(id)
+            attendee.badge_status = c.INVALID_STATUS
+            session.merge(attendee)
+        except:
+            group = session.group(id)
+            session.delete(group)
         self.unpaid_preregs.pop(id, None)
-        raise HTTPRedirect('index?message={}', 'Preregistration deleted')
+        raise HTTPRedirect('index?message={}', 'Registration removed.')
 
     def dealer_confirmation(self, session, id):
         return {'group': session.group(id)}
@@ -311,7 +336,7 @@ class Root:
 
                 group.attendees.append(attendee)
                 attendee.paid = c.PAID_BY_GROUP
-                session.add(attendee)
+                session.merge(attendee)
                 if attendee.amount_unpaid:
                     raise HTTPRedirect('group_extra_payment_form?id={}', attendee.id)
                 else:
