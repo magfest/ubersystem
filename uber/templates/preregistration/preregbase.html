@@ -66,7 +66,7 @@
             row: '#badge-types',
             selector: '.badge-type-selector',
             options: [{
-                title: '{% if c.PAGE_PATH == "/preregistration/form" %}Attending{% else %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
+                title: '{% if c.PAGE_PATH == "/preregistration/form" or c.PAGE_PATH == "/preregistration/dealer_registration" %}Attending{% else %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
                 description: 'Allows access to the convention for its duration. {% price_notice "Preregistration" c.PREREG_TAKEDOWN %}',
                 extra: 0
             }]
