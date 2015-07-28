@@ -106,12 +106,11 @@
                 if ($.field('affiliate')) {
                     $.field('affiliate').select2({
                         placeholder: "I don't care about this",
-                        createSearchChoice: function(term) {
-                            return {id: term, text: term};
-                        },
+                        allowClear: true,
+                        tags: true,
                         data: {{ affiliates|jsonize }},
                         width: '100%',
-                    }).select2('val', {{ attendee.affiliate|default:''|jsonize }});
+                    }).val({{ attendee.affiliate|default:''|jsonize }});
                 }
                 $('form').submit(function(){
                     $(':submit').attr('value', 'Uploading Preregistration...').attr('disabled', true);
@@ -156,7 +155,9 @@
     <div class="affiliate-row extra-row form-group" style="display:none">
         <label for="affiliate" class="col-sm-2 control-label optional-field">Affiliate</label>
         <div class="col-sm-6">
-            <input type="hidden" name="affiliate" style="width:30ex" />
+            <select name="affiliate">
+                <option value="" selected="selected"></option>
+            </select>
         </div>
         {% popup_link "../static_views/affiliates.html" "What's an affiliate?" %}
     </div>
