@@ -97,16 +97,18 @@
             <select class="form-control" name="tables">
                 {% int_options 1 4 group.tables %}
             </select>
+            (${{ c.TABLE_PRICES.default_price }} per table)
         </div>
     </div>
     <div class="form-group">
-        <p class="help-block col-sm-6 col-sm-offset-2">[<i>You may contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a> to request more than {{ c.MAX_TABLES }} tables.</i>]</p>
+        <p class="help-block col-sm-6 col-sm-offset-2"><i>You may contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a> to request more than {{ c.MAX_TABLES }} tables.</i></p>
     </div>
 
     <div class="form-group">
         <label for="badges" class="col-sm-2 control-label">Badges</label>
         <div class="col-sm-6">
-            <select class="form-control" name="badges" onChange="setDealerCost()">{% int_options 1 c.MAX_DEALERS badges %}</select>
+            <select class="form-control" name="badges" onChange="setDealerCost()">{% int_options 1 8 badges %}</select>
+            (${{ c.DEALER_BADGE_PRICE }} per badge)
         </div>
     </div>
     <div class="form-group">
