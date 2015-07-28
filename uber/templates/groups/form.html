@@ -164,7 +164,7 @@
     </div>
 
     <div class="form-group">
-        <label class="col-sm-2 control-label">Tax ID</label>
+        <label class="col-sm-2 control-label">Website URL</label>
         <div class="col-sm-6">
             <input type="text" name="website" value="{{ group.website }}" />
         </div>
@@ -183,13 +183,57 @@
             <textarea rows="3" cols="30" name="special_needs">{{ group.special_needs }}</textarea>
         </div>
     </div>
-
-    <div class="form-group">
-        <label class="col-sm-2 control-label">Address</label>
-        <div class="col-sm-6">
-            <textarea rows="3" cols="30" name="address">{{ group.address }}</textarea>
+    {% if group.leader and group.leader.address1 %}
+        <div class="form-group address_details">
+            <label for="address1" class="col-sm-2 control-label">Address</label>
+            <div class="col-sm-6">
+                <input type="text" name="address1" class="form-control" placeholder="Address Line 1" value="{{ group.leader.address1 }}" data-geo="name" />
+            </div>
         </div>
-    </div>
+        <div class="form-group address_details">
+            <label for="address2" class="col-sm-2 control-label"></label>
+            <div class="col-sm-6">
+                <input type="text" name="address2" class="form-control" placeholder="Address Line 2" value="{{ group.leader.address2 }}" />
+            </div>
+        </div>
+        <div class="form-group address_details">
+            <label for="city" class="col-sm-2 control-label">City</label>
+            <div class="col-sm-6">
+                <input type="text" name="city" class="form-control" placeholder="City" value="{{ group.leader.city }}" data-geo="locality" />
+            </div>
+        </div>
+        <div class="form-group address_details">
+            <label for="region" class="col-sm-2 control-label">State</label>
+            <div class="col-sm-3">
+                <input type="text" name="region" class="form-control" placeholder="State/Province/Region" value="{{ group.leader.region }}" data-geo="administrative_area_level_1" />
+            </div>
+
+            <label for="zip_code" class="col-sm-1 control-label">ZIP</label>
+            <div class="col-sm-2">
+                <input type="text" name="zip_code" class="form-control" placeholder="ZIP/PostCode" value="{{ group.leader.zip_code }}" data-geo="postal_code" />
+            </div>
+        </div>
+        <div class="form-group address_details">
+            <label for="country" class="col-sm-2 control-label">Country</label>
+            <div class="col-sm-6">
+                 <input type="text" name="country" class="form-control" placeholder="Country" value="{{ group.leader.country }}" data-geo="country" />
+            </div>
+        </div>
+    {% elif group.leader %}
+        <div class="form-group address_details">
+            <label for="address1" class="col-sm-2 control-label">Address</label>
+            <div class="col-sm-6">
+                <em>The group leader does not have an address set!</em>
+            </div>
+        </div>
+    {% else %}
+        <div class="form-group address_details">
+            <label for="address1" class="col-sm-2 control-label">Address</label>
+            <div class="col-sm-6">
+                <em>No group leader set!</em>
+            </div>
+        </div>
+    {% endif %}
 {% endif %}
 
 {% include "groupextra.html" %}
