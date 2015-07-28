@@ -188,6 +188,15 @@
     </div>
 </div>
 
+{% if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES or attendee.amount_extra >= c.SUPPORTER_LEVEL %}
+    <div class="form-group">
+        <label for="badge_printed_name" class="col-sm-2 control-label">Name Printed on Badge</label>
+        <div class="col-sm-6">
+            <input type="text" class="form-control" name="badge_printed_name" maxlength="20" value="{{ attendee.badge_printed_name }}" />
+        </div>
+    </div>
+{% endif %}
+
 {% include "regform.html" %}
 
 <div class="form-group">
@@ -255,6 +264,18 @@
         </nobr>
     </div>
 </div>
+
+{% if attendee.amount_extra >= c.SHIRT_LEVEL %}
+    <div class="form-group">
+        <label for="shirt" class="col-sm-2 control-label">Shirt Size</label>
+        <div class="col-sm-6">
+            <select name="shirt" class="form-control">
+                <option value="{{ c.NO_SHIRT }}">Select a shirt size</option>
+                {% options c.SHIRT_OPTS attendee.shirt %}
+            </select>
+        </div>
+    </div>
+{% endif %}
 
 <div class="form-group">
     <label class="col-sm-2 control-label">Extra Merch</label>
