@@ -16,9 +16,7 @@ def check_prereg_reqs(attendee):
 
 
 def check_dealer(group):
-    if not group.address:
-        return 'Dealers are required to provide an address for tax purposes'
-    elif not group.wares:
+    if not group.wares:
         return 'You must provide a detailed explanation of what you sell for us to evaluate your submission'
     elif not group.website:
         return "Please enter your business' website address"
@@ -155,8 +153,6 @@ class Root:
                 message = check(group)
                 if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                     message = check_dealer(group)
-                    if int(params['badges']) > c.MAX_DEALER_BADGES.get(float(params['tables']), 1):
-                        message = "Too many dealer assistants!"
 
             if not message:
                 if attendee.badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE]:
