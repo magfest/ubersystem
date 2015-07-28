@@ -35,13 +35,9 @@
         </div>
     </div>
 
-    <div class="form-group" id="reg-types">
-        <label class="col-sm-2 control-label" style="white-space:nowrap">Registration Type</label>
-    </div>
-
     {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC %}
-        <div class="form-group">
-            <p class="help-block col-sm-8 col-sm-offset-2">
+        <div class="form-group row">
+            <p class="col-sm-6 col-sm-offset-2">
                 <strong>Dealers:</strong>
                 {% if c.BEFORE_DEALER_REG_PUBLIC %}
                     Registrations for dealer memberships begin {{ c.DEALER_REG_START|datetime }}.
@@ -51,6 +47,10 @@
             </p>
         </div>
     {% endif %}
+
+    <div class="form-group" id="reg-types">
+        <label class="col-sm-2 control-label" style="white-space:nowrap">Registration Type</label>
+    </div>
 {% endif %}
 
 <form method="post" action="form" class="form-horizontal" role="form">
@@ -61,6 +61,10 @@
 {% endif %}
 
 {% if not attendee.is_dealer %}
+    <div class="form-group" id="badge-types">
+        <label class="col-sm-2 control-label">Badge Level</label>
+    </div>
+
     <div class="group_fields hide">
         <div class="form-group">
             <label for="name" class="col-sm-2 control-label">Group Name</label>
@@ -91,7 +95,7 @@
         <label for="tables" class="col-sm-2 control-label">Tables</label>
         <div class="col-sm-6">
             <select class="form-control" name="tables">
-                {% options c.TABLE_OPTS group.tables %}
+                {% int_options 1 4 group.tables %}
             </select>
         </div>
     </div>
@@ -149,10 +153,6 @@
         <p class="help-block col-sm-6 col-sm-offset-2">The one you want us to link on our website, or n/a</p>
     </div>
 {% endif %}
-
-    <div class="form-group" id="badge-types">
-        <label class="col-sm-2 control-label">Badge Level</label>
-    </div>
 
 {% include "regform.html" %}
 
