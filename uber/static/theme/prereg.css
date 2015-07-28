@@ -66,8 +66,8 @@ body {
 }
 
 .prereg-price-notice {
-    color: red;
+    color: #CC0000;
 }
 .active .prereg-price-notice {
-    color: rgb(255, 125, 125);
+    color: #FFCC66;
 }
