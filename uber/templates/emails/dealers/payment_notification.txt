@@ -1,0 +1,2 @@
+"{{ group.name }}" has just paid for their Dealer registration.
+{{ c.URL_BASE }}/groups/form?id={{ group.id }}

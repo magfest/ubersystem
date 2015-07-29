@@ -1178,10 +1178,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.ribbon == c.DEPT_HEAD_RIBBON
 
     @property
-    def is_group_leader(self):
-        return self.group and self.id == self.group.leader_id
-
-    @property
     def shirt_size_marked(self):
         return self.shirt not in [c.NO_SHIRT, c.SIZE_UNKNOWN]
 
