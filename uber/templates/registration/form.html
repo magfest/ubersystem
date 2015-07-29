@@ -208,7 +208,7 @@
 <div class="form-group staffing staffing-checked">
     <label class="col-sm-2 control-label">Trusted?</label>
     <div class="col-sm-6">
-        {% checkbox attendee.staffing %} This volunteer can take restricted shifts
+        {% checkbox attendee.trusted %} This volunteer can take restricted shifts
         <span class="popup">{% popup_link "../static_views/trustDesc.html" "What does this mean?" %}</span>
     </div>
 </div>
