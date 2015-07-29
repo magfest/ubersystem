@@ -1188,10 +1188,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.ribbon == c.DEPT_HEAD_RIBBON
 
     @property
-    def is_group_leader(self):
-        return self.group and self.id == self.group.leader_id
-
-    @property
     def can_check_in(self):
         return self.paid != c.NOT_PAID and self.badge_status == c.COMPLETED_STATUS and not self.is_unassigned
 
