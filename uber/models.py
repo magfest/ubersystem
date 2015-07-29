@@ -616,7 +616,7 @@ class Session(SessionManager):
 
         def everyone(self):
             attendees = self.query(Attendee).filter(Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])).options(joinedload(Attendee.group)).all()
-            groups = self.query(Group).filter(Group.status != c.DECLINED).options(joinedload(Group.attendees)).all()
+            groups = self.query(Group).options(joinedload(Group.attendees)).all()
             return attendees, groups
 
         def staffers(self):
