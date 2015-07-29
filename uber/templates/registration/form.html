@@ -84,12 +84,18 @@
         }
     };
 
-    $(document).ready(function(){
+    var toggleStaffingAdminRows = function () {
+        setVisible('.staffing-checked', $.field('staffing').prop('checked'));
+    };
+
+    $(function(){
         $.field("placeholder").click(boldOrRegular).click(setPreassigned);
         setBadgeMessage();
         boldOrRegular();
         setGroupLink();
         showOrHideAmounts();
+        toggleStaffingAdminRows();
+        $.field('staffing').on('click', toggleStaffingAdminRows);
         {% if c.AT_THE_CON and attendee.is_new %}
             $.field("paid").val({{ c.HAS_PAID }});
             $.field("amount_paid").val({{ c.BADGE_PRICE }});
@@ -199,7 +205,15 @@
 
 {% include "regform.html" %}
 
-<div class="form-group">
+<div class="form-group staffing staffing-checked">
+    <label class="col-sm-2 control-label">Trusted?</label>
+    <div class="col-sm-6">
+        {% checkbox attendee.staffing %} This volunteer can take restricted shifts
+        <span class="popup">{% popup_link "../static_views/trustDesc.html" "What does this mean?" %}</span>
+    </div>
+</div>
+
+<div class="form-group staffing staffing-checked">
     <label class="col-sm-2 control-label">Assigned Depts</label>
     <div class="col-sm-6">
         {% checkgroup attendee.assigned_depts %}
@@ -270,7 +284,6 @@
         <label for="shirt" class="col-sm-2 control-label">Shirt Size</label>
         <div class="col-sm-6">
             <select name="shirt" class="form-control">
-                <option value="{{ c.NO_SHIRT }}">Select a shirt size</option>
                 {% options c.SHIRT_OPTS attendee.shirt %}
             </select>
         </div>

@@ -151,7 +151,7 @@
             <p class="help-block col-sm-6 col-sm-offset-2">(custom badges have already been ordered, so you can no longer set this)</p>
         </div>
     {% endif %}
-    
+
     <div class="affiliate-row extra-row form-group" style="display:none">
         <label for="affiliate" class="col-sm-2 control-label optional-field">Affiliate</label>
         <div class="col-sm-6">
@@ -161,17 +161,17 @@
         </div>
         {% popup_link "../static_views/affiliates.html" "What's an affiliate?" %}
     </div>
-{% endif %}
 
-<div class="shirt-row extra-row form-group" style="display:none">
-    <label for="shirt" class="col-sm-2 control-label">Shirt Size</label>
-    <div class="col-sm-6">
-        <select name="shirt" class="form-control">
-            <option value="{{ c.NO_SHIRT }}">Select a shirt size</option>
-            {% options c.PREREG_SHIRT_OPTS attendee.shirt %}
-        </select>
+    <div class="shirt-row extra-row form-group" style="display:none">
+        <label for="shirt" class="col-sm-2 control-label">Shirt Size</label>
+        <div class="col-sm-6">
+            <select name="shirt" class="form-control">
+                <option value="{{ c.NO_SHIRT }}">Select a shirt size</option>
+                {% options c.PREREG_SHIRT_OPTS attendee.shirt %}
+            </select>
+        </div>
     </div>
-</div>
+{% endif %}
 
 <div class="form-group staffing">
     <label for="staffing" class="col-sm-2 control-label">Want to Volunteer?</label>
