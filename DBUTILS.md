@@ -10,6 +10,9 @@ sudo bash
 su postgres
 pg_dump mydbname -f uber-backup-`date +%F`.sql
 
+# same thing as above but all one command, if you're already root
+su postgres -c 'pg_dump mydbname -f /home/backups/uber-backup-`date +%F`.sql'
+
 # restore a database named 'mydbname' from a file named 'backupfile.sql'
 sudo bash
 service postgresql restart        
