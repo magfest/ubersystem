@@ -615,8 +615,8 @@ class Session(SessionManager):
             return 'Badge updated'
 
         def everyone(self):
-            attendees = self.query(Attendee).options(joinedload(Attendee.group)).all()
-            groups = self.query(Group).options(joinedload(Group.attendees)).all()
+            attendees = self.query(Attendee).filter(Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])).options(joinedload(Attendee.group)).all()
+            groups = self.query(Group).filter(Group.status != c.DECLINED).options(joinedload(Group.attendees)).all()
             return attendees, groups
 
         def staffers(self):
@@ -992,6 +992,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     badge_num  = Column(Integer, default=0, nullable=True, admin_only=True)
     badge_type = Column(Choice(c.BADGE_OPTS), default=c.ATTENDEE_BADGE)
+    badge_status = Column(Choice(c.BADGE_STATUS_OPTS), default=c.NEW_STATUS, admin_only=True)
     ribbon     = Column(Choice(c.RIBBON_OPTS), default=c.NO_RIBBON, admin_only=True)
 
     affiliate    = Column(UnicodeText)
@@ -1087,6 +1088,15 @@ class Attendee(MagModel, TakesPaymentMixin):
                     self.badge_num = self.session.next_badge_num(self.badge_type, old_badge_num=0)
 
     @presave_adjustment
+    def _status_adjustments(self):
+        if self.badge_status == c.NEW_STATUS and not self.placeholder and self.first_name:
+            if (self.paid == c.HAS_PAID or self.paid == c.NEED_NOT_PAY) or (self.paid == c.PAID_BY_GROUP and not self.group.amount_unpaid):
+                self.badge_status = c.COMPLETED_STATUS
+        elif self.badge_status == c.INVALID_STATUS and self.admin_account:
+            Tracking.track(DELETED, self.admin_account)
+            self.session.delete(self.admin_account)
+
+    @presave_adjustment
     def _staffing_adjustments(self):
         if self.ribbon == c.DEPT_HEAD_RIBBON:
             self.staffing = self.trusted = True
@@ -1176,6 +1186,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def is_dept_head(self):
         return self.ribbon == c.DEPT_HEAD_RIBBON
+
+    @property
+    def can_check_in(self):
+        return self.paid != c.NOT_PAID and self.badge_status == c.COMPLETED_STATUS and not self.is_unassigned
 
     @property
     def shirt_size_marked(self):

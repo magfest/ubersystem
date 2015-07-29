@@ -1,0 +1,6 @@
+%syntax-version=1.0.0
+%project=rams-core
+%uri=https://github.com/ramsproject/rams-core
+
+master-base 2015-07-21T16:30:15Z vagrant <vagrant@vagrant-ubuntu-trusty-64> # Starting point for RAMS Core.
+add-badge-statuses 2015-07-21T16:50:45Z vagrant <vagrant@vagrant-ubuntu-trusty-64> # Add badge_status column.

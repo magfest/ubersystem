@@ -137,6 +137,15 @@
     </div>
 {% endif %}
 
+    <div class="form-group">
+        <label for="badge_status" class="col-sm-2 control-label">Status</label>
+        <div class="col-sm-6">
+            <select name="badge_status">
+            {% options c.BADGE_STATUS_OPTS attendee.badge_status %}
+            </select>
+        </div>
+    </div>
+
 <div class="form-group">
     <label class="col-sm-2 control-label">Badge</label>
     <div class="col-sm-6">
