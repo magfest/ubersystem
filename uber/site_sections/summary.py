@@ -11,7 +11,7 @@ class Root:
             'shirt_sizes':   [(desc, count(shirt=shirt)) for shirt, desc in c.SHIRT_OPTS],
             'paid_counts':   [(desc, count(paid=status)) for status, desc in c.PAYMENT_OPTS],
             'badge_counts':  [(desc, count(badge_type=bt), count(paid=c.NOT_PAID, badge_type=bt), count(paid=c.HAS_PAID, badge_type=bt)) for bt, desc in c.BADGE_OPTS],
-            'aff_counts':    [(aff['text'], count(badge_type=c.SUPPORTER_BADGE, affiliate=aff['text'], paid=c.HAS_PAID), count(badge_type=c.SUPPORTER_BADGE, affiliate=aff['text'], paid=c.NOT_PAID)) for aff in session.affiliates()],
+            'aff_counts':    [(aff['text'], len([a for a in attendees if a.amount_extra >= c.SUPPORTER_LEVEL and a.affiliate == aff['text']])) for aff in session.affiliates()],
             'checkin_count': count(checked_in=None),
             'paid_noshows':  count(paid=c.HAS_PAID, checked_in=None) + len([a for a in attendees if a.paid == c.PAID_BY_GROUP and a.group.amount_paid and not a.checked_in]),
             'free_noshows':  count(paid=c.NEED_NOT_PAY, checked_in=None),

@@ -503,8 +503,8 @@ class PriceNotice(template.Node):
         self.takedown, self.amount_extra = Variable(takedown), Variable(amount_extra)
 
     def _notice(self, label, takedown, amount_extra):
-        if c.PAGE_PATH != '/preregistration/form':
-            return ''  # we only display notices on the main prereg form
+        if c.PAGE_PATH not in ['/preregistration/form', '/preregistration/register_group_member']:
+            return ''  # we only display notices for new attendees
         else:
             for day, price in sorted(c.PRICE_BUMPS.items()):
                 if day < takedown and localized_now() < day:

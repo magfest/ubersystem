@@ -137,6 +137,10 @@ class Config:
             return individual_supporters + group_supporters
 
     @property
+    def REMAINING_BADGES(self):
+        return max(0, self.MAX_BADGE_SALES - self.BADGES_SOLD)
+
+    @property
     def SQLALCHEMY_URL(self):
         """
         support reading the DB connection info from an environment var (used with Docker containers)

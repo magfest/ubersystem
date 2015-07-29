@@ -16,9 +16,7 @@ def check_prereg_reqs(attendee):
 
 
 def check_dealer(group):
-    if not group.address:
-        return 'Dealers are required to provide an address for tax purposes'
-    elif not group.wares:
+    if not group.wares:
         return 'You must provide a detailed explanation of what you sell for us to evaluate your submission'
     elif not group.website:
         return "Please enter your business' website address"
@@ -86,7 +84,7 @@ class Root:
         cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
         return json.dumps({
             'badges_sold': c.BADGES_SOLD,
-            'remaining_badges': max(0, c.MAX_BADGE_SALES - c.BADGES_SOLD),
+            'remaining_badges': c.REMAINING_BADGES,
 
             'server_current_timestamp': int(datetime.utcnow().timestamp()),
             'warn_if_server_browser_time_mismatch': c.WARN_IF_SERVER_BROWSER_TIME_MISMATCH
@@ -155,8 +153,6 @@ class Root:
                 message = check(group)
                 if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                     message = check_dealer(group)
-                    if int(params['badges']) > c.MAX_DEALER_BADGES.get(float(params['tables']), 1):
-                        message = "Too many dealer assistants!"
 
             if not message:
                 if attendee.badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE]:
@@ -343,23 +339,24 @@ class Root:
     def process_group_payment(self, session, payment_id, stripeToken):
         charge = Charge.get(payment_id)
         [group] = charge.groups
-        [attendee] = charge.attendees
         message = charge.charge_cc(stripeToken)
         if message:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
         else:
             group.amount_paid += charge.dollar_amount
 
-            # Subtract an attendee's kick-in level, if it's not already paid for.
-            if attendee.amount_paid < attendee.total_cost:
-                group.amount_paid -= attendee.total_cost - attendee.amount_paid
+            for attendee in charge.attendees:
+                # Subtract an attendee's kick-in level, if it's not already paid for.
+                if attendee.amount_paid < attendee.total_cost:
+                    group.amount_paid -= attendee.total_cost - attendee.amount_paid
 
-            attendee.amount_paid = attendee.total_cost
+                attendee.amount_paid = attendee.total_cost
+                session.merge(attendee)
+
             if group.tables:
                 send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Payment Completed',
                            render('emails/dealers/payment_notification.txt', {'group': group}), model=group)
             session.merge(group)
-            session.merge(attendee)
             raise HTTPRedirect('group_members?id={}&message={}', group.id, 'Your payment has been accepted!')
 
     @credit_card

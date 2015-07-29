@@ -39,7 +39,9 @@
                 onClick: function () {
                     $('.group_fields').addClass('hide');
                     $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
-                    $('#bold-field-message').insertBefore($.field('first_name').parents('.form-group'));
+                    if ($.field('first_name')) {
+                        $('#bold-field-message').insertBefore($.field('first_name').parents('.form-group'));
+                    }
                     togglePrices();
                 }
             }]
@@ -64,22 +66,22 @@
             row: '#badge-types',
             selector: '.badge-type-selector',
             options: [{
-                title: 'Attending',
+                title: '{% if c.PAGE_PATH == "/preregistration/form" or c.PAGE_PATH == "/preregistration/dealer_registration" %}Attending{% else %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
                 description: 'Allows access to the convention for its duration. {% price_notice "Preregistration" c.PREREG_TAKEDOWN %}',
                 extra: 0
             }]
         };
-        {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS %}
+        {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS and not attendee.gets_free_shirt %}
             BADGE_TYPES.options.push({
                 title: 'Add a tshirt',
-                description: 'Attendee level plus a {{ c.EVENT_NAME }} themed t-shirt. {% price_notice "Preregistration" c.PREREG_TAKEDOWN c.SHIRT_LEVEL %}',
+                description: 'Add a {{ c.EVENT_NAME }} themed t-shirt to your registration. {% price_notice "Preregistration" c.PREREG_TAKEDOWN c.SHIRT_LEVEL %}',
                 extra: {{ c.SHIRT_LEVEL }}
             });
         {% endif %}
         {% if c.SUPPORTER_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE %}
             BADGE_TYPES.options.push({
                 title: 'Supporter',
-                description: 'Donate extra and get more swag with your membership. {% price_notice "Supporter registration" c.SUPPORTER_DEADLINE c.SUPPORTER_LEVEL %}',
+                description: 'Donate extra and get more swag with your registration. {% price_notice "Supporter registration" c.SUPPORTER_DEADLINE c.SUPPORTER_LEVEL %}',
                 extra: {{ c.SUPPORTER_LEVEL }}
             });
         {% endif %}

@@ -78,7 +78,11 @@
     <script type="text/javascript">
         var donationChanged = function () {
             setVisible('.affiliate-row', $.val('amount_extra') > 0);
-            setVisible('.shirt-row', $.val('amount_extra') >= {{ c.SHIRT_LEVEL }});
+            {% if attendee.gets_shirt %}
+                setVisible('.shirt-row', true);
+            {% else %}
+                setVisible('.shirt-row', $.val('amount_extra') >= {{ c.SHIRT_LEVEL }});
+            {% endif %}
             {% if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES %}
                 setVisible('.badge-row', true);
             {% else %}
@@ -102,12 +106,11 @@
                 if ($.field('affiliate')) {
                     $.field('affiliate').select2({
                         placeholder: "I don't care about this",
-                        createSearchChoice: function(term) {
-                            return {id: term, text: term};
-                        },
+                        allowClear: true,
+                        tags: true,
                         data: {{ affiliates|jsonize }},
                         width: '100%',
-                    }).select2('val', {{ attendee.affiliate|default:''|jsonize }});
+                    }).val({{ attendee.affiliate|default:''|jsonize }});
                 }
                 $('form').submit(function(){
                     $(':submit').attr('value', 'Uploading Preregistration...').attr('disabled', true);
@@ -148,25 +151,27 @@
             <p class="help-block col-sm-6 col-sm-offset-2">(custom badges have already been ordered, so you can no longer set this)</p>
         </div>
     {% endif %}
-    
+
     <div class="affiliate-row extra-row form-group" style="display:none">
         <label for="affiliate" class="col-sm-2 control-label optional-field">Affiliate</label>
         <div class="col-sm-6">
-            <input type="hidden" name="affiliate" style="width:30ex" />
+            <select name="affiliate">
+                <option value="" selected="selected"></option>
+            </select>
         </div>
         {% popup_link "../static_views/affiliates.html" "What's an affiliate?" %}
     </div>
-{% endif %}
 
-<div class="shirt-row extra-row form-group" style="display:none">
-    <label for="shirt" class="col-sm-2 control-label">Shirt Size</label>
-    <div class="col-sm-6">
-        <select name="shirt" class="form-control">
-            <option value="{{ c.NO_SHIRT }}">Select a shirt size</option>
-            {% options c.PREREG_SHIRT_OPTS attendee.shirt %}
-        </select>
+    <div class="shirt-row extra-row form-group" style="display:none">
+        <label for="shirt" class="col-sm-2 control-label">Shirt Size</label>
+        <div class="col-sm-6">
+            <select name="shirt" class="form-control">
+                <option value="{{ c.NO_SHIRT }}">Select a shirt size</option>
+                {% options c.PREREG_SHIRT_OPTS attendee.shirt %}
+            </select>
+        </div>
     </div>
-</div>
+{% endif %}
 
 <div class="form-group staffing">
     <label for="staffing" class="col-sm-2 control-label">Want to Volunteer?</label>
@@ -218,7 +223,7 @@
     </div>
 </div>
 
-{% if c.COLLECT_FULL_ADDRESS or attendee.is_dealer %}
+{% if c.COLLECT_FULL_ADDRESS %}
     <div class="form-group">
         <label for="full_address" class="col-sm-2 control-label">Address</label>
         <div class="col-sm-6">

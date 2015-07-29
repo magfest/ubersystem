@@ -8,7 +8,7 @@ from uber.common import *
 class AutomatedEmail:
     instances = OrderedDict()
 
-    def __init__(self, model, subject, template, filter, *, sender=None, extra_data=None, cc=None, bcc=None, post_con=False, needs_approval=False):
+    def __init__(self, model, subject, template, filter, *, sender=None, extra_data=None, cc=None, bcc=None, post_con=False, needs_approval=True):
         self.model, self.template, self.needs_approval = model, template, needs_approval
         self.subject = subject.format(EVENT_NAME=c.EVENT_NAME)
         self.cc = cc or []
@@ -72,8 +72,8 @@ class StopsEmail(AutomatedEmail):
 
 
 class GuestEmail(AutomatedEmail):
-    def __init__(self, subject, template, filter=lambda a: True, needs_approval=True, **kwargs):
-        AutomatedEmail.__init__(self, Attendee, subject, template, lambda a: a.badge_type == c.GUEST_BADGE and filter(a), needs_approval=needs_approval, sender=c.PANELS_EMAIL, **kwargs)
+    def __init__(self, subject, template, filter=lambda a: True, **kwargs):
+        AutomatedEmail.__init__(self, Attendee, subject, template, lambda a: a.badge_type == c.GUEST_BADGE and filter(a), sender=c.PANELS_EMAIL, **kwargs)
 
 
 class GroupEmail(AutomatedEmail):
@@ -92,7 +92,6 @@ class SeasonSupporterEmail(AutomatedEmail):
                                 subject='Claim your {} tickets with your {} Season Pass'.format(event.name, c.EVENT_NAME),
                                 template='reg_workflow/season_supporter_event_invite.txt',
                                 filter=lambda a: before(event.deadline),
-                                needs_approval=True,
                                 extra_data={'event': event})
 
 
@@ -120,16 +119,20 @@ def days_before(days, dt, until=None):
 # won't get sent if group registration is turned off.
 
 AutomatedEmail(Attendee, '{EVENT_NAME} payment received', 'reg_workflow/attendee_confirmation.html',
-         lambda a: a.paid == c.HAS_PAID)
+         lambda a: a.paid == c.HAS_PAID,
+         needs_approval=False)
 
 AutomatedEmail(Group, '{EVENT_NAME} group payment received', 'reg_workflow/group_confirmation.html',
-         lambda g: g.amount_paid == g.cost and g.cost != 0)
+         lambda g: g.amount_paid == g.cost and g.cost != 0,
+         needs_approval=False)
 
 AutomatedEmail(Attendee, '{EVENT_NAME} group registration confirmed', 'reg_workflow/attendee_confirmation.html',
-         lambda a: a.group and a != a.group.leader and not a.placeholder)
+         lambda a: a.group and a != a.group.leader and not a.placeholder,
+         needs_approval=False)
 
 AutomatedEmail(Attendee, '{EVENT_NAME} extra payment received', 'reg_workflow/group_donation.txt',
-         lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid == a.amount_extra)
+         lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid == a.amount_extra,
+         needs_approval=False)
 
 
 # Reminder emails for groups to allocated their unassigned badges.  These emails are safe to be turned on for
@@ -137,10 +140,12 @@ AutomatedEmail(Attendee, '{EVENT_NAME} extra payment received', 'reg_workflow/gr
 # has been turned off, they'll just never be sent.
 
 GroupEmail('Reminder to pre-assign {EVENT_NAME} group badges', 'reg_workflow/group_preassign_reminder.txt',
-           lambda g: days_after(30, g.registered) and c.BEFORE_GROUP_PREREG_TAKEDOWN and g.unregistered_badges)
+           lambda g: days_after(30, g.registered) and c.BEFORE_GROUP_PREREG_TAKEDOWN and g.unregistered_badges,
+           needs_approval=False)
 
 AutomatedEmail(Group, 'Last chance to pre-assign {EVENT_NAME} group badges', 'reg_workflow/group_preassign_reminder.txt',
-         lambda g: c.AFTER_GROUP_PREREG_TAKEDOWN and g.unregistered_badges and (not g.is_dealer or g.status == APPROVED))
+         lambda g: c.AFTER_GROUP_PREREG_TAKEDOWN and g.unregistered_badges and (not g.is_dealer or g.status == APPROVED),
+         needs_approval=False)
 
 
 # Dealer emails; these are safe to be turned on for all events because even if the event doesn't have dealers,
@@ -148,16 +153,20 @@ AutomatedEmail(Group, 'Last chance to pre-assign {EVENT_NAME} group badges', 're
 # dealer registration has been turned on.
 
 MarketplaceEmail('Your {EVENT_NAME} Dealer registration has been approved', 'dealers/approved.html',
-                 lambda g: g.status == c.APPROVED)
+                 lambda g: g.status == c.APPROVED,
+                 needs_approval=False)
 
 MarketplaceEmail('Reminder to pay for your {EVENT_NAME} Dealer registration', 'dealers/payment_reminder.txt',
-                 lambda g: g.status == c.APPROVED and days_after(30, g.approved) and g.is_unpaid)
+                 lambda g: g.status == c.APPROVED and days_after(30, g.approved) and g.is_unpaid,
+                 needs_approval=False)
 
 MarketplaceEmail('Your {EVENT_NAME} Dealer registration is due in one week', 'dealers/payment_reminder.txt',
-                 lambda g: g.status == c.APPROVED and days_before(7, c.DEALER_PAYMENT_DUE, 2) and g.is_unpaid)
+                 lambda g: g.status == c.APPROVED and days_before(7, c.DEALER_PAYMENT_DUE, 2) and g.is_unpaid,
+                 needs_approval=False)
 
 MarketplaceEmail('Last chance to pay for your {EVENT_NAME} Dealer registration', 'dealers/payment_reminder.txt',
-                 lambda g: g.status == c.APPROVED and days_before(2, c.DEALER_PAYMENT_DUE) and g.is_unpaid)
+                 lambda g: g.status == c.APPROVED and days_before(2, c.DEALER_PAYMENT_DUE) and g.is_unpaid,
+                 needs_approval=False)
 
 MarketplaceEmail('{EVENT_NAME} Dealer waitlist has been exhausted', 'dealers/waitlist_closing.txt',
                  lambda g: c.AFTER_DEALER_WAITLIST_CLOSED and g.status == c.WAITLISTED)
