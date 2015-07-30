@@ -84,6 +84,12 @@
         </div>
     </div>
 {% else %}
+    <script>
+        $(function () {
+            $('#bold-field-message').insertBefore($.field('name').parents('.form-group'));
+        });
+    </script>
+
     <div class="form-group">
         <label for="name" class="col-sm-2 control-label">Dealer Table Name</label>
         <div class="col-sm-6">
@@ -97,7 +103,7 @@
             <select class="form-control" name="tables">
                 {% int_options 1 c.MAX_TABLES group.tables %}
             </select>
-            (${{ c.TABLE_PRICES.default_price }} per table)
+            ({% table_prices %})
         </div>
     </div>
     <div class="form-group">
@@ -136,7 +142,7 @@
     </div>
 
     <div class="form-group">
-        <label for="special_needs" class="col-sm-2 control-label">Table Requests and Special Requests</label>
+        <label for="special_needs" class="col-sm-2 control-label optional-field">Table Requests and Special Requests</label>
         <div class="col-sm-6">
             <textarea class="form-control" name="special_needs" rows="4" placeholder="E.g., specific table, who you would like to sit near, who you would not like to sit near.">{{ group.special_needs }}</textarea>
         </div>

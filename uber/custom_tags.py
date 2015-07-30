@@ -518,6 +518,21 @@ class PriceNotice(template.Node):
         return '<div class="prereg-price-notice">{}</div>'.format(notice) if notice else ''
 
 
+@tag
+class table_prices(template.Node):
+    def render(self, context):
+        if len(c.TABLE_PRICES) <= 1:
+            return '${} per table'.format(c.TABLE_PRICES['default_price'])
+        else:
+            cost, costs = 0, []
+            for i in range(1, 1 + c.MAX_TABLES):
+                cost += c.TABLE_PRICES[i]
+                table_plural, cost_plural = ('', 's') if i == 1 else ('s', '')
+                costs.append('<nobr>{} table{} cost{} ${}</nobr>'.format(i, table_plural, cost_plural, cost))
+            costs[-1] = 'and ' + costs[-1]
+            return ', '.join(costs)
+
+
 # FIXME this can probably be cleaned up more
 @register.tag(name='random_hash')
 def random_hash(parser, token):
