@@ -107,7 +107,7 @@
     <div class="form-group">
         <label for="badges" class="col-sm-2 control-label">Badges</label>
         <div class="col-sm-6">
-            <select class="form-control" name="badges" onChange="setDealerCost()">{% int_options 1 c.MAX_DEALERS badges %}</select>
+            <select class="form-control" name="badges">{% int_options 1 c.MAX_DEALERS badges %}</select>
             (${{ c.DEALER_BADGE_PRICE }} per badge)
         </div>
     </div>

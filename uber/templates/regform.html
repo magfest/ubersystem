@@ -15,8 +15,12 @@
     var staffingClicked = function () {
         var checked = $.field('staffing') && $.field('staffing').is(':visible:checked');
         setVisible('#departments', checked);
-        setVisible($.field('no_cellphone').parents('.checkbox'), checked);
-        $('#cellphone').parents('.form-group').find('label:first').css('font-weight', checked ? 'bold' : 'normal');
+        if ($.field('no_cellphone')) {
+            setVisible($.field('no_cellphone').parents('.checkbox'), checked);
+        }
+        if ($.field('cellphone')) {
+            $.field('cellphone').parents('.form-group').find('label:first').css('font-weight', checked ? 'bold' : 'normal');
+        }
     };
     $(function () {
         staffingClicked();
@@ -26,11 +30,15 @@
     });
 
     var noCellphoneClicked = function () {
-        setVisible($.field('cellphone'), $.field('no_cellphone').is(':not(:checked)'));
+        if ($.field('no_cellphone')) {
+            setVisible($.field('cellphone'), !$.field('no_cellphone').prop('checked'));
+        }
     };
     $(function () {
         noCellphoneClicked();
-        $.field('no_cellphone').on('click', noCellphoneClicked);
+        if ($.field('no_cellphone')) {
+            $.field('no_cellphone').on('click', noCellphoneClicked);
+        }
     });
 
     {% if not attendee.is_new %}
