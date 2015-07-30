@@ -168,6 +168,7 @@ class Root:
             'message':   message,
             'attendees': session.query(Attendee.id, Attendee.full_name)
                                 .filter_by(staffing=True, **({'trusted': True} if job.restricted else {}))
+                                .filter(Attendee.assigned_depts.contains(str(job.location)))
                                 .order_by(Attendee.full_name).all()
         }
 
