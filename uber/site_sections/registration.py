@@ -162,7 +162,6 @@ class Root:
                 ]}))
                 session.assign_badges(attendee.group, attendee.group.badges + 1, attendee.badge_type)
                 session.delete_from_group(attendee, attendee.group)
-                attendee.group.attendees.remove(attendee)
                 message = 'Attendee deleted, but this badge is still available to be assigned to someone else in the same group'
         else:
             session.delete(attendee)
