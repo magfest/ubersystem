@@ -927,7 +927,7 @@ class Group(MagModel, TakesPaymentMixin):
         total = 0
         for attendee in self.attendees:
             if attendee.paid == c.PAID_BY_GROUP:
-                total += c.get_group_price(attendee.registered)
+                total += c.DEALER_BADGE_PRICE if attendee.is_dealer else c.get_group_price(attendee.registered)
         return total
 
     @cost_property
