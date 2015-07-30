@@ -954,12 +954,12 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def min_badges_addable(self):
-        if self.is_dealer and self.badges >= self.dealer_max_badges:
-            return 0
-        elif self.is_dealer or self.can_add:
+        if self.can_add:
             return 1
+        elif self.is_dealer:
+            return 0
         else:
-            return 5
+            return c.MIN_GROUP_ADDITION
 
 
 class Attendee(MagModel, TakesPaymentMixin):
