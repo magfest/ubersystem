@@ -84,7 +84,7 @@
     </div>
 {% endif %}
 
-{% if c.DONATIONS_ENABLED and c.PREREG_DONATION_OPTS and not attendee.is_dealer and c.PAGE_PATH != '/registration/form' %}
+{% if c.DONATIONS_ENABLED and c.PREREG_DONATION_OPTS and c.PAGE_PATH != '/registration/form' %}
     <script type="text/javascript">
         var donationChanged = function () {
             setVisible('.affiliate-row', $.val('amount_extra') > 0);

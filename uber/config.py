@@ -126,6 +126,10 @@ class Config:
         return cherrypy.request.path_info.split('/')[-1]
 
     @property
+    def HTTP_METHOD(self):
+        return cherrypy.request.method
+
+    @property
     def SUPPORTER_COUNT(self):
         with sa.Session() as session:
             attendees = session.query(sa.Attendee)
