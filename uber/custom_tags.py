@@ -2,8 +2,8 @@ from uber.common import *
 
 
 @register.filter
-def datetime(dt, fmt='11:59pm EST on %A, %b %e'):
-    return ' '.join(dt.astimezone(c.EVENT_TIMEZONE).strftime(fmt).split())
+def datetime(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
+    return ' '.join(dt.astimezone(c.EVENT_TIMEZONE).strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm')
 
 from datetime import datetime  # noqa: now that we've registered our filter, re-import the "datetime" class to avoid conflicts
 
