@@ -533,6 +533,17 @@ class table_prices(template.Node):
             return ', '.join(costs)
 
 
+@tag
+class event_dates(template.Node):
+    def render(self, context):
+        if c.EPOCH.date() == c.ESCHATON.date():
+            return c.EPOCH.strftime('%B %-d')
+        elif c.EPOCH.month != c.ESCHATON.month:
+            return '{} - {}'.format(c.EPOCH.strftime('%B %-d'), c.ESCHATON.strftime('%B %-d'))
+        else:
+            return '{}-{}'.format(c.EPOCH.strftime('%B %-d'), c.ESCHATON.strftime('%-d'))
+
+
 # FIXME this can probably be cleaned up more
 @register.tag(name='random_hash')
 def random_hash(parser, token):
