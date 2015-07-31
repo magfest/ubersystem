@@ -21,7 +21,9 @@ def check_dealer(group):
     elif not group.website:
         return "Please enter your business' website address"
     elif not group.description:
-        return "Please provide a brief description of your business"
+        return 'Please provide a brief description of your business'
+    elif not group.address:
+        return 'Please provide your full address for tax purposes'
 
 
 def send_banned_email(attendee):
