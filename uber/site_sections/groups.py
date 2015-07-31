@@ -47,7 +47,10 @@ class Root:
                         leader.first_name, leader.last_name, leader.email = first_name, last_name, email
                         leader.placeholder = True
                         if group.status == c.APPROVED:
-                            raise HTTPRedirect('../preregistration/group_members?id={}', group.id)
+                            if group.amount_unpaid:
+                                raise HTTPRedirect('../preregistration/group_members?id={}', group.id)
+                            else:
+                                raise HTTPRedirect('index?message={}', group.name + ' has been uploaded, approved, and marked as paid')
                         else:
                             raise HTTPRedirect('index?message={}', group.name + ' is uploaded and ' + group.status_label)
                     else:
