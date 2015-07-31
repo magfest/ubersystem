@@ -4,6 +4,6 @@ Our records indicate that your group ({{ group.name }}) currently has some unass
 
 If you already know who's coming with your group, we highly encourage you to use the following link to pre-assign your badges: {{ c.URL_BASE }}/preregistration/group_members?id={{ group.id }}
 
-The latest that you can pre-assign your badges is {{ c.UBER_TAKEDOWN|datetime }}.
+The latest that you can pre-assign your badges is {{ c.UBER_TAKEDOWN|datetime }}.  We look forward to seeing you at {{ c.EVENT_NAME }} on {% event_dates %}.
 
 {{ c.REGDESK_EMAIL_SIGNATURE }}
