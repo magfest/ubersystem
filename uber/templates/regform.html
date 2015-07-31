@@ -18,9 +18,11 @@
         if ($.field('no_cellphone')) {
             setVisible($.field('no_cellphone').parents('.checkbox'), checked);
         }
-        if ($.field('cellphone')) {
-            $.field('cellphone').parents('.form-group').find('label:first').css('font-weight', checked ? 'bold' : 'normal');
-        }
+        {% if not attendee.is_dealer %}
+            if ($.field('cellphone')) {
+                $.field('cellphone').parents('.form-group').find('label:first').css('font-weight', checked ? 'bold' : 'normal');
+            }
+        {% endif %}
     };
     $(function () {
         staffingClicked();
@@ -297,7 +299,7 @@
 </div>
 
 <div class="form-group">
-    <label for="cellphone" class="col-sm-2 control-label optional-field">Your Cellphone Number</label>
+    <label for="cellphone" class="col-sm-2 control-label">Your Cellphone Number</label>
     <div class="col-sm-6">
         <input type="text" name="cellphone" id="cellphone" value="{{ attendee.cellphone }}" class="form-control" placeholder="Your Personal Cellphone Number">
     </div>
