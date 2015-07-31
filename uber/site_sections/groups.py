@@ -67,7 +67,7 @@ class Root:
         group = session.group(id)
         subject = 'Your {EVENT_NAME} Dealer registration has been ' + action
         if group.email:
-            send_email(c.MARKETPLACE_EMAIL, group.email, subject, email, model=group)
+            send_email(c.MARKETPLACE_EMAIL, group.email, subject, email, bcc=c.MARKETPLACE_EMAIL, model=group)
         if action == 'waitlisted':
             group.status = c.WAITLISTED
         else:
