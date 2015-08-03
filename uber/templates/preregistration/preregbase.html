@@ -91,8 +91,10 @@
             $.each(BADGE_TYPES.options, function (i, type) {
                 var $price = $(BADGE_TYPES.selector).slice(i, i + 1).find('.price').empty();
                 if (showTotalPrices) {
+                    $('.prereg-price-notice').show();
                     $price.append(': $').append(type.extra + {{ c.BADGE_PRICE }});
                 } else if (type.extra) {
+                    $('.prereg-price-notice').hide();
                     $price.append(': +$').append(type.extra);
                 }
             });
