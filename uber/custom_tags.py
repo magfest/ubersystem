@@ -509,7 +509,7 @@ class PriceNotice(template.Node):
             for day, price in sorted(c.PRICE_BUMPS.items()):
                 if day < takedown and localized_now() < day:
                     return '<div class="prereg-price-notice">Price goes up to ${} at 11:59pm EST on {}</div>'.format(price + amount_extra, (day - timedelta(days=1)).strftime('%A, %b %e'))
-                elif localized_now() < day:
+                elif localized_now() < day and takedown == c.PREREG_TAKEDOWN:
                     return '<div class="prereg-type-closing">{} closes at 11:59pm EST on {}. Price goes up to ${} at-door.</div>'.format(label, takedown.strftime('%A, %b %e'), price + amount_extra, (day - timedelta(days=1)).strftime('%A, %b %e'))
             return '<div class="prereg-type-closing">{} closes at 11:59pm EST on {}</div>'.format(label, takedown.strftime('%A, %b %e'))
 
