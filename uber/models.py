@@ -1090,7 +1090,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @presave_adjustment
     def _status_adjustments(self):
         if self.badge_status == c.NEW_STATUS and not self.placeholder and self.first_name:
-            if (self.paid == c.HAS_PAID or self.paid == c.NEED_NOT_PAY) or (self.paid == c.PAID_BY_GROUP and not self.group.amount_unpaid):
+            if (self.paid == c.HAS_PAID or self.paid == c.NEED_NOT_PAY) or (self.paid == c.PAID_BY_GROUP and self.group and not self.group.amount_unpaid):
                 self.badge_status = c.COMPLETED_STATUS
         elif self.badge_status == c.INVALID_STATUS and self.admin_account:
             Tracking.track(DELETED, self.admin_account)

@@ -32,7 +32,13 @@
     <div class="row">
         <div class="col-sm-8 col-sm-offset-2">
             <div class="col-sm-5 text-center">
-                {% stripe_form prereg_payment charge %}
+                {% if AT_THE_CON %}
+                    <a href="index?payment_method={{ CASH }}"><button class="btn btn-success">Pay with Cash</button></a>
+                    {% stripe_form prereg_payment charge %}
+                    <a href="index?payment_method={{ SQUARE }}"><button class="btn btn-info">Pay with Card at the Desk</button></a>
+                {% else %}
+                    {% stripe_form prereg_payment charge %}
+                {% endif %}
             </div>
             <div class="col-sm-2 text-center">
                 or
@@ -97,9 +103,8 @@
         <th></th>
     </tr>
 </tfoot>
-
-</table>
 {% endif %}
+</table>
 
 {% include "preregistration/disclaimers.html" %}
 </div>
