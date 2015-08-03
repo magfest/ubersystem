@@ -1,4 +1,3 @@
-# TODO: assumes c.STAFF_BADGE and c.SUPPORTER_BADGE are preassigned badge types with configured ranges, should add this to sensible_defaults
 from uber.tests import *
 
 
