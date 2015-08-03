@@ -101,7 +101,7 @@ class TestGetsShirt:
         assert Attendee(amount_extra=c.SHIRT_LEVEL).gets_shirt
         assert Attendee(ribbon=c.DEPT_HEAD_RIBBON).gets_shirt
         assert Attendee(badge_type=c.STAFF_BADGE).gets_shirt
-        #assert Attendee(badge_type=c.SUPPORTER_BADGE).gets_shirt  # TODO: should this be true?
+        # assert Attendee(badge_type=c.SUPPORTER_BADGE).gets_shirt  # TODO: should this be true?
 
     def test_shiftless_depts(self, monkeypatch):
         monkeypatch.setattr(Attendee, 'takes_shifts', False)
