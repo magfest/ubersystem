@@ -1,24 +1,49 @@
 from uber.common import *
+from uber.config import _make_enum
 import shutil
 import pytest
 from sideboard.tests import patch_session
 
+TEST_DB_FILE = '/tmp/uber.db'
+
+
+@pytest.fixture(scope='session')
+def sensible_defaults():
+    """
+    Our unit tests parse our config files, so we want to define
+    the default settings which can be overridden in fixtures.
+    """
+    c.POST_CON = False
+    c.AT_THE_CON = False
+    c.SHIFT_CUSTOM_BADGES = True
+
+    # our tests should work no matter what departments exist, so we'll add these departments to use in our tests
+    _make_enum('test_departments', {'console': 'Console', 'arcade': 'Arcade', 'con_ops': 'Fest Ops'})
+    c.SHIFTLESS_DEPTS = [c.CON_OPS]
+
+    # we want 2 preassigned types to test some of our logic, so we've
+    # set these even though Supporter isn't really a badge type anymore
+    c.PREASSIGNED_BADGE_TYPES = [c.STAFF_BADGE, c.SUPPORTER_BADGE]
+    c.BADGE_RANGES[c.STAFF_BADGE] = [1, 399]
+    c.BADGE_RANGES[c.SUPPORTER_BADGE] = [500, 999]
+
+    # we need to set some default table prices so we can write tests against them without worrying about what's been configured
+    c.TABLE_PRICES = defaultdict(lambda: 400, {1: 100, 2: 200, 3: 300})
+
 
 @pytest.fixture(scope='session', autouse=True)
-def init_db(request):
-    for module in modules:
-        setattr(module, 'PRE_CON', True)
-        setattr(module, 'AT_THE_CON', False)
-        setattr(module, 'AT_OR_POST_CON', False)
-        setattr(module, 'CUSTOM_BADGES_REALLY_ORDERED', False)
+def init_db(request, sensible_defaults):
+    if os.path.exists(TEST_DB_FILE):
+        os.remove(TEST_DB_FILE)
     patch_session(Session, request)
+    initialize_db()
     register_session_listeners()
     with Session() as session:
         session.add(Attendee(
             placeholder=True,
             first_name='Regular',
             last_name='Volunteer',
-            ribbon=VOLUNTEER_RIBBON,
+            ribbon=c.VOLUNTEER_RIBBON,
             staffing=True
         ))
         session.add(Attendee(
@@ -31,60 +56,94 @@ def init_db(request):
                 placeholder=True,
                 first_name=name,
                 last_name=name,
-                paid=NEED_NOT_PAY,
-                badge_type=STAFF_BADGE
+                paid=c.NEED_NOT_PAY,
+                badge_type=c.STAFF_BADGE
             ))
             session.add(Attendee(
                 placeholder=True,
                 first_name=name,
                 last_name=name,
-                paid=NEED_NOT_PAY,
-                badge_type=SUPPORTER_BADGE
+                paid=c.NEED_NOT_PAY,
+                badge_type=c.SUPPORTER_BADGE
             ))
             session.commit()
+
+        session.add(Job(
+            name='Job One',
+            start_time=c.EPOCH,
+            slots=1,
+            weight=1,
+            duration=2,
+            location=c.ARCADE,
+            extra15=True
+        ))
+        session.add(Job(
+            name='Job Two',
+            start_time=c.EPOCH + timedelta(hours=1),
+            slots=1,
+            weight=1,
+            duration=2,
+            location=c.ARCADE
+        ))
+        session.add(Job(
+            name='Job Three',
+            start_time=c.EPOCH + timedelta(hours=2),
+            slots=1,
+            weight=1,
+            duration=2,
+            location=c.ARCADE
+        ))
+        session.add(Job(
+            name='Job Four',
+            start_time=c.EPOCH,
+            slots=2,
+            weight=1,
+            duration=2,
+            location=c.CONSOLE,
+            extra15=True
+        ))
+        session.add(Job(
+            name='Job Five',
+            start_time=c.EPOCH + timedelta(hours=2),
+            slots=1,
+            weight=1,
+            duration=2,
+            location=c.CONSOLE
+        ))
+        session.add(Job(
+            name='Job Six',
+            start_time=c.EPOCH,
+            slots=1,
+            weight=1,
+            duration=2,
+            location=c.CONSOLE,
+            restricted=True
+        ))
+        session.commit()
 
 
 @pytest.fixture(autouse=True)
 def db(request, init_db):
-    shutil.copy('/tmp/uber.db', '/tmp/uber.db.backup')
-    request.addfinalizer(lambda: shutil.move('/tmp/uber.db.backup', '/tmp/uber.db'))
+    shutil.copy(TEST_DB_FILE, TEST_DB_FILE + '.backup')
+    request.addfinalizer(lambda: shutil.move(TEST_DB_FILE + '.backup', TEST_DB_FILE))
 
 
 @pytest.fixture(autouse=True)
 def cp_session():
     cherrypy.session = {}
 
-modules = [uber.common, uber.models, uber.badge_funcs, uber.utils, uber.model_checks, uber.server]
-for modname in os.listdir(os.path.join(MODULE_ROOT, 'site_sections')):
-    if modname.endswith('.py') and not modname.startswith('_'):
-        modules.append(__import__('uber.site_sections.' + modname[:-3], fromlist='*'))
 
-
-def _make_setting_fixture(name, setting, val):
-    def func(monkeypatch):
-        for module in modules:
-            monkeypatch.setattr(module, setting, val)
-    func.__name__ = name
-    globals()[name] = pytest.fixture(func)
+@pytest.fixture
+def at_con(monkeypatch): monkeypatch.setattr(c, 'AT_THE_CON', True)
 
 
 @pytest.fixture
-def precon(monkeypatch):
-    for module in modules:
-        monkeypatch.setattr(module, 'PRE_CON', True)
-        monkeypatch.setattr(module, 'AT_THE_CON', False)
-        monkeypatch.setattr(module, 'AT_OR_POST_CON', False)
+def shifts_created(monkeypatch): monkeypatch.setattr(c, 'SHIFTS_CREATED', localized_now())
 
 
 @pytest.fixture
-def at_con(monkeypatch):
-    for module in modules:
-        monkeypatch.setattr(module, 'PRE_CON', False)
-        monkeypatch.setattr(module, 'AT_THE_CON', True)
-        monkeypatch.setattr(module, 'AT_OR_POST_CON', True)
+def shifts_not_created(monkeypatch): monkeypatch.setattr(c, 'SHIFTS_CREATED', '')
 
-_make_setting_fixture('shifts_created', 'SHIFTS_CREATED', localized_now())
-_make_setting_fixture('shifts_not_created', 'SHIFTS_CREATED', '')
 
-_make_setting_fixture('custom_badges_ordered', 'SHIFT_CUSTOM_BADGES', False)
-_make_setting_fixture('custom_badges_not_ordered', 'SHIFT_CUSTOM_BADGES', True)
+@pytest.fixture
+def custom_badges_ordered(monkeypatch): monkeypatch.setattr(c, 'SHIFT_CUSTOM_BADGES', False)

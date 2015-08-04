@@ -545,7 +545,7 @@ class Session(SessionManager):
 
             # Adjusts the badge number based on badges in the session
             for attendee in [m for m in chain(self.new, self.dirty) if isinstance(m, Attendee)]:
-                if attendee.badge_type == badge_type:
+                if attendee.badge_type == badge_type and attendee.badge_num <= c.BADGE_RANGES[badge_type][1]:
                     next = max(next, 1 + attendee.badge_num)
 
             return next
@@ -565,52 +565,46 @@ class Session(SessionManager):
                 a.badge_num += shift
 
         def change_badge(self, attendee, badge_type, badge_num=None):
+            """
+            Badges should always be assigned a number if they're marked as
+            pre-assigned or if they've been checked in.  If auto-shifting is
+            also turned off, badge numbers cannot clobber other numbers,
+            otherwise we'll shift all the other badge numbers around the old
+            and new numbers.
+            """
             # assert_badge_locked()
             from uber.badge_funcs import check_range
             badge_type = int(badge_type)
-            old_badge_num = attendee.badge_num
+            old_badge_type, old_badge_num = attendee.badge_type, attendee.badge_num
 
             out_of_range = check_range(badge_num, badge_type)
-
+            next = self.next_badge_num(badge_type, old_badge_num)
             if out_of_range:
                 return out_of_range
+            elif not badge_num and next > c.BADGE_RANGES[badge_type][1]:
+                return 'There are no more badges available for that type'
 
-            # Keeps non-preassigned badges numberless unless they've already been checked in.
-            if badge_type not in c.PREASSIGNED_BADGE_TYPES and (not c.NUMBERED_BADGES or not attendee.checked_in):
-                attendee.badge_type = badge_type
-                attendee.badge_num = 0
-                return 'Badge updated'
-
-            # Badges should always be assigned a number if they're marked as pre-assigned or if they've been checked in.
-            # If auto-shifting is also turned off, badge numbers cannot clobber other numbers.
+            if not c.SHIFT_CUSTOM_BADGES:
+                badge_num = badge_num or next
+                existing = self.query(Attendee).filter_by(badge_type=badge_type, badge_num=badge_num) \
+                                               .filter(Attendee.id != attendee.id)
+                if existing.count():
+                    return 'That badge number already belongs to {!r}'.format(existing.first().full_name)
             else:
-                if not badge_num:
-                    next = self.next_badge_num(badge_type, old_badge_num)
-                    if next > c.BADGE_RANGES[badge_type][1]:
-                        return 'There are no more badges available for that type'
-                    attendee.badge_num = next
-                elif not c.SHIFT_CUSTOM_BADGES:
-                    existing = self.query(Attendee).filter_by(badge_type=badge_type, badge_num=badge_num)
-                    if existing.count():
-                        return 'That badge number already belongs to {!r}'.format(existing.first().full_name)
-                    attendee.badge_num = badge_num
-                # Here, badge number replacement is allowed, and auto-shifting is performed instead
-                else:
-                    next = self.next_badge_num(badge_type, old_badge_num)
-                    new_badge_num = min(int(badge_num or c.BADGE_RANGES[badge_type][1]), next)
+                # fill in the gap from the old number, if applicable
+                if old_badge_num:
+                    self.shift_badges(old_badge_type, old_badge_num + 1, down=True)
 
-                    if old_badge_num < new_badge_num:
-                        self.shift_badges(badge_type, old_badge_num, down=True, until=new_badge_num)
-                    elif old_badge_num == new_badge_num:
-                        new_badge_num += 1
-                    else:
-                        self.shift_badges(badge_type, new_badge_num, up=True, until=old_badge_num)
-                    attendee.badge_num = new_badge_num
+                # determine the new badge number now that the badges have shifted
+                next = self.next_badge_num(badge_type, old_badge_num)
+                badge_num = min(badge_num or next, next)
 
-                    if badge_num <= next:
-                        attendee.badge_type = badge_type
-                        return 'That badge number was too high, so the next available badge was assigned instead'
+                # make room for the new number, if applicable
+                if badge_num:
+                    offset = 1 if badge_type == old_badge_type and old_badge_num and badge_num > old_badge_num else 0
+                    self.shift_badges(badge_type, badge_num + offset, up=True)
 
+            attendee.badge_num = badge_num
             attendee.badge_type = badge_type
             return 'Badge updated'
 
@@ -1076,9 +1070,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         # _assert_badge_lock()
 
         if self.badge_type in [c.PSEUDO_GROUP_BADGE, c.PSEUDO_DEALER_BADGE]:
-            self.badge_type = c.ATTENDEE_BADGE
             if self.is_dealer:
                 self.ribbon = c.DEALER_RIBBON
+            self.badge_type = c.ATTENDEE_BADGE
 
         if c.PRE_CON:
             if self.paid == c.NOT_PAID or not self.has_personalized_badge or self.is_unassigned:
@@ -1309,7 +1303,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def takes_shifts(self):
-        return bool(self.staffing and set(self.assigned_depts_ints) - c.SHIFTLESS_DEPTS)
+        return bool(self.staffing and set(self.assigned_depts_ints) - set(c.SHIFTLESS_DEPTS))
 
     @property
     def hotel_shifts_required(self):
