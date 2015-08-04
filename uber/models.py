@@ -194,8 +194,11 @@ class MagModel:
 
     @property
     def default_cost(self):
-        """Returns the sum of all @cost_property values for this model instance."""
-        return sum([getattr(self, name) for name in self.cost_property_names], 0)
+        """
+        Returns the sum of all @cost_property values for this model instance.
+        Because things like discounts exist, we ensure cost can never be negative.
+        """
+        return max(0, sum([getattr(self, name) for name in self.cost_property_names], 0))
 
     @class_property
     def unrestricted(cls):
@@ -1145,6 +1148,10 @@ class Attendee(MagModel, TakesPaymentMixin):
             return c.get_oneday_price(registered)
         else:
             return c.get_attendee_price(registered)
+
+    @cost_property
+    def discount(self):
+        return -self.age_group_conf['discount']
 
     @property
     def age_group_conf(self):

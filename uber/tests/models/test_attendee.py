@@ -1,28 +1,43 @@
 from uber.tests import *
 
 
-def test_badge_cost(monkeypatch):
-    monkeypatch.setattr(c, 'get_oneday_price', Mock(return_value=111))
-    monkeypatch.setattr(c, 'get_attendee_price', Mock(return_value=222))
-    assert 111 == Attendee(badge_type=c.ONE_DAY_BADGE).badge_cost
-    assert 222 == Attendee().badge_cost
-    assert 333 == Attendee(overridden_price=333).badge_cost
-    assert 0 == Attendee(paid=c.NEED_NOT_PAY).badge_cost
-    assert 0 == Attendee(paid=c.PAID_BY_GROUP).badge_cost
+class TestCosts:
+    @pytest.fixture(autouse=True)
+    def mocked_prices(self, monkeypatch):
+        monkeypatch.setattr(c, 'get_oneday_price', Mock(return_value=10))
+        monkeypatch.setattr(c, 'get_attendee_price', Mock(return_value=20))
 
+    def test_badge_cost(self):
+        assert 10 == Attendee(badge_type=c.ONE_DAY_BADGE).badge_cost
+        assert 20 == Attendee().badge_cost
+        assert 30 == Attendee(overridden_price=30).badge_cost
+        assert 0 == Attendee(paid=c.NEED_NOT_PAY).badge_cost
+        assert 0 == Attendee(paid=c.PAID_BY_GROUP).badge_cost
 
-def test_total_cost(monkeypatch):
-    monkeypatch.setattr(c, 'get_attendee_price', Mock(return_value=10))
-    assert 10 == Attendee().total_cost
-    assert 15 == Attendee(amount_extra=5).total_cost
+    def test_total_cost(self):
+        assert 20 == Attendee().total_cost
+        assert 25 == Attendee(amount_extra=5).total_cost
 
+    def test_amount_unpaid(self, monkeypatch):
+        monkeypatch.setattr(Attendee, 'total_cost', 50)
+        assert 50 == Attendee().amount_unpaid
+        assert 10 == Attendee(amount_paid=40).amount_unpaid
+        assert 0 == Attendee(amount_paid=50).amount_unpaid
+        assert 0 == Attendee(amount_paid=51).amount_unpaid
 
-def test_amount_unpaid(monkeypatch):
-    monkeypatch.setattr(Attendee, 'total_cost', 50)
-    assert 50 == Attendee().amount_unpaid
-    assert 10 == Attendee(amount_paid=40).amount_unpaid
-    assert 0 == Attendee(amount_paid=50).amount_unpaid
-    assert 0 == Attendee(amount_paid=51).amount_unpaid
+    def test_discount(self, monkeypatch):
+        monkeypatch.setattr(Attendee, 'age_group_conf', {'discount': 5})
+        assert 15 == Attendee().total_cost
+        assert 20 == Attendee(amount_extra=5).total_cost
+        assert 5 == Attendee(overridden_price=10).total_cost
+        assert 10 == Attendee(overridden_price=10, amount_extra=5).total_cost
+
+    def test_free(self, monkeypatch):
+        monkeypatch.setattr(Attendee, 'age_group_conf', {'discount': 999})  # make sure we minimizee non-kickin costs at 0
+        assert 0 == Attendee().total_cost
+        assert 5 == Attendee(amount_extra=5).total_cost
+        assert 0 == Attendee(overridden_price=10).total_cost
+        assert 5 == Attendee(overridden_price=10, amount_extra=5).total_cost
 
 
 def test_is_unpaid():
