@@ -37,7 +37,8 @@ class Root:
             message = check(group)
             if not message:
                 session.add(group)
-                message = session.assign_badges(group, params['badges'], params['badge_type'])
+                ribbon_to_use = c.NO_RIBBON if not 'ribbon' in params else params['ribbon']
+                message = session.assign_badges(group, params['badges'], params['badge_type'], ribbon_to_use)
                 if not message and new_dealer and not (first_name and last_name and email and group.badges):
                     message = 'When registering a new Dealer, you must enter the name and email address of the group leader and must allocate at least one badge'
                 if not message:
