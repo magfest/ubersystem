@@ -504,20 +504,6 @@ class Session(SessionManager):
         def no_email(self, subject):
             return not self.query(Email).filter_by(subject=subject).all()
 
-        def season_pass(self, id):
-            pss = self.query(PrevSeasonSupporter).filter_by(id=id).all()
-            if pss:
-                return pss[0]
-            else:
-                attendee = self.attendee(id)
-                assert attendee.amount_extra >= c.SEASON_LEVEL
-                return attendee
-
-        def season_passes(self):
-            attendees = {a.email: a for a in self.query(Attendee).filter(Attendee.amount_extra >= c.SEASON_LEVEL).all()}
-            prev = [pss for pss in self.query(PrevSeasonSupporter).all() if pss.email not in attendees]
-            return prev + list(attendees.values())
-
         def lookup_attendee(self, full_name, email, zip_code):
             words = full_name.split()
             for i in range(1, len(words)):
@@ -1510,15 +1496,6 @@ class AssignedPanelist(MagModel):
         return '<{self.attendee.full_name} panelisting {self.event.name}>'.format(self=self)
 
 
-class SeasonPassTicket(MagModel):
-    fk_id    = Column(UUID)
-    slug     = Column(UnicodeText)
-
-    @property
-    def fk(self):
-        return self.session.season_pass(self.fk_id)
-
-
 class Room(MagModel, NightsMixin):
     department = Column(Choice(c.JOB_LOCATION_OPTS))
     notes      = Column(UnicodeText)
@@ -1699,14 +1676,6 @@ class Checkout(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
     checked_out = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     returned    = Column(UTCDateTime, nullable=True)
-
-
-class PrevSeasonSupporter(MagModel):
-    first_name = Column(UnicodeText)
-    last_name  = Column(UnicodeText)
-    email      = Column(UnicodeText)
-
-    _repr_attr_names = ['first_name', 'last_name', 'email']
 
 
 class ApprovedEmail(MagModel):

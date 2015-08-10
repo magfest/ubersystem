@@ -56,10 +56,6 @@ class Config:
         return self.BADGE_PRICE + self.SUPPORTER_LEVEL
 
     @property
-    def SEASON_BADGE_PRICE(self):
-        return self.BADGE_PRICE + self.SEASON_LEVEL
-
-    @property
     def GROUP_PRICE(self):
         return self.get_group_price(sa.localized_now())
 
@@ -85,10 +81,6 @@ class Config:
     @property
     def SUPPORTERS_ENABLED(self):
         return self.SUPPORTER_LEVEL in self.PREREG_DONATION_TIERS
-
-    @property
-    def SEASON_SUPPORTERS_ENABLED(self):
-        return self.SEASON_LEVEL in self.PREREG_DONATION_TIERS
 
     @property
     def AT_THE_DOOR_BADGE_OPTS(self):
@@ -300,7 +292,6 @@ c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
 c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]
 c.TRANSFERABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.TRANSFERABLE_BADGE_TYPES]
 
-c.SEASON_EVENTS = _config['season_events']
 c.DEPT_HEAD_CHECKLIST = _config['dept_head_checklist']
 
 c.BADGE_LOCK = RLock()

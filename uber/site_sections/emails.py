@@ -26,7 +26,8 @@ class Root:
         examples = []
         email = AutomatedEmail.instances[subject]
         attendees, groups = session.everyone()
-        models = {Attendee: attendees, Group: groups, 'SeasonPass': session.season_passes()}
+        models = {Attendee: attendees, Group: groups}
+        models.update({model: lister() for model, lister in AutomatedEmail.extra_models.items()})
         for x in models[email.model]:
             if email.filter(x):
                 count += 1
