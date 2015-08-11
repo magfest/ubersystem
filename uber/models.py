@@ -700,11 +700,11 @@ class Session(SessionManager):
             self.delete(attendee)
             group.attendees.remove(attendee)
 
-        def assign_badges(self, group, new_badge_count, new_badge_type=c.ATTENDEE_BADGE, new_ribbon_type=c.NO_RIBBON, **extra_create_args):
+        def assign_badges(self, group, new_badge_count, new_badge_type=c.ATTENDEE_BADGE, new_ribbon_type=None, **extra_create_args):
             diff = int(new_badge_count) - group.badges
             sorted_unassigned = sorted(group.floating, key=lambda a: a.registered, reverse=True)
 
-            ribbon_to_use = group.new_ribbon if group.new_ribbon is not c.NO_RIBBON else new_ribbon_type
+            ribbon_to_use = new_ribbon_type or group.new_ribbon
 
             if diff > 0:
                 for i in range(diff):
