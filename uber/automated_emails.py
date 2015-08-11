@@ -60,7 +60,7 @@ class AutomatedEmail:
                 attendees, groups = session.everyone()
                 approved = {ae.subject for ae in session.query(ApprovedEmail).all()}
                 models = {Attendee: attendees, Group: groups}
-                models.update({model: lister() for model, lister in self.extra_models.items()})
+                models.update({model: lister(session) for model, lister in self.extra_models.items()})
                 all_sent = {(e.model, e.fk_id, e.subject): e for e in session.query(Email).all()}
                 for rem in cls.instances.values():
                     if not rem.needs_approval or rem.subject in approved:
