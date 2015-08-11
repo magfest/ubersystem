@@ -8,6 +8,8 @@ from uber.common import *
 class AutomatedEmail:
     instances = OrderedDict()
 
+    extra_models = {}  # extended by plugins
+
     def __init__(self, model, subject, template, filter, *, sender=None, extra_data=None, cc=None, bcc=None, post_con=False, needs_approval=True):
         self.model, self.template, self.needs_approval = model, template, needs_approval
         self.subject = subject.format(EVENT_NAME=c.EVENT_NAME)
@@ -38,7 +40,7 @@ class AutomatedEmail:
             log.error('unexpected error', exc_info=True)
 
     def render(self, x):
-        model = 'attendee' if isinstance(x, PrevSeasonSupporter) else x.__class__.__name__.lower()
+        model = getattr(x, 'email_model_name', x.__class__.__name__.lower())
         return render('emails/' + self.template, dict({model: x}, **self.extra_data))
 
     def send(self, x, raise_errors=True):
@@ -57,7 +59,8 @@ class AutomatedEmail:
             with Session() as session:
                 attendees, groups = session.everyone()
                 approved = {ae.subject for ae in session.query(ApprovedEmail).all()}
-                models = {Attendee: attendees, Group: groups, 'SeasonPass': session.season_passes()}
+                models = {Attendee: attendees, Group: groups}
+                models.update({model: lister() for model, lister in self.extra_models.items()})
                 all_sent = {(e.model, e.fk_id, e.subject): e for e in session.query(Email).all()}
                 for rem in cls.instances.values():
                     if not rem.needs_approval or rem.subject in approved:
@@ -84,15 +87,6 @@ class GroupEmail(AutomatedEmail):
 class MarketplaceEmail(AutomatedEmail):
     def __init__(self, subject, template, filter, **kwargs):
         AutomatedEmail.__init__(self, Group, subject, template, lambda g: g.is_dealer and filter(g), sender=c.MARKETPLACE_EMAIL, **kwargs)
-
-
-class SeasonSupporterEmail(AutomatedEmail):
-    def __init__(self, event):
-        AutomatedEmail.__init__(self, 'SeasonPass',
-                                subject='Claim your {} tickets with your {} Season Pass'.format(event.name, c.EVENT_NAME),
-                                template='reg_workflow/season_supporter_event_invite.txt',
-                                filter=lambda a: before(event.deadline),
-                                extra_data={'event': event})
 
 
 class DeptChecklistEmail(AutomatedEmail):
@@ -267,9 +261,6 @@ AutomatedEmail(Attendee, 'Personalized {EVENT_NAME} badges will be ordered next 
 AutomatedEmail(Attendee, '{EVENT_NAME} parental consent form reminder', 'reg_workflow/under_18_reminder.txt',
                lambda a: c.CONSENT_FORM_URL and a.age_group_conf['consent_form'] and days_before(7, c.EPOCH))
 
-
-for _event in SeasonEvent.instances.values():
-    SeasonSupporterEmail(_event)
 
 for _conf in DeptChecklistConf.instances.values():
     DeptChecklistEmail(_conf)

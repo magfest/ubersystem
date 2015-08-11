@@ -736,14 +736,6 @@ class Root:
                                     .filter(Attendee.for_review != '')
                                     .order_by(Attendee.full_name).all()}
 
-    def season_pass_tickets(self, session):
-        events = defaultdict(list)
-        for spt in session.query(SeasonPassTicket).all():
-            events[spt.slug].append(spt.fk)
-        for attending in events.values():
-            attending.sort(key=lambda a: (a.first_name, a.last_name))
-        return {'events': dict(events)}
-
     @site_mappable
     def discount(self, session, message='', **params):
         attendee = session.attendee(params)

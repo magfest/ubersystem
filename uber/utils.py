@@ -88,28 +88,13 @@ class Order:
 
 
 class Registry:
+    """
+    Base class for configurable registries such as the Dept Head Checklist and
+    event-specific features such as MAGFest Season Pass events.
+    """
     @classmethod
     def register(cls, slug, kwargs):
         cls.instances[slug] = cls(slug, **kwargs)
-
-
-class SeasonEvent(Registry):
-    instances = OrderedDict()
-
-    def __init__(self, slug, **kwargs):
-        assert re.match('^[a-z0-9_]+$', slug), 'Season Event sections must have separated_by_underscore names'
-        for opt in ['url', 'location']:
-            assert kwargs.get(opt), '{!r} is a required option for Season Event subsections'.format(opt)
-
-        self.slug = slug
-        self.name = kwargs['name'] or slug.replace('_', ' ').title()
-        self.day = c.EVENT_TIMEZONE.localize(datetime.strptime(kwargs['day'], '%Y-%m-%d'))
-        self.url = kwargs['url']
-        self.location = kwargs['location']
-        if kwargs['deadline']:
-            self.deadline = c.EVENT_TIMEZONE.localize(datetime.strptime(kwargs['deadline'], '%Y-%m-%d'))
-        else:
-            self.deadline = (self.day - timedelta(days=7)).replace(hour=23, minute=59)
 
 
 class DeptChecklistConf(Registry):
@@ -130,9 +115,6 @@ class DeptChecklistConf(Registry):
         matches = [item for item in attendee.dept_checklist_items if self.slug == item.slug]
         return matches[0] if matches else None
 
-
-for _slug, _conf in c.SEASON_EVENTS.items():
-    SeasonEvent.register(_slug, _conf)
 
 for _slug, _conf in sorted(c.DEPT_HEAD_CHECKLIST.items(), key=lambda tup: tup[1]['deadline']):
     DeptChecklistConf.register(_slug, _conf)
