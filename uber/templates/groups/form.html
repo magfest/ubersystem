@@ -95,8 +95,21 @@
         <select name="badge_type">
             {% options c.BADGE_OPTS group.leader.badge_type %}
         </select>
+        Does not change existing badges in this group, only affects newly added badges.
     </div>
 </div>
+
+{% if not new_dealer and not group.is_dealer %}
+<div class="form-group">
+    <label class="col-sm-2 control-label">Ribbon Type</label>
+    <div class="col-sm-6">
+        <select name="ribbon">
+            {% options c.RIBBON_OPTS group.new_ribbon %}
+        </select>
+         Does not change existing badges in this group, only affects newly added badges.
+    </div>
+</div>
+{% endif %}
 
 <div class="form-group">
     <label class="col-sm-2 control-label">Amount Paid</label>

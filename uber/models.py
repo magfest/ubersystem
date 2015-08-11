@@ -686,13 +686,15 @@ class Session(SessionManager):
             self.delete(attendee)
             group.attendees.remove(attendee)
 
-        def assign_badges(self, group, new_badge_count, new_badge_type=None, **extra_create_args):
-            new_badge_type = new_badge_type or c.ATTENDEE_BADGE
+        def assign_badges(self, group, new_badge_count, new_badge_type=c.ATTENDEE_BADGE, new_ribbon_type=None, **extra_create_args):
             diff = int(new_badge_count) - group.badges
             sorted_unassigned = sorted(group.floating, key=lambda a: a.registered, reverse=True)
+
+            ribbon_to_use = new_ribbon_type or group.new_ribbon
+
             if diff > 0:
                 for i in range(diff):
-                    group.attendees.append(Attendee(badge_type=new_badge_type, ribbon=group.new_ribbon, paid=c.PAID_BY_GROUP, **extra_create_args))
+                    group.attendees.append(Attendee(badge_type=new_badge_type, ribbon=ribbon_to_use, paid=c.PAID_BY_GROUP, **extra_create_args))
             elif diff < 0:
                 if len(group.floating) < abs(diff):
                     return 'You cannot reduce the number of badges for a group to below the number of assigned badges'
