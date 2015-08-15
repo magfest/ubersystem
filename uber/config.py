@@ -136,22 +136,6 @@ class Config:
     def REMAINING_BADGES(self):
         return max(0, self.MAX_BADGE_SALES - self.BADGES_SOLD)
 
-    @property
-    def SECRET_SQLALCHEMY_URL(self):
-        """
-        support reading the DB connection info from an environment var (used with Docker containers)
-        example env vars:
-        DB_PORT_5432_TCP_ADDR="172.17.0.8"
-        DB_PORT_5432_TCP_PORT="5432"
-        """
-        docker_db_addr = os.environ.get('DB_PORT_5432_TCP_ADDR')
-        docker_db_port = os.environ.get('DB_PORT_5432_TCP_PORT')
-
-        if docker_db_addr is not None and docker_db_port is not None:
-            return "postgresql://uber_db:uber_db@" + docker_db_addr + ":" + docker_db_port + "/uber_db"
-        else:
-            return _config['secret']['sqlalchemy_url']
-
     @classmethod
     def mixin(cls, klass):
         for attr in dir(klass):
@@ -180,14 +164,39 @@ class Config:
                 return True  # Defaults to unlimited stock for any stock not configured
             else:
                 return count_check < stock_setting
-        elif not name.startswith('SECRET_') and hasattr(self, 'SECRET_' + name):
-            return getattr(self, 'SECRET_' + name)
+        elif hasattr(_secret, name):
+            return getattr(_secret, name)
         elif name.lower() in _config['secret']:
             return _config['secret'][name.lower()]
         else:
             raise AttributeError('no such attribute {}'.format(name))
 
+
+class SecretConfig:
+    """
+    This class is for properties which we don't want to be used as Javascript
+    variables.  Properties on this class can be accessed normally through the
+    global c object as if they were defined there.
+    """
+
+    @property
+    def SQLALCHEMY_URL(self):
+        """
+        support reading the DB connection info from an environment var (used with Docker containers)
+        example env vars:
+        DB_PORT_5432_TCP_ADDR="172.17.0.8"
+        DB_PORT_5432_TCP_PORT="5432"
+        """
+        docker_db_addr = os.environ.get('DB_PORT_5432_TCP_ADDR')
+        docker_db_port = os.environ.get('DB_PORT_5432_TCP_PORT')
+
+        if docker_db_addr is not None and docker_db_port is not None:
+            return "postgresql://uber_db:uber_db@" + docker_db_addr + ":" + docker_db_port + "/uber_db"
+        else:
+            return _config['secret']['sqlalchemy_url']
+
 c = Config()
+_secret = SecretConfig()
 
 _config = parse_config(__file__)  # outside this module, we use the above c global instead of using this directly
 
