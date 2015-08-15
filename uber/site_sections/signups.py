@@ -81,6 +81,7 @@ class Root:
             raise HTTPRedirect('index?message={}', 'Only Staffers can request hotel space')
         requests = session.hotel_requests(params, checkgroups=['nights'], restricted=True)
         if 'attendee_id' in params:
+            requests.attendee = attendee  # foreign keys are automatically admin-only
             session.add(requests)
             if decline or not requests.nights:
                 requests.nights = ''
@@ -102,11 +103,11 @@ class Root:
         day_before = (c.EPOCH - timedelta(days=1)).strftime('%A')
         last_day = c.ESCHATON.strftime('%A').upper()
         day_after = (c.ESCHATON + timedelta(days=1)).strftime('%A')
-        nights.append([globals()[day_before.upper()], getattr(requests, day_before.upper()),
+        nights.append([getattr(c, day_before.upper()), getattr(requests, day_before.upper()),
                        "I'd like to help set up on " + day_before])
         for night in c.CORE_NIGHTS:
             nights.append([night, night in requests.nights_ints, c.NIGHTS[night]])
-        nights.append([globals()[last_day], getattr(requests, last_day),
+        nights.append([getattr(c, last_day), getattr(requests, last_day),
                        "I'd like to help tear down on {} / {}".format(c.ESCHATON.strftime('%A'), day_after)])
 
         return {
