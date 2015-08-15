@@ -1,7 +1,17 @@
 from uber.common import *
 
 
-class Config:
+class _Overridable:
+    "Base class we extend below to allow plugins to add/override config options."
+    @classmethod
+    def mixin(cls, klass):
+        for attr in dir(klass):
+            if not attr.startswith('_'):
+                setattr(cls, attr, getattr(klass, attr))
+        return cls
+
+
+class Config(_Overridable):
     """
     We have two types of configuration.  One is the values which come directly from our config file, such
     as the name of our event.  The other is things which depend on the date/time (such as the badge price,
@@ -136,13 +146,6 @@ class Config:
     def REMAINING_BADGES(self):
         return max(0, self.MAX_BADGE_SALES - self.BADGES_SOLD)
 
-    @classmethod
-    def mixin(cls, klass):
-        for attr in dir(klass):
-            if not attr.startswith('_'):
-                setattr(cls, attr, getattr(klass, attr))
-        return cls
-
     def __getattr__(self, name):
         if name.split('_')[0] in ['BEFORE', 'AFTER']:
             date_setting = getattr(c, name.split('_', 1)[1])
@@ -172,7 +175,7 @@ class Config:
             raise AttributeError('no such attribute {}'.format(name))
 
 
-class SecretConfig:
+class SecretConfig(_Overridable):
     """
     This class is for properties which we don't want to be used as Javascript
     variables.  Properties on this class can be accessed normally through the
