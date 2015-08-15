@@ -95,7 +95,7 @@ class Config:
 
     @property
     def DISPLAY_ONEDAY_BADGES(self):
-        return self.ONE_DAYS_ENABLED and days_before(30, self.EPOCH)
+        return self.ONE_DAYS_ENABLED and sa.days_before(30, self.EPOCH)
 
     @property
     def AT_OR_POST_CON(self):
@@ -180,6 +180,8 @@ class Config:
                 return True  # Defaults to unlimited stock for any stock not configured
             else:
                 return count_check < stock_setting
+        elif name.lower() in _config['secret']:
+            return _config['secret'][name.lower()]
         else:
             raise AttributeError('no such attribute {}'.format(name))
 

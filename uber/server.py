@@ -28,13 +28,13 @@ class StaticViews:
         We also need those apps to be able to make HTTP requests with CSRF tokens, so we set that default.
         """
         cherrypy.response.headers['Content-Type'] = 'text/javascript'
-        renderable = {k: v for k, v in renderable_data().items() if isinstance(v, (bool, int, str))}
-        consts = json.dumps(renderable, indent=4)
+        consts = {attr: getattr(c, attr, None) for attr in dir(c)}
+        js_consts = json.dumps({k: v for k, v in consts.items() if isinstance(v, (bool, int, str))}, indent=4)
         return '\n'.join([
             'angular.module("magfest", [])',
-            '.constant("magconsts", {})'.format(consts),
+            '.constant("magconsts", {})'.format(js_consts),
             '.run(function ($http) {',
-            '   $http.defaults.headers.common["CSRF-Token"] = "{}";'.format(renderable.get('CSRF_TOKEN')),
+            '   $http.defaults.headers.common["CSRF-Token"] = "{}";'.format(c.CSRF_TOKEN),
             '});'
         ])
 
