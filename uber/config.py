@@ -137,7 +137,7 @@ class Config:
         return max(0, self.MAX_BADGE_SALES - self.BADGES_SOLD)
 
     @property
-    def SQLALCHEMY_URL(self):
+    def SECRET_SQLALCHEMY_URL(self):
         """
         support reading the DB connection info from an environment var (used with Docker containers)
         example env vars:
@@ -150,7 +150,7 @@ class Config:
         if docker_db_addr is not None and docker_db_port is not None:
             return "postgresql://uber_db:uber_db@" + docker_db_addr + ":" + docker_db_port + "/uber_db"
         else:
-            return _config['sqlalchemy_url']
+            return _config['secret']['sqlalchemy_url']
 
     @classmethod
     def mixin(cls, klass):
@@ -180,6 +180,8 @@ class Config:
                 return True  # Defaults to unlimited stock for any stock not configured
             else:
                 return count_check < stock_setting
+        elif not name.startswith('SECRET_') and hasattr(self, 'SECRET_' + name):
+            return getattr(self, 'SECRET_' + name)
         elif name.lower() in _config['secret']:
             return _config['secret'][name.lower()]
         else:
