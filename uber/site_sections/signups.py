@@ -37,9 +37,7 @@ class Root:
         attendee = session.logged_in_volunteer()
         fr = attendee.food_restrictions or FoodRestrictions()
         if params:
-            fr = session.food_restrictions(dict(params, attendee_id=attendee.id),
-                                          bools=['no_cheese'],
-                                          checkgroups=['standard'])
+            fr = session.food_restrictions(dict(params, attendee_id=attendee.id), checkgroups=['standard', 'sandwich_pref'])
             if not fr.sandwich_pref:
                 message = 'Please tell us your sandwich preference'
             else:
