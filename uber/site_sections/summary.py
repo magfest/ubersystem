@@ -75,14 +75,13 @@ class Root:
             'volunteers': volunteers,
             'notes': filter(bool, [getattr(fr, 'freeform', '') for fr in all_fr]),
             'standard': {
-                c.FOOD_RESTRICTIONS[globals()[category]]: len([fr for fr in all_fr if getattr(fr, category)])
+                c.FOOD_RESTRICTIONS[getattr(c, category)]: len([fr for fr in all_fr if getattr(fr, category)])
                 for category in c.FOOD_RESTRICTION_VARS
             },
             'sandwich_prefs': {
-                sandtype: len([fr for fr in all_fr if fr.sandwich_pref == globals()[sandtype]])
-                for sandtype in c.SANDWICH_VARS
-            },
-            'no_cheese': len([fr for fr in all_fr if fr.no_cheese])
+                desc: len([fr for fr in all_fr if val in fr.sandwich_pref_ints])
+                for val, desc in c.SANDWICH_OPTS
+            }
         }
 
     def ratings(self, session):
