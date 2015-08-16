@@ -479,6 +479,7 @@ class Root:
 
         attendee.placeholder = placeholder
         if not message and attendee.placeholder:
+            attendee.can_spam = True
             message = 'You are not yet registered!  You must fill out this form to complete your registration.'
         elif not message:
             message = 'You are already registered but you may update your information with this form.'
