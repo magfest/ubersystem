@@ -137,7 +137,8 @@ class Root:
                         session.delete(ap)
                 for attendee_id in new_panelist_ids:
                     if attendee_id not in old_panelist_ids:
-                        session.add(AssignedPanelist(event=event, attendee_id=attendee_id))
+                        attendee = session.attendee(id=attendee_id)
+                        session.add(AssignedPanelist(event=event, attendee=attendee))
                 raise HTTPRedirect('edit#{}', event.start_slot and (event.start_slot - 1))
 
         return {
