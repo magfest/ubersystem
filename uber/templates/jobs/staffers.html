@@ -44,23 +44,25 @@
     <th> [T] </th>
     <th> [M] </th>
     <th> [L] </th>
-    <th> Checked In</th>
-    <th> Checklist Done</th>
+    <th> Placeholder</th>
+    <th> Checklist Done/Hotel req</th>
     <th> Hours Here </th>
     <th> Hours Total </th>
+    <th> Checked In</th>
 </tr>
 {% for attendee in attendees %}
     <tr>
-        <td> <a href="../registration/shifts?id={{ attendee.id }}">{{ attendee.full_name }}</a>        </td>
+        <td width="20%"> <a href="../registration/shifts?id={{ attendee.id }}">{{ attendee.full_name }}</a>        </td>
         <td width="10"> {{ attendee.badge_num }}</a>        </td>
         <td width="10"> {% if attendee.is_dept_head %}<font size="-1">[D]</font>{% endif %}        </td>
         <td width="10"> {% if attendee.trusted %}<font size="-1">[T]</font>{% endif %}        </td>
         <td width="10"> {% if attendee.multiply_assigned %}<font size="-1">[M]</font>{% endif %}        </td>
         <td width="10"> {% if attendee.hotel_requests.approved and attendee.hotel_requests.setup_teardown %}<font size="-1">[L]</font>{% endif %}        </td>
-        <td width="10"> {% if attendee.checked_in   %}<font size="-1">True</font>{% else %}<font size="-1">False</font>{% endif %}        </td>
+        <td width="10"> {{ attendee.placeholder }}</td>
         <td width="20%"> {{ attendee.hotel_status }}</td>
         <td width="10"> {{ attendee.hours_here }}        </td>
-        <td> {{ attendee.weighted_hours }}        </td>
+        <td width="10"> {{ attendee.weighted_hours }}        </td>
+        <td width="10"> {% if attendee.checked_in   %}<font size="-1">True</font>{% else %}<font size="-1">False</font>{% endif %} </td>
     </tr>
 {% endfor %}
 </table>
