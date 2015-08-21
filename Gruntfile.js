@@ -22,6 +22,12 @@ module.exports = function (grunt) {
                             process.cwd() + '/uber/static/deps/jquery-datetextentry/jquery.datetextentry.js',
                             process.cwd() + '/uber/static/deps/jquery-datetextentry/jquery.datetextentry.css'
                         ]);
+                    } else if (component === 'datatables') {
+                        mainFiles = mainFiles.map(function(filepath) {
+                            return filepath.replace('jquery.dataTables.css', 'dataTables.bootstrap.css')
+                        });
+                        mainFiles = mainFiles.concat([process.cwd() + '/bower_components/datatables/media/js/dataTables.bootstrap.js']);
+                        return mainFiles;
                     } else {
                         return mainFiles;
                     }

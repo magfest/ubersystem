@@ -28,13 +28,13 @@
     </div>
 </form>
 
-<table class="table footable" data-filter="#filter" data-page-navigation=".pagination" data-limit-navigation="5">
+<table class="table table-striped datatable">
 <thead><tr>
-    <th data-type="alpha"><a href="index?order={{ order.first_name }}">Name</a></th>
-    <th data-type="alpha"><a href="staffers?order={{ order.badge_num }}">Badge</a></th>
-    <th data-type="alpha"><a href="staffers?order={{ order.paid }}">Paid</a></th>
-    <th data-type="alpha"><a href="staffers?order={{ order.assigned_depts }}">Assigned To</a></th>
-    <th data-type="numeric"><a href="staffers?order={{ order.weighted_hours }}">Hours</a></th>
+    <th data-type="alpha">Name</th>
+    <th data-type="alpha">Badge</th>
+    <th data-type="alpha">Paid</th>
+    <th data-type="alpha">Assigned To</th>
+    <th data-type="numeric">Hours</th>
     {% if c.AT_OR_POST_CON %}
         <th data-type="numeric"><a href="staffers?order={{ order.hours_worked }}">Worked</a></th>
     {% endif %}

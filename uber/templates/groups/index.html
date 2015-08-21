@@ -26,24 +26,20 @@
 </div>
 
 <div class="panel panel-default">
-<table class="table table-striped footable" data-filter="#filter" data-page-navigation=".pagination" data-limit-navigation="5">
-<caption>
     <div class="col-md-4">
     <a class="btn btn-default" href="form?id=None">Add a group</a>
     <a class="btn btn-default" href="form?id=None&new_dealer=true">Add a dealer</a>
     </div>
-    <div class="input-group col-md-4">
-	<input class="form-control" type="text" name="filter" id="filter" placeholder="Type Here to Search"/>
-	<span class="input-group-addon">
-	<span class="glyphicon glyphicon-search"></span>
-	</span>
 	</div>
 <ul class="nav nav-tabs" role="tablist">
   <li {% if show == "all" %}class="active"{% endif %}><a href="index?order=name&show=all">All</a></li>
   <li {% if show == "tables" %}class="active"{% endif %}><a href="index?order=name&show=tables">Tables</a></li>
   <li {% if show == "groups" %}class="active"{% endif %}><a href="index?order=name&show=groups">Groups</a></li>
 </ul>
-</caption>
+</div>
+
+<div class="panel panel-default">
+<table class="table table-striped datatable">
 <thead><tr>
     <th data-type="alpha">Name</th>
     <th data-type="alpha">Approved</th>
