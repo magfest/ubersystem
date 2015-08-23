@@ -32,6 +32,7 @@ class StaticViews:
         js_consts = json.dumps({k: v for k, v in consts.items() if isinstance(v, (bool, int, str))}, indent=4)
         return '\n'.join([
             'angular.module("magfest", [])',
+            '.constant("c", {})'.format(js_consts),
             '.constant("magconsts", {})'.format(js_consts),
             '.run(function ($http) {',
             '   $http.defaults.headers.common["CSRF-Token"] = "{}";'.format(c.CSRF_TOKEN),
