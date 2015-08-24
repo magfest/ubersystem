@@ -1,0 +1,11 @@
+{% if attendee.takes_shifts %}
+    <li>
+        {% checked_if attendee.shifts %}
+        {% if attendee.shift_prereqs_complete %}
+            <a href="shifts">Sign up</a>
+        {% else %}
+            Sign up
+        {% endif %}
+        for shifts.
+    </li>
+{% endif %}

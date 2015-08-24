@@ -367,4 +367,12 @@ c.WRISTBAND_COLORS = defaultdict(lambda: c.WRISTBAND_COLORS[c.DEFAULT_WRISTBAND]
 
 c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
 
+try:
+    _items = sorted([int(step), url] for step, url in _config['volunteer_checklist'].items() if url)
+except ValueError:
+    log.error('[volunteer_checklist] config options must have integer option names')
+    raise
+else:
+    c.VOLUNTEER_CHECKLIST = [url for step, url in _items]
+
 stripe.api_key = c.STRIPE_SECRET_KEY
