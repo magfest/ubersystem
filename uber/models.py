@@ -970,7 +970,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     badge_printed_name = Column(UnicodeText)
 
     staffing         = Column(Boolean, default=False)
-    fire_safety_cert = Column(UnicodeText)
     requested_depts  = Column(MultiChoice(c.JOB_INTEREST_OPTS))
     assigned_depts   = Column(MultiChoice(c.JOB_LOCATION_OPTS), admin_only=True)
     trusted          = Column(Boolean, default=False, admin_only=True)
@@ -1295,8 +1294,8 @@ class Attendee(MagModel, TakesPaymentMixin):
                                        .order_by(Job.start_time).all()
                         if job.slots > len(job.shifts)
                            and job.no_overlap(self)
-                           and (job.type != c.SETUP or self.approved_for_setup)
-                           and (job.type != c.TEARDOWN or self.approved_for_teardown)
+                           and (job.type != c.SETUP or self.approved_for_setup_shifts)
+                           and (job.type != c.TEARDOWN or self.approved_for_teardown_shifts)
                            and (not job.restricted or self.trusted)]
 
     @property

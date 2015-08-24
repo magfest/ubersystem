@@ -16,23 +16,6 @@ class Root:
         return {'attendee': session.logged_in_volunteer()}
 
     @check_shutdown
-    def fire_safety(self, session, message='', fire_safety_cert=None, csrf_token=None):
-        attendee = session.logged_in_volunteer()
-        if fire_safety_cert is not None:
-            check_csrf(csrf_token)
-            if not re.match(r'^\d{5}\.\d{5,11}$', fire_safety_cert):
-                message = 'That is not a valid certification number'
-            else:
-                attendee.fire_safety_cert = fire_safety_cert
-                raise HTTPRedirect('index?message={}', 'Your fire safety certification has been received')
-
-        return {
-            'message': message,
-            'attendee': attendee,
-            'fire_safety_cert': fire_safety_cert or ''
-        }
-
-    @check_shutdown
     def food_restrictions(self, session, message='', **params):
         attendee = session.logged_in_volunteer()
         fr = attendee.food_restrictions or FoodRestrictions()
