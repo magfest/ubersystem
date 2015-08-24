@@ -341,7 +341,7 @@ class MagModel:
 
     def apply(self, params, *, bools=(), checkgroups=(), restricted=True, ignore_csrf=True):
         bools = self.regform_bools if restricted else bools
-        checkgroups = self.regform_checkgroups if restricted else bools
+        checkgroups = self.regform_checkgroups if restricted else checkgroups
         for column in self.__table__.columns:
             if (not restricted or column.name in self.unrestricted) and column.name in params and column.name != 'id':
                 if isinstance(params[column.name], list):
