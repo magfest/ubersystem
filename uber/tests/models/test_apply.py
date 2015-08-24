@@ -72,6 +72,7 @@ def test_dont_let_restricted_unassign_all_assigned_depts(attendee, post):
     attendee.apply({}, restricted=True, checkgroups={'assigned_depts'})
     assert attendee.assigned_depts == str(c.ARCADE)
 
+
 def test_id(attendee):
     old_id = attendee.id
     attendee.apply({'id': Attendee().id}, restricted=False)
