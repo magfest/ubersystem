@@ -969,12 +969,14 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     badge_printed_name = Column(UnicodeText)
 
-    staffing         = Column(Boolean, default=False)
-    requested_depts  = Column(MultiChoice(c.JOB_INTEREST_OPTS))
-    assigned_depts   = Column(MultiChoice(c.JOB_LOCATION_OPTS), admin_only=True)
-    trusted          = Column(Boolean, default=False, admin_only=True)
-    nonshift_hours   = Column(Integer, default=0, admin_only=True)
-    past_years       = Column(UnicodeText, admin_only=True)
+    staffing          = Column(Boolean, default=False)
+    requested_depts   = Column(MultiChoice(c.JOB_INTEREST_OPTS))
+    assigned_depts    = Column(MultiChoice(c.JOB_LOCATION_OPTS), admin_only=True)
+    trusted           = Column(Boolean, default=False, admin_only=True)
+    nonshift_hours    = Column(Integer, default=0, admin_only=True)
+    past_years        = Column(UnicodeText, admin_only=True)
+    can_work_setup    = Column(Boolean, default=False, admin_only=True)
+    can_work_teardown = Column(Boolean, default=False, admin_only=True)
 
     no_shirt          = relationship('NoShirt', backref=backref('attendee', load_on_pending=True), uselist=False)
     admin_account     = relationship('AdminAccount', backref=backref('attendee', load_on_pending=True), uselist=False)
@@ -1294,8 +1296,8 @@ class Attendee(MagModel, TakesPaymentMixin):
                                        .order_by(Job.start_time).all()
                         if job.slots > len(job.shifts)
                            and job.no_overlap(self)
-                           and (job.type != c.SETUP or self.approved_for_setup_shifts)
-                           and (job.type != c.TEARDOWN or self.approved_for_teardown_shifts)
+                           and (job.type != c.SETUP or self.can_work_setup)
+                           and (job.type != c.TEARDOWN or self.can_work_teardown)
                            and (not job.restricted or self.trusted)]
 
     @property
