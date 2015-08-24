@@ -340,6 +340,11 @@ class MagModel:
         return query.first() if last_only else query.all()
 
     def apply(self, params, *, bools=(), checkgroups=(), restricted=True, ignore_csrf=True):
+        """
+        Args:
+            restricted (bool): if true, restrict any changes only to fields which we allow attendees to set on their own
+                if false, allow changes to any fields.
+        """
         bools = self.regform_bools if restricted else bools
         checkgroups = self.regform_checkgroups if restricted else checkgroups
         for column in self.__table__.columns:
