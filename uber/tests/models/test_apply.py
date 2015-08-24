@@ -53,7 +53,7 @@ def test_unassign_all_assigned_depts(attendee, post):
     attendee.apply({'assigned_depts': c.ARCADE}, restricted=False, checkgroups={'assigned_depts'})
     assert attendee.assigned_depts == str(c.ARCADE)
 
-    # make sure if we remove all interests by leaving params blank that it sticks
+    # make sure if we remove all assigned_depts by leaving params blank that it sticks
     # note: this only works when submitting data via POST
     attendee.apply({}, restricted=False, checkgroups={'assigned_depts'})
     assert attendee.assigned_depts == ''
@@ -62,13 +62,13 @@ def test_unassign_all_assigned_depts(attendee, post):
 def test_dont_let_restricted_unassign_all_assigned_depts(attendee, post):
     assert attendee.assigned_depts == ''
 
-    # set this up by assigning arcade as an assigned dept
+    # set this up by trying to assign arcade as an assigned dept, which should fail
     attendee.apply({'assigned_depts': c.ARCADE}, restricted=True, checkgroups={'assigned_depts'})
     assert attendee.assigned_depts == ''
 
     attendee.assigned_depts = str(c.ARCADE)
 
-    # make sure if we remove all interests by leaving params blank that it sticks
+    # make sure if we attempt to remove all assigned_depts by leaving params blank that it doens't let us
     attendee.apply({}, restricted=True, checkgroups={'assigned_depts'})
     assert attendee.assigned_depts == str(c.ARCADE)
 
