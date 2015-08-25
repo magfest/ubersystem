@@ -10,6 +10,12 @@ class _Overridable:
                 setattr(cls, attr, getattr(klass, attr))
         return cls
 
+    def include_plugin_config(self, plugin_config):
+        """Plugins call this method to merge their own config into the global c object."""
+        for attr, val in plugin_config.items():
+            if not isinstance(val, dict):
+                setattr(self, attr.upper(), val)
+
 
 class Config(_Overridable):
     """
