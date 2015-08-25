@@ -36,9 +36,9 @@
 (<a href="mailto:eli@courtwright.org?bcc={{ emails }}">email these staffers</a>)<b>:</b>
 <br/> <br/>
 
-<table class="table table-striped datatable" data-page-size="9999999">
+<table class="table table-striped datatable">
 <thead><tr>
-    <th> <a href="index?order={{ order.last_first }}">Attendee Name</a> </th>
+    <th> Attendee Name </th>
     <th> Badge</th>
     <th> [D] </th>
     <th> [T] </th>
@@ -52,17 +52,17 @@
 </tr>
 {% for attendee in attendees %}
     <tr>
-        <td width="20%"> <a href="../registration/shifts?id={{ attendee.id }}">{{ attendee.full_name }}</a>        </td>
-        <td width="10"> {{ attendee.badge_num }}</a>        </td>
+        <td width="20%" data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}"> <a href="../registration/shifts?id={{ attendee.id }}">{{ attendee.full_name }}</a>        </td>
+        <td width="10">{{ attendee.badge_num }}</a>        </td>
         <td width="10"> {% if attendee.is_dept_head %}<font size="-1">[D]</font>{% endif %}        </td>
         <td width="10"> {% if attendee.trusted %}<font size="-1">[T]</font>{% endif %}        </td>
         <td width="10"> {% if attendee.multiply_assigned %}<font size="-1">[M]</font>{% endif %}        </td>
         <td width="10"> {% if attendee.hotel_requests.approved and attendee.hotel_requests.setup_teardown %}<font size="-1">[L]</font>{% endif %}        </td>
         <td width="10"> {{ attendee.placeholder }}</td>
         <td width="20%"> {{ attendee.hotel_status }}</td>
-        <td width="10"> {{ attendee.hours_here }}        </td>
-        <td width="10"> {{ attendee.weighted_hours }}        </td>
-        <td width="10"> {% if attendee.checked_in   %}<font size="-1">True</font>{% else %}<font size="-1">False</font>{% endif %} </td>
+        <td width="10">{{ attendee.hours_here }}</td>
+        <td width="10">{{ attendee.weighted_hours }}</td>
+        <td width="10">{{ attendee.checked_in|yesno:"Checked In,Not Checked In" }}</td>
     </tr>
 {% endfor %}
 </table>
