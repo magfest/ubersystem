@@ -980,7 +980,6 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     no_shirt          = relationship('NoShirt', backref=backref('attendee', load_on_pending=True), uselist=False)
     admin_account     = relationship('AdminAccount', backref=backref('attendee', load_on_pending=True), uselist=False)
-    room_assignments  = relationship('RoomAssignment', backref=backref('attendee', load_on_pending=True), uselist=False)
     food_restrictions = relationship('FoodRestrictions', backref=backref('attendee', load_on_pending=True), uselist=False)
 
     games  = relationship('Game', backref='attendee')
