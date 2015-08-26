@@ -1442,6 +1442,14 @@ class AdminAccount(MagModel):
             return None
 
     @staticmethod
+    def admin_email():
+        try:
+            with Session() as session:
+                return session.admin_attendee().email
+        except:
+            return None
+
+    @staticmethod
     def access_set(id=None):
         try:
             with Session() as session:
