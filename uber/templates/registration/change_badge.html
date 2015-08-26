@@ -8,7 +8,7 @@
             var badge_type = parseInt($("[name=badge_type]").val());
             var radio = badge_type === {{ attendee.badge_type}} ? "manual" : "auto";
             $("[value=" + radio + "]").attr("checked", true);
-            setVisible("#badge_num_row", !{{ c.NUMBERED_BADGES|jsonize }} && {{ c.PREASSIGNED_BADGE_TYPES }}.indexOf(badge_type) >= 0);
+            setVisible("#badge_num_row", {{ c.NUMBERED_BADGES|jsonize }} && {{ c.PREASSIGNED_BADGE_TYPES }}.indexOf(badge_type) >= 0);
             assignChanged();
         {% endif %}
     }
