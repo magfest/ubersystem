@@ -110,6 +110,11 @@ class Root:
                                                 Attendee.amount_extra >= c.SUPPORTER_LEVEL).order_by(Attendee.full_name).all():
             out.writerow(['', 'Supporter', a.badge_printed_name or a.full_name])
 
+    @multifile_zipfile
+    def personalized_badges_zip(self, zip_file, session):
+        zip_file.writestr("test1.txt", "test1")
+        zip_file.writestr("test2.txt", "test2")
+
     def food_eligible(self, session):
         cherrypy.response.headers['Content-Type'] = 'application/xml'
         eligible = {
