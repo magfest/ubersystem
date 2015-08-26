@@ -591,7 +591,7 @@ class Session(SessionManager):
 
                 # determine the new badge number now that the badges have shifted
                 next = self.next_badge_num(badge_type, old_badge_num)
-                badge_num = min(badge_num or next, next)
+                badge_num = min(int(badge_num) or next, next)
 
                 # make room for the new number, if applicable
                 if badge_num:
