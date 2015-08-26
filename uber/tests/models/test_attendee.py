@@ -321,13 +321,6 @@ class TestStaffingAdjustments:
             assert unset_volunteering.called
 
 
-def test_ensure_staffing_set_if_volunteer_ribbon_attendee_badge(monkeypatch):
-    a = Attendee(first_name='Danny', last_name='Boiiiii')
-    a.ribbon = c.VOLUNTEER_RIBBON
-    a._staffing_adjustments()
-    assert a.staffing
-
-
 class TestBadgeAdjustments:
     @pytest.fixture(autouse=True)
     def mock_attendee_session(self, monkeypatch):
