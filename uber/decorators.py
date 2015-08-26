@@ -87,6 +87,20 @@ def ajax_gettable(func):
     return returns_json
 
 
+def multifile_zipfile(func):
+    @wraps(func)
+    def zipfile_out(self, session):
+        cherrypy.response.headers['Content-Type'] = 'application/zip'
+        cherrypy.response.headers['Content-Disposition'] = 'attachment; filename=' + func.__name__ + '.zip'
+
+        zipfile_writer = StringIO()
+        with zipfile.ZipFile(zipfile_writer) as zip_file:
+            func(self, zip_file, session)
+
+        return zipfile_writer.getvalue().encode('utf-8')
+    return zipfile_out
+
+
 def csv_file(func):
     @wraps(func)
     def csvout(self, session):

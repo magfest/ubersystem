@@ -7,6 +7,7 @@ import math
 import string
 import socket
 import random
+import zipfile
 import inspect
 import binascii
 import warnings
