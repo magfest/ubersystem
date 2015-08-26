@@ -44,6 +44,29 @@ class Root:
             'examples': examples
         }
 
+    def test_email(self, session, subject=None, body=None, from_address=None, to_address=None, **params):
+        """
+        Testing only: send a test email as a system user
+        """
+
+        output_msg = ""
+
+        if subject and body and from_address and to_address:
+            send_email(from_address, to_address, subject, body)
+            output_msg = "RAMS has attempted to send your email."
+
+        right_now = str(datetime.now())
+
+        return {
+            'from_address': from_address or c.STAFF_EMAIL,
+            'to_address': to_address or
+                          ("goldenaxe75t6489@mailinator.com" if c.DEV_BOX else AdminAccount.admin_email())
+                          or "",
+            'subject':  c.EVENT_NAME_AND_YEAR + " test email " + right_now,
+            'body': body or "ignore this email, <b>it is a test</b> of the <u>RAMS email system</u> " + right_now,
+            'message': output_msg,
+        }
+
     @csrf_protected
     def approve(self, session, subject):
         session.add(ApprovedEmail(subject=subject))
