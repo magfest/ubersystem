@@ -15,19 +15,16 @@
 <br/>
 {% if attendees %}
         <div class="control-group"><h4>Imported Attendees</h4></div>
-    <table class="table footable">
+    <table class="table table-striped datatable">
 <thead><tr>
-    <th> <a href="index?order={{ order.last_first }}">Name</a> </th>
-    <th data-hide="phone"> <a href="index?order={{ order.badge_num }}">Badge</a> </th>
-    <th data-hide="phone"> <a href="index?order={{ order.paid }}">Paid</a> </th>
-    <th data-hide="phone">Age</th>
-    {% if c.AT_THE_CON %}
-        <th> <a href="index?order={{ order.checked_in }}"><nobr>Checked In</nobr></a> </th>
-    {% endif %}
+    <th>Name</th>
+    <th>Badge</th>
+    <th>Paid</th>
+    <th>Age</th>
 </tr></thead>
 {% for attendee in attendees %}
     <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
-        <td id="name_{{ attendee.id }}" style="text-align:left">
+        <td id="name_{{ attendee.id }}" data-order="{{ attendee.last_first }}" data-search="{{ attendee.last_first }}" style="text-align:left">
             <a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a>
             {% if attendee.group %}
                 <br/> <a style="font-size:8pt" href="../groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
@@ -51,25 +48,7 @@
             {% endif %}
         </nobr></td>
         <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
-        {% if attendee.checked_in or not c.AT_THE_CON %}
-            <td> <nobr>{{ attendee.age_group.desc }}</nobr> </td>
-            {% if c.AT_THE_CON %}
-                <td> {{ attendee.checked_in|time:"fA"|lower }} {{ attendee.checked_in|date:"D" }} </td>
-            {% endif %}
-        {% elif attendee.paid == c.NOT_PAID %}
-            <td colspan="2">
-                <a href="new?show_all=true">Go to at-the-door page to check in</a>
-            </td>
-        {% else %}
-            <td>
-                <select id="age_{{ attendee.id }}" onChange="highlight($(this).parents('tr'))">
-                    {% options c.AGE_GROUP_OPTS attendee.age_group %}
-                </select>
-            </td>
-            <td id="cin_{{ attendee.id }}">
-                <input type="submit" value="Check In" onClick="check_in({{ attendee.id }})" {% if attendee.is_unassigned %}disabled{% endif %} />
-            </td>
-        {% endif %}
+        <td> <nobr>{{ attendee.age_group.desc }}</nobr> </td>
     </tr>
 {% endfor %}
 </table>
