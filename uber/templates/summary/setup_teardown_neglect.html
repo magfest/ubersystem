@@ -20,26 +20,4 @@
     </table>
 {% endfor %}
 
-{% for category, grouped in attendees %}
-    <h3> {{ grouped|length }} {{ category }} Without Appropriate Shifts </h3>
-    <table style="width:auto">
-    {% for attendee, reasons in grouped %}
-        <tr>
-            <td>{{ attendee|form_link }}</td>
-            <td>{{ attendee.assigned_depts_labels|join:" / " }}</td>
-            <td>{{ attendee.hotel_requests.nights_display }}</td>
-        </tr>
-        <tr>
-            <td colspan="3">
-                <ul>
-                {% for reason in reasons %}
-                    <li>{{ reason }}</li>
-                {% endfor %}
-                </ul>
-            </td>
-        </tr>
-    {% endfor %}
-    </table>
-{% endfor %}
-
 {% endblock %}

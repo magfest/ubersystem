@@ -166,12 +166,4 @@ class Root:
                             'name': name.replace('_', ' ').title(),
                             'path': '/{}/{}'.format(module_name, name)
                         })
-
-        if c.PEOPLE in AdminAccount.access_set():
-            for dept, desc in c.JOB_LOCATION_OPTS:
-                pages['hotel assignments'].append({
-                    'name': desc,
-                    'path': '/hotel/assignments?department={}'.format(dept)
-                })
-
         return {'pages': sorted(pages.items())}

@@ -10,6 +10,12 @@ class _Overridable:
                 setattr(cls, attr, getattr(klass, attr))
         return cls
 
+    def include_plugin_config(self, plugin_config):
+        """Plugins call this method to merge their own config into the global c object."""
+        for attr, val in plugin_config.items():
+            if not isinstance(val, dict):
+                setattr(self, attr.upper(), val)
+
 
 class Config(_Overridable):
     """
@@ -356,16 +362,6 @@ c.WEIGHT_OPTS = (
 )
 c.JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'restricted', 'extra15']
 
-c.NIGHT_DISPLAY_ORDER = [getattr(c, night.upper()) for night in c.NIGHT_DISPLAY_ORDER]
-c.NIGHT_NAMES = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-c.CORE_NIGHTS = []
-_day = c.EPOCH
-while _day.date() != c.ESCHATON.date():
-    c.CORE_NIGHTS.append(getattr(c, _day.strftime('%A').upper()))
-    _day += timedelta(days=1)
-c.SETUP_NIGHTS = c.NIGHT_DISPLAY_ORDER[:c.NIGHT_DISPLAY_ORDER.index(c.CORE_NIGHTS[0])]
-c.TEARDOWN_NIGHTS = c.NIGHT_DISPLAY_ORDER[1 + c.NIGHT_DISPLAY_ORDER.index(c.CORE_NIGHTS[-1]):]
-
 c.PREREG_SHIRT_OPTS = c.SHIRT_OPTS[1:]
 c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + list(c.PREREG_SHIRT_OPTS)
 c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt, desc) if amt else desc) for amt, desc in c.DONATION_TIER_OPTS]
@@ -376,5 +372,13 @@ c.FEE_ITEM_NAMES = list(c.FEE_PRICES.keys())
 c.WRISTBAND_COLORS = defaultdict(lambda: c.WRISTBAND_COLORS[c.DEFAULT_WRISTBAND], c.WRISTBAND_COLORS)
 
 c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
+
+try:
+    _items = sorted([int(step), url] for step, url in _config['volunteer_checklist'].items() if url)
+except ValueError:
+    log.error('[volunteer_checklist] config options must have integer option names')
+    raise
+else:
+    c.VOLUNTEER_CHECKLIST = [url for step, url in _items]
 
 stripe.api_key = c.STRIPE_SECRET_KEY

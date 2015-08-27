@@ -390,37 +390,6 @@ class TakesPaymentMixin(object):
                    datetime.combine((self.registered + timedelta(days=14)).date(), time(23, 59)))
 
 
-def _night(name):
-    day = getattr(c, name.upper())
-
-    def lookup(self):
-        return day if day in self.nights_ints else ''
-    lookup.__name__ = name
-    lookup = property(lookup)
-
-    def setter(self, val):
-        if val:
-            self.nights = '{},{}'.format(self.nights, day).strip(',')
-        else:
-            self.nights = ','.join([str(night) for night in self.nights_ints if night != day])
-    setter.__name__ = name
-
-    return lookup.setter(setter)
-
-
-class NightsMixin(object):
-    @property
-    def nights_display(self):
-        ordered = sorted(self.nights_ints, key=c.NIGHT_DISPLAY_ORDER.index)
-        return ' / '.join(dict(c.NIGHT_OPTS)[val] for val in ordered)
-
-    @property
-    def setup_teardown(self):
-        return any(night for night in self.nights_ints if night not in c.CORE_NIGHTS)
-
-    locals().update({mutate(name): _night(mutate(name)) for name in c.NIGHT_NAMES for mutate in [str.upper, str.lower]})
-
-
 class Session(SessionManager):
     engine = sqlalchemy.create_engine(c.SQLALCHEMY_URL, pool_size=50, max_overflow=100)
 
@@ -1005,18 +974,17 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     badge_printed_name = Column(UnicodeText)
 
-    staffing         = Column(Boolean, default=False)
-    fire_safety_cert = Column(UnicodeText)
-    requested_depts  = Column(MultiChoice(c.JOB_INTEREST_OPTS))
-    assigned_depts   = Column(MultiChoice(c.JOB_LOCATION_OPTS), admin_only=True)
-    trusted          = Column(Boolean, default=False, admin_only=True)
-    nonshift_hours   = Column(Integer, default=0, admin_only=True)
-    past_years       = Column(UnicodeText, admin_only=True)
+    staffing          = Column(Boolean, default=False)
+    requested_depts   = Column(MultiChoice(c.JOB_INTEREST_OPTS))
+    assigned_depts    = Column(MultiChoice(c.JOB_LOCATION_OPTS), admin_only=True)
+    trusted           = Column(Boolean, default=False, admin_only=True)
+    nonshift_hours    = Column(Integer, default=0, admin_only=True)
+    past_years        = Column(UnicodeText, admin_only=True)
+    can_work_setup    = Column(Boolean, default=False, admin_only=True)
+    can_work_teardown = Column(Boolean, default=False, admin_only=True)
 
     no_shirt          = relationship('NoShirt', backref=backref('attendee', load_on_pending=True), uselist=False)
     admin_account     = relationship('AdminAccount', backref=backref('attendee', load_on_pending=True), uselist=False)
-    hotel_requests    = relationship('HotelRequests', backref=backref('attendee', load_on_pending=True), uselist=False)
-    room_assignments  = relationship('RoomAssignment', backref=backref('attendee', load_on_pending=True), uselist=False)
     food_restrictions = relationship('FoodRestrictions', backref=backref('attendee', load_on_pending=True), uselist=False)
 
     games  = relationship('Game', backref='attendee')
@@ -1306,20 +1274,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         return bool(self.staffing and set(self.assigned_depts_ints) - set(c.SHIFTLESS_DEPTS))
 
     @property
-    def hotel_shifts_required(self):
-        return bool(c.SHIFTS_CREATED and self.hotel_nights and self.ribbon != c.DEPT_HEAD_RIBBON and self.takes_shifts)
-
-    @property
-    def approved_for_setup(self):
-        hr = self.hotel_requests
-        return bool(hr and hr.approved and set(hr.nights_ints).intersection(c.SETUP_NIGHTS))
-
-    @property
-    def approved_for_teardown(self):
-        hr = self.hotel_requests
-        return bool(hr and hr.approved and set(hr.nights_ints).intersection(c.TEARDOWN_NIGHTS))
-
-    @property
     def hours(self):
         all_hours = set()
         for shift in self.shifts:
@@ -1346,8 +1300,8 @@ class Attendee(MagModel, TakesPaymentMixin):
                                        .order_by(Job.start_time).all()
                         if job.slots > len(job.shifts)
                            and job.no_overlap(self)
-                           and (job.type != c.SETUP or self.approved_for_setup)
-                           and (job.type != c.TEARDOWN or self.approved_for_teardown)
+                           and (job.type != c.SETUP or self.can_work_setup)
+                           and (job.type != c.TEARDOWN or self.can_work_teardown)
                            and (not job.restricted or self.trusted)]
 
     @property
@@ -1388,35 +1342,11 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def shift_prereqs_complete(self):
-        return not self.placeholder and self.food_restrictions and self.shirt_size_marked \
-            and (self.badge_type != c.STAFF_BADGE or self.hotel_requests or not c.BEFORE_ROOM_DEADLINE)
+        return not self.placeholder and self.food_restrictions and self.shirt_size_marked
 
     @property
     def past_years_json(self):
         return json.loads(self.past_years or '[]')
-
-    @property
-    def hotel_eligible(self):
-        return c.ROOM_DEADLINE and self.badge_type == c.STAFF_BADGE
-
-    @property
-    def hotel_nights(self):
-        try:
-            return self.hotel_requests.nights
-        except:
-            return []
-
-    @cached_property
-    def hotel_status(self):
-        hr = self.hotel_requests
-        if not hr:
-            return 'Has not filled out volunteer checklist'
-        elif not hr.nights:
-            return 'Declined hotel space'
-        elif hr.setup_teardown:
-            return 'Hotel nights: {} ({})'.format(hr.nights_display, 'approved' if hr.approved else 'not yet approved')
-        else:
-            return 'Hotel nights: ' + hr.nights_display
 
 
 class AdminAccount(MagModel):
@@ -1469,21 +1399,6 @@ class PasswordReset(MagModel):
         return self.generated < datetime.now(UTC) - timedelta(days=7)
 
 
-class HotelRequests(MagModel, NightsMixin):
-    attendee_id        = Column(UUID, ForeignKey('attendee.id'), unique=True)
-    nights             = Column(MultiChoice(c.NIGHT_OPTS))
-    wanted_roommates   = Column(UnicodeText)
-    unwanted_roommates = Column(UnicodeText)
-    special_needs      = Column(UnicodeText)
-    approved           = Column(Boolean, default=False, admin_only=True)
-
-    def decline(self):
-        self.nights = ','.join(night for night in self.nights.split(',') if int(night) in c.CORE_NIGHTS)
-
-    def __repr__(self):
-        return '<{self.attendee.full_name} Hotel Requests>'.format(self=self)
-
-
 class FoodRestrictions(MagModel):
     attendee_id   = Column(UUID, ForeignKey('attendee.id'), unique=True)
     standard      = Column(MultiChoice(c.FOOD_RESTRICTION_OPTS))
@@ -1511,19 +1426,6 @@ class AssignedPanelist(MagModel):
 
     def __repr__(self):
         return '<{self.attendee.full_name} panelisting {self.event.name}>'.format(self=self)
-
-
-class Room(MagModel, NightsMixin):
-    department = Column(Choice(c.JOB_LOCATION_OPTS))
-    notes      = Column(UnicodeText)
-    nights     = Column(MultiChoice(c.NIGHT_OPTS))
-    created    = Column(UTCDateTime, server_default=utcnow())
-    room_assignments = relationship('RoomAssignment', backref='room')
-
-
-class RoomAssignment(MagModel):
-    room_id     = Column(UUID, ForeignKey('room.id'))
-    attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
 
 
 class NoShirt(MagModel):
@@ -1871,10 +1773,6 @@ def _make_getter(model):
     return getter
 
 
-for _model in Session.all_models():
-    setattr(Session.SessionMixin, _model.__tablename__, _make_getter(_model))
-
-
 def _presave_adjustments(session, context, instances='deprecated'):
     c.BADGE_LOCK.acquire()
     for model in chain(session.dirty, session.new):
@@ -1925,6 +1823,9 @@ def initialize_db():
     This should be the ONLY spot (except for maintenance tools) in all of core ubersystem or any plugins
     that attempts to create tables by passing modify_tables=True to Session.initialize_db()
     """
+    for _model in Session.all_models():
+        setattr(Session.SessionMixin, _model.__tablename__, _make_getter(_model))
+
     num_tries_remaining = 10
     while not stopped.is_set():
         try:

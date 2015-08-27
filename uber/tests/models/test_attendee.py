@@ -166,20 +166,6 @@ def test_takes_shifts():
     assert Attendee(staffing=True, assigned_depts=','.join(map(str, [c.CONSOLE, c.CON_OPS]))).takes_shifts
 
 
-def test_hotel_shifts_required(monkeypatch, shifts_created):
-    assert not Attendee().hotel_shifts_required
-    monkeypatch.setattr(Attendee, 'takes_shifts', True)
-    monkeypatch.setattr(Attendee, 'hotel_nights', [c.THURSDAY, c.FRIDAY])
-    assert Attendee().hotel_shifts_required
-    assert not Attendee(ribbon=c.DEPT_HEAD_RIBBON).hotel_shifts_required
-
-
-def test_hotel_shifts_required_preshifts(monkeypatch, shifts_not_created):
-    monkeypatch.setattr(Attendee, 'takes_shifts', True)
-    monkeypatch.setattr(Attendee, 'hotel_nights', [c.THURSDAY, c.FRIDAY])
-    assert not Attendee().hotel_shifts_required
-
-
 class TestUnsetVolunteer:
     def test_basic(self):
         a = Attendee(staffing=True, trusted=True, requested_depts=c.CONSOLE, assigned_depts=c.CONSOLE, ribbon=c.VOLUNTEER_RIBBON, shifts=[Shift()])

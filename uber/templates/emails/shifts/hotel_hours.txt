@@ -1,7 +1,0 @@
-{{ attendee.first_name }},
-
-You're receiving space in one of our volunteer hotel rooms, which has a requirement of 30 weighted volunteer hours, and you're currently only signed up for {{ attendee.weighted_hours }} hours.
-
-You can log in to sign up for shifts at {{ c.URL_BASE }}/signups/login
-
-{{ c.STOPS_EMAIL_SIGNATURE }}
