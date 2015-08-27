@@ -1093,6 +1093,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             self.badge_type = c.STAFF_BADGE
             if self.paid == c.NOT_PAID:
                 self.paid = c.NEED_NOT_PAY
+        elif self.ribbon == c.VOLUNTEER_RIBBON and self.is_new:
+            self.staffing = True
 
         if not self.is_new:
             old_ribbon = self.orig_value_of('ribbon')
