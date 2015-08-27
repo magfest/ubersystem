@@ -9,87 +9,15 @@
     If you aren't {{ attendee.full_name }}, <a href="login">click here</a> to log in as yourself.
 </div>
 
-<br/> Thanks for volunteering to help out at {{ c.EVENT_NAME }}.  The following is a list of things you need to do <b>in order</b> as soon as possible.
+<br/> Thanks for volunteering to help out at {{ c.EVENT_NAME }}.  The following is a list of things you need to do <b>in order</b> as soon as possible. <br/> <br/>
 
 <style type="text/css">
     ol li { margin-bottom: 10px; }
 </style>
 <ol>
-    <li>
-        {% checked_if not attendee.placeholder %}
-        {% if attendee.placeholder %}
-            <a href="../preregistration/confirm?return_to=../signups/index&id={{ attendee.id }}">Confirm</a>
-        {% else %}
-            Confirm
-        {% endif %}
-        you are coming to {{ c.EVENT_NAME }}.
-	{% if not attendee.placeholder %}(you can still <a href="../preregistration/confirm?return_to=../signups/index&id={{ attendee.id }}">edit your info</a>){% endif %}
-    </li>
-    <li>
-        {% checked_if attendee.food_restrictions %}
-        {% if not attendee.placeholder %}
-            <a href="food_restrictions">Let us know</a>
-        {% else %}
-            Let us know
-        {% endif %}
-        about any dietary restrictions.
-    </li>
-    <li>
-        {% checked_if attendee.shirt_size_marked %}
-        {% if not attendee.placeholder and attendee.food_restrictions %}
-            <a href="shirt_size">Let us know</a>
-        {% else %}
-            Let us know
-        {% endif %}
-        your shirt size so that we can set aside a shirt in your size at our merch booth.
-    </li>
-    {% if attendee.badge_type == c.STAFF_BADGE and c.AFTER_ROOM_DEADLINE and c.HAS_STAFF_ROOMS_ACCESS %}
-        <li>
-            {% checked_if attendee.hotel_requests %}
-            The deadline for editing hotel requests has passed, but as a STOPS admin, you can still
-            {% if attendee.hotel_requests %}
-                <a href="hotel_requests">edit</a>
-            {% else %}
-                <a href="hotel_requests">fill out</a>
-            {% endif %}
-            this staffer's hotel room space requests.
-        </li>
-    {% elif attendee.badge_type == c.STAFF_BADGE and attendee.registered < c.ROOM_DEADLINE %}
-        {% if c.BEFORE_ROOM_DEADLINE %}
-            <li>
-                {% checked_if attendee.hotel_requests %}
-                {% if not attendee.placeholder and attendee.food_restrictions and attendee.shirt_size_marked and not attendee.hotel_requests %}
-                    <a href="hotel_requests">Tell us</a>
-                {% else %}
-                    Tell us
-                {% endif %}
-                whether you want hotel room space no later than <b>{{ c.ROOM_DEADLINE|datetime }}</b>
-                {% if attendee.hotel_requests %}
-                    (you may <a href="hotel_requests">edit your request</a> until then).
-                {% endif %}
-            </li>
-        {% else %}
-            <li>
-                {% checked_if attendee.hotel_requests %}
-                {% if attendee.hotel_requests %}
-                    Thanks for filling out the hotel space request form before the deadline.
-                {% else %}
-                    You didn't fill out the hotel request form before the deadline.
-                {% endif %}
-            </li>
-        {% endif %}
-    {% endif %}
-    {% if attendee.takes_shifts %}
-        <li>
-            {% checked_if attendee.shifts %}
-            {% if attendee.shift_prereqs_complete %}
-                <a href="shifts">Sign up</a>
-            {% else %}
-                Sign up
-            {% endif %}
-            for shifts.
-        </li>
-    {% endif %}
+{% for template in c.VOLUNTEER_CHECKLIST %}
+    {% include template %}
+{% endfor %}
 </ol>
 
 {% endblock %}

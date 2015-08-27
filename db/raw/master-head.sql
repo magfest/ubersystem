@@ -10,6 +10,22 @@ SET check_function_bodies = false;
 SET client_min_messages = warning;
 
 --
+-- Name: sqitch; Type: SCHEMA; Schema: -; Owner: postgres
+--
+
+CREATE SCHEMA sqitch;
+
+
+ALTER SCHEMA sqitch OWNER TO postgres;
+
+--
+-- Name: SCHEMA sqitch; Type: COMMENT; Schema: -; Owner: postgres
+--
+
+COMMENT ON SCHEMA sqitch IS 'Sqitch database deployment metadata v1.0.';
+
+
+--
 -- Name: plpgsql; Type: EXTENSION; Schema: -; Owner: 
 --
 
@@ -132,12 +148,13 @@ CREATE TABLE attendee (
     payment_method integer,
     badge_printed_name character varying DEFAULT ''::character varying NOT NULL,
     staffing boolean DEFAULT false NOT NULL,
-    fire_safety_cert character varying DEFAULT ''::character varying NOT NULL,
     requested_depts character varying DEFAULT ''::character varying NOT NULL,
     assigned_depts character varying DEFAULT ''::character varying NOT NULL,
     trusted boolean DEFAULT false NOT NULL,
     nonshift_hours integer DEFAULT 0 NOT NULL,
-    past_years character varying DEFAULT ''::character varying NOT NULL
+    past_years character varying DEFAULT ''::character varying NOT NULL,
+    can_work_setup boolean DEFAULT false NOT NULL,
+    can_work_teardown boolean DEFAULT false NOT NULL
 );
 
 
@@ -263,23 +280,6 @@ CREATE TABLE "group" (
 ALTER TABLE public."group" OWNER TO m13;
 
 --
--- Name: hotel_requests; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
---
-
-CREATE TABLE hotel_requests (
-    id uuid NOT NULL,
-    attendee_id uuid NOT NULL,
-    nights character varying DEFAULT ''::character varying NOT NULL,
-    wanted_roommates character varying DEFAULT ''::character varying NOT NULL,
-    unwanted_roommates character varying DEFAULT ''::character varying NOT NULL,
-    special_needs character varying DEFAULT ''::character varying NOT NULL,
-    approved boolean DEFAULT false NOT NULL
-);
-
-
-ALTER TABLE public.hotel_requests OWNER TO m13;
-
---
 -- Name: job; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
 --
 
@@ -382,34 +382,6 @@ CREATE TABLE prev_season_supporter (
 ALTER TABLE public.prev_season_supporter OWNER TO m13;
 
 --
--- Name: room; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
---
-
-CREATE TABLE room (
-    id uuid NOT NULL,
-    department integer NOT NULL,
-    notes character varying DEFAULT ''::character varying NOT NULL,
-    nights character varying DEFAULT ''::character varying NOT NULL,
-    created timestamp without time zone DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
-
-ALTER TABLE public.room OWNER TO m13;
-
---
--- Name: room_assignment; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
---
-
-CREATE TABLE room_assignment (
-    id uuid NOT NULL,
-    room_id uuid NOT NULL,
-    attendee_id uuid NOT NULL
-);
-
-
-ALTER TABLE public.room_assignment OWNER TO m13;
-
---
 -- Name: sale; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
 --
 
@@ -474,6 +446,506 @@ CREATE TABLE tracking (
 
 
 ALTER TABLE public.tracking OWNER TO m13;
+
+SET search_path = sqitch, pg_catalog;
+
+--
+-- Name: changes; Type: TABLE; Schema: sqitch; Owner: postgres; Tablespace: 
+--
+
+CREATE TABLE changes (
+    change_id text NOT NULL,
+    script_hash text,
+    change text NOT NULL,
+    project text NOT NULL,
+    note text DEFAULT ''::text NOT NULL,
+    committed_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,
+    committer_name text NOT NULL,
+    committer_email text NOT NULL,
+    planned_at timestamp with time zone NOT NULL,
+    planner_name text NOT NULL,
+    planner_email text NOT NULL
+);
+
+
+ALTER TABLE sqitch.changes OWNER TO postgres;
+
+--
+-- Name: TABLE changes; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON TABLE changes IS 'Tracks the changes currently deployed to the database.';
+
+
+--
+-- Name: COLUMN changes.change_id; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN changes.change_id IS 'Change primary key.';
+
+
+--
+-- Name: COLUMN changes.script_hash; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN changes.script_hash IS 'Deploy script SHA-1 hash.';
+
+
+--
+-- Name: COLUMN changes.change; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN changes.change IS 'Name of a deployed change.';
+
+
+--
+-- Name: COLUMN changes.project; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN changes.project IS 'Name of the Sqitch project to which the change belongs.';
+
+
+--
+-- Name: COLUMN changes.note; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN changes.note IS 'Description of the change.';
+
+
+--
+-- Name: COLUMN changes.committed_at; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN changes.committed_at IS 'Date the change was deployed.';
+
+
+--
+-- Name: COLUMN changes.committer_name; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN changes.committer_name IS 'Name of the user who deployed the change.';
+
+
+--
+-- Name: COLUMN changes.committer_email; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN changes.committer_email IS 'Email address of the user who deployed the change.';
+
+
+--
+-- Name: COLUMN changes.planned_at; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN changes.planned_at IS 'Date the change was added to the plan.';
+
+
+--
+-- Name: COLUMN changes.planner_name; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN changes.planner_name IS 'Name of the user who planed the change.';
+
+
+--
+-- Name: COLUMN changes.planner_email; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN changes.planner_email IS 'Email address of the user who planned the change.';
+
+
+--
+-- Name: dependencies; Type: TABLE; Schema: sqitch; Owner: postgres; Tablespace: 
+--
+
+CREATE TABLE dependencies (
+    change_id text NOT NULL,
+    type text NOT NULL,
+    dependency text NOT NULL,
+    dependency_id text,
+    CONSTRAINT dependencies_check CHECK ((((type = 'require'::text) AND (dependency_id IS NOT NULL)) OR ((type = 'conflict'::text) AND (dependency_id IS NULL))))
+);
+
+
+ALTER TABLE sqitch.dependencies OWNER TO postgres;
+
+--
+-- Name: TABLE dependencies; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON TABLE dependencies IS 'Tracks the currently satisfied dependencies.';
+
+
+--
+-- Name: COLUMN dependencies.change_id; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN dependencies.change_id IS 'ID of the depending change.';
+
+
+--
+-- Name: COLUMN dependencies.type; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN dependencies.type IS 'Type of dependency.';
+
+
+--
+-- Name: COLUMN dependencies.dependency; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN dependencies.dependency IS 'Dependency name.';
+
+
+--
+-- Name: COLUMN dependencies.dependency_id; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN dependencies.dependency_id IS 'Change ID the dependency resolves to.';
+
+
+--
+-- Name: events; Type: TABLE; Schema: sqitch; Owner: postgres; Tablespace: 
+--
+
+CREATE TABLE events (
+    event text NOT NULL,
+    change_id text NOT NULL,
+    change text NOT NULL,
+    project text NOT NULL,
+    note text DEFAULT ''::text NOT NULL,
+    requires text[] DEFAULT '{}'::text[] NOT NULL,
+    conflicts text[] DEFAULT '{}'::text[] NOT NULL,
+    tags text[] DEFAULT '{}'::text[] NOT NULL,
+    committed_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,
+    committer_name text NOT NULL,
+    committer_email text NOT NULL,
+    planned_at timestamp with time zone NOT NULL,
+    planner_name text NOT NULL,
+    planner_email text NOT NULL,
+    CONSTRAINT events_event_check CHECK ((event = ANY (ARRAY['deploy'::text, 'revert'::text, 'fail'::text, 'merge'::text])))
+);
+
+
+ALTER TABLE sqitch.events OWNER TO postgres;
+
+--
+-- Name: TABLE events; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON TABLE events IS 'Contains full history of all deployment events.';
+
+
+--
+-- Name: COLUMN events.event; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN events.event IS 'Type of event.';
+
+
+--
+-- Name: COLUMN events.change_id; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN events.change_id IS 'Change ID.';
+
+
+--
+-- Name: COLUMN events.change; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN events.change IS 'Change name.';
+
+
+--
+-- Name: COLUMN events.project; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN events.project IS 'Name of the Sqitch project to which the change belongs.';
+
+
+--
+-- Name: COLUMN events.note; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN events.note IS 'Description of the change.';
+
+
+--
+-- Name: COLUMN events.requires; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN events.requires IS 'Array of the names of required changes.';
+
+
+--
+-- Name: COLUMN events.conflicts; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN events.conflicts IS 'Array of the names of conflicting changes.';
+
+
+--
+-- Name: COLUMN events.tags; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN events.tags IS 'Tags associated with the change.';
+
+
+--
+-- Name: COLUMN events.committed_at; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN events.committed_at IS 'Date the event was committed.';
+
+
+--
+-- Name: COLUMN events.committer_name; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN events.committer_name IS 'Name of the user who committed the event.';
+
+
+--
+-- Name: COLUMN events.committer_email; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN events.committer_email IS 'Email address of the user who committed the event.';
+
+
+--
+-- Name: COLUMN events.planned_at; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN events.planned_at IS 'Date the event was added to the plan.';
+
+
+--
+-- Name: COLUMN events.planner_name; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN events.planner_name IS 'Name of the user who planed the change.';
+
+
+--
+-- Name: COLUMN events.planner_email; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN events.planner_email IS 'Email address of the user who plan planned the change.';
+
+
+--
+-- Name: projects; Type: TABLE; Schema: sqitch; Owner: postgres; Tablespace: 
+--
+
+CREATE TABLE projects (
+    project text NOT NULL,
+    uri text,
+    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,
+    creator_name text NOT NULL,
+    creator_email text NOT NULL
+);
+
+
+ALTER TABLE sqitch.projects OWNER TO postgres;
+
+--
+-- Name: TABLE projects; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON TABLE projects IS 'Sqitch projects deployed to this database.';
+
+
+--
+-- Name: COLUMN projects.project; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN projects.project IS 'Unique Name of a project.';
+
+
+--
+-- Name: COLUMN projects.uri; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN projects.uri IS 'Optional project URI';
+
+
+--
+-- Name: COLUMN projects.created_at; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN projects.created_at IS 'Date the project was added to the database.';
+
+
+--
+-- Name: COLUMN projects.creator_name; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN projects.creator_name IS 'Name of the user who added the project.';
+
+
+--
+-- Name: COLUMN projects.creator_email; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN projects.creator_email IS 'Email address of the user who added the project.';
+
+
+--
+-- Name: releases; Type: TABLE; Schema: sqitch; Owner: postgres; Tablespace: 
+--
+
+CREATE TABLE releases (
+    version real NOT NULL,
+    installed_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,
+    installer_name text NOT NULL,
+    installer_email text NOT NULL
+);
+
+
+ALTER TABLE sqitch.releases OWNER TO postgres;
+
+--
+-- Name: TABLE releases; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON TABLE releases IS 'Sqitch registry releases.';
+
+
+--
+-- Name: COLUMN releases.version; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN releases.version IS 'Version of the Sqitch registry.';
+
+
+--
+-- Name: COLUMN releases.installed_at; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN releases.installed_at IS 'Date the registry release was installed.';
+
+
+--
+-- Name: COLUMN releases.installer_name; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN releases.installer_name IS 'Name of the user who installed the registry release.';
+
+
+--
+-- Name: COLUMN releases.installer_email; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN releases.installer_email IS 'Email address of the user who installed the registry release.';
+
+
+--
+-- Name: tags; Type: TABLE; Schema: sqitch; Owner: postgres; Tablespace: 
+--
+
+CREATE TABLE tags (
+    tag_id text NOT NULL,
+    tag text NOT NULL,
+    project text NOT NULL,
+    change_id text NOT NULL,
+    note text DEFAULT ''::text NOT NULL,
+    committed_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,
+    committer_name text NOT NULL,
+    committer_email text NOT NULL,
+    planned_at timestamp with time zone NOT NULL,
+    planner_name text NOT NULL,
+    planner_email text NOT NULL
+);
+
+
+ALTER TABLE sqitch.tags OWNER TO postgres;
+
+--
+-- Name: TABLE tags; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON TABLE tags IS 'Tracks the tags currently applied to the database.';
+
+
+--
+-- Name: COLUMN tags.tag_id; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN tags.tag_id IS 'Tag primary key.';
+
+
+--
+-- Name: COLUMN tags.tag; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN tags.tag IS 'Project-unique tag name.';
+
+
+--
+-- Name: COLUMN tags.project; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN tags.project IS 'Name of the Sqitch project to which the tag belongs.';
+
+
+--
+-- Name: COLUMN tags.change_id; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN tags.change_id IS 'ID of last change deployed before the tag was applied.';
+
+
+--
+-- Name: COLUMN tags.note; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN tags.note IS 'Description of the tag.';
+
+
+--
+-- Name: COLUMN tags.committed_at; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN tags.committed_at IS 'Date the tag was applied to the database.';
+
+
+--
+-- Name: COLUMN tags.committer_name; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN tags.committer_name IS 'Name of the user who applied the tag.';
+
+
+--
+-- Name: COLUMN tags.committer_email; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN tags.committer_email IS 'Email address of the user who applied the tag.';
+
+
+--
+-- Name: COLUMN tags.planned_at; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN tags.planned_at IS 'Date the tag was added to the plan.';
+
+
+--
+-- Name: COLUMN tags.planner_name; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN tags.planner_name IS 'Name of the user who planed the tag.';
+
+
+--
+-- Name: COLUMN tags.planner_email; Type: COMMENT; Schema: sqitch; Owner: postgres
+--
+
+COMMENT ON COLUMN tags.planner_email IS 'Email address of the user who planned the tag.';
+
+
+SET search_path = public, pg_catalog;
 
 --
 -- Name: _dept_checklist_item_uniq; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
@@ -596,22 +1068,6 @@ ALTER TABLE ONLY "group"
 
 
 --
--- Name: hotel_requests_attendee_id_key; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
---
-
-ALTER TABLE ONLY hotel_requests
-    ADD CONSTRAINT hotel_requests_attendee_id_key UNIQUE (attendee_id);
-
-
---
--- Name: hotel_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
---
-
-ALTER TABLE ONLY hotel_requests
-    ADD CONSTRAINT hotel_requests_pkey PRIMARY KEY (id);
-
-
---
 -- Name: job_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
 --
 
@@ -692,30 +1148,6 @@ ALTER TABLE ONLY prev_season_supporter
 
 
 --
--- Name: room_assignment_attendee_id_key; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
---
-
-ALTER TABLE ONLY room_assignment
-    ADD CONSTRAINT room_assignment_attendee_id_key UNIQUE (attendee_id);
-
-
---
--- Name: room_assignment_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
---
-
-ALTER TABLE ONLY room_assignment
-    ADD CONSTRAINT room_assignment_pkey PRIMARY KEY (id);
-
-
---
--- Name: room_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
---
-
-ALTER TABLE ONLY room
-    ADD CONSTRAINT room_pkey PRIMARY KEY (id);
-
-
---
 -- Name: sale_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
 --
 
@@ -746,6 +1178,82 @@ ALTER TABLE ONLY shift
 ALTER TABLE ONLY tracking
     ADD CONSTRAINT tracking_pkey PRIMARY KEY (id);
 
+
+SET search_path = sqitch, pg_catalog;
+
+--
+-- Name: changes_pkey; Type: CONSTRAINT; Schema: sqitch; Owner: postgres; Tablespace: 
+--
+
+ALTER TABLE ONLY changes
+    ADD CONSTRAINT changes_pkey PRIMARY KEY (change_id);
+
+
+--
+-- Name: changes_project_script_hash_key; Type: CONSTRAINT; Schema: sqitch; Owner: postgres; Tablespace: 
+--
+
+ALTER TABLE ONLY changes
+    ADD CONSTRAINT changes_project_script_hash_key UNIQUE (project, script_hash);
+
+
+--
+-- Name: dependencies_pkey; Type: CONSTRAINT; Schema: sqitch; Owner: postgres; Tablespace: 
+--
+
+ALTER TABLE ONLY dependencies
+    ADD CONSTRAINT dependencies_pkey PRIMARY KEY (change_id, dependency);
+
+
+--
+-- Name: events_pkey; Type: CONSTRAINT; Schema: sqitch; Owner: postgres; Tablespace: 
+--
+
+ALTER TABLE ONLY events
+    ADD CONSTRAINT events_pkey PRIMARY KEY (change_id, committed_at);
+
+
+--
+-- Name: projects_pkey; Type: CONSTRAINT; Schema: sqitch; Owner: postgres; Tablespace: 
+--
+
+ALTER TABLE ONLY projects
+    ADD CONSTRAINT projects_pkey PRIMARY KEY (project);
+
+
+--
+-- Name: projects_uri_key; Type: CONSTRAINT; Schema: sqitch; Owner: postgres; Tablespace: 
+--
+
+ALTER TABLE ONLY projects
+    ADD CONSTRAINT projects_uri_key UNIQUE (uri);
+
+
+--
+-- Name: releases_pkey; Type: CONSTRAINT; Schema: sqitch; Owner: postgres; Tablespace: 
+--
+
+ALTER TABLE ONLY releases
+    ADD CONSTRAINT releases_pkey PRIMARY KEY (version);
+
+
+--
+-- Name: tags_pkey; Type: CONSTRAINT; Schema: sqitch; Owner: postgres; Tablespace: 
+--
+
+ALTER TABLE ONLY tags
+    ADD CONSTRAINT tags_pkey PRIMARY KEY (tag_id);
+
+
+--
+-- Name: tags_project_tag_key; Type: CONSTRAINT; Schema: sqitch; Owner: postgres; Tablespace: 
+--
+
+ALTER TABLE ONLY tags
+    ADD CONSTRAINT tags_project_tag_key UNIQUE (project, tag);
+
+
+SET search_path = public, pg_catalog;
 
 --
 -- Name: admin_account_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
@@ -828,14 +1336,6 @@ ALTER TABLE ONLY game
 
 
 --
--- Name: hotel_requests_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
---
-
-ALTER TABLE ONLY hotel_requests
-    ADD CONSTRAINT hotel_requests_attendee_id_fkey FOREIGN KEY (attendee_id) REFERENCES attendee(id);
-
-
---
 -- Name: m_points_for_cash_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
 --
 
@@ -884,22 +1384,6 @@ ALTER TABLE ONLY password_reset
 
 
 --
--- Name: room_assignment_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
---
-
-ALTER TABLE ONLY room_assignment
-    ADD CONSTRAINT room_assignment_attendee_id_fkey FOREIGN KEY (attendee_id) REFERENCES attendee(id);
-
-
---
--- Name: room_assignment_room_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
---
-
-ALTER TABLE ONLY room_assignment
-    ADD CONSTRAINT room_assignment_room_id_fkey FOREIGN KEY (room_id) REFERENCES room(id);
-
-
---
 -- Name: sale_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
 --
 
@@ -921,6 +1405,56 @@ ALTER TABLE ONLY shift
 
 ALTER TABLE ONLY shift
     ADD CONSTRAINT shift_job_id_fkey FOREIGN KEY (job_id) REFERENCES job(id) ON DELETE CASCADE;
+
+
+SET search_path = sqitch, pg_catalog;
+
+--
+-- Name: changes_project_fkey; Type: FK CONSTRAINT; Schema: sqitch; Owner: postgres
+--
+
+ALTER TABLE ONLY changes
+    ADD CONSTRAINT changes_project_fkey FOREIGN KEY (project) REFERENCES projects(project) ON UPDATE CASCADE;
+
+
+--
+-- Name: dependencies_change_id_fkey; Type: FK CONSTRAINT; Schema: sqitch; Owner: postgres
+--
+
+ALTER TABLE ONLY dependencies
+    ADD CONSTRAINT dependencies_change_id_fkey FOREIGN KEY (change_id) REFERENCES changes(change_id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: dependencies_dependency_id_fkey; Type: FK CONSTRAINT; Schema: sqitch; Owner: postgres
+--
+
+ALTER TABLE ONLY dependencies
+    ADD CONSTRAINT dependencies_dependency_id_fkey FOREIGN KEY (dependency_id) REFERENCES changes(change_id) ON UPDATE CASCADE;
+
+
+--
+-- Name: events_project_fkey; Type: FK CONSTRAINT; Schema: sqitch; Owner: postgres
+--
+
+ALTER TABLE ONLY events
+    ADD CONSTRAINT events_project_fkey FOREIGN KEY (project) REFERENCES projects(project) ON UPDATE CASCADE;
+
+
+--
+-- Name: tags_change_id_fkey; Type: FK CONSTRAINT; Schema: sqitch; Owner: postgres
+--
+
+ALTER TABLE ONLY tags
+    ADD CONSTRAINT tags_change_id_fkey FOREIGN KEY (change_id) REFERENCES changes(change_id) ON UPDATE CASCADE;
+
+
+--
+-- Name: tags_project_fkey; Type: FK CONSTRAINT; Schema: sqitch; Owner: postgres
+--
+
+ALTER TABLE ONLY tags
+    ADD CONSTRAINT tags_project_fkey FOREIGN KEY (project) REFERENCES projects(project) ON UPDATE CASCADE;
 
 
 --

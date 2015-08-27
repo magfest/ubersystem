@@ -20,9 +20,8 @@ def test_local():
 
 def test_multi_checks():
     pytest.raises(AttributeError, lambda: Attendee().CONSOLE)
-    pytest.raises(AttributeError, lambda: HotelRequests().CONSOLE)
     pytest.raises(AttributeError, lambda: Attendee().NOT_A_REAL_CHOICE)
 
-    assert not HotelRequests().THURSDAY
-    assert HotelRequests(nights='{},{}'.format(c.FRIDAY, c.SATURDAY)).FRIDAY
-    assert not HotelRequests(nights='{},{}'.format(c.FRIDAY, c.SATURDAY)).SUNDAY
+    assert not AdminAccount().PEOPLE
+    assert AdminAccount(access='{},{}'.format(c.PEOPLE, c.STUFF)).PEOPLE
+    assert not AdminAccount(access='{},{}'.format(c.PEOPLE, c.STUFF)).ACCOUNTS
