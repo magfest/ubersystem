@@ -17,7 +17,7 @@ import threading
 import traceback
 from glob import glob
 from uuid import uuid4
-from io import StringIO
+from io import StringIO, BytesIO
 from pprint import pprint
 from copy import deepcopy
 from pprint import pformat

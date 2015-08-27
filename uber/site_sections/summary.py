@@ -112,8 +112,11 @@ class Root:
 
     @multifile_zipfile
     def personalized_badges_zip(self, zip_file, session):
-        zip_file.writestr("test1.txt", "test1")
-        zip_file.writestr("test2.txt", "test2")
+        # todo: add other CSV files in here that we can export in bulk
+        # here are some examples of what you can do:
+        zip_file.writestr("personalized_badges.csv", self.personalized_badges())
+        zip_file.writestr("personalized_badges - TXT COPY.txt", self.personalized_badges())
+        zip_file.writestr("bestfile-evar.txt", "This is the best test ever. for reals. testtesttest")
 
     def food_eligible(self, session):
         cherrypy.response.headers['Content-Type'] = 'application/xml'
