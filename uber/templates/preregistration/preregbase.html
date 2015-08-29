@@ -106,7 +106,7 @@
                 .slice(index, 1 + index)
                 .addClass('active');
             (type.onClick || $.noop)();
-            if (type.extra !== undefined && type.extra !== null) {
+            if (type.extra !== undefined && type.extra !== null && type.extra > $.field('amount_extra').val()) {
                 $.field('amount_extra').val(type.extra || 0).trigger('change');
             }
         }
