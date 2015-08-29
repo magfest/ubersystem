@@ -238,6 +238,25 @@ class radio(template.Node):
 
 
 @tag
+class radiogroup(template.Node):
+    def __init__(self, opts, field):
+        model, self.field_name = field.split('.')
+        self.model = Variable(model)
+        self.opts = Variable(opts)
+
+    def render(self, context):
+        model = self.model.resolve(context)
+        options = self.opts.resolve(context)
+        default = getattr(model, self.field_name, None)
+        results = []
+        for num, desc in options:
+            checked = 'checked' if num == default else ''
+            results.append('<div class="radio"><input type="radio" name="{}" value="{}" {} /> {}</div>'
+                           .format(self.field_name, num, checked, desc))
+        return '&nbsp;&nbsp\n'.join(results)
+
+
+@tag
 class hour_day(template.Node):
     def __init__(self, dt):
         self.dt = Variable(dt)
