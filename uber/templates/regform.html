@@ -136,9 +136,7 @@
                 {{ attendee.amount_extra_label }}
                 <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
             {% else %}
-                <select name="amount_extra" onChange="donationChanged()" >
-                    {% options c.PREREG_DONATION_OPTS attendee.amount_extra %}
-                </select>
+                {% radiogroup c.PREREG_DONATION_OPTS attendee.amount_extra %}
             {% endif %}
         </div>
         {% popup_link "../static_views/givingExtra.html" "Why do this?" %}
