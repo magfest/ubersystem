@@ -255,6 +255,7 @@ class radiogroup(template.Node):
                            .format(self.field_name, num, checked, desc))
         return '&nbsp;&nbsp\n'.join(results)
 
+
 @tag
 class hour_day(template.Node):
     def __init__(self, dt):
