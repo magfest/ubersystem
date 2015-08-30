@@ -106,7 +106,7 @@
                 .slice(index, 1 + index)
                 .addClass('active');
             (type.onClick || $.noop)();
-            if (type.extra !== undefined && type.extra !== null && type.extra > $.field('amount_extra').val()) {
+            if (type.extra !== undefined && type.extra !== null && $.field('amount_extra') && type.extra > $.field('amount_extra').val()) {
                 $.field('amount_extra').val(type.extra || 0).trigger('change');
             }
         }
@@ -114,7 +114,7 @@
             if ($(BADGE_TYPES.row).size()) {
                 var target = 0;
                 $.each(BADGE_TYPES.options, function (i, badgeType) {
-                    if (badgeType.extra && badgeType.extra <= $.val('amount_extra')) {
+                    if (badgeType.extra && $.field('amount_extra') && badgeType.extra <= $.val('amount_extra')) {
                         target = i;
                     }
                 });
