@@ -1,4 +1,3 @@
-
 <script type="text/javascript">
     var AGE_GROUPS = {{ c.AGE_GROUP_CONFIGS|jsonize }};
     var ageGroupSelected = function () {
@@ -41,6 +40,19 @@
         if ($.field('no_cellphone')) {
             $.field('no_cellphone').on('click', noCellphoneClicked);
         }
+
+        $.field('amount_extra').bootstrapSlider({
+            ticks: [{% for key, val in c.PREREG_DONATION_OPTS %}{{ key }},{% endfor %}],
+            ticks_labels: [{% for key, val in c.PREREG_DONATION_OPTS %}'{{ val }}',{% endfor %}],
+            ticks_positions: [{% for key, val in c.PREREG_DONATION_OPTS %}{{ forloop.counter0|multiply:10 }},{% endfor %}],
+            ticks_snap_bounds: 30,
+            orientation: 'vertical'
+        });
+        $('.slider-tick-label').attr('style', function(i, style)
+            {
+                return style.replace(/display[^;]+;?/g, '');
+            });
+        $('#tick_labels').append($('.slider-tick-label-container'));
     });
 
     {% if not attendee.is_new %}
@@ -131,14 +143,15 @@
 
     <div class="extra-row form-group">
         <label for="amount_extra" class="col-sm-2 control-label">Want to kick in extra?</label>
-        <div class="col-sm-6">
+        <div class="col-sm-1">
             {% if c.AFTER_PRINTED_BADGE_DEADLINE and attendee.amount_extra >= c.SUPPORTER_LEVEL %}
                 {{ attendee.amount_extra_label }}
                 <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
             {% else %}
-                {% radiogroup c.PREREG_DONATION_OPTS attendee.amount_extra %}
+                <input type="text" name="amount_extra" />
             {% endif %}
         </div>
+        <div id="tick_labels" class="col-sm-4"></div>
         {% popup_link "../static_views/givingExtra.html" "Why do this?" %}
         <p class="help-block col-sm-6">
             Each level includes all lower levels. <br/>

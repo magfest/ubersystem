@@ -68,6 +68,11 @@ def sortBy(xs, attrName):
 
 
 @register.filter
+def multiply(value, arg):
+    return value*arg
+
+
+@register.filter
 def time_day(dt):
     return SafeString('<nobr>{} {}</nobr>'.format(dt.astimezone(c.EVENT_TIMEZONE).strftime('%I:%M%p').lstrip('0').lower(),
                                                   dt.astimezone(c.EVENT_TIMEZONE).strftime('%a')))
