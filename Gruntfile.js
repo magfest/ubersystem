@@ -12,7 +12,10 @@ module.exports = function (grunt) {
                             return filepath.replace('select2.js', 'select2.full.js');
                         });
                     } else if (component === 'bootstrap') {
-                        return mainFiles.concat([process.cwd() + '/bower_components/bootstrap/dist/css/bootstrap-theme.css']);
+                        return mainFiles.concat([
+                            process.cwd() + '/bower_components/bootstrap/dist/css/bootstrap-theme.css',
+                            process.cwd() + '/bower_components/bootstrap/js/button.js'
+                        ]);
                     } else if (component === 'jquery-ui') {
                         return mainFiles.concat([process.cwd() + '/bower_components/jquery-ui/themes/ui-lightness/jquery-ui.css']);
                     } else if (component === 'jquery') {
