@@ -755,32 +755,6 @@ class Session(SessionManager):
         return target
 
 
-class Event(MagModel):
-    location    = Column(Choice(c.EVENT_LOCATION_OPTS))
-    start_time  = Column(UTCDateTime)
-    duration    = Column(Integer)   # half-hour increments
-    name        = Column(UnicodeText, nullable=False)
-    description = Column(UnicodeText)
-
-    assigned_panelists = relationship('AssignedPanelist', backref='event')
-
-    @property
-    def half_hours(self):
-        half_hours = set()
-        for i in range(self.duration):
-            half_hours.add(self.start_time + timedelta(minutes=30 * i))
-        return half_hours
-
-    @property
-    def minutes(self):
-        return (self.duration or 0) * 30
-
-    @property
-    def start_slot(self):
-        if self.start_time:
-            return int((self.start_time_local - c.EPOCH).total_seconds() / (60 * 30))
-
-
 class Group(MagModel, TakesPaymentMixin):
     name          = Column(UnicodeText)
     tables        = Column(Float, default=0)
@@ -992,7 +966,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     checkouts = relationship('Checkout', backref='attendee')
     sales = relationship('Sale', backref='attendee', cascade='save-update,merge,refresh-expire,expunge')
     mpoints_for_cash = relationship('MPointsForCash', backref='attendee')
-    assigned_panelists = relationship('AssignedPanelist', backref='attendee')
     old_mpoint_exchanges = relationship('OldMPointExchange', backref='attendee')
     dept_checklist_items = relationship('DeptChecklistItem', backref='attendee')
 
@@ -1420,14 +1393,6 @@ class FoodRestrictions(MagModel):
                 return True
             else:
                 return restriction in self.standard_ints
-
-
-class AssignedPanelist(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='cascade'))
-    event_id    = Column(UUID, ForeignKey('event.id', ondelete='cascade'))
-
-    def __repr__(self):
-        return '<{self.attendee.full_name} panelisting {self.event.name}>'.format(self=self)
 
 
 class NoShirt(MagModel):

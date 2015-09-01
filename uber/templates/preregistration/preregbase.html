@@ -114,7 +114,7 @@
             if ($(BADGE_TYPES.row).size()) {
                 var target = 0;
                 $.each(BADGE_TYPES.options, function (i, badgeType) {
-                    if (badgeType.extra && badgeType.extra <= $.val('amount_extra')) {
+                    if (badgeType.extra && $.field('amount_extra') && badgeType.extra <= $.val('amount_extra')) {
                         target = i;
                     }
                 });
