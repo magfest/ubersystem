@@ -116,11 +116,19 @@ class Root:
 
     @csv_file
     def printed_badges_staff(self, out, session):
-        uber.reports.personalized_badge_report_type(badge_type=c.STAFF_BADGE).run(out, session)
+        uber.reports.personalized_badge_report_type()\
+            .run(out, session,
+                 sa.Attendee.badge_type == c.STAFF_BADGE,
+                 sa.Attendee.badge_num != 0,
+                 order_by='badge_num')
 
     @csv_file
     def printed_badges_supporters(self, out, session):
-        uber.reports.supporter_badge_report_type(badge_type=c.SUPPORTER_BADGE, include_badge_nums=False).run(out, session)
+        uber.reports.personalized_badge_report_type(include_badge_nums=False)\
+            .run(out, session,
+                 sa.Attendee.amount_extra >= c.SUPPORTER_LEVEL,
+                 order_by=sa.Attendee.full_name,
+                 badge_type_override='supporter')
 
     @multifile_zipfile
     def personalized_badges_zip(self, zip_file, session):
