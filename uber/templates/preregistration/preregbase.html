@@ -87,7 +87,7 @@
         {% endif %}
 
         var togglePrices = function () {
-            var showTotalPrices = {% if c.PAGE_PATH == '/preregistration/form' %}(($.field('amount_extra') && $.field('amount_extra').is(":visible") && $.val('badge_type') === {{ c.ATTENDEE_BADGE }}) ? false : true){% else %}false{% endif %};
+            var showTotalPrices = {% if c.PAGE_PATH == '/preregistration/form' and c.DONATION_SLIDER_DISPLAY %}($.val('badge_type') === {{ c.ATTENDEE_BADGE }}){% else %}false{% endif %};
             $.each(BADGE_TYPES.options, function (i, type) {
                 var $price = $(BADGE_TYPES.selector).slice(i, i + 1).find('.price').empty();
                 var $price_notice = $(BADGE_TYPES.selector).slice(i, i + 1).find('.price_notice').empty();
@@ -162,7 +162,11 @@
                 setBadge(REG_TYPES, $.field('name') && $.val('name') ? 1 : 0);  // default to attendee or group
                 makeBadgeMatchExtra();
                 if ($.field('amount_extra')) {
-                    $.field('amount_extra').on('change', makeBadgeMatchExtra);
+                    {% if c.DONATION_SLIDER_DISPLAY %}
+                        $.field('amount_extra').parents('.form-group').hide();
+                    {% else %}
+                        $.field('amount_extra').on('change', makeBadgeMatchExtra);
+                    {% endif %}
                 }
             }
         });
