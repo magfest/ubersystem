@@ -6,3 +6,4 @@ master-base 2015-07-21T16:30:15Z vagrant <vagrant@vagrant-ubuntu-trusty-64> # St
 add-badge-statuses 2015-07-21T16:50:45Z vagrant <vagrant@vagrant-ubuntu-trusty-64> # Add badge_status column.
 food-pref-changes 2015-08-16T04:45:01Z vagrant <vagrant@vagrant-ubuntu-trusty-64> # Changes to the food preferences to support sandwich selection as a checkgroup instead of a dropdown
 removed-hotel 2015-08-25T03:44:43Z vagrant <vagrant@vagrant-ubuntu-trusty-64> # moved hotel fields into a plugin
+removed-panels 2015-08-31T04:05:25Z vagrant <vagrant@vagrant-ubuntu-trusty-64> # Moved panels to a separate plugin

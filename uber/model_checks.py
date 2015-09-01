@@ -33,23 +33,6 @@ def has_email_address(account):
                 return "Attendee doesn't have a valid email set"
 
 
-Event.required = [('name', 'Event Name')]
-
-
-@validation.Event
-def overlapping_events(event, other_event_id=None):
-    existing = {}
-    for e in event.session.query(Event).filter(Event.location == event.location,
-                                               Event.id != event.id,
-                                               Event.id != other_event_id).all():
-        for hh in e.half_hours:
-            existing[hh] = e.name
-
-    for hh in event.half_hours:
-        if hh in existing:
-            return '"{}" overlaps with the time/duration you specified for "{}"'.format(existing[hh], event.name)
-
-
 Group.required = [('name', 'Group Name')]
 
 
