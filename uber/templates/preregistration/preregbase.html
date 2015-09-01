@@ -106,10 +106,13 @@
                 .slice(index, 1 + index)
                 .addClass('active');
             (type.onClick || $.noop)();
-            if (type.extra !== undefined && type.extra !== null && $.field('amount_extra') && type.extra > $.field('amount_extra').val()) {
+        };
+        var setKickinFromBadge = function (types, index) {
+            var type = types.options[index];
+            if (type.extra !== undefined && type.extra !== null && $.field('amount_extra')) {
                 $.field('amount_extra').val(type.extra || 0).trigger('change');
             }
-        }
+        };
         var makeBadgeMatchExtra = function () {
             if ($(BADGE_TYPES.row).size()) {
                 var target = 0;
@@ -131,6 +134,7 @@
                             $('<div class="col-sm-3"></div>').append(
                                 $('<a class="list-group-item"></a>').addClass(types.selector.substring(1)).click(function () {
                                     setBadge(types, index);
+                                    setKickinFromBadge(types, index);
                                 }).append(
                                     $('<h4 class="list-group-item-heading"></h4>')
                                         .append(type.title)
