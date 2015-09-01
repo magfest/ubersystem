@@ -120,7 +120,7 @@ class Root:
 
     @csv_file
     def printed_badges_supporters(self, out, session):
-        uber.reports.personalized_badge_report_type(badge_type=c.SUPPORTER_BADGE, include_badge_nums=False).run(out, session)
+        uber.reports.supporter_badge_report_type(badge_type=c.SUPPORTER_BADGE, include_badge_nums=False).run(out, session)
 
     @multifile_zipfile
     def personalized_badges_zip(self, zip_file, session):
