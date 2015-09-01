@@ -129,10 +129,7 @@
         var setKickinFromBadge = function (types, index) {
             var type = types.options[index];
             if (type.extra !== undefined && type.extra !== null && $.field('amount_extra')) {
-                $.field('amount_extra').val(type.extra || 0).trigger('change');
-            if (type.extra !== undefined && type.extra !== null && type.extra > $.field('amount_extra').val()) {
-                $('input:radio[name=amount_extra][value='+ type.extra +']').prop('checked', true)
-                donationChanged()
+                $('input:radio[name=amount_extra][value='+ type.extra +']').prop('checked', true).trigger('change');
             }
         };
         var makeBadgeMatchExtra = function () {
