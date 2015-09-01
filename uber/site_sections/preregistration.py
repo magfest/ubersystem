@@ -8,11 +8,13 @@ def to_sessionized(attendee, group):
         return Charge.to_sessionized(attendee)
 
 
-def check_prereg_reqs(attendee):
+def check_prereg_reqs(attendee, group=None):
     if attendee.badge_type == c.PSEUDO_DEALER_BADGE and not attendee.cellphone:
         return 'Your phone number is required'
     elif attendee.amount_extra >= c.SHIRT_LEVEL and attendee.shirt == c.NO_SHIRT:
         return 'Your shirt size is required'
+    elif attendee.badge_type == c.PSEUDO_GROUP_BADGE and group.badges < c.MIN_GROUP_SIZE:
+        return "You cannot buy fewer than {} badges at the group rate.".format(c.MIN_GROUP_SIZE)
 
 
 def check_dealer(group):
@@ -150,8 +152,9 @@ class Root:
             return render('static_views/dealer_reg_closed.html') if c.AFTER_DEALER_REG_SHUTDOWN else render('static_views/dealer_reg_not_open.html')
 
         if 'first_name' in params:
-            message = check(attendee) or check_prereg_reqs(attendee)
+            message = check(attendee) or check_prereg_reqs(attendee, group)
             if not message and attendee.badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE]:
+                check_prereg_reqs(attendee, group)
                 message = check(group)
                 if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                     message = check_dealer(group)
