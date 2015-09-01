@@ -87,7 +87,7 @@
         {% endif %}
 
         var togglePrices = function () {
-            var showTotalPrices = (($.field('amount_extra') && $.field('amount_extra').is(":visible")) ? false : true);
+            var showTotalPrices = {% if c.PAGE_PATH == '/preregistration/form' %}(($.field('amount_extra') && $.field('amount_extra').is(":visible") && $.val('badge_type') === {{ c.ATTENDEE_BADGE }}) ? false : true){% else %}false{% endif %};
             $.each(BADGE_TYPES.options, function (i, type) {
                 var $price = $(BADGE_TYPES.selector).slice(i, i + 1).find('.price').empty();
                 var $price_notice = $(BADGE_TYPES.selector).slice(i, i + 1).find('.price_notice').empty();
@@ -143,7 +143,6 @@
             }
         };
         $(function () {
-            var showTotalPrices = {% if c.PAGE_PATH == '/preregistration/form' %}(($.field('amount_extra') && $.field('amount_extra').is(":visible") && $.val('badge_type') === {{ c.ATTENDEE_BADGE }}) ? false : true){% else %}false{% endif %};
             if ($(BADGE_TYPES.row).size()) {
                 $.each([REG_TYPES, BADGE_TYPES], function (i, types) {
                     $.each(types.options, function (index, type) {
