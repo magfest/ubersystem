@@ -1,5 +1,4 @@
 from uber.common import *
-from uber.config import _make_enum
 import shutil
 import pytest
 from sideboard.tests import patch_session
@@ -18,7 +17,7 @@ def sensible_defaults():
     c.SHIFT_CUSTOM_BADGES = True
 
     # our tests should work no matter what departments exist, so we'll add these departments to use in our tests
-    _make_enum('test_departments', {'console': 'Console', 'arcade': 'Arcade', 'con_ops': 'Fest Ops'})
+    c.make_enum('test_departments', {'console': 'Console', 'arcade': 'Arcade', 'con_ops': 'Fest Ops'})
     c.SHIFTLESS_DEPTS = [c.CON_OPS]
 
     # we want 2 preassigned types to test some of our logic, so we've

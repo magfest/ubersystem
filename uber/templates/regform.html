@@ -41,6 +41,14 @@
         if ($.field('no_cellphone')) {
             $.field('no_cellphone').on('click', noCellphoneClicked);
         }
+
+        if ($.field('address')) {
+            $('#group-explanation').insertAfter($.field('address').parents('.form-group'));
+        } else if ($.field('badges')) {
+            $('#group-explanation').insertAfter($.field('badges').parents('.form-group'));
+        } else {
+            $('#group-explanation').remove();
+        }
     });
 
     {% if not attendee.is_new %}
@@ -56,6 +64,16 @@
         <div class="col-sm-6 heading-label">Bold fields are required</div>
     </div>
 {% endif %}
+
+<div id="group-explanation" class="form-group">
+    <p class="col-sm-8 col-sm-offset-1">
+        {% if attendee.is_dealer %}
+            Please enter your personal information below.  Information for any additional vendors at your table can be filled out once your application is approved.
+        {% else %}
+            Please enter the information for the group leader below (additional group member information will be entered after purchase is complete):
+        {% endif %}
+    </p>
+</div>
 
 {% if c.PAGE == 'confirm' %}
     <div class="form-group">
@@ -149,7 +167,7 @@
     </div>
 
     <div class="badge-row extra-row form-group" style="display:none">
-        <label for="badge_printed_name" class="col-sm-2 control-label">Name Printed on Badge</label>
+        <label for="badge_printed_name" class="col-sm-2 control-label optional-field">Name Printed on Badge</label>
         <div class="col-sm-6">
             <input type="text" class="form-control" name="badge_printed_name" maxlength="20" value="{{ attendee.badge_printed_name }}" {% if c.AFTER_PRINTED_BADGE_DEADLINE %}readonly{% endif %} />
         </div>
