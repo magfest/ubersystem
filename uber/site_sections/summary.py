@@ -103,20 +103,32 @@ class Root:
         }
 
     @csv_file
-    def personalized_badges(self, out, session):
-        for a in session.query(Attendee).filter(Attendee.badge_num != 0).order_by('badge_num').all():
-            out.writerow([a.badge_num, a.badge_type_label, a.badge_printed_name or a.full_name])
-        for a in session.query(Attendee).filter(Attendee.badge_type == c.STAFF_BADGE,
-                                                Attendee.amount_extra >= c.SUPPORTER_LEVEL).order_by(Attendee.full_name).all():
-            out.writerow(['', 'Supporter', a.badge_printed_name or a.full_name])
+    def printed_badges_attendee(self, out, session):
+        uber.reports.printed_badge_report_type(badge_type=c.ATTENDEE_BADGE).run(out, session)
+
+    @csv_file
+    def printed_badges_guest(self, out, session):
+        uber.reports.printed_badge_report_type(badge_type=c.GUEST_BADGE).run(out, session)
+
+    @csv_file
+    def printed_badges_one_day(self, out, session):
+        uber.reports.printed_badge_report_type(badge_type=c.ONE_DAY_BADGE).run(out, session)
+
+    @csv_file
+    def printed_badges_staff(self, out, session):
+        uber.reports.personalized_badge_report_type(badge_type=c.STAFF_BADGE).run(out, session)
+
+    @csv_file
+    def printed_badges_supporters(self, out, session):
+        uber.reports.personalized_badge_report_type(badge_type=c.SUPPORTER_BADGE, include_badge_nums=False).run(out, session)
 
     @multifile_zipfile
     def personalized_badges_zip(self, zip_file, session):
-        # todo: add other CSV files in here that we can export in bulk
-        # here are some examples of what you can do:
-        zip_file.writestr("personalized_badges.csv", self.personalized_badges())
-        zip_file.writestr("personalized_badges - TXT COPY.txt", self.personalized_badges())
-        zip_file.writestr("bestfile-evar.txt", "This is the best test ever. for reals. testtesttest")
+        zip_file.writestr("printed_badges_attendee.csv", self.printed_badges_attendee())
+        zip_file.writestr("printed_badges_guest.csv", self.printed_badges_guest())
+        zip_file.writestr("printed_badges_one_day.csv", self.printed_badges_one_day())
+        zip_file.writestr("printed_badges_staff.csv", self.printed_badges_staff())
+        zip_file.writestr("printed_badges_supporters.csv", self.printed_badges_supporters())
 
     def food_eligible(self, session):
         cherrypy.response.headers['Content-Type'] = 'application/xml'

@@ -70,6 +70,7 @@ import uber as sa  # used to avoid circular dependency import issues for SQLAlch
 from uber.amazon_ses import AmazonSES, EmailMessage  # TODO: replace this after boto adds Python 3 support
 from uber.config import c, Config, SecretConfig
 from uber.utils import *
+from uber.reports import *
 from uber.decorators import *
 from uber.models import *
 from uber.automated_emails import *
