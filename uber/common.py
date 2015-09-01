@@ -17,7 +17,6 @@ import threading
 import traceback
 from glob import glob
 from uuid import uuid4
-from io import StringIO
 from pprint import pprint
 from copy import deepcopy
 from pprint import pformat
@@ -28,6 +27,7 @@ from random import randrange
 from contextlib import closing
 from time import sleep, mktime
 from urllib.parse import quote
+from io import StringIO, BytesIO
 from urllib.parse import urlparse
 from urllib.parse import parse_qsl
 from itertools import chain, count
@@ -70,6 +70,7 @@ import uber as sa  # used to avoid circular dependency import issues for SQLAlch
 from uber.amazon_ses import AmazonSES, EmailMessage  # TODO: replace this after boto adds Python 3 support
 from uber.config import c, Config, SecretConfig
 from uber.utils import *
+from uber.reports import *
 from uber.decorators import *
 from uber.models import *
 from uber.automated_emails import *

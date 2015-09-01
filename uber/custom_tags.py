@@ -234,7 +234,26 @@ class radio(template.Node):
         value   = self.value.resolve(context)
         default = self.default.resolve(context)
         checked = 'checked' if str(value) == str(default) else ''
-        return """<div class="radio"><input type="radio" name="%s" value="%s" %s /></div>""" % (self.name, value, checked)
+        return """<div class="radio"><label class="btn btn-primary"><input type="radio" name="%s" value="%s" %s /></label></div>""" % (self.name, value, checked)
+
+
+@tag
+class radiogroup(template.Node):
+    def __init__(self, opts, field):
+        model, self.field_name = field.split('.')
+        self.model = Variable(model)
+        self.opts = Variable(opts)
+
+    def render(self, context):
+        model = self.model.resolve(context)
+        options = self.opts.resolve(context)
+        default = getattr(model, self.field_name, None)
+        results = []
+        for num, desc in options:
+            checked = 'checked' if num == default else ''
+            results.append('<label class="btn btn-default" style="text-align: left;"><input type="radio" name="{}" autocomplete="off" value="{}" onchange="donationChanged();" {} /> {}</label>'
+                           .format(self.field_name, num, checked, desc))
+        return ''.join(results)
 
 
 @tag
@@ -498,23 +517,23 @@ def price_notice(parser, token):
 
 
 class PriceNotice(template.Node):
-    def __init__(self, label, takedown, amount_extra='0'):
+    def __init__(self, label, takedown, amount_extra='0', discount='0'):
         self.label = label.strip('"').strip("'")
-        self.takedown, self.amount_extra = Variable(takedown), Variable(amount_extra)
+        self.takedown, self.amount_extra, self.discount = Variable(takedown), Variable(amount_extra), Variable(discount)
 
-    def _notice(self, label, takedown, amount_extra):
+    def _notice(self, label, takedown, amount_extra, discount):
         if c.PAGE_PATH not in ['/preregistration/form', '/preregistration/register_group_member']:
             return ''  # we only display notices for new attendees
         else:
             for day, price in sorted(c.PRICE_BUMPS.items()):
                 if day < takedown and localized_now() < day:
-                    return '<div class="prereg-price-notice">Price goes up to ${} at 11:59pm EST on {}</div>'.format(price + amount_extra, (day - timedelta(days=1)).strftime('%A, %b %e'))
+                    return '<div class="prereg-price-notice">Price goes up to ${} at 11:59pm EST on {}</div>'.format(price - discount + int(amount_extra), (day - timedelta(days=1)).strftime('%A, %b %e'))
                 elif localized_now() < day and takedown == c.PREREG_TAKEDOWN:
                     return '<div class="prereg-type-closing">{} closes at 11:59pm EST on {}. Price goes up to ${} at-door.</div>'.format(label, takedown.strftime('%A, %b %e'), price + amount_extra, (day - timedelta(days=1)).strftime('%A, %b %e'))
             return '<div class="prereg-type-closing">{} closes at 11:59pm EST on {}</div>'.format(label, takedown.strftime('%A, %b %e'))
 
     def render(self, context):
-        return self._notice(self.label, self.takedown.resolve(context), self.amount_extra.resolve(context))
+        return self._notice(self.label, self.takedown.resolve(context), self.amount_extra.resolve(context), self.discount.resolve(context))
 
 
 @tag
