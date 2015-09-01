@@ -498,13 +498,11 @@ def price_notice(parser, token):
 
 
 class PriceNotice(template.Node):
-    def __init__(self, label, takedown, amount_extra='0'):
+    def __init__(self, label, takedown, amount_extra='0', discount='0'):
         self.label = label.strip('"').strip("'")
-        self.takedown, self.amount_extra = Variable(takedown), Variable(amount_extra)
+        self.takedown, self.amount_extra, self.discount = Variable(takedown), Variable(amount_extra), Variable(discount)
 
-    def _notice(self, label, takedown, amount_extra):
-        discount = c.GROUP_DISCOUNT if takedown == c.GROUP_PREREG_TAKEDOWN else 0
-
+    def _notice(self, label, takedown, amount_extra, discount):
         if c.PAGE_PATH not in ['/preregistration/form', '/preregistration/register_group_member']:
             return ''  # we only display notices for new attendees
         else:
@@ -516,7 +514,7 @@ class PriceNotice(template.Node):
             return '<div class="prereg-type-closing">{} closes at 11:59pm EST on {}</div>'.format(label, takedown.strftime('%A, %b %e'))
 
     def render(self, context):
-        return self._notice(self.label, self.takedown.resolve(context), self.amount_extra.resolve(context))
+        return self._notice(self.label, self.takedown.resolve(context), self.amount_extra.resolve(context), self.discount.resolve(context))
 
 
 @tag
