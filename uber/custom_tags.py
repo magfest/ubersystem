@@ -517,23 +517,23 @@ def price_notice(parser, token):
 
 
 class PriceNotice(template.Node):
-    def __init__(self, label, takedown, amount_extra='0'):
+    def __init__(self, label, takedown, amount_extra='0', discount='0'):
         self.label = label.strip('"').strip("'")
-        self.takedown, self.amount_extra = Variable(takedown), Variable(amount_extra)
+        self.takedown, self.amount_extra, self.discount = Variable(takedown), Variable(amount_extra), Variable(discount)
 
-    def _notice(self, label, takedown, amount_extra):
+    def _notice(self, label, takedown, amount_extra, discount):
         if c.PAGE_PATH not in ['/preregistration/form', '/preregistration/register_group_member']:
             return ''  # we only display notices for new attendees
         else:
             for day, price in sorted(c.PRICE_BUMPS.items()):
                 if day < takedown and localized_now() < day:
-                    return '<div class="prereg-price-notice">Price goes up to ${} at 11:59pm EST on {}</div>'.format(price + amount_extra, (day - timedelta(days=1)).strftime('%A, %b %e'))
+                    return '<div class="prereg-price-notice">Price goes up to ${} at 11:59pm EST on {}</div>'.format(price - discount + int(amount_extra), (day - timedelta(days=1)).strftime('%A, %b %e'))
                 elif localized_now() < day and takedown == c.PREREG_TAKEDOWN:
                     return '<div class="prereg-type-closing">{} closes at 11:59pm EST on {}. Price goes up to ${} at-door.</div>'.format(label, takedown.strftime('%A, %b %e'), price + amount_extra, (day - timedelta(days=1)).strftime('%A, %b %e'))
             return '<div class="prereg-type-closing">{} closes at 11:59pm EST on {}</div>'.format(label, takedown.strftime('%A, %b %e'))
 
     def render(self, context):
-        return self._notice(self.label, self.takedown.resolve(context), self.amount_extra.resolve(context))
+        return self._notice(self.label, self.takedown.resolve(context), self.amount_extra.resolve(context), self.discount.resolve(context))
 
 
 @tag
