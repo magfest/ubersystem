@@ -234,7 +234,26 @@ class radio(template.Node):
         value   = self.value.resolve(context)
         default = self.default.resolve(context)
         checked = 'checked' if str(value) == str(default) else ''
-        return """<div class="radio"><input type="radio" name="%s" value="%s" %s /></div>""" % (self.name, value, checked)
+        return """<div class="radio"><label class="btn btn-primary"><input type="radio" name="%s" value="%s" %s /></label></div>""" % (self.name, value, checked)
+
+
+@tag
+class radiogroup(template.Node):
+    def __init__(self, opts, field):
+        model, self.field_name = field.split('.')
+        self.model = Variable(model)
+        self.opts = Variable(opts)
+
+    def render(self, context):
+        model = self.model.resolve(context)
+        options = self.opts.resolve(context)
+        default = getattr(model, self.field_name, None)
+        results = []
+        for num, desc in options:
+            checked = 'checked' if num == default else ''
+            results.append('<label class="btn btn-default" style="text-align: left;"><input type="radio" name="{}" autocomplete="off" value="{}" onchange="donationChanged();" {} /> {}</label>'
+                           .format(self.field_name, num, checked, desc))
+        return ''.join(results)
 
 
 @tag

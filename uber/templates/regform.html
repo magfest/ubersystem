@@ -116,7 +116,15 @@
             {% else %}
                 setVisible('.badge-row', $.val('amount_extra') >= {{ c.SUPPORTER_LEVEL }});
             {% endif %}
-        };
+            $.each($("input:radio[name='amount_extra']"), function() {
+                $(this).parents('.btn').removeClass('active btn-primary');
+                $(this).parents('.btn').addClass('btn-default');
+                if ($(this).val() <= $.val('amount_extra')) {
+                    $(this).parents('.btn').removeClass('btn-default');
+                    $(this).parents('.btn').addClass('active btn-primary');
+                }
+            });
+            };
         $(function(){
             if ($.field('amount_extra')) {
                 donationChanged();
@@ -154,13 +162,13 @@
                 {{ attendee.amount_extra_label }}
                 <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
             {% else %}
-                <select name="amount_extra" onChange="donationChanged()" >
-                    {% options c.PREREG_DONATION_OPTS attendee.amount_extra %}
-                </select>
+                <div class="btn-group btn-group-vertical" data-toggle="buttons">
+                    {% radiogroup c.PREREG_DONATION_OPTS attendee.amount_extra %}
+                </div>
             {% endif %}
         </div>
         {% popup_link "../static_views/givingExtra.html" "Why do this?" %}
-        <p class="help-block col-sm-6">
+        <p class="help-block col-sm-6 col-sm-offset-2">
             Each level includes all lower levels. <br/>
             Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime }}.
         </p>
