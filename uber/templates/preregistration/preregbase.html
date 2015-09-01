@@ -108,6 +108,7 @@
             (type.onClick || $.noop)();
             if (type.extra !== undefined && type.extra !== null && type.extra > $.field('amount_extra').val()) {
                 $('input:radio[name=amount_extra][value='+ type.extra +']').prop('checked', true)
+                donationChanged()
             }
         }
         var makeBadgeMatchExtra = function () {
