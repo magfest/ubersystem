@@ -154,7 +154,6 @@ class Root:
         if 'first_name' in params:
             message = check(attendee) or check_prereg_reqs(attendee, group)
             if not message and attendee.badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE]:
-                check_prereg_reqs(attendee, group)
                 message = check(group)
                 if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                     message = check_dealer(group)
