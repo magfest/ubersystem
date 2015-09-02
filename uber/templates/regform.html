@@ -15,8 +15,14 @@
     var staffingClicked = function () {
         var checked = $.field('staffing') && $.field('staffing').is(':visible:checked');
         setVisible('#departments', checked);
-        setVisible($.field('no_cellphone').parents('.checkbox'), checked);
-        $('#cellphone').parents('.form-group').find('label:first').css('font-weight', checked ? 'bold' : 'normal');
+        if ($.field('no_cellphone')) {
+            setVisible($.field('no_cellphone').parents('.checkbox'), checked);
+        }
+        {% if not attendee.is_dealer %}
+            if ($.field('cellphone')) {
+                $.field('cellphone').parents('.form-group').find('label:first').css('font-weight', checked ? 'bold' : 'normal');
+            }
+        {% endif %}
     };
     $(function () {
         staffingClicked();
@@ -26,11 +32,23 @@
     });
 
     var noCellphoneClicked = function () {
-        setVisible($.field('cellphone'), $.field('no_cellphone').is(':not(:checked)'));
+        if ($.field('no_cellphone')) {
+            setVisible($.field('cellphone'), !$.field('no_cellphone').prop('checked'));
+        }
     };
     $(function () {
         noCellphoneClicked();
-        $.field('no_cellphone').on('click', noCellphoneClicked);
+        if ($.field('no_cellphone')) {
+            $.field('no_cellphone').on('click', noCellphoneClicked);
+        }
+
+        if ($.field('address')) {
+            $('#group-explanation').insertAfter($.field('address').parents('.form-group'));
+        } else if ($.field('badges')) {
+            $('#group-explanation').insertAfter($.field('badges').parents('.form-group'));
+        } else {
+            $('#group-explanation').remove();
+        }
     });
 
     {% if not attendee.is_new %}
@@ -46,6 +64,16 @@
         <div class="col-sm-6 heading-label">Bold fields are required</div>
     </div>
 {% endif %}
+
+<div id="group-explanation" class="form-group">
+    <p class="col-sm-8 col-sm-offset-1">
+        {% if attendee.is_dealer %}
+            Please enter your personal information below.  Information for any additional vendors at your table can be filled out once your application is approved.
+        {% else %}
+            Please enter the information for the group leader below (additional group member information will be entered after purchase is complete):
+        {% endif %}
+    </p>
+</div>
 
 {% if c.PAGE == 'confirm' %}
     <div class="form-group">
@@ -74,17 +102,29 @@
     </div>
 {% endif %}
 
-{% if c.DONATIONS_ENABLED and c.PREREG_DONATION_OPTS and not attendee.is_dealer and c.PAGE_PATH != '/registration/form' %}
+{% if c.DONATIONS_ENABLED and c.PREREG_DONATION_OPTS and c.PAGE_PATH != '/registration/form' %}
     <script type="text/javascript">
         var donationChanged = function () {
             setVisible('.affiliate-row', $.val('amount_extra') > 0);
-            setVisible('.shirt-row', $.val('amount_extra') >= {{ c.SHIRT_LEVEL }});
+            {% if attendee.gets_shirt %}
+                setVisible('.shirt-row', true);
+            {% else %}
+                setVisible('.shirt-row', $.val('amount_extra') >= {{ c.SHIRT_LEVEL }});
+            {% endif %}
             {% if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES %}
                 setVisible('.badge-row', true);
             {% else %}
                 setVisible('.badge-row', $.val('amount_extra') >= {{ c.SUPPORTER_LEVEL }});
             {% endif %}
-        };
+            $.each($("input:radio[name='amount_extra']"), function() {
+                $(this).parents('.btn').removeClass('active btn-primary');
+                $(this).parents('.btn').addClass('btn-default');
+                if ($(this).val() <= $.val('amount_extra')) {
+                    $(this).parents('.btn').removeClass('btn-default');
+                    $(this).parents('.btn').addClass('active btn-primary');
+                }
+            });
+            };
         $(function(){
             if ($.field('amount_extra')) {
                 donationChanged();
@@ -102,12 +142,11 @@
                 if ($.field('affiliate')) {
                     $.field('affiliate').select2({
                         placeholder: "I don't care about this",
-                        createSearchChoice: function(term) {
-                            return {id: term, text: term};
-                        },
+                        allowClear: true,
+                        tags: true,
                         data: {{ affiliates|jsonize }},
                         width: '100%',
-                    }).select2('val', {{ attendee.affiliate|default:''|jsonize }});
+                    }).val({{ attendee.affiliate|default:''|jsonize }});
                 }
                 $('form').submit(function(){
                     $(':submit').attr('value', 'Uploading Preregistration...').attr('disabled', true);
@@ -123,20 +162,20 @@
                 {{ attendee.amount_extra_label }}
                 <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
             {% else %}
-                <select name="amount_extra" onChange="donationChanged()" >
-                    {% options c.PREREG_DONATION_OPTS attendee.amount_extra %}
-                </select>
+                <div class="btn-group btn-group-vertical" data-toggle="buttons">
+                    {% radiogroup c.PREREG_DONATION_OPTS attendee.amount_extra %}
+                </div>
             {% endif %}
         </div>
         {% popup_link "../static_views/givingExtra.html" "Why do this?" %}
-        <p class="help-block col-sm-6">
+        <p class="help-block col-sm-6 col-sm-offset-2">
             Each level includes all lower levels. <br/>
             Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime }}.
         </p>
     </div>
 
     <div class="badge-row extra-row form-group" style="display:none">
-        <label for="badge_printed_name" class="col-sm-2 control-label">Name Printed on Badge</label>
+        <label for="badge_printed_name" class="col-sm-2 control-label optional-field">Name Printed on Badge</label>
         <div class="col-sm-6">
             <input type="text" class="form-control" name="badge_printed_name" maxlength="20" value="{{ attendee.badge_printed_name }}" {% if c.AFTER_PRINTED_BADGE_DEADLINE %}readonly{% endif %} />
         </div>
@@ -148,25 +187,27 @@
             <p class="help-block col-sm-6 col-sm-offset-2">(custom badges have already been ordered, so you can no longer set this)</p>
         </div>
     {% endif %}
-    
+
     <div class="affiliate-row extra-row form-group" style="display:none">
         <label for="affiliate" class="col-sm-2 control-label optional-field">Affiliate</label>
         <div class="col-sm-6">
-            <input type="hidden" name="affiliate" style="width:30ex" />
+            <select name="affiliate">
+                <option value="" selected="selected"></option>
+            </select>
         </div>
         {% popup_link "../static_views/affiliates.html" "What's an affiliate?" %}
     </div>
-{% endif %}
 
-<div class="shirt-row extra-row form-group" style="display:none">
-    <label for="shirt" class="col-sm-2 control-label">Shirt Size</label>
-    <div class="col-sm-6">
-        <select name="shirt" class="form-control">
-            <option value="{{ c.NO_SHIRT }}">Select a shirt size</option>
-            {% options c.PREREG_SHIRT_OPTS attendee.shirt %}
-        </select>
+    <div class="shirt-row extra-row form-group" style="display:none">
+        <label for="shirt" class="col-sm-2 control-label">Shirt Size</label>
+        <div class="col-sm-6">
+            <select name="shirt" class="form-control">
+                <option value="{{ c.NO_SHIRT }}">Select a shirt size</option>
+                {% options c.PREREG_SHIRT_OPTS attendee.shirt %}
+            </select>
+        </div>
     </div>
-</div>
+{% endif %}
 
 <div class="form-group staffing">
     <label for="staffing" class="col-sm-2 control-label">Want to Volunteer?</label>
@@ -218,7 +259,7 @@
     </div>
 </div>
 
-{% if c.COLLECT_FULL_ADDRESS or attendee.is_dealer %}
+{% if c.COLLECT_FULL_ADDRESS %}
     <div class="form-group">
         <label for="full_address" class="col-sm-2 control-label">Address</label>
         <div class="col-sm-6">
@@ -284,7 +325,7 @@
 </div>
 
 <div class="form-group">
-    <label for="cellphone" class="col-sm-2 control-label optional-field">Your Cellphone Number</label>
+    <label for="cellphone" class="col-sm-2 control-label">Your Cellphone Number</label>
     <div class="col-sm-6">
         <input type="text" name="cellphone" id="cellphone" value="{{ attendee.cellphone }}" class="form-control" placeholder="Your Personal Cellphone Number">
     </div>

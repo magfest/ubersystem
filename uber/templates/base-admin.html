@@ -1,9 +1,15 @@
 {% extends "base.html" %}
 
 {% block top_of_body_additional %}
-    <!--<div id="floating_logo"></div>-->
+    <div id="floating_logo">
+        <img src="../static/theme/bg-logo.png" />
+    </div>
+    {% if c.DEV_BOX %}
+    <div id="devbox_cautiontape"></div>
+    <div id="devbox_text">DEVELOPMENT</div>
+    {% endif %}
 {%  endblock %}
 
 {% block additional_styles %}
-   <!-- <link rel="stylesheet" type="text/css" href="../static_views/additional-styles.css" />-->
+   <link rel="stylesheet" type="text/css" href="../static_views/additional-styles.css" />
 {%  endblock %}

@@ -129,7 +129,7 @@
     {% endfor %}
 {% include "registration/checkin.html" %}
 {% if page %}
-<table class="table footable" data-page-size="9999999">
+<table class="table table-striped" data-page-size="9999999">
 <thead><tr>
     <th> <a href="index?order={{ order.group_id }}">Group Name</a> </th>
     <th> <a href="index?order={{ order.last_first }}">Legal Name</a> </th>
@@ -145,7 +145,7 @@
     {% endif %}
 </tr></thead>
 {% for attendee in attendees %}
-    <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
+    <tr>
         <td id="group_{{ attendee.id }}">
             <a href="../groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
         </td>

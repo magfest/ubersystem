@@ -16,7 +16,7 @@
 {% endif %}
 
 {% for url, email in examples %}
-    <h3>{% if url %}<a href="{{ url }}">Source</a>{% else %}Previous Season Supporter:{% endif %}</h3>
+    {% if url %}<h3><a href="{{ url }}">Source</a></h3>{% endif %}
     <pre style="white-space:pre-wrap">{{ email }}</pre>
 {% endfor %}
 

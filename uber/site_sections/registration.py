@@ -76,8 +76,7 @@ class Root:
             'order':          Order(order),
             'attendee_count': total_count,
             'checkin_count':  session.query(Attendee).filter(Attendee.checked_in != None).count(),
-            'attendee':       session.attendee(uploaded_id) if uploaded_id else None,
-            'remaining_badges': max(0, c.MAX_BADGE_SALES - c.BADGES_SOLD)
+            'attendee':       session.attendee(uploaded_id) if uploaded_id else None
         }
 
     @log_pageview
@@ -161,9 +160,7 @@ class Root:
                 session.add(Attendee(**{attr: getattr(attendee, attr) for attr in [
                     'group', 'registered', 'badge_type', 'badge_num', 'paid', 'amount_paid', 'amount_extra'
                 ]}))
-                session.assign_badges(attendee.group, attendee.group.badges + 1, attendee.badge_type)
                 session.delete_from_group(attendee, attendee.group)
-                attendee.group.attendees.remove(attendee)
                 message = 'Attendee deleted, but this badge is still available to be assigned to someone else in the same group'
         else:
             session.delete(attendee)
@@ -503,8 +500,7 @@ class Root:
             'checked_in': checked_in,
             'groups':     sorted(groups, key=lambda tup: tup[1]),
             'recent':     session.query(Attendee).filter(Attendee.checked_in == None, Attendee.first_name != '', *restrict_to)
-                                                 .order_by(Attendee.registered).all(),
-            'remaining_badges': max(0, c.MAX_BADGE_SALES - c.BADGES_SOLD)
+                                                 .order_by(Attendee.registered).all()
         }
 
     def new_reg_station(self, reg_station='', message=''):
@@ -739,14 +735,6 @@ class Root:
         return {'attendees': session.query(Attendee)
                                     .filter(Attendee.for_review != '')
                                     .order_by(Attendee.full_name).all()}
-
-    def season_pass_tickets(self, session):
-        events = defaultdict(list)
-        for spt in session.query(SeasonPassTicket).all():
-            events[spt.slug].append(spt.fk)
-        for attending in events.values():
-            attending.sort(key=lambda a: (a.first_name, a.last_name))
-        return {'events': dict(events)}
 
     @site_mappable
     def discount(self, session, message='', **params):

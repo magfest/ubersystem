@@ -2,7 +2,8 @@
 <head></head>
 <body>
 
-Your group ({{ attendee.group.name}}) has successfully submitted a request for the following:
+Your group ({{ attendee.group.name}}) has successfully submitted a Dealer application for {{ c.EVENT_NAME }}
+this coming {% event_dates %}.  Your application includes the following:
 <ul>
     <li> {{ attendee.group.tables }} table{{ attendee.group.tables|pluralize }} (${{ attendee.group.table_cost }}) </li>
     <li> {{ attendee.group.badges }} badge{{ attendee.group.badges|pluralize }} (${{ attendee.group.badge_cost }}) </li>

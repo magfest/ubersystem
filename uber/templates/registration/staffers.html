@@ -8,40 +8,43 @@
 </ol>
 
 {% if search_text %}
-        <div class="panel panel-info">
-    <a href="index?order={{ order }}">Click here</a> to view full volunteer list instead of only search results.
+    <div class="panel panel-info">
+        <a href="index?order={{ order }}">Click here</a> to view full volunteer list instead of only search results.
     </div>
 {% endif %}
 
-<div class="row">
-		<div class="col-md-6">
-<div class="input-group">
-<input class="form-control" type="text" name="filter" id="filter" placeholder="Type Here to Search"/>
-<span class="input-group-addon"><span class="glyphicon glyphicon-search"></span></span>
-</div>
-		</div>
-    <div class="col-md-2">{{ staffer_count }} volunteers</div>
-    <div class="col-md-2">{{ taken_hours }} shift hours taken</div>
-    <div class="col-md-2">{{ total_hours }} shift hours exist</div>
-</div>
+<form method="get" action="staffers">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="input-group">
+                <input class="form-control" type="text" name="search_text" value="{{ search_text }}" placeholder="Type Here to Search"/>
+                <input type="hidden" name="order" value="{{ order }}" />
+                <span class="input-group-addon"><span class="glyphicon glyphicon-search"></span></span>
+            </div>
+        </div>
+        <div class="col-md-2">{{ staffer_count }} volunteers</div>
+        <div class="col-md-2">{{ taken_hours }} shift hours taken</div>
+        <div class="col-md-2">{{ total_hours }} shift hours exist</div>
+    </div>
+</form>
 
-<table class="table footable" data-filter="#filter" data-page-navigation=".pagination" data-limit-navigation="5">
+<table class="table table-striped datatable">
 <thead><tr>
-    <th data-type="alpha">Name</th>
-    <th data-type="alpha">Badge</th>
-    <th data-type="alpha">Paid</th>
-    <th data-type="alpha">Assigned To</th>
-    <th data-type="numeric">Hours</th>
+    <th>Name</th>
+    <th>Badge</th>
+    <th>Paid</th>
+    <th>Assigned To</th>
+    <th>Hours</th>
     {% if c.AT_OR_POST_CON %}
-        <th data-type="numeric">Worked</th>
+        <th>Worked</th>
     {% endif %}
     {% if c.AT_THE_CON %}
-        <th data-type="alpha">Checked In</th>
+        <th><nobr>Checked In</nobr></th>
     {% endif %}
 </tr></thead>
 {% for attendee in staffers %}
-    <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
-        <td style="text-align:left"> <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a> </td>
+    <tr>
+        <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}" style="text-align:left"> <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a> </td>
         <td>{{ attendee.badge }}</td>
         <td>{{ attendee.paid_label }}</td>
         <td style="text-align:left">
@@ -53,18 +56,15 @@
                 {% endfor %}
             </ul>
         </td>
-        <td> <a href="shifts?id={{ attendee.id }}">{{ attendee.weighted_hours }}</a> </td>
+        <td data-order="{{ attendee.weighted_hours }}" data-search="{{ attendee.weighted_hours }}"> <a href="shifts?id={{ attendee.id }}">{{ attendee.weighted_hours }}</a> </td>
         {% if c.AT_OR_POST_CON %}
-            <td> <a href="shifts?id={{ attendee.id }}">{{ attendee.worked_hours }}</a> </td>
+            <td data-order="{{ attendee.worked_hours }}" data-search="{{ attendee.worked_hours }}"> <a href="shifts?id={{ attendee.id }}">{{ attendee.worked_hours }}</a> </td>
         {% endif %}
         {% if c.AT_THE_CON %}
             <td>{{ attendee.checked_in|yesno:"Checked In,Not Checked In" }}</td>
         {% endif %}
     </tr>
 {% endfor %}
-	<caption align="bottom">
-		<ul class="pagination"></ul>
-	</caption>
 </table>
 
 {% endblock %}

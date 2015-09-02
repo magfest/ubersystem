@@ -87,6 +87,22 @@ def ajax_gettable(func):
     return returns_json
 
 
+def multifile_zipfile(func):
+    @wraps(func)
+    def zipfile_out(self, session):
+        zipfile_writer = BytesIO()
+        with zipfile.ZipFile(zipfile_writer, mode='w') as zip_file:
+            func(self, zip_file, session)
+
+        # must do this after creating the zip file as other decorators may have changed this
+        # for example, if a .zip file is created from several .csv files, they may each set content-type.
+        cherrypy.response.headers['Content-Type'] = 'application/zip'
+        cherrypy.response.headers['Content-Disposition'] = 'attachment; filename=' + func.__name__ + '.zip'
+
+        return zipfile_writer.getvalue()
+    return zipfile_out
+
+
 def csv_file(func):
     @wraps(func)
     def csvout(self, session):

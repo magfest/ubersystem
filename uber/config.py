@@ -1,7 +1,84 @@
 from uber.common import *
 
 
-class Config:
+class _Overridable:
+    "Base class we extend below to allow plugins to add/override config options."
+    @classmethod
+    def mixin(cls, klass):
+        for attr in dir(klass):
+            if not attr.startswith('_'):
+                setattr(cls, attr, getattr(klass, attr))
+        return cls
+
+    def include_plugin_config(self, plugin_config):
+        """Plugins call this method to merge their own config into the global c object."""
+
+        for attr, val in plugin_config.items():
+            if not isinstance(val, dict):
+                setattr(self, attr.upper(), val)
+
+        if 'enums' in plugin_config:
+            self.make_enums(plugin_config['enums'])
+
+        if 'dates' in plugin_config:
+            self.make_dates(plugin_config['dates'])
+
+    def make_dates(self, config_section):
+        """
+        Plugins can define a [dates] section in their config to create their
+        own deadlines on the global c object.  This method is called automatically
+        by c.include_plugin_config() if a "[dates]" section exists.
+        """
+        for _opt, _val in config_section.items():
+            if not _val:
+                _dt = None
+            elif ' ' in _val:
+                _dt = self.EVENT_TIMEZONE.localize(datetime.strptime(_val, '%Y-%m-%d %H'))
+            else:
+                _dt = self.EVENT_TIMEZONE.localize(datetime.strptime(_val + ' 23:59', '%Y-%m-%d %H:%M'))
+            setattr(self, _opt.upper(), _dt)
+            if _dt:
+                self.DATES[_opt.upper()] = _dt
+
+    def make_enums(self, config_section):
+        """
+        Plugins can define an [enums] section in their config to create their
+        own enums on the global c object.  This method is called automatically
+        by c.include_plugin_config() if an "[enums]" section exists.
+        """
+        for name, subsection in config_section.items():
+            c.make_enum(name, subsection)
+
+    def make_enum(self, enum_name, section, prices=False):
+        """
+        Plugins can call this to define individual enums, or call the make_enums
+        function to make all enums defined there.  See the [enums] section in
+        configspec.ini file, which explains what fields are added to the global
+        c object for each enum.
+        """
+        opts, lookup, varnames = [], {}, []
+        for name, desc in section.items():
+            if isinstance(name, int):
+                if prices:
+                    val, desc = desc, name
+                else:
+                    val = name
+            else:
+                varnames.append(name.upper())
+                val = int(sha512(name.upper().encode()).hexdigest()[:7], 16)
+                setattr(self, name.upper(),  val)
+
+            if desc:
+                opts.append((val, desc))
+                lookup[val] = desc
+
+        enum_name = enum_name.upper()
+        setattr(self, enum_name + '_OPTS', opts)
+        setattr(self, enum_name + '_VARS', varnames)
+        setattr(self, enum_name + ('' if enum_name.endswith('S') else 'S'), lookup)
+
+
+class Config(_Overridable):
     """
     We have two types of configuration.  One is the values which come directly from our config file, such
     as the name of our event.  The other is things which depend on the date/time (such as the badge price,
@@ -56,10 +133,6 @@ class Config:
         return self.BADGE_PRICE + self.SUPPORTER_LEVEL
 
     @property
-    def SEASON_BADGE_PRICE(self):
-        return self.BADGE_PRICE + self.SEASON_LEVEL
-
-    @property
     def GROUP_PRICE(self):
         return self.get_group_price(sa.localized_now())
 
@@ -87,10 +160,6 @@ class Config:
         return self.SUPPORTER_LEVEL in self.PREREG_DONATION_TIERS
 
     @property
-    def SEASON_SUPPORTERS_ENABLED(self):
-        return self.SEASON_LEVEL in self.PREREG_DONATION_TIERS
-
-    @property
     def AT_THE_DOOR_BADGE_OPTS(self):
         opts = [(self.ATTENDEE_BADGE, 'Full Weekend Pass (${})'.format(self.BADGE_PRICE))]
         if self.ONE_DAYS_ENABLED:
@@ -103,7 +172,7 @@ class Config:
 
     @property
     def DISPLAY_ONEDAY_BADGES(self):
-        return self.ONE_DAYS_ENABLED and days_before(30, self.EPOCH)
+        return self.ONE_DAYS_ENABLED and sa.days_before(30, self.EPOCH)
 
     @property
     def AT_OR_POST_CON(self):
@@ -126,6 +195,10 @@ class Config:
         return cherrypy.request.path_info.split('/')[-1]
 
     @property
+    def HTTP_METHOD(self):
+        return cherrypy.request.method
+
+    @property
     def SUPPORTER_COUNT(self):
         with sa.Session() as session:
             attendees = session.query(sa.Attendee)
@@ -137,27 +210,8 @@ class Config:
             return individual_supporters + group_supporters
 
     @property
-    def SQLALCHEMY_URL(self):
-        """
-        support reading the DB connection info from an environment var (used with Docker containers)
-        example env vars:
-        DB_PORT_5432_TCP_ADDR="172.17.0.8"
-        DB_PORT_5432_TCP_PORT="5432"
-        """
-        docker_db_addr = os.environ.get('DB_PORT_5432_TCP_ADDR')
-        docker_db_port = os.environ.get('DB_PORT_5432_TCP_PORT')
-
-        if docker_db_addr is not None and docker_db_port is not None:
-            return "postgresql://uber_db:uber_db@" + docker_db_addr + ":" + docker_db_port + "/uber_db"
-        else:
-            return _config['sqlalchemy_url']
-
-    @classmethod
-    def mixin(cls, klass):
-        for attr in dir(klass):
-            if not attr.startswith('_'):
-                setattr(cls, attr, getattr(klass, attr))
-        return cls
+    def REMAINING_BADGES(self):
+        return max(0, self.MAX_BADGE_SALES - self.BADGES_SOLD)
 
     def __getattr__(self, name):
         if name.split('_')[0] in ['BEFORE', 'AFTER']:
@@ -180,10 +234,39 @@ class Config:
                 return True  # Defaults to unlimited stock for any stock not configured
             else:
                 return count_check < stock_setting
+        elif hasattr(_secret, name):
+            return getattr(_secret, name)
+        elif name.lower() in _config['secret']:
+            return _config['secret'][name.lower()]
         else:
             raise AttributeError('no such attribute {}'.format(name))
 
+
+class SecretConfig(_Overridable):
+    """
+    This class is for properties which we don't want to be used as Javascript
+    variables.  Properties on this class can be accessed normally through the
+    global c object as if they were defined there.
+    """
+
+    @property
+    def SQLALCHEMY_URL(self):
+        """
+        support reading the DB connection info from an environment var (used with Docker containers)
+        example env vars:
+        DB_PORT_5432_TCP_ADDR="172.17.0.8"
+        DB_PORT_5432_TCP_PORT="5432"
+        """
+        docker_db_addr = os.environ.get('DB_PORT_5432_TCP_ADDR')
+        docker_db_port = os.environ.get('DB_PORT_5432_TCP_PORT')
+
+        if docker_db_addr is not None and docker_db_port is not None:
+            return "postgresql://uber_db:uber_db@" + docker_db_addr + ":" + docker_db_port + "/uber_db"
+        else:
+            return _config['secret']['sqlalchemy_url']
+
 c = Config()
+_secret = SecretConfig()
 
 _config = parse_config(__file__)  # outside this module, we use the above c global instead of using this directly
 
@@ -212,41 +295,11 @@ c.DATES = {}
 c.TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S'
 c.DATE_FORMAT = '%Y-%m-%d'
 c.EVENT_TIMEZONE = pytz.timezone(c.EVENT_TIMEZONE)
-for _opt, _val in _config['dates'].items():
-    if not _val:
-        _dt = None
-    elif ' ' in _val:
-        _dt = c.EVENT_TIMEZONE.localize(datetime.strptime(_val, '%Y-%m-%d %H'))
-    else:
-        _dt = c.EVENT_TIMEZONE.localize(datetime.strptime(_val + ' 23:59', '%Y-%m-%d %H:%M'))
-    setattr(c, _opt.upper(), _dt)
-    if _dt:
-        c.DATES[_opt.upper()] = _dt
+c.make_dates(_config['dates'])
 
 c.PRICE_BUMPS = {}
 for _opt, _val in c.BADGE_PRICES['attendee'].items():
     c.PRICE_BUMPS[c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d'))] = _val
-
-
-def _make_enum(enum_name, section, prices=False):
-    opts, lookup, varnames = [], {}, []
-    for name, desc in section.items():
-        if isinstance(name, int):
-            if prices:
-                val, desc = desc, name
-            else:
-                val = name
-        else:
-            varnames.append(name.upper())
-            val = int(sha512(name.upper().encode()).hexdigest()[:7], 16)
-            setattr(c, name.upper(),  val)
-        opts.append((val, desc))
-        lookup[val] = desc
-
-    enum_name = enum_name.upper()
-    setattr(c, enum_name + '_OPTS', opts)
-    setattr(c, enum_name + '_VARS', varnames)
-    setattr(c, enum_name + ('' if enum_name.endswith('S') else 'S'), lookup)
 
 
 def _is_intstr(s):
@@ -254,9 +307,7 @@ def _is_intstr(s):
         return s[1:].isdigit()
     return s.isdigit()
 
-
-for _name, _section in _config['enums'].items():
-    _make_enum(_name, _section)
+c.make_enums(_config['enums'])
 
 for _name, _val in _config['integer_enums'].items():
     if isinstance(_val, int):
@@ -273,13 +324,13 @@ for _name, _section in _config['integer_enums'].items():
 
             _interpolated[key] = _desc
 
-        _make_enum(_name, _interpolated, prices=_name.endswith('_price'))
+        c.make_enum(_name, _interpolated, prices=_name.endswith('_price'))
 
 c.BADGE_RANGES = {}
 for _badge_type, _range in _config['badge_ranges'].items():
     c.BADGE_RANGES[getattr(c, _badge_type.upper())] = _range
 
-_make_enum('age_group', OrderedDict([(name, section['desc']) for name, section in _config['age_groups'].items()]))
+c.make_enum('age_group', OrderedDict([(name, section['desc']) for name, section in _config['age_groups'].items()]))
 c.AGE_GROUP_CONFIGS = {}
 for _name, _section in _config['age_groups'].items():
     _val = getattr(c, _name.upper())
@@ -292,7 +343,6 @@ c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
 c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]
 c.TRANSFERABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.TRANSFERABLE_BADGE_TYPES]
 
-c.SEASON_EVENTS = _config['season_events']
 c.DEPT_HEAD_CHECKLIST = _config['dept_head_checklist']
 
 c.BADGE_LOCK = RLock()
@@ -300,9 +350,6 @@ c.BADGE_LOCK = RLock()
 c.CON_LENGTH = int((c.ESCHATON - c.EPOCH).total_seconds() // 3600)
 c.START_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (c.EPOCH + timedelta(hours=i) for i in range(c.CON_LENGTH))]
 c.DURATION_OPTS = [(i, '%i hour%s' % (i, ('s' if i > 1 else ''))) for i in range(1, 9)]
-c.EVENT_START_TIME_OPTS = [(dt, dt.strftime('%I %p %a') if not dt.minute else dt.strftime('%I:%M %a'))
-                           for dt in [c.EPOCH + timedelta(minutes=i * 30) for i in range(2 * c.CON_LENGTH)]]
-c.EVENT_DURATION_OPTS = [(i, '%.1f hour%s' % (i/2, 's' if i != 2 else '')) for i in range(1, 19)]
 c.SETUP_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (c.EPOCH - timedelta(days=2) + timedelta(hours=i) for i in range(16))] \
                   + [(dt, dt.strftime('%I %p %a')) for dt in (c.EPOCH - timedelta(days=1) + timedelta(hours=i) for i in range(24))]
 c.TEARDOWN_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (c.ESCHATON + timedelta(hours=i) for i in range(6))] \
@@ -320,11 +367,9 @@ c.DAYS = sorted({(dt.strftime('%Y-%m-%d'), dt.strftime('%a')) for dt, desc in c.
 c.HOURS = ['{:02}'.format(i) for i in range(24)]
 c.MINUTES = ['{:02}'.format(i) for i in range(60)]
 
-c.ORDERED_EVENT_LOCS = [loc for loc, desc in c.EVENT_LOCATION_OPTS]
-c.EVENT_BOOKED = {'colspan': 0}
-c.EVENT_OPEN   = {'colspan': 1}
-
 c.MAX_BADGE = max(xs[1] for xs in c.BADGE_RANGES.values())
+
+c.JOB_LOCATION_OPTS.sort(key=lambda tup: tup[1])
 
 c.JOB_PAGE_OPTS = (
     ('index',    'Calendar View'),
@@ -339,16 +384,6 @@ c.WEIGHT_OPTS = (
 )
 c.JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'restricted', 'extra15']
 
-c.NIGHT_DISPLAY_ORDER = [getattr(c, night.upper()) for night in c.NIGHT_DISPLAY_ORDER]
-c.NIGHT_NAMES = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-c.CORE_NIGHTS = []
-_day = c.EPOCH
-while _day.date() != c.ESCHATON.date():
-    c.CORE_NIGHTS.append(getattr(c, _day.strftime('%A').upper()))
-    _day += timedelta(days=1)
-c.SETUP_NIGHTS = c.NIGHT_DISPLAY_ORDER[:c.NIGHT_DISPLAY_ORDER.index(c.CORE_NIGHTS[0])]
-c.TEARDOWN_NIGHTS = c.NIGHT_DISPLAY_ORDER[1 + c.NIGHT_DISPLAY_ORDER.index(c.CORE_NIGHTS[-1]):]
-
 c.PREREG_SHIRT_OPTS = c.SHIRT_OPTS[1:]
 c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + list(c.PREREG_SHIRT_OPTS)
 c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt, desc) if amt else desc) for amt, desc in c.DONATION_TIER_OPTS]
@@ -359,5 +394,13 @@ c.FEE_ITEM_NAMES = list(c.FEE_PRICES.keys())
 c.WRISTBAND_COLORS = defaultdict(lambda: c.WRISTBAND_COLORS[c.DEFAULT_WRISTBAND], c.WRISTBAND_COLORS)
 
 c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
+
+try:
+    _items = sorted([int(step), url] for step, url in _config['volunteer_checklist'].items() if url)
+except ValueError:
+    log.error('[volunteer_checklist] config options must have integer option names')
+    raise
+else:
+    c.VOLUNTEER_CHECKLIST = [url for step, url in _items]
 
 stripe.api_key = c.STRIPE_SECRET_KEY

@@ -12,7 +12,10 @@ module.exports = function (grunt) {
                             return filepath.replace('select2.js', 'select2.full.js');
                         });
                     } else if (component === 'bootstrap') {
-                        return mainFiles.concat([process.cwd() + '/bower_components/bootstrap/dist/css/bootstrap-theme.css']);
+                        return mainFiles.concat([
+                            process.cwd() + '/bower_components/bootstrap/dist/css/bootstrap-theme.css',
+                            process.cwd() + '/bower_components/bootstrap/js/button.js'
+                        ]);
                     } else if (component === 'jquery-ui') {
                         return mainFiles.concat([process.cwd() + '/bower_components/jquery-ui/themes/ui-lightness/jquery-ui.css']);
                     } else if (component === 'jquery') {
@@ -22,6 +25,12 @@ module.exports = function (grunt) {
                             process.cwd() + '/uber/static/deps/jquery-datetextentry/jquery.datetextentry.js',
                             process.cwd() + '/uber/static/deps/jquery-datetextentry/jquery.datetextentry.css'
                         ]);
+                    } else if (component === 'datatables') {
+                        mainFiles = mainFiles.map(function(filepath) {
+                            return filepath.replace('jquery.dataTables.css', 'dataTables.bootstrap.css')
+                        });
+                        mainFiles = mainFiles.concat([process.cwd() + '/bower_components/datatables/media/js/dataTables.bootstrap.js']);
+                        return mainFiles;
                     } else {
                         return mainFiles;
                     }

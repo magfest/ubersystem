@@ -11,14 +11,14 @@ class Root:
             'shirt_sizes':   [(desc, count(shirt=shirt)) for shirt, desc in c.SHIRT_OPTS],
             'paid_counts':   [(desc, count(paid=status)) for status, desc in c.PAYMENT_OPTS],
             'badge_counts':  [(desc, count(badge_type=bt), count(paid=c.NOT_PAID, badge_type=bt), count(paid=c.HAS_PAID, badge_type=bt)) for bt, desc in c.BADGE_OPTS],
-            'aff_counts':    [(aff['text'], count(badge_type=c.SUPPORTER_BADGE, affiliate=aff['text'], paid=c.HAS_PAID), count(badge_type=c.SUPPORTER_BADGE, affiliate=aff['text'], paid=c.NOT_PAID)) for aff in session.affiliates()],
+            'aff_counts':    [(aff['text'], len([a for a in attendees if a.amount_extra >= c.SUPPORTER_LEVEL and a.affiliate == aff['text']])) for aff in session.affiliates()],
             'checkin_count': count(checked_in=None),
-            'paid_noshows':  count(paid=c.HAS_PAID, checked_in=None) + len([a for a in attendees if a.paid == c.PAID_BY_GROUP and a.group.amount_paid and not a.checked_in]),
+            'paid_noshows':  count(paid=c.HAS_PAID, checked_in=None) + len([a for a in attendees if a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid and not a.checked_in]),
             'free_noshows':  count(paid=c.NEED_NOT_PAY, checked_in=None),
             'interests':     [(desc, len([a for a in attendees if a.paid == c.NOT_PAID and dept in a.interests_ints])) for dept, desc in c.INTEREST_OPTS],
             'age_counts':    [(desc, count(age_group=ag)) for ag, desc in c.AGE_GROUP_OPTS],
-            'paid_group':    len([a for a in attendees if a.paid == c.PAID_BY_GROUP and a.group.amount_paid]),
-            'free_group':    len([a for a in attendees if a.paid == c.PAID_BY_GROUP and not a.group.amount_paid]),
+            'paid_group':    len([a for a in attendees if a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid]),
+            'free_group':    len([a for a in attendees if a.paid == c.PAID_BY_GROUP and a.group and not a.group.amount_paid]),
             'shirt_sales':   [(i, len([a for a in attendees if a.registered <= datetime.now(UTC) - timedelta(days=i * 7) and a.shirt != c.NO_SHIRT])) for i in range(50)],
             'ribbons':       [(desc, count(ribbon=val)) for val, desc in c.RIBBON_OPTS if val != c.NO_RIBBON],
         }
@@ -75,14 +75,13 @@ class Root:
             'volunteers': volunteers,
             'notes': filter(bool, [getattr(fr, 'freeform', '') for fr in all_fr]),
             'standard': {
-                c.FOOD_RESTRICTIONS[globals()[category]]: len([fr for fr in all_fr if getattr(fr, category)])
+                c.FOOD_RESTRICTIONS[getattr(c, category)]: len([fr for fr in all_fr if getattr(fr, category)])
                 for category in c.FOOD_RESTRICTION_VARS
             },
             'sandwich_prefs': {
-                sandtype: len([fr for fr in all_fr if fr.sandwich_pref == globals()[sandtype]])
-                for sandtype in c.SANDWICH_VARS
-            },
-            'no_cheese': len([fr for fr in all_fr if fr.no_cheese])
+                desc: len([fr for fr in all_fr if val in fr.sandwich_pref_ints])
+                for val, desc in c.SANDWICH_OPTS
+            }
         }
 
     def ratings(self, session):
@@ -104,12 +103,40 @@ class Root:
         }
 
     @csv_file
-    def personalized_badges(self, out, session):
-        for a in session.query(Attendee).filter(Attendee.badge_num != 0).order_by('badge_num').all():
-            out.writerow([a.badge_num, a.badge_type_label, a.badge_printed_name or a.full_name])
-        for a in session.query(Attendee).filter(Attendee.badge_type == c.STAFF_BADGE,
-                                                Attendee.amount_extra >= c.SUPPORTER_LEVEL).order_by(Attendee.full_name).all():
-            out.writerow(['', 'Supporter', a.badge_printed_name or a.full_name])
+    def printed_badges_attendee(self, out, session):
+        uber.reports.printed_badge_report_type(badge_type=c.ATTENDEE_BADGE).run(out, session)
+
+    @csv_file
+    def printed_badges_guest(self, out, session):
+        uber.reports.printed_badge_report_type(badge_type=c.GUEST_BADGE).run(out, session)
+
+    @csv_file
+    def printed_badges_one_day(self, out, session):
+        uber.reports.printed_badge_report_type(badge_type=c.ONE_DAY_BADGE).run(out, session)
+
+    @csv_file
+    def printed_badges_staff(self, out, session):
+        uber.reports.personalized_badge_report_type()\
+            .run(out, session,
+                 sa.Attendee.badge_type == c.STAFF_BADGE,
+                 sa.Attendee.badge_num != 0,
+                 order_by='badge_num')
+
+    @csv_file
+    def printed_badges_supporters(self, out, session):
+        uber.reports.personalized_badge_report_type(include_badge_nums=False)\
+            .run(out, session,
+                 sa.Attendee.amount_extra >= c.SUPPORTER_LEVEL,
+                 order_by=sa.Attendee.full_name,
+                 badge_type_override='supporter')
+
+    @multifile_zipfile
+    def personalized_badges_zip(self, zip_file, session):
+        zip_file.writestr("printed_badges_attendee.csv", self.printed_badges_attendee())
+        zip_file.writestr("printed_badges_guest.csv", self.printed_badges_guest())
+        zip_file.writestr("printed_badges_one_day.csv", self.printed_badges_one_day())
+        zip_file.writestr("printed_badges_staff.csv", self.printed_badges_staff())
+        zip_file.writestr("printed_badges_supporters.csv", self.printed_badges_supporters())
 
     def food_eligible(self, session):
         cherrypy.response.headers['Content-Type'] = 'application/xml'
@@ -216,23 +243,7 @@ class Root:
         return {'flagged': flagged}
 
     def setup_teardown_neglect(self, session):
-        attendees = []
-        for hr in session.query(HotelRequests).filter_by(approved=True).options(joinedload(HotelRequests.attendee)).all():
-            if hr.setup_teardown and hr.attendee.takes_shifts:
-                reasons = []
-                if hr.attendee.approved_for_setup and not any([shift.job.is_setup for shift in hr.attendee.shifts]):
-                    reasons.append('has no setup shifts')
-                if hr.attendee.approved_for_teardown and not any([shift.job.is_teardown for shift in hr.attendee.shifts]):
-                    reasons.append('has no teardown shifts')
-                if reasons:
-                    attendees.append([hr.attendee, reasons])
-        attendees = sorted(attendees, key=lambda tup: tup[0].full_name)
-
         return {
-            'attendees': [
-                ('Department Heads', [tup for tup in attendees if tup[0].is_dept_head]),
-                ('Regular Staffers', [tup for tup in attendees if not tup[0].is_dept_head])
-            ],
             'unfilled': [
                 ('Setup', [job for job in session.query(Job).all() if job.is_setup and job.slots_untaken]),
                 ('Teardown', [job for job in session.query(Job).all() if job.is_teardown and job.slots_untaken])

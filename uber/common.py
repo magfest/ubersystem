@@ -7,6 +7,7 @@ import math
 import string
 import socket
 import random
+import zipfile
 import inspect
 import binascii
 import warnings
@@ -16,7 +17,6 @@ import threading
 import traceback
 from glob import glob
 from uuid import uuid4
-from io import StringIO
 from pprint import pprint
 from copy import deepcopy
 from pprint import pformat
@@ -27,6 +27,7 @@ from random import randrange
 from contextlib import closing
 from time import sleep, mktime
 from urllib.parse import quote
+from io import StringIO, BytesIO
 from urllib.parse import urlparse
 from urllib.parse import parse_qsl
 from itertools import chain, count
@@ -67,8 +68,9 @@ from sideboard.lib.sa import declarative_base, SessionManager, UTCDateTime, UUID
 import uber
 import uber as sa  # used to avoid circular dependency import issues for SQLAlchemy models
 from uber.amazon_ses import AmazonSES, EmailMessage  # TODO: replace this after boto adds Python 3 support
-from uber.config import c, Config
+from uber.config import c, Config, SecretConfig
 from uber.utils import *
+from uber.reports import *
 from uber.decorators import *
 from uber.models import *
 from uber.automated_emails import *

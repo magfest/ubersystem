@@ -44,7 +44,7 @@
     </div>
 </div>
 
-<table class="charge table footable" data-sort="false">
+<table class="charge table table-striped">
 <thead><tr>
     <th>Preregistration</th>
     <th data-hide="phone" data-sort-ignore="true">Details</th>
@@ -57,6 +57,11 @@
         <td>
             <ul style="padding-left:15px">
                 <li>Membership for {{ c.EVENT_NAME }}</li>
+                {% if not attendee.default_cost %}
+                    <li>Attendees who are {{ attendee.age_group_conf.desc|lower }} get in for free!</li>
+                {% elif attendee.discount %}
+                    <li>${{ attendee.age_group_conf.discount }} discount for attendees who are {{ attendee.age_group_conf.desc|lower }}.</li>
+                {% endif %}
                 {% for swag in attendee.donation_swag|add:attendee.addons %}
                     <li>{{ swag }}</li>
                 {% endfor %}

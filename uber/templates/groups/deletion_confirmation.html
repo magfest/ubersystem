@@ -14,7 +14,7 @@ This group still has unassigned badges:
 </ul>
 <br/>
 
-Deleting this group will also delete all of these badges and anything linked to them (volunteer shifts, hotel information, etc).  This often isn't a good idea, but if you're sure you know what you're doing, click the button below:
+Deleting this group will also delete all of these badges and anything linked to them (e.g. volunteer shifts).  This often isn't a good idea, but if you're sure you know what you're doing, click the button below:
 <form method="post" action="delete">
 {% csrf_token %}
 <input type="hidden" name="id" value="{{ group.id }}" />

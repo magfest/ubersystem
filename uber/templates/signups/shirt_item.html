@@ -1,0 +1,9 @@
+<li>
+    {% checked_if attendee.shirt_size_marked %}
+    {% if not attendee.placeholder and attendee.food_restrictions %}
+        <a href="shirt_size">Let us know</a>
+    {% else %}
+        Let us know
+    {% endif %}
+    your shirt size so that we can set aside a shirt in your size at our merch booth.
+</li>

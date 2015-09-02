@@ -53,7 +53,7 @@
                 {People: [
                     {Attendees: '../registration/'},
                     {Groups: '../groups/'},
-                    {'All Untaken Shifts': ''},
+                    {'All Untaken Shifts': '../jobs/everywhere'},
                     {Staffers: '../registration/staffers'},
                     {Jobs: '../jobs/'},
                     {'Feed of Database Changes': '../registration/feed'}
@@ -88,9 +88,15 @@
             if (message.length) {
                 toastr.info(message);
             }
-            $('.footable').footable();
+            $('.datatable').DataTable();
             $('.date').datetextentry({
-                field_order: 'MDY'
+                field_order: 'MDY',
+                min_year : '1890',
+                max_date : function() { return this.get_today(); },
+                max_date_message : 'You cannot be born in the future.',
+                show_tooltips : false,
+                errorbox_x    : -135,
+                errorbox_y    : 28
             });
             $('.geolocator').geocomplete({
                 details: '.address_details',

@@ -2,8 +2,8 @@ from uber.common import *
 
 
 @register.filter
-def datetime(dt, fmt='11:59pm EST on %A, %b %e'):
-    return ' '.join(dt.astimezone(c.EVENT_TIMEZONE).strftime(fmt).split())
+def datetime(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
+    return ' '.join(dt.astimezone(c.EVENT_TIMEZONE).strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm')
 
 from datetime import datetime  # noqa: now that we've registered our filter, re-import the "datetime" class to avoid conflicts
 
@@ -103,14 +103,6 @@ def join_and(xs):
     else:
         xs = xs[:-1] + ['and ' + xs[-1]]
         return ', '.join(xs)
-
-
-@register.filter
-def price_or_extra(amount_extra):
-    if c.PAGE_PATH == '/preregistration/form':
-        return '${}'.format(c.BADGE_PRICE + amount_extra)
-    else:
-        return '+${}'.format(amount_extra)
 
 
 @tag
@@ -242,7 +234,26 @@ class radio(template.Node):
         value   = self.value.resolve(context)
         default = self.default.resolve(context)
         checked = 'checked' if str(value) == str(default) else ''
-        return """<div class="radio"><input type="radio" name="%s" value="%s" %s /></div>""" % (self.name, value, checked)
+        return """<div class="radio"><label class="btn btn-primary"><input type="radio" name="%s" value="%s" %s /></label></div>""" % (self.name, value, checked)
+
+
+@tag
+class radiogroup(template.Node):
+    def __init__(self, opts, field):
+        model, self.field_name = field.split('.')
+        self.model = Variable(model)
+        self.opts = Variable(opts)
+
+    def render(self, context):
+        model = self.model.resolve(context)
+        options = self.opts.resolve(context)
+        default = getattr(model, self.field_name, None)
+        results = []
+        for num, desc in options:
+            checked = 'checked' if num == default else ''
+            results.append('<label class="btn btn-default" style="text-align: left;"><input type="radio" name="{}" autocomplete="off" value="{}" onchange="donationChanged();" {} /> {}</label>'
+                           .format(self.field_name, num, checked, desc))
+        return ''.join(results)
 
 
 @tag
@@ -447,7 +458,7 @@ class stripe_form(template.Node):
         return render('preregistration/stripeForm.html', params)
 
 
-@register.tag("bold_if")
+@register.tag('bold_if')
 def do_bold_if(parser, token):
     [cond] = token.split_contents()[1:]
     nodelist = parser.parse(('end_bold_if',))
@@ -500,42 +511,59 @@ class single_day_prices(template.Node):
         return prices
 
 
-class Notice(template.Node):
-    def notice(self, label, takedown, discount=0, amount_extra=0):
-        for day, price in sorted(c.PRICE_BUMPS.items()):
-            if day < takedown and localized_now() < day:
-                return 'Price goes up to ${} at 11:59pm EST on {}'.format(price + amount_extra - discount, (day - timedelta(days=1)).strftime('%A, %b %e'))
-            elif localized_now() < day:
-                return '{} closes at 11:59pm EST on {}. Price goes up to ${} at-door.'.format(label, takedown.strftime('%A, %b %e'), price + amount_extra - discount, (day - timedelta(days=1)).strftime('%A, %b %e'))
-        return '{} closes at 11:59pm EST on {}'.format(label, takedown.strftime('%A, %b %e'))
+@register.tag(name='price_notice')
+def price_notice(parser, token):
+    return PriceNotice(*token.split_contents()[1:])
+
+
+class PriceNotice(template.Node):
+    def __init__(self, label, takedown, amount_extra='0', discount='0'):
+        self.label = label.strip('"').strip("'")
+        self.takedown, self.amount_extra, self.discount = Variable(takedown), Variable(amount_extra), Variable(discount)
+
+    def _notice(self, label, takedown, amount_extra, discount):
+        if c.PAGE_PATH not in ['/preregistration/form', '/preregistration/register_group_member']:
+            return ''  # we only display notices for new attendees
+        else:
+            for day, price in sorted(c.PRICE_BUMPS.items()):
+                if day < takedown and localized_now() < day:
+                    return '<div class="prereg-price-notice">Price goes up to ${} at 11:59pm EST on {}</div>'.format(price - discount + int(amount_extra), (day - timedelta(days=1)).strftime('%A, %b %e'))
+                elif localized_now() < day and takedown == c.PREREG_TAKEDOWN:
+                    return '<div class="prereg-type-closing">{} closes at 11:59pm EST on {}. Price goes up to ${} at-door.</div>'.format(label, takedown.strftime('%A, %b %e'), price + amount_extra, (day - timedelta(days=1)).strftime('%A, %b %e'))
+            return '<div class="prereg-type-closing">{} closes at 11:59pm EST on {}</div>'.format(label, takedown.strftime('%A, %b %e'))
+
+    def render(self, context):
+        return self._notice(self.label, self.takedown.resolve(context), self.amount_extra.resolve(context), self.discount.resolve(context))
 
 
 @tag
-class attendee_price_notice(Notice):
+class table_prices(template.Node):
     def render(self, context):
-        return self.notice('Preregistration', c.PREREG_TAKEDOWN)
+        if len(c.TABLE_PRICES) <= 1:
+            return '${} per table'.format(c.TABLE_PRICES['default_price'])
+        else:
+            cost, costs = 0, []
+            for i in range(1, 1 + c.MAX_TABLES):
+                cost += c.TABLE_PRICES[i]
+                table_plural, cost_plural = ('', 's') if i == 1 else ('s', '')
+                costs.append('<nobr>{} table{} cost{} ${}</nobr>'.format(i, table_plural, cost_plural, cost))
+            costs[-1] = 'and ' + costs[-1]
+            return ', '.join(costs)
 
 
 @tag
-class group_price_notice(Notice):
+class event_dates(template.Node):
     def render(self, context):
-        return self.notice('Group preregistration', c.GROUP_PREREG_TAKEDOWN, discount=c.BADGE_PRICES['group_discount'])
-
-
-@tag
-class supporter_price_notice(Notice):
-    def render(self, context):
-        return self.notice('Supporter preregistration', c.SUPPORTER_DEADLINE, amount_extra=c.SUPPORTER_LEVEL)
-
-
-@tag
-class season_price_notice(Notice):
-    def render(self, context):
-        return self.notice('Season supporter preregistration', c.SUPPORTER_DEADLINE, amount_extra=c.SEASON_LEVEL)
+        if c.EPOCH.date() == c.ESCHATON.date():
+            return c.EPOCH.strftime('%B %-d')
+        elif c.EPOCH.month != c.ESCHATON.month:
+            return '{} - {}'.format(c.EPOCH.strftime('%B %-d'), c.ESCHATON.strftime('%B %-d'))
+        else:
+            return '{}-{}'.format(c.EPOCH.strftime('%B %-d'), c.ESCHATON.strftime('%-d'))
 
 
 # FIXME this can probably be cleaned up more
-@register.tag(name="random_hash")
+@register.tag(name='random_hash')
 def random_hash(parser, token):
     items = []
     bits = token.split_contents()

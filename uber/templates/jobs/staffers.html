@@ -4,14 +4,12 @@
 
 {% include "jobs/main_menu.html" %}
 
-<table style="text-align:center ; font-weight:bold">
-<tr>
-    <td>{{ attendees|length }} Staffers</td>
-    <td>{{ regular_signups }} / {{ regular_total }} Regular Hours Taken</td>
-    <td>{{ restricted_signups }} / {{ restricted_total }} Restricted Hours Taken</td>
-    <td>{{ all_signups }} / {{ all_total }} Total Hours Taken</td>
-</tr>
-</table>
+<div class="row">
+    <div class="col-md-2">{{ attendees|length }} Staffers</div>
+    <div class="col-md-2">{{ regular_signups }} / {{ regular_total }} Regular Hours Taken</div>
+    <div class="col-md-2">{{ restricted_signups }} / {{ restricted_total }} Restricted Hours Taken</div>
+    <div class="col-md-2">{{ all_signups }} / {{ all_total }} Total Hours Taken</div>
+</div>
 
 {% if checklist.relevant %}
     <br/>
@@ -38,23 +36,38 @@
 (<a href="mailto:eli@courtwright.org?bcc={{ emails }}">email these staffers</a>)<b>:</b>
 <br/> <br/>
 
-<table style="width:auto">
+<table class="table table-striped datatable">
+<thead><tr>
+    <th> Attendee Name </th>
+    <th> Badge</th>
+    <th> [D] </th>
+    <th> [T] </th>
+    <th> [M] </th>
+    <th> [L] </th>
+    <th> Placeholder</th>
+    <th> Hours Here </th>
+    <th> Hours Total </th>
+    <th> Checked In</th>
+</tr>
 {% for attendee in attendees %}
     <tr>
-        <td> <ul><li></li></ul> </td>
-        <td>
-            <a href="../registration/shifts?id={{ attendee.id }}">{{ attendee.full_name }}</a>
-            {% if attendee.trusted %}<font size="-1">[T]</font>{% endif %}
-            {% if attendee.multiply_assigned %}<font size="-1">[M]</font>{% endif %}
-            {% if attendee.hotel_requests.approved and attendee.hotel_requests.setup_teardown %}<font size="-1">[L]</font>{% endif %}
-        </td>
-        <td> &nbsp;&nbsp;&nbsp;&nbsp; signed up for {{ attendee.hours_here }} shift-hours in this area, {{ attendee.weighted_hours }} hours overall </td>
+        <td width="20%" data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}"> <a href="../registration/shifts?id={{ attendee.id }}">{{ attendee.full_name }}</a>        </td>
+        <td width="10">{{ attendee.badge_num }}</a></td>
+        <td width="10">{% if attendee.is_dept_head %}<font size="-1">[D]</font>{% endif %}</td>
+        <td width="10">{% if attendee.trusted %}<font size="-1">[T]</font>{% endif %}</td>
+        <td width="10">{% if attendee.multiply_assigned %}<font size="-1">[M]</font>{% endif %}</td>
+        <td width="10">{% if attendee.can_work_setup or attendee.can_work_teardown %}<font size="-1">[L]</font>{% endif %}</td>
+        <td width="10">{{ attendee.placeholder }}</td>
+        <td width="10">{{ attendee.hours_here }}</td>
+        <td width="10">{{ attendee.weighted_hours }}</td>
+        <td width="10">{{ attendee.checked_in|yesno:"Checked In,Not Checked In" }}</td>
     </tr>
 {% endfor %}
 </table>
 
 <br/> <br/>
 <div style="margin-left:10px">
+    [D]: <i>Staffers marked with a "D" are department heads.</i> <br/>
     [M]: <i>Staffers marked with a "M" are assigned to multiple locations</i> <br/>
     [T]: <i>Staffers marked with a "T" are trusted</i> <br/>
     [L]: <i>Staffers marked with a "L" are working load-in and/or load-out</i>

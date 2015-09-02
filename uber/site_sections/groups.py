@@ -37,7 +37,8 @@ class Root:
             message = check(group)
             if not message:
                 session.add(group)
-                message = session.assign_badges(group, params['badges'], params['badge_type'])
+                ribbon_to_use = None if 'ribbon' not in params else params['ribbon']
+                message = session.assign_badges(group, params['badges'], params['badge_type'], ribbon_to_use)
                 if not message and new_dealer and not (first_name and last_name and email and group.badges):
                     message = 'When registering a new Dealer, you must enter the name and email address of the group leader and must allocate at least one badge'
                 if not message:
@@ -47,7 +48,10 @@ class Root:
                         leader.first_name, leader.last_name, leader.email = first_name, last_name, email
                         leader.placeholder = True
                         if group.status == c.APPROVED:
-                            raise HTTPRedirect('../preregistration/group_members?id={}', group.id)
+                            if group.amount_unpaid:
+                                raise HTTPRedirect('../preregistration/group_members?id={}', group.id)
+                            else:
+                                raise HTTPRedirect('index?message={}', group.name + ' has been uploaded, approved, and marked as paid')
                         else:
                             raise HTTPRedirect('index?message={}', group.name + ' is uploaded and ' + group.status_label)
                     else:
@@ -67,7 +71,7 @@ class Root:
         group = session.group(id)
         subject = 'Your {EVENT_NAME} Dealer registration has been ' + action
         if group.email:
-            send_email(c.MARKETPLACE_EMAIL, group.email, subject, email, model=group)
+            send_email(c.MARKETPLACE_EMAIL, group.email, subject, email, bcc=c.MARKETPLACE_EMAIL, model=group)
         if action == 'waitlisted':
             group.status = c.WAITLISTED
         else:

@@ -16,14 +16,14 @@ def check_prereg_reqs(attendee):
 
 
 def check_dealer(group):
-    if not group.address:
-        return 'Dealers are required to provide an address for tax purposes'
-    elif not group.wares:
+    if not group.wares:
         return 'You must provide a detailed explanation of what you sell for us to evaluate your submission'
     elif not group.website:
         return "Please enter your business' website address"
     elif not group.description:
-        return "Please provide a brief description of your business"
+        return 'Please provide a brief description of your business'
+    elif not group.address:
+        return 'Please provide your full address for tax purposes'
 
 
 def send_banned_email(attendee):
@@ -86,7 +86,7 @@ class Root:
         cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
         return json.dumps({
             'badges_sold': c.BADGES_SOLD,
-            'remaining_badges': max(0, c.MAX_BADGE_SALES - c.BADGES_SOLD),
+            'remaining_badges': c.REMAINING_BADGES,
 
             'server_current_timestamp': int(datetime.utcnow().timestamp()),
             'warn_if_server_browser_time_mismatch': c.WARN_IF_SERVER_BROWSER_TIME_MISMATCH
@@ -155,8 +155,6 @@ class Root:
                 message = check(group)
                 if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                     message = check_dealer(group)
-                    if int(params['badges']) > c.MAX_DEALER_BADGES.get(float(params['tables']), 1):
-                        message = "Too many dealer assistants!"
 
             if not message:
                 if attendee.badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE]:
@@ -343,23 +341,24 @@ class Root:
     def process_group_payment(self, session, payment_id, stripeToken):
         charge = Charge.get(payment_id)
         [group] = charge.groups
-        [attendee] = charge.attendees
         message = charge.charge_cc(stripeToken)
         if message:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
         else:
             group.amount_paid += charge.dollar_amount
 
-            # Subtract an attendee's kick-in level, if it's not already paid for.
-            if attendee.amount_paid < attendee.total_cost:
-                group.amount_paid -= attendee.total_cost - attendee.amount_paid
+            for attendee in charge.attendees:
+                # Subtract an attendee's kick-in level, if it's not already paid for.
+                if attendee.amount_paid < attendee.total_cost:
+                    group.amount_paid -= attendee.total_cost - attendee.amount_paid
 
-            attendee.amount_paid = attendee.total_cost
+                attendee.amount_paid = attendee.total_cost
+                session.merge(attendee)
+
             if group.tables:
                 send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Payment Completed',
                            render('emails/dealers/payment_notification.txt', {'group': group}), model=group)
             session.merge(group)
-            session.merge(attendee)
             raise HTTPRedirect('group_members?id={}&message={}', group.id, 'Your payment has been accepted!')
 
     @credit_card
@@ -384,7 +383,7 @@ class Root:
         except:
             log.error('unable to send group unset email', exc_info=True)
 
-        session.assign_badges(attendee.group, attendee.group.badges + 1)
+        session.assign_badges(attendee.group, attendee.group.badges + 1, registered=attendee.registered)
         session.delete_from_group(attendee, attendee.group)
         raise HTTPRedirect('group_members?id={}&message={}', attendee.group_id, 'Attendee unset; you may now assign their badge to someone else')
 
@@ -480,6 +479,7 @@ class Root:
 
         attendee.placeholder = placeholder
         if not message and attendee.placeholder:
+            attendee.can_spam = True
             message = 'You are not yet registered!  You must fill out this form to complete your registration.'
         elif not message:
             message = 'You are already registered but you may update your information with this form.'
@@ -528,21 +528,6 @@ class Root:
                 attendee.paid = c.HAS_PAID
             session.merge(attendee)
             raise HTTPRedirect(return_to, 'Your payment has been accepted, thanks so much!')
-
-    def event(self, session, id, slug, register=None):
-        season_pass = session.season_pass(id)
-        event = SeasonEvent.instances[slug]
-        deadline_passed = localized_now() > event.deadline
-        if register and not deadline_passed:
-            session.add(SeasonPassTicket(fk_id=season_pass.id, slug=slug))
-            raise HTTPRedirect('event?id={}&slug={}', id, slug)
-
-        return {
-            'event': event,
-            'attendee': season_pass,
-            'deadline_passed': deadline_passed,
-            'registered': bool(session.query(SeasonPassTicket).filter_by(fk_id=id, slug=slug).count())
-        }
 
     def credit_card_retry(self):
         return {}
