@@ -212,8 +212,18 @@
 <div class="form-group staffing">
     <label for="staffing" class="col-sm-2 control-label">Want to Volunteer?</label>
     <div class="col-sm-6">
-        {% checkbox attendee.staffing %} Sign me up! &nbsp;
-        <span class="popup">{% popup_link "../static_views/stafferComps.html" "What do I get for volunteering?" %}</span>
+        {% checkbox attendee.staffing %}
+        {% if c.PAGE_PATH == '/registration/form' %}
+            This attendee is
+            {% if attendee.is_new or not attendee.staffing %}
+                volunteering
+            {% else %}
+                <a href='goto_volunteer_checklist?id={{ attendee.id }}'>volunteering</a>
+            {% endif %}
+        {% else %}
+            Sign me up! &nbsp;
+            <span class="popup">{% popup_link "../static_views/stafferComps.html" "What do I get for volunteering?" %}</span>
+        {% endif %}
     </div>
 </div>
 
