@@ -215,7 +215,7 @@
         {% checkbox attendee.staffing %}
         {% if c.PAGE_PATH == '/registration/form' %}
             This attendee is
-            {% if attendee.is_new %}
+            {% if attendee.is_new or not attendee.staffing %}
                 volunteering
             {% else %}
                 <a href='goto_volunteer_checklist?id={{ attendee.id }}'>volunteering</a>
