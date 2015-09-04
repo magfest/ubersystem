@@ -52,7 +52,7 @@
 
     {% if not attendee.is_new %}
         // This removes any badge levels lower than the attendee has purchased already
-        while (window.BADGE_TYPES && BADGE_TYPES.options[0].extra < {{ attendee.amount_extra }}) {
+        while (window.BADGE_TYPES && BADGE_TYPES.options[0] && BADGE_TYPES.options[0].extra < {{ attendee.amount_extra }}) {
             BADGE_TYPES.options.splice(0, 1);
         }
 
