@@ -159,7 +159,11 @@ def cached_page(func):
                 if not os.path.exists(fpath) or datetime.now().timestamp() - os.stat(fpath).st_mtime > 60 * 15:
                     contents = func(*args, **kwargs)
                     with open(fpath, 'wb') as f:
-                        f.write(contents)
+                        # Try to write assuming content is a byte first, then try it as a string
+                        try:
+                            f.write(contents)
+                        except:
+                            f.write(bytes(contents, 'UTF-8'))
                 with open(fpath, 'rb') as f:
                     return f.read()
         else:
