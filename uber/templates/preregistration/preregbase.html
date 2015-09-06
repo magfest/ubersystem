@@ -133,7 +133,7 @@
             }
         };
         var makeBadgeMatchExtra = function () {
-            if ($(BADGE_TYPES.row).size() && BADGE_TYPES.options[0]) {
+            if (_(BADGE_TYPES.options).size()) {
                 var target = 0;
                 $.each(BADGE_TYPES.options, function (i, badgeType) {
                     if (badgeType.extra && $.field('amount_extra') && badgeType.extra == $.val('amount_extra')) {
