@@ -92,6 +92,15 @@ class Root:
             'warn_if_server_browser_time_mismatch': c.WARN_IF_SERVER_BROWSER_TIME_MISMATCH
         })
 
+    def kiosk(self):
+        """
+        Landing page for kiosk laptops, this should redirect to whichever page we want at-the-door laptop kiosks
+        to land on.  The reason this is a redirect is that at-the-door laptops might be imaged and hard to change
+        their default landing page.  If sysadmins want to change the landing page, they can do it here.
+        """
+        raise HTTPRedirect('form')
+
+
     def check_prereg(self):
         return json.dumps({'force_refresh': c.AFTER_PREREG_TAKEDOWN or c.BADGES_SOLD >= c.MAX_BADGE_SALES})
 
