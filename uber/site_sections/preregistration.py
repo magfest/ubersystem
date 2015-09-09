@@ -100,7 +100,6 @@ class Root:
         """
         raise HTTPRedirect('form')
 
-
     def check_prereg(self):
         return json.dumps({'force_refresh': c.AFTER_PREREG_TAKEDOWN or c.BADGES_SOLD >= c.MAX_BADGE_SALES})
 
