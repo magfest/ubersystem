@@ -195,6 +195,11 @@ class Config(_Overridable):
         return cherrypy.request.path_info.split('/')[-1]
 
     @property
+    def CURRENT_ADMIN(self):
+        with sa.Session() as session:
+            return session.admin_attendee
+
+    @property
     def HTTP_METHOD(self):
         return cherrypy.request.method
 
