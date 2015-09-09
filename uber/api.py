@@ -2,7 +2,8 @@ from uber.common import *
 
 attendee_fields = [
     'full_name', 'first_name', 'last_name', 'email', 'zip_code', 'cellphone', 'ec_phone', 'badge_status_label', 'checked_in',
-    'badge_type_label', 'ribbon_label', 'staffing', 'is_dept_head', 'assigned_depts_labels', 'weighted_hours', 'worked_hours'
+    'badge_type_label', 'ribbon_label', 'staffing', 'is_dept_head', 'assigned_depts_labels', 'weighted_hours', 'worked_hours',
+    'badge_num'
 ]
 fields = dict({
     'food_restrictions': {
