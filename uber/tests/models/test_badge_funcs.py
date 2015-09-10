@@ -15,10 +15,11 @@ def session(request):
 
 @pytest.fixture(autouse=True)
 def teardown_range_check(request):
-    def _check_range():
-        with Session() as session:
-            check_ranges(session)
-    request.addfinalizer(_check_range)
+    if not c.SHIFT_CUSTOM_BADGES:
+        def _check_range():
+            with Session() as session:
+                check_ranges(session)
+        request.addfinalizer(_check_range)
 
 
 def check_ranges(session):
@@ -176,10 +177,6 @@ class TestNonShiftChecks:
     @pytest.fixture(autouse=True)
     def set_shift_badges_off(self, monkeypatch):
         monkeypatch.setattr(c, 'SHIFT_CUSTOM_BADGES', False)
-
-    @pytest.fixture(autouse=True)
-    def teardown_range_check(request):
-        return True  # TODO: make this actually check ranges
 
     def test_duplicate_warning(self, session):
         change_badge(session, session.staff_one, c.STAFF_BADGE, new_num=1)
