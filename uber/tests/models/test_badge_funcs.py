@@ -16,9 +16,10 @@ def session(request):
 @pytest.fixture(autouse=True)
 def teardown_range_check(request):
     def _check_range():
-        with Session() as session:
-            check_ranges(session)
-    request.addfinalizer(_check_range)
+        if c.SHIFT_CUSTOM_BADGES:
+            with Session() as session:
+                check_ranges(session)
+        request.addfinalizer(_check_range)
 
 
 def check_ranges(session):
@@ -172,6 +173,22 @@ class TestInternalBadgeChange:
         change_badge(session, session.staff_five,  c.STAFF_BADGE, new_num=5)
 
 
+class TestNonShiftChecks:
+    @pytest.fixture(autouse=True)
+    def set_shift_badges_off(self, monkeypatch):
+        monkeypatch.setattr(c, 'SHIFT_CUSTOM_BADGES', False)
+
+    def test_duplicate_warning(self, session):
+        change_badge(session, session.staff_one, c.STAFF_BADGE, new_num=1)
+        change_badge(session, session.staff_two, c.STAFF_BADGE, new_num=2)
+        change_badge(session, session.staff_two, c.STAFF_BADGE, new_num=1, expected_num=2)
+        assert session.staff_one.badge_num == 1
+        assert session.staff_two.badge_num == 2
+
+    def test_duplicate_zero(self, session):
+        change_badge(session, session.staff_one, c.ATTENDEE_BADGE, expected_num=0)
+
+
 class TestBadgeDeletion:
     def test_beginning_delete(self, session):
         session.delete(session.staff_one)
@@ -189,6 +206,6 @@ class TestBadgeDeletion:
         session.delete(session.query(Attendee).filter_by(badge_type=c.ATTENDEE_BADGE).first())
         session.commit()
 
-# TODO: unit tests for changes/deletions after custom badges have been ordered
+# TODO: more unit tests for changes/deletions after custom badges have been ordered
 
 # TODO: assign to same number

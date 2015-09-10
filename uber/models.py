@@ -549,10 +549,11 @@ class Session(SessionManager):
 
             if not c.SHIFT_CUSTOM_BADGES:
                 badge_num = badge_num or next
-                existing = self.query(Attendee).filter_by(badge_type=badge_type, badge_num=badge_num) \
-                                               .filter(Attendee.id != attendee.id)
-                if existing.count():
-                    return 'That badge number already belongs to {!r}'.format(existing.first().full_name)
+                if badge_num != 0:
+                    existing = self.query(Attendee).filter_by(badge_type=badge_type, badge_num=badge_num) \
+                                                   .filter(Attendee.id != attendee.id)
+                    if existing.count():
+                        return 'That badge number already belongs to {!r}'.format(existing.first().full_name)
             else:
                 # fill in the gap from the old number, if applicable
                 if old_badge_num:
