@@ -197,7 +197,7 @@ class Config(_Overridable):
     @property
     def CURRENT_ADMIN(self):
         with sa.Session() as session:
-            return session.admin_attendee
+            return session.admin_attendee().to_dict()
 
     @property
     def HTTP_METHOD(self):
