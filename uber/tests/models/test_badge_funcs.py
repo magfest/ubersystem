@@ -15,8 +15,8 @@ def session(request):
 
 @pytest.fixture(autouse=True)
 def teardown_range_check(request):
-    if not c.SHIFT_CUSTOM_BADGES:
-        def _check_range():
+    def _check_range():
+        if c.SHIFT_CUSTOM_BADGES:
             with Session() as session:
                 check_ranges(session)
         request.addfinalizer(_check_range)
