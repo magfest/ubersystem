@@ -171,6 +171,7 @@ class TestInternalBadgeChange:
         change_badge(session, session.staff_three, c.STAFF_BADGE, new_num=3)
         change_badge(session, session.staff_five,  c.STAFF_BADGE, new_num=5)
 
+
 class TestNonShiftChecks:
     @pytest.fixture(autouse=True)
     def set_shift_badges_off(self, monkeypatch):
@@ -178,7 +179,7 @@ class TestNonShiftChecks:
 
     @pytest.fixture(autouse=True)
     def teardown_range_check(request):
-        return True # TODO: make this actually check ranges
+        return True  # TODO: make this actually check ranges
 
     def test_duplicate_warning(self, session):
         change_badge(session, session.staff_one, c.STAFF_BADGE, new_num=1)
@@ -189,6 +190,7 @@ class TestNonShiftChecks:
 
     def test_duplicate_zero(self, session):
         change_badge(session, session.staff_one, c.ATTENDEE_BADGE, expected_num=0)
+
 
 class TestBadgeDeletion:
     def test_beginning_delete(self, session):
