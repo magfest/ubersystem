@@ -115,9 +115,13 @@ class Root:
 
     def staffers(self, session, location=None, message=''):
         attendee = session.admin_attendee()
-        location = int(location or c.JOB_LOCATION_OPTS[0][0])
+        if location == 'All':
+            location = None
+        else:
+            location = int(location or c.JOB_LOCATION_OPTS[0][0])
         jobs, shifts, attendees = session.everything(location)
-        attendees = [a for a in attendees if a.assigned_to(location)]
+        if location:
+            attendees = [a for a in attendees if a.assigned_to(location)]
         hours_here = defaultdict(int)
         for shift in shifts:
             hours_here[shift.attendee] += shift.job.weighted_hours
@@ -135,6 +139,7 @@ class Root:
             'restricted_signups': sum(s.job.weighted_hours for s in shifts if s.job.restricted),
             'all_signups':        sum(s.job.weighted_hours for s in shifts)
         }
+
 
     def form(self, session, message='', **params):
         defaults = {}
@@ -170,6 +175,15 @@ class Root:
                                 .filter_by(staffing=True, **({'trusted': True} if job.restricted else {}))
                                 .filter(Attendee.assigned_depts.contains(str(job.location)))
                                 .order_by(Attendee.full_name).all()
+        }
+
+    def allStaffers(self, session, id, message=''):
+        job = session.job(id);
+        return {
+            'job':          job,
+            'message':      message,
+            'attendees':    session.query(Attendee.id, Attendee.full_name).filter_by(staffing=True, **({'trusted': True} if job.restricted else {}))
+                            .order_by(Attendee.full_name).all()
         }
 
     @csrf_protected
