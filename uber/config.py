@@ -196,8 +196,11 @@ class Config(_Overridable):
 
     @property
     def CURRENT_ADMIN(self):
-        with sa.Session() as session:
-            return session.admin_attendee().to_dict()
+        try:
+            with sa.Session() as session:
+                return session.admin_attendee().to_dict()
+        except:
+            return {}
 
     @property
     def HTTP_METHOD(self):
