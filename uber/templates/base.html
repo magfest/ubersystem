@@ -49,13 +49,15 @@
             {% if c.HAS_ACCOUNTS_ACCESS %}
                 {Accounts: '../accounts/'},
             {% endif %}
-            {% if c.HAS_PEOPLE_ACCESS %}
+            {% if c.HAS_PEOPLE_ACCESS or c.HAS_REG_AT_CON_ACCESS %}
                 {People: [
                     {Attendees: '../registration/'},
                     {Groups: '../groups/'},
-                    {'All Untaken Shifts': '../jobs/everywhere'},
-                    {Staffers: '../registration/staffers'},
-                    {Jobs: '../jobs/'},
+                    {% if c.HAS_PEOPLE_ACCESS %}
+                        {'All Untaken Shifts': '../jobs/everywhere'},
+                        {Staffers: '../registration/staffers'},
+                        {Jobs: '../jobs/'},
+                    {% endif %}
                     {'Feed of Database Changes': '../registration/feed'}
                 ]},
             {% endif %}
