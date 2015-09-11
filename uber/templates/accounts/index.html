@@ -52,7 +52,7 @@
     <tr id="{{ account.email|idize }}">
         <td>
             <div class="btn-group-vertical">
-                <button type="submit" class="btn btn-primary"><span class="glyphicon glyphicon-floppy-disk update-button"></span></button>
+                <button type="submit" class="btn btn-primary update-button"><span class="glyphicon glyphicon-floppy-disk"></span></button>
                 <form method="post" action="delete">
                     <input type="hidden" name="id" value="{{ account.id }}" />
                     <button type="submit" type="button" class="btn btn-danger delete-button"><span class="glyphicon glyphicon-trash"></span></button>
