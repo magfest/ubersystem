@@ -231,7 +231,7 @@ class Config(_Overridable):
             else:
                 return sa.localized_now() > date_setting
         elif name.startswith('HAS_') and name.endswith('_ACCESS'):
-            return getattr(c, name.split('_')[1]) in sa.AdminAccount.access_set()
+            return getattr(c, '_'.join(name.split('_')[1:-1])) in sa.AdminAccount.access_set()
         elif name.endswith('_AVAILABLE'):
             item_check = name.rsplit('_', 1)[0]
             stock_setting = getattr(self, item_check + '_STOCK', None)
