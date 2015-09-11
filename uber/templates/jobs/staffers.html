@@ -49,6 +49,7 @@
     <th> Hours Total </th>
     <th> Checked In</th>
 </tr>
+</thead>
 {% for attendee in attendees %}
     <tr>
         <td width="20%" data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}"> <a href="../registration/shifts?id={{ attendee.id }}">{{ attendee.full_name }}</a>        </td>

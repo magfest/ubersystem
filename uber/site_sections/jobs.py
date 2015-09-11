@@ -115,9 +115,13 @@ class Root:
 
     def staffers(self, session, location=None, message=''):
         attendee = session.admin_attendee()
-        location = int(location or c.JOB_LOCATION_OPTS[0][0])
+        if location == 'All':
+            location = None
+        else:
+            location = int(location or c.JOB_LOCATION_OPTS[0][0])
         jobs, shifts, attendees = session.everything(location)
-        attendees = [a for a in attendees if a.assigned_to(location)]
+        if location:
+            attendees = [a for a in attendees if a.assigned_to(location)]
         hours_here = defaultdict(int)
         for shift in shifts:
             hours_here[shift.attendee] += shift.job.weighted_hours
