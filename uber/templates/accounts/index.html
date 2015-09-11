@@ -76,7 +76,7 @@
 
 <script>
 $(function() {
-    $('.delete-button').click(function (event) {
+    $(document.body).on('click', '.delete-button', function (event) {
         event.preventDefault();
         $.confirm({
             text: 'Are you sure you want to delete that account?',
@@ -86,7 +86,7 @@ $(function() {
             cancel: function () { }
         });
     });
-    $('.update-button').click(function (event) {
+    $(document.body).on('click', '.update-button', function (event) {
         $(event.target).parents('tr').find('.update-form').submit();
     });
 });
