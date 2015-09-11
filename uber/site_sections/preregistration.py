@@ -98,7 +98,7 @@ class Root:
         to land on.  The reason this is a redirect is that at-the-door laptops might be imaged and hard to change
         their default landing page.  If sysadmins want to change the landing page, they can do it here.
         """
-        raise HTTPRedirect('form')
+        raise HTTPRedirect('../registration/register')
 
     def check_prereg(self):
         return json.dumps({'force_refresh': c.AFTER_PREREG_TAKEDOWN or c.BADGES_SOLD >= c.MAX_BADGE_SALES})
