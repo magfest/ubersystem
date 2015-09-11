@@ -269,7 +269,7 @@ class Root:
         elif success:
             message = ""
             attendee.checked_in = datetime.now(UTC)
-            attendee.age_group = age_group
+            attendee.age_group = int(age_group)
             if not attendee.badge_num and c.NUMBERED_BADGES:
                 attendee.badge_num = int(badge_num)
             if attendee.paid == c.NOT_PAID:
