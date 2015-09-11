@@ -5,17 +5,19 @@ from uber.common import *
 class Root:
     def index(self, session):
         attendees, groups = session.everyone()
-        count = lambda **kwargs: len([a for a in attendees if all(val == getattr(a, name) for name, val in kwargs.items())])
+        count = lambda *args, **kwargs: len([a for a in attendees
+                                               if all(matcher(a) for matcher in args) and
+                                                  all(val == getattr(a, name) for name, val in kwargs.items())])
         return {
             'total_count':   len(attendees),
             'shirt_sizes':   [(desc, count(shirt=shirt)) for shirt, desc in c.SHIRT_OPTS],
             'paid_counts':   [(desc, count(paid=status)) for status, desc in c.PAYMENT_OPTS],
             'badge_counts':  [(desc, count(badge_type=bt), count(paid=c.NOT_PAID, badge_type=bt), count(paid=c.HAS_PAID, badge_type=bt)) for bt, desc in c.BADGE_OPTS],
             'aff_counts':    [(aff['text'], len([a for a in attendees if a.amount_extra >= c.SUPPORTER_LEVEL and a.affiliate == aff['text']])) for aff in session.affiliates()],
-            'checkin_count': count(checked_in=None),
+            'checkin_count': count(lambda a: a.checked_in),
             'paid_noshows':  count(paid=c.HAS_PAID, checked_in=None) + len([a for a in attendees if a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid and not a.checked_in]),
             'free_noshows':  count(paid=c.NEED_NOT_PAY, checked_in=None),
-            'interests':     [(desc, len([a for a in attendees if a.paid == c.NOT_PAID and dept in a.interests_ints])) for dept, desc in c.INTEREST_OPTS],
+            'interests':     [(desc, len([a for a in attendees if a.paid != c.NOT_PAID and dept in a.interests_ints])) for dept, desc in c.INTEREST_OPTS],
             'age_counts':    [(desc, count(age_group=ag)) for ag, desc in c.AGE_GROUP_OPTS],
             'paid_group':    len([a for a in attendees if a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid]),
             'free_group':    len([a for a in attendees if a.paid == c.PAID_BY_GROUP and a.group and not a.group.amount_paid]),
