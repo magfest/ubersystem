@@ -25,13 +25,16 @@ class Root:
             ], key=lambda tup: tup[1])
         }
 
-    def update(self, session, password='', **params):
+    def update(self, session, password='', message='', **params):
         account = session.admin_account(params, checkgroups=['access'])
         if account.is_new:
-            password = password if c.AT_THE_CON else genpasswd()
-            account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
+            if c.AT_THE_CON and not password:
+                message = 'You must enter a password'
+            else:
+                password = password if c.AT_THE_CON else genpasswd()
+                account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
 
-        message = check(account)
+        message = message or check(account)
         if not message:
             message = 'Account settings uploaded'
             account.attendee = session.attendee(account.attendee_id)   # dumb temporary hack, will fix later with tests

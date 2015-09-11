@@ -15,20 +15,19 @@
 <div class="form-group">
     <label for="attendee_id" class="sr-only">Attendee</label>
     <select class="form-control" id="attendee_id" name="attendee_id">
-    	{% options all_attendees %}
+        {% options all_attendees %}
     </select>
 </div>
 <div class="form-group">
     <div class="input-group input-group-sm">
     <label for="password" class="sr-only">Password</label>
-    <input type="password" class="form-control" id="password" name="password"
-       placeholder="Password" 
+    <input type="password" class="form-control" id="password" name="password" placeholder="Password" 
        {% if not c.AT_THE_CON %}disabled{% endif %}>
-  	{% if not c.AT_THE_CON %}
-  		<span class="input-group-addon glyphicon glyphicon-ban-circle">
-  		</span>
-  	{% endif %}
-	</div>
+       {% if not c.AT_THE_CON %}
+           <span class="input-group-addon glyphicon glyphicon-ban-circle">
+           </span>
+       {% endif %}
+    </div>
 </div>
 <div class="form-group">
     {% checkgroup AdminAccount.access %}
@@ -48,45 +47,48 @@
     <th>Email</th>
     <th data-hide="phone">Access</th>
 </tr></thead>
-
 <tbody>
 {% for account in accounts %}
-	<form class="form" method="post" action="update">
-		<tr id="{{ account.email|idize }}">
-			<td>
-			<div class="btn-group-vertical">
-				<button type="submit" class="btn btn-primary"><span class="glyphicon glyphicon-floppy-disk"></span></button>
-				<button type="button" class="btn btn-danger deleteButton"><span class="glyphicon glyphicon-trash"></span></button>
-			</div>
-			</td>
-			<td> <nobr><a href="../registration/form?id={{ account.attendee.id }}">
-				{{ account.attendee.full_name }}</a></nobr>
-			</td>
-			<td> <a href="mailto:{{ account.attendee.email }}">{{ account.attendee.email }}</a> </td>
-			<td>
-				<input type="hidden" name="id" value="{{ account.id }}" />
-				{% csrf_token %}
-				<div class="form-group">{% checkgroup account.access %}</div>
-			</td>
-		</tr>
-    </form>
+    <tr id="{{ account.email|idize }}">
+        <td>
+            <div class="btn-group-vertical">
+                <button type="submit" class="btn btn-primary"><span class="glyphicon glyphicon-floppy-disk update-button"></span></button>
+                <form method="post" action="delete">
+                    <input type="hidden" name="id" value="{{ account.id }}" />
+                    <button type="submit" type="button" class="btn btn-danger delete-button"><span class="glyphicon glyphicon-trash"></span></button>
+                </form>
+            </div>
+        </td>
+        <td> <nobr><a href="../registration/form?id={{ account.attendee.id }}">{{ account.attendee.full_name }}</a></nobr> </td>
+        <td> <a href="mailto:{{ account.attendee.email }}">{{ account.attendee.email }}</a> </td>
+        <td>
+            <form class="form update-form" method="post" action="update">
+                <input type="hidden" name="id" value="{{ account.id }}" />
+                {% csrf_token %}
+                <div class="form-group">{% checkgroup account.access %}</div>
+            </form>
+        </td>
+    </tr>
 {% endfor %}
 </tbody>
 </table>
 </div>
 
 <script>
-$(document).ready(function() {
-	$(".deleteButton").click(function(event) {
-		$.confirm({
-			text: "Are you sure you want to delete that user?",
-			confirm: function(button) {
-				$(event.target.form).attr("action", "delete").submit();
-			},
-			cancel: function(button) {
-			}
-		});
-	});
+$(function() {
+    $('.delete-button').click(function (event) {
+        event.preventDefault();
+        $.confirm({
+            text: 'Are you sure you want to delete that account?',
+            confirm: function () {
+                $(event.target).parents('form').submit();
+            },
+            cancel: function () { }
+        });
+    });
+    $('.update-button').click(function (event) {
+        $(event.target).parents('tr').find('.update-form').submit();
+    });
 });
 </script>
 
