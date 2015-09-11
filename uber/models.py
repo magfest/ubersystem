@@ -904,7 +904,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     last_name     = Column(UnicodeText)
     email         = Column(UnicodeText)
     birthdate     = Column(Date, nullable=True, default=None)
-    age_group     = Column(Choice(c.AGE_GROUPS), default=c.AGE_UNKNOWN, nullable=True)
+    age_group     = Column(Choice(c.AGE_GROUP_OPTS), default=c.AGE_UNKNOWN, nullable=True)
 
     international = Column(Boolean, default=False)
     zip_code      = Column(UnicodeText)
