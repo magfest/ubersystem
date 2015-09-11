@@ -140,7 +140,6 @@ class Root:
             'all_signups':        sum(s.job.weighted_hours for s in shifts)
         }
 
-
     def form(self, session, message='', **params):
         defaults = {}
         if params['id'] == 'None' and cherrypy.request.method != 'POST':
