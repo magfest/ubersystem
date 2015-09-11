@@ -177,15 +177,6 @@ class Root:
                                 .order_by(Attendee.full_name).all()
         }
 
-    def allStaffers(self, session, id, message=''):
-        job = session.job(id);
-        return {
-            'job':          job,
-            'message':      message,
-            'attendees':    session.query(Attendee.id, Attendee.full_name).filter_by(staffing=True, **({'trusted': True} if job.restricted else {}))
-                            .order_by(Attendee.full_name).all()
-        }
-
     @csrf_protected
     def delete(self, session, id):
         job = session.job(id)
