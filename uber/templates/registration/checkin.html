@@ -49,7 +49,7 @@
             csrf_token: csrf_token,
             age_group:  $('#age_' + id).val(),
             badge_num:  $('#num_' + id).val(),
-            group: $('#group_' + id).val() || ''
+            group: $('#groupid_' + id).val() || ''
         }, function (json) {
             var message = json.message;
             if (json.success) {
@@ -113,7 +113,7 @@
                     <tr>
                         <td><strong>Group:</strong></td>
                         <td>
-                            <select id="group_{{ attendee.id }}">
+                            <select id="groupid_{{ attendee.id }}">
                                 <option value="">No Group</option>
                                 {% options groups attendee.group_id %}
                             </select>
