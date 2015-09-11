@@ -1099,7 +1099,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 if val != c.AGE_UNKNOWN and age_group['min_age'] <= attendee_age <= age_group['max_age']:
                     return age_group
 
-        return c.AGE_GROUP_CONFIGS[self.age_group or c.AGE_UNKNOWN]
+        return c.AGE_GROUP_CONFIGS[int(self.age_group or c.AGE_UNKNOWN)]
 
     @property
     def total_cost(self):
