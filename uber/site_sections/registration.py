@@ -306,7 +306,7 @@ class Root:
     def merch(self, message=''):
         return {'message': message}
 
-    def multi_merch_pickup(self, session, message="", csrf_token=None, picker_upper=None, badges=()):
+    def multi_merch_pickup(self, session, message="", csrf_token=None, picker_upper=None, badges=(), **shirt_sizes):
         picked_up = []
         if csrf_token:
             check_csrf(csrf_token)
@@ -326,6 +326,9 @@ class Root:
                                 picked_up.append('{a.full_name} (badge {a.badge_num}) already got their merch'.format(a=attendee))
                             else:
                                 attendee.got_merch = True
+                                shirt_key = 'shirt_{}'.format(attendee.badge_num)
+                                if shirt_key in shirt_sizes:
+                                    attendee.shirt = int(listify(shirt_sizes.get(shirt_key, c.SIZE_UNKNOWN))[0])
                                 picked_up.append('{a.full_name} (badge {a.badge_num}): {a.merch}'.format(a=attendee))
                                 session.add(MerchPickup(picked_up_by=picker_upper, picked_up_for=attendee))
                 session.commit()
