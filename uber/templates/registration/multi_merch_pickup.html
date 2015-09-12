@@ -12,11 +12,33 @@
     }
 </style>
 <script>
+    var $shirtOpts = function (badgeNum) {
+        var $opts = $('<select/>').attr('name', 'shirt_' + badgeNum);
+        $.each({{ c.MERCH_SHIRT_OPTS|jsonize }}, function(i, size) {
+            $opts.append(
+                $('<option/>').val(size[0]).text(size[1]));
+        });
+        return $opts;
+    }
+
     var addMoreBadges = function () {
         for (var i = 0; i < 5; i++) {
-            $('#badges')
-                .append('<input type="number" class="number" name="badges" />')
-                .append('<br/>');
+            $('#badges').append(
+                $('<div class="badge-row"></div>')
+                    .append(
+                        $('<input type="number" class="number" name="badges" />')
+                            .on('blur', function (event) {
+                                var badgeNum = $(event.target).val();
+                                $.post('check_merch', {csrf_token: csrf_token, badge_num: badgeNum}, function (resp) {
+                                    var $message = $(event.target).parents('.badge-row').find('.message');
+                                    $message.html(resp.message);
+                                    if (resp.shirt) {
+                                        $message.append($shirtOpts(badgeNum));
+                                        $message.find('select').val(resp.shirt);
+                                    }
+                                }, 'json');
+                            }))
+                    .append('<span class="message" style="color:red"></span>'));
         }
     };
     $(addMoreBadges);
@@ -24,8 +46,10 @@
 
 <form method="post" action="">
 {% csrf_token %}
-This form is for when someone picks up badges for multiple other people.
+This form is for when someone picks up merch for multiple other people.
 Enter the badge numbers of everyone involved (blank fields will be ignored).
+
+<br/> <br/>
 
 <b> Badge Number of whoever is picking up the merch: </b>
 <input type="number" name="picker_upper" class="number" />
