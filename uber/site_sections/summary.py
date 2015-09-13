@@ -258,7 +258,7 @@ class Root:
             'attendees': [(
                 'Volunteers Owed Refunds',
                 [a for a in attendees if a.worked_hours >= c.HOURS_FOR_REFUND
-                                     and (a.paid == c.HAS_PAID or c.paid == c.PAID_BY_GROUP and a.group.amount_paid)]
+                                     and (a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group.amount_paid)]
             ), (
                 'Volunteers Already Refunded',
                 [a for a in attendees if a.paid == c.REFUNDED and a.staffing]
