@@ -254,13 +254,17 @@ class Root:
 
     def volunteers_owed_refunds(self, session):
         attendees = session.query(Attendee).filter(Attendee.paid.in_([c.HAS_PAID, c.PAID_BY_GROUP, c.REFUNDED])).all()
+        is_unrefunded = lambda a: a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid
         return {
             'attendees': [(
                 'Volunteers Owed Refunds',
-                [a for a in attendees if a.worked_hours >= c.HOURS_FOR_REFUND
-                                     and (a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group.amount_paid)]
+                [a for a in attendees if is_unrefunded(a) and a.worked_hours >= c.HOURS_FOR_REFUND]
             ), (
                 'Volunteers Already Refunded',
                 [a for a in attendees if a.paid == c.REFUNDED and a.staffing]
+            ), (
+                'Volunteers Who Can Be Refunded Once Their Shifts Are Marked',
+                [a for a in attendees if is_unrefunded(a) and a.worked_hours < c.HOURS_FOR_REFUND
+                                                          and a.weighted_hours >= c.HOURS_FOR_REFUND]
             )]
         }
