@@ -251,3 +251,16 @@ class Root:
                 ('Teardown', [job for job in session.query(Job).all() if job.is_teardown and job.slots_untaken])
             ]
         }
+
+    def volunteers_owed_refunds(self, session):
+        attendees = session.query(Attendee).filter(Attendee.paid.in_([c.HAS_PAID, c.PAID_BY_GROUP, c.REFUNDED])).all()
+        return {
+            'attendees': [(
+                'Volunteers Owed Refunds',
+                [a for a in attendees if a.worked_hours >= c.HOURS_FOR_REFUND
+                                     and (a.paid == c.HAS_PAID or c.paid == c.PAID_BY_GROUP and a.group.amount_paid)]
+            ), (
+                'Volunteers Already Refunded',
+                [a for a in attendees if a.paid == c.REFUNDED and a.staffing]
+            )]
+        }
