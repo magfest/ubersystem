@@ -87,8 +87,15 @@ class Root:
         }
 
     def ratings(self, session):
-        return {'attendees': [a for a in session.query(Attendee).filter_by(staffing=True).order_by(Attendee.full_name).all()
-                                if 'poorly' in a.past_years]}
+        return {
+            'prev_years': [a for a in session.query(Attendee)
+                                             .filter_by(staffing=True)
+                                             .order_by(Attendee.full_name).all()
+                             if 'poorly' in a.past_years],
+            'current': [a for a in session.query(Attendee)
+                                          .options(joinedload(Attendee.shifts)).all()
+                          if any(shift.rating == c.RATED_BAD for shift in a.shifts)]
+        }
 
     def staffing_overview(self, session):
         jobs, shifts, attendees = session.everything()
