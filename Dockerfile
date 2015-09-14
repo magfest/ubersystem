@@ -10,4 +10,4 @@ COPY requirements.txt ./
 RUN pip install -r requirements.txt
 
 # add our code - do this last, since it changes the most often
-COPY src/ plugins/
+COPY . plugins/uber/
