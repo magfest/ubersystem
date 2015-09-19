@@ -44,7 +44,7 @@ def check_post_con(klass):
                     <h2 style='color:red'>Hope you had a great {event}!</h2>
                     Preregistration for {event} {year} will open in a few months.
                 </body></html>
-                """.format(event=EVENT_NAME, year=(1 + int(YEAR)) if YEAR else '')
+                """.format(event=c.EVENT_NAME, year=(1 + int(c.YEAR)) if c.YEAR else '')
             else:
                 return func(self, *args, **kwargs)
         return wrapped
@@ -386,7 +386,7 @@ class Root:
     def unset_group_member(self, session, id):
         attendee = session.attendee(id)
         try:
-            send_email(c.REGDESK_EMAIL, attendee.email, '{EVENT_NAME} group registration dropped',
+            send_email(c.REGDESK_EMAIL, attendee.email, '{c.EVENT_NAME} group registration dropped',
                        render('emails/reg_workflow/group_member_dropped.txt', {'attendee': attendee}), model=attendee)
         except:
             log.error('unable to send group unset email', exc_info=True)
