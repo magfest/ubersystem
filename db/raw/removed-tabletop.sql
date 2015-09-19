@@ -87,6 +87,19 @@ CREATE TABLE arbitrary_charge (
 ALTER TABLE public.arbitrary_charge OWNER TO m13;
 
 --
+-- Name: assigned_panelist; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+--
+
+CREATE TABLE assigned_panelist (
+    id uuid NOT NULL,
+    attendee_id uuid NOT NULL,
+    event_id uuid NOT NULL
+);
+
+
+ALTER TABLE public.assigned_panelist OWNER TO m13;
+
+--
 -- Name: attendee; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
 --
 
@@ -141,7 +154,8 @@ CREATE TABLE attendee (
     nonshift_hours integer DEFAULT 0 NOT NULL,
     past_years character varying DEFAULT ''::character varying NOT NULL,
     can_work_setup boolean DEFAULT false NOT NULL,
-    can_work_teardown boolean DEFAULT false NOT NULL
+    can_work_teardown boolean DEFAULT false NOT NULL,
+    hotel_eligible boolean DEFAULT false NOT NULL
 );
 
 
@@ -237,6 +251,23 @@ CREATE TABLE "group" (
 ALTER TABLE public."group" OWNER TO m13;
 
 --
+-- Name: hotel_requests; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+--
+
+CREATE TABLE hotel_requests (
+    id uuid NOT NULL,
+    attendee_id uuid NOT NULL,
+    nights character varying DEFAULT ''::character varying NOT NULL,
+    wanted_roommates character varying DEFAULT ''::character varying NOT NULL,
+    unwanted_roommates character varying DEFAULT ''::character varying NOT NULL,
+    special_needs character varying DEFAULT ''::character varying NOT NULL,
+    approved boolean DEFAULT false NOT NULL
+);
+
+
+ALTER TABLE public.hotel_requests OWNER TO m13;
+
+--
 -- Name: job; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
 --
 
@@ -311,6 +342,45 @@ CREATE TABLE old_m_point_exchange (
 ALTER TABLE public.old_m_point_exchange OWNER TO m13;
 
 --
+-- Name: panel_applicant; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+--
+
+CREATE TABLE panel_applicant (
+    id uuid NOT NULL,
+    app_id uuid NOT NULL,
+    submitter boolean DEFAULT false NOT NULL,
+    first_name character varying DEFAULT ''::character varying NOT NULL,
+    last_name character varying DEFAULT ''::character varying NOT NULL,
+    email character varying DEFAULT ''::character varying NOT NULL,
+    cellphone character varying DEFAULT ''::character varying NOT NULL
+);
+
+
+ALTER TABLE public.panel_applicant OWNER TO m13;
+
+--
+-- Name: panel_application; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+--
+
+CREATE TABLE panel_application (
+    id uuid NOT NULL,
+    name character varying DEFAULT ''::character varying NOT NULL,
+    length character varying DEFAULT ''::character varying NOT NULL,
+    description character varying DEFAULT ''::character varying NOT NULL,
+    unavailable character varying DEFAULT ''::character varying NOT NULL,
+    affiliations character varying DEFAULT ''::character varying NOT NULL,
+    past_attendance character varying DEFAULT ''::character varying NOT NULL,
+    presentation integer NOT NULL,
+    other_presentation character varying DEFAULT ''::character varying NOT NULL,
+    tech_needs character varying DEFAULT ''::character varying NOT NULL,
+    other_tech_needs character varying DEFAULT ''::character varying NOT NULL,
+    applied timestamp without time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+
+ALTER TABLE public.panel_application OWNER TO m13;
+
+--
 -- Name: password_reset; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
 --
 
@@ -323,6 +393,34 @@ CREATE TABLE password_reset (
 
 
 ALTER TABLE public.password_reset OWNER TO m13;
+
+--
+-- Name: room; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+--
+
+CREATE TABLE room (
+    id uuid NOT NULL,
+    notes character varying DEFAULT ''::character varying NOT NULL,
+    locked_in boolean DEFAULT false NOT NULL,
+    nights character varying DEFAULT ''::character varying NOT NULL,
+    created timestamp without time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+
+ALTER TABLE public.room OWNER TO m13;
+
+--
+-- Name: room_assignment; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+--
+
+CREATE TABLE room_assignment (
+    id uuid NOT NULL,
+    room_id uuid NOT NULL,
+    attendee_id uuid NOT NULL
+);
+
+
+ALTER TABLE public.room_assignment OWNER TO m13;
 
 --
 -- Name: sale; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
@@ -918,6 +1016,14 @@ ALTER TABLE ONLY arbitrary_charge
 
 
 --
+-- Name: assigned_panelist_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+--
+
+ALTER TABLE ONLY assigned_panelist
+    ADD CONSTRAINT assigned_panelist_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: attendee_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
 --
 
@@ -971,6 +1077,22 @@ ALTER TABLE ONLY food_restrictions
 
 ALTER TABLE ONLY "group"
     ADD CONSTRAINT group_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: hotel_requests_attendee_id_key; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+--
+
+ALTER TABLE ONLY hotel_requests
+    ADD CONSTRAINT hotel_requests_attendee_id_key UNIQUE (attendee_id);
+
+
+--
+-- Name: hotel_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+--
+
+ALTER TABLE ONLY hotel_requests
+    ADD CONSTRAINT hotel_requests_pkey PRIMARY KEY (id);
 
 
 --
@@ -1030,6 +1152,22 @@ ALTER TABLE ONLY old_m_point_exchange
 
 
 --
+-- Name: panel_applicant_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+--
+
+ALTER TABLE ONLY panel_applicant
+    ADD CONSTRAINT panel_applicant_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: panel_application_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+--
+
+ALTER TABLE ONLY panel_application
+    ADD CONSTRAINT panel_application_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: password_reset_account_id_key; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
 --
 
@@ -1043,6 +1181,22 @@ ALTER TABLE ONLY password_reset
 
 ALTER TABLE ONLY password_reset
     ADD CONSTRAINT password_reset_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: room_assignment_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+--
+
+ALTER TABLE ONLY room_assignment
+    ADD CONSTRAINT room_assignment_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: room_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+--
+
+ALTER TABLE ONLY room
+    ADD CONSTRAINT room_pkey PRIMARY KEY (id);
 
 
 --
@@ -1154,6 +1308,22 @@ ALTER TABLE ONLY admin_account
 
 
 --
+-- Name: assigned_panelist_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
+--
+
+ALTER TABLE ONLY assigned_panelist
+    ADD CONSTRAINT assigned_panelist_attendee_id_fkey FOREIGN KEY (attendee_id) REFERENCES attendee(id) ON DELETE CASCADE;
+
+
+--
+-- Name: assigned_panelist_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
+--
+
+ALTER TABLE ONLY assigned_panelist
+    ADD CONSTRAINT assigned_panelist_event_id_fkey FOREIGN KEY (event_id) REFERENCES event(id) ON DELETE CASCADE;
+
+
+--
 -- Name: attendee_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
 --
 
@@ -1183,6 +1353,14 @@ ALTER TABLE ONLY "group"
 
 ALTER TABLE ONLY food_restrictions
     ADD CONSTRAINT food_restrictions_attendee_id_fkey FOREIGN KEY (attendee_id) REFERENCES attendee(id);
+
+
+--
+-- Name: hotel_requests_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
+--
+
+ALTER TABLE ONLY hotel_requests
+    ADD CONSTRAINT hotel_requests_attendee_id_fkey FOREIGN KEY (attendee_id) REFERENCES attendee(id);
 
 
 --
@@ -1226,11 +1404,35 @@ ALTER TABLE ONLY old_m_point_exchange
 
 
 --
+-- Name: panel_applicant_app_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
+--
+
+ALTER TABLE ONLY panel_applicant
+    ADD CONSTRAINT panel_applicant_app_id_fkey FOREIGN KEY (app_id) REFERENCES panel_application(id) ON DELETE CASCADE;
+
+
+--
 -- Name: password_reset_account_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
 --
 
 ALTER TABLE ONLY password_reset
     ADD CONSTRAINT password_reset_account_id_fkey FOREIGN KEY (account_id) REFERENCES admin_account(id);
+
+
+--
+-- Name: room_assignment_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
+--
+
+ALTER TABLE ONLY room_assignment
+    ADD CONSTRAINT room_assignment_attendee_id_fkey FOREIGN KEY (attendee_id) REFERENCES attendee(id);
+
+
+--
+-- Name: room_assignment_room_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
+--
+
+ALTER TABLE ONLY room_assignment
+    ADD CONSTRAINT room_assignment_room_id_fkey FOREIGN KEY (room_id) REFERENCES room(id);
 
 
 --

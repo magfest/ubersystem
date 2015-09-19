@@ -962,9 +962,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     admin_account     = relationship('AdminAccount', backref=backref('attendee', load_on_pending=True), uselist=False)
     food_restrictions = relationship('FoodRestrictions', backref=backref('attendee', load_on_pending=True), uselist=False)
 
-    games  = relationship('Game', backref='attendee')
     shifts = relationship('Shift', backref='attendee')
-    checkouts = relationship('Checkout', backref='attendee')
     sales = relationship('Sale', backref='attendee', cascade='save-update,merge,refresh-expire,expunge')
     mpoints_for_cash = relationship('MPointsForCash', backref='attendee')
     old_mpoint_exchanges = relationship('OldMPointExchange', backref='attendee')
@@ -1540,30 +1538,6 @@ class ArbitraryCharge(MagModel):
     reg_station = Column(Integer, nullable=True)
 
     _repr_attr_names = ['what']
-
-
-class Game(MagModel):
-    code        = Column(UnicodeText)
-    name        = Column(UnicodeText)
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    returned    = Column(Boolean, default=False)
-    checkouts   = relationship('Checkout', backref='game')
-
-    @property
-    def checked_out(self):
-        try:
-            return [c for c in self.checkouts if not c.returned][0]
-        except:
-            pass
-
-    _repr_attr_names = ['name']
-
-
-class Checkout(MagModel):
-    game_id     = Column(UUID, ForeignKey('game.id'))
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    checked_out = Column(UTCDateTime, default=lambda: datetime.now(UTC))
-    returned    = Column(UTCDateTime, nullable=True)
 
 
 class ApprovedEmail(MagModel):
