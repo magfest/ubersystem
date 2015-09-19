@@ -716,16 +716,21 @@ class Session(SessionManager):
                 return False
 
             attendee = sa.Attendee(
-                placeholder=True,
                 first_name='Test',
                 last_name='Developer',
-                email='magfest@example.com',
-                badge_type=c.ATTENDEE_BADGE,
+                email='magfest@example.com'
             )
-            self.add(attendee)
+
+            registration = sa.Registration(
+                attendee=attendee,
+                placeholder=True,
+                badge_type=c.ATTENDEE_BADGE
+            )
+
+            self.add(registration)
 
             self.add(sa.AdminAccount(
-                attendee=attendee,
+                registration=registration,
                 access=','.join(str(level) for level, name in c.ACCESS_OPTS),
                 hashed=bcrypt.hashpw('magfest', bcrypt.gensalt())
             ))
@@ -772,8 +777,8 @@ class Group(MagModel, TakesPaymentMixin):
     status        = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
     registered    = Column(UTCDateTime, server_default=utcnow())
     approved      = Column(UTCDateTime, nullable=True)
-    leader_id     = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader'), nullable=True)
-    leader        = relationship('Attendee', foreign_keys=leader_id, post_update=True, cascade='all')
+    leader_id     = Column(UUID, ForeignKey('registration.id', use_alter=True, name='fk_leader'), nullable=True)
+    leader        = relationship('Registration', foreign_keys=leader_id, post_update=True, cascade='all')
 
     _repr_attr_names = ['name']
 
@@ -897,10 +902,12 @@ class Group(MagModel, TakesPaymentMixin):
 
 
 class Attendee(MagModel, TakesPaymentMixin):
-    group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
-    group = relationship(Group, backref='attendees', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
+    """
+    Represents attendee information which remains constant across ALL events
 
-    placeholder   = Column(Boolean, default=False, admin_only=True)
+    Just because an Attendee exists, doesn't mean they have a registration
+    for any particular event.
+    """
     first_name    = Column(UnicodeText)
     last_name     = Column(UnicodeText)
     email         = Column(UnicodeText)
@@ -918,11 +925,79 @@ class Attendee(MagModel, TakesPaymentMixin):
     ec_phone      = Column(UnicodeText)
     cellphone     = Column(UnicodeText)
 
-    interests   = Column(MultiChoice(c.INTEREST_OPTS))
-    found_how   = Column(UnicodeText)
-    comments    = Column(UnicodeText)
-    for_review  = Column(UnicodeText, admin_only=True)
-    admin_notes = Column(UnicodeText, admin_only=True)
+    _repr_attr_names = ['full_name']
+
+    @presave_adjustment
+    def _misc_adjustments(self):
+        if self.birthdate == '':
+            self.birthdate = None
+
+        if self.birthdate:
+            self.age_group = self.age_group_conf['val']
+
+        for attr in ['first_name', 'last_name']:
+            value = getattr(self, attr)
+            if value.isupper() or value.islower():
+                setattr(self, attr, value.title())
+
+    @property
+    def age_group_conf(self):
+        if self.birthdate:
+            day = c.EPOCH.date() if date.today() <= c.EPOCH.date() else sa.localized_now().date()
+            attendee_age = (day - self.birthdate).days / 365.2425
+            for val, age_group in c.AGE_GROUP_CONFIGS.items():
+                if val != c.AGE_UNKNOWN and age_group['min_age'] <= attendee_age <= age_group['max_age']:
+                    return age_group
+
+        return c.AGE_GROUP_CONFIGS[int(self.age_group or c.AGE_UNKNOWN)]
+
+    @hybrid_property
+    def full_name(self):
+        return self.registration.unassigned_name or '{self.first_name} {self.last_name}'.format(self=self)
+
+    @full_name.expression
+    def full_name(cls):
+        return case([
+            (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
+        ], else_=func.lower(cls.first_name + ' ' + cls.last_name))
+
+    @hybrid_property
+    def last_first(self):
+        return self.unassigned_name or '{self.last_name}, {self.first_name}'.format(self=self)
+
+    @last_first.expression
+    def last_first(cls):
+        return case([
+            (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
+        ], else_=func.lower(cls.last_name + ', ' + cls.first_name))
+
+    @property
+    def banned(self):
+        return self.full_name in c.BANNED_ATTENDEES
+
+    @property
+    def past_years_json(self):
+        return json.loads(self.past_years or '[]')
+
+
+
+class Registration(MagModel):
+    """
+    Represents registration info for one event
+
+    At present, Attendees->Registration are 1:1
+    In the future, this won't be the case
+    """
+
+    attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True) # legit
+
+    attendee = relationship(Attendee, backref=backref('registration', uselist=False), cascade='save-update,merge,refresh-expire,expunge')
+
+    group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
+
+    group = relationship(Group, backref='registrations', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
+
+    placeholder   = Column(Boolean, default=False, admin_only=True)
 
     badge_num  = Column(Integer, default=0, nullable=True, admin_only=True)
     badge_type = Column(Choice(c.BADGE_OPTS), default=c.ATTENDEE_BADGE)
@@ -931,7 +1006,6 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     affiliate    = Column(UnicodeText)
     shirt        = Column(Choice(c.SHIRT_OPTS), default=c.NO_SHIRT)
-    can_spam     = Column(Boolean, default=False)
     regdesk_info = Column(UnicodeText, admin_only=True)
     extra_merch  = Column(UnicodeText, admin_only=True)
     got_merch    = Column(Boolean, default=False, admin_only=True)
@@ -958,17 +1032,23 @@ class Attendee(MagModel, TakesPaymentMixin):
     can_work_setup    = Column(Boolean, default=False, admin_only=True)
     can_work_teardown = Column(Boolean, default=False, admin_only=True)
 
-    no_shirt          = relationship('NoShirt', backref=backref('attendee', load_on_pending=True), uselist=False)
-    admin_account     = relationship('AdminAccount', backref=backref('attendee', load_on_pending=True), uselist=False)
-    food_restrictions = relationship('FoodRestrictions', backref=backref('attendee', load_on_pending=True), uselist=False)
+    no_shirt          = relationship('NoShirt', backref=backref('registration', load_on_pending=True), uselist=False)
+    admin_account     = relationship('AdminAccount', backref=backref('registration', load_on_pending=True), uselist=False)
+    food_restrictions = relationship('FoodRestrictions', backref=backref('registration', load_on_pending=True), uselist=False)
 
-    shifts = relationship('Shift', backref='attendee')
-    sales = relationship('Sale', backref='attendee', cascade='save-update,merge,refresh-expire,expunge')
-    mpoints_for_cash = relationship('MPointsForCash', backref='attendee')
-    old_mpoint_exchanges = relationship('OldMPointExchange', backref='attendee')
-    dept_checklist_items = relationship('DeptChecklistItem', backref='attendee')
+    shifts = relationship('Shift', backref='registration')
+    sales = relationship('Sale', backref='registration', cascade='save-update,merge,refresh-expire,expunge')
+    mpoints_for_cash = relationship('MPointsForCash', backref='registration')
+    old_mpoint_exchanges = relationship('OldMPointExchange', backref='registration')
+    dept_checklist_items = relationship('DeptChecklistItem', backref='registration')
 
-    _repr_attr_names = ['full_name']
+    interests   = Column(MultiChoice(c.INTEREST_OPTS))
+    found_how   = Column(UnicodeText)
+    comments    = Column(UnicodeText)
+    for_review  = Column(UnicodeText, admin_only=True)
+    admin_notes = Column(UnicodeText, admin_only=True)
+
+    can_spam     = Column(Boolean, default=False)   # maybe this should be in Attendee instead.
 
     @predelete_adjustment
     def _shift_badges(self):
@@ -976,13 +1056,88 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.has_personalized_badge and c.SHIFT_CUSTOM_BADGES:
             self.session.shift_badges(self.badge_type, self.badge_num, down=True)
 
+    def unset_volunteering(self):
+        self.staffing = self.trusted = False
+        self.requested_depts = self.assigned_depts = ''
+        if self.ribbon == c.VOLUNTEER_RIBBON:
+            self.ribbon = c.NO_RIBBON
+        if self.badge_type == c.STAFF_BADGE:
+            if c.SHIFT_CUSTOM_BADGES:
+                self.session.shift_badges(c.STAFF_BADGE, self.badge_num, down=True)
+            self.badge_type = c.ATTENDEE_BADGE
+        del self.shifts[:]
+
+    @property
+    def gets_free_shirt(self):
+        return self.is_dept_head \
+            or self.badge_type == c.STAFF_BADGE \
+            or self.staffing and (self.assigned_depts and not self.takes_shifts or self.weighted_hours >= 6)
+
+    @property
+    def gets_paid_shirt(self):
+        return self.amount_extra >= c.SHIRT_LEVEL
+
+    @property
+    def gets_shirt(self):
+        return self.gets_paid_shirt or self.gets_free_shirt
+
+    @property
+    def shirt_eligible(self):
+        return self.gets_shirt or self.staffing
+
+    @property
+    def is_dealer(self):
+        return self.ribbon == c.DEALER_RIBBON or self.badge_type == c.PSEUDO_DEALER_BADGE
+
+    @property
+    def is_dept_head(self):
+        return self.ribbon == c.DEPT_HEAD_RIBBON
+
+    @property
+    def can_check_in(self):
+        return self.paid != c.NOT_PAID and self.badge_status == c.COMPLETED_STATUS and not self.is_unassigned
+
+    @property
+    def shirt_size_marked(self):
+        return self.shirt not in [c.NO_SHIRT, c.SIZE_UNKNOWN]
+
+    @property
+    def is_group_leader(self):
+        return self.group and self.id == self.group.leader_id
+
+    @property
+    def has_personalized_badge(self):
+        return self.badge_type in c.PREASSIGNED_BADGE_TYPES
+
+    @property
+    def is_transferable(self):
+        return not self.is_new and not self.trusted and not self.checked_in \
+           and self.paid in [c.HAS_PAID, c.PAID_BY_GROUP] \
+           and self.badge_type in c.TRANSFERABLE_BADGE_TYPES
+
+
+    @property
+    def total_cost(self):
+        return self.default_cost + self.amount_extra
+
+    @property
+    def amount_unpaid(self):
+        return max(0, self.total_cost - self.amount_paid)
+
+    @property
+    def is_unpaid(self):
+        return self.paid == c.NOT_PAID
+
+    @property
+    def is_unassigned(self):
+        return not self.first_name
+
+
+    # DONE
     @presave_adjustment
     def _misc_adjustments(self):
         if not self.amount_extra:
             self.affiliate = ''
-
-        if self.birthdate == '':
-            self.birthdate = None
 
         if not self.shirt_eligible:
             self.shirt = c.NO_SHIRT
@@ -992,14 +1147,6 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if c.AT_THE_CON and self.badge_num and self.is_new:
             self.checked_in = datetime.now(UTC)
-
-        if self.birthdate:
-            self.age_group = self.age_group_conf['val']
-
-        for attr in ['first_name', 'last_name']:
-            value = getattr(self, attr)
-            if value.isupper() or value.islower():
-                setattr(self, attr, value.title())
 
     @presave_adjustment
     def _badge_adjustments(self):
@@ -1053,17 +1200,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_type == c.STAFF_BADGE:
             self.staffing = True
 
-    def unset_volunteering(self):
-        self.staffing = self.trusted = False
-        self.requested_depts = self.assigned_depts = ''
-        if self.ribbon == c.VOLUNTEER_RIBBON:
-            self.ribbon = c.NO_RIBBON
-        if self.badge_type == c.STAFF_BADGE:
-            if c.SHIFT_CUSTOM_BADGES:
-                self.session.shift_badges(c.STAFF_BADGE, self.badge_num, down=True)
-            self.badge_type = c.ATTENDEE_BADGE
-        del self.shifts[:]
-
     @property
     def ribbon_and_or_badge(self):
         if self.ribbon != c.NO_RIBBON and self.badge_type != c.ATTENDEE_BADGE:
@@ -1090,80 +1226,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         return -self.age_group_conf['discount']
 
     @property
-    def age_group_conf(self):
-        if self.birthdate:
-            day = c.EPOCH.date() if date.today() <= c.EPOCH.date() else sa.localized_now().date()
-            attendee_age = (day - self.birthdate).days / 365.2425
-            for val, age_group in c.AGE_GROUP_CONFIGS.items():
-                if val != c.AGE_UNKNOWN and age_group['min_age'] <= attendee_age <= age_group['max_age']:
-                    return age_group
-
-        return c.AGE_GROUP_CONFIGS[int(self.age_group or c.AGE_UNKNOWN)]
-
-    @property
-    def total_cost(self):
-        return self.default_cost + self.amount_extra
-
-    @property
-    def amount_unpaid(self):
-        return max(0, self.total_cost - self.amount_paid)
-
-    @property
-    def is_unpaid(self):
-        return self.paid == c.NOT_PAID
-
-    @property
-    def is_unassigned(self):
-        return not self.first_name
-
-    @property
-    def is_dealer(self):
-        return self.ribbon == c.DEALER_RIBBON or self.badge_type == c.PSEUDO_DEALER_BADGE
-
-    @property
-    def is_dept_head(self):
-        return self.ribbon == c.DEPT_HEAD_RIBBON
-
-    @property
-    def can_check_in(self):
-        return self.paid != c.NOT_PAID and self.badge_status == c.COMPLETED_STATUS and not self.is_unassigned
-
-    @property
-    def shirt_size_marked(self):
-        return self.shirt not in [c.NO_SHIRT, c.SIZE_UNKNOWN]
-
-    @property
-    def is_group_leader(self):
-        return self.group and self.id == self.group.leader_id
-
-    @property
     def unassigned_name(self):
         if self.group_id and self.is_unassigned:
             return '[Unassigned {self.badge}]'.format(self=self)
-
-    @hybrid_property
-    def full_name(self):
-        return self.unassigned_name or '{self.first_name} {self.last_name}'.format(self=self)
-
-    @full_name.expression
-    def full_name(cls):
-        return case([
-            (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
-        ], else_=func.lower(cls.first_name + ' ' + cls.last_name))
-
-    @hybrid_property
-    def last_first(self):
-        return self.unassigned_name or '{self.last_name}, {self.first_name}'.format(self=self)
-
-    @last_first.expression
-    def last_first(cls):
-        return case([
-            (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
-        ], else_=func.lower(cls.last_name + ', ' + cls.first_name))
-
-    @property
-    def banned(self):
-        return self.full_name in c.BANNED_ATTENDEES
 
     @property
     def badge(self):
@@ -1178,34 +1243,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             badge += ' ({})'.format(self.ribbon_label)
 
         return badge
-
-    @property
-    def is_transferable(self):
-        return not self.is_new and not self.trusted and not self.checked_in \
-           and self.paid in [c.HAS_PAID, c.PAID_BY_GROUP] \
-           and self.badge_type in c.TRANSFERABLE_BADGE_TYPES
-
-    @property
-    def gets_free_shirt(self):
-        return self.is_dept_head \
-            or self.badge_type == c.STAFF_BADGE \
-            or self.staffing and (self.assigned_depts and not self.takes_shifts or self.weighted_hours >= 6)
-
-    @property
-    def gets_paid_shirt(self):
-        return self.amount_extra >= c.SHIRT_LEVEL
-
-    @property
-    def gets_shirt(self):
-        return self.gets_paid_shirt or self.gets_free_shirt
-
-    @property
-    def shirt_eligible(self):
-        return self.gets_shirt or self.staffing
-
-    @property
-    def has_personalized_badge(self):
-        return self.badge_type in c.PREASSIGNED_BADGE_TYPES
 
     @property
     def donation_swag(self):
@@ -1319,20 +1356,16 @@ class Attendee(MagModel, TakesPaymentMixin):
     def shift_prereqs_complete(self):
         return not self.placeholder and self.food_restrictions and self.shirt_size_marked
 
-    @property
-    def past_years_json(self):
-        return json.loads(self.past_years or '[]')
-
 
 class AdminAccount(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
+    registration_id = Column(UUID, ForeignKey('registration.id'), unique=True)
     hashed      = Column(UnicodeText)
     access      = Column(MultiChoice(c.ACCESS_OPTS))
 
     password_reset = relationship('PasswordReset', backref='admin_account', uselist=False)
 
     def __repr__(self):
-        return '<{}>'.format(self.attendee.full_name)
+        return '<{}>'.format(self.registration.attendee.full_name)
 
     @staticmethod
     def is_nick():
@@ -1375,7 +1408,7 @@ class PasswordReset(MagModel):
 
 
 class FoodRestrictions(MagModel):
-    attendee_id   = Column(UUID, ForeignKey('attendee.id'), unique=True)
+    attendee_id   = Column(UUID, ForeignKey('registration.id'), unique=True)
     standard      = Column(MultiChoice(c.FOOD_RESTRICTION_OPTS))
     sandwich_pref = Column(MultiChoice(c.SANDWICH_OPTS))
     freeform      = Column(UnicodeText)
@@ -1396,18 +1429,18 @@ class FoodRestrictions(MagModel):
 
 
 class NoShirt(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
+    attendee_id = Column(UUID, ForeignKey('registration.id'), unique=True)
 
 
 class MerchPickup(MagModel):
-    picked_up_by_id  = Column(UUID, ForeignKey('attendee.id'))
-    picked_up_for_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
-    picked_up_by     = relationship(Attendee, primaryjoin='MerchPickup.picked_up_by_id == Attendee.id', cascade='save-update,merge,refresh-expire,expunge')
-    picked_up_for    = relationship(Attendee, primaryjoin='MerchPickup.picked_up_for_id == Attendee.id', cascade='save-update,merge,refresh-expire,expunge')
+    picked_up_by_id  = Column(UUID, ForeignKey('registration.id'))
+    picked_up_for_id = Column(UUID, ForeignKey('registration.id'), unique=True)
+    #TODO picked_up_by     = relationship(Attendee, primaryjoin='MerchPickup.picked_up_by_id == Registration.id', cascade='save-update,merge,refresh-expire,expunge')
+    #TODO picked_up_for    = relationship(Attendee, primaryjoin='MerchPickup.picked_up_for_id == Registration.id', cascade='save-update,merge,refresh-expire,expunge')
 
 
 class DeptChecklistItem(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    attendee_id = Column(UUID, ForeignKey('registration.id'))
     slug        = Column(UnicodeText)
     comments    = Column(UnicodeText, default='')
 
@@ -1495,7 +1528,7 @@ class Job(MagModel):
 
 class Shift(MagModel):
     job_id      = Column(UUID, ForeignKey('job.id', ondelete='cascade'))
-    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='cascade'))
+    attendee_id = Column(UUID, ForeignKey('registration.id', ondelete='cascade'))
     worked      = Column(Choice(c.WORKED_STATUS_OPTS), default=c.SHIFT_UNMARKED)
     rating      = Column(Choice(c.RATING_OPTS), default=c.UNRATED)
     comment     = Column(UnicodeText)
@@ -1510,19 +1543,19 @@ class Shift(MagModel):
 
 
 class MPointsForCash(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    attendee_id = Column(UUID, ForeignKey('registration.id'))
     amount      = Column(Integer)
     when        = Column(UTCDateTime, default=lambda: datetime.now(UTC))
 
 
 class OldMPointExchange(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    attendee_id = Column(UUID, ForeignKey('registration.id'))
     amount      = Column(Integer)
     when        = Column(UTCDateTime, default=lambda: datetime.now(UTC))
 
 
 class Sale(MagModel):
-    attendee_id    = Column(UUID, ForeignKey('attendee.id', ondelete='set null'), nullable=True)
+    attendee_id    = Column(UUID, ForeignKey('registration.id', ondelete='set null'), nullable=True)
     what           = Column(UnicodeText)
     cash           = Column(Integer, default=0)
     mpoints        = Column(Integer, default=0)
