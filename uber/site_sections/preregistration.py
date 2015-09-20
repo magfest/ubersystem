@@ -386,7 +386,7 @@ class Root:
     def unset_group_member(self, session, id):
         attendee = session.attendee(id)
         try:
-            send_email(c.REGDESK_EMAIL, attendee.email, '{c.EVENT_NAME} group registration dropped',
+            send_email(c.REGDESK_EMAIL, attendee.email, '{EVENT_NAME} group registration dropped',
                        render('emails/reg_workflow/group_member_dropped.txt', {'attendee': attendee}), model=attendee)
         except:
             log.error('unable to send group unset email', exc_info=True)
