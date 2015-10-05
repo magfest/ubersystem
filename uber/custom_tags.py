@@ -522,6 +522,10 @@ class PriceNotice(template.Node):
         self.takedown, self.amount_extra, self.discount = Variable(takedown), Variable(amount_extra), Variable(discount)
 
     def _notice(self, label, takedown, amount_extra, discount):
+        if not takedown:
+            raise ValueError('price_notice tag error: Takedown date not valid{}'.format(
+                ' for "' + label + '"' if label else ''))
+
         if c.PAGE_PATH not in ['/preregistration/form', '/preregistration/register_group_member']:
             return ''  # we only display notices for new attendees
         else:
