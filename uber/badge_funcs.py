@@ -36,7 +36,7 @@ def detect_duplicates():
             if session.no_email(subject):
                 grouped = defaultdict(list)
                 for a in session.query(Attendee).filter(Attendee.first_name != '').options(joinedload(Attendee.group)).order_by(Attendee.registered):
-                    if not a.group or a.group.status != c.WAITLISTED:
+                    if not a.group or a.group.status not in [c.WAITLISTED, c.DECLINED]:
                         grouped[a.full_name, a.email.lower()].append(a)
 
                 dupes = {k: v for k, v in grouped.items() if len(v) > 1}

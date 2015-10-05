@@ -1129,6 +1129,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.paid != c.NOT_PAID and self.badge_status == c.COMPLETED_STATUS and not self.is_unassigned
 
     @property
+    def can_check_in(self):
+        return self.paid != c.NOT_PAID and self.badge_status == c.COMPLETED_STATUS and not self.is_unassigned
+
+    @property
     def shirt_size_marked(self):
         return self.shirt not in [c.NO_SHIRT, c.SIZE_UNKNOWN]
 

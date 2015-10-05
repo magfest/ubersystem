@@ -191,7 +191,8 @@ class Root:
                     if group.badges:
                         Tracking.track(track_type, group)
 
-                if session.query(Attendee).filter_by(first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).count():
+                if session.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS, Attendee.id != attendee.id)\
+                        .filter_by(first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).count():
                     raise HTTPRedirect('duplicate?id={}', group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
 
                 if attendee.full_name in c.BANNED_ATTENDEES:
@@ -392,7 +393,8 @@ class Root:
             log.error('unable to send group unset email', exc_info=True)
 
         session.assign_badges(attendee.group, attendee.group.badges + 1, registered=attendee.registered)
-        session.delete_from_group(attendee, attendee.group)
+        attendee.paid = c.NOT_PAID
+        attendee.badge_status = c.INVALID_STATUS
         raise HTTPRedirect('group_members?id={}&message={}', attendee.group_id, 'Attendee unset; you may now assign their badge to someone else')
 
     def add_group_members(self, session, id, count):
@@ -464,6 +466,9 @@ class Root:
 
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
         attendee = session.attendee(params, restricted=True)
+
+        if attendee.badge_status == c.INVALID_STATUS:
+            return render('static_views/invalid_badge.html')
 
         placeholder = attendee.placeholder
         if 'email' in params:
