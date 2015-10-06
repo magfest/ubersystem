@@ -73,9 +73,19 @@ class _Overridable:
                 lookup[val] = desc
 
         enum_name = enum_name.upper()
-        setattr(self, enum_name + '_OPTS', opts)
-        setattr(self, enum_name + '_VARS', varnames)
-        setattr(self, enum_name + ('' if enum_name.endswith('S') else 'S'), lookup)
+        # When loading plugin's configs, we want to make sure we don't override existing enums
+        if hasattr(self, enum_name + '_OPTS'):
+            for opt in opts:
+                getattr(self, enum_name + '_OPTS').append(opt)
+
+            for varname in varnames:
+                getattr(self, enum_name + '_VARS').append(varname)
+
+            getattr(self, enum_name + ('' if enum_name.endswith('S') else 'S')).update(lookup)
+        else:
+            setattr(self, enum_name + '_OPTS', opts)
+            setattr(self, enum_name + '_VARS', varnames)
+            setattr(self, enum_name + ('' if enum_name.endswith('S') else 'S'), lookup)
 
 
 class Config(_Overridable):
