@@ -24,6 +24,12 @@ def check_if_can_reg(func):
             return render('static_views/prereg_not_yet_open.html')
         elif c.AFTER_PREREG_TAKEDOWN and not c.AT_THE_CON:
             return render('static_views/prereg_closed.html')
+        elif c.OFFLINE_MODE:
+            with sa.Session() as session:
+                try:
+                    attendee = session.admin_account(cherrypy.session['account_id'])
+                except:
+                    return render('static_views/prereg_offline.html')
         return func(*args, **kwargs)
     return with_check
 

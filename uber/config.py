@@ -412,3 +412,9 @@ else:
     c.VOLUNTEER_CHECKLIST = [url for step, url in _items]
 
 stripe.api_key = c.STRIPE_SECRET_KEY
+
+if not c.OFFLINE_MODE:
+    c.DOOR_PAYMENT_METHOD_OPTS.append([c.STRIPE, "Pay with credit card now (faster)"])
+
+if c.GROUPS_ENABLED:
+    c.DOOR_PAYMENT_METHOD_OPTS.append([c.GROUP, "Taking an unassigned Group badge (group leader must be present)"])
