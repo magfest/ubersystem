@@ -666,7 +666,7 @@ class Session(SessionManager):
 
             old_instance = self.query(instance.__class__).get(old_id)
             self.delete(old_instance)
-            self.commit() # Commit the deletion first to avoid duplicate key errors
+            self.commit()  # Commit the deletion first to avoid duplicate key errors
 
             instance.id = old_id
             return instance
@@ -1364,6 +1364,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def past_years_json(self):
         return json.loads(self.past_years or '[]')
+
 
 class AdminAccount(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
