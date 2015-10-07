@@ -574,7 +574,7 @@ class Session(SessionManager):
 
         def everyone(self):
             attendees = self.query(Attendee).filter(Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])).options(joinedload(Attendee.group)).all()
-            groups = self.query(Group).options(joinedload(Group.attendees)).all()
+            groups = self.query(Group).filter(Group.status not in [c.DECLINED, c.INVALID]).options(joinedload(Group.attendees)).all()
             return attendees, groups
 
         def staffers(self):
@@ -650,14 +650,37 @@ class Session(SessionManager):
                     checks.append(getattr(Attendee, attr).ilike('%' + text + '%'))
                 return attendees.filter(or_(*checks))
 
+        def safe_delete(self, instance):
+            '''
+            In many cases, particularly with Attendee and Group objects, we want to preserve the data about them in the
+            database and leave them open to being re-instantiated. However, we still want to trigger a cascading delete
+            so that related objects are removed (e.g., shifts). So we use this method to create a duplicate object and
+            delete the original, then set the new object to have the same unique ID as the original. Other changes,
+            such as setting the status to "Invalid," should be done before or after calling this function.
+            '''
+            old_id = instance.id
+            self.expunge(instance)
+            sqlalchemy.orm.session.make_transient(instance)
+            instance.id = str(uuid4())
+            self.add(instance)
+
+            old_instance = self.query(instance.__class__).get(old_id)
+            self.delete(old_instance)
+            self.commit()  # Commit the deletion first to avoid duplicate key errors
+
+            instance.id = old_id
+            return instance
+
         def delete_from_group(self, attendee, group):
             '''
             Sometimes we want to delete an attendee badge which is part of a group.  In most cases, we could just
             say "session.delete(attendee)" but sometimes we need to make sure that the attendee is ALSO removed
             from the "group.attendees" list before we commit, since the number of attendees in a group is used in
             our presave_adjustments() code to update the group price.  So anytime we delete an attendee in a group,
-            we should use this method.
+            we should use this method. Because attendees shouldn't be deleted if they have data in them, we now also
+            make sure they are unassigned.
             '''
+            assert attendee.is_unassigned
             self.delete(attendee)
             group.attendees.remove(attendee)
 
@@ -895,6 +918,21 @@ class Group(MagModel, TakesPaymentMixin):
         else:
             return c.MIN_GROUP_ADDITION
 
+    def remove_attendees(self):
+        attendee_list = []
+        leader_id = self.leader_id
+        self.leader_id = None
+        for attendee in self.attendees:
+            attendee.badge_status = c.INVALID_STATUS
+            new_attendee = self.session.safe_delete(attendee)
+            attendee_list.append(new_attendee)
+        return attendee_list, leader_id
+
+    def restore_attendees(self, attendee_list, leader_id):
+        self.leader_id = leader_id
+        for attendee in attendee_list:
+            attendee.group_id = self.id
+
 
 class Attendee(MagModel, TakesPaymentMixin):
     group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
@@ -1123,6 +1161,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def is_dept_head(self):
         return self.ribbon == c.DEPT_HEAD_RIBBON
+
+    @property
+    def can_check_in(self):
+        return self.paid != c.NOT_PAID and self.badge_status == c.COMPLETED_STATUS and not self.is_unassigned
 
     @property
     def can_check_in(self):

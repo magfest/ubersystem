@@ -32,14 +32,16 @@ def check_atd(func):
 
 @all_renderable(c.PEOPLE, c.REG_AT_CON)
 class Root:
-    def index(self, session, message='', page='0', search_text='', uploaded_id='', order='last_first'):
-        total_count = session.query(Attendee).count()
+    def index(self, session, message='', page='0', search_text='', uploaded_id='', order='last_first', invalid=''):
+        filter = Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]) if not invalid else None
+        attendees = session.query(Attendee) if invalid else session.query(Attendee).filter(filter)
+        total_count = attendees.count()
         count = 0
         if search_text:
-            attendees = session.search(search_text)
+            attendees = session.search(search_text) if invalid else session.search(search_text, filter)
             count = attendees.count()
         if not count:
-            attendees = session.query(Attendee).options(joinedload(Attendee.group))
+            attendees = attendees.options(joinedload(Attendee.group))
             count = total_count
 
         attendees = attendees.order(order)
@@ -69,6 +71,7 @@ class Root:
             'message':        message if isinstance(message, str) else message[-1],
             'page':           page,
             'pages':          pages,
+            'invalid':        invalid,
             'search_text':    search_text,
             'search_results': bool(search_text),
             'attendees':      attendees,
@@ -97,7 +100,10 @@ class Root:
                 if check_in:
                     attendee.checked_in = localized_now()
                 session.add(attendee)
-                if return_to:
+
+                if params['badge_status'] == c.INVALID_STATUS:
+                    self.delete(attendee.id)
+                elif return_to:
                     raise HTTPRedirect(return_to + '&message={}', 'Attendee data uploaded')
                 else:
                     raise HTTPRedirect('index?uploaded_id={}&message={}&search_text={}', attendee.id,
@@ -157,14 +163,15 @@ class Root:
                 session.delete_from_group(attendee, attendee.group)
                 message = 'Unassigned badge removed.'
             else:
-                session.add(Attendee(**{attr: getattr(attendee, attr) for attr in [
-                    'group', 'registered', 'badge_type', 'badge_num', 'paid', 'amount_paid', 'amount_extra'
-                ]}))
-                session.delete_from_group(attendee, attendee.group)
-                message = 'Attendee deleted, but this badge is still available to be assigned to someone else in the same group'
+                session.assign_badges(attendee.group, attendee.group.badges + 1, attendee.badge_type)
+                attendee.group.attendees.remove(attendee)
+                attendee.badge_status = c.INVALID_STATUS
+                attendee.paid = c.NOT_PAID
+                message = 'Attendee removed, but this badge is still available to be assigned to someone else in the same group'
         else:
-            session.delete(attendee)
-            message = 'Attendee deleted'
+            attendee.badge_status = c.INVALID_STATUS
+            session.safe_delete(attendee)
+            message = 'Attendee invalidated'
 
         raise HTTPRedirect(return_to + ('' if return_to[-1] == '?' else '&') + 'message={}', message)
 
@@ -261,6 +268,9 @@ class Root:
                 session.match_to_group(attendee, session.group(group))
             elif attendee.paid == c.PAID_BY_GROUP and not attendee.group:
                 message = 'You must select a group for this attendee.'
+
+            if attendee.badge_status != COMPLETED_STATUS:
+                message = 'This badge is {0} and cannot be checked in.'.format(attendee.badge_status_label)
 
             success = not message
 
@@ -488,7 +498,7 @@ class Root:
             raise HTTPRedirect('new_reg_station')
 
         groups = set()
-        for a in session.query(Attendee).filter(Attendee.first_name == '', Attendee.group_id != None) \
+        for a in session.query(Attendee).filter(Attendee.first_name == '', Attendee.group_id != None, Attendee.badge_status == c.NEW_STATUS) \
                                         .options(joinedload(Attendee.group)).all():
             groups.add((a.group.id, a.group.name or 'BLANK'))
 
@@ -502,7 +512,7 @@ class Root:
             'show_all':   show_all,
             'checked_in': checked_in,
             'groups':     sorted(groups, key=lambda tup: tup[1]),
-            'recent':     session.query(Attendee).filter(Attendee.checked_in == None, Attendee.first_name != '', *restrict_to)
+            'recent':     session.query(Attendee).filter(Attendee.checked_in == None, Attendee.first_name != '', Attendee.badge_status == c.NEW_STATUS, *restrict_to)
                                                  .order_by(Attendee.registered).all()
         }
 
