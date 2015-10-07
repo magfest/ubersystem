@@ -75,10 +75,10 @@ class Root:
         if action == 'waitlisted':
             group.status = c.WAITLISTED
         else:
-            for attendee in group.attendees:
-                attendee.badge_status = c.INVALID_STATUS
-                # TODO: Copy attendees into individual badges and send them emails to claim them?
             group.status = c.DECLINED
+            attendee_list, leader_id = group.remove_attendees()
+            session.safe_delete(group)
+            group.restore_attendees(attendee_list, leader_id)
         session.commit()
         return {'success': True}
 
@@ -88,10 +88,10 @@ class Root:
         if group.badges - group.unregistered_badges and not confirmed:
             raise HTTPRedirect('deletion_confirmation?id={}', id)
         else:
-            for attendee in group.attendees:
-                attendee.badge_status = c.INVALID_STATUS
-                # TODO: Copy attendees into individual badges and send them emails to claim them?
-            group.status = c.DECLINED
+            group.status = c.INVALID
+            attendee_list, leader_id = group.remove_attendees()
+            session.safe_delete(group)
+            group.restore_attendees(attendee_list, leader_id)
             raise HTTPRedirect('index?message={}', 'Group deleted')
 
     def deletion_confirmation(self, session, id):

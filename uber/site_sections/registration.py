@@ -170,6 +170,7 @@ class Root:
                 message = 'Attendee removed, but this badge is still available to be assigned to someone else in the same group'
         else:
             attendee.badge_status = c.INVALID_STATUS
+            session.safe_delete(attendee)
             message = 'Attendee invalidated'
 
         raise HTTPRedirect(return_to + ('' if return_to[-1] == '?' else '&') + 'message={}', message)
