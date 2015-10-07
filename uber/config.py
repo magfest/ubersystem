@@ -413,7 +413,7 @@ else:
 
 stripe.api_key = c.STRIPE_SECRET_KEY
 
-if not c.OFFLINE_MODE:
+if c.KIOSK_CC_ENABLED:
     c.DOOR_PAYMENT_METHOD_OPTS.append([c.STRIPE, "Pay with credit card now (faster)"])
 
 if c.GROUPS_ENABLED:
