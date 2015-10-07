@@ -6,6 +6,25 @@
     function toggleDisplay(dropdown) {
         window.location = "index?order={{ order }}&show=" + $(dropdown).val();
     }
+    function hideInvalidGroups() {
+        var groupTable = $('#group_list').DataTable();
+
+        groupTable.column(1).search('{{ c.UNAPPROVED }}|{{ c.APPROVED }}|{{ c.WAITLISTED }}|n/a', true).draw();
+
+        $('#invalid_groups').text('Show all groups');
+        $('#invalid_groups').attr('onClick','showInvalidGroups()');
+    }
+    function showInvalidGroups() {
+        var groupTable = $('#group_list').DataTable();
+
+        groupTable.column(1).search('').draw();
+
+        $('#invalid_groups').text('Hide invalid/declined groups');
+        $('#invalid_groups').attr('onClick','hideInvalidGroups()');
+    }
+    $(function() {
+        hideInvalidGroups();
+    });
 </script>
 
 <ol class="breadcrumb">
@@ -29,6 +48,7 @@
     <div class="col-md-4">
     <a class="btn btn-default" href="form?id=None">Add a group</a>
     <a class="btn btn-default" href="form?id=None&new_dealer=true">Add a dealer</a>
+        <a class="btn btn-info" id="invalid_groups" onClick="showInvalidGroups();">Show all groups</a>
     </div>
 	</div>
 <ul class="nav nav-tabs" role="tablist">
@@ -39,7 +59,7 @@
 </div>
 
 <div class="panel panel-default">
-<table class="table table-striped datatable">
+<table class="table table-striped datatable" id="group_list">
 <thead><tr>
     <th>Name</th>
     <th>Approved</th>
@@ -54,7 +74,7 @@
     <tr>
         <td style="text-align:left" data-order="{{ group.name }}" data-search="{{ group.name }}"> <a href="form?id={{ group.id }}">{{ group.name|default:"?????" }}</a> </td>
         <td>
-            {% if group.is_dealer %}
+            {% if group.is_dealer or group.status == c.INVALID %}
                 {{ group.status_label }}
             {% else %}
                 n/a
