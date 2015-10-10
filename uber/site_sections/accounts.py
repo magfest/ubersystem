@@ -19,7 +19,7 @@ class Root:
             'all_attendees': sorted([
                 (id, '{} - {}{}'.format(name.title(), BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
                 for id, name, badge_type, badge_num in session.query(Attendee.id, Attendee.full_name, Attendee.badge_type, Attendee.badge_num)
-                                                              .filter(Attendee.email != '').filter(Attendee.status != INVALID_STATUS).all()
+                                                              .filter(Attendee.email != '').filter(or_(Attendee.badge_status == COMPLETED, Attendee.badge_status == NEW)).all()
             ], key=lambda tup: tup[1])
         }
 
