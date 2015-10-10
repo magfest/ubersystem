@@ -1347,6 +1347,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def past_years_json(self):
         return json.loads(self.past_years or '[]')
 
+
 class WatchList(MagModel):
     attendee_id     = Column(UUID, ForeignKey('attendee.id', ondelete='set null'), unique=True, nullable=True)
     first_names     = Column(UnicodeText)
@@ -1361,6 +1362,7 @@ class WatchList(MagModel):
     def _fix_birthdate(self):
         if self.birthdate == '':
             self.birthdate = None
+
 
 class AdminAccount(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
