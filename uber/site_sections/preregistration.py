@@ -26,14 +26,6 @@ def check_dealer(group):
         return 'Please provide your full address for tax purposes'
 
 
-def send_banned_email(attendee):
-    try:
-        send_email(c.REGDESK_EMAIL, c.REGDESK_EMAIL, 'Banned attendee registration',
-                   render('emails/reg_workflow/banned_attendee.txt', {'attendee': attendee}), model='n/a')
-    except:
-        log.error('unable to send banned email about {}', attendee)
-
-
 def check_post_con(klass):
     def wrapper(func):
         @wraps(func)
@@ -194,7 +186,7 @@ class Root:
                 if session.query(Attendee).filter_by(first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).count():
                     raise HTTPRedirect('duplicate?id={}', group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
 
-                if attendee.full_name in c.BANNED_ATTENDEES:
+                if attendee.banned:
                     raise HTTPRedirect('banned?id={}', group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
 
                 raise HTTPRedirect('index')
@@ -245,8 +237,6 @@ class Root:
             attendee.paid = c.HAS_PAID
             attendee.amount_paid = attendee.total_cost
             session.add(attendee)
-            if attendee.full_name in c.BANNED_ATTENDEES:
-                send_banned_email(attendee)
 
         for group in charge.groups:
             group.amount_paid = group.default_cost - group.amount_extra
@@ -254,9 +244,6 @@ class Root:
                 if attendee.amount_extra:
                     attendee.amount_paid = attendee.total_cost
             session.add(group)
-            session.commit()  # commit now so group.leader will resolve
-            if group.leader.full_name in c.BANNED_ATTENDEES:
-                send_banned_email(group.leader)
 
         self.unpaid_preregs.clear()
         self.paid_preregs.extend(charge.targets)
@@ -303,9 +290,6 @@ class Root:
             if not message:
                 if not group.floating:
                     raise HTTPRedirect('group_members?id={}&message={}', group_id, 'No more unassigned badges exist in this group')
-
-                if attendee.full_name in c.BANNED_ATTENDEES:
-                    send_banned_email(attendee)
 
                 badge_being_claimed = group.floating[0]
 
@@ -441,9 +425,6 @@ class Root:
                     send_email(c.REGDESK_EMAIL, [old.email, attendee.email, c.REGDESK_EMAIL], subject, body, model=attendee)
                 except:
                     log.error('unable to send badge change email', exc_info=True)
-
-                if attendee.full_name in c.BANNED_ATTENDEES:
-                    send_banned_email(attendee)
 
                 if attendee.amount_unpaid:
                     cherrypy.session['return_to'] = 'group_members?id={}&'.format(attendee.group_id)

@@ -58,6 +58,9 @@
                         {Staffers: '../registration/staffers'},
                         {Jobs: '../jobs/'},
                     {% endif %}
+                    {% if c.HAS_WATCHLIST_ACCESS %}
+                        {Watchlist: '../registration/watchlist_etnries'},
+                    {% endif %}
                     {'Feed of Database Changes': '../registration/feed'}
                 ]},
             {% endif %}

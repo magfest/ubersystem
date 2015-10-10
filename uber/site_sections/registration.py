@@ -97,7 +97,9 @@ class Root:
                 if check_in:
                     attendee.checked_in = localized_now()
                 session.add(attendee)
-                if return_to:
+                if params['badge_status'] == c.INVALID_STATUS:
+                    self.delete(attendee.id)
+                elif return_to:
                     raise HTTPRedirect(return_to + '&message={}', 'Attendee data uploaded')
                 else:
                     raise HTTPRedirect('index?uploaded_id={}&message={}&search_text={}', attendee.id,
@@ -145,6 +147,69 @@ class Root:
                                .filter(or_(Tracking.links.like('%attendee({})%'.format(id)),
                                            and_(Tracking.model == 'Attendee', Tracking.fk_id == id)))
                                .order_by(Tracking.when).all()
+        }
+
+    def watchlist(self, session, id, watchlist_id=None, message='', **params):
+        attendee = session.attendee(id)
+        if watchlist_id:
+            watchlist_entry = session.watch_list(watchlist_id)
+
+            if 'active' in params:
+                watchlist_entry.active = not watchlist_entry.active
+            if 'confirm' in params:
+                watchlist_entry.attendee_id = attendee.id
+            if 'ignore' in params:
+                attendee.badge_status = c.COMPLETED_STATUS
+
+            session.commit()
+
+            message = 'Watchlist entry updated'
+        return {
+            'attendee': attendee,
+            'watchlist_entry': attendee.watchlist_entry,
+            'message': message
+        }
+
+    def watchlist_entries(self, session, message='', **params):
+        watch_entry = session.watch_list(params, bools=WatchList.all_bools)
+
+        if 'first_names' in params:
+            if not watch_entry.first_names or not watch_entry.last_name:
+                message = 'First and last name are required.'
+            elif not watch_entry.reason or not watch_entry.action:
+                message = 'Reason and action are required.'
+
+            if not message:
+                session.add(watch_entry)
+                if 'id' not in params:
+                    message = 'New watch list item added.'
+                else:
+                    message = 'Watch list item updated.'
+
+                session.commit()
+
+                matching_attendee = session.query(Attendee)\
+                    .filter(and_(or_(sqlalchemy.sql.expression.literal(watch_entry.first_names).contains(Attendee.first_name)),
+                                 Attendee.email == watch_entry.email,
+                                 Attendee.birthdate == watch_entry.birthdate),
+                            Attendee.last_name == watch_entry.last_name)
+
+                for attendee in matching_attendee:
+                    if 'id' not in params and watch_entry.active and attendee.badge_status in [c.NEW_STATUS, c.COMPLETED_STATUS]:
+                        attendee.badge_status = c.DEFERRED_STATUS
+                    elif not watch_entry.active and attendee.badge_status == c.DEFERRED_STATUS:
+                        attendee.badge_status = c.NEW_STATUS
+                    message += ' Attendee {0.full_name} is now {0.badge_status_label} status.'.format(attendee)
+                    session.add(attendee)
+
+                session.commit()
+
+            watch_entry = WatchList()
+
+        return {
+            'new_watch': watch_entry,
+            'watchlist_entries': session.query(WatchList).order_by(WatchList.last_name).all(),
+            'message': message
         }
 
     @csrf_protected

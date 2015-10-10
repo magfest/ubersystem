@@ -472,6 +472,15 @@ class Session(SessionManager):
                     restricted_hours.add(frozenset(job.hours))
             return [job.to_dict(fields) for job in jobs if job.restricted or frozenset(job.hours) not in restricted_hours]
 
+        def guess_attendee_watchentry(self, attendee):
+
+            return self.query(WatchList).filter(and_(or_(WatchList.first_names.contains(attendee.first_name),
+                                                         WatchList.email == attendee.email,
+                                                         WatchList.birthdate == attendee.birthdate),
+                                                     WatchList.last_name == attendee.last_name,
+                                                     WatchList.active == True,
+                                                     WatchList.attendee_id == None)).first()
+
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
 
@@ -961,6 +970,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     no_shirt          = relationship('NoShirt', backref=backref('attendee', load_on_pending=True), uselist=False)
     admin_account     = relationship('AdminAccount', backref=backref('attendee', load_on_pending=True), uselist=False)
     food_restrictions = relationship('FoodRestrictions', backref=backref('attendee', load_on_pending=True), uselist=False)
+    watchlist_entry   = relationship('WatchList', backref=backref('attendee', load_on_pending=True), uselist=False)
 
     shifts = relationship('Shift', backref='attendee')
     sales = relationship('Sale', backref='attendee', cascade='save-update,merge,refresh-expire,expunge')
@@ -1019,12 +1029,18 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def _status_adjustments(self):
-        if self.badge_status == c.NEW_STATUS and not self.placeholder and self.first_name:
+        if self.badge_status == c.NEW_STATUS and self.banned:
+            self.badge_status = c.DEFERRED_STATUS
+            try:
+                send_email(c.REGDESK_EMAIL, c.REGDESK_EMAIL, 'Banned attendee registration',
+                           render('emails/reg_workflow/banned_attendee.txt', {'attendee': self}), model='n/a')
+            except:
+                log.error('unable to send banned email about {}', self)
+        elif self.badge_status == c.NEW_STATUS and not self.placeholder and self.first_name:
             if self.paid in [c.HAS_PAID, c.NEED_NOT_PAY] \
                     or self.paid == c.PAID_BY_GROUP and self.group and not self.group.amount_unpaid:
                 self.badge_status = c.COMPLETED_STATUS
         elif self.badge_status == c.INVALID_STATUS and self.admin_account:
-            Tracking.track(DELETED, self.admin_account)
             self.session.delete(self.admin_account)
 
     @presave_adjustment
@@ -1162,8 +1178,16 @@ class Attendee(MagModel, TakesPaymentMixin):
         ], else_=func.lower(cls.last_name + ', ' + cls.first_name))
 
     @property
+    def watchlist_guess(self):
+        try:
+            with sa.Session() as session:
+                return session.guess_attendee_watchentry(self).__dict__
+        except:
+            return None
+
+    @property
     def banned(self):
-        return self.full_name in c.BANNED_ATTENDEES
+        return self.watchlist_entry or self.watchlist_guess
 
     @property
     def badge(self):
@@ -1323,6 +1347,20 @@ class Attendee(MagModel, TakesPaymentMixin):
     def past_years_json(self):
         return json.loads(self.past_years or '[]')
 
+class WatchList(MagModel):
+    attendee_id     = Column(UUID, ForeignKey('attendee.id', ondelete='set null'), unique=True, nullable=True)
+    first_names     = Column(UnicodeText)
+    last_name       = Column(UnicodeText)
+    email           = Column(UnicodeText, default='')
+    birthdate       = Column(Date, nullable=True, default=None)
+    reason          = Column(UnicodeText)
+    action          = Column(UnicodeText)
+    active          = Column(Boolean, default=True)
+
+    @presave_adjustment
+    def _fix_birthdate(self):
+        if self.birthdate == '':
+            self.birthdate = None
 
 class AdminAccount(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
