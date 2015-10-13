@@ -10,18 +10,12 @@ class _Overridable:
                 setattr(cls, attr, getattr(klass, attr))
         return cls
 
-    def include_plugin_config(self, plugin_config):
+    def include_plugin_config(self, c, plugin_config):
         """Plugins call this method to merge their own config into the global c object."""
 
-        for attr, val in plugin_config.items():
-            if not isinstance(val, dict):
-                setattr(self, attr.upper(), val)
-
-        if 'enums' in plugin_config:
-            self.make_enums(plugin_config['enums'])
-
-        if 'dates' in plugin_config:
-            self.make_dates(plugin_config['dates'])
+        c.config_base.merge(plugin_config)
+        c.make_enums(c.config_base['enums'])
+        c.make_dates(c.config_base['dates'])
 
     def make_dates(self, config_section):
         """
@@ -73,19 +67,9 @@ class _Overridable:
                 lookup[val] = desc
 
         enum_name = enum_name.upper()
-        # When loading plugin's configs, we want to make sure we don't override existing enums
-        if hasattr(self, enum_name + '_OPTS'):
-            for opt in opts:
-                getattr(self, enum_name + '_OPTS').append(opt)
-
-            for varname in varnames:
-                getattr(self, enum_name + '_VARS').append(varname)
-
-            getattr(self, enum_name + ('' if enum_name.endswith('S') else 'S')).update(lookup)
-        else:
-            setattr(self, enum_name + '_OPTS', opts)
-            setattr(self, enum_name + '_VARS', varnames)
-            setattr(self, enum_name + ('' if enum_name.endswith('S') else 'S'), lookup)
+        setattr(self, enum_name + '_OPTS', opts)
+        setattr(self, enum_name + '_VARS', varnames)
+        setattr(self, enum_name + ('' if enum_name.endswith('S') else 'S'), lookup)
 
 
 class Config(_Overridable):
@@ -101,6 +85,9 @@ class Config(_Overridable):
     For all of the datetime config options, we also define BEFORE_ and AFTER_ properties, e.g. you can
     check the booleans returned by c.BEFORE_PLACEHOLDER_DEADLINE or c.AFTER_PLACEHOLDER_DEADLINE
     """
+
+    def __init__ (self):
+        self.config_base = parse_config(__file__)
 
     def get_oneday_price(self, dt):
         default = self.DEFAULT_SINGLE_DAY
@@ -286,7 +273,7 @@ class SecretConfig(_Overridable):
 c = Config()
 _secret = SecretConfig()
 
-_config = parse_config(__file__)  # outside this module, we use the above c global instead of using this directly
+_config = c.config_base  # outside this module, we use the above c global instead of using this directly
 
 django.conf.settings.configure(**_config['django'].dict())
 
