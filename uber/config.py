@@ -315,6 +315,12 @@ def _is_intstr(s):
         return s[1:].isdigit()
     return s.isdigit()
 
+if not c.KIOSK_CC_ENABLED:
+    del _config['enums']['door_payment_method']['stripe']
+
+if not c.GROUPS_ENABLED:
+    del _config['enums']['door_payment_method']['group']
+
 c.make_enums(_config['enums'])
 
 for _name, _val in _config['integer_enums'].items():
@@ -412,9 +418,3 @@ else:
     c.VOLUNTEER_CHECKLIST = [url for step, url in _items]
 
 stripe.api_key = c.STRIPE_SECRET_KEY
-
-if c.KIOSK_CC_ENABLED:
-    c.DOOR_PAYMENT_METHOD_OPTS.append([c.STRIPE, "Pay with credit card now (faster)"])
-
-if c.GROUPS_ENABLED:
-    c.DOOR_PAYMENT_METHOD_OPTS.append([c.GROUP, "Taking an unassigned Group badge (group leader must be present)"])
