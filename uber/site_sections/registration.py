@@ -97,9 +97,7 @@ class Root:
                 if check_in:
                     attendee.checked_in = localized_now()
                 session.add(attendee)
-                if params['badge_status'] == c.INVALID_STATUS:
-                    self.delete(attendee.id)
-                elif return_to:
+                if return_to:
                     raise HTTPRedirect(return_to + '&message={}', 'Attendee data uploaded')
                 else:
                     raise HTTPRedirect('index?uploaded_id={}&message={}&search_text={}', attendee.id,
@@ -149,15 +147,15 @@ class Root:
                                .order_by(Tracking.when).all()
         }
 
-    def watchlist(self, session, id, watchlist_id=None, message='', **params):
-        attendee = session.attendee(id)
+    def watchlist(self, session, attendee_id, watchlist_id=None, message='', **params):
+        attendee = session.attendee(attendee_id)
         if watchlist_id:
             watchlist_entry = session.watch_list(watchlist_id)
 
             if 'active' in params:
                 watchlist_entry.active = not watchlist_entry.active
             if 'confirm' in params:
-                watchlist_entry.attendee_id = attendee.id
+                attendee.watchlist_id = watchlist_id
             if 'ignore' in params:
                 attendee.badge_status = c.COMPLETED_STATUS
 

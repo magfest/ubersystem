@@ -38,7 +38,7 @@
 <div class="panel col-md-4">
     <form class="form-inline" role="form" method="post" action="watchlist">
         {% csrf_token %}
-        <input type="hidden" name="id" value="{{ attendee.id }}" />
+        <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
         <input type="hidden" name="watchlist_id" value="{{ attendee.banned.id }}" />
         <div class="form-group">
             <label class="btn btn-success">

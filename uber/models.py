@@ -473,13 +473,12 @@ class Session(SessionManager):
             return [job.to_dict(fields) for job in jobs if job.restricted or frozenset(job.hours) not in restricted_hours]
 
         def guess_attendee_watchentry(self, attendee):
-
             return self.query(WatchList).filter(and_(or_(WatchList.first_names.contains(attendee.first_name),
                                                          WatchList.email == attendee.email,
                                                          WatchList.birthdate == attendee.birthdate),
                                                      WatchList.last_name == attendee.last_name,
                                                      WatchList.active == True,
-                                                     WatchList.attendee_id == None)).first()
+                                                     WatchList.attendee == None)).first()
 
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
@@ -906,6 +905,9 @@ class Group(MagModel, TakesPaymentMixin):
 
 
 class Attendee(MagModel, TakesPaymentMixin):
+    watchlist_id = Column(UUID, ForeignKey('watch_list.id', ondelete='set null'), unique=True, nullable=True, default=None)
+    watchlist_entry = relationship('WatchList', backref=backref('attendee', load_on_pending=True), single_parent=True, foreign_keys=watchlist_id, uselist=False)
+
     group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(Group, backref='attendees', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
 
@@ -970,7 +972,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     no_shirt          = relationship('NoShirt', backref=backref('attendee', load_on_pending=True), uselist=False)
     admin_account     = relationship('AdminAccount', backref=backref('attendee', load_on_pending=True), uselist=False)
     food_restrictions = relationship('FoodRestrictions', backref=backref('attendee', load_on_pending=True), uselist=False)
-    watchlist_entry   = relationship('WatchList', backref=backref('attendee', load_on_pending=True), uselist=False)
 
     shifts = relationship('Shift', backref='attendee')
     sales = relationship('Sale', backref='attendee', cascade='save-update,merge,refresh-expire,expunge')
@@ -1181,7 +1182,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def watchlist_guess(self):
         try:
             with sa.Session() as session:
-                return session.guess_attendee_watchentry(self).__dict__
+                return session.guess_attendee_watchentry(self).to_dict()
         except:
             return None
 
@@ -1349,7 +1350,6 @@ class Attendee(MagModel, TakesPaymentMixin):
 
 
 class WatchList(MagModel):
-    attendee_id     = Column(UUID, ForeignKey('attendee.id', ondelete='set null'), unique=True, nullable=True)
     first_names     = Column(UnicodeText)
     last_name       = Column(UnicodeText)
     email           = Column(UnicodeText, default='')
