@@ -86,7 +86,7 @@ class Config(_Overridable):
     check the booleans returned by c.BEFORE_PLACEHOLDER_DEADLINE or c.AFTER_PLACEHOLDER_DEADLINE
     """
 
-    def __init__ (self):
+    def __init__(self):
         self.config_base = parse_config(__file__)
 
     def get_oneday_price(self, dt):
