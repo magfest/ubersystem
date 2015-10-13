@@ -10,12 +10,12 @@ class _Overridable:
                 setattr(cls, attr, getattr(klass, attr))
         return cls
 
-    def include_plugin_config(self, c, plugin_config):
+    def include_plugin_config(self, plugin_config):
         """Plugins call this method to merge their own config into the global c object."""
 
-        c.config_base.merge(plugin_config)
-        c.make_enums(c.config_base['enums'])
-        c.make_dates(c.config_base['dates'])
+        self.config_base.merge(plugin_config)
+        self.make_enums(self.config_base['enums'])
+        self.make_dates(self.config_base['dates'])
 
     def make_dates(self, config_section):
         """
