@@ -505,6 +505,7 @@ class single_day_prices(template.Node):
         for day, price in c.BADGE_PRICES['single_day'].items():
             if day == datetime.strftime(c.ESCHATON, "%A"):
                 prices += 'and ${} for {}'.format(price, day)
+                break
             else:
                 prices += '${} for {}, '.format(price, day)
         # prices += 'and ${} for other days'.format(c.BADGE_PRICES['default_single_day'])
