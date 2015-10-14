@@ -198,7 +198,7 @@ class TestUnsetVolunteer:
     def test_gets_shirt_with_enough_extra(self):
         a = Attendee(shirt=1, amount_extra=c.SHIRT_LEVEL)
         a._misc_adjustments()
-        a.shirt == 1
+        assert a.shirt == 1
 
     def test_gets_shirt_without_enough_extra(self):
         a = Attendee(shirt=1, amount_extra=1)
@@ -292,7 +292,7 @@ class TestStaffingAdjustments:
             assert a.ribbon == c.VOLUNTEER_RIBBON
             assert not unset_volunteering.called
 
-    def yes_to_no_volunteering(self, unset_volunteering):
+    def yes_to_no_ribbon(self, unset_volunteering):
         with Session() as session:
             a = session.attendee(first_name='Regular', last_name='Volunteer')
             a.ribbon = c.NO_RIBBON
@@ -338,6 +338,48 @@ class TestBadgeAdjustments:
             a = Attendee(badge_type=c.SUPPORTER_BADGE, paid=paid, first_name='Not', last_name='Unassigned')
             a._badge_adjustments()
             assert a.badge_num == 123  # mocked next badge num
+
+
+class TestStatusAdjustments:
+    def test_set_paid_to_complete(self):
+        a = Attendee(paid=c.HAS_PAID, badge_status=c.NEW_STATUS, first_name='Paid', placeholder=False)
+        a._status_adjustments()
+        assert a.badge_status == c.COMPLETED_STATUS
+
+    def test_set_comped_to_complete(self):
+        a = Attendee(paid=c.NEED_NOT_PAY, badge_status=c.NEW_STATUS, first_name='Paid', placeholder=False)
+        a._status_adjustments()
+        assert a.badge_status == c.COMPLETED_STATUS
+
+    def test_set_group_paid_to_complete(self, monkeypatch):
+        monkeypatch.setattr(Group, 'amount_unpaid', 0)
+        g = Group()
+        a = Attendee(paid=c.PAID_BY_GROUP, badge_status=c.NEW_STATUS, first_name='Paid', placeholder=False, group=g)
+        a._status_adjustments()
+        assert a.badge_status == c.COMPLETED_STATUS
+
+    def test_unpaid_group_not_completed(self, monkeypatch):
+        monkeypatch.setattr(Group, 'amount_unpaid', 100)
+        g = Group()
+        a = Attendee(paid=c.PAID_BY_GROUP, badge_status=c.NEW_STATUS, first_name='Paid', placeholder=False, group=g)
+        a._status_adjustments()
+        assert a.badge_status == c.NEW_STATUS
+
+    def test_placeholder_not_completed(self):
+        a = Attendee(paid=c.NEED_NOT_PAY, badge_status=c.NEW_STATUS, first_name='Paid', placeholder=True)
+        a._status_adjustments()
+        assert a.badge_status == c.NEW_STATUS
+
+    def test_unassigned_not_completed(self):
+        a = Attendee(paid=c.NEED_NOT_PAY, badge_status=c.NEW_STATUS, first_name='')
+        a._status_adjustments()
+        assert a.badge_status == c.NEW_STATUS
+
+    def test_banned_to_deferred(self, monkeypatch):
+        a = Attendee(paid=c.HAS_PAID, badge_status=c.NEW_STATUS, first_name='Paid', placeholder=False)
+        monkeypatch.setattr(Attendee, 'banned', True)
+        a._status_adjustments()
+        assert a.badge_status == c.DEFERRED_STATUS
 
 
 class TestLookupAttendee:

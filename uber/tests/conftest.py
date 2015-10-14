@@ -67,6 +67,14 @@ def init_db(request, sensible_defaults):
             ))
             session.commit()
 
+        session.add(WatchList(
+            first_names='Banned, Alias, Nickname',
+            last_name='Attendee',
+            email='banned@mailinator.com',
+            birthdate=datetime.strptime('1980-07-10', '%Y-%m-%d').date(),
+            action='Action', reason='Reason'
+        ))
+
         session.add(Job(
             name='Job One',
             start_time=c.EPOCH,
