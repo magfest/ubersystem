@@ -191,7 +191,8 @@ class Root:
                     if group.badges:
                         Tracking.track(track_type, group)
 
-                if session.query(Attendee).filter_by(first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).count():
+                if session.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS, Attendee.id != attendee.id)\
+                        .filter_by(first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).count():
                     raise HTTPRedirect('duplicate?id={}', group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
 
                 if attendee.full_name in c.BANNED_ATTENDEES:
@@ -464,6 +465,9 @@ class Root:
 
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
         attendee = session.attendee(params, restricted=True)
+
+        if attendee.badge_status == c.INVALID_STATUS:
+            return render('static_views/invalid_badge.html')
 
         placeholder = attendee.placeholder
         if 'email' in params:
