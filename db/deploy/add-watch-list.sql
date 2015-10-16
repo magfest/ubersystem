@@ -14,8 +14,7 @@ CREATE TABLE watch_list (
 );
 
 ALTER TABLE attendee
-        ADD COLUMN watchlist_id uuid,
-        ADD COLUMN extra_donation integer DEFAULT 0 NOT NULL;
+        ADD COLUMN watchlist_id uuid;
 
 ALTER TABLE watch_list
         ADD CONSTRAINT watch_list_pkey PRIMARY KEY (id);
