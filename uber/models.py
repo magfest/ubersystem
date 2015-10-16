@@ -1348,7 +1348,6 @@ class Attendee(MagModel, TakesPaymentMixin):
 
 
 class WatchList(MagModel):
-    attendees = relationship('Attendee', backref=backref('watch_list', load_on_pending=True), uselist=False)
     first_names     = Column(UnicodeText)
     last_name       = Column(UnicodeText)
     email           = Column(UnicodeText, default='')
@@ -1356,6 +1355,7 @@ class WatchList(MagModel):
     reason          = Column(UnicodeText)
     action          = Column(UnicodeText)
     active          = Column(Boolean, default=True)
+    attendees = relationship('Attendee', backref=backref('watch_list', load_on_pending=True))
 
     @presave_adjustment
     def _fix_birthdate(self):
