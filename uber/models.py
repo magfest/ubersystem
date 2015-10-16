@@ -477,8 +477,7 @@ class Session(SessionManager):
                                                          WatchList.email == attendee.email,
                                                          WatchList.birthdate == attendee.birthdate),
                                                      WatchList.last_name == attendee.last_name,
-                                                     WatchList.active == True,
-                                                     WatchList.attendee == None)).first()
+                                                     WatchList.active == True)).all()
 
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
@@ -906,7 +905,6 @@ class Group(MagModel, TakesPaymentMixin):
 
 class Attendee(MagModel, TakesPaymentMixin):
     watchlist_id = Column(UUID, ForeignKey('watch_list.id', ondelete='set null'), unique=True, nullable=True, default=None)
-    watchlist_entry = relationship('WatchList', backref=backref('attendee', load_on_pending=True), single_parent=True, foreign_keys=watchlist_id, uselist=False)
 
     group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(Group, backref='attendees', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
@@ -1182,13 +1180,13 @@ class Attendee(MagModel, TakesPaymentMixin):
     def watchlist_guess(self):
         try:
             with sa.Session() as session:
-                return session.guess_attendee_watchentry(self).to_dict()
+                return session.guess_attendee_watchentry(self)
         except:
             return None
 
     @property
     def banned(self):
-        return self.watchlist_entry or self.watchlist_guess
+        return self.watch_list or self.watchlist_guess
 
     @property
     def badge(self):
@@ -1350,6 +1348,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
 
 class WatchList(MagModel):
+    attendees = relationship('Attendee', backref=backref('watch_list', load_on_pending=True), uselist=False)
     first_names     = Column(UnicodeText)
     last_name       = Column(UnicodeText)
     email           = Column(UnicodeText, default='')

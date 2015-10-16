@@ -12,7 +12,6 @@
 <div class="panel panel-default">
 <div class="panel-heading"><h3>New Watchlist Entry</h3></div>
 <form id="new_entry" method="post" action="watchlist_entries" role="form" class="form-inline">
-    <input type="hidden" name="id" value="None" />
     {% csrf_token %}
     <div class="form-group">
         <label for="first_names">First Names</label><br/>
@@ -66,7 +65,7 @@
                 <input type="text" form="edit_entry_{{ forloop.counter }}" class="form-control" name="first_names" placeholder="Use commas to separate possible names." value="{{ entry.first_names }}" />
             </div>
             <div class="form-group">
-                <input type="text" form="edit_entry_{{ forloop.counter }}" class="form-control" name="first_names" placeholder="Use commas to separate possible names." value="{{ entry.last_name }}" />
+                <input type="text" form="edit_entry_{{ forloop.counter }}" class="form-control" name="last_name" placeholder="Last Name" value="{{ entry.last_name }}" />
             </div></td>
         <td>
             <div class="form-group">
