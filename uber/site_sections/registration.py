@@ -79,12 +79,12 @@ class Root:
             'order':          Order(order),
             'attendee_count': total_count,
             'checkin_count':  session.query(Attendee).filter(Attendee.checked_in != None).count(),
-            'attendee':       session.attendee(uploaded_id) if uploaded_id else None
+            'attendee':       session.attendee(uploaded_id, allow_invalid=True) if uploaded_id else None
         }
 
     @log_pageview
     def form(self, session, message='', return_to='', omit_badge='', check_in='', **params):
-        attendee = session.attendee(params, checkgroups=Attendee.all_checkgroups, bools=Attendee.all_bools)
+        attendee = session.attendee(params, checkgroups=Attendee.all_checkgroups, bools=Attendee.all_bools, allow_invalid=True)
         if 'first_name' in params:
             attendee.group_id = params['group_opt'] or None
             if c.AT_THE_CON and omit_badge:
@@ -137,7 +137,7 @@ class Root:
         }
 
     def history(self, session, id):
-        attendee = session.attendee(id)
+        attendee = session.attendee(id, allow_invalid=True)
         return {
             'attendee': attendee,
             'emails':   session.query(Email)
@@ -152,7 +152,7 @@ class Root:
 
     @csrf_protected
     def delete(self, session, id, return_to='index?'):
-        attendee = session.attendee(id)
+        attendee = session.attendee(id, allow_invalid=True)
         if attendee.group:
             if attendee.group.leader_id == attendee.id:
                 message = 'You cannot delete the leader of a group; you must make someone else the leader first, or just delete the entire group'
@@ -778,7 +778,7 @@ class Root:
 
                 try:
                     # get the Attendee if it already exists
-                    attendee = session.attendee(id)
+                    attendee = session.attendee(id, allow_invalid=True)
                 except:
                     session.rollback()
                     # otherwise, make a new one and add it to the session for when we commit

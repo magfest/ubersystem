@@ -168,7 +168,7 @@ class Root:
         cols = [getattr(Attendee, col.name) for col in Attendee.__table__.columns]
         out.writerow([col.name for col in cols])
 
-        for attendee in session.query(Attendee).filter(Attendee.first_name != '', Attendee.badge_status != c.INVALID_STATUS).order_by(Attendee.badge_num).all():
+        for attendee in session.valid_attendees().filter(Attendee.first_name != '').order_by(Attendee.badge_num).all():
             row = []
             for col in cols:
                 if isinstance(col.type, Choice):
