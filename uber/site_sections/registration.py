@@ -164,7 +164,7 @@ class Root:
             message = 'Watchlist entry updated'
         return {
             'attendee': attendee,
-            'watchlist_entry': attendee.watchlist_entry,
+            'watchlist_entries': listify(attendee.banned),
             'message': message
         }
 
@@ -183,22 +183,6 @@ class Root:
                     message = 'New watch list item added.'
                 else:
                     message = 'Watch list item updated.'
-
-                session.commit()
-
-                matching_attendee = session.query(Attendee)\
-                    .filter(and_(or_(sqlalchemy.sql.expression.literal(watch_entry.first_names).contains(Attendee.first_name)),
-                                 Attendee.email == watch_entry.email,
-                                 Attendee.birthdate == watch_entry.birthdate),
-                            Attendee.last_name == watch_entry.last_name)
-
-                for attendee in matching_attendee:
-                    if 'id' not in params and watch_entry.active and attendee.badge_status in [c.NEW_STATUS, c.COMPLETED_STATUS]:
-                        attendee.badge_status = c.DEFERRED_STATUS
-                    elif not watch_entry.active and attendee.badge_status == c.DEFERRED_STATUS:
-                        attendee.badge_status = c.NEW_STATUS
-                    message += ' Attendee {0.full_name} is now {0.badge_status_label} status.'.format(attendee)
-                    session.add(attendee)
 
                 session.commit()
 
