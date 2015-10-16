@@ -7,7 +7,7 @@
 <h2>{% if not attendee.watchlist_id %}Possible {% endif %}Watchlist Entry for {{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
 
 <div class="panel col-md-4">
-    {% for entry in watchlist_entries %}
+    {% for entry in attendee.banned %}
     {% if not attendee.watchlist_id %}
     <div class="row">
         <label class="col-sm-2 control-label">Watchlist First Names</label>
