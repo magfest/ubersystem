@@ -1,0 +1,72 @@
+{% extends "base-admin.html" %}
+{% block title %}Attendee History - {{ attendee.full_name }}{% endblock %}
+{% block content %}
+
+{% include "registration/menu.html" %}
+
+<h2>{% if not attendee.watchlist_id %}Possible {% endif %}Watchlist Entry for {{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
+
+<div class="panel col-md-4">
+    {% for entry in watchlist_entries %}
+    {% if not attendee.watchlist_id %}
+    <div class="row">
+        <label class="col-sm-2 control-label">Watchlist First Names</label>
+        <div class="col-sm-6"> {{ entry.first_names }}</div>
+    </div>
+    <div class="row">
+        <label class="col-sm-2 control-label">Watchlist Last Name: </label>
+        <div class="col-sm-6"> {{ entry.last_name }}</div>
+    </div>
+    <div class="row">
+        <label class="col-sm-2 control-label">Watchlist Email: </label>
+        <div class="col-sm-6"> {{ entry.email }}</div>
+    </div>
+    <div class="row">
+        <label class="col-sm-2 control-label">Watchlist DOB: </label>
+        <div class="col-sm-6"> {{ entry.birthdate|date:"Y-m-d" }}</div>
+    </div>
+    {% endif %}
+    <div class="row">
+        <label class="col-sm-2 control-label">Watchlist Reason: </label>
+        <div class="col-sm-6"> {{ entry.reason }} </div>
+    </div>
+    <div class="row">
+        <label class="col-sm-2 control-label">Watchlist Action: </label>
+        <div class="col-sm-6"> {{ entry.action }} </div>
+    </div>
+
+    <form class="form-inline" role="form" method="post" action="watchlist">
+        {% csrf_token %}
+        <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
+        <input type="hidden" name="watchlist_id" value="{{ attendee.banned.id }}" />
+        <div class="form-group">
+            <label class="btn btn-success">
+                <input type="checkbox" name="active" value="{{ attendee.banned.active }}" />
+                {% if attendee.banned.active %} Deactivate Watchlist Entry {% else %} Activate Watchlist Entry {% endif %}
+            </label>
+        </div>
+        {% if not attendee.watchlist_id %}
+        <div class="form-group">
+            <label class="btn btn-info">
+                <input type="checkbox" name="confirm" />
+                Confirm Watchlist Entry
+            </label>
+            (Permanently associate watchlist entry with this attendee, ignoring any other watchlist entries.)
+        </div>
+        {% endif %}
+        {% if attendee.badge_status == c.DEFERRED_STATUS %}
+        <div class="form-group">
+            <label class="btn btn-default">
+                <input type="checkbox" name="ignore" />
+                Ignore Watchlist Entry
+            </label>
+            (Set attendee to "Completed" without altering the watchlist entry.)
+        </div>
+        {% endif %}
+        <button type="submit" class="btn btn-primary">Update</button>
+    </form>
+    {% endfor %}
+</div>
+
+
+{% endblock %}

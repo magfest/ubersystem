@@ -147,6 +147,53 @@ class Root:
                                .order_by(Tracking.when).all()
         }
 
+    def watchlist(self, session, attendee_id, watchlist_id=None, message='', **params):
+        attendee = session.attendee(attendee_id)
+        if watchlist_id:
+            watchlist_entry = session.watch_list(watchlist_id)
+
+            if 'active' in params:
+                watchlist_entry.active = not watchlist_entry.active
+            if 'confirm' in params:
+                attendee.watchlist_id = watchlist_id
+            if 'ignore' in params:
+                attendee.badge_status = c.COMPLETED_STATUS
+
+            session.commit()
+
+            message = 'Watchlist entry updated'
+        return {
+            'attendee': attendee,
+            'watchlist_entries': listify(attendee.banned),
+            'message': message
+        }
+
+    def watchlist_entries(self, session, message='', **params):
+        watch_entry = session.watch_list(params, bools=WatchList.all_bools)
+
+        if 'first_names' in params:
+            if not watch_entry.first_names or not watch_entry.last_name:
+                message = 'First and last name are required.'
+            elif not watch_entry.reason or not watch_entry.action:
+                message = 'Reason and action are required.'
+
+            if not message:
+                session.add(watch_entry)
+                if 'id' not in params:
+                    message = 'New watch list item added.'
+                else:
+                    message = 'Watch list item updated.'
+
+                session.commit()
+
+            watch_entry = WatchList()
+
+        return {
+            'new_watch': watch_entry,
+            'watchlist_entries': session.query(WatchList).order_by(WatchList.last_name).all(),
+            'message': message
+        }
+
     @csrf_protected
     def delete(self, session, id, return_to='index?'):
         attendee = session.attendee(id)
