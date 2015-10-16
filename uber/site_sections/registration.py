@@ -167,7 +167,7 @@ class Root:
             message = 'Watchlist entry updated'
         return {
             'attendee': attendee,
-            'watchlist_entries': listify(attendee.banned),
+            'watchlist_entries': attendee.banned,
             'message': message
         }
 

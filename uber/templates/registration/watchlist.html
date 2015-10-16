@@ -38,10 +38,10 @@
     <form class="form-inline" role="form" method="post" action="watchlist">
         {% csrf_token %}
         <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
-        <input type="hidden" name="watchlist_id" value="{{ attendee.banned.id }}" />
+        <input type="hidden" name="watchlist_id" value="{{ entry.id }}" />
         <div class="form-group">
             <label class="btn btn-success">
-                <input type="checkbox" name="active" value="{{ attendee.banned.active }}" />
+                <input type="checkbox" name="active" value="{{ entry.active }}" />
                 {% if attendee.banned.active %} Deactivate Watchlist Entry {% else %} Activate Watchlist Entry {% endif %}
             </label>
         </div>

@@ -477,7 +477,7 @@ class Session(SessionManager):
                                                          WatchList.email == attendee.email,
                                                          WatchList.birthdate == attendee.birthdate),
                                                      WatchList.last_name == attendee.last_name,
-                                                     WatchList.active == True)).all()
+                                                     WatchList.active == True))
 
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
@@ -1182,14 +1182,14 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def watchlist_guess(self):
         try:
-            with sa.Session() as session:
+            with Session() as session:
                 return session.guess_attendee_watchentry(self)
         except:
             return None
 
     @property
     def banned(self):
-        return self.watch_list or self.watchlist_guess
+        return listify(self.watch_list) or self.watchlist_guess
 
     @property
     def badge(self):
