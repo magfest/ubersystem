@@ -91,7 +91,7 @@
 
 <div class="row">
 
-<div class="panel col-md-4">
+<div class="panel col-md-5">
 <form role="form" method="get" action="index">
 <input type="hidden" name="order" value="{{ order }}" />
 <div class="input-group">
@@ -107,6 +107,11 @@
     <a class="btn btn-primary" href="form?id=None">Add an attendee</a>
     <a class="btn btn-default" {% if not c.AT_THE_CON %}disabled="disabled"{% endif %}
        href="new">View Recent At-the-Door Registrations</a>
+    {% if invalid %}
+    <a class="btn btn-info" href="index?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode }}">Hide invalid badges</a>
+    {% else %}
+    <a class="btn btn-info" href="index?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid=True">Show all badges</a>
+    {% endif %}
 </div>
 <div class="panel col-md-4">
     <div class="col-md-6">{{ attendee_count }} Attendee{{ attendee_count|pluralize }}</div>
@@ -115,7 +120,7 @@
 </div>
     {% if search_results %}
     <div class="panel panel-info">
-    <a href="index?order={{ order }}">Click here</a> to view full attendee list instead of only search results.
+    <a href="index?order={{ order }}&page=1&invalid={{ invalid }}">Click here</a> to view full attendee list instead of only search results.
     </div>
     {% endif %}
 
@@ -124,7 +129,7 @@
         {% if pagenum == page %}
             {{ pagenum }}
         {% else %}
-            <a href="index?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}">{{ pagenum }}</a>
+            <a href="index?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">{{ pagenum }}</a>
         {% endif %}
     {% endfor %}
 {% include "registration/checkin.html" %}
@@ -145,7 +150,7 @@
     {% endif %}
 </tr></thead>
 {% for attendee in attendees %}
-    <tr>
+    <tr {% if attendee.badge_status == c.INVALID_STATUS %}bgcolor="#FFE4E1"{% endif %}>
         <td id="group_{{ attendee.id }}">
             <a href="../groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
         </td>
@@ -173,9 +178,9 @@
                         </form>
                     {% endif %}
                 </td>
-        {% elif c.AT_THE_CON and attendee.paid != c.NOT_PAID %}
+        {% elif c.AT_THE_CON and attendee.can_check_in %}
             <td id="cin_{{ attendee.id }}">
-                <button class="attendee-checkin" data-attendeeid="{{ attendee.id }}" {% if attendee.is_unassigned %} disabled {% endif %}>Check In</button>
+                <button class="attendee-checkin" data-attendeeid="{{ attendee.id }}">Check In</button>
             </td>
         {% endif %}
         </td>

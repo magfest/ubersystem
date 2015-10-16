@@ -584,6 +584,9 @@ class Session(SessionManager):
             groups = self.query(Group).options(joinedload(Group.attendees)).all()
             return attendees, groups
 
+        def valid_attendees(self):
+            return self.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS)
+
         def staffers(self):
             return self.query(Attendee) \
                        .filter_by(staffing=True) \
@@ -1823,5 +1826,20 @@ def initialize_db():
             stopped.wait(5)
         else:
             break
+
+
+@on_startup
+def _attendee_validity_check():
+    orig_getter = Session.SessionMixin.attendee
+
+    @wraps(orig_getter)
+    def with_validity_check(self, *args, **kwargs):
+        allow_invalid = kwargs.pop('allow_invalid', False)
+        attendee = orig_getter(self, *args, **kwargs)
+        if not allow_invalid and not attendee.is_new and attendee.badge_status == c.INVALID_STATUS:
+            raise HTTPRedirect('../preregistration/invalid_badge?id={}', attendee.id)
+        else:
+            return attendee
+    Session.SessionMixin.attendee = with_validity_check
 
 on_startup(initialize_db, priority=1)
