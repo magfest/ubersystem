@@ -65,7 +65,7 @@ class _Overridable:
                     val = name
             else:
                 varnames.append(name.upper())
-                self.create_enum_val(name)
+                val = self.create_enum_val(name)
 
             if desc:
                 opts.append((val, desc))
