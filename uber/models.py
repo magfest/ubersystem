@@ -1788,9 +1788,11 @@ def initialize_db():
         else:
             break
 
+
 @on_startup
 def _attendee_validity_check():
     orig_getter = Session.SessionMixin.attendee
+
     @wraps(orig_getter)
     def with_validity_check(self, *args, **kwargs):
         allow_invalid = kwargs.pop('allow_invalid', False)
