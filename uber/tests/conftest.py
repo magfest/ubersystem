@@ -71,7 +71,7 @@ def init_db(request, sensible_defaults):
             first_names='Banned, Alias, Nickname',
             last_name='Attendee',
             email='banned@mailinator.com',
-            birthdate=datetime.strptime('1980-07-10', '%Y-%m-%d').date(),
+            birthdate=date(1980, 7, 10),
             action='Action', reason='Reason'
         ))
 
