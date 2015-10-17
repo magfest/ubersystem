@@ -861,6 +861,10 @@ class Root:
                         val = datetime.strptime(val, date_format).date()
                     elif isinstance(col.type, Integer):
                         val = int(val)
+                    elif isinstance(col.type, UnicodeText):
+                        # Replace "\n" with newlines
+                        val = val.split(r"\n")
+                        val = '\n'.join(val)
 
                     # now that we've converted val to whatever it actually needs to be, we
                     # can just set it on the attendee
