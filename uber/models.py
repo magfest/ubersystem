@@ -955,7 +955,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     paid             = Column(Choice(c.PAYMENT_OPTS), default=c.NOT_PAID, admin_only=True)
     overridden_price = Column(Integer, nullable=True, admin_only=True)
     amount_paid      = Column(Integer, default=0, admin_only=True)
-    amount_extra     = Column(Choice(c.DONATION_TIER_OPTS, allow_unspecified=True), default=0)
+    amount_extra     = Column(Integer, default=0)
+    donation_tier    = Column(Choice(c.DONATION_TIERS), default=c.NO_DONATION, nullable=True)
     amount_refunded  = Column(Integer, default=0, admin_only=True)
     payment_method   = Column(Choice(c.PAYMENT_METHOD_OPTS), nullable=True)
 
@@ -990,6 +991,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def _misc_adjustments(self):
+        self.amount_extra = int(c.get_donation_tier_price(c.DONATION_TIER_CONFIGS[self.donation_tier], sa.localized_now()))
+
         if not self.amount_extra:
             self.affiliate = ''
 
@@ -1119,6 +1122,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         return c.AGE_GROUP_CONFIGS[int(self.age_group or c.AGE_UNKNOWN)]
 
     @property
+    def donation_tier_conf(self):
+        return c.DONATION_TIER_CONFIGS[int(self.donation_tier or c.NO_DONATION)]
+
+    @property
     def total_cost(self):
         return self.default_cost + self.amount_extra
 
@@ -1215,7 +1222,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     def gets_free_shirt(self):
         return self.is_dept_head \
             or self.badge_type == c.STAFF_BADGE \
-            or self.staffing and (self.assigned_depts and not self.takes_shifts or self.weighted_hours >= 6)
+            or self.staffing and (self.assigned_depts and not self.takes_shifts or self.weighted_hours >= 6) \
+            or self.donation_tier in c.SHIRT_TIERS
 
     @property
     def gets_paid_shirt(self):
@@ -1234,7 +1242,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.badge_type in c.PREASSIGNED_BADGE_TYPES
 
     @property
-    def donation_swag(self):
+    def donation_swag(self): #TODO: Convert this
         extra = self.amount_extra
         return [desc for amount, desc in sorted(c.DONATION_TIERS.items()) if amount and extra >= amount]
 
@@ -1258,7 +1266,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         stuff.append('a {} wristband'.format(c.WRISTBAND_COLORS[self.age_group]))
         if self.regdesk_info:
             stuff.append(self.regdesk_info)
-        if self.amount_extra >= c.SUPPORTER_LEVEL:
+        if self.donation_tier in c.SUPPORTER_TIERS:
             stuff.append('their Supporter badge')
         return comma_and(stuff)
 

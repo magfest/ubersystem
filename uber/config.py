@@ -111,6 +111,34 @@ class Config(_Overridable):
     def get_group_price(self, dt):
         return self.get_attendee_price(dt) - self.GROUP_DISCOUNT
 
+    def get_donation_tier_price(self, opt, dt):
+        price = opt['default_price']
+        if self.PRICE_BUMPS_ENABLED:
+            for key, *val in opt:
+                try:
+                    if (dt or datetime.now(UTC)) >= c.EVENT_TIMEZONE.localize(datetime.strptime(name, '%Y-%m-%d')):
+                        price = val
+                except:
+                    pass
+
+        return price
+
+    def includes_tier(self, tier, target_tier):
+        '''
+        Given any two donation tiers, return True or False because on whether the tier includes the target tier.
+        Right now this is mostly for the sake of easily comparing tiers, but it can be expanded later to
+        let certain tiers be configured to not include other tiers.
+        '''
+        return int(self.DONATION_TIER_CONFIGS[tier]['default_price']) >= int(self.DONATION_TIER_CONFIGS[target_tier]['default_price'])
+
+    @property
+    def SHIRT_TIERS(self):
+        return listify([tier for tier in self.DONATION_TIER_CONFIGS if self.includes_tier(tier, c.SHIRT)])
+
+    @property
+    def SUPPORTER_TIERS(self):
+        return listify([tier for tier in self.DONATION_TIER_CONFIGS if self.includes_tier(tier, c.SUPPORTER)])
+
     @property
     def DEALER_REG_OPEN(self):
         return self.AFTER_DEALER_REG_START and self.BEFORE_DEALER_REG_SHUTDOWN
@@ -150,10 +178,15 @@ class Config(_Overridable):
 
     @property
     def PREREG_DONATION_OPTS(self):
-        if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
-            return self.DONATION_TIER_OPTS
-        else:
-            return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS if amt < self.SUPPORTER_LEVEL]
+        donation_opt_vals = []
+        donation_opt_descs = []
+        for val, opt in c.DONATION_TIER_CONFIGS.items():
+            price = self.get_donation_tier_price(opt, sa.localized_now())
+            desc = "$" + price + ": " + opt['desc'] if price != '0' else opt['desc']
+            if (self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE) or opt not in self.SUPPORTER_TIERS:
+                donation_opt_vals.append(val)
+                donation_opt_descs.append(desc)
+        return zip(donation_opt_vals, donation_opt_descs)
 
     @property
     def PREREG_DONATION_TIERS(self):
@@ -215,10 +248,10 @@ class Config(_Overridable):
         with sa.Session() as session:
             attendees = session.query(sa.Attendee)
             individual_supporters = attendees.filter(sa.Attendee.paid.in_([self.HAS_PAID, self.REFUNDED]),
-                                                     sa.Attendee.amount_extra >= self.SUPPORTER_LEVEL).count()
+                                                     sa.Attendee.donation_tier in self.SUPPORTER_TIERS).count()
             group_supporters = attendees.filter(sa.Attendee.paid == self.PAID_BY_GROUP,
-                                                sa.Attendee.amount_extra >= self.SUPPORTER_LEVEL,
-                                                sa.Attendee.amount_paid >= self.SUPPORTER_LEVEL).count()
+                                                sa.Attendee.donation_tier in self.SUPPORTER_TIERS,
+                                                not sa.Attendee.amount_unpaid).count()
             return individual_supporters + group_supporters
 
     @property
@@ -360,6 +393,12 @@ c.AGE_GROUP_CONFIGS = {}
 for _name, _section in _config['age_groups'].items():
     _val = getattr(c, _name.upper())
     c.AGE_GROUP_CONFIGS[_val] = dict(_section.dict(), val=_val)
+
+c.make_enum('donation_tier', OrderedDict([(name, section['desc']) for name, section in _config['donation_tiers'].items()]))
+c.DONATION_TIER_CONFIGS = OrderedDict()
+for _name, _section in _config['donation_tiers'].items():
+    _val = getattr(c, _name.upper())
+    c.DONATION_TIER_CONFIGS[_val] = dict(_section.dict(), val=_val)
 
 c.TABLE_PRICES = defaultdict(lambda: _config['table_prices']['default_price'],
                              {int(k): v for k, v in _config['table_prices'].items() if k != 'default_price'})

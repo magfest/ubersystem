@@ -52,15 +52,15 @@
 
     {% if not attendee.is_new %}
         // This removes any badge levels lower than the attendee has purchased already
-        while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].extra < {{ attendee.amount_extra }}) {
+        while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].extra < {{ attendee.donation_tier }}) {
             BADGE_TYPES.options.splice(0, 1);
         }
 
         // This is the same idea, except it disables the kick-in buttons and then hides them
         $(function () {
-            if($('input:radio[name=amount_extra]').size()) {
-                $('input:radio[name=amount_extra]').each( function() {
-                    if (!isNaN($(this).val()) && Number($(this).val()) < {{ attendee.amount_extra }}) {
+            if($('input:radio[name=donation_tier]').size()) {
+                $('input:radio[name=donation_tier]').each( function() {
+                    if (!isNaN($(this).val()) && Number($(this).val()) < {{ attendee.donation_tier }}) {
                         $(this).prop('disabled', true);
                         $(this).parent().hide();
                     }
@@ -114,41 +114,47 @@
     </div>
 {% endif %}
 
-{% if c.DONATIONS_ENABLED and c.PREREG_DONATION_OPTS and c.PAGE_PATH != '/registration/form' %}
+{% if c.DONATIONS_ENABLED and c.PAGE_PATH != '/registration/form' %}
     <script type="text/javascript">
         var donationChanged = function () {
-            setVisible('.affiliate-row', $.val('amount_extra') > 0);
+            updateAmountExtra();
+            setVisible('.affiliate-row', $.val('donation_tier') != {{ c.NO_DONATION }});
             {% if attendee.gets_shirt %}
                 setVisible('.shirt-row', true);
             {% else %}
-                setVisible('.shirt-row', $.val('amount_extra') >= {{ c.SHIRT_LEVEL }});
+                setVisible('.shirt-row', $.inArray($.val('donation_tier'), {{ c.SHIRT_TIERS }}) != -1);
             {% endif %}
             {% if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES %}
                 setVisible('.badge-row', true);
             {% else %}
-                setVisible('.badge-row', $.val('amount_extra') >= {{ c.SUPPORTER_LEVEL }});
+                setVisible('.badge-row', $.inArray($.val('donation_tier'), {{ c.SUPPORTER_TIERS }}) != -1);
             {% endif %}
-            $.each($("input:radio[name='amount_extra']"), function() {
-                $(this).parents('.btn').removeClass('active btn-primary');
-                $(this).parents('.btn').addClass('btn-default');
-                if ($(this).val() <= $.val('amount_extra')) {
-                    $(this).parents('.btn').removeClass('btn-default');
-                    $(this).parents('.btn').addClass('active btn-primary');
-                }
-            });
+            $('input[name=donation_tier]:checked').parents('.btn').removeClass('btn-default');
+            $('input[name=donation_tier]:checked').parents('.btn').addClass('active btn-primary');
+            $('input[name=donation_tier]:checked').parents('.btn').prevAll().removeClass('btn-default').addClass('active btn-primary');
+            $('input[name=donation_tier]:checked').parents('.btn').nextAll().addClass('btn-default').removeClass('active btn-primary');
             };
+        function updateAmountExtra() {
+            $.post("get_donation_price", {
+                        val:  $.val('donation_tier'),
+                        dt: $.now(),
+                        csrf_token: csrf_token
+                    }, function(json) {
+                        $.field("amount_extra").val(json);
+                    }, "json");
+        }
         $(function(){
-            if ($.field('amount_extra')) {
+            if ($.field('donation_tier')) {
                 donationChanged();
                 {% if c.PAGE_PATH != '/registration/form' %}
-                    if ($.field('amount_extra').is('select')) {
-                        $.field('amount_extra').select2({
+                    if ($.field('donation_tier').is('select')) {
+                        $.field('donation_tier').select2({
                             formatResult: function (opt) { return opt.text; },
                             formatSelection: function (opt) { return opt.text; },
                             minimumResultsForSearch: 99,
                             escapeMarkup: function (m) { return m; },
                             width: '100%',
-                        }).select2('val', {{ attendee.amount_extra }});
+                        }).select2('val', {{ attendee.donation_tier }});
                     }
                 {% endif %}
                 if ($.field('affiliate')) {
@@ -168,14 +174,15 @@
     </script>
 
     <div class="extra-row form-group">
-        <label for="amount_extra" class="col-sm-2 control-label">Want to kick in extra?</label>
+        <label for="donation_tier" class="col-sm-2 control-label">Want to kick in extra?</label>
         <div class="col-sm-6">
-            {% if c.AFTER_PRINTED_BADGE_DEADLINE and attendee.amount_extra >= c.SUPPORTER_LEVEL %}
-                {{ attendee.amount_extra_label }}
-                <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
+            <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
+            {% if c.AFTER_PRINTED_BADGE_DEADLINE and attendee.donation_tier in c.SUPPORTER_TIERS %}
+                {{ attendee.donation_tier_label }}
+                <input type="hidden" name="donation_tier" value="{{ attendee.donation_tier }}" />
             {% else %}
                 <div class="btn-group btn-group-vertical" data-toggle="buttons">
-                    {% radiogroup c.PREREG_DONATION_OPTS attendee.amount_extra %}
+                    {% radiogroup c.PREREG_DONATION_OPTS attendee.donation_tier %}
                 </div>
             {% endif %}
         </div>
