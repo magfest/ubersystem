@@ -20,6 +20,10 @@
             }, 1);
         {% endif %}
     });
+
+    $(function confirmInvalidate() {
+
+    })
 </script>
 
 <div class="panel panel-default">
@@ -33,8 +37,8 @@
     <br/>
     <div class="form-group">
         <div class="col-sm-6 col-sm-offset-2 warning">
-            You currently have an outstanding balance of ${{ attendee.amount_unpaid }} due to having requested
-            registration add-ons and then not completing the payment form.  Please either 
+            You currently have an outstanding balance of ${{ attendee.amount_unpaid }}{% if attendee.amount_extra %} due to having requested
+            registration add-ons and then not completing the payment form{% endif %}.  Please either
             <a href="attendee_donation_form?id={{ attendee.id }}">click here</a> to pay, or alter your registration below to
             eliminate whichever addons you've decided not to select.
         </div>
@@ -55,10 +59,19 @@
         {% if attendee.is_transferable %}
             <button type="button" class="btn btn-primary" onClick='location.href="transfer_badge?id={{ attendee.id }}"'>Transfer my Badge</button>
         {% endif %}
+        {% if not attendee.amount_paid or not attendee.paid == c.NEED_NOT_PAY %}
+            <button type="submit" form="invalidate" class="btn btn-danger" onClick="return confirm('Are you sure you want to delete your badge? This can\'t be undone!');">I'm not coming</button>
+        {% endif %}
     </div>
 </div>
 
 </form>
+
+    {% if not attendee.amount_paid or not attendee.paid == c.NEED_NOT_PAY %}
+    <form method="post" action="invalidate" id="invalidate">
+        <input type="hidden" name="id" value="{{ attendee.id }}"/>
+    </form>
+    {% endif %}
 </div>
 
 {% endblock %}
