@@ -49,7 +49,7 @@ class Root:
             'counts': sorted(counts.items(), key=lambda tup: -tup[-1].total),
             'registrations': session.query(Attendee).filter_by(paid=c.NEED_NOT_PAY).count(),
             'quantities': [(desc, session.query(Attendee).filter(Attendee.amount_extra >= amount).count())
-                           for amount, desc in sorted(c.DONATION_TIERS.items()) if amount] # TODO: Look at this
+                           for amount, desc in sorted(c.DONATION_TIERS.items()) if amount]  # TODO: Look at this
         }
 
     def departments(self, session):

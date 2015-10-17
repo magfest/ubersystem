@@ -1242,7 +1242,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.badge_type in c.PREASSIGNED_BADGE_TYPES
 
     @property
-    def donation_swag(self): #TODO: Convert this
+    def donation_swag(self):  # TODO: Convert this
         extra = self.amount_extra
         return [desc for amount, desc in sorted(c.DONATION_TIERS.items()) if amount and extra >= amount]
 
