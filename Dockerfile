@@ -5,4 +5,4 @@ LABEL version.rams-core ="0.1"
 # add our code
 COPY . plugins/uber/
 # go ahead and install base dependencies
-RUN paver install_deps
+RUN /app/env/bin/paver install_deps
