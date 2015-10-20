@@ -46,7 +46,8 @@ class TestAssign:
 
     def test_restricted(self, session):
         assert session.assign(session.staff_two.id, session.job_six.id)
-        session.staff_two.trusted = True
+        session.staff_two.trusted_depts = str(c.CONSOLE)
+        # TODO: update
         session.commit()
         assert not session.assign(session.staff_two.id, session.job_six.id)
 
@@ -71,6 +72,7 @@ class TestAvailableStaffers:
         monkeypatch.setattr(Job, 'all_staffers', [session.staff_one, session.staff_two, session.staff_three, session.staff_four])
         monkeypatch.setattr(Job, 'no_overlap', lambda self, a: True)
 
+        # TODO: update
         session.staff_one.trusted = session.staff_four.trusted = True
 
         session.staff_one.assigned_depts = str(c.ARCADE)

@@ -719,7 +719,7 @@ class Root:
                                            .outerjoin(Job.shifts)
                                            .filter(Job.start_time > localized_now() - timedelta(hours=2),
                                                    Job.location.in_(attendee.assigned_depts_ints),
-                                                   *([] if attendee.trusted else [Job.restricted == False]))
+                                                   *([] if Job.location.in_(attendee.trusted_depts) else [Job.restricted == False]))
                                            .group_by(Job.id)
                                            .having(func.count(Shift.id) < Job.slots)
                                            .order_by(Job.start_time, Job.location).all()]

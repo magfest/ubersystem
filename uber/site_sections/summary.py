@@ -225,13 +225,13 @@ class Root:
                     untaken[job.location][hour].append(job)
         flagged = []
         for attendee in attendees:
-            if attendee.trusted and not attendee.is_dept_head:
+            if not attendee.is_dept_head:
                 overlapping = defaultdict(set)
                 for shift in attendee.shifts:
                     if not shift.job.restricted:
                         for dept in attendee.assigned_depts_ints:
                             for hour in shift.job.hours:
-                                if hour in untaken[dept]:
+                                if attendee.trusted_in(dept) and hour in untaken[dept]:
                                     overlapping[shift.job].update(untaken[dept][hour])
                 if overlapping:
                     flagged.append([attendee, sorted(overlapping.items(), key=lambda tup: tup[0].start_time)])

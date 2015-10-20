@@ -104,7 +104,7 @@ def test_is_transferrable(monkeypatch):
     assert Attendee(paid=c.PAID_BY_GROUP).is_transferable
     assert not Attendee(paid=c.NOT_PAID).is_transferable
 
-    assert not Attendee(paid=c.HAS_PAID, trusted=True).is_transferable
+    assert not Attendee(paid=c.HAS_PAID, trusted=True).is_transferable # TODO
     assert not Attendee(paid=c.HAS_PAID, checked_in=datetime.now(UTC)).is_transferable
     assert not Attendee(paid=c.HAS_PAID, badge_type=c.STAFF_BADGE).is_transferable
     assert not Attendee(paid=c.HAS_PAID, badge_type=c.GUEST_BADGE).is_transferable
@@ -168,8 +168,10 @@ def test_takes_shifts():
 
 class TestUnsetVolunteer:
     def test_basic(self):
+         # TODO
         a = Attendee(staffing=True, trusted=True, requested_depts=c.CONSOLE, assigned_depts=c.CONSOLE, ribbon=c.VOLUNTEER_RIBBON, shifts=[Shift()])
         a.unset_volunteering()
+        # TODO
         assert not a.staffing and not a.trusted and not a.requested_depts and not a.assigned_depts and not a.shifts and a.ribbon == c.NO_RIBBON
 
     def test_different_ribbon(self):
@@ -253,7 +255,7 @@ class TestStaffingAdjustments:
     def test_dept_head_invariants(self):
         a = Attendee(ribbon=c.DEPT_HEAD_RIBBON)
         a._staffing_adjustments()
-        assert a.staffing and a.trusted
+        assert a.staffing and a.trusted  # TODO, update, this is no longer true
         assert a.badge_type == c.STAFF_BADGE
 
     def test_unpaid_dept_head(self):
