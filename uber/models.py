@@ -907,7 +907,7 @@ class Group(MagModel, TakesPaymentMixin):
 
 
 class Attendee(MagModel, TakesPaymentMixin):
-    watchlist_id = Column(UUID, ForeignKey('watch_list.id', ondelete='set null'), unique=True, nullable=True, default=None)
+    watchlist_id = Column(UUID, ForeignKey('watch_list.id', ondelete='set null'), nullable=True, default=None)
 
     group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(Group, backref='attendees', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
@@ -1182,14 +1182,14 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def watchlist_guess(self):
         try:
-            with sa.Session() as session:
-                return session.guess_attendee_watchentry(self)
+            with Session() as session:
+                return [w.to_dict() for w in session.guess_attendee_watchentry(self)]
         except:
             return None
 
     @property
     def banned(self):
-        return self.watch_list or self.watchlist_guess
+        return listify(self.watch_list or self.watchlist_guess)
 
     @property
     def badge(self):
