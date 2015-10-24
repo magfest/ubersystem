@@ -120,7 +120,7 @@ def emergency_contact(attendee):
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def cellphone(attendee):
-    if attendee.cellphone and _invalid_phone_number(attendee.cellphone):
+    if attendee.cellphone and _invalid_phone_number(attendee.cellphone) and not c.COLLECT_FULL_ADDRESS:
         return 'Your cellphone number was not a valid 10-digit phone number'
 
     if not attendee.no_cellphone and attendee.staffing and _invalid_phone_number(attendee.cellphone):
