@@ -101,9 +101,9 @@
         <label for="tables" class="col-sm-2 control-label">Tables</label>
         <div class="col-sm-6">
             <select class="form-control" name="tables">
-                {% int_options 1 c.MAX_TABLES group.tables %}
+                {% options c.PREREG_TABLE_OPTS group.tables %}
             </select>
-            ({% table_prices %})
+            <span id="table_prices">({% table_prices %})</span>
         </div>
     </div>
     <div class="form-group">

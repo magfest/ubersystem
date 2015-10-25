@@ -15,17 +15,6 @@ def check_prereg_reqs(attendee):
         return 'Your shirt size is required'
 
 
-def check_dealer(group):
-    if not group.wares:
-        return 'You must provide a detailed explanation of what you sell for us to evaluate your submission'
-    elif not group.website:
-        return "Please enter your business' website address"
-    elif not group.description:
-        return 'Please provide a brief description of your business'
-    elif not group.address:
-        return 'Please provide your full address for tax purposes'
-
-
 def check_post_con(klass):
     def wrapper(func):
         @wraps(func)
@@ -153,8 +142,6 @@ class Root:
             message = check(attendee) or check_prereg_reqs(attendee)
             if not message and attendee.badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE]:
                 message = check(group)
-                if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
-                    message = check_dealer(group)
 
             if not message:
                 if attendee.badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE]:

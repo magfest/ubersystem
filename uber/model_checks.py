@@ -35,6 +35,25 @@ def has_email_address(account):
 
 Group.required = [('name', 'Group Name')]
 
+@validation.Group
+def dealer_wares(group):
+    if group.tables and not group.wares:
+        return "You must provide a detailed explanation of what you sell for us to evaluate your submission"
+
+@validation.Group
+def dealer_website(group):
+    if group.tables and not group.website:
+        return "Please enter your business' website address"
+
+@validation.Group
+def dealer_description(group):
+    if group.tables and not group.description:
+        return "Please provide a brief description of your business"
+
+@validation.Group
+def dealer_address(group):
+    if group.tables and not group.address and not c.COLLECT_FULL_ADDRESS:
+        "Please provide your full address for tax purposes"
 
 @validation.Group
 def group_paid(group):
