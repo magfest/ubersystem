@@ -1050,9 +1050,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def _staffing_adjustments(self):
         if self.ribbon == c.DEPT_HEAD_RIBBON:
             self.staffing = True
-            # question: do we have info about what this person is a dept head of? or is that not something
-            # we know explicitly?  if so, we can either make them trusted in every dept, or trusted in no departments.
-            # self.trusted_depts = self.assigned_depts # this might be a reasonable thing to do. or not.
+            self.trusted_depts = self.assigned_depts
             self.badge_type = c.STAFF_BADGE
             if self.paid == c.NOT_PAID:
                 self.paid = c.NEED_NOT_PAY
@@ -1343,13 +1341,14 @@ class Attendee(MagModel, TakesPaymentMixin):
         return int(department or 0) in self.assigned_depts_ints
 
     def trusted_in(self, department):
-        return int(department or 0) in self.trusted_in_ints
+        return int(department or 0) in self.trusted_depts_ints
 
     def assigned_and_trusted_in(self, department):
         return self.assigned_to(department) and self.trusted_in(department)
 
+    @property
     def trusted_in_any_depts(self):
-        return len(self.trusted_depts) > 0
+        return len(self.trusted_depts_ints) > 0
 
     def has_shifts_in(self, department):
         return any(shift.job.location == department for shift in self.shifts)

@@ -96,7 +96,7 @@ def test_badge():
     assert Attendee(ribbon=c.VOLUNTEER_RIBBON).badge == 'Unpaid Attendee (Volunteer)'
 
 
-def test_is_transferrable(monkeypatch):
+def test_is_transferable(monkeypatch):
     assert not Attendee(paid=c.HAS_PAID).is_transferable
     monkeypatch.setattr(Attendee, 'is_new', False)
 
@@ -104,10 +104,29 @@ def test_is_transferrable(monkeypatch):
     assert Attendee(paid=c.PAID_BY_GROUP).is_transferable
     assert not Attendee(paid=c.NOT_PAID).is_transferable
 
-    assert not Attendee(paid=c.HAS_PAID, trusted=True).is_transferable # TODO
     assert not Attendee(paid=c.HAS_PAID, checked_in=datetime.now(UTC)).is_transferable
     assert not Attendee(paid=c.HAS_PAID, badge_type=c.STAFF_BADGE).is_transferable
     assert not Attendee(paid=c.HAS_PAID, badge_type=c.GUEST_BADGE).is_transferable
+
+
+def test_is_not_transferable_trusted(monkeypatch):
+    monkeypatch.setattr(Attendee, 'is_new', False)
+    assert not Attendee(paid=c.HAS_PAID, trusted_depts=c.CONSOLE).is_transferable
+
+
+def test_trusted_in_any_depts():
+    a = Attendee(trusted_depts='{},{}'.format(c.ARCADE, c.CONSOLE) )
+    assert a.trusted_in_any_depts
+    assert len(a.trusted_depts_ints) == 2
+
+    a.trusted_depts = c.CONSOLE
+    assert a.trusted_in_any_depts
+    assert len(a.trusted_depts_ints) == 1
+
+    a.trusted_depts = ''
+    assert len(a.trusted_depts_ints) == 0
+    not_trusted = not a.trusted_in_any_depts
+    assert not_trusted
 
 
 class TestGetsShirt:
@@ -168,11 +187,9 @@ def test_takes_shifts():
 
 class TestUnsetVolunteer:
     def test_basic(self):
-         # TODO
-        a = Attendee(staffing=True, trusted=True, requested_depts=c.CONSOLE, assigned_depts=c.CONSOLE, ribbon=c.VOLUNTEER_RIBBON, shifts=[Shift()])
+        a = Attendee(staffing=True, trusted_depts=c.CONSOLE, requested_depts=c.CONSOLE, assigned_depts=c.CONSOLE, ribbon=c.VOLUNTEER_RIBBON, shifts=[Shift()])
         a.unset_volunteering()
-        # TODO
-        assert not a.staffing and not a.trusted and not a.requested_depts and not a.assigned_depts and not a.shifts and a.ribbon == c.NO_RIBBON
+        assert not a.staffing and not a.trusted_in_any_depts and not a.requested_depts and not a.assigned_depts and not a.shifts and a.ribbon == c.NO_RIBBON
 
     def test_different_ribbon(self):
         a = Attendee(ribbon=c.DEALER_RIBBON)
@@ -253,9 +270,11 @@ class TestStaffingAdjustments:
         return Attendee.unset_volunteering
 
     def test_dept_head_invariants(self):
-        a = Attendee(ribbon=c.DEPT_HEAD_RIBBON)
+        a = Attendee(ribbon=c.DEPT_HEAD_RIBBON, assigned_depts=c.CONSOLE)
         a._staffing_adjustments()
-        assert a.staffing and a.trusted  # TODO, update, this is no longer true
+        assert a.staffing
+        assert a.trusted_in(c.CONSOLE)
+        assert a.trusted_in_any_depts
         assert a.badge_type == c.STAFF_BADGE
 
     def test_unpaid_dept_head(self):
