@@ -115,7 +115,7 @@ def test_is_not_transferable_trusted(monkeypatch):
 
 
 def test_trusted_in_any_depts():
-    a = Attendee(trusted_depts='{},{}'.format(c.ARCADE, c.CONSOLE) )
+    a = Attendee(trusted_depts='{},{}'.format(c.ARCADE, c.CONSOLE))
     assert a.trusted_in_any_depts
     assert len(a.trusted_depts_ints) == 2
 
