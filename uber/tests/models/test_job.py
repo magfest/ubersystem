@@ -72,8 +72,8 @@ class TestAvailableStaffers:
         monkeypatch.setattr(Job, 'all_staffers', [session.staff_one, session.staff_two, session.staff_three, session.staff_four])
         monkeypatch.setattr(Job, 'no_overlap', lambda self, a: True)
 
-        # TODO: update
-        session.staff_one.trusted = session.staff_four.trusted = True
+        session.staff_one.trusted_depts = str(c.CONSOLE)
+        session.staff_four.trusted_depts = '{},{}'.format(c.ARCADE, c.CONSOLE)
 
         session.staff_one.assigned_depts = str(c.ARCADE)
         session.staff_two.assigned_depts = str(c.CONSOLE)
