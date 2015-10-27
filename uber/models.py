@@ -689,6 +689,12 @@ class Session(SessionManager):
                         self.delete_from_group(attendee, group)
 
         def assign(self, attendee_id, job_id):
+            '''
+            assign an Attendee to a Job by creating a Shift
+
+            :return: 'None' on success, error message on failure
+            '''
+
             job = self.job(job_id)
             attendee = self.attendee(attendee_id)
 
