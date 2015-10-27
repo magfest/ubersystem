@@ -44,10 +44,16 @@ class TestAssign:
         attendee = session.query(Attendee).filter_by(staffing=False).first()
         assert session.assign(attendee.id, session.job_one.id)
 
-    def test_restricted(self, session):
+    def test_restricted_no_trusted_depts(self, session):
         assert session.assign(session.staff_two.id, session.job_six.id)
-        session.staff_two.trusted_depts = str(c.CONSOLE)
-        # TODO: update
+
+    def test_restricted_wrong_trusted_dept(self, session):
+        session.staff_two.trusted_depts = str(c.ARCADE)
+        session.commit()
+        assert session.assign(session.staff_two.id, session.job_six.id)
+
+    def test_restricted_in_correct_trusted_dept(self, session):
+        session.staff_two.trusted_depts = '{},{}'.format(str(c.ARCADE), str(c.CONSOLE))
         session.commit()
         assert not session.assign(session.staff_two.id, session.job_six.id)
 
