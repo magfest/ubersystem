@@ -117,16 +117,12 @@ def test_is_not_transferable_trusted(monkeypatch):
 def test_trusted_in_any_depts():
     a = Attendee(trusted_depts='{},{}'.format(c.ARCADE, c.CONSOLE))
     assert a.trusted_in_any_depts
-    assert len(a.trusted_depts_ints) == 2
 
     a.trusted_depts = c.CONSOLE
     assert a.trusted_in_any_depts
-    assert len(a.trusted_depts_ints) == 1
 
     a.trusted_depts = ''
-    assert len(a.trusted_depts_ints) == 0
-    not_trusted = not a.trusted_in_any_depts
-    assert not_trusted
+    assert not a.trusted_in_any_depts
 
 
 class TestGetsShirt:
