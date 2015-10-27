@@ -630,7 +630,6 @@ class Session(SessionManager):
                                         .order_by(Attendee.full_name).all()
                          if c.AT_THE_CON or not location or int(location) in a.assigned_depts_ints]
             for job in jobs:
-                # TODO: update
                 job._available_staffers = [a for a in attendees if not job.restricted or a.trusted_in(job.location)]
             return jobs, shifts, attendees
 
