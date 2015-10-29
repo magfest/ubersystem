@@ -273,7 +273,11 @@ class TestStaffingAdjustments:
         assert a.trusted_in_any_depts
         assert a.badge_type == c.STAFF_BADGE
 
-    def test_trust_TrustedInAssignedDept_AfterStaffingAdjustments(self):
+    def test_staffing_still_trusted_assigned(self):
+        """
+        After applying staffing adjustements:
+        Any depts you are both trusted and assigned to should remain unchanged
+        """
         a = Attendee(staffing=True,
                      assigned_depts='{},{}'.format(c.CONSOLE, c.CON_OPS),
                      trusted_depts='{},{}'.format(c.CONSOLE, c.CON_OPS))
@@ -281,7 +285,12 @@ class TestStaffingAdjustments:
         assert a.assigned_to(c.CONSOLE) and a.trusted_in(c.CONSOLE)
         assert a.assigned_to(c.CON_OPS) and a.trusted_in(c.CON_OPS)
 
-    def test_trust_NotTrustedInAnUnassignedDept_AfterStaffingAdjustments(self):
+    def test_staffing_no_longer_trusted_unassigned(self):
+        """
+        After applying staffing adjustements:
+        1) Any depts you are trusted in but not assigned to, you should not longer remain trusted in
+        2) Any depts you are assigned to but not trusted in, you should remain untrusted in
+        """
         a = Attendee(staffing=True,
                      assigned_depts='{},{}'.format(c.CONSOLE, c.CON_OPS),
                      trusted_depts='{},{}'.format(c.ARCADE, c.CON_OPS))
