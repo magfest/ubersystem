@@ -640,13 +640,10 @@ class Session(SessionManager):
             return [(a.id, a.full_name) for a in self.staffers_by_job(job)]
 
         def staffers_by_job(self, job):
-            q = self.query(Attendee)
-
-            if job.restricted:
-                q = q.filter(Attendee.trusted_depts.contains(str(job.location)))
-
-            return q.filter_by(staffing=True)\
+            return self.query(Attendee)\
+                .filter_by(staffing=True)\
                 .filter(Attendee.assigned_depts.contains(str(job.location)))\
+                .filter(*(Attendee.trusted_depts.contains(str(job.location)),) if job.restricted else ())\
                 .order_by(Attendee.full_name).all()
 
         def search(self, text, *filters):
