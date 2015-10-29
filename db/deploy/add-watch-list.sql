@@ -20,9 +20,6 @@ ALTER TABLE watch_list
         ADD CONSTRAINT watch_list_pkey PRIMARY KEY (id);
 
 ALTER TABLE attendee
-        ADD CONSTRAINT attendee_watchlist_id_key UNIQUE (watchlist_id);
-
-ALTER TABLE attendee
         ADD CONSTRAINT attendee_watchlist_id_fkey FOREIGN KEY (watchlist_id) REFERENCES watch_list(id) ON DELETE SET NULL;
 
 COMMIT;

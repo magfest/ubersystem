@@ -7,7 +7,7 @@
 <h2>{% if not attendee.watchlist_id %}Possible {% endif %}Watchlist Entry for {{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
 
 <div class="panel col-md-4">
-    {% for entry in watchlist_entries %}
+    {% for entry in attendee.banned %}
     {% if not attendee.watchlist_id %}
     <div class="row">
         <label class="col-sm-2 control-label">Watchlist First Names</label>
@@ -38,10 +38,10 @@
     <form class="form-inline" role="form" method="post" action="watchlist">
         {% csrf_token %}
         <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
-        <input type="hidden" name="watchlist_id" value="{{ attendee.banned.id }}" />
+        <input type="hidden" name="watchlist_id" value="{{ entry.id }}" />
         <div class="form-group">
             <label class="btn btn-success">
-                <input type="checkbox" name="active" value="{{ attendee.banned.active }}" />
+                <input type="checkbox" name="active" value="{{ entry.active }}" />
                 {% if attendee.banned.active %} Deactivate Watchlist Entry {% else %} Activate Watchlist Entry {% endif %}
             </label>
         </div>
