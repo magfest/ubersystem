@@ -1078,6 +1078,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_type == c.STAFF_BADGE:
             self.staffing = True
 
+        # remove trusted status from any dept we are not assigned to
+        self.trusted_depts = ','.join([str(td) for td in self.trusted_depts_ints if td in self.assigned_depts_ints])
+
     def unset_volunteering(self):
         self.staffing = False
         self.trusted_depts = self.requested_depts = self.assigned_depts = ''

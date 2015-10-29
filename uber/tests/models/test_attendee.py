@@ -273,6 +273,23 @@ class TestStaffingAdjustments:
         assert a.trusted_in_any_depts
         assert a.badge_type == c.STAFF_BADGE
 
+    def test_trust_TrustedInAssignedDept_AfterStaffingAdjustments(self):
+        a = Attendee(staffing=True,
+                     assigned_depts='{},{}'.format(c.CONSOLE, c.CON_OPS),
+                     trusted_depts='{},{}'.format(c.CONSOLE, c.CON_OPS))
+        a._staffing_adjustments()
+        assert a.assigned_to(c.CONSOLE) and a.trusted_in(c.CONSOLE)
+        assert a.assigned_to(c.CON_OPS) and a.trusted_in(c.CON_OPS)
+
+    def test_trust_NotTrustedInAnUnassignedDept_AfterStaffingAdjustments(self):
+        a = Attendee(staffing=True,
+                     assigned_depts='{},{}'.format(c.CONSOLE, c.CON_OPS),
+                     trusted_depts='{},{}'.format(c.ARCADE, c.CON_OPS))
+        a._staffing_adjustments()
+        assert a.assigned_to(c.CONSOLE) and not a.trusted_in(c.CONSOLE)
+        assert not a.assigned_to(c.ARCADE) and not a.trusted_in(c.ARCADE)
+        assert a.assigned_to(c.CON_OPS) and a.trusted_in(c.CON_OPS)
+
     def test_unpaid_dept_head(self):
         a = Attendee(ribbon=c.DEPT_HEAD_RIBBON)
         a._staffing_adjustments()

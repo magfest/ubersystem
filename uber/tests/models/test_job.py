@@ -53,6 +53,7 @@ class TestAssign:
         assert session.assign(session.staff_two.id, session.job_six.id)
 
     def test_restricted_in_correct_trusted_dept(self, session):
+        session.staff_two.assigned_depts = '{},{}'.format(str(c.ARCADE), str(c.CONSOLE))
         session.staff_two.trusted_depts = '{},{}'.format(str(c.ARCADE), str(c.CONSOLE))
         session.commit()
         assert not session.assign(session.staff_two.id, session.job_six.id)
