@@ -1348,9 +1348,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     def trusted_in(self, department):
         return int(department or 0) in self.trusted_depts_ints
 
-    def assigned_and_trusted_in(self, department):
-        return self.assigned_to(department) and self.trusted_in(department)
-
     @property
     def trusted_in_any_depts(self):
         return len(self.trusted_depts_ints) > 0
