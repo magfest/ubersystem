@@ -633,6 +633,22 @@ class Session(SessionManager):
                 job._available_staffers = [a for a in attendees if not job.restricted or a.trusted_in(job.location)]
             return jobs, shifts, attendees
 
+        def staffers_by_job_options(self, job):
+            """
+            Format staffers_by_job() for use with the {% options %} template decorator
+            """
+            return [(a.id, a.full_name) for a in self.staffers_by_job(job)]
+
+        def staffers_by_job(self, job):
+            q = self.query(Attendee)
+
+            if job.restricted:
+                q = q.filter(Attendee.trusted_depts.contains(str(job.location)))
+
+            return q.filter_by(staffing=True)\
+                .filter(Attendee.assigned_depts.contains(str(job.location)))\
+                .order_by(Attendee.full_name).all()
+
         def search(self, text, *filters):
             attendees = self.query(Attendee).outerjoin(Attendee.group).options(joinedload(Attendee.group)).filter(*filters)
             if ':' in text:

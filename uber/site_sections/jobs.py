@@ -170,10 +170,7 @@ class Root:
         return {
             'job':       job,
             'message':   message,
-            'attendees': session.query(Attendee.id, Attendee.full_name)  # TODO
-                                .filter_by(staffing=True, **({'trusted': True} if job.restricted else {}))
-                                .filter(Attendee.assigned_depts.contains(str(job.location)))
-                                .order_by(Attendee.full_name).all()
+            'attendees': session.staffers_by_job_options(job)
         }
 
     @csrf_protected
