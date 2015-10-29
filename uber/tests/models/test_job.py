@@ -126,4 +126,3 @@ class TestAvailableStaffers:
     def test_staffers_by_job_restricted(self, session):
         attendees = session.staffers_by_job(session.job_six)
         assert attendees == [session.staff_four]
-
