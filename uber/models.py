@@ -629,6 +629,7 @@ class Session(SessionManager):
                                         .options(joinedload(Attendee.shifts), joinedload(Attendee.group))
                                         .order_by(Attendee.full_name).all()
                          if c.AT_THE_CON or not location or int(location) in a.assigned_depts_ints]
+            # this ._available_staffers doesn't appear to be used anywhere anymore, and should probably be removed
             for job in jobs:
                 job._available_staffers = [a for a in attendees if not job.restricted or a.trusted_in(job.location)]
             return jobs, shifts, attendees
