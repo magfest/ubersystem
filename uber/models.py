@@ -1549,10 +1549,10 @@ class Job(MagModel):
         2) are cleared to work this job
         3) who may or may not have existing hours which overlap with this job
         """
-        return (self.session.query(Attendee)
-                .filter_by(staffing=True)
+        return (self._potential_staff()
                 .filter(Attendee.assigned_depts.contains(str(self.location)))
                 .filter(*[Attendee.trusted_depts.contains(str(self.location))] if self.restricted else [])
+                .filter_by(staffing=True)
                 .order_by(Attendee.full_name).all())
 
     @property
@@ -1560,13 +1560,10 @@ class Job(MagModel):
         # Format .capable_staffers for use with the {% options %} template decorator
         return [(a.id, a.full_name) for a in self.capable_staff]
 
-    # TODO: this is actually returning a list of all attendees, not just staffers
-    # could be huge and costly.
-    @cached_property
-    def all_staffers(self):
-        return self.session.query(Attendee).order_by(Attendee.last_first).all()
+    def _potential_staff(self):
+        return self.session.query(Attendee)
 
-    @cached_property
+    @property
     def available_staff(self):
         """
         return a list of staffers who:
@@ -1574,7 +1571,7 @@ class Job(MagModel):
         2) are cleared to work this job
         3) whose existing hours are not overlapped with this job
         """
-        return [s for s in self.all_staffers
+        return [s for s in self._potential_staff().order_by(Attendee.last_first).all()
                 if self.location in s.assigned_depts_ints
                    and (not self.restricted or s.trusted_in(self.location))
                    and self.no_overlap(s)]

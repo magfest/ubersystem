@@ -87,25 +87,19 @@ class TestAssign:
 class TestAvailableStaffers:
     @pytest.fixture(autouse=True)
     def extra_setup(self, session, monkeypatch):
-        # note: Jobs for this fixture are defined in uber/tests/conftest.py
-        monkeypatch.setattr(Job, 'all_staffers', [session.staff_one, session.staff_two, session.staff_three, session.staff_four])
+        # note: Assigned Depts, Trusted Depts, and Jobs for this fixture are defined in uber/tests/conftest.py
         monkeypatch.setattr(Job, 'no_overlap', lambda self, a: True)
 
-        session.staff_one.assigned_depts = str(c.ARCADE)
-        session.staff_one.trusted_depts = str(c.CONSOLE)
-
-        session.staff_two.assigned_depts = str(c.CONSOLE)
-
-        session.staff_three.assigned_depts = '{},{}'.format(c.ARCADE, c.CONSOLE)
-
-        session.staff_four.assigned_depts = '{},{}'.format(c.ARCADE, c.CONSOLE)
-        session.staff_four.trusted_depts = '{},{}'.format(c.ARCADE, c.CONSOLE)
-
-        session.commit()
+    def test_testing_environment(self, session):
+        # if this fails, data that our test relies on is not setup correctly.
+        result = session.query(Attendee).filter_by(staffing=True).all()
+        for a in [session.staff_one, session.staff_two, session.staff_three, session.staff_four, session.staff_five]:
+            assert a in result
 
     def test_by_department(self, session):
-        assert session.job_one.available_staff == [session.staff_one, session.staff_three, session.staff_four]
-        assert session.job_four.available_staff == [session.staff_two, session.staff_three, session.staff_four]
+        # order of the output is alphabetically sorted and must be tested that way
+        assert session.job_one.available_staff == [session.staff_four, session.staff_one, session.staff_three]
+        assert session.job_four.available_staff == [session.staff_four, session.staff_three, session.staff_two]
 
     def test_by_trust(self, session):
         assert session.job_six.available_staff == [session.staff_four]
