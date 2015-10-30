@@ -104,25 +104,25 @@ class TestAvailableStaffers:
         session.commit()
 
     def test_by_department(self, session):
-        assert session.job_one.available_staffers == [session.staff_one, session.staff_three, session.staff_four]
-        assert session.job_four.available_staffers == [session.staff_two, session.staff_three, session.staff_four]
+        assert session.job_one.available_staff == [session.staff_one, session.staff_three, session.staff_four]
+        assert session.job_four.available_staff == [session.staff_two, session.staff_three, session.staff_four]
 
     def test_by_trust(self, session):
-        assert session.job_six.available_staffers == [session.staff_four]
+        assert session.job_six.available_staff == [session.staff_four]
 
     def test_by_overlap(self, session, monkeypatch):
         monkeypatch.setattr(Job, 'no_overlap', lambda self, a: a in [session.staff_one, session.staff_two])
-        assert session.job_one.available_staffers == [session.staff_one]
-        assert session.job_four.available_staffers == [session.staff_two]
+        assert session.job_one.available_staff == [session.staff_one]
+        assert session.job_four.available_staff == [session.staff_two]
 
     def test_staffers_by_job_unrestricted(self, session):
-        attendees = session.staffers_by_job(session.job_one)
+        attendees = session.job_one.capable_staff
         assert attendees == [session.staff_four, session.staff_one, session.staff_three]
 
     def test_staffers_by_job_options_unrestricted(self, session):
-        attendees = session.staffers_by_job_options(session.job_one)
+        attendees = session.job_one.capable_staff_opts
         assert attendees == [(a.id, a.full_name) for a in [session.staff_four, session.staff_one, session.staff_three]]
 
     def test_staffers_by_job_restricted(self, session):
-        attendees = session.staffers_by_job(session.job_six)
+        attendees = session.job_six.capable_staff
         assert attendees == [session.staff_four]

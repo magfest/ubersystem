@@ -31,13 +31,13 @@
         <td> <a href="form?id={{ job.id }}"><b>{{ job.name }}{% if job.restricted %}*{% endif %}</b></a> </td>
         <td> <nobr>({{ job.shifts|length }}/{{ job.slots }} slots filled)</nobr> </td>
         {% if job.shifts|length < job.slots %}
-            {% if job.available_staffers %}
+            {% if job.available_staff %}
                 <form method="post" action="assign_from_list">
                 {% csrf_token %}
                 <td>
                     <input type="hidden" name="job_id" value="{{ job.id }}" />
                     <select name="staffer_id">
-                        {% for attendee in job.available_staffers %}
+                        {% for attendee in job.available_staff %}
                             <option value="{{ attendee.id }}">{{ attendee.full_name }}</option>
                         {% endfor %}
                     </select>

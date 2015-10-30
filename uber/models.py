@@ -633,19 +633,6 @@ class Session(SessionManager):
                 job._available_staffers = [a for a in attendees if not job.restricted or a.trusted_in(job.location)]
             return jobs, shifts, attendees
 
-        def staffers_by_job_options(self, job):
-            """
-            Format staffers_by_job() for use with the {% options %} template decorator
-            """
-            return [(a.id, a.full_name) for a in self.staffers_by_job(job)]
-
-        def staffers_by_job(self, job):
-            return self.query(Attendee)\
-                .filter_by(staffing=True)\
-                .filter(Attendee.assigned_depts.contains(str(job.location)))\
-                .filter(*(Attendee.trusted_depts.contains(str(job.location)),) if job.restricted else ())\
-                .order_by(Attendee.full_name).all()
-
         def search(self, text, *filters):
             attendees = self.query(Attendee).outerjoin(Attendee.group).options(joinedload(Attendee.group)).filter(*filters)
             if ':' in text:
@@ -1553,12 +1540,40 @@ class Job(MagModel):
     def total_hours(self):
         return self.weighted_hours * self.slots
 
+    @property
+    def capable_staff(self):
+        """
+        return a list of staffers who:
+        0) are staffing
+        1) are assigned to this job's location
+        2) are cleared to work this job
+        3) who may or may not have existing hours which overlap with this job
+        """
+        return (self.session.query(Attendee)
+                .filter_by(staffing=True)
+                .filter(Attendee.assigned_depts.contains(str(self.location)))
+                .filter(*[Attendee.trusted_depts.contains(str(self.location))] if self.restricted else [])
+                .order_by(Attendee.full_name).all())
+
+    @property
+    def capable_staff_opts(self):
+        # Format .capable_staffers for use with the {% options %} template decorator
+        return [(a.id, a.full_name) for a in self.capable_staff]
+
+    # TODO: this is actually returning a list of all attendees, not just staffers
+    # could be huge and costly.
     @cached_property
     def all_staffers(self):
         return self.session.query(Attendee).order_by(Attendee.last_first).all()
 
     @cached_property
-    def available_staffers(self):
+    def available_staff(self):
+        """
+        return a list of staffers who:
+        1) are assigned to this job's location
+        2) are cleared to work this job
+        3) whose existing hours are not overlapped with this job
+        """
         return [s for s in self.all_staffers
                 if self.location in s.assigned_depts_ints
                    and (not self.restricted or s.trusted_in(self.location))

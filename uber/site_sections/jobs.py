@@ -171,7 +171,7 @@ class Root:
         return {
             'job':       job,
             'message':   message,
-            'attendees': session.staffers_by_job_options(job)
+            'attendees': job.capable_staff_opts
         }
 
     @csrf_protected
