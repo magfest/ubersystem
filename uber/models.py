@@ -1540,41 +1540,44 @@ class Job(MagModel):
     def total_hours(self):
         return self.weighted_hours * self.slots
 
-    @property
-    def capable_staff(self):
+    def _potential_staff(self, staff_only=False, order_by=Attendee.full_name):
         """
-        return a list of staffers who:
-        0) are staffing
+        return a list of attendees who:
         1) are assigned to this job's location
-        2) are cleared to work this job
-        3) who may or may not have existing hours which overlap with this job
+        2) are allowed to work this job (job is unrestricted, or they're trusted in this job's location)
+
+        :param: staff_only: restrict result to attendees where staffing==True
+        :param: order_by: order by another Attendee attribute
         """
-        return (self._potential_staff()
+        return (self.session.query(Attendee)
                 .filter(Attendee.assigned_depts.contains(str(self.location)))
                 .filter(*[Attendee.trusted_depts.contains(str(self.location))] if self.restricted else [])
-                .filter_by(staffing=True)
-                .order_by(Attendee.full_name).all())
+                .filter_by(**{'staffing': True} if staff_only else {})
+                .order_by(order_by)
+                .all())
 
     @property
     def capable_staff_opts(self):
-        # Format .capable_staffers for use with the {% options %} template decorator
+        # format output for use with the {% options %} template decorator
         return [(a.id, a.full_name) for a in self.capable_staff]
 
-    def _potential_staff(self):
-        return self.session.query(Attendee)
+    @property
+    def capable_staff(self):
+        """
+        Return a list of staffers who could sign up for this job.
+
+        Important: Just because a staffer is capable of working
+        this job doesn't mean they are available to work.
+        They may have other shift hours during that time period.
+        """
+        return self._potential_staff(staff_only=True)
 
     @property
     def available_staff(self):
         """
-        return a list of staffers who:
-        1) are assigned to this job's location
-        2) are cleared to work this job
-        3) whose existing hours are not overlapped with this job
+        Return a list of staffers who are allowed to sign up for this Job and have the free time
         """
-        return [s for s in self._potential_staff().order_by(Attendee.last_first).all()
-                if self.location in s.assigned_depts_ints
-                   and (not self.restricted or s.trusted_in(self.location))
-                   and self.no_overlap(s)]
+        return [s for s in self._potential_staff(order_by=Attendee.last_first) if self.no_overlap(s)]
 
 
 class Shift(MagModel):
