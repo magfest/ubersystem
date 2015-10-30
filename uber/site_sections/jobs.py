@@ -127,7 +127,7 @@ class Root:
             hours_here[shift.attendee] += shift.job.weighted_hours
         for attendee in attendees:
             attendee.hours_here = hours_here[attendee]
-            attendee.trusted_here = attendee.trusted_in(location) if location else attendee.trusted_in_any_depts
+            attendee.trusted_here = attendee.trusted_in(location) if location else attendee.trusted_somewhere
         return {
             'location':           location,
             'attendees':          attendees,

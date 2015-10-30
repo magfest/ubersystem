@@ -1217,7 +1217,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def is_transferable(self):
-        return not self.is_new and not self.trusted_in_any_depts and not self.checked_in \
+        return not self.is_new and not self.trusted_somewhere and not self.checked_in \
            and self.paid in [c.HAS_PAID, c.PAID_BY_GROUP] \
            and self.badge_type in c.TRANSFERABLE_BADGE_TYPES
 
@@ -1352,7 +1352,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         return int(department or 0) in self.trusted_depts_ints
 
     @property
-    def trusted_in_any_depts(self):
+    def trusted_somewhere(self):
+        """
+        :return: True if this Attendee is trusted in at least 1 department
+        """
         return len(self.trusted_depts_ints) > 0
 
     def has_shifts_in(self, department):

@@ -114,15 +114,15 @@ def test_is_not_transferable_trusted(monkeypatch):
     assert not Attendee(paid=c.HAS_PAID, trusted_depts=c.CONSOLE).is_transferable
 
 
-def test_trusted_in_any_depts():
+def test_trusted_somewhere():
     a = Attendee(trusted_depts='{},{}'.format(c.ARCADE, c.CONSOLE))
-    assert a.trusted_in_any_depts
+    assert a.trusted_somewhere
 
     a.trusted_depts = c.CONSOLE
-    assert a.trusted_in_any_depts
+    assert a.trusted_somewhere
 
     a.trusted_depts = ''
-    assert not a.trusted_in_any_depts
+    assert not a.trusted_somewhere
 
 
 class TestGetsShirt:
@@ -185,7 +185,7 @@ class TestUnsetVolunteer:
     def test_basic(self):
         a = Attendee(staffing=True, trusted_depts=c.CONSOLE, requested_depts=c.CONSOLE, assigned_depts=c.CONSOLE, ribbon=c.VOLUNTEER_RIBBON, shifts=[Shift()])
         a.unset_volunteering()
-        assert not a.staffing and not a.trusted_in_any_depts and not a.requested_depts and not a.assigned_depts and not a.shifts and a.ribbon == c.NO_RIBBON
+        assert not a.staffing and not a.trusted_somewhere and not a.requested_depts and not a.assigned_depts and not a.shifts and a.ribbon == c.NO_RIBBON
 
     def test_different_ribbon(self):
         a = Attendee(ribbon=c.DEALER_RIBBON)
@@ -270,7 +270,7 @@ class TestStaffingAdjustments:
         a._staffing_adjustments()
         assert a.staffing
         assert a.trusted_in(c.CONSOLE)
-        assert a.trusted_in_any_depts
+        assert a.trusted_somewhere
         assert a.badge_type == c.STAFF_BADGE
 
     def test_staffing_still_trusted_assigned(self):
