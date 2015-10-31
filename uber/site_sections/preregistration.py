@@ -11,7 +11,7 @@ def to_sessionized(attendee, group):
 def check_prereg_reqs(attendee):
     if attendee.badge_type == c.PSEUDO_DEALER_BADGE and not attendee.cellphone:
         return 'Your phone number is required'
-    elif attendee.amount_extra >= c.SHIRT_LEVEL and attendee.shirt == c.NO_SHIRT:
+    elif attendee.donation_tier in c.SHIRT_TIERS and attendee.shirt == c.NO_SHIRT:
         return 'Your shirt size is required'
 
 
@@ -238,7 +238,7 @@ class Root:
             attendee.amount_paid = attendee.total_cost
             session.add(attendee)
 
-        for group in charge.groups:
+        for group in charge.groups:  # TODO: Look at this
             group.amount_paid = group.default_cost - group.amount_extra
             for attendee in group.attendees:
                 if attendee.amount_extra:
@@ -542,3 +542,7 @@ class Root:
             'message': message,
             'attendee': attendee
         }
+
+    @ajax
+    def get_donation_price(self, val, dt):
+        return c.get_donation_tier_price(c.DONATION_TIER_CONFIGS[int(val)], dt)

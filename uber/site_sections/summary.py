@@ -13,7 +13,7 @@ class Root:
             'shirt_sizes':   [(desc, count(shirt=shirt)) for shirt, desc in c.SHIRT_OPTS],
             'paid_counts':   [(desc, count(paid=status)) for status, desc in c.PAYMENT_OPTS],
             'badge_counts':  [(desc, count(badge_type=bt), count(paid=c.NOT_PAID, badge_type=bt), count(paid=c.HAS_PAID, badge_type=bt)) for bt, desc in c.BADGE_OPTS],
-            'aff_counts':    [(aff['text'], len([a for a in attendees if a.amount_extra >= c.SUPPORTER_LEVEL and a.affiliate == aff['text']])) for aff in session.affiliates()],
+            'aff_counts':    [(aff['text'], len([a for a in attendees if a.donation_tier in c.SUPPORTER_TIERS and a.affiliate == aff['text']])) for aff in session.affiliates()],
             'checkin_count': count(lambda a: a.checked_in),
             'paid_noshows':  count(paid=c.HAS_PAID, checked_in=None) + len([a for a in attendees if a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid and not a.checked_in]),
             'free_noshows':  count(paid=c.NEED_NOT_PAY, checked_in=None),
@@ -49,7 +49,7 @@ class Root:
             'counts': sorted(counts.items(), key=lambda tup: -tup[-1].total),
             'registrations': session.query(Attendee).filter_by(paid=c.NEED_NOT_PAY).count(),
             'quantities': [(desc, session.query(Attendee).filter(Attendee.amount_extra >= amount).count())
-                           for amount, desc in sorted(c.DONATION_TIERS.items()) if amount]
+                           for amount, desc in sorted(c.DONATION_TIERS.items()) if amount]  # TODO: Look at this
         }
 
     def departments(self, session):
@@ -135,7 +135,7 @@ class Root:
     def printed_badges_supporters(self, out, session):
         uber.reports.personalized_badge_report_type(include_badge_nums=False)\
             .run(out, session,
-                 sa.Attendee.amount_extra >= c.SUPPORTER_LEVEL,
+                 sa.Attendee.donation_tier in c.SUPPORTER_TIERS,
                  order_by=sa.Attendee.full_name,
                  badge_type_override='supporter')
 
