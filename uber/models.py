@@ -629,9 +629,20 @@ class Session(SessionManager):
                                         .options(joinedload(Attendee.shifts), joinedload(Attendee.group))
                                         .order_by(Attendee.full_name).all()
                          if c.AT_THE_CON or not location or int(location) in a.assigned_depts_ints]
-            # this ._available_staffers doesn't appear to be used anywhere anymore, and should probably be removed
+
+            # PERFORMANCE OPTIMIZATION: Job.available_staff uses a @cached_property decorator.  This decorator
+            # populates the job._available_staff.  Because this function is returning a huge amount of Jobs,
+            # we will pre-populate it here and skip the database queries which would occur if we called .available_staff
+            # many times in a row.
+            #
+            # Note that this isn't exactly the same output as .available_staff, and this code should be kept in-sync
+            # as much as possible with Job.available_staff.  This is a bit non-obvious but needed to work around perf
+            # problems with large amounts of Jobs in the system.
+            #
+            # For more information, see https://github.com/magfest/ubersystem/pull/1561
             for job in jobs:
-                job._available_staffers = [a for a in attendees if not job.restricted or a.trusted_in(job.location)]
+                job._available_staff = [a for a in attendees if not job.restricted or a.trusted_in(job.location)]
+
             return jobs, shifts, attendees
 
         def search(self, text, *filters):
@@ -1576,10 +1587,13 @@ class Job(MagModel):
         """
         return self._potential_staff(staff_only=True)
 
-    @property
+    @cached_property
     def available_staff(self):
         """
         Return a list of staffers who are allowed to sign up for this Job and have the free time
+
+        IMPORTANT NOTE: If this code is ever changed, you also need to update session.everything() which
+        performs an optimized version of this operation on a bulk scale.
         """
         return [s for s in self._potential_staff(order_by=Attendee.last_first) if self.no_overlap(s)]
 
