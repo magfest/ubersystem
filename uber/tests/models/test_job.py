@@ -98,25 +98,25 @@ class TestAvailableStaffers:
 
     def test_by_department(self, session):
         # order of the output is alphabetically sorted and must be tested that way
-        assert session.job_one.available_staff == [session.staff_four, session.staff_one, session.staff_three]
-        assert session.job_four.available_staff == [session.staff_four, session.staff_three, session.staff_two]
+        assert session.job_one.available_volunteers == [session.staff_four, session.staff_one, session.staff_three]
+        assert session.job_four.available_volunteers == [session.staff_four, session.staff_three, session.staff_two]
 
     def test_by_trust(self, session):
-        assert session.job_six.available_staff == [session.staff_four]
+        assert session.job_six.available_volunteers == [session.staff_four]
 
     def test_by_overlap(self, session, monkeypatch):
         monkeypatch.setattr(Job, 'no_overlap', lambda self, a: a in [session.staff_one, session.staff_two])
-        assert session.job_one.available_staff == [session.staff_one]
-        assert session.job_four.available_staff == [session.staff_two]
+        assert session.job_one.available_volunteers == [session.staff_one]
+        assert session.job_four.available_volunteers == [session.staff_two]
 
     def test_staffers_by_job_unrestricted(self, session):
-        attendees = session.job_one.capable_staff
+        attendees = session.job_one.capable_volunteers
         assert attendees == [session.staff_four, session.staff_one, session.staff_three]
 
     def test_staffers_by_job_options_unrestricted(self, session):
-        attendees = session.job_one.capable_staff_opts
+        attendees = session.job_one.capable_volunteers_opts
         assert attendees == [(a.id, a.full_name) for a in [session.staff_four, session.staff_one, session.staff_three]]
 
     def test_staffers_by_job_restricted(self, session):
-        attendees = session.job_six.capable_staff
+        attendees = session.job_six.capable_volunteers
         assert attendees == [session.staff_four]
