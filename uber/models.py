@@ -632,14 +632,12 @@ class Session(SessionManager):
 
             # PERFORMANCE OPTIMIZATION: Job.available_volunteers uses a @cached_property decorator.  This decorator
             # populates job._available_volunteers.  Because this function is returning a huge amount of Jobs,
-            # we will pre-populate it here and skip the database queries which would occur if we called
+            # we will pre-populate it here and skip the myriad database queries which would occur if we called
             # .available_volunteers many times in a row.
             #
-            # Note that this isn't exactly the same output as .available_volunteers, but this code should be kept in-sync
-            # as much as possible with Job.available_volunteers.  This is a bit non-obvious but needed to work around perf
-            # problems with large amounts of Jobs in the system.
-            #
-            # For more information, see https://github.com/magfest/ubersystem/pull/1561
+            # Note that this isn't exactly the same output as .available_volunteers, but this code should be kept
+            # in-sync as much as possible with Job.available_volunteers.  This is messy but needed to work around perf
+            # problems with pages that show large amounts of Jobs using everything()
             for job in jobs:
                 job._available_volunteers = [a for a in attendees if not job.restricted or a.trusted_in(job.location)]
 
@@ -1555,19 +1553,19 @@ class Job(MagModel):
     def total_hours(self):
         return self.weighted_hours * self.slots
 
-    def _potential_volunteers(self, staff_only=False, order_by=Attendee.full_name):
+    def _potential_volunteers(self, staffing_only=False, order_by=Attendee.full_name):
         """
         return a list of attendees who:
         1) are assigned to this job's location
         2) are allowed to work this job (job is unrestricted, or they're trusted in this job's location)
 
-        :param: staff_only: restrict result to attendees where staffing==True
+        :param: staffing_only: restrict result to attendees where staffing==True
         :param: order_by: order by another Attendee attribute
         """
         return (self.session.query(Attendee)
                 .filter(Attendee.assigned_depts.contains(str(self.location)))
                 .filter(*[Attendee.trusted_depts.contains(str(self.location))] if self.restricted else [])
-                .filter_by(**{'staffing': True} if staff_only else {})
+                .filter_by(**{'staffing': True} if staffing_only else {})
                 .order_by(order_by)
                 .all())
 
@@ -1585,12 +1583,12 @@ class Job(MagModel):
         this job doesn't mean they are actually available to work it.
         They may have other shift hours during that time period.
         """
-        return self._potential_volunteers(staff_only=True)
+        return self._potential_volunteers(staffing_only=True)
 
     @cached_property
     def available_volunteers(self):
         """
-        Return a list of volunteers who are allowed to sign up for this Job and have the free time
+        Return a list of volunteers who are allowed to sign up for this Job AND have the free time to work it
 
         IMPORTANT NOTE: If this code is ever changed, you also need to update session.everything() which
         performs an optimized version of this operation on a bulk scale.
