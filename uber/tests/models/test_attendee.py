@@ -115,14 +115,9 @@ def test_is_not_transferable_trusted(monkeypatch):
 
 
 def test_trusted_somewhere():
-    a = Attendee(trusted_depts='{},{}'.format(c.ARCADE, c.CONSOLE))
-    assert a.trusted_somewhere
-
-    a.trusted_depts = c.CONSOLE
-    assert a.trusted_somewhere
-
-    a.trusted_depts = ''
-    assert not a.trusted_somewhere
+    assert Attendee(trusted_depts='{},{}'.format(c.ARCADE, c.CONSOLE)).trusted_somewhere
+    assert Attendee(trusted_depts=str(c.CONSOLE)).trusted_somewhere
+    assert not Attendee(trusted_depts='').trusted_somewhere
 
 
 class TestGetsShirt:
