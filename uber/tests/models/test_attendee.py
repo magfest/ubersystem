@@ -260,6 +260,12 @@ class TestStaffingAdjustments:
         monkeypatch.setattr(Attendee, 'unset_volunteering', Mock())
         return Attendee.unset_volunteering
 
+    @pytest.fixture(autouse=True)
+    def prevent_presave_adjustments(self, monkeypatch):
+        """ Prevent some tests from crashing on exit by not invoking presave_adjustements() """
+        monkeypatch.setattr(Attendee, 'presave_adjustments', Mock())
+        return Attendee.presave_adjustments
+
     def test_dept_head_invariants(self):
         a = Attendee(ribbon=c.DEPT_HEAD_RIBBON, assigned_depts=c.CONSOLE)
         a._staffing_adjustments()
@@ -304,17 +310,17 @@ class TestStaffingAdjustments:
         a._staffing_adjustments()
         assert not unset_volunteering.called
 
-    def staffers_need_no_volunteer_ribbon(self):
+    def test_staffers_need_no_volunteer_ribbon(self):
         a = Attendee(badge_type=c.STAFF_BADGE, ribbon=c.VOLUNTEER_RIBBON)
         a._staffing_adjustments()
         assert a.ribbon == c.NO_RIBBON
 
-    def staffers_can_have_other_ribbons(self):
+    def test_staffers_can_have_other_ribbons(self):
         a = Attendee(badge_type=c.STAFF_BADGE, ribbon=c.DEALER_RIBBON)
         a._staffing_adjustments()
         assert a.ribbon == c.DEALER_RIBBON
 
-    def no_to_yes_ribbon(self, unset_volunteering):
+    def test_no_to_yes_ribbon(self, unset_volunteering, prevent_presave_adjustments):
         with Session() as session:
             a = session.attendee(first_name='Regular', last_name='Attendee')
             a.ribbon = c.VOLUNTEER_RIBBON
@@ -322,7 +328,7 @@ class TestStaffingAdjustments:
             assert a.staffing
             assert not unset_volunteering.called
 
-    def no_to_yes_volunteering(self, unset_volunteering):
+    def test_no_to_yes_volunteering(self, unset_volunteering, prevent_presave_adjustments):
         with Session() as session:
             a = session.attendee(first_name='Regular', last_name='Attendee')
             a.staffing = True
@@ -330,14 +336,14 @@ class TestStaffingAdjustments:
             assert a.ribbon == c.VOLUNTEER_RIBBON
             assert not unset_volunteering.called
 
-    def yes_to_no_ribbon(self, unset_volunteering):
+    def test_yes_to_no_ribbon(self, unset_volunteering, prevent_presave_adjustments):
         with Session() as session:
             a = session.attendee(first_name='Regular', last_name='Volunteer')
             a.ribbon = c.NO_RIBBON
             a._staffing_adjustments()
             assert unset_volunteering.called
 
-    def yes_to_no_volunteering(self, unset_volunteering):
+    def test_yes_to_no_volunteering(self, unset_volunteering, prevent_presave_adjustments):
         with Session() as session:
             a = session.attendee(first_name='Regular', last_name='Volunteer')
             a.staffing = False
