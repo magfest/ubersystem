@@ -127,6 +127,7 @@ class Root:
             hours_here[shift.attendee] += shift.job.weighted_hours
         for attendee in attendees:
             attendee.hours_here = hours_here[attendee]
+            attendee.trusted_here = attendee.trusted_in(location) if location else attendee.trusted_somewhere
         return {
             'location':           location,
             'attendees':          attendees,
@@ -170,10 +171,7 @@ class Root:
         return {
             'job':       job,
             'message':   message,
-            'attendees': session.query(Attendee.id, Attendee.full_name)
-                                .filter_by(staffing=True, **({'trusted': True} if job.restricted else {}))
-                                .filter(Attendee.assigned_depts.contains(str(job.location)))
-                                .order_by(Attendee.full_name).all()
+            'attendees': job.capable_volunteers_opts
         }
 
     @csrf_protected

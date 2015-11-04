@@ -96,7 +96,7 @@ def test_badge():
     assert Attendee(ribbon=c.VOLUNTEER_RIBBON).badge == 'Unpaid Attendee (Volunteer)'
 
 
-def test_is_transferrable(monkeypatch):
+def test_is_transferable(monkeypatch):
     assert not Attendee(paid=c.HAS_PAID).is_transferable
     monkeypatch.setattr(Attendee, 'is_new', False)
 
@@ -104,10 +104,20 @@ def test_is_transferrable(monkeypatch):
     assert Attendee(paid=c.PAID_BY_GROUP).is_transferable
     assert not Attendee(paid=c.NOT_PAID).is_transferable
 
-    assert not Attendee(paid=c.HAS_PAID, trusted=True).is_transferable
     assert not Attendee(paid=c.HAS_PAID, checked_in=datetime.now(UTC)).is_transferable
     assert not Attendee(paid=c.HAS_PAID, badge_type=c.STAFF_BADGE).is_transferable
     assert not Attendee(paid=c.HAS_PAID, badge_type=c.GUEST_BADGE).is_transferable
+
+
+def test_is_not_transferable_trusted(monkeypatch):
+    monkeypatch.setattr(Attendee, 'is_new', False)
+    assert not Attendee(paid=c.HAS_PAID, trusted_depts=c.CONSOLE).is_transferable
+
+
+def test_trusted_somewhere():
+    assert Attendee(trusted_depts='{},{}'.format(c.ARCADE, c.CONSOLE)).trusted_somewhere
+    assert Attendee(trusted_depts=str(c.CONSOLE)).trusted_somewhere
+    assert not Attendee(trusted_depts='').trusted_somewhere
 
 
 class TestGetsShirt:
@@ -168,9 +178,9 @@ def test_takes_shifts():
 
 class TestUnsetVolunteer:
     def test_basic(self):
-        a = Attendee(staffing=True, trusted=True, requested_depts=c.CONSOLE, assigned_depts=c.CONSOLE, ribbon=c.VOLUNTEER_RIBBON, shifts=[Shift()])
+        a = Attendee(staffing=True, trusted_depts=c.CONSOLE, requested_depts=c.CONSOLE, assigned_depts=c.CONSOLE, ribbon=c.VOLUNTEER_RIBBON, shifts=[Shift()])
         a.unset_volunteering()
-        assert not a.staffing and not a.trusted and not a.requested_depts and not a.assigned_depts and not a.shifts and a.ribbon == c.NO_RIBBON
+        assert not a.staffing and not a.trusted_somewhere and not a.requested_depts and not a.assigned_depts and not a.shifts and a.ribbon == c.NO_RIBBON
 
     def test_different_ribbon(self):
         a = Attendee(ribbon=c.DEALER_RIBBON)
@@ -250,11 +260,45 @@ class TestStaffingAdjustments:
         monkeypatch.setattr(Attendee, 'unset_volunteering', Mock())
         return Attendee.unset_volunteering
 
+    @pytest.fixture(autouse=True)
+    def prevent_presave_adjustments(self, monkeypatch):
+        """ Prevent some tests from crashing on exit by not invoking presave_adjustements() """
+        monkeypatch.setattr(Attendee, 'presave_adjustments', Mock())
+        return Attendee.presave_adjustments
+
     def test_dept_head_invariants(self):
-        a = Attendee(ribbon=c.DEPT_HEAD_RIBBON)
+        a = Attendee(ribbon=c.DEPT_HEAD_RIBBON, assigned_depts=c.CONSOLE)
         a._staffing_adjustments()
-        assert a.staffing and a.trusted
+        assert a.staffing
+        assert a.trusted_in(c.CONSOLE)
+        assert a.trusted_somewhere
         assert a.badge_type == c.STAFF_BADGE
+
+    def test_staffing_still_trusted_assigned(self):
+        """
+        After applying staffing adjustements:
+        Any depts you are both trusted and assigned to should remain unchanged
+        """
+        a = Attendee(staffing=True,
+                     assigned_depts='{},{}'.format(c.CONSOLE, c.CON_OPS),
+                     trusted_depts='{},{}'.format(c.CONSOLE, c.CON_OPS))
+        a._staffing_adjustments()
+        assert a.assigned_to(c.CONSOLE) and a.trusted_in(c.CONSOLE)
+        assert a.assigned_to(c.CON_OPS) and a.trusted_in(c.CON_OPS)
+
+    def test_staffing_no_longer_trusted_unassigned(self):
+        """
+        After applying staffing adjustements:
+        1) Any depts you are trusted in but not assigned to, you should not longer remain trusted in
+        2) Any depts you are assigned to but not trusted in, you should remain untrusted in
+        """
+        a = Attendee(staffing=True,
+                     assigned_depts='{},{}'.format(c.CONSOLE, c.CON_OPS),
+                     trusted_depts='{},{}'.format(c.ARCADE, c.CON_OPS))
+        a._staffing_adjustments()
+        assert a.assigned_to(c.CONSOLE) and not a.trusted_in(c.CONSOLE)
+        assert not a.assigned_to(c.ARCADE) and not a.trusted_in(c.ARCADE)
+        assert a.assigned_to(c.CON_OPS) and a.trusted_in(c.CON_OPS)
 
     def test_unpaid_dept_head(self):
         a = Attendee(ribbon=c.DEPT_HEAD_RIBBON)
@@ -266,17 +310,17 @@ class TestStaffingAdjustments:
         a._staffing_adjustments()
         assert not unset_volunteering.called
 
-    def staffers_need_no_volunteer_ribbon(self):
+    def test_staffers_need_no_volunteer_ribbon(self):
         a = Attendee(badge_type=c.STAFF_BADGE, ribbon=c.VOLUNTEER_RIBBON)
         a._staffing_adjustments()
         assert a.ribbon == c.NO_RIBBON
 
-    def staffers_can_have_other_ribbons(self):
+    def test_staffers_can_have_other_ribbons(self):
         a = Attendee(badge_type=c.STAFF_BADGE, ribbon=c.DEALER_RIBBON)
         a._staffing_adjustments()
         assert a.ribbon == c.DEALER_RIBBON
 
-    def no_to_yes_ribbon(self, unset_volunteering):
+    def test_no_to_yes_ribbon(self, unset_volunteering, prevent_presave_adjustments):
         with Session() as session:
             a = session.attendee(first_name='Regular', last_name='Attendee')
             a.ribbon = c.VOLUNTEER_RIBBON
@@ -284,7 +328,7 @@ class TestStaffingAdjustments:
             assert a.staffing
             assert not unset_volunteering.called
 
-    def no_to_yes_volunteering(self, unset_volunteering):
+    def test_no_to_yes_volunteering(self, unset_volunteering, prevent_presave_adjustments):
         with Session() as session:
             a = session.attendee(first_name='Regular', last_name='Attendee')
             a.staffing = True
@@ -292,14 +336,14 @@ class TestStaffingAdjustments:
             assert a.ribbon == c.VOLUNTEER_RIBBON
             assert not unset_volunteering.called
 
-    def yes_to_no_ribbon(self, unset_volunteering):
+    def test_yes_to_no_ribbon(self, unset_volunteering, prevent_presave_adjustments):
         with Session() as session:
             a = session.attendee(first_name='Regular', last_name='Volunteer')
             a.ribbon = c.NO_RIBBON
             a._staffing_adjustments()
             assert unset_volunteering.called
 
-    def yes_to_no_volunteering(self, unset_volunteering):
+    def test_yes_to_no_volunteering(self, unset_volunteering, prevent_presave_adjustments):
         with Session() as session:
             a = session.attendee(first_name='Regular', last_name='Volunteer')
             a.staffing = False

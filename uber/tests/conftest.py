@@ -50,13 +50,34 @@ def init_db(request, sensible_defaults):
             first_name='Regular',
             last_name='Attendee'
         ))
+
+        d_arcade = str(c.ARCADE)
+        d_console = str(c.CONSOLE)
+        d_arcade_and_console = '{},{}'.format(c.ARCADE, c.CONSOLE)
+        assigned_depts = {
+            'One': d_arcade,
+            'Two': d_console,
+            'Three': d_arcade_and_console,
+            'Four': d_arcade_and_console,
+            'Five': ''
+        }
+        trusted_depts = {
+            'One': '',
+            'Two': '',
+            'Three': '',
+            'Four': d_arcade_and_console,
+            'Five': ''
+        }
+
         for name in ['One', 'Two', 'Three', 'Four', 'Five']:
             session.add(Attendee(
                 placeholder=True,
                 first_name=name,
                 last_name=name,
                 paid=c.NEED_NOT_PAY,
-                badge_type=c.STAFF_BADGE
+                badge_type=c.STAFF_BADGE,
+                assigned_depts=assigned_depts[name],
+                trusted_depts=trusted_depts[name]
             ))
             session.add(Attendee(
                 placeholder=True,
