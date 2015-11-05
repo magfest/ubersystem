@@ -8,13 +8,6 @@ def to_sessionized(attendee, group):
         return Charge.to_sessionized(attendee)
 
 
-def check_prereg_reqs(attendee):
-    if attendee.badge_type == c.PSEUDO_DEALER_BADGE and not attendee.cellphone:
-        return 'Your phone number is required'
-    elif attendee.amount_extra >= c.SHIRT_LEVEL and attendee.shirt == c.NO_SHIRT:
-        return 'Your shirt size is required'
-
-
 def check_post_con(klass):
     def wrapper(func):
         @wraps(func)
@@ -139,9 +132,9 @@ class Root:
             return render('static_views/dealer_reg_closed.html') if c.AFTER_DEALER_REG_SHUTDOWN else render('static_views/dealer_reg_not_open.html')
 
         if 'first_name' in params:
-            message = check(attendee) or check_prereg_reqs(attendee)
+            message = check(attendee, prereg=True)
             if not message and attendee.badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE]:
-                message = check(group)
+                message = check(group, prereg=True)
 
             if not message:
                 if attendee.badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE]:
@@ -271,7 +264,7 @@ class Root:
         group = session.group(group_id)
         attendee = session.attendee(params, restricted=True)
         if 'first_name' in params:
-            message = check(attendee) or check_prereg_reqs(attendee)
+            message = check(attendee, prereg=True)
             if not message and not params['first_name']:
                 message = 'First and Last Name are required fields'
             if not message:
@@ -403,7 +396,7 @@ class Root:
         attendee = session.attendee(params, restricted=True)
 
         if 'first_name' in params:
-            message = check(attendee) or check_prereg_reqs(attendee)
+            message = check(attendee, prereg=True)
             if not message and (not params['first_name'] and not params['last_name']):
                 message = 'First and Last names are required.'
             if not message:
@@ -439,7 +432,7 @@ class Root:
         placeholder = attendee.placeholder
         if 'email' in params:
             attendee.placeholder = False
-            message = check(attendee) or check_prereg_reqs(attendee)
+            message = check(attendee, prereg=True)
             if not message:
                 if placeholder:
                     message = 'Your registration has been confirmed.'

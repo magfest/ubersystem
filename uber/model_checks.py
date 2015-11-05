@@ -36,25 +36,25 @@ def has_email_address(account):
 Group.required = [('name', 'Group Name')]
 
 
-@validation.Group
+@prereg_validation.Group
 def dealer_wares(group):
     if group.tables and not group.wares:
         return "You must provide a detailed explanation of what you sell for us to evaluate your submission"
 
 
-@validation.Group
+@prereg_validation.Group
 def dealer_website(group):
     if group.tables and not group.website:
         return "Please enter your business' website address"
 
 
-@validation.Group
+@prereg_validation.Group
 def dealer_description(group):
     if group.tables and not group.description:
         return "Please provide a brief description of your business"
 
 
-@validation.Group
+@prereg_validation.Group
 def dealer_address(group):
     if group.tables and not group.address and not c.COLLECT_FULL_ADDRESS:
         "Please provide your full address for tax purposes"
@@ -87,6 +87,18 @@ def ignore_unassigned_and_placeholders(func):
         if not unassigned_group_reg and not valid_placeholder:
             return func(attendee)
     return with_skipping
+
+
+@prereg_validation.Attendee
+def dealer_cellphone(attendee):
+    if attendee.badge_type == c.PSEUDO_DEALER_BADGE and not attendee.cellphone:
+        return 'Your phone number is required'
+
+
+@prereg_validation.Attendee
+def shirt_size(attendee):
+    if attendee.amount_extra >= c.SHIRT_LEVEL and attendee.shirt == c.NO_SHIRT:
+        return 'Your shirt size is required'
 
 
 @validation.Attendee
