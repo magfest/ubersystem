@@ -94,7 +94,7 @@ def dealer_cellphone(attendee):
         return 'Your phone number is required'
 
 @prereg_validation.Attendee
-def shirt_size(attendee)
+def shirt_size(attendee):
     if attendee.amount_extra >= c.SHIRT_LEVEL and attendee.shirt == c.NO_SHIRT:
         return 'Your shirt size is required'
 
