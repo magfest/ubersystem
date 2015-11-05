@@ -84,11 +84,14 @@ class Root:
                     attendee.paid = c.NOT_PAID
                     attendee.badge_status = c.NEW_STATUS
                     attendee.ribbon = c.NO_RIBBON
-                    send_email(c.REGDESK_EMAIL, attendee.email, 'Do you still want to come to {EVENT_NAME}?',
-                               render('emails/dealers/badge_converted.html', {
-                                   'attendee': attendee,
-                                   'group': group
-                               }), model=attendee)
+                    try:
+                        send_email(c.REGDESK_EMAIL, attendee.email, 'Do you still want to come to {EVENT_NAME}?',
+                                   render('emails/dealers/badge_converted.html', {
+                                       'attendee': attendee,
+                                       'group': group
+                                   }), model=attendee)
+                    except:
+                        message = 'Group declined (but the emails could not be sent)'
                     group.attendees.remove(attendee)
                     group.leader = None
             session.delete(group)
