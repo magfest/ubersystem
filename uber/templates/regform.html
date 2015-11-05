@@ -52,8 +52,10 @@
 
     {% if not attendee.is_new %}
         // This removes any badge levels lower than the attendee has purchased already
-        while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].extra < {{ attendee.amount_extra }}) {
-            BADGE_TYPES.options.splice(0, 1);
+        if (window.BADGE_TYPES) {
+            while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].extra < {{ attendee.amount_extra }}) {
+                BADGE_TYPES.options.splice(0, 1);
+            }
         }
 
         // This is the same idea, except it disables the kick-in buttons and then hides them
@@ -89,7 +91,7 @@
 
 {% if c.PAGE == 'confirm' %}
     <div class="form-group">
-        <label for="email" class="col-sm-2 control-label">Legal Name</label>
+        <label for="full_name" class="col-sm-2 control-label">Legal Name</label>
         <div class="col-sm-6">{{ attendee.full_name }}</div>
     </div>
 {% else %}
@@ -174,9 +176,15 @@
                 {{ attendee.amount_extra_label }}
                 <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
             {% else %}
-                <div class="btn-group btn-group-vertical" data-toggle="buttons">
-                    {% radiogroup c.PREREG_DONATION_OPTS attendee.amount_extra %}
-                </div>
+                {% if c.DONATION_SLIDER_DISPLAY %}
+                    <div class="btn-group btn-group-vertical" data-toggle="buttons">
+                        {% radiogroup c.PREREG_DONATION_OPTS attendee.amount_extra %}
+                    </div>
+                {% else %}
+                    <select name="amount_extra" class="form-control" onchange="donationChanged();">
+                        {% options c.PREREG_DONATION_OPTS attendee.amount_extra %}
+                    </select>
+                {% endif %}
             {% endif %}
         </div>
         {% popup_link "../static_views/givingExtra.html" "Why do this?" %}
@@ -282,13 +290,15 @@
 </div>
 
 {% if c.COLLECT_FULL_ADDRESS %}
-    <div class="form-group">
-        <label for="full_address" class="col-sm-2 control-label">Address</label>
-        <div class="col-sm-6">
-            <input type="text" name="full_address" class="form-control geolocator" placeholder="Search for your address here." />
-            <img src="../static/images/powered-by-google-on-white.png" alt="Powered by Google." />
+    {% if c.PRE_CON %}
+        <div class="form-group">
+            <label for="full_address" class="col-sm-2 control-label">Address</label>
+            <div class="col-sm-6">
+                <input type="text" name="full_address" class="form-control geolocator" placeholder="Search for your address here." />
+                <img src="../static/images/powered-by-google-on-white.png" alt="Powered by Google." />
+            </div>
         </div>
-    </div>
+    {% endif %}
     <div class="form-group address_details">
         <label for="address1" class="col-sm-2 control-label"></label>
         <div class="col-sm-6">
