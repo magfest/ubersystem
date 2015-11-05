@@ -72,7 +72,7 @@
     <label class="col-sm-2 control-label">Tables</label>
     <div class="col-sm-6">
         <select name="tables">
-            {% int_options 0 9 group.tables %}
+            {% options c.ADMIN_TABLE_OPTS group.tables %}
         </select>
     </div>
 </div>
@@ -196,13 +196,14 @@
             <textarea rows="3" cols="30" name="special_needs">{{ group.special_needs }}</textarea>
         </div>
     </div>
-
+    {% if not c.COLLECT_FULL_ADDRESS %}
     <div class="form-group">
         <label class="col-sm-2 control-label">Address</label>
         <div class="col-sm-6">
             <textarea rows="3" cols="30" name="address">{{ group.address }}</textarea>
         </div>
     </div>
+    {% endif %}
 {% endif %}
 
 {% include "groupextra.html" %}

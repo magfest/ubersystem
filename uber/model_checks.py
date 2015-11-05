@@ -36,6 +36,30 @@ def has_email_address(account):
 Group.required = [('name', 'Group Name')]
 
 
+@prereg_validation.Group
+def dealer_wares(group):
+    if group.tables and not group.wares:
+        return "You must provide a detailed explanation of what you sell for us to evaluate your submission"
+
+
+@prereg_validation.Group
+def dealer_website(group):
+    if group.tables and not group.website:
+        return "Please enter your business' website address"
+
+
+@prereg_validation.Group
+def dealer_description(group):
+    if group.tables and not group.description:
+        return "Please provide a brief description of your business"
+
+
+@prereg_validation.Group
+def dealer_address(group):
+    if group.tables and not group.address and not c.COLLECT_FULL_ADDRESS:
+        "Please provide your full address for tax purposes"
+
+
 @validation.Group
 def group_paid(group):
     try:
@@ -63,6 +87,18 @@ def ignore_unassigned_and_placeholders(func):
         if not unassigned_group_reg and not valid_placeholder:
             return func(attendee)
     return with_skipping
+
+
+@prereg_validation.Attendee
+def dealer_cellphone(attendee):
+    if attendee.badge_type == c.PSEUDO_DEALER_BADGE and not attendee.cellphone:
+        return 'Your phone number is required'
+
+
+@prereg_validation.Attendee
+def shirt_size(attendee):
+    if attendee.amount_extra >= c.SHIRT_LEVEL and attendee.shirt == c.NO_SHIRT:
+        return 'Your shirt size is required'
 
 
 @validation.Attendee
@@ -114,17 +150,23 @@ def email(attendee):
 @ignore_unassigned_and_placeholders
 def emergency_contact(attendee):
     if not attendee.international and _invalid_phone_number(attendee.ec_phone):
-        return 'Enter a 10-digit emergency contact number'
+        if c.COLLECT_FULL_ADDRESS:
+            return 'Enter a 10-digit US phone number or include a country code (e.g. +44).'
+        else:
+            return 'Enter a 10-digit emergency contact number'
 
 
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def cellphone(attendee):
     if attendee.cellphone and _invalid_phone_number(attendee.cellphone):
-        return 'Your cellphone number was not a valid 10-digit phone number'
+        if c.COLLECT_FULL_ADDRESS:
+            return 'Enter a 10-digit US phone number or include a country code (e.g. +44).'
+        else:
+            return 'Your cellphone number was not a valid 10-digit phone number'
 
-    if not attendee.no_cellphone and attendee.staffing and _invalid_phone_number(attendee.cellphone):
-        return "10-digit cellphone number is required for volunteers (unless you don't own a cellphone)"
+    if not attendee.no_cellphone and attendee.staffing and not attendee.cellphone:
+        return "Cellphone number is required for volunteers (unless you don't own a cellphone)"
 
 
 @validation.Attendee

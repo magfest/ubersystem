@@ -60,7 +60,7 @@ def check_csrf(csrf_token):
         cherrypy.request.headers['CSRF-Token'] = csrf_token
 
 
-def check(model):
+def check(model, *, prereg=False):
     """
     Runs all default validations against the supplied model instance.  Returns
     either a string error message if any validation fails and returns None if
@@ -70,10 +70,11 @@ def check(model):
         if not str(getattr(model, field)).strip():
             return name + ' is a required field'
 
-    for validator in model.validators:
-        message = validator(model)
-        if message:
-            return message
+    for v in [sa.validation.validations] + ([sa.prereg_validation.validations] if prereg else []):
+        for validator in v[model.__class__.__name__].values():
+            message = validator(model)
+            if message:
+                return message
 
 
 class Order:
