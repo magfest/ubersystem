@@ -138,17 +138,23 @@ def email(attendee):
 @ignore_unassigned_and_placeholders
 def emergency_contact(attendee):
     if not attendee.international and _invalid_phone_number(attendee.ec_phone):
-        return 'Enter a 10-digit emergency contact number'
+        if c.COLLECT_FULL_ADDRESS:
+            return 'Enter a 10-digit US phone number or include a country code (e.g. +44).'
+        else:
+            return 'Enter a 10-digit emergency contact number'
 
 
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def cellphone(attendee):
-    if attendee.cellphone and _invalid_phone_number(attendee.cellphone) and not c.COLLECT_FULL_ADDRESS:
-        return 'Your cellphone number was not a valid 10-digit phone number'
+    if attendee.cellphone and _invalid_phone_number(attendee.cellphone):
+        if c.COLLECT_FULL_ADDRESS
+            return 'Enter a 10-digit US phone number or include a country code (e.g. +44).'
+        else:
+            return 'Your cellphone number was not a valid 10-digit phone number'
 
-    if not attendee.no_cellphone and attendee.staffing and _invalid_phone_number(attendee.cellphone):
-        return "10-digit cellphone number is required for volunteers (unless you don't own a cellphone)"
+    if not attendee.no_cellphone and attendee.staffing and not attendee.cellphone:
+        return "Cellphone number is required for volunteers (unless you don't own a cellphone)"
 
 
 @validation.Attendee
