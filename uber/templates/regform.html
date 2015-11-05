@@ -52,7 +52,7 @@
 
     {% if not attendee.is_new %}
         // This removes any badge levels lower than the attendee has purchased already
-        if (typeof BADGE_TYPES !== 'undefined') {
+        if (window.BADGE_TYPES) {
             while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].extra < {{ attendee.amount_extra }}) {
                 BADGE_TYPES.options.splice(0, 1);
             }
@@ -290,13 +290,15 @@
 </div>
 
 {% if c.COLLECT_FULL_ADDRESS %}
-    <div class="form-group">
-        <label for="full_address" class="col-sm-2 control-label">Address</label>
-        <div class="col-sm-6">
-            <input type="text" name="full_address" class="form-control geolocator" placeholder="Search for your address here." />
-            <img src="../static/images/powered-by-google-on-white.png" alt="Powered by Google." />
+    {% if c.PRE_CON %}
+        <div class="form-group">
+            <label for="full_address" class="col-sm-2 control-label">Address</label>
+            <div class="col-sm-6">
+                <input type="text" name="full_address" class="form-control geolocator" placeholder="Search for your address here." />
+                <img src="../static/images/powered-by-google-on-white.png" alt="Powered by Google." />
+            </div>
         </div>
-    </div>
+    {% endif %}
     <div class="form-group address_details">
         <label for="address1" class="col-sm-2 control-label"></label>
         <div class="col-sm-6">

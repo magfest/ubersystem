@@ -132,8 +132,7 @@
                 {% if c.DONATION_SLIDER_DISPLAY %}
                     $('input:radio[name=amount_extra][value='+ type.extra +']').prop('checked', true).trigger('change');
                 {% else %}
-                    $.field('amount_extra').val(type.extra);
-                    $.field('amount_extra').trigger('change');
+                    $.field('amount_extra').val(type.extra).trigger('change');
                 {% endif %}
             }
         };

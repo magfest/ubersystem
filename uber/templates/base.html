@@ -167,8 +167,8 @@
 <body>
     {% if c.PRE_CON %}
         <div class="loader"><a class="loader_link" href="../static_views/slow_load.html" target="_blank"></a></div>
-        <script src="https://maps.googleapis.com/maps/api/js?sensor=false&amp;libraries=places"></script>
     {% endif %}
+        <script src="https://maps.googleapis.com/maps/api/js?sensor=false&libraries=places"></script>
     {% block top_of_body_additional %}{% endblock %}
     <div id="mainContainer" class="container-fluid">
         {% block top %}
