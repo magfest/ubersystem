@@ -88,6 +88,15 @@ def ignore_unassigned_and_placeholders(func):
             return func(attendee)
     return with_skipping
 
+@prereg_validation.Attendee
+def dealer_cellphone(attendee):
+    if attendee.badge_type == c.PSEUDO_DEALER_BADGE and not attendee.cellphone:
+        return 'Your phone number is required'
+
+@prereg_validation.Attendee
+def shirt_size(attendee)
+    if attendee.amount_extra >= c.SHIRT_LEVEL and attendee.shirt == c.NO_SHIRT:
+        return 'Your shirt size is required'
 
 @validation.Attendee
 @ignore_unassigned_and_placeholders
