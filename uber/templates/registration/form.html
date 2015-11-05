@@ -213,17 +213,17 @@
 {% include "regform.html" %}
 
 <div class="form-group staffing staffing-checked">
-    <label class="col-sm-2 control-label">Trusted?</label>
+    <label class="col-sm-2 control-label">Assigned Depts</label>
     <div class="col-sm-6">
-        {% checkbox attendee.trusted %} This volunteer can take restricted shifts
-        <span class="popup">{% popup_link "../static_views/trustDesc.html" "What does this mean?" %}</span>
+        {% checkgroup attendee.assigned_depts %}
     </div>
 </div>
 
 <div class="form-group staffing staffing-checked">
-    <label class="col-sm-2 control-label">Assigned Depts</label>
+    <label class="col-sm-2 control-label">Trusted in which depts</label>
     <div class="col-sm-6">
-        {% checkgroup attendee.assigned_depts %}
+        {% checkgroup attendee.trusted_depts %}
+        <span class="popup">{% popup_link "../static_views/trustDesc.html" "What does this mean?" %}</span>
     </div>
 </div>
 

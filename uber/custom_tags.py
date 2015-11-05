@@ -505,6 +505,7 @@ class single_day_prices(template.Node):
         for day, price in c.BADGE_PRICES['single_day'].items():
             if day == datetime.strftime(c.ESCHATON, "%A"):
                 prices += 'and ${} for {}'.format(price, day)
+                break
             else:
                 prices += '${} for {}, '.format(price, day)
         # prices += 'and ${} for other days'.format(c.BADGE_PRICES['default_single_day'])
@@ -522,15 +523,19 @@ class PriceNotice(template.Node):
         self.takedown, self.amount_extra, self.discount = Variable(takedown), Variable(amount_extra), Variable(discount)
 
     def _notice(self, label, takedown, amount_extra, discount):
+        if not takedown:
+            raise ValueError('price_notice tag error: Takedown date not valid{}'.format(
+                ' for "' + label + '"' if label else ''))
+
         if c.PAGE_PATH not in ['/preregistration/form', '/preregistration/register_group_member']:
             return ''  # we only display notices for new attendees
         else:
             for day, price in sorted(c.PRICE_BUMPS.items()):
                 if day < takedown and localized_now() < day:
-                    return '<div class="prereg-price-notice">Price goes up to ${} at 11:59pm EST on {}</div>'.format(price - discount + int(amount_extra), (day - timedelta(days=1)).strftime('%A, %b %e'))
+                    return '<div class="prereg-price-notice">Price goes up to ${} at 11:59pm {} on {}</div>'.format(price - discount + int(amount_extra), (day - timedelta(days=1)).strftime('%Z'), (day - timedelta(days=1)).strftime('%A, %b %e'))
                 elif localized_now() < day and takedown == c.PREREG_TAKEDOWN:
-                    return '<div class="prereg-type-closing">{} closes at 11:59pm EST on {}. Price goes up to ${} at-door.</div>'.format(label, takedown.strftime('%A, %b %e'), price + amount_extra, (day - timedelta(days=1)).strftime('%A, %b %e'))
-            return '<div class="prereg-type-closing">{} closes at 11:59pm EST on {}</div>'.format(label, takedown.strftime('%A, %b %e'))
+                    return '<div class="prereg-type-closing">{} closes at 11:59pm {} on {}. Price goes up to ${} at-door.</div>'.format(label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'), price + amount_extra, (day - timedelta(days=1)).strftime('%A, %b %e'))
+            return '<div class="prereg-type-closing">{} closes at 11:59pm {} on {}</div>'.format(label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'))
 
     def render(self, context):
         return self._notice(self.label, self.takedown.resolve(context), self.amount_extra.resolve(context), self.discount.resolve(context))

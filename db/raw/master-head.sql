@@ -10,22 +10,6 @@ SET check_function_bodies = false;
 SET client_min_messages = warning;
 
 --
--- Name: sqitch; Type: SCHEMA; Schema: -; Owner: postgres
---
-
-CREATE SCHEMA sqitch;
-
-
-ALTER SCHEMA sqitch OWNER TO postgres;
-
---
--- Name: SCHEMA sqitch; Type: COMMENT; Schema: -; Owner: postgres
---
-
-COMMENT ON SCHEMA sqitch IS 'Sqitch database deployment metadata v1.0.';
-
-
---
 -- Name: plpgsql; Type: EXTENSION; Schema: -; Owner: 
 --
 
@@ -46,7 +30,7 @@ SET default_tablespace = '';
 SET default_with_oids = false;
 
 --
--- Name: admin_account; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+-- Name: admin_account; Type: TABLE; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 CREATE TABLE admin_account (
@@ -57,10 +41,10 @@ CREATE TABLE admin_account (
 );
 
 
-ALTER TABLE public.admin_account OWNER TO m13;
+ALTER TABLE public.admin_account OWNER TO rams_db;
 
 --
--- Name: approved_email; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+-- Name: approved_email; Type: TABLE; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 CREATE TABLE approved_email (
@@ -69,10 +53,10 @@ CREATE TABLE approved_email (
 );
 
 
-ALTER TABLE public.approved_email OWNER TO m13;
+ALTER TABLE public.approved_email OWNER TO rams_db;
 
 --
--- Name: arbitrary_charge; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+-- Name: arbitrary_charge; Type: TABLE; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 CREATE TABLE arbitrary_charge (
@@ -84,14 +68,15 @@ CREATE TABLE arbitrary_charge (
 );
 
 
-ALTER TABLE public.arbitrary_charge OWNER TO m13;
+ALTER TABLE public.arbitrary_charge OWNER TO rams_db;
 
 --
--- Name: attendee; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+-- Name: attendee; Type: TABLE; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 CREATE TABLE attendee (
     id uuid NOT NULL,
+    watchlist_id uuid,
     group_id uuid,
     placeholder boolean DEFAULT false NOT NULL,
     first_name character varying DEFAULT ''::character varying NOT NULL,
@@ -141,29 +126,15 @@ CREATE TABLE attendee (
     nonshift_hours integer DEFAULT 0 NOT NULL,
     past_years character varying DEFAULT ''::character varying NOT NULL,
     can_work_setup boolean DEFAULT false NOT NULL,
-    can_work_teardown boolean DEFAULT false NOT NULL
+    can_work_teardown boolean DEFAULT false NOT NULL,
+    extra_donation integer DEFAULT 0 NOT NULL
 );
 
 
-ALTER TABLE public.attendee OWNER TO m13;
+ALTER TABLE public.attendee OWNER TO rams_db;
 
 --
--- Name: checkout; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
---
-
-CREATE TABLE checkout (
-    id uuid NOT NULL,
-    game_id uuid NOT NULL,
-    attendee_id uuid NOT NULL,
-    checked_out timestamp without time zone NOT NULL,
-    returned timestamp without time zone
-);
-
-
-ALTER TABLE public.checkout OWNER TO m13;
-
---
--- Name: dept_checklist_item; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+-- Name: dept_checklist_item; Type: TABLE; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 CREATE TABLE dept_checklist_item (
@@ -174,10 +145,10 @@ CREATE TABLE dept_checklist_item (
 );
 
 
-ALTER TABLE public.dept_checklist_item OWNER TO m13;
+ALTER TABLE public.dept_checklist_item OWNER TO rams_db;
 
 --
--- Name: email; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+-- Name: email; Type: TABLE; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 CREATE TABLE email (
@@ -191,10 +162,10 @@ CREATE TABLE email (
 );
 
 
-ALTER TABLE public.email OWNER TO m13;
+ALTER TABLE public.email OWNER TO rams_db;
 
 --
--- Name: food_restrictions; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+-- Name: food_restrictions; Type: TABLE; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 CREATE TABLE food_restrictions (
@@ -206,25 +177,10 @@ CREATE TABLE food_restrictions (
 );
 
 
-ALTER TABLE public.food_restrictions OWNER TO m13;
+ALTER TABLE public.food_restrictions OWNER TO rams_db;
 
 --
--- Name: game; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
---
-
-CREATE TABLE game (
-    id uuid NOT NULL,
-    code character varying DEFAULT ''::character varying NOT NULL,
-    name character varying DEFAULT ''::character varying NOT NULL,
-    attendee_id uuid NOT NULL,
-    returned boolean DEFAULT false NOT NULL
-);
-
-
-ALTER TABLE public.game OWNER TO m13;
-
---
--- Name: group; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+-- Name: group; Type: TABLE; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 CREATE TABLE "group" (
@@ -248,10 +204,10 @@ CREATE TABLE "group" (
 );
 
 
-ALTER TABLE public."group" OWNER TO m13;
+ALTER TABLE public."group" OWNER TO rams_db;
 
 --
--- Name: job; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+-- Name: job; Type: TABLE; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 CREATE TABLE job (
@@ -269,10 +225,10 @@ CREATE TABLE job (
 );
 
 
-ALTER TABLE public.job OWNER TO m13;
+ALTER TABLE public.job OWNER TO rams_db;
 
 --
--- Name: m_points_for_cash; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+-- Name: m_points_for_cash; Type: TABLE; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 CREATE TABLE m_points_for_cash (
@@ -283,10 +239,10 @@ CREATE TABLE m_points_for_cash (
 );
 
 
-ALTER TABLE public.m_points_for_cash OWNER TO m13;
+ALTER TABLE public.m_points_for_cash OWNER TO rams_db;
 
 --
--- Name: merch_pickup; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+-- Name: merch_pickup; Type: TABLE; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 CREATE TABLE merch_pickup (
@@ -296,10 +252,10 @@ CREATE TABLE merch_pickup (
 );
 
 
-ALTER TABLE public.merch_pickup OWNER TO m13;
+ALTER TABLE public.merch_pickup OWNER TO rams_db;
 
 --
--- Name: no_shirt; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+-- Name: no_shirt; Type: TABLE; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 CREATE TABLE no_shirt (
@@ -308,10 +264,10 @@ CREATE TABLE no_shirt (
 );
 
 
-ALTER TABLE public.no_shirt OWNER TO m13;
+ALTER TABLE public.no_shirt OWNER TO rams_db;
 
 --
--- Name: old_m_point_exchange; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+-- Name: old_m_point_exchange; Type: TABLE; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 CREATE TABLE old_m_point_exchange (
@@ -322,10 +278,10 @@ CREATE TABLE old_m_point_exchange (
 );
 
 
-ALTER TABLE public.old_m_point_exchange OWNER TO m13;
+ALTER TABLE public.old_m_point_exchange OWNER TO rams_db;
 
 --
--- Name: password_reset; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+-- Name: password_reset; Type: TABLE; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 CREATE TABLE password_reset (
@@ -336,10 +292,10 @@ CREATE TABLE password_reset (
 );
 
 
-ALTER TABLE public.password_reset OWNER TO m13;
+ALTER TABLE public.password_reset OWNER TO rams_db;
 
 --
--- Name: sale; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+-- Name: sale; Type: TABLE; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 CREATE TABLE sale (
@@ -354,10 +310,10 @@ CREATE TABLE sale (
 );
 
 
-ALTER TABLE public.sale OWNER TO m13;
+ALTER TABLE public.sale OWNER TO rams_db;
 
 --
--- Name: shift; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+-- Name: shift; Type: TABLE; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 CREATE TABLE shift (
@@ -370,10 +326,10 @@ CREATE TABLE shift (
 );
 
 
-ALTER TABLE public.shift OWNER TO m13;
+ALTER TABLE public.shift OWNER TO rams_db;
 
 --
--- Name: tracking; Type: TABLE; Schema: public; Owner: m13; Tablespace: 
+-- Name: tracking; Type: TABLE; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 CREATE TABLE tracking (
@@ -389,510 +345,28 @@ CREATE TABLE tracking (
 );
 
 
-ALTER TABLE public.tracking OWNER TO m13;
-
-SET search_path = sqitch, pg_catalog;
+ALTER TABLE public.tracking OWNER TO rams_db;
 
 --
--- Name: changes; Type: TABLE; Schema: sqitch; Owner: postgres; Tablespace: 
+-- Name: watch_list; Type: TABLE; Schema: public; Owner: rams_db; Tablespace: 
 --
 
-CREATE TABLE changes (
-    change_id text NOT NULL,
-    script_hash text,
-    change text NOT NULL,
-    project text NOT NULL,
-    note text DEFAULT ''::text NOT NULL,
-    committed_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,
-    committer_name text NOT NULL,
-    committer_email text NOT NULL,
-    planned_at timestamp with time zone NOT NULL,
-    planner_name text NOT NULL,
-    planner_email text NOT NULL
+CREATE TABLE watch_list (
+    id uuid NOT NULL,
+    first_names character varying DEFAULT ''::character varying NOT NULL,
+    last_name character varying DEFAULT ''::character varying NOT NULL,
+    email character varying DEFAULT ''::character varying NOT NULL,
+    birthdate date,
+    reason character varying DEFAULT ''::character varying NOT NULL,
+    action character varying DEFAULT ''::character varying NOT NULL,
+    active boolean DEFAULT true NOT NULL
 );
 
 
-ALTER TABLE sqitch.changes OWNER TO postgres;
+ALTER TABLE public.watch_list OWNER TO rams_db;
 
 --
--- Name: TABLE changes; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON TABLE changes IS 'Tracks the changes currently deployed to the database.';
-
-
---
--- Name: COLUMN changes.change_id; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN changes.change_id IS 'Change primary key.';
-
-
---
--- Name: COLUMN changes.script_hash; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN changes.script_hash IS 'Deploy script SHA-1 hash.';
-
-
---
--- Name: COLUMN changes.change; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN changes.change IS 'Name of a deployed change.';
-
-
---
--- Name: COLUMN changes.project; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN changes.project IS 'Name of the Sqitch project to which the change belongs.';
-
-
---
--- Name: COLUMN changes.note; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN changes.note IS 'Description of the change.';
-
-
---
--- Name: COLUMN changes.committed_at; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN changes.committed_at IS 'Date the change was deployed.';
-
-
---
--- Name: COLUMN changes.committer_name; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN changes.committer_name IS 'Name of the user who deployed the change.';
-
-
---
--- Name: COLUMN changes.committer_email; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN changes.committer_email IS 'Email address of the user who deployed the change.';
-
-
---
--- Name: COLUMN changes.planned_at; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN changes.planned_at IS 'Date the change was added to the plan.';
-
-
---
--- Name: COLUMN changes.planner_name; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN changes.planner_name IS 'Name of the user who planed the change.';
-
-
---
--- Name: COLUMN changes.planner_email; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN changes.planner_email IS 'Email address of the user who planned the change.';
-
-
---
--- Name: dependencies; Type: TABLE; Schema: sqitch; Owner: postgres; Tablespace: 
---
-
-CREATE TABLE dependencies (
-    change_id text NOT NULL,
-    type text NOT NULL,
-    dependency text NOT NULL,
-    dependency_id text,
-    CONSTRAINT dependencies_check CHECK ((((type = 'require'::text) AND (dependency_id IS NOT NULL)) OR ((type = 'conflict'::text) AND (dependency_id IS NULL))))
-);
-
-
-ALTER TABLE sqitch.dependencies OWNER TO postgres;
-
---
--- Name: TABLE dependencies; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON TABLE dependencies IS 'Tracks the currently satisfied dependencies.';
-
-
---
--- Name: COLUMN dependencies.change_id; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN dependencies.change_id IS 'ID of the depending change.';
-
-
---
--- Name: COLUMN dependencies.type; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN dependencies.type IS 'Type of dependency.';
-
-
---
--- Name: COLUMN dependencies.dependency; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN dependencies.dependency IS 'Dependency name.';
-
-
---
--- Name: COLUMN dependencies.dependency_id; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN dependencies.dependency_id IS 'Change ID the dependency resolves to.';
-
-
---
--- Name: events; Type: TABLE; Schema: sqitch; Owner: postgres; Tablespace: 
---
-
-CREATE TABLE events (
-    event text NOT NULL,
-    change_id text NOT NULL,
-    change text NOT NULL,
-    project text NOT NULL,
-    note text DEFAULT ''::text NOT NULL,
-    requires text[] DEFAULT '{}'::text[] NOT NULL,
-    conflicts text[] DEFAULT '{}'::text[] NOT NULL,
-    tags text[] DEFAULT '{}'::text[] NOT NULL,
-    committed_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,
-    committer_name text NOT NULL,
-    committer_email text NOT NULL,
-    planned_at timestamp with time zone NOT NULL,
-    planner_name text NOT NULL,
-    planner_email text NOT NULL,
-    CONSTRAINT events_event_check CHECK ((event = ANY (ARRAY['deploy'::text, 'revert'::text, 'fail'::text, 'merge'::text])))
-);
-
-
-ALTER TABLE sqitch.events OWNER TO postgres;
-
---
--- Name: TABLE events; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON TABLE events IS 'Contains full history of all deployment events.';
-
-
---
--- Name: COLUMN events.event; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN events.event IS 'Type of event.';
-
-
---
--- Name: COLUMN events.change_id; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN events.change_id IS 'Change ID.';
-
-
---
--- Name: COLUMN events.change; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN events.change IS 'Change name.';
-
-
---
--- Name: COLUMN events.project; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN events.project IS 'Name of the Sqitch project to which the change belongs.';
-
-
---
--- Name: COLUMN events.note; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN events.note IS 'Description of the change.';
-
-
---
--- Name: COLUMN events.requires; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN events.requires IS 'Array of the names of required changes.';
-
-
---
--- Name: COLUMN events.conflicts; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN events.conflicts IS 'Array of the names of conflicting changes.';
-
-
---
--- Name: COLUMN events.tags; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN events.tags IS 'Tags associated with the change.';
-
-
---
--- Name: COLUMN events.committed_at; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN events.committed_at IS 'Date the event was committed.';
-
-
---
--- Name: COLUMN events.committer_name; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN events.committer_name IS 'Name of the user who committed the event.';
-
-
---
--- Name: COLUMN events.committer_email; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN events.committer_email IS 'Email address of the user who committed the event.';
-
-
---
--- Name: COLUMN events.planned_at; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN events.planned_at IS 'Date the event was added to the plan.';
-
-
---
--- Name: COLUMN events.planner_name; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN events.planner_name IS 'Name of the user who planed the change.';
-
-
---
--- Name: COLUMN events.planner_email; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN events.planner_email IS 'Email address of the user who plan planned the change.';
-
-
---
--- Name: projects; Type: TABLE; Schema: sqitch; Owner: postgres; Tablespace: 
---
-
-CREATE TABLE projects (
-    project text NOT NULL,
-    uri text,
-    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,
-    creator_name text NOT NULL,
-    creator_email text NOT NULL
-);
-
-
-ALTER TABLE sqitch.projects OWNER TO postgres;
-
---
--- Name: TABLE projects; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON TABLE projects IS 'Sqitch projects deployed to this database.';
-
-
---
--- Name: COLUMN projects.project; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN projects.project IS 'Unique Name of a project.';
-
-
---
--- Name: COLUMN projects.uri; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN projects.uri IS 'Optional project URI';
-
-
---
--- Name: COLUMN projects.created_at; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN projects.created_at IS 'Date the project was added to the database.';
-
-
---
--- Name: COLUMN projects.creator_name; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN projects.creator_name IS 'Name of the user who added the project.';
-
-
---
--- Name: COLUMN projects.creator_email; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN projects.creator_email IS 'Email address of the user who added the project.';
-
-
---
--- Name: releases; Type: TABLE; Schema: sqitch; Owner: postgres; Tablespace: 
---
-
-CREATE TABLE releases (
-    version real NOT NULL,
-    installed_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,
-    installer_name text NOT NULL,
-    installer_email text NOT NULL
-);
-
-
-ALTER TABLE sqitch.releases OWNER TO postgres;
-
---
--- Name: TABLE releases; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON TABLE releases IS 'Sqitch registry releases.';
-
-
---
--- Name: COLUMN releases.version; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN releases.version IS 'Version of the Sqitch registry.';
-
-
---
--- Name: COLUMN releases.installed_at; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN releases.installed_at IS 'Date the registry release was installed.';
-
-
---
--- Name: COLUMN releases.installer_name; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN releases.installer_name IS 'Name of the user who installed the registry release.';
-
-
---
--- Name: COLUMN releases.installer_email; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN releases.installer_email IS 'Email address of the user who installed the registry release.';
-
-
---
--- Name: tags; Type: TABLE; Schema: sqitch; Owner: postgres; Tablespace: 
---
-
-CREATE TABLE tags (
-    tag_id text NOT NULL,
-    tag text NOT NULL,
-    project text NOT NULL,
-    change_id text NOT NULL,
-    note text DEFAULT ''::text NOT NULL,
-    committed_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,
-    committer_name text NOT NULL,
-    committer_email text NOT NULL,
-    planned_at timestamp with time zone NOT NULL,
-    planner_name text NOT NULL,
-    planner_email text NOT NULL
-);
-
-
-ALTER TABLE sqitch.tags OWNER TO postgres;
-
---
--- Name: TABLE tags; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON TABLE tags IS 'Tracks the tags currently applied to the database.';
-
-
---
--- Name: COLUMN tags.tag_id; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN tags.tag_id IS 'Tag primary key.';
-
-
---
--- Name: COLUMN tags.tag; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN tags.tag IS 'Project-unique tag name.';
-
-
---
--- Name: COLUMN tags.project; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN tags.project IS 'Name of the Sqitch project to which the tag belongs.';
-
-
---
--- Name: COLUMN tags.change_id; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN tags.change_id IS 'ID of last change deployed before the tag was applied.';
-
-
---
--- Name: COLUMN tags.note; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN tags.note IS 'Description of the tag.';
-
-
---
--- Name: COLUMN tags.committed_at; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN tags.committed_at IS 'Date the tag was applied to the database.';
-
-
---
--- Name: COLUMN tags.committer_name; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN tags.committer_name IS 'Name of the user who applied the tag.';
-
-
---
--- Name: COLUMN tags.committer_email; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN tags.committer_email IS 'Email address of the user who applied the tag.';
-
-
---
--- Name: COLUMN tags.planned_at; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN tags.planned_at IS 'Date the tag was added to the plan.';
-
-
---
--- Name: COLUMN tags.planner_name; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN tags.planner_name IS 'Name of the user who planed the tag.';
-
-
---
--- Name: COLUMN tags.planner_email; Type: COMMENT; Schema: sqitch; Owner: postgres
---
-
-COMMENT ON COLUMN tags.planner_email IS 'Email address of the user who planned the tag.';
-
-
-SET search_path = public, pg_catalog;
-
---
--- Name: _dept_checklist_item_uniq; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: _dept_checklist_item_uniq; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY dept_checklist_item
@@ -900,7 +374,7 @@ ALTER TABLE ONLY dept_checklist_item
 
 
 --
--- Name: admin_account_attendee_id_key; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: admin_account_attendee_id_key; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY admin_account
@@ -908,7 +382,7 @@ ALTER TABLE ONLY admin_account
 
 
 --
--- Name: admin_account_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: admin_account_pkey; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY admin_account
@@ -916,7 +390,7 @@ ALTER TABLE ONLY admin_account
 
 
 --
--- Name: approved_email_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: approved_email_pkey; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY approved_email
@@ -924,7 +398,7 @@ ALTER TABLE ONLY approved_email
 
 
 --
--- Name: arbitrary_charge_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: arbitrary_charge_pkey; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY arbitrary_charge
@@ -932,7 +406,7 @@ ALTER TABLE ONLY arbitrary_charge
 
 
 --
--- Name: attendee_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: attendee_pkey; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY attendee
@@ -940,15 +414,15 @@ ALTER TABLE ONLY attendee
 
 
 --
--- Name: checkout_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: attendee_watchlist_id_key; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
-ALTER TABLE ONLY checkout
-    ADD CONSTRAINT checkout_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY attendee
+    ADD CONSTRAINT attendee_watchlist_id_key UNIQUE (watchlist_id);
 
 
 --
--- Name: dept_checklist_item_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: dept_checklist_item_pkey; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY dept_checklist_item
@@ -956,7 +430,7 @@ ALTER TABLE ONLY dept_checklist_item
 
 
 --
--- Name: email_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: email_pkey; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY email
@@ -964,7 +438,7 @@ ALTER TABLE ONLY email
 
 
 --
--- Name: food_restrictions_attendee_id_key; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: food_restrictions_attendee_id_key; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY food_restrictions
@@ -972,7 +446,7 @@ ALTER TABLE ONLY food_restrictions
 
 
 --
--- Name: food_restrictions_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: food_restrictions_pkey; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY food_restrictions
@@ -980,15 +454,7 @@ ALTER TABLE ONLY food_restrictions
 
 
 --
--- Name: game_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
---
-
-ALTER TABLE ONLY game
-    ADD CONSTRAINT game_pkey PRIMARY KEY (id);
-
-
---
--- Name: group_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: group_pkey; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY "group"
@@ -996,7 +462,7 @@ ALTER TABLE ONLY "group"
 
 
 --
--- Name: job_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: job_pkey; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY job
@@ -1004,7 +470,7 @@ ALTER TABLE ONLY job
 
 
 --
--- Name: m_points_for_cash_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: m_points_for_cash_pkey; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY m_points_for_cash
@@ -1012,7 +478,7 @@ ALTER TABLE ONLY m_points_for_cash
 
 
 --
--- Name: merch_pickup_picked_up_for_id_key; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: merch_pickup_picked_up_for_id_key; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY merch_pickup
@@ -1020,7 +486,7 @@ ALTER TABLE ONLY merch_pickup
 
 
 --
--- Name: merch_pickup_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: merch_pickup_pkey; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY merch_pickup
@@ -1028,7 +494,7 @@ ALTER TABLE ONLY merch_pickup
 
 
 --
--- Name: no_shirt_attendee_id_key; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: no_shirt_attendee_id_key; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY no_shirt
@@ -1036,7 +502,7 @@ ALTER TABLE ONLY no_shirt
 
 
 --
--- Name: no_shirt_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: no_shirt_pkey; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY no_shirt
@@ -1044,7 +510,7 @@ ALTER TABLE ONLY no_shirt
 
 
 --
--- Name: old_m_point_exchange_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: old_m_point_exchange_pkey; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY old_m_point_exchange
@@ -1052,7 +518,7 @@ ALTER TABLE ONLY old_m_point_exchange
 
 
 --
--- Name: password_reset_account_id_key; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: password_reset_account_id_key; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY password_reset
@@ -1060,7 +526,7 @@ ALTER TABLE ONLY password_reset
 
 
 --
--- Name: password_reset_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: password_reset_pkey; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY password_reset
@@ -1068,7 +534,7 @@ ALTER TABLE ONLY password_reset
 
 
 --
--- Name: sale_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: sale_pkey; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY sale
@@ -1076,7 +542,7 @@ ALTER TABLE ONLY sale
 
 
 --
--- Name: shift_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: shift_pkey; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY shift
@@ -1084,91 +550,23 @@ ALTER TABLE ONLY shift
 
 
 --
--- Name: tracking_pkey; Type: CONSTRAINT; Schema: public; Owner: m13; Tablespace: 
+-- Name: tracking_pkey; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
 ALTER TABLE ONLY tracking
     ADD CONSTRAINT tracking_pkey PRIMARY KEY (id);
 
 
-SET search_path = sqitch, pg_catalog;
-
 --
--- Name: changes_pkey; Type: CONSTRAINT; Schema: sqitch; Owner: postgres; Tablespace: 
+-- Name: watch_list_pkey; Type: CONSTRAINT; Schema: public; Owner: rams_db; Tablespace: 
 --
 
-ALTER TABLE ONLY changes
-    ADD CONSTRAINT changes_pkey PRIMARY KEY (change_id);
+ALTER TABLE ONLY watch_list
+    ADD CONSTRAINT watch_list_pkey PRIMARY KEY (id);
 
 
 --
--- Name: changes_project_script_hash_key; Type: CONSTRAINT; Schema: sqitch; Owner: postgres; Tablespace: 
---
-
-ALTER TABLE ONLY changes
-    ADD CONSTRAINT changes_project_script_hash_key UNIQUE (project, script_hash);
-
-
---
--- Name: dependencies_pkey; Type: CONSTRAINT; Schema: sqitch; Owner: postgres; Tablespace: 
---
-
-ALTER TABLE ONLY dependencies
-    ADD CONSTRAINT dependencies_pkey PRIMARY KEY (change_id, dependency);
-
-
---
--- Name: events_pkey; Type: CONSTRAINT; Schema: sqitch; Owner: postgres; Tablespace: 
---
-
-ALTER TABLE ONLY events
-    ADD CONSTRAINT events_pkey PRIMARY KEY (change_id, committed_at);
-
-
---
--- Name: projects_pkey; Type: CONSTRAINT; Schema: sqitch; Owner: postgres; Tablespace: 
---
-
-ALTER TABLE ONLY projects
-    ADD CONSTRAINT projects_pkey PRIMARY KEY (project);
-
-
---
--- Name: projects_uri_key; Type: CONSTRAINT; Schema: sqitch; Owner: postgres; Tablespace: 
---
-
-ALTER TABLE ONLY projects
-    ADD CONSTRAINT projects_uri_key UNIQUE (uri);
-
-
---
--- Name: releases_pkey; Type: CONSTRAINT; Schema: sqitch; Owner: postgres; Tablespace: 
---
-
-ALTER TABLE ONLY releases
-    ADD CONSTRAINT releases_pkey PRIMARY KEY (version);
-
-
---
--- Name: tags_pkey; Type: CONSTRAINT; Schema: sqitch; Owner: postgres; Tablespace: 
---
-
-ALTER TABLE ONLY tags
-    ADD CONSTRAINT tags_pkey PRIMARY KEY (tag_id);
-
-
---
--- Name: tags_project_tag_key; Type: CONSTRAINT; Schema: sqitch; Owner: postgres; Tablespace: 
---
-
-ALTER TABLE ONLY tags
-    ADD CONSTRAINT tags_project_tag_key UNIQUE (project, tag);
-
-
-SET search_path = public, pg_catalog;
-
---
--- Name: admin_account_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
+-- Name: admin_account_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: rams_db
 --
 
 ALTER TABLE ONLY admin_account
@@ -1176,7 +574,7 @@ ALTER TABLE ONLY admin_account
 
 
 --
--- Name: attendee_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
+-- Name: attendee_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: rams_db
 --
 
 ALTER TABLE ONLY attendee
@@ -1184,23 +582,15 @@ ALTER TABLE ONLY attendee
 
 
 --
--- Name: checkout_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
+-- Name: attendee_watchlist_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: rams_db
 --
 
-ALTER TABLE ONLY checkout
-    ADD CONSTRAINT checkout_attendee_id_fkey FOREIGN KEY (attendee_id) REFERENCES attendee(id);
-
-
---
--- Name: checkout_game_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
---
-
-ALTER TABLE ONLY checkout
-    ADD CONSTRAINT checkout_game_id_fkey FOREIGN KEY (game_id) REFERENCES game(id);
+ALTER TABLE ONLY attendee
+    ADD CONSTRAINT attendee_watchlist_id_fkey FOREIGN KEY (watchlist_id) REFERENCES watch_list(id) ON DELETE SET NULL;
 
 
 --
--- Name: dept_checklist_item_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
+-- Name: dept_checklist_item_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: rams_db
 --
 
 ALTER TABLE ONLY dept_checklist_item
@@ -1208,7 +598,7 @@ ALTER TABLE ONLY dept_checklist_item
 
 
 --
--- Name: fk_leader; Type: FK CONSTRAINT; Schema: public; Owner: m13
+-- Name: fk_leader; Type: FK CONSTRAINT; Schema: public; Owner: rams_db
 --
 
 ALTER TABLE ONLY "group"
@@ -1216,7 +606,7 @@ ALTER TABLE ONLY "group"
 
 
 --
--- Name: food_restrictions_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
+-- Name: food_restrictions_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: rams_db
 --
 
 ALTER TABLE ONLY food_restrictions
@@ -1224,15 +614,7 @@ ALTER TABLE ONLY food_restrictions
 
 
 --
--- Name: game_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
---
-
-ALTER TABLE ONLY game
-    ADD CONSTRAINT game_attendee_id_fkey FOREIGN KEY (attendee_id) REFERENCES attendee(id);
-
-
---
--- Name: m_points_for_cash_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
+-- Name: m_points_for_cash_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: rams_db
 --
 
 ALTER TABLE ONLY m_points_for_cash
@@ -1240,7 +622,7 @@ ALTER TABLE ONLY m_points_for_cash
 
 
 --
--- Name: merch_pickup_picked_up_by_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
+-- Name: merch_pickup_picked_up_by_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: rams_db
 --
 
 ALTER TABLE ONLY merch_pickup
@@ -1248,7 +630,7 @@ ALTER TABLE ONLY merch_pickup
 
 
 --
--- Name: merch_pickup_picked_up_for_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
+-- Name: merch_pickup_picked_up_for_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: rams_db
 --
 
 ALTER TABLE ONLY merch_pickup
@@ -1256,7 +638,7 @@ ALTER TABLE ONLY merch_pickup
 
 
 --
--- Name: no_shirt_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
+-- Name: no_shirt_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: rams_db
 --
 
 ALTER TABLE ONLY no_shirt
@@ -1264,7 +646,7 @@ ALTER TABLE ONLY no_shirt
 
 
 --
--- Name: old_m_point_exchange_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
+-- Name: old_m_point_exchange_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: rams_db
 --
 
 ALTER TABLE ONLY old_m_point_exchange
@@ -1272,7 +654,7 @@ ALTER TABLE ONLY old_m_point_exchange
 
 
 --
--- Name: password_reset_account_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
+-- Name: password_reset_account_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: rams_db
 --
 
 ALTER TABLE ONLY password_reset
@@ -1280,7 +662,7 @@ ALTER TABLE ONLY password_reset
 
 
 --
--- Name: sale_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
+-- Name: sale_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: rams_db
 --
 
 ALTER TABLE ONLY sale
@@ -1288,7 +670,7 @@ ALTER TABLE ONLY sale
 
 
 --
--- Name: shift_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
+-- Name: shift_attendee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: rams_db
 --
 
 ALTER TABLE ONLY shift
@@ -1296,61 +678,11 @@ ALTER TABLE ONLY shift
 
 
 --
--- Name: shift_job_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: m13
+-- Name: shift_job_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: rams_db
 --
 
 ALTER TABLE ONLY shift
     ADD CONSTRAINT shift_job_id_fkey FOREIGN KEY (job_id) REFERENCES job(id) ON DELETE CASCADE;
-
-
-SET search_path = sqitch, pg_catalog;
-
---
--- Name: changes_project_fkey; Type: FK CONSTRAINT; Schema: sqitch; Owner: postgres
---
-
-ALTER TABLE ONLY changes
-    ADD CONSTRAINT changes_project_fkey FOREIGN KEY (project) REFERENCES projects(project) ON UPDATE CASCADE;
-
-
---
--- Name: dependencies_change_id_fkey; Type: FK CONSTRAINT; Schema: sqitch; Owner: postgres
---
-
-ALTER TABLE ONLY dependencies
-    ADD CONSTRAINT dependencies_change_id_fkey FOREIGN KEY (change_id) REFERENCES changes(change_id) ON UPDATE CASCADE ON DELETE CASCADE;
-
-
---
--- Name: dependencies_dependency_id_fkey; Type: FK CONSTRAINT; Schema: sqitch; Owner: postgres
---
-
-ALTER TABLE ONLY dependencies
-    ADD CONSTRAINT dependencies_dependency_id_fkey FOREIGN KEY (dependency_id) REFERENCES changes(change_id) ON UPDATE CASCADE;
-
-
---
--- Name: events_project_fkey; Type: FK CONSTRAINT; Schema: sqitch; Owner: postgres
---
-
-ALTER TABLE ONLY events
-    ADD CONSTRAINT events_project_fkey FOREIGN KEY (project) REFERENCES projects(project) ON UPDATE CASCADE;
-
-
---
--- Name: tags_change_id_fkey; Type: FK CONSTRAINT; Schema: sqitch; Owner: postgres
---
-
-ALTER TABLE ONLY tags
-    ADD CONSTRAINT tags_change_id_fkey FOREIGN KEY (change_id) REFERENCES changes(change_id) ON UPDATE CASCADE;
-
-
---
--- Name: tags_project_fkey; Type: FK CONSTRAINT; Schema: sqitch; Owner: postgres
---
-
-ALTER TABLE ONLY tags
-    ADD CONSTRAINT tags_project_fkey FOREIGN KEY (project) REFERENCES projects(project) ON UPDATE CASCADE;
 
 
 --

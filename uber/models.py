@@ -472,6 +472,13 @@ class Session(SessionManager):
                     restricted_hours.add(frozenset(job.hours))
             return [job.to_dict(fields) for job in jobs if job.restricted or frozenset(job.hours) not in restricted_hours]
 
+        def guess_attendee_watchentry(self, attendee):
+            return self.query(WatchList).filter(and_(or_(WatchList.first_names.contains(attendee.first_name),
+                                                         WatchList.email == attendee.email,
+                                                         WatchList.birthdate == attendee.birthdate),
+                                                     WatchList.last_name == attendee.last_name,
+                                                     WatchList.active == True)).all()
+
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
 
@@ -577,6 +584,9 @@ class Session(SessionManager):
             groups = self.query(Group).options(joinedload(Group.attendees)).all()
             return attendees, groups
 
+        def valid_attendees(self):
+            return self.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS)
+
         def staffers(self):
             return self.query(Attendee) \
                        .filter_by(staffing=True) \
@@ -619,8 +629,18 @@ class Session(SessionManager):
                                         .options(joinedload(Attendee.shifts), joinedload(Attendee.group))
                                         .order_by(Attendee.full_name).all()
                          if c.AT_THE_CON or not location or int(location) in a.assigned_depts_ints]
+
+            # PERFORMANCE OPTIMIZATION: Job.available_volunteers uses a @cached_property decorator.  This decorator
+            # populates job._available_volunteers.  Because this function is returning a huge amount of Jobs,
+            # we will pre-populate it here and skip the myriad database queries which would occur if we called
+            # .available_volunteers many times in a row.
+            #
+            # Note that this isn't exactly the same output as .available_volunteers, but this code should be kept
+            # in-sync as much as possible with Job.available_volunteers.  This is messy but needed to work around perf
+            # problems with pages that show large amounts of Jobs using everything()
             for job in jobs:
-                job._available_staffers = [a for a in attendees if not job.restricted or a.trusted]
+                job._available_volunteers = [a for a in attendees if not job.restricted or a.trusted_in(job.location)]
+
             return jobs, shifts, attendees
 
         def search(self, text, *filters):
@@ -678,11 +698,17 @@ class Session(SessionManager):
                         self.delete_from_group(attendee, group)
 
         def assign(self, attendee_id, job_id):
+            '''
+            assign an Attendee to a Job by creating a Shift
+
+            :return: 'None' on success, error message on failure
+            '''
+
             job = self.job(job_id)
             attendee = self.attendee(attendee_id)
 
-            if job.restricted and not attendee.trusted:
-                return 'You cannot assign an untrusted attendee to a restricted shift'
+            if job.restricted and not attendee.trusted_in(job.location):
+                return 'You cannot assign an attendee who is not trusted in this department to a restricted shift'
 
             if job.slots <= len(job.shifts):
                 return 'All slots for this job have already been filled'
@@ -897,6 +923,8 @@ class Group(MagModel, TakesPaymentMixin):
 
 
 class Attendee(MagModel, TakesPaymentMixin):
+    watchlist_id = Column(UUID, ForeignKey('watch_list.id', ondelete='set null'), nullable=True, default=None)
+
     group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(Group, backref='attendees', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
 
@@ -952,7 +980,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     staffing          = Column(Boolean, default=False)
     requested_depts   = Column(MultiChoice(c.JOB_INTEREST_OPTS))
     assigned_depts    = Column(MultiChoice(c.JOB_LOCATION_OPTS), admin_only=True)
-    trusted           = Column(Boolean, default=False, admin_only=True)
+    trusted_depts     = Column(MultiChoice(c.JOB_LOCATION_OPTS), admin_only=True)
     nonshift_hours    = Column(Integer, default=0, admin_only=True)
     past_years        = Column(UnicodeText, admin_only=True)
     can_work_setup    = Column(Boolean, default=False, admin_only=True)
@@ -962,9 +990,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     admin_account     = relationship('AdminAccount', backref=backref('attendee', load_on_pending=True), uselist=False)
     food_restrictions = relationship('FoodRestrictions', backref=backref('attendee', load_on_pending=True), uselist=False)
 
-    games  = relationship('Game', backref='attendee')
     shifts = relationship('Shift', backref='attendee')
-    checkouts = relationship('Checkout', backref='attendee')
     sales = relationship('Sale', backref='attendee', cascade='save-update,merge,refresh-expire,expunge')
     mpoints_for_cash = relationship('MPointsForCash', backref='attendee')
     old_mpoint_exchanges = relationship('OldMPointExchange', backref='attendee')
@@ -1021,18 +1047,25 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def _status_adjustments(self):
-        if self.badge_status == c.NEW_STATUS and not self.placeholder and self.first_name:
+        if self.badge_status == c.NEW_STATUS and self.banned:
+            self.badge_status = c.DEFERRED_STATUS
+            try:
+                send_email(c.REGDESK_EMAIL, c.REGDESK_EMAIL, 'Banned attendee registration',
+                           render('emails/reg_workflow/banned_attendee.txt', {'attendee': self}), model='n/a')
+            except:
+                log.error('unable to send banned email about {}', self)
+        elif self.badge_status == c.NEW_STATUS and not self.placeholder and self.first_name:
             if self.paid in [c.HAS_PAID, c.NEED_NOT_PAY] \
                     or self.paid == c.PAID_BY_GROUP and self.group and not self.group.amount_unpaid:
                 self.badge_status = c.COMPLETED_STATUS
         elif self.badge_status == c.INVALID_STATUS and self.admin_account:
-            Tracking.track(DELETED, self.admin_account)
             self.session.delete(self.admin_account)
 
     @presave_adjustment
     def _staffing_adjustments(self):
         if self.ribbon == c.DEPT_HEAD_RIBBON:
-            self.staffing = self.trusted = True
+            self.staffing = True
+            self.trusted_depts = self.assigned_depts
             self.badge_type = c.STAFF_BADGE
             if self.paid == c.NOT_PAID:
                 self.paid = c.NEED_NOT_PAY
@@ -1055,9 +1088,12 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_type == c.STAFF_BADGE:
             self.staffing = True
 
+        # remove trusted status from any dept we are not assigned to
+        self.trusted_depts = ','.join(str(td) for td in self.trusted_depts_ints if td in self.assigned_depts_ints)
+
     def unset_volunteering(self):
-        self.staffing = self.trusted = False
-        self.requested_depts = self.assigned_depts = ''
+        self.staffing = False
+        self.trusted_depts = self.requested_depts = self.assigned_depts = ''
         if self.ribbon == c.VOLUNTEER_RIBBON:
             self.ribbon = c.NO_RIBBON
         if self.badge_type == c.STAFF_BADGE:
@@ -1164,8 +1200,16 @@ class Attendee(MagModel, TakesPaymentMixin):
         ], else_=func.lower(cls.last_name + ', ' + cls.first_name))
 
     @property
+    def watchlist_guess(self):
+        try:
+            with Session() as session:
+                return [w.to_dict() for w in session.guess_attendee_watchentry(self)]
+        except:
+            return None
+
+    @property
     def banned(self):
-        return self.full_name in c.BANNED_ATTENDEES
+        return listify(self.watch_list or self.watchlist_guess)
 
     @property
     def badge(self):
@@ -1183,7 +1227,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def is_transferable(self):
-        return not self.is_new and not self.trusted and not self.checked_in \
+        return not self.is_new and not self.trusted_somewhere and not self.checked_in \
            and self.paid in [c.HAS_PAID, c.PAID_BY_GROUP] \
            and self.badge_type in c.TRANSFERABLE_BADGE_TYPES
 
@@ -1279,7 +1323,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                            and job.no_overlap(self)
                            and (job.type != c.SETUP or self.can_work_setup)
                            and (job.type != c.TEARDOWN or self.can_work_teardown)
-                           and (not job.restricted or self.trusted)]
+                           and (not job.restricted or self.trusted_in(job.location))]
 
     @property
     def possible_opts(self):
@@ -1314,6 +1358,16 @@ class Attendee(MagModel, TakesPaymentMixin):
     def assigned_to(self, department):
         return int(department or 0) in self.assigned_depts_ints
 
+    def trusted_in(self, department):
+        return int(department or 0) in self.trusted_depts_ints
+
+    @property
+    def trusted_somewhere(self):
+        """
+        :return: True if this Attendee is trusted in at least 1 department
+        """
+        return len(self.trusted_depts_ints) > 0
+
     def has_shifts_in(self, department):
         return any(shift.job.location == department for shift in self.shifts)
 
@@ -1324,6 +1378,22 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def past_years_json(self):
         return json.loads(self.past_years or '[]')
+
+
+class WatchList(MagModel):
+    first_names     = Column(UnicodeText)
+    last_name       = Column(UnicodeText)
+    email           = Column(UnicodeText, default='')
+    birthdate       = Column(Date, nullable=True, default=None)
+    reason          = Column(UnicodeText)
+    action          = Column(UnicodeText)
+    active          = Column(Boolean, default=True)
+    attendees = relationship('Attendee', backref=backref('watch_list', load_on_pending=True))
+
+    @presave_adjustment
+    def _fix_birthdate(self):
+        if self.birthdate == '':
+            self.birthdate = None
 
 
 class AdminAccount(MagModel):
@@ -1483,16 +1553,47 @@ class Job(MagModel):
     def total_hours(self):
         return self.weighted_hours * self.slots
 
-    @cached_property
-    def all_staffers(self):
-        return self.session.query(Attendee).order_by(Attendee.last_first).all()
+    def _potential_volunteers(self, staffing_only=False, order_by=Attendee.full_name):
+        """
+        return a list of attendees who:
+        1) are assigned to this job's location
+        2) are allowed to work this job (job is unrestricted, or they're trusted in this job's location)
+
+        :param: staffing_only: restrict result to attendees where staffing==True
+        :param: order_by: order by another Attendee attribute
+        """
+        return (self.session.query(Attendee)
+                .filter(Attendee.assigned_depts.contains(str(self.location)))
+                .filter(*[Attendee.trusted_depts.contains(str(self.location))] if self.restricted else [])
+                .filter_by(**{'staffing': True} if staffing_only else {})
+                .order_by(order_by)
+                .all())
+
+    @property
+    def capable_volunteers_opts(self):
+        # format output for use with the {% options %} template decorator
+        return [(a.id, a.full_name) for a in self.capable_volunteers]
+
+    @property
+    def capable_volunteers(self):
+        """
+        Return a list of volunteers who could sign up for this job.
+
+        Important: Just because a volunteer is capable of working
+        this job doesn't mean they are actually available to work it.
+        They may have other shift hours during that time period.
+        """
+        return self._potential_volunteers(staffing_only=True)
 
     @cached_property
-    def available_staffers(self):
-        return [s for s in self.all_staffers
-                if self.location in s.assigned_depts_ints
-                   and (s.trusted or not self.restricted)
-                   and self.no_overlap(s)]
+    def available_volunteers(self):
+        """
+        Return a list of volunteers who are allowed to sign up for this Job AND have the free time to work it
+
+        IMPORTANT NOTE: If this code is ever changed, you also need to update session.everything() which
+        performs an optimized version of this operation on a bulk scale.
+        """
+        return [s for s in self._potential_volunteers(order_by=Attendee.last_first) if self.no_overlap(s)]
 
 
 class Shift(MagModel):
@@ -1540,30 +1641,6 @@ class ArbitraryCharge(MagModel):
     reg_station = Column(Integer, nullable=True)
 
     _repr_attr_names = ['what']
-
-
-class Game(MagModel):
-    code        = Column(UnicodeText)
-    name        = Column(UnicodeText)
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    returned    = Column(Boolean, default=False)
-    checkouts   = relationship('Checkout', backref='game')
-
-    @property
-    def checked_out(self):
-        try:
-            return [c for c in self.checkouts if not c.returned][0]
-        except:
-            pass
-
-    _repr_attr_names = ['name']
-
-
-class Checkout(MagModel):
-    game_id     = Column(UUID, ForeignKey('game.id'))
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    checked_out = Column(UTCDateTime, default=lambda: datetime.now(UTC))
-    returned    = Column(UTCDateTime, nullable=True)
 
 
 class ApprovedEmail(MagModel):
@@ -1810,5 +1887,20 @@ def initialize_db():
             stopped.wait(5)
         else:
             break
+
+
+@on_startup
+def _attendee_validity_check():
+    orig_getter = Session.SessionMixin.attendee
+
+    @wraps(orig_getter)
+    def with_validity_check(self, *args, **kwargs):
+        allow_invalid = kwargs.pop('allow_invalid', False)
+        attendee = orig_getter(self, *args, **kwargs)
+        if not allow_invalid and not attendee.is_new and attendee.badge_status == c.INVALID_STATUS:
+            raise HTTPRedirect('../preregistration/invalid_badge?id={}', attendee.id)
+        else:
+            return attendee
+    Session.SessionMixin.attendee = with_validity_check
 
 on_startup(initialize_db, priority=1)

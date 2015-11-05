@@ -26,12 +26,10 @@ from xml.dom import minidom
 from random import randrange
 from contextlib import closing
 from time import sleep, mktime
-from urllib.parse import quote
 from io import StringIO, BytesIO
-from urllib.parse import urlparse
-from urllib.parse import parse_qsl
 from itertools import chain, count
 from collections import defaultdict, OrderedDict
+from urllib.parse import quote, urlparse, parse_qsl
 from datetime import date, time, datetime, timedelta
 from threading import Thread, RLock, local, current_thread
 from os.path import abspath, basename, dirname, exists, join

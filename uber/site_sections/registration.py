@@ -32,14 +32,16 @@ def check_atd(func):
 
 @all_renderable(c.PEOPLE, c.REG_AT_CON)
 class Root:
-    def index(self, session, message='', page='0', search_text='', uploaded_id='', order='last_first'):
-        total_count = session.query(Attendee).count()
+    def index(self, session, message='', page='0', search_text='', uploaded_id='', order='last_first', invalid=''):
+        filter = Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]) if not invalid else None
+        attendees = session.query(Attendee) if invalid else session.query(Attendee).filter(filter)
+        total_count = attendees.count()
         count = 0
         if search_text:
-            attendees = session.search(search_text)
+            attendees = session.search(search_text) if invalid else session.search(search_text, filter)
             count = attendees.count()
         if not count:
-            attendees = session.query(Attendee).options(joinedload(Attendee.group))
+            attendees = attendees.options(joinedload(Attendee.group))
             count = total_count
 
         attendees = attendees.order(order)
@@ -69,6 +71,7 @@ class Root:
             'message':        message if isinstance(message, str) else message[-1],
             'page':           page,
             'pages':          pages,
+            'invalid':        invalid,
             'search_text':    search_text,
             'search_results': bool(search_text),
             'attendees':      attendees,
@@ -76,12 +79,12 @@ class Root:
             'order':          Order(order),
             'attendee_count': total_count,
             'checkin_count':  session.query(Attendee).filter(Attendee.checked_in != None).count(),
-            'attendee':       session.attendee(uploaded_id) if uploaded_id else None
+            'attendee':       session.attendee(uploaded_id, allow_invalid=True) if uploaded_id else None
         }
 
     @log_pageview
     def form(self, session, message='', return_to='', omit_badge='', check_in='', **params):
-        attendee = session.attendee(params, checkgroups=Attendee.all_checkgroups, bools=Attendee.all_bools)
+        attendee = session.attendee(params, checkgroups=Attendee.all_checkgroups, bools=Attendee.all_bools, allow_invalid=True)
         if 'first_name' in params:
             attendee.group_id = params['group_opt'] or None
             if c.AT_THE_CON and omit_badge:
@@ -134,7 +137,7 @@ class Root:
         }
 
     def history(self, session, id):
-        attendee = session.attendee(id)
+        attendee = session.attendee(id, allow_invalid=True)
         return {
             'attendee': attendee,
             'emails':   session.query(Email)
@@ -147,9 +150,55 @@ class Root:
                                .order_by(Tracking.when).all()
         }
 
+    def watchlist(self, session, attendee_id, watchlist_id=None, message='', **params):
+        attendee = session.attendee(attendee_id, allow_invalid=True)
+        if watchlist_id:
+            watchlist_entry = session.watch_list(watchlist_id)
+
+            if 'active' in params:
+                watchlist_entry.active = not watchlist_entry.active
+            if 'confirm' in params:
+                attendee.watchlist_id = watchlist_id
+            if 'ignore' in params:
+                attendee.badge_status = c.COMPLETED_STATUS
+
+            session.commit()
+
+            message = 'Watchlist entry updated'
+        return {
+            'attendee': attendee,
+            'message': message
+        }
+
+    def watchlist_entries(self, session, message='', **params):
+        watch_entry = session.watch_list(params, bools=WatchList.all_bools)
+
+        if 'first_names' in params:
+            if not watch_entry.first_names or not watch_entry.last_name:
+                message = 'First and last name are required.'
+            elif not watch_entry.reason or not watch_entry.action:
+                message = 'Reason and action are required.'
+
+            if not message:
+                session.add(watch_entry)
+                if 'id' not in params:
+                    message = 'New watch list item added.'
+                else:
+                    message = 'Watch list item updated.'
+
+                session.commit()
+
+            watch_entry = WatchList()
+
+        return {
+            'new_watch': watch_entry,
+            'watchlist_entries': session.query(WatchList).order_by(WatchList.last_name).all(),
+            'message': message
+        }
+
     @csrf_protected
     def delete(self, session, id, return_to='index?'):
-        attendee = session.attendee(id)
+        attendee = session.attendee(id, allow_invalid=True)
         if attendee.group:
             if attendee.group.leader_id == attendee.id:
                 message = 'You cannot delete the leader of a group; you must make someone else the leader first, or just delete the entire group'
@@ -261,6 +310,9 @@ class Root:
                 session.match_to_group(attendee, session.group(group))
             elif attendee.paid == c.PAID_BY_GROUP and not attendee.group:
                 message = 'You must select a group for this attendee.'
+
+            if attendee.badge_status != c.COMPLETED_STATUS:
+                message = 'This badge is {0} and cannot be checked in.'.format(attendee.badge_status_label)
 
             success = not message
 
@@ -488,7 +540,7 @@ class Root:
             raise HTTPRedirect('new_reg_station')
 
         groups = set()
-        for a in session.query(Attendee).filter(Attendee.first_name == '', Attendee.group_id != None) \
+        for a in session.query(Attendee).filter(Attendee.first_name == '', Attendee.group_id != None, Attendee.badge_status == c.NEW_STATUS) \
                                         .options(joinedload(Attendee.group)).all():
             groups.add((a.group.id, a.group.name or 'BLANK'))
 
@@ -502,7 +554,7 @@ class Root:
             'show_all':   show_all,
             'checked_in': checked_in,
             'groups':     sorted(groups, key=lambda tup: tup[1]),
-            'recent':     session.query(Attendee).filter(Attendee.checked_in == None, Attendee.first_name != '', *restrict_to)
+            'recent':     session.query(Attendee).filter(Attendee.checked_in == None, Attendee.first_name != '', Attendee.badge_status == c.NEW_STATUS, *restrict_to)
                                                  .order_by(Attendee.registered).all()
         }
 
@@ -663,13 +715,13 @@ class Root:
             'shifts':   Shift.dump(attendee.shifts),
             'jobs':     [(job.id, '({}) [{}] {}'.format(custom_tags.timespan.pretty(job), job.location_label, job.name))
                          for job in session.query(Job)
-                                           .outerjoin(Job.shifts)
-                                           .filter(Job.start_time > localized_now() - timedelta(hours=2),
-                                                   Job.location.in_(attendee.assigned_depts_ints),
-                                                   *([] if attendee.trusted else [Job.restricted == False]))
-                                           .group_by(Job.id)
-                                           .having(func.count(Shift.id) < Job.slots)
-                                           .order_by(Job.start_time, Job.location).all()]
+                           .outerjoin(Job.shifts)
+                           .filter(Job.start_time > localized_now() - timedelta(hours=2),
+                                   Job.location.in_(attendee.assigned_depts_ints))
+                           .filter(or_(Job.restricted == False, Job.location.in_(attendee.trusted_depts_ints)))
+                           .group_by(Job.id)
+                           .having(func.count(Shift.id) < Job.slots)
+                           .order_by(Job.start_time, Job.location).all()]
         }
 
     @csrf_protected
@@ -772,7 +824,7 @@ class Root:
 
                 try:
                     # get the Attendee if it already exists
-                    attendee = session.attendee(id)
+                    attendee = session.attendee(id, allow_invalid=True)
                 except:
                     session.rollback()
                     # otherwise, make a new one and add it to the session for when we commit
