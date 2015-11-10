@@ -443,14 +443,19 @@ class Root:
             'message':  message
         }
 
-    def invalid_badge(self, session, id):
-        return {'attendee': session.attendee(id, allow_invalid=True)}
+    def invalid_badge(self, session, id, message=''):
+        return {'attendee': session.attendee(id, allow_invalid=True), 'message': message}
+
+    def invalidate(self, session, id):
+        attendee = session.attendee(id)
+        attendee.badge_status = c.INVALID_STATUS
+        raise HTTPRedirect('invalid_badge?id={}&message={}', attendee.id, 'Sorry you can\'t make it! We hope to see you next year!')
 
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
         attendee = session.attendee(params, restricted=True)
 
         placeholder = attendee.placeholder
-        if 'email' in params:
+        if 'email' in params and not message:
             attendee.placeholder = False
             message = check(attendee) or check_prereg_reqs(attendee)
             if not message:

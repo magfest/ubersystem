@@ -3,7 +3,7 @@
 {% block content %}
 
 <script type="text/javascript">
-    var unapprove = function(action) {
+    var unapprove = function(action, convert) {
         if (!$.val("email")) {
             $("#setstatus").prepend('<div style="color:red">You must enter an email message.</div>');
         } else {
@@ -11,11 +11,12 @@
             $.post("unapprove", {
                 id: "{{ group.id }}",
                 action: action,
+                convert: convert,
                 csrf_token: csrf_token,
                 email: $.val("email")
-            }, function() {
-                if (action == "declined") {
-                    window.location = "index?message=Group+declined";
+            }, function(json) {
+                if (json.message) {
+                    window.location = "index?message="+ json.message;
                 } else {
                     $("#status").text("Waitlisted");
                 }
@@ -163,6 +164,8 @@
                         <textarea name="email", rows="5" cols="50"></textarea> <br/>
                         <button onClick="unapprove('waitlisted'); return false;">Waitlist</button>
                         <button onClick="unapprove('declined'); return false;">Reject</button>
+                        <br/><button onClick="unapprove('declined', true); return false;">Reject and Convert Badges</button>
+                        <p class="help-block">(Allows rejected dealers to register at the price they would have paid when they applied.)</p>
                     </div>
                 {% endif %}
             {% endif %}
