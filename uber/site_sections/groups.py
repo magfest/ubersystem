@@ -66,7 +66,7 @@ class Root:
         }
 
     @ajax
-    def unapprove(self, session, id, action, email):
+    def unapprove(self, session, id, action, email, convert=None):
         assert action in ['waitlisted', 'declined']
         group = session.group(id)
         subject = 'Your {EVENT_NAME} Dealer registration has been ' + action
@@ -75,11 +75,29 @@ class Root:
         if action == 'waitlisted':
             group.status = c.WAITLISTED
         else:
+            message = 'Group declined'
             for attendee in group.attendees:
-                session.delete(attendee)
+                if attendee.is_unassigned or not convert:
+                    session.delete(attendee)
+                else:
+                    message = 'Group declined and emails sent to attendees'
+                    attendee.paid = c.NOT_PAID
+                    attendee.badge_status = c.NEW_STATUS
+                    attendee.ribbon = c.NO_RIBBON
+                    try:
+                        send_email(c.REGDESK_EMAIL, attendee.email, 'Do you still want to come to {EVENT_NAME}?',
+                                   render('emails/dealers/badge_converted.html', {
+                                       'attendee': attendee,
+                                       'group': group
+                                   }), model=attendee)
+                    except:
+                        message = 'Group declined (but the emails could not be sent)'
+                    group.attendees.remove(attendee)
+                    group.leader = None
             session.delete(group)
         session.commit()
-        return {'success': True}
+        return {'success': True,
+                'message': message}
 
     @csrf_protected
     def delete(self, session, id, confirmed=None):
