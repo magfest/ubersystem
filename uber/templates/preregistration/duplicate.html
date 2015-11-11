@@ -3,6 +3,7 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
+    <div class="panel panel-default">
 <h2> You are already registered </h2>
 
 We already have a {{ attendee.full_name }} with email address {{ attendee.email }} in our database with a
@@ -49,5 +50,7 @@ If you're absolutely sure that this is someone else, you can continue and pay fo
     <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>
     <td><a href="delete?id={% if duplicate.group %}{{ duplicate.group.id }}{% else %}{{ duplicate.id }}{% endif %}">Well never mind then!</a></td>
 </tr></table>
+
+    </div>
 
 {% endblock %}

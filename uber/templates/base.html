@@ -68,7 +68,10 @@
                 {Schedule: [
                     {'View Schedule': '../schedule/'},
                     {'Edit Schedule': '../schedule/edit'}
-                ]}
+                ]},
+            {% endif %}
+            {% if c.HAS_STATS_ACCESS %}
+                {Statistics: '../summary/'}
             {% endif %}
         ];
         $(function() {
