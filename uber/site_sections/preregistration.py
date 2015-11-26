@@ -273,7 +273,7 @@ class Root:
 
     def group_members(self, session, id, message=''):
         group = session.group(id)
-        charge = Charge([group, group.leader]) if group.leader else Charge(group)
+        charge = Charge([group] + listify(group.attendees))
         return {
             'group':   group,
             'charge':  charge,
