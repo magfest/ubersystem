@@ -339,13 +339,12 @@ class Root:
         else:
             group.amount_paid += charge.dollar_amount
 
-            for attendee in charge.attendees:
+            for attendee in group.attendees:
                 # Subtract an attendee's kick-in level, if it's not already paid for.
                 if attendee.amount_paid < attendee.total_cost:
                     group.amount_paid -= attendee.total_cost - attendee.amount_paid
 
                 attendee.amount_paid = attendee.total_cost
-                session.merge(attendee)
 
             if group.tables:
                 send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Payment Completed',
