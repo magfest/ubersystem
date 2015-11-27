@@ -429,3 +429,6 @@ else:
     c.VOLUNTEER_CHECKLIST = [url for step, url in _items]
 
 stripe.api_key = c.STRIPE_SECRET_KEY
+
+# example output: 'MAGFest Feb 18 2016'
+c.EVENT_NAME_AND_DATE = c.EVENT_NAME + c.EPOCH.strftime(" %b %d %Y")
