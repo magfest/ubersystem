@@ -3,7 +3,7 @@
 # could cause literally thousands of emails to be re-sent!
 #
 # TODO: at a convenient time, between events, replace remaining {EVENT_NAME} with
-# {EVENT_NAME_AND_DATE}.  Don't do this mid-year on any emails that have already been sent
+# {EVENT}.  Don't do this mid-year on any emails that have already been sent
 #
 
 from uber.common import *
@@ -16,7 +16,7 @@ class AutomatedEmail:
 
     def __init__(self, model, subject, template, filter, *, sender=None, extra_data=None, cc=None, bcc=None, post_con=False, needs_approval=True):
         self.model, self.template, self.needs_approval = model, template, needs_approval
-        self.subject = subject.format(EVENT_NAME=c.EVENT_NAME, EVENT_NAME_AND_DATE=c.EVENT_NAME_AND_DATE)
+        self.subject = subject.format(EVENT_NAME=c.EVENT_NAME, EVENT=c.EVENT_NAME + c.EPOCH.strftime(" %b %-d %Y"))
         self.cc = cc or []
         self.bcc = bcc or []
         self.extra_data = extra_data or {}
@@ -158,11 +158,11 @@ MarketplaceEmail('Reminder to pay for your {EVENT_NAME} Dealer registration', 'd
                  lambda g: g.status == c.APPROVED and days_after(30, g.approved) and g.is_unpaid,
                  needs_approval=False)
 
-MarketplaceEmail('Your {EVENT_NAME_AND_DATE} Dealer registration is due in one week', 'dealers/payment_reminder.txt',
+MarketplaceEmail('Your {EVENT} Dealer registration is due in one week', 'dealers/payment_reminder.txt',
                  lambda g: g.status == c.APPROVED and days_before(7, c.DEALER_PAYMENT_DUE, 2) and g.is_unpaid,
                  needs_approval=False)
 
-MarketplaceEmail('Last chance to pay for your {EVENT_NAME_AND_DATE} Dealer registration', 'dealers/payment_reminder.txt',
+MarketplaceEmail('Last chance to pay for your {EVENT} Dealer registration', 'dealers/payment_reminder.txt',
                  lambda g: g.status == c.APPROVED and days_before(2, c.DEALER_PAYMENT_DUE) and g.is_unpaid,
                  needs_approval=False)
 
@@ -209,7 +209,7 @@ AutomatedEmail(Attendee, '{EVENT_NAME} Badge Confirmation', 'placeholders/regula
 AutomatedEmail(Attendee, '{EVENT_NAME} Badge Confirmation Reminder', 'placeholders/reminder.txt',
                lambda a: days_after(7, a.registered) and a.placeholder and a.first_name and a.last_name and not a.is_dealer)
 
-AutomatedEmail(Attendee, 'Last Chance to Accept Your {EVENT_NAME_AND_DATE} Badge', 'placeholders/reminder.txt',
+AutomatedEmail(Attendee, 'Last Chance to Accept Your {EVENT} Badge', 'placeholders/reminder.txt',
                lambda a: days_before(7, c.PLACEHOLDER_DEADLINE) and a.placeholder and a.first_name and a.last_name
                                                                 and not a.is_dealer)
 
@@ -219,35 +219,35 @@ AutomatedEmail(Attendee, 'Last Chance to Accept Your {EVENT_NAME_AND_DATE} Badge
 StopsEmail('{EVENT_NAME} shifts available', 'shifts/created.txt',
            lambda a: c.AFTER_SHIFTS_CREATED and a.takes_shifts)
 
-StopsEmail('Reminder to sign up for {EVENT_NAME_AND_DATE} shifts', 'shifts/reminder.txt',
+StopsEmail('Reminder to sign up for {EVENT} shifts', 'shifts/reminder.txt',
            lambda a: c.AFTER_SHIFTS_CREATED and days_after(30, max(a.registered_local, c.SHIFTS_CREATED))
                  and c.BEFORE_PREREG_TAKEDOWN and a.takes_shifts and not a.hours)
 
-StopsEmail('Last chance to sign up for {EVENT_NAME_AND_DATE} shifts', 'shifts/reminder.txt',
+StopsEmail('Last chance to sign up for {EVENT} shifts', 'shifts/reminder.txt',
               lambda a: days_before(10, c.EPOCH) and c.AFTER_SHIFTS_CREATED and c.BEFORE_PREREG_TAKEDOWN
                                                  and a.takes_shifts and not a.hours)
 
-StopsEmail('Still want to volunteer at {EVENT_NAME_AND_DATE}?', 'shifts/volunteer_check.txt',
+StopsEmail('Still want to volunteer at {EVENT}?', 'shifts/volunteer_check.txt',
               lambda a: c.SHIFTS_CREATED and days_before(5, c.UBER_TAKEDOWN)
                                          and a.ribbon == c.VOLUNTEER_RIBBON and a.takes_shifts and a.weighted_hours == 0)
 
-StopsEmail('Your {EVENT_NAME_AND_DATE} shift schedule', 'shifts/schedule.html',
+StopsEmail('Your {EVENT} shift schedule', 'shifts/schedule.html',
            lambda a: c.SHIFTS_CREATED and days_before(1, c.UBER_TAKEDOWN) and a.weighted_hours)
 
 
 # For events with customized badges, these emails remind people to let us know what we want on their badges.  We have
 # one email for our volunteers who haven't bothered to confirm they're coming yet (bleh) and one for everyone else.
 
-StopsEmail('Last chance to personalize your {EVENT_NAME_AND_DATE} badge', 'personalized_badges/volunteers.txt',
+StopsEmail('Last chance to personalize your {EVENT} badge', 'personalized_badges/volunteers.txt',
            lambda a: days_before(7, c.PRINTED_BADGE_DEADLINE) and a.staffing and a.badge_type in c.PREASSIGNED_BADGE_TYPES and a.placeholder)
 
-AutomatedEmail(Attendee, 'Personalized {EVENT_NAME_AND_DATE} badges will be ordered next week', 'personalized_badges/reminder.txt',
+AutomatedEmail(Attendee, 'Personalized {EVENT} badges will be ordered next week', 'personalized_badges/reminder.txt',
                lambda a: days_before(7, c.PRINTED_BADGE_DEADLINE) and a.badge_type in c.PREASSIGNED_BADGE_TYPES and not a.placeholder)
 
 
 # MAGFest requires signed and notarized parental consent forms for anyone under 18.  This automated email reminder to
 # bring the consent form only happens if this feature is turned on by setting the CONSENT_FORM_URL config option.
-AutomatedEmail(Attendee, '{EVENT_NAME_AND_DATE} parental consent form reminder', 'reg_workflow/under_18_reminder.txt',
+AutomatedEmail(Attendee, '{EVENT} parental consent form reminder', 'reg_workflow/under_18_reminder.txt',
                lambda a: c.CONSENT_FORM_URL and a.age_group_conf['consent_form'] and days_before(14, c.EPOCH))
 
 
