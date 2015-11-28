@@ -154,15 +154,15 @@ class Root:
 
     @unrestricted
     def sitemap(self):
-        from uber import site_sections
+        site_sections = cherrypy.tree.apps[c.PATH].root
         modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}
         pages = defaultdict(list)
-        for module_name, module in modules.items():
-            for name in dir(module.Root):
-                method = getattr(module.Root, name)
+        for module_name, module_root in modules.items():
+            for name in dir(module_root):
+                method = getattr(module_root, name)
                 if getattr(method, 'exposed', False):
                     spec = inspect.getfullargspec(get_innermost(method))
-                    if set(method.restricted or []).intersection(AdminAccount.access_set()) \
+                    if set(getattr(method, 'restricted', []) or []).intersection(AdminAccount.access_set()) \
                             and (getattr(method, 'site_mappable', False)
                               or len([arg for arg in spec.args[1:] if arg != 'session']) == len(spec.defaults or []) and not spec.varkw):
                         pages[module_name].append({
