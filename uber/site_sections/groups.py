@@ -66,7 +66,7 @@ class Root:
         }
 
     @ajax
-    def unapprove(self, session, id, action, email, convert=None):
+    def unapprove(self, session, id, action, email, convert=None, message=''):
         assert action in ['waitlisted', 'declined']
         group = session.group(id)
         subject = 'Your {EVENT_NAME} Dealer registration has been ' + action
