@@ -101,6 +101,12 @@ def shirt_size(attendee):
         return 'Your shirt size is required'
 
 
+@prereg_validation.Attendee
+def total_cost_over_paid(attendee):
+    if attendee.total_cost < attendee.amount_paid:
+        return 'You have already paid ${}, you cannot reduce your extras below that.'.format(attendee.amount_paid)
+
+
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def full_name(attendee):
