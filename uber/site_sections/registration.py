@@ -893,3 +893,10 @@ class Root:
                                                        Attendee.assigned_depts.contains(department))
                                                .order_by(Attendee.full_name).all()]
         }
+
+    def inactive(self, session):
+        return {
+            'attendees': session.query(Attendee)
+                                .filter(~Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]))
+                                .order_by(Attendee.badge_status, Attendee.full_name).all()
+        }
