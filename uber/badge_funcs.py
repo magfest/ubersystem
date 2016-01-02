@@ -69,6 +69,7 @@ def check_placeholders():
                     placeholders = (session.query(Attendee)
                                            .filter(Attendee.placeholder == True,
                                                    Attendee.registered < localized_now() - timedelta(days=3),
+                                                   Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
                                                    per_email_filter)
                                            .options(joinedload(Attendee.group))
                                            .order_by(Attendee.registered, Attendee.full_name).all())
