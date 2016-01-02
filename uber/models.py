@@ -1674,9 +1674,13 @@ class Email(MagModel):
             return self.fk.full_name
 
     @property
+    def is_html(self):
+        return '<body' in self.body
+
+    @property
     def html(self):
-        if '<body>' in self.body:
-            return SafeString(self.body.split('<body>')[1].split('</body>')[0])
+        if self.is_html:
+            return SafeString(re.split('<body[^>]*>', self.body)[1].split('</body>')[0])
         else:
             return SafeString(self.body.replace('\n', '<br/>'))
 
