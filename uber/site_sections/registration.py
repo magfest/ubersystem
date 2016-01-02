@@ -890,6 +890,7 @@ class Root:
             'placeholders': [a for a in session.query(Attendee)
                                                .filter(Attendee.placeholder == True,
                                                        Attendee.staffing == True,
+                                                       Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
                                                        Attendee.assigned_depts.contains(department))
                                                .order_by(Attendee.full_name).all()]
         }
