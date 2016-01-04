@@ -2,16 +2,20 @@
 {% block title %}Shirt Counts{% endblock %}
 {% block content %}
 
+<style type="text/css">
+    td { padding: 5px 10px 5px 10px; }
+</style>
+
 <h2>Shirt Counts</h2>
 
 {% for name, category in categories %}
     <h3>{{ name }} shirts</h3>
-    <table style="width:auto">
+    <table>
     {% for label, counts in category %}
         <tr>
             <td>{{ label }}:</td>
-            <td>{{ counts.picked_up }} picked up</td>
             <td>{{ counts.outstanding }} outstanding</td>
+            <td>{{ counts.picked_up }} picked up</td>
         </tr>
     {% endfor %}
     </table>

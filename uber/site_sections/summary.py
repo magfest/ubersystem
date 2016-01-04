@@ -196,7 +196,7 @@ class Root:
         counts = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
         labels = ['size unknown'] + [label for val, label in c.SHIRT_OPTS][1:]
         sort = lambda d: sorted(d.items(), key=lambda tup: labels.index(tup[0]))
-        label = lambda s: 'size unknown' if s == 'no shirt' else s
+        label = lambda s: 'size unknown' if s == c.SHIRTS[c.NO_SHIRT] else s
         status = lambda got_merch: 'picked_up' if got_merch else 'outstanding'
         for attendee in session.query(Attendee).all():
             if attendee.gets_free_shirt:
