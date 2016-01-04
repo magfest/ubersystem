@@ -375,7 +375,7 @@ c.BADGE_LOCK = RLock()
 c.CON_LENGTH = int((c.ESCHATON - c.EPOCH).total_seconds() // 3600)
 c.START_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (c.EPOCH + timedelta(hours=i) for i in range(c.CON_LENGTH))]
 c.DURATION_OPTS = [(i, '%i hour%s' % (i, ('s' if i > 1 else ''))) for i in range(1, 9)]
-c.SETUP_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (c.EPOCH - timedelta(days=2) + timedelta(hours=i) for i in range(16))] \
+c.SETUP_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (c.EPOCH - timedelta(days=5) + timedelta(hours=i) for i in range(16))] \
                   + [(dt, dt.strftime('%I %p %a')) for dt in (c.EPOCH - timedelta(days=1) + timedelta(hours=i) for i in range(24))]
 c.TEARDOWN_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (c.ESCHATON + timedelta(hours=i) for i in range(6))] \
                      + [(dt, dt.strftime('%I %p %a'))
