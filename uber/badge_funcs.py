@@ -30,13 +30,20 @@ def get_badge_type(badge_num):
 
 
 def detect_duplicates():
+    '''
+    Every day, this function looks through registered attendees for attendees with the same names and email addresses.
+    It first deletes any unpaid duplicates, then sets paid duplicates from "Completed" to "New" and sends an email to
+    the registration email address. This allows us to see new duplicate attendees without repetitive emails.
+    '''
     if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS):
         subject = c.EVENT_NAME + ' Duplicates Report for ' + localized_now().strftime('%Y-%m-%d')
         with Session() as session:
             if session.no_email(subject):
                 grouped = defaultdict(list)
-                for a in session.query(Attendee).filter(Attendee.first_name != '').options(joinedload(Attendee.group)).order_by(Attendee.registered):
-                    if not a.group or a.group.status != c.WAITLISTED:
+                for a in session.query(Attendee).filter(Attendee.first_name != '')\
+                        .filter(Attendee.badge_status == c.COMPLETED_STATUS).options(joinedload(Attendee.group))\
+                        .order_by(Attendee.registered):
+                    if not a.group or a.group.status not in [c.WAITLISTED, c.UNAPPROVED]:
                         grouped[a.full_name, a.email.lower()].append(a)
 
                 dupes = {k: v for k, v in grouped.items() if len(v) > 1}
@@ -48,6 +55,8 @@ def detect_duplicates():
                         for a in unpaid:
                             session.delete(a)
                         del dupes[who]
+                    for a in paid:
+                        a.badge_status = c.NEW_STATUS
 
                 if dupes:
                     body = render('emails/daily_checks/duplicates.html', {'dupes': sorted(dupes.items())})
