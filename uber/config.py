@@ -265,17 +265,12 @@ class SecretConfig(_Overridable):
     def SQLALCHEMY_URL(self):
         """
         support reading the DB connection info from an environment var (used with Docker containers)
-        example env vars:
-        DB_PORT_5432_TCP_ADDR="172.17.0.8"
-        DB_PORT_5432_TCP_PORT="5432"
+        DB_CONNECTION_STRING should contain the full Postgres URI
         """
-        docker_db_addr = os.environ.get('DB_PORT_5432_TCP_ADDR')
-        docker_db_port = os.environ.get('DB_PORT_5432_TCP_PORT')
+        db_connection_string = os.environ.get('DB_CONNECTION_STRING')
 
-        if docker_db_addr is not None and docker_db_port is not None:
-            return "postgresql://uber_db:uber_db@" + docker_db_addr + ":" + docker_db_port + "/uber_db"
-        else:
-            return _config['secret']['sqlalchemy_url']
+        if db_connection_string is not None:
+            return db_connection_string
 
 c = Config()
 _secret = SecretConfig()
