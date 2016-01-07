@@ -32,7 +32,7 @@ class Root:
 
     @log_pageview
     def form(self, session, new_dealer='', first_name='', last_name='', email='', message='', **params):
-        group = session.group(params, bools=['auto_recalc', 'can_add'])
+        group = session.group(params, checkgroups=Group.all_checkgroups, bools=Group.all_bools,)
         if 'name' in params:
             message = check(group)
             if not message:
