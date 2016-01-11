@@ -1805,6 +1805,8 @@ class Tracking(MagModel):
             if "registration" in url:
                 with Session() as session:
                     attendee = session.query(Attendee).filter(Attendee.id == params['id']).first()
+                    if (attendee == None):
+                        raise HTTPRedirect('../registration/error_attendee_not_found')
                     Tracking.track(c.PAGE_VIEWED, attendee)
             # Looking at a group's details
             elif "groups" in url:
