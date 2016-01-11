@@ -288,10 +288,10 @@ class Root:
             if not message and not params['first_name']:
                 message = 'First and Last Name are required fields'
             if not message:
-                if not group.floating:
+                if not group.unassigned:
                     raise HTTPRedirect('group_members?id={}&message={}', group_id, 'No more unassigned badges exist in this group')
 
-                badge_being_claimed = group.floating[0]
+                badge_being_claimed = group.unassigned[0]
 
                 # Free group badges are only considered 'registered' when they are actually claimed.
                 if group.cost == 0:
@@ -301,10 +301,10 @@ class Root:
 
                 attendee.badge_type = badge_being_claimed.badge_type
                 attendee.ribbon = badge_being_claimed.ribbon
-                session.delete_from_group(badge_being_claimed, group)
+                attendee.paid = badge_being_claimed.paid
 
+                session.delete_from_group(badge_being_claimed, group)
                 group.attendees.append(attendee)
-                attendee.paid = c.PAID_BY_GROUP
                 session.add(attendee)
                 if attendee.amount_unpaid:
                     raise HTTPRedirect('group_extra_payment_form?id={}', attendee.id)
@@ -375,7 +375,7 @@ class Root:
         except:
             log.error('unable to send group unset email', exc_info=True)
 
-        session.assign_badges(attendee.group, attendee.group.badges + 1, registered=attendee.registered)
+        session.assign_badges(attendee.group, attendee.group.badges + 1, registered=attendee.registered, paid=attendee.paid)
         session.delete_from_group(attendee, attendee.group)
         raise HTTPRedirect('group_members?id={}&message={}', attendee.group_id, 'Attendee unset; you may now assign their badge to someone else')
 
