@@ -904,4 +904,3 @@ class Root:
 
     def error_attendee_not_found(message):
         return "Sorry, but that attendee doesn't exist."
-    
