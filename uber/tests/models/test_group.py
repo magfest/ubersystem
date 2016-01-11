@@ -124,6 +124,14 @@ def test_assign_new_badges(session, monkeypatch):
         assert attendee.badge_type == 222
 
 
+def test_assign_new_comped_badges(session, monkeypatch):
+    group = Group()
+    session.assign_badges(group, 2, paid=c.NEED_NOT_PAY)
+    assert 2 == group.badges == len(group.attendees)
+    for attendee in group.attendees:
+        assert attendee.paid == c.NEED_NOT_PAY
+
+
 def test_assign_extra_create_arguments(session):
     group = Group()
     registered = localized_now()
