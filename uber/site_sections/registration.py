@@ -902,11 +902,6 @@ class Root:
                                 .order_by(Attendee.badge_status, Attendee.full_name).all()
         }
 
-
-    def error_page_500(status, message, traceback, version):
-        return "Error %s - Sorry, but that attendee doesn't exist" % status
-    cherrypy.config.update({'error_page.500': error_page_500})
-
     def error_attendee_not_found(message):
         return "Sorry, but that attendee doesn't exist."
     
