@@ -671,17 +671,17 @@ class Session(SessionManager):
                 return attendees.filter(or_(*checks))
 
         def delete_from_group(self, attendee, group):
-            '''
+            """
             Sometimes we want to delete an attendee badge which is part of a group.  In most cases, we could just
             say "session.delete(attendee)" but sometimes we need to make sure that the attendee is ALSO removed
             from the "group.attendees" list before we commit, since the number of attendees in a group is used in
             our presave_adjustments() code to update the group price.  So anytime we delete an attendee in a group,
             we should use this method.
-            '''
+            """
             self.delete(attendee)
             group.attendees.remove(attendee)
 
-        def assign_badges(self, group, new_badge_count, new_badge_type=c.ATTENDEE_BADGE, new_ribbon_type=None, **extra_create_args):
+        def assign_badges(self, group, new_badge_count, new_badge_type=c.ATTENDEE_BADGE, new_ribbon_type=None, paid=c.PAID_BY_GROUP, **extra_create_args):
             diff = int(new_badge_count) - group.badges
             sorted_unassigned = sorted(group.floating, key=lambda a: a.registered, reverse=True)
 
@@ -689,7 +689,7 @@ class Session(SessionManager):
 
             if diff > 0:
                 for i in range(diff):
-                    group.attendees.append(Attendee(badge_type=new_badge_type, ribbon=ribbon_to_use, paid=c.PAID_BY_GROUP, **extra_create_args))
+                    group.attendees.append(Attendee(badge_type=new_badge_type, ribbon=ribbon_to_use, paid=paid, **extra_create_args))
             elif diff < 0:
                 if len(group.floating) < abs(diff):
                     return 'You cannot reduce the number of badges for a group to below the number of assigned badges'
@@ -698,12 +698,10 @@ class Session(SessionManager):
                         self.delete_from_group(attendee, group)
 
         def assign(self, attendee_id, job_id):
-            '''
+            """
             assign an Attendee to a Job by creating a Shift
-
             :return: 'None' on success, error message on failure
-            '''
-
+            """
             job = self.job(job_id)
             attendee = self.attendee(attendee_id)
 
@@ -825,7 +823,22 @@ class Group(MagModel, TakesPaymentMixin):
         return self.attendees
 
     @property
+    def unassigned(self):
+        """
+        Returns a list of the unassigned badges for this group, sorted so that
+        the paid-by-group badges come last, because when claiming unassigned
+        badges we want to claim the "weird" ones first.
+        """
+        return sorted([a for a in self.attendees if a.is_unassigned], key=lambda a: a.paid == c.PAID_BY_GROUP)
+
+    @property
     def floating(self):
+        """
+        Returns the list of paid-by-group unassigned badges for this group. This
+        is a separate property from the "Group.unassigned" property because when
+        automatically adding or removing unassigned badges, we care specifically
+        about paid-by-group badges rather than all unassigned badges.
+        """
         return [a for a in self.attendees if a.is_unassigned and a.paid == c.PAID_BY_GROUP]
 
     @property
@@ -834,7 +847,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def ribbon_and_or_badge(self):
-        badge_being_claimed = self.floating[0]
+        badge_being_claimed = self.unassigned[0]
         if badge_being_claimed.ribbon != c.NO_RIBBON and badge_being_claimed.badge_type != c.ATTENDEE_BADGE:
             return badge_being_claimed.badge_type_label + " / " + self.ribbon_label
         elif badge_being_claimed.ribbon != c.NO_RIBBON:
