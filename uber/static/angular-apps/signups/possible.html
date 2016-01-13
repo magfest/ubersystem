@@ -41,8 +41,8 @@
 </tr>
 </table>
 
-<div ng-show="job in jobs == 0 || job in jobs == null">
+<div ng-hide="jobs.length">
     <p>
-        There are currently no shifts available. Please contact <a href="mailto:stops@magfest.org">stops@magfest.org</a> for more information.
+        There are currently no shifts that you are eligible to sign up for. Please contact {{ c.STAFF_EMAIL }} for more information.
     </p>
 </div>
