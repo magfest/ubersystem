@@ -76,10 +76,10 @@ class Root:
             # -------------
 
             # for previous years, use cached data
-            raw_data = copy.deepcopy(raw_data_mag6_thru_mag11)
+            # raw_data = copy.deepcopy(raw_data_mag6_thru_mag11)
             
             # for this year, run the query
-            raw_data.append(generate_attendance_by_day_graph_data('2014-01-05'))
+            raw_data = generate_attendance_by_day_graph_data('2014-01-05')
 
             print("done query, processing data")
 
