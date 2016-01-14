@@ -103,12 +103,14 @@ def check_unassigned():
 # 1) there are no gaps in badge numbers
 # 2) all badge numbers are in the ranges set by BADGE_RANGES
 # note: does not do any duplicates checking, that's a different pre-existing check
-def badge_consistency_check():
+def badge_consistency_check(session):
     errors = []
 
     # check 1, see if anything is out of range, or has a duplicate badge number
     badge_nums_seen = []
-    for attendee in Attendee.objects.exclude(first_name = '').exclude(badge_num = 0).order_by('badge_num'):
+    for attendee in session.query(Attendee)\
+            .filter(Attendee.first_name != '', Attendee.badge_num != 0)\
+            .order_by(Attendee.badge_num).all():
         out_of_range_error = check_range(attendee.badge_num, attendee.badge_type)
         if out_of_range_error:
             msg = '{a.full_name}: badge #{a.badge_num}: {err}'.format(a=attendee, err=out_of_range_error)
@@ -121,11 +123,14 @@ def badge_consistency_check():
         badge_nums_seen.append(attendee.badge_num)
 
     # check 2: see if there are any gaps in each of the badge ranges
-    for badge_type_val, badge_type_desc in BADGE_OPTS:
+    for badge_type_val, badge_type_desc in c.BADGE_OPTS:
         prev_badge_num = -1
         prev_attendee_name = ""
 
-        for attendee in Attendee.objects.filter(badge_type=badge_type_val).exclude(first_name = '').exclude(badge_num = 0).order_by('badge_num'):
+        for attendee in session.query(Attendee)\
+                .filter_by(badge_type=badge_type_val)\
+                .filter(Attendee.first_name != '', Attendee.badge_num != 0)\
+                .order_by(Attendee.badge_num):
             if prev_badge_num == -1:
                 prev_badge_num = attendee.badge_num
                 prev_attendee_name = attendee.full_name
@@ -143,16 +148,22 @@ def badge_consistency_check():
 
     return errors
 
-# EXTREME CAUTION. POWERFUL DARK MAGIC. NUCLEAR OPTION.
+
+# EXTREME CAUTION. POWERFUL DARK MAGIC. NUCLEAR OPTION. YOU HAVE BEEN WARNED
 # DO NOT USE THIS UNLESS YOU KNOW EXACTLY WHAT YOU ARE DOING!!! i.e. ask Dom, Eli, or Vicki
-# this will re-assign every single badge number for every single attendee to be in the correct range, be EXTREMELY careful with it.
-# it's intended to fix up the database in situations where badge numbers get seriously fubar'd.
-def fixup_all_badge_numbers():
-    with BADGE_LOCK:
-        for badge_type, badge_range in BADGE_RANGES.items():
+# this will re-assign every single badge number for every single attendee to be in the correct range,
+# be EXTREMELY careful with it. it's intended to fix up the database in situations where badge numbers
+# get seriously fubar'd.
+def fixup_all_badge_numbers(session):
+    with c.BADGE_LOCK:
+        for badge_type, badge_range in c.BADGE_RANGES.items():
             next_available_badge_number = badge_range[0]
-            for attendee in Attendee.objects.filter(badge_type=badge_type).exclude(first_name = '').exclude(badge_num = 0).order_by('badge_num'):
+            for attendee in session.query(Attendee)\
+                    .filter_by(badge_type=badge_type)\
+                    .filter(Attendee.first_name != '', Attendee.badge_num != 0)\
+                    .order_by(Attendee.badge_num).all():
                 attendee.badge_num = next_available_badge_number
                 next_available_badge_number += 1
-                attendee.save()
+
+        session.commit()
 
