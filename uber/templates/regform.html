@@ -172,7 +172,7 @@
     <div class="extra-row form-group">
         <label for="amount_extra" class="col-sm-2 control-label">Want to kick in extra?</label>
         <div class="col-sm-6">
-            {% if c.AFTER_PRINTED_BADGE_DEADLINE and attendee.amount_extra >= c.SUPPORTER_LEVEL %}
+            {% if c.AFTER_SUPPORTER_DEADLINE and attendee.amount_extra >= c.SUPPORTER_LEVEL %}
                 {{ attendee.amount_extra_label }}
                 <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
             {% else %}
@@ -188,7 +188,7 @@
             {% endif %}
         </div>
         {% popup_link "../static_views/givingExtra.html" "Why do this?" %}
-        <p class="help-block col-sm-6 col-sm-offset-2">
+        <p class="help-block col-sm-6">
             Each level includes all lower levels. <br/>
             Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime }}.
         </p>
