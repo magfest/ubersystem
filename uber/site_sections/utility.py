@@ -45,7 +45,7 @@ class Root:
             errors = badge_consistency_check()
 
         if submit != None and run_fixup == "yes, do it":
-            if not CUSTOM_BADGES_REALLY_ORDERED:
+            if not c.CUSTOM_BADGES_REALLY_ORDERED:
                 fixup_all_badge_numbers()
                 ran_fixup = True
             else:
