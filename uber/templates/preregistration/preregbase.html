@@ -52,7 +52,7 @@
                 {% if c.BEFORE_GROUP_PREREG_TAKEDOWN %}
                     description: '<p class="list-group-item-text">Register a group of {{ c.MIN_GROUP_SIZE }} people or more.</p>',
                 {% else %}
-                    description: '<p class="list-group-item-text">The deadline for Group registration has passed, but you can still register as a regular attendee.</p>'
+                    description: '<p class="list-group-item-text">The deadline for Group registration has passed, but you can still register as a regular attendee.</p>',
                 {% endif %}
                 onClick: function () {
                     $('.group_fields').removeClass('hide');
