@@ -547,3 +547,6 @@ class Root:
             'message': message,
             'attendee': attendee
         }
+
+    def error_attendee_not_found(self, id=''):
+        return "Sorry, but an attendee with badge ID %s doesn't exist." % id

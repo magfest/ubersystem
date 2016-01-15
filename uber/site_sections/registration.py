@@ -901,6 +901,3 @@ class Root:
                                 .filter(~Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]))
                                 .order_by(Attendee.badge_status, Attendee.full_name).all()
         }
-
-    def error_attendee_not_found(message):
-        return "Sorry, but that attendee doesn't exist."
