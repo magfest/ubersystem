@@ -166,4 +166,3 @@ def fixup_all_badge_numbers(session):
                 next_available_badge_number += 1
 
         session.commit()
-

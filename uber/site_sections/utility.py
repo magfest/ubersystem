@@ -1,7 +1,9 @@
 from uber.common import *
-import subprocess, shlex
+import subprocess
+import shlex
 
 # admin utilities.  should not be used during normal ubersystem operations except by developers / sysadmins
+
 
 # quick n dirty. don't use for anything real.
 def run_shell_cmd(command_line, working_dir=None):
@@ -10,10 +12,12 @@ def run_shell_cmd(command_line, working_dir=None):
     out, err = p.communicate()
     return out
 
+
 def run_git_cmd(cmd):
     git = "/usr/bin/git"
-    uber_base_dir = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..'))
+    uber_base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
     return run_shell_cmd(git + " " + cmd, working_dir=uber_base_dir)
+
 
 @all_renderable(c.PEOPLE)
 class Root:
