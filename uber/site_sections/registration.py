@@ -101,10 +101,10 @@ class Root:
                     attendee.checked_in = localized_now()
                 session.add(attendee)
                 if return_to:
-                    raise HTTPRedirect(return_to + '&message={}', 'Attendee data uploaded')
+                    raise HTTPRedirect(return_to + '&message={}', 'Attendee data saved')
                 else:
                     raise HTTPRedirect('index?uploaded_id={}&message={}&search_text={}', attendee.id,
-                        '{} has been uploaded'.format(attendee.full_name),
+                        '{} has been saved'.format(attendee.full_name),
                         '{} {}'.format(attendee.first_name, attendee.last_name) if c.AT_THE_CON else '')
 
         return {
