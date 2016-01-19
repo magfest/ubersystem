@@ -32,7 +32,7 @@ def check_atd(func):
 
 @all_renderable(c.PEOPLE, c.REG_AT_CON)
 class Root:
-    def index(self, session, message='', page='0', search_text='', uploaded_id='', order='last_first', invalid=''):
+    def index(self, session, message='', page='1', search_text='', uploaded_id='', order='last_first', invalid=''):
         filter = Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]) if not invalid else None
         attendees = session.query(Attendee) if invalid else session.query(Attendee).filter(filter)
         total_count = attendees.count()
