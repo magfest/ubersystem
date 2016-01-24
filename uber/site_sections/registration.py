@@ -38,7 +38,7 @@ class Root:
         # default due to the possibility of large amounts of reg stations accessing this
         # page at once. viewing the first page is also rarely useful in production when
         # there are thousands of attendees.
-        if c.DEV_BOX and (not page or page == 0):
+        if c.DEV_BOX and not int(page):
             page = 1
 
         filter = Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]) if not invalid else None
