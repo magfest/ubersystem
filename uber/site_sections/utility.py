@@ -1,5 +1,6 @@
 from uber.common import *
 
+
 @all_renderable(c.PEOPLE)
 class Root:
     def badge_number_consistency_check(self, session, run_check=None, run_fixup=None, submit=None):
