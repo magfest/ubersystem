@@ -33,6 +33,14 @@ def check_atd(func):
 @all_renderable(c.PEOPLE, c.REG_AT_CON)
 class Root:
     def index(self, session, message='', page='0', search_text='', uploaded_id='', order='last_first', invalid=''):
+        # DEVELOPMENT ONLY: it's an extremely convenient shortcut to show the first page
+        # of search results when doing testing. it's too slow in production to do this by
+        # default due to the possibility of large amounts of reg stations accessing this
+        # page at once. viewing the first page is also rarely useful in production when
+        # there are thousands of attendees.
+        if c.DEV_BOX and not int(page):
+            page = 1
+
         filter = Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]) if not invalid else None
         attendees = session.query(Attendee) if invalid else session.query(Attendee).filter(filter)
         total_count = attendees.count()
