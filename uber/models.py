@@ -1392,6 +1392,15 @@ class Attendee(MagModel, TakesPaymentMixin):
     def past_years_json(self):
         return json.loads(self.past_years or '[]')
 
+    @property
+    def is_allowed_to_have_badge_zero(self):
+        if self.paid == c.NOT_PAID:
+            return True
+        elif self.badge_type in c.PREASSIGNED_BADGE_TYPES:
+            return False
+        else:
+            return not self.checked_in
+
 
 class WatchList(MagModel):
     first_names     = Column(UnicodeText)
