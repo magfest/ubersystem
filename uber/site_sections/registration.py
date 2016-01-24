@@ -104,12 +104,11 @@ class Root:
                     raise HTTPRedirect(return_to + '&message={}', 'Attendee data saved')
                 else:
                     msg_text = '{} has been saved'.format(attendee.full_name)
-                    if c.AT_THE_CON:
-                        # redirect back to search page for registration staffers to quickly process the next checkin
+                    return_to_search = 'save_return_to_search' in params['save'] if 'save' in params else False
+                    if return_to_search:
                         raise HTTPRedirect('index?uploaded_id={}&message={}&search_text={}', attendee.id, msg_text,
                             '{} {}'.format(attendee.first_name, attendee.last_name) if c.AT_THE_CON else '')
                     else:
-                        # when not at-the-con, it's more convenient to show the attendee edit form
                         raise HTTPRedirect('form?id={}&message={}', attendee.id, msg_text)
 
         return {
