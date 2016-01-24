@@ -71,3 +71,30 @@ class Root:
     def approve(self, session, subject):
         session.add(ApprovedEmail(subject=subject))
         raise HTTPRedirect('pending?message={}', 'Email approved and will be sent out shortly')
+
+    def emails_by_interest(self, message=''):
+        return {
+            'message': message
+        }
+
+    @csv_file
+    def emails_by_interest_csv(self, out, session, **params):
+        """
+        Generate a list of emails of attendees who match one of c.INTEREST_OPTS
+        (interests are like "LAN", "music", "gameroom", etc)
+
+        This is intended for use to export emails to a third-party email system, like MadMimi or Mailchimp
+        """
+        if 'interests' not in params:
+            raise HTTPRedirect('emails_by_interest?message={}', 'You must select at least one interest')
+
+        interests = [int(i) for i in listify(params['interests'])]
+        assert all(k in c.INTERESTS for k in interests)
+
+        attendees = session.query(Attendee).filter_by(can_spam=True).order_by('email').all()
+
+        out.writerow(["fullname", "email", "zipcode"])
+
+        for a in attendees:
+            if set(interests).intersection(a.interests_ints):
+                out.writerow([a.full_name, a.email, a.zip_code])
