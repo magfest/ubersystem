@@ -752,7 +752,15 @@ class Root:
         session.delete(shift)
         raise HTTPRedirect('shifts?id={}&message={}', shift.attendee.id, 'Staffer unassigned from shift')
 
-    def feed(self, session, page='1', who='', what='', action=''):
+    def feed(self, session, page='0', who='', what='', action=''):
+        # DEVELOPMENT ONLY: it's an extremely convenient shortcut to show the first page
+        # of search results when doing testing. it's too slow in production to do this by
+        # default due to the possibility of large amounts of reg stations accessing this
+        # page at once. viewing the first page is also rarely useful in production when
+        # there are thousands of attendees.
+        if c.DEV_BOX and (not page or page == 0):
+            page = 1
+
         feed = session.query(Tracking).filter(Tracking.action != c.AUTO_BADGE_SHIFT).order_by(Tracking.when.desc())
         if who:
             feed = feed.filter_by(who=who)
