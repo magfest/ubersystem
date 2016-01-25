@@ -44,7 +44,7 @@
             <font color="red">
                 Errors were:<br/><br/>
                 {% for error in errors %}
-                    {{ error }}<br>
+                    {{ error|safe }}<br>
                 {% endfor %}
             </font>
         </div>

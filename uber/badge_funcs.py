@@ -110,16 +110,17 @@ def badge_consistency_check(session):
     badge_nums_seen = []
     for attendee in session.query(Attendee).order_by(Attendee.badge_num).all():
 
+        msg_txt = '<a href="../registration/form?id={a.id}">{a.full_name}</a> (badge #{a.badge_num}): {msg}'
+
         if attendee.badge_num != 0 or not attendee.is_allowed_to_have_badge_zero:
             out_of_range_error = check_range(attendee.badge_num, attendee.badge_type)
             if out_of_range_error:
-                msg = '{a.full_name}: badge #{a.badge_num}: {err}'.format(a=attendee, err=out_of_range_error)
+                msg = msg_txt.format(a=attendee, msg=out_of_range_error)
                 errors.append(msg)
 
         if attendee.badge_num in badge_nums_seen:
             if attendee.badge_num == 0 and not attendee.is_allowed_to_have_badge_zero:
-                msg = '{a.full_name}: badge #{a.badge_num}: Has been assigned the same badge number of another badge, '
-                'which is not supposed to happen'.format(a=attendee)
+                msg = msg_txt.format(a=attendee, msg='Has been assigned the same badge number of another badge, which is not supposed to happen')
                 errors.append(msg)
 
         badge_nums_seen.append(attendee.badge_num)
