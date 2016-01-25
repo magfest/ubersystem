@@ -6,7 +6,7 @@
 
 <h2>Changelog for {{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
 
-<table class="list">
+<table class="list" border="1" borderspacing="0">
 <tr class="header">
     <td>Which</td>
     <td>What</td>
@@ -16,11 +16,11 @@
 </tr>
 {% for tracked in changes %}
     <tr>
-        <td style="white-space:nowrap">{{ tracked.model }}</td>
-        <td style="white-space:nowrap">{{ tracked.action_label }}</td>
-        <td style="white-space:nowrap">{{ tracked.when|full_datetime }}</td>
-        <td style="white-space:nowrap">{{ tracked.who }}</td>
-        <td>{{ tracked.data }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.model }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.action_label }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.when|full_datetime }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.who }}</td>
+        <td valign="top">{{ tracked.data }}</td>
     </tr>
 {% endfor %}
 </table>
