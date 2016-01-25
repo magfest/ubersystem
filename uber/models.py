@@ -1398,6 +1398,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             return True
         elif self.badge_type in c.PREASSIGNED_BADGE_TYPES:
             return False
+        elif self.paid == c.PAID_BY_GROUP and c.first_name == '':
+            return True
         else:
             return not self.checked_in
 
