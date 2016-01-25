@@ -95,20 +95,21 @@ class Root:
     def check_prereg(self):
         return json.dumps({'force_refresh': not c.AT_THE_CON and (c.AFTER_PREREG_TAKEDOWN or c.BADGES_SOLD >= c.MAX_BADGE_SALES)})
 
-    def check_if_preregistered(self, session, message="", **params):
+    def check_if_preregistered(self, session, message='', **params):
         if 'email' in params:
             attendee = session.query(Attendee).filter(func.lower(Attendee.email) == func.lower(params['email'])).first()
-            message = "Thank you! You will receive a confirmation email if you are registered for {}.".format(c.EVENT_NAME_AND_YEAR)
+            message = 'Thank you! You will receive a confirmation email if you are registered for {}.'.format(c.EVENT_NAME_AND_YEAR)
             subject = c.EVENT_NAME_AND_YEAR + ' Registration Confirmation'
 
             if attendee:
-                last_email = session.query(Email)\
-                                  .filter(and_(Email.dest == attendee.email, Email.subject == subject))\
-                                  .order_by(Email.when.desc()).first()
+                last_email = (session.query(Email)
+                                     .filter_by(dest=attendee.email, subject=subject)
+                                     .order_by(Email.when.desc()).first())
                 if not last_email or last_email.when < (localized_now() - timedelta(days=7)):
-                    send_email(c.REGDESK_EMAIL, attendee.email, subject, render('emails/reg_workflow/prereg_check.html', {
+                    send_email(c.REGDESK_EMAIL, attendee.email, subject, render('emails/reg_workflow/prereg_check.txt', {
                         'attendee': attendee
                     }), model=attendee)
+
         return {'message': message}
 
     @check_if_can_reg
