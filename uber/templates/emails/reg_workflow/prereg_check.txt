@@ -1,0 +1,7 @@
+{{ attendee.first_name }},
+
+Thank you for double-checking your registration for {{ c.EVENT_NAME_AND_YEAR }}.  To check whether you can pick up your badge at the event, please use the following link to verify that your registration is valid, your information is correct, and that you have no outstanding balance: {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}
+
+If you have any questions about your badge, please contact us at {{ c.REGDESK_EMAIL|email_only }}. Thank you!
+
+{{ c.REGDESK_EMAIL_SIGNATURE }}
