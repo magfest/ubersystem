@@ -1394,12 +1394,12 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def is_allowed_to_have_badge_zero(self):
-        if self.paid == c.NOT_PAID:
+        if self.paid == c.NOT_PAID or self.badge_status not in [c.NEW_STATUS, c.COMPLETED_STATUS]:
+            return True
+        elif self.paid == c.PAID_BY_GROUP and self.first_name == '':
             return True
         elif self.badge_type in c.PREASSIGNED_BADGE_TYPES:
             return False
-        elif self.paid == c.PAID_BY_GROUP and c.first_name == '':
-            return True
         else:
             return not self.checked_in
 

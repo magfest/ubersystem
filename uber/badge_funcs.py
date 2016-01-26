@@ -112,6 +112,7 @@ def badge_consistency_check(session):
 
         msg_txt = '<a href="../registration/form?id={a.id}">{a.full_name}</a> (badge #{a.badge_num}): {msg}'
 
+        # BUG something is weird with this check, it should be flagging staffers with a badge# of zero, and it's currently not
         if attendee.badge_num != 0 or not attendee.is_allowed_to_have_badge_zero:
             out_of_range_error = check_range(attendee.badge_num, attendee.badge_type)
             if out_of_range_error:
