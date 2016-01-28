@@ -285,9 +285,35 @@
 <div class="form-group">
     <label for="email" class="col-sm-2 control-label">Email Address</label>
     <div class="col-sm-6">
-        <input type="email" name="email" id="email" value="{{ attendee.email }}" class="form-control" placeholder="Email Address">
+        <input type="email" name="email" id="email" value="{{ attendee.email }}" class="form-control" placeholder="Email Address" id="mailValue1">
     </div>
 </div>
+
+<div class="form-group">
+    <label for="email" class="col-sm-2 control-label">Email Address Confirmation</label>
+    <div class="col-sm-6">
+        <input type="email" name="email2" id="email2" value=" emailValue2" class="form-control" placeholder="Email Address 2" id="mailValue2">
+    </div>
+</div>
+
+<div hidden class="email-error">
+        <br>
+    <p style="text-indent: 23em; color: red"><b>THE EMAIL Addresses entered do not match, please enter them again.</b></p>
+</div> <br>
+<div hidden class="email-identical">
+        <br>
+    <p style="text-indent: 23em; color: green"><b>THE EMAIL Addresses entered match.</b></p>
+</div> <br>
+
+<script>
+    var emailValue2;
+        if(document.getElementById("mailValue2").value == document.getElementById("mailValue1").value){
+            document.getElementsByClassName("email-identical").removeAttribute("hidden");
+        }
+        else{
+            document.getElementsByClassName("email-error").removeAttribute("hidden");
+        }
+</script>
 
 {% if c.COLLECT_FULL_ADDRESS %}
     {% if c.PRE_CON %}
@@ -357,7 +383,7 @@
 </div>
 
 <div class="form-group">
-    <label for="cellphone" class="col-sm-2 control-label">Your Cellphone Number</label>
+    <label for="cellphone" class="col-sm-2 control-label"><b>Your Cellphone Number</b></label>
     <div class="col-sm-6">
         <input type="text" name="cellphone" id="cellphone" value="{{ attendee.cellphone }}" class="form-control" placeholder="Your Personal Cellphone Number">
     </div>
