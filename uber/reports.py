@@ -16,10 +16,11 @@ class PersonalizedBadgeReport(ReportBase):
         self._include_badge_nums = include_badge_nums
 
     def run(self, out, session, *filters, order_by=None, badge_type_override=None):
-        for a in session.query(sa.Attendee)\
-                .filter(*filters)\
-                .order_by(order_by)\
-                .all():
+        for a in (session.query(sa.Attendee)
+                .filter(*filters)
+                .filter(sa.Attendee.badge_status not in [c.DEFERRED_STATUS, c.INVALID_STATUS])
+                .order_by(order_by)
+                .all()):
 
             row = [a.badge_num] if self._include_badge_nums else []
             badge_type_label = badge_type_override if badge_type_override else a.badge_type_label

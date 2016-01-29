@@ -141,6 +141,9 @@ class Root:
 
     @multifile_zipfile
     def personalized_badges_zip(self, zip_file, session):
+        """
+        Output all printed badge data in one convenient zipfile. Include a bunch of individual CSVs in here.
+        """
         zip_file.writestr("printed_badges_attendee.csv", self.printed_badges_attendee())
         zip_file.writestr("printed_badges_guest.csv", self.printed_badges_guest())
         zip_file.writestr("printed_badges_one_day.csv", self.printed_badges_one_day())
