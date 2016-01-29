@@ -10,6 +10,12 @@ class ReportBase:
 class PersonalizedBadgeReport(ReportBase):
     """
     Generate a CSV file which contains personalized badges with custom printed_names on them
+
+    Deferred badges probably should be printed, since in theory a Deferred badge might be checked in.
+    For example, a badge might be marked as Deferred if the attendee name matches a name on our watch list,
+    but we might find at the event that they're just a different person with the same name.
+
+    see discussion: https://github.com/magfest/ubersystem/issues/1648
     """
 
     def __init__(self, include_badge_nums=True):
@@ -18,7 +24,7 @@ class PersonalizedBadgeReport(ReportBase):
     def run(self, out, session, *filters, order_by=None, badge_type_override=None):
         for a in (session.query(sa.Attendee)
                 .filter(*filters)
-                .filter(sa.Attendee.badge_status not in [c.DEFERRED_STATUS, c.INVALID_STATUS])
+                .filter(sa.Attendee.badge_status != c.INVALID_STATUS)
                 .order_by(order_by)
                 .all()):
 
