@@ -227,6 +227,14 @@
     </div>
 </div>
 
+<div class="form-group staffing staffing-checked">
+    <label class="col-sm-2 control-label">Approved for Setup/Teardown</label>
+    <div class="col-sm-6">
+        {% checkbox attendee.can_work_setup %} Approved for setup <br/>
+        {% checkbox attendee.can_work_teardown %} Approved for teardown
+    </div>
+</div>
+
 {% if c.AT_THE_CON and not attendee.is_new %}
     <div class="form-group">
         <label class="col-sm-2 control-label">Received Merch</label>
