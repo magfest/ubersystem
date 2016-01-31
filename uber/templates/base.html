@@ -174,7 +174,6 @@
     {% if c.PRE_CON %}
         <div class="loader"><a class="loader_link" href="../static_views/slow_load.html" target="_blank"></a></div>
     {% endif %}
-        <script src="https://maps.googleapis.com/maps/api/js?sensor=false&libraries=places"></script>
     {% block top_of_body_additional %}{% endblock %}
     <div id="mainContainer" class="container-fluid">
         {% block top %}
@@ -234,5 +233,8 @@
         <![endif]-->
         {% include "baseextra.html" %}
     {% endblock %}
+    {% if c.COLLECT_FULL_ADDRESS %}
+        <script src="https://maps.googleapis.com/maps/api/js?sensor=false&libraries=places"></script>
+    {% endif %}
 </body>
 </html>
