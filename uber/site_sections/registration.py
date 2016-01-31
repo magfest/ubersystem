@@ -783,17 +783,15 @@ class Root:
             'who_opts': [who for [who] in session.query(Tracking).distinct().order_by(Tracking.who).values(Tracking.who)]
         }
 
-    def staffers(self, session, message='', order='first_name', search_text=''):
-        jobs, shifts, staffers = session.everything()
-        if search_text:
-            staffers = session.search(search_text, Attendee.staffing == True).options(joinedload(Attendee.shifts)).all()
+    def staffers(self, session, message='', order='first_name'):
+        staffers = (session.query(Attendee)
+                           .filter(Attendee.staffing == True, Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]))
+                           .options(subqueryload(Attendee.shifts).subqueryload(Shift.job)).all())
         return {
             'order': Order(order),
             'message': message,
-            'search_text': search_text,
-            'staffer_count': len(staffers),
-            'total_hours': sum(j.weighted_hours * j.slots for j in jobs),
-            'taken_hours': sum(s.job.weighted_hours for s in shifts),
+            'taken_hours': sum([s.weighted_hours - s.nonshift_hours for s in staffers], 0.0),
+            'total_hours': sum([j.weighted_hours * j.slots for j in session.query(Job).all()], 0.0),
             'staffers': sorted(staffers, reverse=order.startswith('-'), key=lambda s: getattr(s, order.lstrip('-')))
         }
 
