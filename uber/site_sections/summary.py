@@ -113,39 +113,38 @@ class Root:
 
     @csv_file
     def printed_badges_attendee(self, out, session):
-        uber.reports.printed_badge_report_type(badge_type=c.ATTENDEE_BADGE).run(out, session)
+        uber.reports.PrintedBadgeReport(badge_type=c.ATTENDEE_BADGE).run(out, session)
 
     @csv_file
     def printed_badges_guest(self, out, session):
-        uber.reports.printed_badge_report_type(badge_type=c.GUEST_BADGE).run(out, session)
+        uber.reports.PrintedBadgeReport(badge_type=c.GUEST_BADGE).run(out, session)
 
     @csv_file
     def printed_badges_one_day(self, out, session):
-        uber.reports.printed_badge_report_type(badge_type=c.ONE_DAY_BADGE).run(out, session)
+        uber.reports.PrintedBadgeReport(badge_type=c.ONE_DAY_BADGE).run(out, session)
 
     @csv_file
     def printed_badges_staff(self, out, session):
-        uber.reports.personalized_badge_report_type()\
-            .run(out, session,
-                 sa.Attendee.badge_type == c.STAFF_BADGE,
-                 sa.Attendee.badge_num != 0,
-                 order_by='badge_num')
+        uber.reports.PersonalizedBadgeReport().run(out, session,
+            sa.Attendee.badge_type == c.STAFF_BADGE,
+            sa.Attendee.badge_num != 0,
+            order_by='badge_num')
 
     @csv_file
     def printed_badges_supporters(self, out, session):
-        uber.reports.personalized_badge_report_type(include_badge_nums=False)\
-            .run(out, session,
-                 sa.Attendee.amount_extra >= c.SUPPORTER_LEVEL,
-                 order_by=sa.Attendee.full_name,
-                 badge_type_override='supporter')
+        uber.reports.PersonalizedBadgeReport(include_badge_nums=False).run(out, session,
+            sa.Attendee.amount_extra >= c.SUPPORTER_LEVEL,
+            order_by=sa.Attendee.full_name,
+            badge_type_override='supporter')
 
     @multifile_zipfile
     def personalized_badges_zip(self, zip_file, session):
-        zip_file.writestr("printed_badges_attendee.csv", self.printed_badges_attendee())
-        zip_file.writestr("printed_badges_guest.csv", self.printed_badges_guest())
-        zip_file.writestr("printed_badges_one_day.csv", self.printed_badges_one_day())
-        zip_file.writestr("printed_badges_staff.csv", self.printed_badges_staff())
-        zip_file.writestr("printed_badges_supporters.csv", self.printed_badges_supporters())
+        """All printed badge CSV files in one zipfile."""
+        zip_file.writestr('printed_badges_attendee.csv', self.printed_badges_attendee())
+        zip_file.writestr('printed_badges_guest.csv', self.printed_badges_guest())
+        zip_file.writestr('printed_badges_one_day.csv', self.printed_badges_one_day())
+        zip_file.writestr('printed_badges_staff.csv', self.printed_badges_staff())
+        zip_file.writestr('printed_badges_supporters.csv', self.printed_badges_supporters())
 
     def food_eligible(self, session):
         cherrypy.response.headers['Content-Type'] = 'application/xml'
