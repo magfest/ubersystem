@@ -784,9 +784,7 @@ class Root:
         }
 
     def staffers(self, session, message='', order='first_name'):
-        staffers = (session.query(Attendee)
-                           .filter(Attendee.staffing == True, Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]))
-                           .options(subqueryload(Attendee.shifts).subqueryload(Shift.job)).all())
+        staffers = session.staffers().all()
         return {
             'order': Order(order),
             'message': message,

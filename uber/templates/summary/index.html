@@ -2,120 +2,61 @@
 {% block title %}Registration Stats{% endblock %}
 {% block content %}
 
-<b>Attendees checked in:</b> {{ checkin_count }}
-<br/>
-<b>Attendees with free badges who didn't show up:</b> {{ free_noshows }}
-<br/>
-<b>Attendees who paid and didn't show up:</b> {{ paid_noshows }}
-<br/>
-<b>Number of remaining badges (before event is sold out):</b> {{ c.REMAINING_BADGES }}
-<br/>
-<b>Total Registrations:</b> {{ total_count }}
-<table style="width:auto ; border-spacing:0px">
-<tr>
-    <td></td>
-    <td><u>Badge Type</u></td>
-    <td><u>Paid Badges</u></td>
-    <td><u>Unpaid Badges</u></td>
-    <td><u>All Badges</u></td>
-</tr>
-{% for desc,total,unpaid,paid in badge_counts %}
-    <tr>
-        <td> <ul><li></li></ul> </td>
-        <td> <i>{{ desc }}</i> </td>
-        <td align="center"> {{ paid }} </td>
-        <td align="center"> {{ unpaid }} </td>
-        <td align="center"> {{ total }} </td>
-    </tr>
-{% endfor %}
-</table>
+<style type="text/css">
+    ul { margin-top:0px; }
+</style>
 
-<br/>
-<b>Affiliates</b>
-<table style="width:auto ; border-spacing:0px ; margin-left:15px">
-<tr>
-    <td><u>Affiliate</u></td>
-    <td><u>Paid Badges</u></td>
-    <td><u>Unpaid Badges</u></td>
-</tr>
-{% for aff,paid_count,unpaid_count in aff_counts %}
-    {% if paid_count or unpaid_count %}
-        <tr>
-            <td>{{ aff }}</td>
-            <td align="center">{{ paid_count }}</td>
-            <td align="center">{{ unpaid_count }}</td>
-        </tr>
-    {% endif %}
-{% endfor %}
-</table>
+<b>Total Registrations:</b> {{ total_registrations }} <br/>
+{% if c.AT_OR_POST_CON %}
+    <b>Attendees checked in:</b> {{ counts.checked_in.yes }} <br/>
+    <b>Attendees with free badges who didn't show up:</b> {{ counts.noshows.free }} <br/>
+    <b>Attendees who paid and didn't show up:</b> {{ counts.noshows.paid }} <br/>
+{% endif %}
+<b>Number of remaining badges for sale (before event is sold out):</b> {{ c.REMAINING_BADGES }}
 
-<br/>
-<b>Paid</b>
-<ul style="margin-top:0px">
-    {% for desc,count in paid_counts %}
-        <li> <i>{{ desc }}:</i> {{ count }} </li>
+<h4>Badge Types</h4>
+<ul>
+    {% for desc, count in counts.badges.items %}
+        <li><i>{{ desc }}:</i> {{ count }}</li>
+    {% endfor %}
+</ul>
+
+<h4>Interests</h4>
+<ul>
+    {% for desc, count in counts.interests.items %}
+        <li><i>{{ desc }}:</i> {{ count }}</li>
+    {% endfor %}
+</ul>
+
+<h4>Attendee ages</h4>
+<ul>
+    {% for desc, count in counts.ages.items %}
+        <li><i>{{ desc }}:</i> {{ count }}</li>
+    {% endfor %}
+</ul>
+
+<h4>Ribbons</h4>
+<ul>
+    {% for desc, count in counts.ribbons.items %}
+        <li><i>{{ desc }}:</i> {{ count }}</li>
+    {% endfor %}
+</ul>
+
+<h4>Badge Statuses</h4>
+<ul>
+    {% for desc, count in counts.statuses.items %}
+        <li><i>{{ desc }}:</i> {{ count }}</li>
+    {% endfor %}
+</ul>
+
+<h4>Paid</h4>
+<ul>
+    {% for desc, count in counts.paid.items %}
+        <li><i>{{ desc }}:</i> {{ count }}</li>
     {% endfor %}
 </ul>
 Of the "paid by group" badges,
-<br/> {{ paid_group }} were from groups that actually gave us money, and
-<br/>{{ free_group }} were from groups that we didn't charge.
-
-<br/> <br/>
-<b>Interests of non-unpaid attendees</b>
-<ul style="margin-top:0px">
-    {% for desc,count in interests %}
-        <li> <i>{{ desc }}:</i> {{ count }} </li>
-    {% endfor %}
-</ul>
-
-<br/>
-<b>Attendee ages</b>
-<ul style="margin-top:0px">
-    {% for desc,count in age_counts %}
-        <li> <i>{{ desc }}:</i> {{ count }} </li>
-    {% endfor %}
-</ul>
-
-<br/>
-<b>Ribbon counts</b>
-<ul style="margin-top:0px">
-    {% for desc,count in ribbons %}
-        <li> <i>{{ desc }}:</i> {{ count }} </li>
-    {% endfor %}
-</ul>
-
-<br/>
-<b>Shirt Sizes</b>
-<ul>
-    {% for desc,count in shirt_sizes %}
-        <li>{{ desc }}: {{ count }}</li>
-    {% endfor %}
-</ul>
-
-{% if magstock_shirt_sales %}
-<br/>
-<b>Magstock Shirt Sales</b>
-<ul>
-    {% for shirt_row in magstock_shirt_sales %}
-        <li>{{ shirt_row.shirt }},{{ shirt_row.shirt_color }}: {{ shirt_row.count }}</li>
-    {% endfor %}
-</ul>
-{% endif %}
-
-<br/>
-<b>Shirt sales by week</b>
-<ul>
-    {% for weeks_ago,count in shirt_sales %}
-        {% if count %}
-            <li>
-                {% if weeks_ago == 0 %}
-                    We have currently sold {{ count }} shirts.
-                {% else %}
-                    <b>{{ weeks_ago }} week{{ weeks_ago|pluralize }} ago:</b> {{ count }} shirt{{ count|pluralize }}
-                {% endif %}
-            </li>
-        {% endif %}
-    {% endfor %}
-</ul>
+<br/> {{ counts.group.paid }} were from groups that actually gave us money, and
+<br/>{{ counts.group.free }} were from groups that we didn't charge.
 
 {% endblock %}

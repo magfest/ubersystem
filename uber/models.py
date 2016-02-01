@@ -587,11 +587,24 @@ class Session(SessionManager):
         def valid_attendees(self):
             return self.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS)
 
-        def staffers(self):
-            return self.query(Attendee) \
-                       .filter_by(staffing=True) \
-                       .options(joinedload(Attendee.group)) \
-                       .order_by(Attendee.full_name)
+        def staffers(self, only_staffing=True):
+            """
+            Returns a Query of attendees with efficient loading for groups and
+            shifts/jobs.  By default we only return attendees where "staffing"
+            is true, because before the event people can't sign up for shifts
+            unless they're marked as volunteers.  However, on-site we relax that
+            restriction, so we'll get attendees with shifts who are not actually
+            marked as staffing.  We therefore have an optional parameter for
+            clients to indicate that all attendees should be returned.
+            """
+            return (self.query(Attendee)
+                        .filter(Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
+                                *[Attendee.staffing == True] if only_staffing else [])
+                        .options(subqueryload(Attendee.group), subqueryload(Attendee.shifts).subqueryload(Shift.job))
+                        .order_by(Attendee.full_name))
+
+        def jobs(self):
+            return self.query(Job).options(subqueryload(Job.shifts).subqueryload(Shift.attendee).subqueryload(Attendee.group))
 
         def single_dept_heads(self, dept=None):
             assigned = {'assigned_depts': str(dept)} if dept else {}
