@@ -29,13 +29,14 @@ def job_dict(job, shifts=None):
 @all_renderable(c.PEOPLE)
 class Root:
     def index(self, session, location=None, message=''):
-        if location is None:
+        if not location:
             if c.AT_THE_CON:
                 raise HTTPRedirect('signups')
             else:
                 location = c.JOB_LOCATION_OPTS[0][0]
 
-        jobs = session.query(Job).filter_by(location=location).order_by(Job.name, Job.start_time).all()
+        location = None if location == 'All' else location
+        jobs = session.jobs(location).all()
         by_start = defaultdict(list)
         for job in jobs:
             if job.type == c.REGULAR:
@@ -45,12 +46,12 @@ class Root:
             'location':  location,
             'setup':     [j for j in jobs if j.type == c.SETUP],
             'teardown':  [j for j in jobs if j.type == c.TEARDOWN],
-            'checklist': session.checklist_status('creating_shifts', location),
+            'checklist': location and session.checklist_status('creating_shifts', location),
             'times':     [(t, t + timedelta(hours=1), by_start[t]) for i, t in enumerate(times)]
         }
 
     def signups(self, session, location=None, message=''):
-        if location is None:
+        if not location:
             location = cherrypy.session.get('prev_location') or c.JOB_LOCATION_OPTS[0][0]
         cherrypy.session['prev_location'] = location
 
@@ -114,7 +115,6 @@ class Root:
             return job_dict(session.job(shift.job_id))
 
     def staffers(self, session, location=None, message=''):
-        attendee = session.admin_attendee()
         if location == 'All':
             location = None
         else:

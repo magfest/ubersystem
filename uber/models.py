@@ -603,14 +603,17 @@ class Session(SessionManager):
                         .options(subqueryload(Attendee.group), subqueryload(Attendee.shifts).subqueryload(Shift.job))
                         .order_by(Attendee.full_name))
 
-        def jobs(self):
-            return self.query(Job).options(subqueryload(Job.shifts).subqueryload(Shift.attendee).subqueryload(Attendee.group))
+        def jobs(self, location=None):
+            return (self.query(Job)
+                        .filter_by(**{'location': location} if location else {})
+                        .order_by(Job.name, Job.start_time)
+                        .options(subqueryload(Job.shifts).subqueryload(Shift.attendee).subqueryload(Attendee.group)))
 
         def single_dept_heads(self, dept=None):
             assigned = {'assigned_depts': str(dept)} if dept else {}
-            return self.query(Attendee) \
-                       .filter_by(ribbon=c.DEPT_HEAD_RIBBON, **assigned) \
-                       .order_by(Attendee.full_name).all()
+            return (self.query(Attendee)
+                        .filter_by(ribbon=c.DEPT_HEAD_RIBBON, **assigned)
+                        .order_by(Attendee.full_name).all())
 
         def match_to_group(self, attendee, group):
             with c.BADGE_LOCK:
