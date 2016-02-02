@@ -1,18 +1,6 @@
 from uber.common import *
 
 
-def shift_dict(shift):
-    return {
-        'id': shift.id,
-        'rating': shift.rating,
-        'worked': shift.worked,
-        'comment': shift.comment,
-        'worked_label': shift.worked_label,
-        'attendee_id': shift.attendee.id,
-        'attendee_name': shift.attendee.full_name
-    }
-
-
 def job_dict(job, shifts=None):
     return {
         'id': job.id,
@@ -22,8 +10,27 @@ def job_dict(job, shifts=None):
         'restricted': job.restricted,
         'timespan': custom_tags.timespan.pretty(job),
         'location_label': job.location_label,
-        'shifts': shifts or [shift_dict(shift) for shift in job.shifts]
+        'shifts': [{
+            'id': shift.id,
+            'rating': shift.rating,
+            'worked': shift.worked,
+            'comment': shift.comment,
+            'worked_label': shift.worked_label,
+            'attendee_id': shift.attendee.id,
+            'attendee_name': shift.attendee.full_name
+        } for shift in job.shifts]
     }
+
+
+def update_counts(job, counts):
+    counts['all_total'] += job.total_hours
+    counts['all_signups'] += job.weighted_hours * len(job.shifts)
+    if job.restricted:
+        counts['restricted_total'] += job.total_hours
+        counts['restricted_signups'] += job.weighted_hours * len(job.shifts)
+    else:
+        counts['regular_total'] += job.total_hours
+        counts['regular_signups'] += job.weighted_hours * len(job.shifts)
 
 
 @all_renderable(c.PEOPLE)
@@ -53,92 +60,44 @@ class Root:
     def signups(self, session, location=None, message=''):
         if not location:
             location = cherrypy.session.get('prev_location') or c.JOB_LOCATION_OPTS[0][0]
+        location = None if location == 'All' else location
         cherrypy.session['prev_location'] = location
 
-        jobs, shifts, attendees = session.everything(location)
         return {
             'message':   message,
             'location':  location,
-            'jobs':      jobs,
-            'shifts':    Shift.dump(shifts),
-            'checklist': session.checklist_status('postcon_hours', location)
+            'attendees': session.staffers_for_dropdown(),
+            'jobs':      [job_dict(job) for job in session.jobs(location)],
+            'checklist': location and session.checklist_status('postcon_hours', location)
         }
 
     def everywhere(self, session, message='', show_restricted=''):
-        shifts = defaultdict(list)
-        for shift in session.query(Shift).options(joinedload(Shift.attendee)).all():
-            shifts[shift.job_id].append(shift_dict(shift))
         return {
             'message': message,
             'show_restricted': show_restricted,
-            'attendees': [{
-                'id': id,
-                'full_name': full_name.title()
-            } for id, full_name in session.query(Attendee.id, Attendee.full_name)
-                                          .filter_by(staffing=True)
-                                          .order_by(Attendee.full_name).all()],
-            'jobs': [job_dict(job, shifts[job.id])
-                     for job in session.query(Job)
-                                       .filter(Job.start_time > localized_now() - timedelta(hours=2))
-                                       .filter_by(**({} if show_restricted else {'restricted': False}))
-                                       .order_by(Job.start_time, Job.location).all()]
+            'attendees': session.staffers_for_dropdown(),
+            'jobs': [job_dict(job) for job in session.jobs()
+                                                     .filter(Job.start_time > localized_now() - timedelta(hours=2))
+                                                     .filter_by(**{} if show_restricted else {'restricted': False})]
         }
 
-    @ajax
-    def assign_from_everywhere(self, session, job_id, staffer_id):
-        message = session.assign(staffer_id, job_id)
-        if message:
-            return {'error': message}
-        else:
-            return job_dict(session.job(job_id))
-
-    @ajax
-    def unassign_from_everywhere(self, session, id):
-        try:
-            shift = session.shift(id)
-            session.delete(shift)
-            session.commit()
-        except:
-            return {'error': 'Shift was already deleted'}
-        else:
-            return job_dict(session.job(shift.job_id))
-
-    @ajax
-    def set_worked_from_everywhere(self, session, id, status):
-        try:
-            shift = session.shift(id)
-            shift.worked = int(status)
-            session.commit()
-        except:
-            return {'error': 'Unexpected error setting status'}
-        else:
-            return job_dict(session.job(shift.job_id))
-
     def staffers(self, session, location=None, message=''):
-        if location == 'All':
-            location = None
-        else:
-            location = int(location or c.JOB_LOCATION_OPTS[0][0])
-        jobs, shifts, attendees = session.everything(location)
-        if location:
-            attendees = [a for a in attendees if a.assigned_to(location)]
-        hours_here = defaultdict(int)
-        for shift in shifts:
-            hours_here[shift.attendee] += shift.job.weighted_hours
+        location = None if location == 'All' else int(location or c.JOB_LOCATION_OPTS[0][0])
+        attendees = session.staffers().filter(*[Attendee.assigned_depts.contains(str(location))] if location else []).all()
         for attendee in attendees:
-            attendee.hours_here = hours_here[attendee]
             attendee.trusted_here = attendee.trusted_in(location) if location else attendee.trusted_somewhere
+            attendee.hours_here = sum(shift.job.weighted_hours for shift in attendee.shifts) if location else attendee.weighted_hours
+
+        counts = defaultdict(int)
+        for job in session.jobs(location):
+            update_counts(job, counts)
+
         return {
-            'location':           location,
-            'attendees':          attendees,
-            'checklist':          session.checklist_status('assigned_volunteers', location),
-            'emails':             ','.join(a.email for a in attendees),
-            'regular_total':      sum(j.total_hours for j in jobs if not j.restricted),
-            'restricted_total':   sum(j.total_hours for j in jobs if j.restricted),
-            'all_total':          sum(j.total_hours for j in jobs),
-            'regular_signups':    sum(s.job.weighted_hours for s in shifts if not s.job.restricted),
-            'restricted_signups': sum(s.job.weighted_hours for s in shifts if s.job.restricted),
-            'all_signups':        sum(s.job.weighted_hours for s in shifts)
+            'counts':    counts,
+            'location':  location,
+            'attendees': attendees,
+            'emails':    ','.join(a.email for a in attendees),
+            'checklist': session.checklist_status('assigned_volunteers', location)
         }
 
     def form(self, session, message='', **params):
@@ -188,35 +147,40 @@ class Root:
         raise HTTPRedirect('staffers_by_job?id={}&message={}', job_id, message)
 
     @csrf_protected
-    def assign_from_list(self, session, job_id, staffer_id):
-        location = session.job(job_id).location
-        message = session.assign(staffer_id, job_id)
-        if message:
-            raise HTTPRedirect('signups?location={}&message={}', location, message)
-        else:
-            raise HTTPRedirect('signups?location={}#{}', location, job_id)
-
-    @csrf_protected
     def unassign_from_job(self, session, id):
         shift = session.shift(id)
         session.delete(shift)
         raise HTTPRedirect('staffers_by_job?id={}&message={}', shift.job_id, 'Staffer unassigned')
 
-    @csrf_protected
-    def unassign_from_list(self, session, id):
-        shift = session.shift(id)
-        session.delete(shift)
-        raise HTTPRedirect('signups?location={}#{}', shift.job.location, shift.job_id)
+    @ajax
+    def assign(self, session, job_id, staffer_id):
+        message = session.assign(staffer_id, job_id)
+        if message:
+            return {'error': message}
+        else:
+            return job_dict(session.job(job_id))
 
     @ajax
-    def set_worked(self, session, id, worked):
+    def unassign(self, session, id):
         try:
             shift = session.shift(id)
-            shift.worked = int(worked)
+            session.delete(shift)
             session.commit()
-            return {'status_label': shift.worked_label}
         except:
-            return {'error': 'an unexpected error occured'}
+            return {'error': 'Shift was already deleted'}
+        else:
+            return job_dict(session.job(shift.job_id))
+
+    @ajax
+    def set_worked(self, session, id, status):
+        try:
+            shift = session.shift(id)
+            shift.worked = int(status)
+            session.commit()
+        except:
+            return {'error': 'Unexpected error setting status'}
+        else:
+            return job_dict(session.job(shift.job_id))
 
     @csrf_protected
     def undo_worked(self, session, id):
@@ -232,31 +196,19 @@ class Root:
         return {}
 
     def summary(self, session):
-        all_jobs, all_shifts, attendees = session.everything()
-        locations = {}
-        for loc, name in c.JOB_LOCATION_OPTS:
-            jobs = [j for j in all_jobs if j.location == loc]
-            shifts = [s for s in all_shifts if s.job.location == loc]
-            locations[name] = {
-                'regular_total':      sum(j.total_hours for j in jobs if not j.restricted),
-                'restricted_total':   sum(j.total_hours for j in jobs if j.restricted),
-                'all_total':          sum(j.total_hours for j in jobs),
-                'regular_signups':    sum(s.job.weighted_hours for s in shifts if not s.job.restricted),
-                'restricted_signups': sum(s.job.weighted_hours for s in shifts if s.job.restricted),
-                'all_signups':        sum(s.job.weighted_hours for s in shifts)
-            }
-        totals = [('All Departments Combined', {
-            attr: sum(loc[attr] for loc in locations.values())
-            for attr in locations[name].keys()
-        })]
-        return {'locations': totals + sorted(locations.items(), key=lambda loc: loc[1]['regular_signups'] - loc[1]['regular_total'])}
+        locations = defaultdict(lambda: defaultdict(int))
+        for job in session.jobs():
+            update_counts(job, locations[job.location_label])
+            update_counts(job, locations['All Departments Combined'])
+
+        return {'locations': sorted(locations.items(), key=lambda loc: loc[1]['regular_signups'] - loc[1]['regular_total'])}
 
     def all_shifts(self, session):
+        jobs = defaultdict(list)
+        for job in session.jobs():
+            jobs[job.location].append(job)
         return {
-            'depts': [(name, session.query(Job)
-                                    .filter_by(location=loc)
-                                    .order_by(Job.start_time, Job.name).all())
-                      for loc, name in c.JOB_LOCATION_OPTS]
+            'depts': [(name, jobs[loc]) for loc, name in c.JOB_LOCATION_OPTS]
         }
 
     def add_volunteers_by_dept(self, session, message='', location=None):

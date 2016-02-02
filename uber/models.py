@@ -609,6 +609,14 @@ class Session(SessionManager):
                         .order_by(Job.name, Job.start_time)
                         .options(subqueryload(Job.shifts).subqueryload(Shift.attendee).subqueryload(Attendee.group)))
 
+        def staffers_for_dropdown(self):
+            return [{
+                'id': id,
+                'full_name': full_name.title()
+            } for id, full_name in self.query(Attendee.id, Attendee.full_name)
+                                       .filter_by(staffing=True)
+                                       .order_by(Attendee.full_name)]
+
         def single_dept_heads(self, dept=None):
             assigned = {'assigned_depts': str(dept)} if dept else {}
             return (self.query(Attendee)
