@@ -364,7 +364,10 @@ class Root:
         return 'Attendee successfully un-checked-in'
 
     def recent(self, session):
-        return {'attendees': session.query(Attendee).order_by(Attendee.registered.desc())}
+        return {'attendees': session.query(Attendee)
+                                    .options(joinedload(Attendee.group))
+                                    .order_by(Attendee.registered.desc())
+                                    .limit(1000)}
 
     def merch(self, message=''):
         return {'message': message}

@@ -579,11 +579,6 @@ class Session(SessionManager):
             attendee.badge_type = badge_type
             return 'Badge updated'
 
-        def everyone(self):
-            attendees = self.query(Attendee).filter(Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])).options(joinedload(Attendee.group)).all()
-            groups = self.query(Group).options(joinedload(Group.attendees)).all()
-            return attendees, groups
-
         def valid_attendees(self):
             return self.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS)
 
@@ -637,35 +632,6 @@ class Session(SessionManager):
                     self.delete(matching[0])
                     self.add(attendee)
                     self.commit()
-
-        def everything(self, location=None):
-            location_filter = [Job.location == location] if location else []
-            jobs = self.query(Job) \
-                       .filter(*location_filter) \
-                       .options(joinedload(Job.shifts)) \
-                       .order_by(Job.start_time, Job.duration, Job.name).all()
-            shifts = self.query(Shift) \
-                         .filter(*location_filter) \
-                         .options(joinedload(Shift.job), joinedload(Shift.attendee)) \
-                         .join(Shift.job).order_by(Job.start_time).all()
-            attendees = [a for a in self.query(Attendee)
-                                        .filter_by(staffing=True)
-                                        .options(joinedload(Attendee.shifts), joinedload(Attendee.group))
-                                        .order_by(Attendee.full_name).all()
-                         if c.AT_THE_CON or not location or int(location) in a.assigned_depts_ints]
-
-            # PERFORMANCE OPTIMIZATION: Job.available_volunteers uses a @cached_property decorator.  This decorator
-            # populates job._available_volunteers.  Because this function is returning a huge amount of Jobs,
-            # we will pre-populate it here and skip the myriad database queries which would occur if we called
-            # .available_volunteers many times in a row.
-            #
-            # Note that this isn't exactly the same output as .available_volunteers, but this code should be kept
-            # in-sync as much as possible with Job.available_volunteers.  This is messy but needed to work around perf
-            # problems with pages that show large amounts of Jobs using everything()
-            for job in jobs:
-                job._available_volunteers = [a for a in attendees if not job.restricted or a.trusted_in(job.location)]
-
-            return jobs, shifts, attendees
 
         def search(self, text, *filters):
             attendees = self.query(Attendee).outerjoin(Attendee.group).options(joinedload(Attendee.group)).filter(*filters)
@@ -1625,10 +1591,8 @@ class Job(MagModel):
     @cached_property
     def available_volunteers(self):
         """
-        Return a list of volunteers who are allowed to sign up for this Job AND have the free time to work it
-
-        IMPORTANT NOTE: If this code is ever changed, you also need to update session.everything() which
-        performs an optimized version of this operation on a bulk scale.
+        Returns a list of volunteers who are allowed to sign up for
+        this Job and have the free time to work it.
         """
         return [s for s in self._potential_volunteers(order_by=Attendee.last_first) if self.no_overlap(s)]
 

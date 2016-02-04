@@ -83,7 +83,7 @@ class Root:
         return {'all': sorted([a.found_how for a in session.query(Attendee).filter(Attendee.found_how != '').all()], key=lambda s: s.lower())}
 
     def all_schedules(self, session):
-        return {'staffers': [a for a in session.query(Attendee).filter_by(staffing=True).order_by(Attendee.full_name) if a.shifts]}
+        return {'staffers': [a for a in session.staffers() if a.shifts]}
 
     def food_restrictions(self, session):
         all_fr = session.query(FoodRestrictions).all()
@@ -207,7 +207,7 @@ class Root:
         label = lambda s: 'size unknown' if s == c.SHIRTS[c.NO_SHIRT] else s
         status = lambda got_merch: 'picked_up' if got_merch else 'outstanding'
         sales_by_week = OrderedDict([(i, 0) for i in range(50)])
-        for attendee in session.staffers(only_staffing=False).all():
+        for attendee in session.staffers(only_staffing=False):
             if attendee.gets_free_shirt:
                 counts['free'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
                 counts['all'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
