@@ -4,25 +4,42 @@ from uber.common import *
 @all_renderable(c.STATS)
 class Root:
     def index(self, session):
-        attendees, groups = session.everyone()
-        count = lambda *args, **kwargs: len([a for a in attendees
-                                               if all(matcher(a) for matcher in args) and
-                                                  all(val == getattr(a, name) for name, val in kwargs.items())])
+        counts = defaultdict(OrderedDict)
+        counts.update({
+            'groups': {'paid': 0, 'free': 0},
+            'noshows': {'paid': 0, 'free': 0},
+            'checked_in': {'yes': 0, 'no': 0}
+        })
+        count_labels = {
+            'badges': c.BADGE_OPTS,
+            'paid': c.PAYMENT_OPTS,
+            'ages': c.AGE_GROUP_OPTS,
+            'ribbons': c.RIBBON_OPTS,
+            'interests': c.INTEREST_OPTS,
+            'statuses': c.BADGE_STATUS_OPTS
+        }
+        for label, opts in count_labels.items():
+            for val, desc in opts:
+                counts[label][desc] = 0
+
+        for a in session.query(Attendee).options(joinedload(Attendee.group)):
+            counts['paid'][a.paid_label] += 1
+            counts['ages'][a.age_group_label] += 1
+            counts['ribbons'][a.ribbon_label] += 1
+            counts['badges'][a.badge_type_label] += 1
+            counts['statuses'][a.badge_status_label] += 1
+            counts['checked_in']['yes' if a.checked_in else 'no'] += 1
+            for val in a.interests_ints:
+                counts['interests'][c.INTERESTS[val]] += 1
+            if a.paid == c.PAID_BY_GROUP and a.group:
+                counts['groups']['paid' if a.group.amount_paid else 'free'] += 1
+            if not a.checked_in:
+                key = 'paid' if a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid else 'free'
+                counts['noshows'][key] += 1
+
         return {
-            'total_count':   len(attendees),
-            'shirt_sizes':   [(desc, count(shirt=shirt)) for shirt, desc in c.SHIRT_OPTS],
-            'paid_counts':   [(desc, count(paid=status)) for status, desc in c.PAYMENT_OPTS],
-            'badge_counts':  [(desc, count(badge_type=bt), count(paid=c.NOT_PAID, badge_type=bt), count(paid=c.HAS_PAID, badge_type=bt)) for bt, desc in c.BADGE_OPTS],
-            'aff_counts':    [(aff['text'], len([a for a in attendees if a.amount_extra >= c.SUPPORTER_LEVEL and a.affiliate == aff['text']])) for aff in session.affiliates()],
-            'checkin_count': count(lambda a: a.checked_in),
-            'paid_noshows':  count(paid=c.HAS_PAID, checked_in=None) + len([a for a in attendees if a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid and not a.checked_in]),
-            'free_noshows':  count(paid=c.NEED_NOT_PAY, checked_in=None),
-            'interests':     [(desc, len([a for a in attendees if a.paid != c.NOT_PAID and dept in a.interests_ints])) for dept, desc in c.INTEREST_OPTS],
-            'age_counts':    [(desc, count(age_group=ag)) for ag, desc in c.AGE_GROUP_OPTS],
-            'paid_group':    len([a for a in attendees if a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid]),
-            'free_group':    len([a for a in attendees if a.paid == c.PAID_BY_GROUP and a.group and not a.group.amount_paid]),
-            'shirt_sales':   [(i, len([a for a in attendees if a.registered <= datetime.now(UTC) - timedelta(days=i * 7) and a.gets_paid_shirt])) for i in range(50)],
-            'ribbons':       [(desc, count(ribbon=val)) for val, desc in c.RIBBON_OPTS if val != c.NO_RIBBON],
+            'counts': counts,
+            'total_registrations': session.query(Attendee).count()
         }
 
     def affiliates(self, session):
@@ -41,10 +58,11 @@ class Root:
                 self.amounts[amount] = 1 + self.amounts.get(amount, 0)
 
         counts = defaultdict(AffiliateCounts)
-        for affiliate, amount in session.query(Attendee.affiliate, Attendee.amount_extra) \
-                                        .filter(Attendee.amount_extra > 0).all():
+        for affiliate, amount in (session.query(Attendee.affiliate, Attendee.amount_extra)
+                                         .filter(Attendee.amount_extra > 0)):
             counts['everything combined'].count(amount)
             counts[affiliate or 'no affiliate selected'].count(amount)
+
         return {
             'counts': sorted(counts.items(), key=lambda tup: -tup[-1].total),
             'registrations': session.query(Attendee).filter_by(paid=c.NEED_NOT_PAY).count(),
@@ -53,7 +71,7 @@ class Root:
         }
 
     def departments(self, session):
-        attendees = session.query(Attendee).filter_by(staffing=True).order_by(Attendee.full_name).all()
+        attendees = session.staffers().all()
         everything = []
         for department, name in c.JOB_LOCATION_OPTS:
             assigned = [a for a in attendees if department in a.assigned_depts_ints]
@@ -65,7 +83,7 @@ class Root:
         return {'all': sorted([a.found_how for a in session.query(Attendee).filter(Attendee.found_how != '').all()], key=lambda s: s.lower())}
 
     def all_schedules(self, session):
-        return {'staffers': [a for a in session.query(Attendee).filter_by(staffing=True).order_by(Attendee.full_name) if a.shifts]}
+        return {'staffers': [a for a in session.staffers() if a.shifts]}
 
     def food_restrictions(self, session):
         all_fr = session.query(FoodRestrictions).all()
@@ -88,26 +106,22 @@ class Root:
 
     def ratings(self, session):
         return {
-            'prev_years': [a for a in session.query(Attendee)
-                                             .filter_by(staffing=True)
-                                             .order_by(Attendee.full_name).all()
-                             if 'poorly' in a.past_years],
-            'current': [a for a in session.query(Attendee)
-                                          .options(joinedload(Attendee.shifts)).all()
-                          if any(shift.rating == c.RATED_BAD for shift in a.shifts)]
+            'prev_years': [a for a in session.staffers() if 'poorly' in a.past_years],
+            'current': [a for a in session.staffers() if any(shift.rating == c.RATED_BAD for shift in a.shifts)]
         }
 
     def staffing_overview(self, session):
-        jobs, shifts, attendees = session.everything()
+        attendees = session.staffers().all()
+        jobs = session.jobs().all()
         return {
             'hour_total': sum(j.weighted_hours * j.slots for j in jobs),
-            'shift_total': sum(s.job.weighted_hours for s in shifts),
+            'shift_total': sum(j.weighted_hours * len(j.shifts) for j in jobs),
             'volunteers': len(attendees),
             'departments': [{
                 'department': desc,
                 'assigned': len([a for a in attendees if dept in a.assigned_depts_ints]),
                 'total_hours': sum(j.weighted_hours * j.slots for j in jobs if j.location == dept),
-                'taken_hours': sum(s.job.weighted_hours for s in shifts if s.job.location == dept)
+                'taken_hours': sum(j.weighted_hours * len(j.shifts) for j in jobs if j.location == dept)
             } for dept, desc in c.JOB_LOCATION_OPTS]
         }
 
@@ -150,7 +164,7 @@ class Root:
         cherrypy.response.headers['Content-Type'] = 'application/xml'
         eligible = {
             a: {attr.lower(): getattr(a.food_restrictions, attr, False) for attr in c.FOOD_RESTRICTION_VARS}
-            for a in session.query(Attendee).order_by(Attendee.full_name).all()
+            for a in session.staffers().all() + session.query(Attendee).filter_by(badge_type=c.GUEST_BADGE).all()
             if not a.is_unassigned
                 and (a.badge_type in (c.STAFF_BADGE, c.GUEST_BADGE)
                   or a.ribbon == c.VOLUNTEER_RIBBON and a.weighted_hours >= 12)
@@ -158,12 +172,7 @@ class Root:
         return render('summary/food_eligible.xml', {'attendees': eligible})
 
     @csv_file
-    def staff_badges(self, out, session):
-        for a in session.query(Attendee).filter_by(badge_type=c.STAFF_BADGE).order_by('badge_num').all():
-            out.writerow([a.badge_num, a.full_name])
-
-    @csv_file
-    def all_attendees(self, out, session):
+    def valid_attendees(self, out, session):
         cols = [getattr(Attendee, col.name) for col in Attendee.__table__.columns]
         out.writerow([col.name for col in cols])
 
@@ -197,16 +206,21 @@ class Root:
         sort = lambda d: sorted(d.items(), key=lambda tup: labels.index(tup[0]))
         label = lambda s: 'size unknown' if s == c.SHIRTS[c.NO_SHIRT] else s
         status = lambda got_merch: 'picked_up' if got_merch else 'outstanding'
-        for attendee in session.query(Attendee).all():
+        sales_by_week = OrderedDict([(i, 0) for i in range(50)])
+        for attendee in session.staffers(only_staffing=False):
             if attendee.gets_free_shirt:
                 counts['free'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
                 counts['all'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
             if attendee.gets_paid_shirt:
                 counts['paid'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
                 counts['all'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
+                sales_by_week[(datetime.now(UTC) - attendee.registered).days // 7] += 1
             if attendee.gets_free_shirt and attendee.gets_paid_shirt:
                 counts['both'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
+        for week in range(48, -1, -1):
+            sales_by_week[week] += sales_by_week[week + 1]
         return {
+            'sales_by_week': sales_by_week,
             'categories': [
                 ('Eligible free', sort(counts['free'])),
                 ('Paid', sort(counts['paid'])),
@@ -219,14 +233,13 @@ class Root:
         return {'attendees': session.query(Attendee).filter(Attendee.extra_merch != '').order_by(Attendee.full_name).all()}
 
     def restricted_untaken(self, session):
-        jobs, shifts, attendees = session.everything()
         untaken = defaultdict(lambda: defaultdict(list))
-        for job in jobs:
+        for job in session.jobs():
             if job.restricted and job.slots_taken < job.slots:
                 for hour in job.hours:
                     untaken[job.location][hour].append(job)
         flagged = []
-        for attendee in attendees:
+        for attendee in session.staffers():
             if not attendee.is_dept_head:
                 overlapping = defaultdict(set)
                 for shift in attendee.shifts:
@@ -243,9 +256,8 @@ class Root:
         def exceeds_threshold(start_time, attendee):
             time_slice = [start_time + timedelta(hours=i) for i in range(18)]
             return len([h for h in attendee.hours if h in time_slice]) > 12
-        jobs, shifts, attendees = session.everything()
         flagged = []
-        for attendee in attendees:
+        for attendee in session.staffers():
             if attendee.staffing and attendee.weighted_hours > 12:
                 for start_time, desc in c.START_TIME_OPTS[::6]:
                     if exceeds_threshold(start_time, attendee):
@@ -254,15 +266,16 @@ class Root:
         return {'flagged': flagged}
 
     def setup_teardown_neglect(self, session):
+        jobs = session.jobs().all()
         return {
             'unfilled': [
-                ('Setup', [job for job in session.query(Job).all() if job.is_setup and job.slots_untaken]),
-                ('Teardown', [job for job in session.query(Job).all() if job.is_teardown and job.slots_untaken])
+                ('Setup', [job for job in jobs if job.is_setup and job.slots_untaken]),
+                ('Teardown', [job for job in jobs if job.is_teardown and job.slots_untaken])
             ]
         }
 
     def volunteers_owed_refunds(self, session):
-        attendees = session.query(Attendee).filter(Attendee.paid.in_([c.HAS_PAID, c.PAID_BY_GROUP, c.REFUNDED])).all()
+        attendees = session.staffers(only_staffing=False).filter(Attendee.paid.in_([c.HAS_PAID, c.PAID_BY_GROUP, c.REFUNDED])).all()
         is_unrefunded = lambda a: a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid
         return {
             'attendees': [(

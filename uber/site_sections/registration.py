@@ -364,7 +364,10 @@ class Root:
         return 'Attendee successfully un-checked-in'
 
     def recent(self, session):
-        return {'attendees': session.query(Attendee).order_by(Attendee.registered.desc())}
+        return {'attendees': session.query(Attendee)
+                                    .options(joinedload(Attendee.group))
+                                    .order_by(Attendee.registered.desc())
+                                    .limit(1000)}
 
     def merch(self, message=''):
         return {'message': message}
@@ -784,9 +787,7 @@ class Root:
         }
 
     def staffers(self, session, message='', order='first_name'):
-        staffers = (session.query(Attendee)
-                           .filter(Attendee.staffing == True, Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]))
-                           .options(subqueryload(Attendee.shifts).subqueryload(Shift.job)).all())
+        staffers = session.staffers().all()
         return {
             'order': Order(order),
             'message': message,

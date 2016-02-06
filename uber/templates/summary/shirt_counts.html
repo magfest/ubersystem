@@ -21,4 +21,19 @@
     </table>
 {% endfor %}
 
+<h3>Shirt Sales by Week</h3>
+<ul>
+    {% for weeks_ago, count in sales_by_week.items %}
+        {% if count %}
+            <li>
+                {% if weeks_ago == 0 %}
+                    We have currently sold {{ count }} shirts.
+                {% else %}
+                    <b>{{ weeks_ago }} week{{ weeks_ago|pluralize }} ago:</b> {{ count }} shirt{{ count|pluralize }}
+                {% endif %}
+            </li>
+        {% endif %}
+    {% endfor %}
+</ul>
+
 {% endblock %}

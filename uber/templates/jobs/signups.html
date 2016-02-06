@@ -4,11 +4,6 @@
 
 {% include "jobs/main_menu.html" %}
 
-<script type="text/javascript">
-    var SHIFTS = {{ shifts|jsonize }};
-    $(setupRatingClickHandler);
-</script>
-
 {% if c.POST_CON and checklist.relevant %}
     <div class="center">
         {% if checklist.completed %}
@@ -24,72 +19,7 @@
     </div>
 {% endif %}
 
-<table>
-{% for job in jobs %}
-    <tr>
-        <td> <a name="{{ job.id }}"></a><b>{% timespan job %}:</b> </td>
-        <td> <a href="form?id={{ job.id }}"><b>{{ job.name }}{% if job.restricted %}*{% endif %}</b></a> </td>
-        <td> <nobr>({{ job.shifts|length }}/{{ job.slots }} slots filled)</nobr> </td>
-        {% if job.shifts|length < job.slots %}
-            {% if job.available_volunteers %}
-                <form method="post" action="assign_from_list">
-                {% csrf_token %}
-                <td>
-                    <input type="hidden" name="job_id" value="{{ job.id }}" />
-                    <select name="staffer_id">
-                        {% for attendee in job.available_volunteers %}
-                            <option value="{{ attendee.id }}">{{ attendee.full_name }}</option>
-                        {% endfor %}
-                    </select>
-                    <input type="submit" value="Assign" />
-                </td>
-                </form>
-            {% else %}
-                <td><i>(no extra available staffers)</i></td>
-            {% endif %}
-        {% endif %}
-        </td>
-    </tr>
-    <tr>
-        <td colspan="4">
-            <table style="width:auto">
-            {% for shift in job.shifts %}
-                <tr>
-                    <td> <ul><li></li></ul> </td>
-                    <td>
-                        <a href="../registration/shifts?id={{ shift.attendee.id }}">{{ shift.attendee.full_name }}</a>
-                        &nbsp;&nbsp;
-                        {% if c.AT_THE_CON and not shift.attendee.checked_in %}
-                            <i>(not checked in)</i>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if shift.worked != c.SHIFT_UNMARKED %}
-                            <i>{{ shift.worked_label }}</i>
-                        {% else %}
-                            <select onChange="setStatus('{{ shift.id }}', this)">
-                                {% options c.WORKED_STATUS_OPTS shift.worked %}
-                            </select>
-                        {% endif %}
-                    </td>
-                    <form method="post" action="unassign_from_list">
-                    {% csrf_token %}
-                    <td>
-                        <input type="hidden" name="id" value="{{ shift.id }}" />
-                        <input type="submit" value="Unassign" />
-                    </td>
-                    </form>
-                    <td id="rating{{ shift.id }}"></td>
-                    {% if shift.worked == c.SHIFT_WORKED %}
-                        <script type="text/javascript">renderRating('{{ shift.id }}');</script>
-                    {% endif %}
-                </tr>
-            {% endfor %}
-            </table>
-            <br/>
-        </td>
-    </tr>
-{% endfor %}
-</table>
+<script>SHOW_FULL_JOBS = true;</script>
+{% include "jobs/job_renderer.html" %}
 
 {% endblock %}
