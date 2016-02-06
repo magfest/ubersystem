@@ -98,3 +98,80 @@ def check_unassigned():
 
 
 # TODO: perhaps a check_leaderless() for checking for leaderless groups, since those don't get emails
+
+# run through all badges and check 2 things:
+# 1) all badge numbers are in the ranges set by BADGE_RANGES
+# 2) there are no gaps in badge numbers
+# note: does not do any duplicates checking, that's a different pre-existing check
+def badge_consistency_check(session):
+    errors = []
+
+    # check 1, see if anything is out of range, or has a duplicate badge number.
+    badge_nums_seen = []
+    for attendee in session.query(Attendee).order_by(Attendee.badge_num).all():
+
+        msg_txt = '<a href="../registration/form?id={a.id}">{a.full_name}</a> (badge #{a.badge_num}): {msg}'
+
+        # BUG something is weird with this check, it should be flagging staffers with a badge# of zero, and it's currently not
+        if attendee.badge_num != 0 or not attendee.is_allowed_to_have_badge_zero:
+            out_of_range_error = check_range(attendee.badge_num, attendee.badge_type)
+            if out_of_range_error:
+                msg = msg_txt.format(a=attendee, msg=out_of_range_error)
+                errors.append(msg)
+
+        if attendee.badge_num in badge_nums_seen:
+            if attendee.badge_num == 0 and not attendee.is_allowed_to_have_badge_zero:
+                msg = msg_txt.format(a=attendee, msg='Has been assigned the same badge number of another badge, which is not supposed to happen')
+                errors.append(msg)
+
+        badge_nums_seen.append(attendee.badge_num)
+
+    # check 2: see if there are any gaps in each of the badge ranges in badges in c.PREASSIGNED_BADGE_TYPES.
+    # note that non-preassigned-badges will (likely) have gaps due to physical reg stations checking in random badge#s
+    for badge_type, badge_type in c.BADGE_OPTS:
+        if badge_type not in c.PREASSIGNED_BADGE_TYPES:
+            continue
+
+        prev_badge_num = -1
+        prev_attendee_name = ""
+
+        for attendee in session.query(Attendee)\
+                .filter_by(badge_type=badge_type)\
+                .order_by(Attendee.badge_num):
+
+            if prev_badge_num == -1:
+                prev_badge_num = attendee.badge_num
+                prev_attendee_name = attendee.full_name
+                continue
+
+            if attendee.badge_num - 1 != prev_badge_num:
+                msg = "gap in badge sequence between " + badge_type + " " + \
+                      "badge# " + str(prev_badge_num) + "(" + prev_attendee_name + ")" + " and " + \
+                      "badge# " + str(attendee.badge_num) + "(" + attendee.full_name + ")"
+
+                errors.append(msg)
+
+            prev_badge_num = attendee.badge_num
+            prev_attendee_name = attendee.full_name
+
+    return errors
+
+
+# EXTREME CAUTION. POWERFUL DARK MAGIC. NUCLEAR OPTION. YOU HAVE BEEN WARNED
+# DO NOT USE THIS UNLESS YOU KNOW EXACTLY WHAT YOU ARE DOING!!! i.e. ask your admin.
+# this will re-assign every single badge number for every single attendee to be in the correct range,
+# be EXTREMELY careful with it. it's intended to fix up the database in situations where badge numbers
+# get seriously fubar'd.
+def fixup_all_badge_numbers(session):
+    with c.BADGE_LOCK:
+        for badge_type, badge_range in c.BADGE_RANGES.items():
+            next_available_badge_number = badge_range[0]
+            for attendee in session.query(Attendee)\
+                    .filter_by(badge_type=badge_type)\
+                    .order_by(Attendee.badge_num).all():
+
+                if attendee.badge_num != 0 or not attendee.is_allowed_to_have_badge_zero:
+                    attendee.badge_num = next_available_badge_number
+                    next_available_badge_number += 1
+
+        session.commit()

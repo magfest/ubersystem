@@ -1,0 +1,67 @@
+{% extends "base-admin.html" %}
+{% block title %}Developer Utility - Badge consistency check{% endblock %}
+{% block content %}
+
+    <br/><br/>
+
+    <div class="panel panel-default">
+        <div class="panel-heading">Run Badge Consistency Check</div>
+
+        <div>
+        This check ensures that all badges in the system conform to the numbers we have setup in c.BADGE_RANGES.<br/>
+        If any errors are found you will have the opportunity to fix them after the check runs.<br/><br/>
+        <a class="btn btn-primary" href="badge_number_consistency_check?run_check=yes">Run badge check</a><br/>
+        </div>
+    </div>
+
+    {% if ran_fixup %}
+    <div class="panel panel-default">
+        <div class="panel-heading">Badge number fixup completed</div>
+
+        <font color="green"><br/>
+        Please re-run consistency check again to make sure all errors are resolved.<br/>
+        If any errors remain, you will need to dig into the database to find out what happened.<br/>
+        <br/>
+        One thing to check: Make sure that the values in BADGE_RANGES are valid. i.e. there aren't too few staff or supporter badges/etc.<br/>
+        </font>
+    </div>
+    {% endif %}
+
+    {% if ran_check %}
+        <div class="panel panel-default">
+            <div class="panel-heading">Consistency Check Result Summary</div>
+
+            {% if errors|length > 0 %}<font color="red">{% else %}<font color="green">{% endif %}
+            Badge consistency check completed,{% if errors|length == 0 %} no{% endif %} errors found.<br/>
+            </font>
+        </div>
+    {% endif %}
+
+    {% if errors|length > 0 %}
+        <div class="panel panel-default">
+            <div class="panel-heading">Badge consistency error details</div>
+
+            <font color="red">
+                Errors were:<br/><br/>
+                {% for error in errors %}
+                    {{ error|safe }}<br>
+                {% endfor %}
+            </font>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-heading">Fix errors?</div>
+            WARNING! DARK MAGIC: Type in "yes, do it" in the box below to re-assign all badge numbers to
+            be in compliance with valid badge ranges.<br/>
+            DO NOT DO THIS UNLESS YOU REALLY KNOW WHAT YOU ARE DOING AND HAVE TALKED TO EITHER DOM, ELI, OR VICKI.<br/>
+            <b>PLEASE BACKUP THE DATABASE BEFORE DOING THIS.</b><br/>
+            <br/>
+            NOTE: This may take quite a few minutes to run DO NOT MESS WITH IT. In fact, it's best to take uber offline
+            beforehand. This is truly dark magic.
+            <form action="badge_number_consistency_check" method="POST">
+            <input name="run_fixup" value="" /><input type="submit" name="submit" value="submit" />
+            </form>
+        </div>
+    {% endif %}
+
+{% endblock %}
