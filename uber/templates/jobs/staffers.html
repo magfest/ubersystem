@@ -5,10 +5,10 @@
 {% include "jobs/main_menu.html" %}
 
 <div class="row">
-    <div class="col-md-2">{{ attendees|length }} Staffers</div>
-    <div class="col-md-2">{{ regular_signups }} / {{ regular_total }} Regular Hours Taken</div>
-    <div class="col-md-2">{{ restricted_signups }} / {{ restricted_total }} Restricted Hours Taken</div>
-    <div class="col-md-2">{{ all_signups }} / {{ all_total }} Total Hours Taken</div>
+    <div class="col-md-3">{{ attendees|length }} Staffers</div>
+    <div class="col-md-3">{{ counts.regular_signups }} / {{ counts.regular_total }} Regular Hours Taken</div>
+    <div class="col-md-3">{{ counts.restricted_signups }} / {{ counts.restricted_total }} Restricted Hours Taken</div>
+    <div class="col-md-3">{{ counts.all_signups }} / {{ counts.all_total }} Total Hours Taken</div>
 </div>
 
 {% if checklist.relevant %}
