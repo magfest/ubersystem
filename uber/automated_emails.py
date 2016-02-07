@@ -64,9 +64,9 @@ class AutomatedEmail:
                 all_sent = set(session.query(Email.model, Email.fk_id, Email.subject))
                 for model, lister in cls.queries.items():
                     for inst in lister(session):
+                        sleep(0.01)  # throttle CPU usage
                         for rem in cls.instances.values():
                             if isinstance(inst, rem.model) and (not rem.needs_approval or rem.subject in approved):
-                                sleep(0.01)  # throttle our CPU usage
                                 if rem.should_send(inst, all_sent):
                                     rem.send(inst, raise_errors=raise_errors)
 
