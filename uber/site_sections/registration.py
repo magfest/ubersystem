@@ -349,7 +349,7 @@ class Root:
             session.add(attendee)
             session.commit()
             increment = True
-            message += '{0.full_name} checked in as {0.badge} with {0.accoutrements}'.format(attendee)
+            message += '{0.full_name} checked in as {0.badge}{0.accoutrements}'.format(attendee)
 
         return {
             'success':    success,
@@ -655,7 +655,7 @@ class Root:
             attendee.ec_phone = ec_phone
             attendee.checked_in = datetime.now(UTC)
             attendee.reg_station = cherrypy.session['reg_station']
-            message = '{a.full_name} checked in as {a.badge} with {a.accoutrements}'.format(a=attendee)
+            message = '{a.full_name} checked in as {a.badge}{a.accoutrements}'.format(a=attendee)
             checked_in = attendee.id
 
         raise HTTPRedirect('new?message={}&checked_in={}', message, checked_in)
