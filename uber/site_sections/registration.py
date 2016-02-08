@@ -55,13 +55,14 @@ class Root:
         attendees = attendees.order(order)
 
         groups = []
-        for group in session.query(Group) \
-                            .options(joinedload(Group.leader)) \
-                            .filter(Group.id.in_(
-                                session.query(Attendee.group_id)
-                                       .filter(Attendee.group_id != None, Attendee.first_name == '')
-                                       .distinct()
-                                       .subquery())).all():
+        for group in (session.query(Group)
+                             .options(joinedload(Group.leader))
+                             .filter(Group.status != c.WAITLISTED,
+                                     Group.id.in_(
+                                        session.query(Attendee.group_id)
+                                               .filter(Attendee.group_id != None, Attendee.first_name == '')
+                                               .distinct()
+                                               .subquery()))):
             groups.append((group.id, group.name + (' ({})'.format(group.leader.full_name) if group.leader else '')))
 
         page = int(page)
@@ -103,7 +104,7 @@ class Root:
             message = check_everything(attendee)
             if not message:
                 # Free group badges are only considered 'registered' when they are actually claimed.
-                if attendee.paid == c.PAID_BY_GROUP and attendee.group.cost == 0:
+                if attendee.paid == c.PAID_BY_GROUP and attendee.group_id and attendee.group.cost == 0:
                     attendee.registered = localized_now()
                 if check_in:
                     attendee.checked_in = localized_now()
@@ -318,12 +319,18 @@ class Root:
                     message = 'That badge number already belongs to ' + maybe_dupe.first().full_name
 
             if group:
-                session.match_to_group(attendee, session.group(group))
+                g = sesson.group(group)
+                if g.amount_unpaid:
+                    message = 'That group has an outstanding balance of ${}'.format(g.amount_unpaid)
+                else:
+                    session.match_to_group(attendee, g)
             elif attendee.paid == c.PAID_BY_GROUP and not attendee.group:
                 message = 'You must select a group for this attendee.'
 
-            if attendee.badge_status != c.COMPLETED_STATUS:
-                message = 'This badge is {0} and cannot be checked in.'.format(attendee.badge_status_label)
+            if not message:
+                attendee._status_adjustments()
+                if attendee.badge_status != c.COMPLETED_STATUS:
+                    message = 'This badge is {} and cannot be checked in.'.format(attendee.badge_status_label)
 
             success = not message
 
@@ -338,7 +345,7 @@ class Root:
             if attendee.paid == c.NOT_PAID:
                 attendee.paid = c.HAS_PAID
                 attendee.amount_paid = attendee.total_cost
-                message = '<b>This attendee has not paid for their badge; make them pay ${0}!</b> <br/>'.format(attendee.total_cost)
+                message = '<b>This attendee has not paid for their badge; make them pay ${}!</b> <br/>'.format(attendee.total_cost)
             session.add(attendee)
             session.commit()
             increment = True
@@ -553,11 +560,6 @@ class Root:
         if 'reg_station' not in cherrypy.session:
             raise HTTPRedirect('new_reg_station')
 
-        groups = set()
-        for a in session.query(Attendee).filter(Attendee.first_name == '', Attendee.group_id != None, Attendee.badge_status == c.NEW_STATUS) \
-                                        .options(joinedload(Attendee.group)).all():
-            groups.add((a.group.id, a.group.name or 'BLANK'))
-
         if show_all:
             restrict_to = [Attendee.paid == c.NOT_PAID, Attendee.placeholder == False]
         else:
@@ -567,9 +569,12 @@ class Root:
             'message':    message,
             'show_all':   show_all,
             'checked_in': checked_in,
-            'groups':     sorted(groups, key=lambda tup: tup[1]),
-            'recent':     session.query(Attendee).filter(Attendee.checked_in == None, Attendee.first_name != '', Attendee.badge_status == c.NEW_STATUS, *restrict_to)
-                                                 .order_by(Attendee.registered).all()
+            'recent':     session.query(Attendee)
+                                 .filter(Attendee.checked_in == None,
+                                         Attendee.first_name != '',
+                                         Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
+                                         *restrict_to)
+                                 .order_by(Attendee.registered).all()
         }
 
     def new_reg_station(self, reg_station='', message=''):

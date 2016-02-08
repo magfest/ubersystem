@@ -627,7 +627,7 @@ class Session(SessionManager):
                 elif not matching:
                     return 'Badge #{} is a {} badge, but {} has no badges of that type'.format(attendee.badge_num, attendee.badge_type_label, group.name)
                 else:
-                    for attr in ['group', 'paid', 'amount_paid', 'ribbon']:
+                    for attr in ['group', 'group_id', 'paid', 'amount_paid', 'ribbon']:
                         setattr(attendee, attr, getattr(matching[0], attr))
                     self.delete(matching[0])
                     self.add(attendee)
@@ -1057,12 +1057,10 @@ class Attendee(MagModel, TakesPaymentMixin):
                            render('emails/reg_workflow/banned_attendee.txt', {'attendee': self}), model='n/a')
             except:
                 log.error('unable to send banned email about {}', self)
-        elif self.badge_status == c.NEW_STATUS and not self.placeholder and self.first_name:
-            if self.paid in [c.HAS_PAID, c.NEED_NOT_PAY] \
-                    or self.paid == c.PAID_BY_GROUP and self.group and not self.group.amount_unpaid:
-                self.badge_status = c.COMPLETED_STATUS
-        elif self.badge_status == c.INVALID_STATUS and self.admin_account:
-            self.session.delete(self.admin_account)
+        elif self.badge_status == c.NEW_STATUS and not self.placeholder and self.first_name \
+                and (self.paid in [c.HAS_PAID, c.NEED_NOT_PAY]
+                     or self.paid == c.PAID_BY_GROUP and self.group_id and not self.group.amount_unpaid):
+            self.badge_status = c.COMPLETED_STATUS
 
     @presave_adjustment
     def _staffing_adjustments(self):
@@ -1134,7 +1132,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def age_group_conf(self):
         if self.birthdate:
             day = c.EPOCH.date() if date.today() <= c.EPOCH.date() else sa.localized_now().date()
-            attendee_age = (day - self.birthdate).days / 365.2425
+            attendee_age = (day - self.birthdate).days // 365.2425
             for val, age_group in c.AGE_GROUP_CONFIGS.items():
                 if val != c.AGE_UNKNOWN and age_group['min_age'] <= attendee_age <= age_group['max_age']:
                     return age_group
@@ -1167,7 +1165,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def can_check_in(self):
-        return self.paid != c.NOT_PAID and self.badge_status == c.COMPLETED_STATUS and not self.is_unassigned
+        return self.paid != c.NOT_PAID and self.badge_status in [c.NEW_STATUS, c.COMPLETED_STATUS] and not self.is_unassigned
 
     @property
     def shirt_size_marked(self):
