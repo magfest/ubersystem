@@ -86,7 +86,7 @@ class Root:
         attendees = session.staffers().filter(*[Attendee.assigned_depts.contains(str(location))] if location else []).all()
         for attendee in attendees:
             attendee.trusted_here = attendee.trusted_in(location) if location else attendee.trusted_somewhere
-            attendee.hours_here = sum(shift.job.weighted_hours for shift in attendee.shifts) if location else attendee.weighted_hours
+            attendee.hours_here = sum(shift.job.weighted_hours for shift in attendee.shifts if shift.job.location == location) if location else attendee.weighted_hours
 
         counts = defaultdict(int)
         for job in session.jobs(location):
