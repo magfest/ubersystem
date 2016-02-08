@@ -955,10 +955,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     for_review  = Column(UnicodeText, admin_only=True)
     admin_notes = Column(UnicodeText, admin_only=True)
 
-    badge_num  = Column(Integer, default=0, nullable=True, admin_only=True)
-    badge_type = Column(Choice(c.BADGE_OPTS), default=c.ATTENDEE_BADGE)
+    badge_num    = Column(Integer, default=0, nullable=True, admin_only=True)
+    badge_type   = Column(Choice(c.BADGE_OPTS), default=c.ATTENDEE_BADGE)
     badge_status = Column(Choice(c.BADGE_STATUS_OPTS), default=c.NEW_STATUS, admin_only=True)
-    ribbon     = Column(Choice(c.RIBBON_OPTS), default=c.NO_RIBBON, admin_only=True)
+    ribbon       = Column(Choice(c.RIBBON_OPTS), default=c.NO_RIBBON, admin_only=True)
 
     affiliate    = Column(UnicodeText)
     shirt        = Column(Choice(c.SHIRT_OPTS), default=c.NO_SHIRT)
@@ -1276,12 +1276,13 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def accoutrements(self):
         stuff = [] if self.ribbon == c.NO_RIBBON else ['a ' + self.ribbon_label + ' ribbon']
-        stuff.append('a {} wristband'.format(c.WRISTBAND_COLORS[self.age_group]))
+        if c.WRISTBANDS_ENABLED:
+            stuff.append('a {} wristband'.format(c.WRISTBAND_COLORS[self.age_group]))
         if self.regdesk_info:
             stuff.append(self.regdesk_info)
         if self.amount_extra >= c.SUPPORTER_LEVEL:
             stuff.append('their Supporter badge')
-        return comma_and(stuff)
+        return (' with ' if stuff else '') + comma_and(stuff)
 
     @property
     def is_single_dept_head(self):
