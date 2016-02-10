@@ -59,7 +59,7 @@
                 </form>
             </div>
         </td>
-        <td> <nobr><a href="../registration/form?id={{ account.attendee.id }}">{{ account.attendee.full_name }}</a></nobr> </td>
+        <td> <nobr><a href="../registration/form?id={{ account.attendee.id }}">{{ account.attendee.last_first }}</a></nobr> </td>
         <td> <a href="mailto:{{ account.attendee.email }}">{{ account.attendee.email }}</a> </td>
         <td>
             <form class="form update-form" method="post" action="update">
