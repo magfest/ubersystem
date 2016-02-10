@@ -17,7 +17,7 @@ class Root:
         return {
             'message':  message,
             'accounts': session.query(AdminAccount).join(Attendee)
-                               .order_by(Attendee.first_name, Attendee.last_name).all(),
+                               .order_by(Attendee.last_first).all(),
             'all_attendees': sorted([
                 (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
                 for id, name, badge_type, badge_num in session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num)
