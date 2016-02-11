@@ -51,7 +51,7 @@
             {% endif %}
             {% if c.HAS_PEOPLE_ACCESS or c.HAS_REG_AT_CON_ACCESS %}
                 {People: [
-                    {Attendees: '../registration/'},
+                    {Attendees: '../registration/{% if c.AT_THE_CON %}?invalid=True{% endif %}'},
                     {Groups: '../groups/'},
                     {% if c.HAS_PEOPLE_ACCESS %}
                         {'All Untaken Shifts': '../jobs/everywhere'},
