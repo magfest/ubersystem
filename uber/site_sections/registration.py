@@ -643,9 +643,9 @@ class Root:
         elif existing:
             message = '{a.badge} already belongs to {a.full_name}'.format(a=existing[0])
         else:
-            badge_type, message = get_badge_type(badge_num)
+            message = check_range(badge_num, attendee.badge_type)
             if not message:
-                attendee.badge_type, attendee.badge_num = badge_type, badge_num
+                attendee.badge_num = badge_num
                 if group:
                     session.match_to_group(attendee, session.group(group))
                 elif attendee.paid != c.HAS_PAID:
