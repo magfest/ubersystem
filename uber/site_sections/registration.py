@@ -643,7 +643,11 @@ class Root:
         elif existing:
             message = '{a.badge} already belongs to {a.full_name}'.format(a=existing[0])
         else:
-            badge_type, message = get_badge_type(badge_num)
+            message = check_range(badge_num, attendee.badge_type)
+            if not message:
+                maybe_dupe = session.query(Attendee).filter_by(badge_num=badge_num, badge_type=attendee.badge_type)
+                if maybe_dupe.count():
+                    message = 'That badge number already belongs to ' + maybe_dupe.first().full_name
             if not message:
                 attendee.badge_type, attendee.badge_num = badge_type, badge_num
                 if group:
