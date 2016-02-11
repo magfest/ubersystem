@@ -645,11 +645,7 @@ class Root:
         else:
             message = check_range(badge_num, attendee.badge_type)
             if not message:
-                maybe_dupe = session.query(Attendee).filter_by(badge_num=badge_num, badge_type=attendee.badge_type)
-                if maybe_dupe.count():
-                    message = 'That badge number already belongs to ' + maybe_dupe.first().full_name
-            if not message:
-                attendee.badge_type, attendee.badge_num = badge_type, badge_num
+                attendee.badge_num = badge_num
                 if group:
                     session.match_to_group(attendee, session.group(group))
                 elif attendee.paid != c.HAS_PAID:
