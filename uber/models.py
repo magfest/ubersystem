@@ -553,6 +553,8 @@ class Session(SessionManager):
                 return out_of_range
             elif not badge_num and next > c.BADGE_RANGES[badge_type][1]:
                 return 'There are no more badges available for that type'
+            elif badge_type in c.PREASSIGNED_BADGE_TYPES and not c.SHIFT_CUSTOM_BADGES:
+                return 'Custom badges have already been ordered'
 
             if not c.SHIFT_CUSTOM_BADGES:
                 badge_num = badge_num or next
