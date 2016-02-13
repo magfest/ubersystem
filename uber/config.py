@@ -111,6 +111,14 @@ class Config(_Overridable):
     def get_group_price(self, dt):
         return self.get_attendee_price(dt) - self.GROUP_DISCOUNT
 
+    def get_badge_count_by_type(self, badge_type):
+        with sa.Session() as session:
+            attendees = session.query(sa.Attendee).filter(sa.Attendee.badge_type == badge_type)
+            individuals = attendees.filter(sa.Attendee.paid.in_([self.HAS_PAID, self.REFUNDED, self.NEED_NOT_PAY])).count()
+            group_badges = attendees.join(sa.Attendee.group).filter(sa.Attendee.paid == self.PAID_BY_GROUP)\
+                .filter(or_(sa.Group.amount_paid > 0, sa.Group.cost == 0)).count()
+            return individuals + group_badges
+
     @property
     def DEALER_REG_OPEN(self):
         return self.AFTER_DEALER_REG_START and self.BEFORE_DEALER_REG_SHUTDOWN
@@ -173,12 +181,14 @@ class Config(_Overridable):
                 if price:
                     try:
                         badge = getattr(c, iterdate.strftime('%A').upper() + "_BADGE")
-                    except:
+                    except AttributeError:
                         log.error('Could not add badge to AT_THE_DOOR_BADGE_OPTS. '
                                   'Badge type not configured: {}', iterdate.strftime('%A').upper() + '_BADGE')
                         iterdate += timedelta(days=1)
                         continue
-                    opts.append((badge, iterdate.strftime('%A') + ' (${})'.format(price)))
+
+                    if getattr(c, iterdate.strftime('%A').upper() + "_BADGE_AVAILABLE", None):
+                        opts.append((badge, iterdate.strftime('%A') + ' (${})'.format(price)))
                 iterdate += timedelta(days=1)
         elif self.ONE_DAYS_ENABLED:
             opts.append((self.ONE_DAY_BADGE,  'Single Day Pass (${})'.format(self.ONEDAY_BADGE_PRICE)))
@@ -250,6 +260,10 @@ class Config(_Overridable):
                 return sa.localized_now() > date_setting
         elif name.startswith('HAS_') and name.endswith('_ACCESS'):
             return getattr(c, '_'.join(name.split('_')[1:-1])) in sa.AdminAccount.access_set()
+        elif name.endswith('_COUNT'):
+            item_check = name.rsplit('_', 1)[0]
+            badge_type = getattr(self, item_check, None)
+            return self.get_badge_count_by_type(badge_type) if badge_type else None
         elif name.endswith('_AVAILABLE'):
             item_check = name.rsplit('_', 1)[0]
             stock_setting = getattr(self, item_check + '_STOCK', None)
@@ -259,7 +273,7 @@ class Config(_Overridable):
             elif stock_setting is None:
                 return True  # Defaults to unlimited stock for any stock not configured
             else:
-                return count_check < stock_setting
+                return int(count_check) < int(stock_setting)
         elif hasattr(_secret, name):
             return getattr(_secret, name)
         elif name.lower() in _config['secret']:
