@@ -112,12 +112,13 @@ class Config(_Overridable):
         return self.get_attendee_price(dt) - self.GROUP_DISCOUNT
 
     def get_badge_count_by_type(self, badge_type):
+        """
+        Unlike BADGES_SOLD, this will count any valid (that is, Complete) badge, regardless of whether the attendee paid
+        for it. This lets you have counts for badge types that aren't typically sold, like Staff badges.
+        """
         with sa.Session() as session:
             attendees = session.query(sa.Attendee).filter(sa.Attendee.badge_type == badge_type)
-            individuals = attendees.filter(sa.Attendee.paid.in_([self.HAS_PAID, self.REFUNDED, self.NEED_NOT_PAY])).count()
-            group_badges = attendees.join(sa.Attendee.group).filter(sa.Attendee.paid == self.PAID_BY_GROUP)\
-                .filter(or_(sa.Group.amount_paid > 0, sa.Group.cost == 0)).count()
-            return individuals + group_badges
+            return attendees.filter(sa.Attendee.status == c.COMPLETED_STATUS).count()
 
     @property
     def DEALER_REG_OPEN(self):
@@ -173,7 +174,16 @@ class Config(_Overridable):
 
     @property
     def AT_THE_DOOR_BADGE_OPTS(self):
-        opts = [(self.ATTENDEE_BADGE, 'Full Weekend Pass (${})'.format(self.BADGE_PRICE))]
+        """
+        This populates the dropdown form on the /registration/register page with a list of badges available at-door.
+        It always offers a "Full Weekend Pass" if attendee badges are available.
+        If one-days are enabled, it will show either a generic "Single Day Pass" or a list of specific day badges,
+        depending on if PRESELL_ONE_DAYS is true. Each day's badge will need to be configured under [badge_ranges] and
+        [[badge]] to show up in this dropdown.
+        """
+        opts = []
+        if self.ATTENDEE_BADGE_AVAILABLE:
+            opts.append((self.ATTENDEE_BADGE, 'Full Weekend Pass (${})'.format(self.BADGE_PRICE)))
         if self.ONE_DAYS_ENABLED and self.PRESELL_ONE_DAYS:
             iterdate = max(sa.localized_now(), self.EPOCH)
             while iterdate.date() <= self.ESCHATON.date():
