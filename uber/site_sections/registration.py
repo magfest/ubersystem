@@ -45,6 +45,7 @@ class Root:
         attendees = session.query(Attendee) if invalid else session.query(Attendee).filter(filter)
         total_count = attendees.count()
         count = 0
+        search_text = search_text.strip()
         if search_text:
             attendees = session.search(search_text) if invalid else session.search(search_text, filter)
             count = attendees.count()
