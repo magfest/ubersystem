@@ -166,7 +166,21 @@ class Config(_Overridable):
     @property
     def AT_THE_DOOR_BADGE_OPTS(self):
         opts = [(self.ATTENDEE_BADGE, 'Full Weekend Pass (${})'.format(self.BADGE_PRICE))]
-        if self.ONE_DAYS_ENABLED:
+        if self.ONE_DAYS_ENABLED and self.PRESELL_ONE_DAYS:
+            iterdate = max(sa.localized_now(), self.EPOCH)
+            while iterdate.date() <= self.ESCHATON.date():
+                price = self.BADGE_PRICES['single_day'].get(iterdate.strftime('%A'))
+                if price:
+                    try:
+                        badge = getattr(c, iterdate.strftime('%A').upper() + "_BADGE")
+                    except:
+                        log.error('Could not add badge to AT_THE_DOOR_BADGE_OPTS. '
+                                  'Badge type not configured: {}', iterdate.strftime('%A').upper() + '_BADGE')
+                        iterdate += timedelta(days=1)
+                        continue
+                    opts.append((badge, iterdate.strftime('%A') + ' (${})'.format(price)))
+                iterdate += timedelta(days=1)
+        elif self.ONE_DAYS_ENABLED:
             opts.append((self.ONE_DAY_BADGE,  'Single Day Pass (${})'.format(self.ONEDAY_BADGE_PRICE)))
         return opts
 
