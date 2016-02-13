@@ -603,7 +603,7 @@ class Session(SessionManager):
         def jobs(self, location=None):
             return (self.query(Job)
                         .filter_by(**{'location': location} if location else {})
-                        .order_by(Job.name, Job.start_time)
+                        .order_by(Job.start_time, Job.name)
                         .options(subqueryload(Job.shifts).subqueryload(Shift.attendee).subqueryload(Attendee.group)))
 
         def staffers_for_dropdown(self):
