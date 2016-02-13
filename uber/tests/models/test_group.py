@@ -158,6 +158,12 @@ def test_assign_removing_badges(monkeypatch, session):
     session.delete.assert_any_call(attendees[3])
 
 
+def test_assign_custom_badges_after_deadline(session, custom_badges_ordered):
+    group = Group()
+    message = session.assign_badges(group, 2, new_badge_type=c.STAFF_BADGE)
+    assert message and 'ordered' in message
+
+
 def test_badge_cost(monkeypatch):
     monkeypatch.setattr(c, 'get_group_price', Mock(return_value=c.DEALER_BADGE_PRICE + 10))
     assert 4 * c.DEALER_BADGE_PRICE + 20 == Group(attendees=[
