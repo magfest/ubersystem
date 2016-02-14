@@ -9,10 +9,11 @@
     window.setTimeout(toastr.clear, 10000);
 
     var maybeBold = function() {
-        if ($.val('payment_method') === {{ c.MANUAL }}) {
-            $('#email').css('font-weight', 'bold');
+        var $emailLabel = $('#email').parents('.form-group').find('label');
+        if (!$.field('payment_method') || $.val('payment_method') === {{ c.MANUAL }}) {
+            $emailLabel.addClass('optional-field');
         } else {
-            $('#email').css('font-weight', 'normal');
+            $emailLabel.removeClass('optional-field');
         }
     };
     $(maybeBold);
@@ -40,10 +41,14 @@
 <div class="form-group">
     <label class="col-sm-2 control-label">Payment Method</label>
     <div class="col-sm-6">
-        <select name="payment_method" class="form-control" onChange="maybeBold()">
-            <option value="">Select a payment option</option>
-            {% options c.DOOR_PAYMENT_METHOD_OPTS attendee.payment_method %}
-        </select>
+        {% if c.AFTER_BADGE_PRICE_WAIVED %}
+            <div style="margin-top:10px">All badge types are now free - enjoy {{ c.EVENT_NAME }}!</div>
+        {% else %}
+            <select name="payment_method" class="form-control" onChange="maybeBold()">
+                <option value="">Select a payment option</option>
+                {% options c.DOOR_PAYMENT_METHOD_OPTS attendee.payment_method %}
+            </select>
+        {% endif %}
     </div>
 </div>
 
