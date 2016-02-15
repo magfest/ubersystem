@@ -501,7 +501,7 @@ class Root:
                 message = 'Please select a payment type'
             elif attendee.payment_method == c.MANUAL and not re.match(c.EMAIL_RE, attendee.email):
                 message = 'Email address is required to pay with a credit card at our registration desk'
-            elif attendee.badge_type not in [c.ATTENDEE_BADGE, c.ONE_DAY_BADGE]:
+            elif attendee.badge_type not in [badge for badge, desc in c.AT_THE_DOOR_BADGE_OPTS]:
                 message = 'No hacking allowed!'
             else:
                 session.add(attendee)

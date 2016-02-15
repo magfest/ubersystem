@@ -16,8 +16,15 @@
             $emailLabel.removeClass('optional-field');
         }
     };
-    $(maybeBold);
-
+    var maybeWarn = function () {
+        var types = {{ c.PRESOLD_ONEDAY_BADGE_TYPES|jsonize }};
+        var badgeType = $.val('badge_type');
+        if (badgeType in types && types[badgeType] !== moment().format('dddd')) {
+            $('#day-warning').text('This badge can ONLY be picked up on ' + types[badgeType] + '.  You cannot pick it up today or any other day than ' + types[badgeType] + '.');
+        } else {
+            $('#day-warning').empty();
+        }
+    };
     var removeDonationRows = function () {
         $('.extra-row').remove();
     };
@@ -25,9 +32,16 @@
         $('.staffing').remove();
     };
     $(function () {
-        removeDonationRows();
-        removeVolunteerRows();
-        $('#bold-field-message').detach().prependTo('.form-horizontal');
+        {% if c.AT_THE_DOOR_BADGE_OPTS %}
+            maybeBold();
+            removeDonationRows();
+            removeVolunteerRows();
+            $('#bold-field-message').detach().prependTo('.form-horizontal');
+            $.field('badge_type').on('change', maybeWarn);
+            maybeWarn();
+        {% else %}
+            $('.panel').empty().append('<h1>All badges are sold out!</h1>');
+        {% endif %}
     });
 </script>
 
@@ -58,6 +72,7 @@
         <select name="badge_type" class="form-control">
             {% options c.AT_THE_DOOR_BADGE_OPTS attendee.badge_type %}
         </select>
+        <p id="day-warning" class="help-block"></p>
     </div>
 </div>
 
