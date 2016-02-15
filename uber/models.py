@@ -603,7 +603,7 @@ class Session(SessionManager):
         def jobs(self, location=None):
             return (self.query(Job)
                         .filter_by(**{'location': location} if location else {})
-                        .order_by(Job.name, Job.start_time)
+                        .order_by(Job.start_time, Job.name)
                         .options(subqueryload(Job.shifts).subqueryload(Shift.attendee).subqueryload(Attendee.group)))
 
         def staffers_for_dropdown(self):
@@ -679,7 +679,9 @@ class Session(SessionManager):
 
             ribbon_to_use = new_ribbon_type or group.new_ribbon
 
-            if diff > 0:
+            if int(new_badge_type) in c.PREASSIGNED_BADGE_TYPES and not c.SHIFT_CUSTOM_BADGES:
+                return 'Custom badges have already been ordered, so you will need to select a different badge type'
+            elif diff > 0:
                 for i in range(diff):
                     group.attendees.append(Attendee(badge_type=new_badge_type, ribbon=ribbon_to_use, paid=paid, **extra_create_args))
             elif diff < 0:
@@ -802,10 +804,6 @@ class Group(MagModel, TakesPaymentMixin):
             self.approved = datetime.now(UTC)
         if self.leader and self.is_dealer:
             self.leader.ribbon = c.DEALER_RIBBON
-
-    @property
-    def is_new(self):
-        return not instance_state(self).persistent
 
     @property
     def sorted_attendees(self):
@@ -1067,7 +1065,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.ribbon == c.DEPT_HEAD_RIBBON:
             self.staffing = True
             self.trusted_depts = self.assigned_depts
-            self.badge_type = c.STAFF_BADGE
+            if c.SHIFT_CUSTOM_BADGES or c.STAFF_BADGE not in c.PREASSIGNED_BADGE_TYPES:
+                self.badge_type = c.STAFF_BADGE
             if self.paid == c.NOT_PAID:
                 self.paid = c.NEED_NOT_PAY
         elif self.ribbon == c.VOLUNTEER_RIBBON and self.is_new:

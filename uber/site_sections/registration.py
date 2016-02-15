@@ -45,6 +45,7 @@ class Root:
         attendees = session.query(Attendee) if invalid else session.query(Attendee).filter(filter)
         total_count = attendees.count()
         count = 0
+        search_text = search_text.strip()
         if search_text:
             attendees = session.search(search_text) if invalid else session.search(search_text, filter)
             count = attendees.count()
@@ -496,7 +497,7 @@ class Root:
         attendee = session.attendee(params, restricted=True, ignore_csrf=True)
         if 'first_name' in params:
             message = check(attendee)
-            if not attendee.payment_method:
+            if not attendee.payment_method and (not c.BADGE_PRICE_WAIVED or c.BEFORE_BADGE_PRICE_WAIVED):
                 message = 'Please select a payment type'
             elif attendee.payment_method == c.MANUAL and not re.match(c.EMAIL_RE, attendee.email):
                 message = 'Email address is required to pay with a credit card at our registration desk'
@@ -506,7 +507,10 @@ class Root:
                 session.add(attendee)
                 session.commit()
                 message = 'Thanks!  Please queue in the {} line and have your photo ID and {} ready.'
-                if attendee.payment_method == c.STRIPE:
+                if c.AFTER_BADGE_PRICE_WAIVED:
+                    message = "Since it's so close to the end of the event, your badge is free!  Please proceed to the preregistration line to pick it up."
+                    attendee.paid = c.NEED_NOT_PAY
+                elif attendee.payment_method == c.STRIPE:
                     raise HTTPRedirect('pay?id={}', attendee.id)
                 elif attendee.payment_method == c.GROUP:
                     message = 'Please proceed to the preregistration line to pick up your badge.'
@@ -563,7 +567,7 @@ class Root:
         if show_all:
             restrict_to = [Attendee.paid == c.NOT_PAID, Attendee.placeholder == False]
         else:
-            restrict_to = [Attendee.registered > datetime.now(UTC) - timedelta(minutes=90)]
+            restrict_to = [Attendee.paid != c.NEED_NOT_PAY, Attendee.registered > datetime.now(UTC) - timedelta(minutes=90)]
 
         return {
             'message':    message,
