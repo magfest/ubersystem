@@ -16,8 +16,6 @@
             $emailLabel.removeClass('optional-field');
         }
     };
-    $(maybeBold);
-
     var removeDonationRows = function () {
         $('.extra-row').remove();
     };
@@ -25,9 +23,14 @@
         $('.staffing').remove();
     };
     $(function () {
-        removeDonationRows();
-        removeVolunteerRows();
-        $('#bold-field-message').detach().prependTo('.form-horizontal');
+        {% if c.AT_THE_DOOR_BADGE_OPTS %}
+            maybeBold();
+            removeDonationRows();
+            removeVolunteerRows();
+            $('#bold-field-message').detach().prependTo('.form-horizontal');
+        {% else %}
+            $('.panel').empty().append('<h1>All badges are sold out!</h1>');
+        {% endif %}
     });
 </script>
 
