@@ -77,7 +77,7 @@
                                     .append(
                                         $('<td></td>').append(
                                             shift.worked === {{ c.SHIFT_UNMARKED }} ? renderWorked(shift.id) : ('<i>' + shift.worked_label + '</i>')))
-                                    .append(shift.worked === {{ c.SHIFT_UNMARKED }} ? '' : renderRating(shift, $('<td></td>')));
+                                    .append(shift.worked !== {{ c.SHIFT_WORKED }} ? '' : renderRating(shift, $('<td></td>')));
                             }))));
     };
 

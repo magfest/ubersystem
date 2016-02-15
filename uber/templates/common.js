@@ -71,14 +71,16 @@ var setupRatingClickHandler = function () {
 };
 var setStatus = function (shiftId, status) {
     var $status = $(status);
-    $.post('../jobs/set_worked', {id: shiftId, worked: $status.val(), csrf_token: csrf_token}, function (result) {
+    var statusVal = parseInt($status.val());
+    $.post('../jobs/set_worked', {id: shiftId, status: statusVal, csrf_token: csrf_token}, function (result) {
         if (result.error) {
             alert(result.error);
         } else {
+            var statusLabel = _(result.shifts).filter({id: shiftId}).pluck('worked_label').first() || 'Unexpected Error';
             $status.parent().empty()
-                .append('<i>' + result.status_label + '</i> &nbsp; ')
+                .append('<i>' + statusLabel + '</i> &nbsp; ')
                 .append($undoForm('../jobs/undo_worked', {id: shiftId}));
-            if ($status.val() == {{ c.SHIFT_WORKED }}) {
+            if (statusVal === {{ c.SHIFT_WORKED }}) {
                 renderRating(shiftId);
             }
         }
