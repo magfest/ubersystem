@@ -97,8 +97,10 @@ class Config(_Overridable):
     """
 
     def get_oneday_price(self, dt):
-        default = self.DEFAULT_SINGLE_DAY
-        return self.BADGE_PRICES['single_day'].get(dt.strftime('%A'), default)
+        return self.BADGE_PRICES['single_day'].get(dt.strftime('%A'), self.DEFAULT_SINGLE_DAY)
+
+    def get_presold_oneday_price(self, badge_type):
+        return self.BADGE_PRICES['single_day'].get(self.BADGES[badge_type], self.DEFAULT_SINGLE_DAY)
 
     def get_attendee_price(self, dt):
         price = self.INITIAL_ATTENDEE
@@ -113,12 +115,12 @@ class Config(_Overridable):
 
     def get_badge_count_by_type(self, badge_type):
         """
-        Unlike BADGES_SOLD, this will count any valid (that is, Complete) badge, regardless of whether the attendee paid
-        for it. This lets you have counts for badge types that aren't typically sold, like Staff badges.
+        Returns the count of all "Complete" badges of the given type; unlike the
+        BADGES_SOLD property, this counts all paid values.  Thus we have counts
+        for badge types that aren't typically sold, e.g. Staff badges.
         """
         with sa.Session() as session:
-            attendees = session.query(sa.Attendee).filter(sa.Attendee.badge_type == badge_type)
-            return attendees.filter(sa.Attendee.status == c.COMPLETED_STATUS).count()
+            return session.query(sa.Attendee).filter_by(badge_type=badge_type, badge_status=c.COMPLETED_STATUS).count()
 
     @property
     def DEALER_REG_OPEN(self):
@@ -140,10 +142,6 @@ class Config(_Overridable):
     @property
     def BADGE_PRICE(self):
         return self.get_attendee_price(sa.localized_now())
-
-    @property
-    def SUPPORTER_BADGE_PRICE(self):
-        return self.BADGE_PRICE + self.SUPPORTER_LEVEL
 
     @property
     def GROUP_PRICE(self):
@@ -169,48 +167,34 @@ class Config(_Overridable):
         return dict(self.PREREG_DONATION_OPTS)
 
     @property
-    def SUPPORTERS_ENABLED(self):
-        return self.SUPPORTER_LEVEL in self.PREREG_DONATION_TIERS
-
-    @property
     def AT_THE_DOOR_BADGE_OPTS(self):
         """
-        This populates the dropdown form on the /registration/register page with a list of badges available at-door.
-        It always offers a "Full Weekend Pass" if attendee badges are available.
-        If one-days are enabled, it will show either a generic "Single Day Pass" or a list of specific day badges,
-        depending on if PRESELL_ONE_DAYS is true. Each day's badge will need to be configured under [badge_ranges] and
-        [[badge]] to show up in this dropdown.
+        This provides the dropdown on the /registration/register page with its
+        list of badges available at-door.  It includes a "Full Weekend Pass"
+        if attendee badges are available.  If one-days are enabled, it includes
+        either a generic "Single Day Pass" or a list of specific day badges,
+        based on the c.PRESELL_ONE_DAYS setting.
         """
         opts = []
         if self.ATTENDEE_BADGE_AVAILABLE:
             opts.append((self.ATTENDEE_BADGE, 'Full Weekend Pass (${})'.format(self.BADGE_PRICE)))
-        if self.ONE_DAYS_ENABLED and self.PRESELL_ONE_DAYS:
-            iterdate = max(sa.localized_now(), self.EPOCH)
-            while iterdate.date() <= self.ESCHATON.date():
-                price = self.BADGE_PRICES['single_day'].get(iterdate.strftime('%A'))
-                if price:
-                    try:
-                        badge = getattr(c, iterdate.strftime('%A').upper() + "_BADGE")
-                    except AttributeError:
-                        log.error('Could not add badge to AT_THE_DOOR_BADGE_OPTS. '
-                                  'Badge type not configured: {}', iterdate.strftime('%A').upper() + '_BADGE')
-                        iterdate += timedelta(days=1)
-                        continue
-
-                    if getattr(c, iterdate.strftime('%A').upper() + "_BADGE_AVAILABLE", None):
-                        opts.append((badge, iterdate.strftime('%A') + ' (${})'.format(price)))
-                iterdate += timedelta(days=1)
-        elif self.ONE_DAYS_ENABLED:
-            opts.append((self.ONE_DAY_BADGE,  'Single Day Pass (${})'.format(self.ONEDAY_BADGE_PRICE)))
+        if self.ONE_DAYS_ENABLED:
+            if self.PRESELL_ONE_DAYS:
+                day = max(sa.localized_now(), self.EPOCH)
+                while day.date() <= self.ESCHATON.date():
+                    day_name = day.strftime('%A')
+                    price = self.BADGE_PRICES['single_day'].get(day_name) or self.DEFAULT_SINGLE_DAY
+                    badge = getattr(self, day_name.upper())
+                    if getattr(self, day_name.upper() + '_AVAILABLE', None):
+                        opts.append((badge, day_name + ' Pass (${})'.format(price)))
+                    day += timedelta(days=1)
+            elif self.ONE_DAY_BADGE_AVAILABLE:
+                opts.append((self.ONE_DAY_BADGE,  'Single Day Pass (${})'.format(self.ONEDAY_BADGE_PRICE)))
         return opts
 
     @property
     def PREREG_AGE_GROUP_OPTS(self):
         return [opt for opt in self.AGE_GROUP_OPTS if opt[0] != self.AGE_UNKNOWN]
-
-    @property
-    def DISPLAY_ONEDAY_BADGES(self):
-        return self.ONE_DAYS_ENABLED and sa.days_before(30, self.EPOCH)
 
     @property
     def AT_OR_POST_CON(self):
@@ -340,6 +324,10 @@ c.BADGE_PRICES = _config['badge_prices']
 for _opt, _val in chain(_config.items(), c.BADGE_PRICES.items()):
     if not isinstance(_val, dict) and not hasattr(c, _opt.upper()):
         setattr(c, _opt.upper(), _val)
+for _opt, _val in c.BADGE_PRICES['stocks'].items():
+    _opt = _opt.upper() + '_STOCK'
+    if not hasattr(c, _opt):
+        setattr(c, _opt, _val)
 
 c.DATES = {}
 c.TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S'
@@ -357,11 +345,10 @@ def _is_intstr(s):
         return s[1:].isdigit()
     return s.isdigit()
 
-'''
-Under certain conditions, we want to completely remove certain payment options from the system.
-However, doing so cleanly also risks an exception being raised if these options are referenced elsewhere in the code
-(i.e., c.STRIPE). So we create an enum val to allow code to check for these variables without exceptions.
-'''
+
+# Under certain conditions, we want to completely remove certain payment options from the system.
+# However, doing so cleanly also risks an exception being raised if these options are referenced elsewhere in the code
+# (i.e., c.STRIPE). So we create an enum val to allow code to check for these variables without exceptions.
 if not c.KIOSK_CC_ENABLED:
     del _config['enums']['door_payment_method']['stripe']
     c.create_enum_val('stripe')
@@ -431,6 +418,18 @@ c.EVENT_END_DAY = int(c.ESCHATON.strftime('%d')) % 100
 c.DAYS = sorted({(dt.strftime('%Y-%m-%d'), dt.strftime('%a')) for dt, desc in c.START_TIME_OPTS})
 c.HOURS = ['{:02}'.format(i) for i in range(24)]
 c.MINUTES = ['{:02}'.format(i) for i in range(60)]
+
+c.DAYS_OF_WEEK = {'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'}
+if c.ONE_DAYS_ENABLED and c.PRESELL_ONE_DAYS:
+    _day = c.EPOCH.date()
+    while _day <= c.ESCHATON.date():
+        _name = _day.strftime('%A')
+        _val = c.create_enum_val(_name)
+        c.BADGES[_val] = _name
+        c.BADGE_OPTS.append((_val, _name))
+        c.BADGE_VARS.append(_name.upper())
+        c.BADGE_RANGES[_val] = c.BADGE_RANGES[c.ONE_DAY_BADGE]
+        _day += timedelta(days=1)
 
 c.MAX_BADGE = max(xs[1] for xs in c.BADGE_RANGES.values())
 

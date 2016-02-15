@@ -724,8 +724,6 @@ class Session(SessionManager):
             """
             insert a test admin into the database with username "magfest@example.com" password "magfest"
             this is ONLY allowed if no other admins already exist in the database.
-
-            :param session: database session object
             :return: True if success, False if failure
             """
             if self.query(sa.AdminAccount).count() != 0:
@@ -1123,6 +1121,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             return self.overridden_price
         elif self.badge_type == c.ONE_DAY_BADGE:
             return c.get_oneday_price(registered)
+        elif self.is_presold_oneday:
+            return c.get_presold_oneday_price(self.badge_type)
         else:
             return c.get_attendee_price(registered)
 
@@ -1166,8 +1166,19 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.ribbon == c.DEPT_HEAD_RIBBON
 
     @property
+    def is_presold_oneday(self):
+        """
+        Returns a boolean indicating whether this is a c.FRIDAY/c.SATURDAY/etc
+        badge; see the presell_one_days config option for a full explanation.
+        """
+        return self.badge_type_label in c.DAYS_OF_WEEK
+
+    @property
     def can_check_in(self):
-        return self.paid != c.NOT_PAID and self.badge_status in [c.NEW_STATUS, c.COMPLETED_STATUS] and not self.is_unassigned
+        valid = self.paid != c.NOT_PAID and self.badge_status in [c.NEW_STATUS, c.COMPLETED_STATUS] and not self.is_unassigned
+        if valid and self.is_presold_oneday:
+            valid = self.badge_type_label == localized_now().strftime('%A')
+        return valid
 
     @property
     def shirt_size_marked(self):
