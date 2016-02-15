@@ -156,6 +156,14 @@ class Config(_Overridable):
         return types
 
     @property
+    def PRESOLD_ONEDAY_BADGE_TYPES(self):
+        return {
+            badge_type: self.BADGES[badge_type]
+            for badge_type, desc in self.AT_THE_DOOR_BADGE_OPTS
+            if self.BADGES[badge_type] in c.DAYS_OF_WEEK
+        }
+
+    @property
     def PREREG_DONATION_OPTS(self):
         if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
             return self.DONATION_TIER_OPTS
