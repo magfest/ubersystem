@@ -2,6 +2,7 @@
 <div style="position:fixed ; top:25% ; right: 2% ; text-align:right">
     <b>Assign someone to any of these positions:</b> <br/>
     <select id="attendee">
+        <option value="">Select a volunteer</option>
         {% for attendee in attendees %}
             <option value="{{ attendee.id }}">{{ attendee.full_name }}</option>
         {% endfor %}
@@ -51,11 +52,16 @@
                     .append(
                         $('<td></td>').append(
                             jobIsFull ? '' : $('<button>Assign</button>').click(function () {
-                                $.post('assign', {
-                                    csrf_token: csrf_token,
-                                    job_id: job.id,
-                                    staffer_id: $('#attendee').val()
-                                }, renderJob, 'json');
+                                var attendee = $('#attendee').val();
+                                if (attendee) {
+                                    $.post('assign', {
+                                        csrf_token: csrf_token,
+                                        job_id: job.id,
+                                        staffer_id: $('#attendee').val()
+                                    }, renderJob, 'json');
+                                } else {
+                                    alert('You must select a volunteer to assign.');
+                                }
                             }))))
             .append(
                 $('<tr></tr>')
