@@ -258,7 +258,12 @@
     {% if c.COLLECT_EXACT_BIRTHDATE %}
         <label for="birthdate" class="col-sm-2 control-label">Date of Birth</label>
         <div class="col-sm-6">
-            <input type='text' class="form-control date" name="birthdate" value="{{ attendee.birthdate|date:"Y-m-d"}} "/>
+            <nobr>
+                <input type='text' class="form-control date" name="birthdate" value="{{ attendee.birthdate|date:"Y-m-d"}} "/>
+                {% if c.PAGE_PATH == '/registration/form' and attendee.birthdate %}
+                    ({{ attendee.age_group_conf.desc }})
+                {% endif %}
+            </nobr>
         </div>
     {% else %}
         <label for="age_group" class="col-sm-2 control-label">Age as of {{ c.EVENT_NAME }}</label>
