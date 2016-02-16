@@ -55,17 +55,6 @@ class Root:
 
         attendees = attendees.order(order)
 
-        groups = []
-        for group in (session.query(Group)
-                             .options(joinedload(Group.leader))
-                             .filter(Group.status != c.WAITLISTED,
-                                     Group.id.in_(
-                                        session.query(Attendee.group_id)
-                                               .filter(Attendee.group_id != None, Attendee.first_name == '')
-                                               .distinct()
-                                               .subquery()))):
-            groups.append((group.id, group.name + (' ({})'.format(group.leader.full_name) if group.leader else '')))
-
         page = int(page)
         if search_text:
             page = page or 1
@@ -85,7 +74,6 @@ class Root:
             'search_text':    search_text,
             'search_results': bool(search_text),
             'attendees':      attendees,
-            'groups':         groups,
             'order':          Order(order),
             'attendee_count': total_count,
             'checkin_count':  session.query(Attendee).filter(Attendee.checked_in != None).count(),
@@ -141,8 +129,12 @@ class Root:
                 message = check(attendee)
 
             if not message:
-                message = session.change_badge(attendee, params['badge_type'], params.get('newnum') or 0)
-                raise HTTPRedirect('form?id={}&message={}', attendee.id, message)
+                badge_num = int(params.get('newnum') or 0)
+                if c.AT_THE_CON and badge_num == 0:  # sometimes admins need to unset accidental badge assignments
+                    attendee.badge_num = 0
+                else:
+                    message = session.change_badge(attendee, params['badge_type'], new_num)
+                raise HTTPRedirect('form?id={}&message={}', attendee.id, message or '')
 
         return {
             'message':  message,
@@ -306,48 +298,79 @@ class Root:
         session.delete(session.sale(id))
         return 'Sale deleted'
 
+    def check_in_form(self, session, id):
+        attendee = session.attendee(id)
+        return {
+            'attendee': attendee,
+            'groups': [
+                (group.id, (group.name if len(group.name) < 30 else '{}...'.format(group.name[:27], '...'))
+                         + (' ({})'.format(group.leader.full_name) if group.leader else ''))
+                for group in session.query(Group)
+                                    .options(joinedload(Group.leader))
+                                    .filter(Group.status != c.WAITLISTED,
+                                            Group.id.in_(
+                                                session.query(Attendee.group_id)
+                                                       .filter(Attendee.group_id != None, Attendee.first_name == '')
+                                                       .distinct().subquery()))
+                                    .order_by(Group.name)
+            ] if attendee.paid == c.PAID_BY_GROUP and not attendee.group_id else []
+        }
+
     @ajax
-    def check_in(self, session, id, age_group, group, badge_num=None, message=''):
+    def check_in(self, session, id, age_group=None, birthdate=None, group=None, badge_num=None, message=''):
         attendee = session.attendee(id)
         pre_badge = attendee.badge_num
         success, increment = True, False
 
-        if not attendee.badge_num and c.NUMBERED_BADGES:
+        if not message and not attendee.badge_num and c.NUMBERED_BADGES:
             message = check_range(badge_num, attendee.badge_type)
             if not message:
-                maybe_dupe = session.query(Attendee).filter_by(badge_num=badge_num, badge_type=attendee.badge_type)
-                if maybe_dupe.count():
-                    message = 'That badge number already belongs to ' + maybe_dupe.first().full_name
-
-            if group:
-                g = sesson.group(group)
-                if g.amount_unpaid:
-                    message = 'That group has an outstanding balance of ${}'.format(g.amount_unpaid)
+                attendee.badge_num = int(badge_num)
+                if not attendee.badge_num:
+                    message = 'Badge number is required'
                 else:
-                    session.match_to_group(attendee, g)
-            elif attendee.paid == c.PAID_BY_GROUP and not attendee.group:
-                message = 'You must select a group for this attendee.'
+                    maybe_dupe = session.query(Attendee).filter_by(badge_num=badge_num, badge_type=attendee.badge_type)
+                    if maybe_dupe.count():
+                        message = 'That badge number already belongs to ' + maybe_dupe.first().full_name
 
-            if not message:
-                attendee._status_adjustments()
-                if attendee.badge_status != c.COMPLETED_STATUS:
-                    message = 'This badge is {} and cannot be checked in.'.format(attendee.badge_status_label)
+        if not message and birthdate:
+            try:
+                attendee.birthdate = datetime.strptime(birthdate, '%Y-%m-%d').date()
+            except:
+                message = 'Invalid date of birth {!r}'.format(birthdate)
 
-            success = not message
+        if not message and age_group:
+            try:
+                attendee.age_group = int(age_group)
+                assert attendee.age_group != c.AGE_UNKNOWN
+            except:
+                message = 'Invalid age group'
 
-        if success and attendee.checked_in:
+        if not message and attendee.checked_in:
             message = attendee.full_name + ' was already checked in!'
-        elif success:
+
+        if not message and group:
+            g = session.group(group)
+            if g.amount_unpaid:
+                message = 'That group has an outstanding balance of ${}'.format(g.amount_unpaid)
+            else:
+                session.match_to_group(attendee, g)
+        elif not message and attendee.paid == c.PAID_BY_GROUP and not attendee.group:
+            message = 'You must select a group for this attendee.'
+
+        if not message:
+            attendee._status_adjustments()
+            if attendee.badge_status != c.COMPLETED_STATUS:
+                message = 'This badge is {} and cannot be checked in.'.format(attendee.badge_status_label)
+
+        success = not message
+        if success:
             message = ""
             attendee.checked_in = datetime.now(UTC)
-            attendee.age_group = int(age_group)
-            if not attendee.badge_num and c.NUMBERED_BADGES:
-                attendee.badge_num = int(badge_num)
             if attendee.paid == c.NOT_PAID:
                 attendee.paid = c.HAS_PAID
                 attendee.amount_paid = attendee.total_cost
                 message = '<b>This attendee has not paid for their badge; make them pay ${}!</b> <br/>'.format(attendee.total_cost)
-            session.add(attendee)
             session.commit()
             increment = True
             message += '{0.full_name} checked in as {0.badge}{0.accoutrements}'.format(attendee)

@@ -98,13 +98,6 @@ var $undoForm = function (path, params, linkText) {
     return $().add($undoLink).add($form);
 };
 
-function showTop (message) {
-    $('#top').show('fast').find('td:first').html(message);
-}
-function hideTop () {
-    $('#top').hide('fast');
-}
-
 $(function () {
     $('.datepicker').datepicker({
         changeMonth: true,
