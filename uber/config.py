@@ -58,18 +58,18 @@ class _Overridable:
         """
         opts, lookup, varnames = [], {}, []
         for name, desc in section.items():
-            if isinstance(name, int):
-                if prices:
-                    val, desc = desc, name
-                else:
-                    val = name
+            if isinstance(desc, int):
+                val, desc = desc, name
             else:
                 varnames.append(name.upper())
                 val = self.create_enum_val(name)
 
             if desc:
                 opts.append((val, desc))
-                lookup[val] = desc
+                if prices:
+                    lookup[desc] = val
+                else:
+                    lookup[val] = desc
 
         enum_name = enum_name.upper()
         setattr(self, enum_name + '_OPTS', opts)
@@ -376,11 +376,11 @@ for _name, _section in _config['integer_enums'].items():
         _interpolated = OrderedDict()
         for _desc, _val in _section.items():
             if _is_intstr(_val):
-                key = int(_val)
+                _price = int(_val)
             else:
-                key = getattr(c, _val.upper())
+                _price = getattr(c, _val.upper())
 
-            _interpolated[key] = _desc
+            _interpolated[_desc] = _price
 
         c.make_enum(_name, _interpolated, prices=_name.endswith('_price'))
 
@@ -460,8 +460,8 @@ c.PREREG_SHIRT_OPTS = c.SHIRT_OPTS[1:]
 c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + list(c.PREREG_SHIRT_OPTS)
 c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt, desc) if amt else desc) for amt, desc in c.DONATION_TIER_OPTS]
 
-c.STORE_ITEM_NAMES = list(c.STORE_PRICES.keys())
-c.FEE_ITEM_NAMES = list(c.FEE_PRICES.keys())
+c.STORE_ITEM_NAMES = [desc for val, desc in c.STORE_PRICE_OPTS]
+c.FEE_ITEM_NAMES = [desc for val, desc in c.FEE_PRICE_OPTS]
 
 c.WRISTBAND_COLORS = defaultdict(lambda: c.WRISTBAND_COLORS[c.DEFAULT_WRISTBAND], c.WRISTBAND_COLORS)
 
