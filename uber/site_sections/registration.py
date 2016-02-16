@@ -299,8 +299,9 @@ class Root:
         return 'Sale deleted'
 
     def check_in_form(self, session, id):
+        attendee = session.attendee(id)
         return {
-            'attendee': session.attendee(id),
+            'attendee': attendee,
             'groups': [
                 (group.id, (group.name if len(group.name) < 30 else '{}...'.format(group.name[:27], '...'))
                          + (' ({})'.format(group.leader.full_name) if group.leader else ''))
@@ -312,7 +313,7 @@ class Root:
                                                        .filter(Attendee.group_id != None, Attendee.first_name == '')
                                                        .distinct().subquery()))
                                     .order_by(Group.name)
-            ]
+            ] if attendee.paid == c.PAID_BY_GROUP and not attendee.group_id else []
         }
 
     @ajax
