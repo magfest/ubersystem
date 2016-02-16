@@ -1289,7 +1289,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         elif self.gets_free_shirt:
             shirt = '2nd ' + c.DONATION_TIERS[c.SHIRT_LEVEL]
             if self.takes_shifts and self.worked_hours < 6:
-                shirt += ' (tell them they will be reported if they take their shirt and then do not work their shifts)'
+                shirt += ' (tell them they will be reported if they take their shirt then do not work their shifts)'
             merch.append(shirt)
         if self.extra_merch:
             merch.append(self.extra_merch)
