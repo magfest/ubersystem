@@ -175,19 +175,6 @@
     {% endif %}
     {% block top_of_body_additional %}{% endblock %}
     <div id="mainContainer" class="container-fluid">
-        {% block top %}
-            <div id="top" style="display:none">
-                <table style="width:100% ; background:orange ; margin-bottom:5px ; position:fixed">
-                <tr>
-                    <td style="width:auto"></td>
-                    <td style="width:30px">
-                        <a onClick="hideTop()" class="closer">x</a>
-                    </td>
-                </tr>
-                </table>
-                <br/><br/>
-            </div>
-        {% endblock %}
         {% block backlink %}
             <nav class="navbar navbar-default navbar-static-top" role="navigation">
                 <!-- Brand and toggle get grouped for better mobile display -->

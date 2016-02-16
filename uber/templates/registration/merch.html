@@ -91,8 +91,8 @@
     }
     
     $(function(){
-        $('#message').ajaxError(function(){
-            showTop('Oh noes - the web server is down or something!!!!!');
+        $('#message').ajaxError(function () {
+            toastr.error('Oh noes - the web server is down or something!!!!!');
         });
         
         $('input[type=text],input[type=number]').on('focus', function(event){
