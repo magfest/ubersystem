@@ -55,10 +55,16 @@
                     description: '<p class="list-group-item-text">The deadline for Group registration has passed, but you can still register as a regular attendee.</p>',
                 {% endif %}
                 onClick: function () {
-                    $('.group_fields').removeClass('hide');
-                    $('input[name="badge_type"]').val('{{ c.PSEUDO_GROUP_BADGE }}');
-                    $('#bold-field-message').insertBefore($.field('name').parents('.form-group'));
-                    togglePrices();
+                    {% if c.BEFORE_GROUP_REG_TAKEDOWN %}
+                        $('.group_fields').removeClass('hide');
+                        $('input[name="badge_type"]').val('{{ c.PSEUDO_GROUP_BADGE }}');
+                        $('#bold-field-message').insertBefore($.field('name').parents('.form-group'));
+                        togglePrices();
+                    {% else %}
+                        setBadge(REG_TYPES, 0);
+                        toastr.clear();
+                        toastr.error('Group registration has closed.');
+                    {% endif %}
                 }
             });
         {% endif %}
