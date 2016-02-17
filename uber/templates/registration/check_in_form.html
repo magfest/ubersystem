@@ -57,6 +57,12 @@
             {% endif %}
         </td>
     </tr>
+    {% if attendee.badge_printed_name %}
+        <tr>
+            <td>Badge Printed Name:</td>
+            <td>{{ attendee.badge_printed_name }}</td>
+        </tr>
+    {% endif %}
     {% if c.NUMBERED_BADGES %}
         <tr>
             <td>Badge Number:</td>
