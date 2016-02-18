@@ -142,10 +142,8 @@
         </td>
         <td>{{ attendee.badge_type_label }}</td>
         <td>{{ attendee.age_group_conf.desc }}</td>
-        {% if attendee.paid != c.PAID_BY_GROUP %}
-            <td>${{ attendee.total_cost }}</td>
-        {% endif %}
-        <td {% if attendee.paid == c.PAID_BY_GROUP %}colspan="2"{% endif %}>
+        <td>{% if attendee.paid != c.PAID_BY_GROUP %}${{ attendee.total_cost }}{% endif %}</td>
+        <td>
             {% if attendee.paid == c.HAS_PAID %}
                 paid
             {% elif attendee.paid == c.PAID_BY_GROUP %}
@@ -163,9 +161,10 @@
             {% endif %}
         </td>
         {% if attendee.paid == c.PAID_BY_GROUP %}
-            <td colspan="2">
+            <td>
                 check in group badges <a href="index?search_text={{ attendee.id }}">here</a>
             </td>
+            <td></td>
         {% else %}
             <form method="post" action="new_checkin">
             {% if c.NUMBERED_BADGES %}
