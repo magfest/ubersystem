@@ -29,7 +29,7 @@
         {% csrf_token %}
         <input type="hidden" name="id" value="{{ attendee.id }}" />
         <b>Non-shift hours:</b>
-        <input type="text" class="focus" name="nonshift_hours" value="{{ attendee.nonshift_hours }}" style="width:2em" />
+        <input type="number" class="focus" name="nonshift_hours" value="{{ attendee.nonshift_hours }}" style="width:3em" />
         <input type="submit" value="Update" />
         </form>
     </td>
