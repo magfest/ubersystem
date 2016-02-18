@@ -437,6 +437,7 @@ if c.ONE_DAYS_ENABLED and c.PRESELL_ONE_DAYS:
         c.BADGE_OPTS.append((_val, _name))
         c.BADGE_VARS.append(_name.upper())
         c.BADGE_RANGES[_val] = c.BADGE_RANGES[c.ONE_DAY_BADGE]
+        c.TRANSFERABLE_BADGE_TYPES.append(_val)
         _day += timedelta(days=1)
 
 c.MAX_BADGE = max(xs[1] for xs in c.BADGE_RANGES.values())
