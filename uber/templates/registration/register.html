@@ -10,7 +10,7 @@
 
     var maybeBold = function() {
         var $emailLabel = $('#email').parents('.form-group').find('label');
-        if (!$.field('payment_method') || _(['', {{ c.STRIPE }}]).contains($.val('payment_method'))) {
+        if (!$.field('payment_method') || _(['', {{ c.STRIPE }}, {{ c.MANUAL }}]).contains($.val('payment_method'))) {
             $emailLabel.removeClass('optional-field');
         } else {
             $emailLabel.addClass('optional-field');
