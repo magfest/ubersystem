@@ -519,7 +519,6 @@ class Root:
         params['id'] = 'None'
         attendee = session.attendee(params, restricted=True, ignore_csrf=True)
         if 'first_name' in params:
-            message = check(attendee)
             if not attendee.payment_method and (not c.BADGE_PRICE_WAIVED or c.BEFORE_BADGE_PRICE_WAIVED):
                 message = 'Please select a payment type'
             elif attendee.payment_method == c.MANUAL and not re.match(c.EMAIL_RE, attendee.email):
@@ -527,6 +526,9 @@ class Root:
             elif attendee.badge_type not in [badge for badge, desc in c.AT_THE_DOOR_BADGE_OPTS]:
                 message = 'No hacking allowed!'
             else:
+                message = check(attendee)
+
+            if not message:
                 session.add(attendee)
                 session.commit()
                 message = 'Thanks!  Please queue in the {} line and have your photo ID and {} ready.'
