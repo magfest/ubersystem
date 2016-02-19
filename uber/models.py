@@ -1252,7 +1252,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     def is_transferable(self):
         return not self.is_new and not self.trusted_somewhere and not self.checked_in \
            and self.paid in [c.HAS_PAID, c.PAID_BY_GROUP] \
-           and self.badge_type in c.TRANSFERABLE_BADGE_TYPES
+           and self.badge_type in c.TRANSFERABLE_BADGE_TYPES \
+           and not self.admin_account
 
     @property
     def gets_free_shirt(self):
