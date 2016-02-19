@@ -48,7 +48,7 @@
                 <b>[not checked in]</b>
             {% endif %}
         {% endif %}
-         ({{ attendee.weighted_hours }} weighted hours,
+        ({{ attendee.weighted_hours }} weighted hours,
         {{ attendee.hours|length|add:attendee.nonshift_hours }} actual hours): </b>
         {% if c.AT_OR_POST_CON %}<br />{{ attendee.worked_hours }} hours worked.{% endif %}
     <br/> <br/>
@@ -59,7 +59,7 @@
         <td>Start</td>
         <td>End</td>
         <td>Hours</td>
-	<td>Weighted Total</td>
+	 <td>Weighted Total</td>
         <td>Status</td>
         <td></td>
     </tr>
@@ -70,7 +70,7 @@
             <td>{% hour_day shift.job.start_time %}</td>
             <td>{% hour_day shift.job.end_time %}</td>
             <td>{{ shift.job.duration }} (x{{ shift.job.weight }})</td>
-	    <td>{{ shift.job.weighted_hours}}</td>
+	     <td>{{ shift.job.weighted_hours}}</td>
             <td>
                 {% if shift.worked != c.SHIFT_UNMARKED %}
                     <i>{{ shift.worked_label }}</i>
