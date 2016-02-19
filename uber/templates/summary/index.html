@@ -21,6 +21,13 @@
     {% endfor %}
 </ul>
 
+<h4>Badge Stocks</h4>
+<ul>
+    {% for desc, count in counts.stocks.items %}
+        <li><i>{{ desc }}:</i> {{ count }}</li>
+    {% endfor %}
+</ul>
+
 <h4>Interests</h4>
 <ul>
     {% for desc, count in counts.interests.items %}
