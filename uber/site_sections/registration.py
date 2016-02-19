@@ -132,8 +132,7 @@ class Root:
                 badge_num = int(params.get('newnum') or 0)
                 if c.AT_THE_CON and badge_num == 0:  # sometimes admins need to unset accidental badge assignments
                     attendee.badge_num = 0
-                else:
-                    message = session.change_badge(attendee, params['badge_type'], badge_num)
+                message = session.change_badge(attendee, params['badge_type'], badge_num)
                 raise HTTPRedirect('form?id={}&message={}', attendee.id, message or '')
 
         return {
