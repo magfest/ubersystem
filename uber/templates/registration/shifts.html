@@ -59,6 +59,7 @@
         <td>Start</td>
         <td>End</td>
         <td>Hours</td>
+	<td>Weighted Total</td>
         <td>Status</td>
         <td></td>
     </tr>
@@ -69,6 +70,7 @@
             <td>{% hour_day shift.job.start_time %}</td>
             <td>{% hour_day shift.job.end_time %}</td>
             <td>{{ shift.job.duration }} (x{{ shift.job.weight }})</td>
+	    <td>{{ shift.job.weighted_hours}}</td>
             <td>
                 {% if shift.worked != c.SHIFT_UNMARKED %}
                     <i>{{ shift.worked_label }}</i>
@@ -82,7 +84,7 @@
             {% csrf_token %}
             <input type="hidden" name="shift_id" value="{{ shift.id }}" />
             <td style="padding-right:10px"> <input type="submit" value="Unassign" /> </td>
-            </form>
+	    </form>
             <td id="rating{{ shift.id }}"></td>
             {% if shift.worked == c.SHIFT_WORKED %}
                 <script type="text/javascript">renderRating('{{ shift.id }}');</script>
