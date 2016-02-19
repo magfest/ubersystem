@@ -76,7 +76,10 @@ angular.module('signups', ['ngRoute', 'magfest'])
             return job.taken;
         };
         $scope.showDesc = function(job) {
-            $('#job' + job.id).parent('tr').after('<tr><td colspan="6"><i>' + job.description + '</i></td></tr>');
+            if (!$("#desc" + job.id).length) 
+                $('#job' + job.id).parent('tr').after('<tr id="desc' + job.id + '"><td colspan="6"><i>' + job.description + '</i></td></tr>');
+            else
+                $("#desc" + job.id).remove();
         };
         $scope.refreshInterval = function() {
             Jobs.refresh();
