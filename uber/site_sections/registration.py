@@ -762,13 +762,13 @@ class Root:
             'shifts':   Shift.dump(attendee.shifts),
             'jobs':     [(job.id, '({}) [{}] {}'.format(custom_tags.timespan.pretty(job), job.location_label, job.name))
                          for job in session.query(Job)
-                           .outerjoin(Job.shifts)
-                           .filter(Job.start_time > localized_now() - timedelta(hours=2),
-                                   Job.location.in_(attendee.assigned_depts_ints))
-                           .filter(or_(Job.restricted == False, Job.location.in_(attendee.trusted_depts_ints)))
-                           .group_by(Job.id)
-                           .having(func.count(Shift.id) < Job.slots)
-                           .order_by(Job.start_time, Job.location).all()]
+                                           .outerjoin(Job.shifts)
+                                           .filter(Job.location.in_(attendee.assigned_depts_ints),
+                                                   or_(Job.restricted == False, Job.location.in_(attendee.trusted_depts_ints)))
+                                           .group_by(Job.id)
+                                           .having(func.count(Shift.id) < Job.slots)
+                                           .order_by(Job.start_time, Job.location)
+                         if job.start_time + timedelta(hours=job.duration + 2) > localized_now()]
         }
 
     @csrf_protected
