@@ -801,6 +801,7 @@ class Root:
 
     def feed(self, session, page='1', who='', what='', action=''):
         feed = session.query(Tracking).filter(Tracking.action != c.AUTO_BADGE_SHIFT).order_by(Tracking.when.desc())
+        what = what.strip()
         if who:
             feed = feed.filter_by(who=who)
         if what:
