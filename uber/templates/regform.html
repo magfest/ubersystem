@@ -32,7 +32,10 @@
 
     var noCellphoneClicked = function () {
         if ($.field('no_cellphone')) {
-            setVisible($.field('cellphone'), !$.field('no_cellphone').prop('checked'));
+           $.field('cellphone').prop('disabled', $.field('no_cellphone').prop('checked'));
+           if($.field('no_cellphone').prop('checked')) {
+              $.field('cellphone').val('');
+           }
         }
     };
     $(function () {
