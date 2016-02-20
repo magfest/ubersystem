@@ -418,8 +418,11 @@ class Root:
 
         if 'first_name' in params:
             message = check(attendee) or check_prereg_reqs(attendee)
-            if not message and (not params['first_name'] and not params['last_name']):
+            if old.first_name == attendee.first_name and old.last_name == attendee.last_name:
+                message = 'You cannot transfer your badge to yourself.'
+            elif not message and (not params['first_name'] and not params['last_name']):
                 message = 'First and Last names are required.'
+
             if not message:
                 subject, body = c.EVENT_NAME + ' Registration Transferred', render('emails/reg_workflow/badge_transfer.txt', {'new': attendee, 'old': old})
                 try:
