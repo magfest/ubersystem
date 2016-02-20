@@ -418,7 +418,7 @@ class Root:
 
         if 'first_name' in params:
             message = check(attendee) or check_prereg_reqs(attendee)
-            if (old.first_name == attendee.first_name and old.last_name == attendee.last_name):
+            if old.first_name == attendee.first_name and old.last_name == attendee.last_name:
                 message = 'You cannot transfer your badge to yourself.'
             elif not message and (not params['first_name'] and not params['last_name']):
                 message = 'First and Last names are required.'
