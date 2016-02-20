@@ -1051,7 +1051,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_status == c.NEW_STATUS and self.banned:
             self.badge_status = c.DEFERRED_STATUS
             try:
-                send_email(c.REGDESK_EMAIL, c.REGDESK_EMAIL, 'Banned attendee registration',
+                send_email(c.SECURITY_EMAIL, c.SECURITY_EMAIL, 'Banned attendee registration',
                            render('emails/reg_workflow/banned_attendee.txt', {'attendee': self}), model='n/a')
             except:
                 log.error('unable to send banned email about {}', self)
