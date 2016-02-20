@@ -32,11 +32,8 @@
 
     var noCellphoneClicked = function () {
         if ($.field('no_cellphone')) {
-           $.field('cellphone').prop('disabled', $.field('no_cellphone').prop('checked'));
+            setVisible($.field('cellphone'), !$.field('no_cellphone').prop('checked'));
         }
-        if($.field('no_cellphone').prop('checked')){
-           $.field('cellphone').val('')
-        }    
     };
     $(function () {
         noCellphoneClicked();
@@ -370,8 +367,7 @@
         <input type="text" name="cellphone" id="cellphone" value="{{ attendee.cellphone }}" class="form-control" placeholder="Your Personal Cellphone Number">
     </div>
     {% if not attendee.is_dealer %}
-        <br><br>
-        <div style="float:right; margin-right:475px;" class="checkbox col-sm-6">
+        <div class="checkbox col-sm-6">
             <label class="cellphone-excuse">
                 {% checkbox attendee.no_cellphone %}
                 I don't own a cellphone.
