@@ -7,6 +7,7 @@ angular.module('signups', ['ngRoute', 'magfest'])
     })
     .service('Jobs', function ($http, $window, $timeout) {
         var self = {
+            next_timeout: 1000,
             jobs: [],
             set: function (jobs) {
                 self.jobs.splice.apply(self.jobs, [0, self.jobs.length].concat(jobs));
@@ -21,6 +22,7 @@ angular.module('signups', ['ngRoute', 'magfest'])
                 });
             },
             _success: function (response) {
+                self.next_timeout = 1000;
                 self.set(response.jobs);
                 if (response.error) {
                     $window.alert(response.error);
@@ -29,7 +31,8 @@ angular.module('signups', ['ngRoute', 'magfest'])
             _error: function () {
                 // TODO: gradual backoff for cascading errors
                 console.log('unexpected error', arguments);
-                $timeout(self.refresh, 1000);
+                self.next_timeout = Math.min(128000, self.next_timeout * 2);
+                $timeout(self.refresh, self.next_timeout);
             },
             refresh: function () {
                 $http({
