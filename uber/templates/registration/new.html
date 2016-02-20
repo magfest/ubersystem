@@ -26,11 +26,12 @@
             $button.attr('disabled', 'disabled');
         }
     };
-    $(function () {
+    var toggleAllMarkButtons = function () {
         $('table select[name=payment_method]').each(function (i, dropdown) {
             toggleMarkButton(dropdown);
         });
-    });
+    };
+    $(toggleAllMarkButtons);
     
     var recordFee = function() {
         $.post('record_sale', {
@@ -120,6 +121,7 @@
 <table class="table datatable" data-page-length="-1">
 <thead>
     <tr>
+        <th align="left">Registered</th>
         <th align="left">Name</th>
         <th>Badge Type</th>
         <th>Age</th>
@@ -134,6 +136,7 @@
 <tbody>
 {% for attendee in recent %}
     <tr>
+        <td>{{ attendee.registered|datetime:"%b %-d %-H:%M (%-I:%M%p)" }}</td>
         <td align="left">
             <a href="form?return_to=new%3f&id={{ attendee.id }}">{{ attendee.full_name }}</a>
             {% if attendee.banned %}
@@ -141,7 +144,13 @@
             {% endif %}
         </td>
         <td>{{ attendee.badge_type_label }}</td>
-        <td>{{ attendee.age_group_conf.desc }}</td>
+        <td>
+            {% if c.COLLECT_EXACT_BIRTHDATE %}
+                {{ attendee.birthdate|date:"m / d / Y" }}
+            {% else %}
+                {{ attendee.age_group_conf.desc }}
+            {% endif %}
+        </td>
         <td>{% if attendee.paid != c.PAID_BY_GROUP %}${{ attendee.total_cost }}{% endif %}</td>
         <td>
             {% if attendee.paid == c.HAS_PAID %}
