@@ -130,7 +130,7 @@ class Config(_Overridable):
     def BADGES_SOLD(self):
         with sa.Session() as session:
             attendees = session.query(sa.Attendee)
-            individuals = attendees.filter(or_(sa.Attendee.paid == self.HAS_PAID, sa.Attendee.paid == self.REFUNDED)).count()
+            individuals = attendees.filter(or_(sa.Attendee.paid == self.HAS_PAID, sa.Attendee.paid == self.REFUNDED)).filter(sa.Attendee.badge_status == self.COMPLETED_STATUS).count()
             group_badges = attendees.join(sa.Attendee.group).filter(sa.Attendee.paid == self.PAID_BY_GROUP,
                                                                     sa.Group.amount_paid > 0).count()
             return individuals + group_badges
