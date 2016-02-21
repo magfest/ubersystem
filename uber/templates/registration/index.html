@@ -3,7 +3,11 @@
 {% block content %}
 
 <div class="dialog-form" id="checkin-dialog" title="Quick Check-In"></div>
-<script type="text/javascript">
+<script type="text/javascript">    
+    $(function(){
+        document.getElementById('search_bar').select();
+    });
+    
     $(function() {
         var $dialog = $('#checkin-dialog').dialog({
             autoOpen: false,
@@ -131,7 +135,7 @@
         <form role="form" method="get" action="index">
             <input type="hidden" name="order" value="{{ order }}" />
             <div class="input-group">
-                <input class="focus form-control" type="text" name="search_text" value="{{ search_text }}" />
+                <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
                 <span class="input-group-btn">
                     <button class="btn btn-default" type="submit">
                         <span class="glyphicon glyphicon-search"></span>
@@ -157,7 +161,6 @@
         <div class="col-md-6"><span id="checkin_count">{{ checkin_count }}</span> Checked In</div>
     </div>
 </div>
-
 {% if search_results %}
     <div class="panel panel-info">
         <a href="index?order={{ order }}&page=1&invalid={{ invalid }}">Click here</a> to view full attendee list instead of only search results.
