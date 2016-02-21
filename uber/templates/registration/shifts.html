@@ -63,6 +63,11 @@
         <td>Status</td>
         <td></td>
     </tr>
+    <style>
+        tr:nth-child(even){
+            background-color: #F5F5F5;
+        }
+    </style>
     {% for shift in attendee.shifts|sortBy:'job.start_time' %}
         <tr>
             <td><a href="../jobs/form?id={{ shift.job.id }}">{{ shift.job.name }}</a></td>
