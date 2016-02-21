@@ -122,7 +122,7 @@ class Root:
         }
 
     def change_badge(self, session, id, message='', **params):
-        attendee = session.attendee(id)
+        attendee = session.attendee(id, allow_invalid=True)
         if 'badge_type' in params:
             preassigned = c.AT_THE_CON or attendee.badge_type in c.PREASSIGNED_BADGE_TYPES
             if preassigned:
