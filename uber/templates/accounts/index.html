@@ -9,7 +9,7 @@
 
 <div class="panel panel-default">
 <div class="panel-heading"><h3>New Account</h3></div>
-<form id="new_admin" method="post" action="update" role="form" class="form-inline">
+<form id="new_admin" method="post" action="update" onsubmit="return check_passwords()" role="form" class="form-inline">
 <input type="hidden" name="id" value="None" />
 {% csrf_token %}
 <div class="form-group">
@@ -27,6 +27,9 @@
            <span class="input-group-addon glyphicon glyphicon-ban-circle">
            </span>
        {% endif %}
+    </div>
+    <input type="password" class="form-control" id="check-password" name="check-password" placeholder="Re-enter Password"
+           {% if not c.AT_THE_CON %}disabled{% endif %}>
     </div>
 </div>
 <div class="form-group">
@@ -75,6 +78,14 @@
 </div>
 
 <script>
+    function check_passwords() {
+        if (document.getElementById("password").value != document.getElementById("check-password").value) {
+            alert("Passwords must match");
+            return false;
+        }
+        return true;
+    }
+
 $(function() {
     $(document.body).on('click', '.delete-button', function (event) {
         event.preventDefault();
