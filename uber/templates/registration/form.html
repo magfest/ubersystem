@@ -334,12 +334,13 @@
 </form>
 
 {% if not attendee.is_new %}
-    <div style="margin-left:25%">
+    <div style="margin-left:25%">  
         <form method="post" action="delete" onSubmit="return confirm('{% if attendee.group %}Are you sure you want to unassign this badge?{% else %}Are you sure you want to delete this attendee?{% endif %}');" />
             {% csrf_token %}
             <input type="hidden" name="id" value="{{ attendee.id }}" />
             {% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}" />{% endif %}
-            <br/><input type="submit" value="{% if attendee.group %}Unassign this group badge{% else %}Delete Attendee{% endif %}" />
+            <br/><input type="submit" value="{% if attendee.group %}Unassign this group badge{% else %}Delete Attendee{% endif %}"
+                        {% if attendee.paid == c.HAS_PAID %} style="background-color:#BCBCBC" title="Cannot delete a paid badge." disabled {% endif %}/>
         </form>
     </div>
 
