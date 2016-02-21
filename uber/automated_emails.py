@@ -130,6 +130,8 @@ AutomatedEmail(Attendee, '{EVENT_NAME} extra payment received', 'reg_workflow/gr
          lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid == a.amount_extra,
          needs_approval=False)
 
+AutomatedEmail(Attendee, '{EVENT_NAME} payment refunded', 'reg_workflow/payment_refunded.txt',
+         lambda a: a.amount_refunded)
 
 # Reminder emails for groups to allocated their unassigned badges.  These emails are safe to be turned on for
 # all events, because they will only be sent for groups with unregistered badges, so if group preregistration
