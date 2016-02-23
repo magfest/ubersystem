@@ -545,6 +545,8 @@ class Session(SessionManager):
                 return out_of_range
             elif not badge_num and next > c.BADGE_RANGES[badge_type][1]:
                 return 'There are no more badges available for that type'
+            elif badge_type in c.PREASSIGNED_BADGE_TYPES and not c.SHIFT_CUSTOM_BADGES:
+                return 'Custom badges have already been ordered'
 
             if not c.SHIFT_CUSTOM_BADGES:
                 badge_num = badge_num or next
@@ -571,25 +573,44 @@ class Session(SessionManager):
             attendee.badge_type = badge_type
             return 'Badge updated'
 
-        def everyone(self):
-            attendees = self.query(Attendee).filter(Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])).options(joinedload(Attendee.group)).all()
-            groups = self.query(Group).options(joinedload(Group.attendees)).all()
-            return attendees, groups
-
         def valid_attendees(self):
             return self.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS)
 
-        def staffers(self):
-            return self.query(Attendee) \
-                       .filter_by(staffing=True) \
-                       .options(joinedload(Attendee.group)) \
-                       .order_by(Attendee.full_name)
+        def staffers(self, only_staffing=True):
+            """
+            Returns a Query of attendees with efficient loading for groups and
+            shifts/jobs.  By default we only return attendees where "staffing"
+            is true, because before the event people can't sign up for shifts
+            unless they're marked as volunteers.  However, on-site we relax that
+            restriction, so we'll get attendees with shifts who are not actually
+            marked as staffing.  We therefore have an optional parameter for
+            clients to indicate that all attendees should be returned.
+            """
+            return (self.query(Attendee)
+                        .filter(Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
+                                *[Attendee.staffing == True] if only_staffing else [])
+                        .options(subqueryload(Attendee.group), subqueryload(Attendee.shifts).subqueryload(Shift.job))
+                        .order_by(Attendee.full_name))
+
+        def jobs(self, location=None):
+            return (self.query(Job)
+                        .filter_by(**{'location': location} if location else {})
+                        .order_by(Job.start_time, Job.name)
+                        .options(subqueryload(Job.shifts).subqueryload(Shift.attendee).subqueryload(Attendee.group)))
+
+        def staffers_for_dropdown(self):
+            return [{
+                'id': id,
+                'full_name': full_name.title()
+            } for id, full_name in self.query(Attendee.id, Attendee.full_name)
+                                       .filter_by(staffing=True)
+                                       .order_by(Attendee.full_name)]
 
         def single_dept_heads(self, dept=None):
             assigned = {'assigned_depts': str(dept)} if dept else {}
-            return self.query(Attendee) \
-                       .filter_by(ribbon=c.DEPT_HEAD_RIBBON, **assigned) \
-                       .order_by(Attendee.full_name).all()
+            return (self.query(Attendee)
+                        .filter_by(ribbon=c.DEPT_HEAD_RIBBON, **assigned)
+                        .order_by(Attendee.full_name).all())
 
         def match_to_group(self, attendee, group):
             with c.BADGE_LOCK:
@@ -600,40 +621,11 @@ class Session(SessionManager):
                 elif not matching:
                     return 'Badge #{} is a {} badge, but {} has no badges of that type'.format(attendee.badge_num, attendee.badge_type_label, group.name)
                 else:
-                    for attr in ['group', 'paid', 'amount_paid', 'ribbon']:
+                    for attr in ['group', 'group_id', 'paid', 'amount_paid', 'ribbon']:
                         setattr(attendee, attr, getattr(matching[0], attr))
                     self.delete(matching[0])
                     self.add(attendee)
                     self.commit()
-
-        def everything(self, location=None):
-            location_filter = [Job.location == location] if location else []
-            jobs = self.query(Job) \
-                       .filter(*location_filter) \
-                       .options(joinedload(Job.shifts)) \
-                       .order_by(Job.start_time, Job.duration, Job.name).all()
-            shifts = self.query(Shift) \
-                         .filter(*location_filter) \
-                         .options(joinedload(Shift.job), joinedload(Shift.attendee)) \
-                         .join(Shift.job).order_by(Job.start_time).all()
-            attendees = [a for a in self.query(Attendee)
-                                        .filter_by(staffing=True)
-                                        .options(joinedload(Attendee.shifts), joinedload(Attendee.group))
-                                        .order_by(Attendee.full_name).all()
-                         if c.AT_THE_CON or not location or int(location) in a.assigned_depts_ints]
-
-            # PERFORMANCE OPTIMIZATION: Job.available_volunteers uses a @cached_property decorator.  This decorator
-            # populates job._available_volunteers.  Because this function is returning a huge amount of Jobs,
-            # we will pre-populate it here and skip the myriad database queries which would occur if we called
-            # .available_volunteers many times in a row.
-            #
-            # Note that this isn't exactly the same output as .available_volunteers, but this code should be kept
-            # in-sync as much as possible with Job.available_volunteers.  This is messy but needed to work around perf
-            # problems with pages that show large amounts of Jobs using everything()
-            for job in jobs:
-                job._available_volunteers = [a for a in attendees if not job.restricted or a.trusted_in(job.location)]
-
-            return jobs, shifts, attendees
 
         def search(self, text, *filters):
             attendees = self.query(Attendee).outerjoin(Attendee.group).options(joinedload(Attendee.group)).filter(*filters)
@@ -663,25 +655,27 @@ class Session(SessionManager):
                 return attendees.filter(or_(*checks))
 
         def delete_from_group(self, attendee, group):
-            '''
+            """
             Sometimes we want to delete an attendee badge which is part of a group.  In most cases, we could just
             say "session.delete(attendee)" but sometimes we need to make sure that the attendee is ALSO removed
             from the "group.attendees" list before we commit, since the number of attendees in a group is used in
             our presave_adjustments() code to update the group price.  So anytime we delete an attendee in a group,
             we should use this method.
-            '''
+            """
             self.delete(attendee)
             group.attendees.remove(attendee)
 
-        def assign_badges(self, group, new_badge_count, new_badge_type=c.ATTENDEE_BADGE, new_ribbon_type=None, **extra_create_args):
+        def assign_badges(self, group, new_badge_count, new_badge_type=c.ATTENDEE_BADGE, new_ribbon_type=None, paid=c.PAID_BY_GROUP, **extra_create_args):
             diff = int(new_badge_count) - group.badges
             sorted_unassigned = sorted(group.floating, key=lambda a: a.registered, reverse=True)
 
             ribbon_to_use = new_ribbon_type or group.new_ribbon
 
-            if diff > 0:
+            if int(new_badge_type) in c.PREASSIGNED_BADGE_TYPES and not c.SHIFT_CUSTOM_BADGES:
+                return 'Custom badges have already been ordered, so you will need to select a different badge type'
+            elif diff > 0:
                 for i in range(diff):
-                    group.attendees.append(Attendee(badge_type=new_badge_type, ribbon=ribbon_to_use, paid=c.PAID_BY_GROUP, **extra_create_args))
+                    group.attendees.append(Attendee(badge_type=new_badge_type, ribbon=ribbon_to_use, paid=paid, **extra_create_args))
             elif diff < 0:
                 if len(group.floating) < abs(diff):
                     return 'You cannot reduce the number of badges for a group to below the number of assigned badges'
@@ -690,12 +684,10 @@ class Session(SessionManager):
                         self.delete_from_group(attendee, group)
 
         def assign(self, attendee_id, job_id):
-            '''
+            """
             assign an Attendee to a Job by creating a Shift
-
             :return: 'None' on success, error message on failure
-            '''
-
+            """
             job = self.job(job_id)
             attendee = self.attendee(attendee_id)
 
@@ -726,8 +718,6 @@ class Session(SessionManager):
             """
             insert a test admin into the database with username "magfest@example.com" password "magfest"
             this is ONLY allowed if no other admins already exist in the database.
-
-            :param session: database session object
             :return: True if success, False if failure
             """
             if self.query(sa.AdminAccount).count() != 0:
@@ -808,16 +798,27 @@ class Group(MagModel, TakesPaymentMixin):
             self.leader.ribbon = c.DEALER_RIBBON
 
     @property
-    def is_new(self):
-        return not instance_state(self).persistent
-
-    @property
     def sorted_attendees(self):
         self.attendees.sort(key=lambda a: (a.is_unassigned, a.id != self.leader_id, a.full_name))
         return self.attendees
 
     @property
+    def unassigned(self):
+        """
+        Returns a list of the unassigned badges for this group, sorted so that
+        the paid-by-group badges come last, because when claiming unassigned
+        badges we want to claim the "weird" ones first.
+        """
+        return sorted([a for a in self.attendees if a.is_unassigned], key=lambda a: a.paid == c.PAID_BY_GROUP)
+
+    @property
     def floating(self):
+        """
+        Returns the list of paid-by-group unassigned badges for this group. This
+        is a separate property from the "Group.unassigned" property because when
+        automatically adding or removing unassigned badges, we care specifically
+        about paid-by-group badges rather than all unassigned badges.
+        """
         return [a for a in self.attendees if a.is_unassigned and a.paid == c.PAID_BY_GROUP]
 
     @property
@@ -826,7 +827,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def ribbon_and_or_badge(self):
-        badge_being_claimed = self.floating[0]
+        badge_being_claimed = self.unassigned[0]
         if badge_being_claimed.ribbon != c.NO_RIBBON and badge_being_claimed.badge_type != c.ATTENDEE_BADGE:
             return badge_being_claimed.badge_type_label + " / " + self.ribbon_label
         elif badge_being_claimed.ribbon != c.NO_RIBBON:
@@ -944,10 +945,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     for_review  = Column(UnicodeText, admin_only=True)
     admin_notes = Column(UnicodeText, admin_only=True)
 
-    badge_num  = Column(Integer, default=0, nullable=True, admin_only=True)
-    badge_type = Column(Choice(c.BADGE_OPTS), default=c.ATTENDEE_BADGE)
+    badge_num    = Column(Integer, default=0, nullable=True, admin_only=True)
+    badge_type   = Column(Choice(c.BADGE_OPTS), default=c.ATTENDEE_BADGE)
     badge_status = Column(Choice(c.BADGE_STATUS_OPTS), default=c.NEW_STATUS, admin_only=True)
-    ribbon     = Column(Choice(c.RIBBON_OPTS), default=c.NO_RIBBON, admin_only=True)
+    ribbon       = Column(Choice(c.RIBBON_OPTS), default=c.NO_RIBBON, admin_only=True)
 
     affiliate    = Column(UnicodeText)
     shirt        = Column(Choice(c.SHIRT_OPTS), default=c.NO_SHIRT)
@@ -1010,7 +1011,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.paid != c.REFUNDED:
             self.amount_refunded = 0
 
-        if c.AT_THE_CON and self.badge_num and self.is_new:
+        if c.AT_THE_CON and self.badge_num and (self.is_new or self.badge_type not in c.PREASSIGNED_BADGE_TYPES):
             self.checked_in = datetime.now(UTC)
 
         if self.birthdate:
@@ -1042,23 +1043,22 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_status == c.NEW_STATUS and self.banned:
             self.badge_status = c.DEFERRED_STATUS
             try:
-                send_email(c.REGDESK_EMAIL, c.REGDESK_EMAIL, 'Banned attendee registration',
+                send_email(c.SECURITY_EMAIL, [c.REGDESK_EMAIL, c.SECURITY_EMAIL], 'Banned attendee registration',
                            render('emails/reg_workflow/banned_attendee.txt', {'attendee': self}), model='n/a')
             except:
                 log.error('unable to send banned email about {}', self)
-        elif self.badge_status == c.NEW_STATUS and not self.placeholder and self.first_name:
-            if self.paid in [c.HAS_PAID, c.NEED_NOT_PAY] \
-                    or self.paid == c.PAID_BY_GROUP and self.group and not self.group.amount_unpaid:
-                self.badge_status = c.COMPLETED_STATUS
-        elif self.badge_status == c.INVALID_STATUS and self.admin_account:
-            self.session.delete(self.admin_account)
+        elif self.badge_status == c.NEW_STATUS and not self.placeholder and self.first_name \
+                and (self.paid in [c.HAS_PAID, c.NEED_NOT_PAY]
+                     or self.paid == c.PAID_BY_GROUP and self.group_id and not self.group.amount_unpaid):
+            self.badge_status = c.COMPLETED_STATUS
 
     @presave_adjustment
     def _staffing_adjustments(self):
         if self.ribbon == c.DEPT_HEAD_RIBBON:
             self.staffing = True
             self.trusted_depts = self.assigned_depts
-            self.badge_type = c.STAFF_BADGE
+            if c.SHIFT_CUSTOM_BADGES or c.STAFF_BADGE not in c.PREASSIGNED_BADGE_TYPES:
+                self.badge_type = c.STAFF_BADGE
             if self.paid == c.NOT_PAID:
                 self.paid = c.NEED_NOT_PAY
         elif self.ribbon == c.VOLUNTEER_RIBBON and self.is_new:
@@ -1112,6 +1112,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             return self.overridden_price
         elif self.badge_type == c.ONE_DAY_BADGE:
             return c.get_oneday_price(registered)
+        elif self.is_presold_oneday:
+            return c.get_presold_oneday_price(self.badge_type)
         else:
             return c.get_attendee_price(registered)
 
@@ -1123,7 +1125,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def age_group_conf(self):
         if self.birthdate:
             day = c.EPOCH.date() if date.today() <= c.EPOCH.date() else sa.localized_now().date()
-            attendee_age = (day - self.birthdate).days / 365.2425
+            attendee_age = (day - self.birthdate).days // 365.2425
             for val, age_group in c.AGE_GROUP_CONFIGS.items():
                 if val != c.AGE_UNKNOWN and age_group['min_age'] <= attendee_age <= age_group['max_age']:
                     return age_group
@@ -1155,8 +1157,19 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.ribbon == c.DEPT_HEAD_RIBBON
 
     @property
+    def is_presold_oneday(self):
+        """
+        Returns a boolean indicating whether this is a c.FRIDAY/c.SATURDAY/etc
+        badge; see the presell_one_days config option for a full explanation.
+        """
+        return self.badge_type_label in c.DAYS_OF_WEEK
+
+    @property
     def can_check_in(self):
-        return self.paid != c.NOT_PAID and self.badge_status == c.COMPLETED_STATUS and not self.is_unassigned
+        valid = self.paid != c.NOT_PAID and self.badge_status in [c.NEW_STATUS, c.COMPLETED_STATUS] and not self.is_unassigned
+        if valid and self.is_presold_oneday:
+            valid = self.badge_type_label == localized_now().strftime('%A')
+        return valid
 
     @property
     def shirt_size_marked(self):
@@ -1180,6 +1193,16 @@ class Attendee(MagModel, TakesPaymentMixin):
         return case([
             (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
         ], else_=func.lower(cls.first_name + ' ' + cls.last_name))
+
+    @hybrid_property
+    def last_first(self):
+        return self.unassigned_name or '{self.last_name}, {self.first_name}'.format(self=self)
+
+    @last_first.expression
+    def last_first(cls):
+        return case([
+            (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
+        ], else_=func.lower(cls.last_name + ', ' + cls.first_name))
 
     @hybrid_property
     def last_first(self):
@@ -1221,7 +1244,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     def is_transferable(self):
         return not self.is_new and not self.trusted_somewhere and not self.checked_in \
            and self.paid in [c.HAS_PAID, c.PAID_BY_GROUP] \
-           and self.badge_type in c.TRANSFERABLE_BADGE_TYPES
+           and self.badge_type in c.TRANSFERABLE_BADGE_TYPES \
+           and not self.admin_account
 
     @property
     def gets_free_shirt(self):
@@ -1258,7 +1282,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         elif self.gets_free_shirt:
             shirt = '2nd ' + c.DONATION_TIERS[c.SHIRT_LEVEL]
             if self.takes_shifts and self.worked_hours < 6:
-                shirt += ' (tell them they will be reported if they take their shirt and then do not work their shifts)'
+                shirt += ' (tell them they will be reported if they take their shirt then do not work their shifts)'
             merch.append(shirt)
         if self.extra_merch:
             merch.append(self.extra_merch)
@@ -1267,12 +1291,13 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def accoutrements(self):
         stuff = [] if self.ribbon == c.NO_RIBBON else ['a ' + self.ribbon_label + ' ribbon']
-        stuff.append('a {} wristband'.format(c.WRISTBAND_COLORS[self.age_group]))
+        if c.WRISTBANDS_ENABLED:
+            stuff.append('a {} wristband'.format(c.WRISTBAND_COLORS[self.age_group]))
         if self.regdesk_info:
             stuff.append(self.regdesk_info)
         if self.amount_extra >= c.SUPPORTER_LEVEL:
             stuff.append('their Supporter badge')
-        return comma_and(stuff)
+        return (' with ' if stuff else '') + comma_and(stuff)
 
     @property
     def is_single_dept_head(self):
@@ -1580,10 +1605,8 @@ class Job(MagModel):
     @cached_property
     def available_volunteers(self):
         """
-        Return a list of volunteers who are allowed to sign up for this Job AND have the free time to work it
-
-        IMPORTANT NOTE: If this code is ever changed, you also need to update session.everything() which
-        performs an optimized version of this operation on a bulk scale.
+        Returns a list of volunteers who are allowed to sign up for
+        this Job and have the free time to work it.
         """
         return [s for s in self._potential_volunteers(order_by=Attendee.last_first) if self.no_overlap(s)]
 
@@ -1666,9 +1689,13 @@ class Email(MagModel):
             return self.fk.full_name
 
     @property
+    def is_html(self):
+        return '<body' in self.body
+
+    @property
     def html(self):
-        if '<body>' in self.body:
-            return SafeString(self.body.split('<body>')[1].split('</body>')[0])
+        if self.is_html:
+            return SafeString(re.split('<body[^>]*>', self.body)[1].split('</body>')[0])
         else:
             return SafeString(self.body.replace('\n', '<br/>'))
 

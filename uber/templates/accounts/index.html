@@ -9,7 +9,7 @@
 
 <div class="panel panel-default">
 <div class="panel-heading"><h3>New Account</h3></div>
-<form id="new_admin" method="post" action="update" role="form" class="form-inline">
+<form id="new_admin" method="post" action="update" onsubmit="return check_passwords()" role="form" class="form-inline">
 <input type="hidden" name="id" value="None" />
 {% csrf_token %}
 <div class="form-group">
@@ -27,6 +27,9 @@
            <span class="input-group-addon glyphicon glyphicon-ban-circle">
            </span>
        {% endif %}
+    </div>
+    <input type="password" class="form-control" id="check-password" name="check-password" placeholder="Re-enter Password"
+           {% if not c.AT_THE_CON %}disabled{% endif %}>
     </div>
 </div>
 <div class="form-group">
@@ -59,7 +62,7 @@
                 </form>
             </div>
         </td>
-        <td> <nobr><a href="../registration/form?id={{ account.attendee.id }}">{{ account.attendee.full_name }}</a></nobr> </td>
+        <td data-order="{{ account.attendee.last_first }}" data-search="{{ account.attendee.last_first }}"> <nobr><a href="../registration/form?id={{ account.attendee.id }}">{{ account.attendee.last_first }}</a></nobr> </td>
         <td> <a href="mailto:{{ account.attendee.email }}">{{ account.attendee.email }}</a> </td>
         <td>
             <form class="form update-form" method="post" action="update">
@@ -75,6 +78,14 @@
 </div>
 
 <script>
+    function check_passwords() {
+        if (document.getElementById("password").value != document.getElementById("check-password").value) {
+            alert("Passwords must match");
+            return false;
+        }
+        return true;
+    }
+
 $(function() {
     $(document.body).on('click', '.delete-button', function (event) {
         event.preventDefault();

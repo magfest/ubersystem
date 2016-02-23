@@ -1,0 +1,26 @@
+{% extends "base-admin.html" %}
+{% block title %}Inactive Attendees{% endblock %}}
+{% block content %}
+
+<h2>Invalidated Attendee Registrations</h2>
+
+<table style="width:100%" class="datatable" data-page-length="-1">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Badge</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for attendee in attendees %}
+        <tr>
+            <td>{{ attendee|form_link }}</td>
+            <td>{{ attendee.badge }}</td>
+            <td>{{ attendee.badge_status_label }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

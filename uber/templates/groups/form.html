@@ -220,7 +220,7 @@
 
 <div class="form-group">
     <div class="col-sm-6 col-sm-offset-2">
-        <button type="submit" class="btn btn-primary" value="Upload">Upload</button>
+        <button type="submit" class="btn btn-primary" value="Upload">Save</button>
     </div>
 </div>
 
@@ -244,18 +244,18 @@
 {% if not group.is_new and group.sorted_attendees %}
     <hr/>
     <h3> Badges: &nbsp; </h3>
-    <table style="width:auto">
+    <table style="width:auto;">
     {% for attendee in group.attendees %}
         <tr>
             <td> <ul><li></li></ul> </td>
-            <td> <a href="../registration/form?id={{ attendee.id }}&return_to=../groups/form?id={{ group.id }}">{{ attendee.full_name }}</a> </td>
+            <td style="padding:15px;"> <a href="../registration/form?id={{ attendee.id }}&return_to=../groups/form?id={{ group.id }}">{{ attendee.full_name }}</a> </td>
             <td>
                 <i>
-                    (paid => {{ attendee.paid_label }}, &nbsp;&nbsp;
+                     (paid => {{ attendee.paid_label }}, &nbsp;&nbsp;
                      badge => {{ attendee.badge }})
                 </i>
             </td>
-            <td>
+            <td style="padding:15px">
                 {% if attendee == group.leader %}
                     <b>Leader</b>
                 {% elif not attendee.is_unassigned %}
@@ -269,18 +269,23 @@
             </td>
             <td>
                 {% if attendee == group.leader %}
-                    (cannot unassign group leader)
-                {% elif attendee.checked_in %}
-                    <b>Checked-in {{ attendee.checked_in|time:"fA"|lower }} {{ attendee.checked_in|date:"D" }}</b>
-                {% elif attendee.amount_extra %}
-                    <b>Kicked in an extra ${{ attendee.amount_extra }}!</b>
+                    <b>(Cannot Unassign group leader)</b>
                 {% elif not attendee.is_unassigned %}
                     <form method="post" action="../registration/delete" onSubmit="return confirm('Are you sure you want to unassign this badge?');">
                         {% csrf_token %}
                         <input type="hidden" name="id" value="{{ attendee.id }}" />
                         <input type="hidden" name="return_to" value="../groups/form?id={{ group.id }}" />
                         <input type="submit" value="Unassign" />
-                    </form>
+                    </form> 
+                {% endif %}
+            </td>
+            <td style="padding:15px;">                
+                {% if attendee.checked_in %}
+                    <b>Checked-in {{ attendee.checked_in_local|time:"fA"|lower }} {{ attendee.checked_in_local|date:"D" }}</b>
+                {% endif %}
+                
+                {% if attendee.amount_extra %}
+                    <b>Kicked in an extra ${{ attendee.amount_extra }}!</b>
                 {% endif %}
             </td>
         </tr>

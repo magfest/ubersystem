@@ -22,6 +22,9 @@ psql
     CREATE DATABASE mydbname;
 psql -d mydbname -f backupfile.sql
 
+# after restoring the DB, check the most recent registered attendee
+SELECT registered FROM attendee ORDER BY registered desc LIMIT 1;
+
 # select from an attende (this exact syntax and capitalization is super-important)
 SELECT * FROM "Attendee";
 

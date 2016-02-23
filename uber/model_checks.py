@@ -196,6 +196,12 @@ def allowed_to_register(attendee):
 
 
 @validation.Attendee
+def printed_badge_deadline(attendee):
+    if attendee.is_new and attendee.has_personalized_badge and not c.SHIFT_CUSTOM_BADGES:
+        return 'Custom badges have already been ordered so you cannot create new {} badges'.format(attendee.badge_type_label)
+
+
+@validation.Attendee
 def group_leadership(attendee):
     if attendee.session and not attendee.group_id:
         orig_group_id = attendee.orig_value_of('group_id')

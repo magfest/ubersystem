@@ -8,7 +8,11 @@ from uber.common import *
 class AutomatedEmail:
     instances = OrderedDict()
 
-    extra_models = {}  # extended by plugins
+    queries = {
+        Attendee: lambda session: session.staffers(only_staffing=False),
+        Group: lambda session: session.query(Group).options(subqueryload(Group.attendees))
+    }
+    extra_models = queries  # we've renamed "extra_models" to "queries" but are temporarily keeping the old name for backwards-compatibility
 
     def __init__(self, model, subject, template, filter, *, sender=None, extra_data=None, cc=None, bcc=None, post_con=False, needs_approval=True):
         self.model, self.template, self.needs_approval = model, template, needs_approval
@@ -28,10 +32,10 @@ class AutomatedEmail:
 
     def prev(self, x, all_sent=None):
         if all_sent:
-            return all_sent.get((x.__class__.__name__, x.id, self.subject))
+            return (x.__class__.__name__, x.id, self.subject) in all_sent
         else:
             with Session() as session:
-                return session.query(Email).filter_by(model=x.__class__.__name__, fk_id=x.id, subject=self.subject).all()
+                return session.query(Email).filter_by(model=x.__class__.__name__, fk_id=x.id, subject=self.subject).first()
 
     def should_send(self, x, all_sent=None):
         try:
@@ -52,21 +56,19 @@ class AutomatedEmail:
             if raise_errors:
                 raise
 
-    # TODO: joinedload on other tables such as shifts as well, for performance (this method is WAY slower than it could be)
     @classmethod
     def send_all(cls, raise_errors=False):
         if not c.AT_THE_CON and (c.DEV_BOX or c.SEND_EMAILS):
             with Session() as session:
-                attendees, groups = session.everyone()
-                approved = {ae.subject for ae in session.query(ApprovedEmail).all()}
-                models = {Attendee: attendees, Group: groups}
-                models.update({model: lister(session) for model, lister in cls.extra_models.items()})
-                all_sent = {(e.model, e.fk_id, e.subject): e for e in session.query(Email).all()}
-                for rem in cls.instances.values():
-                    if not rem.needs_approval or rem.subject in approved:
-                        for x in models[rem.model]:
-                            if rem.should_send(x, all_sent):
-                                rem.send(x, raise_errors=raise_errors)
+                approved = {ae.subject for ae in session.query(ApprovedEmail)}
+                all_sent = set(session.query(Email.model, Email.fk_id, Email.subject))
+                for model, lister in cls.queries.items():
+                    for inst in lister(session):
+                        sleep(0.01)  # throttle CPU usage
+                        for rem in cls.instances.values():
+                            if isinstance(inst, rem.model) and (not rem.needs_approval or rem.subject in approved):
+                                if rem.should_send(inst, all_sent):
+                                    rem.send(inst, raise_errors=raise_errors)
 
 
 class StopsEmail(AutomatedEmail):
@@ -128,6 +130,8 @@ AutomatedEmail(Attendee, '{EVENT_NAME} extra payment received', 'reg_workflow/gr
          lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid == a.amount_extra,
          needs_approval=False)
 
+AutomatedEmail(Attendee, '{EVENT_NAME} payment refunded', 'reg_workflow/payment_refunded.txt',
+         lambda a: a.amount_refunded)
 
 # Reminder emails for groups to allocated their unassigned badges.  These emails are safe to be turned on for
 # all events, because they will only be sent for groups with unregistered badges, so if group preregistration
@@ -244,7 +248,7 @@ AutomatedEmail(Attendee, 'Personalized {EVENT_NAME} badges will be ordered next 
 # MAGFest requires signed and notarized parental consent forms for anyone under 18.  This automated email reminder to
 # bring the consent form only happens if this feature is turned on by setting the CONSENT_FORM_URL config option.
 AutomatedEmail(Attendee, '{EVENT_NAME} parental consent form reminder', 'reg_workflow/under_18_reminder.txt',
-               lambda a: c.CONSENT_FORM_URL and a.age_group_conf['consent_form'] and days_before(7, c.EPOCH))
+               lambda a: c.CONSENT_FORM_URL and a.age_group_conf['consent_form'] and days_before(14, c.EPOCH))
 
 
 for _conf in DeptChecklistConf.instances.values():
