@@ -124,6 +124,14 @@ def test_assign_new_badges(session, monkeypatch):
         assert attendee.badge_type == 222
 
 
+def test_assign_new_comped_badges(session, monkeypatch):
+    group = Group()
+    session.assign_badges(group, 2, paid=c.NEED_NOT_PAY)
+    assert 2 == group.badges == len(group.attendees)
+    for attendee in group.attendees:
+        assert attendee.paid == c.NEED_NOT_PAY
+
+
 def test_assign_extra_create_arguments(session):
     group = Group()
     registered = localized_now()
@@ -148,6 +156,12 @@ def test_assign_removing_badges(monkeypatch, session):
     assert session.delete.call_count == 2
     session.delete.assert_any_call(attendees[0])
     session.delete.assert_any_call(attendees[3])
+
+
+def test_assign_custom_badges_after_deadline(session, custom_badges_ordered):
+    group = Group()
+    message = session.assign_badges(group, 2, new_badge_type=c.STAFF_BADGE)
+    assert message and 'ordered' in message
 
 
 def test_badge_cost(monkeypatch):

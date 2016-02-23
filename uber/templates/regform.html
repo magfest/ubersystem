@@ -32,7 +32,10 @@
 
     var noCellphoneClicked = function () {
         if ($.field('no_cellphone')) {
-            setVisible($.field('cellphone'), !$.field('no_cellphone').prop('checked'));
+           $.field('cellphone').prop('disabled', $.field('no_cellphone').prop('checked'));
+           if($.field('no_cellphone').prop('checked')) {
+              $.field('cellphone').val('');
+           }
         }
     };
     $(function () {
@@ -169,30 +172,32 @@
         });
     </script>
 
-    <div class="extra-row form-group">
-        <label for="amount_extra" class="col-sm-2 control-label">Want to kick in extra?</label>
-        <div class="col-sm-6">
-            {% if c.AFTER_PRINTED_BADGE_DEADLINE and attendee.amount_extra >= c.SUPPORTER_LEVEL %}
-                {{ attendee.amount_extra_label }}
-                <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
-            {% else %}
-                {% if c.DONATION_SLIDER_DISPLAY %}
-                    <div class="btn-group btn-group-vertical" data-toggle="buttons">
-                        {% radiogroup c.PREREG_DONATION_OPTS attendee.amount_extra %}
-                    </div>
+    {% if c.PAGE_PATH != '/preregistration/transfer_badge' %}
+        <div class="extra-row form-group">
+            <label for="amount_extra" class="col-sm-2 control-label">Want to kick in extra?</label>
+            <div class="col-sm-6">
+                {% if c.AFTER_SUPPORTER_DEADLINE and attendee.amount_extra >= c.SUPPORTER_LEVEL %}
+                    {{ attendee.amount_extra_label }}
+                    <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
                 {% else %}
-                    <select name="amount_extra" class="form-control" onchange="donationChanged();">
-                        {% options c.PREREG_DONATION_OPTS attendee.amount_extra %}
-                    </select>
+                    {% if c.DONATION_SLIDER_DISPLAY %}
+                        <div class="btn-group btn-group-vertical" data-toggle="buttons">
+                            {% radiogroup c.PREREG_DONATION_OPTS attendee.amount_extra %}
+                        </div>
+                    {% else %}
+                        <select name="amount_extra" class="form-control" onchange="donationChanged();">
+                            {% options c.PREREG_DONATION_OPTS attendee.amount_extra %}
+                        </select>
+                    {% endif %}
                 {% endif %}
-            {% endif %}
+            </div>
+            {% popup_link "../static_views/givingExtra.html" "Why do this?" %}
+            <p class="help-block col-sm-6">
+                Each level includes all lower levels. <br/>
+                Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime }}.
+            </p>
         </div>
-        {% popup_link "../static_views/givingExtra.html" "Why do this?" %}
-        <p class="help-block col-sm-6 col-sm-offset-2">
-            Each level includes all lower levels. <br/>
-            Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime }}.
-        </p>
-    </div>
+    {% endif %}
 
     <div class="badge-row extra-row form-group" style="display:none">
         <label for="badge_printed_name" class="col-sm-2 control-label optional-field">Name Printed on Badge</label>
@@ -258,7 +263,12 @@
     {% if c.COLLECT_EXACT_BIRTHDATE %}
         <label for="birthdate" class="col-sm-2 control-label">Date of Birth</label>
         <div class="col-sm-6">
-            <input type='text' class="form-control date" name="birthdate" value="{{ attendee.birthdate|date:"Y-m-d"}} "/>
+            <nobr>
+                <input type='text' class="form-control date" name="birthdate" value="{{ attendee.birthdate|date:"Y-m-d"}} "/>
+                {% if c.PAGE_PATH == '/registration/form' and attendee.birthdate %}
+                    ({{ attendee.age_group_conf.desc }})
+                {% endif %}
+            </nobr>
         </div>
     {% else %}
         <label for="age_group" class="col-sm-2 control-label">Age as of {{ c.EVENT_NAME }}</label>

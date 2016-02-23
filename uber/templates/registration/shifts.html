@@ -29,7 +29,7 @@
         {% csrf_token %}
         <input type="hidden" name="id" value="{{ attendee.id }}" />
         <b>Non-shift hours:</b>
-        <input type="text" class="focus" name="nonshift_hours" value="{{ attendee.nonshift_hours }}" style="width:2em" />
+        <input type="number" class="focus" name="nonshift_hours" value="{{ attendee.nonshift_hours }}" style="width:3em" />
         <input type="submit" value="Update" />
         </form>
     </td>
@@ -59,9 +59,15 @@
         <td>Start</td>
         <td>End</td>
         <td>Hours</td>
+        <td>Weighted Total</td>
         <td>Status</td>
         <td></td>
     </tr>
+    <style>
+        tr:nth-child(even){
+            background-color: #F5F5F5;
+        }
+    </style>
     {% for shift in attendee.shifts|sortBy:'job.start_time' %}
         <tr>
             <td><a href="../jobs/form?id={{ shift.job.id }}">{{ shift.job.name }}</a></td>
@@ -69,6 +75,7 @@
             <td>{% hour_day shift.job.start_time %}</td>
             <td>{% hour_day shift.job.end_time %}</td>
             <td>{{ shift.job.duration }} (x{{ shift.job.weight }})</td>
+            <td>{{ shift.job.weighted_hours}}</td>
             <td>
                 {% if shift.worked != c.SHIFT_UNMARKED %}
                     <i>{{ shift.worked_label }}</i>
@@ -81,7 +88,7 @@
             <form method="post" action="unassign">
             {% csrf_token %}
             <input type="hidden" name="shift_id" value="{{ shift.id }}" />
-            <td> <input type="submit" value="Unassign" /> </td>
+            <td style="padding-right:10px"> <input type="submit" value="Unassign" /> </td>
             </form>
             <td id="rating{{ shift.id }}"></td>
             {% if shift.worked == c.SHIFT_WORKED %}

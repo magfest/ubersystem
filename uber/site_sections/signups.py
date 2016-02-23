@@ -124,3 +124,17 @@ class Root:
             'email':     email,
             'zip_code':  zip_code
         }
+
+    def onsite_jobs(self, session, message=''):
+        attendee = session.logged_in_volunteer()
+        return {
+            'message': message,
+            'attendee': attendee,
+            'jobs': [job for job in attendee.possible_and_current
+                         if getattr(job, 'taken', False) or job.start_time > localized_now()]
+        }
+
+    @csrf_protected
+    def onsite_sign_up(self, session, job_id):
+        message = session.assign(session.logged_in_volunteer().id, job_id)
+        raise HTTPRedirect('onsite_jobs?message={}', message or 'It worked')

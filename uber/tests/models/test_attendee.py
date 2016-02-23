@@ -398,7 +398,7 @@ class TestStatusAdjustments:
     def test_set_group_paid_to_complete(self, monkeypatch):
         monkeypatch.setattr(Group, 'amount_unpaid', 0)
         g = Group()
-        a = Attendee(paid=c.PAID_BY_GROUP, badge_status=c.NEW_STATUS, first_name='Paid', placeholder=False, group=g)
+        a = Attendee(paid=c.PAID_BY_GROUP, badge_status=c.NEW_STATUS, first_name='Paid', placeholder=False, group=g, group_id=g.id)
         a._status_adjustments()
         assert a.badge_status == c.COMPLETED_STATUS
 

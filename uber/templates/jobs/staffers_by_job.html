@@ -10,11 +10,15 @@
     <form method="post" action="assign_from_job">
     {% csrf_token %}
     <input type="hidden" name="job_id" value="{{ job.id }}" />
-    <b>Assign Staffer:</b>
-    <select name="staffer_id">
-        {% options attendees %}
-    </select>
-    <input type="submit" value="Assign" />
+    {% if attendees %}
+        <b>Assign Staffer:</b>
+        <select name="staffer_id">
+            {% options attendees %}
+        </select>
+        <input type="submit" value="Assign" />
+    {% else %}
+        No staffers available for this shift.
+    {% endif %}
     </form>
 {% endif %}
 <br/>

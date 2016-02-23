@@ -105,6 +105,17 @@ def join_and(xs):
         return ', '.join(xs)
 
 
+@register.filter
+def email_only(email):
+    """
+    Our configured email addresses support either the "email@domain.com" format
+    or the longer "Email Name <email@domain.com>" format.  We generally want the
+    former to be used in our text-only emails.  This filter takes an email which
+    can be in either format and spits out just the email address portion.
+    """
+    return re.search(c.EMAIL_RE.lstrip('^').rstrip('$'), email).group()
+
+
 @tag
 class maybe_anchor(template.Node):
     def __init__(self, name):

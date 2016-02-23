@@ -9,8 +9,8 @@
         <td> <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a> </td>
         <td>
             {{ attendee.badge_type_label }}
-            {% if attendee.badge_type == c.DEALER_BADGE %}
-                ({{ attendee.group.name }})
+            {% if attendee.group_id %}
+                (<a href="../groups/form?id={{ attendee.group_id }}">{{ attendee.group.name }}</a>)
             {% endif %}
         </td>
         <td> paid: {{ attendee.paid_label }} </td>

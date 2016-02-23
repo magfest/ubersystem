@@ -51,11 +51,10 @@
             {% endif %}
             {% if c.HAS_PEOPLE_ACCESS or c.HAS_REG_AT_CON_ACCESS %}
                 {People: [
-                    {Attendees: '../registration/'},
+                    {Attendees: '../registration/{% if c.AT_THE_CON %}?invalid=True{% endif %}'},
                     {Groups: '../groups/'},
                     {% if c.HAS_PEOPLE_ACCESS %}
                         {'All Untaken Shifts': '../jobs/everywhere'},
-                        {Staffers: '../registration/staffers'},
                         {Jobs: '../jobs/'},
                     {% endif %}
                     {% if c.HAS_WATCHLIST_ACCESS %}
@@ -177,22 +176,8 @@
     {% if c.PRE_CON %}
         <div class="loader"><a class="loader_link" href="../static_views/slow_load.html" target="_blank"></a></div>
     {% endif %}
-        <script src="https://maps.googleapis.com/maps/api/js?sensor=false&libraries=places"></script>
     {% block top_of_body_additional %}{% endblock %}
     <div id="mainContainer" class="container-fluid">
-        {% block top %}
-            <div id="top" style="display:none">
-                <table style="width:100% ; background:orange ; margin-bottom:5px ; position:fixed">
-                <tr>
-                    <td style="width:auto"></td>
-                    <td style="width:30px">
-                        <a onClick="hideTop()" class="closer">x</a>
-                    </td>
-                </tr>
-                </table>
-                <br/><br/>
-            </div>
-        {% endblock %}
         {% block backlink %}
             <nav class="navbar navbar-default navbar-static-top" role="navigation">
                 <!-- Brand and toggle get grouped for better mobile display -->
@@ -237,5 +222,8 @@
         <![endif]-->
         {% include "baseextra.html" %}
     {% endblock %}
+    {% if c.COLLECT_FULL_ADDRESS %}
+        <script src="https://maps.googleapis.com/maps/api/js?sensor=false&libraries=places"></script>
+    {% endif %}
 </body>
 </html>

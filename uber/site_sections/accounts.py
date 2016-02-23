@@ -17,10 +17,10 @@ class Root:
         return {
             'message':  message,
             'accounts': session.query(AdminAccount).join(Attendee)
-                               .order_by(Attendee.first_name, Attendee.last_name).all(),
+                               .order_by(Attendee.last_first).all(),
             'all_attendees': sorted([
                 (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
-                for id, name, badge_type, badge_num in session.query(Attendee.id, Attendee.full_name, Attendee.badge_type, Attendee.badge_num)
+                for id, name, badge_type, badge_num in session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num)
                                     .filter(Attendee.first_name != '').filter(Attendee.badge_status not in [c.INVALID_STATUS, c.DEFERRED_STATUS]).all()
             ], key=lambda tup: tup[1])
         }
@@ -154,15 +154,15 @@ class Root:
 
     @unrestricted
     def sitemap(self):
-        from uber import site_sections
+        site_sections = cherrypy.tree.apps[c.PATH].root
         modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}
         pages = defaultdict(list)
-        for module_name, module in modules.items():
-            for name in dir(module.Root):
-                method = getattr(module.Root, name)
+        for module_name, module_root in modules.items():
+            for name in dir(module_root):
+                method = getattr(module_root, name)
                 if getattr(method, 'exposed', False):
                     spec = inspect.getfullargspec(get_innermost(method))
-                    if set(method.restricted or []).intersection(AdminAccount.access_set()) \
+                    if set(getattr(method, 'restricted', []) or []).intersection(AdminAccount.access_set()) \
                             and (getattr(method, 'site_mappable', False)
                               or len([arg for arg in spec.args[1:] if arg != 'session']) == len(spec.defaults or []) and not spec.varkw):
                         pages[module_name].append({
