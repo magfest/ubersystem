@@ -474,7 +474,7 @@ class Session(SessionManager):
 
         def guess_attendee_watchentry(self, attendee):
             return self.query(WatchList).filter(and_(or_(WatchList.first_names.contains(attendee.first_name),
-                                                         and_(WatchList.email != '',WatchList.email == attendee.email),
+                                                         and_(WatchList.email != '', WatchList.email == attendee.email),
                                                          and_(WatchList.birthdate != None, WatchList.birthdate == attendee.birthdate)),
                                                      WatchList.last_name == attendee.last_name,
                                                      WatchList.active == True)).all()
