@@ -74,16 +74,6 @@ class Root:
         else:
             raise HTTPRedirect('index') if if_not_found is None else if_not_found
 
-    def stats(self):
-        cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
-        return json.dumps({
-            'badges_sold': c.BADGES_SOLD,
-            'remaining_badges': c.REMAINING_BADGES,
-
-            'server_current_timestamp': int(datetime.utcnow().timestamp()),
-            'warn_if_server_browser_time_mismatch': c.WARN_IF_SERVER_BROWSER_TIME_MISMATCH
-        })
-
     def kiosk(self):
         """
         Landing page for kiosk laptops, this should redirect to whichever page we want at-the-door laptop kiosks
