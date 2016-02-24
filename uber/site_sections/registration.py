@@ -945,3 +945,15 @@ class Root:
                                 .filter(~Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]))
                                 .order_by(Attendee.badge_status, Attendee.full_name).all()
         }
+
+    @unrestricted
+    def stats(self):
+        cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
+        return json.dumps({
+            'badges_sold': c.BADGES_SOLD,
+            'remaining_badges': c.REMAINING_BADGES,
+
+            'server_current_timestamp': int(datetime.utcnow().timestamp()),
+            'warn_if_server_browser_time_mismatch': c.WARN_IF_SERVER_BROWSER_TIME_MISMATCH
+        })
+
