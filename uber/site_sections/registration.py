@@ -956,4 +956,3 @@ class Root:
             'server_current_timestamp': int(datetime.utcnow().timestamp()),
             'warn_if_server_browser_time_mismatch': c.WARN_IF_SERVER_BROWSER_TIME_MISMATCH
         })
-
