@@ -53,7 +53,7 @@
         }
     });
 
-    {% if not attendee.is_new %}
+    {% if not attendee.is_new and not attendee.amount_unpaid %}
         // This removes any badge levels lower than the attendee has purchased already
         if (window.BADGE_TYPES) {
             while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].extra < {{ attendee.amount_extra }}) {

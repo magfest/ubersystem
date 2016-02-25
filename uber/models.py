@@ -229,14 +229,6 @@ class MagModel:
         return {colname for colname in cls.all_checkgroups if colname in cls.unrestricted}
 
     @property
-    def validators(self):
-        """
-        Returns a list of all validation functions which should be called on
-        this model instance before it is saved.
-        """
-        return sa.validation.validations[self.__class__.__name__].values()
-
-    @property
     def session(self):
         """
         Returns the session object which this model instance is attached to, or

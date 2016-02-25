@@ -313,7 +313,7 @@ class Validation:
             return func
         return wrapper
 
-validation = Validation()
+validation, prereg_validation = Validation(), Validation()
 
 
 adjustment_counter = count().__next__

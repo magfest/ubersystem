@@ -21,6 +21,7 @@
     </PathMappingSettings>
     <option name="SCRIPT_NAME" value="/home/vagrant/magfest/uber/run_debug_server.py" />
     <option name="PARAMETERS" value="" />
+    <option name="SHOW_COMMAND_LINE" value="false" />
     <RunnerSettings RunnerId="PyDebugRunner" />
     <RunnerSettings RunnerId="PythonRunner" />
     <ConfigurationWrapper RunnerId="PyDebugRunner" />

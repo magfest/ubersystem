@@ -295,15 +295,12 @@ class SecretConfig(_Overridable):
     def SQLALCHEMY_URL(self):
         """
         support reading the DB connection info from an environment var (used with Docker containers)
-        example env vars:
-        DB_PORT_5432_TCP_ADDR="172.17.0.8"
-        DB_PORT_5432_TCP_PORT="5432"
+        DB_CONNECTION_STRING should contain the full Postgres URI
         """
-        docker_db_addr = os.environ.get('DB_PORT_5432_TCP_ADDR')
-        docker_db_port = os.environ.get('DB_PORT_5432_TCP_PORT')
+        db_connection_string = os.environ.get('DB_CONNECTION_STRING')
 
-        if docker_db_addr is not None and docker_db_port is not None:
-            return "postgresql://uber_db:uber_db@" + docker_db_addr + ":" + docker_db_port + "/uber_db"
+        if db_connection_string is not None:
+            return db_connection_string
         else:
             return _config['secret']['sqlalchemy_url']
 
@@ -396,6 +393,8 @@ for _name, _section in _config['age_groups'].items():
 
 c.TABLE_PRICES = defaultdict(lambda: _config['table_prices']['default_price'],
                              {int(k): v for k, v in _config['table_prices'].items() if k != 'default_price'})
+c.PREREG_TABLE_OPTS = list(range(1, c.MAX_TABLES + 1))
+c.ADMIN_TABLE_OPTS = list(range(0, 9))
 
 c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
 c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]
