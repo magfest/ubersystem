@@ -301,6 +301,8 @@ class SecretConfig(_Overridable):
 
         if db_connection_string is not None:
             return db_connection_string
+        else:
+            return _config['secret']['sqlalchemy_url']
 
 c = Config()
 _secret = SecretConfig()
