@@ -148,7 +148,7 @@ def email(attendee):
     if len(attendee.email) > 255:
         return 'Email addresses cannot be longer than 255 characters.'
 
-    if (c.AT_THE_CON and attendee.email and not re.match(c.EMAIL_RE, attendee.email)) or (not c.AT_THE_CON and not re.match(c.EMAIL_RE, attendee.email)):
+    if (c.AT_OR_POST_CON and attendee.email and not re.match(c.EMAIL_RE, attendee.email)) or (not c.c.AT_OR_POST_CON and not re.match(c.EMAIL_RE, attendee.email)):
         return 'Enter a valid email address'
 
 
@@ -178,7 +178,7 @@ def cellphone(attendee):
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def zip_code(attendee):
-    if not attendee.international and not c.AT_THE_CON:
+    if not attendee.international and not c.AT_OR_POST_CON:
         if _invalid_zip_code(attendee.zip_code):
             return 'Enter a valid zip code'
 
