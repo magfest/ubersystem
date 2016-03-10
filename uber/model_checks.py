@@ -65,7 +65,7 @@ def group_paid(group):
     try:
         amount = int(float(group.amount_paid))
         if amount < 0:
-            return 'Amount Paid must be a number higher than 0'
+            return 'Amount Paid must be a number that is 0 or higher.'
     except:
         return "What you entered for Amount Paid ({}) isn't even a number".format(group.amount_paid)
 
