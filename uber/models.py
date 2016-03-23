@@ -448,7 +448,10 @@ class Session(SessionManager):
 
         def checklist_status(self, slug, department):
             attendee = self.admin_attendee()
-            conf = DeptChecklistConf.instances[slug]
+            conf = DeptChecklistConf.instances.get(slug)
+            if not conf:
+                raise ValueError("Can't access dept checklist INI settings for section '{}', check your INI file".format(slug))
+
             return {
                 'conf': conf,
                 'relevant': attendee.is_single_dept_head and attendee.assigned_depts_ints == [int(department or 0)],
