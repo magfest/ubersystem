@@ -296,7 +296,10 @@ class MagModel:
 
     @suffix_property
     def _label(self, name, val):
-        return '' if val is None else self.get_field(name).type.choices[int(val)]
+        try:
+            return self.get_field(name).type.choices[int(val)]
+        except KeyError:
+            return ''
 
     @suffix_property
     def _local(self, name, val):
