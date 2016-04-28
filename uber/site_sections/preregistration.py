@@ -387,7 +387,7 @@ class Root:
         attendee = session.attendee(params, restricted=True)
 
         if 'first_name' in params:
-            message = check(attendee) or check_prereg_reqs(attendee)
+            message = check(attendee, prereg=True)
             if old.first_name == attendee.first_name and old.last_name == attendee.last_name:
                 message = 'You cannot transfer your badge to yourself.'
             elif not message and (not params['first_name'] and not params['last_name']):
