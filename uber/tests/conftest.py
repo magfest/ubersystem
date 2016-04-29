@@ -42,6 +42,10 @@ def sensible_defaults():
     monkeypatch_db_column(Attendee.assigned_depts, c.JOB_LOCATION_OPTS)
     monkeypatch_db_column(Attendee.trusted_depts, c.JOB_LOCATION_OPTS)
 
+    # ensure that we have uniform c.INTERESTS despite whatever is in the INI
+    c.make_enum('interest', {'console': 'Consoles', 'arcade': 'Arcade'})
+    monkeypatch_db_column(Attendee.interests, c.INTEREST_OPTS)
+
 
 @pytest.fixture(scope='session', autouse=True)
 def init_db(request, sensible_defaults):
