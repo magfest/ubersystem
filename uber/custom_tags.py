@@ -184,7 +184,7 @@ class options(template.Node):
 @tag
 class checkbox(template.Node):
     def __init__(self, field):
-        model, self.field_name = field.rsplit('.',1)
+        model, self.field_name = field.rsplit('.', 1)
         self.model = Variable(model)
 
     def render(self, context):
@@ -196,7 +196,7 @@ class checkbox(template.Node):
 @tag
 class checkgroup(template.Node):
     def __init__(self, field):
-        model, self.field_name = field.rsplit('.',1)
+        model, self.field_name = field.rsplit('.', 1)
         self.model = Variable(model)
 
     def render(self, context):
@@ -251,7 +251,7 @@ class radio(template.Node):
 @tag
 class radiogroup(template.Node):
     def __init__(self, opts, field):
-        model, self.field_name = field.rsplit('.',1)
+        model, self.field_name = field.rsplit('.', 1)
         self.model = Variable(model)
         self.opts = Variable(opts)
 
