@@ -10,9 +10,8 @@
 }
 
 body {
-    background-color: #856145;
-    background-image: url("../theme/tile-background.jpg");
-    background-repeat: repeat-x repeat-y;
+    background-color: tan;
+    background-image: url("../theme/tile-background.png");
 }
 
 /*Form Wizard*/
