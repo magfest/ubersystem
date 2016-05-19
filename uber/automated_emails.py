@@ -16,7 +16,7 @@ class AutomatedEmail:
 
     def __init__(self, model, subject, template, filter, *, sender=None, extra_data=None, cc=None, bcc=None, post_con=False, needs_approval=True):
         self.model, self.template, self.needs_approval = model, template, needs_approval
-        self.subject = subject.format(EVENT_NAME=c.EVENT_NAME, EVENT=c.EVENT_NAME + c.EPOCH.strftime(" %b %-d %Y"))
+        self.subject = subject.format(EVENT_NAME=c.EVENT_NAME, EVENT=c.EVENT_NAME + c.EPOCH.strftime(" (%b %Y)"))
         self.cc = cc or []
         self.bcc = bcc or []
         self.extra_data = extra_data or {}
