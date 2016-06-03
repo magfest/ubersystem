@@ -7,7 +7,9 @@
     <li> If you don't pay for your registration, it will be be deleted and you will have to pay full price at the door. </li>
     <li> MAGFest has a one badge per person policy. If you purchase multiple badges (for your family, as a gift), please ensure that each badge is purchased in the name of the individual who will be picking it up. You may use the same email address so the surprise isn't ruined.</li>
     <li> Attendees {% if c.DEALER_REG_START %}(including dealers){% endif %} must abide by our <a target="_blank" href="{{ c.CODE_OF_CONDUCT_URL }}">code of conduct</a>. </li>
-    <li> Attendees under 18 MUST bring a signed parental consent form, which MUST be notarized if the parent is not attending the fest. </li>
+    {% if c.CONSENT_FORM_URL %}
+        <li> Attendees under 18 MUST bring a signed parental consent form, which MUST be notarized if the parent is not attending the fest. </li>
+    {% endif %}
     {% if c.DEALER_REG_START %}
         <li> Submitting this form as a Dealer does not guarantee you will be selected for the Dealers Room - it is only the application. </li>
     {% endif %}
