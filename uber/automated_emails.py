@@ -37,7 +37,7 @@ class AutomatedEmail:
             return (x.__class__.__name__, x.id, self.subject, self.email_id) in all_sent
         else:
             with Session() as session:
-                return session.query(Email).filter_by(model=x.__class__.__name__, fk_id=x.id, subject=self.email_id).first()
+                return session.query(Email).filter_by(model=x.__class__.__name__, fk_id=x.id, email_id=self.email_id).first()
 
     def should_send(self, x, all_sent=None):
         try:

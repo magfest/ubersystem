@@ -154,7 +154,7 @@ def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=
         body = body.decode('utf-8') if isinstance(body, bytes) else body
         fk = {'model': 'n/a'} if model == 'n/a' else {'fk_id': model.id, 'model': model.__class__.__name__}
         with sa.Session() as session:
-            session.add(sa.Email(subject=email_id, dest=','.join(listify(dest)), body=body, **fk))
+            session.add(sa.Email(subject=subject, dest=','.join(listify(dest)), body=body, email_id=email_id, **fk))
 
 
 class Charge:
