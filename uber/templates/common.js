@@ -107,3 +107,129 @@ $(function () {
         dateFormat: 'yy-mm-dd'
     });
 });
+
+var DISABLE_STRIPE_BUTTONS_ON_CLICK = true;
+var MENU = [
+    {% if c.HAS_ACCOUNTS_ACCESS %}
+        {Accounts: '../accounts/'},
+    {% endif %}
+    {% if c.HAS_PEOPLE_ACCESS or c.HAS_REG_AT_CON_ACCESS %}
+        {People: [
+            {Attendees: '../registration/{% if c.AT_THE_CON %}?invalid=True{% endif %}'},
+            {Groups: '../groups/'},
+            {% if c.HAS_PEOPLE_ACCESS %}
+                {'All Untaken Shifts': '../jobs/everywhere'},
+                {Jobs: '../jobs/'},
+            {% endif %}
+            {% if c.HAS_WATCHLIST_ACCESS %}
+                {Watchlist: '../registration/watchlist_entries'},
+            {% endif %}
+            {'Feed of Database Changes': '../registration/feed'}
+        ]},
+    {% endif %}
+    {% if c.HAS_STUFF_ACCESS %}
+        {Schedule: [
+            {'View Schedule': '../schedule/'},
+            {'Edit Schedule': '../schedule/edit'}
+        ]},
+    {% endif %}
+    {% if c.HAS_STATS_ACCESS %}
+        {Statistics: '../summary/'}
+    {% endif %}
+];
+$(function() {
+    $(window).load(function() {
+        $(".loader").fadeOut("fast");
+    });
+    toastr.options = {
+        closeButton: true,
+        debug: false,
+        positionClass: "toast-top-full-width",
+        onclick: null,
+        showDuration: "300",
+        hideDuration: "1000",
+        timeOut: "0",
+        extendedTimeOut: "0",
+        showEasing: "swing",
+        hideEasing: "linear",
+        showMethod: "fadeIn",
+        hideMethod: "fadeOut"
+    };
+    var message = '{{ message }}';
+    if (message.length) {
+        toastr.info(message);
+    }
+    $('.datatable').dataTable({
+        aLengthMenu: [
+            [25, 50, 100, 200, -1],
+            [25, 50, 100, 200, "All"]
+            ],
+        stateSave: true
+    });
+    $('.date').datetextentry({
+        field_order: 'MDY',
+        min_year : '1890',
+        max_date : function() { return this.get_today(); },
+        max_date_message : 'You cannot be born in the future.',
+        show_tooltips : false,
+        errorbox_x    : -135,
+        errorbox_y    : 28
+    });
+    $('.geolocator').geocomplete({
+        details: '.address_details',
+        detailsAttribute: 'data-geo'
+    });
+    $('.focus:first').focus();
+    if (window.DISABLE_STRIPE_BUTTONS_ON_CLICK) {
+        // we can't intercept the Javascript form submit, so once someone has clicked the Stripe
+        // submit button, listen for us leaving the page and disable the buttons then
+        $(document).on('click', 'form > .stripe-button-el', function () {
+            $(window).on('beforeunload', function () {
+                $('a > .stripe-button-el').unwrap().prop('disabled', true).unwrap();
+            });
+        });
+    }
+    // prevent people from paying after prereg closes
+    {% if c.PRE_CON %}
+        if ($('form.stripe').size()) {
+            var prevHour = new Date().getHours();
+            var checkHour = function() {
+                var currHour = new Date().getHours();
+                if (currHour != prevHour) {
+                    location.reload();
+                } else {
+                    prevHour = currHour;
+                    setTimeout(checkHour, 1000);
+                }
+            };
+            checkHour();
+        }
+    {% endif %}
+    var $menu = $('#main-menu');
+    $.each(MENU, function (i, section) {
+        var name = _.keys(section)[0], links = _.values(section)[0];
+        if (typeof links === 'string') {
+            $menu.append(
+                $('<li></li>').append(
+                    $('<a></a>').attr('href', links).text(name)));
+        } else {
+            var $submenu = $('<ul class="dropdown-menu" role="menu"></ul>');
+            $.each(links, function (i, link) {
+                var label = _.keys(link)[0], href = _.values(link)[0];
+                var $li = $('<li></li>');
+                var $link = $('<a></a>').text(label);
+                if (href) {
+                    $link.attr('href', href);
+                } else {
+                    $li.addClass('disabled');
+                }
+                $submenu.append($li.append($link));
+            });
+            $('<li></li>')
+                .addClass('dropdown')
+                .append('<a href="#" class="dropdown-toggle" data-toggle="dropdown">' + name + '<span class="caret"></span></a>')
+                .append($submenu)
+                .appendTo($menu);
+        }
+    });
+});
