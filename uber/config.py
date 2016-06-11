@@ -278,6 +278,14 @@ class Config(_Overridable):
     def MENU_JSON(self):
         return json.dumps(c.MENU.submenu, cls=self.MenuItemEncoder, sort_keys=True, indent=2)
 
+    # HACK. if we do end up doing this, just get rid of the JSON altogether, we don't need it
+    # this is a proof of concept for doing foreach() in the tempplates, not in javascript.
+    #
+    # this is totally backwards, don't use as-is, testing only.
+    @property
+    def MENU_JSON_DECODED(self):
+        return json.loads(self.MENU_JSON)
+
     def __getattr__(self, name):
         if name.split('_')[0] in ['BEFORE', 'AFTER']:
             date_setting = getattr(c, name.split('_', 1)[1])
