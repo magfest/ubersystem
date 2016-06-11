@@ -109,34 +109,6 @@ $(function () {
 });
 
 var DISABLE_STRIPE_BUTTONS_ON_CLICK = true;
-var MENU = [
-    {% if c.HAS_ACCOUNTS_ACCESS %}
-        {Accounts: '../accounts/'},
-    {% endif %}
-    {% if c.HAS_PEOPLE_ACCESS or c.HAS_REG_AT_CON_ACCESS %}
-        {People: [
-            {Attendees: '../registration/{% if c.AT_THE_CON %}?invalid=True{% endif %}'},
-            {Groups: '../groups/'},
-            {% if c.HAS_PEOPLE_ACCESS %}
-                {'All Untaken Shifts': '../jobs/everywhere'},
-                {Jobs: '../jobs/'},
-            {% endif %}
-            {% if c.HAS_WATCHLIST_ACCESS %}
-                {Watchlist: '../registration/watchlist_entries'},
-            {% endif %}
-            {'Feed of Database Changes': '../registration/feed'}
-        ]},
-    {% endif %}
-    {% if c.HAS_STUFF_ACCESS %}
-        {Schedule: [
-            {'View Schedule': '../schedule/'},
-            {'Edit Schedule': '../schedule/edit'}
-        ]},
-    {% endif %}
-    {% if c.HAS_STATS_ACCESS %}
-        {Statistics: '../summary/'}
-    {% endif %}
-];
 $(function() {
     $(window).load(function() {
         $(".loader").fadeOut("fast");
@@ -205,31 +177,4 @@ $(function() {
             checkHour();
         }
     {% endif %}
-    var $menu = $('#main-menu');
-    $.each(MENU, function (i, section) {
-        var name = _.keys(section)[0], links = _.values(section)[0];
-        if (typeof links === 'string') {
-            $menu.append(
-                $('<li></li>').append(
-                    $('<a></a>').attr('href', links).text(name)));
-        } else {
-            var $submenu = $('<ul class="dropdown-menu" role="menu"></ul>');
-            $.each(links, function (i, link) {
-                var label = _.keys(link)[0], href = _.values(link)[0];
-                var $li = $('<li></li>');
-                var $link = $('<a></a>').text(label);
-                if (href) {
-                    $link.attr('href', href);
-                } else {
-                    $li.addClass('disabled');
-                }
-                $submenu.append($li.append($link));
-            });
-            $('<li></li>')
-                .addClass('dropdown')
-                .append('<a href="#" class="dropdown-toggle" data-toggle="dropdown">' + name + '<span class="caret"></span></a>')
-                .append($submenu)
-                .appendTo($menu);
-        }
-    });
 });
