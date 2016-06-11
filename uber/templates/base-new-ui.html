@@ -49,58 +49,51 @@ untouched and using Bootstrap 3
 {% endblock %}
 
 {% block backlink %}
-    <ul id="slide-out" class="side-nav">
+
         {% for menu_item in c.MENU_JSON_DECODED %}
-            {% if menu_item.href %}
-                <li>
-                    <a class="waves-effect waves-teal" href="{{ menu_item.href }}">{{ menu_item.name }}</a>
-                </li>
-            {% elif menu_item.submenu %}
 
-                <!-- submenu-->
-                <li class="no-padding">
-                    <ul class="collapsible collapsible-accordion">
-                    <li>
+            {% if menu_item.submenu %}
+                <ul id="{{ menu_item.name_key }}_dropdown" class="dropdown-content">
 
-                        <a class="collapsible-header">{{  menu_item.name }}<i class="material-icons">play_arrow</i></a>
-
-                        <div class="collapsible-body">
-                            <ul>
-                             <!--items -->
-                            {% for submenu_item in menu_item.submenu %}
-                                <li>
-                                    {% if not submenu_item.href %}
-                                        <a href="{{ submenu_item.href }}">
-                                    {% else %}
-                                        <a class="disabled">
-                                    {% endif %}
-                                    {{ submenu_item.name }}</a>
-                                </li>
-                            {% endfor %}
-                            </ul>
-                        </div>
-
-                    </li>
-
-                    </ul>
-                </li>
-
+                    {% for submenu_item in menu_item.submenu %}
+                        <li>
+                            {% if submenu_item.href %}
+                                <a href="{{ submenu_item.href }}">
+                            {% else %}
+                                <a class="disabled">
+                            {% endif %}
+                            {{ submenu_item.name }}</a>
+                        </li>
+                    {% endfor %}
+                </ul>
             {% endif %}
+
         {% endfor %}
-    </ul>
 
     <nav>
         <div class="nav-wrapper">
-            <div class="brand-logo">{{ c.EVENT_NAME }}</div>
+            <a href="../accounts/homepage" class="brand-logo">{{ c.EVENT_NAME }}</a>
+
             <ul class="right hide-on-med-and-down">
+                {% for menu_item in c.MENU_JSON_DECODED %}
+                    {% if menu_item.submenu %}
+                        <li>
+                            <a class="dropdown-button" href="#!" data-activates="{{ menu_item.name_key }}_dropdown">
+                                {{ menu_item.name }}<i class="material-icons right">arrow_drop_down</i>
+                            </a>
+                        </li>
+                    {% elif menu_item.href %}
+                        <li>
+                            <a href="{{ menu_item.href }}">{{ menu_item.name }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
                 <li>Logged in as: whatever</li>
-                <li><a href="#" data-activates="slide-out"><i class="material-icons left">insert_chart</i></a></li>
             </ul>
         </div>
     </nav>
-    <a href="#" data-activates="slide-out" class="button-collapse"><i class="material-icons">insert_chart</i></a>
     <nav>
-        <div>
+        <div class="red darken-2">
             <a href="../{{ breadcrumb_section_ }}" class="breadcrumb">{{ breadcrumb_section_pretty_ }}</a>
             <a href="../{{ breadcrumb_section_ }}/{{ breadcrumb_page_ }}" class="breadcrumb">
                 {{ breadcrumb_page_pretty_ }}
