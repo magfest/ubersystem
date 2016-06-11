@@ -73,6 +73,7 @@ from uber.decorators import *
 from uber.models import *
 from uber.automated_emails import *
 from uber.badge_funcs import *
+from uber.menu import *
 from uber import model_checks
 from uber import custom_tags
 from uber import server

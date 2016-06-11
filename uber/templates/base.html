@@ -58,7 +58,39 @@
                             </ul>
                         </li>
                     </ul>
-                    <ul class="nav navbar-nav" id="main-menu"></ul>
+                    {% block mainmenu %}
+                    <ul class="nav navbar-nav" id="main-menu">
+                        {% block mainmenu_items %}
+                        {% for menu_item in c.MENU_JSON_DECODED %}
+                            {% if menu_item.href %}
+                                <li><a href="{{ menu_item.href }}">{{ menu_item.name }}</a></li>
+                            {% elif menu_item.submenu %}
+
+                                <li class="dropdown">
+                                    <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                                        {{  menu_item.name }}
+                                        <span class="caret"></span>
+                                    </a>
+
+                                    <ul class="dropdown-menu" role="menu">
+                                    {% for submenu_item in menu_item.submenu %}
+                                        <li>
+                                            {% if not submenu_item.href %}
+                                                <a href="{{ submenu_item.href }}">
+                                            {% else %}
+                                                <a class="disabled">
+                                            {% endif %}
+                                            {{ submenu_item.name }}</a>
+                                        </li>
+                                    {% endfor %}
+                                    </ul>
+                                </li>
+
+                            {% endif %}
+                        {% endfor %}
+                        {% endblock mainmenu_items %}
+                    </ul>
+                    {% endblock mainmenu %}
                 </div>
             </nav>
         {% endblock %}
