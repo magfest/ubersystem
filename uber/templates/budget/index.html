@@ -1,26 +1,11 @@
-{% extends "base-admin.html" %}
-{% block title %}Budget{% endblock %}
+{% extends "base-new-ui.html" %}
+{% block title %}Budget NEW UI DEMO{% endblock %}
 {% block content %}
 
-<style type="text/css">
-    table.list td {
-        border: 0px;
-    }
-</style>
-
-<ol class="breadcrumb">
-  <li><a href="../accounts/homepage">Home</a></li>
-  <li>Money</li>
-  <li class="active">Budget</li>
-</ol>
-
-<div class="jumbotron">
-    <h1 class="text-center">(${{ total }} total)</h1>
-</div>
+<h1 class="text-center">${{ total }} total</h1>
 
 
-<div class="panel panel-default">
-    <table class="table table-striped datatable">
+    <table class="bordered">
     <thead><tr>
         <th>Name</th>
         <th>Amount</th>
@@ -66,6 +51,6 @@
         </tr>
     {% endfor %}
     </table>
-</div>
+
 
 {% endblock %}
