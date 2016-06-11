@@ -1,0 +1,110 @@
+{% extends "base-admin.html" %}
+
+{% comment %}
+This is a new base template that totally ignores uber's existing UI, and replaces it for any
+pages that extend from this template with our own UI.
+
+In this demo, we'll use ONLY Materialize on just, while leaving the rest of uber
+untouched and using Bootstrap 3
+{% endcomment %}
+
+{% block head_styles %}
+    {% comment %}
+        IMPORTANT NOTE: We leave off {{ block.super }}, so we don't inherit ANY of the ubersystem CSS
+        and can start our CSS from scratch here without affecting other pages.
+
+        This can be one page at a time in order to restyle ubersystem little by little, instead
+        of needing to do everything all at once.
+
+        This can also be done in the page template as well, if desired.
+    {% endcomment %}
+    <link rel="stylesheet" type="text/css" href="../static/styles/new-ui.css" />
+
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.97.6/css/materialize.min.css">
+{% endblock %}
+
+{% block scripts %}
+    {% comment %}
+        We do use {{ block.super }} here in order to use the default javascript from ubersystem,
+        and then also add our own.
+
+        This can also be done in the page template as well, if desired.
+    {% endcomment %}
+    {{ block.super }}
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.97.6/js/materialize.min.js"></script>
+
+    <script>
+        $(document).ready(function () {
+            $('.button-collapse').sideNav(
+                {
+                    menuWidth: 300, // Default is 240
+                    closeOnClick: true // Closes side-nav on <a> clicks, useful for Angular/Meteor
+                }
+            );
+            $('.collapsible').collapsible();
+        });
+    </script>
+{% endblock %}
+
+{% block backlink %}
+    <ul id="slide-out" class="side-nav">
+        {% for menu_item in c.MENU_JSON_DECODED %}
+            {% if menu_item.href %}
+                <li>
+                    <a class="waves-effect waves-teal" href="{{ menu_item.href }}">{{ menu_item.name }}</a>
+                </li>
+            {% elif menu_item.submenu %}
+
+                <!-- submenu-->
+                <li class="no-padding">
+                    <ul class="collapsible collapsible-accordion">
+                    <li>
+
+                        <a class="collapsible-header">{{  menu_item.name }}<i class="material-icons">play_arrow</i></a>
+
+                        <div class="collapsible-body">
+                            <ul>
+                             <!--items -->
+                            {% for submenu_item in menu_item.submenu %}
+                                <li>
+                                    {% if not submenu_item.href %}
+                                        <a href="{{ submenu_item.href }}">
+                                    {% else %}
+                                        <a class="disabled">
+                                    {% endif %}
+                                    {{ submenu_item.name }}</a>
+                                </li>
+                            {% endfor %}
+                            </ul>
+                        </div>
+
+                    </li>
+
+                    </ul>
+                </li>
+
+            {% endif %}
+        {% endfor %}
+    </ul>
+
+    <nav>
+        <div class="nav-wrapper">
+            <div class="brand-logo">{{ c.EVENT_NAME }}</div>
+            <ul class="right hide-on-med-and-down">
+                <li>Logged in as: whatever</li>
+                <li><a href="#" data-activates="slide-out"><i class="material-icons left">insert_chart</i></a></li>
+            </ul>
+        </div>
+    </nav>
+    <a href="#" data-activates="slide-out" class="button-collapse"><i class="material-icons">insert_chart</i></a>
+    <nav>
+        <div>
+            <a href="../{{ breadcrumb_section_ }}" class="breadcrumb">{{ breadcrumb_section_pretty_ }}</a>
+            <a href="../{{ breadcrumb_section_ }}/{{ breadcrumb_page_ }}" class="breadcrumb">
+                {{ breadcrumb_page_pretty_ }}
+            </a>
+        </div>
+    </nav>
+{% endblock backlink %}
