@@ -244,12 +244,14 @@ def renderable(func):
         result = func(*args, **kwargs)
 
         try:
-            result['__breadcrumb_page__'] = prettify_breadcrumb(func.__name__)
+            result['breadcrumb_page_pretty_'] = prettify_breadcrumb(func.__name__) if func.__name__ != 'index' else 'Home'
+            result['breadcrumb_page_'] = func.__name__ if func.__name__ != 'index' else ''
         except:
             pass
 
         try:
-            result['__breadcrumb_section__'] = prettify_breadcrumb(_get_module_name(func))
+            result['breadcrumb_section_pretty_'] = prettify_breadcrumb(_get_module_name(func))
+            result['breadcrumb_section_'] = _get_module_name(func)
         except:
             pass
 
