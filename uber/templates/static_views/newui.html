@@ -1,0 +1,39 @@
+{% extends "base-admin.html" %}
+{% block title %}Cool-ass UI Demo{% endblock %}
+
+{% block head_styles %}
+    {% comment %}
+        IMPORTANT NOTE: We leave off {{ block.super }}, so we don't inherit ANY of the ubersystem CSS
+        and can start our CSS from scratch here without affecting other pages.
+
+        This can be one page at a time in order to restyle ubersystem little by little, instead
+        of needing to do everything all at once.
+    {% endcomment %}
+    <link rel="stylesheet" type="text/css" href="../static/styles/new-ui.css" />
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.97.6/css/materialize.min.css">
+{% endblock %}
+
+{% block head_javascript %}
+    {% comment %}
+        We do use {{ block.super }} here in order to use the default javascript from ubersystem,
+        and then also add our own
+    {% endcomment %}
+    {{ block.super }}
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.97.6/js/materialize.min.js"></script>
+{% endblock %}
+
+{% block backlink %}
+
+{% endblock  %}
+
+{% block content %}
+    <p>
+    Yes, This is the best page ever made.  Our boys back in the lab cooked it up.
+    And I mean, <span class="fire">they really cooked it</span>, like woah.  Fire, lighter fluid.
+    </p>
+    <p>
+    We're pretty sure ... <span class="dropdownthing">They Set The Printer on Fire</span>
+    </p>
+{% endblock %}
