@@ -1,7 +1,13 @@
 {% extends "base.html" %}
 {% block backlink %}{% endblock %}
-{% block header %}
-    <link href="../static/theme/prereg.css" rel="stylesheet">
-    <link href="../static/theme/prereg_extra.css" rel="stylesheet">
+
+{% block head_styles %}
+    {{ block.super }}
+    <link rel="stylesheet" href="../static/theme/prereg.css">
+    <link rel="stylesheet" href="../static/theme/prereg_extra.css">
+{% endblock %}
+
+{% block head_javascript %}
+    {{ block.super }}
     <script src="../static_views/js/prereg-common.js" type="text/javascript"></script>
-{% endblock header %}
+{% endblock %}
