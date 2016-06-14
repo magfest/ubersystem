@@ -325,7 +325,7 @@ def restricted(func):
 
 
 class all_renderable:
-    def __init__(self, *needs_access, use_jinja2=False):
+    def __init__(self, *needs_access, use_jinja2=True):
         self.needs_access = needs_access
         self.use_jinja2 = use_jinja2
 
