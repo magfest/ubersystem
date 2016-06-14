@@ -433,40 +433,39 @@ class stripe_button(template.Node):
         """.format(label=self.label)
 
 
-@tag
-class stripe_form(template.Node):
-    def __init__(self, action, charge):
-        self.action = action
-        self.charge = Variable(charge)
 
-    def render(self, context):
-        payment_id = uuid4().hex
-        charge = self.charge.resolve(context)
-        cherrypy.session[payment_id] = charge.to_dict()
 
-        email = ''
-        if charge.targets and charge.models[0].email:
-            email = charge.models[0].email[:255]
 
-        if not charge.targets:
-            if c.AT_THE_CON:
-                regtext = 'On-Site Charge'
-            else:
-                regtext = 'Charge'
-        elif c.AT_THE_CON:
-            regtext = 'Registration'
+@JinjaEnv.jinja_export
+def stripe_form(action, charge):
+    payment_id = uuid4().hex
+    cherrypy.session[payment_id] = charge.to_dict()
+
+    email = ''
+    if charge.targets and charge.models[0].email:
+        email = charge.models[0].email[:255]
+
+    if not charge.targets:
+        if c.AT_THE_CON:
+            regtext = 'On-Site Charge'
         else:
-            regtext = 'Preregistration'
+            regtext = 'Charge'
+    elif c.AT_THE_CON:
+        regtext = 'Registration'
+    else:
+        regtext = 'Preregistration'
 
-        params = {
-            'action': self.action,
-            'regtext': regtext,
-            'email': email,
-            'payment_id': payment_id,
-            'charge': charge
-        }
+    params = {
+        'action': self.action,
+        'regtext': regtext,
+        'email': email,
+        'payment_id': payment_id,
+        'charge': charge
+    }
 
-        return render('preregistration/stripeForm.html', params)
+    # TODO: not 100% sure this is kosher with the way we're doing our
+    # singleton JinjaEnv() class.  might have to make this not a singleton
+    return render_jinja2('preregistration/stripeForm.html', params)
 
 
 @register.tag('bold_if')
