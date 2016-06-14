@@ -1,4 +1,5 @@
-{% extends "base-admin.html" %}
+{% set admin_area=True %}
+{% extends "base.html" %}
 
 {#
 This is a new base template that totally ignores uber's existing UI, and replaces it for any
@@ -49,7 +50,7 @@ untouched and using Bootstrap 3
 {% endblock %}
 
 {% block backlink %}
-
+    {% if admin_area %}
         {% for menu_item in c.MENU_JSON_DECODED %}
 
             {% if menu_item.submenu %}
@@ -100,4 +101,5 @@ untouched and using Bootstrap 3
             </a>
         </div>
     </nav>
+    {% endif %}
 {% endblock backlink %}
