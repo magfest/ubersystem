@@ -25,7 +25,7 @@ def sale_money(session):
     return dict(sales)  # converted to a dict so we can say sales.items in our template
 
 
-@all_renderable(c.MONEY)
+@all_renderable(c.MONEY, use_jinja2=True)
 class Root:
     @log_pageview
     def index(self, session):
