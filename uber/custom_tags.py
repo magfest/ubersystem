@@ -440,7 +440,7 @@ def stripe_form(action, charge):
         regtext = 'Preregistration'
 
     params = {
-        'action': self.action,
+        'action': action,
         'regtext': regtext,
         'email': email,
         'payment_id': payment_id,
