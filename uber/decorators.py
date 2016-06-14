@@ -270,23 +270,27 @@ def prettify_breadcrumb(str):
     return str.replace('_', ' ').title()
 
 
+def add_breadcrumb_data(data, func):
+    try:
+        data['breadcrumb_page_pretty_'] = prettify_breadcrumb(func.__name__) if func.__name__ != 'index' else 'Home'
+        data['breadcrumb_page_'] = func.__name__ if func.__name__ != 'index' else ''
+    except:
+        pass
+
+    try:
+        data['breadcrumb_section_pretty_'] = prettify_breadcrumb(_get_module_name(func))
+        data['breadcrumb_section_'] = _get_module_name(func)
+    except:
+        pass
+
+    return data
+
+
 def renderable(func):
     @wraps(func)
     def with_rendering(*args, **kwargs):
         result = func(*args, **kwargs)
-
-        try:
-            result['breadcrumb_page_pretty_'] = prettify_breadcrumb(func.__name__) if func.__name__ != 'index' else 'Home'
-            result['breadcrumb_page_'] = func.__name__ if func.__name__ != 'index' else ''
-        except:
-            pass
-
-        try:
-            result['breadcrumb_section_pretty_'] = prettify_breadcrumb(_get_module_name(func))
-            result['breadcrumb_section_'] = _get_module_name(func)
-        except:
-            pass
-
+        result = add_breadcrumb_data(result, func)
         if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
             return render('closed.html')
         elif isinstance(result, dict):
@@ -300,6 +304,7 @@ def renderable_jinja2(func):
     @wraps(func)
     def with_rendering(*args, **kwargs):
         result = func(*args, **kwargs)
+        result = add_breadcrumb_data(result, func)
         if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
             return render_jinja2('closed.html')
         elif isinstance(result, dict):
