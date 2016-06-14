@@ -278,12 +278,13 @@ def renderable(func):
             return result
     return with_rendering
 
+
 def renderable_jinja2(func):
     @wraps(func)
     def with_rendering(*args, **kwargs):
         result = func(*args, **kwargs)
         if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
-            return render_jinja2('closed.html') # TODO: renders_template
+            return render_jinja2('closed.html')
         elif isinstance(result, dict):
             return render_jinja2(_get_template_filename(func), result)
         else:
