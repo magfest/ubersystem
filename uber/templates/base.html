@@ -10,9 +10,27 @@
     <![endif]-->
     <title>{{ c.EVENT_NAME }} - {% block title %}{% endblock %}</title>
     <link rel="icon" href="../static/images/favicon.png" type="image/x-icon" />
-    <link rel="stylesheet" href="../static/deps/combined.css" />
-    <script type="text/javascript" src="../static/deps/combined.js"></script>
-    <script src="../common.js" type="text/javascript"></script>
+
+    {% block head_styles %}
+        <link rel="stylesheet" href="../static/deps/combined.css" />
+        <link rel="stylesheet" href="../static_views/styles/main.css" />
+        {% if admin_area %}
+            <link rel="stylesheet" type="text/css" href="../static_views/additional-styles.css" />
+        {% else %}
+            <link rel="stylesheet" href="../static/theme/prereg.css">
+            <link rel="stylesheet" href="../static/theme/prereg_extra.css">
+        {% endif %}
+    {% endblock %}
+
+    {% block head_javascript %}
+        <script type="text/javascript" src="../static/deps/combined.js"></script>
+        <script src="../common.js" type="text/javascript"></script>
+
+        {% if not admin_area %}
+            <script src="../static_views/js/prereg-common.js" type="text/javascript"></script>
+        {% endif %}
+    {% endblock %}
+
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -176,7 +194,17 @@
     {% if c.PRE_CON %}
         <div class="loader"><a class="loader_link" href="../static_views/slow_load.html" target="_blank"></a></div>
     {% endif %}
-    {% block top_of_body_additional %}{% endblock %}
+    {% block top_of_body_additional %}
+        {% if admin_area %}
+            <div id="floating_logo">
+                <img src="../static/theme/bg-logo.png"/>
+            </div>
+            {% if c.DEV_BOX %}
+                <div id="devbox_cautiontape"></div>
+                <div id="devbox_text">DEVELOPMENT</div>
+            {% endif %}
+        {% endif %}
+    {% endblock %}
     <div id="mainContainer" class="container-fluid">
         {% block backlink %}
             <nav class="navbar navbar-default navbar-static-top" role="navigation">
