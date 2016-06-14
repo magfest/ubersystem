@@ -1,4 +1,4 @@
-{% extends "./preregistration/preregbase.html" %}
+{% extends "base.html" %}
 {% block title %}Preregistration{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
@@ -38,7 +38,7 @@
                 or
             </div>
             <div class="col-sm-5 text-center">
-                <a href="form">{% stripe_button "Add Another Prereg" %}</a>
+                <a href="form">{{ stripe_button("Add Another Prereg") }}</a>
             </div>
         </div>
     </div>
@@ -62,7 +62,7 @@
                 {% elif attendee.discount %}
                     <li>${{ attendee.age_group_conf.discount }} discount for attendees who are {{ attendee.age_group_conf.desc|lower }}.</li>
                 {% endif %}
-                {% for swag in attendee.donation_swag|add:attendee.addons %}
+                {% for swag in attendee.donation_swag|list + attendee.addons|list %}
                     <li>{{ swag }}</li>
                 {% endfor %}
             </ul>
@@ -80,7 +80,7 @@
         <td>
             <ul>
                 <li>{{ group.badges }} badges</li>
-                {% for swag in group.attendees.0.donation_swag|add:group.addons %}
+                {% for swag in group.attendees.0.donation_swag|list + group.addons|list %}
                     <li>{{ swag }}</li>
                 {% endfor %}
             </ul>
