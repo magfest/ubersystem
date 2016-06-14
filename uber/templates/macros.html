@@ -4,4 +4,11 @@
     </button>
 {%- endmacro %}
 
+{% macro popup_link(href, text='<sup>?</sup>') -%}
+    <a onClick="
+        window.open('{self.href}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus();
+        return false;"
+     href="{{ href }}">{{ text }}</a>
+{%- endmacro %}
+
 {% block page_everything %}{% endblock %}
