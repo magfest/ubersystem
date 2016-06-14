@@ -272,6 +272,7 @@ class Config(_Overridable):
                 if value and key not in ['access']:
                     out[key] = value
 
+            out['name_key'] = o.name.replace(' ', '_').lower()
             return out
 
     @property
