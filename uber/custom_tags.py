@@ -1,7 +1,7 @@
 from uber.common import *
 
 
-@register.filter
+@JinjaEnv.jinja_export
 def datetime(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
     return ' '.join(dt.astimezone(c.EVENT_TIMEZONE).strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm')
 
@@ -148,123 +148,79 @@ class zebra(template.Node):
         return ['#ffffff', '#eeeeee'][counter]
 
 
-@tag
-class options(template.Node):
-    def __init__(self, options, default='""'):
-        self.options = Variable(options)
-        self.default = default[1:-1] if default[0] == '"' else Variable(default)
+@JinjaEnv.jinja_export
+def options(options, default='""'):
+    # default = if not default else default # may not be needed anymore
+    if isinstance(default, datetime):
+        default = default.astimezone(c.EVENT_TIMEZONE)
 
-    def render(self, context):
-        options = self.options.resolve(context)
-        default = self.default
-        if isinstance(default, Variable):
-            try:
-                default = default.resolve(context)
-                if isinstance(default, datetime):
-                    default = default.astimezone(c.EVENT_TIMEZONE)
-            except:
-                default = ''
-
-        results = []
-        for opt in options:
-            if len(listify(opt)) == 1:
-                opt = [opt, opt]
-            val, desc = opt
-            if isinstance(val, datetime):
-                selected = 'selected="selected"' if val == default else ''
-                val = val.strftime(c.TIMESTAMP_FORMAT)
-            else:
-                selected = 'selected="selected"' if str(val) == str(default) else ''
-            val  = str(val).replace('"',  '&quot;').replace('\n', '')
-            desc = str(desc).replace('"', '&quot;').replace('\n', '')
-            results.append('<option value="{}" {}>{}</option>'.format(val, selected, desc))
-        return '\n'.join(results)
+    results = []
+    for opt in options:
+        if len(listify(opt)) == 1:
+            opt = [opt, opt]
+        val, desc = opt
+        if isinstance(val, datetime):
+            selected = 'selected="selected"' if val == default else ''
+            val = val.strftime(c.TIMESTAMP_FORMAT)
+        else:
+            selected = 'selected="selected"' if str(val) == str(default) else ''
+        val  = str(val).replace('"',  '&quot;').replace('\n', '')
+        desc = str(desc).replace('"', '&quot;').replace('\n', '')
+        results.append('<option value="{}" {}>{}</option>'.format(val, selected, desc))
+    return '\n'.join(results)
 
 
-@tag
-class checkbox(template.Node):
-    def __init__(self, field):
-        model, self.field_name = field.rsplit('.', 1)
-        self.model = Variable(model)
-
-    def render(self, context):
-        model = self.model.resolve(context)
-        checked = 'checked' if getattr(model, self.field_name) else ''
-        return '<input type="checkbox" name="{}" value="1" {} />'.format(self.field_name, checked)
+@JinjaEnv.jinja_export
+def checkbox(field):
+    model, field_name = field.rsplit('.', 1)
+    checked = 'checked' if getattr(model, field_name) else ''
+    return '<input type="checkbox" name="{}" value="1" {} />'.format(field_name, checked)
 
 
-@tag
-class checkgroup(template.Node):
-    def __init__(self, field):
-        model, self.field_name = field.rsplit('.', 1)
-        self.model = Variable(model)
+@JinjaEnv.jinja_export
+def checkgroup(field):
+    model, field_name = field.rsplit('.', 1)
+    model = Variable(model)
 
-    def render(self, context):
-        model = self.model.resolve(context)
-        options = model.get_field(self.field_name).type.choices
-        defaults = getattr(model, self.field_name, None)
-        defaults = defaults.split(",") if defaults else []
-        results = []
-        for num, desc in options:
-            checked = 'checked' if str(num) in defaults else ''
-            results.append('<nobr><input type="checkbox" name="{}" value="{}" {} /> {}</nobr>'
-                           .format(self.field_name, num, checked, desc))
-        return '&nbsp;&nbsp\n'.join(results)
+    model = model.resolve(context)
+    options = model.get_field(field_name).type.choices
+    defaults = getattr(model, field_name, None)
+    defaults = defaults.split(",") if defaults else []
+    results = []
+    for num, desc in options:
+        checked = 'checked' if str(num) in defaults else ''
+        results.append('<nobr><input type="checkbox" name="{}" value="{}" {} /> {}</nobr>'
+                       .format(field_name, num, checked, desc))
+    return '&nbsp;&nbsp\n'.join(results)
 
 
-@tag
-class int_options(template.Node):
-    def __init__(self, minval, maxval, default="1"):
-        self.minval  = int(minval) if minval.isdigit() else Variable(minval)
-        self.maxval  = int(maxval) if maxval.isdigit() else Variable(maxval)
-        self.default = int(default) if default.isdigit() else Variable(default)
-
-    def render(self, context):
-        minval = self.minval if isinstance(self.minval, int) else self.minval.resolve(context)
-        maxval = self.maxval if isinstance(self.maxval, int) else self.maxval.resolve(context)
-        try:
-            default = self.default if isinstance(self.default, int) else int(self.default.resolve(context))
-        except:
-            default = 1
-
-        results = []
-        for i in range(minval, maxval+1):
-            selected = 'selected="selected"' if i == default else ''
-            results.append('<option value="{val}" {selected}>{val}</option>'.format(val=i, selected=selected))
-        return '\n'.join(results)
+@JinjaEnv.jinja_export
+def int_options(minval, maxval, default="1"):
+    results = []
+    for i in range(minval, maxval+1):
+        selected = 'selected="selected"' if i == default else ''
+        results.append('<option value="{val}" {selected}>{val}</option>'.format(val=i, selected=selected))
+    return '\n'.join(results)
 
 
-@tag
-class radio(template.Node):
-    def __init__(self, name, value, default):
-        self.name    = name[1:-1]
-        self.value   = Variable(value)
-        self.default = Variable(default)
-
-    def render(self, context):
-        value   = self.value.resolve(context)
-        default = self.default.resolve(context)
-        checked = 'checked' if str(value) == str(default) else ''
-        return """<div class="radio"><label class="btn btn-primary"><input type="radio" name="%s" value="%s" %s /></label></div>""" % (self.name, value, checked)
+@JinjaEnv.jinja_export
+def radio(name, value, default):
+    # name = name[1:-1] # may not be needed
+    checked = 'checked' if str(value) == str(default) else ''
+    return """<div class="radio"><label class="btn btn-primary"><input type="radio" name="%s" value="%s" %s /></label></div>""" % (name, value, checked)
 
 
-@tag
-class radiogroup(template.Node):
-    def __init__(self, opts, field):
-        model, self.field_name = field.rsplit('.', 1)
-        self.model = Variable(model)
-        self.opts = Variable(opts)
-
-    def render(self, context):
-        model = self.model.resolve(context)
-        options = self.opts.resolve(context)
-        default = getattr(model, self.field_name, None)
-        results = []
-        for num, desc in options:
-            checked = 'checked' if num == default else ''
-            results.append('<label class="btn btn-default" style="text-align: left;"><input type="radio" name="{}" autocomplete="off" value="{}" onchange="donationChanged();" {} /> {}</label>'
-                           .format(self.field_name, num, checked, desc))
-        return ''.join(results)
+# TODO: we receive input like "attendee.amount_extra" and have to extra that out
+@JinjaEnv.jinja_export
+def radiogroup(opts, value):
+    #model, field_name = field.rsplit('.', 1)
+    #default = getattr(model, field_name, None)
+    results = []
+    for num, desc in opts:
+        checked = 'checked' if num == value else ''
+        results.append('<label class="btn btn-default" style="text-align: left;"><input type="radio" name="{}" autocomplete="off" value="{}" onchange="donationChanged();" {} /> {}</label>'
+                       .format(value, num, checked, desc))
+    return ''.join(results)
 
 
 @tag
@@ -299,17 +255,6 @@ class timespan(template.Node):
 
     def render(self, context):
         return self.pretty(self.model.resolve(context))
-
-
-@tag
-class popup_link(template.Node):
-    def __init__(self, href, text='"<sup>?</sup>"'):
-        self.href = href.strip('"')
-        self.text = text.strip('"')
-
-    def render(self, context):
-        return """<a onClick="window.open('{self.href}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;"
-                     href="{self.href}">{self.text}</a>""".format(self=self)
 
 
 @tag
@@ -474,22 +419,20 @@ class BoldIfNode(template.Node):
             return output
 
 
-@tag
-class organization_and_event_name(template.Node):
-    def render(self, context):
-        if c.EVENT_NAME.lower() != c.ORGANIZATION_NAME.lower():
-            return c.EVENT_NAME + ' and ' + c.ORGANIZATION_NAME
-        else:
-            return c.EVENT_NAME
+@JinjaEnv.jinja_export
+def organization_and_event_name():
+    if c.EVENT_NAME.lower() != c.ORGANIZATION_NAME.lower():
+        return c.EVENT_NAME + ' and ' + c.ORGANIZATION_NAME
+    else:
+        return c.EVENT_NAME
 
 
-@tag
-class organization_or_event_name(template.Node):
-    def render(self, context):
-        if c.EVENT_NAME.lower() != c.ORGANIZATION_NAME.lower():
-            return c.EVENT_NAME + ' or ' + c.ORGANIZATION_NAME
-        else:
-            return c.EVENT_NAME
+@JinjaEnv.jinja_export
+def organization_or_event_name():
+    if c.EVENT_NAME.lower() != c.ORGANIZATION_NAME.lower():
+        return c.EVENT_NAME + ' or ' + c.ORGANIZATION_NAME
+    else:
+        return c.EVENT_NAME
 
 
 @tag
@@ -537,19 +480,18 @@ class PriceNotice(template.Node):
         return self._notice(self.label, self.takedown.resolve(context), self.amount_extra.resolve(context), self.discount.resolve(context))
 
 
-@tag
-class table_prices(template.Node):
-    def render(self, context):
-        if len(c.TABLE_PRICES) <= 1:
-            return '${} per table'.format(c.TABLE_PRICES['default_price'])
-        else:
-            cost, costs = 0, []
-            for i in range(1, 1 + c.MAX_TABLES):
-                cost += c.TABLE_PRICES[i]
-                table_plural, cost_plural = ('', 's') if i == 1 else ('s', '')
-                costs.append('<nobr>{} table{} cost{} ${}</nobr>'.format(i, table_plural, cost_plural, cost))
-            costs[-1] = 'and ' + costs[-1]
-            return ', '.join(costs)
+@JinjaEnv.jinja_export
+def table_prices():
+    if len(c.TABLE_PRICES) <= 1:
+        return '${} per table'.format(c.TABLE_PRICES['default_price'])
+    else:
+        cost, costs = 0, []
+        for i in range(1, 1 + c.MAX_TABLES):
+            cost += c.TABLE_PRICES[i]
+            table_plural, cost_plural = ('', 's') if i == 1 else ('s', '')
+            costs.append('<nobr>{} table{} cost{} ${}</nobr>'.format(i, table_plural, cost_plural, cost))
+        costs[-1] = 'and ' + costs[-1]
+        return ', '.join(costs)
 
 
 @tag

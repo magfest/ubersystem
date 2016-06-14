@@ -239,7 +239,8 @@ class JinjaEnv:
                 loader=jinja2.FileSystemLoader(django.conf.settings.TEMPLATE_DIRS)
             )
 
-        env.filters['jsonify'] = lambda x: env.filters['safe'](json.dumps(x))
+        env.filters['jsonize'] = lambda x: env.filters['safe'](json.dumps(x))
+
         if JinjaEnv._exportable_functions:
             for name, func in JinjaEnv._exportable_functions.items():
                 env.globals[name] = func
