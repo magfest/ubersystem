@@ -420,22 +420,6 @@ class csrf_token(template.Node):
         return '<input type="hidden" name="csrf_token" value="{}" />'.format(cherrypy.session["csrf_token"])
 
 
-@tag
-class stripe_button(template.Node):
-    def __init__(self, *label):
-        self.label = ' '.join(label).strip('"')
-
-    def render(self, context):
-        return """
-            <button class="stripe-button-el">
-                <span class="display: block; min-height: 30px;">{label}</span>
-            </button>
-        """.format(label=self.label)
-
-
-
-
-
 @JinjaEnv.jinja_export
 def stripe_form(action, charge):
     payment_id = uuid4().hex
