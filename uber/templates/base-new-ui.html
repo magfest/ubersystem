@@ -1,23 +1,23 @@
 {% extends "base-admin.html" %}
 
-{% comment %}
+{#
 This is a new base template that totally ignores uber's existing UI, and replaces it for any
 pages that extend from this template with our own UI.
 
 In this demo, we'll use ONLY Materialize on just, while leaving the rest of uber
 untouched and using Bootstrap 3
-{% endcomment %}
+#}
 
 {% block head_styles %}
-    {% comment %}
-        IMPORTANT NOTE: We leave off {{ block.super }}, so we don't inherit ANY of the ubersystem CSS
+    {#
+        IMPORTANT NOTE: We leave off {{ super() }}, so we don't inherit ANY of the ubersystem CSS
         and can start our CSS from scratch here without affecting other pages.
 
         This can be one page at a time in order to restyle ubersystem little by little, instead
         of needing to do everything all at once.
 
         This can also be done in the page template as well, if desired.
-    {% endcomment %}
+     #}
     <link rel="stylesheet" type="text/css" href="../static/styles/new-ui.css" />
 
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
@@ -25,13 +25,13 @@ untouched and using Bootstrap 3
 {% endblock %}
 
 {% block scripts %}
-    {% comment %}
-        We do use {{ block.super }} here in order to use the default javascript from ubersystem,
+    {#
+        We do use {{ super() }} here in order to use the default javascript from ubersystem,
         and then also add our own.
 
         This can also be done in the page template as well, if desired.
-    {% endcomment %}
-    {{ block.super }}
+    #}
+    {{ super() }}
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.97.6/js/materialize.min.js"></script>
 
@@ -88,7 +88,7 @@ untouched and using Bootstrap 3
                         </li>
                     {% endif %}
                 {% endfor %}
-                <li>Logged in as: whatever</li>
+                <li>Logged in as: {{ c.CURRENT_ADMIN.first_name }} {{ c.CURRENT_ADMIN.last_name }}</li>
             </ul>
         </div>
     </nav>
