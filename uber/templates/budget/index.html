@@ -18,6 +18,12 @@
     <h1 class="text-center">(${{ total }} total)</h1>
 </div>
 
+{% macro table_entry(label, value) -%}
+    <tr>
+        <td>{{ label }}</td>
+        <td>${{ value }}</td>
+    </tr>
+{%- endmacro %}
 
 <div class="panel panel-default">
     <table class="table table-striped datatable">
@@ -25,43 +31,20 @@
         <th>Name</th>
         <th>Amount</th>
     </tr></thead>
-    <tr>
-        <td>Attendee Badges</td>
-        <td>${{ preregs.Attendee }}</td>
-    </tr>
-    <tr>
-        <td>Extra Payments (Kickins, Shirts, Food, anything else)</td>
-        <td>${{ preregs.extra }}</td>
-    </tr>
-    <tr>
-        <td>Group Badges</td>
-        <td>${{ preregs.group_badges }}</td>
-    </tr>
-    <tr>
-        <td>Dealer Badges</td>
-        <td>${{ preregs.dealer_badges }}</td>
-    </tr>
-    <tr>
-        <td>Dealer Tables</td>
-        <td>${{ preregs.dealer_tables }}</td>
-    </tr>
-    <tr>
-        <td>Staff Badges</td>
-        <td>${{ preregs.Staff }} </td>
-    </tr>
-    <tr>
-        <td>Single Day Badges</td>
-        <td>${{ preregs.OneDay }}</td>
-    </tr>
-    {% for what, total in sales.items %}
-        <tr>
-            <td>{{ what }} sales</td>
-            <td>${{ total }}</td>
-        </tr>
+
+    {{ table_entry('Attendee Badges', preregs.Attendee) }}
+    {{ table_entry('Extra Payments (Kickins, Shirts, Food, anything else)', preregs.extra) }}
+    {{ table_entry('Group Badges', preregs.group_badges) }}
+    {{ table_entry('Dealer Badges', preregs.dealer_badges) }}
+    {{ table_entry('Staff Badges', preregs.Staff) }}
+    {{ table_entry('Single Day Badges', preregs.OneDay) }}
+
+    {% for what, total in sales.items() %}
+        {{ table_entry(what, total) }}
     {% endfor %}
     {% for item in credits %}
         <tr>
-            <td><a href="form?id={{ item.id }}">{{ item.name }}</a>
+            <td><a href="form?id={{ item.id }}">{{ item.name }}</a></td>
             <td>${{ item.amount }}</td>
         </tr>
     {% endfor %}
