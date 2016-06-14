@@ -217,31 +217,46 @@ def render(template_name_list, data=None):
     return rendered.encode('utf-8')
 
 
-_jinja2_env = None
-
-
 # TODO: replace with a nicer way to initialize this
 # for now we initialize the first time it's called.
 # TODO: need to not use django settings (they'll be ripped out later) for TEMPLATE_DIRS
 # TODO: setup filters in a separate function, probably. probably same way as custom_tags.py
 # TODO: port over everything in custom_tags.py to hook in here
-def jinja2_env():
-    global _jinja2_env
-    if _jinja2_env is None:
-        _jinja2_env = jinja2.Environment(
-            # autoescape=_guess_autoescape,
-            loader=jinja2.FileSystemLoader(django.conf.settings.TEMPLATE_DIRS)
-        )
-        _jinja2_env.filters['jsonify'] = lambda x: _jinja2_env.filters['safe'](json.dumps(x))
+class JinjaEnv:
+    _env = None
+    _exportable_functions = {}
 
-    return _jinja2_env
+    @staticmethod
+    def env():
+        if JinjaEnv._env is None:
+            JinjaEnv._env = JinjaEnv._init_env()
+        return JinjaEnv._env
+
+    @staticmethod
+    def _init_env():
+        env = jinja2.Environment(
+                # autoescape=_guess_autoescape,
+                loader=jinja2.FileSystemLoader(django.conf.settings.TEMPLATE_DIRS)
+            )
+
+        env.filters['jsonify'] = lambda x: env.filters['safe'](json.dumps(x))
+        if JinjaEnv._exportable_functions:
+            for name, func in JinjaEnv._exportable_functions.items():
+                env.globals[name] = func
+
+        return env
+
+    @staticmethod
+    def jinja_export(func):
+        JinjaEnv._exportable_functions[func.__name__] = func
+        return func
 
 
 # render using the first template that actually exists in template_name_list
 # uses JINJA2 - new style
 def render_jinja2(template_name_list, data=None):
     data = renderable_data(data)
-    env = jinja2_env()
+    env = JinjaEnv.env()
     template = env.get_template(template_name_list)
     rendered = template.render(data)
     rendered = screw_you_nick(rendered, template)  # lolz.
