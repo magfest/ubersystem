@@ -258,7 +258,7 @@ def attendee_money(attendee):
 
 @validation.Attendee
 def dealer_needs_group(attendee):
-    if attendee.is_dealer and not attendee.group_id:
+    if attendee.is_dealer and not attendee.badge_type == c.PSEUDO_DEALER_BADGE and not attendee.group_id:
         return 'Dealers must be associated with a group'
 
 
@@ -276,9 +276,10 @@ def invalid_badge_num(attendee):
     except:
         return '{!r} is not a valid badge number'.format(attendee.badge_num)
     else:
-        min_num, max_num = c.BADGE_RANGES[attendee.badge_type]
-        if attendee.badge_num != 0 and not (min_num <= badge_num <= max_num):
-            return '{} badge numbers must fall within {} and {}'.format(attendee.badge_type_label, min_num, max_num)
+        if attendee.badge_num != 0:
+            min_num, max_num = c.BADGE_RANGES[attendee.badge_type]
+            if not (min_num <= badge_num <= max_num):
+                return '{} badge numbers must fall within {} and {}'.format(attendee.badge_type_label, min_num, max_num)
 
 
 @validation.MPointsForCash
