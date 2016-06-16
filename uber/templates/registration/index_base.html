@@ -167,9 +167,9 @@
             {% block tableheadings %}
             <th> <a href="index?order={{ order.group_id }}">Group Name</a> </th>
             <th> <a href="index?order={{ order.last_first }}">Legal Name</a> </th>
-            <th> <a href="index?order={{ order.badge_printed_name }}">Badge Name</a> </th>
+            {% if c.PREASSIGNED_BADGE_TYPES %}<th> <a href="index?order={{ order.badge_printed_name }}">Badge Name</a> </th>{% endif %}
             <th> <a href="index?order={{ order.badge_type }}">Membership Type</a></th>
-            <th> <a href="index?order={{ order.badge_num }}">Badge #</a> </th>
+            {% if c.NUMBERED_BADGES %}<th> <a href="index?order={{ order.badge_num }}">Badge #</a> </th> {% endif %}
             <th> <a href="index?order={{ order.ribbon }}">Badge Ribbon</a></th>
             <th> <a href="index?order={{ order.amount_extra }}">Upgrade</a></th>
             <th> <a href="index?order={{ order.paid }}">Paid</a> </th>
@@ -189,11 +189,9 @@
                 <td id="name_{{ attendee.id }}" style="text-align:left">
                     <a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a>
                 </td>
-                <td>
-                    {{ attendee.badge_printed_name }}
-                </td>
+                {% if c.PREASSIGNED_BADGE_TYPES %}<td>{{ attendee.badge_printed_name }}</td>{% endif %}
                 <td><nobr>{{ attendee.badge_type_label }}</nobr></td>
-                <td>{{ attendee.badge_num }}</td>
+                {% if c.NUMBERED_BADGES %}<td>{{ attendee.badge_num }}</td>{% endif %}
                 <td id="ribbon_{{ attendee.id }}">{{ attendee.ribbon_label }}</td>
                 <td id="amount_extra_{{ attendee.id }}">{{ attendee.amount_extra_label }}</td>
                 <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
