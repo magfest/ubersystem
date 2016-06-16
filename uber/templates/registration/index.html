@@ -74,14 +74,7 @@
             method: 'POST',
             url: 'check_in',
             dataType: 'json',
-            data: {
-                id: id,
-                csrf_token: csrf_token,
-                group: $('#checkin-group').val() || '',
-                badge_num: $('#checkin-badge').val() || '',
-                birthdate: $('#checkin-birthdate').val() || '',
-                age_group: $('#checkin-age-group').val() || ''
-            },
+            data: $("#check_in_form").serialize(),
             success: function (json) {
                 toastr.clear();
                 var message = json.message;
