@@ -3,21 +3,21 @@ from uber.common import *
 
 def pre_checkin_check(attendee, group):
     if c.NUMBERED_BADGES and not attendee.badge_num:
-       return 'Badge number is required'
+        return 'Badge number is required'
 
     if c.COLLECT_EXACT_BIRTHDATE:
         if not attendee.birthdate:
             return 'You may not check someone in without a valid date of birth.'
     elif not attendee.age_group or attendee.age_group == c.AGE_UNKNOWN:
-            return 'You may not check someone in without confirming their age.'
+        return 'You may not check someone in without confirming their age.'
 
     if attendee.checked_in:
         return attendee.full_name + ' was already checked in!'
 
     if group and group.amount_unpaid:
-            return 'This attendee\'s group has an outstanding balance of ${}'.format(group.amount_unpaid)
+        return 'This attendee\'s group has an outstanding balance of ${}'.format(group.amount_unpaid)
 
-    if attendee.paid == c.PAID_BY_GROUP and not attendee.group:
+    if attendee.paid == c.PAID_BY_GROUP and not attendee.group_id:
         return 'You must select a group for this attendee.'
 
     if attendee.paid == c.NOT_PAID:
@@ -335,14 +335,12 @@ class Root:
 
         message = pre_checkin_check(attendee, group)
 
-        if group:
-            session.match_to_group(attendee, group)
-
         if not message:
+            if group:
+                session.match_to_group(attendee, group)
             message = ''
             success = True
             attendee.checked_in = sa.localized_now()
-            session.add(attendee)
             session.commit()
             increment = True
             message += '{0.full_name} checked in as {0.badge}{0.accoutrements}'.format(attendee)
@@ -642,15 +640,16 @@ class Root:
 
         message = pre_checkin_check(attendee, group)
 
-        if group:
-            session.match_to_group(attendee, group)
-
-        if not message:
+        if message:
+            session.rollback()
+        else:
+            if group:
+                session.match_to_group(attendee, group)
             attendee.checked_in = sa.localized_now()
             attendee.reg_station = cherrypy.session['reg_station']
-            session.add(attendee)
             message = '{a.full_name} checked in as {a.badge}{a.accoutrements}'.format(a=attendee)
             checked_in = attendee.id
+            session.commit()
 
         raise HTTPRedirect('new?message={}&checked_in={}', message, checked_in)
 
