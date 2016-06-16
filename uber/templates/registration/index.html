@@ -59,17 +59,6 @@
 
     var checkIn = function () {
         var id = $('#checkin-dialog').data('attendeeId');
-        {% if c.COLLECT_EXACT_BIRTHDATE %}
-            if (!$('#checkin-birthdate').val()) {
-                alert('You may not check someone in without a valid date of birth.');
-                return;
-            }
-        {% else %}
-            if (parseInt($('#age_' + id).val()) === {{ c.AGE_UNKNOWN }}) {
-                alert('You may not check someone in without confirming their age.');
-                return;
-            }
-        {% endif %}
         $.ajax({
             method: 'POST',
             url: 'check_in',

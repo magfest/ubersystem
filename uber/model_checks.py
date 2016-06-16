@@ -121,7 +121,7 @@ def full_name(attendee):
 def age(attendee):
     if c.COLLECT_EXACT_BIRTHDATE:
         if not attendee.birthdate:
-            return 'Enter your date of birth.'
+            return 'Please enter a date of birth.'
         elif attendee.birthdate > date.today():
             return 'You cannot be born in the future.'
     elif not attendee.age_group:
@@ -133,13 +133,13 @@ def age(attendee):
 def address(attendee):
     if c.COLLECT_FULL_ADDRESS:
         if not attendee.address1:
-            return 'Enter your street address.'
+            return 'Please enter a street address.'
         if not attendee.city:
-            return 'Enter your city.'
+            return 'Please enter a city.'
         if not attendee.region:
-            return 'Enter your state, province, or region.'
+            return 'Please enter a state, province, or region.'
         if not attendee.country:
-            return 'Enter your country.'
+            return 'Please enter a country.'
 
 
 @validation.Attendee
@@ -257,16 +257,28 @@ def attendee_money(attendee):
 
 
 @validation.Attendee
-def badge_range(attendee):
-    if c.AT_THE_CON:
-        try:
-            badge_num = int(attendee.badge_num)
-        except:
-            return '{!r} is not a valid badge number'.format(attendee.badge_num)
-        else:
-            min_num, max_num = c.BADGE_RANGES[attendee.badge_type]
-            if attendee.badge_num != 0 and not (min_num <= badge_num <= max_num):
-                return '{} badge numbers must fall within {} and {}'.format(attendee.badge_type_label, min_num, max_num)
+def dealer_needs_group(attendee):
+    if attendee.is_dealer and not attendee.group_id:
+        return 'Dealers must be associated with a group'
+
+
+@validation.Attendee
+def dupe_badge_num(attendee):
+    if attendee.badge_num != 0 and attendee.session.query(Attendee).filter(id != attendee.id)\
+            .filter_by(badge_type=attendee.badge_type, badge_num=attendee.badge_num).count():
+        return 'Another attendee already exists with that badge number!'
+
+
+@validation.Attendee
+def invalid_badge_num(attendee):
+    try:
+        badge_num = int(attendee.badge_num)
+    except:
+        return '{!r} is not a valid badge number'.format(attendee.badge_num)
+    else:
+        min_num, max_num = c.BADGE_RANGES[attendee.badge_type]
+        if attendee.badge_num != 0 and not (min_num <= badge_num <= max_num):
+            return '{} badge numbers must fall within {} and {}'.format(attendee.badge_type_label, min_num, max_num)
 
 
 @validation.MPointsForCash
