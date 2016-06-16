@@ -59,29 +59,11 @@
 
     var checkIn = function () {
         var id = $('#checkin-dialog').data('attendeeId');
-        {% if c.COLLECT_EXACT_BIRTHDATE %}
-            if (!$('#checkin-birthdate').val()) {
-                alert('You may not check someone in without a valid date of birth.');
-                return;
-            }
-        {% else %}
-            if (parseInt($('#age_' + id).val()) === {{ c.AGE_UNKNOWN }}) {
-                alert('You may not check someone in without confirming their age.');
-                return;
-            }
-        {% endif %}
         $.ajax({
             method: 'POST',
             url: 'check_in',
             dataType: 'json',
-            data: {
-                id: id,
-                csrf_token: csrf_token,
-                group: $('#checkin-group').val() || '',
-                badge_num: $('#checkin-badge').val() || '',
-                birthdate: $('#checkin-birthdate').val() || '',
-                age_group: $('#checkin-age-group').val() || ''
-            },
+            data: $("#check_in_form").serialize(),
             success: function (json) {
                 toastr.clear();
                 var message = json.message;
