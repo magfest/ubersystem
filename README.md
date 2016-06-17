@@ -1,15 +1,19 @@
-The UberSystem
+The RAMS Project
 =======
 
-UberSystem is a webapp that an event can use to track things like registration, events, staffers, groups, dealers, jobs, game checkouts, etc.
+The RAMS (Registration And Management System) Project is a web app written in Python and designed for high customization to suit event's needs. It's aimed largely at fandom events and can track things like registration, events, staffers, groups, dealers, jobs, game checkouts, etc.
 
-This app was originally developed by [MAGFest](http://magfest.org) as our internal registration system, and is now open source and available for anyone to use.
+This app was originally developed by [MAGFest](http://magfest.org) as their internal registration system, named UberSystem, and is now open source and available for anyone to use. This is the community edition, known simply as RAMS. Eternal thanks to [Eli Courtwright](https://github.com/EliAndrewC) for tirelessly developing UberSystem for ten years.
 
-MAGFest has been running UberSystem for years so this code has been put through it's paces.  We are doing lots of work to make UberSystem more customizable for other events to use it.
+Community
+=========
+[![Slack Status](https://slackin-ramsproject.herokuapp.com/badge.svg)](https://slackin-ramsproject.herokuapp.com/)
 
-If you are another event wanting to use UberSystem for production purposes, definitely get in touch with us and we'll help you get it going.  email us at "code at magfest dot org"
+Most community activity takes place in our Slack instance. Click the badge above to get an invite!
+
+MAGFest is still the most active developer and user of RAMS, via a [custom fork](https://github.com/magfest/ubersystem). They also have a set of plugins [designed for community use](https://github.com/rams).
 
 Installation / Development
 ===========================
 
-Check out the docs [Here](INSTALL.md) for information on how to install ubersystem or setup a development environment.
+Please see the deploy repository, [quickstart](https://github.com/ramsproject/quickstart), for information on installation and deployment.
