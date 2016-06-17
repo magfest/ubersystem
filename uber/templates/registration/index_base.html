@@ -2,7 +2,7 @@
 {% block title %}Attendee Admin{% endblock %}
 {% block content %}
 
-{% block header %}
+{% block adminheader %}
 <div class="dialog-form" id="checkin-dialog" title="Quick Check-In"></div>
 <script type="text/javascript">    
     $(function(){
@@ -64,7 +64,7 @@
             method: 'POST',
             url: 'check_in',
             dataType: 'json',
-            data: $("#check_in_form").serialize(),
+            data: $("#check_in_form_" + id).serialize(),
             success: function (json) {
                 toastr.clear();
                 var message = json.message;
@@ -113,7 +113,7 @@
   <li>People</li>
   <li class="active">Attendees{% if search_results %} (Search Results){% endif %}</li>
 </ol>
-{% endblock header %}
+{% endblock adminheader %}
 {% block admin_controls %}
 <div class="row">
     <div class="panel col-md-5">
