@@ -264,7 +264,7 @@ def dealer_needs_group(attendee):
 
 @validation.Attendee
 def dupe_badge_num(attendee):
-    if attendee.badge_num != 0 and attendee.session.query(Attendee)\
+    if c.NUMBERED_BADGES and attendee.badge_num != 0 and attendee.session.query(Attendee)\
             .filter(Attendee.id != attendee.id)\
             .filter_by(badge_type=attendee.badge_type, badge_num=attendee.badge_num).count():
         return 'Another attendee already exists with that badge number!'
@@ -272,15 +272,16 @@ def dupe_badge_num(attendee):
 
 @validation.Attendee
 def invalid_badge_num(attendee):
-    try:
-        badge_num = int(attendee.badge_num)
-    except:
-        return '{!r} is not a valid badge number'.format(attendee.badge_num)
-    else:
-        if attendee.badge_num != 0:
-            min_num, max_num = c.BADGE_RANGES[attendee.badge_type]
-            if not (min_num <= badge_num <= max_num):
-                return '{} badge numbers must fall within {} and {}'.format(attendee.badge_type_label, min_num, max_num)
+    if c.NUMBERED_BADGES:
+        try:
+            badge_num = int(attendee.badge_num)
+        except:
+            return '{!r} is not a valid badge number'.format(attendee.badge_num)
+        else:
+            if attendee.badge_num != 0:
+                min_num, max_num = c.BADGE_RANGES[attendee.badge_type]
+                if not (min_num <= badge_num <= max_num):
+                    return '{} badge numbers must fall within {} and {}'.format(attendee.badge_type_label, min_num, max_num)
 
 
 @validation.MPointsForCash
