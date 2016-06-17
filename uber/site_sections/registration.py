@@ -327,7 +327,7 @@ class Root:
 
     @ajax
     def check_in(self, session, message='', **params):
-        attendee = session.attendee(params, checkgroups=Attendee.all_checkgroups, bools=Attendee.all_bools, allow_invalid=True)
+        attendee = session.attendee(params, allow_invalid=True)
         group = session.group(attendee.group_id) if attendee.group_id else None
 
         pre_badge = attendee.badge_num
@@ -631,7 +631,7 @@ class Root:
 
     @csrf_protected
     def new_checkin(self, session, message='', **params):
-        attendee = session.attendee(params, checkgroups=Attendee.all_checkgroups, bools=Attendee.all_bools, allow_invalid=True)
+        attendee = session.attendee(params, allow_invalid=True)
         group = session.group(attendee.group_id) if attendee.group_id else None
 
         checked_in = ''
