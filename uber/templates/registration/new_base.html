@@ -1,7 +1,7 @@
 {% extends "base-admin.html" %}
 {% block title %}Recent At-the-Door Registrations{% endblock %}
 {% block content %}
-{% block header %}
+{% block adminheader %}
 <link rel="stylesheet" type="text/css" href="../static/styles/styles.css" />
 
 {% if checked_in %}
@@ -75,7 +75,7 @@
     };
     $(showOrHideWhatText);
 </script>
-{% endblock header %}
+{% endblock adminheader %}
 
 {% block admin_controls %}
 <h2> {% if not show_all %}Recent{% endif %} At-the-Door Registrations </h2>
@@ -182,7 +182,7 @@
             </td>
             <td></td>
         {% else %}
-            <form method="post" id="new_checkin" action="new_checkin">
+            <form method="post" id="new_checkin_{{ attendee.id }}" action="new_checkin">
             {% if c.NUMBERED_BADGES %}
                 <td>
                     &nbsp;&nbsp;&nbsp;&nbsp;
