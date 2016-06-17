@@ -196,24 +196,27 @@
                 <td id="amount_extra_{{ attendee.id }}">{{ attendee.amount_extra_label }}</td>
                 <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
                 <td> <nobr>{{ attendee.age_group_conf.desc }}</nobr> </td>
-                {% if c.AT_THE_CON and attendee.checked_in %}
-                        <td>
-                            {% if attendee.paid == c.LOST_BADGE %}
-                                <strong>Badge reported as lost!</strong>
-                            {% else %}
-                                {{ attendee.checked_in_local|time:"fA"|lower }} {{ attendee.checked_in_local|date:"D" }} <br/>
-                                <form method="post" action="lost_badge">
-                                    <input type="hidden" name="id" value="{{ attendee.id }}" />
-                                    <input type="submit" value="Report Lost Badge">
-                                </form>
-                            {% endif %}
+                {% if c.AT_THE_CON %}
+                    {% if attendee.checked_in %}
+                            <td>
+                                {% if attendee.paid == c.LOST_BADGE %}
+                                    <strong>Badge reported as lost!</strong>
+                                {% else %}
+                                    {{ attendee.checked_in_local|time:"fA"|lower }} {{ attendee.checked_in_local|date:"D" }} <br/>
+                                    <form method="post" action="lost_badge">
+                                        <input type="hidden" name="id" value="{{ attendee.id }}" />
+                                        <input type="submit" value="Report Lost Badge">
+                                    </form>
+                                {% endif %}
+                            </td>
+                    {% elif attendee.is_not_ready_to_checkin %}
+                        <td>Can't checkin ({{ attendee.is_not_ready_to_checkin }})</td>
+                    {% else %}
+                        <td id="cin_{{ attendee.id }}">
+                            <button class="attendee-checkin" data-attendee-id="{{ attendee.id }}">Check In</button>
                         </td>
-                {% elif c.AT_THE_CON and attendee.can_check_in %}
-                    <td id="cin_{{ attendee.id }}">
-                        <button class="attendee-checkin" data-attendee-id="{{ attendee.id }}">Check In</button>
-                    </td>
+                    {% endif %}
                 {% endif %}
-                </td>
                 {% endblock tablerows %}
             </tr>
         {% endfor %}
