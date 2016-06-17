@@ -213,7 +213,7 @@ class Config(_Overridable):
         return not self.AT_OR_POST_CON
 
     @property
-    def DEFAULT_EMAIL_DEADLINE(self):
+    def FINAL_EMAIL_DEADLINE(self):
         return min(c.UBER_TAKEDOWN, c.EPOCH)
 
     @property
