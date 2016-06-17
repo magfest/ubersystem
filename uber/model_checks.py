@@ -197,7 +197,7 @@ def allowed_to_register(attendee):
 
 @validation.Attendee
 def printed_badge_deadline(attendee):
-    if attendee.is_new and attendee.has_personalized_badge and not c.SHIFT_CUSTOM_BADGES:
+    if attendee.is_new and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
         return 'Custom badges have already been ordered so you cannot create new {} badges'.format(attendee.badge_type_label)
 
 
