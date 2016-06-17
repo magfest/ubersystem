@@ -264,7 +264,8 @@ def dealer_needs_group(attendee):
 
 @validation.Attendee
 def dupe_badge_num(attendee):
-    if attendee.badge_num != 0 and attendee.session.query(Attendee).filter(id != attendee.id)\
+    if attendee.badge_num != 0 and attendee.session.query(Attendee)\
+            .filter(Attendee.id != attendee.id)\
             .filter_by(badge_type=attendee.badge_type, badge_num=attendee.badge_num).count():
         return 'Another attendee already exists with that badge number!'
 
