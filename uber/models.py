@@ -584,11 +584,20 @@ class Session(SessionManager):
             return [job.to_dict(fields) for job in jobs if job.restricted or frozenset(job.hours) not in restricted_hours]
 
         def guess_attendee_watchentry(self, attendee):
-            return self.query(WatchList).filter(and_(or_(WatchList.first_names.contains(attendee.first_name),
-                                                         and_(WatchList.email != '', WatchList.email == attendee.email),
-                                                         and_(WatchList.birthdate != None, WatchList.birthdate == attendee.birthdate)),
-                                                     WatchList.last_name == attendee.last_name,
-                                                     WatchList.active == True)).all()
+            return self.query(WatchList).filter(
+                    and_(
+                        or_(
+                            WatchList.first_names.contains(attendee.first_name),
+                            and_(WatchList.email != '', WatchList.email == attendee.email),
+                            *[WatchList.birthdate == attendee.birthdate] if
+                                WatchList.birthdate and WatchList.birthdate != '' and
+                                attendee.birthdate and attendee.birthdate != ''
+                            else []
+                        ),
+                        WatchList.last_name == attendee.last_name,
+                        WatchList.active == True
+                    )
+                ).all()
 
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
@@ -1595,11 +1604,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def watchlist_guess(self):
-        try:
-            with Session() as session:
-                return [w.to_dict() for w in session.guess_attendee_watchentry(self)]
-        except:
-            return None
+        with Session() as session:
+            return [w.to_dict() for w in session.guess_attendee_watchentry(self)]
 
     @property
     def banned(self):
