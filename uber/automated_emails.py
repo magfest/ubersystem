@@ -228,11 +228,11 @@ StopsEmail('Last chance to sign up for {EVENT_NAME} shifts', 'shifts/reminder.tx
                                                  and a.takes_shifts and not a.hours)
 
 StopsEmail('Still want to volunteer at {EVENT_NAME}?', 'shifts/volunteer_check.txt',
-              lambda a: c.SHIFTS_CREATED and days_before(5, c.UBER_TAKEDOWN)
+              lambda a: c.SHIFTS_CREATED and days_before(5, c.FINAL_EMAIL_DEADLINE)
                                          and a.ribbon == c.VOLUNTEER_RIBBON and a.takes_shifts and a.weighted_hours == 0)
 
 StopsEmail('Your {EVENT_NAME} shift schedule', 'shifts/schedule.html',
-           lambda a: c.SHIFTS_CREATED and days_before(1, c.UBER_TAKEDOWN) and a.weighted_hours)
+           lambda a: c.SHIFTS_CREATED and days_before(1, c.FINAL_EMAIL_DEADLINE) and a.weighted_hours)
 
 
 # For events with customized badges, these emails remind people to let us know what we want on their badges.  We have

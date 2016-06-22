@@ -213,6 +213,10 @@ class Config(_Overridable):
         return not self.AT_OR_POST_CON
 
     @property
+    def FINAL_EMAIL_DEADLINE(self):
+        return min(c.UBER_TAKEDOWN, c.EPOCH)
+
+    @property
     def CSRF_TOKEN(self):
         return cherrypy.session['csrf_token'] if 'csrf_token' in cherrypy.session else ''
 
