@@ -172,9 +172,7 @@
         {% elif c.AT_THE_CON and not attendee.checked_in and not c.NUMBERED_BADGES %}
             <br/> <input type="checkbox" name="check_in" value="yes" {% if check_in %}checked{% endif %} /> Check in this attendee
         {% endif %}
-        {% if attendee.is_transferable %}
-            &nbsp;&nbsp; [<a href="../preregistration/confirm?id={{ attendee.id }}">Confirm/Transfer</a>]
-        {% endif %}
+        &nbsp;&nbsp; [<a href="../preregistration/confirm?id={{ attendee.id }}">Confirm{% if attendee.is_transferable %}/Transfer{% endif %}</a>]
     </div>
 </div>
 
