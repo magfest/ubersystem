@@ -1859,8 +1859,15 @@ def _make_getter(model):
     return getter
 
 
-def _presave_adjustments(session, context, instances='deprecated'):
+def _acquire_badge_lock(session, context, instances='deprecated'):
     c.BADGE_LOCK.acquire()
+
+
+@catch_all_exceptions
+def _presave_adjustments(session, context, instances='deprecated'):
+    """
+    precondition: c.BADGE_LOCK is acquired already.
+    """
     for model in chain(session.dirty, session.new):
         model.presave_adjustments()
     for model in session.deleted:
@@ -1871,16 +1878,20 @@ def _release_badge_lock(session, context):
     try:
         c.BADGE_LOCK.release()
     except:
-        log.error('failed releasing c.BADGE_LOCK after session flush; this should never actually happen, but we want to just keep going if it ever does')
+        log.error('failed releasing c.BADGE_LOCK after session flush; this should never actually happen, but we want '
+                  'to just keep going if it ever does')
 
 
 def _release_badge_lock_on_error(*args, **kwargs):
     try:
         c.BADGE_LOCK.release()
     except:
-        log.warn('failed releasing c.BADGE_LOCK on db error; these errors should not happen in the first place and we do not expect releasing the lock to fail when they do, but we still want to keep going if/when this does occur')
+        log.warn('failed releasing c.BADGE_LOCK on db error; these errors should not happen in the first place and we '
+                 'do not expect releasing the lock to fail when they do, but we still want to keep going if/when this '
+                 'does occur')
 
 
+@catch_all_exceptions
 def _track_changes(session, context, instances='deprecated'):
     for action, instances in {c.CREATED: session.new, c.UPDATED: session.dirty, c.DELETED: session.deleted}.items():
         for instance in instances:
@@ -1889,6 +1900,14 @@ def _track_changes(session, context, instances='deprecated'):
 
 
 def register_session_listeners():
+    """
+    IMPORTANT!!! Because we are locking our c.BADGE_LOCK at the start of this, all of these functions MUST NOT
+    THROW ANY EXCEPTIONS.  If they do throw exceptions, the chain of hooks will not be completed, and the lock won't
+    be released, resulting in a deadlock.
+
+    The order in which we call these matters here.
+    """
+    listen(Session.session_factory, 'before_flush', _acquire_badge_lock)
     listen(Session.session_factory, 'before_flush', _presave_adjustments)
     listen(Session.session_factory, 'before_flush', _track_changes)
     listen(Session.session_factory, 'after_flush', _release_badge_lock)

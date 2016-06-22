@@ -1,6 +1,19 @@
 from uber.common import *
 
 
+def catch_all_exceptions(func):
+    """
+    Use this only where it's critical, such as dealing with locking functionality.
+    """
+    @wraps(func)
+    def catch_exceptions(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception:
+            log.error('encountered exception, forcing continuation anyway', exc_info=True)
+    return catch_exceptions
+
+
 def log_pageview(func):
     @wraps(func)
     def with_check(*args, **kwargs):
