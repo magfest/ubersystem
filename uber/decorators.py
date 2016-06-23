@@ -225,6 +225,7 @@ def render(template_name_list, data=None):
 class JinjaEnv:
     _env = None
     _exportable_functions = {}
+    _filter_functions = {}
 
     @staticmethod
     def env():
@@ -236,20 +237,25 @@ class JinjaEnv:
     def _init_env():
         env = jinja2.Environment(
                 # autoescape=_guess_autoescape,
-                loader=jinja2.FileSystemLoader(django.conf.settings.TEMPLATE_DIRS)
+                loader=jinja2.FileSystemLoader(django.conf.settings.TEMPLATE_DIRS) # TODO: kill django reference
             )
 
-        env.filters['jsonize'] = lambda x: env.filters['safe'](json.dumps(x))
+        for name, func in JinjaEnv._exportable_functions.items():
+            env.globals[name] = func
 
-        if JinjaEnv._exportable_functions:
-            for name, func in JinjaEnv._exportable_functions.items():
-                env.globals[name] = func
+        for name, func in JinjaEnv._filter_functions.items():
+            env.filters[name] = func
 
         return env
 
     @staticmethod
     def jinja_export(func):
         JinjaEnv._exportable_functions[func.__name__] = func
+        return func
+
+    @staticmethod
+    def jinja_filter(func):
+        JinjaEnv._filter_functions[func.__name__] = func
         return func
 
 
