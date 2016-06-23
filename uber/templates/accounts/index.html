@@ -33,7 +33,7 @@
     </div>
 </div>
 <div class="form-group">
-    {% checkgroup AdminAccount.access %}
+    {{ AdminAccount.html_checkgroup('access') }}
 </div>
 <button type="submit" class="btn btn-default">Create Account</button>
 </form>
@@ -68,7 +68,7 @@
             <form class="form update-form" method="post" action="update">
                 <input type="hidden" name="id" value="{{ account.id }}" />
                 {{ csrf_token() }}
-                <div class="form-group">{% checkgroup account.access %}</div>
+                <div class="form-group">{{ account.html_checkgroup('access') }}</div>
             </form>
         </td>
     </tr>

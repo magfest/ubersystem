@@ -20,11 +20,11 @@ when they know what kind of food restrictions we all have.
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ fr.db_id }}" />
 
-    {% checkgroup fr.standard %}
+    {{ fr.html_checkgroup('standard') }}
 
     <br/> <br/>
     Please select sandwich options you like. This is to determine how much to buy: <br/>
-    {% checkgroup fr.sandwich_pref %}
+    {{ fr.html_checkgroup('sandwich_pref') }}
 
     <br/> <br/>
     Let us know if you have any other allergies or restrictions,
