@@ -1,55 +1,60 @@
 from uber.common import *
 
 
+def safe_string(str):
+    return JinjaEnv.env().filters['safe'](str)
+
+
 @JinjaEnv.jinja_export
+# TODO: convert to jinja_filter
 def datetime(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
     return ' '.join(dt.astimezone(c.EVENT_TIMEZONE).strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm') if dt else ''
 
 from datetime import datetime  # noqa: now that we've registered our filter, re-import the "datetime" class to avoid conflicts
 
 
-@register.filter
+@JinjaEnv.jinja_filter
 def timestamp(dt):
     from time import mktime
     return str(int(mktime(dt.timetuple())))
 
 
-@register.filter
+@JinjaEnv.jinja_filter
 def jsonize(x):
-    return SafeString(json.dumps(x, cls=serializer))
+    return safe_string(json.dumps(x, cls=serializer))
 
 
-@register.filter
+@JinjaEnv.jinja_filter
 def subtract(x, y):
     return x - y
 
 
-@register.filter
+@JinjaEnv.jinja_filter
 def percent(numerator, denominator):
     return '0/0' if denominator == 0 else '{} / {} ({}%)'.format(numerator, denominator, int(100 * numerator / denominator))
 
 
-@register.filter
+@JinjaEnv.jinja_filter
 def percent_of(numerator, denominator):
     return 'n/a' if denominator == 0 else '{}%'.format(int(100 * numerator / denominator))
 
 
-@register.filter
+@JinjaEnv.jinja_filter
 def remove_newlines(string):
     return string.replace('\n', ' ')
 
 
-@register.filter
+@JinjaEnv.jinja_filter
 def form_link(attendee):
-    return SafeString('<a href="../registration/form?id={}">{}</a>'.format(attendee.id, attendee.full_name))
+    return safe_string('<a href="../registration/form?id={}">{}</a>'.format(attendee.id, attendee.full_name))
 
 
-@register.filter
+@JinjaEnv.jinja_filter
 def dept_checklist_path(conf, attendee=None):
-    return SafeString(conf.path(attendee))
+    return safe_string(conf.path(attendee))
 
 
-@register.filter
+@JinjaEnv.jinja_filter
 def numeric_range(count):
     return range(count)
 
@@ -62,41 +67,41 @@ def _getter(x, attrName):
         return getattr(x, attrName)
 
 
-@register.filter
+@JinjaEnv.jinja_filter
 def sortBy(xs, attrName):
     return sorted(xs, key=lambda x: _getter(x, attrName))
 
 
-@register.filter
+@JinjaEnv.jinja_filter
 def time_day(dt):
-    return SafeString('<nobr>{} {}</nobr>'.format(dt.astimezone(c.EVENT_TIMEZONE).strftime('%I:%M%p').lstrip('0').lower(),
+    return safe_string('<nobr>{} {}</nobr>'.format(dt.astimezone(c.EVENT_TIMEZONE).strftime('%I:%M%p').lstrip('0').lower(),
                                                   dt.astimezone(c.EVENT_TIMEZONE).strftime('%a')))
 
 
-@register.filter
+@JinjaEnv.jinja_filter
 def full_datetime(dt):
     return dt.astimezone(c.EVENT_TIMEZONE).strftime('%H:%M on %B %d %Y')
 
 
-@register.filter
+@JinjaEnv.jinja_filter
 def idize(s):
     return re.sub('\W+', '_', str(s)).strip('_')
 
 
-@register.filter
+@JinjaEnv.jinja_filter
 def maybe_red(amount, comp):
     if amount >= comp:
-        return SafeString('<span style="color:red ; font-weight:bold">{}</span>'.format(amount))
+        return safe_string('<span style="color:red ; font-weight:bold">{}</span>'.format(amount))
     else:
         return amount
 
 
-@register.filter
+@JinjaEnv.jinja_filter
 def maybe_last_year(day):
     return 'last year' if day <= c.STAFFERS_IMPORTED else day
 
 
-@register.filter
+@JinjaEnv.jinja_filter
 def join_and(xs):
     if len(xs) in [0, 1, 2]:
         return ' and '.join(xs)
@@ -105,7 +110,7 @@ def join_and(xs):
         return ', '.join(xs)
 
 
-@register.filter
+@JinjaEnv.jinja_filter
 def email_only(email):
     """
     Our configured email addresses support either the "email@domain.com" format
