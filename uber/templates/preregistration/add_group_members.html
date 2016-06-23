@@ -7,7 +7,7 @@
 <div class="panel panel-default">
 <h2> Add Members to {{ group.name }} </h2>
 
-You've indicated you'd like to add {{ count }} {{ group.is_dealer|yesno:"Dealer Assistants,group members" }}, at a cost of ${{ charge.dollar_amount }}.
+You've indicated you'd like to add {{ count }} {{ group.is_dealer|yesno("Dealer Assistants,group members") }}, at a cost of ${{ charge.dollar_amount }}.
 
 <table style="width:auto ; margin-left:auto ; margin-right: auto"><tr>
     <td>{% stripe_form pay_for_extra_members charge %}</td>
