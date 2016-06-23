@@ -23,6 +23,8 @@
 
         {% if not admin_area %}
             <script>
+            var message = '{{ message }}';
+
             {# This <script> block should eventually get moved into prereg-common.js, but can't since it currently references 'attendee' variable via templates #}
             var REG_TYPES = {
                 row: '#reg-types',

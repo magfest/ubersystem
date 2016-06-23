@@ -155,7 +155,6 @@ $(function() {
         showMethod: "fadeIn",
         hideMethod: "fadeOut"
     };
-    var message = '{{ message }}';
     if (message.length) {
         toastr.info(message);
     }
