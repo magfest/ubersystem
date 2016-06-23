@@ -14,7 +14,7 @@
 {% if group.amount_unpaid and group.status != c.WAITLISTED %}
     {% if not group.is_dealer or group.status != c.UNAPPROVED %}
         <div style="text-align:center">
-            {% stripe_form process_group_payment charge %}
+            {{ stripe_form('process_group_payment',charge) }}
         </div>
     {% endif %}
 {% endif %}

@@ -11,7 +11,7 @@
 <h2>Payment for {{ attendee.full_name }}</h2>
 
 <div class="center">
-    {% stripe_form take_payment charge %}
+    {{ stripe_form('take_payment',charge) }}
     <br/>
     <a href="register?message=Please+queue+in+the+cash+line+and+have+your+photo+ID+and+cash+ready.">{% stripe_button "Nevermind, I'll Pay Cash" %}</a>
     <br/> <br/>

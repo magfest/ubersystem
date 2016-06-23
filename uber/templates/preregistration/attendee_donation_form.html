@@ -11,7 +11,7 @@
     You've registered for {{ c.EVENT_NAME }} at a {% if attendee.overridden_price %}discounted{% endif %} price of ${{ attendee.overridden_price|default:attendee.badge_cost }}{% if attendee.amount_extra %} and you've also kicked in ${{ attendee.amount_extra }}{% endif %}; your total outstanding balance is ${{ attendee.amount_unpaid }}.
 
     <table style="width:auto ; margin-left:auto ; margin-right: auto"><tr>
-        <td>{% stripe_form process_attendee_donation charge %}</td>
+        <td>{{ stripe_form('process_attendee_donation',charge) }}</td>
         {% if attendee.amount_extra %}
             <td style="width:100px ; text-align:center">or</td>
             <td><a href="undo_attendee_donation?id={{ attendee.id }}">{% stripe_button "Undo Extra Money" %}</a></td>
@@ -28,7 +28,7 @@
     </ul>
 
     <table style="width:auto ; margin-left:auto ; margin-right: auto"><tr>
-        <td>{% stripe_form process_attendee_donation charge %}</td>
+        <td>{{ stripe_form('process_attendee_donation',charge) }}</td>
         <td style="width:100px ; text-align:center">or</td>
         <td><a href="undo_attendee_donation?id={{ attendee.id }}">{% stripe_button "Nevermind" %}</a></td>
     </tr></table>
