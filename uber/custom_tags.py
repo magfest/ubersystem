@@ -14,6 +14,41 @@ from datetime import datetime  # noqa: now that we've registered our filter, re-
 
 
 @JinjaEnv.jinja_filter
+def yesno(value, arg=None):
+    """
+    PORTED FROM DJANGO BY UBERSYSTEM CREW
+
+    Given a string mapping values for true, false and (optionally) None,
+    returns one of those strings according to the value:
+
+    ==========  ======================  ==================================
+    Value       Argument                Outputs
+    ==========  ======================  ==================================
+    ``True``    ``"yeah,no,maybe"``     ``yeah``
+    ``False``   ``"yeah,no,maybe"``     ``no``
+    ``None``    ``"yeah,no,maybe"``     ``maybe``
+    ``None``    ``"yeah,no"``           ``"no"`` (converts None to False
+                                        if no mapping for None is given.
+    ==========  ======================  ==================================
+    """
+    if arg is None:
+        arg = 'yes,no,maybe'
+    bits = arg.split(',')
+    if len(bits) < 2:
+        return value # Invalid arg.
+    try:
+        yes, no, maybe = bits
+    except ValueError:
+        # Unpack list of wrong size (no "maybe" value provided).
+        yes, no, maybe = bits[0], bits[1], bits[1]
+    if value is None:
+        return maybe
+    if value:
+        return yes
+    return no
+
+
+@JinjaEnv.jinja_filter
 def timestamp(dt):
     from time import mktime
     return str(int(mktime(dt.timetuple())))
