@@ -5,15 +5,18 @@ def safe_string(str):
     return JinjaEnv.env().filters['safe'](str)
 
 
-@JinjaEnv.jinja_export
-# TODO: convert to jinja_filter
-def datetime(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
+@JinjaEnv.jinja_filter(name='date')
+def date_filter(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
+    # TODO: if this is a datetime.time object, do we have to correct for timezone with .astimezone()?
+    return ' '.join(dt.strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm') if dt else ''
+
+
+@JinjaEnv.jinja_filter(name='datetime')
+def datetime_filter(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
     return ' '.join(dt.astimezone(c.EVENT_TIMEZONE).strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm') if dt else ''
 
-from datetime import datetime  # noqa: now that we've registered our filter, re-import the "datetime" class to avoid conflicts
 
-
-@JinjaEnv.jinja_filter
+@JinjaEnv.jinja_filter()
 def yesno(value, arg=None):
     """
     PORTED FROM DJANGO BY UBERSYSTEM CREW
@@ -48,22 +51,22 @@ def yesno(value, arg=None):
     return no
 
 
-@JinjaEnv.jinja_filter
+@JinjaEnv.jinja_filter()
 def timestamp(dt):
     from time import mktime
     return str(int(mktime(dt.timetuple())))
 
 
-@JinjaEnv.jinja_filter
+@JinjaEnv.jinja_filter()
 def jsonize(x):
     return safe_string(json.dumps(x, cls=serializer))
 
 
-@JinjaEnv.jinja_filter
+@JinjaEnv.jinja_filter()
 def subtract(x, y):
     return x - y
 
-@JinjaEnv.jinja_filter
+@JinjaEnv.jinja_filter()
 def urlencode(s):
     if type(s) == 'Markup':
         s = s.unescape()
@@ -72,32 +75,32 @@ def urlencode(s):
     return jinja2.Markup(s)
 
 
-@JinjaEnv.jinja_filter
+@JinjaEnv.jinja_filter()
 def percent(numerator, denominator):
     return '0/0' if denominator == 0 else '{} / {} ({}%)'.format(numerator, denominator, int(100 * numerator / denominator))
 
 
-@JinjaEnv.jinja_filter
+@JinjaEnv.jinja_filter()
 def percent_of(numerator, denominator):
     return 'n/a' if denominator == 0 else '{}%'.format(int(100 * numerator / denominator))
 
 
-@JinjaEnv.jinja_filter
+@JinjaEnv.jinja_filter()
 def remove_newlines(string):
     return string.replace('\n', ' ')
 
 
-@JinjaEnv.jinja_filter
+@JinjaEnv.jinja_filter()
 def form_link(attendee):
     return safe_string('<a href="../registration/form?id={}">{}</a>'.format(attendee.id, attendee.full_name))
 
 
-@JinjaEnv.jinja_filter
+@JinjaEnv.jinja_filter()
 def dept_checklist_path(conf, attendee=None):
     return safe_string(conf.path(attendee))
 
 
-@JinjaEnv.jinja_filter
+@JinjaEnv.jinja_filter()
 def numeric_range(count):
     return range(count)
 
@@ -110,28 +113,28 @@ def _getter(x, attrName):
         return getattr(x, attrName)
 
 
-@JinjaEnv.jinja_filter
+@JinjaEnv.jinja_filter()
 def sortBy(xs, attrName):
     return sorted(xs, key=lambda x: _getter(x, attrName))
 
 
-@JinjaEnv.jinja_filter
+@JinjaEnv.jinja_filter()
 def time_day(dt):
     return safe_string('<nobr>{} {}</nobr>'.format(dt.astimezone(c.EVENT_TIMEZONE).strftime('%I:%M%p').lstrip('0').lower(),
                                                   dt.astimezone(c.EVENT_TIMEZONE).strftime('%a')))
 
 
-@JinjaEnv.jinja_filter
+@JinjaEnv.jinja_filter()
 def full_datetime(dt):
     return dt.astimezone(c.EVENT_TIMEZONE).strftime('%H:%M on %B %d %Y')
 
 
-@JinjaEnv.jinja_filter
+@JinjaEnv.jinja_filter()
 def idize(s):
     return re.sub('\W+', '_', str(s)).strip('_')
 
 
-@JinjaEnv.jinja_filter
+@JinjaEnv.jinja_filter()
 def pluralize(number, singular = '', plural = 's'):
     if number == 1:
         return singular
@@ -139,7 +142,7 @@ def pluralize(number, singular = '', plural = 's'):
         return plural
 
 
-@JinjaEnv.jinja_filter
+@JinjaEnv.jinja_filter()
 def maybe_red(amount, comp):
     if amount >= comp:
         return safe_string('<span style="color:red ; font-weight:bold">{}</span>'.format(amount))
@@ -147,12 +150,12 @@ def maybe_red(amount, comp):
         return amount
 
 
-@JinjaEnv.jinja_filter
+@JinjaEnv.jinja_filter()
 def maybe_last_year(day):
     return 'last year' if day <= c.STAFFERS_IMPORTED else day
 
 
-@JinjaEnv.jinja_filter
+@JinjaEnv.jinja_filter()
 def join_and(xs):
     if len(xs) in [0, 1, 2]:
         return ' and '.join(xs)
@@ -161,7 +164,7 @@ def join_and(xs):
         return ', '.join(xs)
 
 
-@JinjaEnv.jinja_filter
+@JinjaEnv.jinja_filter()
 def email_only(email):
     """
     Our configured email addresses support either the "email@domain.com" format
@@ -204,7 +207,7 @@ class zebra(template.Node):
         return ['#ffffff', '#eeeeee'][counter]
 
 
-@JinjaEnv.jinja_export
+@JinjaEnv.jinja_export()
 def options(options, default='""'):
     """
     TODO: see if we can move this look something more like:
@@ -235,7 +238,7 @@ def options(options, default='""'):
     return '\n'.join(results)
 
 
-@JinjaEnv.jinja_export
+@JinjaEnv.jinja_export()
 def int_options(minval, maxval, default="1"):
     results = []
     for i in range(minval, maxval+1):
@@ -345,14 +348,14 @@ class checked_if(template.Node):
         return '<img src="../static/images/checkbox_{}.png" style="vertical-align:top ; margin-right:5px" height="20" width="20" />'.format(image)
 
 
-@JinjaEnv.jinja_export
+@JinjaEnv.jinja_export()
 def csrf_token():
     if not cherrypy.session.get('csrf_token'):
         cherrypy.session['csrf_token'] = uuid4().hex
     return '<input type="hidden" name="csrf_token" value="{}" />'.format(cherrypy.session["csrf_token"])
 
 
-@JinjaEnv.jinja_export
+@JinjaEnv.jinja_export()
 def stripe_form(action, charge):
     payment_id = uuid4().hex
     cherrypy.session[payment_id] = charge.to_dict()
@@ -406,7 +409,7 @@ class BoldIfNode(template.Node):
             return output
 
 
-@JinjaEnv.jinja_export
+@JinjaEnv.jinja_export()
 def organization_and_event_name():
     if c.EVENT_NAME.lower() != c.ORGANIZATION_NAME.lower():
         return c.EVENT_NAME + ' and ' + c.ORGANIZATION_NAME
@@ -414,7 +417,7 @@ def organization_and_event_name():
         return c.EVENT_NAME
 
 
-@JinjaEnv.jinja_export
+@JinjaEnv.jinja_export()
 def organization_or_event_name():
     if c.EVENT_NAME.lower() != c.ORGANIZATION_NAME.lower():
         return c.EVENT_NAME + ' or ' + c.ORGANIZATION_NAME
@@ -467,7 +470,7 @@ class PriceNotice(template.Node):
         return self._notice(self.label, self.takedown.resolve(context), self.amount_extra.resolve(context), self.discount.resolve(context))
 
 
-@JinjaEnv.jinja_export
+@JinjaEnv.jinja_export()
 def table_prices():
     if len(c.TABLE_PRICES) <= 1:
         return '${} per table'.format(c.TABLE_PRICES['default_price'])

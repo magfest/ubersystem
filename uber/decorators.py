@@ -249,14 +249,18 @@ class JinjaEnv:
         return env
 
     @staticmethod
-    def jinja_export(func):
-        JinjaEnv._exportable_functions[func.__name__] = func
-        return func
+    def jinja_export(name=None):
+        def wrap(func):
+            JinjaEnv._exportable_functions[name if name else func.__name__] = func
+            return func
+        return wrap
 
     @staticmethod
-    def jinja_filter(func):
-        JinjaEnv._filter_functions[func.__name__] = func
-        return func
+    def jinja_filter(name=None):
+        def wrap(func):
+            JinjaEnv._filter_functions[name if name else func.__name__] = func
+            return func
+        return wrap
 
 
 # render using the first template that actually exists in template_name_list
