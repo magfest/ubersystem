@@ -439,35 +439,23 @@ class single_day_prices(template.Node):
         return prices
 
 
-@register.tag(name='price_notice')
-def price_notice(parser, token):
-    return PriceNotice(*token.split_contents()[1:])
+@JinjaEnv.jinja_export()
+def price_notice(label, takedown, amount_extra='0', discount='0'):
+    if not takedown:
+        takedown = c.ESCHATON
 
-
-class PriceNotice(template.Node):
-    def __init__(self, label, takedown, amount_extra='0', discount='0'):
-        self.label = label.strip('"').strip("'")
-        self.takedown, self.amount_extra, self.discount = Variable(takedown), Variable(amount_extra), Variable(discount)
-
-    def _notice(self, label, takedown, amount_extra, discount):
-        if not takedown:
-            takedown = c.ESCHATON
-
-        if c.PAGE_PATH not in ['/preregistration/form', '/preregistration/register_group_member']:
-            return ''  # we only display notices for new attendees
+    if c.PAGE_PATH not in ['/preregistration/form', '/preregistration/register_group_member']:
+        return ''  # we only display notices for new attendees
+    else:
+        for day, price in sorted(c.PRICE_BUMPS.items()):
+            if day < takedown and localized_now() < day:
+                return '<div class="prereg-price-notice">Price goes up to ${} at 11:59pm {} on {}</div>'.format(price - int(discount) + int(amount_extra), (day - timedelta(days=1)).strftime('%Z'), (day - timedelta(days=1)).strftime('%A, %b %e'))
+            elif localized_now() < day and takedown == c.PREREG_TAKEDOWN and takedown < c.EPOCH:
+                return '<div class="prereg-type-closing">{} closes at 11:59pm {} on {}. Price goes up to ${} at-door.</div>'.format(label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'), price + amount_extra, (day - timedelta(days=1)).strftime('%A, %b %e'))
+        if takedown < c.EPOCH:
+            return '<div class="prereg-type-closing">{} closes at 11:59pm {} on {}</div>'.format(label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'))
         else:
-            for day, price in sorted(c.PRICE_BUMPS.items()):
-                if day < takedown and localized_now() < day:
-                    return '<div class="prereg-price-notice">Price goes up to ${} at 11:59pm {} on {}</div>'.format(price - int(discount) + int(amount_extra), (day - timedelta(days=1)).strftime('%Z'), (day - timedelta(days=1)).strftime('%A, %b %e'))
-                elif localized_now() < day and takedown == c.PREREG_TAKEDOWN and takedown < c.EPOCH:
-                    return '<div class="prereg-type-closing">{} closes at 11:59pm {} on {}. Price goes up to ${} at-door.</div>'.format(label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'), price + amount_extra, (day - timedelta(days=1)).strftime('%A, %b %e'))
-            if takedown < c.EPOCH:
-                return '<div class="prereg-type-closing">{} closes at 11:59pm {} on {}</div>'.format(label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'))
-            else:
-                return ''
-
-    def render(self, context):
-        return self._notice(self.label, self.takedown.resolve(context), self.amount_extra.resolve(context), self.discount.resolve(context))
+            return ''
 
 
 @JinjaEnv.jinja_export()
@@ -496,24 +484,11 @@ class event_dates(template.Node):
 
 
 # FIXME this can probably be cleaned up more
-@register.tag(name='random_hash')
-def random_hash(parser, token):
-    items = []
-    bits = token.split_contents()
-    for item in bits:
-        items.append(item)
-    return RandomgenNode(items[1:])
+@JinjaEnv.jinja_export()
+def random_hash():
+    random = os.urandom(16)
+    result = binascii.hexlify(random)
+    return result.decode("utf-8")
 
 
-class RandomgenNode(template.Node):
-    def __init__(self, items):
-        self.items = []
-        for item in items:
-            self.items.append(item)
-
-    def render(self, context):
-        random = os.urandom(16)
-        result = binascii.hexlify(random)
-        return result
-
-template.builtins.append(register)
+template.builtins.append(register) # probably kill this eventually.
