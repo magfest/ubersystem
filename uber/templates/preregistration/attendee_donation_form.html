@@ -22,7 +22,7 @@
 
     Thanks for offering to kick in money to help make {{ c.EVENT_NAME }} better.  As thanks, your total donation (of which ${{ attendee.amount_unpaid }} is outstanding) entitles you to the following:
     <ul>
-        {% for swag in attendee.donation_swag|add:attendee.addons %}
+        {% for swag in attendee.donation_swag|list + attendee.addons|list %}
             <li>{{ swag }}</li>
         {% endfor %}
     </ul>
