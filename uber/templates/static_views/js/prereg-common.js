@@ -34,9 +34,9 @@ var togglePrices = function () {
             $price.append(': $').append(type.extra + {{ c.BADGE_PRICE }});
             {% for amount_extra, val in c.PREREG_DONATION_OPTS %}
                 if (type.extra == {{ amount_extra }} && type.extra >= {{ c.SUPPORTER_LEVEL }}) {
-                    $price_notice.append('{% price_notice "Supporter registration" c.SUPPORTER_DEADLINE c.SUPPORTER_LEVEL %}')
+                    $price_notice.append('{{ price_notice("Supporter registration", c.SUPPORTER_DEADLINE, c.SUPPORTER_LEVEL) }}')
                 } else if (type.extra == {{ amount_extra }}) {
-                    $price_notice.append('{% price_notice "Preregistration" c.PREREG_TAKEDOWN amount_extra %}')
+                    $price_notice.append('{{ price_notice("Preregistration", c.PREREG_TAKEDOWN, amount_extra) }}')
                 }
             {% endfor %}
         } else if (type.extra) {
@@ -49,10 +49,10 @@ var togglePrices = function () {
         if (!showTotalPrices) {
             if (type.title == 'Single Attendee') {
                 $price.append(': $').append({{ c.BADGE_PRICE }});
-                $price_notice.append('{% price_notice "Preregistration" c.PREREG_TAKEDOWN %}')
+                $price_notice.append('{{ price_notice("Preregistration", c.PREREG_TAKEDOWN) }}')
             } else if (type.title == 'Group Leader') {
                 $price.append(': $').append({{ c.GROUP_PRICE }}).append(' per badge');
-                $price_notice.append('{% price_notice "Group registration" c.GROUP_PREREG_TAKEDOWN 0 c.GROUP_DISCOUNT %}')
+                $price_notice.append('{{ price_notice("Group registration", c.GROUP_PREREG_TAKEDOWN, 0, c.GROUP_DISCOUNT) }}')
             }
         }
     });
