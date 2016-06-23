@@ -297,9 +297,11 @@ class MagModel:
     @suffix_property
     def _label(self, name, val):
         try:
-            return self.get_field(name).type.choices[int(val)]
-        except KeyError:
-            return ''
+            val = int(val)
+        except ValueError:
+            return val
+
+        return self.get_field(name).type.choices.get(val)
 
     @suffix_property
     def _local(self, name, val):
@@ -1232,11 +1234,24 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.badge_type_label in c.DAYS_OF_WEEK
 
     @property
-    def can_check_in(self):
-        valid = self.paid != c.NOT_PAID and self.badge_status in [c.NEW_STATUS, c.COMPLETED_STATUS] and not self.is_unassigned
-        if valid and self.is_presold_oneday:
-            valid = self.badge_type_label == localized_now().strftime('%A')
-        return valid
+    def is_not_ready_to_checkin(self):
+        """
+        :return: None if we are ready for checkin, otherwise a short error message why we can't check them in
+        """
+        if self.paid == c.NOT_PAID:
+            return "Not paid"
+
+        if self.badge_status not in [c.NEW_STATUS, c.COMPLETED_STATUS]:
+            return "Badge status"
+
+        if self.is_unassigned:
+            return "Badge not assigned"
+
+        if self.is_presold_oneday:
+            if self.badge_type_label != localized_now().strftime('%A'):
+                return "Wrong day"
+
+        return None
 
     @property
     def shirt_size_marked(self):

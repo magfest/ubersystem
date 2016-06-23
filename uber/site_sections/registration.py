@@ -1,23 +1,33 @@
 from uber.common import *
 
 
-def check_everything(attendee):
-    if c.AT_THE_CON and attendee.id is None:
-        if isinstance(attendee.badge_num, str) or attendee.badge_num < 0:
-            return 'Invalid badge number'
+def pre_checkin_check(attendee, group):
+    if c.NUMBERED_BADGES and not attendee.badge_num:
+        return 'Badge number is required'
 
-        if attendee.id is None and attendee.badge_num != 0 and attendee.session.query(Attendee).filter_by(badge_type=attendee.badge_type, badge_num=attendee.badge_num).count():
-            return 'Another attendee already exists with that badge number'
+    if c.COLLECT_EXACT_BIRTHDATE:
+        if not attendee.birthdate:
+            return 'You may not check someone in without a valid date of birth.'
+    elif not attendee.age_group or attendee.age_group == c.AGE_UNKNOWN:
+        return 'You may not check someone in without confirming their age.'
 
-    if attendee.is_dealer and not attendee.group:
-        return 'Dealers must be associated with a group'
+    if attendee.checked_in:
+        return attendee.full_name + ' was already checked in!'
 
-    message = check(attendee)
-    if message:
-        return message
+    if group and group.amount_unpaid:
+        return 'This attendee\'s group has an outstanding balance of ${}'.format(group.amount_unpaid)
 
-    if c.AT_THE_CON and not attendee.age_group and attendee.is_new:
-        return "You must enter this attendee's age group"
+    if attendee.paid == c.PAID_BY_GROUP and not attendee.group_id:
+        return 'You must select a group for this attendee.'
+
+    if attendee.paid == c.NOT_PAID:
+        return 'You cannot check in an attendee that has not paid.'
+
+    attendee._status_adjustments()
+    if attendee.badge_status != c.COMPLETED_STATUS:
+        return 'This badge is {} and cannot be checked in.'.format(attendee.badge_status_label)
+
+    return check(attendee)
 
 
 def check_atd(func):
@@ -90,7 +100,7 @@ class Root:
             if 'no_override' in params:
                 attendee.overridden_price = None
 
-            message = check_everything(attendee)
+            message = check(attendee)
             if not message:
                 # Free group badges are only considered 'registered' when they are actually claimed.
                 if attendee.paid == c.PAID_BY_GROUP and attendee.group_id and attendee.group.cost == 0:
@@ -316,60 +326,21 @@ class Root:
         }
 
     @ajax
-    def check_in(self, session, id, age_group=None, birthdate=None, group=None, badge_num=None, message=''):
-        attendee = session.attendee(id)
+    def check_in(self, session, message='', **params):
+        attendee = session.attendee(params, allow_invalid=True)
+        group = session.group(attendee.group_id) if attendee.group_id else None
+
         pre_badge = attendee.badge_num
-        success, increment = True, False
+        success, increment = False, False
 
-        if not message and not attendee.badge_num and c.NUMBERED_BADGES:
-            message = check_range(badge_num, attendee.badge_type)
-            if not message:
-                attendee.badge_num = int(badge_num)
-                if not attendee.badge_num:
-                    message = 'Badge number is required'
-                else:
-                    maybe_dupe = session.query(Attendee).filter_by(badge_num=badge_num, badge_type=attendee.badge_type)
-                    if maybe_dupe.count():
-                        message = 'That badge number already belongs to ' + maybe_dupe.first().full_name
-
-        if not message and birthdate:
-            try:
-                attendee.birthdate = datetime.strptime(birthdate, '%Y-%m-%d').date()
-            except:
-                message = 'Invalid date of birth {!r}'.format(birthdate)
-
-        if not message and age_group:
-            try:
-                attendee.age_group = int(age_group)
-                assert attendee.age_group != c.AGE_UNKNOWN
-            except:
-                message = 'Invalid age group'
-
-        if not message and attendee.checked_in:
-            message = attendee.full_name + ' was already checked in!'
-
-        if not message and group:
-            g = session.group(group)
-            if g.amount_unpaid:
-                message = 'That group has an outstanding balance of ${}'.format(g.amount_unpaid)
-            else:
-                session.match_to_group(attendee, g)
-        elif not message and attendee.paid == c.PAID_BY_GROUP and not attendee.group:
-            message = 'You must select a group for this attendee.'
+        message = pre_checkin_check(attendee, group)
 
         if not message:
-            attendee._status_adjustments()
-            if attendee.badge_status != c.COMPLETED_STATUS:
-                message = 'This badge is {} and cannot be checked in.'.format(attendee.badge_status_label)
-
-        success = not message
-        if success:
-            message = ""
-            attendee.checked_in = datetime.now(UTC)
-            if attendee.paid == c.NOT_PAID:
-                attendee.paid = c.HAS_PAID
-                attendee.amount_paid = attendee.total_cost
-                message = '<b>This attendee has not paid for their badge; make them pay ${}!</b> <br/>'.format(attendee.total_cost)
+            if group:
+                session.match_to_group(attendee, group)
+            message = ''
+            success = True
+            attendee.checked_in = sa.localized_now()
             session.commit()
             increment = True
             message += '{0.full_name} checked in as {0.badge}{0.accoutrements}'.format(attendee)
@@ -659,32 +630,26 @@ class Root:
             raise HTTPRedirect('new?message={}', 'Payment accepted')
 
     @csrf_protected
-    def new_checkin(self, session, id, badge_num='', ec_phone='', message='', group=''):
+    def new_checkin(self, session, message='', **params):
+        attendee = session.attendee(params, allow_invalid=True)
+        group = session.group(attendee.group_id) if attendee.group_id else None
+
         checked_in = ''
-        badge_num = int(badge_num) if badge_num.isdigit() else 0
-        attendee = session.attendee(id)
-        existing = session.query(Attendee).filter_by(badge_num=badge_num).all() if badge_num else []
         if 'reg_station' not in cherrypy.session:
             raise HTTPRedirect('new_reg_station')
-        elif c.NUMBERED_BADGES and not badge_num:
-            message = "You didn't enter a valid badge number"
-        elif existing:
-            message = '{a.badge} already belongs to {a.full_name}'.format(a=existing[0])
-        else:
-            message = check_range(badge_num, attendee.badge_type)
-            if not message:
-                attendee.badge_num = badge_num
-                if group:
-                    session.match_to_group(attendee, session.group(group))
-                elif attendee.paid != c.HAS_PAID:
-                    message = 'You must mark this attendee as paid before you can check them in'
 
-        if not message:
-            attendee.ec_phone = ec_phone
-            attendee.checked_in = datetime.now(UTC)
+        message = pre_checkin_check(attendee, group)
+
+        if message:
+            session.rollback()
+        else:
+            if group:
+                session.match_to_group(attendee, group)
+            attendee.checked_in = sa.localized_now()
             attendee.reg_station = cherrypy.session['reg_station']
             message = '{a.full_name} checked in as {a.badge}{a.accoutrements}'.format(a=attendee)
             checked_in = attendee.id
+            session.commit()
 
         raise HTTPRedirect('new?message={}&checked_in={}', message, checked_in)
 
