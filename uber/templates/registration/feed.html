@@ -8,7 +8,7 @@
     Search by who did it:
     <select name="who" onChange="$(this).parents('form').submit()">
         <option value="">{% if who %}Show all{% else %}Choose an admin{% endif %}</option>
-        {% options who_opts who %}
+        {{ options(who_opts,who) }}
     </select>
 
     &nbsp;&nbsp;&nbsp;&nbsp;
@@ -18,7 +18,7 @@
     Search by action:
     <select name="action" onChange="$(this).parents('form').submit()">
         <option value="">{% if action %}Show all{% else %}Choose an action{% endif %}</option>
-        {% options action_opts action %}
+        {{ options(action_opts,action) }}
     </select>
 
     &nbsp;&nbsp;&nbsp;&nbsp;

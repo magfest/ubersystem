@@ -25,7 +25,7 @@
             <td>Age Group:</td>
             <td>
                 <select id="checkin-age">
-                    {% options c.AGE_GROUP_OPTS attendee.age_group %}
+                    {{ options(c.AGE_GROUP_OPTS,attendee.age_group) }}
                 </select>
             </td>
         </tr>
@@ -36,7 +36,7 @@
             <td>
                 <select id="checkin-group" name="group_id">
                     <option value="">No Group</option>
-                    {% options groups attendee.group_id %}
+                    {{ options(groups,attendee.group_id) }}
                 </select>
             </td>
         </tr>

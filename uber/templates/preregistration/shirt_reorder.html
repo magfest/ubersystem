@@ -19,7 +19,7 @@ Jan 31st and we'll mail them out ASAP.
     <td>
         <select name="shirt">
             <option value="{{ c.SIZE_UNKNOWN }}">Select a size</option>
-            {% options c.PREREG_SHIRT_OPTS attendee.shirt %}
+            {{ options(c.PREREG_SHIRT_OPTS,attendee.shirt) }}
         </select>
     </td>
 </tr>

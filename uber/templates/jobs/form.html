@@ -49,11 +49,11 @@
     <td>
         <select name="start_time">
             {% if job.type == c.SETUP %}
-                {% options c.SETUP_TIME_OPTS job.start_time %}
+                {{ options(c.SETUP_TIME_OPTS,job.start_time) }}
             {% elif job.type == c.TEARDOWN %}
-                {% options c.TEARDOWN_TIME_OPTS job.start_time %}
+                {{ options(c.TEARDOWN_TIME_OPTS,job.start_time) }}
             {% else %}
-                {% options c.START_TIME_OPTS job.start_time %}
+                {{ options(c.START_TIME_OPTS,job.start_time) }}
             {% endif %}
         </select>
     </td>
@@ -62,7 +62,7 @@
     <td><b>{% if job.type != c.REGULAR %}Expected Approximate {% endif %}Duration:</b></td>
     <td>
         <select name="duration">
-            {% options c.DURATION_OPTS job.duration %}
+            {{ options(c.DURATION_OPTS,job.duration) }}
         </select>
     </td>
 </tr>
@@ -85,7 +85,7 @@
     <td> <b>Location:</b> </td>
     <td>
         <select name="location">
-            {% options c.JOB_LOCATION_OPTS job.location %}
+            {{ options(c.JOB_LOCATION_OPTS,job.location) }}
         </select>
     </td>
 </tr>
@@ -94,7 +94,7 @@
         <td> <b>Weight:{% popup_link "../static_views/weightDesc.html" %}</b> </td>
         <td>
             <select name="weight">
-                {% options c.WEIGHT_OPTS job.weight %}
+                {{ options(c.WEIGHT_OPTS,job.weight) }}
             </select>
         </td>
     </tr>

@@ -12,7 +12,7 @@
     </script>
     <select id="dept" onChange="deptChanged()">
         <option value="">All Departments</option>
-        {% options c.JOB_LOCATION_OPTS department %}
+        {{ options(c.JOB_LOCATION_OPTS,department) }}
     </select>
 </div>
 {% if checklist.relevant %}

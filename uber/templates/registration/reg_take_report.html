@@ -8,7 +8,7 @@
 <table style="width:auto" align="center">
 <tr>
     <td>Reg Station:</td>
-    <td colspan="3"><select name="reg_station">{% options reg_stations reg_station %}</select></td>
+    <td colspan="3"><select name="reg_station">{{ options(reg_stations,reg_station) }}</select></td>
 </tr>
 <tr style="font-weight:bold">
     <td></td>
@@ -18,15 +18,15 @@
 </tr>
 <tr>
     <td>Start Time:</td>
-    <td><select name="startday">{% options c.DAYS startday %}</select></td>
-    <td><select name="starthour">{% options c.HOURS starthour %}</select></td>
-    <td><select name="startminute">{% options c.MINUTES startminute %}</select></td>
+    <td><select name="startday">{{ options(c.DAYS,startday) }}</select></td>
+    <td><select name="starthour">{{ options(c.HOURS,starthour) }}</select></td>
+    <td><select name="startminute">{{ options(c.MINUTES,startminute) }}</select></td>
 </tr>
 <tr>
     <td>End Time:</td>
-    <td><select name="endday">{% options c.DAYS endday %}</select></td>
-    <td><select name="endhour">{% options c.HOURS endhour %}</select></td>
-    <td><select name="endminute">{% options c.MINUTES endminute %}</select></td>
+    <td><select name="endday">{{ options(c.DAYS,endday) }}</select></td>
+    <td><select name="endhour">{{ options(c.HOURS,endhour) }}</select></td>
+    <td><select name="endminute">{{ options(c.MINUTES,endminute) }}</select></td>
 </tr>
 <tr>
     <td></td>

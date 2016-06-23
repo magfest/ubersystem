@@ -73,7 +73,7 @@
     <label class="col-sm-2 control-label">Tables</label>
     <div class="col-sm-6">
         <select name="tables">
-            {% options c.ADMIN_TABLE_OPTS group.tables %}
+            {{ options(c.ADMIN_TABLE_OPTS,group.tables) }}
         </select>
     </div>
 </div>
@@ -94,7 +94,7 @@
     <label class="col-sm-2 control-label">Badge Type</label>
     <div class="col-sm-6">
         <select name="badge_type">
-            {% options c.BADGE_OPTS group.leader.badge_type %}
+            {{ options(c.BADGE_OPTS,group.leader.badge_type) }}
         </select>
         Does not change existing badges in this group, only affects newly added badges.
     </div>
@@ -105,7 +105,7 @@
     <label class="col-sm-2 control-label">Ribbon Type</label>
     <div class="col-sm-6">
         <select name="ribbon">
-            {% options c.RIBBON_OPTS group.new_ribbon %}
+            {{ options(c.RIBBON_OPTS,group.new_ribbon) }}
         </select>
          Does not change existing badges in this group, only affects newly added badges.
     </div>
