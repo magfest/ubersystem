@@ -91,9 +91,9 @@
         <input type="hidden" name="id" value="{{ group.id }}" />
         Enter a number of {{ group.is_dealer|yesno("Dealer Assistants,group members") }} to add{% if group.min_badges_addable > 1 %} (you cannot add fewer than {{ group.min_badges_addable }} badges to an existing group){% endif %}: <br/>
         {% if group.is_dealer %}
-            <select name="count">{% int_options group.min_badges_addable group.dealer_badges_remaining %}</select>
+            <select name="count">{{ int_options(group.min_badges_addable, group.dealer_badges_remaining) }}</select>
         {% else %}
-            <select name="count">{% int_options group.min_badges_addable 10 %}</select>
+            <select name="count">{{ int_options(group.min_badges_addable, 10) }}</select>
         {% endif %}
         <input type="submit" value="{{ group.is_dealer|yesno("Add Dealer Assistants,Add Group Members") }}">
         </form>

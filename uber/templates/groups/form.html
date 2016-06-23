@@ -82,7 +82,7 @@
     <label class="col-sm-2 control-label">Badges</label>
     <div class="col-sm-6">
         <select name="badges">
-            {% int_options 0 c.MAX_GROUP_SIZE group.badges %}
+            {{ int_options(0, c.MAX_GROUP_SIZE, group.badges) }}
         </select>
         {% if not group.is_new %}
             [{{ group.badges_purchased }} badge(s) purchased]
