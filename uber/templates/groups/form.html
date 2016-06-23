@@ -40,7 +40,7 @@
 </div>
 
 <form method="post" action="form" class="form-horizontal">
-{% csrf_token %}
+{{ csrf_token() }}
 <input type="hidden" name="id" value="{{ group.db_id }}" />
 <input type="hidden" name="new_dealer" value="{{ new_dealer }}" />
 
@@ -234,7 +234,7 @@
     <br/>
     <div style="margin-left:25%">
         <form method="post" action="delete" />
-            {% csrf_token %}
+            {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ group.id }}" />
             <input type="submit" value="Delete Group" />
         </form>
@@ -260,7 +260,7 @@
                     <b>Leader</b>
                 {% elif not attendee.is_unassigned %}
                     <form method="post" action="assign_leader">
-                    {% csrf_token %}
+                    {{ csrf_token() }}
                     <input type="hidden" name="group_id" value="{{ group.id }}" />
                     <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
                     <input type="submit" value="Make Leader" />
@@ -272,7 +272,7 @@
                     <b>(Cannot Unassign group leader)</b>
                 {% elif not attendee.is_unassigned %}
                     <form method="post" action="../registration/delete" onSubmit="return confirm('Are you sure you want to unassign this badge?');">
-                        {% csrf_token %}
+                        {{ csrf_token() }}
                         <input type="hidden" name="id" value="{{ attendee.id }}" />
                         <input type="hidden" name="return_to" value="../groups/form?id={{ group.id }}" />
                         <input type="submit" value="Unassign" />

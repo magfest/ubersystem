@@ -10,7 +10,7 @@ One of the perks of volunteering is a tshirt for anyone who takes at least 6 wei
 <br/> <br/>
 
 <form method="post" action="shirt_size">
-{% csrf_token %}
+{{ csrf_token() }}
 <select name="shirt">
     {% options opts attendee.shirt %}
 </select>

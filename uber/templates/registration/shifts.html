@@ -15,7 +15,7 @@
 <tr>
     <td width="50%">
         <form method="post" action="assign">
-        {% csrf_token %}
+        {{ csrf_token() }}
         <input type="hidden" name="staffer_id" value="{{ attendee.id }}" />
         <b>Add a Shift:</b>
         <select name="job_id">
@@ -26,7 +26,7 @@
     </td>
     <td width="50%" align="right">
         <form method="post" action="update_nonshift">
-        {% csrf_token %}
+        {{ csrf_token() }}
         <input type="hidden" name="id" value="{{ attendee.id }}" />
         <b>Non-shift hours:</b>
         <input type="number" class="focus" name="nonshift_hours" value="{{ attendee.nonshift_hours }}" style="width:3em" />
@@ -86,7 +86,7 @@
                 {% endif %}
             </td>
             <form method="post" action="unassign">
-            {% csrf_token %}
+            {{ csrf_token() }}
             <input type="hidden" name="shift_id" value="{{ shift.id }}" />
             <td style="padding-right:10px"> <input type="submit" value="Unassign" /> </td>
             </form>
@@ -102,7 +102,7 @@
 {% endif %}
 
 <form method="post" action="update_notes">
-{% csrf_token %}
+{{ csrf_token() }}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 <br/> <b>Notes For Later Review:</b> <br/>
 <textarea name="for_review" rows="4" style="margin-left:10px ; margin-top:5px ; width:80%">{{ attendee.for_review }}</textarea>

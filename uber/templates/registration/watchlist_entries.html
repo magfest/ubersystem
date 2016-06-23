@@ -12,7 +12,7 @@
 <div class="panel panel-default">
 <div class="panel-heading"><h3>New Watchlist Entry</h3></div>
 <form id="new_entry" method="post" action="watchlist_entries" role="form" class="form-inline">
-    {% csrf_token %}
+    {{ csrf_token() }}
     <div class="form-group">
         <label for="first_names">First Names</label><br/>
         <input type="text" class="form-control" id="first_names" name="first_names" placeholder="Use commas to separate possible names." value="{{ new_watch.first_names }}" />
@@ -90,7 +90,7 @@
         <td><div class="form-group">
             <form method="post" id="edit_entry_{{ forloop.counter }}" action="watchlist_entries" role="form" class="form-inline">
                 {% checkbox entry.active %}
-                {% csrf_token %}
+                {{ csrf_token() }}
             </form>
         </div></td>
         <td>

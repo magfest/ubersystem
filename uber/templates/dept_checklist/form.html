@@ -8,7 +8,7 @@
 {{ conf.description }}
 <br/> <br/>
 <input type="hidden" name="slug" value="{{ item.slug }}" />
-{% csrf_token %}
+{{ csrf_token() }}
 <textarea name="comments" rows="5" cols="80">{{ item.comments|default:"" }}</textarea>
 <br/>
 <input type="submit" value="Upload" />

@@ -15,7 +15,7 @@
         {% endif %}
         <br/> <a href="#" onClick="$('#checkoff').show(); return false;">I Don't Need To Do Anything Else Here</a>
         <form id="checkoff" style="display:none" method="post" action="../dept_checklist/mark_item_complete">
-        {% csrf_token %}
+        {{ csrf_token() }}
         <input type="hidden" name="slug" value="{{ checklist.conf.slug }}" />
         <input type="submit" value="I Confirm I Don't Need To Do Anything Else Here" />
         </form>

@@ -18,7 +18,7 @@
         <td><a href="pending_examples?subject={{ email.subject|urlencode }}">See Examples</a></td>
         <td>
             <form method="post" action="approve">
-            {% csrf_token %}
+            {{ csrf_token() }}
             <input type="hidden" name="subject" value="{{ email.subject }}" />
             <input type="submit" value="Approve" />
             </form>

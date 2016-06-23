@@ -11,7 +11,7 @@ the shirt you were supposed to get, just tell us your address and shirt size bef
 Jan 31st and we'll mail them out ASAP.
 
 <form method="post" action="shirt">
-{% csrf_token %}
+{{ csrf_token() }}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 <table style="width:auto">
 <tr>

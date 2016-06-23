@@ -58,7 +58,7 @@
             <td>
                 {% if attendee != group.leader and not attendee.amount_extra %}
                     <form method="post" action="unset_group_member">
-                    {% csrf_token %}
+                    {{ csrf_token() }}
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
                     <input type="submit" value="This person isn't coming" />
                     </form>

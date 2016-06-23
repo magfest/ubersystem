@@ -36,7 +36,7 @@
     </div>
 
     <form class="form-inline" role="form" method="post" action="watchlist">
-        {% csrf_token %}
+        {{ csrf_token() }}
         <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
         <input type="hidden" name="watchlist_id" value="{{ entry.id }}" />
         <div class="form-group">

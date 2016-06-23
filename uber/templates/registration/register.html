@@ -42,7 +42,7 @@
 <div class="form-group"></div> <!-- spacing -->
 
 <form method="post" action="register" autocomplete="off" class="form-horizontal">
-{% csrf_token %}
+{{ csrf_token() }}
 
 <div class="form-group">
     <label class="col-sm-2 control-label">Payment Method</label>

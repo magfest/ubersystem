@@ -322,12 +322,11 @@ class checked_if(template.Node):
         return '<img src="../static/images/checkbox_{}.png" style="vertical-align:top ; margin-right:5px" height="20" width="20" />'.format(image)
 
 
-@tag
-class csrf_token(template.Node):
-    def render(self, context):
-        if not cherrypy.session.get('csrf_token'):
-            cherrypy.session['csrf_token'] = uuid4().hex
-        return '<input type="hidden" name="csrf_token" value="{}" />'.format(cherrypy.session["csrf_token"])
+@JinjaEnv.jinja_export
+def csrf_token():
+    if not cherrypy.session.get('csrf_token'):
+        cherrypy.session['csrf_token'] = uuid4().hex
+    return '<input type="hidden" name="csrf_token" value="{}" />'.format(cherrypy.session["csrf_token"])
 
 
 @JinjaEnv.jinja_export

@@ -159,7 +159,7 @@
                 paid by group
             {% else %}
                 <form method="post" action="mark_as_paid">
-                {% csrf_token %}
+                {{ csrf_token() }}
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
                 <select name="payment_method" onChange="toggleMarkButton(this)">
                     <option value="">Payment Method</option>
@@ -183,7 +183,7 @@
                 </td>
             {% endif %}
             <td>
-                {% csrf_token %}
+                {{ csrf_token() }}
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
                 <button class="btn btn-primary" {% if attendee.paid == c.NOT_PAID %}disabled{% endif %}>Check In</button>
             </td>

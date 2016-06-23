@@ -11,7 +11,7 @@
 <div class="panel-heading"><h3>New Account</h3></div>
 <form id="new_admin" method="post" action="update" onsubmit="return check_passwords()" role="form" class="form-inline">
 <input type="hidden" name="id" value="None" />
-{% csrf_token %}
+{{ csrf_token() }}
 <div class="form-group">
     <label for="attendee_id" class="sr-only">Attendee</label>
     <select class="form-control" id="attendee_id" name="attendee_id">
@@ -67,7 +67,7 @@
         <td>
             <form class="form update-form" method="post" action="update">
                 <input type="hidden" name="id" value="{{ account.id }}" />
-                {% csrf_token %}
+                {{ csrf_token() }}
                 <div class="form-group">{% checkgroup account.access %}</div>
             </form>
         </td>

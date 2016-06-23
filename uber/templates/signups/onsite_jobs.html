@@ -42,7 +42,7 @@ If you cannot make it to one or more of your existing shifts, contact {{ c.STAFF
                     Signed Up!
                 {% else %}
                     <form method="post" action="onsite_sign_up">
-                    {% csrf_token %}
+                    {{ csrf_token() }}
                     <input type="hidden" name="job_id" value="{{ job.id }}" />
                     <button>Sign Up</button>
                     </form>
