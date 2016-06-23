@@ -59,7 +59,7 @@ def timestamp(dt):
 
 @JinjaEnv.jinja_filter()
 def jsonize(x):
-    return safe_string(json.dumps(x, cls=serializer))
+    return safe_string(json.dumps(x, cls=serializer)) if x else '{}'
 
 
 @JinjaEnv.jinja_filter()
@@ -384,7 +384,7 @@ def stripe_form(action, charge):
 
     # TODO: not 100% sure this is kosher with the way we're doing our
     # singleton JinjaEnv() class.  might have to make this not a singleton
-    return render_jinja2('preregistration/stripeForm.html', params)
+    return render('preregistration/stripeForm.html', params)
 
 
 @register.tag('bold_if')

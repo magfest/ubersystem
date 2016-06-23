@@ -207,16 +207,6 @@ def renderable_data(data=None):
     return data
 
 
-# render using the first template that actually exists in template_name_list
-# uses DJANGO - old deprecated style
-def render(template_name_list, data=None):
-    data = renderable_data(data)
-    template = loader.select_template(listify(template_name_list))
-    rendered = template.render(Context(data))
-    rendered = screw_you_nick(rendered, template)  # lolz.
-    return rendered.encode('utf-8')
-
-
 # TODO: replace with a nicer way to initialize this
 # for now we initialize the first time it's called.
 # TODO: need to not use django settings (they'll be ripped out later) for TEMPLATE_DIRS
@@ -265,7 +255,7 @@ class JinjaEnv:
 
 # render using the first template that actually exists in template_name_list
 # uses JINJA2 - new style
-def render_jinja2(template_name_list, data=None):
+def render(template_name_list, data=None):
     data = renderable_data(data)
     env = JinjaEnv.env()
     template = env.get_template(template_name_list)
@@ -305,14 +295,14 @@ def renderable(func):
     return with_rendering
 
 
-def renderable_jinja2(func):
+def renderable(func):
     @wraps(func)
     def with_rendering(*args, **kwargs):
         result = func(*args, **kwargs)
         if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
-            return render_jinja2('closed.html')
+            return render('closed.html')
         elif isinstance(result, dict):
-            return render_jinja2(_get_template_filename(func), result)
+            return render(_get_template_filename(func), result)
         else:
             return result
     return with_rendering
@@ -351,19 +341,15 @@ def restricted(func):
 
 
 class all_renderable:
-    def __init__(self, *needs_access, use_jinja2=True):
+    def __init__(self, *needs_access):
         self.needs_access = needs_access
-        self.use_jinja2 = use_jinja2
 
     def __call__(self, klass):
         for name, func in klass.__dict__.items():
             if hasattr(func, '__call__'):
                 func.restricted = getattr(func, 'restricted', self.needs_access)
                 render_func = None
-                if not self.use_jinja2:
-                    render_func = renderable(func)
-                else:
-                    render_func = renderable_jinja2(func)
+                render_func = renderable(func)
 
                 new_func = timed(cached_page(sessionized(restricted(render_func))))
                 new_func.exposed = True
