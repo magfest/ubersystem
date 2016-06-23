@@ -155,8 +155,8 @@ $(function() {
         showMethod: "fadeIn",
         hideMethod: "fadeOut"
     };
-    if (window.message.length) {
-        toastr.info(window.message);
+    if (message.length) {
+        toastr.info(message);
     }
     $('.datatable').dataTable({
         aLengthMenu: [
