@@ -279,39 +279,6 @@ def extract_fields(what):
 
 
 @tag
-class nav_menu(template.Node):
-    def __init__(self, inst, *items):
-        self.inst = Variable(inst)
-        self.menu_items = []
-        for i in range(0, len(items), 3):
-            href, label, display = items[i:i + 3]
-            self.menu_items.append([href[1:-1], label[1:-1], display])
-
-    def is_visible(self, display, context):
-        bools = {'True': True, 'False': False}
-        return bools[display] if display in bools else Variable(display).resolve(context)
-
-    def render(self, context):
-        inst = self.inst.resolve(context)
-        if inst.is_new:
-            return ''
-
-        pages = [(href.format(**inst.__dict__), label)
-                 for href, label, display in self.menu_items
-                 if self.is_visible(display, context)]
-
-        width = 100 // len(pages)
-        items = ['<table class="menu"><tr>']
-        for href, label in pages:
-            if cherrypy.request.path_info.endswith(href.split('?')[0]):
-                link = label
-            else:
-                link = '<a href="{}">{}</a>'.format(href, label)
-            items.append('<td width="{}%">{}</td>'.format(width, link))
-        return '\n'.join(items + ['</tr></table>'])
-
-
-@tag
 class checked_if(template.Node):
     def __init__(self, *args):
         self.negated = len(args) > 1

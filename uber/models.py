@@ -412,6 +412,32 @@ class MagModel:
                 .format(field_name, num, onchanged, checked, desc))
         return ''.join(results)
 
+    def html_nav_menu(self, *items):
+        # we can probably do all of this in a jinja macro, and probably should to avoid hardcoding <table> tags
+        # in the menu. I can hear our UI designers screaming :) I SEE DEAD PEOPLE. -Dom
+
+        if self.is_new:
+            return ''
+
+        menu_items = []
+        for i in range(0, len(items), 3):
+            href, label, display = items[i:i + 3]
+            menu_items.append([href, label, display])
+
+        pages = [(href.format(**self.__dict__), label)
+                 for href, label, display in menu_items
+                 if display]
+
+        width = 100 // len(pages)
+        items = ['<table class="menu"><tr>']
+        for href, label in pages:
+            if cherrypy.request.path_info.endswith(href.split('?')[0]):
+                link = label
+            else:
+                link = '<a href="{}">{}</a>'.format(href, label)
+            items.append('<td width="{}%">{}</td>'.format(width, link))
+        return '\n'.join(items + ['</tr></table>'])
+
 
 class TakesPaymentMixin(object):
     @property
