@@ -63,6 +63,14 @@ def jsonize(x):
 def subtract(x, y):
     return x - y
 
+@JinjaEnv.jinja_filter
+def urlencode(s):
+    if type(s) == 'Markup':
+        s = s.unescape()
+    s = s.encode('utf8')
+    s = quote_plus(s)
+    return jinja2.Markup(s)
+
 
 @JinjaEnv.jinja_filter
 def percent(numerator, denominator):
@@ -121,6 +129,14 @@ def full_datetime(dt):
 @JinjaEnv.jinja_filter
 def idize(s):
     return re.sub('\W+', '_', str(s)).strip('_')
+
+
+@JinjaEnv.jinja_filter
+def pluralize(number, singular = '', plural = 's'):
+    if number == 1:
+        return singular
+    else:
+        return plural
 
 
 @JinjaEnv.jinja_filter

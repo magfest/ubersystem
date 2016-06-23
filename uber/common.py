@@ -29,7 +29,7 @@ from time import sleep, mktime
 from io import StringIO, BytesIO
 from itertools import chain, count
 from collections import defaultdict, OrderedDict
-from urllib.parse import quote, urlparse, parse_qsl
+from urllib.parse import quote, urlparse, parse_qsl, quote_plus
 from datetime import date, time, datetime, timedelta
 from threading import Thread, RLock, local, current_thread
 from os.path import abspath, basename, dirname, exists, join
