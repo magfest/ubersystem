@@ -266,7 +266,7 @@
         <label for="birthdate" class="col-sm-2 control-label">Date of Birth</label>
         <div class="col-sm-6">
             <nobr>
-                <input type='text' class="form-control date" name="birthdate" value="{{ attendee.birthdate.strftime("%Y-%m-%d") }} "/>
+                <input type='text' class="form-control date" name="birthdate" value="{{ attendee.birthdate|date("%Y-%m-%d") }} "/>
                 {% if c.PAGE_PATH == '/registration/form' and attendee.birthdate %}
                     ({{ attendee.age_group_conf.desc }})
                 {% endif %}
