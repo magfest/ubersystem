@@ -15,12 +15,16 @@
 {%- endmacro %}
 
 {% macro popup_link(href, text='<sup>?</sup>') -%}
-    <a onClick="
-        window.open('{{ href }}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus();
-        return false;"
-     href="{{ href }}">{{ text }}</a>
+    <a onClick="window.open('{{ href }}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;"
+       href="{{ href }}">{{ text }}</a>
 {%- endmacro %}
 
 {% macro checkbox(model, field_name) -%}
     <input type="checkbox" name="{{ field_name }}" value="1" {{ model.html_checkbox_value(field_name) }} />
+{%- endmacro %}
+
+{% macro radio(name, value, checked) -%}
+    {# TODO: BROKEN: make this look more like the checkbox macro, prob don't need to pass in all the params.
+    checked can likely be model.html_checkbox_value() #}
+    <div class="radio"><label class="btn btn-primary"><input type="radio" name="{{ name }}" value="{{ value }}" {{ checked }} /></label></div>
 {%- endmacro %}

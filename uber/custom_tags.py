@@ -154,7 +154,11 @@ def options(options, default='""'):
     TODO: see if we can move this look something more like:
     {{ attendee.html_options('shirt_size') }}
 
-    It would involve this function finding c.SHIRT_OPTS using the string 'shirt_size'.
+    It would involve this function finding c.SHIRT_OPTS using the string 'shirt_size'. check html_checkgroup
+    for more info.
+
+    We do need to accomodate explicitly passing in other options though (include None), so make sure to check all the
+    client calls for that info.
     """
     if isinstance(default, datetime):
         default = default.astimezone(c.EVENT_TIMEZONE)
@@ -182,26 +186,6 @@ def int_options(minval, maxval, default="1"):
         selected = 'selected="selected"' if i == default else ''
         results.append('<option value="{val}" {selected}>{val}</option>'.format(val=i, selected=selected))
     return '\n'.join(results)
-
-
-@JinjaEnv.jinja_export
-def radio(name, value, default):
-    # name = name[1:-1] # may not be needed
-    checked = 'checked' if str(value) == str(default) else ''
-    return """<div class="radio"><label class="btn btn-primary"><input type="radio" name="%s" value="%s" %s /></label></div>""" % (name, value, checked)
-
-
-# TODO: we receive input like "attendee.amount_extra" and have to extra that out
-@JinjaEnv.jinja_export
-def radiogroup(opts, value):
-    #model, field_name = field.rsplit('.', 1)
-    #default = getattr(model, field_name, None)
-    results = []
-    for num, desc in opts:
-        checked = 'checked' if num == value else ''
-        results.append('<label class="btn btn-default" style="text-align: left;"><input type="radio" name="{}" autocomplete="off" value="{}" onchange="donationChanged();" {} /> {}</label>'
-                       .format(value, num, checked, desc))
-    return ''.join(results)
 
 
 @tag

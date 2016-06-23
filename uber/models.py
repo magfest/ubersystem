@@ -397,6 +397,21 @@ class MagModel:
                            .format(field_name, num, checked, desc))
         return '&nbsp;&nbsp\n'.join(results)
 
+    def html_radiogroup(self, field_name, onchanged="donationChanged();"):
+        # TODO: eventually just return the values, let the macro actually render the HTML
+        # TODO: remove hardcoded "donationChanged()" param
+
+        options = self.get_field(field_name).type.choices
+        default = getattr(self, field_name, None)
+
+        results = []
+        for num, desc in options.items():
+            checked = 'checked' if num == default else ''
+            results.append(
+                '<label class="btn btn-default" style="text-align: left;"><input type="radio" name="{}" autocomplete="off" value="{}" onchange="{}" {} /> {}</label>'
+                .format(field_name, num, onchanged, checked, desc))
+        return ''.join(results)
+
 
 class TakesPaymentMixin(object):
     @property
