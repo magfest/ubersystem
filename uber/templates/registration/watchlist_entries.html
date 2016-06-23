@@ -27,7 +27,7 @@
     </div>
     <div class="form-group">
         <label for="birthdate">Date of Birth</label><br/>
-        <input type="text" id="birthdate" class="form-control date" name="birthdate" value="{{ new_watch.birthdate|date:"Y-m-d"}}"/>
+        <input type="text" id="birthdate" class="form-control date" name="birthdate" value="{{ new_watch.birthdate|date("%Y-%m-%d") }}"/>
     </div>
     <div class="form-group">
         <label for="reason">Reason</label><br/>
@@ -60,41 +60,41 @@
 {% for entry in watchlist_entries %}
     <tr>
         <td>
-            <input type="hidden" form="edit_entry_{{ forloop.counter }}" name="id" value="{{ entry.id }}" />
+            <input type="hidden" form="edit_entry_{{ loop.index }}" name="id" value="{{ entry.id }}" />
             <div class="form-group">
-                <input type="text" form="edit_entry_{{ forloop.counter }}" class="form-control" name="first_names" placeholder="Use commas to separate possible names." value="{{ entry.first_names }}" />
+                <input type="text" form="edit_entry_{{ loop.index }}" class="form-control" name="first_names" placeholder="Use commas to separate possible names." value="{{ entry.first_names }}" />
             </div>
             <div class="form-group">
-                <input type="text" form="edit_entry_{{ forloop.counter }}" class="form-control" name="last_name" placeholder="Last Name" value="{{ entry.last_name }}" />
+                <input type="text" form="edit_entry_{{ loop.index }}" class="form-control" name="last_name" placeholder="Last Name" value="{{ entry.last_name }}" />
             </div></td>
         <td>
             <div class="form-group">
-                <input type="text" form="edit_entry_{{ forloop.counter }}" class="form-control" name="email" placeholder="Email Address" value="{{ entry.email }}"/>
+                <input type="text" form="edit_entry_{{ loop.index }}" class="form-control" name="email" placeholder="Email Address" value="{{ entry.email }}"/>
             </div>
         </td>
         <td>
             <div class="form-group">
-                <input type="text" form="edit_entry_{{ forloop.counter }}" class="form-control date" name="birthdate" value="{{ entry.birthdate|date:"Y-m-d"}}"/>
+                <input type="text" form="edit_entry_{{ loop.index }}" class="form-control date" name="birthdate" value="{{ entry.birthdate|date("%Y-%m-%d") }}"/>
             </div>
         </td>
         <td>
             <div class="form-group">
-                <textarea form="edit_entry_{{ forloop.counter }}" class="form-control" name="reason">{{ entry.reason }}</textarea>
+                <textarea form="edit_entry_{{ loop.index }}" class="form-control" name="reason">{{ entry.reason }}</textarea>
             </div>
         </td>
         <td>
             <div class="form-group">
-                <textarea form="edit_entry_{{ forloop.counter }}" class="form-control" name="action">{{ entry.action }}</textarea>
+                <textarea form="edit_entry_{{ loop.index }}" class="form-control" name="action">{{ entry.action }}</textarea>
             </div>
         </td>
         <td><div class="form-group">
-            <form method="post" id="edit_entry_{{ forloop.counter }}" action="watchlist_entries" role="form" class="form-inline">
+            <form method="post" id="edit_entry_{{ loop.index }}" action="watchlist_entries" role="form" class="form-inline">
                 {{ macros.checkbox(entry, 'active') }}
                 {{ csrf_token() }}
             </form>
         </div></td>
         <td>
-            <button type="submit" form="edit_entry_{{ forloop.counter }}" class="btn btn-primary">Edit</button>
+            <button type="submit" form="edit_entry_{{ loop.index }}" class="btn btn-primary">Edit</button>
         </td>
     </tr>
 {% endfor %}
