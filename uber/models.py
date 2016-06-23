@@ -386,11 +386,11 @@ class MagModel:
         """
         return 'checked' if getattr(self, field_name) else ''
 
-    def html_checkgroup(self, field_name):
+    def html_checkgroup(self, field_name, no_instance=False):
         # TODO: eventually just return the values, let the macro actually render the HTML
 
         options = self.get_field(field_name).type.choices
-        defaults = getattr(self, field_name, None)
+        defaults = getattr(self, field_name, None) if not no_instance else None
         defaults = defaults.split(",") if defaults else []
         results = []
         for num, desc in options:
