@@ -19,7 +19,7 @@
 
     {% block head_javascript %}
         <script>
-            var message = '{{ message }}';
+            var message = '{{ message|e }}';
         </script>
 
         <script type="text/javascript" src="../static/deps/combined.js"></script>
