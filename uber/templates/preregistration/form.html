@@ -40,7 +40,7 @@
             <p class="col-sm-6 col-sm-offset-2">
                 <strong>Dealers:</strong>
                 {% if c.BEFORE_DEALER_REG_PUBLIC %}
-                    Registrations for dealer memberships begin {{ datetime(c.DEALER_REG_START) }}.
+                    Registrations for dealer memberships begin {{ c.DEALER_REG_START|datetime() }}.
                 {% else %}
                     Please register <a href="dealer_registration">here</a>.
                 {% endif %}

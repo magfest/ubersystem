@@ -196,7 +196,7 @@
             {{ macros.popup_link("../static_views/givingExtra.html","Why do this?") }}
             <p class="help-block col-sm-6">
                 Each level includes all lower levels. <br/>
-                Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ datetime(c.SUPPORTER_DEADLINE) }}.
+                Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime() }}.
             </p>
         </div>
     {% endif %}
@@ -266,7 +266,7 @@
         <label for="birthdate" class="col-sm-2 control-label">Date of Birth</label>
         <div class="col-sm-6">
             <nobr>
-                <input type='text' class="form-control date" name="birthdate" value="{{ datetime(attendee.birthdate, "Y-m-d") }} "/>
+                <input type='text' class="form-control date" name="birthdate" value="{{ attendee.birthdate.strftime("%Y-%m-%d") }} "/>
                 {% if c.PAGE_PATH == '/registration/form' and attendee.birthdate %}
                     ({{ attendee.age_group_conf.desc }})
                 {% endif %}
