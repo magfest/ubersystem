@@ -1,10 +1,4 @@
-{# because we're including regform.html, we need this here.  later on, delete it (popup_link) #}
-{% macro popup_link(href, text='<sup>?</sup>') -%}
-    <a onClick="
-        window.open('{self.href}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus();
-        return false;"
-     href="{{ href }}">{{ text }}</a>
-{%- endmacro %}
+{% import 'macros.html' as macros %}
 
 <script type="text/javascript">
     var AGE_GROUPS = {{ c.AGE_GROUP_CONFIGS|jsonize }};
@@ -121,7 +115,7 @@
         {% if c.PAGE_PATH != '/registration/form' %}
             <p class="help-block col-sm-6 col-sm-offset-2">
                 These must be your legal name.
-                <span class="popup">{{ popup_link("../static_views/legal_name.html", "What does this mean?") }}</span>
+                <span class="popup">{{ macros.popup_link("../static_views/legal_name.html", "What does this mean?") }}</span>
             </p>
         {% endif %}
     </div>
@@ -199,7 +193,7 @@
                     {% endif %}
                 {% endif %}
             </div>
-            {{ popup_link("../static_views/givingExtra.html","Why do this?") }}
+            {{ macros.popup_link("../static_views/givingExtra.html","Why do this?") }}
             <p class="help-block col-sm-6">
                 Each level includes all lower levels. <br/>
                 Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ datetime(c.SUPPORTER_DEADLINE) }}.
@@ -228,7 +222,7 @@
                 <option value="" selected="selected"></option>
             </select>
         </div>
-        {{ popup_link("../static_views/affiliates.html", "What's an affiliate?") }}
+        {{ macros.popup_link("../static_views/affiliates.html", "What's an affiliate?") }}
     </div>
 
     <div class="shirt-row extra-row form-group" style="display:none">
@@ -245,7 +239,7 @@
 <div class="form-group staffing">
     <label for="staffing" class="col-sm-2 optional-field control-label">Want to Volunteer?</label>
     <div class="col-sm-6">
-        {{ checkbox(attendee, 'attendee.staffing') }}
+        {{ macros.checkbox(attendee, 'staffing') }}
         {% if c.PAGE_PATH == '/registration/form' %}
             This attendee is
             {% if attendee.is_new or not attendee.staffing %}
@@ -255,7 +249,7 @@
             {% endif %}
         {% else %}
             Sign me up! &nbsp;
-            <span class="popup">{{ popup_link("../static_views/stafferComps.html","What do I get for volunteering?") }}</span>
+            <span class="popup">{{ macros.popup_link("../static_views/stafferComps.html","What do I get for volunteering?") }}</span>
         {% endif %}
     </div>
 </div>
@@ -263,7 +257,7 @@
 <div class="form-group staffing" id="departments">
     <label for="requested_depts" class="col-sm-2 control-label">Where do you want to help?</label>
     <div class="col-sm-6">
-        {{ checkgroup('attendee.requested_depts') }}
+        {{ attendee.html_checkgroup('requested_depts') }}
     </div>
 </div>
 
@@ -360,7 +354,7 @@
         </div>
         <div class="checkbox col-sm-6 col-sm-offset-2">
             <label>
-                {{ checkbox(attendee, 'attendee.international') }}
+                {{ macros.checkbox(attendee, 'international') }}
                 I'm coming from outside the US.
             </label>
         </div>
@@ -382,7 +376,7 @@
     {% if not attendee.is_dealer %}
         <div class="checkbox col-sm-6">
             <label class="cellphone-excuse">
-                {{ checkbox(attendee, 'attendee.no_cellphone') }}
+                {{ macros.checkbox(attendee, 'no_cellphone') }}
                 I don't own a cellphone.
             </label>
         </div>
@@ -392,7 +386,7 @@
 <div class="form-group">
     <label class="col-sm-2 control-label optional-field">What interests you?</label>
     <div class="col-sm-10">
-        {{ checkgroup('attendee.interests') }}
+        {{ attendee.html_checkgroup('interests') }}
     </div>
 </div>
 
@@ -413,8 +407,8 @@
 <div class="form-group">
     <label for="email_option" class="col-sm-2 control-label optional-field">Keep Me Updated</label>
     <div class="col-sm-6">
-        {{ checkbox(attendee, 'attendee.can_spam') }} Send me emails relating to {{ organization_and_event_name }} in future years. <br/>
-        <span class="popup">{{ popup_link("../static_views/privacy.html","View Our Privacy Policy") }}</span>
+        {{ macros.checkbox(attendee, 'can_spam') }} Send me emails relating to {{ organization_and_event_name }} in future years. <br/>
+        <span class="popup">{{ macros.popup_link("../static_views/privacy.html","View Our Privacy Policy") }}</span>
     </div>
 </div>
 

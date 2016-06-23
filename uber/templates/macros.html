@@ -1,3 +1,13 @@
+{% macro ie7_compatibility_check() -%}
+    <!--[if lte IE 7]>
+        <script>
+            if (!document.documentMode) { //if documentMode exists, this is a later IE in compatibility mode
+                alert("This website requires IE 8 or later.");
+            }
+        </script>
+    <![endif]-->
+{%- endmacro %}
+
 {% macro stripe_button(label) -%}
     <button class="stripe-button-el">
         <span class="display: block; min-height: 30px;">{{label}}</span>
@@ -6,9 +16,11 @@
 
 {% macro popup_link(href, text='<sup>?</sup>') -%}
     <a onClick="
-        window.open('{self.href}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus();
+        window.open('{{ href }}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus();
         return false;"
      href="{{ href }}">{{ text }}</a>
 {%- endmacro %}
 
-{% block page_everything %}{% endblock %}
+{% macro checkbox(model, field_name) -%}
+    <input type="checkbox" name="{{ field_name }}" value="1" {{ model.html_checkbox_value(field_name) }} />
+{%- endmacro %}

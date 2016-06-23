@@ -3,7 +3,7 @@ from uber.common import *
 
 @JinjaEnv.jinja_export
 def datetime(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
-    return ' '.join(dt.astimezone(c.EVENT_TIMEZONE).strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm')
+    return ' '.join(dt.astimezone(c.EVENT_TIMEZONE).strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm') if dt else ''
 
 from datetime import datetime  # noqa: now that we've registered our filter, re-import the "datetime" class to avoid conflicts
 
@@ -150,7 +150,12 @@ class zebra(template.Node):
 
 @JinjaEnv.jinja_export
 def options(options, default='""'):
-    # default = if not default else default # may not be needed anymore
+    """
+    TODO: see if we can move this look something more like:
+    {{ attendee.html_options('shirt_size') }}
+
+    It would involve this function finding c.SHIRT_OPTS using the string 'shirt_size'.
+    """
     if isinstance(default, datetime):
         default = default.astimezone(c.EVENT_TIMEZONE)
 
@@ -168,30 +173,6 @@ def options(options, default='""'):
         desc = str(desc).replace('"', '&quot;').replace('\n', '')
         results.append('<option value="{}" {}>{}</option>'.format(val, selected, desc))
     return '\n'.join(results)
-
-
-@JinjaEnv.jinja_export
-def checkbox(field):
-    model, field_name = field.rsplit('.', 1)
-    checked = 'checked' if getattr(model, field_name) else ''
-    return '<input type="checkbox" name="{}" value="1" {} />'.format(field_name, checked)
-
-
-@JinjaEnv.jinja_export
-def checkgroup(field):
-    model, field_name = field.rsplit('.', 1)
-    model = Variable(model)
-
-    model = model.resolve(context)
-    options = model.get_field(field_name).type.choices
-    defaults = getattr(model, field_name, None)
-    defaults = defaults.split(",") if defaults else []
-    results = []
-    for num, desc in options:
-        checked = 'checked' if str(num) in defaults else ''
-        results.append('<nobr><input type="checkbox" name="{}" value="{}" {} /> {}</nobr>'
-                       .format(field_name, num, checked, desc))
-    return '&nbsp;&nbsp\n'.join(results)
 
 
 @JinjaEnv.jinja_export

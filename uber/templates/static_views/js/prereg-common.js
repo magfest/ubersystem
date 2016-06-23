@@ -25,68 +25,6 @@ setTimeout(checkCap, PREREG_CHECK_INTERVAL);
     });
 {% endif %}
 
-var REG_TYPES = {
-    row: '#reg-types',
-    selector: '.reg-type-selector',
-    options: [{
-        title: 'Single Attendee',
-        description: 'A single registration; you can register more before paying.',
-        onClick: function () {
-            $('.group_fields').addClass('hide');
-            $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
-            if ($.field('first_name')) {
-                $('#bold-field-message').insertBefore($.field('first_name').parents('.form-group'));
-            }
-            togglePrices();
-        }
-    }]
-};
-{% if c.GROUPS_ENABLED and attendee.is_new and not group_id %}
-    REG_TYPES.options.push({
-        title: 'Group Leader',
-        {% if c.BEFORE_GROUP_PREREG_TAKEDOWN %}
-            description: '<p class="list-group-item-text">Register a group of {{ c.MIN_GROUP_SIZE }} people or more.</p>',
-        {% else %}
-            description: '<p class="list-group-item-text">The deadline for Group registration has passed, but you can still register as a regular attendee.</p>',
-        {% endif %}
-        onClick: function () {
-            {% if c.BEFORE_GROUP_PREREG_TAKEDOWN %}
-                $('.group_fields').removeClass('hide');
-                $('input[name="badge_type"]').val('{{ c.PSEUDO_GROUP_BADGE }}');
-                $('#bold-field-message').insertBefore($.field('name').parents('.form-group'));
-                togglePrices();
-            {% else %}
-                setBadge(REG_TYPES, 0);
-                toastr.clear();
-                toastr.error('Group registration has closed.');
-            {% endif %}
-        }
-    });
-{% endif %}
-var BADGE_TYPES = {
-    row: '#badge-types',
-    selector: '.badge-type-selector',
-    options: [{
-        title: '{% if c.PAGE_PATH == "/preregistration/form" or c.PAGE_PATH == "/preregistration/dealer_registration" %}Attending{% else %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
-        description: 'Allows access to the convention for its duration.',
-        extra: 0
-    }]
-};
-{% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS and not attendee.gets_free_shirt %}
-    BADGE_TYPES.options.push({
-        title: 'Add a tshirt',
-        description: 'Add a {{ c.EVENT_NAME }} themed t-shirt to your registration.',
-        extra: {{ c.SHIRT_LEVEL }}
-    });
-{% endif %}
-{% if c.SUPPORTER_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE %}
-    BADGE_TYPES.options.push({
-        title: 'Supporter',
-        description: 'Donate extra and get more swag with your registration.',
-        extra: {{ c.SUPPORTER_LEVEL }}
-    });
-{% endif %}
-
 var togglePrices = function () {
     var showTotalPrices = {% if c.PAGE_PATH == '/preregistration/form' and not c.DONATION_SLIDER_DISPLAY %}($.val('badge_type') === {{ c.ATTENDEE_BADGE }}){% else %}false{% endif %};
     $.each(BADGE_TYPES.options, function (i, type) {

@@ -1,15 +1,8 @@
-{% extends "macros.html" %}
-{% block page_everything %}
+{% import 'macros.html' as macros %}
 <!DOCTYPE HTML>
 <html>
 <head>
-    <!--[if lte IE 7]>
-        <script>
-            if (!document.documentMode) { //if documentMode exists, this is a later IE in compatibility mode
-                alert("This website requires IE 8 or later.");
-            }
-        </script>
-    <![endif]-->
+    {{ macros.ie7_compatibility_check() }}
     <title>{{ c.EVENT_NAME }} - {% block title %}{% endblock %}</title>
     <link rel="icon" href="../static/images/favicon.png" type="image/x-icon" />
 
@@ -29,6 +22,70 @@
         <script src="../common.js" type="text/javascript"></script>
 
         {% if not admin_area %}
+            <script>
+            {# This <script> block should eventually get moved into prereg-common.js, but can't since it currently references 'attendee' variable via templates #}
+            var REG_TYPES = {
+                row: '#reg-types',
+                selector: '.reg-type-selector',
+                options: [{
+                    title: 'Single Attendee',
+                    description: 'A single registration; you can register more before paying.',
+                    onClick: function () {
+                        $('.group_fields').addClass('hide');
+                        $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
+                        if ($.field('first_name')) {
+                            $('#bold-field-message').insertBefore($.field('first_name').parents('.form-group'));
+                        }
+                        togglePrices();
+                    }
+                }]
+            };
+            {% if c.GROUPS_ENABLED and attendee.is_new and not group_id %}
+                REG_TYPES.options.push({
+                    title: 'Group Leader',
+                    {% if c.BEFORE_GROUP_PREREG_TAKEDOWN %}
+                        description: '<p class="list-group-item-text">Register a group of {{ c.MIN_GROUP_SIZE }} people or more.</p>',
+                    {% else %}
+                        description: '<p class="list-group-item-text">The deadline for Group registration has passed, but you can still register as a regular attendee.</p>',
+                    {% endif %}
+                    onClick: function () {
+                        {% if c.BEFORE_GROUP_PREREG_TAKEDOWN %}
+                            $('.group_fields').removeClass('hide');
+                            $('input[name="badge_type"]').val('{{ c.PSEUDO_GROUP_BADGE }}');
+                            $('#bold-field-message').insertBefore($.field('name').parents('.form-group'));
+                            togglePrices();
+                        {% else %}
+                            setBadge(REG_TYPES, 0);
+                            toastr.clear();
+                            toastr.error('Group registration has closed.');
+                        {% endif %}
+                    }
+                });
+            {% endif %}
+            var BADGE_TYPES = {
+                row: '#badge-types',
+                selector: '.badge-type-selector',
+                options: [{
+                    title: '{% if c.PAGE_PATH == "/preregistration/form" or c.PAGE_PATH == "/preregistration/dealer_registration" %}Attending{% else %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
+                    description: 'Allows access to the convention for its duration.',
+                    extra: 0
+                }]
+            };
+            {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS and not attendee.gets_free_shirt %}
+                BADGE_TYPES.options.push({
+                    title: 'Add a tshirt',
+                    description: 'Add a {{ c.EVENT_NAME }} themed t-shirt to your registration.',
+                    extra: {{ c.SHIRT_LEVEL }}
+                });
+            {% endif %}
+            {% if c.SUPPORTER_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE %}
+                BADGE_TYPES.options.push({
+                    title: 'Supporter',
+                    description: 'Donate extra and get more swag with your registration.',
+                    extra: {{ c.SUPPORTER_LEVEL }}
+                });
+            {% endif %}
+            </script>
             <script src="../static_views/js/prereg-common.js" type="text/javascript"></script>
         {% endif %}
     {% endblock %}
@@ -104,4 +161,3 @@
     {% endif %}
 </body>
 </html>
-{% endblock page_everything %}

@@ -377,6 +377,26 @@ class MagModel:
             if not ignore_csrf:
                 check_csrf(params.get('csrf_token'))
 
+    def html_checkbox_value(self, field_name):
+        """
+        Returns "checked" if a particular field is truthy, or '' if not.
+        Useful for templates building HTML checkboxes.
+        """
+        return 'checked' if getattr(self, field_name) else ''
+
+    def html_checkgroup(self, field_name):
+        # TODO: eventually just return the values, let the macro actually render the HTML
+
+        options = self.get_field(field_name).type.choices
+        defaults = getattr(self, field_name, None)
+        defaults = defaults.split(",") if defaults else []
+        results = []
+        for num, desc in options:
+            checked = 'checked' if str(num) in defaults else ''
+            results.append('<nobr><input type="checkbox" name="{}" value="{}" {} /> {}</nobr>'
+                           .format(field_name, num, checked, desc))
+        return '&nbsp;&nbsp\n'.join(results)
+
 
 class TakesPaymentMixin(object):
     @property
