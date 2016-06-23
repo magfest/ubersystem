@@ -14,7 +14,7 @@
         {{ csrf_token() }}
         <input type="hidden" name="id" value="{{ attendee.id }}" />
         <input type="hidden" name="payment_method" value="{{ c.SQUARE }}" />
-        {% stripe_button "Nevermind, I'm actually using Square" %}
+        {{ macros.stripe_button("Nevermind, I'm actually using Square") }}
         </form>
     </td>
     <td>
@@ -22,7 +22,7 @@
         {{ csrf_token() }}
         <input type="hidden" name="id" value="{{ attendee.id }}" />
         <input type="hidden" name="payment_method" value="{{ c.CASH }}" />
-        {% stripe_button "Nevermind, they're actually paying cash" %}
+        {{ macros.stripe_button("Nevermind, they're actually paying cash") }}
         </form>
     </td>
 </tr>

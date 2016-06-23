@@ -12,7 +12,7 @@ You've indicated you'd like to add {{ count }} {{ group.is_dealer|yesno("Dealer 
 <table style="width:auto ; margin-left:auto ; margin-right: auto"><tr>
     <td>{{ stripe_form('pay_for_extra_members',charge) }}</td>
     <td style="width:100px ; text-align:center">or</td>
-    <td><a href="group_members?id={{ group.id }}">{% stripe_button "Nevermind" %}</a></td>
+    <td><a href="group_members?id={{ group.id }}">{{ macros.stripe_button("Nevermind") }}</a></td>
 </tr></table>
 </div>
 {% endblock %}
