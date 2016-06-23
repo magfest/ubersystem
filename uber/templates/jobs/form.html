@@ -68,7 +68,7 @@
 </tr>
 {% if job.type == c.REGULAR %}
     <tr>
-        <td> <b>Extra 15{% popup_link "../static_views/extra15.html" %}</b> </td>
+        <td> <b>Extra 15{{ macros.popup_link("../static_views/extra15.html") }}</b> </td>
         <td> {{ macros.checkbox(job, 'extra15') }} Yes </td>
     </tr>
 {% endif %}
@@ -91,7 +91,7 @@
 </tr>
 {% if job.type == c.REGULAR %}
     <tr>
-        <td> <b>Weight:{% popup_link "../static_views/weightDesc.html" %}</b> </td>
+        <td> <b>Weight:{{ macros.popup_link("../static_views/weightDesc.html") }}</b> </td>
         <td>
             <select name="weight">
                 {{ options(c.WEIGHT_OPTS,job.weight) }}
@@ -100,7 +100,7 @@
     </tr>
 {% endif %}
 <tr>
-    <td> <b>Restricted:{% popup_link "../static_views/trustDesc.html" %}</b> </td>
+    <td> <b>Restricted:{{ macros.popup_link("../static_views/trustDesc.html") }}</b> </td>
     <td> {{ macros.checkbox(job, 'restricted') }} Yes </td>
 </tr>
 <tr>
