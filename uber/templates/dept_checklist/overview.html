@@ -3,12 +3,13 @@
 {% block content %}
 
 <style type="text/css">
+    /* Someone fix me.  this CSS is Jaaaaaaaank.
+       also, our images are huge and we're scaling them to 24px. */
+
+    /* BROKEN - this scales ALL IMAGES to 24px.  just resize our checkbox and exclamation point images and fix it for real */
     img {
         height: 24px;
         width: 24px;
-    }
-    tbody {
-        border: 3px solid black;
     }
     th div {
         width: 1.2em;
@@ -20,8 +21,12 @@
         -moz-transform: rotate(-90deg);
         -ms-transform: rotate(-90deg);
         -o-transform: rotate(-90deg);
-        transform: rotate(-90deg);
+        transform: rotate(180deg);
     }
+    tbody {
+        border: 3px solid black;
+    }
+
     .dept-head {
         padding-right: 25px;
     }
@@ -31,7 +36,7 @@
         font-weight: bold;
         font-style: italic;
         text-decoration: underline;
-    }
+    }*/
 </style>
 
 <h2>Department Checklist</h2>
@@ -40,18 +45,18 @@
 <br/> <img src="../static/images/warn.jpg" /> Deadline is approaching and step isn't yet complete
 <br/> <img src="../static/images/checkbox_checked.png" /> Department head has marked this step as complete
 <br/> <img src="../static/images/checkbox_unchecked.png" /> Department head hasn't yet completed this step, but the deadline isn't close
-<div style="height:{{ max_name_length|add:2 }}ex">&nbsp;</div>
+<div style="height:{{ max_name_length + 2 }}ex">&nbsp;</div>
 
-<table style="width:auto">
+<table style="width:auto" border="1">
 <tr>
     <th><div>Department Head</div></th>
     {% for conf in checklist %}
         <th><div><a href="item?slug={{ conf.slug }}">{{ conf.name }}</a></div></th>
     {% endfor %}
 </tr>
-<tbody>
+
 {% for dept, dept_name, heads in overview %}
-    <tr><td colspan="checklist|length|add:1" class="dept">{{ dept_name }}</td></tr>
+    <tr><td {# **even though this breaks the table, it still looks better** colspan="{{ checklist|length + 1 }}" #} class="dept">{{ dept_name }}</td></tr>
     {% for attendee, items in heads %}
         <tr>
             <td class="dept-head" title="{{ attendee.email }} / {{ attendee.cellphone }}">{{ attendee|form_link }}</td>
@@ -70,12 +75,12 @@
                     </td>
                 {% endfor %}
             {% else %}
-                <td colspan="{{ checklist|length }}"><i>This dept head doesn't have an admin account.</i></td>
+                <td colspan="{{ checklist.length }}"><i>This dept head doesn't have an admin account.</i></td>
             {% endif %}
         </tr>
     {% endfor %}
 {% endfor %}
-</tbody>
+
 </table>
 
 {% endblock %}
