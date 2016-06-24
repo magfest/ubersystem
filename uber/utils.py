@@ -287,7 +287,6 @@ def mount_site_sections(module_root):
         setattr(Root, section, module.Root())
 
 
-
 def build_uber_absolute_url(relative_uber_page_url):
     """
     In ubersystem, we always use relative url's of the form "../{some_site_section}/{somepage}"
