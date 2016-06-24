@@ -3,6 +3,9 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
+<div class="masthead"></div>
+<div class="panel panel-default">
+
 <h2> You may be banned from {{ c.EVENT_NAME }}! </h2>
 
 Our list of banned people includes someone named <b>{{ attendee.full_name }}</b>.  Every banned attendee has
@@ -17,5 +20,7 @@ on our banned list complete their registration then we'll contact you to validat
     <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>
     <td><a href="delete?id={{ attendee.id }}">Well never mind then!</a></td>
 </tr></table>
+
+    </div>
 
 {% endblock %}
