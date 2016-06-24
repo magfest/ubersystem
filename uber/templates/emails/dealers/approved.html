@@ -1,7 +1,7 @@
 <html>
 <head></head>
 <body>
-Your group ({{ group.name }}) has been approved as a {{ c.EVENT_NAME }} Dealer for this coming {% event_dates %}!
+Your group ({{ group.name }}) has been approved as a {{ c.EVENT_NAME }} Dealer for this coming {{ event_dates() }}!
 You can pay the ${{ group.cost }} you owe using the credit card button
 <a href="{{ c.URL_BASE }}/preregistration/group_members?id={{ group.id }}">on this page</a>.
 

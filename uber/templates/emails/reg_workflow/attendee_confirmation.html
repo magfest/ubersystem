@@ -2,7 +2,7 @@
 <head></head>
 <body>
 
-You ({{ attendee.full_name }}) have preregistered for {{ c.EVENT_NAME }} this coming {% event_dates %}
+You ({{ attendee.full_name }}) have preregistered for {{ c.EVENT_NAME }} this coming {{ event_dates() }}
 {% if attendee.group %}
     by claiming one of the badges in the {{ attendee.group.name }} group.
 {% else %}

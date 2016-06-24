@@ -433,15 +433,14 @@ def table_prices():
         return ', '.join(costs)
 
 
-@tag
-class event_dates(template.Node):
-    def render(self, context):
-        if c.EPOCH.date() == c.ESCHATON.date():
-            return c.EPOCH.strftime('%B %-d')
-        elif c.EPOCH.month != c.ESCHATON.month:
-            return '{} - {}'.format(c.EPOCH.strftime('%B %-d'), c.ESCHATON.strftime('%B %-d'))
-        else:
-            return '{}-{}'.format(c.EPOCH.strftime('%B %-d'), c.ESCHATON.strftime('%-d'))
+@JinjaEnv.jinja_export()
+def event_dates():
+    if c.EPOCH.date() == c.ESCHATON.date():
+        return c.EPOCH.strftime('%B %-d')
+    elif c.EPOCH.month != c.ESCHATON.month:
+        return '{} - {}'.format(c.EPOCH.strftime('%B %-d'), c.ESCHATON.strftime('%B %-d'))
+    else:
+        return '{}-{}'.format(c.EPOCH.strftime('%B %-d'), c.ESCHATON.strftime('%-d'))
 
 
 # FIXME this can probably be cleaned up more
