@@ -23,6 +23,10 @@
     <input type="checkbox" name="{{ field_name }}" value="1" {{ model.html_checkbox_value(field_name) }} />
 {%- endmacro %}
 
+{% macro checklist_image(enabled) -%}
+    <img src="../static/images/checkbox_{% if not enabled %}un{% endif %}checked.png" style="vertical-align:top ; margin-right:5px" height="20" width="20" />
+{%- endmacro %}
+
 {% macro radio(name, value, checked) -%}
     {# TODO: BROKEN: make this look more like the checkbox macro, prob don't need to pass in all the params.
     checked can likely be model.html_checkbox_value() #}

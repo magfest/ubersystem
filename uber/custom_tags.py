@@ -298,22 +298,6 @@ def extract_fields(what):
         return None, None, None
 
 
-@tag
-class checked_if(template.Node):
-    def __init__(self, *args):
-        self.negated = len(args) > 1
-        self.cond = Variable(args[-1])
-
-    def render(self, context):
-        try:
-            cond = self.cond.resolve(context)
-        except:
-            cond = False
-        checked = self.negated and not cond or not self.negated and cond
-        image = 'checked' if checked else 'unchecked'
-        return '<img src="../static/images/checkbox_{}.png" style="vertical-align:top ; margin-right:5px" height="20" width="20" />'.format(image)
-
-
 @JinjaEnv.jinja_export()
 def csrf_token():
     if not cherrypy.session.get('csrf_token'):
