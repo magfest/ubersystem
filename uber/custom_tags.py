@@ -247,13 +247,9 @@ def int_options(minval, maxval, default="1"):
     return '\n'.join(results)
 
 
-@tag
-class hour_day(template.Node):
-    def __init__(self, dt):
-        self.dt = Variable(dt)
-
-    def render(self, context):
-        return hour_day_format(self.dt.resolve(context))
+@JinjaEnv.jinja_export()
+def hour_day(dt):
+    return hour_day_format(dt)
 
 
 @tag

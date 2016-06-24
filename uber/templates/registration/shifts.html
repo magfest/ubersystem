@@ -49,7 +49,7 @@
             {% endif %}
         {% endif %}
         ({{ attendee.weighted_hours }} weighted hours,
-        {{ attendee.hours|length|add:attendee.nonshift_hours }} actual hours): </b>
+        {{ attendee.hours|length + attendee.nonshift_hours }} actual hours): </b>
         {% if c.AT_OR_POST_CON %}<br />{{ attendee.worked_hours }} hours worked.{% endif %}
     <br/> <br/>
     <table width="95%" align="center">
@@ -68,12 +68,12 @@
             background-color: #F5F5F5;
         }
     </style>
-    {% for shift in attendee.shifts|sortBy:'job.start_time' %}
+    {% for shift in attendee.shifts|sort(attribute='job.start_time') %}
         <tr>
             <td><a href="../jobs/form?id={{ shift.job.id }}">{{ shift.job.name }}</a></td>
             <td><a href="../jobs/index?location={{ shift.job.location }}">{{ shift.job.location_label }}</a></td>
-            <td>{% hour_day shift.job.start_time %}</td>
-            <td>{% hour_day shift.job.end_time %}</td>
+            <td>{{ hour_day(shift.job.start_time) }}</td>
+            <td>{{ hour_day(shift.job.end_time) }}</td>
             <td>{{ shift.job.duration }} (x{{ shift.job.weight }})</td>
             <td>{{ shift.job.weighted_hours}}</td>
             <td>
