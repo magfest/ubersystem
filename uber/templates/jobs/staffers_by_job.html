@@ -4,7 +4,7 @@
 
 {% include "jobs/job_menu.html" %}
 
-<h3 class="center">{% timespan job %} {{ job.name }} shift in {{ job.location_label }}</h3>
+<h3 class="center">{{ job.timespan() }} {{ job.name }} shift in {{ job.location_label }}</h3>
 
 {% if job.shifts|length < job.slots %}
     <form method="post" action="assign_from_job">

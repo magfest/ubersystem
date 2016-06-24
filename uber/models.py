@@ -379,6 +379,21 @@ class MagModel:
             if not ignore_csrf:
                 check_csrf(params.get('csrf_token'))
 
+    def timespan(self, minute_increment=60):
+        minutestr = lambda dt: ':30' if dt.minute == 30 else ''
+        endtime = self.start_time_local + timedelta(minutes=minute_increment * self.duration)
+        startstr = self.start_time_local.strftime('%I').lstrip('0') + minutestr(self.start_time_local)
+        endstr = endtime.strftime('%I').lstrip('0') + minutestr(endtime) + endtime.strftime('%p').lower()
+
+        if self.start_time_local.day == endtime.day:
+            endstr += endtime.strftime(' %A')
+            if self.start_time_local.hour < 12 and endtime.hour >= 12:
+                return startstr + 'am - ' + endstr
+            else:
+                return startstr + '-' + endstr
+        else:
+            return startstr + self.start_time_local.strftime('pm %a - ') + endstr + endtime.strftime(' %a')
+
     def html_checkbox_value(self, field_name):
         """
         Returns "checked" if a particular field is truthy, or '' if not.
@@ -400,7 +415,7 @@ class MagModel:
         return '&nbsp;&nbsp\n'.join(results)
 
     def html_radiogroup(self, field_name, onchanged="donationChanged();"):
-        # TODO: eventually just return the values, let the macro actually render the HTML
+        # TODO: eventually just return the values, let a macro actually render the HTML
         # TODO: remove hardcoded "donationChanged()" param
 
         options = self.get_field(field_name).type.choices
