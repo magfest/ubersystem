@@ -297,6 +297,13 @@ def extract_fields(what):
     else:
         return None, None, None
 
+@JinjaEnv.jinja_filter()
+def linebreaksbr(text):
+    """ Re-implementation of django's linebreaksbr. Probably not as robust """
+    return normalize_newlines(text).replace('\n', '<br />')
+
+def normalize_newlines(text):
+    return re.sub(r'\r\n|\r|\n', '\n', text)
 
 @JinjaEnv.jinja_export()
 def csrf_token():
