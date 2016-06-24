@@ -13,7 +13,7 @@
     {% if attendees %}
         <b>Assign Staffer:</b>
         <select name="staffer_id">
-            {% options attendees %}
+            {{ options(attendees) }}
         </select>
         <input type="submit" value="Assign" />
     {% else %}
