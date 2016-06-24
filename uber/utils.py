@@ -285,3 +285,20 @@ def mount_site_sections(module_root):
     for section in sections:
         module = importlib.import_module(basename(module_root) + '.site_sections.' + section)
         setattr(Root, section, module.Root())
+
+
+
+def build_uber_absolute_url(relative_uber_page_url):
+    """
+    In ubersystem, we always use relative url's of the form "../{some_site_section}/{somepage}"
+    We use relative URLs so that no matter what proxy server we are behind on the web, it always works.
+
+    We normally avoid using absolute URLs at al costs, but sometimes it's needed when creating URLs for
+    use with emails or CSV exports.  In that case, we need to take a relative URL and turn it into
+    an absolute URL.
+
+    Do not use this function unless you absolutely need to, instead use relative URLs as much as possible.
+    """
+
+    assert relative_uber_page_url[:3] == '../', "relative url MUST start with '../'"
+    return urljoin(c.URL_BASE + "/", relative_uber_page_url[3:])
