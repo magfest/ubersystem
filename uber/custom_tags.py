@@ -304,6 +304,7 @@ def linebreaksbr(text):
     """ Re-implementation of django's linebreaksbr. Probably not as robust """
     return normalize_newlines(text).replace('\n', '<br />')
 
+
 def normalize_newlines(text):
     return re.sub(r'\r\n|\r|\n', '\n', text)
 
