@@ -29,7 +29,7 @@
     <ul>
     {% for job in setup %}
         <li>
-            [<b>{{ job.start_time|datetime:"%I %p %a" }}</b> for an expected ~{{ job.duration }} hours]
+            [<b>{{ job.start_time|datetime("%I %p %a") }}</b> for an expected ~{{ job.duration }} hours]
             <a href="form?id={{ job.id }}">{{ job.name }}</a>:
             {{ job.shifts|length }}/{{ job.slots }} Staffers <a href="staffers_by_job?id={{ job.id }}">Signed Up</a>
         </li>
@@ -74,7 +74,7 @@
     <ul>
     {% for job in teardown %}
         <li>
-            [<b>{{ job.start_time|datetime:"%I %p %a" }}</b> for an expected ~{{ job.duration }} hours]
+            [<b>{{ job.start_time|datetime("%I %p %a") }}</b> for an expected ~{{ job.duration }} hours]
             <a href="form?id={{ job.id }}">{{ job.name }}</a>:
             {{ job.shifts|length }}/{{ job.slots }} Staffers <a href="staffers_by_job?id={{ job.id }}">Signed Up</a>
         </li>
