@@ -56,7 +56,7 @@
         <tr>
             <td class="dept-head" title="{{ attendee.email }} / {{ attendee.cellphone }}">{{ attendee|form_link }}</td>
             {% if attendee.admin_account %}
-                {% for item in items() %}
+                {% for item in items %}
                     <td>
                         {% if item.done %}
                             <img title="{{ item.name }}" src="../static/images/checkbox_checked.png" />
