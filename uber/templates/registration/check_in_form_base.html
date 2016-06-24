@@ -1,5 +1,5 @@
 <form action="/" id="check_in_form_{{ attendee.id }}">
-    {% csrf_token %}
+    {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ attendee.id }}" />
 <table class="check-in">
     {% block checkin_fields %}
