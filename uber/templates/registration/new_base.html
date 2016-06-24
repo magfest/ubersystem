@@ -100,7 +100,7 @@
         <td>
             Payment Method:
             <select id="payment_method">
-                {% options c.FEE_PAYMENT_METHOD_OPTS %}
+                {{ options(c.FEE_PAYMENT_METHOD_OPTS) }}
             </select>
         </td>
         {% if c.NUMBERED_BADGES %}
@@ -108,7 +108,7 @@
         {% endif %}
         <td>
             <select id="what_select" onChange="showOrHideWhatText()">
-                {% options c.FEE_ITEM_NAMES %}
+                {{ options(c.FEE_ITEM_NAMES) }}
                 <option value="">Other...</option>
             </select>
             <input type="text" id="what_text" size="20" maxlength="50" />

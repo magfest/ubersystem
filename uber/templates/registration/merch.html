@@ -167,7 +167,7 @@
     <td> Record a Sale: </td>
     <td>
         <select id="what_select" onChange="showOrHideWhatText()">
-            {% options c.STORE_ITEM_NAMES %}
+            {{ options(c.STORE_ITEM_NAMES) }}
             <option value="">Other...</option>
         </select>
         <input type="text" id="what_text" size="20" maxlength="50" />

@@ -19,7 +19,7 @@
         <input type="hidden" name="staffer_id" value="{{ attendee.id }}" />
         <b>Add a Shift:</b>
         <select name="job_id">
-            {% options jobs %}
+            {{ options(jobs) }}
         </select>
         <input type="submit" value="Assign" />
         </form>

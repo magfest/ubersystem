@@ -16,7 +16,7 @@
 
 <!-- Ok, now here's a dropdown with all of the MAGFest attendees who are NOT placeholder attendees (whether they're already volunteers or not) and who aren't already assigned to this department: -->
 <select name="attendee_id">
-    {% options not_already_here %}
+    {{ options(not_already_here) }}
 </select>
 
 {% endblock %}

@@ -1685,7 +1685,7 @@ class Job(MagModel):
 
     @property
     def capable_volunteers_opts(self):
-        # format output for use with the {% options %} template decorator
+        # format output for use with the {{ options() }} template decorator
         return [(a.id, a.full_name) for a in self.capable_volunteers]
 
     @property
