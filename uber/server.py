@@ -44,7 +44,7 @@ class StaticViews:
         content_filename = self.get_filename_from_path_args(path_args)
 
         template_name = self.get_full_path_from_path_args(path_args)
-        content = render(template_name).encode('utf-8') # not 100% sure this is the right call.
+        content = render(template_name).encode('utf-8')  # not 100% sure this is the right call.
 
         guessed_content_type = mimetypes.guess_type(content_filename)[0]
         return cherrypy.lib.static.serve_fileobj(content, name=content_filename, content_type=guessed_content_type)

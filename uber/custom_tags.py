@@ -38,7 +38,7 @@ def yesno(value, arg=None):
         arg = 'yes,no,maybe'
     bits = arg.split(',')
     if len(bits) < 2:
-        return value # Invalid arg.
+        return value  # Invalid arg.
     try:
         yes, no, maybe = bits
     except ValueError:
@@ -65,6 +65,7 @@ def jsonize(x):
 @JinjaEnv.jinja_filter()
 def subtract(x, y):
     return x - y
+
 
 @JinjaEnv.jinja_filter()
 def urlencode(s):
@@ -135,7 +136,7 @@ def idize(s):
 
 
 @JinjaEnv.jinja_filter()
-def pluralize(number, singular = '', plural = 's'):
+def pluralize(number, singular='', plural='s'):
     if number == 1:
         return singular
     else:
@@ -297,6 +298,7 @@ def extract_fields(what):
     else:
         return None, None, None
 
+
 @JinjaEnv.jinja_filter()
 def linebreaksbr(text):
     """ Re-implementation of django's linebreaksbr. Probably not as robust """
@@ -304,6 +306,7 @@ def linebreaksbr(text):
 
 def normalize_newlines(text):
     return re.sub(r'\r\n|\r|\n', '\n', text)
+
 
 @JinjaEnv.jinja_export()
 def csrf_token():
@@ -448,4 +451,4 @@ def random_hash():
     return result.decode("utf-8")
 
 
-template.builtins.append(register) # probably kill this eventually.
+template.builtins.append(register)  # probably kill this eventually.

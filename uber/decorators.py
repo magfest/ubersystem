@@ -227,7 +227,7 @@ class JinjaEnv:
     def _init_env():
         env = jinja2.Environment(
                 # autoescape=_guess_autoescape,
-                loader=jinja2.FileSystemLoader(django.conf.settings.TEMPLATE_DIRS) # TODO: kill django reference
+                loader=jinja2.FileSystemLoader(django.conf.settings.TEMPLATE_DIRS)  # TODO: kill django reference
             )
 
         for name, func in JinjaEnv._exportable_functions.items():
