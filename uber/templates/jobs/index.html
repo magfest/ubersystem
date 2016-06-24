@@ -42,10 +42,10 @@
 {% for curr_dt, prev_dt, jobs in times %}
     <tr>
         <td>
-            <nobr>{{ curr_dt|date:"gA"|lower }} {{ curr_dt|date:"D" }}</nobr>
+            <nobr>{{ curr_dt|date("%g%A"|lower }} {{ curr_dt|date:"%D") }}</nobr>
             <br/> <br/>
-            <nobr><a href="form?id=None&location={{ location }}&start_time={{ curr_dt|date:"Y-m-d H:i:s" }}">Add Shift</a></nobr>
-            <a name="{{ prev_dt|stringformat:"s" }}"></a>
+            <nobr><a href="form?id=None&location={{ location }}&start_time={{ curr_dt|date("%Y-%m-%d %H:%i:%s") }}">Add Shift</a></nobr>
+            <a name="{{ prev_dt|stringformat("s") }}"></a>
         </td>
         {% for job in jobs %}
             <td rowspan="{{ job.duration }}">

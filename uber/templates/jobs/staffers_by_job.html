@@ -23,7 +23,7 @@
 {% endif %}
 <br/>
 {% if job.shifts %}
-    <b> This job has {{ job.slots }} slot{{ job.slots|pluralize }} and {{ job.shifts|length }} staffer{{ job.shifts|length|pluralize:" is,s are" }} signed up: </b>
+    <b> This job has {{ job.slots }} slot{{ job.slots|pluralize }} and {{ job.shifts|length }} staffer{{ job.shifts|length|pluralize(" is,s are") }} signed up: </b>
     <table style="width:auto">
     {% for shift in job.shifts %}
         <tr>
