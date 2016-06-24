@@ -10,7 +10,7 @@
 
 <h3> Standard Dietary Restrictions</h3>
 <ul>
-{% for label, count in standard.items %}
+{% for label, count in standard.items() %}
     <li>{{ count }}: {{ label }}</li>
 {% endfor %}
 </ul>
@@ -19,7 +19,7 @@
 
 <h3> Sandwich Preferences </h3>
 <ul>
-{% for label, count in sandwich_prefs.items %}
+{% for label, count in sandwich_prefs.items() %}
     <li>{{ count }}: {{ label }}</li>
 {% endfor %}
 </ul>

@@ -16,49 +16,49 @@
 
 <h4>Badge Types</h4>
 <ul>
-    {% for desc, count in counts.badges.items %}
+    {% for desc, count in counts.badges.items() %}
         <li><i>{{ desc }}:</i> {{ count }}</li>
     {% endfor %}
 </ul>
 
 <h4>Badge Stocks</h4>
 <ul>
-    {% for desc, count in counts.stocks.items %}
+    {% for desc, count in counts.stocks.items() %}
         <li><i>{{ desc }}:</i> {{ count }}</li>
     {% endfor %}
 </ul>
 
 <h4>Interests</h4>
 <ul>
-    {% for desc, count in counts.interests.items %}
+    {% for desc, count in counts.interests.items() %}
         <li><i>{{ desc }}:</i> {{ count }}</li>
     {% endfor %}
 </ul>
 
 <h4>Attendee ages</h4>
 <ul>
-    {% for desc, count in counts.ages.items %}
+    {% for desc, count in counts.ages.items() %}
         <li><i>{{ desc }}:</i> {{ count }}</li>
     {% endfor %}
 </ul>
 
 <h4>Ribbons</h4>
 <ul>
-    {% for desc, count in counts.ribbons.items %}
+    {% for desc, count in counts.ribbons.items() %}
         <li><i>{{ desc }}:</i> {{ count }}</li>
     {% endfor %}
 </ul>
 
 <h4>Badge Statuses</h4>
 <ul>
-    {% for desc, count in counts.statuses.items %}
+    {% for desc, count in counts.statuses.items() %}
         <li><i>{{ desc }}:</i> {{ count }}</li>
     {% endfor %}
 </ul>
 
 <h4>Paid</h4>
 <ul>
-    {% for desc, count in counts.paid.items %}
+    {% for desc, count in counts.paid.items() %}
         <li><i>{{ desc }}:</i> {{ count }}</li>
     {% endfor %}
 </ul>
