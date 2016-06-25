@@ -145,7 +145,7 @@ def validate_form(driver, validators):
 
 
 # @pytest.mark.nondestructive  # not true anymore
-def test_regfield_validations(base_url, selenium):
+def test_full_regfield_completion(base_url, selenium):
     selenium.get('{0}/uber/preregistration/form'.format(base_url))
     assert "Preregistration" in selenium.title
 
