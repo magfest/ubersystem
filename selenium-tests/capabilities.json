@@ -1,0 +1,4 @@
+{ "capabilities": {
+    "browserName": "Firefox",
+    "platform": "MAC" }
+}
