@@ -39,13 +39,7 @@ import bcrypt
 import stripe
 import jinja2
 import cherrypy
-import django.conf
 from pytz import UTC
-
-from django import template
-from django.utils.safestring import SafeString
-from django.utils.text import normalize_newlines
-from django.template import loader, Context, Variable, TemplateSyntaxError
 
 import sqlalchemy
 from sqlalchemy.sql import case
@@ -68,6 +62,7 @@ import uber
 import uber as sa  # used to avoid circular dependency import issues for SQLAlchemy models
 from uber.amazon_ses import AmazonSES, EmailMessage  # TODO: replace this after boto adds Python 3 support
 from uber.config import c, Config, SecretConfig
+from uber.jinja import *
 from uber.utils import *
 from uber.reports import *
 from uber.decorators import *

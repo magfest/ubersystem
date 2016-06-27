@@ -207,52 +207,6 @@ def renderable_data(data=None):
     return data
 
 
-# TODO: replace with a nicer way to initialize this
-# for now we initialize the first time it's called.
-# TODO: need to not use django settings (they'll be ripped out later) for TEMPLATE_DIRS
-# TODO: setup filters in a separate function, probably. probably same way as custom_tags.py
-# TODO: port over everything in custom_tags.py to hook in here
-class JinjaEnv:
-    _env = None
-    _exportable_functions = {}
-    _filter_functions = {}
-
-    @staticmethod
-    def env():
-        if JinjaEnv._env is None:
-            JinjaEnv._env = JinjaEnv._init_env()
-        return JinjaEnv._env
-
-    @staticmethod
-    def _init_env():
-        env = jinja2.Environment(
-                # autoescape=_guess_autoescape,
-                loader=jinja2.FileSystemLoader(django.conf.settings.TEMPLATE_DIRS)  # TODO: kill django reference
-            )
-
-        for name, func in JinjaEnv._exportable_functions.items():
-            env.globals[name] = func
-
-        for name, func in JinjaEnv._filter_functions.items():
-            env.filters[name] = func
-
-        return env
-
-    @staticmethod
-    def jinja_export(name=None):
-        def wrap(func):
-            JinjaEnv._exportable_functions[name if name else func.__name__] = func
-            return func
-        return wrap
-
-    @staticmethod
-    def jinja_filter(name=None):
-        def wrap(func):
-            JinjaEnv._filter_functions[name if name else func.__name__] = func
-            return func
-        return wrap
-
-
 # render using the first template that actually exists in template_name_list
 # uses JINJA2 - new style
 def render(template_name_list, data=None):
@@ -355,16 +309,6 @@ class all_renderable:
                 new_func.exposed = True
                 setattr(klass, name, new_func)
         return klass
-
-
-register = template.Library()
-
-
-def tag(klass):
-    @register.tag(klass.__name__)
-    def tagged(parser, token):
-        return klass(*token.split_contents()[1:])
-    return klass
 
 
 class Validation:

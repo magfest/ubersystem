@@ -373,6 +373,3 @@ def random_hash():
     random = os.urandom(16)
     result = binascii.hexlify(random)
     return result.decode("utf-8")
-
-
-template.builtins.append(register)  # probably kill this eventually.

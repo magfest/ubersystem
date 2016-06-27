@@ -252,14 +252,6 @@ def genpasswd():
         return ''.join(chr(randrange(33, 127)) for i in range(8))
 
 
-def template_overrides(dirname):
-    """
-    Each event can have its own plugin and override our default templates with
-    its own by calling this method and passing its templates directory.
-    """
-    django.conf.settings.TEMPLATE_DIRS.insert(0, dirname)
-
-
 def static_overrides(dirname):
     """
     We want plugins to be able to specify their own static files to override the
