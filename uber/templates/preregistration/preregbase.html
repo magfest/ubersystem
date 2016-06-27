@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block head_javascript %}
     {{ super() }}
-    <script>
+    <script type="text/javascript">
         var PREREG_CHECK_INTERVAL = 15 * 60 * 1000;
         var checkCap = function () {
             $.getJSON('../preregistration/check_prereg', function (check) {
@@ -28,6 +28,7 @@
                 setInternational()
             });
         {% endif %}
+
         var REG_TYPES = {
             row: '#reg-types',
             selector: '.reg-type-selector',
@@ -184,5 +185,5 @@
                 }
             }
         });
-        </script>
+    </script>
 {% endblock head_javascript %}
