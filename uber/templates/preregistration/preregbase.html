@@ -2,6 +2,32 @@
 {% block head_javascript %}
     {{ super() }}
     <script>
+        var PREREG_CHECK_INTERVAL = 15 * 60 * 1000;
+        var checkCap = function () {
+            $.getJSON('../preregistration/check_prereg', function (check) {
+                if (check.force_refresh) {
+                    location.reload();  // Reload the page to prevent registering after reg is closed
+                } else {
+                    setTimeout(checkCap, PREREG_CHECK_INTERVAL);
+                }
+            });
+        };
+        setTimeout(checkCap, PREREG_CHECK_INTERVAL);
+
+        {% if c.COLLECT_FULL_ADDRESS %}
+            var setInternational = function () {
+                countryName = $('input[name="country"]').val();
+                if(countryName == 'USA' || countryName == 'US' || countryName == 'United States') {
+                    $('input[name="international"]').prop('checked', false);
+                } else {
+                    $('input[name="international"]').prop('checked', true);
+                }
+            };
+            $(function() {
+                $('#international').hide();
+                setInternational()
+            });
+        {% endif %}
         var REG_TYPES = {
             row: '#reg-types',
             selector: '.reg-type-selector',
@@ -61,36 +87,6 @@
                 title: 'Supporter',
                 description: 'Donate extra and get more swag with your registration.',
                 extra: {{ c.SUPPORTER_LEVEL }}
-            });
-        {% endif %}
-        var PREREG_CHECK_INTERVAL = 15 * 60 * 1000;
-
-        // TODO: all the inline JS below is ready to be moved into its own file, does not
-        // need to be inside this template because it doesn't reference any models, just config.
-
-        var checkCap = function () {
-            $.getJSON('../preregistration/check_prereg', function (check) {
-                if (check.force_refresh) {
-                    location.reload();  // Reload the page to prevent registering after reg is closed
-                } else {
-                    setTimeout(checkCap, PREREG_CHECK_INTERVAL);
-                }
-            });
-        };
-        setTimeout(checkCap, PREREG_CHECK_INTERVAL);
-
-        {% if c.COLLECT_FULL_ADDRESS %}
-            var setInternational = function () {
-                countryName = $('input[name="country"]').val();
-                if(countryName == 'USA' || countryName == 'US' || countryName == 'United States') {
-                    $('input[name="international"]').prop('checked', false);
-                } else {
-                    $('input[name="international"]').prop('checked', true);
-                }
-            };
-            $(function() {
-                $('#international').hide();
-                setInternational()
             });
         {% endif %}
 
