@@ -19,7 +19,7 @@ def datetime_filter(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
 @JinjaEnv.jinja_filter()
 def yesno(value, arg=None):
     """
-    PORTED FROM DJANGO BY UBERSYSTEM CREW
+    PORTED FROM DJANGO
 
     Given a string mapping values for true, false and (optionally) None,
     returns one of those strings according to the value:
@@ -176,38 +176,6 @@ def email_only(email):
     return re.search(c.EMAIL_RE.lstrip('^').rstrip('$'), email).group()
 
 
-@tag
-class maybe_anchor(template.Node):
-    def __init__(self, name):
-        self.name = Variable(name)
-
-    def render(self, context):
-        name = self.name.resolve(context)
-        letter = name.upper()[0]
-        if letter != context.get('letter'):
-            context["letter"] = letter
-            return '<a name="{}"></a>'.format(letter)
-        else:
-            return ""
-
-
-@tag
-class zebra(template.Node):
-    counters = local()
-
-    def __init__(self, name, param=''):
-        self.name, self.param = name, param
-
-    def render(self, context):
-        counter = getattr(self.counters, self.name, 0)
-        if self.param == 'start':
-            counter = 0
-        elif self.param != 'noinc':
-            counter = (counter + 1) % 2
-        setattr(self.counters, self.name, counter)
-        return ['#ffffff', '#eeeeee'][counter]
-
-
 @JinjaEnv.jinja_export()
 def options(options, default='""'):
     """
@@ -251,25 +219,6 @@ def int_options(minval, maxval, default="1"):
 @JinjaEnv.jinja_export()
 def hour_day(dt):
     return hour_day_format(dt)
-
-
-@tag
-class must_contact(template.Node):
-    def __init__(self, staffer):
-        self.staffer = Variable(staffer)
-
-    def render(self, context):
-        staffer = self.staffer.resolve(context)
-        chairs = defaultdict(list)
-        for dept, head in c.DEPT_HEAD_OVERRIDES.items():
-            chairs[dept].append(head)
-        for head in staffer.session.query(Attendee).filter_by(ribbon=c.DEPT_HEAD_RIBBON).order_by('badge_num').all():
-            for dept in head.assigned_depts_ints:
-                chairs[dept].append(head.full_name)
-
-        locations = [s.job.location for s in staffer.shifts]
-        dept_names = dict(c.JOB_LOCATION_OPTS)
-        return '<br/>'.join(sorted({'({}) {}'.format(dept_names[dept], ' / '.join(chairs[dept])) for dept in locations}))
 
 
 @JinjaEnv.jinja_export()
@@ -348,28 +297,6 @@ def stripe_form(action, charge):
     return render('preregistration/stripeForm.html', params)
 
 
-@register.tag('bold_if')
-def do_bold_if(parser, token):
-    [cond] = token.split_contents()[1:]
-    nodelist = parser.parse(('end_bold_if',))
-    parser.delete_first_token()
-    return BoldIfNode(cond, nodelist)
-
-
-class BoldIfNode(template.Node):
-    def __init__(self, cond, nodelist):
-        self.cond = Variable(cond)
-        self.nodelist = nodelist
-
-    def render(self, context):
-        cond = self.cond.resolve(context)
-        output = self.nodelist.render(context)
-        if cond:
-            return '<b>' + output + '</b>'
-        else:
-            return output
-
-
 @JinjaEnv.jinja_export()
 def organization_and_event_name():
     if c.EVENT_NAME.lower() != c.ORGANIZATION_NAME.lower():
@@ -386,18 +313,16 @@ def organization_or_event_name():
         return c.EVENT_NAME
 
 
-@tag
-class single_day_prices(template.Node):
-    def render(self, context):
-        prices = ''
-        for day, price in c.BADGE_PRICES['single_day'].items():
-            if day == datetime.strftime(c.ESCHATON, "%A"):
-                prices += 'and ${} for {}'.format(price, day)
-                break
-            else:
-                prices += '${} for {}, '.format(price, day)
-        # prices += 'and ${} for other days'.format(c.BADGE_PRICES['default_single_day'])
-        return prices
+@JinjaEnv.jinja_export()
+def single_day_prices():
+    prices = ''
+    for day, price in c.BADGE_PRICES['single_day'].items():
+        if day == datetime.strftime(c.ESCHATON, "%A"):
+            prices += 'and ${} for {}'.format(price, day)
+            break
+        else:
+            prices += '${} for {}, '.format(price, day)
+    return prices
 
 
 @JinjaEnv.jinja_export()
@@ -443,7 +368,6 @@ def event_dates():
         return '{}-{}'.format(c.EPOCH.strftime('%B %-d'), c.ESCHATON.strftime('%-d'))
 
 
-# FIXME this can probably be cleaned up more
 @JinjaEnv.jinja_export()
 def random_hash():
     random = os.urandom(16)

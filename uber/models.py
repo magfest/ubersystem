@@ -1493,6 +1493,20 @@ class Attendee(MagModel, TakesPaymentMixin):
     def past_years_json(self):
         return json.loads(self.past_years or '[]')
 
+    @property
+    def must_contact(self):
+        chairs = defaultdict(list)
+        for dept, head in c.DEPT_HEAD_OVERRIDES.items():
+            chairs[dept].append(head)
+        for head in self.session.query(Attendee).filter_by(ribbon=c.DEPT_HEAD_RIBBON).order_by('badge_num').all():
+            for dept in head.assigned_depts_ints:
+                chairs[dept].append(head.full_name)
+
+        locations = [s.job.location for s in self.shifts]
+        dept_names = dict(c.JOB_LOCATION_OPTS)
+        return '<br/>'.join(
+            sorted({'({}) {}'.format(dept_names[dept], ' / '.join(chairs[dept])) for dept in locations}))
+
 
 class WatchList(MagModel):
     first_names     = Column(UnicodeText)
