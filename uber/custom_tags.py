@@ -326,7 +326,7 @@ def single_day_prices():
 
 
 @JinjaEnv.jinja_export()
-def price_notice(label, takedown, amount_extra='0', discount='0'):
+def price_notice(label, takedown, amount_extra=0, discount=0):
     if not takedown:
         takedown = c.ESCHATON
 
