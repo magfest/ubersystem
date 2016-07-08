@@ -116,7 +116,6 @@ class AutomatedEmail:
                                 automated_email.send(model_inst, raise_errors=raise_errors)
 
 
-
 class StopsEmail(AutomatedEmail):
     def __init__(self, subject, template, filter, **kwargs):
         AutomatedEmail.__init__(self, Attendee, subject, template, lambda a: a.staffing and filter(a), sender=c.STAFF_EMAIL, **kwargs)
