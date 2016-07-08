@@ -12,9 +12,8 @@ class AutomatedEmail:
         Attendee: lambda session: session.staffers(only_staffing=False),
         Group: lambda session: session.query(Group).options(subqueryload(Group.attendees))
     }
-    extra_models = queries  # we've renamed "extra_models" to "queries" but are temporarily keeping the old name for backwards-compatibility
 
-    def __init__(self, model, subject, template, filter, *, sender=None, extra_data=None, cc=None, bcc=None, post_con=False, needs_approval=True):
+    def __init__(self, model, subject, template, filter, *, date_filters=[], sender=None, extra_data=None, cc=None, bcc=None, post_con=False, needs_approval=True):
         self.model, self.template, self.needs_approval = model, template, needs_approval
         self.subject = subject.format(EVENT_NAME=c.EVENT_NAME)
         self.cc = cc or []
@@ -22,24 +21,60 @@ class AutomatedEmail:
         self.extra_data = extra_data or {}
         self.sender = sender or c.REGDESK_EMAIL
         self.instances[self.subject] = self
+        self.date_filters = date_filters
+
+        # after each daemon run, this is set to the number of emails that would have been sent out but weren't because
+        # they were not marked as approved.
+        self.count_emails_not_sent_need_approval = 0
+
+        # old filter
         if post_con:
             self.filter = lambda x: c.POST_CON and filter(x)
         else:
             self.filter = lambda x: not c.POST_CON and filter(x)
 
+    def filters_run(self, x):
+        if self.filter and not self.filter(x):
+            return False
+
+        for date_filter in listify(self.date_filters):
+            if not date_filter():
+                return False
+
+        return True
+
     def __repr__(self):
         return '<{}: {!r}>'.format(self.__class__.__name__, self.subject)
 
-    def prev(self, x, all_sent=None):
-        if all_sent:
-            return (x.__class__.__name__, x.id, self.subject) in all_sent
+    def already_sent(self, x, previously_sent_emails=None):
+        """
+        Returns true if we have a record of previously sending this email
+
+        Speed Optimization: when using this function as part of batch processing, you can pass in a list of all
+        previously sent emails, previously_sent_emails, in order to avoid having to query the DB for this specific email
+        """
+        if previously_sent_emails:
+            return (x.__class__.__name__, x.id, self.subject) in previously_sent_emails
         else:
             with Session() as session:
                 return session.query(Email).filter_by(model=x.__class__.__name__, fk_id=x.id, subject=self.subject).first()
 
-    def should_send(self, x, all_sent=None):
+    def should_send(self, model_inst, approved_subjects, previously_sent_emails=None):
         try:
-            return x.email and not self.prev(x, all_sent) and self.filter(x)
+            if not isinstance(model_inst, self.model) or not model_inst.email:
+                return False
+
+            if self.already_sent(model_inst, previously_sent_emails):
+                return False
+
+            if not self.filters_run(model_inst):
+                return False
+
+            if self.needs_approval and self.subject not in approved_subjects:
+                self.count_emails_not_sent_need_approval += 1
+                return False
+
+            return True
         except:
             log.error('unexpected error', exc_info=True)
 
@@ -56,19 +91,30 @@ class AutomatedEmail:
             if raise_errors:
                 raise
 
+    @property
+    def date_filters_txt(self):
+        """
+        Return a textual description of when the date filters are active for this email category
+        """
+
+        return '\n'.join([filter.active_when for filter in listify(self.date_filters)])
+
     @classmethod
     def send_all(cls, raise_errors=False):
         if not c.AT_THE_CON and (c.DEV_BOX or c.SEND_EMAILS):
             with Session() as session:
-                approved = {ae.subject for ae in session.query(ApprovedEmail)}
-                all_sent = set(session.query(Email.model, Email.fk_id, Email.subject))
-                for model, lister in cls.queries.items():
-                    for inst in lister(session):
+                # CPU+speed optimization: cache these values for later use
+                approved_subjects = {ae.subject for ae in session.query(ApprovedEmail)}
+                previously_sent_emails = set(session.query(Email.model, Email.fk_id, Email.subject))
+
+                for model, query in cls.queries.items():
+                    for model_inst in query(session):
                         sleep(0.01)  # throttle CPU usage
-                        for rem in cls.instances.values():
-                            if isinstance(inst, rem.model) and (not rem.needs_approval or rem.subject in approved):
-                                if rem.should_send(inst, all_sent):
-                                    rem.send(inst, raise_errors=raise_errors)
+                        for automated_email in cls.instances.values():
+                            automated_email.count_emails_not_sent_need_approval = 0  # reset
+                            if automated_email.should_send(model_inst, approved_subjects, previously_sent_emails):
+                                automated_email.send(model_inst, raise_errors=raise_errors)
+
 
 
 class StopsEmail(AutomatedEmail):
@@ -96,19 +142,72 @@ class DeptChecklistEmail(AutomatedEmail):
         AutomatedEmail.__init__(self, Attendee,
                                 subject='{EVENT_NAME} Department Checklist: ' + conf.name,
                                 template='shifts/dept_checklist.txt',
-                                filter=lambda a: a.is_single_dept_head and a.admin_account and days_before(7, conf.deadline) and not conf.completed(a),
+                                filter=lambda a: a.is_single_dept_head and a.admin_account and not conf.completed(a),
+                                date_filters=days_before(7, conf.deadline),
                                 sender=c.STAFF_EMAIL,
                                 extra_data={'conf': conf})
 
-before = lambda dt: bool(dt) and localized_now() < dt
-after = lambda dt: bool(dt) and localized_now() > dt
-days_after = lambda days, dt: bool(dt) and (localized_now() > dt + timedelta(days=days))
+
+print_dateformat = "%m/%d"
 
 
-def days_before(days, dt, until=None):
-    if dt:
-        until = (dt - timedelta(days=until)) if until else dt
-        return dt - timedelta(days=days) < localized_now() < until
+class days_before:
+    def __init__(self, days, dt, until=None):
+        self.dt = dt
+        self.days = days
+        self.until = until
+
+        if dt:
+            self.starting_date = self.dt - timedelta(days=self.days)
+            self.ending_date = (dt - timedelta(days=until)) if until else dt
+
+    def __call__(self):
+        return self.starting_date < localized_now() < self.ending_date if self.dt else False
+
+    @property
+    def active_when(self):
+        return 'between {} and {}'.format(self.starting_date.strftime(print_dateformat),
+                                          self.ending_date.strftime(print_dateformat)) \
+            if self.dt else ''
+
+
+class days_after:
+    def __init__(self, days, dt):
+        self.dt = dt
+        self.days = days
+
+        self.starting_date = dt + timedelta(days=days) if dt else None
+
+    def __call__(self):
+        return bool(self.dt) and (localized_now() > self.starting_date)
+
+    @property
+    def active_when(self):
+        return 'after {}'.format(self.starting_date.strftime(print_dateformat)) if self.starting_date else ''
+
+
+class before:
+    def __init__(self, dt):
+        self.dt = dt
+
+    def __call__(self):
+        return bool(self.dt) and localized_now() < self.dt
+
+    @property
+    def active_when(self):
+        return 'before {}'.format(self.dt.strftime(print_dateformat)) if self.dt else ''
+
+
+class after:
+    def __init__(self, dt):
+        self.dt = dt
+
+    def __call__(self):
+        return bool(self.dt) and localized_now() > self.dt
+
+    @property
+    def active_when(self):
+        return 'after {}'.format(self.dt.strftime(print_dateformat)) if self.dt else ''
 
 
 # Payment reminder emails, including ones for groups, which are always safe to be here, since they just
@@ -159,15 +258,18 @@ MarketplaceEmail('Reminder to pay for your {EVENT_NAME} Dealer registration', 'd
                  needs_approval=False)
 
 MarketplaceEmail('Your {EVENT_NAME} Dealer registration is due in one week', 'dealers/payment_reminder.txt',
-                 lambda g: g.status == c.APPROVED and days_before(7, c.DEALER_PAYMENT_DUE, 2) and g.is_unpaid,
+                 lambda g: g.status == c.APPROVED and g.is_unpaid,
+                 date_filters=days_before(7, c.DEALER_PAYMENT_DUE, 2),
                  needs_approval=False)
 
 MarketplaceEmail('Last chance to pay for your {EVENT_NAME} Dealer registration', 'dealers/payment_reminder.txt',
-                 lambda g: g.status == c.APPROVED and days_before(2, c.DEALER_PAYMENT_DUE) and g.is_unpaid,
+                 lambda g: g.status == c.APPROVED and g.is_unpaid,
+                 date_filters=days_before(2, c.DEALER_PAYMENT_DUE),
                  needs_approval=False)
 
 MarketplaceEmail('{EVENT_NAME} Dealer waitlist has been exhausted', 'dealers/waitlist_closing.txt',
-                 lambda g: c.AFTER_DEALER_WAITLIST_CLOSED and g.status == c.WAITLISTED)
+                 lambda g: g.status == c.WAITLISTED,
+                 date_filters=after(c.DEALER_WAITLIST_CLOSED))
 
 
 # Placeholder badge emails; when an admin creates a "placeholder" badge, we send one of three different emails depending
@@ -210,45 +312,51 @@ AutomatedEmail(Attendee, '{EVENT_NAME} Badge Confirmation Reminder', 'placeholde
                lambda a: days_after(7, a.registered) and a.placeholder and a.first_name and a.last_name and not a.is_dealer)
 
 AutomatedEmail(Attendee, 'Last Chance to Accept Your {EVENT_NAME} Badge', 'placeholders/reminder.txt',
-               lambda a: days_before(7, c.PLACEHOLDER_DEADLINE) and a.placeholder and a.first_name and a.last_name
-                                                                and not a.is_dealer)
+               lambda a: a.placeholder and a.first_name and a.last_name and not a.is_dealer,
+               date_filters=days_before(7, c.PLACEHOLDER_DEADLINE))
 
 
 # Volunteer emails; none of these will be sent unless SHIFTS_CREATED is set.
 
 StopsEmail('{EVENT_NAME} shifts available', 'shifts/created.txt',
-           lambda a: c.AFTER_SHIFTS_CREATED and a.takes_shifts)
+           lambda a: a.takes_shifts,
+           date_filters=after(c.SHIFTS_CREATED))
 
 StopsEmail('Reminder to sign up for {EVENT_NAME} shifts', 'shifts/reminder.txt',
            lambda a: c.AFTER_SHIFTS_CREATED and days_after(30, max(a.registered_local, c.SHIFTS_CREATED))
-                 and c.BEFORE_PREREG_TAKEDOWN and a.takes_shifts and not a.hours)
+                 and a.takes_shifts and not a.hours,
+           date_filters=before(c.PREREG_TAKEDOWN))
 
 StopsEmail('Last chance to sign up for {EVENT_NAME} shifts', 'shifts/reminder.txt',
-              lambda a: days_before(10, c.EPOCH) and c.AFTER_SHIFTS_CREATED and c.BEFORE_PREREG_TAKEDOWN
-                                                 and a.takes_shifts and not a.hours)
+              lambda a: c.AFTER_SHIFTS_CREATED and c.BEFORE_PREREG_TAKEDOWN and a.takes_shifts and not a.hours,
+              date_filters=days_before(10, c.EPOCH))
 
 StopsEmail('Still want to volunteer at {EVENT_NAME}?', 'shifts/volunteer_check.txt',
-              lambda a: c.SHIFTS_CREATED and days_before(5, c.FINAL_EMAIL_DEADLINE)
-                                         and a.ribbon == c.VOLUNTEER_RIBBON and a.takes_shifts and a.weighted_hours == 0)
+            lambda a: c.SHIFTS_CREATED and a.ribbon == c.VOLUNTEER_RIBBON and a.takes_shifts and a.weighted_hours == 0,
+            date_filters=days_before(5, c.FINAL_EMAIL_DEADLINE))
 
 StopsEmail('Your {EVENT_NAME} shift schedule', 'shifts/schedule.html',
-           lambda a: c.SHIFTS_CREATED and days_before(1, c.FINAL_EMAIL_DEADLINE) and a.weighted_hours)
+           lambda a: c.SHIFTS_CREATED and a.weighted_hours,
+           date_filters=days_before(1, c.FINAL_EMAIL_DEADLINE))
 
 
 # For events with customized badges, these emails remind people to let us know what we want on their badges.  We have
 # one email for our volunteers who haven't bothered to confirm they're coming yet (bleh) and one for everyone else.
 
 StopsEmail('Last chance to personalize your {EVENT_NAME} badge', 'personalized_badges/volunteers.txt',
-           lambda a: days_before(7, c.PRINTED_BADGE_DEADLINE) and a.staffing and a.badge_type in c.PREASSIGNED_BADGE_TYPES and a.placeholder)
+           lambda a: a.staffing and a.badge_type in c.PREASSIGNED_BADGE_TYPES and a.placeholder,
+           date_filters=days_before(7, c.PRINTED_BADGE_DEADLINE))
 
 AutomatedEmail(Attendee, 'Personalized {EVENT_NAME} badges will be ordered next week', 'personalized_badges/reminder.txt',
-               lambda a: days_before(7, c.PRINTED_BADGE_DEADLINE) and a.badge_type in c.PREASSIGNED_BADGE_TYPES and not a.placeholder)
+               lambda a: a.badge_type in c.PREASSIGNED_BADGE_TYPES and not a.placeholder,
+               date_filters=days_before(7, c.PRINTED_BADGE_DEADLINE))
 
 
 # MAGFest requires signed and notarized parental consent forms for anyone under 18.  This automated email reminder to
 # bring the consent form only happens if this feature is turned on by setting the CONSENT_FORM_URL config option.
 AutomatedEmail(Attendee, '{EVENT_NAME} parental consent form reminder', 'reg_workflow/under_18_reminder.txt',
-               lambda a: c.CONSENT_FORM_URL and a.age_group_conf['consent_form'] and days_before(14, c.EPOCH))
+               lambda a: c.CONSENT_FORM_URL and a.age_group_conf['consent_form'],
+               date_filters=days_before(14, c.EPOCH))
 
 
 for _conf in DeptChecklistConf.instances.values():

@@ -15,10 +15,20 @@ class Root:
         return {'emails': session.query(Email).filter_by(**params).order_by(Email.when).all()}
 
     def pending(self, session, message=''):
-        approved = {ae.subject for ae in session.query(ApprovedEmail).all()}
+        approved_subjects = {ae.subject for ae in session.query(ApprovedEmail).all()}
+
+        automated_emails = []
+        for automated_email in AutomatedEmail.instances.values():
+            automated_emails.append({
+                'doesnt_need_approval': not automated_email.needs_approval,
+                'approved': not automated_email.needs_approval or automated_email.subject in approved_subjects,
+                'automated_email': automated_email,
+                'num_sent': session.query(Email).filter_by(subject=automated_email.subject).count()
+            })
+
         return {
             'message': message,
-            'pending': [ae for ae in AutomatedEmail.instances.values() if ae.needs_approval and ae.subject not in approved]
+            'automated_emails': automated_emails,
         }
 
     def pending_examples(self, session, subject):
@@ -26,7 +36,7 @@ class Root:
         examples = []
         email = AutomatedEmail.instances[subject]
         for x in AutomatedEmail.queries[email.model](session):
-            if email.filter(x):
+            if email.filters_run(x):
                 count += 1
                 url = {
                     Group: '../groups/form?id={}',
