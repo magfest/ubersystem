@@ -45,7 +45,7 @@
                 }
             }]
         };
-        {% if c.GROUPS_ENABLED and attendee.is_new and not group_id %}
+        {% if c.GROUPS_ENABLED and attendee and attendee.is_new and not group_id %}
             REG_TYPES.options.push({
                 title: 'Group Leader',
                 {% if c.BEFORE_GROUP_PREREG_TAKEDOWN %}
