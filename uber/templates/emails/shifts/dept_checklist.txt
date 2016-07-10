@@ -1,6 +1,6 @@
 {{ attendee.first_name }},
 
-As a department head for {{ attendee.assigned_depts_labels|join:'' }} we need some information from you about: {{ conf.name|safe }}
+As a department head for {{ attendee.assigned_depts_labels|join('') }} we need some information from you about: {{ conf.name|safe }}
 
 {{ conf.description|safe }}
 
