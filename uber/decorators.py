@@ -208,14 +208,13 @@ def renderable_data(data=None):
 
 
 # render using the first template that actually exists in template_name_list
-# uses JINJA2 - new style
 def render(template_name_list, data=None):
     data = renderable_data(data)
     env = JinjaEnv.env()
     template = env.get_template(template_name_list)
     rendered = template.render(data)
     rendered = screw_you_nick(rendered, template)  # lolz.
-    return rendered
+    return rendered.encode('utf-8')
 
 
 # this is a Magfest inside joke.

@@ -294,7 +294,7 @@ def stripe_form(action, charge):
 
     # TODO: not 100% sure this is kosher with the way we're doing our
     # singleton JinjaEnv() class.  might have to make this not a singleton
-    return render('preregistration/stripeForm.html', params)
+    return render('preregistration/stripeForm.html', params).decode('utf-8')
 
 
 @JinjaEnv.jinja_export()
