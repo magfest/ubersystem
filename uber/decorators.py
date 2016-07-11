@@ -106,11 +106,13 @@ def multifile_zipfile(func):
 def csv_file(func):
     @wraps(func)
     def csvout(self, session, **kwargs):
-        cherrypy.response.headers['Content-Type'] = 'application/csv'
-        cherrypy.response.headers['Content-Disposition'] = 'attachment; filename=' + func.__name__ + '.csv'
         writer = StringIO()
         func(self, csv.writer(writer), session, **kwargs)
-        return writer.getvalue().encode('utf-8')
+        output = writer.getvalue().encode('utf-8')
+        # set headers last in case there were errors, so end user still see error page
+        cherrypy.response.headers['Content-Type'] = 'application/csv'
+        cherrypy.response.headers['Content-Disposition'] = 'attachment; filename=' + func.__name__ + '.csv'
+        return output
     return csvout
 
 
