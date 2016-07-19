@@ -1,0 +1,17 @@
+{% extends "base-admin.html" %}
+{% block title %}Test email sending{% endblock %}
+{% block content %}
+
+<style>
+pre {
+    white-space: pre-wrap;       /* Since CSS 2.1 */
+}
+</style>
+
+{% for email in emails %}
+<hr />
+<h1>{{ email.subject }}</h1>
+{{ email.text }}
+{% endfor %}
+
+{% endblock %}

@@ -47,9 +47,12 @@ class AutomatedEmail:
         model = getattr(x, 'email_model_name', x.__class__.__name__.lower())
         return render('emails/' + self.template, dict({model: x}, **self.extra_data))
 
+    def is_html(self):
+        return not self.template.endswith('.txt')
+
     def send(self, x, raise_errors=True):
         try:
-            format = 'text' if self.template.endswith('.txt') else 'html'
+            format = 'text' if self.is_html() else 'html'
             send_email(self.sender, x.email, self.subject, self.render(x), format, model=x, cc=self.cc)
         except:
             log.error('error sending {!r} email to {}', self.subject, x.email, exc_info=True)
