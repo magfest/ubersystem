@@ -804,18 +804,18 @@ class Root:
     def discount(self, session, message='', **params):
         attendee = session.attendee(params)
         if 'first_name' in params:
-            if 'overridden_price' in params:
-                if isinstance(attendee.overridden_price, str):
-                    attendee.overridden_price = -1
-            if not attendee.first_name or not attendee.last_name:
-                message = 'First and Last Name are required'
-            elif attendee.overridden_price < 0:
+            try:
+                if not attendee.first_name or not attendee.last_name:
+                    message = 'First and Last Name are required'
+                elif attendee.overridden_price < 0:
+                    message = 'Non-Negative Discounted Price is required'
+                elif attendee.overridden_price > c.BADGE_PRICE:
+                    message = 'You cannot create a discounted badge that costs more than the regular price!'
+                elif attendee.overridden_price == 0:
+                    attendee.paid = c.NEED_NOT_PAY
+                    attendee.overridden_price = c.BADGE_PRICE
+            except TypeError:
                 message = 'Discounted Price is required'
-            elif attendee.overridden_price > c.BADGE_PRICE:
-                message = 'You cannot create a discounted badge that costs more than the regular price!'
-            elif attendee.overridden_price == 0:
-                attendee.paid = c.NEED_NOT_PAY
-                attendee.overridden_price = c.BADGE_PRICE
 
             if not message:
                 session.add(attendee)
