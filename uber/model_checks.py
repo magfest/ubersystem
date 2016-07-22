@@ -196,12 +196,6 @@ def allowed_to_register(attendee):
 
 
 @validation.Attendee
-def printed_badge_deadline(attendee):
-    if attendee.is_new and attendee.has_personalized_badge and not c.SHIFT_CUSTOM_BADGES:
-        return 'Custom badges have already been ordered so you cannot create new {} badges'.format(attendee.badge_type_label)
-
-
-@validation.Attendee
 def group_leadership(attendee):
     if attendee.session and not attendee.group_id:
         orig_group_id = attendee.orig_value_of('group_id')
@@ -264,24 +258,41 @@ def dealer_needs_group(attendee):
 
 @validation.Attendee
 def dupe_badge_num(attendee):
-    if c.NUMBERED_BADGES and attendee.badge_num != 0 and attendee.session.query(Attendee)\
-            .filter(Attendee.id != attendee.id)\
-            .filter_by(badge_type=attendee.badge_type, badge_num=attendee.badge_num).count():
-        return 'Another attendee already exists with that badge number!'
+    if (attendee.badge_num != attendee.orig_value_of('badge_num') or attendee.is_new)\
+            and c.NUMBERED_BADGES and attendee.badge_num and not c.SHIFT_CUSTOM_BADGES:
+        with Session() as session:
+            existing = session.query(Attendee)\
+                .filter_by(badge_type=attendee.badge_type, badge_num=attendee.badge_num)
+            if existing.count():
+                return 'That badge number already belongs to {!r}'.format(existing.first().full_name)
 
 
 @validation.Attendee
 def invalid_badge_num(attendee):
-    if c.NUMBERED_BADGES:
+    if c.NUMBERED_BADGES and attendee.badge_num:
         try:
             badge_num = int(attendee.badge_num)
         except:
             return '{!r} is not a valid badge number'.format(attendee.badge_num)
         else:
-            if attendee.badge_num != 0:
-                min_num, max_num = c.BADGE_RANGES[attendee.badge_type]
-                if not (min_num <= badge_num <= max_num):
-                    return '{} badge numbers must fall within {} and {}'.format(attendee.badge_type_label, min_num, max_num)
+            min_num, max_num = c.BADGE_RANGES[attendee.badge_type]
+            if not (min_num <= badge_num <= max_num):
+                return '{} badge numbers must fall within {} and {}'.format(attendee.badge_type_label, min_num, max_num)
+
+
+@validation.Attendee
+def no_more_custom_badges(attendee):
+    if (attendee.badge_type != attendee.orig_value_of('badge_type') or attendee.is_new)\
+            and attendee.badge_type in c.PREASSIGNED_BADGE_TYPES and c.AFTER_PRINTED_BADGE_DEADLINE:
+        return 'Custom badges have already been ordered'
+
+
+@validation.Attendee
+def out_of_badge_type(attendee):
+    if attendee.badge_type != attendee.orig_value_of('badge_type'):
+            with Session() as session:
+                if session.get_next_badge_num(attendee.badge_type) > c.BADGE_RANGES[attendee.badge_type][1]:
+                    return 'There are no more badges available for that type'
 
 
 @validation.MPointsForCash

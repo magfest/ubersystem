@@ -96,7 +96,12 @@ class Root:
         if 'first_name' in params:
             attendee.group_id = params['group_opt'] or None
             if c.AT_THE_CON and omit_badge:
-                attendee.badge_num = 0
+                attendee.badge_num = None
+            try:
+                attendee.badge_num = int(attendee.badge_num)
+            except:
+                attendee.badge_num = None
+
             if 'no_override' in params:
                 attendee.overridden_price = None
 
@@ -134,15 +139,18 @@ class Root:
     def change_badge(self, session, id, message='', **params):
         attendee = session.attendee(id, allow_invalid=True)
         if 'badge_type' in params:
-            preassigned = c.AT_THE_CON or attendee.badge_type in c.PREASSIGNED_BADGE_TYPES
-            if preassigned:
-                message = check(attendee)
+            old_badge_type = attendee.badge_type
+            old_badge_num = attendee.badge_num
+            attendee.badge_type = int(params['badge_type'])
+            try:
+                attendee.badge_num = int(params['badge_num'])
+            except ValueError:
+                attendee.badge_num = None
+
+            message = check(attendee)
 
             if not message:
-                badge_num = int(params.get('newnum') or 0)
-                if c.AT_THE_CON and badge_num == 0:  # sometimes admins need to unset accidental badge assignments
-                    attendee.badge_num = 0
-                message = session.change_badge(attendee, params['badge_type'], badge_num)
+                message = session.update_badge(attendee, old_badge_type, old_badge_num)
                 raise HTTPRedirect('form?id={}&message={}', attendee.id, message or '')
 
         return {
