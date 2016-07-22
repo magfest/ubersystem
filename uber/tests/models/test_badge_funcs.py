@@ -119,7 +119,7 @@ class TestGetNextBadgeNum:
         session.supporter_four.badge_type, session.supporter_four.badge_num = c.STAFF_BADGE, 6
         assert 7 == session.get_next_badge_num(c.STAFF_BADGE)
         session.expunge(session.supporter_five)
-        
+
     def test_non_preassigned(self, session):
         assert 3001 == session.get_next_badge_num(c.ATTENDEE_BADGE)
 
@@ -176,7 +176,7 @@ class TestAutoBadgeNum:
 
 class TestShiftBadges:
     def staff_badges(self, session):
-        return sorted(a.badge_num for a in session.query(Attendee).filter(Attendee.badge_status!=c.INVALID_STATUS).filter_by(badge_type=c.STAFF_BADGE).all())
+        return sorted(a.badge_num for a in session.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS).filter_by(badge_type=c.STAFF_BADGE).all())
 
     def test_invalid_parameters(self, session):
         pytest.raises(AssertionError, session.shift_badges, c.STAFF_BADGE, 1, invalid='param')
@@ -323,7 +323,7 @@ class TestBadgeDeletion:
 
 class TestShiftOnChange:
     def staff_badges(self, session):
-        return sorted(a.badge_num for a in session.query(Attendee).filter(Attendee.badge_status!=c.INVALID_STATUS).filter_by(badge_type=c.STAFF_BADGE).all())
+        return sorted(a.badge_num for a in session.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS).filter_by(badge_type=c.STAFF_BADGE).all())
 
     def test_shift_on_add(self, session):
         assert 'Badge updated' == session.update_badge(Attendee(first_name='NewStaff', paid=c.NEED_NOT_PAY, badge_type=c.STAFF_BADGE, badge_num=2), None, None)
