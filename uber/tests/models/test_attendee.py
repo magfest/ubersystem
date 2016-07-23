@@ -355,7 +355,7 @@ class TestBadgeAdjustments:
     @pytest.fixture(autouse=True)
     def mock_attendee_session(self, monkeypatch):
         monkeypatch.setattr(Attendee, 'session', Mock())
-        Attendee.session.next_badge_num = Mock(return_value=123)
+        Attendee.session.get_next_badge_num = Mock(return_value=123)
 
     @pytest.fixture
     def fully_paid(self, monkeypatch):
@@ -375,7 +375,7 @@ class TestBadgeAdjustments:
     def test_unpaid_badges_reset_to_zero(self):
         a = Attendee(badge_type=c.SUPPORTER_BADGE, badge_num=1)
         a._badge_adjustments()
-        assert a.badge_num == 0
+        assert a.badge_num == None
 
     def test_preassigned_badge_assignment(self):
         for paid in [c.HAS_PAID, c.NEED_NOT_PAY, c.REFUNDED]:

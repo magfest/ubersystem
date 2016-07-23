@@ -95,11 +95,7 @@ class Root:
         attendee = session.attendee(params, checkgroups=Attendee.all_checkgroups, bools=Attendee.all_bools, allow_invalid=True)
         if 'first_name' in params:
             attendee.group_id = params['group_opt'] or None
-            if c.AT_THE_CON and omit_badge:
-                attendee.badge_num = None
-            try:
-                attendee.badge_num = int(attendee.badge_num)
-            except:
+            if (c.AT_THE_CON and omit_badge) or not attendee.badge_num:
                 attendee.badge_num = None
 
             if 'no_override' in params:
@@ -722,7 +718,7 @@ class Root:
         attendee = session.attendee(id)
         if attendee.group:
             session.add(Attendee(group=attendee.group, paid=c.PAID_BY_GROUP, badge_type=attendee.badge_type, ribbon=attendee.ribbon))
-        attendee.badge_num = 0
+        attendee.badge_num = None
         attendee.checked_in = attendee.group = None
         raise HTTPRedirect('new?message={}', 'Attendee un-checked-in')
 
