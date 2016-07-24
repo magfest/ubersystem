@@ -774,7 +774,7 @@ class Session(SessionManager):
 
 class Group(MagModel, TakesPaymentMixin):
     name          = Column(UnicodeText)
-    tables        = Column(Float, default=0)
+    tables        = Column(Numeric, default=0)
     address       = Column(UnicodeText)
     website       = Column(UnicodeText)
     wares         = Column(UnicodeText)

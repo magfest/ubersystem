@@ -398,7 +398,7 @@ for _name, _section in _config['age_groups'].items():
 c.TABLE_PRICES = defaultdict(lambda: _config['table_prices']['default_price'],
                              {int(k): v for k, v in _config['table_prices'].items() if k != 'default_price'})
 c.PREREG_TABLE_OPTS = list(range(1, c.MAX_TABLES + 1))
-c.ADMIN_TABLE_OPTS = [x / 1.0 for x in range(0, 9)]
+c.ADMIN_TABLE_OPTS = [decimal.Decimal(x) for x in range(0, 9)]
 
 c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
 c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]
