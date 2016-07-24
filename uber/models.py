@@ -1144,6 +1144,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             self.ribbon = c.NO_RIBBON
         if self.badge_type == c.STAFF_BADGE:
             self.badge_type = c.ATTENDEE_BADGE
+            self.badge_num = None
             self.session.update_badge(self, c.STAFF_BADGE, self.orig_value_of('badge_num'))
         del self.shifts[:]
 
