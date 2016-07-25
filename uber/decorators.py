@@ -212,8 +212,20 @@ def renderable_data(data=None):
 # render using the first template that actually exists in template_name_list
 def render(template_name_list, data=None):
     data = renderable_data(data)
-    template = loader.select_template(listify(template_name_list))
-    rendered = template.render(Context(data))
+
+    try:
+        template = loader.select_template(listify(template_name_list))
+        rendered = template.render(Context(data))
+    except Exception as e:
+        source_template_name = '[unknown]'
+        django_template_source_info = getattr(e, 'django_template_source')
+        if django_template_source_info:
+            for info in django_template_source_info:
+                if 'LoaderOrigin' in str(type(info)):
+                    source_template_name = info.name
+                    break
+        raise Exception('error rendering template [{}]'.format(source_template_name)) from e
+
     rendered = screw_you_nick(rendered, template)  # lolz.
     return rendered.encode('utf-8')
 
