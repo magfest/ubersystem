@@ -11,6 +11,25 @@ def _add_email():
 cherrypy.tools.add_email_to_error_page = cherrypy.Tool('after_error_response', _add_email)
 
 
+def on_cherrypy_before_error_response(debug=False):
+    """
+    Write the request headers, and the last error's traceback to the cherrypy error log.
+    Do this all one line so all the information can be collected by external log collectors and easily displayed.
+    """
+
+    page_location = 'Request: ' + cherrypy.request.request_line
+
+    admin_name = AdminAccount.admin_name()
+    admin_txt = 'Current admin user is: {}'.format(admin_name if admin_name else '[non-admin user]')
+
+    h = ["  %s: %s" % (k, v) for k, v in cherrypy.request.header_list]
+    headers_txt = 'Request Headers:\n' + '\n'.join(h)
+
+    msg = '\n'.join(['Exception encountered', page_location, admin_txt, headers_txt])
+    log.error(msg, exc_info=True)
+
+cherrypy.tools.on_cherrypy_before_error_response = cherrypy.Tool('before_error_response', on_cherrypy_before_error_response)
+
 class StaticViews:
     def path_args_to_string(self, path_args):
         return '/'.join(path_args)
