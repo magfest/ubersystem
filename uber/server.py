@@ -27,8 +27,8 @@ def on_cherrypy_before_error_response(debug=False):
 
     msg = '\n'.join(['Exception encountered', page_location, admin_txt, headers_txt])
     log.error(msg, exc_info=True)
-
 cherrypy.tools.on_cherrypy_before_error_response = cherrypy.Tool('before_error_response', on_cherrypy_before_error_response)
+
 
 class StaticViews:
     def path_args_to_string(self, path_args):
