@@ -4,6 +4,7 @@
 Your group ({{ group.name }}) has been approved as a {{ c.EVENT_NAME }} Dealer for this coming {% event_dates %}!
 You can pay the ${{ group.cost }} you owe using the credit card button
 <a href="{{ c.URL_BASE }}/preregistration/group_members?id={{ group.id }}">on this page</a>.
+Payment is expected by: {{ c.DEALER_PAYMENT_DUE|datetime }} or your application may be removed and your tables filled by another applicant. .
 
 {% if group.unassigned_badges %}
     <br/> <br/>
@@ -23,5 +24,7 @@ This registration includes:
 <br/> <u>Dealer Rules and Information</u>
 {% include "static_views/dealerRules.html" %}
 
+
+{{ c.MARKETPLACE_EMAIL_SIGNATURE }}
 </body>
 </html>
