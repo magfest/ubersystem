@@ -38,10 +38,8 @@ def check_ranges(session):
 
 
 def change_badge(session, attendee, new_type, new_num=None, expected_num=None):
-    old_type = attendee.badge_type
-    old_num = attendee.badge_num
-    attendee.badge_num = new_num
-    attendee.badge_type = new_type
+    old_type, old_num = attendee.badge_type, attendee.badge_num
+    attendee.badge_type, attendee.badge_num = new_type, new_num
     session.update_badge(attendee, old_type, old_num)
     session.commit()
     session.refresh(attendee)
@@ -176,6 +174,7 @@ class TestAutoBadgeNum:
 
 class TestShiftBadges:
     def staff_badges(self, session):
+        # This loads badges from the session, which isn't reloaded, so the result is not always what you'd expect
         return sorted(a.badge_num for a in session.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS).filter_by(badge_type=c.STAFF_BADGE).all())
 
     def test_invalid_parameters(self, session):
@@ -323,6 +322,7 @@ class TestBadgeDeletion:
 
 class TestShiftOnChange:
     def staff_badges(self, session):
+        # This loads badges from the session, which isn't reloaded, so the result is not always what you'd expect
         return sorted(a.badge_num for a in session.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS).filter_by(badge_type=c.STAFF_BADGE).all())
 
     def test_shift_on_add(self, session):

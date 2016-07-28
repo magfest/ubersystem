@@ -501,7 +501,8 @@ class Session(SessionManager):
 
             :param attendee: Passing an existing attendee allows us to check for a new badge num whenever the attendee
             is updated, particularly for when they are checked in.
-            :param badge_type: Allows checking for a new badge number before adding/updating the Attendee() object.
+            :param badge_type: Must be an integer. Allows checking for a new badge number before adding/updating the
+            Attendee() object.
             :return:
             """
             if not badge_type and attendee:
@@ -573,8 +574,7 @@ class Session(SessionManager):
             """
             Gets the next available badge number for a badge type's range.
 
-            This ignores the session so that plugins can override the logic here if need be without worrying about
-            handling dirty sessions.
+            Plugins can override the logic here if need be without worrying about handling dirty sessions.
 
             :param badge_type: Used as a starting point if no badges of the same type exist, and to select badges within
             a specific range.
@@ -594,6 +594,7 @@ class Session(SessionManager):
                 else:
                     middle = int((first+last)/2)
 
+                    # Performs a binary search for exactly where the badge gap is
                     while first < last:
                         if (sametype_list[middle]-sametype_list[first]) != (middle - first):
                             if (middle-first) == 1 and (sametype_list[middle]-sametype_list[first] > 1):

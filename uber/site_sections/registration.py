@@ -135,8 +135,7 @@ class Root:
     def change_badge(self, session, id, message='', **params):
         attendee = session.attendee(id, allow_invalid=True)
         if 'badge_type' in params:
-            old_badge_type = attendee.badge_type
-            old_badge_num = attendee.badge_num
+            old_badge_type, old_badge_num = attendee.badge_type, attendee.badge_num
             attendee.badge_type = int(params['badge_type'])
             try:
                 attendee.badge_num = int(params['badge_num'])

@@ -283,16 +283,16 @@ def invalid_badge_num(attendee):
 @validation.Attendee
 def no_more_custom_badges(attendee):
     if (attendee.badge_type != attendee.orig_value_of('badge_type') or attendee.is_new)\
-            and attendee.badge_type in c.PREASSIGNED_BADGE_TYPES and c.AFTER_PRINTED_BADGE_DEADLINE:
+            and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
         return 'Custom badges have already been ordered'
 
 
 @validation.Attendee
 def out_of_badge_type(attendee):
     if attendee.badge_type != attendee.orig_value_of('badge_type'):
-            with Session() as session:
-                if session.get_next_badge_num(attendee.badge_type) > c.BADGE_RANGES[attendee.badge_type][1]:
-                    return 'There are no more badges available for that type'
+        with Session() as session:
+            if session.get_next_badge_num(attendee.badge_type) > c.BADGE_RANGES[attendee.badge_type][1]:
+                return 'There are no more badges available for that type'
 
 
 @validation.MPointsForCash
