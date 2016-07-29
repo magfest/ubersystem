@@ -1,5 +1,6 @@
 from uber.tests import *
 
+
 class TestPrices:
     def test_initial_attendee(self):
         assert 40 == c.get_attendee_price(datetime.now(UTC))
