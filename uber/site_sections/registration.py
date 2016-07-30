@@ -923,7 +923,7 @@ class Root:
         return json.dumps({
             'badges_sold': c.BADGES_SOLD,
             'remaining_badges': c.REMAINING_BADGES,
-
+            'badges_price': c.BADGE_PRICE,
             'server_current_timestamp': int(datetime.utcnow().timestamp()),
             'warn_if_server_browser_time_mismatch': c.WARN_IF_SERVER_BROWSER_TIME_MISMATCH
         })
