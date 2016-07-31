@@ -78,11 +78,11 @@
 <table class="table table-header-rotated">
 <thead>
 <tr>
-    <th><div><span>Department Head</span></div></th>
+    <th style="max-width: 24px; text-align: center"><div><span>Department Head</span></div></th>
 
     {% for conf in checklist %}
          <!-- add .table-header to class to rotate -->
-        <th class="rotate"><div><span><a href="item?slug={{ conf.slug }}">{{ conf.name }}</a></span></div></th>
+        <th class="rotate" style="max-width: 30px; text-align: center"><div><span><a href="item?slug={{ conf.slug }}">{{ conf.name }}</a></span></div></th>
     {% endfor %}
 </tr>
 
