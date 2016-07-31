@@ -3,24 +3,46 @@
 {% block content %}
 
 <style type="text/css">
+
+
+   .table-header-rotated {
+  border-collapse: collapse;
+}
+   .csstransforms & td {
+    width: 30px;
+  }
+  .no-csstransforms & th {
+    padding: 5px 10px;
+  }
+  td {
+    text-align: center;
+    padding: 10px 5px;
+    border: 1px solid #ccc;
+  }
+  .csstransforms & th.rotate {
+    height: 140px;
+    white-space: nowrap;
+    // Firefox needs the extra DIV for some reason, otherwise the text disappears if you rotate
+    > div {
+      transform:
+        // Magic Numbers
+        translate(25px, 51px)
+        // 45 is really 360-45
+        rotate(315deg);
+      width: 30px;
+    }
+    > div > span {
+      border-bottom: 1px solid #ccc;
+      padding: 5px 10px;
+    }
+  }
+  th.row-header {
+    padding: 0 10px;
+    border-bottom: 1px solid #ccc;
+  }
     img {
         height: 24px;
         width: 24px;
-    }
-    tbody {
-        border: 3px solid black;
-    }
-    th div {
-        width: 1.2em;
-        display: block;
-        white-space: nowrap;
-        filter: flipv fliph;
-        writing-mode: tb-rl;
-        -webkit-transform: rotate(-90deg);
-        -moz-transform: rotate(-90deg);
-        -ms-transform: rotate(-90deg);
-        -o-transform: rotate(-90deg);
-        transform: rotate(-90deg);
     }
     .dept-head {
         padding-right: 25px;
@@ -32,6 +54,17 @@
         font-style: italic;
         text-decoration: underline;
     }
+   .table-header{
+        white-space: nowrap;
+        filter: flipv fliph;
+        writing-mode: tb-rl;
+        -webkit-transform: rotate(-45deg);
+        -moz-transform: rotate(-45deg);
+        -ms-transform: rotate(-45deg);
+        -o-transform: rotate(-45deg);
+        transform: rotate(-45deg);
+       transform-origin: 20px 40px;
+    }
 </style>
 
 <h2>Department Checklist</h2>
@@ -40,16 +73,23 @@
 <br/> <img src="../static/images/warn.jpg" /> Deadline is approaching and step isn't yet complete
 <br/> <img src="../static/images/checkbox_checked.png" /> Department head has marked this step as complete
 <br/> <img src="../static/images/checkbox_unchecked.png" /> Department head hasn't yet completed this step, but the deadline isn't close
-<div style="height:{{ max_name_length|add:2 }}ex">&nbsp;</div>
+<div style="height:4ex">&nbsp;</div>
 
-<table style="width:auto">
+<table class="table table-header-rotated">
+<thead>
 <tr>
-    <th><div>Department Head</div></th>
+    <th><div><span>Department Head</span></div></th>
+
     {% for conf in checklist %}
-        <th><div><a href="item?slug={{ conf.slug }}">{{ conf.name }}</a></div></th>
+         <!-- add .table-header to class to rotate -->
+        <th class="rotate"><div><span><a href="item?slug={{ conf.slug }}">{{ conf.name }}</a></span></div></th>
     {% endfor %}
 </tr>
+
+</thead>
 <tbody>
+
+
 {% for dept, dept_name, heads in overview %}
     <tr><td colspan="checklist|length|add:1" class="dept">{{ dept_name }}</td></tr>
     {% for attendee, items in heads %}
