@@ -287,7 +287,7 @@ def mount_site_sections(module_root):
         setattr(Root, section, module.Root())
 
 
-def build_uber_absolute_url(relative_uber_page_url):
+def convert_to_absolute_url(relative_uber_page_url):
     """
     In ubersystem, we always use relative url's of the form "../{some_site_section}/{somepage}"
     We use relative URLs so that no matter what proxy server we are behind on the web, it always works.
