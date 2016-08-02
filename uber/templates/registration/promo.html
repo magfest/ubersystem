@@ -1,0 +1,39 @@
+{% extends "base-admin.html" %}
+{% block title %}Generate a PromoCode{% endblock %}
+{% block content %}
+
+<h2> Create a Promotional Badge Code</h2>
+
+<form method="post" action="promo">
+{% csrf_token %}
+<table class="form">
+<tr>
+    <td> <b>Expiration Date:</b> </td>
+    <td>
+        <input type="date" name="expiration_date" id="datefield"/>
+    </td>
+</tr>
+<tr>
+    <td><b>Uses: (0 or lower for unlimited)</b></td>
+    <td> <input type="number" name="uses" min="-1"/>
+</tr>
+<tr>
+    <td> <b>Discounted Price: </b> </td>
+    <td> $<input type="number" name="price" size="2" /> </td>
+</tr>
+<tr>
+    <td></td>
+    <td> <input type="submit" value="Create" /> </td>
+</tr>
+</table>
+</form>
+
+<i>Bolded fields are required</i>
+
+    <script>
+    var now = new Date();
+    var today = now.getDay() + "-"+ (now.getMonth()+1) + "-" + now.getFullYear();
+    document.getElementById("datefield").setAttribute("min", today);
+    </script>
+
+{% endblock %}
