@@ -810,6 +810,14 @@ class Root:
                 message = "Non-Negative Discounted Price is Required"
             if pc.uses == '':
                 pc.uses = -1
+            if params['code'] == '':
+                pc.code = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
+            if session.query(PromoCode).filter(PromoCode.code == pc.code).first() != None:
+                message = "Promo Code Already In Use. Please Enter Another."
+
+            if message == '':
+                session.add(pc)
+                message = 'Promo Code ' + pc.code + " Generated."
         return {'message': message}
 
     @site_mappable

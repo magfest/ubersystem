@@ -22,6 +22,10 @@
     <td> $<input type="number" name="price" size="2" /> </td>
 </tr>
 <tr>
+    <td>Code: (If not given, will be generated)</td>
+    <td><input type="text" name="code" /> </td>
+</tr>
+<tr>
     <td></td>
     <td> <input type="submit" value="Create" /> </td>
 </tr>
@@ -34,6 +38,7 @@
     var now = new Date();
     var today = now.getDay() + "-"+ (now.getMonth()+1) + "-" + now.getFullYear();
     document.getElementById("datefield").setAttribute("min", today);
+    document.getElementById("datefield").setAttribute("value", today);
     </script>
 
 {% endblock %}
