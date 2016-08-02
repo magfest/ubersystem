@@ -1654,6 +1654,13 @@ class MPointsForCash(MagModel):
     when        = Column(UTCDateTime, default=lambda: datetime.now(UTC))
 
 
+class PromoCode(MagModel):
+    price           = Column(Integer, default=0)
+    uses            = Column(Integer, default=1)
+    code            = Column(UnicodeText)
+    expiration_date = Column(UTCDateTime, default=c.EPOCH)
+
+
 class OldMPointExchange(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
     amount      = Column(Integer)

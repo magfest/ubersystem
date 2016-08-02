@@ -801,6 +801,18 @@ class Root:
                                     .order_by(Attendee.full_name).all()}
 
     @site_mappable
+    def promo(self, session, message='', **params):
+        pc = session.promo_code(params)
+        if 'price' in params:
+            if pc.expiration_date == '':
+                pass
+            if pc.price == '':
+                message = "Non-Negative Discounted Price is Required"
+            if pc.uses == '':
+                pc.uses = -1
+        return {'message': message}
+
+    @site_mappable
     def discount(self, session, message='', **params):
         attendee = session.attendee(params)
         if 'first_name' in params:
