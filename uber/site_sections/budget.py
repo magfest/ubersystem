@@ -46,3 +46,13 @@ class Root:
         all = [(sum(mpu.amount for mpu in mpus), group, mpus)
                for group, mpus in groups.items()]
         return {'all': sorted(all, reverse=True)}
+
+    @csv_file
+    def kickins(self, out, session):
+        totals = defaultdict(int)
+        for attendee in session.query(Attendee):
+            totals['Extra'] += attendee.amount_extra
+            for x in attendee.donation_swag:
+                totals[x] += 1
+        for x in sorted(totals):
+            out.writerow([x, totals[x]])
