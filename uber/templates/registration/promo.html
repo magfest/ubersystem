@@ -15,11 +15,11 @@
 </tr>
 <tr>
     <td><b>Uses: (0 or lower for unlimited)</b></td>
-    <td> <input type="number" name="uses" min="-1"/>
+    <td> <input type="number" name="uses" min="-1" value="-1"/>
 </tr>
 <tr>
     <td> <b>Discounted Price: </b> </td>
-    <td> $<input type="number" name="price" size="2" /> </td>
+    <td> $<input type="number" name="price" size="2" value="{{ c.BADGE_PRICE }}" /> </td>
 </tr>
 <tr>
     <td>Code: (If not given, will be generated)</td>
@@ -36,9 +36,13 @@
 
     <script>
     var now = new Date();
-    var today = now.getDay() + "-"+ (now.getMonth()+1) + "-" + now.getFullYear();
-    document.getElementById("datefield").setAttribute("min", today);
-    document.getElementById("datefield").setAttribute("value", today);
+    var month = now.getMonth()+1;
+    if (month < 10){
+        month = "0{0}"
+    }
+    var today = "%d-%2d-%2d" % (now.getFullYear(), now.getMonth()+1, now.getDay());
+    document.getElementById("datefield").setAttribute("min", "{{ min_day }}");
+    document.getElementById("datefield").setAttribute("value", "{{ max_day }}");
     </script>
 
 {% endblock %}

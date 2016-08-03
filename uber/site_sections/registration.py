@@ -803,6 +803,9 @@ class Root:
     @site_mappable
     def promo(self, session, message='', **params):
         pc = session.promo_code(params)
+        now = datetime.now(UTC)
+        today = "%d-%02d-%02d" % (now.date().year, now.date().month, now.date().day)
+        max_day = "%d-%02d-%02d" % (c.EPOCH.date().year, c.EPOCH.date().month, c.EPOCH.date().day)
         if 'price' in params:
             if pc.expiration_date == '':
                 pass
@@ -822,10 +825,16 @@ class Root:
                 session.add(pc)
                 session.commit()
                 message = 'Promo Code ' + pc.code + " Generated."
-        return {'message': message}
+        return {'message': message,
+                'min_day': today,
+                'max_day': max_day}
 
     @site_mappable
     def promo_code_management(self, session, message='', **params):
+        purge = session.query(PromoCode).all()
+        for x in purge:
+            session.delete(x)
+        session.commit()
         return {'message': message,
                 'codes': session.query(PromoCode).all()}
 

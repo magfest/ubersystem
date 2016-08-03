@@ -1658,6 +1658,7 @@ class PromoCode(MagModel):
     price           = Column(Integer, default=0)
     uses            = Column(Integer, default=1)
     code            = Column(UnicodeText)
+    users           = Column(UnicodeText, default="")
     expiration_date = Column(UTCDateTime, default=c.EPOCH)
 
 
