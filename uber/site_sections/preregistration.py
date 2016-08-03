@@ -98,31 +98,28 @@ class Root:
     def dealer_registration(self, message=''):
         return self.form(badge_type=c.PSEUDO_DEALER_BADGE, message=message)
 
+
     def redeem(self, session, message='', **params):
         accepted_message = 'Promo Code Applied!'
         rejected_message = 'Promo Code Rejected!'
         if 'promo' and 'edit_id' in params:
             destroy_promo_code = False
-            #Get Unpaid Attendee
+
             attendee = cherrypy.session['unpaid_preregs'][params['edit_id']]
             if attendee is not None:
-                #Get Promo Code
                 pc = session.query(PromoCode).filter(PromoCode.code == params['promo']).first()
                 if pc is not None:
-                    #Check if promo Code expired
                     if datetime.now(tz=UTC) > pc.expiration_date:
                         destroy_promo_code = True
                         message = rejected_message + " Code Expired."
                     else:
-                        #Check if usable
                         if pc.uses > 0 or pc.uses == -1:
                             message = accepted_message
-                            users = pc.users.split(",")
-                            if params['edit_id'] not in users:
-                                users.append(params['edit_id'])
-                                pc.users = ",".join(users)
-                                if len(users) == pc.uses:
-                                    #Current Destruction Means Last Person to use it instantly destroys it
+                            used = session.query(PromoCodeUsages).filter(PromoCodeUsages.attendee_id == params['edit_id']).first()
+                            if used is None:
+                                pcu = {'promo_id':pc.id, 'attendee_id':params['edit_id']}
+                                session.add(session.promo_code_usages(pcu))
+                                if session.query(PromoCodeUsages).filter(PromoCodeUsages.promo_id == pc.id).count() == pc.uses:
                                     destroy_promo_code = True
                                     message = message + ' This was the final use!'
                                 if attendee['amount_extra'] == 0 and pc.price == 0:
@@ -134,7 +131,7 @@ class Root:
                                     attendee['overridden_price'] = pc.price
                                     cherrypy.session['unpaid_preregs'][params['edit_id']] = attendee
                             else:
-                                message = rejected_message + 'You have already used this coupon code!'
+                                message = rejected_message + 'You have already used a coupon code!'
 
                             session.merge(pc)
                             session.commit()
