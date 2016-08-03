@@ -89,10 +89,9 @@ class Root:
         if not self.unpaid_preregs:
             raise HTTPRedirect('form?message={}', message) if message else HTTPRedirect('form')
         else:
-            a = Charge(listify(self.unpaid_preregs.values()))
             return {
                 'message': message,
-                'charge': a
+                'charge': Charge(listify(self.unpaid_preregs.values()))
             }
 
     @check_if_can_reg
@@ -104,27 +103,40 @@ class Root:
         rejected_message = 'Promo Code Rejected!'
         if 'promo' and 'edit_id' in params:
             destroy_promo_code = False
+            #Get Unpaid Attendee
             attendee = cherrypy.session['unpaid_preregs'][params['edit_id']]
             if attendee is not None:
+                #Get Promo Code
                 pc = session.query(PromoCode).filter(PromoCode.code == params['promo']).first()
-                if datetime.now(tz=UTC) > pc.expiration_date:
-                    destroy_promo_code = True
-                    message = rejected_message
-                else:
-                    if pc.uses > 0 or pc.uses == -1:
-                        message = accepted_message
-                        if pc.uses > 0:
-                            pc.uses = pc.uses-1
-                        if pc.uses == 0:
-                            destroy_promo_code = True
-                            message = message + ' This was the final use!'
-                        if pc.price == 0:
-                            attendee['paid'] = c.NEED_NOT_PAY
-
-                        attendee['overridden_price'] = pc.price
-                        cherrypy.session['unpaid_preregs'][params['edit_id']] = attendee
-                        #session.merge(attendee)
+                if pc is not None:
+                    #Check if promo Code expired
+                    if datetime.now(tz=UTC) > pc.expiration_date:
+                        destroy_promo_code = True
+                        message = rejected_message + " Code Expired."
+                    else:
+                        #Check if usable
+                        if pc.uses > 0 or pc.uses == -1:
+                            message = accepted_message
+                            if pc.uses > 0:
+                                pc.uses = pc.uses-1
+                            if pc.uses == 0:
+                                destroy_promo_code = True
+                                message = message + ' This was the final use!'
+                            if pc.price == 0:
+                                attendee['paid'] = c.NEED_NOT_PAY
+                                session.add(Charge.from_sessionized(attendee))
+                                del cherrypy.session['unpaid_preregs'][params['edit_id']]
+                                message = ' Attendee %s %s has been registered!' % (attendee['first_name'], attendee['last_name'])
+                            else:
+                                attendee['overridden_price'] = pc.price
+                                cherrypy.session['unpaid_preregs'][params['edit_id']] = attendee
+                            session.merge(pc)
+                            session.commit()
+                    if destroy_promo_code:
+                        session.delete(pc)
                         session.commit()
+                else:
+                    message = rejected_message + ' Code Not Found.'
         raise HTTPRedirect('index?message={}', message)
 
 

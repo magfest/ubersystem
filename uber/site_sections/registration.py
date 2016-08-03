@@ -825,6 +825,21 @@ class Root:
         return {'message': message}
 
     @site_mappable
+    def promo_code_management(self, session, message='', **params):
+        return {'message': message,
+                'codes': session.query(PromoCode).all()}
+
+    @ajax_gettable
+    def delete_promo_code(self, session, message='', **params):
+        if 'code' in params:
+            pc = session.query(PromoCode).filter(PromoCode.code == params['code']).first()
+            if pc is not None:
+                session.delete(pc)
+                session.commit()
+                message = ('Promo Code %s Deleted!' % params['code'])
+        raise HTTPRedirect('promo_code_management?message={}', message)
+
+    @site_mappable
     def discount(self, session, message='', **params):
         attendee = session.attendee(params)
         if 'first_name' in params:

@@ -1,0 +1,31 @@
+{% extends "base-admin.html" %}
+{% block title %}Generate a PromoCode{% endblock %}
+{% block content %}
+
+<h2> Create a Promotional Badge Code</h2>
+
+{% csrf_token %}
+<table style="width: auto">
+    <thead>
+    <tr>
+        <th>Code</th>
+        <th>Uses</th>
+        <th>Badge Cost</th>
+        <th>Expiration Date</th>
+        <th>Delete</th>
+    </tr>
+    </thead>
+    {% for c in codes %}
+        <tr>
+        <td>{{ c.code }}</td>
+        <td>{% if c.uses == -1 %}&#x221e;{% else %}{{ c.uses }}{% endif %}</td>
+        <td>{% if c.price == 0 %}Free!{% else %}${{ c.price }}{% endif %}</td>
+        <td>{{ c.expiration_date }}</td>
+        <td><form action="delete_promo_code"><input type="text" value="{{ c.code }}" name="code" hidden><input type="submit" value="Delete"></form></td>
+        </tr>
+    {% endfor %}
+</table>
+
+
+
+{% endblock %}
