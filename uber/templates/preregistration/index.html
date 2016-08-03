@@ -68,7 +68,7 @@
             </ul>
         </td>
         <td>${{ attendee.total_cost }}</td>
-        <td><form action="redeem"><input type="text" name="edit_id" value="{{ attendee.id }}" hidden> <input placeholder="Enter Promo Code" type="text" name="promo"><input type="submit" value="Submit"></form></td>
+        <td><form action="redeem" method="post"><input type="text" name="edit_id" value="{{ attendee.id }}" hidden> <input placeholder="Enter Promo Code" type="text" name="promo"><input type="submit" value="Submit"></form></td>
         <td>
             <a href="form?edit_id={{ attendee.id }}">Edit</a> /
             <a href="delete?id={{ attendee.id }}">Delete</a>

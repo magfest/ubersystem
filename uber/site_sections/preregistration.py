@@ -98,7 +98,6 @@ class Root:
     def dealer_registration(self, message=''):
         return self.form(badge_type=c.PSEUDO_DEALER_BADGE, message=message)
 
-
     def redeem(self, session, message='', **params):
         accepted_message = 'Promo Code Applied!'
         rejected_message = 'Promo Code Rejected!'
@@ -118,7 +117,7 @@ class Root:
                             used = session.query(PromoCodeUsages).filter(PromoCodeUsages.attendee_id == params['edit_id']).first()
                             if used is None:
                                 pcu = {'promo_id':pc.id, 'attendee_id':params['edit_id']}
-                                session.add(session.promo_code_usages(pcu))
+                                session.add(session.promo_code_usages(pcu, ignore_csrf=True))
                                 if session.query(PromoCodeUsages).filter(PromoCodeUsages.promo_id == pc.id).count() == pc.uses:
                                     destroy_promo_code = True
                                     message = message + ' This was the final use!'
@@ -132,7 +131,6 @@ class Root:
                                     cherrypy.session['unpaid_preregs'][params['edit_id']] = attendee
                             else:
                                 message = rejected_message + 'You have already used a coupon code!'
-
                             session.merge(pc)
                             session.commit()
                     if destroy_promo_code:
@@ -141,11 +139,6 @@ class Root:
                 else:
                     message = rejected_message + ' Code Not Found.'
         raise HTTPRedirect('index?message={}', message)
-
-
-
-
-
 
     @check_if_can_reg
     def form(self, session, message='', edit_id=None, **params):
