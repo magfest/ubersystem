@@ -89,9 +89,10 @@ class Root:
         if not self.unpaid_preregs:
             raise HTTPRedirect('form?message={}', message) if message else HTTPRedirect('form')
         else:
+            a = Charge(listify(self.unpaid_preregs.values()))
             return {
                 'message': message,
-                'charge': Charge(listify(self.unpaid_preregs.values()))
+                'charge': a
             }
 
     @check_if_can_reg
@@ -99,10 +100,36 @@ class Root:
         return self.form(badge_type=c.PSEUDO_DEALER_BADGE, message=message)
 
     def redeem(self, session, message='', **params):
-        if 'promo' in params:
-            pc = session.query(PromoCode).filter(PromoCode.code == params['promo']).first()
-            b = session.query(PromoCode).all()
-            a = pc
+        accepted_message = 'Promo Code Applied!'
+        rejected_message = 'Promo Code Rejected!'
+        if 'promo' and 'edit_id' in params:
+            destroy_promo_code = False
+            attendee = cherrypy.session['unpaid_preregs'][params['edit_id']]
+            if attendee is not None:
+                pc = session.query(PromoCode).filter(PromoCode.code == params['promo']).first()
+                if datetime.now(tz=UTC) > pc.expiration_date:
+                    destroy_promo_code = True
+                    message = rejected_message
+                else:
+                    if pc.uses > 0 or pc.uses == -1:
+                        message = accepted_message
+                        if pc.uses > 0:
+                            pc.uses = pc.uses-1
+                        if pc.uses == 0:
+                            destroy_promo_code = True
+                            message = message + ' This was the final use!'
+                        if pc.price == 0:
+                            attendee['paid'] = c.NEED_NOT_PAY
+
+                        attendee['overridden_price'] = pc.price
+                        cherrypy.session['unpaid_preregs'][params['edit_id']] = attendee
+                        #session.merge(attendee)
+                        session.commit()
+        raise HTTPRedirect('index?message={}', message)
+
+
+
+
 
 
     @check_if_can_reg

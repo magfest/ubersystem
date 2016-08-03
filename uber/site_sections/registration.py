@@ -806,9 +806,12 @@ class Root:
         if 'price' in params:
             if pc.expiration_date == '':
                 pass
+            else:
+                year, month, day = pc.expiration_date.split("-")
+                pc.expiration_date = datetime(int(year), int(month), int(day)).replace(tzinfo=UTC)
             if pc.price == '':
                 message = "Non-Negative Discounted Price is Required"
-            if pc.uses == '':
+            if pc.uses == '' or int(pc.uses) <= 0:
                 pc.uses = -1
             if params['code'] == '':
                 pc.code = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
@@ -817,6 +820,7 @@ class Root:
 
             if message == '':
                 session.add(pc)
+                session.commit()
                 message = 'Promo Code ' + pc.code + " Generated."
         return {'message': message}
 
