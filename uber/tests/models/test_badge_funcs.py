@@ -157,8 +157,15 @@ class TestAutoBadgeNum:
         assert 6 == session.auto_badge_num(c.STAFF_BADGE)
 
     def test_preassigned_with_gap(self, session):
-        session.supporter_five.badge_type, session.supporter_five.badge_num = c.STAFF_BADGE, 8
+`        session.supporter_five.badge_type, session.supporter_five.badge_num = c.STAFF_BADGE, 12
         session.supporter_four.badge_type, session.supporter_four.badge_num = c.STAFF_BADGE, 6
+        session.commit()
+        assert 7 == session.auto_badge_num(c.STAFF_BADGE)
+
+    def test_preassigned_with_two_gaps(self, session):
+        session.supporter_five.badge_type, session.supporter_five.badge_num = c.STAFF_BADGE, 12
+        session.supporter_four.badge_type, session.supporter_four.badge_num = c.STAFF_BADGE, 6
+        session.supporter_three.badge_type, session.supporter_three.badge_num = c.STAFF_BADGE, 8
         session.commit()
         assert 7 == session.auto_badge_num(c.STAFF_BADGE)
 

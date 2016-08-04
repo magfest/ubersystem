@@ -587,6 +587,7 @@ class Session(SessionManager):
                 sametype_list = [int(row[0]) for row in sametype.order_by(Attendee.badge_num).all()]
 
                 # Searches badge range for a gap in badge numbers; if none found, returns the latest badge number + 1
+                # Doing this lets admins manually set high badge numbers without filling up the badge type's range.
                 first = 0
                 last = sametype.count() - 1
                 if sametype_list[last] - sametype_list[first] == last:
