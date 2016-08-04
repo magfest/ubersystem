@@ -50,7 +50,7 @@ class Root:
     @csv_file
     def kickins(self, out, session):
         totals = defaultdict(int)
-        for attendee in session.query(Attendee).filter(Attendee.badge_status==c.COMPLETED_STATUS):
+        for attendee in session.query(Attendee).filter(Attendee.badge_status == c.COMPLETED_STATUS):
             totals['Extra'] += attendee.amount_extra
             for x in attendee.donation_swag:
                 totals[x] += 1
