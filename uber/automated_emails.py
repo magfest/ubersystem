@@ -14,7 +14,7 @@ class AutomatedEmail:
     }
     extra_models = queries  # we've renamed "extra_models" to "queries" but are temporarily keeping the old name for backwards-compatibility
 
-    def __init__(self, model, subject, template, filter, *, sender=None, extra_data=None, cc=None, bcc=None, post_con=False, needs_approval=True, email_id=None):
+    def __init__(self, model, subject, template, filter, *, sender=None, extra_data=None, cc=None, bcc=None, post_con=False, needs_approval=True, ident=None):
         self.model, self.template, self.needs_approval = model, template, needs_approval
         self.subject = subject.format(EVENT_NAME=c.EVENT_NAME)
         self.cc = cc or []
@@ -22,8 +22,7 @@ class AutomatedEmail:
         self.extra_data = extra_data or {}
         self.sender = sender or c.REGDESK_EMAIL
         self.instances[self.subject] = self
-        self.email_id = email_id or self.subject
-        self.email_id = self.email_id.format(EVENT_NAME=c.EVENT_NAME)
+        self.ident = (ident or self.subject).format(EVENT_NAME=c.EVENT_NAME)
         if post_con:
             self.filter = lambda x: c.POST_CON and filter(x)
         else:
@@ -34,10 +33,10 @@ class AutomatedEmail:
 
     def prev(self, x, all_sent=None):
         if all_sent:
-            return (x.__class__.__name__, x.id, self.subject, self.email_id) in all_sent
+            return (x.__class__.__name__, x.id, self.subject, self.ident) in all_sent
         else:
             with Session() as session:
-                return session.query(Email).filter_by(model=x.__class__.__name__, fk_id=x.id, email_id=self.email_id).first()
+                return session.query(Email).filter_by(model=x.__class__.__name__, fk_id=x.id, ident=self.ident).first()
 
     def should_send(self, x, all_sent=None):
         try:
@@ -52,7 +51,7 @@ class AutomatedEmail:
     def send(self, x, raise_errors=True):
         try:
             format = 'text' if self.template.endswith('.txt') else 'html'
-            send_email(self.sender, x.email, self.subject, self.render(x), format, model=x, cc=self.cc, email_id=self.email_id)
+            send_email(self.sender, x.email, self.subject, self.render(x), format, model=x, cc=self.cc, ident=self.ident)
         except:
             log.error('error sending {!r} email to {}', self.subject, x.email, exc_info=True)
             if raise_errors:
