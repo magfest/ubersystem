@@ -1758,6 +1758,19 @@ class Tracking(MagModel):
             new_val = getattr(instance, attr)
             old_val = instance.orig_value_of(attr)
             if old_val != new_val:
+                """
+                important note: here we try and show the old vs new value for something that has been changed
+                so that we can report it in the tracking page.
+
+                Sometimes, however, if we changed the type of the value in the database (via a database migration)
+                the old value might not be able to be shown as the new type (i.e. it used to be a string, now it's int).
+                In that case, we won't be able to show a representation of the old value and instead we'll log it as
+                '<ERROR>'.  In theory the database migration SHOULD be the thing handling this, but if it doesn't, it
+                becomes our problem to deal with.
+
+                We are overly paranoid with exception handling here because the tracking code should be made to
+                never, ever, ever crash, even if it encounters insane/old data that really shouldn't be our problem.
+                """
                 try:
                     old_val_repr = cls.repr(column, old_val)
                 except Exception as e:
