@@ -801,6 +801,54 @@ class Root:
                                     .order_by(Attendee.full_name).all()}
 
     @site_mappable
+    def promo(self, session, message='', **params):
+        pc = session.promo_code(params)
+        now = datetime.now(UTC)
+        today = "%d-%02d-%02d" % (now.date().year, now.date().month, now.date().day)
+        max_day = "%d-%02d-%02d" % (c.EPOCH.date().year, c.EPOCH.date().month, c.EPOCH.date().day)
+        if 'price' in params:
+            if pc.expiration_date == '':
+                pass
+            else:
+                year, month, day = pc.expiration_date.split("-")
+                pc.expiration_date = datetime(int(year), int(month), int(day)).replace(tzinfo=UTC)
+            if pc.price == '':
+                message = "Non-Negative Discounted Price is Required"
+            if pc.uses == '' or int(pc.uses) <= 0:
+                pc.uses = -1
+            if params['code'] == '':
+                pc.code = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
+            if session.query(PromoCode).filter(PromoCode.code == pc.code).first() != None:
+                message = "Promo Code Already In Use. Please Enter Another."
+
+            if message == '':
+                session.add(pc)
+                session.commit()
+                message = 'Promo Code ' + pc.code + " Generated."
+        return {'message': message,
+                'min_day': today,
+                'max_day': max_day}
+
+    @site_mappable
+    def promo_code_management(self, session, message='', **params):
+        purge = session.query(PromoCode).all()
+        for x in purge:
+            session.delete(x)
+        session.commit()
+        return {'message': message,
+                'codes': session.query(PromoCode).all()}
+
+    @ajax_gettable
+    def delete_promo_code(self, session, message='', **params):
+        if 'code' in params:
+            pc = session.query(PromoCode).filter(PromoCode.code == params['code']).first()
+            if pc is not None:
+                session.delete(pc)
+                session.commit()
+                message = ('Promo Code %s Deleted!' % params['code'])
+        raise HTTPRedirect('promo_code_management?message={}', message)
+
+    @site_mappable
     def discount(self, session, message='', **params):
         attendee = session.attendee(params)
         if 'first_name' in params:

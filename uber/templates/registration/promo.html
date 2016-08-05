@@ -1,0 +1,48 @@
+{% extends "base-admin.html" %}
+{% block title %}Generate a PromoCode{% endblock %}
+{% block content %}
+
+<h2> Create a Promotional Badge Code</h2>
+
+<form method="post" action="promo">
+{% csrf_token %}
+<table class="form">
+<tr>
+    <td> <b>Expiration Date:</b> </td>
+    <td>
+        <input type="date" name="expiration_date" id="datefield"/>
+    </td>
+</tr>
+<tr>
+    <td><b>Uses: (0 or lower for unlimited)</b></td>
+    <td> <input type="number" name="uses" min="-1" value="-1"/>
+</tr>
+<tr>
+    <td> <b>Discounted Price: </b> </td>
+    <td> $<input type="number" name="price" size="2" value="{{ c.BADGE_PRICE }}" /> </td>
+</tr>
+<tr>
+    <td>Code: (If not given, will be generated)</td>
+    <td><input type="text" name="code" /> </td>
+</tr>
+<tr>
+    <td></td>
+    <td> <input type="submit" value="Create" /> </td>
+</tr>
+</table>
+</form>
+
+<i>Bolded fields are required</i>
+
+    <script>
+    var now = new Date();
+    var month = now.getMonth()+1;
+    if (month < 10){
+        month = "0{0}"
+    }
+    var today = "%d-%2d-%2d" % (now.getFullYear(), now.getMonth()+1, now.getDay());
+    document.getElementById("datefield").setAttribute("min", "{{ min_day }}");
+    document.getElementById("datefield").setAttribute("value", "{{ max_day }}");
+    </script>
+
+{% endblock %}

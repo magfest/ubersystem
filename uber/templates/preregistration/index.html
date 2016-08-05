@@ -57,7 +57,7 @@
         <td>
             <ul style="padding-left:15px">
                 <li>Membership for {{ c.EVENT_NAME }}</li>
-                {% if not attendee.default_cost %}
+                {% if not attendee.default_cost and not attendee.overridden_price %}
                     <li>Attendees who are {{ attendee.age_group_conf.desc|lower }} get in for free!</li>
                 {% elif attendee.discount %}
                     <li>${{ attendee.age_group_conf.discount }} discount for attendees who are {{ attendee.age_group_conf.desc|lower }}.</li>
@@ -68,6 +68,7 @@
             </ul>
         </td>
         <td>${{ attendee.total_cost }}</td>
+        <td><form action="redeem" method="post"><input type="text" name="edit_id" value="{{ attendee.id }}" hidden> <input placeholder="Enter Promo Code" type="text" name="promo"><input type="submit" value="Submit"></form></td>
         <td>
             <a href="form?edit_id={{ attendee.id }}">Edit</a> /
             <a href="delete?id={{ attendee.id }}">Delete</a>

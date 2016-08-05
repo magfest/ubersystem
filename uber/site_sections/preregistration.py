@@ -98,6 +98,48 @@ class Root:
     def dealer_registration(self, message=''):
         return self.form(badge_type=c.PSEUDO_DEALER_BADGE, message=message)
 
+    def redeem(self, session, message='', **params):
+        accepted_message = 'Promo Code Applied!'
+        rejected_message = 'Promo Code Rejected!'
+        if 'promo' and 'edit_id' in params:
+            destroy_promo_code = False
+
+            attendee = cherrypy.session['unpaid_preregs'][params['edit_id']]
+            if attendee is not None:
+                pc = session.query(PromoCode).filter(PromoCode.code == params['promo']).first()
+                if pc is not None:
+                    if datetime.now(tz=UTC) > pc.expiration_date:
+                        destroy_promo_code = True
+                        message = rejected_message + " Code Expired."
+                    else:
+                        if pc.uses > 0 or pc.uses == -1:
+                            message = accepted_message
+                            used = session.query(PromoCodeUsages).filter(PromoCodeUsages.attendee_id == params['edit_id']).first()
+                            if used is None:
+                                pcu = {'promo_id':pc.id, 'attendee_id':params['edit_id']}
+                                session.add(session.promo_code_usages(pcu, ignore_csrf=True))
+                                if session.query(PromoCodeUsages).filter(PromoCodeUsages.promo_id == pc.id).count() == pc.uses:
+                                    destroy_promo_code = True
+                                    message = message + ' This was the final use!'
+                                if attendee['amount_extra'] == 0 and pc.price == 0:
+                                    attendee['paid'] = c.NEED_NOT_PAY
+                                    session.add(Charge.from_sessionized(attendee))
+                                    del cherrypy.session['unpaid_preregs'][params['edit_id']]
+                                    message = ' Attendee %s %s has been registered!' % (attendee['first_name'], attendee['last_name'])
+                                else:
+                                    attendee['overridden_price'] = pc.price
+                                    cherrypy.session['unpaid_preregs'][params['edit_id']] = attendee
+                            else:
+                                message = rejected_message + 'You have already used a coupon code!'
+                            session.merge(pc)
+                            session.commit()
+                    if destroy_promo_code:
+                        session.delete(pc)
+                        session.commit()
+                else:
+                    message = rejected_message + ' Code Not Found.'
+        raise HTTPRedirect('index?message={}', message)
+
     @check_if_can_reg
     def form(self, session, message='', edit_id=None, **params):
         params['id'] = 'None'   # security!
