@@ -263,10 +263,27 @@ def _get_template_filename(func):
     return os.path.join(_get_module_name(func), func.__name__ + '.html')
 
 
+def prettify_breadcrumb(str):
+    return str.replace('_', ' ').title()
+
+
 def renderable(func):
     @wraps(func)
     def with_rendering(*args, **kwargs):
         result = func(*args, **kwargs)
+
+        try:
+            result['breadcrumb_page_pretty_'] = prettify_breadcrumb(func.__name__) if func.__name__ != 'index' else 'Home'
+            result['breadcrumb_page_'] = func.__name__ if func.__name__ != 'index' else ''
+        except:
+            pass
+
+        try:
+            result['breadcrumb_section_pretty_'] = prettify_breadcrumb(_get_module_name(func))
+            result['breadcrumb_section_'] = _get_module_name(func)
+        except:
+            pass
+
         if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
             return render('closed.html')
         elif isinstance(result, dict):
