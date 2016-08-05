@@ -95,10 +95,6 @@ class Root:
             }
 
     @check_if_can_reg
-    def badge_choice(self, message=''):
-        return {'message': message}
-
-    @check_if_can_reg
     def dealer_registration(self, message=''):
         return self.form(badge_type=c.PSEUDO_DEALER_BADGE, message=message)
 

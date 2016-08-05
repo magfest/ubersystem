@@ -29,6 +29,12 @@ def sensible_defaults():
     # we need to set some default table prices so we can write tests against them without worrying about what's been configured
     c.TABLE_PRICES = defaultdict(lambda: 400, {1: 100, 2: 200, 3: 300})
 
+    # default attendee prices
+    c.INITIAL_ATTENDE = 40
+    c.GROUP_DISCOUNT = 10
+    c.DEALER_BADGE_PRICE = 20
+    c.PRICE_BUMPS = {}
+
 
 @pytest.fixture(scope='session', autouse=True)
 def init_db(request, sensible_defaults):
