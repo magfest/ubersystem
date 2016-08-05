@@ -1,9 +1,12 @@
 {% extends "base-admin.html" %}
-{% block title %}Attendee Mass Upload{% endblock %}
+{% block title %}CSV Import{% endblock %}
 {% block content %}
 
-<form action="attendee_upload" method="post" enctype="multipart/form-data">
-    <input type="file" name="attendee_import" /><br />
+<form action="csv_import" method="post" enctype="multipart/form-data">
+    <select name="selected_model">
+        {% options tables %}
+    </select><br />
+    <input type="file" name="model_import" /><br />
     <select name="date_format">
         <option selected="selected" value="%Y-%m-%d">YYYY-MM-DD</option>
         <option value="%Y/%m/%d">YYYY/MM/DD</option>

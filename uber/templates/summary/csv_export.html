@@ -1,0 +1,18 @@
+{% extends "base-admin.html" %}
+{% block title %}CSV Export{% endblock %}
+{% block content %}
+
+<h2> CSV Table Export </h2>
+This exports all rows in the database for the table you select. If you need to import data instead, use the
+
+<br/>
+
+<form action="export_model" method="post" enctype="multipart/form-data">
+    <select name="selected_model">
+        {% options tables 'attendee' %}
+    </select><br />
+    <input type="submit" value="Download" />
+</form>
+
+
+{% endblock %}

@@ -296,6 +296,9 @@ class MagModel:
 
     @suffix_property
     def _label(self, name, val):
+        if not val:
+            return ''
+
         try:
             val = int(val)
         except ValueError:
@@ -445,6 +448,19 @@ class Session(SessionManager):
             return self.filter(*[func.lower(getattr(self.model, attr)) == func.lower(val) for attr, val in filters.items()])
 
     class SessionMixin:
+        def get_class_by_tablename(self, tablename, redirect):
+            """Return class reference mapped to table.
+
+            :param tablename: String with name of table.
+            :param redirect: The page to redirect to if no table is found.
+            :return: Class reference or None.
+            """
+            for _model in Session.all_models():
+                if hasattr(_model, '__tablename__') and _model.__tablename__ == tablename:
+                    return _model
+            else:
+                HTTPRedirect('{}?message={} is not a valid model.'.format(redirect, tablename))
+
         def admin_attendee(self):
             return self.admin_account(cherrypy.session['account_id']).attendee
 
