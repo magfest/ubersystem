@@ -1842,7 +1842,7 @@ def _acquire_badge_lock(session, context, instances='deprecated'):
     c.BADGE_LOCK.acquire()
 
 
-@catch_all_exceptions
+@swallow_exceptions
 def _presave_adjustments(session, context, instances='deprecated'):
     """
     precondition: c.BADGE_LOCK is acquired already.
@@ -1870,7 +1870,7 @@ def _release_badge_lock_on_error(*args, **kwargs):
                  'does occur')
 
 
-@catch_all_exceptions
+@swallow_exceptions
 def _track_changes(session, context, instances='deprecated'):
     for action, instances in {c.CREATED: session.new, c.UPDATED: session.dirty, c.DELETED: session.deleted}.items():
         for instance in instances:
@@ -1880,11 +1880,14 @@ def _track_changes(session, context, instances='deprecated'):
 
 def register_session_listeners():
     """
-    IMPORTANT!!! Because we are locking our c.BADGE_LOCK at the start of this, all of these functions MUST NOT
+    NOTE 1: IMPORTANT!!! Because we are locking our c.BADGE_LOCK at the start of this, all of these functions MUST NOT
     THROW ANY EXCEPTIONS.  If they do throw exceptions, the chain of hooks will not be completed, and the lock won't
-    be released, resulting in a deadlock.
+    be released, resulting in a deadlock and heinous, horrible, and hard to debug server lockup.
 
-    The order in which we call these matters here.
+    You MUST use the @swallow_exceptions decorator on ALL functions
+    between _acquire_badge_lock and _release_badge_lock in order to prevent them from throwing exceptions.
+
+    NOTE 2: The order in which we register these listeners matters.
     """
     listen(Session.session_factory, 'before_flush', _acquire_badge_lock)
     listen(Session.session_factory, 'before_flush', _presave_adjustments)
