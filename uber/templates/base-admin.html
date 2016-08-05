@@ -10,6 +10,7 @@
     {% endif %}
 {%  endblock %}
 
-{% block additional_styles %}
-   <link rel="stylesheet" type="text/css" href="../static_views/additional-styles.css" />
+{% block head_styles %}
+    {{ block.super }}
+    <link rel="stylesheet" type="text/css" href="../static_views/additional-styles.css" />
 {%  endblock %}

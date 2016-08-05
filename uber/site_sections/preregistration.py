@@ -502,6 +502,7 @@ class Root:
         return {}
 
     # TODO: figure out if this is the best way to handle the issue of people not getting shirts
+    # TODO: this may be all now-dead one-time code (attendee.owed_shirt doesn't exist anymore)
     def shirt_reorder(self, session, message='', **params):
         attendee = session.attendee(params, restricted=True)
         assert attendee.owed_shirt, "There's no record of {} being owed a tshirt".format(attendee.full_name)
