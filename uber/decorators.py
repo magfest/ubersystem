@@ -1,6 +1,21 @@
 from uber.common import *
 
 
+def swallow_exceptions(func):
+    """
+    Don't allow ANY Exceptions to be raised from this.
+    Use this ONLY where it's absolutely needed, such as dealing with locking functionality.
+    WARNING: DO NOT USE THIS UNLESS YOU KNOW WHAT YOU'RE DOING :)
+    """
+    @wraps(func)
+    def swallow_exception(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception:
+            log.error('encountered exception, forcing continuation anyway', exc_info=True)
+    return swallow_exception
+
+
 def log_pageview(func):
     @wraps(func)
     def with_check(*args, **kwargs):
