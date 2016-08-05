@@ -299,5 +299,10 @@ def convert_to_absolute_url(relative_uber_page_url):
     Do not use this function unless you absolutely need to, instead use relative URLs as much as possible.
     """
 
-    assert relative_uber_page_url[:3] == '../', "relative url MUST start with '../'"
+    if not relative_uber_page_url:
+        return ''
+
+    if relative_uber_page_url[:3] != '../':
+        raise ValueError("relative url MUST start with '../'")
+
     return urljoin(c.URL_BASE + "/", relative_uber_page_url[3:])
