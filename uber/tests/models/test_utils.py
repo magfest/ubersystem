@@ -12,6 +12,7 @@ def test_absolute_urls(base_url):
 
 def test_absolute_urls_empty(base_url):
     assert convert_to_absolute_url(None) == ''
+    assert convert_to_absolute_url('') == ''
 
 
 def test_absolute_url_error(base_url):
