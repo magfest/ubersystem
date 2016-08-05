@@ -37,6 +37,7 @@ from os.path import abspath, basename, dirname, exists, join
 import pytz
 import bcrypt
 import stripe
+import jinja2
 import cherrypy
 import django.conf
 from pytz import UTC
