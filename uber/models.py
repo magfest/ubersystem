@@ -1049,7 +1049,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @presave_adjustment
     def _status_adjustments(self):
         if self.badge_status == c.NEW_STATUS and self.banned:
-            self.badge_status = c.DEFERRED_STATUS
+            self.badge_status = c.WATCHED_STATUS
             try:
                 send_email(c.SECURITY_EMAIL, [c.REGDESK_EMAIL, c.SECURITY_EMAIL], 'Banned attendee registration',
                            render('emails/reg_workflow/banned_attendee.txt', {'attendee': self}), model='n/a')
