@@ -253,7 +253,7 @@
 <div class="form-group">
     <label class="col-sm-2 control-label">Badge Price</label>
     <div class="col-sm-6">
-        Base Price: $<input type="text" style="width:4em" name="overridden_price" value="{{ attendee.badge_cost }}" />
+        Base Price: $<input type="text" style="width:4em" name="overridden_price" value="{{ attendee.badge_cost|floatformat:2 }}" />
         <input type="checkbox" name="no_override" {% if not attendee.overridden_price %} checked {% endif %}> Automatically recalculate badge price.
     </div>
 </div>
