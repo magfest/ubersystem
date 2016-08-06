@@ -459,7 +459,7 @@ class Session(SessionManager):
                 if hasattr(_model, '__tablename__') and _model.__tablename__ == tablename:
                     return _model
             else:
-                HTTPRedirect('{}?message={} is not a valid model.'.format(redirect, tablename))
+                HTTPRedirect('{}?message={} is not a valid model.', redirect, tablename)
 
         def admin_attendee(self):
             return self.admin_account(cherrypy.session['account_id']).attendee

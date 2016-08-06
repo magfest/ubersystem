@@ -175,83 +175,97 @@ class Root:
         }
         return render('summary/food_eligible.xml', {'attendees': eligible})
 
-    def csv_import(self, session, message='', model_import=None, selected_model='', date_format="%Y-%m-%d"):
-        all_instances = None
-
-        if model_import:
-            model = session.get_class_by_tablename(selected_model, 'csv_import')
-
-            cols = {col.name: getattr(model, col.name) for col in model.__table__.columns}
-            result = csv.DictReader(model_import.file.read().decode('utf-8').split('\n'))
-            id_list = []
-
-            for row in result:
-                if 'id' in row:
-                    id = row.pop('id')  # id needs special treatment
-
-                    try:
-                        # get the instance if it already exists
-                        model_instance = getattr(session, model(id, allow_invalid=True))
-                    except:
-                        session.rollback()
-                        # otherwise, make a new one and add it to the session for when we commit
-                        model_instance = model()
-                        session.add(model_instance)
-
-                for colname, val in row.items():
-                    col = cols[colname]
-                    if not val:
-                        # in a lot of cases we'll just have the empty string, so we'll just
-                        # do nothing for those cases
-                        continue
-                    if isinstance(col.type, Choice):
-                        # the export has labels, and we want to convert those back into their
-                        # integer values, so let's look that up (note: we could theoretically
-                        # modify the Choice class to do this automatically in the future)
-                        label_lookup = {val: key for key, val in col.type.choices.items()}
-                        val = label_lookup[val]
-                    elif isinstance(col.type, MultiChoice):
-                        # the export has labels separated by ' / ' and we want to convert that
-                        # back into a comma-separate list of integers
-                        label_lookup = {val: key for key, val in col.type.choices}
-                        vals = [label_lookup[label] for label in val.split(' / ')]
-                        val = ','.join(map(str, vals))
-                    elif isinstance(col.type, UTCDateTime):
-                        # we'll need to make sure we use whatever format string we used to
-                        # export this date in the first place
-                        try:
-                            val = UTC.localize(datetime.strptime(val, date_format + ' %H:%M:%S'))
-                        except:
-                            val = UTC.localize(datetime.strptime(val, date_format))
-                    elif isinstance(col.type, Date):
-                        val = datetime.strptime(val, date_format).date()
-                    elif isinstance(col.type, Integer):
-                        val = int(val)
-
-                    # now that we've converted val to whatever it actually needs to be, we
-                    # can just set it on the attendee
-                    setattr(model_instance, colname, val)
-
-                try:
-                    session.commit()
-                except:
-                    log.error('ImportError', exc_info=True)
-                    session.rollback()
-                    message = 'Import unsuccessful'
-
-                id_list.append(model_instance.id)
-
-            if id_list and model == Attendee:
-                all_instances = session.query(model).filter(model.id.in_(id_list)).all()
+    def csv_import(self, message='', all_instances=None, form_link=None):
 
         return {
             'message': message,
             'tables': sorted([model.__name__.lower() for model in Session.all_models()]),
-            'attendees': all_instances
+            'attendees': all_instances,
+            'form_link': form_link
         }
 
+    def import_model(self, session, model_import, selected_model='', date_format="%Y-%m-%d"):
+        model = session.get_class_by_tablename(selected_model, 'csv_import')
+        message = ''
+
+        cols = {col.name: getattr(model, col.name) for col in model.__table__.columns}
+        result = csv.DictReader(model_import.file.read().decode('utf-8').split('\n'))
+        id_list = []
+
+        for row in result:
+            if 'id' in row:
+                id = row.pop('id')  # id needs special treatment
+
+                try:
+                    # get the instance if it already exists
+                    model_instance = getattr(session, selected_model)(id, allow_invalid=True)
+                except:
+                    session.rollback()
+                    # otherwise, make a new one and add it to the session for when we commit
+                    model_instance = model()
+                    session.add(model_instance)
+
+            for colname, val in row.items():
+                col = cols[colname]
+                if not val:
+                    # in a lot of cases we'll just have the empty string, so we'll just
+                    # do nothing for those cases
+                    continue
+                if isinstance(col.type, Choice):
+                    # the export has labels, and we want to convert those back into their
+                    # integer values, so let's look that up (note: we could theoretically
+                    # modify the Choice class to do this automatically in the future)
+                    label_lookup = {val: key for key, val in col.type.choices.items()}
+                    val = label_lookup[val]
+                elif isinstance(col.type, MultiChoice):
+                    # the export has labels separated by ' / ' and we want to convert that
+                    # back into a comma-separate list of integers
+                    label_lookup = {val: key for key, val in col.type.choices}
+                    vals = [label_lookup[label] for label in val.split(' / ')]
+                    val = ','.join(map(str, vals))
+                elif isinstance(col.type, UTCDateTime):
+                    # we'll need to make sure we use whatever format string we used to
+                    # export this date in the first place
+                    try:
+                        val = UTC.localize(datetime.strptime(val, date_format + ' %H:%M:%S'))
+                    except:
+                        val = UTC.localize(datetime.strptime(val, date_format))
+                elif isinstance(col.type, Date):
+                    val = datetime.strptime(val, date_format).date()
+                elif isinstance(col.type, Integer):
+                    val = int(val)
+
+                # now that we've converted val to whatever it actually needs to be, we
+                # can just set it on the model
+                setattr(model_instance, colname, val)
+
+            try:
+                session.commit()
+            except:
+                log.error('ImportError', exc_info=True)
+                session.rollback()
+                message = 'Import unsuccessful'
+
+            id_list.append(model_instance.id)
+
+        all_instances = session.query(model).filter(model.id.in_(id_list)).all() if id_list else None
+
+        if model == Attendee:
+            form_link = '../registration/form'
+        elif model == Group:
+            form_link = '../groups/form'
+        elif model == Job:
+            form_link = '../jobs/form'
+        else:
+            form_link = None
+
+        return self.csv_import(message, all_instances, form_link)
+
     def valid_attendees(self):
-        raise HTTPRedirect('export_model?selected_model=attendee')
+        self.export_model(selected_model='attendee')
+
+    def all_attendees(self):
+        self.export_model(selected_model='attendee')
 
     def csv_export(self, message='', **params):
         if 'model' in params:
@@ -263,13 +277,13 @@ class Root:
         }
 
     @csv_file
-    def export_model(self, out, session, selected_model='', *filters):
+    def export_model(self, out, session, selected_model=''):
         model = session.get_class_by_tablename(selected_model, 'csv_export')
 
         cols = [getattr(model, col.name) for col in model.__table__.columns]
         out.writerow([col.name for col in cols])
 
-        for attendee in session.query(model).filter(*filters).all():
+        for attendee in session.query(model).all():
             row = []
             for col in cols:
                 if isinstance(col.type, Choice):

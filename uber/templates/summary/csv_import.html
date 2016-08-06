@@ -2,7 +2,10 @@
 {% block title %}CSV Import{% endblock %}
 {% block content %}
 
-<form action="csv_import" method="post" enctype="multipart/form-data">
+<h2> CSV Table Imports </h2>
+This attempts to import a csv file for the table you select. <strong>Please do not refresh this page.</strong>
+
+<form action="import_model" method="post" enctype="multipart/form-data">
     <select name="selected_model">
         {% options tables %}
     </select><br />
@@ -17,41 +20,23 @@
 </form>
 <br/>
 {% if attendees %}
-        <div class="control-group"><h4>Imported Attendees</h4></div>
+        <div class="control-group"><h4>Imported Data</h4></div>
     <table class="table table-striped datatable">
-<thead><tr>
-    <th>Name</th>
-    <th>Badge</th>
-    <th>Paid</th>
-    <th>Age</th>
-</tr></thead>
+    <thead><tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Type</th>
+        <th>When</th>
+    </tr></thead>
 {% for attendee in attendees %}
     <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
-        <td id="name_{{ attendee.id }}" data-order="{{ attendee.last_first }}" data-search="{{ attendee.last_first }}" style="text-align:left">
-            <a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a>
-            {% if attendee.group %}
-                <br/> <a style="font-size:8pt" href="../groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
-            {% endif %}
+        <td id="uuid">
+            {% if form_link %}<a href="{{ form_link }}?id={{ attendee.id }}">{{ attendee.id }}</a>
+            {% else %}{{ attendee.id }}{% endif %}
         </td>
-        <td><nobr>
-            {% if c.AT_THE_CON and attendee.paid == c.NOT_PAID %}
-                {{ attendee.badge_type_label }}
-            {% elif c.AT_THE_CON and not attendee.badge_num %}
-                {{ attendee.badge_type_label }}
-                {% if attendee.is_unassigned %}
-                    <input type="hidden" id="num_{{ attendee.id }}" />
-                {% else %}
-                    #<input class="num" id="num_{{ attendee.id }}" type="text" size="3" />
-                {% endif %}
-                {% if attendee.ribbon != c.NO_RIBBON %}
-                    ({{ attendee.ribbon_label }})
-                {% endif %}
-            {% else %}
-                {{ attendee.badge }}
-            {% endif %}
-        </nobr></td>
-        <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
-        <td> <nobr>{{ attendee.age_group.desc }}</nobr> </td>
+        <td id="name">{{ attendee.name }} {{ attendee.first_name }} {{ attendee.last_name }}</td>
+        <td id="type">{{ attendee.type }} {{ attendee.badge_type_label }}</td>
+        <td id="when">{{ attendee.when }} {{ attendee.registered }}</td>
     </tr>
 {% endfor %}
 </table>
