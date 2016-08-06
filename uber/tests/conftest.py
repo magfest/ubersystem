@@ -30,7 +30,7 @@ def sensible_defaults():
     c.TABLE_PRICES = defaultdict(lambda: 400, {1: 100, 2: 200, 3: 300})
 
     # default attendee prices
-    c.INITIAL_ATTENDE = 40
+    c.INITIAL_ATTENDEE = 40
     c.GROUP_DISCOUNT = 10
     c.DEALER_BADGE_PRICE = 20
     c.PRICE_BUMPS = {}
