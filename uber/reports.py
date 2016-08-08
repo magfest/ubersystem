@@ -41,7 +41,7 @@ class PrintedBadgeReport(ReportBase):
         for badge_num in range(badge_range[0], badge_range[1] + 1):
             self.write_row([badge_num], out)
 
-class VolunteersWithHours(ReportBase):
+class VolunteersWithHoursWorked(ReportBase):
     """Generate a CSV file of volunteers with hours recorded"""
     def __init__(self, include_badge_nums=True):
         self._include_badge_nums = include_badge_nums
