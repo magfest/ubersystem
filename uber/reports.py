@@ -40,3 +40,18 @@ class PrintedBadgeReport(ReportBase):
         badge_range = c.BADGE_RANGES[self._badge_type]
         for badge_num in range(badge_range[0], badge_range[1] + 1):
             self.write_row([badge_num], out)
+
+class VolunteersWithHoursWorked(ReportBase):
+    """Generate a CSV file of volunteers with hours recorded"""
+    def __init__(self, include_badge_nums=True):
+        self._include_badge_nums = include_badge_nums
+
+    def run(self, out, session, *filters, order_by=None, badge_type_override=None):
+        for a in (session.query(sa.Attendee)
+                         .filter(or_(sa.Attendee.badge_status != c.INVALID_STATUS, *filters),
+                                    (sa.Attendee.weighted_hours > 0, *filters))
+                         .order_by(order_by).all()):
+            row = [a.badge_num] if self._include_badge_nums else []
+            badge_type_label = badge_type_override if badge_type_override else a.badge_type_label
+            row += [badge_type_label, a.full_name, a.email, a.worked_hours]
+            self.write_row(row, out)
