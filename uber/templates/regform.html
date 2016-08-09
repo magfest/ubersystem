@@ -185,8 +185,36 @@
 
 
                         {% comment %}CHANEY, edit here for kickin slider{% endcomment %}
-                        <div class="btn-group btn-group-vertical" data-toggle="buttons">
-                            {% kickin_group c.PREREG_DONATION_OPTS attendee.amount_extra %}
+                        <div data-toggle="buttons">
+                            {# kickin_group c.PREREG_DONATION_OPTS attendee.amount_extra #}
+
+                        <!-- repeating kickin part -->
+                        <label class="btn btn-default" style="text-align: left;">
+                            <input type="radio" name="{}" autocomplete="off" value="{}" onchange="donationChanged();" {} />
+                            <h4 style="text-align: center; text-transform: uppercase;">
+                                Test Tier
+                            </h4>
+                            <span style="text-align: center; font-size: 120%; font-weight: bold;">
+                                <img src="http://placehold.it/50x50?text=icon" alt=""> + $20
+                            </span>
+                            <br>
+                            <button style="width: 100%;  margin-top: 1em;" class="btn btn-primary">
+                                Supgrade
+                            </button>
+                            <ul style="list-style-type: none; margin-top: 1em; padding-left: 0; font-size: 80%">
+                                <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
+                                    Sweet Swag
+                                </li>
+                                <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
+                                    Is Named
+                                </li>
+                                <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
+                                    In this area
+                                </li>
+                            </ul>
+                        </label>
+                        <!-- end repeating kickin part -->
+
                         </div>
 
 
