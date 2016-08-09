@@ -188,14 +188,17 @@
                         <div data-toggle="buttons">
                             {# kickin_group c.PREREG_DONATION_OPTS attendee.amount_extra #}
 
+                        <!-- hidden required for JS to work right, unhide if you want to see it. -->
+                        <input type="radio" style="display: none;" name="hidden" autocomplete="off" value="0" onchange="donationChanged();" {} />
+
                         <!-- repeating kickin part PROTOTYPE ONLY -->
                         <label class="btn btn-default" style="text-align: left;">
-                            <input type="radio" name="TODO-REPLACEME" autocomplete="off" value="TODO-REPLACEME" onchange="donationChanged();" {} />
+                            <input type="radio" name="TODO-REPLACEME" autocomplete="off" value="5" onchange="donationChanged();" {} />
                             <h4 style="text-align: center; text-transform: uppercase;">
                                 Test Tier
                             </h4>
                             <span style="text-align: center; font-size: 120%; font-weight: bold;">
-                                <img src="http://placehold.it/50x50?text=icon" alt=""> + $20
+                                <img src="http://placehold.it/50x50?text=icon" alt=""> + $5
                             </span>
                             <br>
                             <button style="width: 100%;  margin-top: 1em;" class="btn btn-primary">
@@ -215,12 +218,12 @@
                         </label>
 
                         <label class="btn btn-default" style="text-align: left;">
-                            <input type="radio" name="TODO-REPLACEME2" autocomplete="off" value="TODO-REPLACEME2" onchange="donationChanged();" {} />
+                            <input type="radio" name="TODO-REPLACEME2" autocomplete="off" value="10" onchange="donationChanged();" {} />
                             <h4 style="text-align: center; text-transform: uppercase;">
                                 Test Tier 2
                             </h4>
                             <span style="text-align: center; font-size: 120%; font-weight: bold;">
-                                <img src="http://placehold.it/50x50?text=icon" alt=""> + $80
+                                <img src="http://placehold.it/50x50?text=icon" alt=""> + $10
                             </span>
                             <br>
                             <button style="width: 100%;  margin-top: 1em;" class="btn btn-primary">
@@ -241,7 +244,7 @@
 
 
                         <label class="btn btn-default" style="text-align: left;">
-                            <input type="radio" name="{}" autocomplete="off" value="{}" onchange="donationChanged();" {} />
+                            <input type="radio" name="shirt" autocomplete="off" value="20" onchange="donationChanged();" {} />
                             <h4 style="text-align: center; text-transform: uppercase;">
                                 Test Tier 3
                             </h4>
@@ -267,7 +270,7 @@
 
 
                         <label class="btn btn-default" style="text-align: left;">
-                            <input type="radio" name="{}" autocomplete="off" value="{}" onchange="donationChanged();" {} />
+                            <input type="radio" name="{}" autocomplete="off" value="40" onchange="donationChanged();" {} />
                             <h4 style="text-align: center; text-transform: uppercase;">
                                 Test Tier 4
                             </h4>
@@ -293,7 +296,7 @@
 
 
                         <label class="btn btn-default" style="text-align: left;">
-                            <input type="radio" name="{}" autocomplete="off" value="{}" onchange="donationChanged();" {} />
+                            <input type="radio" name="{}" autocomplete="off" value="80" onchange="donationChanged();" {} />
                             <h4 style="text-align: center; text-transform: uppercase;">
                                 Test Tier 2
                             </h4>
