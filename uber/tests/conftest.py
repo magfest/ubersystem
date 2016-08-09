@@ -6,6 +6,10 @@ from sideboard.tests import patch_session
 TEST_DB_FILE = '/tmp/uber.db'
 
 
+def monkeypatch_db_column(column, patched_config_value):
+    column.property.columns[0].type.choices = dict(patched_config_value)
+
+
 @pytest.fixture(scope='session')
 def sensible_defaults():
     """
@@ -17,7 +21,9 @@ def sensible_defaults():
     c.SHIFT_CUSTOM_BADGES = True
 
     # our tests should work no matter what departments exist, so we'll add these departments to use in our tests
-    c.make_enum('test_departments', {'console': 'Console', 'arcade': 'Arcade', 'con_ops': 'Fest Ops'})
+    patched_depts = {'console': 'Console', 'arcade': 'Arcade', 'con_ops': 'Fest Ops'}
+
+    c.make_enum('test_departments', patched_depts)
     c.SHIFTLESS_DEPTS = [c.CON_OPS]
 
     # we want 2 preassigned types to test some of our logic, so we've
@@ -28,6 +34,17 @@ def sensible_defaults():
 
     # we need to set some default table prices so we can write tests against them without worrying about what's been configured
     c.TABLE_PRICES = defaultdict(lambda: 400, {1: 100, 2: 200, 3: 300})
+
+    # override whatever is in c.JOB_LOCATION with our own test data
+    # ensure that c.ARCADE and c.CONSOLES exist in any model columns using c.JOB_LOCATION
+    c.make_enum('job_location', patched_depts)
+    monkeypatch_db_column(Job.location, c.JOB_LOCATION_OPTS)
+    monkeypatch_db_column(Attendee.assigned_depts, c.JOB_LOCATION_OPTS)
+    monkeypatch_db_column(Attendee.trusted_depts, c.JOB_LOCATION_OPTS)
+
+    # ensure that we have uniform c.INTERESTS despite whatever is in the INI
+    c.make_enum('interest', {'console': 'Consoles', 'arcade': 'Arcade'})
+    monkeypatch_db_column(Attendee.interests, c.INTEREST_OPTS)
 
     # default attendee prices
     c.INITIAL_ATTENDEE = 40
