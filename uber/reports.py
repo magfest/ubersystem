@@ -40,4 +40,3 @@ class PrintedBadgeReport(ReportBase):
         badge_range = c.BADGE_RANGES[self._badge_type]
         for badge_num in range(badge_range[0], badge_range[1] + 1):
             self.write_row([badge_num], out)
-            
