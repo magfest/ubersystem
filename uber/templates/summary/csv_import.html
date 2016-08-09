@@ -31,10 +31,9 @@ This attempts to import a csv file for the table you select. <strong>Please do n
 {% for attendee in attendees %}
     <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
         <td id="uuid">
-            {% if form_link %}<a href="{{ form_link }}?id={{ attendee.id }}">{{ attendee.id }}</a>
-            {% else %}{{ attendee.id }}{% endif %}
+            {{ attendee.id }}
         </td>
-        <td id="name">{{ attendee.name }} {{ attendee.first_name }} {{ attendee.last_name }}</td>
+        <td id="name">{{ attendee|form_link }}</td>
         <td id="type">{{ attendee.type }} {{ attendee.badge_type_label }}</td>
         <td id="when">{{ attendee.when }} {{ attendee.registered }}</td>
     </tr>

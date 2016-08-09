@@ -175,17 +175,17 @@ class Root:
         }
         return render('summary/food_eligible.xml', {'attendees': eligible})
 
-    def csv_import(self, message='', all_instances=None, form_link=None):
+    def csv_import(self, message='', all_instances=None):
 
         return {
             'message': message,
-            'tables': sorted([model.__name__.lower() for model in Session.all_models()]),
-            'attendees': all_instances,
-            'form_link': form_link
+            'tables': sorted(model.__name__ for model in Session.all_models()),
+            'attendees': all_instances
         }
+    csv_import.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]
 
     def import_model(self, session, model_import, selected_model='', date_format="%Y-%m-%d"):
-        model = session.get_class_by_tablename(selected_model, 'csv_import')
+        model = Session.resolve_model(selected_model)
         message = ''
 
         cols = {col.name: getattr(model, col.name) for col in model.__table__.columns}
@@ -250,22 +250,16 @@ class Root:
 
         all_instances = session.query(model).filter(model.id.in_(id_list)).all() if id_list else None
 
-        if model == Attendee:
-            form_link = '../registration/form'
-        elif model == Group:
-            form_link = '../groups/form'
-        elif model == Job:
-            form_link = '../jobs/form'
-        else:
-            form_link = None
-
-        return self.csv_import(message, all_instances, form_link)
+        return self.csv_import(message, all_instances)
+    import_model.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]
 
     def valid_attendees(self):
-        self.export_model(selected_model='attendee')
+        return self.export_model(selected_model='attendee')
+    valid_attendees.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]
 
     def all_attendees(self):
-        self.export_model(selected_model='attendee')
+        return self.export_model(selected_model='attendee')
+    all_attendees.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]
 
     def csv_export(self, message='', **params):
         if 'model' in params:
@@ -273,12 +267,13 @@ class Root:
 
         return {
             'message': message,
-            'tables': sorted([model.__name__.lower() for model in Session.all_models()])
+            'tables': sorted(model.__name__ for model in Session.all_models())
         }
+    csv_export.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]
 
     @csv_file
     def export_model(self, out, session, selected_model=''):
-        model = session.get_class_by_tablename(selected_model, 'csv_export')
+        model = Session.resolve_model(selected_model)
 
         cols = [getattr(model, col.name) for col in model.__table__.columns]
         out.writerow([col.name for col in cols])
@@ -306,6 +301,7 @@ class Root:
                     # consider adding more special cases for things like foreign keys.
                     row.append(getattr(attendee, col.name))
             out.writerow(row)
+    export_model.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]
 
     def shirt_counts(self, session):
         counts = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
