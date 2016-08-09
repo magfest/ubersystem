@@ -296,10 +296,13 @@ class MagModel:
 
     @suffix_property
     def _label(self, name, val):
+        if not val:
+            return ''
+
         try:
             val = int(val)
         except ValueError:
-            return val
+            return ''
 
         return self.get_field(name).type.choices.get(val)
 
