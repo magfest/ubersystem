@@ -176,6 +176,13 @@ class Root:
         return render('summary/food_eligible.xml', {'attendees': eligible})
 
     @csv_file
+    def volunteers_with_worked_hours(self, out, session):
+        out.writerow(['Badge #', 'Full Name', 'E-mail Address', 'Weighted Hours Scheduled', 'Weighted Hours Worked'])
+        for a in session.query(Attendee).all():
+            if a.worked_hours > 0:
+                out.writerow([a.badge_num, a.full_name, a.email, a.weighted_hours, a.worked_hours])
+
+    @csv_file
     def valid_attendees(self, out, session):
         cols = [getattr(Attendee, col.name) for col in Attendee.__table__.columns]
         out.writerow([col.name for col in cols])
