@@ -1,3 +1,8 @@
+IMPORTANT NOTE
+==============
+
+This is a fork of the RAMS Project used by [MAGFest](http://magfest.org).  It may contain MAGFest-specific modifications and some less well-tested code. We recommend, unless you are actively devloping for MAGFest, that you visit the parent project at https://github.com/ramsproject/rams
+
 The RAMS Project
 =======
 
@@ -16,4 +21,4 @@ MAGFest is still the most active developer and user of RAMS, via a [custom fork]
 Installation / Development
 ===========================
 
-Please see the deploy repository, [quickstart](https://github.com/ramsproject/quickstart), for information on installation and deployment.
+Check out the docs [Here](INSTALL.md) for information on how to install or setup a MAGFest-specific development environment.
