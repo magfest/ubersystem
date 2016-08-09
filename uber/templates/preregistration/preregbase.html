@@ -2,6 +2,7 @@
 {% block backlink %}{% endblock %}
 {% block header %}
     <link href="../static/theme/prereg.css" rel="stylesheet">
+    <link href="../static/theme/prereg_extra.css" rel="stylesheet">
     <script type="text/javascript">
         var PREREG_CHECK_INTERVAL = 15 * 60 * 1000;
         var checkCap = function () {
@@ -55,7 +56,7 @@
                     description: '<p class="list-group-item-text">The deadline for Group registration has passed, but you can still register as a regular attendee.</p>',
                 {% endif %}
                 onClick: function () {
-                    {% if c.BEFORE_GROUP_REG_TAKEDOWN %}
+                    {% if c.BEFORE_GROUP_PREREG_TAKEDOWN %}
                         $('.group_fields').removeClass('hide');
                         $('input[name="badge_type"]').val('{{ c.PSEUDO_GROUP_BADGE }}');
                         $('#bold-field-message').insertBefore($.field('name').parents('.form-group'));

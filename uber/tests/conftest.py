@@ -46,6 +46,12 @@ def sensible_defaults():
     c.make_enum('interest', {'console': 'Consoles', 'arcade': 'Arcade'})
     monkeypatch_db_column(Attendee.interests, c.INTEREST_OPTS)
 
+    # default attendee prices
+    c.INITIAL_ATTENDEE = 40
+    c.GROUP_DISCOUNT = 10
+    c.DEALER_BADGE_PRICE = 20
+    c.PRICE_BUMPS = {}
+
 
 @pytest.fixture(scope='session', autouse=True)
 def init_db(request, sensible_defaults):

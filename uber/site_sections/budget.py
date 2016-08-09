@@ -4,7 +4,7 @@ from uber.common import *
 def prereg_money(session):
     preregs = defaultdict(int)
     for attendee in session.query(Attendee):
-        preregs['Attendee'] += attendee.amount_paid
+        preregs['Attendee'] += attendee.amount_paid - attendee.amount_extra
         preregs['extra'] += attendee.amount_extra
 
     preregs['group_badges'] = sum(g.badge_cost for g in session.query(Group)

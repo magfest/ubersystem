@@ -184,7 +184,7 @@ class options(template.Node):
 @tag
 class checkbox(template.Node):
     def __init__(self, field):
-        model, self.field_name = field.split('.')
+        model, self.field_name = field.rsplit('.', 1)
         self.model = Variable(model)
 
     def render(self, context):
@@ -196,7 +196,7 @@ class checkbox(template.Node):
 @tag
 class checkgroup(template.Node):
     def __init__(self, field):
-        model, self.field_name = field.split('.')
+        model, self.field_name = field.rsplit('.', 1)
         self.model = Variable(model)
 
     def render(self, context):
@@ -251,7 +251,7 @@ class radio(template.Node):
 @tag
 class radiogroup(template.Node):
     def __init__(self, opts, field):
-        model, self.field_name = field.split('.')
+        model, self.field_name = field.rsplit('.', 1)
         self.model = Variable(model)
         self.opts = Variable(opts)
 
@@ -535,18 +535,20 @@ class PriceNotice(template.Node):
 
     def _notice(self, label, takedown, amount_extra, discount):
         if not takedown:
-            raise ValueError('price_notice tag error: Takedown date not valid{}'.format(
-                ' for "' + label + '"' if label else ''))
+            takedown = c.ESCHATON
 
         if c.PAGE_PATH not in ['/preregistration/form', '/preregistration/register_group_member']:
             return ''  # we only display notices for new attendees
         else:
             for day, price in sorted(c.PRICE_BUMPS.items()):
-                if day < takedown and localized_now() < day:
-                    return '<div class="prereg-price-notice">Price goes up to ${} at 11:59pm {} on {}</div>'.format(price - discount + int(amount_extra), (day - timedelta(days=1)).strftime('%Z'), (day - timedelta(days=1)).strftime('%A, %b %e'))
-                elif localized_now() < day and takedown == c.PREREG_TAKEDOWN:
+                if day < takedown and localized_now() < day and price > c.BADGE_PRICE:
+                    return '<div class="prereg-price-notice">Price goes up to ${} at 11:59pm {} on {}</div>'.format(price - int(discount) + int(amount_extra), (day - timedelta(days=1)).strftime('%Z'), (day - timedelta(days=1)).strftime('%A, %b %e'))
+                elif localized_now() < day and takedown == c.PREREG_TAKEDOWN and takedown < c.EPOCH and price > c.BADGE_PRICE:
                     return '<div class="prereg-type-closing">{} closes at 11:59pm {} on {}. Price goes up to ${} at-door.</div>'.format(label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'), price + amount_extra, (day - timedelta(days=1)).strftime('%A, %b %e'))
-            return '<div class="prereg-type-closing">{} closes at 11:59pm {} on {}</div>'.format(label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'))
+            if takedown < c.EPOCH:
+                return '<div class="prereg-type-closing">{} closes at 11:59pm {} on {}</div>'.format(label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'))
+            else:
+                return ''
 
     def render(self, context):
         return self._notice(self.label, self.takedown.resolve(context), self.amount_extra.resolve(context), self.discount.resolve(context))
