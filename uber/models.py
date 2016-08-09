@@ -302,7 +302,7 @@ class MagModel:
         try:
             val = int(val)
         except ValueError:
-            return val
+            return ''
 
         return self.get_field(name).type.choices.get(val)
 
@@ -556,7 +556,7 @@ class Session(SessionManager):
                 return out_of_range
             elif not badge_num and next > c.BADGE_RANGES[badge_type][1]:
                 return 'There are no more badges available for that type'
-            elif badge_type in c.PREASSIGNED_BADGE_TYPES and not c.SHIFT_CUSTOM_BADGES:
+            elif badge_type in c.PREASSIGNED_BADGE_TYPES and c.AFTER_PRINTED_BADGE_DEADLINE:
                 return 'Custom badges have already been ordered'
 
             if not c.SHIFT_CUSTOM_BADGES:
@@ -682,7 +682,7 @@ class Session(SessionManager):
 
             ribbon_to_use = new_ribbon_type or group.new_ribbon
 
-            if int(new_badge_type) in c.PREASSIGNED_BADGE_TYPES and not c.SHIFT_CUSTOM_BADGES:
+            if int(new_badge_type) in c.PREASSIGNED_BADGE_TYPES and c.AFTER_PRINTED_BADGE_DEADLINE:
                 return 'Custom badges have already been ordered, so you will need to select a different badge type'
             elif diff > 0:
                 for i in range(diff):
@@ -1052,7 +1052,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @presave_adjustment
     def _status_adjustments(self):
         if self.badge_status == c.NEW_STATUS and self.banned:
-            self.badge_status = c.DEFERRED_STATUS
+            self.badge_status = c.WATCHED_STATUS
             try:
                 send_email(c.SECURITY_EMAIL, [c.REGDESK_EMAIL, c.SECURITY_EMAIL], 'Banned attendee registration',
                            render('emails/reg_workflow/banned_attendee.txt', {'attendee': self}), model='n/a')

@@ -40,8 +40,15 @@ def remove_newlines(string):
 
 
 @register.filter
-def form_link(attendee):
-    return SafeString('<a href="../registration/form?id={}">{}</a>'.format(attendee.id, attendee.full_name))
+def form_link(model):
+    if isinstance(model, Attendee):
+        return SafeString('<a href="../registration/form?id={}">{}</a>'.format(model.id, model.full_name))
+    elif isinstance(model, Group):
+        return SafeString('<a href="../groups/form?id={}">{}</a>'.format(model.id, model.name))
+    elif isinstance(model, Job):
+        return SafeString('<a href="../jobs/form?id={}">{}</a>'.format(model.id, model.name))
+    else:
+        return model.name or model.full_name
 
 
 @register.filter

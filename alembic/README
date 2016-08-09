@@ -1,0 +1,23 @@
+Generic single-database configuration.
+
+For the time being, please DO NOT check revisions into the rams (ubersystem) repository. Instead, copy the directory into your event plugin and work within that event's DB.
+
+To autogenerate migrations:
+```bash
+# Make changes to your models.py file(s) as appropriate
+# DO NOT use sep reset_uber_db!
+# Keep in mind, relationship "columns" are not real, you do not need migrations for them
+cd /your/event-plugin
+alembic revision --autogenerate -m "Message for revision"
+```
+
+Be sure to check your revision and edit it as necessary; auto-generation is not perfect and may try to drop columns.
+
+To run migrations:
+`alembic upgrade head`
+
+To "fast-foward" migrations, i.e., count them as being run without actually running them:
+`alembic stamp head`
+
+If you get any "ImportErrors" while auto-generating or running migrations, then it's likely that the system path is incorrect. This shouldn't happen but the relevant line in env.py is:
+`sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), '..')))`

@@ -423,7 +423,7 @@ class TestStatusAdjustments:
         a = Attendee(paid=c.HAS_PAID, badge_status=c.NEW_STATUS, first_name='Paid', placeholder=False)
         monkeypatch.setattr(Attendee, 'banned', True)
         a._status_adjustments()
-        assert a.badge_status == c.DEFERRED_STATUS
+        assert a.badge_status == c.WATCHED_STATUS
 
 
 class TestLookupAttendee:
