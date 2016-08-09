@@ -275,6 +275,26 @@ class radiogroup(template.Node):
 
 
 @tag
+class kickin_group(template.Node):
+    def __init__(self, opts, field):
+        model, self.field_name = field.rsplit('.', 1)
+        self.model = Variable(model)
+        self.opts = Variable(opts)
+
+    def render(self, context):
+        model = self.model.resolve(context)
+        options = self.opts.resolve(context)
+        default = getattr(model, self.field_name, None)
+        results = []
+        for num, desc in options:
+            checked = 'checked' if num == default else ''
+            # CHANEY, edit here for kickin slider
+            results.append('<label class="btn btn-default" style="text-align: left;"><input type="radio" name="{}" autocomplete="off" value="{}" onchange="donationChanged();" {} /> {}</label>'
+                           .format(self.field_name, num, checked, desc))
+        return ''.join(results)
+
+
+@tag
 class hour_day(template.Node):
     def __init__(self, dt):
         self.dt = Variable(dt)

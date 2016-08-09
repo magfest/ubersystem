@@ -181,9 +181,17 @@
                     <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
                 {% else %}
                     {% if c.DONATION_SLIDER_DISPLAY %}
+
+
+
+                        {% comment %}CHANEY, edit here for kickin slider{% endcomment %}
                         <div class="btn-group btn-group-vertical" data-toggle="buttons">
-                            {% radiogroup c.PREREG_DONATION_OPTS attendee.amount_extra %}
+                            {% kickin_group c.PREREG_DONATION_OPTS attendee.amount_extra %}
                         </div>
+
+
+
+
                     {% else %}
                         <select name="amount_extra" class="form-control" onchange="donationChanged();">
                             {% options c.PREREG_DONATION_OPTS attendee.amount_extra %}
