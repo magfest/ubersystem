@@ -152,7 +152,7 @@ class Config(_Overridable):
 
     @property
     def PREREG_BADGE_TYPES(self):
-        types = [self.ATTENDEE_BADGE, self.PSEUDO_DEALER_BADGE, self.IND_DEALER_BADGE]
+        types = [self.ATTENDEE_BADGE, self.PSEUDO_DEALER_BADGE]
         for reg_open, badge_type in [(self.BEFORE_GROUP_PREREG_TAKEDOWN, self.PSEUDO_GROUP_BADGE)]:
             if reg_open:
                 types.append(badge_type)

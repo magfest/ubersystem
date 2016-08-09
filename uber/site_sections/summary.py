@@ -272,6 +272,13 @@ class Root:
     csv_export.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]
 
     @csv_file
+    def volunteers_with_worked_hours(self, out, session):
+        out.writerow(['Badge #', 'Full Name', 'E-mail Address', 'Weighted Hours Scheduled', 'Weighted Hours Worked'])
+        for a in session.query(Attendee).all():
+            if a.worked_hours > 0:
+                out.writerow([a.badge_num, a.full_name, a.email, a.weighted_hours, a.worked_hours])
+
+    @csv_file
     def export_model(self, out, session, selected_model=''):
         model = Session.resolve_model(selected_model)
 
