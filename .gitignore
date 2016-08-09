@@ -19,3 +19,4 @@ add_table_extras.sql
 alembic*
 bower_components/
 node_modules/
+selenium-tests/.cache/

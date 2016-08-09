@@ -5,3 +5,5 @@ stripe==1.11.0
 pytz==2014.4
 pep8==1.6.2
 pytest==2.7.2
+selenium==2.53.5
+pytest-selenium==1.2.1
