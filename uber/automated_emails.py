@@ -216,7 +216,7 @@ AutomatedEmail(Attendee, 'Last Chance to Accept Your {EVENT_NAME} Badge', 'place
 
 # Volunteer emails; none of these will be sent unless SHIFTS_CREATED is set.
 
-StopsEmail('{EVENT_NAME} shifts available', 'shifts/created.txt',
+StopsEmail('Please complete your {EVENT_NAME} Staff/Volunteer Checklist', 'shifts/created.txt',
            lambda a: c.AFTER_SHIFTS_CREATED and a.takes_shifts)
 
 StopsEmail('Reminder to sign up for {EVENT_NAME} shifts', 'shifts/reminder.txt',

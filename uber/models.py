@@ -1761,7 +1761,32 @@ class Tracking(MagModel):
             new_val = getattr(instance, attr)
             old_val = instance.orig_value_of(attr)
             if old_val != new_val:
-                diff[attr] = "'{} -> {}'".format(cls.repr(column, old_val), cls.repr(column, new_val))
+                """
+                important note: here we try and show the old vs new value for something that has been changed
+                so that we can report it in the tracking page.
+
+                Sometimes, however, if we changed the type of the value in the database (via a database migration)
+                the old value might not be able to be shown as the new type (i.e. it used to be a string, now it's int).
+                In that case, we won't be able to show a representation of the old value and instead we'll log it as
+                '<ERROR>'.  In theory the database migration SHOULD be the thing handling this, but if it doesn't, it
+                becomes our problem to deal with.
+
+                We are overly paranoid with exception handling here because the tracking code should be made to
+                never, ever, ever crash, even if it encounters insane/old data that really shouldn't be our problem.
+                """
+                try:
+                    old_val_repr = cls.repr(column, old_val)
+                except Exception as e:
+                    log.error("tracking repr({}) failed on old value".format(attr), exc_info=True)
+                    old_val_repr = "<ERROR>"
+
+                try:
+                    new_val_repr = cls.repr(column, new_val)
+                except Exception as e:
+                    log.error("tracking repr({}) failed on new value".format(attr), exc_info=True)
+                    new_val_repr = "<ERROR>"
+
+                diff[attr] = "'{} -> {}'".format(old_val_repr, new_val_repr)
         return diff
 
     # TODO: add new table for page views to eliminated track_pageview method and to eliminate Budget special case
@@ -1862,8 +1887,15 @@ def _make_getter(model):
     return getter
 
 
-def _presave_adjustments(session, context, instances='deprecated'):
+def _acquire_badge_lock(session, context, instances='deprecated'):
     c.BADGE_LOCK.acquire()
+
+
+@swallow_exceptions
+def _presave_adjustments(session, context, instances='deprecated'):
+    """
+    precondition: c.BADGE_LOCK is acquired already.
+    """
     for model in chain(session.dirty, session.new):
         model.presave_adjustments()
     for model in session.deleted:
@@ -1874,16 +1906,20 @@ def _release_badge_lock(session, context):
     try:
         c.BADGE_LOCK.release()
     except:
-        log.error('failed releasing c.BADGE_LOCK after session flush; this should never actually happen, but we want to just keep going if it ever does')
+        log.error('failed releasing c.BADGE_LOCK after session flush; this should never actually happen, but we want '
+                  'to just keep going if it ever does')
 
 
 def _release_badge_lock_on_error(*args, **kwargs):
     try:
         c.BADGE_LOCK.release()
     except:
-        log.warn('failed releasing c.BADGE_LOCK on db error; these errors should not happen in the first place and we do not expect releasing the lock to fail when they do, but we still want to keep going if/when this does occur')
+        log.warn('failed releasing c.BADGE_LOCK on db error; these errors should not happen in the first place and we '
+                 'do not expect releasing the lock to fail when they do, but we still want to keep going if/when this '
+                 'does occur')
 
 
+@swallow_exceptions
 def _track_changes(session, context, instances='deprecated'):
     for action, instances in {c.CREATED: session.new, c.UPDATED: session.dirty, c.DELETED: session.deleted}.items():
         for instance in instances:
@@ -1892,6 +1928,17 @@ def _track_changes(session, context, instances='deprecated'):
 
 
 def register_session_listeners():
+    """
+    NOTE 1: IMPORTANT!!! Because we are locking our c.BADGE_LOCK at the start of this, all of these functions MUST NOT
+    THROW ANY EXCEPTIONS.  If they do throw exceptions, the chain of hooks will not be completed, and the lock won't
+    be released, resulting in a deadlock and heinous, horrible, and hard to debug server lockup.
+
+    You MUST use the @swallow_exceptions decorator on ALL functions
+    between _acquire_badge_lock and _release_badge_lock in order to prevent them from throwing exceptions.
+
+    NOTE 2: The order in which we register these listeners matters.
+    """
+    listen(Session.session_factory, 'before_flush', _acquire_badge_lock)
     listen(Session.session_factory, 'before_flush', _presave_adjustments)
     listen(Session.session_factory, 'before_flush', _track_changes)
     listen(Session.session_factory, 'after_flush', _release_badge_lock)
