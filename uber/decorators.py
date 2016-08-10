@@ -1,6 +1,21 @@
 from uber.common import *
 
 
+def swallow_exceptions(func):
+    """
+    Don't allow ANY Exceptions to be raised from this.
+    Use this ONLY where it's absolutely needed, such as dealing with locking functionality.
+    WARNING: DO NOT USE THIS UNLESS YOU KNOW WHAT YOU'RE DOING :)
+    """
+    @wraps(func)
+    def swallow_exception(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception:
+            log.error('encountered exception, forcing continuation anyway', exc_info=True)
+    return swallow_exception
+
+
 def log_pageview(func):
     @wraps(func)
     def with_check(*args, **kwargs):
@@ -212,8 +227,20 @@ def renderable_data(data=None):
 # render using the first template that actually exists in template_name_list
 def render(template_name_list, data=None):
     data = renderable_data(data)
-    template = loader.select_template(listify(template_name_list))
-    rendered = template.render(Context(data))
+
+    try:
+        template = loader.select_template(listify(template_name_list))
+        rendered = template.render(Context(data))
+    except Exception as e:
+        source_template_name = '[unknown]'
+        django_template_source_info = getattr(e, 'django_template_source')
+        if django_template_source_info:
+            for info in django_template_source_info:
+                if 'LoaderOrigin' in str(type(info)):
+                    source_template_name = info.name
+                    break
+        raise Exception('error rendering template [{}]'.format(source_template_name)) from e
+
     rendered = screw_you_nick(rendered, template)  # lolz.
     return rendered.encode('utf-8')
 
@@ -236,10 +263,27 @@ def _get_template_filename(func):
     return os.path.join(_get_module_name(func), func.__name__ + '.html')
 
 
+def prettify_breadcrumb(str):
+    return str.replace('_', ' ').title()
+
+
 def renderable(func):
     @wraps(func)
     def with_rendering(*args, **kwargs):
         result = func(*args, **kwargs)
+
+        try:
+            result['breadcrumb_page_pretty_'] = prettify_breadcrumb(func.__name__) if func.__name__ != 'index' else 'Home'
+            result['breadcrumb_page_'] = func.__name__ if func.__name__ != 'index' else ''
+        except:
+            pass
+
+        try:
+            result['breadcrumb_section_pretty_'] = prettify_breadcrumb(_get_module_name(func))
+            result['breadcrumb_section_'] = _get_module_name(func)
+        except:
+            pass
+
         if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
             return render('closed.html')
         elif isinstance(result, dict):

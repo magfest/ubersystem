@@ -108,6 +108,9 @@ class Config(_Overridable):
             for day, bumped_price in sorted(self.PRICE_BUMPS.items()):
                 if (dt or datetime.now(UTC)) >= day:
                     price = bumped_price
+            for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
+                if self.BADGES_SOLD >= badge_cap and bumped_price > price:
+                    price = bumped_price
         return price
 
     def get_group_price(self, dt):
@@ -149,7 +152,7 @@ class Config(_Overridable):
 
     @property
     def PREREG_BADGE_TYPES(self):
-        types = [self.ATTENDEE_BADGE, self.PSEUDO_DEALER_BADGE, self.IND_DEALER_BADGE]
+        types = [self.ATTENDEE_BADGE, self.PSEUDO_DEALER_BADGE]
         for reg_open, badge_type in [(self.BEFORE_GROUP_PREREG_TAKEDOWN, self.PSEUDO_GROUP_BADGE)]:
             if reg_open:
                 types.append(badge_type)
@@ -345,8 +348,14 @@ c.EVENT_TIMEZONE = pytz.timezone(c.EVENT_TIMEZONE)
 c.make_dates(_config['dates'])
 
 c.PRICE_BUMPS = {}
+c.PRICE_LIMITS = {}
 for _opt, _val in c.BADGE_PRICES['attendee'].items():
-    c.PRICE_BUMPS[c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d'))] = _val
+    try:
+        date = c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d'))
+    except ValueError:
+        c.PRICE_LIMITS[int(_opt)] = _val
+    else:
+        c.PRICE_BUMPS[date] = _val
 
 
 def _is_intstr(s):

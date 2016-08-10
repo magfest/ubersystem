@@ -57,7 +57,7 @@
     {% if prereg.first_name %}
         <tr>
             <td>{{ prereg.full_name }}</td>
-            <td><a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ prereg.id }}" target="_blank">Click Here</a></td>
+            <td><a href="../preregistration/confirm?id={{ prereg.id }}" target="_blank">Click Here</a></td>
         </tr>
     {% else %}
         <tr>

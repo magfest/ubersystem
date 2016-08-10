@@ -11,6 +11,32 @@ def _add_email():
 cherrypy.tools.add_email_to_error_page = cherrypy.Tool('after_error_response', _add_email)
 
 
+def _custom_verbose_logger(debug=False):
+    """
+    Write the request headers, and the last error's traceback to the cherrypy error log.
+    Do this all one line so all the information can be collected by external log collectors and easily displayed.
+    """
+
+    page_location = 'Request: ' + cherrypy.request.request_line
+
+    admin_name = AdminAccount.admin_name()
+    admin_txt = 'Current admin user is: {}'.format(admin_name if admin_name else '[non-admin user]')
+
+    max_reporting_length = 1000   # truncate to reasonably large size in case they uploaded attachments
+
+    p = ["  %s: %s" % (k, v[:max_reporting_length]) for k, v in cherrypy.request.params.items()]
+    post_txt = 'Request Params:\n' + '\n'.join(p)
+
+    session_txt = 'Session Params:\n' + pformat(cherrypy.session.items(), width=40)
+
+    h = ["  %s: %s" % (k, v) for k, v in cherrypy.request.header_list]
+    headers_txt = 'Request Headers:\n' + '\n'.join(h)
+
+    msg = '\n'.join(['Exception encountered', page_location, admin_txt, post_txt, session_txt, headers_txt])
+    log.error(msg, exc_info=True)
+cherrypy.tools.custom_verbose_logger = cherrypy.Tool('before_error_response', _custom_verbose_logger)
+
+
 class StaticViews:
     def path_args_to_string(self, path_args):
         return '/'.join(path_args)
