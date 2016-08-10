@@ -182,150 +182,42 @@
                 {% else %}
                     {% if c.DONATION_SLIDER_DISPLAY %}
 
-
-
-                        {% comment %}CHANEY, edit here for kickin slider{% endcomment %}
                         <div data-toggle="buttons">
-                            {# kickin_group c.PREREG_DONATION_OPTS attendee.amount_extra #}
-
-                        <!-- hidden required for JS to work right, unhide if you want to see it. -->
-                        <input type="radio" style="display: none;" name="hidden" autocomplete="off" value="0" onchange="donationChanged();" {} />
-
-                        <!-- repeating kickin part PROTOTYPE ONLY -->
-                        <label class="btn btn-default" style="text-align: left;">
-                            <input type="radio" name="TODO-REPLACEME" autocomplete="off" value="5" onchange="donationChanged();" {} />
-                            <h4 style="text-align: center; text-transform: uppercase;">
-                                Test Tier
-                            </h4>
-                            <span style="text-align: center; font-size: 120%; font-weight: bold;">
-                                <img src="http://placehold.it/50x50?text=icon" alt=""> + $5
+                        {% for tier in c.PREREG_DONATION_DESCRIPTIONS %}
+                            <!-- TODO: use attendee.amount_extra to select correct or default tier -->
+                            <!-- TODO: deal with 'no thanks' $0 tier somehow -->
+                            <label class="btn btn-default" style="text-align: left;">
+                                <input type="radio"
+                                       name="amount_extra"
+                                       autocomplete="off"
+                                       value="{{ tier.price }}"
+                                       onchange="donationChanged();"
+                                       {% if attendee.amount_extra == tier.price %}checked{% endif %}  />
+                                <h4 style="text-align: center; text-transform: uppercase;">
+                                    {{ tier.name }}
+                                </h4>
+                                <span style="text-align: center; font-size: 120%; font-weight: bold;">
+                                <img src="{{ tier.icon }}" alt=""> + ${{ tier.price }}
                             </span>
-                            <br>
-                            <button style="width: 100%;  margin-top: 1em;" class="btn btn-primary">
-                                Supgrade
-                            </button>
-                            <ul style="list-style-type: none; margin-top: 1em; padding-left: 0; font-size: 80%">
-                                <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
-                                    Sweet Swag
-                                </li>
-                                <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
-                                    Is Named
-                                </li>
-                                <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
-                                    In this area
-                                </li>
-                            </ul>
-                        </label>
-
-                        <label class="btn btn-default" style="text-align: left;">
-                            <input type="radio" name="TODO-REPLACEME2" autocomplete="off" value="10" onchange="donationChanged();" {} />
-                            <h4 style="text-align: center; text-transform: uppercase;">
-                                Test Tier 2
-                            </h4>
-                            <span style="text-align: center; font-size: 120%; font-weight: bold;">
-                                <img src="http://placehold.it/50x50?text=icon" alt=""> + $10
-                            </span>
-                            <br>
-                            <button style="width: 100%;  margin-top: 1em;" class="btn btn-primary">
-                                Supgrade 2
-                            </button>
-                            <ul style="list-style-type: none; margin-top: 1em; padding-left: 0; font-size: 80%">
-                                <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
-                                    Sweet Swag 2
-                                </li>
-                                <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
-                                    Is Named 2
-                                </li>
-                                <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
-                                    In this area 2
-                                </li>
-                            </ul>
-                        </label>
-
-
-                        <label class="btn btn-default" style="text-align: left;">
-                            <input type="radio" name="shirt" autocomplete="off" value="20" onchange="donationChanged();" {} />
-                            <h4 style="text-align: center; text-transform: uppercase;">
-                                Test Tier 3
-                            </h4>
-                            <span style="text-align: center; font-size: 120%; font-weight: bold;">
-                                <img src="http://placehold.it/50x50?text=icon" alt=""> + $80
-                            </span>
-                            <br>
-                            <button style="width: 100%;  margin-top: 1em;" class="btn btn-primary">
-                                Supgrade 2
-                            </button>
-                            <ul style="list-style-type: none; margin-top: 1em; padding-left: 0; font-size: 80%">
-                                <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
-                                    Sweet Swag 2
-                                </li>
-                                <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
-                                    Is Named 2
-                                </li>
-                                <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
-                                    In this area 2
-                                </li>
-                            </ul>
-                        </label>
-
-
-                        <label class="btn btn-default" style="text-align: left;">
-                            <input type="radio" name="{}" autocomplete="off" value="40" onchange="donationChanged();" {} />
-                            <h4 style="text-align: center; text-transform: uppercase;">
-                                Test Tier 4
-                            </h4>
-                            <span style="text-align: center; font-size: 120%; font-weight: bold;">
-                                <img src="http://placehold.it/50x50?text=icon" alt=""> + $70
-                            </span>
-                            <br>
-                            <button style="width: 100%;  margin-top: 1em;" class="btn btn-primary">
-                                Supgrade 2
-                            </button>
-                            <ul style="list-style-type: none; margin-top: 1em; padding-left: 0; font-size: 80%">
-                                <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
-                                    Sweet Swag 2
-                                </li>
-                                <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
-                                    Is Named 2
-                                </li>
-                                <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
-                                    In this area 2
-                                </li>
-                            </ul>
-                        </label>
-
-
-                        <label class="btn btn-default" style="text-align: left;">
-                            <input type="radio" name="{}" autocomplete="off" value="80" onchange="donationChanged();" {} />
-                            <h4 style="text-align: center; text-transform: uppercase;">
-                                Test Tier 2
-                            </h4>
-                            <span style="text-align: center; font-size: 120%; font-weight: bold;">
-                                <img src="http://placehold.it/50x50?text=icon" alt=""> + $800
-                            </span>
-                            <br>
-                            <button style="width: 100%;  margin-top: 1em;" class="btn btn-primary">
-                                Supgrade 2
-                            </button>
-                            <ul style="list-style-type: none; margin-top: 1em; padding-left: 0; font-size: 80%">
-                                <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
-                                    Sweet Swag 2
-                                </li>
-                                <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
-                                    Is Named 2
-                                </li>
-                                <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
-                                    In this area 2
-                                </li>
-                            </ul>
-                        </label>
-                        <!-- end repeating kickin part -->
+                                <br>
+                                <button style="width: 100%;  margin-top: 1em;" class="btn btn-primary">
+                                    Select
+                                </button>
+                                <ul style="list-style-type: none; margin-top: 1em; padding-left: 0; font-size: 80%">
+                                    <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
+                                        Sweet Swag
+                                    </li>
+                                    <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
+                                        Is Named
+                                    </li>
+                                    <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
+                                        In this area
+                                    </li>
+                                </ul>
+                            </label>
+                        {% endfor %}
 
                         </div>
-
-
-
-
                     {% else %}
                         <select name="amount_extra" class="form-control" onchange="donationChanged();">
                             {% options c.PREREG_DONATION_OPTS attendee.amount_extra %}
