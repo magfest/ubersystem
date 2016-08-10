@@ -145,7 +145,7 @@ class Root:
     def printed_badges_staff(self, out, session):
         uber.reports.PersonalizedBadgeReport().run(out, session,
             sa.Attendee.badge_type == c.STAFF_BADGE,
-            sa.Attendee.badge_num != 0,
+            sa.Attendee.badge_num != None,
             order_by='badge_num')
 
     @csv_file
