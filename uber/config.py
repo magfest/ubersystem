@@ -175,12 +175,21 @@ class Config(_Overridable):
 
     @property
     def PREREG_DONATION_DESCRIPTIONS(self):
-        donation_list = []
+        # include only the items that are actually available for purchase
         if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
             donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
         else:
             donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
                              if tier[1]['price'] < self.SUPPORTER_LEVEL]
+
+        donation_list = sorted(donation_list, key=lambda tier: tier[1]['price'])
+
+        # add in all previous descriptions.  the higher tiers include all the lower tiers
+        for entry in donation_list:
+            entry[1]['all_descriptions'] = \
+                [tier[1]['description'] for tier in donation_list
+                    if tier[1]['price'] > 0 and tier[1]['price'] < entry[1]['price']] \
+                + [entry[1]['description']]
 
         return [dict(tier[1]) for tier in donation_list]
 
