@@ -296,10 +296,13 @@ class MagModel:
 
     @suffix_property
     def _label(self, name, val):
+        if not val:
+            return ''
+
         try:
             val = int(val)
         except ValueError:
-            return val
+            return ''
 
         return self.get_field(name).type.choices.get(val)
 
@@ -628,6 +631,53 @@ class Session(SessionManager):
                 a.badge_num += shift
             return True
 
+        def change_badge(self, attendee, badge_type, badge_num=None):
+            """
+            Badges should always be assigned a number if they're marked as
+            pre-assigned or if they've been checked in.  If auto-shifting is
+            also turned off, badge numbers cannot clobber other numbers,
+            otherwise we'll shift all the other badge numbers around the old
+            and new numbers.
+            """
+            # assert_badge_locked()
+            from uber.badge_funcs import check_range
+            badge_type = int(badge_type)
+            old_badge_type, old_badge_num = attendee.badge_type, attendee.badge_num
+
+            out_of_range = check_range(badge_num, badge_type)
+            next = self.next_badge_num(badge_type, old_badge_num)
+            if out_of_range:
+                return out_of_range
+            elif not badge_num and next > c.BADGE_RANGES[badge_type][1]:
+                return 'There are no more badges available for that type'
+            elif badge_type in c.PREASSIGNED_BADGE_TYPES and c.AFTER_PRINTED_BADGE_DEADLINE:
+                return 'Custom badges have already been ordered'
+
+            if not c.SHIFT_CUSTOM_BADGES:
+                badge_num = badge_num or next
+                if badge_num != 0:
+                    existing = self.query(Attendee).filter_by(badge_type=badge_type, badge_num=badge_num) \
+                                                   .filter(Attendee.id != attendee.id)
+                    if existing.count():
+                        return 'That badge number already belongs to {!r}'.format(existing.first().full_name)
+            else:
+                # fill in the gap from the old number, if applicable
+                if old_badge_num:
+                    self.shift_badges(old_badge_type, old_badge_num + 1, down=True)
+
+                # determine the new badge number now that the badges have shifted
+                next = self.next_badge_num(badge_type, old_badge_num)
+                badge_num = min(int(badge_num) or next, next)
+
+                # make room for the new number, if applicable
+                if badge_num:
+                    offset = 1 if badge_type == old_badge_type and old_badge_num and badge_num > old_badge_num else 0
+                    self.shift_badges(badge_type, badge_num + offset, up=True)
+
+            attendee.badge_num = badge_num
+            attendee.badge_type = badge_type
+            return 'Badge updated'
+
         def valid_attendees(self):
             return self.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS)
 
@@ -726,7 +776,7 @@ class Session(SessionManager):
 
             ribbon_to_use = new_ribbon_type or group.new_ribbon
 
-            if int(new_badge_type) in c.PREASSIGNED_BADGE_TYPES and not c.SHIFT_CUSTOM_BADGES:
+            if int(new_badge_type) in c.PREASSIGNED_BADGE_TYPES and c.AFTER_PRINTED_BADGE_DEADLINE:
                 return 'Custom badges have already been ordered, so you will need to select a different badge type'
             elif diff > 0:
                 for i in range(diff):
@@ -1097,7 +1147,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @presave_adjustment
     def _status_adjustments(self):
         if self.badge_status == c.NEW_STATUS and self.banned:
-            self.badge_status = c.DEFERRED_STATUS
+            self.badge_status = c.WATCHED_STATUS
             try:
                 send_email(c.SECURITY_EMAIL, [c.REGDESK_EMAIL, c.SECURITY_EMAIL], 'Banned attendee registration',
                            render('emails/reg_workflow/banned_attendee.txt', {'attendee': self}), model='n/a')
@@ -1806,7 +1856,32 @@ class Tracking(MagModel):
             new_val = getattr(instance, attr)
             old_val = instance.orig_value_of(attr)
             if old_val != new_val:
-                diff[attr] = "'{} -> {}'".format(cls.repr(column, old_val), cls.repr(column, new_val))
+                """
+                important note: here we try and show the old vs new value for something that has been changed
+                so that we can report it in the tracking page.
+
+                Sometimes, however, if we changed the type of the value in the database (via a database migration)
+                the old value might not be able to be shown as the new type (i.e. it used to be a string, now it's int).
+                In that case, we won't be able to show a representation of the old value and instead we'll log it as
+                '<ERROR>'.  In theory the database migration SHOULD be the thing handling this, but if it doesn't, it
+                becomes our problem to deal with.
+
+                We are overly paranoid with exception handling here because the tracking code should be made to
+                never, ever, ever crash, even if it encounters insane/old data that really shouldn't be our problem.
+                """
+                try:
+                    old_val_repr = cls.repr(column, old_val)
+                except Exception as e:
+                    log.error("tracking repr({}) failed on old value".format(attr), exc_info=True)
+                    old_val_repr = "<ERROR>"
+
+                try:
+                    new_val_repr = cls.repr(column, new_val)
+                except Exception as e:
+                    log.error("tracking repr({}) failed on new value".format(attr), exc_info=True)
+                    new_val_repr = "<ERROR>"
+
+                diff[attr] = "'{} -> {}'".format(old_val_repr, new_val_repr)
         return diff
 
     # TODO: add new table for page views to eliminated track_pageview method and to eliminate Budget special case
@@ -1907,8 +1982,15 @@ def _make_getter(model):
     return getter
 
 
-def _presave_adjustments(session, context, instances='deprecated'):
+def _acquire_badge_lock(session, context, instances='deprecated'):
     c.BADGE_LOCK.acquire()
+
+
+@swallow_exceptions
+def _presave_adjustments(session, context, instances='deprecated'):
+    """
+    precondition: c.BADGE_LOCK is acquired already.
+    """
     for model in chain(session.dirty, session.new):
         model.presave_adjustments()
     for model in session.deleted:
@@ -1919,16 +2001,20 @@ def _release_badge_lock(session, context):
     try:
         c.BADGE_LOCK.release()
     except:
-        log.error('failed releasing c.BADGE_LOCK after session flush; this should never actually happen, but we want to just keep going if it ever does')
+        log.error('failed releasing c.BADGE_LOCK after session flush; this should never actually happen, but we want '
+                  'to just keep going if it ever does')
 
 
 def _release_badge_lock_on_error(*args, **kwargs):
     try:
         c.BADGE_LOCK.release()
     except:
-        log.warn('failed releasing c.BADGE_LOCK on db error; these errors should not happen in the first place and we do not expect releasing the lock to fail when they do, but we still want to keep going if/when this does occur')
+        log.warn('failed releasing c.BADGE_LOCK on db error; these errors should not happen in the first place and we '
+                 'do not expect releasing the lock to fail when they do, but we still want to keep going if/when this '
+                 'does occur')
 
 
+@swallow_exceptions
 def _track_changes(session, context, instances='deprecated'):
     for action, instances in {c.CREATED: session.new, c.UPDATED: session.dirty, c.DELETED: session.deleted}.items():
         for instance in instances:
@@ -1937,6 +2023,17 @@ def _track_changes(session, context, instances='deprecated'):
 
 
 def register_session_listeners():
+    """
+    NOTE 1: IMPORTANT!!! Because we are locking our c.BADGE_LOCK at the start of this, all of these functions MUST NOT
+    THROW ANY EXCEPTIONS.  If they do throw exceptions, the chain of hooks will not be completed, and the lock won't
+    be released, resulting in a deadlock and heinous, horrible, and hard to debug server lockup.
+
+    You MUST use the @swallow_exceptions decorator on ALL functions
+    between _acquire_badge_lock and _release_badge_lock in order to prevent them from throwing exceptions.
+
+    NOTE 2: The order in which we register these listeners matters.
+    """
+    listen(Session.session_factory, 'before_flush', _acquire_badge_lock)
     listen(Session.session_factory, 'before_flush', _presave_adjustments)
     listen(Session.session_factory, 'before_flush', _track_changes)
     listen(Session.session_factory, 'after_flush', _release_badge_lock)

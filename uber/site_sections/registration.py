@@ -807,12 +807,18 @@ class Root:
     def discount(self, session, message='', **params):
         attendee = session.attendee(params)
         if 'first_name' in params:
-            if not attendee.first_name or not attendee.last_name:
-                message = 'First and Last Name are required'
-            elif not attendee.overridden_price:
+            try:
+                if not attendee.first_name or not attendee.last_name:
+                    message = 'First and Last Name are required'
+                elif attendee.overridden_price < 0:
+                    message = 'Non-Negative Discounted Price is required'
+                elif attendee.overridden_price > c.BADGE_PRICE:
+                    message = 'You cannot create a discounted badge that costs more than the regular price!'
+                elif attendee.overridden_price == 0:
+                    attendee.paid = c.NEED_NOT_PAY
+                    attendee.overridden_price = c.BADGE_PRICE
+            except TypeError:
                 message = 'Discounted Price is required'
-            elif attendee.overridden_price > c.BADGE_PRICE:
-                message = 'You cannot create a discounted badge that costs more than the regular price!'
 
             if not message:
                 session.add(attendee)
@@ -821,78 +827,6 @@ class Root:
                 raise HTTPRedirect('../preregistration/confirm?id={}', attendee.id)
 
         return {'message': message}
-
-    def attendee_upload(self, session, message='', attendee_import=None, date_format="%Y-%m-%d"):
-        attendees = None
-
-        if attendee_import:
-            cols = {col.name: getattr(Attendee, col.name) for col in Attendee.__table__.columns}
-            result = csv.DictReader(attendee_import.file.read().decode('utf-8').split('\n'))
-            id_list = []
-
-            for row in result:
-                if 'id' in row:
-                    id = row.pop('id')  # id needs special treatment
-
-                try:
-                    # get the Attendee if it already exists
-                    attendee = session.attendee(id, allow_invalid=True)
-                except:
-                    session.rollback()
-                    # otherwise, make a new one and add it to the session for when we commit
-                    attendee = Attendee()
-                    session.add(attendee)
-
-                for colname, val in row.items():
-                    col = cols[colname]
-                    if not val:
-                        # in a lot of cases we'll just have the empty string, so we'll just
-                        # do nothing for those cases
-                        continue
-                    if isinstance(col.type, Choice):
-                        # the export has labels, and we want to convert those back into their
-                        # integer values, so let's look that up (note: we could theoretically
-                        # modify the Choice class to do this automatically in the future)
-                        label_lookup = {val: key for key, val in col.type.choices.items()}
-                        val = label_lookup[val]
-                    elif isinstance(col.type, MultiChoice):
-                        # the export has labels separated by ' / ' and we want to convert that
-                        # back into a comma-separate list of integers
-                        label_lookup = {val: key for key, val in col.type.choices}
-                        vals = [label_lookup[label] for label in val.split(' / ')]
-                        val = ','.join(map(str, vals))
-                    elif isinstance(col.type, UTCDateTime):
-                        # we'll need to make sure we use whatever format string we used to
-                        # export this date in the first place
-                        try:
-                            val = UTC.localize(datetime.strptime(val, date_format + ' %H:%M:%S'))
-                        except:
-                            val = UTC.localize(datetime.strptime(val, date_format))
-                    elif isinstance(col.type, Date):
-                        val = datetime.strptime(val, date_format).date()
-                    elif isinstance(col.type, Integer):
-                        val = int(val)
-
-                    # now that we've converted val to whatever it actually needs to be, we
-                    # can just set it on the attendee
-                    setattr(attendee, colname, val)
-
-                try:
-                    session.commit()
-                except:
-                    log.error('ImportError', exc_info=True)
-                    session.rollback()
-                    message = 'Import unsuccessful'
-
-                id_list.append(attendee.id)
-
-            if id_list:
-                attendees = session.query(Attendee).filter(Attendee.id.in_(id_list)).all()
-
-        return {
-            'message': message,
-             'attendees': attendees
-        }
 
     def placeholders(self, session, department=''):
         return {
@@ -920,7 +854,7 @@ class Root:
         return json.dumps({
             'badges_sold': c.BADGES_SOLD,
             'remaining_badges': c.REMAINING_BADGES,
-
+            'badges_price': c.BADGE_PRICE,
             'server_current_timestamp': int(datetime.utcnow().timestamp()),
             'warn_if_server_browser_time_mismatch': c.WARN_IF_SERVER_BROWSER_TIME_MISMATCH
         })
