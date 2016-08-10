@@ -196,7 +196,7 @@
                                 .btn-group-inline
                                 {
                                     display: flex;
-                                    flex-direction: column;
+                                    flex-direction: row;
                                     flex-wrap: nowrap;
                                     justify-content: center;
                                     margin-top: 7rem;
@@ -240,71 +240,47 @@
                                     text-align: center;
                                     border-bottom: 1px solid whitesmoke;
                                 }
+
+                                .li-inline a, #supporter_popup a
+                                {
+                                    color: black;
+                                }
+
                             </style>
 
 
-                        <div data-toggle="buttons">
+                        <div data-toggle="buttons" class="btn-group-inline">
                         {% for tier in c.PREREG_DONATION_DESCRIPTIONS %}
 
-                            {% if tier.price == 0 %}
-                                <label class="btn btn-default no-inline">
-                                <input type="radio"
-                                       name="amount_extra"
-                                       autocomplete="off"
-                                       value="{{ tier.price }}"
-                                       onchange="donationChanged();"
-                                       {% if attendee.amount_extra == tier.price %}checked{% endif %}  />
-                                <h4 class="h4-inline">
-                                    {{ tier.name }}
-                                </h4>
-                                {% if tier.price %}
-                                <span class="span-inline">
-                                    <img src="{{ tier.icon }}" alt=""> + ${{ tier.price }}
-                                </span>
-                                <br>
-                                <ul class="ul-inline">
-                                    {% for desc, link in tier.all_descriptions %}
-                                    {% if link %}
-                                    <li class="li-inline">
-                                        <a onClick="window.open('{{ link }}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;"
-                     href="{{ link }}">{{ desc }}</a>
-                                    </li>
-                                    {% endif %}
-                                    {% endfor %}
-                                </ul>
-                                    {% endif %}
-                            {% else %}
-                                <div data-toggle="buttons" class="btn-group-inline">
-                                <label class="btn btn-default btn-inline">
-                                <input type="radio"
-                                       name="amount_extra"
-                                       autocomplete="off"
-                                       value="{{ tier.price }}"
-                                       onchange="donationChanged();"
-                                       {% if attendee.amount_extra == tier.price %}checked{% endif %}  />
-                                <h4 class="h4-inline">
-                                    {{ tier.name }}
-                                </h4>
-                                {% if tier.price %}
-                                <span class="span-inline">
-                                    <img src="{{ tier.icon }}" alt=""> + ${{ tier.price }}
-                                </span>
-                                <br>
-                                <ul class="ul-inline">
-                                    {% for desc, link in tier.all_descriptions %}
-                                    {% if link %}
-                                    <li class="li-inline">
-                                        <a onClick="window.open('{{ link }}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;"
-                     href="{{ link }}">{{ desc }}</a>
-                                    </li>
-                                    {% endif %}
-                                    {% endfor %}
-                                </ul>
+                            <label class="btn btn-default {% if tier.price == 0 %}no-inline{% else %}btn-inline{% endif %}">
+                            <input type="radio"
+                                   name="amount_extra"
+                                   autocomplete="off"
+                                   value="{{ tier.price }}"
+                                   onchange="donationChanged();"
+                                   {% if attendee.amount_extra == tier.price %}checked{% endif %}  />
+                            <h4 class="h4-inline">
+                                {{ tier.name }}
+                            </h4>
+                            {% if tier.price %}
+                            <span class="span-inline">
+                                <img src="{{ tier.icon }}" alt=""> + ${{ tier.price }}
+                            </span>
+                            <br>
+                            <ul class="ul-inline">
+                                {% for desc, link in tier.all_descriptions %}
+                                {% if link %}
+                                <li class="li-inline">
+                                    <a onClick="window.open('{{ link }}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;"
+                 href="{{ link }}">{{ desc }}</a>
+                                </li>
                                 {% endif %}
+                                {% endfor %}
+                            </ul>
                             {% endif %}
-                            </label>
-                        </div>
+                          </label>
                         {% endfor %}
+                        </div>
 
 
                     {% else %}
