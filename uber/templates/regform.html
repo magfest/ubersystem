@@ -136,7 +136,7 @@
             $.each($("input:radio[name='amount_extra']"), function() {
                 $(this).parents('.btn').removeClass('active btn-primary');
                 $(this).parents('.btn').addClass('btn-default');
-                if ($(this).val() <= $.val('amount_extra')) {
+                if ($(this).val() == $.val('amount_extra')) {
                     $(this).parents('.btn').removeClass('btn-default');
                     $(this).parents('.btn').addClass('active btn-primary');
                 }
