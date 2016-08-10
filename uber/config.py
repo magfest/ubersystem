@@ -174,6 +174,35 @@ class Config(_Overridable):
             return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS if amt < self.SUPPORTER_LEVEL]
 
     @property
+    def PREREG_DONATION_DESCRIPTIONS(self):
+        # include only the items that are actually available for purchase
+        if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
+            donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
+        else:
+            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
+                             if tier[1]['price'] < self.SUPPORTER_LEVEL]
+
+        donation_list = sorted(donation_list, key=lambda tier: tier[1]['price'])
+
+        # add in all previous descriptions.  the higher tiers include all the lower tiers
+        for entry in donation_list:
+            all_desc_and_links = \
+                [(tier[1]['description'], tier[1]['link']) for tier in donation_list
+                    if tier[1]['price'] > 0 and tier[1]['price'] < entry[1]['price']] \
+                + [(entry[1]['description'], entry[1]['link'])]
+
+            # maybe slight hack. descriptions and links are separated by '|' characters so we can have multiple
+            # items displayed in the donation tiers.  in an ideal world, these would already be separated in the INI
+            # and we wouldn't have to do it here.
+            entry[1]['all_descriptions'] = []
+            for item in all_desc_and_links:
+                descriptions = item[0].split('|')
+                links = item[1].split('|')
+                entry[1]['all_descriptions'] += list(zip(descriptions, links))
+
+        return [dict(tier[1]) for tier in donation_list]
+
+    @property
     def PREREG_DONATION_TIERS(self):
         return dict(self.PREREG_DONATION_OPTS)
 
@@ -472,6 +501,10 @@ c.JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'restric
 c.PREREG_SHIRT_OPTS = c.SHIRT_OPTS[1:]
 c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + list(c.PREREG_SHIRT_OPTS)
 c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt, desc) if amt else desc) for amt, desc in c.DONATION_TIER_OPTS]
+
+c.DONATION_TIER_DESCRIPTIONS = _config.get('donation_tier_descriptions', [])
+for tier in c.DONATION_TIER_DESCRIPTIONS.items():
+    tier[1]['price'] = [amt for amt, name in c.DONATION_TIERS.items() if name == tier[1]['name']][0]
 
 c.STORE_ITEM_NAMES = [desc for val, desc in c.STORE_PRICE_OPTS]
 c.FEE_ITEM_NAMES = [desc for val, desc in c.FEE_PRICE_OPTS]

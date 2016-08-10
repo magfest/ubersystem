@@ -136,7 +136,7 @@
             $.each($("input:radio[name='amount_extra']"), function() {
                 $(this).parents('.btn').removeClass('active btn-primary');
                 $(this).parents('.btn').addClass('btn-default');
-                if ($(this).val() <= $.val('amount_extra')) {
+                if ($(this).val() == $.val('amount_extra')) {
                     $(this).parents('.btn').removeClass('btn-default');
                     $(this).parents('.btn').addClass('active btn-primary');
                 }
@@ -174,15 +174,87 @@
 
     {% if c.PAGE_PATH != '/preregistration/transfer_badge' %}
         <div class="extra-row form-group">
-            <label for="amount_extra" class="col-sm-2 control-label">Want to kick in extra?</label>
+            <label for="amount_extra" class="col-sm-2 control-label">Want to kick in extra?
+                <br>
+            {% popup_link "../static_views/givingExtra.html" "Why do this?" %}
+            </label>
             <div class="col-sm-6">
                 {% if c.AFTER_SUPPORTER_DEADLINE and attendee.amount_extra >= c.SUPPORTER_LEVEL %}
                     {{ attendee.amount_extra_label }}
                     <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
                 {% else %}
                     {% if c.DONATION_SLIDER_DISPLAY %}
-                        <div class="btn-group btn-group-vertical" data-toggle="buttons">
-                            {% radiogroup c.PREREG_DONATION_OPTS attendee.amount_extra %}
+
+                        <style>
+                                .btn-inline
+                                {
+                                    text-align: left;
+                                    width: 180px;
+                                    height: 300px;
+                                    margin: 0.5em;
+                                }
+
+                                .h4-inline
+                                {
+                                    text-align: center;
+                                    text-transform: uppercase;
+                                }
+
+                                .span-inline
+                                {
+                                    text-align: center;
+                                    font-size: 120%;
+                                    font-weight: bold;
+                                }
+
+                                .ul-inline
+                                {
+                                    list-style-type: none;
+                                    margin-top: 1em;
+                                    padding-left: 0;
+                                    font-size: 80%
+                                }
+
+                                .li-inline
+                                {
+                                    padding: 0.5em;
+                                    text-align: center;
+                                    border-bottom: 1px solid whitesmoke;
+                                }
+                            </style>
+
+                        <div data-toggle="buttons">
+                        {% for tier in c.PREREG_DONATION_DESCRIPTIONS %}
+
+                            <label class="btn btn-default btn-inline">
+                                <input type="radio"
+                                       name="amount_extra"
+                                       autocomplete="off"
+                                       value="{{ tier.price }}"
+                                       onchange="donationChanged();"
+                                       {% if attendee.amount_extra == tier.price %}checked{% endif %}  />
+                                <h4 class="h4-inline">
+                                    {{ tier.name }}
+                                </h4>
+                                {% if tier.price %}
+                                <span class="span-inline">
+                                <img src="{{ tier.icon }}" alt=""> + ${{ tier.price }}
+                            </span>
+                                <br>
+                                <ul class="ul-inline">
+                                    {% for desc, link in tier.all_descriptions %}
+                                    {% if link %}
+                                    <li class="li-inline">
+                                        <a onClick="window.open('{{ link }}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;"
+                     href="{{ link }}">{{ desc }}</a>
+                                    </li>
+                                    {% endif %}
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+                            </label>
+                        {% endfor %}
+
                         </div>
                     {% else %}
                         <select name="amount_extra" class="form-control" onchange="donationChanged();">
@@ -191,7 +263,7 @@
                     {% endif %}
                 {% endif %}
             </div>
-            {% popup_link "../static_views/givingExtra.html" "Why do this?" %}
+
             <p class="help-block col-sm-6">
                 Each level includes all lower levels. <br/>
                 Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime }}.
