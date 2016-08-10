@@ -192,21 +192,26 @@
                                        autocomplete="off"
                                        value="{{ tier.price }}"
                                        onchange="donationChanged();"
-                                       {% if attendee.amount_extra == tier.price %}checked{% endif %}  />
+                                       {% if attendee.amount_extra == tier.price %}checked{% endif %} />
                                 <h4 style="text-align: center; text-transform: uppercase;">
                                     {{ tier.name }}
                                 </h4>
+                                {% if tier.price %}
                                 <span style="text-align: center; font-size: 120%; font-weight: bold;">
-                                <img src="{{ tier.icon }}" alt=""> + ${{ tier.price }}
-                            </span>
+                                    <img src="{{ tier.icon }}" alt=""> + ${{ tier.price }}
+                                </span>
                                 <br>
                                 <ul style="list-style-type: none; margin-top: 1em; padding-left: 0; font-size: 80%">
                                     {% for desc, link in tier.all_descriptions %}
+                                    {% if link %}
                                     <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
-                                        <a href="{{ link }}">{{ desc }}</a>
+                                        <a onClick="window.open('{{ link }}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;"
+                     href="{{ link }}">{{ desc }}</a>
                                     </li>
+                                    {% endif %}
                                     {% endfor %}
                                 </ul>
+                                {% endif %}
                             </label>
                         {% endfor %}
 
