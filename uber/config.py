@@ -174,6 +174,17 @@ class Config(_Overridable):
             return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS if amt < self.SUPPORTER_LEVEL]
 
     @property
+    def PREREG_DONATION_DESCRIPTIONS(self):
+        donation_list = []
+        if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
+            donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
+        else:
+            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
+                             if tier[1]['price'] < self.SUPPORTER_LEVEL]
+
+        return [dict(tier[1]) for tier in donation_list]
+
+    @property
     def PREREG_DONATION_TIERS(self):
         return dict(self.PREREG_DONATION_OPTS)
 
