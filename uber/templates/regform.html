@@ -242,8 +242,17 @@
                             }
                         
                         @media (max-width: 543px) {
-                            .btn-group-inline {
+                            .btn-group-inline
+                                {
+                                    flex-direction: column;
                                     flex-wrap: wrap;
+                                    width: 100vw;
+                                }
+
+                            .btn-inline
+                                {
+                                    width: 100%;
+                                    height: initial;
                                 }
                         }
 
