@@ -186,15 +186,14 @@
                     {% if c.DONATION_SLIDER_DISPLAY %}
 
                         <style>
+                            @media all {
 
-                                .no-inline
-                                {
+                                .no-inline {
                                     display: flex;
                                     flex-direction: row;
                                 }
 
-                                .btn-group-inline
-                                {
+                                .btn-group-inline {
                                     display: flex;
                                     flex-direction: row;
                                     flex-wrap: nowrap;
@@ -202,21 +201,18 @@
                                     margin-top: 7rem;
                                 }
 
-                                .btn-inline
-                                {
+                                .btn-inline {
                                     width: 180px;
                                     height: 340px;
 
                                 }
 
-                                .h4-inline
-                                {
+                                .h4-inline {
 
                                     text-align: center;
                                 }
 
-                                .span-inline
-                                {
+                                .span-inline {
                                     display: block;
                                     margin-right: auto;
                                     margin-left: auto;
@@ -226,26 +222,30 @@
                                     font-weight: bold;
                                 }
 
-                                .ul-inline
-                                {
+                                .ul-inline {
                                     list-style-type: none;
                                     margin-top: 0;
                                     padding-left: 0;
                                     font-size: 80%
                                 }
 
-                                .li-inline
-                                {
+                                .li-inline {
                                     padding: 0.5em;
                                     text-align: center;
                                     border-bottom: 1px solid whitesmoke;
                                 }
 
-                                .li-inline a, #supporter_popup a
-                                {
+                                .li-inline a, #supporter_popup a {
                                     color: black;
                                     text-decoration: underline;
                                 }
+                            }
+                        
+                        @media (max-width: 543px) {
+                            .btn-group-inline {
+                                    flex-wrap: wrap;
+                                }
+                        }
 
                             </style>
 
