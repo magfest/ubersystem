@@ -178,7 +178,7 @@
                 <br>
             {% popup_link "../static_views/givingExtra.html" "Why do this?" %}
             </label>
-            <div class="col-sm-6">
+            <div class="col-sm-8">
                 {% if c.AFTER_SUPPORTER_DEADLINE and attendee.amount_extra >= c.SUPPORTER_LEVEL %}
                     {{ attendee.amount_extra_label }}
                     <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
@@ -186,22 +186,41 @@
                     {% if c.DONATION_SLIDER_DISPLAY %}
 
                         <style>
+
+                                .no-inline
+                                {
+                                    display: flex;
+                                    flex-direction: row;
+                                }
+
+                                .btn-group-inline
+                                {
+                                    display: flex;
+                                    flex-direction: column;
+                                    flex-wrap: nowrap;
+                                    justify-content: center;
+                                    margin-top: 7rem;
+                                }
+
                                 .btn-inline
                                 {
-                                    text-align: left;
                                     width: 180px;
-                                    height: 300px;
-                                    margin: 0.5em;
+                                    height: 340px;
+
                                 }
 
                                 .h4-inline
                                 {
+
                                     text-align: center;
-                                    text-transform: uppercase;
                                 }
 
                                 .span-inline
                                 {
+                                    display: block;
+                                    margin-right: auto;
+                                    margin-left: auto;
+                                    width: 100%;
                                     text-align: center;
                                     font-size: 120%;
                                     font-weight: bold;
@@ -210,7 +229,7 @@
                                 .ul-inline
                                 {
                                     list-style-type: none;
-                                    margin-top: 1em;
+                                    margin-top: 0;
                                     padding-left: 0;
                                     font-size: 80%
                                 }
@@ -223,10 +242,12 @@
                                 }
                             </style>
 
+
                         <div data-toggle="buttons">
                         {% for tier in c.PREREG_DONATION_DESCRIPTIONS %}
 
-                            <label class="btn btn-default btn-inline">
+                            {% if tier.price == 0 %}
+                                <label class="btn btn-default no-inline">
                                 <input type="radio"
                                        name="amount_extra"
                                        autocomplete="off"
@@ -238,8 +259,36 @@
                                 </h4>
                                 {% if tier.price %}
                                 <span class="span-inline">
-                                <img src="{{ tier.icon }}" alt=""> + ${{ tier.price }}
-                            </span>
+                                    <img src="{{ tier.icon }}" alt=""> + ${{ tier.price }}
+                                </span>
+                                <br>
+                                <ul class="ul-inline">
+                                    {% for desc, link in tier.all_descriptions %}
+                                    {% if link %}
+                                    <li class="li-inline">
+                                        <a onClick="window.open('{{ link }}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;"
+                     href="{{ link }}">{{ desc }}</a>
+                                    </li>
+                                    {% endif %}
+                                    {% endfor %}
+                                </ul>
+                                    {% endif %}
+                            {% else %}
+                                <div data-toggle="buttons" class="btn-group-inline">
+                                <label class="btn btn-default btn-inline">
+                                <input type="radio"
+                                       name="amount_extra"
+                                       autocomplete="off"
+                                       value="{{ tier.price }}"
+                                       onchange="donationChanged();"
+                                       {% if attendee.amount_extra == tier.price %}checked{% endif %}  />
+                                <h4 class="h4-inline">
+                                    {{ tier.name }}
+                                </h4>
+                                {% if tier.price %}
+                                <span class="span-inline">
+                                    <img src="{{ tier.icon }}" alt=""> + ${{ tier.price }}
+                                </span>
                                 <br>
                                 <ul class="ul-inline">
                                     {% for desc, link in tier.all_descriptions %}
@@ -252,10 +301,12 @@
                                     {% endfor %}
                                 </ul>
                                 {% endif %}
+                            {% endif %}
                             </label>
+                        </div>
                         {% endfor %}
 
-                        </div>
+
                     {% else %}
                         <select name="amount_extra" class="form-control" onchange="donationChanged();">
                             {% options c.PREREG_DONATION_OPTS attendee.amount_extra %}
