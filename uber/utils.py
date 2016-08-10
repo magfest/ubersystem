@@ -129,9 +129,10 @@ def hour_day_format(dt):
     return dt.astimezone(c.EVENT_TIMEZONE).strftime('%I%p ').strip('0').lower() + dt.astimezone(c.EVENT_TIMEZONE).strftime('%a')
 
 
-def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=None):
+def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=None, ident=None):
     subject = subject.format(EVENT_NAME=c.EVENT_NAME)
     to, cc, bcc = map(listify, [dest, cc, bcc])
+    ident = ident or subject
     if c.DEV_BOX:
         for xs in [to, cc, bcc]:
             xs[:] = [email for email in xs if email.endswith('mailinator.com') or c.DEVELOPER_EMAIL in email]
@@ -153,7 +154,7 @@ def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=
         body = body.decode('utf-8') if isinstance(body, bytes) else body
         fk = {'model': 'n/a'} if model == 'n/a' else {'fk_id': model.id, 'model': model.__class__.__name__}
         with sa.Session() as session:
-            session.add(sa.Email(subject=subject, dest=','.join(listify(dest)), body=body, **fk))
+            session.add(sa.Email(subject=subject, dest=','.join(listify(dest)), body=body, ident=ident, **fk))
 
 
 class Charge:

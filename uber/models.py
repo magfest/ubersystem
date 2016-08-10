@@ -1785,6 +1785,7 @@ class ApprovedEmail(MagModel):
 
 class Email(MagModel):
     fk_id   = Column(UUID, nullable=True)
+    ident   = Column(UnicodeText)
     model   = Column(UnicodeText)
     when    = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     subject = Column(UnicodeText)
