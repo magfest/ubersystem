@@ -184,6 +184,12 @@ def zip_code(attendee):
 
 
 @validation.Attendee
+def printed_badge_deadline(attendee):
+    if attendee.is_new and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
+        return 'Custom badges have already been ordered so you cannot create new {} badges'.format(attendee.badge_type_label)
+
+
+@validation.Attendee
 def allowed_to_volunteer(attendee):
     if attendee.staffing and not attendee.age_group_conf['can_volunteer'] and attendee.badge_type != c.STAFF_BADGE and c.PRE_CON:
         return 'Volunteers cannot be ' + attendee.age_group_conf['desc']
