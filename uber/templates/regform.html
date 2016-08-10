@@ -201,9 +201,9 @@
                             </span>
                                 <br>
                                 <ul style="list-style-type: none; margin-top: 1em; padding-left: 0; font-size: 80%">
-                                    {% for desc in tier.all_descriptions %}
+                                    {% for desc, link in tier.all_descriptions %}
                                     <li style="padding: 0.5em; text-align: center; border-bottom: 1px solid whitesmoke;">
-                                        {{ desc }}
+                                        <a href="{{ link }}">{{ desc }}</a>
                                     </li>
                                     {% endfor %}
                                 </ul>
