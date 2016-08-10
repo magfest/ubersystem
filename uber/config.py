@@ -473,6 +473,11 @@ c.PREREG_SHIRT_OPTS = c.SHIRT_OPTS[1:]
 c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + list(c.PREREG_SHIRT_OPTS)
 c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt, desc) if amt else desc) for amt, desc in c.DONATION_TIER_OPTS]
 
+c.DONATION_TIER_DESCRIPTIONS = _config.get('donation_tier_descriptions', [])
+for tier in c.DONATION_TIER_DESCRIPTIONS.items():
+    tier[1]['price'] = [amt for amt, name in c.DONATION_TIERS.items() if name == tier[1]['name']][0]
+
+c.STORE_ITEM_NAMES = [desc for val, desc in c.STORE_PRICE_OPTS]
 c.STORE_ITEM_NAMES = [desc for val, desc in c.STORE_PRICE_OPTS]
 c.FEE_ITEM_NAMES = [desc for val, desc in c.FEE_PRICE_OPTS]
 
