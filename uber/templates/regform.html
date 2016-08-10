@@ -223,9 +223,6 @@
                                 }
                             </style>
 
-                            <!-- TODO: use attendee.amount_extra to select correct or default tier -->
-                            <!-- TODO: deal with 'no thanks' $0 tier somehow -->
-
                         <div data-toggle="buttons">
                         {% for tier in c.PREREG_DONATION_DESCRIPTIONS %}
 
@@ -239,18 +236,24 @@
                                 <h4 class="h4-inline">
                                     {{ tier.name }}
                                 </h4>
+                                {% if tier.price %}
                                 <span class="span-inline">
                                 <img src="{{ tier.icon }}" alt=""> + ${{ tier.price }}
                             </span>
                                 <br>
                                 <ul class="ul-inline">
-                                    {% for desc in tier.all_descriptions %}
+                                    {% for desc, link in tier.all_descriptions %}
+                                    {% if link %}
                                     <li class="li-inline">
-                                        {{ desc }}
+                                        <a onClick="window.open('{{ link }}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;"
+                     href="{{ link }}">{{ desc }}</a>
                                     </li>
+                                    {% endif %}
                                     {% endfor %}
                                 </ul>
+                                {% endif %}
                             </label>
+                            {% endif %}
                         {% endfor %}
 
                         </div>

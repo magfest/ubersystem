@@ -186,10 +186,19 @@ class Config(_Overridable):
 
         # add in all previous descriptions.  the higher tiers include all the lower tiers
         for entry in donation_list:
-            entry[1]['all_descriptions'] = \
-                [tier[1]['description'] for tier in donation_list
+            all_desc_and_links = \
+                [(tier[1]['description'], tier[1]['link']) for tier in donation_list
                     if tier[1]['price'] > 0 and tier[1]['price'] < entry[1]['price']] \
-                + [entry[1]['description']]
+                + [(entry[1]['description'], entry[1]['link'])]
+
+            # maybe slight hack. descriptions and links are separated by '|' characters so we can have multiple
+            # items displayed in the donation tiers.  in an ideal world, these would already be separated in the INI
+            # and we wouldn't have to do it here.
+            entry[1]['all_descriptions'] = []
+            for item in all_desc_and_links:
+                descriptions = item[0].split('|')
+                links = item[1].split('|')
+                entry[1]['all_descriptions'] += list(zip(descriptions, links))
 
         return [dict(tier[1]) for tier in donation_list]
 
