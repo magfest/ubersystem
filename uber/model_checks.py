@@ -70,6 +70,9 @@ def group_paid(group):
         return "What you entered for Amount Paid ({}) isn't even a number".format(group.amount_paid)
 
 
+def _valid_donation(s):
+        return (s.isnumeric() and val(s) > 0 and val(s) < 1000000 and (val(s) = int(val(s))))
+
 def _invalid_phone_number(s):
     if not s.startswith('+'):
         return len(re.findall(r'\d', s)) != 10 or re.search(c.SAME_NUMBER_REPEATED, re.sub(r'[^0-9]', '', s))
