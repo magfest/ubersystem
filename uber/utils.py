@@ -307,3 +307,7 @@ def convert_to_absolute_url(relative_uber_page_url):
         raise ValueError("relative url MUST start with '../'")
 
     return urljoin(c.URL_BASE + "/", relative_uber_page_url[3:])
+
+
+def get_real_badge_type(badge_type):
+    return c.ATTENDEE_BADGE if badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE] else badge_type

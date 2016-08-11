@@ -529,8 +529,7 @@ class Session(SessionManager):
             the badge type's range.
             :return:
             """
-            if badge_type in [c.PSEUDO_GROUP_BADGE, c.PSEUDO_DEALER_BADGE]:
-                badge_type = c.ATTENDEE_BADGE
+            badge_type = get_real_badge_type(badge_type)
 
             new_badge_num = self.auto_badge_num(badge_type)
             # Adjusts the badge number based on badges in the session
@@ -1134,10 +1133,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     def _badge_adjustments(self):
         # _assert_badge_lock()
 
-        if self.badge_type in [c.PSEUDO_GROUP_BADGE, c.PSEUDO_DEALER_BADGE]:
-            if self.is_dealer:
-                self.ribbon = c.DEALER_RIBBON
-            self.badge_type = c.ATTENDEE_BADGE
+        self.badge_type = get_real_badge_type(self.badge_type)
+
+        if self.is_dealer:
+            self.ribbon = c.DEALER_RIBBON
 
         if not self.session.needs_badge_num(self):
             if self.orig_value_of('badge_num'):
@@ -1214,7 +1213,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def badge_type_real(self):
-        return c.ATTENDEE_BADGE if self.badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE] else self.badge_type
+        return get_real_badge_type(self.badge)
 
     @cost_property
     def badge_cost(self):
