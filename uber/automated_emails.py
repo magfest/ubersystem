@@ -33,7 +33,7 @@ class AutomatedEmail:
 
     def prev(self, x, all_sent=None):
         if all_sent:
-            return (x.__class__.__name__, x.id, self.subject, self.ident) in all_sent
+            return (x.__class__.__name__, x.id, self.ident) in all_sent
         else:
             with Session() as session:
                 return session.query(Email).filter_by(model=x.__class__.__name__, fk_id=x.id, ident=self.ident).first()
@@ -62,7 +62,7 @@ class AutomatedEmail:
         if not c.AT_THE_CON and (c.DEV_BOX or c.SEND_EMAILS):
             with Session() as session:
                 approved = {ae.subject for ae in session.query(ApprovedEmail)}
-                all_sent = set(session.query(Email.model, Email.fk_id, Email.subject))
+                all_sent = set(session.query(Email.model, Email.fk_id, Email.ident))
                 for model, lister in cls.queries.items():
                     for inst in lister(session):
                         sleep(0.01)  # throttle CPU usage
