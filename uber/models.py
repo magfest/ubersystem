@@ -1212,6 +1212,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         else:
             return self.badge_type_label
 
+    @property
+    def badge_type_real(self):
+        return c.ATTENDEE_BADGE if self.badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE] else self.badge_type
+
     @cost_property
     def badge_cost(self):
         registered = self.registered_local if self.registered else sa.localized_now()
