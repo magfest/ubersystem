@@ -529,6 +529,9 @@ class Session(SessionManager):
             the badge type's range.
             :return:
             """
+            if badge_type in [c.PSEUDO_GROUP_BADGE, c.PSEUDO_DEALER_BADGE]:
+                badge_type = c.ATTENDEE_BADGE
+
             new_badge_num = self.auto_badge_num(badge_type)
             # Adjusts the badge number based on badges in the session
             for attendee in [m for m in chain(self.new, self.dirty) if isinstance(m, Attendee)]:
