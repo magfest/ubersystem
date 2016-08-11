@@ -192,7 +192,7 @@ def printed_badge_deadline(attendee):
 @validation.Attendee
 def allowed_to_volunteer(attendee):
     if attendee.staffing and not attendee.age_group_conf['can_volunteer'] and attendee.badge_type != c.STAFF_BADGE and c.PRE_CON:
-        return 'Volunteers cannot be ' + attendee.age_group_conf['desc']
+        return 'Your interest is appreciated, but ' + c.EVENT_NAME + ' volunteers must be 18 or older.'
 
 
 @validation.Attendee
