@@ -1213,7 +1213,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def badge_type_real(self):
-        return get_real_badge_type(self.badge)
+        return get_real_badge_type(self.badge_type)
 
     @cost_property
     def badge_cost(self):
