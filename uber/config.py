@@ -105,7 +105,7 @@ class Config(_Overridable):
     def get_attendee_price(self, dt):
         price = self.INITIAL_ATTENDEE
         if self.PRICE_BUMPS_ENABLED:
-            badges_sold = self.BADGES_SOLD # optimization: this call is expensive, db call
+            badges_sold = self.BADGES_SOLD  # optimization: this call is expensive, db call
             for day, bumped_price in sorted(self.PRICE_BUMPS.items()):
                 if (dt or datetime.now(UTC)) >= day:
                     price = bumped_price
