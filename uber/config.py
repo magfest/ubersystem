@@ -130,7 +130,6 @@ class Config(_Overridable):
     def DEALER_REG_OPEN(self):
         return self.AFTER_DEALER_REG_START and self.BEFORE_DEALER_REG_SHUTDOWN
 
-    @property
     def BADGES_SOLD(self):
         with sa.Session() as session:
             attendees = session.query(sa.Attendee)
@@ -273,7 +272,6 @@ class Config(_Overridable):
     def HTTP_METHOD(self):
         return cherrypy.request.method
 
-    @property
     def SUPPORTER_COUNT(self):
         with sa.Session() as session:
             attendees = session.query(sa.Attendee)
