@@ -260,7 +260,6 @@ class Config(_Overridable):
     def PAGE(self):
         return cherrypy.request.path_info.split('/')[-1]
 
-    @property
     def CURRENT_ADMIN(self):
         try:
             with sa.Session() as session:
@@ -286,6 +285,9 @@ class Config(_Overridable):
     def REMAINING_BADGES(self):
         return max(0, self.MAX_BADGE_SALES - self.BADGES_SOLD)
 
+    def ADMIN_ACCESS_SET(self):
+        return sa.AdminAccount.access_set()
+
     def __getattr__(self, name):
         if name.split('_')[0] in ['BEFORE', 'AFTER']:
             date_setting = getattr(c, name.split('_', 1)[1])
@@ -296,7 +298,7 @@ class Config(_Overridable):
             else:
                 return sa.localized_now() > date_setting
         elif name.startswith('HAS_') and name.endswith('_ACCESS'):
-            return getattr(c, '_'.join(name.split('_')[1:-1])) in sa.AdminAccount.access_set()
+            return getattr(c, '_'.join(name.split('_')[1:-1])) in c.ADMIN_ACCESS_SET
         elif name.endswith('_COUNT'):
             item_check = name.rsplit('_', 1)[0]
             badge_type = getattr(self, item_check, None)

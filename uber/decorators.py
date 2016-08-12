@@ -423,5 +423,5 @@ def request_cached_property(func):
         return val
     return with_caching
 
-c.BADGES_SOLD = request_cached_property(c.BADGES_SOLD)
-c.SUPPORTER_COUNT = request_cached_property(c.SUPPORTER_COUNT)
+for _prop in ['BADGES_SOLD', 'CURRENT_ADMIN', 'SUPPORTER_COUNT', 'ADMIN_ACCESS_SET']:
+    setattr(c.__class__, prop, request_cached_property(getattr(c.__class__, _prop))
