@@ -48,6 +48,18 @@ class StaticViews:
         return path_args[-1]
 
     @cherrypy.expose
+    def default(self, *path_args, **kwargs):
+        content_filename = self.get_filename_from_path_args(path_args)
+
+        template_name = self.get_full_path_from_path_args(path_args)
+        content = render(template_name)
+
+        guessed_content_type = mimetypes.guess_type(content_filename)[0]
+        return cherrypy.lib.static.serve_fileobj(content, name=content_filename, content_type=guessed_content_type)
+
+
+class AngularJavascript:
+    @cherrypy.expose
     def magfest_js(self):
         """
         We have several Angular apps which need to be able to access our constants like c.ATTENDEE_BADGE and such.
@@ -65,16 +77,6 @@ class StaticViews:
             '});'
         ])
 
-    @cherrypy.expose
-    def default(self, *path_args, **kwargs):
-        content_filename = self.get_filename_from_path_args(path_args)
-
-        template_name = self.get_full_path_from_path_args(path_args)
-        content = render(template_name)
-
-        guessed_content_type = mimetypes.guess_type(content_filename)[0]
-        return cherrypy.lib.static.serve_fileobj(content, name=content_filename, content_type=guessed_content_type)
-
 
 @all_renderable()
 class Root:
@@ -86,6 +88,7 @@ class Root:
         return render('common.js')
 
     static_views = StaticViews()
+    angular = AngularJavascript()
 
 mount_site_sections(c.MODULE_ROOT)
 
