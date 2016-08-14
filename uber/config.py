@@ -105,7 +105,18 @@ class Config(_Overridable):
     def get_attendee_price(self, dt):
         price = self.INITIAL_ATTENDEE
         if self.PRICE_BUMPS_ENABLED:
-            badges_sold = self.BADGES_SOLD  # optimization: this call is expensive, db call
+
+            if c.HARDCORE_OPTIMIZATIONS_ENABLED:
+                # WARNING: EXTREMELY AGGRESSIVE. Don't run the DB query that gets # of badges sold in order
+                # to lighten the server load / blocking time on the DB. THIS ****BREAKS**** BADGE PRICE INCREASES
+                # THAT ARE BASED ON THE NUMBER OF TICKETS SOLD.  Only turn this on if you know EXACTLY what
+                # you are doing, your server is having its face melted off, and you have no other options.
+                # YOU HAVE BEEN WARNED!!!! -Dom
+                badges_sold = 0
+            else:
+                # this is a database query and very expensive
+                badges_sold = self.BADGES_SOLD
+
             for day, bumped_price in sorted(self.PRICE_BUMPS.items()):
                 if (dt or datetime.now(UTC)) >= day:
                     price = bumped_price
