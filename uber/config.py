@@ -141,7 +141,7 @@ class Config(_Overridable):
     def DEALER_REG_OPEN(self):
         return self.AFTER_DEALER_REG_START and self.BEFORE_DEALER_REG_SHUTDOWN
 
-    @property
+    @request_cached_property
     def BADGES_SOLD(self):
         with sa.Session() as session:
             attendees = session.query(sa.Attendee)
@@ -272,7 +272,7 @@ class Config(_Overridable):
     def PAGE(self):
         return cherrypy.request.path_info.split('/')[-1]
 
-    @property
+    @request_cached_property
     def CURRENT_ADMIN(self):
         try:
             with sa.Session() as session:
@@ -284,7 +284,7 @@ class Config(_Overridable):
     def HTTP_METHOD(self):
         return cherrypy.request.method
 
-    @property
+    @request_cached_property
     def SUPPORTER_COUNT(self):
         with sa.Session() as session:
             attendees = session.query(sa.Attendee)
@@ -299,6 +299,10 @@ class Config(_Overridable):
     def REMAINING_BADGES(self):
         return max(0, self.MAX_BADGE_SALES - self.BADGES_SOLD)
 
+    @request_cached_property
+    def ADMIN_ACCESS_SET(self):
+        return sa.AdminAccount.access_set()
+
     def __getattr__(self, name):
         if name.split('_')[0] in ['BEFORE', 'AFTER']:
             date_setting = getattr(c, name.split('_', 1)[1])
@@ -309,7 +313,7 @@ class Config(_Overridable):
             else:
                 return sa.localized_now() > date_setting
         elif name.startswith('HAS_') and name.endswith('_ACCESS'):
-            return getattr(c, '_'.join(name.split('_')[1:-1])) in sa.AdminAccount.access_set()
+            return getattr(c, '_'.join(name.split('_')[1:-1])) in c.ADMIN_ACCESS_SET
         elif name.endswith('_COUNT'):
             item_check = name.rsplit('_', 1)[0]
             badge_type = getattr(self, item_check, None)
@@ -514,7 +518,7 @@ c.PREREG_SHIRT_OPTS = c.SHIRT_OPTS[1:]
 c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + list(c.PREREG_SHIRT_OPTS)
 c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt, desc) if amt else desc) for amt, desc in c.DONATION_TIER_OPTS]
 
-c.DONATION_TIER_DESCRIPTIONS = _config.get('donation_tier_descriptions', [])
+c.DONATION_TIER_DESCRIPTIONS = _config.get('donation_tier_descriptions', {})
 for tier in c.DONATION_TIER_DESCRIPTIONS.items():
     tier[1]['price'] = [amt for amt, name in c.DONATION_TIERS.items() if name == tier[1]['name']][0]
 
