@@ -107,7 +107,7 @@ class Config(_Overridable):
         if self.PRICE_BUMPS_ENABLED:
 
             if c.HARDCORE_OPTIMIZATIONS_ENABLED:
-                # WARNING: EXTREMELY AGRESSIVE. Don't run the DB query that gets # of badges sold in order
+                # WARNING: EXTREMELY AGGRESSIVE. Don't run the DB query that gets # of badges sold in order
                 # to lighten the server load / blocking time on the DB. THIS ****BREAKS**** BADGE PRICE INCREASES
                 # THAT ARE BASED ON THE NUMBER OF TICKETS SOLD.  Only turn this on if you know EXACTLY what
                 # you are doing, your server is having its face melted off, and you have no other options.
