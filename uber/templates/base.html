@@ -45,6 +45,7 @@
     </style>
     <script>
         var DISABLE_STRIPE_BUTTONS_ON_CLICK = true;
+        {% if c.PAGE_PATH != '/preregistration/form' and c.PAGE_PATH != '/preregistration/index' %}
         var MENU = [
             {% if c.HAS_ACCOUNTS_ACCESS %}
                 {Accounts: '../accounts/'},
@@ -73,6 +74,7 @@
                 {Statistics: '../summary/'}
             {% endif %}
         ];
+        {% endif %}
         $(function() {
             $(window).load(function() {
                 $(".loader").fadeOut("fast");
@@ -141,6 +143,7 @@
                     checkHour();
                 }
             {% endif %}
+            {% if c.PAGE_PATH != '/preregistration/form' and c.PAGE_PATH != '/preregistration/index' %}
             var $menu = $('#main-menu');
             $.each(MENU, function (i, section) {
                 var name = _.keys(section)[0], links = _.values(section)[0];
@@ -168,6 +171,7 @@
                         .appendTo($menu);
                 }
             });
+            {% endif %}
         });
     </script>
     {% block head_additional %}{% endblock %}
