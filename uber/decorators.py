@@ -409,19 +409,3 @@ class class_property(object):
 
     def __get__(self, obj, owner):
         return self.func(owner)
-
-
-def request_cached_property(func):
-    """Like @cached_property but only caches per-request."""
-    @property
-    @wraps(func)
-    def with_caching(self):
-        val = threadlocal.get(func.__name__)
-        if val is None:
-            val = func(self)
-            threadlocal.set(func.__name__, val)
-        return val
-    return with_caching
-
-for _prop in ['BADGES_SOLD', 'CURRENT_ADMIN', 'SUPPORTER_COUNT', 'ADMIN_ACCESS_SET']:
-    setattr(c.__class__, _prop, request_cached_property(getattr(c.__class__, _prop)))

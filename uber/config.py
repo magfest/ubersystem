@@ -130,6 +130,7 @@ class Config(_Overridable):
     def DEALER_REG_OPEN(self):
         return self.AFTER_DEALER_REG_START and self.BEFORE_DEALER_REG_SHUTDOWN
 
+    @request_cached_property
     def BADGES_SOLD(self):
         with sa.Session() as session:
             attendees = session.query(sa.Attendee)
@@ -260,6 +261,7 @@ class Config(_Overridable):
     def PAGE(self):
         return cherrypy.request.path_info.split('/')[-1]
 
+    @request_cached_property
     def CURRENT_ADMIN(self):
         try:
             with sa.Session() as session:
@@ -271,6 +273,7 @@ class Config(_Overridable):
     def HTTP_METHOD(self):
         return cherrypy.request.method
 
+    @request_cached_property
     def SUPPORTER_COUNT(self):
         with sa.Session() as session:
             attendees = session.query(sa.Attendee)
@@ -285,6 +288,7 @@ class Config(_Overridable):
     def REMAINING_BADGES(self):
         return max(0, self.MAX_BADGE_SALES - self.BADGES_SOLD)
 
+    @request_cached_property
     def ADMIN_ACCESS_SET(self):
         return sa.AdminAccount.access_set()
 
