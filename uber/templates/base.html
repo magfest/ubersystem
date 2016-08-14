@@ -30,7 +30,7 @@
             width: 60%;
             height: 25%;
             z-index: 9999;
-            background: rgb(249,249,249) url('../static/images/loading.gif?{% random_hash %}') no-repeat center center;
+            background: rgb(249,249,249) url('../static/images/loading.gif{% if not c.HARDCORE_OPTIMIZATIONS_ENABLED %}?{% random_hash %}{% endif %}') no-repeat center center;
             background-size: 50%;
         }
         .loader {
