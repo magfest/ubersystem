@@ -315,8 +315,9 @@ class popup_link(template.Node):
         self.text = text.strip('"')
 
     def render(self, context):
-        return """<a onClick="window.open('{self.href}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;"
-                     href="{self.href}">{self.text}</a>""".format(self=self)
+        inner_text = "window.open('{self.href}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;".format(self=self)
+        inner_text = inner_text.replace("'", "&quot;")
+        return "<a onClick='{inner_text}' href='{self.href}'>{self.text}</a>".format(inner_text=inner_text, self=self)
 
 
 @tag
