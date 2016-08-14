@@ -160,6 +160,10 @@ def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=
 class Charge:
     def __init__(self, targets=(), amount=None, description=None):
         self.targets = [self.to_sessionized(m) for m in listify(targets)]
+
+        # performance optimization
+        self._models_cached = [self.from_sessionized(d) for d in self.targets]
+
         self.amount = amount or self.total_cost
         self.description = description or self.names
 
@@ -198,7 +202,7 @@ class Charge:
 
     @property
     def models(self):
-        return [self.from_sessionized(d) for d in self.targets]
+        return self._models_cached
 
     @property
     def total_cost(self):
