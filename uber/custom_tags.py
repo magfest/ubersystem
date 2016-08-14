@@ -318,6 +318,14 @@ class popup_link(template.Node):
         return """<a onClick="window.open('{self.href}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;"
                      href="{self.href}">{self.text}</a>""".format(self=self)
 
+@tag
+class escaped_popup_link(template.Node):
+    def __init__(self, href, text='"<sup>?</sup>"'):
+        self.href = href.strip('"')
+        self.text = text.strip('"')
+
+    def render(self, context):
+        return """<a onClick='window.open(\'{self.href}\', \'info\', \'toolbar=no,height=500,width=375,scrollbars=yes\').focus(); return false;' href='{self.href}'>{self.text}</a>""".format(self=self)
 
 @tag
 class must_contact(template.Node):
