@@ -241,7 +241,8 @@ def render(template_name_list, data=None):
                     break
         raise Exception('error rendering template [{}]'.format(source_template_name)) from e
 
-    rendered = screw_you_nick(rendered, template)  # lolz.
+    # disabled for performance optimzation.  so sad. IT SHALL RETURN
+    # rendered = screw_you_nick(rendered, template)  # lolz.
     return rendered.encode('utf-8')
 
 
