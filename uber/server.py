@@ -83,10 +83,6 @@ class Root:
     def index(self):
         raise HTTPRedirect('common/')
 
-    def common_js(self):
-        cherrypy.response.headers['Content-Type'] = 'text/javascript'
-        return render('common.js')
-
     static_views = StaticViews()
     angular = AngularJavascript()
 
