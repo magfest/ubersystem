@@ -12,6 +12,17 @@ def print_config():
 
 
 @entry_point
+def resave_all_attendees_and_groups():
+    Session.initialize_db(modify_tables=True)
+    with Session() as session:
+        print("re-saving all attendees....")
+        [a.presave_adjustments() for a in session.query(Attendee).all()]
+        print("re-saving all groups....")
+        [g.presave_adjustments() for g in session.query(Group).all()]
+        print("Done!")
+
+
+@entry_point
 def insert_admin():
     Session.initialize_db(modify_tables=True)
     with Session() as session:
