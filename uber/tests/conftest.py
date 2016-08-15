@@ -52,6 +52,9 @@ def sensible_defaults():
     c.DEALER_BADGE_PRICE = 20
     c.PRICE_BUMPS = {}
 
+    # tests should turn this on to test the effects
+    c.HARDCORE_OPTIMIZATIONS_ENABLED = False
+
 
 @pytest.fixture(scope='session', autouse=True)
 def init_db(request, sensible_defaults):
@@ -182,6 +185,11 @@ def db(request, init_db):
 @pytest.fixture(autouse=True)
 def cp_session():
     cherrypy.session = {}
+
+
+@pytest.fixture(autouse=True)
+def reset_threadlocal_cache():
+    threadlocal.clear()
 
 
 @pytest.fixture
