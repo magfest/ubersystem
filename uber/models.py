@@ -781,6 +781,7 @@ class Session(SessionManager):
             if int(new_badge_type) in c.PREASSIGNED_BADGE_TYPES and c.AFTER_PRINTED_BADGE_DEADLINE:
                 return 'Custom badges have already been ordered, so you will need to select a different badge type'
             elif diff > 0:
+                group.cost += diff * group.new_badge_cost
                 for i in range(diff):
                     group.attendees.append(Attendee(badge_type=new_badge_type, ribbon=ribbon_to_use, paid=paid, **extra_create_args))
             elif diff < 0:
@@ -944,7 +945,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def is_dealer(self):
-        return bool(self.tables and (not self.registered or self.amount_paid or self.cost))
+        return bool(self.tables and self.tables != '0' and (not self.registered or self.amount_paid or self.cost))
 
     @property
     def is_unpaid(self):
@@ -980,7 +981,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def new_badge_cost(self):
-        return c.DEALER_BADGE_PRICE if self.tables else c.get_group_price(sa.localized_now())
+        return c.DEALER_BADGE_PRICE if self.is_dealer else c.get_group_price(sa.localized_now())
 
     @cost_property
     def badge_cost(self):
