@@ -1132,11 +1132,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     @presave_adjustment
     def _badge_adjustments(self):
         # _assert_badge_lock()
-
-        self.badge_type = get_real_badge_type(self.badge_type)
-
         if self.is_dealer:
             self.ribbon = c.DEALER_RIBBON
+
+        self.badge_type = get_real_badge_type(self.badge_type)
 
         if not self.session.needs_badge_num(self):
             if self.orig_value_of('badge_num'):
