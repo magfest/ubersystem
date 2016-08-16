@@ -344,6 +344,7 @@ class Root:
 
         session.assign_badges(attendee.group, attendee.group.badges + 1, registered=attendee.registered, paid=attendee.paid)
         session.delete_from_group(attendee, attendee.group)
+        attendee.group.cost -= attendee.group.new_badge_cost # We add this value to the group in assign_badges; undo!
         raise HTTPRedirect('group_members?id={}&message={}', attendee.group_id, 'Attendee unset; you may now assign their badge to someone else')
 
     def add_group_members(self, session, id, count):
