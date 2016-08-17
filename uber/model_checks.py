@@ -71,7 +71,7 @@ def group_paid(group):
 
 
 def _valid_donation(s):
-        return (s.isnumeric() and val(s) > -1 and val(s) < 1000000 and (val(s) = int(val(s))))
+        return (s.isnumeric() and int(s) > -1 and int(s) < 1000000)
 
 def _invalid_phone_number(s):
     if not s.startswith('+'):
