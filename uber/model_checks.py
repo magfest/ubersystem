@@ -73,6 +73,7 @@ def group_paid(group):
 def _valid_donation(s):
         return (s.isnumeric() and int(s) > -1 and int(s) < 1000000)
 
+
 def _invalid_phone_number(s):
     if not s.startswith('+'):
         return len(re.findall(r'\d', s)) != 10 or re.search(c.SAME_NUMBER_REPEATED, re.sub(r'[^0-9]', '', s))
