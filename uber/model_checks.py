@@ -113,7 +113,7 @@ def total_cost_over_paid(attendee):
 @prereg_validation.Attendee
 def reasonable_donation_amount(attendee):
     if not _valid_donation(attendee.amount_extra):
-        return 'Donation amount must be a positive integer or zero.'
+        return 'Donation amount must be a positive integer less than 1 million, or zero.'
 
 
 @validation.Attendee
