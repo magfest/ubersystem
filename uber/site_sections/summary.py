@@ -143,17 +143,32 @@ class Root:
 
     @csv_file
     def printed_badges_staff(self, out, session):
+
+        # part 1, include only staff badges that have an assigned name
         uber.reports.PersonalizedBadgeReport().run(out, session,
             sa.Attendee.badge_type == c.STAFF_BADGE,
             sa.Attendee.badge_num != None,
             order_by='badge_num')
 
+        # part 2, include a bunch of extra badges so we have some printed
+        max_badges = c.BADGE_RANGES[c.STAFF_BADGE][1]
+        extra_count = 20
+        badge_range = (max_badges - extra_count, max_badges)
+        uber.reports.PrintedBadgeReport(badge_type=c.STAFF_BADGE, range=badge_range).run(out, session)
+
     @csv_file
     def printed_badges_supporters(self, out, session):
+        # part 1, include only supporter badges that have an assigned name
         uber.reports.PersonalizedBadgeReport(include_badge_nums=False).run(out, session,
             sa.Attendee.amount_extra >= c.SUPPORTER_LEVEL,
             order_by=sa.Attendee.full_name,
             badge_type_override='supporter')
+
+        # part 2, include a bunch of extra badges so we have some printed
+        max_badges = c.BADGE_RANGES[c.ATTENDEE_BADGE][1]
+        extra_count = 10
+        badge_range = (max_badges - extra_count, max_badges)
+        uber.reports.PrintedBadgeReport(badge_type=c.ATTENDEE_BADGE, range=badge_range).run(out, session)
 
     @multifile_zipfile
     def personalized_badges_zip(self, zip_file, session):
