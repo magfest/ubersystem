@@ -52,7 +52,10 @@ class StaticViews:
         content_filename = self.get_filename_from_path_args(path_args)
 
         template_name = self.get_full_path_from_path_args(path_args)
-        content = render(template_name)
+        try:
+            content = render(template_name)
+        except django.template.base.TemplateDoesNotExist as e:
+            raise cherrypy.HTTPError(404, "Couldn't find {}".format(template_name)) from e
 
         guessed_content_type = mimetypes.guess_type(content_filename)[0]
         return cherrypy.lib.static.serve_fileobj(content, name=content_filename, content_type=guessed_content_type)

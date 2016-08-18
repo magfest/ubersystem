@@ -231,6 +231,8 @@ def render(template_name_list, data=None):
     try:
         template = loader.select_template(listify(template_name_list))
         rendered = template.render(Context(data))
+    except django.template.base.TemplateDoesNotExist:
+        raise
     except Exception as e:
         source_template_name = '[unknown]'
         django_template_source_info = getattr(e, 'django_template_source')
