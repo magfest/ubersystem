@@ -157,18 +157,11 @@ class Root:
         uber.reports.PrintedBadgeReport(badge_type=c.STAFF_BADGE, range=badge_range).run(out, session)
 
     @csv_file
-    def printed_badges_supporters(self, out, session):
-        # part 1, include only supporter badges that have an assigned name
+    def badge_hangars_supporters(self, out, session):
         uber.reports.PersonalizedBadgeReport(include_badge_nums=False).run(out, session,
             sa.Attendee.amount_extra >= c.SUPPORTER_LEVEL,
             order_by=sa.Attendee.full_name,
             badge_type_override='supporter')
-
-        # part 2, include a bunch of extra badges so we have some printed
-        max_badges = c.BADGE_RANGES[c.ATTENDEE_BADGE][1]
-        extra_count = 10
-        badge_range = (max_badges - extra_count, max_badges)
-        uber.reports.PrintedBadgeReport(badge_type=c.ATTENDEE_BADGE, range=badge_range).run(out, session)
 
     @multifile_zipfile
     def personalized_badges_zip(self, zip_file, session):
@@ -177,7 +170,7 @@ class Root:
         zip_file.writestr('printed_badges_guest.csv', self.printed_badges_guest())
         zip_file.writestr('printed_badges_one_day.csv', self.printed_badges_one_day())
         zip_file.writestr('printed_badges_staff.csv', self.printed_badges_staff())
-        zip_file.writestr('printed_badges_supporters.csv', self.printed_badges_supporters())
+        zip_file.writestr('badge_hangars_supporters.csv', self.badge_hangars_supporters())
 
     def food_eligible(self, session):
         cherrypy.response.headers['Content-Type'] = 'application/xml'
