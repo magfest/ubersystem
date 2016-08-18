@@ -318,15 +318,16 @@ class Root:
         status = lambda got_merch: 'picked_up' if got_merch else 'outstanding'
         sales_by_week = OrderedDict([(i, 0) for i in range(50)])
         for attendee in session.staffers(only_staffing=False):
+            shirt_label = attendee.shirt_label or 'size unknown'
             if attendee.gets_free_shirt:
-                counts['free'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
-                counts['all'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
+                counts['free'][label(shirt_label)][status(attendee.got_merch)] += 1
+                counts['all'][label(shirt_label)][status(attendee.got_merch)] += 1
             if attendee.gets_paid_shirt:
-                counts['paid'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
-                counts['all'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
+                counts['paid'][label(shirt_label)][status(attendee.got_merch)] += 1
+                counts['all'][label(shirt_label)][status(attendee.got_merch)] += 1
                 sales_by_week[(datetime.now(UTC) - attendee.registered).days // 7] += 1
             if attendee.gets_free_shirt and attendee.gets_paid_shirt:
-                counts['both'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
+                counts['both'][label(shirt_label)][status(attendee.got_merch)] += 1
         for week in range(48, -1, -1):
             sales_by_week[week] += sales_by_week[week + 1]
         return {
