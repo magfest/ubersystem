@@ -168,15 +168,20 @@ class Root:
         }
 
     @ajax
-    def resend_email(self, session, id):
+    def resend_email(self, session, id, a_id):
         message = {''}
         if id:
-            try:
-                email = session.query(Email).filter(Email.model == 'Attendee', Email.fk_id == id).all()[0]
-                send_email(c.ADMIN_EMAIL, email.dest, email.subject, email.html)
-                message = 'Email Sent!'
-            except ValueError:
-                message = 'No Emails Found With That ID'
+            email = session.query(Email).filter(Email.model == 'Attendee', Email.fk_id == id).first()
+            attendee = session.attendee(a_id, allow_invalid=True)
+            if email is not None:
+                try:
+                    send_email(c.ADMIN_EMAIL, attendee.email, email.subject, email.html)
+                    message = 'The email has been resent'
+                except:
+                    message = "Invalid Key Or Something Maybe"
+                    #Message does nothing currently
+                    #I need to learn Ajax
+
         return message
 
     def watchlist(self, session, attendee_id, watchlist_id=None, message='', **params):

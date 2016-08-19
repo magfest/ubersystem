@@ -76,7 +76,8 @@
                         url:'resend_email',
                         data:{
                             csrf_token: csrf_token,
-                            id: email_id
+                            id: email_id,
+                            a_id: '{{ attendee.id }}'
                         },
                         success: function(response){
                             alert("Email Has Been Resent");
