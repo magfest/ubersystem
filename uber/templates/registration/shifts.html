@@ -2,7 +2,7 @@
 {% block title %}Staffing Shifts - {{ attendee.full_name }}{% endblock %}
 {% block content %}
 
-<script type="text/javascript" src="../static/js/ratings.js"></script>
+<script type="text/javascript" src="../static_views/ratings.js"></script>
 <script type="text/javascript">
     var SHIFTS = {{ shifts|jsonize }};
     $(setupRatingClickHandler);
