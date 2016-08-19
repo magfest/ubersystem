@@ -80,10 +80,10 @@
                             a_id: '{{ attendee.id }}'
                         },
                         success: function(response){
-                            alert("Email Has Been Resent");
+                            alert(response);
                         },
                         error: function(response){
-                            alert("Failed");
+                            alert(response);
                         }
                     }
                 )

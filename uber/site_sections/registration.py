@@ -179,8 +179,6 @@ class Root:
                     message = 'The email has been resent'
                 except:
                     message = "Invalid Key Or Something Maybe"
-                    #Message does nothing currently
-                    #I need to learn Ajax
 
         return message
 
