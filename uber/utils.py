@@ -14,12 +14,27 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
     current querystring to build an absolute URL.  Therefore it's EXTREMELY IMPORTANT
     that the only time you create this class is in the context of a pageload.
 
-    Do not persist this class, only create it when needed.
+    Do not save copies this class, only create it on-demand when needed as part of a 'raise' statement.
     """
     def __init__(self, page, *args, **kwargs):
+        save_location = kwargs.pop('save_location', False)
+
         args = [self.quote(s) for s in args]
         kwargs = {k: self.quote(v) for k, v in kwargs.items()}
-        cherrypy.HTTPRedirect.__init__(self, page.format(*args, **kwargs))
+        query = page.format(*args, **kwargs)
+
+        if save_location and cherrypy.request.method == 'GET':
+            # remember the original URI the user was trying to reach.
+            # useful if we want to redirect the user back to the same page after
+            # they complete an action, such as logging in
+            # example URI: '/uber/registration/form?id=786534'
+            original_location = cherrypy.request.wsgi_environ['REQUEST_URI']
+
+            # note: python does have utility functions for this. if this gets any more complex, use the urllib module
+            qs_char = '?' if '?' not in query else '&'
+            query += "{sep}original_location={loc}".format(sep=qs_char, loc=self.quote(original_location))
+
+        cherrypy.HTTPRedirect.__init__(self, query)
 
     def quote(self, s):
         return quote(s) if isinstance(s, str) else str(s)

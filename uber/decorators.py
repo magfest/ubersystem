@@ -307,10 +307,10 @@ def restricted(func):
         if func.restricted:
             if func.restricted == (c.SIGNUPS,):
                 if not cherrypy.session.get('staffer_id'):
-                    raise HTTPRedirect('../signups/login?message=You+are+not+logged+in')
+                    raise HTTPRedirect('../signups/login?message=You+are+not+logged+in', save_location=True)
 
             elif cherrypy.session.get('account_id') is None:
-                raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in')
+                raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
 
             else:
                 access = sa.AdminAccount.access_set()
