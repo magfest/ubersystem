@@ -92,7 +92,7 @@
         {% endif %}
 
         var togglePrices = function () {
-            var showTotalPrices = {% if c.PAGE_PATH == '/preregistration/form' and not c.DONATION_SLIDER_DISPLAY %}($.val('badge_type') === {{ c.ATTENDEE_BADGE }}){% else %}false{% endif %};
+            var showTotalPrices = {% if c.PAGE_PATH == '/preregistration/form' and not c.PREREG_DONATION_DESCRIPTIONS %}($.val('badge_type') === {{ c.ATTENDEE_BADGE }}){% else %}false{% endif %};
             $.each(BADGE_TYPES.options, function (i, type) {
                 var $price = $(BADGE_TYPES.selector).slice(i, i + 1).find('.price').empty();
                 var $price_notice = $(BADGE_TYPES.selector).slice(i, i + 1).find('.price_notice').empty();
@@ -134,7 +134,7 @@
         var setKickinFromBadge = function (types, index) {
             var type = types.options[index];
             if (type.extra !== undefined && type.extra !== null && $.field('amount_extra')) {
-                {% if c.DONATION_SLIDER_DISPLAY %}
+                {% if c.PREREG_DONATION_DESCRIPTIONS %}
                     $('input:radio[name=amount_extra][value='+ type.extra +']').prop('checked', true).trigger('change');
                 {% else %}
                     $.field('amount_extra').val(type.extra).trigger('change');
@@ -177,7 +177,7 @@
                 }
                 makeBadgeMatchExtra();
                 if ($.field('amount_extra')) {
-                    {% if not c.DONATION_SLIDER_DISPLAY %}
+                    {% if not c.PREREG_DONATION_DESCRIPTIONS %}
                         $.field('amount_extra').parents('.form-group').hide();
                     {% else %}
                         $.field('amount_extra').on('change', makeBadgeMatchExtra);

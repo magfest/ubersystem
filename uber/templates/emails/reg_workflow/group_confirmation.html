@@ -15,6 +15,13 @@ Your {{ group.is_dealer|yesno("Dealer registration,group") }} ({{ group.name }})
     The individual registration links on the group management page can be filled out by you, or distributed
     to your group members for them to fill out themselves.
     
+    <b>Your</b> registration confirmation number is {{ group.leader_id }}, and you can update your information or kick in
+    {% if attendee.amount_extra %}
+    even more
+    {% endif %}
+    extra money <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ group.leader_id }}">here</a>.
+
+    
     {% if not group.is_dealer %}
         <br/> <br/>
         You can add badges to your group using the above link, but you must add

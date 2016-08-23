@@ -21,7 +21,7 @@ class Root:
             'all_attendees': sorted([
                 (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
                 for id, name, badge_type, badge_num in session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num)
-                                    .filter(Attendee.first_name != '').filter(Attendee.badge_status not in [c.INVALID_STATUS, c.DEFERRED_STATUS]).all()
+                                    .filter(Attendee.first_name != '').filter(Attendee.badge_status not in [c.INVALID_STATUS, c.WATCHED_STATUS]).all()
             ], key=lambda tup: tup[1])
         }
 
@@ -53,7 +53,10 @@ class Root:
         raise HTTPRedirect('index?message={}', 'Account deleted')
 
     @unrestricted
-    def login(self, session, message='', **params):
+    def login(self, session, message='', original_location=None, **params):
+        if not original_location or 'login' in original_location:
+            original_location = 'homepage'
+
         if 'email' in params:
             try:
                 account = session.get_account_by_email(params['email'])
@@ -65,11 +68,12 @@ class Root:
             if not message:
                 cherrypy.session['account_id'] = account.id
                 cherrypy.session['csrf_token'] = uuid4().hex
-                raise HTTPRedirect('homepage')
+                raise HTTPRedirect(original_location)
 
         return {
             'message': message,
-            'email':   params.get('email', '')
+            'email':   params.get('email', ''),
+            'original_location': original_location,
         }
 
     @unrestricted

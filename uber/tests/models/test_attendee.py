@@ -192,8 +192,7 @@ class TestUnsetVolunteer:
             monkeypatch.setattr(Attendee, 'session', Mock())
             a = Attendee(badge_type=c.STAFF_BADGE, badge_num=123)
             a.unset_volunteering()
-            assert a.badge_type == c.ATTENDEE_BADGE
-            a.session.shift_badges.assert_called_with(c.STAFF_BADGE, 123, down=True)
+            assert a.badge_type == c.ATTENDEE_BADGE and a.badge_num is None
 
     def test_affiliate_with_extra(self):
         a = Attendee(affiliate='xxx', amount_extra=1)
@@ -355,7 +354,6 @@ class TestBadgeAdjustments:
     @pytest.fixture(autouse=True)
     def mock_attendee_session(self, monkeypatch):
         monkeypatch.setattr(Attendee, 'session', Mock())
-        Attendee.session.next_badge_num = Mock(return_value=123)
 
     @pytest.fixture
     def fully_paid(self, monkeypatch):
@@ -371,17 +369,6 @@ class TestBadgeAdjustments:
         a = Attendee(badge_type=c.PSEUDO_DEALER_BADGE)
         a._badge_adjustments()
         assert a.badge_type == c.ATTENDEE_BADGE and a.ribbon == c.DEALER_RIBBON
-
-    def test_unpaid_badges_reset_to_zero(self):
-        a = Attendee(badge_type=c.SUPPORTER_BADGE, badge_num=1)
-        a._badge_adjustments()
-        assert a.badge_num == 0
-
-    def test_preassigned_badge_assignment(self):
-        for paid in [c.HAS_PAID, c.NEED_NOT_PAY, c.REFUNDED]:
-            a = Attendee(badge_type=c.SUPPORTER_BADGE, paid=paid, first_name='Not', last_name='Unassigned')
-            a._badge_adjustments()
-            assert a.badge_num == 123  # mocked next badge num
 
 
 class TestStatusAdjustments:
@@ -423,7 +410,7 @@ class TestStatusAdjustments:
         a = Attendee(paid=c.HAS_PAID, badge_status=c.NEW_STATUS, first_name='Paid', placeholder=False)
         monkeypatch.setattr(Attendee, 'banned', True)
         a._status_adjustments()
-        assert a.badge_status == c.DEFERRED_STATUS
+        assert a.badge_status == c.WATCHED_STATUS
 
 
 class TestLookupAttendee:

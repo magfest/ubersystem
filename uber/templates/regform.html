@@ -138,7 +138,7 @@
             $.each($("input:radio[name='amount_extra']"), function() {
                 $(this).parents('.btn').removeClass('active btn-primary');
                 $(this).parents('.btn').addClass('btn-default');
-                if ($(this).val() <= $.val('amount_extra')) {
+                if ($(this).val() == $.val('amount_extra')) {
                     $(this).parents('.btn').removeClass('btn-default');
                     $(this).parents('.btn').addClass('active btn-primary');
                 }
@@ -176,16 +176,125 @@
 
     {% if c.PAGE_PATH != '/preregistration/transfer_badge' %}
         <div class="extra-row form-group">
-            <label for="amount_extra" class="col-sm-2 control-label">Want to kick in extra?</label>
-            <div class="col-sm-6">
+            <label for="amount_extra" class="col-sm-2 control-label">Want to kick in extra?
+                <br>
+            {% popup_link "../static_views/givingExtra.html" "Why do this?" %}
+            </label>
+            <div class="col-sm-8">
                 {% if c.AFTER_SUPPORTER_DEADLINE and attendee.amount_extra >= c.SUPPORTER_LEVEL %}
                     {{ attendee.amount_extra_label }}
                     <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
                 {% else %}
-                    {% if c.DONATION_SLIDER_DISPLAY %}
-                        <div class="btn-group btn-group-vertical" data-toggle="buttons">
-                            {{ attendee.html_radiogroup('amount_extra') }}
+                    {% if c.PREREG_DONATION_DESCRIPTIONS %}
+
+                        <style>
+                            @media all {
+
+                                .no-inline {
+                                    display: flex;
+                                    flex-direction: row;
+                                }
+
+                                .btn-group-inline {
+                                    display: flex;
+                                    flex-direction: row;
+                                    flex-wrap: nowrap;
+                                    justify-content: center;
+                                    margin-top: 7rem;
+                                }
+
+                                .btn-inline {
+                                    width: 180px;
+                                    height: 340px;
+
+                                }
+
+                                .h4-inline {
+
+                                    text-align: center;
+                                }
+
+                                .span-inline {
+                                    display: block;
+                                    margin-right: auto;
+                                    margin-left: auto;
+                                    width: 100%;
+                                    text-align: center;
+                                    font-size: 120%;
+                                    font-weight: bold;
+                                }
+
+                                .ul-inline {
+                                    list-style-type: none;
+                                    margin-top: 0;
+                                    padding-left: 0;
+                                    font-size: 80%
+                                }
+
+                                .li-inline {
+                                    padding: 0.5em;
+                                    text-align: center;
+                                    border-bottom: 1px solid whitesmoke;
+                                }
+
+                                .li-inline a, #supporter_popup a {
+                                    color: black;
+                                    text-decoration: underline;
+                                }
+                            }
+
+                        @media (max-width: 543px) {
+                            .btn-group-inline
+                                {
+                                    flex-direction: column;
+                                    flex-wrap: wrap;
+                                    width: 100vw;
+                                }
+
+                            .btn-inline
+                                {
+                                    width: 100%;
+                                    height: initial;
+                                }
+                        }
+
+                            </style>
+
+
+                        <div data-toggle="buttons" class="btn-group-inline">
+                        {% for tier in c.PREREG_DONATION_DESCRIPTIONS %}
+
+                            <label class="btn btn-default {% if tier.price == 0 %}no-inline{% else %}btn-inline{% endif %}">
+                            <input type="radio"
+                                   name="amount_extra"
+                                   autocomplete="off"
+                                   value="{{ tier.price }}"
+                                   onchange="donationChanged();"
+                                   {% if attendee.amount_extra == tier.price %}checked{% endif %}  />
+                            <h4 class="h4-inline">
+                                {{ tier.name }}
+                            </h4>
+                            {% if tier.price %}
+                            <span class="span-inline">
+                                <img src="{{ tier.icon }}" alt=""> + ${{ tier.price }}
+                            </span>
+                            <br>
+                            <ul class="ul-inline">
+                                {% for desc, link in tier.all_descriptions %}
+                                {% if link %}
+                                <li class="li-inline">
+                                    <a onClick="window.open('{{ link }}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;"
+                 href="{{ link }}">{{ desc }}</a>
+                                </li>
+                                {% endif %}
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                          </label>
+                        {% endfor %}
                         </div>
+
+
                     {% else %}
                         <select name="amount_extra" class="form-control" onchange="donationChanged();">
                             {{ options(c.PREREG_DONATION_OPTS, attendee.amount_extra) }}
@@ -193,7 +302,7 @@
                     {% endif %}
                 {% endif %}
             </div>
-            {{ macros.popup_link("../static_views/givingExtra.html","Why do this?") }}
+
             <p class="help-block col-sm-6">
                 Each level includes all lower levels. <br/>
                 Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime() }}.

@@ -14,7 +14,7 @@ class AutomatedEmail:
     }
     extra_models = queries  # we've renamed "extra_models" to "queries" but are temporarily keeping the old name for backwards-compatibility
 
-    def __init__(self, model, subject, template, filter, *, sender=None, extra_data=None, cc=None, bcc=None, post_con=False, needs_approval=True):
+    def __init__(self, model, subject, template, filter, *, sender=None, extra_data=None, cc=None, bcc=None, post_con=False, needs_approval=True, ident=None):
         self.model, self.template, self.needs_approval = model, template, needs_approval
         self.subject = subject.format(EVENT_NAME=c.EVENT_NAME)
         self.cc = cc or []
@@ -22,6 +22,7 @@ class AutomatedEmail:
         self.extra_data = extra_data or {}
         self.sender = sender or c.REGDESK_EMAIL
         self.instances[self.subject] = self
+        self.ident = (ident or self.subject).format(EVENT_NAME=c.EVENT_NAME)
         if post_con:
             self.filter = lambda x: c.POST_CON and filter(x)
         else:
@@ -32,10 +33,10 @@ class AutomatedEmail:
 
     def prev(self, x, all_sent=None):
         if all_sent:
-            return (x.__class__.__name__, x.id, self.subject) in all_sent
+            return (x.__class__.__name__, x.id, self.ident) in all_sent
         else:
             with Session() as session:
-                return session.query(Email).filter_by(model=x.__class__.__name__, fk_id=x.id, subject=self.subject).first()
+                return session.query(Email).filter_by(model=x.__class__.__name__, fk_id=x.id, ident=self.ident).first()
 
     def should_send(self, x, all_sent=None):
         try:
@@ -50,7 +51,7 @@ class AutomatedEmail:
     def send(self, x, raise_errors=True):
         try:
             format = 'text' if self.template.endswith('.txt') else 'html'
-            send_email(self.sender, x.email, self.subject, self.render(x), format, model=x, cc=self.cc)
+            send_email(self.sender, x.email, self.subject, self.render(x), format, model=x, cc=self.cc, ident=self.ident)
         except:
             log.error('error sending {!r} email to {}', self.subject, x.email, exc_info=True)
             if raise_errors:
@@ -61,7 +62,7 @@ class AutomatedEmail:
         if not c.AT_THE_CON and (c.DEV_BOX or c.SEND_EMAILS):
             with Session() as session:
                 approved = {ae.subject for ae in session.query(ApprovedEmail)}
-                all_sent = set(session.query(Email.model, Email.fk_id, Email.subject))
+                all_sent = set(session.query(Email.model, Email.fk_id, Email.ident))
                 for model, lister in cls.queries.items():
                     for inst in lister(session):
                         sleep(0.01)  # throttle CPU usage
@@ -216,7 +217,7 @@ AutomatedEmail(Attendee, 'Last Chance to Accept Your {EVENT_NAME} Badge', 'place
 
 # Volunteer emails; none of these will be sent unless SHIFTS_CREATED is set.
 
-StopsEmail('{EVENT_NAME} shifts available', 'shifts/created.txt',
+StopsEmail('Please complete your {EVENT_NAME} Staff/Volunteer Checklist', 'shifts/created.txt',
            lambda a: c.AFTER_SHIFTS_CREATED and a.takes_shifts)
 
 StopsEmail('Reminder to sign up for {EVENT_NAME} shifts', 'shifts/reminder.txt',
@@ -228,11 +229,11 @@ StopsEmail('Last chance to sign up for {EVENT_NAME} shifts', 'shifts/reminder.tx
                                                  and a.takes_shifts and not a.hours)
 
 StopsEmail('Still want to volunteer at {EVENT_NAME}?', 'shifts/volunteer_check.txt',
-              lambda a: c.SHIFTS_CREATED and days_before(5, c.UBER_TAKEDOWN)
+              lambda a: c.SHIFTS_CREATED and days_before(5, c.FINAL_EMAIL_DEADLINE)
                                          and a.ribbon == c.VOLUNTEER_RIBBON and a.takes_shifts and a.weighted_hours == 0)
 
 StopsEmail('Your {EVENT_NAME} shift schedule', 'shifts/schedule.html',
-           lambda a: c.SHIFTS_CREATED and days_before(1, c.UBER_TAKEDOWN) and a.weighted_hours)
+           lambda a: c.SHIFTS_CREATED and days_before(1, c.FINAL_EMAIL_DEADLINE) and a.weighted_hours)
 
 
 # For events with customized badges, these emails remind people to let us know what we want on their badges.  We have

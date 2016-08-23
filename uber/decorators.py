@@ -1,6 +1,21 @@
 from uber.common import *
 
 
+def swallow_exceptions(func):
+    """
+    Don't allow ANY Exceptions to be raised from this.
+    Use this ONLY where it's absolutely needed, such as dealing with locking functionality.
+    WARNING: DO NOT USE THIS UNLESS YOU KNOW WHAT YOU'RE DOING :)
+    """
+    @wraps(func)
+    def swallow_exception(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception:
+            log.error('encountered exception, forcing continuation anyway', exc_info=True)
+    return swallow_exception
+
+
 def log_pageview(func):
     @wraps(func)
     def with_check(*args, **kwargs):
@@ -106,11 +121,13 @@ def multifile_zipfile(func):
 def csv_file(func):
     @wraps(func)
     def csvout(self, session, **kwargs):
-        cherrypy.response.headers['Content-Type'] = 'application/csv'
-        cherrypy.response.headers['Content-Disposition'] = 'attachment; filename=' + func.__name__ + '.csv'
         writer = StringIO()
         func(self, csv.writer(writer), session, **kwargs)
-        return writer.getvalue().encode('utf-8')
+        output = writer.getvalue().encode('utf-8')
+        # set headers last in case there were errors, so end user still see error page
+        cherrypy.response.headers['Content-Type'] = 'application/csv'
+        cherrypy.response.headers['Content-Disposition'] = 'attachment; filename=' + func.__name__ + '.csv'
+        return output
     return csvout
 
 
@@ -213,7 +230,10 @@ def render(template_name_list, data=None):
     env = JinjaEnv.env()
     template = env.get_template(template_name_list)
     rendered = template.render(data)
-    rendered = screw_you_nick(rendered, template)  # lolz.
+
+    # disabled for performance optimzation.  so sad. IT SHALL RETURN
+    # rendered = screw_you_nick(rendered, template)  # lolz.
+
     return rendered.encode('utf-8')
 
 
@@ -235,10 +255,27 @@ def _get_template_filename(func):
     return os.path.join(_get_module_name(func), func.__name__ + '.html')
 
 
+def prettify_breadcrumb(str):
+    return str.replace('_', ' ').title()
+
+
 def renderable(func):
     @wraps(func)
     def with_rendering(*args, **kwargs):
         result = func(*args, **kwargs)
+
+        try:
+            result['breadcrumb_page_pretty_'] = prettify_breadcrumb(func.__name__) if func.__name__ != 'index' else 'Home'
+            result['breadcrumb_page_'] = func.__name__ if func.__name__ != 'index' else ''
+        except:
+            pass
+
+        try:
+            result['breadcrumb_section_pretty_'] = prettify_breadcrumb(_get_module_name(func))
+            result['breadcrumb_section_'] = _get_module_name(func)
+        except:
+            pass
+
         if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
             return render('closed.html')
         elif isinstance(result, dict):
@@ -272,10 +309,10 @@ def restricted(func):
         if func.restricted:
             if func.restricted == (c.SIGNUPS,):
                 if not cherrypy.session.get('staffer_id'):
-                    raise HTTPRedirect('../signups/login?message=You+are+not+logged+in')
+                    raise HTTPRedirect('../signups/login?message=You+are+not+logged+in', save_location=True)
 
             elif cherrypy.session.get('account_id') is None:
-                raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in')
+                raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
 
             else:
                 access = sa.AdminAccount.access_set()

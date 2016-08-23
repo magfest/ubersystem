@@ -296,10 +296,13 @@ class MagModel:
 
     @suffix_property
     def _label(self, name, val):
+        if not val:
+            return ''
+
         try:
             val = int(val)
         except ValueError:
-            return val
+            return ''
 
         return self.get_field(name).type.choices.get(val)
 
@@ -570,45 +573,141 @@ class Session(SessionManager):
                     return attendee[0]
             raise ValueError('attendee not found')
 
-        def next_badge_num(self, badge_type, old_badge_num):
-            # assert_badge_locked()
-            badge_type = int(badge_type)
+        def needs_badge_num(self, attendee=None, badge_type=None):
+            """
+            Takes either an Attendee object, a badge_type, or both and returns whether or not the attendee should be
+            assigned a badge number. If neither parameter is given, always returns False.
 
-            if badge_type not in c.PREASSIGNED_BADGE_TYPES:
-                return 0
+            :param attendee: Passing an existing attendee allows us to check for a new badge num whenever the attendee
+            is updated, particularly for when they are checked in.
+            :param badge_type: Must be an integer. Allows checking for a new badge number before adding/updating the
+            Attendee() object.
+            :return:
+            """
+            if not badge_type and attendee:
+                badge_type = attendee.badge_type
+            elif not badge_type and not attendee:
+                return None
 
-            sametype = self.query(Attendee).filter(Attendee.badge_type == badge_type,
+            if c.NUMBERED_BADGES:
+                if attendee:
+                    return (badge_type in c.PREASSIGNED_BADGE_TYPES or attendee.checked_in)\
+                           and attendee.paid != c.NOT_PAID and not attendee.is_unassigned and attendee.badge_status != c.INVALID_STATUS
+                else:
+                    return badge_type in c.PREASSIGNED_BADGE_TYPES
+
+        def get_next_badge_num(self, badge_type):
+            """
+            Returns the next badge available for a given badge type. This is essentially a wrapper for auto_badge_num
+            that accounts for new or changed objects in the session.
+
+            :param badge_type: Used to pass to auto_badge_num and to ignore objects in the session that aren't within
+            the badge type's range.
+            :return:
+            """
+            badge_type = get_real_badge_type(badge_type)
+
+            new_badge_num = self.auto_badge_num(badge_type)
+            # Adjusts the badge number based on badges in the session
+            for attendee in [m for m in chain(self.new, self.dirty) if isinstance(m, Attendee)]:
+                if attendee.badge_type == badge_type and attendee.badge_num is not None\
+                        and attendee.badge_num <= c.BADGE_RANGES[badge_type][1]\
+                        and attendee.badge_num <= self.auto_badge_num(badge_type):
+                    new_badge_num = max(self.auto_badge_num(badge_type), 1 + attendee.badge_num)
+
+            return new_badge_num
+
+        def update_badge(self, attendee, old_badge_type, old_badge_num):
+            """
+            This should be called whenever an attendee's badge type or badge number is changed by an admin. It checks
+            if the attendee will still require a badge number with their new badge type, and if so, sets their number
+            to either the number specified by the admin or the lowest available badge number in that range.
+
+            :param attendee: The Attendee() object whose badge is being changed.
+            :param old_badge_type: The old badge type.
+            :param old_badge_num: The old badge number.
+            :return:
+            """
+            old_badge_num = int(old_badge_num or 0) or None
+
+            if old_badge_type == attendee.badge_type and (not attendee.badge_num or old_badge_num == attendee.badge_num):
+                attendee.badge_num = old_badge_num
+                return 'Attendee is already {} with badge {}'.format(c.BADGES[old_badge_type], old_badge_num)
+
+            if c.SHIFT_CUSTOM_BADGES:
+                # fill in the gap from the old number, if applicable
+                badge_num_keep = attendee.badge_num
+                if old_badge_num:
+                    self.shift_badges(old_badge_type, old_badge_num + 1, down=True)
+
+                # make room for the new number, if applicable
+                if attendee.badge_num:
+                    offset = 1 if old_badge_type == attendee.badge_type and attendee.badge_num > (old_badge_num or 0) else 0
+                    self.shift_badges(attendee.badge_type, attendee.badge_num + offset, up=True)
+                attendee.badge_num = badge_num_keep
+
+            if not attendee.badge_num and self.needs_badge_num(attendee):
+                attendee.badge_num = self.get_next_badge_num(attendee.badge_type)
+
+            return 'Badge updated'
+
+        def auto_badge_num(self, badge_type):
+            """
+            Gets the next available badge number for a badge type's range.
+
+            Plugins can override the logic here if need be without worrying about handling dirty sessions.
+
+            :param badge_type: Used as a starting point if no badges of the same type exist, and to select badges within
+            a specific range.
+            :return:
+            """
+            sametype = self.query(Attendee.badge_num).filter(Attendee.badge_type == badge_type,
                                                    Attendee.badge_num >= c.BADGE_RANGES[badge_type][0],
                                                    Attendee.badge_num <= c.BADGE_RANGES[badge_type][1])
             if sametype.count():
-                next = sametype.order_by(Attendee.badge_num.desc()).first().badge_num
-                if old_badge_num and next == old_badge_num:
-                    next = next  # Prevents incrementing if the current badge already has the highest badge number in the range.
+                sametype_list = [int(row[0]) for row in sametype.order_by(Attendee.badge_num).all()]
+
+                # Searches badge range for a gap in badge numbers; if none found, returns the latest badge number + 1
+                # Doing this lets admins manually set high badge numbers without filling up the badge type's range.
+                first = 0
+                last = sametype.count() - 1
+                if sametype_list[last] - sametype_list[first] == last:
+                    return sametype.order_by(Attendee.badge_num.desc()).first().badge_num + 1
                 else:
-                    next += 1
+                    middle = int((first+last)/2)
+
+                    # Performs a binary search for exactly where the badge gap is
+                    while first < last:
+                        if (sametype_list[middle]-sametype_list[first]) != (middle - first):
+                            if (middle-first) == 1 and (sametype_list[middle]-sametype_list[first] > 1):
+                                return sametype_list[middle] - 1
+                            last = middle
+                        elif (sametype_list[last]-sametype_list[middle]) != (last-middle):
+                            if (last-middle) == 1 and (sametype_list[last]-sametype_list[middle] > 1):
+                                return sametype_list[middle] + 1
+                            first = middle
+                        else:
+                            return sametype.order_by(Attendee.badge_num.desc()).first().badge_num + 1
+
+                        middle = int((first+last)/2)
             else:
-                next = c.BADGE_RANGES[badge_type][0]
-
-            # Adjusts the badge number based on badges in the session
-            for attendee in [m for m in chain(self.new, self.dirty) if isinstance(m, Attendee)]:
-                if attendee.badge_type == badge_type and attendee.badge_num <= c.BADGE_RANGES[badge_type][1]:
-                    next = max(next, 1 + attendee.badge_num)
-
-            return next
+                return c.BADGE_RANGES[badge_type][0]
 
         def shift_badges(self, badge_type, badge_num, *, until=None, **direction):
             # assert_badge_locked()
-            until = until or c.MAX_BADGE
-            assert c.SHIFT_CUSTOM_BADGES
+            until = until or c.BADGE_RANGES[badge_type][1]
+            if not c.SHIFT_CUSTOM_BADGES or c.AFTER_PRINTED_BADGE_DEADLINE:
+                return False
             assert not any(param for param in direction if param not in ['up', 'down']), 'unknown parameters'
             assert len(direction) < 2, 'you cannot specify both up and down parameters'
             down = (not direction['up']) if 'up' in direction else direction.get('down', True)
             shift = -1 if down else 1
             for a in self.query(Attendee).filter(Attendee.badge_type == badge_type,
+                                                 Attendee.badge_num is not None,
                                                  Attendee.badge_num >= badge_num,
-                                                 Attendee.badge_num <= until,
-                                                 Attendee.badge_num != 0):
+                                                 Attendee.badge_num <= until):
                 a.badge_num += shift
+            return True
 
         def change_badge(self, attendee, badge_type, badge_num=None):
             """
@@ -629,7 +728,7 @@ class Session(SessionManager):
                 return out_of_range
             elif not badge_num and next > c.BADGE_RANGES[badge_type][1]:
                 return 'There are no more badges available for that type'
-            elif badge_type in c.PREASSIGNED_BADGE_TYPES and not c.SHIFT_CUSTOM_BADGES:
+            elif badge_type in c.PREASSIGNED_BADGE_TYPES and c.AFTER_PRINTED_BADGE_DEADLINE:
                 return 'Custom badges have already been ordered'
 
             if not c.SHIFT_CUSTOM_BADGES:
@@ -755,9 +854,10 @@ class Session(SessionManager):
 
             ribbon_to_use = new_ribbon_type or group.new_ribbon
 
-            if int(new_badge_type) in c.PREASSIGNED_BADGE_TYPES and not c.SHIFT_CUSTOM_BADGES:
+            if int(new_badge_type) in c.PREASSIGNED_BADGE_TYPES and c.AFTER_PRINTED_BADGE_DEADLINE:
                 return 'Custom badges have already been ordered, so you will need to select a different badge type'
             elif diff > 0:
+                group.cost += diff * group.new_badge_cost
                 for i in range(diff):
                     group.attendees.append(Attendee(badge_type=new_badge_type, ribbon=ribbon_to_use, paid=paid, **extra_create_args))
             elif diff < 0:
@@ -850,7 +950,7 @@ class Session(SessionManager):
 
 class Group(MagModel, TakesPaymentMixin):
     name          = Column(UnicodeText)
-    tables        = Column(Float, default=0)
+    tables        = Column(Numeric, default=0)
     address       = Column(UnicodeText)
     website       = Column(UnicodeText)
     wares         = Column(UnicodeText)
@@ -921,7 +1021,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def is_dealer(self):
-        return bool(self.tables and (not self.registered or self.amount_paid or self.cost))
+        return bool(self.tables and self.tables != '0' and (not self.registered or self.amount_paid or self.cost))
 
     @property
     def is_unpaid(self):
@@ -957,7 +1057,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def new_badge_cost(self):
-        return c.DEALER_BADGE_PRICE if self.tables else c.get_group_price(sa.localized_now())
+        return c.DEALER_BADGE_PRICE if self.is_dealer else c.get_group_price(sa.localized_now())
 
     @cost_property
     def badge_cost(self):
@@ -1029,7 +1129,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     for_review  = Column(UnicodeText, admin_only=True)
     admin_notes = Column(UnicodeText, admin_only=True)
 
-    badge_num    = Column(Integer, default=0, nullable=True, admin_only=True)
+    badge_num    = Column(Integer, default=None, nullable=True, admin_only=True)
     badge_type   = Column(Choice(c.BADGE_OPTS), default=c.ATTENDEE_BADGE)
     badge_status = Column(Choice(c.BADGE_STATUS_OPTS), default=c.NEW_STATUS, admin_only=True)
     ribbon       = Column(Choice(c.RIBBON_OPTS), default=c.NO_RIBBON, admin_only=True)
@@ -1078,8 +1178,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     @predelete_adjustment
     def _shift_badges(self):
         # _assert_badge_lock()
-        if self.has_personalized_badge and c.SHIFT_CUSTOM_BADGES:
-            self.session.shift_badges(self.badge_type, self.badge_num, down=True)
+        if self.badge_num:
+            self.session.shift_badges(self.badge_type, self.badge_num + 1, down=True)
 
     @presave_adjustment
     def _misc_adjustments(self):
@@ -1109,23 +1209,23 @@ class Attendee(MagModel, TakesPaymentMixin):
     @presave_adjustment
     def _badge_adjustments(self):
         # _assert_badge_lock()
+        if self.is_dealer:
+            self.ribbon = c.DEALER_RIBBON
 
-        if self.badge_type in [c.PSEUDO_GROUP_BADGE, c.PSEUDO_DEALER_BADGE]:
-            if self.is_dealer:
-                self.ribbon = c.DEALER_RIBBON
-            self.badge_type = c.ATTENDEE_BADGE
+        self.badge_type = get_real_badge_type(self.badge_type)
 
-        if c.PRE_CON:
-            if self.paid == c.NOT_PAID or not self.has_personalized_badge or self.is_unassigned:
-                self.badge_num = 0
-            elif self.has_personalized_badge and not self.badge_num:
-                if self.paid != c.NOT_PAID:
-                    self.badge_num = self.session.next_badge_num(self.badge_type, old_badge_num=0)
+        if not self.session.needs_badge_num(self):
+            if self.orig_value_of('badge_num'):
+                self.session.shift_badges(self.orig_value_of('badge_type'), self.orig_value_of('badge_num') + 1, down=True)
+            self.badge_num = None
+        elif self.session.needs_badge_num(self):
+            if not self.badge_num:
+                self.badge_num = self.session.get_next_badge_num(self.badge_type)
 
     @presave_adjustment
     def _status_adjustments(self):
         if self.badge_status == c.NEW_STATUS and self.banned:
-            self.badge_status = c.DEFERRED_STATUS
+            self.badge_status = c.WATCHED_STATUS
             try:
                 send_email(c.SECURITY_EMAIL, [c.REGDESK_EMAIL, c.SECURITY_EMAIL], 'Banned attendee registration',
                            render('emails/reg_workflow/banned_attendee.txt', {'attendee': self}), model='n/a')
@@ -1173,9 +1273,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.ribbon == c.VOLUNTEER_RIBBON:
             self.ribbon = c.NO_RIBBON
         if self.badge_type == c.STAFF_BADGE:
-            if c.SHIFT_CUSTOM_BADGES:
-                self.session.shift_badges(c.STAFF_BADGE, self.badge_num, down=True)
             self.badge_type = c.ATTENDEE_BADGE
+            self.badge_num = None
+            self.session.update_badge(self, c.STAFF_BADGE, self.orig_value_of('badge_num'))
         del self.shifts[:]
 
     @property
@@ -1186,6 +1286,10 @@ class Attendee(MagModel, TakesPaymentMixin):
             return self.ribbon_label
         else:
             return self.badge_type_label
+
+    @property
+    def badge_type_real(self):
+        return get_real_badge_type(self.badge_type)
 
     @cost_property
     def badge_cost(self):
@@ -1777,6 +1881,7 @@ class ApprovedEmail(MagModel):
 
 class Email(MagModel):
     fk_id   = Column(UUID, nullable=True)
+    ident   = Column(UnicodeText)
     model   = Column(UnicodeText)
     when    = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     subject = Column(UnicodeText)
@@ -1848,7 +1953,32 @@ class Tracking(MagModel):
             new_val = getattr(instance, attr)
             old_val = instance.orig_value_of(attr)
             if old_val != new_val:
-                diff[attr] = "'{} -> {}'".format(cls.repr(column, old_val), cls.repr(column, new_val))
+                """
+                important note: here we try and show the old vs new value for something that has been changed
+                so that we can report it in the tracking page.
+
+                Sometimes, however, if we changed the type of the value in the database (via a database migration)
+                the old value might not be able to be shown as the new type (i.e. it used to be a string, now it's int).
+                In that case, we won't be able to show a representation of the old value and instead we'll log it as
+                '<ERROR>'.  In theory the database migration SHOULD be the thing handling this, but if it doesn't, it
+                becomes our problem to deal with.
+
+                We are overly paranoid with exception handling here because the tracking code should be made to
+                never, ever, ever crash, even if it encounters insane/old data that really shouldn't be our problem.
+                """
+                try:
+                    old_val_repr = cls.repr(column, old_val)
+                except Exception as e:
+                    log.error("tracking repr({}) failed on old value".format(attr), exc_info=True)
+                    old_val_repr = "<ERROR>"
+
+                try:
+                    new_val_repr = cls.repr(column, new_val)
+                except Exception as e:
+                    log.error("tracking repr({}) failed on new value".format(attr), exc_info=True)
+                    new_val_repr = "<ERROR>"
+
+                diff[attr] = "'{} -> {}'".format(old_val_repr, new_val_repr)
         return diff
 
     # TODO: add new table for page views to eliminated track_pageview method and to eliminate Budget special case
@@ -1949,8 +2079,15 @@ def _make_getter(model):
     return getter
 
 
-def _presave_adjustments(session, context, instances='deprecated'):
+def _acquire_badge_lock(session, context, instances='deprecated'):
     c.BADGE_LOCK.acquire()
+
+
+@swallow_exceptions
+def _presave_adjustments(session, context, instances='deprecated'):
+    """
+    precondition: c.BADGE_LOCK is acquired already.
+    """
     for model in chain(session.dirty, session.new):
         model.presave_adjustments()
     for model in session.deleted:
@@ -1961,16 +2098,20 @@ def _release_badge_lock(session, context):
     try:
         c.BADGE_LOCK.release()
     except:
-        log.error('failed releasing c.BADGE_LOCK after session flush; this should never actually happen, but we want to just keep going if it ever does')
+        log.error('failed releasing c.BADGE_LOCK after session flush; this should never actually happen, but we want '
+                  'to just keep going if it ever does')
 
 
 def _release_badge_lock_on_error(*args, **kwargs):
     try:
         c.BADGE_LOCK.release()
     except:
-        log.warn('failed releasing c.BADGE_LOCK on db error; these errors should not happen in the first place and we do not expect releasing the lock to fail when they do, but we still want to keep going if/when this does occur')
+        log.warn('failed releasing c.BADGE_LOCK on db error; these errors should not happen in the first place and we '
+                 'do not expect releasing the lock to fail when they do, but we still want to keep going if/when this '
+                 'does occur')
 
 
+@swallow_exceptions
 def _track_changes(session, context, instances='deprecated'):
     for action, instances in {c.CREATED: session.new, c.UPDATED: session.dirty, c.DELETED: session.deleted}.items():
         for instance in instances:
@@ -1979,6 +2120,17 @@ def _track_changes(session, context, instances='deprecated'):
 
 
 def register_session_listeners():
+    """
+    NOTE 1: IMPORTANT!!! Because we are locking our c.BADGE_LOCK at the start of this, all of these functions MUST NOT
+    THROW ANY EXCEPTIONS.  If they do throw exceptions, the chain of hooks will not be completed, and the lock won't
+    be released, resulting in a deadlock and heinous, horrible, and hard to debug server lockup.
+
+    You MUST use the @swallow_exceptions decorator on ALL functions
+    between _acquire_badge_lock and _release_badge_lock in order to prevent them from throwing exceptions.
+
+    NOTE 2: The order in which we register these listeners matters.
+    """
+    listen(Session.session_factory, 'before_flush', _acquire_badge_lock)
     listen(Session.session_factory, 'before_flush', _presave_adjustments)
     listen(Session.session_factory, 'before_flush', _track_changes)
     listen(Session.session_factory, 'after_flush', _release_badge_lock)

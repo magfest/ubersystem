@@ -20,13 +20,15 @@ when they know what kind of food restrictions we all have.
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ fr.db_id }}" />
 
-    {{ fr.html_checkgroup('standard') }}
+    <div id="restrictions">{{ fr.html_checkgroup('standard') }}</div>
 
-    <br/> <br/>
-    Please select sandwich options you like. This is to determine how much to buy: <br/>
+    <br/>
+    <div id="sandwich_prefs">
+        Please select sandwich options you like. This is to determine how much to buy: <br/>
     {{ fr.html_checkgroup('sandwich_pref') }}
+    </div>
 
-    <br/> <br/>
+    <br/>
     Let us know if you have any other allergies or restrictions,
     please use commas to separate each allergy and food restriction.
     (We do not serve seafood or use ingredients with seafood in it.)

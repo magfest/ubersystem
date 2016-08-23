@@ -67,7 +67,7 @@
                 {% endfor %}
             </ul>
         </td>
-        <td>${{ attendee.total_cost }}</td>
+        <td>${{ attendee.total_cost|floatformat:2 }}</td>
         <td>
             <a href="form?edit_id={{ attendee.id }}">Edit</a> /
             <a href="delete?id={{ attendee.id }}">Delete</a>
@@ -85,7 +85,7 @@
                 {% endfor %}
             </ul>
         </td>
-        <td>${{ group.default_cost }}</td>
+        <td>${{ group.default_cost|floatformat:2 }}</td>
         <td>
             <a href="form?edit_id={{ group.id }}">Edit</a> /
             <a href="delete?id={{ group.id }}">Delete</a>
@@ -98,7 +98,7 @@
     <tr>
         <th></th>
         <th style="text-align:right;"><i>Total:</i></th>
-        <th><b>${{ charge.dollar_amount }}</b></th>
+        <th><b>${{ charge.dollar_amount|floatformat:2 }}</b></th>
         <th></th>
     </tr>
 </tfoot>

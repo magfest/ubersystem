@@ -55,7 +55,7 @@
         {% if attendee.is_transferable %}
             <button type="button" class="btn btn-primary" onClick='location.href="transfer_badge?id={{ attendee.id }}"'>Transfer my Badge</button>
         {% endif %}
-        {% if not attendee.amount_paid or not attendee.paid == c.NEED_NOT_PAY %}
+        {% if not attendee.amount_paid and not attendee.paid == c.NEED_NOT_PAY %}
             <button type="submit" form="invalidate" class="btn btn-danger" onClick="return confirm('Are you sure you want to delete your badge? This can\'t be undone!');">I'm not coming</button>
         {% endif %}
     </div>
