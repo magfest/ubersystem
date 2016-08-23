@@ -351,7 +351,7 @@ def price_notice(label, takedown, amount_extra=0, discount=0):
         badge_price = c.BADGE_PRICE  # optimization.  this call is VERY EXPENSIVE.
 
         for day, price in sorted(c.PRICE_BUMPS.items()):
-            if day < takedown and localized_now() < day and price > badge_price::
+            if day < takedown and localized_now() < day and price > badge_price:
                 return '<div class="prereg-price-notice">Price goes up to ${} no later than 11:59pm {} on {}</div>'.format(price - int(discount) + int(amount_extra), (day - timedelta(days=1)).strftime('%Z'), (day - timedelta(days=1)).strftime('%A, %b %e'))
             elif localized_now() < day and takedown == c.PREREG_TAKEDOWN and takedown < c.EPOCH and price > badge_price:
                 return '<div class="prereg-type-closing">{} closes at 11:59pm {} on {}. Price goes up to ${} at-door.</div>'.format(label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'), price + amount_extra, (day - timedelta(days=1)).strftime('%A, %b %e'))

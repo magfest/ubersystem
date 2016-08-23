@@ -178,7 +178,7 @@
         <div class="extra-row form-group">
             <label for="amount_extra" class="col-sm-2 control-label">Want to kick in extra?
                 <br>
-            {% popup_link "../static_views/givingExtra.html" "Why do this?" %}
+            {{ macros.popup_link("../static_views/givingExtra.html","Why do this?") }}
             </label>
             <div class="col-sm-8">
                 {% if c.AFTER_SUPPORTER_DEADLINE and attendee.amount_extra >= c.SUPPORTER_LEVEL %}

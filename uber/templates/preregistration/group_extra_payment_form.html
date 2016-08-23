@@ -7,7 +7,7 @@
 <div class="panel panel-default">
 <h2> Extra Payment for {{ attendee.full_name }} </h2>
 
-Thanks for offering to kick in ${{ charge.dollar_amount|floatformat:2 }} extra to help make {{ c.EVENT_NAME }} better.  As thanks, this entitles you to the following:
+Thanks for offering to kick in ${{ charge.dollar_amount|floatformat(2) }} extra to help make {{ c.EVENT_NAME }} better.  As thanks, this entitles you to the following:
 <ul>
     {% for swag in attendee.donation_swag %}
         <li>{{ swag }}</li>

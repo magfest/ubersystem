@@ -5,8 +5,8 @@
 Your group ({{ attendee.group.name}}) has successfully submitted a Dealer application for {{ c.EVENT_NAME }}
 this coming {{ event_dates() }}.  Your application includes the following:
 <ul>
-    <li> {{ attendee.group.tables }} table{{ attendee.group.tables|pluralize }} (${{ attendee.group.table_cost|floatformat:2 }}) </li>
-    <li> {{ attendee.group.badges }} badge{{ attendee.group.badges|pluralize }} (${{ attendee.group.badge_cost|floatformat:2 }}) </li>
+    <li> {{ attendee.group.tables }} table{{ attendee.group.tables|pluralize }} (${{ attendee.group.table_cost|floatformat(2) }}) </li>
+    <li> {{ attendee.group.badges }} badge{{ attendee.group.badges|pluralize }} (${{ attendee.group.badge_cost|floatformat(2) }}) </li>
 </ul>
 
 {% if c.AFTER_DEALER_REG_DEADLINE %}
