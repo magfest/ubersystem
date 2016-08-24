@@ -1798,6 +1798,9 @@ class Email(MagModel):
     dest    = Column(UnicodeText)
     body    = Column(UnicodeText)
 
+    # add resend column() bool default false
+    # optional: num_resends or something like that
+
     _repr_attr_names = ['subject']
 
     @cached_property

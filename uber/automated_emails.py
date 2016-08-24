@@ -31,16 +31,26 @@ class AutomatedEmail:
     def __repr__(self):
         return '<{}: {!r}>'.format(self.__class__.__name__, self.subject)
 
+    # remove to "previously sent" or similar
     def prev(self, x, all_sent=None):
         if all_sent:
             return (x.__class__.__name__, x.id, self.ident) in all_sent
+            # modify this to return the first email object in all_sent that matches this criteria
+            # maybe:   return all_sent[(x.__class__.__name__, x.id, self.ident)] ?
         else:
             with Session() as session:
                 return session.query(Email).filter_by(model=x.__class__.__name__, fk_id=x.id, ident=self.ident).first()
 
     def should_send(self, x, all_sent=None):
         try:
-            return x.email and not self.prev(x, all_sent) and self.filter(x)
+            # TODO: TEST THIS!!! :)
+            if x.email:
+                previously_send_email = self.prev(x, all_sent)
+
+                if not previously_send_email or previously_send_email.resend:
+                    return self.filter(x)
+
+            return False
         except:
             log.error('unexpected error', exc_info=True)
 

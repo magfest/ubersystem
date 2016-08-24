@@ -153,7 +153,15 @@ def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=
     if model and dest:
         body = body.decode('utf-8') if isinstance(body, bytes) else body
         fk = {'model': 'n/a'} if model == 'n/a' else {'fk_id': model.id, 'model': model.__class__.__name__}
+
+        # update database
         with sa.Session() as session:
+            # IF Email row already exists:
+            #    query for old entry in DB
+            #    mark resend as false
+            #    optional: incrememnt sent_count
+            #
+            # else, add a new entry using existing code below
             session.add(sa.Email(subject=subject, dest=','.join(listify(dest)), body=body, ident=ident, **fk))
 
 
