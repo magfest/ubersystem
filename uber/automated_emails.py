@@ -34,7 +34,12 @@ class AutomatedEmail:
     # remove to "previously sent" or similar
     def prev(self, x, all_sent=None):
         if all_sent:
-            return (x.__class__.__name__, x.id, self.ident) in all_sent
+            if (x.__class__.__name__, x.id, self.ident, True) in all_sent:
+                return Session().query(Email).filter_by(model=x.__class__.__name__, fk_id=x.id, ident=self.ident).first()
+            elif (x.__class__.__name__, x.id, self.ident, False) in all_sent:
+                return True
+            else:
+                return False
             # modify this to return the first email object in all_sent that matches this criteria
             # maybe:   return all_sent[(x.__class__.__name__, x.id, self.ident)] ?
         else:
@@ -72,7 +77,7 @@ class AutomatedEmail:
         if not c.AT_THE_CON and (c.DEV_BOX or c.SEND_EMAILS):
             with Session() as session:
                 approved = {ae.subject for ae in session.query(ApprovedEmail)}
-                all_sent = set(session.query(Email.model, Email.fk_id, Email.ident))
+                all_sent = set(session.query(Email.model, Email.fk_id, Email.ident, Email.resend))
                 for model, lister in cls.queries.items():
                     for inst in lister(session):
                         sleep(0.01)  # throttle CPU usage

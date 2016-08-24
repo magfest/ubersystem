@@ -156,13 +156,18 @@ def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=
 
         # update database
         with sa.Session() as session:
+            does_email_exist = session.query(Email).filter(ident=ident, model=model, fk_id=fk['fk_id']).first()
+            if does_email_exist is not None:
+                does_email_exist.resend = False
+                does_email_exist.dest = ','.join(listify(dest))  # important because the attendee's email address potentially changed
             # IF Email row already exists in all_sent or in the DB with same fk_id, ident, and model then update it:
             #    email.resend = false
             #    email.dest = ','.join(listify(dest))  # important because the attendee's email address potentially changed
             #    optional: increment sent_count
             #
             # else, add a new entry using existing code below
-            session.add(sa.Email(subject=subject, dest=','.join(listify(dest)), body=body, ident=ident, **fk))
+            else:
+                session.add(sa.Email(subject=subject, dest=','.join(listify(dest)), body=body, ident=ident, **fk))
 
 
 class Charge:
