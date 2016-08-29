@@ -1797,7 +1797,7 @@ class Email(MagModel):
     subject = Column(UnicodeText)
     dest    = Column(UnicodeText)
     body    = Column(UnicodeText)
-
+    resend  = Column(bool, default=False)
     # add resend column() bool default false
     # optional: num_resends or something like that
 
