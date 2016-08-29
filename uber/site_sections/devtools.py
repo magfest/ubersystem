@@ -46,4 +46,3 @@ class Root:
         return json.dumps({
             'badges_price': c.BADGE_PRICE
         })
-
