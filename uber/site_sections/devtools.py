@@ -39,3 +39,11 @@ class Root:
             'last_commit_log': last_commit_log,
             'git_status': git_status
         }
+
+    @unrestricted
+    def price(self):
+        cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
+        return json.dumps({
+            'badges_price': c.BADGE_PRICE
+        })
+
