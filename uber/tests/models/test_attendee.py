@@ -354,10 +354,7 @@ class TestBadgeAdjustments:
     @pytest.fixture(autouse=True)
     def mock_attendee_session(self, monkeypatch):
         monkeypatch.setattr(Attendee, 'session', Mock())
-        # TODO: @vmearl: should this line be here? it was
-        # removed in master. If you're not sure, then
-        # we should delete it -Dom
-        # Attendee.session.get_next_badge_num = Mock(return_value=123)
+        Attendee.session.get_next_badge_num = Mock(return_value=123)
 
     @pytest.fixture
     def fully_paid(self, monkeypatch):
