@@ -48,6 +48,21 @@ class StaticViews:
         return path_args[-1]
 
     @cherrypy.expose
+    def default(self, *path_args, **kwargs):
+        content_filename = self.get_filename_from_path_args(path_args)
+
+        template_name = self.get_full_path_from_path_args(path_args)
+        try:
+            content = render(template_name)
+        except django.template.base.TemplateDoesNotExist as e:
+            raise cherrypy.HTTPError(404, "Couldn't find {}".format(template_name)) from e
+
+        guessed_content_type = mimetypes.guess_type(content_filename)[0]
+        return cherrypy.lib.static.serve_fileobj(content, name=content_filename, content_type=guessed_content_type)
+
+
+class AngularJavascript:
+    @cherrypy.expose
     def magfest_js(self):
         """
         We have several Angular apps which need to be able to access our constants like c.ATTENDEE_BADGE and such.
@@ -65,37 +80,24 @@ class StaticViews:
             '});'
         ])
 
-    @cherrypy.expose
-    def default(self, *path_args, **kwargs):
-        content_filename = self.get_filename_from_path_args(path_args)
-
-        template_name = self.get_full_path_from_path_args(path_args)
-        content = render(template_name)
-
-        guessed_content_type = mimetypes.guess_type(content_filename)[0]
-        return cherrypy.lib.static.serve_fileobj(content, name=content_filename, content_type=guessed_content_type)
-
 
 @all_renderable()
 class Root:
     def index(self):
         raise HTTPRedirect('common/')
 
-    def common_js(self):
-        cherrypy.response.headers['Content-Type'] = 'text/javascript'
-        return render('common.js')
-
     static_views = StaticViews()
+    angular = AngularJavascript()
 
 mount_site_sections(c.MODULE_ROOT)
 
 cherrypy.tree.mount(Root(), c.PATH, c.APPCONF)
 static_overrides(join(c.MODULE_ROOT, 'static'))
 
-DaemonTask(check_unassigned, interval=300)
-DaemonTask(detect_duplicates, interval=300)
-DaemonTask(check_placeholders, interval=300)
-DaemonTask(AutomatedEmail.send_all, interval=300)
+DaemonTask(check_unassigned, interval=300,          name="mail unassg")
+DaemonTask(detect_duplicates, interval=300,         name="mail dupes")
+DaemonTask(check_placeholders, interval=300,        name="mail placeh")
+DaemonTask(AutomatedEmail.send_all, interval=300,   name="send emails")
 
 # TODO: this should be replaced by something a little cleaner, but it can be a useful debugging tool
 # DaemonTask(lambda: log.error(Session.engine.pool.status()), interval=5)

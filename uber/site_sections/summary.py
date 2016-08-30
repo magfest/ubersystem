@@ -143,13 +143,21 @@ class Root:
 
     @csv_file
     def printed_badges_staff(self, out, session):
+
+        # part 1, include only staff badges that have an assigned name
         uber.reports.PersonalizedBadgeReport().run(out, session,
             sa.Attendee.badge_type == c.STAFF_BADGE,
-            sa.Attendee.badge_num != 0,
+            sa.Attendee.badge_num != None,
             order_by='badge_num')
 
+        # part 2, include a bunch of extra badges so we have some printed
+        max_badges = c.BADGE_RANGES[c.STAFF_BADGE][1]
+        extra_count = 20
+        badge_range = (max_badges - extra_count, max_badges)
+        uber.reports.PrintedBadgeReport(badge_type=c.STAFF_BADGE, range=badge_range).run(out, session)
+
     @csv_file
-    def printed_badges_supporters(self, out, session):
+    def badge_hangars_supporters(self, out, session):
         uber.reports.PersonalizedBadgeReport(include_badge_nums=False).run(out, session,
             sa.Attendee.amount_extra >= c.SUPPORTER_LEVEL,
             order_by=sa.Attendee.full_name,
@@ -162,7 +170,7 @@ class Root:
         zip_file.writestr('printed_badges_guest.csv', self.printed_badges_guest())
         zip_file.writestr('printed_badges_one_day.csv', self.printed_badges_one_day())
         zip_file.writestr('printed_badges_staff.csv', self.printed_badges_staff())
-        zip_file.writestr('printed_badges_supporters.csv', self.printed_badges_supporters())
+        zip_file.writestr('badge_hangars_supporters.csv', self.badge_hangars_supporters())
 
     def food_eligible(self, session):
         cherrypy.response.headers['Content-Type'] = 'application/xml'
@@ -318,15 +326,16 @@ class Root:
         status = lambda got_merch: 'picked_up' if got_merch else 'outstanding'
         sales_by_week = OrderedDict([(i, 0) for i in range(50)])
         for attendee in session.staffers(only_staffing=False):
+            shirt_label = attendee.shirt_label or 'size unknown'
             if attendee.gets_free_shirt:
-                counts['free'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
-                counts['all'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
+                counts['free'][label(shirt_label)][status(attendee.got_merch)] += 1
+                counts['all'][label(shirt_label)][status(attendee.got_merch)] += 1
             if attendee.gets_paid_shirt:
-                counts['paid'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
-                counts['all'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
+                counts['paid'][label(shirt_label)][status(attendee.got_merch)] += 1
+                counts['all'][label(shirt_label)][status(attendee.got_merch)] += 1
                 sales_by_week[(datetime.now(UTC) - attendee.registered).days // 7] += 1
             if attendee.gets_free_shirt and attendee.gets_paid_shirt:
-                counts['both'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
+                counts['both'][label(shirt_label)][status(attendee.got_merch)] += 1
         for week in range(48, -1, -1):
             sales_by_week[week] += sales_by_week[week + 1]
         return {

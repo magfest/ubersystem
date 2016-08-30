@@ -95,8 +95,9 @@ class Root:
         attendee = session.attendee(params, checkgroups=Attendee.all_checkgroups, bools=Attendee.all_bools, allow_invalid=True)
         if 'first_name' in params:
             attendee.group_id = params['group_opt'] or None
-            if c.AT_THE_CON and omit_badge:
-                attendee.badge_num = 0
+            if (c.AT_THE_CON and omit_badge) or not attendee.badge_num:
+                attendee.badge_num = None
+
             if 'no_override' in params:
                 attendee.overridden_price = None
 
@@ -134,15 +135,17 @@ class Root:
     def change_badge(self, session, id, message='', **params):
         attendee = session.attendee(id, allow_invalid=True)
         if 'badge_type' in params:
-            preassigned = c.AT_THE_CON or attendee.badge_type in c.PREASSIGNED_BADGE_TYPES
-            if preassigned:
-                message = check(attendee)
+            old_badge_type, old_badge_num = attendee.badge_type, attendee.badge_num
+            attendee.badge_type = int(params['badge_type'])
+            try:
+                attendee.badge_num = int(params['badge_num'])
+            except ValueError:
+                attendee.badge_num = None
+
+            message = check(attendee)
 
             if not message:
-                badge_num = int(params.get('newnum') or 0)
-                if c.AT_THE_CON and badge_num == 0:  # sometimes admins need to unset accidental badge assignments
-                    attendee.badge_num = 0
-                message = session.change_badge(attendee, params['badge_type'], badge_num)
+                message = session.update_badge(attendee, old_badge_type, old_badge_num)
                 raise HTTPRedirect('form?id={}&message={}', attendee.id, message or '')
 
         return {
@@ -714,7 +717,7 @@ class Root:
         attendee = session.attendee(id)
         if attendee.group:
             session.add(Attendee(group=attendee.group, paid=c.PAID_BY_GROUP, badge_type=attendee.badge_type, ribbon=attendee.ribbon))
-        attendee.badge_num = 0
+        attendee.badge_num = None
         attendee.checked_in = attendee.group = None
         raise HTTPRedirect('new?message={}', 'Attendee un-checked-in')
 
@@ -854,4 +857,11 @@ class Root:
             'badges_price': c.BADGE_PRICE,
             'server_current_timestamp': int(datetime.utcnow().timestamp()),
             'warn_if_server_browser_time_mismatch': c.WARN_IF_SERVER_BROWSER_TIME_MISMATCH
+        })
+
+    @unrestricted
+    def price(self):
+        cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
+        return json.dumps({
+            'badges_price': c.BADGE_PRICE
         })

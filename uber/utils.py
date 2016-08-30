@@ -14,12 +14,27 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
     current querystring to build an absolute URL.  Therefore it's EXTREMELY IMPORTANT
     that the only time you create this class is in the context of a pageload.
 
-    Do not persist this class, only create it when needed.
+    Do not save copies this class, only create it on-demand when needed as part of a 'raise' statement.
     """
     def __init__(self, page, *args, **kwargs):
+        save_location = kwargs.pop('save_location', False)
+
         args = [self.quote(s) for s in args]
         kwargs = {k: self.quote(v) for k, v in kwargs.items()}
-        cherrypy.HTTPRedirect.__init__(self, page.format(*args, **kwargs))
+        query = page.format(*args, **kwargs)
+
+        if save_location and cherrypy.request.method == 'GET':
+            # remember the original URI the user was trying to reach.
+            # useful if we want to redirect the user back to the same page after
+            # they complete an action, such as logging in
+            # example URI: '/uber/registration/form?id=786534'
+            original_location = cherrypy.request.wsgi_environ['REQUEST_URI']
+
+            # note: python does have utility functions for this. if this gets any more complex, use the urllib module
+            qs_char = '?' if '?' not in query else '&'
+            query += "{sep}original_location={loc}".format(sep=qs_char, loc=self.quote(original_location))
+
+        cherrypy.HTTPRedirect.__init__(self, query)
 
     def quote(self, s):
         return quote(s) if isinstance(s, str) else str(s)
@@ -129,9 +144,10 @@ def hour_day_format(dt):
     return dt.astimezone(c.EVENT_TIMEZONE).strftime('%I%p ').strip('0').lower() + dt.astimezone(c.EVENT_TIMEZONE).strftime('%a')
 
 
-def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=None):
+def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=None, ident=None):
     subject = subject.format(EVENT_NAME=c.EVENT_NAME)
     to, cc, bcc = map(listify, [dest, cc, bcc])
+    ident = ident or subject
     if c.DEV_BOX:
         for xs in [to, cc, bcc]:
             xs[:] = [email for email in xs if email.endswith('mailinator.com') or c.DEVELOPER_EMAIL in email]
@@ -153,12 +169,16 @@ def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=
         body = body.decode('utf-8') if isinstance(body, bytes) else body
         fk = {'model': 'n/a'} if model == 'n/a' else {'fk_id': model.id, 'model': model.__class__.__name__}
         with sa.Session() as session:
-            session.add(sa.Email(subject=subject, dest=','.join(listify(dest)), body=body, **fk))
+            session.add(sa.Email(subject=subject, dest=','.join(listify(dest)), body=body, ident=ident, **fk))
 
 
 class Charge:
     def __init__(self, targets=(), amount=None, description=None):
         self.targets = [self.to_sessionized(m) for m in listify(targets)]
+
+        # performance optimization
+        self._models_cached = [self.from_sessionized(d) for d in self.targets]
+
         self.amount = amount or self.total_cost
         self.description = description or self.names
 
@@ -197,7 +217,7 @@ class Charge:
 
     @property
     def models(self):
-        return [self.from_sessionized(d) for d in self.targets]
+        return self._models_cached
 
     @property
     def total_cost(self):
@@ -306,3 +326,7 @@ def convert_to_absolute_url(relative_uber_page_url):
         raise ValueError("relative url MUST start with '../'")
 
     return urljoin(c.URL_BASE + "/", relative_uber_page_url[3:])
+
+
+def get_real_badge_type(badge_type):
+    return c.ATTENDEE_BADGE if badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE] else badge_type

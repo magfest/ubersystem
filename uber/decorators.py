@@ -231,6 +231,8 @@ def render(template_name_list, data=None):
     try:
         template = loader.select_template(listify(template_name_list))
         rendered = template.render(Context(data))
+    except django.template.base.TemplateDoesNotExist:
+        raise
     except Exception as e:
         source_template_name = '[unknown]'
         django_template_source_info = getattr(e, 'django_template_source')
@@ -241,7 +243,8 @@ def render(template_name_list, data=None):
                     break
         raise Exception('error rendering template [{}]'.format(source_template_name)) from e
 
-    rendered = screw_you_nick(rendered, template)  # lolz.
+    # disabled for performance optimzation.  so sad. IT SHALL RETURN
+    # rendered = screw_you_nick(rendered, template)  # lolz.
     return rendered.encode('utf-8')
 
 
@@ -304,10 +307,10 @@ def restricted(func):
         if func.restricted:
             if func.restricted == (c.SIGNUPS,):
                 if not cherrypy.session.get('staffer_id'):
-                    raise HTTPRedirect('../signups/login?message=You+are+not+logged+in')
+                    raise HTTPRedirect('../signups/login?message=You+are+not+logged+in', save_location=True)
 
             elif cherrypy.session.get('account_id') is None:
-                raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in')
+                raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
 
             else:
                 access = sa.AdminAccount.access_set()

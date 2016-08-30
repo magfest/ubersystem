@@ -9,10 +9,10 @@
 <div class="container">
   <form class="form-signin" role="form" method="post" action="login">
 	<h2 class="form-signin-heading">Admin Login</h2>
-	<input type="email" class="form-control" placeholder="Email address" name="email" 
-		value="{{ email }}" required autofocus>
-	<input type="password" class="form-control" placeholder="Password" name="password" 
-		required>
+	<input type="email" class="form-control" placeholder="Email address" name="email"
+		value="{{ email }}" required autofocus />
+	<input type="password" class="form-control" placeholder="Password" name="password" required />
+    <input type="hidden" name="original_location" value="{{ original_location }}" />
 	<button class="btn btn-lg btn-primary btn-block" type="submit">Sign in</button>
  
  <div class="text-center">

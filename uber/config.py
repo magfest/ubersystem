@@ -105,11 +105,23 @@ class Config(_Overridable):
     def get_attendee_price(self, dt):
         price = self.INITIAL_ATTENDEE
         if self.PRICE_BUMPS_ENABLED:
+
+            if c.HARDCORE_OPTIMIZATIONS_ENABLED:
+                # WARNING: EXTREMELY AGGRESSIVE. Don't run the DB query that gets # of badges sold in order
+                # to lighten the server load / blocking time on the DB. THIS ****BREAKS**** BADGE PRICE INCREASES
+                # THAT ARE BASED ON THE NUMBER OF TICKETS SOLD.  Only turn this on if you know EXACTLY what
+                # you are doing, your server is having its face melted off, and you have no other options.
+                # YOU HAVE BEEN WARNED!!!! -Dom
+                badges_sold = 0
+            else:
+                # this is a database query and very expensive
+                badges_sold = self.BADGES_SOLD
+
             for day, bumped_price in sorted(self.PRICE_BUMPS.items()):
                 if (dt or datetime.now(UTC)) >= day:
                     price = bumped_price
             for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
-                if self.BADGES_SOLD >= badge_cap and bumped_price > price:
+                if badges_sold >= badge_cap and bumped_price > price:
                     price = bumped_price
         return price
 
@@ -129,7 +141,7 @@ class Config(_Overridable):
     def DEALER_REG_OPEN(self):
         return self.AFTER_DEALER_REG_START and self.BEFORE_DEALER_REG_SHUTDOWN
 
-    @property
+    @request_cached_property
     def BADGES_SOLD(self):
         with sa.Session() as session:
             attendees = session.query(sa.Attendee)
@@ -172,6 +184,35 @@ class Config(_Overridable):
             return self.DONATION_TIER_OPTS
         else:
             return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS if amt < self.SUPPORTER_LEVEL]
+
+    @property
+    def PREREG_DONATION_DESCRIPTIONS(self):
+        # include only the items that are actually available for purchase
+        if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
+            donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
+        else:
+            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
+                             if tier[1]['price'] < self.SUPPORTER_LEVEL]
+
+        donation_list = sorted(donation_list, key=lambda tier: tier[1]['price'])
+
+        # add in all previous descriptions.  the higher tiers include all the lower tiers
+        for entry in donation_list:
+            all_desc_and_links = \
+                [(tier[1]['description'], tier[1]['link']) for tier in donation_list
+                    if tier[1]['price'] > 0 and tier[1]['price'] < entry[1]['price']] \
+                + [(entry[1]['description'], entry[1]['link'])]
+
+            # maybe slight hack. descriptions and links are separated by '|' characters so we can have multiple
+            # items displayed in the donation tiers.  in an ideal world, these would already be separated in the INI
+            # and we wouldn't have to do it here.
+            entry[1]['all_descriptions'] = []
+            for item in all_desc_and_links:
+                descriptions = item[0].split('|')
+                links = item[1].split('|')
+                entry[1]['all_descriptions'] += list(zip(descriptions, links))
+
+        return [dict(tier[1]) for tier in donation_list]
 
     @property
     def PREREG_DONATION_TIERS(self):
@@ -231,7 +272,7 @@ class Config(_Overridable):
     def PAGE(self):
         return cherrypy.request.path_info.split('/')[-1]
 
-    @property
+    @request_cached_property
     def CURRENT_ADMIN(self):
         try:
             with sa.Session() as session:
@@ -243,7 +284,7 @@ class Config(_Overridable):
     def HTTP_METHOD(self):
         return cherrypy.request.method
 
-    @property
+    @request_cached_property
     def SUPPORTER_COUNT(self):
         with sa.Session() as session:
             attendees = session.query(sa.Attendee)
@@ -258,6 +299,10 @@ class Config(_Overridable):
     def REMAINING_BADGES(self):
         return max(0, self.MAX_BADGE_SALES - self.BADGES_SOLD)
 
+    @request_cached_property
+    def ADMIN_ACCESS_SET(self):
+        return sa.AdminAccount.access_set()
+
     def __getattr__(self, name):
         if name.split('_')[0] in ['BEFORE', 'AFTER']:
             date_setting = getattr(c, name.split('_', 1)[1])
@@ -268,7 +313,7 @@ class Config(_Overridable):
             else:
                 return sa.localized_now() > date_setting
         elif name.startswith('HAS_') and name.endswith('_ACCESS'):
-            return getattr(c, '_'.join(name.split('_')[1:-1])) in sa.AdminAccount.access_set()
+            return getattr(c, '_'.join(name.split('_')[1:-1])) in c.ADMIN_ACCESS_SET
         elif name.endswith('_COUNT'):
             item_check = name.rsplit('_', 1)[0]
             badge_type = getattr(self, item_check, None)
@@ -407,7 +452,7 @@ for _name, _section in _config['age_groups'].items():
 c.TABLE_PRICES = defaultdict(lambda: _config['table_prices']['default_price'],
                              {int(k): v for k, v in _config['table_prices'].items() if k != 'default_price'})
 c.PREREG_TABLE_OPTS = list(range(1, c.MAX_TABLES + 1))
-c.ADMIN_TABLE_OPTS = list(range(0, 9))
+c.ADMIN_TABLE_OPTS = [decimal.Decimal(x) for x in range(0, 9)]
 
 c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
 c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]
@@ -472,6 +517,10 @@ c.JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'restric
 c.PREREG_SHIRT_OPTS = c.SHIRT_OPTS[1:]
 c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + list(c.PREREG_SHIRT_OPTS)
 c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt, desc) if amt else desc) for amt, desc in c.DONATION_TIER_OPTS]
+
+c.DONATION_TIER_DESCRIPTIONS = _config.get('donation_tier_descriptions', {})
+for tier in c.DONATION_TIER_DESCRIPTIONS.items():
+    tier[1]['price'] = [amt for amt, name in c.DONATION_TIERS.items() if name == tier[1]['name']][0]
 
 c.STORE_ITEM_NAMES = [desc for val, desc in c.STORE_PRICE_OPTS]
 c.FEE_ITEM_NAMES = [desc for val, desc in c.FEE_PRICE_OPTS]
