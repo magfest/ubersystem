@@ -378,7 +378,14 @@ class Root:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, 'You payment has been accepted and the badges have been added to your group')
 
     def transfer_badge(self, session, message='', **params):
-        old = session.attendee(params['id'])
+        try:
+            if not params.get('id'):
+                raise NoResultFound
+            old = session.attendee(params['id'])
+        except (NoResultFound, ValueError):
+            log.debug('transfer_badge received invalid params/id: %s', repr(params))
+            raise HTTPRedirect('confirmation_not_found?id={}', params.get('id', 'unknown'))
+
         assert old.is_transferable, 'This badge is not transferrable'
         session.expunge(old)
         attendee = session.attendee(params, restricted=True)
@@ -419,13 +426,20 @@ class Root:
     def invalid_badge(self, session, id, message=''):
         return {'attendee': session.attendee(id, allow_invalid=True), 'message': message}
 
+    def confirmation_not_found(self, id):
+        return {'id': id}
+
     def invalidate(self, session, id):
         attendee = session.attendee(id)
         attendee.badge_status = c.INVALID_STATUS
         raise HTTPRedirect('invalid_badge?id={}&message={}', attendee.id, 'Sorry you can\'t make it! We hope to see you next year!')
 
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
-        attendee = session.attendee(params, restricted=True)
+        try:
+            attendee = session.attendee(params, restricted=True)
+        except (NoResultFound, StatementError):
+            log.debug('confirm received invalid params/id: %s', repr(params))
+            raise HTTPRedirect('confirmation_not_found?id={}', params.get('id', 'unknown'))
 
         placeholder = attendee.placeholder
         if 'email' in params and not message:
