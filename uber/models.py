@@ -593,27 +593,12 @@ class Session(SessionManager):
 
                 # Searches badge range for a gap in badge numbers; if none found, returns the latest badge number + 1
                 # Doing this lets admins manually set high badge numbers without filling up the badge type's range.
-                first = 0
-                last = sametype.count() - 1
-                if sametype_list[last] - sametype_list[first] == last:
+                start, end = c.BADGE_RANGES[badge_type][0], sametype_list[-1]
+                gap_nums = sorted(set(range(start, end + 1)).difference(sametype_list))
+                if not gap_nums:
                     return sametype.order_by(Attendee.badge_num.desc()).first().badge_num + 1
                 else:
-                    middle = int((first+last)/2)
-
-                    # Performs a binary search for exactly where the badge gap is
-                    while first < last:
-                        if (sametype_list[middle]-sametype_list[first]) != (middle - first):
-                            if (middle-first) == 1 and (sametype_list[middle]-sametype_list[first] > 1):
-                                return sametype_list[middle] - 1
-                            last = middle
-                        elif (sametype_list[last]-sametype_list[middle]) != (last-middle):
-                            if (last-middle) == 1 and (sametype_list[last]-sametype_list[middle] > 1):
-                                return sametype_list[middle] + 1
-                            first = middle
-                        else:
-                            return sametype.order_by(Attendee.badge_num.desc()).first().badge_num + 1
-
-                        middle = int((first+last)/2)
+                    return gap_nums[0]
             else:
                 return c.BADGE_RANGES[badge_type][0]
 
@@ -1142,8 +1127,13 @@ class Attendee(MagModel, TakesPaymentMixin):
             if self.orig_value_of('badge_num'):
                 self.session.shift_badges(self.orig_value_of('badge_type'), self.orig_value_of('badge_num') + 1, down=True)
             self.badge_num = None
-        elif self.session.needs_badge_num(self):
-            if not self.badge_num:
+        elif self.session.needs_badge_num(self) and not self.badge_num:
+            self.badge_num = self.session.get_next_badge_num(self.badge_type)
+
+        if self.badge_num:
+            existing = self.session.query(Attendee).filter(Attendee.id != self.id) \
+                .filter_by(badge_type=self.badge_type, badge_num=self.badge_num)
+            if existing.count():
                 self.badge_num = self.session.get_next_badge_num(self.badge_type)
 
     @presave_adjustment
