@@ -151,6 +151,12 @@ class TestGetNextBadgeNum:
         session.add(Attendee(badge_type=c.STAFF_BADGE, badge_num=under_min))
         assert 6 == session.get_next_badge_num(c.STAFF_BADGE)
 
+    def test_badge_range_full(self, session, monkeypatch):
+        monkeypatch.setitem(c.BADGE_RANGES, c.STAFF_BADGE, [1, 5])
+        with pytest.raises(AssertionError) as message:
+            session.get_next_badge_num(c.STAFF_BADGE)
+        assert 'There are no more badge numbers available in this range!' == str(message.value)
+
 
 class TestAutoBadgeNum:
     def test_preassigned_no_gap(self, session):

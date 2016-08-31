@@ -539,6 +539,8 @@ class Session(SessionManager):
                         and attendee.badge_num <= self.auto_badge_num(badge_type):
                     new_badge_num = max(self.auto_badge_num(badge_type), 1 + attendee.badge_num)
 
+            assert new_badge_num < c.BADGE_RANGES[badge_type][1], 'There are no more badge numbers available in this range!'
+
             return new_badge_num
 
         def update_badge(self, attendee, old_badge_type, old_badge_num):
