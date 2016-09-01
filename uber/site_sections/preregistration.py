@@ -426,7 +426,8 @@ class Root:
 
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
         attendee = session.attendee(params, restricted=True)
-
+        if attendee.full_name == ' ' or '':
+            raise HTTPRedirect('index?message={}', 'You have no name, please register.')
         placeholder = attendee.placeholder
         if 'email' in params and not message:
             attendee.placeholder = False
