@@ -151,6 +151,12 @@ class TestGetNextBadgeNum:
         session.add(Attendee(badge_type=c.STAFF_BADGE, badge_num=under_min))
         assert 6 == session.get_next_badge_num(c.STAFF_BADGE)
 
+    def test_badge_range_full(self, session, monkeypatch):
+        monkeypatch.setitem(c.BADGE_RANGES, c.STAFF_BADGE, [1, 5])
+        with pytest.raises(AssertionError) as message:
+            session.get_next_badge_num(c.STAFF_BADGE)
+        assert 'There are no more badge numbers available in this range!' == str(message.value)
+
 
 class TestAutoBadgeNum:
     def test_preassigned_no_gap(self, session):
@@ -177,6 +183,19 @@ class TestAutoBadgeNum:
         session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), first_name="3000", paid=c.HAS_PAID, badge_num=3001))
         session.commit()
         assert 3002 == session.auto_badge_num(c.ATTENDEE_BADGE)
+
+    def test_dupe_nums(self, session, monkeypatch):
+        session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), first_name="3002", paid=c.HAS_PAID, badge_num=3001))
+        session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), first_name="3000", paid=c.HAS_PAID, badge_num=3001))
+        # Skip the badge adjustments here, which prevent us from setting duplicate numbers
+        monkeypatch.setattr(Attendee, '_badge_adjustments', 0)
+        session.commit()
+        assert 3002 == session.auto_badge_num(c.ATTENDEE_BADGE)
+
+    def test_beginning_skip(self, session):
+        session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), first_name="3002", paid=c.HAS_PAID, badge_num=3002))
+        session.commit()
+        assert 3001 == session.auto_badge_num(c.ATTENDEE_BADGE)
 
 
 class TestShiftBadges:
