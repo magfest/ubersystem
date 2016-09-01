@@ -158,7 +158,7 @@ def test_assign_removing_badges(monkeypatch, session):
     session.delete.assert_any_call(attendees[3])
 
 
-def test_assign_custom_badges_after_deadline(session, custom_badges_ordered):
+def test_assign_custom_badges_after_deadline(session, after_printed_badge_deadline):
     group = Group()
     message = session.assign_badges(group, 2, new_badge_type=c.STAFF_BADGE)
     assert message and 'ordered' in message
