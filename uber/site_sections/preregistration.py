@@ -383,7 +383,7 @@ class Root:
                 raise NoResultFound
             old = session.attendee(params['id'])
         except (NoResultFound, ValueError):
-            log.debug('transfer_badge received invalid params/id: %s', repr(params))
+            log.debug('transfer_badge received invalid params/id: %s' % repr(params))
             raise HTTPRedirect('confirmation_not_found?id={}', params.get('id', 'unknown'))
 
         assert old.is_transferable, 'This badge is not transferrable'
@@ -440,7 +440,7 @@ class Root:
                 raise NoResultFound
             attendee = session.attendee(params, restricted=True)
         except (NoResultFound, StatementError):
-            log.debug('confirm received invalid params/id: %s', repr(params))
+            log.debug('confirm received invalid params/id: %s' % repr(params))
             raise HTTPRedirect('confirmation_not_found?id={}', params.get('id', 'unknown'))
 
         placeholder = attendee.placeholder
@@ -485,7 +485,12 @@ class Root:
         raise HTTPRedirect('../signups/food_restrictions')
 
     def attendee_donation_form(self, session, id, message=''):
-        attendee = session.attendee(id)
+        try:
+            attendee = session.attendee(id)
+        except (NoResultFound, StatementError):
+            log.debug('attendee_donation_form received invalid id: %s' % id)
+            raise HTTPRedirect('confirmation_not_found?id={}', id)
+
         return {
             'message': message,
             'attendee': attendee,
