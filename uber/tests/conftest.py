@@ -205,7 +205,7 @@ def shifts_not_created(monkeypatch): monkeypatch.setattr(c, 'SHIFTS_CREATED', ''
 
 
 @pytest.fixture
-def after_printed_badge_deadline(monkeypatch): monkeypatch.setattr(c, 'PRINTED_BADGE_DEADLINE', localized_now())
+def after_printed_badge_deadline(monkeypatch): monkeypatch.setattr(c, 'PRINTED_BADGE_DEADLINE', localized_now() - timedelta(days=1))
 
 
 @pytest.fixture
