@@ -9,6 +9,7 @@ TEST_DB_FILE = '/tmp/uber.db'
 deadline_not_reached = localized_now() + timedelta(days=1)
 deadline_has_passed  = localized_now() - timedelta(days=1)
 
+
 def monkeypatch_db_column(column, patched_config_value):
     column.property.columns[0].type.choices = dict(patched_config_value)
 
