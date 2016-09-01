@@ -6,6 +6,9 @@ from sideboard.tests import patch_session
 TEST_DB_FILE = '/tmp/uber.db'
 
 
+deadline_not_reached = localized_now() + timedelta(days=1)
+deadline_has_passed  = localized_now() - timedelta(days=1)
+
 def monkeypatch_db_column(column, patched_config_value):
     column.property.columns[0].type.choices = dict(patched_config_value)
 
@@ -19,6 +22,7 @@ def sensible_defaults():
     c.POST_CON = False
     c.AT_THE_CON = False
     c.SHIFT_CUSTOM_BADGES = True
+    c.PRINTED_BADGE_DEADLINE = deadline_not_reached
 
     # our tests should work no matter what departments exist, so we'll add these departments to use in our tests
     patched_depts = {'console': 'Console', 'arcade': 'Arcade', 'con_ops': 'Fest Ops'}
@@ -205,7 +209,11 @@ def shifts_not_created(monkeypatch): monkeypatch.setattr(c, 'SHIFTS_CREATED', ''
 
 
 @pytest.fixture
-def after_printed_badge_deadline(monkeypatch): monkeypatch.setattr(c, 'PRINTED_BADGE_DEADLINE', localized_now() - timedelta(days=1))
+def before_printed_badge_deadline(monkeypatch): monkeypatch.setattr(c, 'PRINTED_BADGE_DEADLINE', deadline_not_reached)
+
+
+@pytest.fixture
+def after_printed_badge_deadline(monkeypatch): monkeypatch.setattr(c, 'PRINTED_BADGE_DEADLINE', deadline_has_passed)
 
 
 @pytest.fixture

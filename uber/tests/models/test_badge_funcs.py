@@ -200,6 +200,10 @@ class TestAutoBadgeNum:
 
 
 class TestShiftBadges:
+    @pytest.fixture(autouse=True)
+    def before_print_badges_deadline(self, before_printed_badge_deadline):
+        pass
+
     def staff_badges(self, session):
         # This loads badges from the session, which isn't reloaded, so the result is not always what you'd expect
         return sorted(a.badge_num for a in session.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS).filter_by(badge_type=c.STAFF_BADGE).all())
@@ -208,13 +212,12 @@ class TestShiftBadges:
         pytest.raises(AssertionError, session.shift_badges, c.STAFF_BADGE, 1, invalid='param')
         pytest.raises(AssertionError, session.shift_badges, c.STAFF_BADGE, 1, up=True, down=False)
 
-    def test_shift_not_enabled(self, session, monkeypatch):
-        monkeypatch.setattr(c, 'SHIFT_CUSTOM_BADGES', False)
+    def test_shift_not_enabled(self, session, monkeypatch, custom_badges_ordered):
         session.shift_badges(c.STAFF_BADGE, 2)
         assert [1, 2, 3, 4, 5] == self.staff_badges(session)
 
-    def test_custom_badges_ordered(self, session, monkeypatch):
-        monkeypatch.setattr(c, 'PRINTED_BADGE_DEADLINE', datetime.now(UTC)-timedelta(days=1))
+    def test_custom_badges_ordered(self, session, monkeypatch, after_printed_badge_deadline):
+        assert c.AFTER_PRINTED_BADGE_DEADLINE
         session.shift_badges(c.STAFF_BADGE, 2)
         assert [1, 2, 3, 4, 5] == self.staff_badges(session)
 
@@ -348,6 +351,10 @@ class TestBadgeDeletion:
 
 
 class TestShiftOnChange:
+    @pytest.fixture(autouse=True)
+    def before_print_badges_deadline(self, before_printed_badge_deadline):
+        pass
+
     def staff_badges(self, session):
         # This loads badges from the session, which isn't reloaded, so the result is not always what you'd expect
         return sorted(a.badge_num for a in session.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS).filter_by(badge_type=c.STAFF_BADGE).all())
@@ -401,14 +408,13 @@ class TestBadgeValidations:
         session.staff_one.badge_num = 5000
         assert 'Staff badge numbers must fall within 1 and 399' == check(session.staff_one)
 
-    def test_no_more_custom_badges(self, session, monkeypatch):
-        monkeypatch.setattr(c, 'PRINTED_BADGE_DEADLINE', datetime.now(UTC)-timedelta(days=1))
+    def test_no_more_custom_badges(self, session, monkeypatch, after_printed_badge_deadline):
         session.regular_attendee.badge_type = session.regular_attendee.badge_type
         session.regular_attendee.badge_type = c.STAFF_BADGE
         session.regular_attendee.badge_num = None
         assert 'Custom badges have already been ordered' == check(session.regular_attendee)
 
-    def test_out_of_badge_type(self, session, monkeypatch):
+    def test_out_of_badge_type(self, session, monkeypatch, before_printed_badge_deadline):
         monkeypatch.setitem(c.BADGE_RANGES, c.STAFF_BADGE, [1, 5])
         session.regular_attendee.badge_type = session.regular_attendee.badge_type
         session.regular_attendee.badge_type = c.STAFF_BADGE
