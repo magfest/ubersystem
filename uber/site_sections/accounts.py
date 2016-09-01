@@ -115,7 +115,7 @@ class Root:
         }
 
     @unrestricted
-    def change_password(self, session, message='', old_password=None, new_password=None, csrf_token=None):
+    def change_password(self, session, message='', old_password=None, new_password=None, csrf_token=None, confirm_new_password=None):
         if not cherrypy.session.get('account_id'):
             raise HTTPRedirect('login?message={}', 'You are not logged in')
 
