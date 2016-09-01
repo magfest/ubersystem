@@ -497,29 +497,6 @@ class Session(SessionManager):
                     return attendee[0]
             raise ValueError('attendee not found')
 
-        def needs_badge_num(self, attendee=None, badge_type=None):
-            """
-            Takes either an Attendee object, a badge_type, or both and returns whether or not the attendee should be
-            assigned a badge number. If neither parameter is given, always returns False.
-
-            :param attendee: Passing an existing attendee allows us to check for a new badge num whenever the attendee
-            is updated, particularly for when they are checked in.
-            :param badge_type: Must be an integer. Allows checking for a new badge number before adding/updating the
-            Attendee() object.
-            :return:
-            """
-            if not badge_type and attendee:
-                badge_type = attendee.badge_type
-            elif not badge_type and not attendee:
-                return None
-
-            if c.NUMBERED_BADGES:
-                if attendee:
-                    return (badge_type in c.PREASSIGNED_BADGE_TYPES or attendee.checked_in)\
-                           and attendee.paid != c.NOT_PAID and not attendee.is_unassigned and attendee.badge_status != c.INVALID_STATUS
-                else:
-                    return badge_type in c.PREASSIGNED_BADGE_TYPES
-
         def get_next_badge_num(self, badge_type):
             """
             Returns the next badge available for a given badge type. This is essentially a wrapper for auto_badge_num
@@ -552,6 +529,7 @@ class Session(SessionManager):
             :param old_badge_num: The old badge number.
             :return:
             """
+            from uber.badge_funcs import needs_badge_num
             old_badge_num = int(old_badge_num or 0) or None
 
             if old_badge_type == attendee.badge_type and (not attendee.badge_num or old_badge_num == attendee.badge_num):
@@ -570,7 +548,7 @@ class Session(SessionManager):
                     self.shift_badges(attendee.badge_type, attendee.badge_num + offset, up=True)
                 attendee.badge_num = badge_num_keep
 
-            if not attendee.badge_num and self.needs_badge_num(attendee):
+            if not attendee.badge_num and needs_badge_num(attendee):
                 attendee.badge_num = self.get_next_badge_num(attendee.badge_type)
 
             return 'Badge updated'
@@ -1133,16 +1111,17 @@ class Attendee(MagModel, TakesPaymentMixin):
     @presave_adjustment
     def _badge_adjustments(self):
         # _assert_badge_lock()
+        from uber.badge_funcs import needs_badge_num
         if self.is_dealer:
             self.ribbon = c.DEALER_RIBBON
 
         self.badge_type = get_real_badge_type(self.badge_type)
 
-        if not self.session.needs_badge_num(self):
+        if not needs_badge_num(self):
             if self.orig_value_of('badge_num'):
                 self.session.shift_badges(self.orig_value_of('badge_type'), self.orig_value_of('badge_num') + 1, down=True)
             self.badge_num = None
-        elif self.session.needs_badge_num(self):
+        elif needs_badge_num(self):
             if not self.badge_num:
                 self.badge_num = self.session.get_next_badge_num(self.badge_type)
 
