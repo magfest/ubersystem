@@ -241,7 +241,7 @@ class TestUnsetVolunteer:
         monkeypatch.setattr(Attendee, 'is_new', False)
         a = Attendee(badge_num=1)
         a._misc_adjustments()
-        assert not a.checked_in
+        assert a.checked_in
 
     def test_names(self):
         a = Attendee(first_name='nac', last_name='mac Feegle')
@@ -354,6 +354,7 @@ class TestBadgeAdjustments:
     @pytest.fixture(autouse=True)
     def mock_attendee_session(self, monkeypatch):
         monkeypatch.setattr(Attendee, 'session', Mock())
+        Attendee.session.get_next_badge_num = Mock(return_value=123)
 
     @pytest.fixture
     def fully_paid(self, monkeypatch):

@@ -297,7 +297,9 @@ def no_more_custom_badges(attendee):
 def out_of_badge_type(attendee):
     if attendee.badge_type != attendee.orig_value_of('badge_type'):
         with Session() as session:
-            if session.get_next_badge_num(attendee.badge_type_real) > c.BADGE_RANGES[attendee.badge_type_real][1]:
+            try:
+                session.get_next_badge_num(attendee.badge_type_real)
+            except AssertionError:
                 return 'There are no more badges available for that type'
 
 
