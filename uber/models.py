@@ -539,7 +539,7 @@ class Session(SessionManager):
                         and attendee.badge_num <= self.auto_badge_num(badge_type):
                     new_badge_num = max(self.auto_badge_num(badge_type), 1 + attendee.badge_num)
 
-            assert new_badge_num <= c.BADGE_RANGES[badge_type][1], 'There are no more badge numbers available in this range!'
+            assert new_badge_num < c.BADGE_RANGES[badge_type][1], 'There are no more badge numbers available in this range!'
 
             return new_badge_num
 
@@ -1131,12 +1131,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             self.badge_num = None
         elif self.session.needs_badge_num(self) and not self.badge_num:
             self.badge_num = self.session.get_next_badge_num(self.badge_type)
-
-        if self.badge_num:
-            existing = self.session.query(Attendee).filter(Attendee.id != self.id) \
-                .filter_by(badge_type=self.badge_type, badge_num=self.badge_num)
-            if existing.count():
-                self.badge_num = self.session.get_next_badge_num(self.badge_type)
 
     @presave_adjustment
     def _status_adjustments(self):
