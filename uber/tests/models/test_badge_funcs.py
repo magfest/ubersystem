@@ -1,5 +1,5 @@
 from uber.tests import *
-
+from uber.badge_funcs import needs_badge_num
 
 @pytest.fixture
 def session(request):
@@ -50,48 +50,48 @@ def change_badge(session, attendee, new_type, new_num=None, expected_num=None):
 class TestNeedsBadgeNum:
     def test_numbered_badges_off(self, session, monkeypatch):
         monkeypatch.setattr(c, 'NUMBERED_BADGES', False)
-        assert not session.needs_badge_num(badge_type=c.STAFF_BADGE)
-        assert not session.needs_badge_num(session.regular_attendee)
+        assert not needs_badge_num(badge_type=c.STAFF_BADGE)
+        assert not needs_badge_num(session.regular_attendee)
 
     def test_preassigned_by_type(self, session):
-        assert session.needs_badge_num(badge_type=c.STAFF_BADGE)
+        assert needs_badge_num(badge_type=c.STAFF_BADGE)
 
     def test_non_preassigned_by_type(self, session):
-        assert not session.needs_badge_num(badge_type=c.ATTENDEE_BADGE)
+        assert not needs_badge_num(badge_type=c.ATTENDEE_BADGE)
 
     def test_preassigned_ready(self, session):
-        assert session.needs_badge_num(session.staff_one)
+        assert needs_badge_num(session.staff_one)
 
     def test_non_preassigned_ready(self, session):
-        assert session.needs_badge_num(attendee=session.regular_attendee)
+        assert needs_badge_num(attendee=session.regular_attendee)
 
     def test_non_preassigned_not_checked_in(self, session):
         session.regular_attendee.checked_in = None
-        assert not session.needs_badge_num(attendee=session.regular_attendee)
+        assert not needs_badge_num(attendee=session.regular_attendee)
 
     def test_preassigned_unassigned(self, session):
         session.staff_one.first_name = ''
-        assert not session.needs_badge_num(attendee=session.staff_one)
+        assert not needs_badge_num(attendee=session.staff_one)
 
     def test_non_preassigned_unassigned(self, session):
         session.regular_attendee.first_name = ''
-        assert not session.needs_badge_num(attendee=session.regular_attendee)
+        assert not needs_badge_num(attendee=session.regular_attendee)
 
     def test_preassigned_not_paid(self, session):
         session.staff_one.paid = c.NOT_PAID
-        assert not session.needs_badge_num(attendee=session.staff_one)
+        assert not needs_badge_num(attendee=session.staff_one)
 
     def test_non_preassigned_not_paid(self, session):
         session.regular_attendee.paid = c.NOT_PAID
-        assert not session.needs_badge_num(attendee=session.regular_attendee)
+        assert not needs_badge_num(attendee=session.regular_attendee)
 
     def test_preassigned_invalid_status(self, session):
         session.staff_one.badge_status = c.INVALID_STATUS
-        assert not session.needs_badge_num(attendee=session.staff_one)
+        assert not needs_badge_num(attendee=session.staff_one)
 
     def test_non_preassigned_invalid_status(self, session):
         session.regular_attendee.badge_status = c.INVALID_STATUS
-        assert not session.needs_badge_num(attendee=session.regular_attendee)
+        assert not needs_badge_num(attendee=session.regular_attendee)
 
 
 class TestGetNextBadgeNum:
