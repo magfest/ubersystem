@@ -52,6 +52,12 @@ class Root:
         session.delete(session.admin_account(id))
         raise HTTPRedirect('index?message={}', 'Account deleted')
 
+    def reset_password(self, session, password, id, **params):
+        if password != '' and id != '':
+            account = session.query(AdminAccount).filter(AdminAccount.id == id).first()
+            if account is not None:
+                account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
+
     @unrestricted
     def login(self, session, message='', original_location=None, **params):
         if not original_location or 'login' in original_location:
@@ -174,3 +180,4 @@ class Root:
                             'path': '/{}/{}'.format(module_name, name)
                         })
         return {'pages': sorted(pages.items())}
+
