@@ -484,12 +484,15 @@ class Root:
         cherrypy.session['staffer_id'] = attendee.id
         raise HTTPRedirect('../signups/food_restrictions')
 
-    def attendee_donation_form(self, session, id, message=''):
+    def attendee_donation_form(self, session, message='', **params):
+        id = params.get('id')
         try:
+            if not id:
+                raise NoResultFound
             attendee = session.attendee(id)
         except (NoResultFound, StatementError):
-            log.debug('attendee_donation_form received invalid id: %s' % id)
-            raise HTTPRedirect('confirmation_not_found?id={}', id)
+            log.debug('attendee_donation_form received invalid id: %s' % repr(params))
+            raise HTTPRedirect('confirmation_not_found?id={}', params.get('id', 'unknown'))
 
         return {
             'message': message,
