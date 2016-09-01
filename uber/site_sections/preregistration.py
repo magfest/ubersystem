@@ -436,6 +436,8 @@ class Root:
 
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
         try:
+            if not params.get('id'):
+                raise NoResultFound
             attendee = session.attendee(params, restricted=True)
         except (NoResultFound, StatementError):
             log.debug('confirm received invalid params/id: %s', repr(params))
