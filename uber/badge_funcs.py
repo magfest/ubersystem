@@ -95,6 +95,28 @@ def check_unassigned():
             if unassigned and session.no_email(subject):
                 body = render('emails/daily_checks/unassigned.html', {'unassigned': unassigned})
                 send_email(c.STAFF_EMAIL, c.STAFF_EMAIL, subject, body, format='html', model='n/a')
-
-
 # TODO: perhaps a check_leaderless() for checking for leaderless groups, since those don't get emails
+
+
+def needs_badge_num(attendee=None, badge_type=None):
+    """
+    Takes either an Attendee object, a badge_type, or both and returns whether or not the attendee should be
+    assigned a badge number. If neither parameter is given, always returns False.
+
+    :param attendee: Passing an existing attendee allows us to check for a new badge num whenever the attendee
+    is updated, particularly for when they are checked in.
+    :param badge_type: Must be an integer. Allows checking for a new badge number before adding/updating the
+    Attendee() object.
+    :return:
+    """
+    if not badge_type and attendee:
+        badge_type = attendee.badge_type
+    elif not badge_type and not attendee:
+        return None
+
+    if c.NUMBERED_BADGES:
+        if attendee:
+            return (badge_type in c.PREASSIGNED_BADGE_TYPES or attendee.checked_in) \
+                   and attendee.paid != c.NOT_PAID and not attendee.is_unassigned and attendee.badge_status != c.INVALID_STATUS
+        else:
+            return badge_type in c.PREASSIGNED_BADGE_TYPES
