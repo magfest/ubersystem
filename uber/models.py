@@ -296,7 +296,7 @@ class MagModel:
 
     @suffix_property
     def _label(self, name, val):
-        if not val:
+        if not val or not name:
             return ''
 
         try:

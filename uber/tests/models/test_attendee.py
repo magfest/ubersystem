@@ -354,6 +354,7 @@ class TestBadgeAdjustments:
     @pytest.fixture(autouse=True)
     def mock_attendee_session(self, monkeypatch):
         monkeypatch.setattr(Attendee, 'session', Mock())
+        Attendee.session.get_next_badge_num = Mock(return_value=123)
 
     @pytest.fixture
     def fully_paid(self, monkeypatch):
