@@ -1,6 +1,7 @@
 from uber.tests import *
 from uber.badge_funcs import needs_badge_num
 
+
 @pytest.fixture
 def session(request):
     session = Session().session
