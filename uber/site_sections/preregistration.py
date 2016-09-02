@@ -470,6 +470,9 @@ class Root:
 
     def attendee_donation_form(self, session, id, message=''):
         attendee = session.attendee(id)
+        if attendee.amount_unpaid <= 0:
+            raise HTTPRedirect('confirm?id={}', id)
+            
         return {
             'message': message,
             'attendee': attendee,
