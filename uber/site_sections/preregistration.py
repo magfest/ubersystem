@@ -470,14 +470,14 @@ class Root:
 
     def attendee_donation_form(self, session, id, message=''):
         attendee = session.attendee(id)
-        if attendee.amount_unpaid > 0:
-            return {
-                'message': message,
-                'attendee': attendee,
-                'charge': Charge(attendee, description='{}{}'.format(attendee.full_name, '' if attendee.overridden_price else ' kicking in extra'))
-            }
-        else:
+        if attendee.amount_unpaid <= 0:
             raise HTTPRedirect('confirm?id={}', id)
+            
+        return {
+            'message': message,
+            'attendee': attendee,
+            'charge': Charge(attendee, description='{}{}'.format(attendee.full_name, '' if attendee.overridden_price else ' kicking in extra'))
+        }
 
     def undo_attendee_donation(self, session, id):
         attendee = session.attendee(id)
