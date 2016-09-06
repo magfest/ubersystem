@@ -472,7 +472,7 @@ class Root:
         attendee = session.attendee(id)
         if attendee.amount_unpaid <= 0:
             raise HTTPRedirect('confirm?id={}', id)
-            
+
         return {
             'message': message,
             'attendee': attendee,
