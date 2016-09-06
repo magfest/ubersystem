@@ -60,6 +60,11 @@
                     <input type="hidden" name="id" value="{{ account.id }}" />
                     <button type="submit" type="button" class="btn btn-danger delete-button"><span class="glyphicon glyphicon-trash"></span></button>
                 </form>
+                <form method="post" action="reset_password">
+                    <input type="hidden" name="id" value="{{ account.id }}" />
+                    <input type="hidden" id='form-password' name="password" value="" />
+                    <button type="submit" type="button" class="btn btn-warning reset-button"><span class="glyphicon glyphicon-lock"></span></button>
+                </form>
             </div>
         </td>
         <td data-order="{{ account.attendee.last_first }}" data-search="{{ account.attendee.last_first }}"> <nobr><a href="../registration/form?id={{ account.attendee.id }}">{{ account.attendee.last_first }}</a></nobr> </td>
@@ -78,6 +83,10 @@
 </div>
 
 <script>
+    var sync_fields = function(value){
+        $('#form-password').val(value);
+    };
+
     function check_passwords() {
         if (document.getElementById("password").value != document.getElementById("check-password").value) {
             alert("Passwords must match");
@@ -99,6 +108,20 @@ $(function() {
     });
     $(document.body).on('click', '.update-button', function (event) {
         $(event.target).parents('tr').find('.update-form').submit();
+    });
+
+    var reset_text = "<div class=\"form-group\"> <label>New Password</label> <input autofocus oninput=\"sync_fields(this.value)\" type=\"text\" id=\"password\" placeholder=\"Enter New Password For User\" class=\"form-control\"> </div>";
+
+    $(document.body).on('click', '.reset-button', function (event) {
+        event.preventDefault();
+        $.confirm({
+            title: "Reset Password",
+            text: reset_text,
+            confirm: function () {
+                $(event.target).parents('form').submit();
+            },
+            cancel: function () { }
+        });
     });
 });
 </script>
