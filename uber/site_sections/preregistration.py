@@ -98,12 +98,9 @@ class Root:
     def dealer_registration(self, message=''):
         return self.form(badge_type=c.PSEUDO_DEALER_BADGE, message=message)
 
+    @redirect_if_at_con_to_kiosk
     @check_if_can_reg
     def form(self, session, message='', edit_id=None, **params):
-        # We generally don't want people using the 'pre-reg' form when registering from their phones during the event
-        if c.AT_THE_CON and c.KIOSK_REDIRECT_URL:
-            raise HTTPRedirect(c.KIOSK_REDIRECT_URL)
-
         params['id'] = 'None'   # security!
         if edit_id is not None:
             attendee, group = self._get_unsaved(edit_id, if_not_found=HTTPRedirect('form?message={}', 'That preregistration has already been finalized'))
