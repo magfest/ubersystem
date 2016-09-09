@@ -30,15 +30,6 @@ def log_pageview(func):
     return with_check
 
 
-def redirect_if_at_con_to_kiosk(func):
-    @wraps(func)
-    def with_check(*args, **kwargs):
-        if c.AT_THE_CON:
-            raise HTTPRedirect(c.KIOSK_REDIRECT_URL)
-        return func(*args, **kwargs)
-    return with_check
-
-
 def check_if_can_reg(func):
     @wraps(func)
     def with_check(*args, **kwargs):
