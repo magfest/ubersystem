@@ -62,7 +62,7 @@ class Root:
         to land on.  The reason this is a redirect is that at-the-door laptops might be imaged and hard to change
         their default landing page.  If sysadmins want to change the landing page, they can do it here.
         """
-        raise HTTPRedirect('../registration/register')
+        raise HTTPRedirect(c.KIOSK_REDIRECT_URL)
 
     def check_prereg(self):
         return json.dumps({'force_refresh': not c.AT_THE_CON and (c.AFTER_PREREG_TAKEDOWN or c.BADGES_SOLD >= c.MAX_BADGE_SALES)})
@@ -98,6 +98,7 @@ class Root:
     def dealer_registration(self, message=''):
         return self.form(badge_type=c.PSEUDO_DEALER_BADGE, message=message)
 
+    @redirect_if_at_con_to_kiosk
     @check_if_can_reg
     def form(self, session, message='', edit_id=None, **params):
         params['id'] = 'None'   # security!
