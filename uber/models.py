@@ -745,7 +745,7 @@ class Session(SessionManager):
 
             if int(new_badge_type) in c.PREASSIGNED_BADGE_TYPES and c.AFTER_PRINTED_BADGE_DEADLINE and diff > 0:
                 return 'Custom badges have already been ordered, so you will need to select a different badge type'
-            elif diff > 0:
+            elif diff > 0 and group.cost != 0:
                 group.cost += diff * group.new_badge_cost
                 for i in range(diff):
                     group.attendees.append(Attendee(badge_type=new_badge_type, ribbon=ribbon_to_use, paid=paid, **extra_create_args))
