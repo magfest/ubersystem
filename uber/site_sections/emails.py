@@ -1,7 +1,7 @@
 from uber.common import *
 
 
-@all_renderable(c.PEOPLE, c.REG_AT_CON)
+@all_renderable(c.PEOPLE)
 class Root:
     def index(self, session, page='1'):
         emails = session.query(Email).order_by(Email.when.desc())
@@ -13,6 +13,7 @@ class Root:
 
     def sent(self, session, **params):
         return {'emails': session.query(Email).filter_by(**params).order_by(Email.when).all()}
+    sent.restricted = [c.PEOPLE, c.REG_AT_CON]
 
     def pending(self, session, message=''):
         approved = {ae.subject for ae in session.query(ApprovedEmail).all()}
