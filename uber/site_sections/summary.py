@@ -183,15 +183,6 @@ class Root:
         }
         return render('summary/food_eligible.xml', {'attendees': eligible})
 
-
-    def valid_attendees(self):
-        return self.export_model(selected_model='attendee')
-    valid_attendees.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]
-
-    def all_attendees(self):
-        return self.export_model(selected_model='attendee')
-    all_attendees.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]
-
     @csv_file
     def volunteers_with_worked_hours(self, out, session):
         out.writerow(['Badge #', 'Full Name', 'E-mail Address', 'Weighted Hours Scheduled', 'Weighted Hours Worked'])
