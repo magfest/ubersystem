@@ -158,6 +158,7 @@ def set_csv_filename(func):
         return out
     return change_filename
 
+
 def check_shutdown(func):
     @wraps(func)
     def with_check(self, *args, **kwargs):
