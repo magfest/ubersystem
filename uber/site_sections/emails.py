@@ -16,16 +16,16 @@ class Root:
     sent.restricted = [c.PEOPLE, c.REG_AT_CON]
 
     def pending(self, session, message=''):
-        approved = {ae.subject for ae in session.query(ApprovedEmail).all()}
+        approved = {ae.ident for ae in session.query(ApprovedEmail).all()}
         return {
             'message': message,
-            'pending': [ae for ae in AutomatedEmail.instances.values() if ae.needs_approval and ae.subject not in approved]
+            'pending': [ae for ae in AutomatedEmail.instances.values() if ae.needs_approval and ae.ident not in approved]
         }
 
-    def pending_examples(self, session, subject):
+    def pending_examples(self, session, ident):
         count = 0
         examples = []
-        email = AutomatedEmail.instances[subject]
+        email = AutomatedEmail.instances[ident]
         for x in AutomatedEmail.queries[email.model](session):
             if email.filter(x):
                 count += 1
@@ -38,8 +38,8 @@ class Root:
 
         return {
             'count': count,
-            'subject': subject,
-            'examples': examples
+            'examples': examples,
+            'subject': email.subject
         }
 
     def test_email(self, session, subject=None, body=None, from_address=None, to_address=None, **params):
@@ -66,8 +66,8 @@ class Root:
         }
 
     @csrf_protected
-    def approve(self, session, subject):
-        session.add(ApprovedEmail(subject=subject))
+    def approve(self, session, ident):
+        session.add(ApprovedEmail(ident=ident))
         raise HTTPRedirect('pending?message={}', 'Email approved and will be sent out shortly')
 
     def emails_by_interest(self, message=''):

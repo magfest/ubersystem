@@ -21,8 +21,8 @@ class AutomatedEmail:
         self.bcc = bcc or []
         self.extra_data = extra_data or {}
         self.sender = sender or c.REGDESK_EMAIL
-        self.instances[self.subject] = self
         self.ident = (ident or self.subject).format(EVENT_NAME=c.EVENT_NAME)
+        self.instances[self.ident] = self
         if post_con:
             self.filter = lambda x: c.POST_CON and filter(x)
         else:
@@ -30,6 +30,12 @@ class AutomatedEmail:
 
     def __repr__(self):
         return '<{}: {!r}>'.format(self.__class__.__name__, self.subject)
+
+    @property
+    def approved(self):
+        """Returns a boolean indicating whether this email has been approved."""
+        with Session() as session:
+            return bool(session.query(ApprovedEmail).filter_by(ident=self.ident).first())
 
     def prev(self, x, all_sent=None):
         if all_sent:
