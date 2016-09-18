@@ -67,13 +67,13 @@ class AutomatedEmail:
     def send_all(cls, raise_errors=False):
         if not c.AT_THE_CON and (c.DEV_BOX or c.SEND_EMAILS):
             with Session() as session:
-                approved = {ae.subject for ae in session.query(ApprovedEmail)}
+                approved = {ae.ident for ae in session.query(ApprovedEmail)}
                 all_sent = set(session.query(Email.model, Email.fk_id, Email.ident))
                 for model, lister in cls.queries.items():
                     for inst in lister(session):
                         sleep(0.01)  # throttle CPU usage
                         for rem in cls.instances.values():
-                            if isinstance(inst, rem.model) and (not rem.needs_approval or rem.subject in approved):
+                            if isinstance(inst, rem.model) and (not rem.needs_approval or rem.ident in approved):
                                 if rem.should_send(inst, all_sent):
                                     rem.send(inst, raise_errors=raise_errors)
 
