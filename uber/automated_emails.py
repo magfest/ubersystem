@@ -26,7 +26,7 @@ class AutomatedEmail:
 
         # after each daemon run, this is set to the number of emails that would have been sent out but weren't because
         # they were not marked as approved.
-        self.count_emails_not_sent_need_approval = 0
+        self.unapproved_emails_not_sent = 0
 
         # old filter
         if post_con:
@@ -72,7 +72,7 @@ class AutomatedEmail:
                 return False
 
             if self.needs_approval and self.subject not in approved_subjects:
-                self.count_emails_not_sent_need_approval += 1
+                self.unapproved_emails_not_sent += 1
                 return False
 
             return True
@@ -112,7 +112,7 @@ class AutomatedEmail:
                     for model_inst in query(session):
                         sleep(0.01)  # throttle CPU usage
                         for automated_email in cls.instances.values():
-                            automated_email.count_emails_not_sent_need_approval = 0  # reset
+                            automated_email.unapproved_emails_not_sent = 0  # reset
                             if automated_email.should_send(model_inst, approved_subjects, previously_sent_emails):
                                 automated_email.send(model_inst, raise_errors=raise_errors)
 
