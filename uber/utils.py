@@ -330,3 +330,65 @@ def convert_to_absolute_url(relative_uber_page_url):
 
 def get_real_badge_type(badge_type):
     return c.ATTENDEE_BADGE if badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE] else badge_type
+
+
+_when_dateformat = "%m/%d"
+
+
+class days_before:
+    def __init__(self, days, dt, until=None):
+        self.dt = dt
+        self.days = days
+        self.until = until
+
+        if dt:
+            self.starting_date = self.dt - timedelta(days=self.days)
+            self.ending_date = (dt - timedelta(days=until)) if until else dt
+
+    def __call__(self):
+        return self.starting_date < localized_now() < self.ending_date if self.dt else False
+
+    @property
+    def active_when(self):
+        return 'between {} and {}'.format(self.starting_date.strftime(_when_dateformat),
+                                          self.ending_date.strftime(_when_dateformat)) \
+            if self.dt else ''
+
+
+class days_after:
+    def __init__(self, days, dt):
+        self.dt = dt
+        self.days = days
+
+        self.starting_date = dt + timedelta(days=days) if dt else None
+
+    def __call__(self):
+        return bool(self.dt) and (localized_now() > self.starting_date)
+
+    @property
+    def active_when(self):
+        return 'after {}'.format(self.starting_date.strftime(_when_dateformat)) if self.starting_date else ''
+
+
+class before:
+    def __init__(self, dt):
+        self.dt = dt
+
+    def __call__(self):
+        return bool(self.dt) and localized_now() < self.dt
+
+    @property
+    def active_when(self):
+        return 'before {}'.format(self.dt.strftime(_when_dateformat)) if self.dt else ''
+
+
+class after:
+    def __init__(self, dt):
+        self.dt = dt
+
+    def __call__(self):
+        return bool(self.dt) and localized_now() > self.dt
+
+    @property
+    def active_when(self):
+        return 'after {}'.format(self.dt.strftime(_when_dateformat)) if self.dt else ''
