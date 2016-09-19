@@ -1,4 +1,4 @@
-# WARNING - changing the email subject line for an email causes ALL of those emails to be re-sent!
+# WARNING - changing the email subject line for an email WITHOUT 'ident' set causes ALL of those emails to be re-sent!
 # Note that since c.EVENT_NAME is used in most of these emails, changing the event name mid-year
 # could cause literally thousands of emails to be re-sent!
 
@@ -6,10 +6,13 @@ from uber.common import *
 
 
 class AutomatedEmail:
+    # all instances of every registered email category in the system
     instances = OrderedDict()
 
+    # a list of queries to run during each automated email sending run to
+    # return particular model instances of a given type.
     queries = {
-        Attendee: lambda session: session.staffers(only_staffing=False),
+        Attendee: lambda session: session.all_attendees(),
         Group: lambda session: session.query(Group).options(subqueryload(Group.attendees))
     }
 
@@ -24,18 +27,20 @@ class AutomatedEmail:
         self.ident = (ident or self.subject).format(EVENT_NAME=c.EVENT_NAME)
         self.when = when
 
-        # after each daemon run, this is set to the number of emails that would have been sent out but weren't because
-        # they were not marked as approved.
-        self.unapproved_emails_not_sent = 0
+        # after each daemon run, this will be set to the number of emails that would have been sent out but weren't
+        # because they were not marked as approved.  Useful as a metric of how many emails need human intervention in
+        # order to be approved for sending.
+        #
+        # A value of -1 means we haven't run yet, or email sending is disabled. Always check for > -1.
+        self.unapproved_emails_not_sent = -1
 
-        # old filter
         if post_con:
             self.filter = lambda x: c.POST_CON and filter(x)
         else:
             self.filter = lambda x: not c.POST_CON and filter(x)
 
-    def filters_run(self, x):
-        if self.filter and not self.filter(x):
+    def filters_run(self, model_inst):
+        if self.filter and not self.filter(model_inst):
             return False
 
         for date_filter in listify(self.when):
@@ -47,46 +52,85 @@ class AutomatedEmail:
     def __repr__(self):
         return '<{}: {!r}>'.format(self.__class__.__name__, self.subject)
 
-    def already_sent(self, x, previously_sent_emails=None):
+    def _already_sent(self, model_inst, previously_sent_emails=None):
         """
         Returns true if we have a record of previously sending this email
 
-        Speed Optimization: when using this function as part of batch processing, you can pass in a list of all
+        CPU Optimization: when using this function as part of batch processing, you can pass in a list of all
         previously sent emails, previously_sent_emails, in order to avoid having to query the DB for this specific email
         """
         if previously_sent_emails:
-            return (x.__class__.__name__, x.id, self.ident) in previously_sent_emails
+            # optimized version: use the cached previously_sent_emails so we don't have to query the DB
+            return (model_inst.__class__.__name__, model_inst.id, self.ident) in previously_sent_emails
         else:
+            # non-optimized version: query the DB to find any emails that were previously sent from this email category
             with Session() as session:
-                return session.query(Email).filter_by(model=x.__class__.__name__, fk_id=x.id, ident=self.ident).first()
+                return session.query(Email).filter_by(
+                    model=model_inst.__class__.__name__, fk_id=model_inst.id, ident=self.ident).first()
 
-    def should_send(self, model_inst, approved_subjects, previously_sent_emails=None):
+    def attempt_to_send(self, session, model_inst,
+                        approved_subjects=None, previously_sent_emails=None, raise_errors=False):
+        """
+        If it's OK to send an email of our category to this model instance (i.e. a particular Attendee) then send it.
+        """
+        if self.should_send(session, model_inst, approved_subjects, previously_sent_emails):
+            self.send(model_inst, raise_errors=raise_errors)
+
+    def should_send(self, session, model_inst, approved_subjects=None, previously_sent_emails=None):
+        """
+        If True, we should send out a particular email to a particular attendee.
+        This is determined based on a few things like:
+        1) whether we have sent this exact email out yet or not (previously_sent_emails)
+        2) whether the email category has been approved (approved_subjects)
+        3) whether the model instance passed in is the same type as what we want to process
+
+        PERFORMANCE OPTIMIZATION: This function is called a LOT in a tight loop thousands of times per daemon run.
+        To save CPU time, pass in a cached version of approved_subjects and previously_sent_emails so we don't have to
+        compute them every single time.
+
+        :param session: database session to use
+        :param model_inst: The model we've been requested to use (i.e. Attendee, Group, etc)
+        :param approved_subjects: optional: cached list of approved subject lines
+        :param previously_sent_emails: optional: cached list of emails that were previously sent out
+        :return: True if we should send this email to this model instance, False if not.
+        """
         try:
             if not isinstance(model_inst, self.model) or not model_inst.email:
                 return False
 
-            if self.already_sent(model_inst, previously_sent_emails):
+            if self._already_sent(model_inst, previously_sent_emails):
                 return False
 
             if not self.filters_run(model_inst):
                 return False
 
+            approved_subjects = approved_subjects or AutomatedEmail.get_approved_subjects(session)
             if self.needs_approval and self.subject not in approved_subjects:
                 self.unapproved_emails_not_sent += 1
                 return False
 
             return True
         except:
-            log.error('unexpected error', exc_info=True)
+            log.error('AutomatedEmail.should_send(): unexpected error', exc_info=True)
 
-    def render(self, x):
-        model = getattr(x, 'email_model_name', x.__class__.__name__.lower())
-        return render('emails/' + self.template, dict({model: x}, **self.extra_data))
+    def render(self, model_instance):
+        model = getattr(model_instance, 'email_model_name', model_instance.__class__.__name__.lower())
+        return render('emails/' + self.template, dict({model: model_instance}, **self.extra_data))
 
-    def send(self, x, raise_errors=True):
+    def send(self, model_instance, raise_errors=True):
+        """
+        Actually send an email to a particular model instance (i.e. a particular attendee).
+
+        Doesn't perform any kind of checks at all if we should be sending this, just immediately sends the email
+        no matter what.
+
+        NOTE: use attempt_to_send() instead of calling this directly if you don't 100% know what you're doing.
+        """
         try:
             format = 'text' if self.template.endswith('.txt') else 'html'
-            send_email(self.sender, x.email, self.subject, self.render(x), format, model=x, cc=self.cc, ident=self.ident)
+            send_email(self.sender, model_instance.email, self.subject,
+                       self.render(model_instance), format,
+                       model=model_instance, cc=self.cc, ident=self.ident)
         except:
             log.error('error sending {!r} email to {}', self.subject, x.email, exc_info=True)
             if raise_errors:
@@ -95,26 +139,96 @@ class AutomatedEmail:
     @property
     def when_txt(self):
         """
-        Return a textual description of when the date filters are active for this email category
+        Return a textual description of when the date filters are active for this email category.
         """
 
         return '\n'.join([filter.active_when for filter in listify(self.when)])
 
     @classmethod
-    def send_all(cls, raise_errors=False):
-        if not c.AT_THE_CON and (c.DEV_BOX or c.SEND_EMAILS):
-            with Session() as session:
-                # CPU+speed optimization: cache these values for later use
-                approved_subjects = {ae.subject for ae in session.query(ApprovedEmail)}
-                previously_sent_emails = set(session.query(Email.model, Email.fk_id, Email.ident))
+    def get_approved_subjects(cls, session):
+        return {ae.subject for ae in session.query(ApprovedEmail)}
 
-                for model, query in cls.queries.items():
-                    for model_inst in query(session):
-                        sleep(0.01)  # throttle CPU usage
-                        for automated_email in cls.instances.values():
-                            automated_email.unapproved_emails_not_sent = 0  # reset
-                            if automated_email.should_send(model_inst, approved_subjects, previously_sent_emails):
-                                automated_email.send(model_inst, raise_errors=raise_errors)
+    @classmethod
+    def get_previously_sent_emails(cls, session):
+        return set(session.query(Email.model, Email.fk_id, Email.ident))
+
+    @classmethod
+    def send_all(cls, raise_errors=False):
+        """
+        Do a run of our automated email service.  This function is called once every couple of minutes.
+        """
+        SendAllAutomatedEmailsJob().run(raise_errors)
+
+
+class SendAllAutomatedEmailsJob:
+    def run(self, raise_errors=False):
+        """
+        Do a run of our automated email service.  Call this periodically to send any emails that should go out
+        automatically.
+
+        This will NOT run if we're on-site, or not configured to send emails.
+
+        :param raise_errors: If True, exceptions are squashed during email sending and we'll try the next email.
+        """
+        allowed_to_run = not c.AT_THE_CON and (c.DEV_BOX or c.SEND_EMAILS)
+        if not allowed_to_run:
+            return
+
+        with Session() as session:
+            self._init(session, raise_errors)
+            self._send_all_emails()
+
+    def _init(self, session, raise_errors):
+        self.session = session
+        self.raise_errors = raise_errors
+
+        # cache these so we don't have to compute them thousands of times per run
+        self.approved_subjects = AutomatedEmail.get_approved_subjects(session)
+        self.previously_sent_emails = AutomatedEmail.get_previously_sent_emails(session)
+
+        # go through each email category and reset the count of
+        # emails that would have been sent but they weren't approved
+        for email_category in AutomatedEmail.instances.values():
+            email_category.unapproved_emails_not_sent = 0
+
+    def _send_all_emails(self):
+        """
+        This function is the heart of the automated email daemon in ubersystem
+        and is called once every couple of minutes.
+
+        To send automated emails, we look at AutomatedEmail.queries for a list of DB queries to run.
+        The result of these queries are a list of model instances that we might want to send emails for.
+
+        These model instances will be of type 'MagModel'. Examples: 'Attendee', 'Group'.
+        Each model instance is, for example, a particular group, or a particular attendee.
+
+        Next, we'll go through *ALL* AutomatedEmail's that are registered in the system.
+        (When you see AutomatedEmail think "email category").  On each of these we'll ask that
+        email category if it wants to send any emails for this particular model (i.e. a specific attendee).
+
+        If that automated email decides the time is right (i.e. it hasn't sent the email already, the attendee has a
+        valid email address, email has been approved for sending, and a bunch of other stuff), then it will actually
+        send an email for this model instance.
+        """
+        for model, query_fn in AutomatedEmail.queries.items():
+            model_instances = query_fn(self.session)
+            for model_instance in model_instances:
+                sleep(0.01)  # throttle CPU usage
+                self._send_any_emails_for(model_instance)
+
+    def _send_any_emails_for(self, model_instance):
+        """
+        Go through every email category in the system and ask it if it wants to send any email on behalf of this
+        particular model instance.
+
+        An example of a model + category combo to check:
+          email_category: "You {attendee.name} have registered for our event!"
+          model_instance:  Attendee #42
+        """
+        for email_category in AutomatedEmail.instances.values():
+            email_category.attempt_to_send(self.session, model_instance,
+                                           self.approved_subjects, self.previously_sent_emails,
+                                           self.raise_errors)
 
 
 class StopsEmail(AutomatedEmail):
