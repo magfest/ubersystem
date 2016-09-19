@@ -13,7 +13,7 @@ class AutomatedEmail:
         Group: lambda session: session.query(Group).options(subqueryload(Group.attendees))
     }
 
-    def __init__(self, model, subject, template, filter, *, when=[], sender=None, extra_data=None, cc=None, bcc=None, post_con=False, needs_approval=True, ident=None):
+    def __init__(self, model, subject, template, filter, *, when=(), sender=None, extra_data=None, cc=None, bcc=None, post_con=False, needs_approval=True, ident=None):
         self.model, self.template, self.needs_approval = model, template, needs_approval
         self.subject = subject.format(EVENT_NAME=c.EVENT_NAME)
         self.cc = cc or []
