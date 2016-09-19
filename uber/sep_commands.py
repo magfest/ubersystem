@@ -12,6 +12,26 @@ def print_config():
 
 
 @entry_point
+def resave_all_attendees_and_groups():
+    """
+    Re-save all attendees and groups in the database. this is useful to re-run all validation code
+    and allow re-calculation of automatically calculated values.  This is sometimes needed when
+    doing database changes and we need to re-save everything.
+
+    SAFETY: This -should- be safe to run at any time, but, for safety sake, recommend turning off
+    any running sideboard servers before running this command.
+    """
+    Session.initialize_db(modify_tables=True)
+    with Session() as session:
+        print("Re-saving all attendees....")
+        [a.presave_adjustments() for a in session.query(Attendee).all()]
+        print("Re-saving all groups....")
+        [g.presave_adjustments() for g in session.query(Group).all()]
+        print("Saving resulting changes to database...")
+    print("Done!")
+
+
+@entry_point
 def insert_admin():
     Session.initialize_db(modify_tables=True)
     with Session() as session:

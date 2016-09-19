@@ -102,7 +102,10 @@ class Root:
             return {'jobs': session.jobs_for_signups()}
 
     @unrestricted
-    def login(self, session, message='', full_name='', email='', zip_code=''):
+    def login(self, session, message='', full_name='', email='', zip_code='', original_location=None):
+        if not original_location or 'login' in original_location:
+            original_location = 'index'
+
         if full_name or email or zip_code:
             try:
                 attendee = session.lookup_attendee(full_name, email, zip_code)
@@ -116,13 +119,14 @@ class Root:
             if not message:
                 cherrypy.session['csrf_token'] = uuid4().hex
                 cherrypy.session['staffer_id'] = attendee.id
-                raise HTTPRedirect('index')
+                raise HTTPRedirect(original_location)
 
         return {
             'message':   message,
             'full_name': full_name,
             'email':     email,
-            'zip_code':  zip_code
+            'zip_code':  zip_code,
+            'original_location': original_location,
         }
 
     def onsite_jobs(self, session, message=''):

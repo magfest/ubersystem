@@ -40,8 +40,15 @@ def remove_newlines(string):
 
 
 @register.filter
-def form_link(attendee):
-    return SafeString('<a href="../registration/form?id={}">{}</a>'.format(attendee.id, attendee.full_name))
+def form_link(model):
+    if isinstance(model, Attendee):
+        return SafeString('<a href="../registration/form?id={}">{}</a>'.format(model.id, model.full_name))
+    elif isinstance(model, Group):
+        return SafeString('<a href="../groups/form?id={}">{}</a>'.format(model.id, model.name))
+    elif isinstance(model, Job):
+        return SafeString('<a href="../jobs/form?id={}">{}</a>'.format(model.id, model.name))
+    else:
+        return model.name or model.full_name
 
 
 @register.filter
@@ -308,8 +315,9 @@ class popup_link(template.Node):
         self.text = text.strip('"')
 
     def render(self, context):
-        return """<a onClick="window.open('{self.href}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;"
-                     href="{self.href}">{self.text}</a>""".format(self=self)
+        inner_text = "window.open('{self.href}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;".format(self=self)
+        inner_text = inner_text.replace("'", "&quot;")
+        return "<a onClick='{inner_text}' href='{self.href}'>{self.text}</a>".format(inner_text=inner_text, self=self)
 
 
 @tag
@@ -534,16 +542,27 @@ class PriceNotice(template.Node):
         self.takedown, self.amount_extra, self.discount = Variable(takedown), Variable(amount_extra), Variable(discount)
 
     def _notice(self, label, takedown, amount_extra, discount):
+
+        if c.HARDCORE_OPTIMIZATIONS_ENABLED:
+            # CPU optimizaiton: the calculations done in this function are somewhat expensive and even with caching,
+            # still do some expensive DB queries.  if hardcore optimizations mode is enabled, we display a
+            # simpler message.  This is intended to be enabled during the heaviest loads at the beginning of an event
+            # in order to reduce server load so the system stays up.  After the rush, it should be safe to turn this
+            # back off
+            return ''
+
         if not takedown:
             takedown = c.ESCHATON
 
         if c.PAGE_PATH not in ['/preregistration/form', '/preregistration/register_group_member']:
             return ''  # we only display notices for new attendees
         else:
+            badge_price = c.BADGE_PRICE    # optimization.  this call is VERY EXPENSIVE.
+
             for day, price in sorted(c.PRICE_BUMPS.items()):
-                if day < takedown and localized_now() < day:
-                    return '<div class="prereg-price-notice">Price goes up to ${} at 11:59pm {} on {}</div>'.format(price - int(discount) + int(amount_extra), (day - timedelta(days=1)).strftime('%Z'), (day - timedelta(days=1)).strftime('%A, %b %e'))
-                elif localized_now() < day and takedown == c.PREREG_TAKEDOWN and takedown < c.EPOCH:
+                if day < takedown and localized_now() < day and price > badge_price:
+                    return '<div class="prereg-price-notice">Price goes up to ${} no later than 11:59pm {} on {}</div>'.format(price - int(discount) + int(amount_extra), (day - timedelta(days=1)).strftime('%Z'), (day - timedelta(days=1)).strftime('%A, %b %e'))
+                elif localized_now() < day and takedown == c.PREREG_TAKEDOWN and takedown < c.EPOCH and price > badge_price:
                     return '<div class="prereg-type-closing">{} closes at 11:59pm {} on {}. Price goes up to ${} at-door.</div>'.format(label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'), price + amount_extra, (day - timedelta(days=1)).strftime('%A, %b %e'))
             if takedown < c.EPOCH:
                 return '<div class="prereg-type-closing">{} closes at 11:59pm {} on {}</div>'.format(label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'))

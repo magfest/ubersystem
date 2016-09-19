@@ -2,6 +2,8 @@ from uber.common import *
 import shlex
 import subprocess
 
+from sideboard.debugging import register_diagnostics_status_function, gather_diagnostics_status_information
+
 # admin utilities.  should not be used during normal ubersystem operations except by developers / sysadmins
 
 
@@ -19,7 +21,7 @@ def run_git_cmd(cmd):
     return run_shell_cmd(git + " " + cmd, working_dir=uber_base_dir)
 
 
-@all_renderable(c.PEOPLE)
+@all_renderable(c.ACCOUNTS)
 class Root:
     def index(self):
         return {}
@@ -39,3 +41,18 @@ class Root:
             'last_commit_log': last_commit_log,
             'git_status': git_status
         }
+
+    def dump_diagnostics(self):
+        return {
+            'diagnostics_data': gather_diagnostics_status_information(),
+        }
+
+
+@register_diagnostics_status_function
+def database_pool_information():
+    return Session.engine.pool.status()
+
+
+@register_diagnostics_status_function
+def global_badge_lock():
+    return 'c.BADGE_LOCK = ' + repr(c.BADGE_LOCK)

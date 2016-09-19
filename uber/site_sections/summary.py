@@ -143,13 +143,21 @@ class Root:
 
     @csv_file
     def printed_badges_staff(self, out, session):
+
+        # part 1, include only staff badges that have an assigned name
         uber.reports.PersonalizedBadgeReport().run(out, session,
             sa.Attendee.badge_type == c.STAFF_BADGE,
-            sa.Attendee.badge_num != 0,
+            sa.Attendee.badge_num != None,
             order_by='badge_num')
 
+        # part 2, include a bunch of extra badges so we have some printed
+        max_badges = c.BADGE_RANGES[c.STAFF_BADGE][1]
+        extra_count = 20
+        badge_range = (max_badges - extra_count, max_badges)
+        uber.reports.PrintedBadgeReport(badge_type=c.STAFF_BADGE, range=badge_range).run(out, session)
+
     @csv_file
-    def printed_badges_supporters(self, out, session):
+    def badge_hangars_supporters(self, out, session):
         uber.reports.PersonalizedBadgeReport(include_badge_nums=False).run(out, session,
             sa.Attendee.amount_extra >= c.SUPPORTER_LEVEL,
             order_by=sa.Attendee.full_name,
@@ -162,7 +170,7 @@ class Root:
         zip_file.writestr('printed_badges_guest.csv', self.printed_badges_guest())
         zip_file.writestr('printed_badges_one_day.csv', self.printed_badges_one_day())
         zip_file.writestr('printed_badges_staff.csv', self.printed_badges_staff())
-        zip_file.writestr('printed_badges_supporters.csv', self.printed_badges_supporters())
+        zip_file.writestr('badge_hangars_supporters.csv', self.badge_hangars_supporters())
 
     def food_eligible(self, session):
         cherrypy.response.headers['Content-Type'] = 'application/xml'
@@ -176,33 +184,11 @@ class Root:
         return render('summary/food_eligible.xml', {'attendees': eligible})
 
     @csv_file
-    def valid_attendees(self, out, session):
-        cols = [getattr(Attendee, col.name) for col in Attendee.__table__.columns]
-        out.writerow([col.name for col in cols])
-
-        for attendee in session.valid_attendees().filter(Attendee.first_name != '').order_by(Attendee.badge_num).all():
-            row = []
-            for col in cols:
-                if isinstance(col.type, Choice):
-                    # Choice columns are integers with a single value with an automatic
-                    # _label property, e.g. the "shirt" column has a "shirt_label"
-                    # property, so we'll use that.
-                    row.append(getattr(attendee, col.name + '_label'))
-                elif isinstance(col.type, MultiChoice):
-                    # MultiChoice columns are comma-separated integer lists with an
-                    # automatic _labels property which is a list of string labels.
-                    # So we'll get that and then separate the labels with slashes.
-                    row.append(' / '.join(getattr(attendee, col.name + '_labels')))
-                elif isinstance(col.type, UTCDateTime):
-                    # Use the empty string if this is null, otherwise use strftime.
-                    # Also you should fill in whatever actual format you want.
-                    val = getattr(attendee, col.name)
-                    row.append(val.strftime('%Y-%m-%d %H:%M:%S') if val else '')
-                else:
-                    # For everything else we'll just dump the value, although we might
-                    # consider adding more special cases for things like foreign keys.
-                    row.append(getattr(attendee, col.name))
-            out.writerow(row)
+    def volunteers_with_worked_hours(self, out, session):
+        out.writerow(['Badge #', 'Full Name', 'E-mail Address', 'Weighted Hours Scheduled', 'Weighted Hours Worked'])
+        for a in session.query(Attendee).all():
+            if a.worked_hours > 0:
+                out.writerow([a.badge_num, a.full_name, a.email, a.weighted_hours, a.worked_hours])
 
     def shirt_counts(self, session):
         counts = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
@@ -212,15 +198,16 @@ class Root:
         status = lambda got_merch: 'picked_up' if got_merch else 'outstanding'
         sales_by_week = OrderedDict([(i, 0) for i in range(50)])
         for attendee in session.staffers(only_staffing=False):
+            shirt_label = attendee.shirt_label or 'size unknown'
             if attendee.gets_free_shirt:
-                counts['free'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
-                counts['all'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
+                counts['free'][label(shirt_label)][status(attendee.got_merch)] += 1
+                counts['all'][label(shirt_label)][status(attendee.got_merch)] += 1
             if attendee.gets_paid_shirt:
-                counts['paid'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
-                counts['all'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
+                counts['paid'][label(shirt_label)][status(attendee.got_merch)] += 1
+                counts['all'][label(shirt_label)][status(attendee.got_merch)] += 1
                 sales_by_week[(datetime.now(UTC) - attendee.registered).days // 7] += 1
             if attendee.gets_free_shirt and attendee.gets_paid_shirt:
-                counts['both'][label(attendee.shirt_label)][status(attendee.got_merch)] += 1
+                counts['both'][label(shirt_label)][status(attendee.got_merch)] += 1
         for week in range(48, -1, -1):
             sales_by_week[week] += sales_by_week[week + 1]
         return {

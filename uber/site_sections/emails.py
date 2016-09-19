@@ -13,6 +13,7 @@ class Root:
 
     def sent(self, session, **params):
         return {'emails': session.query(Email).filter_by(**params).order_by(Email.when).all()}
+    sent.restricted = [c.PEOPLE, c.REG_AT_CON]
 
     def pending(self, session, message=''):
         approved_subjects = {ae.subject for ae in session.query(ApprovedEmail).all()}

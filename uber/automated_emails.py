@@ -13,7 +13,7 @@ class AutomatedEmail:
         Group: lambda session: session.query(Group).options(subqueryload(Group.attendees))
     }
 
-    def __init__(self, model, subject, template, filter, *, date_filters=[], sender=None, extra_data=None, cc=None, bcc=None, post_con=False, needs_approval=True):
+    def __init__(self, model, subject, template, filter, *, date_filters=[], sender=None, extra_data=None, cc=None, bcc=None, post_con=False, needs_approval=True, ident=None):
         self.model, self.template, self.needs_approval = model, template, needs_approval
         self.subject = subject.format(EVENT_NAME=c.EVENT_NAME)
         self.cc = cc or []
@@ -21,6 +21,7 @@ class AutomatedEmail:
         self.extra_data = extra_data or {}
         self.sender = sender or c.REGDESK_EMAIL
         self.instances[self.subject] = self
+        self.ident = (ident or self.subject).format(EVENT_NAME=c.EVENT_NAME)
         self.date_filters = date_filters
 
         # after each daemon run, this is set to the number of emails that would have been sent out but weren't because
@@ -54,10 +55,10 @@ class AutomatedEmail:
         previously sent emails, previously_sent_emails, in order to avoid having to query the DB for this specific email
         """
         if previously_sent_emails:
-            return (x.__class__.__name__, x.id, self.subject) in previously_sent_emails
+            return (x.__class__.__name__, x.id, self.ident) in previously_sent_emails
         else:
             with Session() as session:
-                return session.query(Email).filter_by(model=x.__class__.__name__, fk_id=x.id, subject=self.subject).first()
+                return session.query(Email).filter_by(model=x.__class__.__name__, fk_id=x.id, ident=self.ident).first()
 
     def should_send(self, model_inst, approved_subjects, previously_sent_emails=None):
         try:
@@ -85,7 +86,7 @@ class AutomatedEmail:
     def send(self, x, raise_errors=True):
         try:
             format = 'text' if self.template.endswith('.txt') else 'html'
-            send_email(self.sender, x.email, self.subject, self.render(x), format, model=x, cc=self.cc)
+            send_email(self.sender, x.email, self.subject, self.render(x), format, model=x, cc=self.cc, ident=self.ident)
         except:
             log.error('error sending {!r} email to {}', self.subject, x.email, exc_info=True)
             if raise_errors:
@@ -105,7 +106,7 @@ class AutomatedEmail:
             with Session() as session:
                 # CPU+speed optimization: cache these values for later use
                 approved_subjects = {ae.subject for ae in session.query(ApprovedEmail)}
-                previously_sent_emails = set(session.query(Email.model, Email.fk_id, Email.subject))
+                previously_sent_emails = set(session.query(Email.model, Email.fk_id, Email.ident))
 
                 for model, query in cls.queries.items():
                     for model_inst in query(session):
@@ -317,7 +318,7 @@ AutomatedEmail(Attendee, 'Last Chance to Accept Your {EVENT_NAME} Badge', 'place
 
 # Volunteer emails; none of these will be sent unless SHIFTS_CREATED is set.
 
-StopsEmail('{EVENT_NAME} shifts available', 'shifts/created.txt',
+StopsEmail('Please complete your {EVENT_NAME} Staff/Volunteer Checklist', 'shifts/created.txt',
            lambda a: a.takes_shifts,
            date_filters=after(c.SHIFTS_CREATED))
 
