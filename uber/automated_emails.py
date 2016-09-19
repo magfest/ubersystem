@@ -161,6 +161,7 @@ class AutomatedEmail:
 
 
 class SendAllAutomatedEmailsJob:
+    @timed
     def run(self, raise_errors=False):
         """
         Do a run of our automated email service.  Call this periodically to send any emails that should go out
