@@ -108,6 +108,13 @@ def total_cost_over_paid(attendee):
 
 
 @validation.Attendee
+def no_script_injection(attendee):
+    if '</script>' in attendee.affiliate:
+        attendee.affiliate = None
+        return 'Quit that.'
+
+
+@validation.Attendee
 @ignore_unassigned_and_placeholders
 def full_name(attendee):
     if not attendee.first_name:
