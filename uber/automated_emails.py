@@ -31,8 +31,8 @@ class AutomatedEmail:
         # because they were not marked as approved.  Useful as a metric of how many emails need human intervention in
         # order to be approved for sending.
         #
-        # A value of -1 means we haven't run yet, or email sending is disabled. Always check for > -1.
-        self.unapproved_emails_not_sent = -1
+        # A value of None means we haven't run yet, or email sending is disabled.
+        self.unapproved_emails_not_sent = None
 
         if post_con:
             self.filter = lambda x: c.POST_CON and filter(x)
@@ -106,7 +106,8 @@ class AutomatedEmail:
 
             approved_subjects = approved_subjects or AutomatedEmail.get_approved_subjects(session)
             if self.needs_approval and self.subject not in approved_subjects:
-                self.unapproved_emails_not_sent += 1
+                if self.unapproved_emails_not_sent:
+                    self.unapproved_emails_not_sent += 1
                 return False
 
             return True

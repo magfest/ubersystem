@@ -19,6 +19,7 @@ class Root:
         approved_subjects = {ae.subject for ae in session.query(ApprovedEmail).all()}
 
         automated_emails = []
+        all_categories_have_valid_queue_count = True
         for automated_email in AutomatedEmail.instances.values():
             automated_emails.append({
                 'doesnt_need_approval': not automated_email.needs_approval,
@@ -26,10 +27,14 @@ class Root:
                 'automated_email': automated_email,
                 'num_sent': session.query(Email).filter_by(subject=automated_email.subject).count()
             })
+            if automated_email.unapproved_emails_not_sent is None:
+                all_categories_have_valid_queue_count = False
+
 
         return {
             'message': message,
             'automated_emails': automated_emails,
+            'all_categories_have_valid_queue_count': all_categories_have_valid_queue_count,
         }
 
     def pending_examples(self, session, subject):
