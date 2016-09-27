@@ -30,7 +30,6 @@ class Root:
             if automated_email.unapproved_emails_not_sent is None:
                 all_categories_have_valid_queue_count = False
 
-
         return {
             'message': message,
             'automated_emails': automated_emails,
