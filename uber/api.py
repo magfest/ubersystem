@@ -51,6 +51,7 @@ job_fields = dict({
 
 })
 
+
 class JobLookup:
     def lookup(self, location):
         with Session() as session:
