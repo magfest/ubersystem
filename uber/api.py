@@ -29,3 +29,34 @@ class AttendeeLookup:
             return [a.to_dict(fields) for a in session.search(query).all()]
 
 services.register(AttendeeLookup(), 'attendee')
+
+job_fields = dict({
+    'name': True,
+    'description': True,
+    'location': True,
+    'start_time': True,
+    'end_time': True,
+    'duration': True,
+    'shifts': {
+        'attendee': {
+            'badge_num': True,
+            'full_name': True,
+            'first_name': True,
+            'last_name': True,
+            'email': True,
+            'cellphone': True,
+            'badge_printed_name': True
+        }
+    }
+
+})
+
+class JobLookup:
+    def lookup(self, location):
+        with Session() as session:
+            columns = Job.__table__.columns
+            location_column = columns['location']
+            label_lookup = {val: key for key, val in location_column.type.choices.items()}
+            return [job.to_dict(job_fields) for job in session.query(Job).filter_by(location=label_lookup[location]).all()]
+
+services.register(JobLookup(), 'shifts')
