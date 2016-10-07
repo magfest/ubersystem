@@ -54,8 +54,7 @@ class Root:
 
     @unrestricted
     def login(self, session, message='', original_location=None, **params):
-        if not original_location or 'login' in original_location:
-            original_location = 'homepage'
+        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='homepage')
 
         if 'email' in params:
             try:

@@ -40,6 +40,28 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
         return quote(s) if isinstance(s, str) else str(s)
 
 
+def create_valid_user_supplied_redirect_url(url, default_url):
+    """
+    Create a valid redirect from user-supplied data.
+
+    If there is invalid data, or a security issue is detected, then ignore and redirect to the homepage
+
+    :param url: user-supplied URL that is being requested to redirect to
+    :param default_url: the name of the URL we should redirect to if there's an issue
+    :return: a secure and valid URL that we allow a redirect to be made to
+    """
+
+    # security: ignore cross-site redirects that aren't for local pages.
+    # i.e. if an attacker passes in 'original_location=https://badsite.com/stuff/" then just ignore it
+    parsed_url = urlparse(url)
+    security_issue = parsed_url.scheme or parsed_url.netloc
+
+    if not url or 'login' in url or security_issue:
+        return default_url
+
+    return url
+
+
 def localized_now():
     """Returns datetime.now() but localized to the event's configured timezone."""
     utc_now = datetime.utcnow().replace(tzinfo=UTC)
