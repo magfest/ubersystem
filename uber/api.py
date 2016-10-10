@@ -95,7 +95,7 @@ class ConfigLookup:
         output = {
             'API_VERSION': __version__
         }
-        for field in event_fields:
+        for field in config_fields:
             output[field] = getattr(c, field)
         return output
 
