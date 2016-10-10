@@ -100,7 +100,7 @@ class ConfigLookup:
         return output
 
     def lookup(self, field):
-        if field.upper() in event_fields:
+        if field.upper() in config_fields:
             return getattr(c, field.upper())
 
 services.register(ConfigLookup(), 'config')
