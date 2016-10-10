@@ -1,5 +1,7 @@
 from uber.common import *
 
+__version__ = 'v0.1'
+
 attendee_fields = [
     'full_name', 'first_name', 'last_name', 'email', 'zip_code', 'cellphone', 'ec_phone', 'badge_status_label', 'checked_in',
     'badge_type_label', 'ribbon_label', 'staffing', 'is_dept_head', 'assigned_depts_labels', 'weighted_hours', 'worked_hours',
@@ -61,3 +63,44 @@ class JobLookup:
             return [job.to_dict(job_fields) for job in session.query(Job).filter_by(location=label_lookup[location]).all()]
 
 services.register(JobLookup(), 'shifts')
+
+
+class DepartmentLookup:
+    def list(self):
+        with Session() as session:
+            output = {}
+            for dept in c.JOB_LOCATION_VARS:
+                output[dept] = dict(c.JOB_LOCATION_OPTS)[getattr(c, dept)]
+            return output
+
+services.register(DepartmentLookup(), 'dept')
+
+config_fields = [
+    'EVENT_NAME',
+    'ORGANIZATION_NAME',
+    'YEAR',
+    'EPOCH',
+
+    'EVENT_VENUE',
+    'EVENT_VENUE_ADDRESS',
+
+    'AT_THE_CON',
+    'POST_CON',
+
+]
+
+
+class ConfigLookup:
+    def info(self):
+        output = {
+            'API_VERSION': __version__
+        }
+        for field in event_fields:
+            output[field] = getattr(c, field)
+        return output
+
+    def lookup(self, field):
+        if field.upper() in event_fields:
+            return getattr(c, field.upper())
+
+services.register(ConfigLookup(), 'config')
