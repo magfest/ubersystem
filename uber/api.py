@@ -103,4 +103,4 @@ class ConfigLookup:
         if field.upper() in event_fields:
             return getattr(c, field.upper())
 
-services.register(ConfigLookup(),'config')
+services.register(ConfigLookup(), 'config')
