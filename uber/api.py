@@ -72,4 +72,3 @@ class DepartmentLookup:
             return output
 
 services.register(DepartmentLookup(), 'dept')
-
