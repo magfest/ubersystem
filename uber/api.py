@@ -1,3 +1,5 @@
+__version__ = 'v0.1'
+
 from uber.common import *
 
 attendee_fields = [
@@ -72,3 +74,34 @@ class DepartmentLookup:
             return output
 
 services.register(DepartmentLookup(), 'dept')
+
+event_fields = [
+    'EVENT_NAME',
+    'ORGANIZATION_NAME',
+    'YEAR',
+    'EPOCH',
+
+    'EVENT_VENUE',
+    'EVENT_VENUE_ADDRESS',
+
+    'AT_THE_CON',
+    'POST_CON',
+
+    'DEPT_CHECKLIST'
+]
+
+
+class EventLookup:
+    def info(self):
+        output = {
+            'API_VERSION': __version__
+        }
+        for field in event_fields:
+            output[field] = getattr(c, field)
+        return output
+
+    def lookup(self, field):
+        if field.upper() in event_fields:
+            return getattr(c,field.upper())
+
+services.register(EventLookup(),'event')
