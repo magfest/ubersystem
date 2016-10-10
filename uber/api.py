@@ -75,7 +75,7 @@ class DepartmentLookup:
 
 services.register(DepartmentLookup(), 'dept')
 
-event_fields = [
+config_fields = [
     'EVENT_NAME',
     'ORGANIZATION_NAME',
     'YEAR',
@@ -86,10 +86,11 @@ event_fields = [
 
     'AT_THE_CON',
     'POST_CON',
+
 ]
 
 
-class EventLookup:
+class ConfigLookup:
     def info(self):
         output = {
             'API_VERSION': __version__
@@ -102,4 +103,4 @@ class EventLookup:
         if field.upper() in event_fields:
             return getattr(c, field.upper())
 
-services.register(EventLookup(), 'event')
+services.register(ConfigLookup(),'config')
