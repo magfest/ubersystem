@@ -95,12 +95,12 @@ class ConfigLookup:
         output = {
             'API_VERSION': __version__
         }
-        for field in event_fields:
+        for field in config_fields:
             output[field] = getattr(c, field)
         return output
 
     def lookup(self, field):
-        if field.upper() in event_fields:
+        if field.upper() in config_fields:
             return getattr(c, field.upper())
 
 services.register(ConfigLookup(), 'config')
