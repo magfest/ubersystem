@@ -61,3 +61,10 @@ class JobLookup:
             return [job.to_dict(job_fields) for job in session.query(Job).filter_by(location=label_lookup[location]).all()]
 
 services.register(JobLookup(), 'shifts')
+
+class DepartmentLookup:
+    def list(self):
+        with Session() as session:
+            return [(a, ) + b for a, b in zip(c.JOB_LOCATION_VARS, c.JOB_LOCATION_OPTS)]
+
+services.register(DepartmentLookup(), 'dept')
