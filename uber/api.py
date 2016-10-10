@@ -1,6 +1,6 @@
-__version__ = 'v0.1'
-
 from uber.common import *
+
+__version__ = 'v0.1'
 
 attendee_fields = [
     'full_name', 'first_name', 'last_name', 'email', 'zip_code', 'cellphone', 'ec_phone', 'badge_status_label', 'checked_in',
@@ -86,8 +86,6 @@ event_fields = [
 
     'AT_THE_CON',
     'POST_CON',
-
-    'DEPT_CHECKLIST'
 ]
 
 
@@ -102,6 +100,6 @@ class EventLookup:
 
     def lookup(self, field):
         if field.upper() in event_fields:
-            return getattr(c,field.upper())
+            return getattr(c, field.upper())
 
-services.register(EventLookup(),'event')
+services.register(EventLookup(), 'event')
