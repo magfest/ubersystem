@@ -62,6 +62,7 @@ class JobLookup:
 
 services.register(JobLookup(), 'shifts')
 
+
 class DepartmentLookup:
     def list(self):
         with Session() as session:
