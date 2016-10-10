@@ -66,6 +66,10 @@ services.register(JobLookup(), 'shifts')
 class DepartmentLookup:
     def list(self):
         with Session() as session:
-            return [(a, ) + b for a, b in zip(c.JOB_LOCATION_VARS, c.JOB_LOCATION_OPTS)]
+            output = {}
+            for dept in c.JOB_LOCATION_VARS:
+                output[dept] = dict(c.JOB_LOCATION_OPTS)[getattr(c, dept)]
+            return output
 
 services.register(DepartmentLookup(), 'dept')
+
