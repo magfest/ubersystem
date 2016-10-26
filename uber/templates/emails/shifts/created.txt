@@ -9,5 +9,3 @@ You can add / drop / change your shifts anytime until {{ c.UBER_TAKEDOWN|datetim
 Please let us know if you have any questions.
 
 {{ c.STOPS_EMAIL_SIGNATURE }}
-
-{% if attendee.ribbon == c.DEPT_HEAD_RIBBON %}PS: Since you're a department head, you probably don't need to sign up for shifts, so you can probably ignore this automated email.{% endif %}
