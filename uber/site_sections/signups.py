@@ -20,15 +20,12 @@ class Root:
         attendee = session.logged_in_volunteer()
         fr = attendee.food_restrictions or FoodRestrictions()
         if params:
-            fr = session.food_restrictions(dict(params, attendee_id=attendee.id), checkgroups=['standard', 'sandwich_pref'])
-            if not fr.sandwich_pref:
-                message = 'Please tell us your sandwich preference'
+            fr = session.food_restrictions(dict(params, attendee_id=attendee.id), checkgroups=['standard'])
+            session.add(fr)
+            if attendee.badge_type == c.GUEST_BADGE:
+                raise HTTPRedirect('food_restrictions?message={}', 'Your info has been recorded, thanks a bunch!')
             else:
-                session.add(fr)
-                if attendee.badge_type == c.GUEST_BADGE:
-                    raise HTTPRedirect('food_restrictions?message={}', 'Your info has been recorded, thanks a bunch!')
-                else:
-                    raise HTTPRedirect('index?message={}', 'Your dietary restrictions have been recorded')
+                raise HTTPRedirect('index?message={}', 'Your dietary restrictions have been recorded')
 
         return {
             'fr': fr,
