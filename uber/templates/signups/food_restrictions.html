@@ -22,7 +22,7 @@ Thanks for volunteering, welcome to the fold! Please let us know any dietary res
     {% csrf_token %}
     <input type="hidden" name="id" value="{{ fr.db_id }}" />
 
-    Please select any options* that apply:<br/>
+    Please select any options that apply:<br/>
     <div id="restrictions">{% checkgroup fr.standard %}</div>
 
     <br/>
