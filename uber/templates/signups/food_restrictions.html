@@ -22,6 +22,7 @@ Thanks for volunteering, welcome to the fold! Please let us know any dietary res
     {% csrf_token %}
     <input type="hidden" name="id" value="{{ fr.db_id }}" />
 
+    Please select any options* that apply:<br/>
     <div id="restrictions">{% checkgroup fr.standard %}</div>
 
     <br/>
@@ -31,10 +32,11 @@ Thanks for volunteering, welcome to the fold! Please let us know any dietary res
     <br/><br/>
     <textarea name="freeform" rows="3" cols="80">{{ fr.freeform }}</textarea>
 
-    <br/> <br/> <input type="submit" value="Upload Restrictions" />
+    <br/> <br/> <input type="submit" value="Save" /><br/>
+    By clicking Save I agree that I have read the above information and indicated any restrictions requested.
 
     <br/> <br/>
-    [1] We understand that there are different types of vegetarians/vegans, but due to the amounts and restrictions we have to cook, we cannot accommodate all types. All vegetarian options would also be vegan. 
+    * We understand that there are different types of vegetarians/vegans, but due to the amount of food and restrictions we have to work with, we cannot accommodate all types. All vegetarian options would also be vegan.
 </form>
 
 <script>
