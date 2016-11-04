@@ -1216,7 +1216,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         #If it isn't return code.price + self.amount_extra
         #Else
         if self.promo_code:
-            pass
+            with Session() as session:
+                code = session.query(PromoCode).filter(PromoCode.id == self.promo_code.id).first()
+                if code:
+                    code.use(self.id)
         else:
             return self.default_cost + self.amount_extra
 
@@ -1824,10 +1827,13 @@ class PromoCode(MagModel):
         with Session() as session:
             while True:
                 match = session.query(PromoCode).filter(PromoCode.code == self.code).first()
-                if len(match) > 0:
+                if match:
                     self.code += "%s" % (self.generate_code(3))
                 else:
                     break
+
+    def use(self, attendee):
+        pass
 
 
 class Tracking(MagModel):
