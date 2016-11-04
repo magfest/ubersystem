@@ -1,0 +1,51 @@
+{% extends "base-admin.html" %}
+{% block title %}View Promo Codes{% endblock %}
+{% block content %}
+
+<h2> View Promo Codes </h2>
+
+<table>
+<tr>
+    <th>
+        Code
+    </th>
+    <th>
+        Expiration Date
+    </th>
+    <th>
+        Uses
+    </th>
+    <th>
+        Ticket Price
+    </th>
+    <th>
+        Expired
+    </th>
+</tr>
+{% for p in promo_codes %}
+    <tr>
+        <td>
+            {{ p.code }}
+        </td>
+        <td>
+            {{ p.expiration_date }}
+        </td>
+        <td>
+            {% if p.uses == None %}
+                Unlimited
+            {% else %}
+                {{ p.uses }}
+            {% endif %}
+        </td>
+        <td>
+            ${{ p.price }}
+        </td>
+        <td>
+            {{ p.expired }}
+        </td>
+    </tr>
+{% endfor %}
+</table>
+
+<i>Bolded fields are required</i>
+{% endblock %}

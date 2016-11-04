@@ -1791,6 +1791,38 @@ class Email(MagModel):
             return SafeString(self.body.replace('\n', '<br/>'))
 
 
+class PromoCode(MagModel):
+    expiration_date = Column(UTCDateTime, default=c.ESCHATON)
+    price = Column(Integer, default=0)
+    code = Column(UnicodeText)
+    uses = Column(Integer, nullable=True, default=None)
+    expired = Column(Boolean, default=False)
+    #used_by = relationship('Attendee', backref='promo_code')
+
+    def generate_code(self, count):
+        code = ""
+        for x in range(count):
+            code += random.choice(string.ascii_letters + string.digits)
+        return code
+
+    @presave_adjustment
+    def _usage_count(self):
+        if self.uses == 0:
+            self.uses = None
+
+    @presave_adjustment
+    def _check_code(self):
+        if self.code == '':
+            self.code = self.generate_code(6)
+        with Session() as session:
+            while True:
+                match = session.query(PromoCode).filter(PromoCode.code == self.code).first()
+                if len(match) > 0:
+                    self.code += "%s" % (self.generate_code(3))
+                else:
+                    break
+
+
 class Tracking(MagModel):
     fk_id  = Column(UUID)
     model  = Column(UnicodeText)

@@ -1,0 +1,42 @@
+{% extends "base-admin.html" %}
+{% block title %}Discount a Badge{% endblock %}
+{% block content %}
+
+<h2> Generate Promo Code </h2>
+
+<form method="post" action="generate_promo_code">
+{% csrf_token %}
+<table class="form">
+<tr>
+    <td>Custom Code: </td>
+    <td>
+        <input class="focus" type="text" style="width:10em" name="code" placeholder="Leave Blank To Generate" />
+        <input type="submit" style="width:10em" name="gen_code" value="Generate" />
+    </td>
+</tr>
+<tr>
+    <td> Expiration Date: </td>
+    <td> <input type="date" name="expiration_date" min="{{ now }}" value="{{ max }}" max="{{ max }}" />
+</tr>
+<tr>
+    <td> <b>Discounted Price:</b> </td>
+    <td>&nbsp;$<input type="number" name="price" size="4" min="0" value="0" /> </td>
+</tr>
+    <tr>
+    <td> <b>Use Count:</b> </td>
+    <td> <input type="number" name="uses" min="0" size="4" value="0" /> </td>
+</tr>
+<tr>
+    <td></td>
+    <td> <input type="submit" value="Create" /> </td>
+</tr>
+</table>
+</form>
+
+<i>Bolded fields are required</i>
+
+    <script>
+    generateCode()
+    </script>
+
+{% endblock %}

@@ -828,6 +828,28 @@ class Root:
 
         return {'message': message}
 
+    @site_mappable
+    def generate_promo_code(self, session, message='', **params):
+        if 'code' in params:
+            date = params['expiration_date'].split("-")
+            params['expiration_date'] = datetime(int(date[0]), month=int(date[1]), day=int(date[2]))
+            code = session.promo_code(params)
+            session.add(code)
+            session.commit()
+        return {
+            'message': message,
+            'now': datetime.now().strftime("%Y-%m-%d"),
+            'max': c.ESCHATON.strftime('%Y-%m-%d')
+        }
+
+    @site_mappable
+    def view_promo_codes(self, session, message='', **params):
+        codes = session.query(PromoCode).all()
+        return {
+            'message':message,
+            'promo_codes':codes
+        }
+
     def placeholders(self, session, department=''):
         return {
             'department': department,
