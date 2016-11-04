@@ -71,7 +71,7 @@
         <td>
             <a href="form?edit_id={{ attendee.id }}">Edit</a> /
             <a href="delete?id={{ attendee.id }}">Delete</a> /
-            <a href="#" onclick="applyPromoCode({{ attendee.id }})">Apply Promo Code</a>
+            <a href="#" onclick="applyPromoCode('{{ attendee.id }}')">Apply Promo Code</a>
         </td>
      </tr>
 {% endfor %}
@@ -113,21 +113,21 @@
 <script>
     var applyPromoCode = function(id){
     var code = prompt("Enter Promotional Code");
-        $.post('apply_promo_code', {
+        $.ajax({
+            url:'apply_promo_code',
+            data: {
                 id: id,
                 code: code,
                 csrf_token: csrf_token
-            }, function(json){
-                toastr.remove();
-                if(!json.success){
-                    toastr.error(json.message);
-                }
-                else{
-                    toastr.info(json.message);
-                }
-        }
-
-        )
+            },
+            error: function(json){
+                toastr.error(json.message);
+            },
+            success: function(json){
+                toastr.info(json.message);
+            },
+            type:'GET'
+            });
     };
 </script>
 {% endblock %}

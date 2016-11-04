@@ -21,6 +21,9 @@
     <th>
         Expired
     </th>
+    <th>
+        Users
+    </th>
 </tr>
 {% for p in promo_codes %}
     <tr>
@@ -42,6 +45,14 @@
         </td>
         <td>
             {{ p.expired }}
+        </td>
+        <td>
+            {% for a in p.used_by %}
+                {{ a }},
+            {% endfor %}
+            {% for a in p.applied_by %}
+                {{ a }},
+            {% endfor %}
         </td>
     </tr>
 {% endfor %}

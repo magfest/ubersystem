@@ -1213,17 +1213,13 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def total_cost(self):
-        #Check if Promo Code Exists
-        #If it does check if the code is expired
-        #If it isn't return code.price + self.amount_extra
-        #Else
-        if self.promo_code:
+        if self.promo_code_id:
             with Session() as session:
-                code = session.query(PromoCode).filter(PromoCode.id == self.promo_code.id).first()
+                code = session.query(PromoCode).filter(PromoCode.id == self.promo_code_id).first()
                 if code:
-                    code.use(self.id)
-        else:
-            return self.default_cost + self.amount_extra
+                    if not code.expired:
+                        return code.price + self.amount_extra
+        return self.default_cost + self.amount_extra
 
     @property
     def amount_unpaid(self):
@@ -1810,7 +1806,7 @@ class PromoCode(MagModel):
     uses = Column(Integer, nullable=True, default=None)
     expired = Column(Boolean, default=False)
     used_by = relationship(Attendee)
-    attempted_use = relationship(Attendee)
+    applied_by = relationship(Attendee)
 
     def generate_code(self, count):
         code = ""
@@ -1837,21 +1833,20 @@ class PromoCode(MagModel):
 
     def apply_to_attendee(self, attendee_id):
         if attendee_id:
-            with Session() as session:
-                attendee = session.query(Attendee).filter(Attendee.id == attendee_id).first()
-                if not attendee:
-                    return False
-                if (len(self.attempted_use) + len(self.used_by)) < self.uses:
-                    attendee.promo_code_id = self.id
-                    self.attempted_use.add(attendee)
+            if self.uses:
+                if (len(self.applied_by) + len(self.used_by)) < self.uses:
+                    self.applied_by.append(attendee_id)
                     return True
-                else:
-                    return False
+            else:
+                self.applied_by.append(attendee_id)
+                return True
+
+        return False
 
     def use(self, user):
-        if user in self.attempted_use:
-            self.attempted_use.remove(user)
-            self.used_by.add(user)
+        if user in self.applied_by:
+            self.applied_by.remove(user)
+            self.used_by.append(user)
 
 
 

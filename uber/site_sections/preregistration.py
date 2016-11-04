@@ -204,6 +204,9 @@ class Root:
         for attendee in charge.attendees:
             attendee.paid = c.HAS_PAID
             attendee.amount_paid = attendee.total_cost
+            if attendee.promo_code_id:
+                promo_code = session.query(PromoCode).filter(PromoCode.id == attendee.promo_code_id).first()
+                promo_code.use(attendee)
             session.add(attendee)
 
         for group in charge.groups:
@@ -526,21 +529,26 @@ class Root:
         }
 
     def apply_promo_code(self, session, message='', **params):
+        success = True
         if 'id' and 'code' in params:
             if params['code'] is not '':
-                attendee = session.query(Attendee).filter(Attendee.id == params['id']).first()
+                attendee = self.unpaid_preregs[params['id']]
                 if not attendee:
                     message = 'Attendee Not Found'
+                    success = False
                 else:
                     promo_code = session.query(PromoCode).filter(PromoCode.code == params['code'] and not PromoCode.expired).first()
                     if not promo_code:
                         message = "Promo Code Not Found"
+                        success = False
                     else:
-                        if promo_code.apply_to_attendee(params['id']):
-                            message = "Promo Code Applied"
-                        else:
-                            message = "Error Applying Promo Code"
-
+                        #promo_code.apply_to_attendee(attendee['id'])
+                        self.unpaid_preregs[params['id']]['promo_code_id'] = promo_code.id
+                        message = "Promo Code Applied"
+        return {
+            'message': message,
+            'success': success
+            }
 
 
 
