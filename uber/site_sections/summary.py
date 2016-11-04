@@ -190,7 +190,7 @@ class Root:
         Plugins can override badge_zipfile_contents to do something different/event-specific.
         """
         for badge_csv_fn in self.badge_zipfile_contents:
-            csv_filename =  '{}.csv'.format(badge_csv_fn.__name__)
+            csv_filename = '{}.csv'.format(badge_csv_fn.__name__)
             output = badge_csv_fn(self, session)
             zip_file.writestr(csv_filename, output)
 
