@@ -1211,7 +1211,14 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def total_cost(self):
-        return self.default_cost + self.amount_extra
+        #Check if Promo Code Exists
+        #If it does check if the code is expired
+        #If it isn't return code.price + self.amount_extra
+        #Else
+        if self.promo_code:
+            pass
+        else:
+            return self.default_cost + self.amount_extra
 
     @property
     def amount_unpaid(self):
