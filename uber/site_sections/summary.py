@@ -142,6 +142,10 @@ class Root:
         uber.reports.PrintedBadgeReport(badge_type=c.ONE_DAY_BADGE).run(out, session)
 
     @csv_file
+    def printed_badges_minor(self, out, session):
+        uber.reports.PrintedBadgeReport(badge_type=c.CHILD_BADGE).run(out, session)
+
+    @csv_file
     def printed_badges_staff(self, out, session):
 
         # part 1, include only staff badges that have an assigned name
@@ -163,14 +167,32 @@ class Root:
             order_by=sa.Attendee.full_name,
             badge_type_override='supporter')
 
+    """
+    Enumerate individual CSVs here that will be intergrated into the .zip which will contain all the
+    badge types.  Downstream plugins can override which items are in this list.
+    """
+    badge_zipfile_contents = [
+        printed_badges_attendee,
+        printed_badges_guest,
+        printed_badges_one_day,
+        printed_badges_minor,
+        printed_badges_staff,
+        badge_hangars_supporters,
+    ]
+
     @multifile_zipfile
     def personalized_badges_zip(self, zip_file, session):
-        """All printed badge CSV files in one zipfile."""
-        zip_file.writestr('printed_badges_attendee.csv', self.printed_badges_attendee())
-        zip_file.writestr('printed_badges_guest.csv', self.printed_badges_guest())
-        zip_file.writestr('printed_badges_one_day.csv', self.printed_badges_one_day())
-        zip_file.writestr('printed_badges_staff.csv', self.printed_badges_staff())
-        zip_file.writestr('badge_hangars_supporters.csv', self.badge_hangars_supporters())
+        """
+        Put all printed badge CSV files in one convenient zipfile.  The idea
+        is that this ZIP file, unmodified, should be completely ready to send to
+        the badge printers.
+
+        Plugins can override badge_zipfile_contents to do something different/event-specific.
+        """
+        for badge_csv_fn in self.badge_zipfile_contents:
+            csv_filename =  '{}.csv'.format(badge_csv_fn.__name__)
+            output = badge_csv_fn(self, session)
+            zip_file.writestr(csv_filename, output)
 
     def food_eligible(self, session):
         cherrypy.response.headers['Content-Type'] = 'application/xml'
@@ -216,7 +238,7 @@ class Root:
                 ('Eligible free', sort(counts['free'])),
                 ('Paid', sort(counts['paid'])),
                 ('All pre-ordered', sort(counts['all'])),
-                ('People with both free and paid shirts', sort(counts['both']))
+                ('People with both free and paid', sort(counts['both']))
             ]
         }
 
