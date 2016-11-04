@@ -994,6 +994,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(Group, backref='attendees', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
 
+    promo_code_id = Column(UUID, ForeignKey('promo_code.id'), nullable=True)
+
     placeholder   = Column(Boolean, default=False, admin_only=True)
     first_name    = Column(UnicodeText)
     last_name     = Column(UnicodeText)
@@ -1807,7 +1809,8 @@ class PromoCode(MagModel):
     code = Column(UnicodeText)
     uses = Column(Integer, nullable=True, default=None)
     expired = Column(Boolean, default=False)
-    #used_by = relationship('Attendee', backref='promo_code')
+    used_by = relationship(Attendee)
+    attempted_use = relationship(Attendee)
 
     def generate_code(self, count):
         code = ""
@@ -1828,12 +1831,29 @@ class PromoCode(MagModel):
             while True:
                 match = session.query(PromoCode).filter(PromoCode.code == self.code).first()
                 if match:
-                    self.code += "%s" % (self.generate_code(3))
+                    self.code += "%s" % (self.generate_code(1))
                 else:
                     break
 
-    def use(self, attendee):
-        pass
+    def apply_to_attendee(self, attendee_id):
+        if attendee_id:
+            with Session() as session:
+                attendee = session.query(Attendee).filter(Attendee.id == attendee_id).first()
+                if not attendee:
+                    return False
+                if (len(self.attempted_use) + len(self.used_by)) < self.uses:
+                    attendee.promo_code_id = self.id
+                    self.attempted_use.add(attendee)
+                    return True
+                else:
+                    return False
+
+    def use(self, user):
+        if user in self.attempted_use:
+            self.attempted_use.remove(user)
+            self.used_by.add(user)
+
+
 
 
 class Tracking(MagModel):

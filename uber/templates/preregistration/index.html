@@ -70,7 +70,8 @@
         <td>${{ attendee.total_cost|floatformat:2 }}</td>
         <td>
             <a href="form?edit_id={{ attendee.id }}">Edit</a> /
-            <a href="delete?id={{ attendee.id }}">Delete</a>
+            <a href="delete?id={{ attendee.id }}">Delete</a> /
+            <a href="#" onclick="applyPromoCode({{ attendee.id }})">Apply Promo Code</a>
         </td>
      </tr>
 {% endfor %}
@@ -108,4 +109,25 @@
 
 {% include "preregistration/disclaimers.html" %}
 </div>
+
+<script>
+    var applyPromoCode = function(id){
+    var code = prompt("Enter Promotional Code");
+        $.post('apply_promo_code', {
+                id: id,
+                code: code,
+                csrf_token: csrf_token
+            }, function(json){
+                toastr.remove();
+                if(!json.success){
+                    toastr.error(json.message);
+                }
+                else{
+                    toastr.info(json.message);
+                }
+        }
+
+        )
+    };
+</script>
 {% endblock %}
