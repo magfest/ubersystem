@@ -11,7 +11,6 @@
     <td>Custom Code: </td>
     <td>
         <input class="focus" type="text" style="width:10em" name="code" placeholder="Leave Blank To Generate" />
-        <input type="submit" style="width:10em" name="gen_code" value="Generate" />
     </td>
 </tr>
 <tr>
@@ -34,9 +33,36 @@
 </form>
 
 <i>Bolded fields are required</i>
+<a href="#" onclick="batchCodes()"><p>Make Batch Codes</p></a>
+<form id="batchForm" style="display: none;" method="post" action="generate_batch_codes">
+{% csrf_token %}
+<table>
+    <tr>
+        <td>Count: </td>
+        <td><input type="number" name="count" min="1" value="1"/></td>
+    </tr>
+    <tr>
+        <td>Price:</td>
+        <td>$<input type="number" name="price" min="0" value="0"/></td>
+    </tr>
+    <tr>
+        <td>Uses:</td>
+        <td><input type="number" name="uses" min="0" value="1" /></td>
+    </tr>
+    <tr>
+        <td> Expiration Date: </td>
+        <td> <input type="date" name="expiration_date" min="{{ now }}" value="{{ max }}" max="{{ max }}" />
+    </tr>
+    <tr>
+        <td><input type="submit" value="Make"/></td>
+    </tr>
+</table>
+</form>
 
     <script>
-    generateCode()
+        var batchCodes = function(){
+            $("#batchForm").toggle();
+        }
     </script>
 
 {% endblock %}

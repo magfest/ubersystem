@@ -828,6 +828,25 @@ class Root:
 
         return {'message': message}
 
+    @csv_file
+    def generate_batch_codes(self, out, session, message='', **params):
+        date = params['expiration_date'].split("-")
+        params['expiration_date'] = datetime(int(date[0]), month=int(date[1]), day=int(date[2]))
+        out.writerow(['Code', 'Price', 'Uses', 'Expiration Date'])
+        count = int(params['count'])
+        codes = []
+        for x in range(count):
+            code = session.promo_code(params)
+            session.add(code)
+            codes.append(code)
+        session.commit()
+        for code in codes:
+            uses = code.uses
+            if uses is None:
+                uses = "Unlimited"
+            out.writerow([code.code, code.price, uses, code.expiration_date])
+
+
     @site_mappable
     def generate_promo_code(self, session, message='', **params):
         if 'code' in params:
@@ -849,6 +868,20 @@ class Root:
             'message':message,
             'promo_codes':codes
         }
+
+    def edit_code(self, session, message='', **params):
+        if 'id' and 'new_code' in params:
+            message = 'Failed for unknown reason.'
+            if params['new_code'] is not '':
+                matchingCode = session.query(PromoCode).filter(PromoCode.code == params['new_code']).first()
+                if matchingCode:
+                    message = 'Code Already Exists!'
+                else:
+                    old_code = session.query(PromoCode).filter(PromoCode.id == params['id']).first()
+                    old_code.code = params['new_code']
+                    message = "Code Updated!"
+                    session.commit()
+        return message
 
     def placeholders(self, session, department=''):
         return {
