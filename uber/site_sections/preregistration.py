@@ -532,7 +532,7 @@ class Root:
         success = True
         if 'id' and 'code' in params:
             if params['code'] is not '':
-                attendee = self.unpaid_preregs[params['id']]
+                attendee, group = self._get_unsaved(params['id'])
                 if not attendee:
                     message = 'Attendee Not Found'
                     success = False
@@ -543,12 +543,10 @@ class Root:
                         success = False
                     else:
                         #promo_code.apply_to_attendee(attendee['id'])
-                        self.unpaid_preregs[params['id']]['promo_code_id'] = promo_code.id
+                        attendee.promo_code_id = promo_code.id
+                        self.unpaid_preregs[attendee.id] = Charge.to_sessionized(attendee)
                         message = "Promo Code Applied"
-        return {
-            'message': message,
-            'success': success
-            }
+        return message
 
 
 

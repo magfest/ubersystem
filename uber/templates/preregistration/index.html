@@ -121,12 +121,12 @@
                 csrf_token: csrf_token
             },
             error: function(json){
-                toastr.error(json.message);
+                toastr.error(json);
             },
             success: function(json){
-                toastr.info(json.message);
+                toastr.info(json);
             },
-            type:'GET'
+            type:'POST'
             });
     };
 </script>
