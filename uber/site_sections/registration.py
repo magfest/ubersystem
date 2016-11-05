@@ -855,6 +855,7 @@ class Root:
             code = session.promo_code(params)
             session.add(code)
             session.commit()
+            message = 'Your Code is: %s' % code.code
         return {
             'message': message,
             'now': datetime.now().strftime("%Y-%m-%d"),

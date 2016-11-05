@@ -540,7 +540,7 @@ else:
 stripe.api_key = c.STRIPE_SECRET_KEY
 
 c.PROMO_CODE_WORDS = {}
-with open(os.getcwd() + "/plugins/uber/uber/static/words.txt") as f:
+with open(os.getcwd() + "/words.txt") as f:
     lines = f.read().split("\n")
     for x in (string.ascii_letters + string.digits):
         if len(lines) > 0:
