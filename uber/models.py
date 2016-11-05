@@ -1846,7 +1846,7 @@ class PromoCode(MagModel):
     def use(self, user):
         if user in self.applied_by:
             self.applied_by.remove(user)
-            self.used_by.append(user)
+        self.used_by.append(user)
 
 
 

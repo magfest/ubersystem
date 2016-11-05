@@ -48,10 +48,7 @@
         </td>
         <td>
             {% for a in p.used_by %}
-                {{ a }},
-            {% endfor %}
-            {% for a in p.applied_by %}
-                {{ a }},
+                <a href="form?id={{ a.id }}">{{ a.full_name }}</a>,
             {% endfor %}
         </td>
     </tr>

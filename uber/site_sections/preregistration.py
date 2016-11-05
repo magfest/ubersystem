@@ -542,7 +542,7 @@ class Root:
                         message = "Promo Code Not Found"
                         success = False
                     else:
-                        if not attendee.promo_code_id:
+                        if attendee.promo_code_id is not None:
                             message = "Promo Code Already Being Used"
                         else:
                             #promo_code.apply_to_attendee(attendee['id'])
