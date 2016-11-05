@@ -542,10 +542,13 @@ class Root:
                         message = "Promo Code Not Found"
                         success = False
                     else:
-                        #promo_code.apply_to_attendee(attendee['id'])
-                        attendee.promo_code_id = promo_code.id
-                        self.unpaid_preregs[attendee.id] = Charge.to_sessionized(attendee)
-                        message = "Promo Code Applied"
+                        if not attendee.promo_code_id:
+                            message = "Promo Code Already Being Used"
+                        else:
+                            #promo_code.apply_to_attendee(attendee['id'])
+                            attendee.promo_code_id = promo_code.id
+                            self.unpaid_preregs[attendee.id] = Charge.to_sessionized(attendee)
+                            message = "Promo Code Applied"
         return message
 
 
