@@ -198,7 +198,7 @@ class Root:
         else:
             message = charge.charge_cc(stripeToken)
 
-        if message:
+        if message and charge.total_cost:
             raise HTTPRedirect('index?message={}', message)
 
         for attendee in charge.attendees:
