@@ -1804,7 +1804,6 @@ class PromoCode(MagModel):
     price = Column(Integer, default=0)
     code = Column(UnicodeText)
     uses = Column(Integer, nullable=True, default=None)
-    expired = Column(Boolean, default=False)
     used_by = relationship(Attendee)
     applied_by = relationship(Attendee)
 
@@ -1832,22 +1831,31 @@ class PromoCode(MagModel):
                     break
 
     def apply_to_attendee(self, attendee_id):
-        if attendee_id:
-            if self.uses:
-                if (len(self.applied_by) + len(self.used_by)) < self.uses:
+        if not self.expired:
+            if attendee_id:
+                if self.uses:
+                    if (len(self.applied_by) + len(self.used_by)) < self.uses:
+                        self.applied_by.append(attendee_id)
+                        return True
+                else:
                     self.applied_by.append(attendee_id)
                     return True
-            else:
-                self.applied_by.append(attendee_id)
-                return True
-
         return False
 
     def use(self, user):
-        if user in self.applied_by:
-            self.applied_by.remove(user)
-        self.used_by.append(user)
+        if not self.expired:
+            if user in self.applied_by:
+                self.applied_by.remove(user)
+            self.used_by.append(user)
 
+    @property
+    def expired(self):
+        if self.uses:
+            if len(self.used_by) >= self.uses:
+                return True
+        if datetime.now() > self.expiration_date:
+            return True
+        return False
 
 
 
