@@ -1810,7 +1810,7 @@ class PromoCode(MagModel):
     def generate_code(self, count):
         code = ""
         for x in range(count):
-            code += random.choice(string.ascii_letters + string.digits)
+            code += c.PROMO_CODE_WORDS[random.choice(string.ascii_letters + string.digits)]
         return code
 
     @presave_adjustment
@@ -1856,7 +1856,6 @@ class PromoCode(MagModel):
         if datetime.now() > self.expiration_date:
             return True
         return False
-
 
 
 class Tracking(MagModel):

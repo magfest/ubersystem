@@ -538,3 +538,12 @@ else:
     c.VOLUNTEER_CHECKLIST = [url for step, url in _items]
 
 stripe.api_key = c.STRIPE_SECRET_KEY
+
+c.PROMO_CODE_WORDS = {}
+with open(os.getcwd() + "/plugins/uber/uber/static/words.txt") as f:
+    lines = f.read().split("\n")
+    for x in (string.ascii_letters + string.digits):
+        if len(lines) > 0:
+            c.PROMO_CODE_WORDS[x] = lines.pop(random.randint(0, len(lines)-1))
+        else:
+            c.PROMO_CODE_WORDS[x] = x
