@@ -829,7 +829,7 @@ class Root:
         return {'message': message}
 
     @csv_file
-    def generate_batch_codes(self, out, session, message='', **params):
+    def generate_promo_codes(self, out, session, **params):
         date = params['expiration_date'].split("-")
         params['expiration_date'] = datetime(int(date[0]), month=int(date[1]), day=int(date[2]))
         out.writerow(['Code', 'Price', 'Uses', 'Expiration Date'])
@@ -845,7 +845,6 @@ class Root:
             if uses is None:
                 uses = "Unlimited"
             out.writerow([code.code, code.price, uses, code.expiration_date])
-
 
     @site_mappable
     def generate_promo_code(self, session, message='', **params):
@@ -883,6 +882,15 @@ class Root:
                     message = "Code Updated!"
                     session.commit()
         return message
+
+    def delete_code(self, session, **params):
+        if 'id' in params:
+            match = session.query(PromoCode).filter(PromoCode.id == params['id']).first()
+            if match:
+                session.delete(match)
+                session.commit()
+                return "Success!"
+        return False
 
     def placeholders(self, session, department=''):
         return {

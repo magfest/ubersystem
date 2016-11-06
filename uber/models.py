@@ -1803,15 +1803,15 @@ class PromoCode(MagModel):
     expiration_date = Column(UTCDateTime, default=c.ESCHATON)
     price = Column(Integer, default=0)
     code = Column(UnicodeText)
+    # Uses should be -1 to make expired
     uses = Column(Integer, nullable=True, default=None)
     used_by = relationship(Attendee)
-    applied_by = relationship(Attendee)
 
     def generate_code(self, count):
-        code = ""
+        code = []
         for x in range(count):
-            code += c.PROMO_CODE_WORDS[random.choice(string.ascii_letters + string.digits)]
-        return code
+            code.append(c.PROMO_CODE_WORDS[random.choice(string.ascii_letters + string.digits)])
+        return "_".join(code)
 
     @presave_adjustment
     def _usage_count(self):
@@ -1826,21 +1826,11 @@ class PromoCode(MagModel):
             while True:
                 match = session.query(PromoCode).filter(PromoCode.code == self.code).first()
                 if match:
-                    self.code += "%s" % (self.generate_code(1))
+                    split_code = self.code.split("_")
+                    split_code.append(self.generate_code(1))
+                    self.code = "_".join(split_code)
                 else:
                     break
-
-    def apply_to_attendee(self, attendee_id):
-        if not self.expired:
-            if attendee_id:
-                if self.uses:
-                    if (len(self.applied_by) + len(self.used_by)) < self.uses:
-                        self.applied_by.append(attendee_id)
-                        return True
-                else:
-                    self.applied_by.append(attendee_id)
-                    return True
-        return False
 
     def use(self, user):
         if not self.expired:
@@ -1848,12 +1838,15 @@ class PromoCode(MagModel):
                 self.applied_by.remove(user)
             self.used_by.append(user)
 
+    def expire(self):
+        self.expiration_date = datetime.now(UTC)
+
     @property
     def expired(self):
         if self.uses:
             if len(self.used_by) >= self.uses:
                 return True
-        if datetime.now() > self.expiration_date:
+        if self.expiration_date < datetime.now(UTC):
             return True
         return False
 

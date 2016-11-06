@@ -529,23 +529,19 @@ class Root:
         }
 
     def apply_promo_code(self, session, message='', **params):
-        success = True
         if 'id' and 'code' in params:
             if params['code'] is not '':
                 attendee, group = self._get_unsaved(params['id'])
                 if not attendee:
                     message = 'Attendee Not Found'
-                    success = False
                 else:
                     promo_code = session.query(PromoCode).filter(PromoCode.code == params['code'] and not PromoCode.expired).first()
                     if not promo_code:
                         message = "Promo Code Not Found"
-                        success = False
                     else:
                         if attendee.promo_code_id is not None:
                             message = "Promo Code Already Being Used"
                         else:
-                            #promo_code.apply_to_attendee(attendee['id'])
                             attendee.promo_code_id = promo_code.id
                             self.unpaid_preregs[attendee.id] = Charge.to_sessionized(attendee)
                             message = "Promo Code Applied"

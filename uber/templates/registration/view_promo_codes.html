@@ -14,6 +14,9 @@
 <table>
 <tr class="decent">
     <th>
+        Delete?
+    </th>
+    <th>
         Code
     </th>
     <th>
@@ -34,6 +37,9 @@
 </tr>
 {% for p in promo_codes %}
     <tr class="decent decent-rows">
+        <td>
+            <a href="#" onclick="deleteCode('{{ p.id }}')"><i>X</i></a>
+        </td>
         <td>
             <a href="#" onclick="editCode('{{ p.id }}', '{{ p.code }}')">{{ p.code }}</a>
         </td>
@@ -67,12 +73,32 @@
 <script>
 var editCode = function(id, old_code){
     var new_code = prompt("Edit the Promo Code:", old_code);
+    if (new_code != null) {
+        $.ajax({
+            url: 'edit_code',
+            data: {
+                csrf_token: csrf_token,
+                id: id,
+                new_code: new_code
+            },
+            type: 'POST',
+            success: function (message) {
+                toastr.info(message);
+                location.reload(true);
+            },
+            error: function (message) {
+                toastr.error(message);
+            }
+        })
+    }
+};
+
+var deleteCode = function(id){
     $.ajax({
-        url:'edit_code',
+        url:'delete_code',
         data:{
             csrf_token:csrf_token,
-            id:id,
-            new_code:new_code
+            id:id
         },
         type:'POST',
         success: function(message){
@@ -83,6 +109,6 @@ var editCode = function(id, old_code){
             toastr.error(message);
         }
     })
-}
+};
 </script>
 {% endblock %}
