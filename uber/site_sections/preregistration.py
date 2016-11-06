@@ -546,5 +546,3 @@ class Root:
                             self.unpaid_preregs[attendee.id] = Charge.to_sessionized(attendee)
                             message = "Promo Code Applied"
         return message
-
-
