@@ -865,8 +865,8 @@ class Root:
     def view_promo_codes(self, session, message='', **params):
         codes = session.query(PromoCode).all()
         return {
-            'message':message,
-            'promo_codes':codes
+            'message': message,
+            'promo_codes': codes
         }
 
     def edit_code(self, session, message='', **params):
