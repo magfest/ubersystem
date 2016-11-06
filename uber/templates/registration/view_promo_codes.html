@@ -8,6 +8,13 @@
 .decent-rows:hover{
     background-color: #f5f5f5;
 }
+.delete{
+    font-size: 36px;
+}
+
+.delete:hover{
+    color: #FF0011;
+}
 </style>
 <h2> View Promo Codes </h2>
 
@@ -37,14 +44,14 @@
 </tr>
 {% for p in promo_codes %}
     <tr class="decent decent-rows">
-        <td>
+        <td class="delete">
             <a href="#" onclick="deleteCode('{{ p.id }}')"><i>X</i></a>
         </td>
         <td>
             <a href="#" onclick="editCode('{{ p.id }}', '{{ p.code }}')">{{ p.code }}</a>
         </td>
         <td>
-            {{ p.expiration_date }}
+            <a href="#" onclick="editDate('{{ p.id }}')"><i>{{ p.expiration_date }}</i></a>
         </td>
         <td>
             {% if p.uses == None %}
@@ -61,7 +68,7 @@
         </td>
         <td>
             {% for a in p.used_by %}
-                <a href="form?id={{ a.id }}">{{ a.full_name }}</a>
+                <a href="form?id={{ a.id }}">{{ a.full_name }}</a>{% if not forloop.last %},{% endif %}
             {% endfor %}
         </td>
     </tr>
@@ -109,6 +116,10 @@ var deleteCode = function(id){
             toastr.error(message);
         }
     })
+};
+
+var editDate = function(id){
+
 };
 </script>
 {% endblock %}

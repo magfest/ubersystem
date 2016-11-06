@@ -1803,6 +1803,7 @@ class PromoCode(MagModel):
     expiration_date = Column(UTCDateTime, default=c.ESCHATON)
     price = Column(Integer, default=0)
     code = Column(UnicodeText)
+    old_code = ""
     # Uses should be -1 to make expired
     uses = Column(Integer, nullable=True, default=None)
     used_by = relationship(Attendee)
@@ -1820,22 +1821,23 @@ class PromoCode(MagModel):
 
     @presave_adjustment
     def _check_code(self):
-        if self.code == '':
-            self.code = self.generate_code(6)
-        with Session() as session:
-            while True:
-                match = session.query(PromoCode).filter(PromoCode.code == self.code).first()
-                if match:
-                    split_code = self.code.split("_")
-                    split_code.append(self.generate_code(1))
-                    self.code = "_".join(split_code)
-                else:
-                    break
+        if self.old_code == "":
+            if self.code == '':
+                self.code = self.generate_code(6)
+        elif self.old_code != self.code:
+            with Session() as session:
+                while True:
+                    match = session.query(PromoCode).filter(PromoCode.code == self.code and PromoCode.id != self.id).first()
+                    if match:
+                        split_code = self.code.split("_")
+                        split_code.append(self.generate_code(1))
+                        self.code = "_".join(split_code)
+                    else:
+                        self.old_code = self.code
+                        break
 
     def use(self, user):
         if not self.expired:
-            if user in self.applied_by:
-                self.applied_by.remove(user)
             self.used_by.append(user)
 
     def expire(self):
