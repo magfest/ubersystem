@@ -155,7 +155,7 @@ class AutomatedEmail:
                        self.render(model_instance), format,
                        model=model_instance, cc=self.cc, ident=self.ident)
         except:
-            log.error('error sending {!r} email to {}', self.subject, x.email, exc_info=True)
+            log.error('error sending {!r} email to {}', self.subject, model_instance.email, exc_info=True)
             if raise_errors:
                 raise
 
@@ -165,7 +165,7 @@ class AutomatedEmail:
         Return a textual description of when the date filters are active for this email category.
         """
 
-        return '\n'.join([filter.active_when for filter in listify(self.when)])
+        return '\n'.join([filter.active_when for filter in self.when])
 
     @classmethod
     def get_approved_subjects(cls, session):
