@@ -70,9 +70,11 @@ def email_subsystem_sane_setup(email_subsystem_sane_config, set_now_to_sept_15th
 
 _SUBJECT_TO_FIND = 'CoolCon9000 test email'
 
+
 @pytest.fixture
 def get_test_email_category():
     return AutomatedEmail.instances.get(_SUBJECT_TO_FIND)
+
 
 @pytest.mark.usefixtures("email_subsystem_sane_setup")
 class TestAutomatedEmailCategory:
