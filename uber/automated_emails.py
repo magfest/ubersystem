@@ -6,6 +6,13 @@ from uber.common import *
 
 
 class AutomatedEmail:
+    """
+    Represents one category of emails that we send out.
+
+    An example of an email category would be "Your registration has been confirmed".
+    Each category
+    """
+
     # all instances of every registered email category in the system
     instances = OrderedDict()
 
@@ -25,7 +32,7 @@ class AutomatedEmail:
         self.sender = sender or c.REGDESK_EMAIL
         self.instances[self.subject] = self
         self.ident = (ident or self.subject).format(EVENT_NAME=c.EVENT_NAME)
-        self.when = when
+        self.when = listify(when)
 
         # after each daemon run, this will be set to the number of emails that would have been sent out but weren't
         # because they were not marked as approved.  Useful as a metric of how many emails need human intervention in
@@ -43,7 +50,7 @@ class AutomatedEmail:
         if self.filter and not self.filter(model_inst):
             return False
 
-        for date_filter in listify(self.when):
+        for date_filter in self.when:
             if not date_filter():
                 return False
 
@@ -78,11 +85,23 @@ class AutomatedEmail:
 
     def should_send(self, session, model_inst, approved_subjects=None, previously_sent_emails=None):
         """
-        If True, we should send out a particular email to a particular attendee.
+        If True, we should generate an actual email created from our email category
+        and send it to a particular model instance.
+
         This is determined based on a few things like:
         1) whether we have sent this exact email out yet or not (previously_sent_emails)
         2) whether the email category has been approved (approved_subjects)
         3) whether the model instance passed in is the same type as what we want to process
+        4) do any date-based filters exist on this email category (i.e. send 7 days before magfest)
+        5) do any other filters exist on this email category (i.e. only if attendee.staffing == true)
+
+        Example #1 of a model instance to check:
+          self.subject: "You {attendee.name} have registered for our event!"
+          model_inst:  class Attendee: id #4532, name: "John smith"
+
+        Example #2 of a model instance to check:
+          self.subject: "Your group {group.name} owes money"
+          model_inst:  class Group: id #1251, name: "The Fighting Mongooses"
 
         PERFORMANCE OPTIMIZATION: This function is called a LOT in a tight loop thousands of times per daemon run.
         To save CPU time, pass in a cached version of approved_subjects and previously_sent_emails so we don't have to
@@ -104,8 +123,11 @@ class AutomatedEmail:
             if not self.filters_run(model_inst):
                 return False
 
+            # optimization: use cached version to avoid extra query here
             approved_subjects = approved_subjects or AutomatedEmail.get_approved_subjects(session)
-            if self.needs_approval and self.subject not in approved_subjects:
+
+            has_approval_to_send = not self.needs_approval or self.subject in approved_subjects
+            if not has_approval_to_send:
                 if self.unapproved_emails_not_sent:
                     self.unapproved_emails_not_sent += 1
                 return False
@@ -133,7 +155,7 @@ class AutomatedEmail:
                        self.render(model_instance), format,
                        model=model_instance, cc=self.cc, ident=self.ident)
         except:
-            log.error('error sending {!r} email to {}', self.subject, x.email, exc_info=True)
+            log.error('error sending {!r} email to {}', self.subject, model_instance.email, exc_info=True)
             if raise_errors:
                 raise
 
@@ -143,7 +165,7 @@ class AutomatedEmail:
         Return a textual description of when the date filters are active for this email category.
         """
 
-        return '\n'.join([filter.active_when for filter in listify(self.when)])
+        return '\n'.join([filter.active_when for filter in self.when])
 
     @classmethod
     def get_approved_subjects(cls, session):
