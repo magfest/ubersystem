@@ -16,7 +16,7 @@ def timestamp(dt):
 
 @register.filter
 def jsonize(x):
-    return SafeString(json.dumps(x, cls=serializer))
+    return SafeString(html.escape(json.dumps(x, cls=serializer), quote=False))
 
 
 @register.filter
@@ -182,8 +182,8 @@ class options(template.Node):
                 val = val.strftime(c.TIMESTAMP_FORMAT)
             else:
                 selected = 'selected="selected"' if str(val) == str(default) else ''
-            val  = str(val).replace('"',  '&quot;').replace('\n', '')
-            desc = str(desc).replace('"', '&quot;').replace('\n', '')
+            val  = html.escape(str(val), quote=False).replace('"',  '&quot;').replace('\n', '')
+            desc = html.escape(str(desc), quote=False).replace('"', '&quot;').replace('\n', '')
             results.append('<option value="{}" {}>{}</option>'.format(val, selected, desc))
         return '\n'.join(results)
 
@@ -268,6 +268,7 @@ class radiogroup(template.Node):
         default = getattr(model, self.field_name, None)
         results = []
         for num, desc in options:
+            desc = html.escape(desc)
             checked = 'checked' if num == default else ''
             results.append('<label class="btn btn-default" style="text-align: left;"><input type="radio" name="{}" autocomplete="off" value="{}" onchange="donationChanged();" {} /> {}</label>'
                            .format(self.field_name, num, checked, desc))

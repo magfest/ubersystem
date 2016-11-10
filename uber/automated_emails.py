@@ -240,7 +240,7 @@ class StopsEmail(AutomatedEmail):
 
 class GuestEmail(AutomatedEmail):
     def __init__(self, subject, template, filter=lambda a: True, **kwargs):
-        AutomatedEmail.__init__(self, Attendee, subject, template, lambda a: a.badge_type == c.GUEST_BADGE and filter(a), sender=c.PANELS_EMAIL, **kwargs)
+        AutomatedEmail.__init__(self, Attendee, subject, template, lambda a: a.badge_type == c.GUEST_BADGE and filter(a), sender=c.GUEST_EMAIL, **kwargs)
 
 
 class GroupEmail(AutomatedEmail):
@@ -344,7 +344,7 @@ AutomatedEmail(Attendee, '{EVENT_NAME} Panelist Badge Confirmation', 'placeholde
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Guest Badge Confirmation', 'placeholders/guest.txt',
                lambda a: a.placeholder and a.first_name and a.last_name and a.badge_type == c.GUEST_BADGE,
-               sender=c.PANELS_EMAIL)
+               sender=c.GUEST_EMAIL)
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Dealer Information Required', 'placeholders/dealer.txt',
                lambda a: a.placeholder and a.is_dealer and a.group.status == c.APPROVED,
