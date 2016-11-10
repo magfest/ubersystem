@@ -59,7 +59,7 @@ class AutomatedEmail:
     def __repr__(self):
         return '<{}: {!r}>'.format(self.__class__.__name__, self.subject)
 
-    def _already_sent(self, model_inst, previously_sent_emails=None):
+    def _already_sent(self, session, model_inst, previously_sent_emails=None):
         """
         Returns true if we have a record of previously sending this email
 
@@ -71,9 +71,8 @@ class AutomatedEmail:
             return (model_inst.__class__.__name__, model_inst.id, self.ident) in previously_sent_emails
         else:
             # non-optimized version: query the DB to find any emails that were previously sent from this email category
-            with Session() as session:
-                return session.query(Email).filter_by(
-                    model=model_inst.__class__.__name__, fk_id=model_inst.id, ident=self.ident).first()
+            return session.query(Email).filter_by(
+                model=model_inst.__class__.__name__, fk_id=model_inst.id, ident=self.ident).first()
 
     def attempt_to_send(self, session, model_inst,
                         approved_subjects=None, previously_sent_emails=None, raise_errors=False):
@@ -117,24 +116,29 @@ class AutomatedEmail:
             if not isinstance(model_inst, self.model) or not model_inst.email:
                 return False
 
-            if self._already_sent(model_inst, previously_sent_emails):
+            if self._already_sent(session, model_inst, previously_sent_emails):
                 return False
 
             if not self.filters_run(model_inst):
                 return False
 
-            # optimization: use cached version to avoid extra query here
-            approved_subjects = approved_subjects or AutomatedEmail.get_approved_subjects(session)
-
-            has_approval_to_send = not self.needs_approval or self.subject in approved_subjects
-            if not has_approval_to_send:
-                if self.unapproved_emails_not_sent:
-                    self.unapproved_emails_not_sent += 1
+            if not self.is_approved_to_send(session, approved_subjects):
                 return False
 
             return True
         except:
             log.error('AutomatedEmail.should_send(): unexpected error', exc_info=True)
+
+    def is_approved_to_send(self, session, approved_subjects=None):
+        # optimization: if we can, use cached version to avoid extra query here
+        approved_subjects = approved_subjects or AutomatedEmail.get_approved_subjects(session)
+
+        approved_to_send = not self.needs_approval or self.subject in approved_subjects
+
+        if not approved_to_send and self.unapproved_emails_not_sent:
+            self.unapproved_emails_not_sent += 1
+
+        return approved_to_send
 
     def render(self, model_instance):
         model = getattr(model_instance, 'email_model_name', model_instance.__class__.__name__.lower())
@@ -169,6 +173,7 @@ class AutomatedEmail:
 
     @classmethod
     def get_approved_subjects(cls, session):
+        # TODO should we be using [] instead of {} here?
         return {ae.subject for ae in session.query(ApprovedEmail)}
 
     @classmethod
