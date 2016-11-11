@@ -6,6 +6,11 @@ def send_all_emails_mock():
         yield mock
 
 
+@pytest.fixture
+def send_all_emails_mock():
+    with patch.object(SendAllAutomatedEmailsJob, '_send_all_emails', return_value=None) as mock:
+        yield mock
+
 @pytest.mark.usefixtures("email_subsystem_sane_setup")
 class TestSendAllAutomatedEmailsJob:
     @pytest.mark.parametrize("c_at_the_con, c_send_emails, c_dev_box, expected_result", [
@@ -25,3 +30,4 @@ class TestSendAllAutomatedEmailsJob:
 
         SendAllAutomatedEmailsJob().run()
         assert send_all_emails_mock.call_count == expected_result
+

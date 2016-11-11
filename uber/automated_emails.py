@@ -42,9 +42,9 @@ class AutomatedEmail:
         self.unapproved_emails_not_sent = None
 
         if post_con:
-            self.filter = lambda x: c.POST_CON and filter(x)
+            self.filter = lambda model_inst: c.POST_CON and filter(model_inst)
         else:
-            self.filter = lambda x: not c.POST_CON and filter(x)
+            self.filter = lambda model_inst: not c.POST_CON and filter(model_inst)
 
     def filters_run(self, model_inst):
         if self.filter and not self.filter(model_inst):
@@ -130,12 +130,25 @@ class AutomatedEmail:
             log.error('AutomatedEmail.should_send(): unexpected error', exc_info=True)
 
     def is_approved_to_send(self, session=None, approved_idents=None):
+        """
+        Check if this email category has been approved by the admins to send automated emails.
+
+        SIDE-EFFECT: When called, if we aren't approved to send, increment self.unapproved_emails_not_sent so we
+                     can keep track of how many emails WOULD have been sent IF this category was approved.
+
+        :param approved_idents: OPTIMIZATION: pass in a cached list of idents of approved email
+                                categories so we can avoid doing a database query
+        :param session:  if approved_idents not provided, use this to query the database to find out if our
+                         email category is approved in the database
+        :return: True if we are approved to send this email, or don't need approval. False otherwise
+        """
+
         # optimization: if we can, use cached version to avoid extra query here
         approved_idents = approved_idents or AutomatedEmail.get_approved_idents(session)
 
         approved_to_send = not self.needs_approval or self.ident in approved_idents
 
-        if not approved_to_send and self.unapproved_emails_not_sent:
+        if not approved_to_send and self.unapproved_emails_not_sent is not None:
             self.unapproved_emails_not_sent += 1
 
         return approved_to_send

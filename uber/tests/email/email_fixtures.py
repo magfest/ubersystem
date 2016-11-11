@@ -110,7 +110,7 @@ def set_previously_sent_emails_to_attendee1(monkeypatch):
 @pytest.fixture
 def reset_unapproved_emails_count(monkeypatch):
     for email_category in AutomatedEmail.instances.values():
-        email_category.unapproved_emails_not_sent = 0
+        email_category.unapproved_emails_not_sent = None
 
 @pytest.fixture(scope='function')
 def email_subsystem_sane_setup(
@@ -119,7 +119,8 @@ def email_subsystem_sane_setup(
         add_test_email_categories,
         setup_fake_test_attendees,
         set_previously_sent_emails_empty,
-        reset_unapproved_emails_count):
+        reset_unapproved_emails_count,
+        remove_approved_idents):
     """
     Catch-all test for setting up all email subsytem tests.  This fixture is a catch-all container of all relevant
     email testing fixtures.
