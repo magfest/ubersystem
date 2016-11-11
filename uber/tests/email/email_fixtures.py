@@ -2,6 +2,11 @@ from uber.tests import *
 from unittest.mock import patch
 
 
+class EmailTestsConstants:
+    SUBJECT_TO_FIND = 'CoolCon9000 test email'
+
+E = EmailTestsConstants
+
 @pytest.fixture
 def remove_all_email_categories(monkeypatch):
     # save original email categories list
@@ -38,17 +43,13 @@ def setup_fake_test_attendees(monkeypatch):
 
 @pytest.fixture
 def set_now_to_sept_15th(monkeypatch):
-    with patch('uber.utils.localized_now', return_value=datetime(year=2016, month=9, day=15, hour=12, minute=30)):
-        yield
+    return patch('uber.utils.localized_now', return_value=datetime(year=2016, month=9, day=15, hour=12, minute=30))
 
 
 @pytest.fixture
 def email_subsystem_sane_config(monkeypatch):
     monkeypatch.setattr(c, 'DEV_BOX', False)
     monkeypatch.setattr(c, 'SEND_EMAILS', True)
-    monkeypatch.setattr(c, 'AWS_ACCESS_KEY', '')
-    monkeypatch.setattr(c, 'AWS_SECRET_KEY', '')
-    monkeypatch.setattr(c, 'EVENT_NAME', 'CoolCon9000')
 
 
 @pytest.fixture
@@ -68,38 +69,7 @@ def set_test_approved_subjects(monkeypatch, remove_test_approved_subjects):
 def email_subsystem_sane_setup(email_subsystem_sane_config, set_now_to_sept_15th, add_test_email_categories, setup_fake_test_attendees):
     pass
 
-_SUBJECT_TO_FIND = 'CoolCon9000 test email'
-
 
 @pytest.fixture
 def get_test_email_category():
-    return AutomatedEmail.instances.get(_SUBJECT_TO_FIND)
-
-
-@pytest.mark.usefixtures("email_subsystem_sane_setup")
-class TestAutomatedEmailCategory:
-    def test_testing_environment(self):
-        assert len(AutomatedEmail.instances) == 1
-        assert len(AutomatedEmail.queries[Attendee](None)) == 1
-
-    def test_event_name(self, get_test_email_category):
-        assert get_test_email_category.subject == _SUBJECT_TO_FIND
-
-    def test_approval_needed_and_we_have_it(self, set_test_approved_subjects, get_test_email_category):
-        assert get_test_email_category.is_approved_to_send(None)
-
-
-@pytest.mark.usefixtures("email_subsystem_sane_setup")
-class TestSendAllAutomatedEmailsJob:
-    def test_enabled(self):
-        with patch.object(SendAllAutomatedEmailsJob, '_send_all_emails', return_value=None) as _send_all_emails:
-            SendAllAutomatedEmailsJob().run()
-
-        assert _send_all_emails.call_count == 1
-
-    def test_disabled(self, monkeypatch):
-        monkeypatch.setattr(c, 'SEND_EMAILS', False)
-        with patch.object(SendAllAutomatedEmailsJob, '_send_all_emails', return_value=None) as _send_all_emails:
-            SendAllAutomatedEmailsJob().run()
-
-        assert _send_all_emails.call_count == 0
+    return AutomatedEmail.instances.get(E.SUBJECT_TO_FIND)
