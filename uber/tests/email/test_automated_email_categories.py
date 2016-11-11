@@ -5,12 +5,13 @@ from uber.tests.email.email_fixtures import *
 class TestAutomatedEmailCategory:
     def test_testing_environment(self):
         assert len(AutomatedEmail.instances) == 1
-        assert len(AutomatedEmail.queries[Attendee](None)) == 1
+        assert len(AutomatedEmail.queries[Attendee](None)) == 2
 
     def test_event_name(self, get_test_email_category):
         assert get_test_email_category.subject == E.SUBJECT_TO_FIND
+        assert get_test_email_category.ident == E.IDENT_TO_FIND
 
-    def test_approval_needed_and_we_have_it(self, set_test_approved_subjects, get_test_email_category):
-        assert get_test_email_category.is_approved_to_send(None)
+    def test_approval_needed_and_we_have_it(self, set_test_approved_idents, get_test_email_category):
+        assert get_test_email_category.is_approved_to_send()
 
 

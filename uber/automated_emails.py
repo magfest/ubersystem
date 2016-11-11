@@ -30,8 +30,8 @@ class AutomatedEmail:
         self.bcc = bcc or []
         self.extra_data = extra_data or {}
         self.sender = sender or c.REGDESK_EMAIL
-        self.instances[self.subject] = self
         self.ident = (ident or self.subject).format(EVENT_NAME=c.EVENT_NAME)
+        self.instances[self.ident] = self
         self.when = listify(when)
 
         # after each daemon run, this will be set to the number of emails that would have been sent out but weren't
@@ -75,21 +75,21 @@ class AutomatedEmail:
                 model=model_inst.__class__.__name__, fk_id=model_inst.id, ident=self.ident).first()
 
     def attempt_to_send(self, session, model_inst,
-                        approved_subjects=None, previously_sent_emails=None, raise_errors=False):
+                        approved_idents=None, previously_sent_emails=None, raise_errors=False):
         """
         If it's OK to send an email of our category to this model instance (i.e. a particular Attendee) then send it.
         """
-        if self.should_send(session, model_inst, approved_subjects, previously_sent_emails):
+        if self.should_send(session, model_inst, approved_idents, previously_sent_emails):
             self.send(model_inst, raise_errors=raise_errors)
 
-    def should_send(self, session, model_inst, approved_subjects=None, previously_sent_emails=None):
+    def should_send(self, session, model_inst, approved_idents=None, previously_sent_emails=None):
         """
         If True, we should generate an actual email created from our email category
         and send it to a particular model instance.
 
         This is determined based on a few things like:
         1) whether we have sent this exact email out yet or not (previously_sent_emails)
-        2) whether the email category has been approved (approved_subjects)
+        2) whether the email category has been approved (approved_idents)
         3) whether the model instance passed in is the same type as what we want to process
         4) do any date-based filters exist on this email category (i.e. send 7 days before magfest)
         5) do any other filters exist on this email category (i.e. only if attendee.staffing == true)
@@ -103,12 +103,12 @@ class AutomatedEmail:
           model_inst:  class Group: id #1251, name: "The Fighting Mongooses"
 
         PERFORMANCE OPTIMIZATION: This function is called a LOT in a tight loop thousands of times per daemon run.
-        To save CPU time, pass in a cached version of approved_subjects and previously_sent_emails so we don't have to
+        To save CPU time, pass in a cached version of approved_idents and previously_sent_emails so we don't have to
         compute them every single time.
 
         :param session: database session to use
         :param model_inst: The model we've been requested to use (i.e. Attendee, Group, etc)
-        :param approved_subjects: optional: cached list of approved subject lines
+        :param approved_idents: optional: cached list of approved idents
         :param previously_sent_emails: optional: cached list of emails that were previously sent out
         :return: True if we should send this email to this model instance, False if not.
         """
@@ -122,18 +122,18 @@ class AutomatedEmail:
             if not self.filters_run(model_inst):
                 return False
 
-            if not self.is_approved_to_send(session, approved_subjects):
+            if not self.is_approved_to_send(session, approved_idents):
                 return False
 
             return True
         except:
             log.error('AutomatedEmail.should_send(): unexpected error', exc_info=True)
 
-    def is_approved_to_send(self, session, approved_subjects=None):
+    def is_approved_to_send(self, session=None, approved_idents=None):
         # optimization: if we can, use cached version to avoid extra query here
-        approved_subjects = approved_subjects or AutomatedEmail.get_approved_subjects(session)
+        approved_idents = approved_idents or AutomatedEmail.get_approved_idents(session)
 
-        approved_to_send = not self.needs_approval or self.subject in approved_subjects
+        approved_to_send = not self.needs_approval or self.ident in approved_idents
 
         if not approved_to_send and self.unapproved_emails_not_sent:
             self.unapproved_emails_not_sent += 1
@@ -172,9 +172,8 @@ class AutomatedEmail:
         return '\n'.join([filter.active_when for filter in self.when])
 
     @classmethod
-    def get_approved_subjects(cls, session):
-        # TODO should we be using [] instead of {} here?
-        return {ae.subject for ae in session.query(ApprovedEmail)}
+    def get_approved_idents(cls, session):
+        return {ae.ident for ae in session.query(ApprovedEmail)}
 
     @classmethod
     def get_previously_sent_emails(cls, session):
@@ -212,7 +211,7 @@ class SendAllAutomatedEmailsJob:
         self.raise_errors = raise_errors
 
         # cache these so we don't have to compute them thousands of times per run
-        self.approved_subjects = AutomatedEmail.get_approved_subjects(session)
+        self.approved_idents = AutomatedEmail.get_approved_idents(session)
         self.previously_sent_emails = AutomatedEmail.get_previously_sent_emails(session)
 
         # go through each email category and reset the count of
@@ -256,7 +255,7 @@ class SendAllAutomatedEmailsJob:
         """
         for email_category in AutomatedEmail.instances.values():
             email_category.attempt_to_send(self.session, model_instance,
-                                           self.approved_subjects, self.previously_sent_emails,
+                                           self.approved_idents, self.previously_sent_emails,
                                            self.raise_errors)
 
 

@@ -3,41 +3,65 @@ from unittest.mock import patch
 
 
 class EmailTestsConstants:
-    SUBJECT_TO_FIND = 'CoolCon9000 test email'
+    SUBJECT_TO_FIND = 'CoolCon9000: You Need To Know'
+    IDENT_TO_FIND = 'CoolCon9000__you_are_not_him'
 
 E = EmailTestsConstants
 
 @pytest.fixture
 def remove_all_email_categories(monkeypatch):
-    # save original email categories list
-    original_email_category_instances = AutomatedEmail.instances
-
-    # replace all email categories in the system with an empty list so we can add to it later
     monkeypatch.setattr(AutomatedEmail, 'instances', OrderedDict())
 
 
 @pytest.fixture
 def add_test_email_categories(remove_all_email_categories):
-    AutomatedEmail(Attendee, '{EVENT_NAME} test email', 'crap.html',
-                   lambda a: a.paid == c.HAS_PAID)
+    AutomatedEmail(
+        model=Attendee,
+        subject='{EVENT_NAME}: You Need To Know',
+        ident='{EVENT_NAME}__you_are_not_him',
+        template='unrest_in_the_house_of_light.html',
+        filter=lambda a: a.paid == c.HAS_PAID,
+        when=(),
+        sender="thomas.light@200X.com",
+        extra_data=None,
+        cc="proto@man.com",
+        bcc=None,
+        post_con=False,
+        needs_approval=True,
+    )
 
+@pytest.fixture
+def amazon_send_email_mock():
+    """
+    Patch the actual low-level method that actually sends an email out of our system onto the internet.
+    If this is called, you know that an email was really sent by our email subsystem.
+    """
+    with patch.object(AmazonSES, 'sendEmail', return_value=None) as mock:
+        yield mock
 
 @pytest.fixture
 def setup_fake_test_attendees(monkeypatch):
-    # save original list of queries to use for model instances
-    original_query_list = AutomatedEmail.queries
-
     # replace all email categories in the system with an empty list so we can add to it later
     monkeypatch.setattr(AutomatedEmail, 'queries', {
-        Attendee: lambda session: [
+        Attendee: lambda ignored_param: [
             Attendee(
                 placeholder=True,
-                first_name="Test1",
-                last_name="Test2",
+                first_name="Gambler",
+                last_name="Kirkdouglas",
                 paid=c.NEED_NOT_PAY,
-                badge_type=c.SUPPORTER_BADGE),
+                badge_type=c.GUEST_BADGE,
+                id=78,
+            ),
+            Attendee(
+                placeholder=False,
+                first_name="Reanimator",
+                last_name="Lovejoy",
+                paid=c.HAS_PAID,
+                badge_type=c.ATTENDEE_BADGE,
+                id = 12,
+            ),
         ],
-        # Group: lambda session: session.query(Group).options(subqueryload(Group.attendees))
+        # Group: lambda ignored_param: would need to replace with: session.query(Group).options(subqueryload(Group.attendees))
     })
 
 
@@ -53,23 +77,61 @@ def email_subsystem_sane_config(monkeypatch):
 
 
 @pytest.fixture
-def remove_test_approved_subjects(monkeypatch):
-    monkeypatch.setattr(AutomatedEmail, 'get_approved_subjects', Mock(return_value=[]))
+def remove_approved_idents(monkeypatch):
+    monkeypatch.setattr(AutomatedEmail, 'get_approved_idents', Mock(return_value={}))
 
 
 @pytest.fixture
-def set_test_approved_subjects(monkeypatch, remove_test_approved_subjects):
-    monkeypatch.setattr(AutomatedEmail, 'get_approved_subjects', Mock(return_value=[
-        'CoolCon9000 test email'
-        ])
-    )
+def set_test_approved_idents(monkeypatch, remove_approved_idents):
+    # list of idents of emails which are approved for sending.  this matches AutomatedEmail.ident
+    approved_idents = [
+        E.IDENT_TO_FIND,
+    ]
 
+    monkeypatch.setattr(AutomatedEmail, 'get_approved_idents', Mock(return_value=approved_idents))
 
 @pytest.fixture
-def email_subsystem_sane_setup(email_subsystem_sane_config, set_now_to_sept_15th, add_test_email_categories, setup_fake_test_attendees):
+def set_previously_sent_emails_empty(monkeypatch):
+    # include this fixture if we want to act like no emails have ever been previously sent
+    monkeypatch.setattr(AutomatedEmail, 'get_previously_sent_emails', Mock(return_value=set()))
+
+@pytest.fixture
+def set_previously_sent_emails_to_attendee1(monkeypatch):
+    # include this fixture if we want to act like the email category with ident 'you_are_not_him'
+    # was previously sent to attendee with ID #78
+
+    # format of this set: (Email.model, Email.fk_id, Email.ident)
+    list_of_emails_previously_sent = {
+        (Attendee, 78, 'you_are_not_him'),
+    }
+
+    monkeypatch.setattr(AutomatedEmail, 'get_previously_sent_emails', Mock(return_value=list_of_emails_previously_sent))
+
+@pytest.fixture
+def reset_unapproved_emails_count(monkeypatch):
+    for email_category in AutomatedEmail.instances.values():
+        email_category.unapproved_emails_not_sent = 0
+
+@pytest.fixture(scope='function')
+def email_subsystem_sane_setup(
+        email_subsystem_sane_config,
+        set_now_to_sept_15th,
+        add_test_email_categories,
+        setup_fake_test_attendees,
+        set_previously_sent_emails_empty,
+        reset_unapproved_emails_count):
+    """
+    Catch-all test for setting up all email subsytem tests.  This fixture is a catch-all container of all relevant
+    email testing fixtures.
+
+    We will reset a bunch of global state and fake database data in each test run
+
+    note: scope='function' means that this fixture is invoked each time a test runs that uses it, which is important
+    to have a consistent global state and fake database data for the email subsystem tests to run properly.
+    """
     pass
 
 
 @pytest.fixture
 def get_test_email_category():
-    return AutomatedEmail.instances.get(E.SUBJECT_TO_FIND)
+    return AutomatedEmail.instances.get(E.IDENT_TO_FIND)

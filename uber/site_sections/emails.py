@@ -16,16 +16,16 @@ class Root:
     sent.restricted = [c.PEOPLE, c.REG_AT_CON]
 
     def pending(self, session, message=''):
-        approved_subjects = {ae.subject for ae in session.query(ApprovedEmail).all()}
+        approved_idents = {ae.ident for ae in session.query(ApprovedEmail).all()}
 
         automated_emails = []
         all_categories_have_valid_queue_count = True
         for automated_email in AutomatedEmail.instances.values():
             automated_emails.append({
                 'doesnt_need_approval': not automated_email.needs_approval,
-                'approved': not automated_email.needs_approval or automated_email.subject in approved_subjects,
+                'approved': not automated_email.needs_approval or automated_email.ident in approved_idents,
                 'automated_email': automated_email,
-                'num_sent': session.query(Email).filter_by(subject=automated_email.subject).count()
+                'num_sent': session.query(Email).filter_by(ident=automated_email.ident).count()
             })
             if automated_email.unapproved_emails_not_sent is None:
                 all_categories_have_valid_queue_count = False
@@ -36,10 +36,10 @@ class Root:
             'all_categories_have_valid_queue_count': all_categories_have_valid_queue_count,
         }
 
-    def pending_examples(self, session, subject):
+    def pending_examples(self, session, ident):
         count = 0
         examples = []
-        email = AutomatedEmail.instances[subject]
+        email = AutomatedEmail.instances[ident]
         for x in AutomatedEmail.queries[email.model](session):
             if email.filters_run(x):
                 count += 1
@@ -52,7 +52,7 @@ class Root:
 
         return {
             'count': count,
-            'subject': subject,
+            'subject': email.subject,
             'examples': examples
         }
 
@@ -80,8 +80,8 @@ class Root:
         }
 
     @csrf_protected
-    def approve(self, session, subject):
-        session.add(ApprovedEmail(subject=subject))
+    def approve(self, session, ident):
+        session.add(ApprovedEmail(ident=ident))
         raise HTTPRedirect('pending?message={}', 'Email approved and will be sent out shortly')
 
     def emails_by_interest(self, message=''):

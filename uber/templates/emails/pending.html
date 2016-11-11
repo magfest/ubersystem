@@ -30,12 +30,12 @@
         <td>{{ entry.automated_email.sender }}</td>
         <td>{{ entry.num_sent }}</td>
         <td>{% if entry.automated_email.unapproved_emails_not_sent != None %}{{ entry.automated_email.unapproved_emails_not_sent }}{% else %}?{% endif %}</td>
-        <td><a href="pending_examples?subject={{ entry.automated_email.subject|urlencode }}">See Examples</a></td>
+        <td><a href="pending_examples?ident={{ entry.automated_email.ident|urlencode }}">See Examples</a></td>
         <td>
             {% if not entry.approved %}
                 <form method="post" action="approve">
                 {% csrf_token %}
-                <input type="hidden" name="subject" value="{{ entry.automated_email.subject }}" />
+                <input type="hidden" name="ident" value="{{ entry.automated_email.ident }}" />
                 <input type="submit" value="Approve" />
                 </form>
             {% else %}
