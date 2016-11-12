@@ -1,7 +1,9 @@
 from uber.tests.email.email_fixtures import *
 
+
 class FakeModel:
     pass
+
 
 @pytest.mark.usefixtures("email_subsystem_sane_setup")
 class TestAutomatedEmailCategory:
@@ -62,5 +64,3 @@ class TestAutomatedEmailCategory:
 
     def test_should_send_not_approved(self, get_test_email_category, attendee1):
         assert not get_test_email_category.should_send(session=None, model_inst=attendee1, previously_sent_emails={})
-
-

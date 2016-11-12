@@ -8,6 +8,7 @@ class EmailTestsConstants:
 
 E = EmailTestsConstants
 
+
 @pytest.fixture
 def remove_all_email_categories(monkeypatch):
     monkeypatch.setattr(AutomatedEmail, 'instances', OrderedDict())
@@ -30,6 +31,7 @@ def add_test_email_categories(remove_all_email_categories):
         needs_approval=True,
     )
 
+
 @pytest.fixture
 def amazon_send_email_mock():
     """
@@ -38,6 +40,7 @@ def amazon_send_email_mock():
     """
     with patch.object(AmazonSES, 'sendEmail', return_value=None) as mock:
         yield mock
+
 
 @pytest.fixture
 def setup_fake_test_attendees(monkeypatch):
@@ -87,6 +90,7 @@ def remove_approved_idents(monkeypatch):
 def attendee1():
     return AutomatedEmail.queries[Attendee](None)[0]
 
+
 @pytest.fixture
 def set_test_approved_idents(monkeypatch, remove_approved_idents):
     # list of idents of emails which are approved for sending.  this matches AutomatedEmail.ident
@@ -96,10 +100,12 @@ def set_test_approved_idents(monkeypatch, remove_approved_idents):
 
     monkeypatch.setattr(AutomatedEmail, 'get_approved_idents', Mock(return_value=approved_idents))
 
+
 @pytest.fixture
 def set_previously_sent_emails_empty(monkeypatch):
     # include this fixture if we want to act like no emails have ever been previously sent
     monkeypatch.setattr(AutomatedEmail, 'get_previously_sent_emails', Mock(return_value=set()))
+
 
 @pytest.fixture
 def set_previously_sent_emails_to_attendee1(monkeypatch):
@@ -114,10 +120,12 @@ def set_previously_sent_emails_to_attendee1(monkeypatch):
     monkeypatch.setattr(AutomatedEmail, 'get_previously_sent_emails', Mock(return_value=list_of_emails_previously_sent))
     return list_of_emails_previously_sent
 
+
 @pytest.fixture
 def reset_unapproved_emails_count(monkeypatch):
     for email_category in AutomatedEmail.instances.values():
         email_category.unapproved_emails_not_sent = None
+
 
 @pytest.fixture(scope='function')
 def email_subsystem_sane_setup(
