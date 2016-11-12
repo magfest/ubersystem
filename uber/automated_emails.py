@@ -66,7 +66,7 @@ class AutomatedEmail:
         CPU Optimization: when using this function as part of batch processing, you can pass in a list of all
         previously sent emails, previously_sent_emails, in order to avoid having to query the DB for this specific email
         """
-        if previously_sent_emails:
+        if previously_sent_emails is not None:
             # optimized version: use the cached previously_sent_emails so we don't have to query the DB
             return (model_inst.__class__.__name__, model_inst.id, self.ident) in previously_sent_emails
         else:
@@ -91,15 +91,15 @@ class AutomatedEmail:
         1) whether we have sent this exact email out yet or not (previously_sent_emails)
         2) whether the email category has been approved (approved_idents)
         3) whether the model instance passed in is the same type as what we want to process
-        4) do any date-based filters exist on this email category (i.e. send 7 days before magfest)
-        5) do any other filters exist on this email category (i.e. only if attendee.staffing == true)
+        4) do any date-based filters exist on this email category? (i.e. send 7 days before magfest)
+        5) do any other filters exist on this email category? (i.e. only if attendee.staffing == true)
 
         Example #1 of a model instance to check:
-          self.subject: "You {attendee.name} have registered for our event!"
+          self.ident: "You {attendee.name} have registered for our event!"
           model_inst:  class Attendee: id #4532, name: "John smith"
 
         Example #2 of a model instance to check:
-          self.subject: "Your group {group.name} owes money"
+          self.ident: "Your group {group.name} owes money"
           model_inst:  class Group: id #1251, name: "The Fighting Mongooses"
 
         PERFORMANCE OPTIMIZATION: This function is called a LOT in a tight loop thousands of times per daemon run.
@@ -113,7 +113,10 @@ class AutomatedEmail:
         :return: True if we should send this email to this model instance, False if not.
         """
         try:
-            if not isinstance(model_inst, self.model) or not model_inst.email:
+            if not isinstance(model_inst, self.model):
+                return False
+
+            if not model_inst.email:
                 return False
 
             if self._already_sent(session, model_inst, previously_sent_emails):

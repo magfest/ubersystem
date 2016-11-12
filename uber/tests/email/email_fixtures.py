@@ -20,7 +20,7 @@ def add_test_email_categories(remove_all_email_categories):
         subject='{EVENT_NAME}: You Need To Know',
         ident='{EVENT_NAME}__you_are_not_him',
         template='unrest_in_the_house_of_light.html',
-        filter=lambda a: a.paid == c.HAS_PAID,
+        filter=lambda a: a.paid == c.NEED_NOT_PAY,
         when=(),
         sender="thomas.light@200X.com",
         extra_data=None,
@@ -48,6 +48,7 @@ def setup_fake_test_attendees(monkeypatch):
                 placeholder=True,
                 first_name="Gambler",
                 last_name="Kirkdouglas",
+                email="thegambler@protos.com",
                 paid=c.NEED_NOT_PAY,
                 badge_type=c.GUEST_BADGE,
                 id=78,
@@ -56,6 +57,7 @@ def setup_fake_test_attendees(monkeypatch):
                 placeholder=False,
                 first_name="Reanimator",
                 last_name="Lovejoy",
+                email="yeswecan@jumpfromanywhere.com",
                 paid=c.HAS_PAID,
                 badge_type=c.ATTENDEE_BADGE,
                 id = 12,
@@ -82,6 +84,10 @@ def remove_approved_idents(monkeypatch):
 
 
 @pytest.fixture
+def attendee1():
+    return AutomatedEmail.queries[Attendee](None)[0]
+
+@pytest.fixture
 def set_test_approved_idents(monkeypatch, remove_approved_idents):
     # list of idents of emails which are approved for sending.  this matches AutomatedEmail.ident
     approved_idents = [
@@ -102,10 +108,11 @@ def set_previously_sent_emails_to_attendee1(monkeypatch):
 
     # format of this set: (Email.model, Email.fk_id, Email.ident)
     list_of_emails_previously_sent = {
-        (Attendee, 78, 'you_are_not_him'),
+        (Attendee.__name__, 78, 'CoolCon9000__you_are_not_him'),
     }
 
     monkeypatch.setattr(AutomatedEmail, 'get_previously_sent_emails', Mock(return_value=list_of_emails_previously_sent))
+    return list_of_emails_previously_sent
 
 @pytest.fixture
 def reset_unapproved_emails_count(monkeypatch):

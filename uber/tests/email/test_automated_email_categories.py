@@ -1,5 +1,7 @@
 from uber.tests.email.email_fixtures import *
 
+class FakeModel:
+    pass
 
 @pytest.mark.usefixtures("email_subsystem_sane_setup")
 class TestAutomatedEmailCategory:
@@ -33,5 +35,32 @@ class TestAutomatedEmailCategory:
         monkeypatch.setattr(get_test_email_category, 'needs_approval', False)
         assert get_test_email_category.is_approved_to_send()
 
+    # --------------  test should_send() -------------------
+
+    def test_should_send_goes_through(self, get_test_email_category, set_test_approved_idents, attendee1):
+        assert get_test_email_category.should_send(session=None, model_inst=attendee1, previously_sent_emails={})
+
+    def test_should_send_incorrect_model_used(self, monkeypatch, get_test_email_category, attendee1):
+        wrong_model=FakeModel()
+        assert not get_test_email_category.should_send(session=None, model_inst=wrong_model, previously_sent_emails={})
+
+    def test_should_send_no_email_present(self, monkeypatch, get_test_email_category, attendee1):
+        delattr(attendee1, 'email')
+        assert not get_test_email_category.should_send(session=None, model_inst=attendee1, previously_sent_emails={})
+
+    def test_should_send_blank_email_present(self, monkeypatch, get_test_email_category, attendee1):
+        attendee1.email = ''
+        assert not get_test_email_category.should_send(session=None, model_inst=attendee1, previously_sent_emails={})
+
+    def test_should_send_(self, get_test_email_category, set_test_approved_idents, set_previously_sent_emails_to_attendee1, attendee1):
+        previously_sent_emails = set_previously_sent_emails_to_attendee1
+        assert not get_test_email_category.should_send(session=None, model_inst=attendee1, previously_sent_emails=previously_sent_emails)
+
+    def test_should_send_wrong_filter(self, get_test_email_category, set_test_approved_idents, attendee1):
+        get_test_email_category.filter = lambda a: a.paid == c.HAS_PAID
+        assert not get_test_email_category.should_send(session=None, model_inst=attendee1, previously_sent_emails={})
+
+    def test_should_send_not_approved(self, get_test_email_category, attendee1):
+        assert not get_test_email_category.should_send(session=None, model_inst=attendee1, previously_sent_emails={})
 
 
