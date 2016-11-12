@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 class EmailTestsConstants:
     SUBJECT_TO_FIND = 'CoolCon9000: You Need To Know'
-    IDENT_TO_FIND = 'CoolCon9000__you_are_not_him'
+    IDENT_TO_FIND = 'you_are_not_him'
 
 E = EmailTestsConstants
 
@@ -19,7 +19,7 @@ def add_test_email_categories(remove_all_email_categories):
     AutomatedEmail(
         model=Attendee,
         subject='{EVENT_NAME}: You Need To Know',
-        ident='{EVENT_NAME}__you_are_not_him',
+        ident='you_are_not_him',
         template='unrest_in_the_house_of_light.html',
         filter=lambda a: a.paid == c.NEED_NOT_PAY,
         when=(),
@@ -39,6 +39,12 @@ def amazon_send_email_mock():
     If this is called, you know that an email was really sent by our email subsystem.
     """
     with patch.object(AmazonSES, 'sendEmail', return_value=None) as mock:
+        yield mock
+
+
+@pytest.fixture
+def incremement_count_unsent_mock():
+    with patch.object(SendAllAutomatedEmailsJob, 'increment_unset_because_unapproved_count', return_value=None) as mock:
         yield mock
 
 
@@ -114,7 +120,7 @@ def set_previously_sent_emails_to_attendee1(monkeypatch):
 
     # format of this set: (Email.model, Email.fk_id, Email.ident)
     list_of_emails_previously_sent = {
-        (Attendee.__name__, 78, 'CoolCon9000__you_are_not_him'),
+        (Attendee.__name__, 78, 'you_are_not_him'),
     }
 
     monkeypatch.setattr(AutomatedEmail, 'get_previously_sent_emails', Mock(return_value=list_of_emails_previously_sent))

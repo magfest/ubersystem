@@ -1,7 +1,3 @@
-# WARNING - changing the email subject line for an email WITHOUT 'ident' set causes ALL of those emails to be re-sent!
-# Note that since c.EVENT_NAME is used in most of these emails, changing the event name mid-year
-# could cause literally thousands of emails to be re-sent!
-
 from uber.common import *
 
 
@@ -23,23 +19,28 @@ class AutomatedEmail:
         Group: lambda session: session.query(Group).options(subqueryload(Group.attendees))
     }
 
-    def __init__(self, model, subject, template, filter, *, when=(), sender=None, extra_data=None, cc=None, bcc=None, post_con=False, needs_approval=True, ident=None):
-        self.model, self.template, self.needs_approval = model, template, needs_approval
+    def __init__(self, model, subject, template, filter, *, when=(),
+                 sender=None, extra_data=None, cc=None, bcc=None,
+                 post_con=False, needs_approval=True, ident=None):
+
         self.subject = subject.format(EVENT_NAME=c.EVENT_NAME)
+        self.ident = ident or self.subject
+
+        # Unlike subject lines, ident's should just be a unique string, not dependent
+        # on any external config like EVENT_NAME.  examples:
+        # good:  'registration_confirmation_email'
+        # bad:   '{EVENT_NAME}_confirmation_email'
+        assert '{EVENT_NAME}' not in self.ident, 'AutomatedEmail.ident "{}" not allowed to contain EVENT_NAME'.format(self.ident)
+        assert self.ident not in self.instances, 'error: ident "{}" is registered twice.'.format(self.ident)
+
+        self.instances[self.ident] = self
+
+        self.model, self.template, self.needs_approval = model, template, needs_approval
         self.cc = cc or []
         self.bcc = bcc or []
         self.extra_data = extra_data or {}
         self.sender = sender or c.REGDESK_EMAIL
-        self.ident = (ident or self.subject).format(EVENT_NAME=c.EVENT_NAME)
-        self.instances[self.ident] = self
         self.when = listify(when)
-
-        # after each daemon run, this will be set to the number of emails that would have been sent out but weren't
-        # because they were not marked as approved.  Useful as a metric of how many emails need human intervention in
-        # order to be approved for sending.
-        #
-        # A value of None means we haven't run yet, or email sending is disabled.
-        self.unapproved_emails_not_sent = None
 
         if post_con:
             self.filter = lambda model_inst: c.POST_CON and filter(model_inst)
@@ -75,14 +76,25 @@ class AutomatedEmail:
                 model=model_inst.__class__.__name__, fk_id=model_inst.id, ident=self.ident).first()
 
     def attempt_to_send(self, session, model_inst,
-                        approved_idents=None, previously_sent_emails=None, raise_errors=False):
+                        approved_idents=None, previously_sent_emails=None, raise_errors=False, daemon_job_results=None):
         """
         If it's OK to send an email of our category to this model instance (i.e. a particular Attendee) then send it.
+
+        :param session - current database session
+        :param model_inst - the model (i.e. Attendee or similar) we are checking to see if we should send an email from
+                            our category to this particular model
+        :param approved_idents - OPTIMIZATION: CACHED LIST: a list of approved email category idents
+        :param previously_sent_emails - OPTIMIZATION: CACHED LIST: a list of specific emails which were previously sent
+        :param raise_errors: if False, exceptions will be logged and swallowed here. Useful when running large batches
+        :param daemon_job_results:  if set, we're running as part of the automated email daemon and can use this object
+                                to log information about this sending attempt.
         """
-        if self.should_send(session, model_inst, approved_idents, previously_sent_emails):
+        if self._should_send(session, model_inst, approved_idents, previously_sent_emails, daemon_job_results=None):
             self.send(model_inst, raise_errors=raise_errors)
 
-    def should_send(self, session, model_inst, approved_idents=None, previously_sent_emails=None):
+    def _should_send(self, session, model_inst,
+                     approved_idents=None, previously_sent_emails=None,
+                     daemon_job_results=None):
         """
         If True, we should generate an actual email created from our email category
         and send it to a particular model instance.
@@ -110,6 +122,9 @@ class AutomatedEmail:
         :param model_inst: The model we've been requested to use (i.e. Attendee, Group, etc)
         :param approved_idents: optional: cached list of approved idents
         :param previously_sent_emails: optional: cached list of emails that were previously sent out
+        :param daemon_job_results:  if set, we're running as part of the automated email daemon and can use this object
+                                to log information about this sending attempt.
+
         :return: True if we should send this email to this model instance, False if not.
         """
         try:
@@ -125,24 +140,23 @@ class AutomatedEmail:
             if not self.filters_run(model_inst):
                 return False
 
-            if not self.is_approved_to_send(session, approved_idents):
+            if not self.is_approved_to_send(session, approved_idents, daemon_job_results):
                 return False
 
             return True
         except:
             log.error('AutomatedEmail.should_send(): unexpected error', exc_info=True)
 
-    def is_approved_to_send(self, session=None, approved_idents=None):
+    def is_approved_to_send(self, session=None, approved_idents=None, daemon_job_results=None):
         """
         Check if this email category has been approved by the admins to send automated emails.
-
-        SIDE-EFFECT: When called, if we aren't approved to send, increment self.unapproved_emails_not_sent so we
-                     can keep track of how many emails WOULD have been sent IF this category was approved.
 
         :param approved_idents: OPTIMIZATION: pass in a cached list of idents of approved email
                                 categories so we can avoid doing a database query
         :param session:  if approved_idents not provided, use this to query the database to find out if our
                          email category is approved in the database
+        :param daemon_job_results:  if set, we're running as part of the automated email daemon and can use this object
+                                to log information about this sending attempt.
         :return: True if we are approved to send this email, or don't need approval. False otherwise
         """
 
@@ -151,8 +165,8 @@ class AutomatedEmail:
 
         approved_to_send = not self.needs_approval or self.ident in approved_idents
 
-        if not approved_to_send and self.unapproved_emails_not_sent is not None:
-            self.unapproved_emails_not_sent += 1
+        if daemon_job_results and not approved_to_send:
+            daemon_job_results.increment_unset_because_unapproved_count(self)
 
         return approved_to_send
 
@@ -204,6 +218,10 @@ class AutomatedEmail:
 
 
 class SendAllAutomatedEmailsJob:
+    # save information about the last time the daemon ran so that we can display stats on things like
+    # unapproved emails/etc
+    last_result = dict()
+
     @timed
     def run(self, raise_errors=False):
         """
@@ -222,18 +240,17 @@ class SendAllAutomatedEmailsJob:
             self._init(session, raise_errors)
             self._send_all_emails()
 
+        SendAllAutomatedEmailsJob.last_result = self.results
+
     def _init(self, session, raise_errors):
         self.session = session
         self.raise_errors = raise_errors
+        self.results = dict()
+        self.results['categories'] = dict()
 
         # cache these so we don't have to compute them thousands of times per run
         self.approved_idents = AutomatedEmail.get_approved_idents(session)
         self.previously_sent_emails = AutomatedEmail.get_previously_sent_emails(session)
-
-        # go through each email category and reset the count of
-        # emails that would have been sent but they weren't approved
-        for email_category in AutomatedEmail.instances.values():
-            email_category.unapproved_emails_not_sent = 0
 
     def _send_all_emails(self):
         """
@@ -274,6 +291,21 @@ class SendAllAutomatedEmailsJob:
                                            self.approved_idents, self.previously_sent_emails,
                                            self.raise_errors)
 
+    def increment_unset_because_unapproved_count(self, automated_email_category):
+        """
+        Log information that a particular email wanted to send out an email, but could not because it didn't have
+        approval.
+
+        :param automated_email_category: The category that wanted to send but needed approval
+        """
+
+        categories = self.results['categories']
+        category = categories.setdefault(automated_email_category.ident, dict())
+
+        unapproved_count = category.get('unsent_because_unapproved', 0)
+        category['unsent_because_unapproved'] = unapproved_count + 1
+
+
 
 class StopsEmail(AutomatedEmail):
     def __init__(self, subject, template, filter, **kwargs):
@@ -304,6 +336,24 @@ class DeptChecklistEmail(AutomatedEmail):
                                 when=days_before(7, conf.deadline),
                                 sender=c.STAFF_EMAIL,
                                 extra_data={'conf': conf})
+
+
+"""
+IMPORTANT NOTES:
+
+'ident' is a unique ID for that email category that must not change after emails in that category have started to send.
+
+
+
+#If an 'ident' is not set, 'ident' will default to be the 'subject' line.
+#The reason you don't want this is because we keep track of which emails have been sent by their 'ident', and if the
+
+
+TODO: FIXME: Going forward, every single email category below should have an explicit 'ident' set. However,
+mid-year we can't change the idents effectively because it will cause emails in these categories to be re-sent.
+
+Guidelines for naming 'idents'
+"""
 
 
 # Payment reminder emails, including ones for groups, which are always safe to be here, since they just
@@ -365,7 +415,8 @@ MarketplaceEmail('Last chance to pay for your {EVENT_NAME} Dealer registration',
 
 MarketplaceEmail('{EVENT_NAME} Dealer waitlist has been exhausted', 'dealers/waitlist_closing.txt',
                  lambda g: g.status == c.WAITLISTED,
-                 when=after(c.DEALER_WAITLIST_CLOSED))
+                 when=after(c.DEALER_WAITLIST_CLOSED),
+                 ident='uber_marketplace_waitlist_exhausted')
 
 
 # Placeholder badge emails; when an admin creates a "placeholder" badge, we send one of three different emails depending

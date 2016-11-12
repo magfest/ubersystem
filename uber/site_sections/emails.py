@@ -16,24 +16,24 @@ class Root:
     sent.restricted = [c.PEOPLE, c.REG_AT_CON]
 
     def pending(self, session, message=''):
-        approved_idents = {ae.ident for ae in session.query(ApprovedEmail).all()}
+        approved_idents = AutomatedEmail.get_approved_idents(session).all()
 
         automated_emails = []
-        all_categories_have_valid_queue_count = True
         for automated_email in AutomatedEmail.instances.values():
             automated_emails.append({
                 'doesnt_need_approval': not automated_email.needs_approval,
                 'approved': not automated_email.needs_approval or automated_email.ident in approved_idents,
                 'automated_email': automated_email,
-                'num_sent': session.query(Email).filter_by(ident=automated_email.ident).count()
+                'num_sent': session.query(Email).filter_by(ident=automated_email.ident).count(),
+                'last_run_results':
+                    SendAllAutomatedEmailsJob.last_result[automated_email.ident]
+                    if SendAllAutomatedEmailsJob.last_result else None
             })
-            if automated_email.unapproved_emails_not_sent is None:
-                all_categories_have_valid_queue_count = False
 
         return {
             'message': message,
             'automated_emails': automated_emails,
-            'all_categories_have_valid_queue_count': all_categories_have_valid_queue_count,
+            'last_run_result': SendAllAutomatedEmailsJob.last_result,
         }
 
     def pending_examples(self, session, ident):

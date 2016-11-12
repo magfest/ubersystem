@@ -4,7 +4,7 @@
 
 <h2>Email Categories</h2>
 
-{% if not all_categories_have_valid_queue_count %}
+{% if not last_run_result %}
 <p><font color="red">
     Note: Incomplete information is available about the number of emails requiring approval. Either the email daemon has
     not run yet (should be a max wait of 5 minutes), or, email sending is disabled.
@@ -19,7 +19,7 @@
     <th>Number Sent</th>
     <th>Number Queued</th>
     <th>Examples</th>
-    <th>Approval</th>
+    <th>Approved?</th>
     <th>Date Condition</th>
 </tr>
 </thead>
@@ -29,7 +29,7 @@
         <td>{{ entry.automated_email.subject }}</td>
         <td>{{ entry.automated_email.sender }}</td>
         <td>{{ entry.num_sent }}</td>
-        <td>{% if entry.automated_email.unapproved_emails_not_sent != None %}{{ entry.automated_email.unapproved_emails_not_sent }}{% else %}?{% endif %}</td>
+        <td>{% if entry.last_run_results != None %}{{ entry.last_run_results.unsent_because_unapproved }}{% else %}_{% endif %}</td>
         <td><a href="pending_examples?ident={{ entry.automated_email.ident|urlencode }}">See Examples</a></td>
         <td>
             {% if not entry.approved %}
