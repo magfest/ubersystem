@@ -32,3 +32,5 @@ class TestSendAllAutomatedEmailsJob:
 
         SendAllAutomatedEmailsJob().run()
         assert send_all_emails_mock.call_count == expected_result
+
+    # TODO: test job results to make sure unapproved email stuff comes through OK.

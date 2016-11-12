@@ -63,6 +63,15 @@ def setup_fake_test_attendees(monkeypatch):
                 id=78,
             ),
             Attendee(
+                placeholder=True,
+                first_name="Kilroy",
+                last_name="Kilroy",
+                email="that_one_robot@ihaveasecret.com",
+                paid=c.NEED_NOT_PAY,
+                badge_type=c.GUEST_BADGE,
+                id=78,
+            ),
+            Attendee(
                 placeholder=False,
                 first_name="Reanimator",
                 last_name="Lovejoy",

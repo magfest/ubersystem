@@ -9,7 +9,7 @@ class FakeModel:
 class TestAutomatedEmailCategory:
     def test_testing_environment(self, get_test_email_category):
         assert len(AutomatedEmail.instances) == 1
-        assert len(AutomatedEmail.queries[Attendee](None)) == 2
+        assert len(AutomatedEmail.queries[Attendee](None)) == 3
         assert not get_test_email_category.unapproved_emails_not_sent
 
     def test_event_name(self, get_test_email_category):
