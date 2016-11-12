@@ -1,5 +1,6 @@
 from uber.tests.email.email_fixtures import *
 
+
 @pytest.fixture
 def send_all_emails_mock():
     with patch.object(SendAllAutomatedEmailsJob, '_send_all_emails', return_value=None) as mock:
@@ -10,6 +11,7 @@ def send_all_emails_mock():
 def send_all_emails_mock():
     with patch.object(SendAllAutomatedEmailsJob, '_send_all_emails', return_value=None) as mock:
         yield mock
+
 
 @pytest.mark.usefixtures("email_subsystem_sane_setup")
 class TestSendAllAutomatedEmailsJob:
@@ -30,4 +32,3 @@ class TestSendAllAutomatedEmailsJob:
 
         SendAllAutomatedEmailsJob().run()
         assert send_all_emails_mock.call_count == expected_result
-

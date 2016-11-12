@@ -69,7 +69,7 @@ def setup_fake_test_attendees(monkeypatch):
                 email="yeswecan@jumpfromanywhere.com",
                 paid=c.HAS_PAID,
                 badge_type=c.ATTENDEE_BADGE,
-                id = 12,
+                id=12,
             ),
         ],
         # Group: lambda ignored_param: would need to replace with: session.query(Group).options(subqueryload(Group.attendees))

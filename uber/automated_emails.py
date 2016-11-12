@@ -306,7 +306,6 @@ class SendAllAutomatedEmailsJob:
         category['unsent_because_unapproved'] = unapproved_count + 1
 
 
-
 class StopsEmail(AutomatedEmail):
     def __init__(self, subject, template, filter, **kwargs):
         AutomatedEmail.__init__(self, Attendee, subject, template, lambda a: a.staffing and filter(a), sender=c.STAFF_EMAIL, **kwargs)

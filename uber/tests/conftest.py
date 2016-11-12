@@ -70,8 +70,6 @@ def sensible_defaults():
     c.STRIPE_PRIVATE_KEY = ''
 
 
-
-
 @pytest.fixture(scope='session', autouse=True)
 def init_db(request, sensible_defaults):
     if os.path.exists(TEST_DB_FILE):

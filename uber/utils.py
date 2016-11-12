@@ -170,6 +170,7 @@ def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=
         fk = {'model': 'n/a'} if model == 'n/a' else {'fk_id': model.id, 'model': model.__class__.__name__}
         _record_email_sent(sa.Email(subject=subject, dest=','.join(listify(dest)), body=body, ident=ident, **fk))
 
+
 def _record_email_sent(email):
     """
     Save in our database the contents of the Email model passed in.

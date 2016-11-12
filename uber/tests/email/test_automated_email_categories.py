@@ -41,7 +41,7 @@ class TestAutomatedEmailCategory:
         assert get_test_email_category._should_send(session=None, model_inst=attendee1, previously_sent_emails={})
 
     def test_should_send_incorrect_model_used(self, monkeypatch, get_test_email_category, attendee1):
-        wrong_model=FakeModel()
+        wrong_model = FakeModel()
         assert not get_test_email_category._should_send(session=None, model_inst=wrong_model, previously_sent_emails={})
 
     def test_should_send_no_email_present(self, monkeypatch, get_test_email_category, attendee1):
