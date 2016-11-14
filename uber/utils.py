@@ -402,3 +402,31 @@ class after:
     @property
     def active_when(self):
         return 'after {}'.format(self.dt.strftime(_when_dateformat)) if self.dt else ''
+
+
+class request_cached_context:
+    """
+    We cache certain variables (like c.BADGES_SOLD) on a per-cherrypy.request basis.
+    There are situation situations, like unit tests or non-HTTP request contexts (like daemons) where we want to
+    carefully control this behavior, or where the cache will never be reset.
+
+    When this class is finished it will clear the per-request cache.
+
+    example of how to use:
+    with request_cached_context():
+        # do things that use the cached values, and after this block is done, the values won't be cached anymore.
+    """
+
+    def __init__( self, clear_cache_on_start=False ):
+        self.clear_cache_on_start = clear_cache_on_start
+
+    def __enter__(self):
+        if self.clear_cache_on_start:
+            request_cached_context._clear_cache()
+
+    def __exit__(self, type, value, traceback):
+        request_cached_context._clear_cache()
+
+    @staticmethod
+    def _clear_cache():
+        threadlocal.clear()
