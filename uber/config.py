@@ -102,20 +102,16 @@ class Config(_Overridable):
     def get_presold_oneday_price(self, badge_type):
         return self.BADGE_PRICES['single_day'].get(self.BADGES[badge_type], self.DEFAULT_SINGLE_DAY)
 
-    def get_attendee_price(self, dt):
+    def get_attendee_price(self, dt=None):
         price = self.INITIAL_ATTENDEE
         if self.PRICE_BUMPS_ENABLED:
 
-            if c.HARDCORE_OPTIMIZATIONS_ENABLED:
-                # WARNING: EXTREMELY AGGRESSIVE. Don't run the DB query that gets # of badges sold in order
-                # to lighten the server load / blocking time on the DB. THIS ****BREAKS**** BADGE PRICE INCREASES
-                # THAT ARE BASED ON THE NUMBER OF TICKETS SOLD.  Only turn this on if you know EXACTLY what
-                # you are doing, your server is having its face melted off, and you have no other options.
-                # YOU HAVE BEEN WARNED!!!! -Dom
-                badges_sold = 0
-            else:
+            if not dt or c.HARDCORE_OPTIMIZATIONS_ENABLED:
+                dt = sa.localized_now() or dt
                 # this is a database query and very expensive
                 badges_sold = self.BADGES_SOLD
+            else:
+                badges_sold = 0
 
             for day, bumped_price in sorted(self.PRICE_BUMPS.items()):
                 if (dt or datetime.now(UTC)) >= day:
@@ -125,7 +121,7 @@ class Config(_Overridable):
                     price = bumped_price
         return price
 
-    def get_group_price(self, dt):
+    def get_group_price(self, dt=None):
         return self.get_attendee_price(dt) - self.GROUP_DISCOUNT
 
     def get_badge_count_by_type(self, badge_type):
@@ -156,11 +152,11 @@ class Config(_Overridable):
 
     @property
     def BADGE_PRICE(self):
-        return self.get_attendee_price(sa.localized_now())
+        return self.get_attendee_price()
 
     @property
     def GROUP_PRICE(self):
-        return self.get_group_price(sa.localized_now())
+        return self.get_group_price()
 
     @property
     def PREREG_BADGE_TYPES(self):
@@ -396,7 +392,10 @@ c.PRICE_BUMPS = {}
 c.PRICE_LIMITS = {}
 for _opt, _val in c.BADGE_PRICES['attendee'].items():
     try:
-        date = c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d'))
+        if ' ' in _opt:
+            date = c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d %H%M'))
+        else:
+            date = c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d'))
     except ValueError:
         c.PRICE_LIMITS[int(_opt)] = _val
     else:
