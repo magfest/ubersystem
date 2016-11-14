@@ -988,6 +988,58 @@ class Group(MagModel, TakesPaymentMixin):
             return c.MIN_GROUP_ADDITION
 
 
+class PromoCode(MagModel):
+    expiration_date = Column(UTCDateTime, default=c.ESCHATON)
+    price = Column(Integer, default=0)
+    code = Column(UnicodeText)
+    uses = Column(Integer, nullable=True, default=None)
+    # Uses should be -1 to make expired
+    # if Uses is set to 'None' it is considered to be infinite
+
+    def generate_code(self, count):
+        code = []
+        for x in range(count):
+            code.append(c.PROMO_CODE_WORDS[random.choice(string.ascii_letters + string.digits)])
+        return "_".join(code)
+
+    @presave_adjustment
+    def _usage_count(self):
+        if self.uses == 0:
+        # The first time uses is set by an Admin, it can only go as low as 0.
+        # 0 in that case is equivalent to Infinite which as said earlier is equivalent to 'None'.
+            self.uses = None
+
+    @presave_adjustment
+    def _check_code(self):
+        if self.code == '':
+            self.code = self.generate_code(6)
+        elif self.code != self.orig_value_of('code'):
+            with Session() as session:
+                while True:
+                    match = session.query(PromoCode).filter(PromoCode.code == self.code and PromoCode.id != self.id).first()
+                    if match:
+                        split_code = self.code.split("_")
+                        split_code.append(self.generate_code(1))
+                        self.code = "_".join(split_code)
+                    else:
+                        break
+
+    def use(self, user):
+        if not self.expired:
+            self.used_by.append(user)
+
+    def expire(self):
+        self.expiration_date = localized_now()
+
+    @property
+    def expired(self):
+        if self.uses:
+            if len(self.used_by) >= self.uses:
+                return True
+        if self.expiration_date < datetime.now(UTC):
+            return True
+
+
 class Attendee(MagModel, TakesPaymentMixin):
     watchlist_id = Column(UUID, ForeignKey('watch_list.id', ondelete='set null'), nullable=True, default=None)
 
@@ -995,6 +1047,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     group = relationship(Group, backref='attendees', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
 
     promo_code_id = Column(UUID, ForeignKey('promo_code.id'), nullable=True)
+    promo_code = relationship(PromoCode, backref='used_by', foreign_keys=promo_code_id, cascade='save-update,merge,refresh-expire,expunge')
 
     placeholder   = Column(Boolean, default=False, admin_only=True)
     first_name    = Column(UnicodeText)
@@ -1797,60 +1850,6 @@ class Email(MagModel):
             return SafeString(re.split('<body[^>]*>', self.body)[1].split('</body>')[0])
         else:
             return SafeString(self.body.replace('\n', '<br/>'))
-
-
-class PromoCode(MagModel):
-    expiration_date = Column(UTCDateTime, default=c.ESCHATON)
-    price = Column(Integer, default=0)
-    code = Column(UnicodeText)
-    old_code = ""
-    # Uses should be -1 to make expired
-    uses = Column(Integer, nullable=True, default=None)
-    used_by = relationship(Attendee)
-
-    def generate_code(self, count):
-        code = []
-        for x in range(count):
-            code.append(c.PROMO_CODE_WORDS[random.choice(string.ascii_letters + string.digits)])
-        return "_".join(code)
-
-    @presave_adjustment
-    def _usage_count(self):
-        if self.uses == 0:
-            self.uses = None
-
-    @presave_adjustment
-    def _check_code(self):
-        if self.old_code == "":
-            if self.code == '':
-                self.code = self.generate_code(6)
-        elif self.old_code != self.code:
-            with Session() as session:
-                while True:
-                    match = session.query(PromoCode).filter(PromoCode.code == self.code and PromoCode.id != self.id).first()
-                    if match:
-                        split_code = self.code.split("_")
-                        split_code.append(self.generate_code(1))
-                        self.code = "_".join(split_code)
-                    else:
-                        self.old_code = self.code
-                        break
-
-    def use(self, user):
-        if not self.expired:
-            self.used_by.append(user)
-
-    def expire(self):
-        self.expiration_date = datetime.now(UTC)
-
-    @property
-    def expired(self):
-        if self.uses:
-            if len(self.used_by) >= self.uses:
-                return True
-        if self.expiration_date < datetime.now(UTC):
-            return True
-        return False
 
 
 class Tracking(MagModel):
