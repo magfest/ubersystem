@@ -61,3 +61,14 @@ class TestAutomatedEmailCategory:
 
     def test_should_send_not_approved(self, get_test_email_category, attendee1):
         assert not get_test_email_category._should_send(model_inst=attendee1)
+
+    # -----------
+
+    def test_send_doesnt_throw_exception(self, monkeypatch, get_test_email_category):
+        get_test_email_category.send_if_possible(None, raise_errors=False)
+
+    def test_send_throws_exception(self, monkeypatch, get_test_email_category):
+        monkeypatch.setattr(get_test_email_category, '_should_send', Mock(side_effect=Exception('Boom!')))
+        with pytest.raises(Exception):
+            get_test_email_category.send_if_possible(None, raise_errors=True)
+
