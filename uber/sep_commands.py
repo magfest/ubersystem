@@ -27,7 +27,35 @@ def resave_all_attendees_and_groups():
         [a.presave_adjustments() for a in session.query(Attendee).all()]
         print("Re-saving all groups....")
         [g.presave_adjustments() for g in session.query(Group).all()]
-        print("Saving resulting changes to database...")
+        print("Saving resulting changes to database (can take a few minutes)...")
+    print("Done!")
+
+
+@entry_point
+def resave_all_staffers():
+    """
+    Re-save all staffers in the database, and re-assign all
+
+    SAFETY: This -should- be safe to run at any time, but, for safety sake, recommend turning off
+    any running sideboard servers before running this command.
+    """
+    Session.initialize_db(modify_tables=True)
+    with Session() as session:
+        staffers = session.query(Attendee).filter_by(badge_type=c.STAFF_BADGE).all()
+
+        first_staff_badge_num = c.BADGE_RANGES[c.STAFF_BADGE][0]
+        last_staff_badge_num = c.BADGE_RANGES[c.STAFF_BADGE][1]
+        assert len(staffers) < last_staff_badge_num - first_staff_badge_num + 1, 'not enough free staff badges, please increase limit'
+
+        badge_num = first_staff_badge_num
+
+        print("Re-saving all staffers....")
+        for a in staffers:
+            a.presave_adjustments()
+            a.badge_num = badge_num
+            badge_num += 1
+            assert badge_num <= last_staff_badge_num
+        print("Saving resulting changes to database (can take a few minutes)...")
     print("Done!")
 
 
