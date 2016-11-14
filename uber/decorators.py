@@ -12,7 +12,7 @@ def swallow_exceptions(func):
         try:
             return func(*args, **kwargs)
         except Exception:
-            log.error('encountered exception, forcing continuation anyway', exc_info=True)
+            log.error("Exception raised, but we're going to ignore it and continue.", exc_info=True)
     return swallow_exception
 
 
