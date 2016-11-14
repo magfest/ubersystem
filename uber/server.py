@@ -97,7 +97,8 @@ static_overrides(join(c.MODULE_ROOT, 'static'))
 DaemonTask(check_unassigned, interval=300,          name="mail unassg")
 DaemonTask(detect_duplicates, interval=300,         name="mail dupes")
 DaemonTask(check_placeholders, interval=300,        name="mail placeh")
-DaemonTask(AutomatedEmail.send_all, interval=300,   name="send emails")
+
+DaemonTask(SendAllAutomatedEmailsJob.send_all_emails, interval=300,   name="send emails")
 
 # TODO: this should be replaced by something a little cleaner, but it can be a useful debugging tool
 # DaemonTask(lambda: log.error(Session.engine.pool.status()), interval=5)

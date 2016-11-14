@@ -1,5 +1,5 @@
 from uber.tests import *
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 
 class EmailTestsConstants:
@@ -43,8 +43,8 @@ def amazon_send_email_mock():
 
 
 @pytest.fixture
-def incremement_count_unsent_mock():
-    with patch.object(SendAllAutomatedEmailsJob, 'increment_unset_because_unapproved_count', return_value=None) as mock:
+def log_unset_because_unapproved():
+    with patch.object(SendAllAutomatedEmailsJob, 'log_unset_because_unapproved', return_value=None) as mock:
         yield mock
 
 
@@ -98,7 +98,7 @@ def email_subsystem_sane_config(monkeypatch):
 
 @pytest.fixture
 def remove_approved_idents(monkeypatch):
-    monkeypatch.setattr(AutomatedEmail, 'get_approved_idents', Mock(return_value={}))
+    monkeypatch.setattr(c, 'get_approved_idents', Mock(return_value={}))
 
 
 @pytest.fixture
@@ -113,13 +113,13 @@ def set_test_approved_idents(monkeypatch, remove_approved_idents):
         E.IDENT_TO_FIND,
     ]
 
-    monkeypatch.setattr(AutomatedEmail, 'get_approved_idents', Mock(return_value=approved_idents))
+    monkeypatch.setattr(c, 'get_approved_idents', Mock(return_value=approved_idents))
 
 
 @pytest.fixture
 def set_previously_sent_emails_empty(monkeypatch):
     # include this fixture if we want to act like no emails have ever been previously sent
-    monkeypatch.setattr(AutomatedEmail, 'get_previously_sent_emails', Mock(return_value=set()))
+    monkeypatch.setattr(c, 'get_previously_sent_emails', Mock(return_value=set()), raising=False)
 
 
 @pytest.fixture
@@ -132,7 +132,7 @@ def set_previously_sent_emails_to_attendee1(monkeypatch):
         (Attendee.__name__, 78, 'you_are_not_him'),
     }
 
-    monkeypatch.setattr(AutomatedEmail, 'get_previously_sent_emails', Mock(return_value=list_of_emails_previously_sent))
+    monkeypatch.setattr(c, 'get_previously_sent_emails', Mock(return_value=list_of_emails_previously_sent), raising=False)
     return list_of_emails_previously_sent
 
 
@@ -142,7 +142,7 @@ def reset_unapproved_emails_count(monkeypatch):
         email_category.unapproved_emails_not_sent = None
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def email_subsystem_sane_setup(
         email_subsystem_sane_config,
         set_now_to_sept_15th,
@@ -156,9 +156,6 @@ def email_subsystem_sane_setup(
     email testing fixtures.
 
     We will reset a bunch of global state and fake database data in each test run
-
-    note: scope='function' means that this fixture is invoked each time a test runs that uses it, which is important
-    to have a consistent global state and fake database data for the email subsystem tests to run properly.
     """
     pass
 

@@ -60,41 +60,27 @@ class AutomatedEmail:
     def __repr__(self):
         return '<{}: {!r}>'.format(self.__class__.__name__, self.subject)
 
-    def _already_sent(self, session, model_inst, previously_sent_emails=None):
+    def _already_sent(self, model_inst):
         """
-        Returns true if we have a record of previously sending this email
+        Returns true if we have a record of previously sending this email to this model
 
-        CPU Optimization: when using this function as part of batch processing, you can pass in a list of all
-        previously sent emails, previously_sent_emails, in order to avoid having to query the DB for this specific email
+        NOTE: c.PREVIOUSLY_SENT_EMAILS is a cached property and will only update at the start of each daemon run.
         """
-        if previously_sent_emails is not None:
-            # optimized version: use the cached previously_sent_emails so we don't have to query the DB
-            return (model_inst.__class__.__name__, model_inst.id, self.ident) in previously_sent_emails
-        else:
-            # non-optimized version: query the DB to find any emails that were previously sent from this email category
-            return session.query(Email).filter_by(
-                model=model_inst.__class__.__name__, fk_id=model_inst.id, ident=self.ident).first()
+        return (model_inst.__class__.__name__, model_inst.id, self.ident) in c.PREVIOUSLY_SENT_EMAILS
 
-    def attempt_to_send(self, session, model_inst,
-                        approved_idents=None, previously_sent_emails=None, raise_errors=False, daemon_job_results=None):
+    def send_if_possible(self, model_inst, raise_errors=False):
         """
         If it's OK to send an email of our category to this model instance (i.e. a particular Attendee) then send it.
-
-        :param session - current database session
-        :param model_inst - the model (i.e. Attendee or similar) we are checking to see if we should send an email from
-                            our category to this particular model
-        :param approved_idents - OPTIMIZATION: CACHED LIST: a list of approved email category idents
-        :param previously_sent_emails - OPTIMIZATION: CACHED LIST: a list of specific emails which were previously sent
-        :param raise_errors: if False, exceptions will be logged and swallowed here. Useful when running large batches
-        :param daemon_job_results:  if set, we're running as part of the automated email daemon and can use this object
-                                to log information about this sending attempt.
         """
-        if self._should_send(session, model_inst, approved_idents, previously_sent_emails, daemon_job_results=None):
-            self.send(model_inst, raise_errors=raise_errors)
+        try:
+            if self._should_send(model_inst):
+                self.really_send(model_inst)
+        except:
+            log.error('error sending {!r} email to {}', self.subject, model_inst.email, exc_info=True)
+            if raise_errors:
+                raise
 
-    def _should_send(self, session, model_inst,
-                     approved_idents=None, previously_sent_emails=None,
-                     daemon_job_results=None):
+    def _should_send(self, model_inst):
         """
         If True, we should generate an actual email created from our email category
         and send it to a particular model instance.
@@ -114,59 +100,42 @@ class AutomatedEmail:
           self.ident: "Your group {group.name} owes money"
           model_inst:  class Group: id #1251, name: "The Fighting Mongooses"
 
-        PERFORMANCE OPTIMIZATION: This function is called a LOT in a tight loop thousands of times per daemon run.
-        To save CPU time, pass in a cached version of approved_idents and previously_sent_emails so we don't have to
-        compute them every single time.
-
-        :param session: database session to use
         :param model_inst: The model we've been requested to use (i.e. Attendee, Group, etc)
-        :param approved_idents: optional: cached list of approved idents
-        :param previously_sent_emails: optional: cached list of emails that were previously sent out
-        :param daemon_job_results:  if set, we're running as part of the automated email daemon and can use this object
-                                to log information about this sending attempt.
 
         :return: True if we should send this email to this model instance, False if not.
         """
-        try:
-            if not isinstance(model_inst, self.model):
-                return False
 
-            if not model_inst.email:
-                return False
+        if not isinstance(model_inst, self.model):
+            return False
 
-            if self._already_sent(session, model_inst, previously_sent_emails):
-                return False
+        if not model_inst.email:
+            return False
 
-            if not self.filters_run(model_inst):
-                return False
+        if self._already_sent(model_inst):
+            return False
 
-            if not self.is_approved_to_send(session, approved_idents, daemon_job_results):
-                return False
+        if not self.filters_run(model_inst):
+            return False
 
-            return True
-        except:
-            log.error('AutomatedEmail.should_send(): unexpected error', exc_info=True)
+        if not self.approved:
+            return False
 
-    def is_approved_to_send(self, session=None, approved_idents=None, daemon_job_results=None):
+        return True
+
+    @property
+    def approved(self):
         """
         Check if this email category has been approved by the admins to send automated emails.
 
-        :param approved_idents: OPTIMIZATION: pass in a cached list of idents of approved email
-                                categories so we can avoid doing a database query
-        :param session:  if approved_idents not provided, use this to query the database to find out if our
-                         email category is approved in the database
-        :param daemon_job_results:  if set, we're running as part of the automated email daemon and can use this object
-                                to log information about this sending attempt.
         :return: True if we are approved to send this email, or don't need approval. False otherwise
         """
 
-        # optimization: if we can, use cached version to avoid extra query here
-        approved_idents = approved_idents or AutomatedEmail.get_approved_idents(session)
+        approved_to_send = not self.needs_approval or self.ident in c.EMAIL_APPROVED_IDENTS
 
-        approved_to_send = not self.needs_approval or self.ident in approved_idents
-
-        if daemon_job_results and not approved_to_send:
-            daemon_job_results.increment_unset_because_unapproved_count(self)
+        if not approved_to_send:
+            # log statistics about how many emails would have been sent if we had approval.
+            # if running as part of a daemon, this will record the data.
+            SendAllAutomatedEmailsJob.log_unset_because_unapproved(self)
 
         return approved_to_send
 
@@ -174,14 +143,14 @@ class AutomatedEmail:
         model = getattr(model_instance, 'email_model_name', model_instance.__class__.__name__.lower())
         return render('emails/' + self.template, dict({model: model_instance}, **self.extra_data))
 
-    def send(self, model_instance, raise_errors=True):
+    def really_send(self, model_instance):
         """
         Actually send an email to a particular model instance (i.e. a particular attendee).
 
         Doesn't perform any kind of checks at all if we should be sending this, just immediately sends the email
         no matter what.
 
-        NOTE: use attempt_to_send() instead of calling this directly if you don't 100% know what you're doing.
+        NOTE: use send_if_possible() instead of calling this method unless you 100% know what you're doing.
         """
         try:
             format = 'text' if self.template.endswith('.txt') else 'html'
@@ -190,8 +159,7 @@ class AutomatedEmail:
                        model=model_instance, cc=self.cc, ident=self.ident)
         except:
             log.error('error sending {!r} email to {}', self.subject, model_instance.email, exc_info=True)
-            if raise_errors:
-                raise
+            raise
 
     @property
     def when_txt(self):
@@ -201,31 +169,24 @@ class AutomatedEmail:
 
         return '\n'.join([filter.active_when for filter in self.when])
 
-    @classmethod
-    def get_approved_idents(cls, session):
-        return {ae.ident for ae in session.query(ApprovedEmail)}
-
-    @classmethod
-    def get_previously_sent_emails(cls, session):
-        return set(session.query(Email.model, Email.fk_id, Email.ident))
-
-    @classmethod
-    def send_all(cls, raise_errors=False):
-        """
-        Do a run of our automated email service.  This function is called once every couple of minutes.
-        """
-        SendAllAutomatedEmailsJob().run(raise_errors)
-
 
 class SendAllAutomatedEmailsJob:
+
     # save information about the last time the daemon ran so that we can display stats on things like
     # unapproved emails/etc
     last_result = dict()
 
+    run_lock = threading.Lock()
+
+    @classmethod
+    def send_all_emails(cls, raise_errors=False):
+        """ Helper method to start a run of our automated email processing """
+        cls().run(raise_errors)
+
     @timed
     def run(self, raise_errors=False):
         """
-        Do a run of our automated email service.  Call this periodically to send any emails that should go out
+        Do one run of our automated email service.  Call this periodically to send any emails that should go out
         automatically.
 
         This will NOT run if we're on-site, or not configured to send emails.
@@ -236,11 +197,23 @@ class SendAllAutomatedEmailsJob:
         if not allowed_to_run:
             return
 
-        with Session() as session:
-            self._init(session, raise_errors)
-            self._send_all_emails()
+        if not self.run_lock.acquire(blocking=False):
+            log.warn("can't acquire lock for email daemon, skipping run.")
+            return
 
-        SendAllAutomatedEmailsJob.last_result = self.results
+        self._run(raise_errors)
+
+        self.run_lock.release()
+
+    @swallow_exceptions  # use swallow_exceptions because we're holding a lock
+    def _run(self, raise_errors):
+        with Session() as session:
+            # we use request_cached_context() to force cache invalidation of variables like c.EMAIL_APPROVED_IDENTS
+            with request_cached_context(clear_cache_on_start=True):
+                self._init(session, raise_errors)
+                self._send_all_emails()
+
+        self.last_result = self.results
 
     def _init(self, session, raise_errors):
         self.session = session
@@ -248,9 +221,9 @@ class SendAllAutomatedEmailsJob:
         self.results = dict()
         self.results['categories'] = dict()
 
-        # cache these so we don't have to compute them thousands of times per run
-        self.approved_idents = AutomatedEmail.get_approved_idents(session)
-        self.previously_sent_emails = AutomatedEmail.get_previously_sent_emails(session)
+        # note: this will get cleared after request_cached_context object is released.
+        assert not threadlocal.get('currently_running_email_daemon')
+        threadlocal.set('currently_running_email_daemon', self)
 
     def _send_all_emails(self):
         """
@@ -287,11 +260,19 @@ class SendAllAutomatedEmailsJob:
           model_instance:  Attendee #42
         """
         for email_category in AutomatedEmail.instances.values():
-            email_category.attempt_to_send(self.session, model_instance,
-                                           self.approved_idents, self.previously_sent_emails,
-                                           self.raise_errors)
+            email_category.send_if_possible(self.session, model_instance, self.raise_errors)
 
-    def increment_unset_because_unapproved_count(self, automated_email_category):
+    @classmethod
+    def _currently_running_daemon_on_this_thread(cls):
+        return threadlocal.get('currently_running_email_daemon')
+
+    @classmethod
+    def log_unset_because_unapproved(cls, automated_email_category):
+        running_daemon = cls._currently_running_daemon_on_this_thread()
+        if running_daemon:
+            running_daemon._increment_unset_because_unapproved_count(automated_email_category)
+
+    def _increment_unset_because_unapproved_count(self, automated_email_category):
         """
         Log information that a particular email wanted to send out an email, but could not because it didn't have
         approval.
