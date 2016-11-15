@@ -138,10 +138,13 @@ class Root:
                 if attendee.is_dealer:
                     session.add_all([attendee, group])
                     session.commit()
-                    send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Application Received',
-                               render('emails/dealers/reg_notification.txt', {'group': group}), model=group)
-                    send_email(c.MARKETPLACE_EMAIL, group.leader.email, 'Dealer Application Received',
-                               render('emails/dealers/dealer_received.txt', {'group': group}), model=group)
+                    try:
+                        send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Application Received',
+                                   render('emails/dealers/reg_notification.txt', {'group': group}), model=group)
+                        send_email(c.MARKETPLACE_EMAIL, group.leader.email, 'Dealer Application Received',
+                                   render('emails/dealers/dealer_received.txt', {'group': group}), model=group)
+                    except:
+                        log.error('unable to send marketplace application confirmation email', exc_info=True)
                     raise HTTPRedirect('dealer_confirmation?id={}', group.id)
                 else:
                     target = group if group.badges else attendee
@@ -317,10 +320,13 @@ class Root:
                 attendee.amount_paid = attendee.total_cost
                 session.merge(attendee)
 
-            if group.tables:
-                send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Payment Completed',
-                           render('emails/dealers/payment_notification.txt', {'group': group}), model=group)
             session.merge(group)
+            if group.tables:
+                try:
+                    send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Payment Completed',
+                               render('emails/dealers/payment_notification.txt', {'group': group}), model=group)
+                except:
+                    log.error('unable to send dealer payment confirmation email', exc_info=True)
             raise HTTPRedirect('group_members?id={}&message={}', group.id, 'Your payment has been accepted!')
 
     @credit_card
