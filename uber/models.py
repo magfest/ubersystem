@@ -558,7 +558,7 @@ class Session(SessionManager):
                         self.shift_badges(attendee.badge_type, attendee.badge_num + offset, up=True)
                 attendee.badge_num = badge_num_keep
 
-            if (not attendee.badge_num or was_dupe_num) and needs_badge_num(attendee):
+            if not attendee.badge_num and needs_badge_num(attendee):
                 attendee.badge_num = self.get_next_badge_num(attendee.badge_type)
 
             return 'Badge updated'
