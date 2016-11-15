@@ -533,24 +533,32 @@ class Session(SessionManager):
             """
             from uber.badge_funcs import needs_badge_num
             old_badge_num = int(old_badge_num or 0) or None
+            was_dupe_num = self.query(Attendee).filter(Attendee.badge_type == old_badge_type,
+                                                       Attendee.badge_num == old_badge_num,
+                                                       Attendee.id != attendee.id).first()
 
-            if old_badge_type == attendee.badge_type and (not attendee.badge_num or old_badge_num == attendee.badge_num):
+            if not was_dupe_num and old_badge_type == attendee.badge_type and (not attendee.badge_num or old_badge_num == attendee.badge_num):
                 attendee.badge_num = old_badge_num
                 return 'Attendee is already {} with badge {}'.format(c.BADGES[old_badge_type], old_badge_num)
 
             if c.SHIFT_CUSTOM_BADGES:
                 # fill in the gap from the old number, if applicable
                 badge_num_keep = attendee.badge_num
-                if old_badge_num:
+                if old_badge_num and not was_dupe_num:
                     self.shift_badges(old_badge_type, old_badge_num + 1, down=True)
 
                 # make room for the new number, if applicable
                 if attendee.badge_num:
                     offset = 1 if old_badge_type == attendee.badge_type and attendee.badge_num > (old_badge_num or 0) else 0
-                    self.shift_badges(attendee.badge_type, attendee.badge_num + offset, up=True)
+                    no_gap = self.query(Attendee).filter(Attendee.badge_type == attendee.badge_type,
+                                                         Attendee.badge_num == attendee.badge_num,
+                                                         Attendee.id != attendee.id).first()
+
+                    if no_gap:
+                        self.shift_badges(attendee.badge_type, attendee.badge_num + offset, up=True)
                 attendee.badge_num = badge_num_keep
 
-            if not attendee.badge_num and needs_badge_num(attendee):
+            if (not attendee.badge_num or was_dupe_num) and needs_badge_num(attendee):
                 attendee.badge_num = self.get_next_badge_num(attendee.badge_type)
 
             return 'Badge updated'

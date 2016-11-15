@@ -392,6 +392,13 @@ class TestShiftOnChange:
         assert session.staff_two.badge_num == 1
         assert [1, 2, 3, 4] == self.staff_badges(session)
 
+    def test_dont_shift_if_gap(self, session):
+        session.staff_five.badge_num = 10
+        session.commit()
+        session.update_badge(Attendee(first_name='NewStaff', paid=c.NEED_NOT_PAY, badge_type=c.STAFF_BADGE, badge_num=5), None, None)
+        session.commit()
+        assert [1, 2, 3, 4, 10] == self.staff_badges(session)
+
 
 class TestBadgeValidations:
     def test_dupe_badge_num(self, session, monkeypatch):
@@ -420,3 +427,22 @@ class TestBadgeValidations:
         session.regular_attendee.badge_type = c.STAFF_BADGE
         session.regular_attendee.badge_num = None
         assert 'There are no more badges available for that type' == check(session.regular_attendee)
+
+
+class TestDupeFixes:
+    @pytest.fixture(autouse=True)
+    def create_dupe_nums(self, session, monkeypatch):
+        session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), first_name="3002", paid=c.HAS_PAID, badge_num=3001))
+        session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), first_name="3000", paid=c.HAS_PAID, badge_num=3001))
+        session.staff_five.badge_num = 1
+        # Skip the badge adjustments here, which prevent us from setting duplicate numbers
+        monkeypatch.setattr(Attendee, '_badge_adjustments', 0)
+        session.commit()
+
+    def test_resave_if_dupe(self, session):
+        assert 'Badge updated' == session.update_badge(session.staff_five, c.STAFF_BADGE, 1)
+        assert 5 == session.staff_five.badge_num
+
+    def test_dont_fill_dupe_gap(self, session):
+        session.update_badge(session.staff_five, c.STAFF_BADGE, 1)
+        assert 5 == session.staff_five.badge_num
