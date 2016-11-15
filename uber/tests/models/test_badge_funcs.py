@@ -432,12 +432,11 @@ class TestBadgeValidations:
 class TestDupeFixes:
     @pytest.fixture(autouse=True)
     def create_dupe_nums(self, session, monkeypatch):
-        session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), first_name="3002", paid=c.HAS_PAID, badge_num=3001))
-        session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), first_name="3000", paid=c.HAS_PAID, badge_num=3001))
         session.staff_five.badge_num = 1
         # Skip the badge adjustments here, which prevent us from setting duplicate numbers
         monkeypatch.setattr(Attendee, '_badge_adjustments', 0)
         session.commit()
+        session.staff_five.badge_num = None
 
     def test_resave_if_dupe(self, session):
         assert 'Badge updated' == session.update_badge(session.staff_five, c.STAFF_BADGE, 1)
@@ -445,4 +444,4 @@ class TestDupeFixes:
 
     def test_dont_fill_dupe_gap(self, session):
         session.update_badge(session.staff_five, c.STAFF_BADGE, 1)
-        assert 5 == session.staff_five.badge_num
+        assert 2 == session.staff_two.badge_num
