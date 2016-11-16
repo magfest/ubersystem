@@ -106,12 +106,14 @@ class Config(_Overridable):
         price = self.INITIAL_ATTENDEE
         if self.PRICE_BUMPS_ENABLED:
 
-            if not dt or c.HARDCORE_OPTIMIZATIONS_ENABLED:
-                dt = sa.localized_now() or dt
+            if dt or c.HARDCORE_OPTIMIZATIONS_ENABLED:
+                # Disable the bucket-based pricing if we're checking an existing badge OR
+                # if we have hardcore_optimizations_enabled config on.
+                badges_sold = 0
+            else:
+                dt = sa.localized_now()
                 # this is a database query and very expensive
                 badges_sold = self.BADGES_SOLD
-            else:
-                badges_sold = 0
 
             for day, bumped_price in sorted(self.PRICE_BUMPS.items()):
                 if (dt or datetime.now(UTC)) >= day:
