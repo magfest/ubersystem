@@ -46,6 +46,7 @@ class Root:
         return {
             'diagnostics_data': gather_diagnostics_status_information(),
         }
+
     @csv_file
     def dept_head_csv(self, out, session):
         out.writerow(['Name', 'Phone', 'Email'])
