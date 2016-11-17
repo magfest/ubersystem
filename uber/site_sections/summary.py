@@ -132,7 +132,7 @@ class Root:
     @csv_file
     def dept_head_csv(self, out, session):
         out.writerow(['Name', 'Phone', 'Email'])
-        dhs = session.query(Attendee).filter(Attendee.is_dept_head)
+        dhs = session.query(Attendee).filter(Attendee.is_dept_head).all()
         for x in dhs:
             out.writerow([x.full_name, x.cellphone, x.email])
 
