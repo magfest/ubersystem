@@ -47,13 +47,6 @@ class Root:
             'diagnostics_data': gather_diagnostics_status_information(),
         }
 
-    @csv_file
-    def dept_head_csv(self, out, session):
-        out.writerow(['Name', 'Phone', 'Email'])
-        dhs = session.query(Attendee).filter(Attendee.is_dept_head)
-        for x in dhs:
-            out.writerow([x.full_name, x.cellphone, x.email])
-
 
 @register_diagnostics_status_function
 def database_pool_information():

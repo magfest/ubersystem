@@ -130,6 +130,13 @@ class Root:
         }
 
     @csv_file
+    def dept_head_csv(self, out, session):
+        out.writerow(['Name', 'Phone', 'Email'])
+        dhs = session.query(Attendee).filter(Attendee.is_dept_head)
+        for x in dhs:
+            out.writerow([x.full_name, x.cellphone, x.email])
+
+    @csv_file
     def printed_badges_attendee(self, out, session):
         uber.reports.PrintedBadgeReport(badge_type=c.ATTENDEE_BADGE).run(out, session)
 
