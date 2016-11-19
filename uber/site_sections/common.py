@@ -5,3 +5,6 @@ from uber.common import *
 class Root:
     def index(self):
         return {}
+
+    def invalid(self):
+        return {}

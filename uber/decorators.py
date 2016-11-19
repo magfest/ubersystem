@@ -485,3 +485,16 @@ class alias_to_site_section(object):
         redirect_func = create_redirect(self.url or '../' + get_module_name(func) + '/' + func.__name__)
         setattr(root, self.alias_name or func.__name__, redirect_func)
         return func
+
+
+def id_required(func):
+    @wraps(func)
+    def check_id(self, **params):
+        if params['id']:
+            with sa.Session() as session:
+                #THIS LINE IS BROKEN. HOW DO I DO THISSSSSSS
+                if session.query(sa.Attendee).filter(sa.Attendee.id == params['id']).first():
+                    return func(**params)
+                else:
+                    raise HTTPRedirect('../common/invalid', save_location=True)
+    return check_id
