@@ -498,3 +498,4 @@ def id_required(func):
                 else:
                     raise HTTPRedirect('../common/invalid', save_location=True)
     return check_id
+
