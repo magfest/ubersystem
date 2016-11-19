@@ -161,7 +161,7 @@
         <div class="form-group">
             <label for="admin_options" class="col-sm-2 control-label">Permissions</label>
             <div class="col-sm-6">
-                {% checkgroup attendee.admin_account.access %}
+                {{ attendee.admin_account.access_labels|join:' / ' }}
             </div>
         </div>
 
