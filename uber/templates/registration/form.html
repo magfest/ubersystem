@@ -149,9 +149,23 @@
     <div class="form-group">
         <label for="admin_status" class="col-sm-2 control-label">Admin</label>
         <div class="col-sm-6">
-            <p name="admin_status">{% if attendee.admin_account %}True{% else %}False{% endif %}</p>
+            {% if attendee.admin_account %}
+                <p name="admin_status">True</p>
+            {% else %}
+                <p name="admin_status">False</p>
+            {% endif %}
         </div>
     </div>
+
+    {% if attendee.admin_account %}
+        <div class="form-group">
+            <label for="admin_options" class="col-sm-2 control-label">Permissions</label>
+            <div class="col-sm-6">
+                {% checkgroup attendee.admin_account.access %}
+            </div>
+        </div>
+
+    {% endif %}
 
 <div class="form-group">
     <label class="col-sm-2 control-label">Badge</label>
