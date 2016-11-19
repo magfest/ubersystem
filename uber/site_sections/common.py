@@ -7,4 +7,6 @@ class Root:
         return {}
 
     def invalid(self, **params):
-        return {}
+        return {
+            'message': params.get('message')
+        }
