@@ -100,9 +100,7 @@
     <div class="form-group">
         <label for="badge_type" class="col-sm-2 control-label">Badge Type</label>
         <div class="col-sm-6">
-            <select>
-                {% options c.BADGE_OPTS attendee.badge_type %}
-            </select>
+            {{ attendee.badge_type_label }}
         </div>
     </div>
 {% else %}
