@@ -146,6 +146,13 @@
         </div>
     </div>
 
+    <div class="form-group">
+        <label for="admin_status" class="col-sm-2 control-label">Admin</label>
+        <div class="col-sm-6">
+            <p name="admin_status">{% if attendee.admin_account %}True{% else %}False{% endif %}</p>
+        </div>
+    </div>
+
 <div class="form-group">
     <label class="col-sm-2 control-label">Badge</label>
     <div class="col-sm-6">
