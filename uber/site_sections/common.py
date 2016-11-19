@@ -6,5 +6,5 @@ class Root:
     def index(self):
         return {}
 
-    def invalid(self):
+    def invalid(self, **params):
         return {}

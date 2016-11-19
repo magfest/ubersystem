@@ -490,12 +490,14 @@ class alias_to_site_section(object):
 def id_required(func):
     @wraps(func)
     def check_id(self, **params):
-        if params['id']:
-            with sa.Session() as session:
-                #THIS LINE IS BROKEN. HOW DO I DO THISSSSSSS
+        session = params['session']
+        if params.get('id'):
+            try:
+                uuid.UUID(params['id'])
+            except ValueError:
+                pass
+            else:
                 if session.query(sa.Attendee).filter(sa.Attendee.id == params['id']).first():
                     return func(**params)
-                else:
-                    raise HTTPRedirect('../common/invalid', save_location=True)
+        raise HTTPRedirect('../common/invalid')
     return check_id
-
