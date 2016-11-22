@@ -21,9 +21,18 @@ class PersonalizedBadgeReport(ReportBase):
         self._include_badge_nums = include_badge_nums
 
     def run(self, out, session, *filters, order_by=None, badge_type_override=None):
+        badge_nums_seen = []
+
         for a in (session.query(sa.Attendee)
                          .filter(sa.Attendee.badge_status != c.INVALID_STATUS, *filters)
                          .order_by(order_by).all()):
+
+            # sanity check no duplicate badges
+            if a.badge_num in badge_nums_seen:
+                raise ValueError("duplicate badge number detected: %s" % a.badge_num)
+            badge_nums_seen += [a.badge_num]
+
+            # write the actual data
             row = [a.badge_num] if self._include_badge_nums else []
             badge_type_label = badge_type_override if badge_type_override else a.badge_type_label
             row += [badge_type_label, a.badge_printed_name or a.full_name]
