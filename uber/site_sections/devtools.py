@@ -47,6 +47,18 @@ class Root:
             'diagnostics_data': gather_diagnostics_status_information(),
         }
 
+    def badge_number_consistency_check(self, session, run_check=None):
+        errors = []
+
+        if run_check:
+            errors = badge_consistency_check(session)
+
+        return {
+            'errors_found': len(errors) > 0,
+            'errors': errors,
+            'ran_check': run_check,
+        }
+
 
 @register_diagnostics_status_function
 def database_pool_information():
