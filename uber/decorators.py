@@ -487,7 +487,7 @@ class alias_to_site_section(object):
         return func
 
 
-def id_required(func):
+def attendee_id_required(func):
     @wraps(func)
     def check_id(self, **params):
         message = "No ID provided. Trying using a different link or going back."
