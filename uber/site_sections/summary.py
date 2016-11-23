@@ -198,7 +198,7 @@ class Root:
         """
         for badge_csv_fn in self.badge_zipfile_contents:
             csv_filename = '{}.csv'.format(badge_csv_fn.__name__)
-            output = badge_csv_fn(self, session)
+            output = badge_csv_fn(self, session, set_headers=False)
             zip_file.writestr(csv_filename, output)
 
     def food_eligible(self, session):
