@@ -136,6 +136,7 @@ def _set_csv_base_filename(base_filename):
 
 def csv_file(func):
     func.site_mappable = True
+    
     @wraps(func)
     def csvout(self, session, set_headers=True, **kwargs):
         writer = StringIO()
