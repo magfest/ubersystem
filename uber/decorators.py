@@ -490,14 +490,15 @@ class alias_to_site_section(object):
 def id_required(func):
     @wraps(func)
     def check_id(self, **params):
-        message = "ID NOT FOUND"
+        message = "No ID provided. Trying using a different link or going back."
         session = params['session']
         if params.get('id'):
             try:
                 uuid.UUID(params['id'])
             except ValueError:
-                message = "UUID is an invalid hexadecimal string."
+                message = "Your ID is not a valid format. Did you enter or edit it manually?"
             else:
+                message = "You weren't found in our database."
                 if session.query(sa.Attendee).filter(sa.Attendee.id == params['id']).first():
                     return func(**params)
         raise HTTPRedirect('../common/invalid?message=%s' % message)
