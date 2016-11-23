@@ -184,6 +184,13 @@ def zip_code(attendee):
 
 
 @validation.Attendee
+def printed_badge_change(attendee):
+    if c.AFTER_PRINTED_BADGE_DEADLINE:
+        if attendee.badge_printed_name != attendee.orig_value_of('badge_printed_name'):
+            return 'Custom badges have already been ordered, so you cannot change the printed name of this Attendee'
+
+
+@validation.Attendee
 def printed_badge_deadline(attendee):
     if attendee.is_new and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
         return 'Custom badges have already been ordered so you cannot create new {} badges'.format(attendee.badge_type_label)
