@@ -161,18 +161,17 @@ class Root:
             Attendee.badge_num != None,
             order_by='badge_num')
 
-        # part 2, include a bunch of extra badges so we have some extra printed, just in case.
-        extra_count = 5
+        # part 2, include unassigned group badges that are staff.  these don't have badge numbers
+        minimum_safety_amount = 5
 
-        # part 3, include unassigned group badges that are staff.  these don't have badge numbers
-        extra_count += session.query(Attendee).filter(
+        extra_count = session.query(Attendee).filter(
             Attendee.badge_type == c.STAFF_BADGE,
             Attendee.badge_num == None,
             Attendee.badge_status == c.NEW_STATUS,
         ).count()
 
         max_badges = c.BADGE_RANGES[c.STAFF_BADGE][1]
-        badge_range = (max_badges - extra_count, max_badges)
+        badge_range = (max_badges - max(extra_count, minimum_safety_amount) + 1, max_badges)
         uber.reports.PrintedBadgeReport(badge_type=c.STAFF_BADGE, range=badge_range).run(out, session)
 
     @csv_file
