@@ -113,7 +113,7 @@ def ajax_gettable(func):
 
 def multifile_zipfile(func):
     func.site_mappable = True
-    
+
     @wraps(func)
     def zipfile_out(self, session):
         zipfile_writer = BytesIO()
@@ -138,7 +138,7 @@ def _set_csv_base_filename(base_filename):
 
 def csv_file(func):
     func.site_mappable = True
-    
+
     @wraps(func)
     def csvout(self, session, set_headers=True, **kwargs):
         writer = StringIO()
