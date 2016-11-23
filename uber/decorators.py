@@ -112,6 +112,7 @@ def ajax_gettable(func):
 
 
 def multifile_zipfile(func):
+    func.site_mappable = True
     @wraps(func)
     def zipfile_out(self, session):
         zipfile_writer = BytesIO()
