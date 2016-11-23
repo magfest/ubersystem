@@ -161,8 +161,8 @@ class Root:
             Attendee.badge_num != None,
             order_by='badge_num')
 
-        # part 2, include a bunch of extra badges so we have some printed
-        extra_count = 20
+        # part 2, include a bunch of extra badges so we have some extra printed, just in case.
+        extra_count = 5
 
         # part 3, include unassigned group badges that are staff.  these don't have badge numbers
         extra_count += session.query(Attendee).filter(
