@@ -28,9 +28,10 @@ class PersonalizedBadgeReport(ReportBase):
                          .order_by(order_by).all()):
 
             # sanity check no duplicate badges
-            if a.badge_num in badge_nums_seen:
-                raise ValueError("duplicate badge number detected: %s" % a.badge_num)
-            badge_nums_seen += [a.badge_num]
+            if a.badge_num:
+                if a.badge_num in badge_nums_seen:
+                    raise ValueError("duplicate badge number detected: %s" % a.badge_num)
+                badge_nums_seen += [a.badge_num]
 
             # write the actual data
             row = [a.badge_num] if self._include_badge_nums else []
