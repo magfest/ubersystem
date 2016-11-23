@@ -157,13 +157,21 @@ class Root:
 
         # part 1, include only staff badges that have an assigned name
         uber.reports.PersonalizedBadgeReport().run(out, session,
-            sa.Attendee.badge_type == c.STAFF_BADGE,
-            sa.Attendee.badge_num != None,
+            Attendee.badge_type == c.STAFF_BADGE,
+            Attendee.badge_num != None,
             order_by='badge_num')
 
         # part 2, include a bunch of extra badges so we have some printed
-        max_badges = c.BADGE_RANGES[c.STAFF_BADGE][1]
         extra_count = 20
+
+        # part 3, include unassigned group badges that are staff.  these don't have badge numbers
+        extra_count += session.query(Attendee).filter(
+            Attendee.badge_type == c.STAFF_BADGE,
+            Attendee.badge_num == None,
+            Attendee.badge_status == c.NEW_STATUS,
+        ).count()
+
+        max_badges = c.BADGE_RANGES[c.STAFF_BADGE][1]
         badge_range = (max_badges - extra_count, max_badges)
         uber.reports.PrintedBadgeReport(badge_type=c.STAFF_BADGE, range=badge_range).run(out, session)
 
