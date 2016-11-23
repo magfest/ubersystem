@@ -138,35 +138,39 @@ class Root:
 
     @csv_file
     def printed_badges_attendee(self, out, session):
-        uber.reports.PrintedBadgeReport(badge_type=c.ATTENDEE_BADGE).run(out, session)
+        uber.reports.PrintedBadgeReport(badge_type=c.ATTENDEE_BADGE, badge_type_name='Attendee').run(out, session)
 
     @csv_file
     def printed_badges_guest(self, out, session):
-        uber.reports.PrintedBadgeReport(badge_type=c.GUEST_BADGE).run(out, session)
+        uber.reports.PrintedBadgeReport(badge_type=c.GUEST_BADGE, badge_type_name='Guest').run(out, session)
 
     @csv_file
     def printed_badges_one_day(self, out, session):
-        uber.reports.PrintedBadgeReport(badge_type=c.ONE_DAY_BADGE).run(out, session)
+        uber.reports.PrintedBadgeReport(badge_type=c.ONE_DAY_BADGE, badge_type_name='OneDay').run(out, session)
 
     @csv_file
     def printed_badges_minor(self, out, session):
-        uber.reports.PrintedBadgeReport(badge_type=c.CHILD_BADGE).run(out, session)
+        uber.reports.PrintedBadgeReport(badge_type=c.CHILD_BADGE, badge_type_name='Minor').run(out, session)
 
     @csv_file
     def printed_badges_staff(self, out, session):
 
         # part 1, include only staff badges that have an assigned name
         uber.reports.PersonalizedBadgeReport().run(out, session,
-            Attendee.badge_type == c.STAFF_BADGE,
-            Attendee.badge_num != None,
-            order_by='badge_num')
+                                                   Attendee.badge_type == c.STAFF_BADGE,
+                                                   Attendee.badge_num != None,
+                                                   order_by='badge_num')
 
         # part 2, include some extra for safety marging
         minimum_extra_amount = 5
 
         max_badges = c.BADGE_RANGES[c.STAFF_BADGE][1]
         badge_range = (max_badges - minimum_extra_amount + 1, max_badges)
-        uber.reports.PrintedBadgeReport(badge_type=c.STAFF_BADGE, range=badge_range).run(out, session)
+        uber.reports.PrintedBadgeReport(
+            badge_type=c.STAFF_BADGE,
+            range=badge_range,
+            badge_type_name='Staff')\
+            .run(out, session)
 
     @csv_file
     def badge_hangars_supporters(self, out, session):

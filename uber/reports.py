@@ -48,10 +48,11 @@ class PersonalizedBadgeReport(ReportBase):
 
 class PrintedBadgeReport(ReportBase):
     """Generate a CSV file of badges which do not have customized information"""
-    def __init__(self, badge_type, include_badge_nums=True, range=None):
+    def __init__(self, badge_type, include_badge_nums=True, range=None, badge_type_name=''):
         self._badge_type = badge_type
         self._include_badge_nums = include_badge_nums
         self._range = range
+        self._badge_type_name = badge_type_name
 
     def run(self, out, session):
         badge_range = c.BADGE_RANGES[self._badge_type]
@@ -59,7 +60,6 @@ class PrintedBadgeReport(ReportBase):
         max_badge_num = min([badge_range[1]] + ([self._range[1]] if self._range else [])) + 1
 
         empty_customized_name = ''
-        empty_badge_type = ''
 
         for badge_num in range(min_badge_num, max_badge_num):
-            self.write_row([badge_num, empty_badge_type, empty_customized_name], out)
+            self.write_row([badge_num, self._badge_type_name, empty_customized_name], out)
