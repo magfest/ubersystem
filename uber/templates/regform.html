@@ -367,6 +367,22 @@
     </div>
 </div>
 
+{% if c.PAGE_PATH == '/registration/form' %}
+<div class="form-group staffing">
+    <label for="rooming" class="col-sm-2 optional-field control-label">Can Room?</label>
+    <div class="col-sm-6">
+        {% checkbox attendee.hotel_eligible %}
+        This attendee
+        {% if attendee.hotel_eligible %}
+        can
+        {% else %}
+        cannot
+        {% endif %}
+        request room space.
+    </div>
+</div>
+{% endif %}
+
 <div class="form-group staffing" id="departments">
     <label for="requested_depts" class="col-sm-2 control-label">Where do you want to help?</label>
     <div class="col-sm-6">
