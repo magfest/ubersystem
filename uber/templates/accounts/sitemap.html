@@ -9,9 +9,7 @@
     <div class="panel-heading"><a href="../{{ section }}/index">{{ section|title }}</a></div>
         <ul class="nav nav-pills">
         {% for page in pagelist %}
-            {% if page.name != 'Index' %}
             <li><a href="..{{ page.path }}">{{ page.name }}</a></li>
-            {% endif %}
         {% endfor %}
         </ul>
     </div>
