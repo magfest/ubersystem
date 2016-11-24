@@ -37,6 +37,15 @@ class AutomatedEmail:
         with Session() as session:
             return bool(session.query(ApprovedEmail).filter_by(ident=self.ident).first())
 
+    def computed_subject(self, x):
+        """
+        Given a model instance, return an email subject email for that instance.
+        By default this just returns the default subject unmodified; this method
+        exists only to be overriden in subclasses.  For example, we might want
+        our panel email subjects to contain the name of the panel.
+        """
+        return self.subject
+
     def prev(self, x, all_sent=None):
         if all_sent:
             return (x.__class__.__name__, x.id, self.ident) in all_sent
@@ -56,8 +65,9 @@ class AutomatedEmail:
 
     def send(self, x, raise_errors=True):
         try:
+            subject = self.computed_subject(x)
             format = 'text' if self.template.endswith('.txt') else 'html'
-            send_email(self.sender, x.email, self.subject, self.render(x), format, model=x, cc=self.cc, ident=self.ident)
+            send_email(self.sender, x.email, subject, self.render(x), format, model=x, cc=self.cc, ident=self.ident)
         except:
             log.error('error sending {!r} email to {}', self.subject, x.email, exc_info=True)
             if raise_errors:
