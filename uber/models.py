@@ -1027,6 +1027,9 @@ class PromoCode(MagModel):
     def use(self, user):
         if not self.expired:
             self.used_by.append(user)
+            return True
+        else:
+            user.promo_code_id = None
 
     def expire(self):
         self.expiration_date = localized_now()
@@ -1266,12 +1269,6 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def total_cost(self):
-        if self.promo_code_id:
-            with Session() as session:
-                code = session.query(PromoCode).filter(PromoCode.id == self.promo_code_id).first()
-                if code:
-                    if not code.expired:
-                        return code.price + self.amount_extra
         return self.default_cost + self.amount_extra
 
     @property

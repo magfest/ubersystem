@@ -109,6 +109,14 @@ class Root:
             params.setdefault('badges', group.badges)
         else:
             attendee = session.attendee(params, ignore_csrf=True, restricted=True)
+            if attendee.found_how:
+                code = session.query(PromoCode).filter(PromoCode.code == attendee.found_how).first()
+                attendee.promo_code = code
+                attendee.promo_code_id = code.id
+                if code.price > 0:
+                    attendee.overridden_price = code.price
+                else:
+                    attendee.paid = c.NEED_NOT_PAY
             group = session.group(params, ignore_csrf=True, restricted=True)
 
         if not attendee.badge_type:
@@ -149,7 +157,11 @@ class Root:
                 else:
                     target = group if group.badges else attendee
                     track_type = c.EDITED_PREREG if target.id in self.unpaid_preregs else c.UNPAID_PREREG
-                    self.unpaid_preregs[target.id] = to_sessionized(attendee, group)
+                    if attendee.paid == c.NEED_NOT_PAY:
+                        session.add(attendee)
+                        raise HTTPRedirect('paid_preregistrations?payment_received={}', 0)
+                    else:
+                        self.unpaid_preregs[target.id] = to_sessionized(attendee, group)
                     Tracking.track(track_type, attendee)
                     if group.badges:
                         Tracking.track(track_type, group)
@@ -207,8 +219,6 @@ class Root:
         for attendee in charge.attendees:
             attendee.paid = c.HAS_PAID
             attendee.amount_paid = attendee.total_cost
-            if attendee.promo_code:
-                attendee.promo_code.use(attendee)
             session.add(attendee)
 
         for group in charge.groups:
@@ -532,24 +542,3 @@ class Root:
             'message': message,
             'attendee': attendee
         }
-
-    def apply_promo_code(self, session, message='', **params):
-        if 'id' and 'code' in params:
-            if params['code'] == '':
-                message = "You must enter a promo code."
-            else:
-                attendee, group = self._get_unsaved(params['id'])
-                if not attendee:
-                    message = 'Attendee Not Found'
-                else:
-                    promo_code = session.query(PromoCode).filter(PromoCode.code == params['code'] and not PromoCode.expired).first()
-                    if not promo_code:
-                        message = "Promo Code Not Found"
-                    else:
-                        if attendee.promo_code is not None:
-                            message = "Promo Code Already Being Used"
-                        else:
-                            attendee.promo_code = promo_code
-                            self.unpaid_preregs[attendee.id] = Charge.to_sessionized(attendee)
-                            message = "Promo Code Applied"
-        return message

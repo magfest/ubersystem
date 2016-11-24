@@ -70,8 +70,7 @@
         <td>${{ attendee.total_cost|floatformat:2 }}</td>
         <td>
             <a href="form?edit_id={{ attendee.id }}">Edit</a> /
-            <a href="delete?id={{ attendee.id }}">Delete</a> /
-            <a href="#" onclick="applyPromoCode('{{ attendee.id }}')">Apply Promo Code</a>
+            <a href="delete?id={{ attendee.id }}">Delete</a>
         </td>
      </tr>
 {% endfor %}
