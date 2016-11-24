@@ -1956,7 +1956,10 @@ def _make_getter(model):
                 inst = self.query(model).filter_by(id=id).one()
 
             if not ignore_csrf:
-                assert not {k for k in params if k not in allowed} or cherrypy.request.method == 'POST', 'POST required'
+                try:
+                    assert not {k for k in params if k not in allowed} or cherrypy.request.method == 'POST', 'POST required'
+                except AssertionError:
+                    raise('error?message={}', 'Assert Error')
             inst.apply(params, bools=bools, checkgroups=checkgroups, restricted=restricted, ignore_csrf=ignore_csrf)
             return inst
     return getter
