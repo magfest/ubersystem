@@ -146,25 +146,27 @@
         </div>
     </div>
 
-    <div class="form-group">
-        <label for="admin_status" class="col-sm-2 control-label">Admin</label>
-        <div class="col-sm-6">
-            {% if attendee.admin_account %}
-                <p name="admin_status">True</p>
-            {% else %}
-                <p name="admin_status">False</p>
-            {% endif %}
-        </div>
-    </div>
-
-    {% if attendee.admin_account %}
+    {% if c.HAS_ACCOUNTS_ACCESS %}
         <div class="form-group">
-            <label for="admin_options" class="col-sm-2 control-label">Permissions</label>
+            <label for="admin_status" class="col-sm-2 control-label">Admin</label>
             <div class="col-sm-6">
-                {{ attendee.admin_account.access_labels|join:' / ' }}
+                {% if attendee.admin_account %}
+                    <p name="admin_status">True</p>
+                {% else %}
+                    <p name="admin_status">False</p>
+                {% endif %}
             </div>
         </div>
 
+        {% if attendee.admin_account %}
+            <div class="form-group">
+                <label for="admin_options" class="col-sm-2 control-label">Permissions</label>
+                <div class="col-sm-6">
+                    {{ attendee.admin_account.access_labels|join:' / ' }}
+                </div>
+            </div>
+
+        {% endif %}
     {% endif %}
 
 <div class="form-group">
