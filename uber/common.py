@@ -5,7 +5,6 @@ import sys
 import json
 import math
 import html
-import uuid
 import string
 import socket
 import random
