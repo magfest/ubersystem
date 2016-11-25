@@ -1757,9 +1757,9 @@ class ArbitraryCharge(MagModel):
 
 
 class ApprovedEmail(MagModel):
-    subject = Column(UnicodeText)
+    ident = Column('subject', UnicodeText)  # TODO: rename column to "ident" in the database; will require a db migration
 
-    _repr_attr_names = ['subject']
+    _repr_attr_names = ['ident']
 
 
 class Email(MagModel):
