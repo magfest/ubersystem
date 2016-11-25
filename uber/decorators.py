@@ -492,21 +492,3 @@ class alias_to_site_section(object):
         redirect_func = create_redirect(self.url or '../' + get_module_name(func) + '/' + func.__name__)
         setattr(root, self.alias_name or func.__name__, redirect_func)
         return func
-
-
-def attendee_id_required(func):
-    @wraps(func)
-    def check_id(self, **params):
-        message = "No ID provided. Trying using a different link or going back."
-        session = params['session']
-        if params.get('id'):
-            try:
-                uuid.UUID(params['id'])
-            except ValueError:
-                message = "Your ID is not a valid format. Did you enter or edit it manually?"
-            else:
-                message = "You weren't found in our database."
-                if session.query(sa.Attendee).filter(sa.Attendee.id == params['id']).first():
-                    return func(**params)
-        raise HTTPRedirect('../common/invalid?message=%s' % message)
-    return check_id
