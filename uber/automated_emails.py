@@ -346,6 +346,8 @@ ident naming RULES:
  - name the ident anything you want, ideally something related to the email category i.e. "reg confirmation email"
  - HOWEVER, IF an ident was not explicitly sent, and you want to rename the subject, you must:
    - set the ident to the OLD subject first (do not include any {EVENT_NAME} in the ident)
+     example: set the ident to exactly what the old subject is, without using variable names
+     (e.g., "MAGFest 2017" instead of "{EVENT_NAME}")
    - set the subject to something different
 
 """
