@@ -112,6 +112,8 @@ def ajax_gettable(func):
 
 
 def multifile_zipfile(func):
+    func.site_mappable = True
+
     @wraps(func)
     def zipfile_out(self, session):
         zipfile_writer = BytesIO()
@@ -135,14 +137,19 @@ def _set_csv_base_filename(base_filename):
 
 
 def csv_file(func):
+    func.site_mappable = True
+
     @wraps(func)
-    def csvout(self, session, **kwargs):
+    def csvout(self, session, set_headers=True, **kwargs):
         writer = StringIO()
         func(self, csv.writer(writer), session, **kwargs)
         output = writer.getvalue().encode('utf-8')
+
         # set headers last in case there were errors, so end user still see error page
-        cherrypy.response.headers['Content-Type'] = 'application/csv'
-        _set_csv_base_filename(func.__name__)
+        if set_headers:
+            cherrypy.response.headers['Content-Type'] = 'application/csv'
+            _set_csv_base_filename(func.__name__)
+
         return output
     return csvout
 

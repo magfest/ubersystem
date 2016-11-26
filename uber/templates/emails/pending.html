@@ -10,7 +10,7 @@
     not run yet (should be a max wait of 5 minutes), or, email sending is disabled.
 </font></p>
 {% endif %}
-    
+
 <table class="table table-striped" data-page-size="9999999">
 <thead>
 <tr class="header">
@@ -26,12 +26,20 @@
 <tbody>
 {% for entry in automated_emails %}
     <tr>
+        <td>{{ email.subject }}</td>
+        <td>{{ email.sender }}</td>
+        <td><a href="pending_examples?ident={{ email.ident|urlencode }}">See Examples</a></td>
         <td>{{ entry.automated_email.subject }}</td>
         <td>{{ entry.automated_email.sender }}</td>
         <td>{{ entry.num_sent }}</td>
         <td>{% if entry.last_run_results != None %}{{ entry.last_run_results.unsent_because_unapproved }}{% else %}_{% endif %}</td>
         <td><a href="pending_examples?ident={{ entry.automated_email.ident|urlencode }}">See Examples</a></td>
         <td>
+            <form method="post" action="approve">
+            {% csrf_token %}
+            <input type="hidden" name="ident" value="{{ email.ident }}" />
+            <input type="submit" value="Approve" />
+            </form>
             {% if not entry.approved %}
                 <form method="post" action="approve">
                 {% csrf_token %}

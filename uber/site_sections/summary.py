@@ -130,35 +130,47 @@ class Root:
         }
 
     @csv_file
+    def dept_head_emails(self, out, session):
+        out.writerow(['Name', 'Phone', 'Email'])
+        dhs = session.query(Attendee).filter(Attendee.ribbon == c.DEPT_HEAD_RIBBON).all()
+        for x in dhs:
+            out.writerow([x.full_name, x.cellphone, x.email])
+
+    @csv_file
     def printed_badges_attendee(self, out, session):
-        uber.reports.PrintedBadgeReport(badge_type=c.ATTENDEE_BADGE).run(out, session)
+        uber.reports.PrintedBadgeReport(badge_type=c.ATTENDEE_BADGE, badge_type_name='Attendee').run(out, session)
 
     @csv_file
     def printed_badges_guest(self, out, session):
-        uber.reports.PrintedBadgeReport(badge_type=c.GUEST_BADGE).run(out, session)
+        uber.reports.PrintedBadgeReport(badge_type=c.GUEST_BADGE, badge_type_name='Guest').run(out, session)
 
     @csv_file
     def printed_badges_one_day(self, out, session):
-        uber.reports.PrintedBadgeReport(badge_type=c.ONE_DAY_BADGE).run(out, session)
+        uber.reports.PrintedBadgeReport(badge_type=c.ONE_DAY_BADGE, badge_type_name='OneDay').run(out, session)
 
     @csv_file
     def printed_badges_minor(self, out, session):
-        uber.reports.PrintedBadgeReport(badge_type=c.CHILD_BADGE).run(out, session)
+        uber.reports.PrintedBadgeReport(badge_type=c.CHILD_BADGE, badge_type_name='Minor').run(out, session)
 
     @csv_file
     def printed_badges_staff(self, out, session):
 
         # part 1, include only staff badges that have an assigned name
         uber.reports.PersonalizedBadgeReport().run(out, session,
-            sa.Attendee.badge_type == c.STAFF_BADGE,
-            sa.Attendee.badge_num != None,
-            order_by='badge_num')
+                                                   Attendee.badge_type == c.STAFF_BADGE,
+                                                   Attendee.badge_num != None,
+                                                   order_by='badge_num')
 
-        # part 2, include a bunch of extra badges so we have some printed
+        # part 2, include some extra for safety marging
+        minimum_extra_amount = 5
+
         max_badges = c.BADGE_RANGES[c.STAFF_BADGE][1]
-        extra_count = 20
-        badge_range = (max_badges - extra_count, max_badges)
-        uber.reports.PrintedBadgeReport(badge_type=c.STAFF_BADGE, range=badge_range).run(out, session)
+        badge_range = (max_badges - minimum_extra_amount + 1, max_badges)
+        uber.reports.PrintedBadgeReport(
+            badge_type=c.STAFF_BADGE,
+            range=badge_range,
+            badge_type_name='Staff')\
+            .run(out, session)
 
     @csv_file
     def badge_hangars_supporters(self, out, session):
@@ -191,7 +203,7 @@ class Root:
         """
         for badge_csv_fn in self.badge_zipfile_contents:
             csv_filename = '{}.csv'.format(badge_csv_fn.__name__)
-            output = badge_csv_fn(self, session)
+            output = badge_csv_fn(self, session, set_headers=False)
             zip_file.writestr(csv_filename, output)
 
     def food_eligible(self, session):

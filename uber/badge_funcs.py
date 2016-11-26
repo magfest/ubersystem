@@ -98,6 +98,66 @@ def check_unassigned():
 # TODO: perhaps a check_leaderless() for checking for leaderless groups, since those don't get emails
 
 
+# run through all badges and check 2 things:
+# 1) there are no gaps in badge numbers
+# 2) all badge numbers are in the ranges set by c.BADGE_RANGES
+# note: does not do any duplicates checking, that's a different pre-existing check
+def badge_consistency_check(session):
+    errors = []
+
+    # check 1, see if anything is out of range, or has a duplicate badge number
+    badge_nums_seen = []
+
+    attendees = session.query(Attendee)\
+        .filter(Attendee.first_name != '')\
+        .filter(Attendee.badge_num != 0)\
+        .order_by('badge_num')\
+        .all()
+
+    for attendee in attendees:
+        out_of_range_error = check_range(attendee.badge_num, attendee.badge_type)
+        if out_of_range_error:
+            msg = '{a.full_name}: badge #{a.badge_num}: {err}'.format(a=attendee, err=out_of_range_error)
+            errors.append(msg)
+
+        if attendee.badge_num in badge_nums_seen:
+            msg = '{a.full_name}: badge #{a.badge_num}: Has been assigned the same badge number ' \
+                  'of another badge, which is not supposed to happen'.format(a=attendee)
+            errors.append(msg)
+
+        badge_nums_seen.append(attendee.badge_num)
+
+    # check 2: see if there are any gaps in each of the badge ranges
+    for badge_type_val, badge_type_desc in c.BADGE_OPTS:
+        prev_badge_num = -1
+        prev_attendee_name = ""
+
+        attendees = session.query(Attendee) \
+            .filter_by(badge_type=badge_type_val)\
+            .filter(Attendee.first_name != '') \
+            .filter(Attendee.badge_num != 0) \
+            .order_by('badge_num') \
+            .all()
+
+        for attendee in attendees:
+            if prev_badge_num == -1:
+                prev_badge_num = attendee.badge_num
+                prev_attendee_name = attendee.full_name
+                continue
+
+            if attendee.badge_num - 1 != prev_badge_num:
+                msg = "gap in badge sequence between " + badge_type_desc + " " + \
+                      "badge# " + str(prev_badge_num) + "(" + prev_attendee_name + ")" + " and " + \
+                      "badge# " + str(attendee.badge_num) + "(" + attendee.full_name + ")"
+
+                errors.append(msg)
+
+            prev_badge_num = attendee.badge_num
+            prev_attendee_name = attendee.full_name
+
+    return errors
+
+
 def needs_badge_num(attendee=None, badge_type=None):
     """
     Takes either an Attendee object, a badge_type, or both and returns whether or not the attendee should be
@@ -117,6 +177,6 @@ def needs_badge_num(attendee=None, badge_type=None):
     if c.NUMBERED_BADGES:
         if attendee:
             return (badge_type in c.PREASSIGNED_BADGE_TYPES or attendee.checked_in) \
-                   and attendee.paid != c.NOT_PAID and not attendee.is_unassigned and attendee.badge_status != c.INVALID_STATUS
+                   and attendee.paid != c.NOT_PAID and attendee.badge_status != c.INVALID_STATUS
         else:
             return badge_type in c.PREASSIGNED_BADGE_TYPES

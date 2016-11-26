@@ -26,6 +26,9 @@ class AutomatedEmail:
         self.subject = subject.format(EVENT_NAME=c.EVENT_NAME)
         self.ident = ident or self.subject
 
+        self.ident = (ident or self.subject).format(EVENT_NAME=c.EVENT_NAME)
+        self.instances[self.ident] = self
+
         # Unlike subject lines, ident's should just be a unique string, not dependent
         # on any external config like EVENT_NAME.  examples:
         # good:  'registration_confirmation_email'
@@ -59,6 +62,21 @@ class AutomatedEmail:
 
     def __repr__(self):
         return '<{}: {!r}>'.format(self.__class__.__name__, self.subject)
+
+    @property
+    def approved(self):
+        """Returns a boolean indicating whether this email has been approved."""
+        with Session() as session:
+            return bool(session.query(ApprovedEmail).filter_by(ident=self.ident).first())
+
+    def computed_subject(self, x):
+        """
+        Given a model instance, return an email subject email for that instance.
+        By default this just returns the default subject unmodified; this method
+        exists only to be overriden in subclasses.  For example, we might want
+        our panel email subjects to contain the name of the panel.
+        """
+        return self.subject
 
     def _already_sent(self, model_inst):
         """
@@ -153,8 +171,9 @@ class AutomatedEmail:
         NOTE: use send_if_possible() instead of calling this method unless you 100% know what you're doing.
         """
         try:
+            subject = self.computed_subject(x)
             format = 'text' if self.template.endswith('.txt') else 'html'
-            send_email(self.sender, model_instance.email, self.subject,
+            send_email(self.sender, model_instance.email, subject,
                        self.render(model_instance), format,
                        model=model_instance, cc=self.cc, ident=self.ident)
         except:
