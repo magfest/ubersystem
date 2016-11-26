@@ -656,13 +656,12 @@ class Session(SessionManager):
         def valid_attendees(self):
             return self.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS)
 
-        def all_attendees(self):
-            return self.staffers(only_staffing=False)
-
-        def staffers(self, only_staffing=True):
+        def all_attendees(self, only_staffing=False):
             """
-            Returns a Query of attendees with efficient loading for groups and
-            shifts/jobs.  By default we only return attendees where "staffing"
+            Returns a Query of Attendees with efficient loading for groups and
+            shifts/jobs.
+
+            In some cases we only want to return attendees where "staffing"
             is true, because before the event people can't sign up for shifts
             unless they're marked as volunteers.  However, on-site we relax that
             restriction, so we'll get attendees with shifts who are not actually
@@ -670,10 +669,13 @@ class Session(SessionManager):
             clients to indicate that all attendees should be returned.
             """
             return (self.query(Attendee)
-                        .filter(Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
-                                *[Attendee.staffing == True] if only_staffing else [])
-                        .options(subqueryload(Attendee.group), subqueryload(Attendee.shifts).subqueryload(Shift.job))
-                        .order_by(Attendee.full_name))
+                    .filter(Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
+                            *[Attendee.staffing == True] if only_staffing else [])
+                    .options(subqueryload(Attendee.group), subqueryload(Attendee.shifts).subqueryload(Shift.job))
+                    .order_by(Attendee.full_name))
+
+        def staffers(self):
+            return self.all_attendees(only_staffing=True)
 
         def jobs(self, location=None):
             return (self.query(Job)
