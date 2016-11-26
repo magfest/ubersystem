@@ -278,9 +278,9 @@ class SendAllAutomatedEmailsJob:
     def log_unsent_because_unapproved(cls, automated_email_category):
         running_daemon = cls._currently_running_daemon_on_this_thread()
         if running_daemon:
-            running_daemon._increment_unset_because_unapproved_count(automated_email_category)
+            running_daemon._increment_unsent_because_unapproved_count(automated_email_category)
 
-    def _increment_unset_because_unapproved_count(self, automated_email_category):
+    def _increment_unsent_because_unapproved_count(self, automated_email_category):
         """
         Log information that a particular email wanted to send out an email, but could not because it didn't have
         approval.
