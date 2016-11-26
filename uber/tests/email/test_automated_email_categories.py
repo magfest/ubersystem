@@ -71,3 +71,8 @@ class TestAutomatedEmailCategory:
         monkeypatch.setattr(get_test_email_category, '_should_send', Mock(side_effect=Exception('Boom!')))
         with pytest.raises(Exception):
             get_test_email_category.send_if_possible(None, raise_errors=True)
+
+    def test_really_send_throws_exception(self, monkeypatch, get_test_email_category):
+        monkeypatch.setattr(get_test_email_category, 'computed_subject', Mock(side_effect=Exception('Boom!')))
+        with pytest.raises(Exception):
+            get_test_email_category.really_send(None)
