@@ -273,7 +273,7 @@ class SendAllAutomatedEmailsJob:
           model_instance:  Attendee #42
         """
         for email_category in AutomatedEmail.instances.values():
-            email_category.send_if_possible(self.session, model_instance, self.raise_errors)
+            email_category.send_if_possible(model_instance, self.raise_errors)
 
     @classmethod
     def _currently_running_daemon_on_this_thread(cls):
