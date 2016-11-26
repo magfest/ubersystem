@@ -160,7 +160,7 @@ class AutomatedEmail:
         NOTE: use send_if_possible() instead of calling this method unless you 100% know what you're doing.
         """
         try:
-            subject = self.computed_subject(x)
+            subject = self.computed_subject(model_instance)
             format = 'text' if self.template.endswith('.txt') else 'html'
             send_email(self.sender, model_instance.email, subject,
                        self.render(model_instance), format,
