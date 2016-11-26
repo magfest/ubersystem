@@ -26,11 +26,6 @@ class AutomatedEmail:
         self.subject = subject.format(EVENT_NAME=c.EVENT_NAME)
         self.ident = ident or self.subject
 
-        # Unlike subject lines, ident's should just be a unique string, not dependent
-        # on any external config like EVENT_NAME.  examples:
-        # good:  'registration_confirmation_email'
-        # bad:   '{EVENT_NAME}_confirmation_email'
-        assert '{EVENT_NAME}' not in self.ident, 'AutomatedEmail.ident "{}" not allowed to contain EVENT_NAME'.format(self.ident)
         assert self.ident not in self.instances, 'error: ident "{}" is registered twice.'.format(self.ident)
 
         self.instances[self.ident] = self
@@ -204,7 +199,7 @@ class SendAllAutomatedEmailsJob:
 
         This will NOT run if we're on-site, or not configured to send emails.
 
-        :param raise_errors: If True, exceptions are squashed during email sending and we'll try the next email.
+        :param raise_errors: If False, exceptions are squashed during email sending and we'll try the next email.
         """
         allowed_to_run = not c.AT_THE_CON and (c.DEV_BOX or c.SEND_EMAILS)
         if not allowed_to_run:
@@ -332,20 +327,27 @@ class DeptChecklistEmail(AutomatedEmail):
 
 
 """
-IMPORTANT NOTES:
+IMPORTANT NOTES FOR CHANGING/ADDING EMAIL CATEGORIES:
 
 'ident' is a unique ID for that email category that must not change after emails in that category have started to send.
+If an 'ident' is not set (not recommended), 'ident' will default to be the 'subject' line.
 
+************************************************************************
+IF IDENT IS NOT SET ON A CATEGORY, AND IF YOU CHANGE THE SUBJECT,
+IT WILL CAUSE ANY EMAILS THAT HAVE ALREADY SENT TO RE-SEND.
+************************************************************************
 
-
-#If an 'ident' is not set, 'ident' will default to be the 'subject' line.
-#The reason you don't want this is because we keep track of which emails have been sent by their 'ident', and if the
-
-
-TODO: FIXME: Going forward, every single email category below should have an explicit 'ident' set. However,
+WORK WE NEED TO DO: Going forward, every single email category below should have an explicit 'ident' set. However,
 mid-year we can't change the idents effectively because it will cause emails in these categories to be re-sent.
 
-Guidelines for naming 'idents'
+ident naming RULES:
+ - every single email below should have an explicit ident paramater set. some don't and we should fix that up.
+ - if no 'ident' is set, the ident is set to the 'subject'
+ - name the ident anything you want, ideally something related to the email category i.e. "reg confirmation email"
+ - HOWEVER, IF an ident was not explicitly sent, and you want to rename the subject, you must:
+   - set the ident to the OLD subject first (do not include any {EVENT_NAME} in the ident)
+   - set the subject to something different
+
 """
 
 
