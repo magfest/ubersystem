@@ -15,6 +15,17 @@ def remove_all_email_categories(monkeypatch):
 
 
 @pytest.fixture
+def render_fake_email(monkeypatch):
+    with patch.object(AutomatedEmail, 'render', return_value='this is email text') as mock:
+        yield mock
+
+
+@pytest.fixture
+def record_email_was_sent():
+    return patch('_record_email_sent', return_value=None)
+
+
+@pytest.fixture
 def add_test_email_categories(remove_all_email_categories):
     AutomatedEmail(
         model=Attendee,
@@ -60,7 +71,7 @@ def setup_fake_test_attendees(monkeypatch):
                 email="thegambler@protos.com",
                 paid=c.NEED_NOT_PAY,
                 badge_type=c.GUEST_BADGE,
-                id=78,
+                id='b699bfd3-1ada-4f47-b07f-cb7939783afa',
             ),
             Attendee(
                 placeholder=True,
@@ -69,7 +80,7 @@ def setup_fake_test_attendees(monkeypatch):
                 email="that_one_robot@ihaveasecret.com",
                 paid=c.NEED_NOT_PAY,
                 badge_type=c.GUEST_BADGE,
-                id=78,
+                id='e91e6c7e-699e-4784-b43f-303acc419dd5',
             ),
             Attendee(
                 placeholder=False,
@@ -78,7 +89,7 @@ def setup_fake_test_attendees(monkeypatch):
                 email="yeswecan@jumpfromanywhere.com",
                 paid=c.HAS_PAID,
                 badge_type=c.ATTENDEE_BADGE,
-                id=12,
+                id='c8b35ec5-4385-4ad7-b7db-b6f082f74aeb',
             ),
         ],
         # Group: lambda ignored_param: would need to replace with: session.query(Group).options(subqueryload(Group.attendees))
@@ -129,7 +140,7 @@ def set_previously_sent_emails_to_attendee1(monkeypatch):
 
     # format of this set: (Email.model, Email.fk_id, Email.ident)
     list_of_emails_previously_sent = {
-        (Attendee.__name__, 78, 'you_are_not_him'),
+        (Attendee.__name__, 'b699bfd3-1ada-4f47-b07f-cb7939783afa', 'you_are_not_him'),
     }
 
     monkeypatch.setattr(c, 'get_previously_sent_emails', Mock(return_value=list_of_emails_previously_sent), raising=False)
