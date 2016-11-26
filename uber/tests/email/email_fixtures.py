@@ -43,8 +43,8 @@ def amazon_send_email_mock():
 
 
 @pytest.fixture
-def log_unset_because_unapproved():
-    with patch.object(SendAllAutomatedEmailsJob, 'log_unset_because_unapproved', return_value=None) as mock:
+def log_unsent_because_unapproved():
+    with patch.object(SendAllAutomatedEmailsJob, 'log_unsent_because_unapproved', return_value=None) as mock:
         yield mock
 
 

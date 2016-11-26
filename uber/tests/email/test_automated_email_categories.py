@@ -16,19 +16,19 @@ class TestAutomatedEmailCategory:
         assert get_test_email_category.subject == E.SUBJECT_TO_FIND
         assert get_test_email_category.ident == E.IDENT_TO_FIND
 
-    def test_approval_needed_and_we_have_it(self, monkeypatch, set_test_approved_idents, get_test_email_category, log_unset_because_unapproved):
+    def test_approval_needed_and_we_have_it(self, monkeypatch, set_test_approved_idents, get_test_email_category, log_unsent_because_unapproved):
         job = SendAllAutomatedEmailsJob()
         assert get_test_email_category.approved
-        assert job.log_unset_because_unapproved.call_count == 0
+        assert job.log_unsent_because_unapproved.call_count == 0
 
-    def test_approval_needed_and_we_dont_have_it(self, monkeypatch, get_test_email_category, log_unset_because_unapproved):
+    def test_approval_needed_and_we_dont_have_it(self, monkeypatch, get_test_email_category, log_unsent_because_unapproved):
         job = SendAllAutomatedEmailsJob()
         assert not get_test_email_category.approved
-        assert job.log_unset_because_unapproved.call_count == 1
+        assert job.log_unsent_because_unapproved.call_count == 1
 
         # attempt to send the same email and we should see the unapproved count go up because it's still unapproved
         assert not get_test_email_category.approved
-        assert job.log_unset_because_unapproved.call_count == 2
+        assert job.log_unsent_because_unapproved.call_count == 2
 
     def test_approval_not_needed(self, monkeypatch, get_test_email_category):
         assert not get_test_email_category.approved

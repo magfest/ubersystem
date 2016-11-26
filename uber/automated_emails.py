@@ -142,7 +142,7 @@ class AutomatedEmail:
         if not approved_to_send:
             # log statistics about how many emails would have been sent if we had approval.
             # if running as part of a daemon, this will record the data.
-            SendAllAutomatedEmailsJob.log_unset_because_unapproved(self)
+            SendAllAutomatedEmailsJob.log_unsent_because_unapproved(self)
 
         return approved_to_send
 
@@ -275,7 +275,7 @@ class SendAllAutomatedEmailsJob:
         return threadlocal.get('currently_running_email_daemon')
 
     @classmethod
-    def log_unset_because_unapproved(cls, automated_email_category):
+    def log_unsent_because_unapproved(cls, automated_email_category):
         running_daemon = cls._currently_running_daemon_on_this_thread()
         if running_daemon:
             running_daemon._increment_unset_because_unapproved_count(automated_email_category)
