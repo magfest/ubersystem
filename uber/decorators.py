@@ -496,7 +496,7 @@ class alias_to_site_section(object):
 
 def attendee_id_required(func):
     @wraps(func)
-    def check_id(self, **params):
+    def check_id(*args, **params):
         message = "No ID provided. Trying using a different link or going back."
         session = params['session']
         if params.get('id'):
@@ -507,6 +507,6 @@ def attendee_id_required(func):
             else:
                 message = "You weren't found in our database."
                 if session.query(sa.Attendee).filter(sa.Attendee.id == params['id']).first():
-                    return func(**params)
+                    return func(*args, **params)
         raise HTTPRedirect('../common/invalid?message=%s' % message)
     return check_id
