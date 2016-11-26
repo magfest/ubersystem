@@ -16,13 +16,11 @@ class Root:
     sent.restricted = [c.PEOPLE, c.REG_AT_CON]
 
     def pending(self, session, message=''):
-        approved_idents = AutomatedEmail.get_approved_idents(session).all()
-
         automated_emails = []
         for automated_email in AutomatedEmail.instances.values():
             automated_emails.append({
                 'doesnt_need_approval': not automated_email.needs_approval,
-                'approved': not automated_email.needs_approval or automated_email.ident in approved_idents,
+                'approved': not automated_email.needs_approval or automated_email.ident in c.EMAIL_APPROVED_IDENTS,
                 'automated_email': automated_email,
                 'num_sent': session.query(Email).filter_by(ident=automated_email.ident).count(),
                 'last_run_results':
