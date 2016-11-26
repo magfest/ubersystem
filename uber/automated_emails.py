@@ -26,9 +26,6 @@ class AutomatedEmail:
         self.subject = subject.format(EVENT_NAME=c.EVENT_NAME)
         self.ident = ident or self.subject
 
-        self.ident = (ident or self.subject).format(EVENT_NAME=c.EVENT_NAME)
-        self.instances[self.ident] = self
-
         # Unlike subject lines, ident's should just be a unique string, not dependent
         # on any external config like EVENT_NAME.  examples:
         # good:  'registration_confirmation_email'
@@ -62,12 +59,6 @@ class AutomatedEmail:
 
     def __repr__(self):
         return '<{}: {!r}>'.format(self.__class__.__name__, self.subject)
-
-    @property
-    def approved(self):
-        """Returns a boolean indicating whether this email has been approved."""
-        with Session() as session:
-            return bool(session.query(ApprovedEmail).filter_by(ident=self.ident).first())
 
     def computed_subject(self, x):
         """
@@ -146,6 +137,9 @@ class AutomatedEmail:
         Check if this email category has been approved by the admins to send automated emails.
 
         :return: True if we are approved to send this email, or don't need approval. False otherwise
+
+        Side effect: If running as part of the automated email daemon code, and we aren't approved, log the count of
+        emails that would have been sent so we can report it via the UI later.
         """
 
         approved_to_send = not self.needs_approval or self.ident in c.EMAIL_APPROVED_IDENTS

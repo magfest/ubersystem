@@ -16,7 +16,6 @@ class Root:
     sent.restricted = [c.PEOPLE, c.REG_AT_CON]
 
     def pending(self, session, message=''):
-        approved = {ae.ident for ae in session.query(ApprovedEmail).all()}
         approved_idents = AutomatedEmail.get_approved_idents(session).all()
 
         automated_emails = []
@@ -33,7 +32,6 @@ class Root:
 
         return {
             'message': message,
-            'pending': [ae for ae in AutomatedEmail.instances.values() if ae.needs_approval and ae.ident not in approved]
             'automated_emails': automated_emails,
             'last_run_result': SendAllAutomatedEmailsJob.last_result,
         }
