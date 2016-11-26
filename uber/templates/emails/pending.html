@@ -16,8 +16,8 @@
 <tr class="header">
     <th>Subject</th>
     <th>Sender</th>
-    <th>Number Sent</th>
-    <th>Num wanting to send but need approval</th>
+    <th>Emails Sent</th>
+    <th>Emails waiting to send but need approval</th>
     <th>Show Examples</th>
     <th>Approval Status</th>
     <th>Generated When</th>
@@ -32,7 +32,7 @@
         <td>{% if entry.last_run_results != None %}{{ entry.last_run_results.unsent_because_unapproved }}{% else %}_{% endif %}</td>
         <td><a href="pending_examples?ident={{ entry.automated_email.ident|urlencode }}">Examples</a></td>
         <td>
-            {% if entry.doesnt_need_approval %}
+            {% if not entry.automated_email.needs_approval %}
                 Automatic
             {% else %}
                 {% if not entry.automated_email.approved %}

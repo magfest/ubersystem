@@ -19,7 +19,6 @@ class Root:
         automated_emails = []
         for automated_email in AutomatedEmail.instances.values():
             automated_emails.append({
-                'doesnt_need_approval': not automated_email.needs_approval,
                 'automated_email': automated_email,
                 'num_sent': session.query(Email).filter_by(ident=automated_email.ident).count(),
                 'last_run_results':
