@@ -417,7 +417,7 @@ class request_cached_context:
         # do things that use the cached values, and after this block is done, the values won't be cached anymore.
     """
 
-    def __init__( self, clear_cache_on_start=False ):
+    def __init__(self, clear_cache_on_start=False):
         self.clear_cache_on_start = clear_cache_on_start
 
     def __enter__(self):

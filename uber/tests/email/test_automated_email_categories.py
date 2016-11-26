@@ -71,4 +71,3 @@ class TestAutomatedEmailCategory:
         monkeypatch.setattr(get_test_email_category, '_should_send', Mock(side_effect=Exception('Boom!')))
         with pytest.raises(Exception):
             get_test_email_category.send_if_possible(None, raise_errors=True)
-
