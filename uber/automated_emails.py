@@ -4,12 +4,10 @@ from uber.common import *
 class AutomatedEmail:
     """
     Represents one category of emails that we send out.
-
     An example of an email category would be "Your registration has been confirmed".
-    Each category
     """
 
-    # all instances of every registered email category in the system
+    # global: all instances of every registered email category in the system
     instances = OrderedDict()
 
     # a list of queries to run during each automated email sending run to
@@ -72,7 +70,7 @@ class AutomatedEmail:
         """
         return (model_inst.__class__.__name__, model_inst.id, self.ident) in c.PREVIOUSLY_SENT_EMAILS
 
-    def send_if_possible(self, model_inst, raise_errors=False):
+    def send_if_should(self, model_inst, raise_errors=False):
         """
         If it's OK to send an email of our category to this model instance (i.e. a particular Attendee) then send it.
         """
@@ -148,7 +146,7 @@ class AutomatedEmail:
         Doesn't perform any kind of checks at all if we should be sending this, just immediately sends the email
         no matter what.
 
-        NOTE: use send_if_possible() instead of calling this method unless you 100% know what you're doing.
+        NOTE: use send_if_should() instead of calling this method unless you 100% know what you're doing.
         """
         try:
             subject = self.computed_subject(model_instance)
@@ -259,7 +257,7 @@ class SendAllAutomatedEmailsJob:
           model_instance:  Attendee #42
         """
         for email_category in AutomatedEmail.instances.values():
-            email_category.send_if_possible(model_instance, self.raise_errors)
+            email_category.send_if_should(model_instance, self.raise_errors)
 
     @classmethod
     def _currently_running_daemon_on_this_thread(cls):
