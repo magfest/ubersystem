@@ -17,7 +17,7 @@ class Root:
 
     def pending(self, session, message=''):
         automated_emails = []
-        last_job_completed =  SendAllAutomatedEmailsJob.last_result.get('completed', False)
+        last_job_completed = SendAllAutomatedEmailsJob.last_result.get('completed', False)
         categories_results = SendAllAutomatedEmailsJob.last_result.get('categories', None)
 
         count_query = session.query(Email.ident, func.count(Email.ident)).group_by(Email.ident)
