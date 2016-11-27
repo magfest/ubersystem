@@ -305,23 +305,11 @@ class Config(_Overridable):
 
     @request_cached_property
     def EMAIL_APPROVED_IDENTS(self):
-        return self.get_approved_idents()
-
-    # TODO: only reason this is a separate method is because for unit tests we patch this method,
-    # and monkeypatch.setattr() doesn't like to patch EMAIL_APPROVED_IDENTS
-    # when it's decorated with @request_cached_property
-    def get_approved_idents(self):
         with sa.Session() as session:
             return {ae.ident for ae in session.query(sa.ApprovedEmail)}
 
     @request_cached_property
     def PREVIOUSLY_SENT_EMAILS(self):
-        return self.get_previously_sent_emails()
-
-    # TODO: only reason this is a separate method is because for unit tests we patch this method,
-    # and monkeypatch.setattr() doesn't like to patch PREVIOUSLY_SENT_EMAILS
-    # when it's decorated with @request_cached_property
-    def get_previously_sent_emails(self):
         with sa.Session() as session:
             return set(session.query(sa.Email.model, sa.Email.fk_id, sa.Email.ident))
 

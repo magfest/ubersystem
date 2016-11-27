@@ -109,7 +109,7 @@ def email_subsystem_sane_config(monkeypatch):
 
 @pytest.fixture
 def remove_approved_idents(monkeypatch):
-    monkeypatch.setattr(c, 'get_approved_idents', Mock(return_value={}))
+    monkeypatch.setattr(Config, 'EMAIL_APPROVED_IDENTS', {})
 
 
 @pytest.fixture
@@ -124,13 +124,13 @@ def set_test_approved_idents(monkeypatch, remove_approved_idents):
         E.IDENT_TO_FIND,
     ]
 
-    monkeypatch.setattr(c, 'get_approved_idents', Mock(return_value=approved_idents))
+    monkeypatch.setattr(Config, 'EMAIL_APPROVED_IDENTS', approved_idents)
 
 
 @pytest.fixture
 def set_previously_sent_emails_empty(monkeypatch):
     # include this fixture if we want to act like no emails have ever been previously sent
-    monkeypatch.setattr(c, 'get_previously_sent_emails', Mock(return_value=set()), raising=False)
+    monkeypatch.setattr(Config, 'PREVIOUSLY_SENT_EMAILS', set())
 
 
 @pytest.fixture
@@ -143,7 +143,7 @@ def set_previously_sent_emails_to_attendee1(monkeypatch):
         (Attendee.__name__, 'b699bfd3-1ada-4f47-b07f-cb7939783afa', 'you_are_not_him'),
     }
 
-    monkeypatch.setattr(c, 'get_previously_sent_emails', Mock(return_value=list_of_emails_previously_sent), raising=False)
+    monkeypatch.setattr(Config, 'PREVIOUSLY_SENT_EMAILS', list_of_emails_previously_sent)
     return list_of_emails_previously_sent
 
 
