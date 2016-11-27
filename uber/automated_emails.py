@@ -147,6 +147,7 @@ class AutomatedEmail:
         no matter what.
 
         NOTE: use send_if_should() instead of calling this method unless you 100% know what you're doing.
+        NOTE: send_email() fails if c.SEND_EMAILS is False
         """
         try:
             subject = self.computed_subject(model_instance)
@@ -195,22 +196,23 @@ class SendAllAutomatedEmailsJob:
             return
 
         if not self.run_lock.acquire(blocking=False):
-            log.warn("can't acquire lock for email daemon, skipping run.")
+            log.warn("can't acquire lock for email daemon (already running?), skipping this run.")
             return
 
-        self._run(raise_errors)
+        try:
+            self._run(raise_errors)
+        finally:
+            self.run_lock.release()
 
-        self.run_lock.release()
-
-    @swallow_exceptions  # use swallow_exceptions because we're holding a lock
     def _run(self, raise_errors):
         with Session() as session:
-            # we use request_cached_context() to force cache invalidation of variables like c.EMAIL_APPROVED_IDENTS
+            # performance: we use request_cached_context() to force cache invalidation
+            # of variables like c.EMAIL_APPROVED_IDENTS
             with request_cached_context(clear_cache_on_start=True):
                 self._init(session, raise_errors)
                 self._send_all_emails()
 
-        self.last_result = self.results
+        last_result = self.results
 
     def _init(self, session, raise_errors):
         self.session = session
