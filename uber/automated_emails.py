@@ -90,8 +90,8 @@ class AutomatedEmail:
         and send it to a particular model instance.
 
         This is determined based on a few things like:
-        1) whether we have sent this exact email out yet or not (previously_sent_emails)
-        2) whether the email category has been approved (approved_idents)
+        1) whether we have sent this exact email out yet or not
+        2) whether the email category has been approved
         3) whether the model instance passed in is the same type as what we want to process
         4) do any date-based filters exist on this email category? (i.e. send 7 days before magfest)
         5) do any other filters exist on this email category? (i.e. only if attendee.staffing == true)
@@ -109,22 +109,13 @@ class AutomatedEmail:
         :return: True if we should send this email to this model instance, False if not.
         """
 
-        if not isinstance(model_inst, self.model):
-            return False
-
-        if not model_inst.email:
-            return False
-
-        if self._already_sent(model_inst):
-            return False
-
-        if not self.filters_run(model_inst):
-            return False
-
-        if not self.approved:
-            return False
-
-        return True
+        return all(condition() for condition in [
+            lambda: isinstance(model_inst, self.model),
+            lambda: getattr(model_inst, 'email', None),
+            lambda: not self._already_sent(model_inst),
+            lambda: self.filters_run(model_inst),
+            lambda: self.approved,
+        ])
 
     @property
     def approved(self):
