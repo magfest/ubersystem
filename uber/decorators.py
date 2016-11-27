@@ -81,7 +81,13 @@ suffix_property.check = _suffix_property_check
 def csrf_protected(func):
     @wraps(func)
     def protected(*args, csrf_token, **kwargs):
-        check_csrf(csrf_token)
+        try:
+            check_csrf(csrf_token)
+        except AssertionError as e:
+            raise HTTPRedirect("../common/invalid?message={}", "Session Time Out. Go Back And Try Again.")
+        except TypeError as e:
+            raise HTTPRedirect("../common/invalid?message={}", "CSRF Token Not Provided.")
+
         return func(*args, **kwargs)
     return protected
 
