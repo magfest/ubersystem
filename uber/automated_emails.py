@@ -195,14 +195,14 @@ class SendAllAutomatedEmailsJob:
         if not allowed_to_run:
             return
 
-        if not self.run_lock.acquire(blocking=False):
+        if not SendAllAutomatedEmailsJob.run_lock.acquire(blocking=False):
             log.warn("can't acquire lock for email daemon (already running?), skipping this run.")
             return
 
         try:
             self._run(raise_errors)
         finally:
-            self.run_lock.release()
+            SendAllAutomatedEmailsJob.run_lock.release()
 
     def _run(self, raise_errors):
         with Session() as session:
@@ -211,18 +211,26 @@ class SendAllAutomatedEmailsJob:
             with request_cached_context(clear_cache_on_start=True):
                 self._init(session, raise_errors)
                 self._send_all_emails()
-
-        last_result = self.results
+                self._on_finished_run()
 
     def _init(self, session, raise_errors):
         self.session = session
         self.raise_errors = raise_errors
-        self.results = dict()
-        self.results['categories'] = dict()
+        self.results = {
+            'running': True,
+            'completed': False,
+            'categories': defaultdict(lambda: defaultdict(int))
+        }
 
         # note: this will get cleared after request_cached_context object is released.
         assert not threadlocal.get('currently_running_email_daemon')
         threadlocal.set('currently_running_email_daemon', self)
+
+    def _on_finished_run(self):
+        self.results['running'] = False
+        self.results['completed'] = True
+
+        SendAllAutomatedEmailsJob.last_result = self.results
 
     def _send_all_emails(self):
         """
@@ -279,11 +287,7 @@ class SendAllAutomatedEmailsJob:
         :param automated_email_category: The category that wanted to send but needed approval
         """
 
-        categories = self.results['categories']
-        category = categories.setdefault(automated_email_category.ident, dict())
-
-        unapproved_count = category.get('unsent_because_unapproved', 0)
-        category['unsent_because_unapproved'] = unapproved_count + 1
+        self.results['categories'][automated_email_category.ident]['unsent_because_unapproved'] += 1
 
 
 class StopsEmail(AutomatedEmail):

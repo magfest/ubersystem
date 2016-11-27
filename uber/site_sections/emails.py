@@ -17,19 +17,26 @@ class Root:
 
     def pending(self, session, message=''):
         automated_emails = []
+        last_job_completed =  SendAllAutomatedEmailsJob.last_result.get('completed', False)
+        categories_results = SendAllAutomatedEmailsJob.last_result.get('categories', None)
+
+        count_query = session.query(Email.ident, func.count(Email.ident)).group_by(Email.ident)
+        sent_email_counts = {c[0]: c[1] for c in count_query.all()}
+
         for automated_email in AutomatedEmail.instances.values():
+            category_results = categories_results.get(automated_email.ident, None) if categories_results else None
+            unsent_because_unapproved = category_results.get('unsent_because_unapproved', 0) if category_results else 0
+
             automated_emails.append({
                 'automated_email': automated_email,
-                'num_sent': session.query(Email).filter_by(ident=automated_email.ident).count(),
-                'last_run_results':
-                    SendAllAutomatedEmailsJob.last_result[automated_email.ident]
-                    if SendAllAutomatedEmailsJob.last_result else None
+                'num_sent': sent_email_counts.get(automated_email.ident, 0),
+                'unsent_because_unapproved': unsent_because_unapproved if last_job_completed else '_'
             })
 
         return {
             'message': message,
             'automated_emails': automated_emails,
-            'last_run_result': SendAllAutomatedEmailsJob.last_result,
+            'last_job_completed': last_job_completed
         }
 
     def pending_examples(self, session, ident):

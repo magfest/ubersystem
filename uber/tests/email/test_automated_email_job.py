@@ -33,17 +33,24 @@ class TestSendAllAutomatedEmailsJob:
         SendAllAutomatedEmailsJob().run()
         assert send_all_emails_mock.call_count == expected_result
 
-    # TODO: test job results to make sure unapproved email stuff comes through OK.
-
-    # , record_email_was_sent
     def test_run_succeeds(self, amazon_send_email_mock, set_test_approved_idents, get_test_email_category, render_fake_email):
         assert get_test_email_category.approved
 
         SendAllAutomatedEmailsJob().run()
+
+        assert not SendAllAutomatedEmailsJob.run_lock.locked()
         assert amazon_send_email_mock.call_count == 2
+        assert SendAllAutomatedEmailsJob.last_result['categories'][get_test_email_category.ident]['unsent_because_unapproved'] == 0
+        assert not SendAllAutomatedEmailsJob.last_result['running']
+        assert SendAllAutomatedEmailsJob.last_result['completed']
 
     def test_run_no_email_approval(self, amazon_send_email_mock, get_test_email_category):
         assert not get_test_email_category.approved
 
         SendAllAutomatedEmailsJob().run()
+
+        assert not SendAllAutomatedEmailsJob.run_lock.locked()
         assert amazon_send_email_mock.call_count == 0
+        assert SendAllAutomatedEmailsJob.last_result['categories'][get_test_email_category.ident]['unsent_because_unapproved'] == 2
+        assert not SendAllAutomatedEmailsJob.last_result['running']
+        assert SendAllAutomatedEmailsJob.last_result['completed']
