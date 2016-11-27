@@ -44,19 +44,19 @@ def add_test_email_categories(remove_all_email_categories):
 
 
 @pytest.fixture
-def amazon_send_email_mock():
+def amazon_send_email_mock(monkeypatch):
     """
     Patch the actual low-level method that actually sends an email out of our system onto the internet.
     If this is called, you know that an email was really sent by our email subsystem.
     """
-    with patch.object(AmazonSES, 'sendEmail', return_value=None) as mock:
-        yield mock
+    monkeypatch.setattr(AmazonSES, 'sendEmail', Mock(return_value=None))
+    return AmazonSES.sendEmail
 
 
 @pytest.fixture
-def log_unsent_because_unapproved():
-    with patch.object(SendAllAutomatedEmailsJob, 'log_unsent_because_unapproved', return_value=None) as mock:
-        yield mock
+def log_unsent_because_unapproved(monkeypatch):
+    monkeypatch.setattr(SendAllAutomatedEmailsJob, 'log_unsent_because_unapproved', Mock(return_value=None))
+    return SendAllAutomatedEmailsJob.log_unsent_because_unapproved
 
 
 @pytest.fixture
@@ -161,7 +161,8 @@ def email_subsystem_sane_setup(
         setup_fake_test_attendees,
         set_previously_sent_emails_empty,
         reset_unapproved_emails_count,
-        remove_approved_idents):
+        remove_approved_idents,
+        amazon_send_email_mock):
     """
     Catch-all test for setting up all email subsytem tests.  This fixture is a catch-all container of all relevant
     email testing fixtures.
