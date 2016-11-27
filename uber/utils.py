@@ -42,8 +42,11 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
 
 def localized_now():
     """Returns datetime.now() but localized to the event's configured timezone."""
-    utc_now = datetime.utcnow().replace(tzinfo=UTC)
-    return utc_now.astimezone(c.EVENT_TIMEZONE)
+    return localize_datetime(datetime.utcnow())
+
+
+def localize_datetime(dt):
+    return dt.replace(tzinfo=UTC).astimezone(c.EVENT_TIMEZONE)
 
 
 def comma_and(xs):
@@ -345,63 +348,115 @@ def get_real_badge_type(badge_type):
 _when_dateformat = "%m/%d"
 
 
-class days_before:
-    def __init__(self, days, dt, until=None):
-        self.dt = dt
-        self.days = days
-        self.until = until
+class DateBase:
+    @staticmethod
+    def now():
+        # This exists so we can patch this in unit tests
+        return localized_now()
 
-        if dt:
-            self.starting_date = self.dt - timedelta(days=self.days)
-            self.ending_date = (dt - timedelta(days=until)) if until else dt
+
+class days_before(DateBase):
+    """
+    Returns true if today is # days before a deadline.
+
+    :param: days - number of days before deadline to start
+    :param: deadline - datetime of the deadline
+    :param: until - (optional) number of days prior to deadline to end (default: 0)
+
+    Examples:
+        days_before(45, c.POSITRON_BEAM_DEADLINE)() - True if it's 45 days before c.POSITRON_BEAM_DEADLINE
+        days_before(10, c.WARP_COIL_DEADLINE, 2)() - True if it's between 10 and 2 days before c.WARP_COIL_DEADLINE
+    """
+    def __init__(self, days, deadline, until=None):
+        if days <= 0:
+            raise ValueError("'days' paramater must be >= 0. days={}".format(days))
+
+        if until and days <= until:
+            raise ValueError("'days' paramater must be less than until. days={}, until={}".format(days, until))
+
+        self.days, self.deadline, self.until = days, deadline, until
+
+        if deadline:
+            self.starting_date = self.deadline - timedelta(days=self.days)
+            self.ending_date = deadline if not until else (deadline - timedelta(days=until))
+
+            assert self.starting_date < self.ending_date
 
     def __call__(self):
-        return self.starting_date < localized_now() < self.ending_date if self.dt else False
+        if not self.deadline:
+            return False
+
+        return self.starting_date < self.now() < self.ending_date
 
     @property
     def active_when(self):
         return 'between {} and {}'.format(self.starting_date.strftime(_when_dateformat),
                                           self.ending_date.strftime(_when_dateformat)) \
-            if self.dt else ''
+            if self.deadline else ''
 
 
-class days_after:
-    def __init__(self, days, dt):
-        self.dt = dt
-        self.days = days
+class before(DateBase):
+    """
+    Returns true if today is before a deadline.
 
-        self.starting_date = dt + timedelta(days=days) if dt else None
+    :param: deadline - datetime of the deadline
+
+    Examples:
+        before(c.POSITRON_BEAM_DEADLINE)() - True if it's before c.POSITRON_BEAM_DEADLINE
+    """
+    def __init__(self, deadline):
+        self.deadline = deadline
 
     def __call__(self):
-        return bool(self.dt) and (localized_now() > self.starting_date)
+        return bool(self.deadline) and self.now() < self.deadline
+
+    @property
+    def active_when(self):
+        return 'before {}'.format(self.deadline.strftime(_when_dateformat)) if self.deadline else ''
+
+
+class days_after(DateBase):
+    """
+    Returns true if today is at least a certain number of days after a deadline.
+
+    :param: days - number of days after deadline to start
+    :param: deadline - datetime of the deadline
+
+    Examples:
+        days_after(6, c.TRANSPORTER_ROOM_DEADLINE)() - True if it's at least 6 days after c.TRANSPORTER_ROOM_DEADLINE
+    """
+    def __init__(self, days, deadline):
+        if days <= 0:
+            raise ValueError("'days' paramater must be >= 0. days={}".format(days))
+
+        self.starting_date = None if not deadline else deadline + timedelta(days=days)
+
+    def __call__(self):
+        return bool(self.starting_date) and (self.now() > self.starting_date)
 
     @property
     def active_when(self):
         return 'after {}'.format(self.starting_date.strftime(_when_dateformat)) if self.starting_date else ''
 
 
-class before:
-    def __init__(self, dt):
-        self.dt = dt
+class after(DateBase):
+    """
+    Returns true if today is after a deadline.
+
+    :param: deadline - datetime of the deadline
+
+    Examples:
+        after(c.TRANSPORTER_ROOM_DEADLINE)() - True if it's after c.TRANSPORTER_ROOM_DEADLINE
+    """
+    def __init__(self, deadline):
+        self.deadline = deadline
 
     def __call__(self):
-        return bool(self.dt) and localized_now() < self.dt
+        return bool(self.deadline) and self.now() > self.deadline
 
     @property
     def active_when(self):
-        return 'before {}'.format(self.dt.strftime(_when_dateformat)) if self.dt else ''
-
-
-class after:
-    def __init__(self, dt):
-        self.dt = dt
-
-    def __call__(self):
-        return bool(self.dt) and localized_now() > self.dt
-
-    @property
-    def active_when(self):
-        return 'after {}'.format(self.dt.strftime(_when_dateformat)) if self.dt else ''
+        return 'after {}'.format(self.deadline.strftime(_when_dateformat)) if self.deadline else ''
 
 
 class request_cached_context:

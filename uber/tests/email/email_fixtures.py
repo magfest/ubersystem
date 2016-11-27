@@ -97,11 +97,6 @@ def setup_fake_test_attendees(monkeypatch):
 
 
 @pytest.fixture
-def set_now_to_sept_15th(monkeypatch):
-    return patch('uber.utils.localized_now', return_value=datetime(year=2016, month=9, day=15, hour=12, minute=30))
-
-
-@pytest.fixture
 def email_subsystem_sane_config(monkeypatch):
     monkeypatch.setattr(c, 'DEV_BOX', False)
     monkeypatch.setattr(c, 'SEND_EMAILS', True)
@@ -156,7 +151,6 @@ def reset_unapproved_emails_count(monkeypatch):
 @pytest.fixture
 def email_subsystem_sane_setup(
         email_subsystem_sane_config,
-        set_now_to_sept_15th,
         add_test_email_categories,
         setup_fake_test_attendees,
         set_previously_sent_emails_empty,
