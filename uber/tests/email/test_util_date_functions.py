@@ -172,4 +172,3 @@ class TestDaysAfter_DateFunctions:
 
     def test_representation_days_after(self):
         assert days_after(days=1, deadline=DateBase.now()).active_when == 'after 09/16'
-
