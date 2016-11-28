@@ -384,6 +384,7 @@ class Root:
             session.merge(group)
             raise HTTPRedirect('group_members?id={}&message={}', group.id, 'You payment has been accepted and the badges have been added to your group')
 
+    @attendee_id_required
     def transfer_badge(self, session, message='', **params):
         old = session.attendee(params['id'])
         assert old.is_transferable, 'This badge is not transferrable'
