@@ -82,6 +82,30 @@ class Test_DateFunctions:
 
         # deadline of right now
         (days_after, 0, 0, 1, None, False),
+        
+        # ---------- after -----------
+        
+        (after, 0, -10, None, None, True),
+        (after, 0, -1, None, None, True),
+        (after, 0, -100, None, None, True),
+
+        (after, 0, +10, None, None, False),
+        (after, 0, +1, None, None, False),
+        (after, 0, +100, None, None, False),
+
+        (after, 0, 0, None, None, False),
+
+        # ---------- before -----------
+
+        (before, 0, -10, None, None, False),
+        (before, 0, -1, None, None, False),
+        (before, 0, -100, None, None, False),
+
+        (before, 0, +10, None, None, True),
+        (before, 0, +1, None, None, True),
+        (before, 0, +100, None, None, True),
+
+        (before, 0, 0, None, None, False),
     ])
     def test_until_before(self, monkeypatch, which_class, todays_date_offset, deadline_offset, days, until, expected_result):
 
@@ -93,11 +117,15 @@ class Test_DateFunctions:
         # change deadline as an offset from September 15th
         deadline = sept_15th + timedelta(days=deadline_offset)
 
-        kwargs = {'days': days, 'deadline': deadline}
+        kwargs = {'deadline': deadline}
 
         if until:
             assert which_class == days_before
             kwargs['until'] = until
+            
+        if days:
+            assert which_class in [days_before, days_after]
+            kwargs['days'] = days
 
         assert which_class in [days_before, days_after, after, before]
 
@@ -109,6 +137,7 @@ class Test_DateFunctions:
 class TestDaysBefore_DateFunctions:
     def test_no_deadline_set(self):
         assert not days_before(1, None)()
+        assert not before(None)()
 
     def test_invalid_date_range(self):
         with pytest.raises(ValueError):
@@ -126,6 +155,7 @@ class TestDaysBefore_DateFunctions:
 class TestDaysAfter_DateFunctions:
     def test_no_deadline_set(self):
         assert not days_after(1, None)()
+        assert not after(None)()
 
     def test_invalid_days(self):
         with pytest.raises(ValueError):
