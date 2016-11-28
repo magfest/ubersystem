@@ -44,11 +44,10 @@ class AutomatedEmail:
         if self.filter and not self.filter(model_inst):
             return False
 
-        for date_filter in self.when:
-            if not date_filter():
-                return False
+        return self._run_date_filters()
 
-        return True
+    def _run_date_filters(self):
+        return all([date_filter() for date_filter in self.when])
 
     def __repr__(self):
         return '<{}: {!r}>'.format(self.__class__.__name__, self.subject)

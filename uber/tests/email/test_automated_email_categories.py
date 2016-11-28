@@ -76,3 +76,53 @@ class TestAutomatedEmailCategory:
         monkeypatch.setattr(get_test_email_category, 'computed_subject', Mock(side_effect=Exception('Boom!')))
         with pytest.raises(Exception):
             get_test_email_category.really_send(None)
+
+    valid_when = days_after(3, sept_15th - timedelta(days=5))
+    invalid_when = days_after(3, sept_15th)
+
+    @pytest.mark.parametrize("when, expected_result", [
+        ([invalid_when], False),
+        ([valid_when], True),
+        ([invalid_when, valid_when], False),
+        ([valid_when, invalid_when], False),
+        ([invalid_when, invalid_when], False),
+        ([valid_when, valid_when], True),
+        ((), True)
+    ])
+    def test_when_function(self, monkeypatch, get_test_email_category, set_datebase_now_to_sept_15th, attendee1, when, expected_result):
+        monkeypatch.setattr(get_test_email_category, 'when', when)
+        monkeypatch.setattr(AutomatedEmail, 'approved', True)
+
+        assert get_test_email_category.filters_run(attendee1) == expected_result
+        assert get_test_email_category._run_date_filters() == expected_result
+        assert get_test_email_category._should_send(model_inst=attendee1) == expected_result
+
+    @pytest.mark.parametrize("when, expected_text", [
+        ([
+            days_after(3, sept_15th - timedelta(days=5)),
+            before(sept_15th - timedelta(days=3)),
+            days_before(3, sept_15th + timedelta(days=5), 1),
+        ], [
+            'after 09/13',
+            'before 09/12',
+            'between 09/17 and 09/19'
+        ]),
+        ([days_after(3, sept_15th - timedelta(days=5))], ['after 09/13']),
+    ])
+    def test_when_txt(self, monkeypatch, get_test_email_category, set_datebase_now_to_sept_15th, attendee1, when, expected_text):
+        monkeypatch.setattr(get_test_email_category, 'when', when)
+        assert get_test_email_category.when_txt == '\n'.join(expected_text)
+
+    @pytest.mark.parametrize("filter, expected_result", [
+        (lambda a: False, False),
+        (lambda a: True, True),
+        (lambda a: a.paid == c.NEED_NOT_PAY, True),
+        (lambda a: a.paid != c.NEED_NOT_PAY, False),
+        (None, True),
+    ])
+    def test_filters(self, monkeypatch, get_test_email_category, attendee1, filter, expected_result):
+        monkeypatch.setattr(get_test_email_category, 'filter', filter)
+        monkeypatch.setattr(AutomatedEmail, 'approved', True)
+
+        assert get_test_email_category.filters_run(attendee1) == expected_result
+        assert get_test_email_category._should_send(model_inst=attendee1) == expected_result
