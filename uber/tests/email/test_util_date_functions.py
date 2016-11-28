@@ -9,20 +9,6 @@ and it's nice to be able to run all the email tests by running only the tests in
 """
 
 
-sept_15th = localize_datetime(datetime(year=2016, month=9, day=15, hour=12, minute=30))
-
-
-@pytest.fixture
-def set_datebase_now_to_sept_15th(monkeypatch):
-    # TODO: would love to be able to do the code below:
-    # monkeypatch.setattr(uber.utils, 'localized_now', Mock(return_value=fake_todays_date))
-    #
-    # However, we can't override bare functions in modules and get it to propagate out to all the app code.
-    # We could (and probably should) solve this in a larger sense by moving localized_now()
-    # into a Util class and patching that class. For now, do it this way:
-    monkeypatch.setattr(DateBase, 'now', Mock(return_value=sept_15th))
-
-
 @pytest.mark.usefixtures("set_datebase_now_to_sept_15th")
 class Test_DateFunctions:
     @pytest.mark.parametrize("which_class, todays_date_offset, deadline_offset, days, until, expected_result", [
