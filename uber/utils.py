@@ -369,10 +369,10 @@ class days_before(DateBase):
     """
     def __init__(self, days, deadline, until=None):
         if days <= 0:
-            raise ValueError("'days' paramater must be >= 0. days={}".format(days))
+            raise ValueError("'days' paramater must be > 0. days={}".format(days))
 
         if until and days <= until:
-            raise ValueError("'days' paramater must be less than until. days={}, until={}".format(days, until))
+            raise ValueError("'days' paramater must be less than 'until'. days={}, until={}".format(days, until))
 
         self.days, self.deadline, self.until = days, deadline, until
 
@@ -390,14 +390,18 @@ class days_before(DateBase):
 
     @property
     def active_when(self):
-        return 'between {} and {}'.format(self.starting_date.strftime(_when_dateformat),
-                                          self.ending_date.strftime(_when_dateformat)) \
-            if self.deadline else ''
+        if not self.deadline:
+            return ''
+
+        start_txt = self.starting_date.strftime(_when_dateformat)
+        end_txt = self.ending_date.strftime(_when_dateformat)
+
+        return 'between {} and {}'.format(start_txt, end_txt)
 
 
 class before(DateBase):
     """
-    Returns true if today is before a deadline.
+    Returns true if today is anytime before a deadline.
 
     :param: deadline - datetime of the deadline
 
@@ -426,7 +430,10 @@ class days_after(DateBase):
         days_after(6, c.TRANSPORTER_ROOM_DEADLINE)() - True if it's at least 6 days after c.TRANSPORTER_ROOM_DEADLINE
     """
     def __init__(self, days, deadline):
-        if days <= 0:
+        if days is None:
+            days = 0
+
+        if days < 0:
             raise ValueError("'days' paramater must be >= 0. days={}".format(days))
 
         self.starting_date = None if not deadline else deadline + timedelta(days=days)
@@ -437,26 +444,6 @@ class days_after(DateBase):
     @property
     def active_when(self):
         return 'after {}'.format(self.starting_date.strftime(_when_dateformat)) if self.starting_date else ''
-
-
-class after(DateBase):
-    """
-    Returns true if today is after a deadline.
-
-    :param: deadline - datetime of the deadline
-
-    Examples:
-        after(c.TRANSPORTER_ROOM_DEADLINE)() - True if it's after c.TRANSPORTER_ROOM_DEADLINE
-    """
-    def __init__(self, deadline):
-        self.deadline = deadline
-
-    def __call__(self):
-        return bool(self.deadline) and self.now() > self.deadline
-
-    @property
-    def active_when(self):
-        return 'after {}'.format(self.deadline.strftime(_when_dateformat)) if self.deadline else ''
 
 
 class request_cached_context:

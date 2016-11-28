@@ -407,7 +407,7 @@ MarketplaceEmail('Last chance to pay for your {EVENT_NAME} Dealer registration',
 
 MarketplaceEmail('{EVENT_NAME} Dealer waitlist has been exhausted', 'dealers/waitlist_closing.txt',
                  lambda g: g.status == c.WAITLISTED,
-                 when=after(c.DEALER_WAITLIST_CLOSED),
+                 when=days_after(0, c.DEALER_WAITLIST_CLOSED),
                  ident='uber_marketplace_waitlist_exhausted')
 
 
@@ -459,7 +459,7 @@ AutomatedEmail(Attendee, 'Last Chance to Accept Your {EVENT_NAME} Badge', 'place
 
 StopsEmail('Please complete your {EVENT_NAME} Staff/Volunteer Checklist', 'shifts/created.txt',
            lambda a: a.takes_shifts,
-           when=after(c.SHIFTS_CREATED))
+           when=days_after(0, c.SHIFTS_CREATED))
 
 StopsEmail('Reminder to sign up for {EVENT_NAME} shifts', 'shifts/reminder.txt',
            lambda a: c.AFTER_SHIFTS_CREATED and days_after(30, max(a.registered_local, c.SHIFTS_CREATED))
