@@ -82,9 +82,9 @@ class Test_DateFunctions:
 
         # deadline of right now
         (days_after, 0, 0, 1, None, False),
-        
+
         # ---------- after -----------
-        
+
         (after, 0, -10, None, None, True),
         (after, 0, -1, None, None, True),
         (after, 0, -100, None, None, True),
@@ -122,7 +122,7 @@ class Test_DateFunctions:
         if until:
             assert which_class == days_before
             kwargs['until'] = until
-            
+
         if days:
             assert which_class in [days_before, days_after]
             kwargs['days'] = days
@@ -150,6 +150,15 @@ class TestDaysBefore_DateFunctions:
         with pytest.raises(ValueError):
             days_after(days=-1, deadline=DateBase.now())
 
+    def test_representation_days_before(self):
+        assert days_before(days=1, deadline=DateBase.now()).active_when == 'between 09/14 and 09/15'
+
+    def test_representation_days_before_until(self):
+        assert days_before(days=10, deadline=DateBase.now(), until=5).active_when == 'between 09/05 and 09/10'
+
+    def test_representation_before(self):
+        assert before(deadline=DateBase.now()).active_when == 'before 09/15'
+
 
 @pytest.mark.usefixtures("set_datebase_now_to_sept_15th")
 class TestDaysAfter_DateFunctions:
@@ -163,3 +172,9 @@ class TestDaysAfter_DateFunctions:
 
         with pytest.raises(ValueError):
             days_after(days=-1, deadline=DateBase.now())
+
+    def test_representation_days_before(self):
+        assert days_after(days=1, deadline=DateBase.now()).active_when == 'after 09/16'
+
+    def test_representation_days_before_until(self):
+        assert after(deadline=DateBase.now()).active_when == 'after 09/15'
