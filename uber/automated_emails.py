@@ -35,16 +35,15 @@ class AutomatedEmail:
         self.sender = sender or c.REGDESK_EMAIL
         self.when = listify(when)
 
+        assert filter is not None
+
         if post_con:
             self.filter = lambda model_inst: c.POST_CON and filter(model_inst)
         else:
             self.filter = lambda model_inst: not c.POST_CON and filter(model_inst)
 
     def filters_run(self, model_inst):
-        if self.filter and not self.filter(model_inst):
-            return False
-
-        return self._run_date_filters()
+        return all([self.filter(model_inst), self._run_date_filters()])
 
     def _run_date_filters(self):
         return all([date_filter() for date_filter in self.when])

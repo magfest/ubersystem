@@ -118,7 +118,6 @@ class TestAutomatedEmailCategory:
         (lambda a: True, True),
         (lambda a: a.paid == c.NEED_NOT_PAY, True),
         (lambda a: a.paid != c.NEED_NOT_PAY, False),
-        (None, True),
     ])
     def test_filters(self, monkeypatch, get_test_email_category, attendee1, filter, expected_result):
         monkeypatch.setattr(get_test_email_category, 'filter', filter)
@@ -126,3 +125,12 @@ class TestAutomatedEmailCategory:
 
         assert get_test_email_category.filters_run(attendee1) == expected_result
         assert get_test_email_category._should_send(model_inst=attendee1) == expected_result
+
+    def test_none_filter(self):
+        with pytest.raises(AssertionError):
+            AutomatedEmail(Attendee, '', '', None)
+
+    def test_no_filter(self):
+        # this is slightly silly but, if this ever changes, we should be explicit about what the expected result is
+        with pytest.raises(TypeError):
+            AutomatedEmail(Attendee, '', '')
