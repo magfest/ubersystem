@@ -497,7 +497,7 @@ class alias_to_site_section(object):
 def attendee_id_required(func):
     @wraps(func)
     def check_id(*args, **params):
-        message = "No ID provided. Trying using a different link or going back."
+        message = "No ID provided. Try using a different link or going back."
         session = params['session']
         if params.get('id'):
             try:
