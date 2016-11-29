@@ -5,3 +5,8 @@ from uber.common import *
 class Root:
     def index(self):
         return {}
+
+    def error(self, message=''):
+        return{
+            "message": message
+        }
