@@ -384,6 +384,7 @@ class Root:
             session.merge(group)
             raise HTTPRedirect('group_members?id={}&message={}', group.id, 'You payment has been accepted and the badges have been added to your group')
 
+    @attendee_id_required
     def transfer_badge(self, session, message='', **params):
         old = session.attendee(params['id'])
         assert old.is_transferable, 'This badge is not transferrable'
@@ -431,6 +432,7 @@ class Root:
         attendee.badge_status = c.INVALID_STATUS
         raise HTTPRedirect('invalid_badge?id={}&message={}', attendee.id, 'Sorry you can\'t make it! We hope to see you next year!')
 
+    @attendee_id_required
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
         attendee = session.attendee(params, restricted=True)
 
