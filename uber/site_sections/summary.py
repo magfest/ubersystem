@@ -224,6 +224,43 @@ class Root:
             if a.worked_hours > 0:
                 out.writerow([a.badge_num, a.full_name, a.email, a.weighted_hours, a.worked_hours])
 
+    def shirt_manufacturing_counts(self, session):
+        """
+        This report should be the definitive report about the count and sizes of shirts needed to be ordered.
+
+        There are 2 types of shirts:
+        - "staff shirts" - staff uniforms, each staff gets TWO currently
+        - "swag shirts" - pre-ordered shirts, which the following groups receive:
+            - volunteers (non-staff who get one for free)
+            - attendees (who can pre-order them)
+        """
+        counts = defaultdict(lambda: defaultdict(int))
+        labels = ['size unknown'] + [label for val, label in c.SHIRT_OPTS][1:]
+        sort = lambda d: sorted(d.items(), key=lambda tup: labels.index(tup[0]))
+        label = lambda s: 'size unknown' if s == c.SHIRTS[c.NO_SHIRT] else s
+
+        for attendee in session.staffers(only_staffing=False):
+            shirt_label = attendee.shirt_label or 'size unknown'
+
+            # TODO: eventually extract these conditions into properties on Attendee
+            # Attendee.gets_free_shirt needs to be re-worked out.
+            gets_staff_shirt = attendee.badge_type == c.STAFF_BADGE
+            gets_swag_shirt = attendee.badge_type != c.STAFF_BADGE and (attendee.gets_paid_shirt or attendee.ribbon == c.VOLUNTEER_RIBBON)
+
+            if gets_staff_shirt:
+                counts['staff'][label(shirt_label)] += c.SHIRTS_PER_STAFFER
+
+            if attendee.gets_paid_shirt:
+                counts['swag'][label(shirt_label)] += 1
+
+        return {
+            'categories': [
+                ('Staff Uniform Shirts', sort(counts['staff'])),
+                ('Swag Shirts', sort(counts['swag'])),
+            ]
+        }
+
+
     def shirt_counts(self, session):
         counts = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
         labels = ['size unknown'] + [label for val, label in c.SHIRT_OPTS][1:]
