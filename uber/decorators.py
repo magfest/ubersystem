@@ -504,9 +504,12 @@ def attendee_id_required(func):
                 uuid.UUID(params['id'])
             except ValueError:
                 message = "That Attendee ID is not a valid format. Did you enter or edit it manually?"
+                log.error("check_id: invalid_id: {}", params['id'])
             else:
                 if session.query(sa.Attendee).filter(sa.Attendee.id == params['id']).first():
                     return func(*args, **params)
                 message = "The Attendee ID provided was not found in our database"
+                log.error("check_id: missing_id: {}", params['id'])
+        log.error("check_id: error: {}", message)
         raise HTTPRedirect('../common/invalid?message=%s' % message)
     return check_id
