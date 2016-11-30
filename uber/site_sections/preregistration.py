@@ -271,6 +271,7 @@ class Root:
                     attendee.registered = badge_being_claimed.registered
 
                 attendee.badge_type = badge_being_claimed.badge_type
+                attendee.badge_num = badge_being_claimed.badge_num
                 attendee.ribbon = badge_being_claimed.ribbon
                 attendee.paid = badge_being_claimed.paid
 
