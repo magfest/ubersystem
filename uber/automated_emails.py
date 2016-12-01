@@ -373,7 +373,7 @@ AutomatedEmail(Attendee, '{EVENT_NAME} payment refunded', 'reg_workflow/payment_
 # has been turned off, they'll just never be sent.
 
 GroupEmail('Reminder to pre-assign {EVENT_NAME} group badges', 'reg_workflow/group_preassign_reminder.txt',
-           lambda g: days_after(30, g.registered) and c.BEFORE_GROUP_PREREG_TAKEDOWN and g.unregistered_badges,
+           lambda g: days_after(30, g.registered)() and c.BEFORE_GROUP_PREREG_TAKEDOWN and g.unregistered_badges,
            needs_approval=False)
 
 AutomatedEmail(Group, 'Last chance to pre-assign {EVENT_NAME} group badges', 'reg_workflow/group_preassign_reminder.txt',
@@ -390,7 +390,7 @@ MarketplaceEmail('Your {EVENT_NAME} Dealer registration has been approved', 'dea
                  needs_approval=False)
 
 MarketplaceEmail('Reminder to pay for your {EVENT_NAME} Dealer registration', 'dealers/payment_reminder.txt',
-                 lambda g: g.status == c.APPROVED and days_after(30, g.approved) and g.is_unpaid,
+                 lambda g: g.status == c.APPROVED and days_after(30, g.approved)() and g.is_unpaid,
                  needs_approval=False)
 
 MarketplaceEmail('Your {EVENT_NAME} Dealer registration is due in one week', 'dealers/payment_reminder.txt',
@@ -446,7 +446,7 @@ AutomatedEmail(Attendee, '{EVENT_NAME} Badge Confirmation', 'placeholders/regula
                                        and a.ribbon not in [c.DEALER_RIBBON, c.PANELIST_RIBBON, c.VOLUNTEER_RIBBON])
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Badge Confirmation Reminder', 'placeholders/reminder.txt',
-               lambda a: days_after(7, a.registered) and a.placeholder and a.first_name and a.last_name and not a.is_dealer)
+               lambda a: days_after(7, a.registered)() and a.placeholder and a.first_name and a.last_name and not a.is_dealer)
 
 AutomatedEmail(Attendee, 'Last Chance to Accept Your {EVENT_NAME} Badge', 'placeholders/reminder.txt',
                lambda a: a.placeholder and a.first_name and a.last_name and not a.is_dealer,
@@ -460,7 +460,7 @@ StopsEmail('Please complete your {EVENT_NAME} Staff/Volunteer Checklist', 'shift
            when=days_after(0, c.SHIFTS_CREATED))
 
 StopsEmail('Reminder to sign up for {EVENT_NAME} shifts', 'shifts/reminder.txt',
-           lambda a: c.AFTER_SHIFTS_CREATED and days_after(30, max(a.registered_local, c.SHIFTS_CREATED))
+           lambda a: c.AFTER_SHIFTS_CREATED and days_after(30, max(a.registered_local, c.SHIFTS_CREATED))()
                  and a.takes_shifts and not a.hours,
            when=before(c.PREREG_TAKEDOWN))
 
