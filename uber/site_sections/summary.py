@@ -1,6 +1,19 @@
 from uber.common import *
 
 
+def generate_staff_badges(start_badge, end_badge, out, session):
+    assert start_badge >= c.BADGE_RANGES[c.STAFF_BADGE][0]
+    assert end_badge <= c.BADGE_RANGES[c.STAFF_BADGE][1]
+
+    badge_range = (start_badge, end_badge)
+
+    uber.reports.PrintedBadgeReport(
+        badge_type=c.STAFF_BADGE,
+        range=badge_range,
+        badge_type_name='Staff') \
+        .run(out, session)
+
+
 @all_renderable(c.STATS)
 class Root:
     def index(self, session):
@@ -165,12 +178,19 @@ class Root:
         minimum_extra_amount = 5
 
         max_badges = c.BADGE_RANGES[c.STAFF_BADGE][1]
-        badge_range = (max_badges - minimum_extra_amount + 1, max_badges)
-        uber.reports.PrintedBadgeReport(
-            badge_type=c.STAFF_BADGE,
-            range=badge_range,
-            badge_type_name='Staff')\
-            .run(out, session)
+        start_badge = max_badges - minimum_extra_amount + 1
+        end_badge = max_badges
+
+        generate_staff_badges(start_badge, end_badge, out, session)
+
+    @csv_file
+    def printed_badges_staff__expert_mode_only(self, out, session, start_badge, end_badge):
+        """
+        Generate a CSV of staff badges. Note: This is not normally what you would call to do the badge export.
+        For use by experts only.
+        """
+
+        generate_staff_badges(int(start_badge), int(end_badge), out, session)
 
     @csv_file
     def badge_hangars_supporters(self, out, session):
