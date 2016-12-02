@@ -1,5 +1,10 @@
 from uber.common import *
 
+class CSRFException(Exception):
+    """
+    This class will raise a custom exception to help catch a specific error in later functions.
+    """
+
 
 class HTTPRedirect(cherrypy.HTTPRedirect):
     """
@@ -70,7 +75,7 @@ def check_csrf(csrf_token):
     assert csrf_token, 'CSRF token missing'
     if csrf_token != cherrypy.session['csrf_token']:
         log.error("csrf tokens don't match: {!r} != {!r}", csrf_token, cherrypy.session['csrf_token'])
-        raise AssertionError('CSRF check failed')
+        raise CSRFException('CSRF check failed')
     else:
         cherrypy.request.headers['CSRF-Token'] = csrf_token
 
