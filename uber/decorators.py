@@ -81,17 +81,7 @@ suffix_property.check = _suffix_property_check
 def csrf_protected(func):
     @wraps(func)
     def protected(*args, csrf_token, **kwargs):
-        try:
-            check_csrf(csrf_token)
-        except Exception as e:
-            s = str(e).lower()
-            if "csrf" in s:
-                message = "Missing CSRF token. Your session may have timed out. Please go back and try again."
-                log.error("CSRF Error: {}", str(e))
-                raise HTTPRedirect("../common/invalid?message={}", message)
-            else:
-                raise
-
+        check_csrf(csrf_token)
         return func(*args, **kwargs)
     return protected
 
@@ -341,6 +331,7 @@ def renderable(func):
                 return result
         except CSRFException as e:
             message = "Your CSRF token is invalid. Please go back and try again."
+            log.error("CSRF Error: {}", e)
             raise HTTPRedirect("../common/invalid?message={}", message)
     return with_rendering
 
