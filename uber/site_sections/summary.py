@@ -250,7 +250,7 @@ class Root:
             if gets_staff_shirt:
                 counts['staff'][label(shirt_label)] += c.SHIRTS_PER_STAFFER
 
-            if attendee.gets_paid_shirt:
+            if gets_swag_shirt:
                 counts['swag'][label(shirt_label)] += 1
 
         return {
