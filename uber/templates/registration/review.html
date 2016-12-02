@@ -1,16 +1,4 @@
-{% extends "base-admin.html" %}
-{% block title %}Recent Changes{% endblock %}
-{% block content %}
+{% extends "registration/review-base.html" %}
 
-<h2> Attendee Review Notes </h2>
-
-<ul>
-{% for attendee in attendees %}
-    <li>
-        <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a> <br/>
-        {{ attendee.for_review|linebreaksbr }} <br/> <br/>
-    </li>
-{% endfor %}
-</ul>
-
-{% endblock %}
+{# By default, this page renders exactly what's in the base template. #}
+{# Downstream plugins may override this file and change base blocks, so leave this file in place. #}
