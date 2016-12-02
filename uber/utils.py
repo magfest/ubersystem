@@ -1,5 +1,6 @@
 from uber.common import *
 
+
 class CSRFException(Exception):
     """
     This class will raise a custom exception to help catch a specific error in later functions.
