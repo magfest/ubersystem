@@ -1,6 +1,19 @@
 from uber.common import *
 
 
+def generate_staff_badges(start_badge, end_badge, out, session):
+    assert start_badge >= c.BADGE_RANGES[c.STAFF_BADGE][0]
+    assert end_badge <= c.BADGE_RANGES[c.STAFF_BADGE][1]
+
+    badge_range = (start_badge, end_badge)
+
+    uber.reports.PrintedBadgeReport(
+        badge_type=c.STAFF_BADGE,
+        range=badge_range,
+        badge_type_name='Staff') \
+        .run(out, session)
+
+
 @all_renderable(c.STATS)
 class Root:
     def index(self, session):
@@ -130,35 +143,54 @@ class Root:
         }
 
     @csv_file
+    def dept_head_emails(self, out, session):
+        out.writerow(['Name', 'Phone', 'Email'])
+        dhs = session.query(Attendee).filter(Attendee.ribbon == c.DEPT_HEAD_RIBBON).all()
+        for x in dhs:
+            out.writerow([x.full_name, x.cellphone, x.email])
+
+    @csv_file
     def printed_badges_attendee(self, out, session):
-        uber.reports.PrintedBadgeReport(badge_type=c.ATTENDEE_BADGE).run(out, session)
+        uber.reports.PrintedBadgeReport(badge_type=c.ATTENDEE_BADGE, badge_type_name='Attendee').run(out, session)
 
     @csv_file
     def printed_badges_guest(self, out, session):
-        uber.reports.PrintedBadgeReport(badge_type=c.GUEST_BADGE).run(out, session)
+        uber.reports.PrintedBadgeReport(badge_type=c.GUEST_BADGE, badge_type_name='Guest').run(out, session)
 
     @csv_file
     def printed_badges_one_day(self, out, session):
-        uber.reports.PrintedBadgeReport(badge_type=c.ONE_DAY_BADGE).run(out, session)
+        uber.reports.PrintedBadgeReport(badge_type=c.ONE_DAY_BADGE, badge_type_name='OneDay').run(out, session)
 
     @csv_file
     def printed_badges_minor(self, out, session):
-        uber.reports.PrintedBadgeReport(badge_type=c.CHILD_BADGE).run(out, session)
+        uber.reports.PrintedBadgeReport(badge_type=c.CHILD_BADGE, badge_type_name='Minor').run(out, session)
 
     @csv_file
     def printed_badges_staff(self, out, session):
 
         # part 1, include only staff badges that have an assigned name
         uber.reports.PersonalizedBadgeReport().run(out, session,
-            sa.Attendee.badge_type == c.STAFF_BADGE,
-            sa.Attendee.badge_num != None,
-            order_by='badge_num')
+                                                   Attendee.badge_type == c.STAFF_BADGE,
+                                                   Attendee.badge_num != None,
+                                                   order_by='badge_num')
 
-        # part 2, include a bunch of extra badges so we have some printed
+        # part 2, include some extra for safety marging
+        minimum_extra_amount = 5
+
         max_badges = c.BADGE_RANGES[c.STAFF_BADGE][1]
-        extra_count = 20
-        badge_range = (max_badges - extra_count, max_badges)
-        uber.reports.PrintedBadgeReport(badge_type=c.STAFF_BADGE, range=badge_range).run(out, session)
+        start_badge = max_badges - minimum_extra_amount + 1
+        end_badge = max_badges
+
+        generate_staff_badges(start_badge, end_badge, out, session)
+
+    @csv_file
+    def printed_badges_staff__expert_mode_only(self, out, session, start_badge, end_badge):
+        """
+        Generate a CSV of staff badges. Note: This is not normally what you would call to do the badge export.
+        For use by experts only.
+        """
+
+        generate_staff_badges(int(start_badge), int(end_badge), out, session)
 
     @csv_file
     def badge_hangars_supporters(self, out, session):
@@ -191,7 +223,7 @@ class Root:
         """
         for badge_csv_fn in self.badge_zipfile_contents:
             csv_filename = '{}.csv'.format(badge_csv_fn.__name__)
-            output = badge_csv_fn(self, session)
+            output = badge_csv_fn(self, session, set_headers=False)
             zip_file.writestr(csv_filename, output)
 
     def food_eligible(self, session):
@@ -211,6 +243,42 @@ class Root:
         for a in session.query(Attendee).all():
             if a.worked_hours > 0:
                 out.writerow([a.badge_num, a.full_name, a.email, a.weighted_hours, a.worked_hours])
+
+    def shirt_manufacturing_counts(self, session):
+        """
+        This report should be the definitive report about the count and sizes of shirts needed to be ordered.
+
+        There are 2 types of shirts:
+        - "staff shirts" - staff uniforms, each staff gets TWO currently
+        - "swag shirts" - pre-ordered shirts, which the following groups receive:
+            - volunteers (non-staff who get one for free)
+            - attendees (who can pre-order them)
+        """
+        counts = defaultdict(lambda: defaultdict(int))
+        labels = ['size unknown'] + [label for val, label in c.SHIRT_OPTS][1:]
+        sort = lambda d: sorted(d.items(), key=lambda tup: labels.index(tup[0]))
+        label = lambda s: 'size unknown' if s == c.SHIRTS[c.NO_SHIRT] else s
+
+        for attendee in session.staffers(only_staffing=False):
+            shirt_label = attendee.shirt_label or 'size unknown'
+
+            # TODO: eventually extract these conditions into properties on Attendee
+            # Attendee.gets_free_shirt needs to be re-worked out.
+            gets_staff_shirt = attendee.badge_type == c.STAFF_BADGE
+            gets_swag_shirt = attendee.badge_type != c.STAFF_BADGE and (attendee.gets_paid_shirt or attendee.ribbon == c.VOLUNTEER_RIBBON)
+
+            if gets_staff_shirt:
+                counts['staff'][label(shirt_label)] += c.SHIRTS_PER_STAFFER
+
+            if gets_swag_shirt:
+                counts['swag'][label(shirt_label)] += 1
+
+        return {
+            'categories': [
+                ('Staff Uniform Shirts', sort(counts['staff'])),
+                ('Swag Shirts', sort(counts['swag'])),
+            ]
+        }
 
     def shirt_counts(self, session):
         counts = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))

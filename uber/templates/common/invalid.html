@@ -35,27 +35,15 @@
         <div class="container-fluid">
             <div class="row-fluid">
                 <div class="col-xs-12">
-                    <h1 class="text-center">{{ c.EVENT_NAME_AND_YEAR }} registration<br><br></h1>
+                    <h1 class="text-center">ERROR!</h1>
+                    <h2 class="text-center">{{ message }}</h2>
+                    <h3 class="text-center">If you need further assistance please contact {{ c.DEVELOPER_EMAIL }}</h3>
+                    <br>
                     <p class="text-center">
-                        <a class="btn btn-primary btn-xl" href="../preregistration/" role="button">
-                            Register for {{ c.EVENT_NAME_AND_YEAR }}
+                        <a class="btn btn-primary btn-xl" onclick="window.history.back()" role="button">
+                            Go Back
                         </a>
                         <br><br>
-                    </p>
-                    <p class="text-right">
-                        <a class="btn btn-link btn-lg" href="../accounts/homepage" role="button">
-                            Admin Login
-                        </a>
-                    </p>
-                    <p class="text-right">
-                        <a class="btn btn-link btn-lg" href="../signups/login" role="button">
-                            Staff/Volunteer Login
-                        </a>
-                    </p>
-                    <p class="text-right">
-                        <a class="btn btn-link btn-lg" href="../preregistration/check_if_preregistered" role="button">
-                            Check If Registered
-                        </a>
                     </p>
                 </div>
             </div>

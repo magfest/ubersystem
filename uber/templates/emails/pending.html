@@ -15,11 +15,11 @@
     <tr>
         <td>{{ email.subject }}</td>
         <td>{{ email.sender }}</td>
-        <td><a href="pending_examples?subject={{ email.subject|urlencode }}">See Examples</a></td>
+        <td><a href="pending_examples?ident={{ email.ident|urlencode }}">See Examples</a></td>
         <td>
             <form method="post" action="approve">
             {% csrf_token %}
-            <input type="hidden" name="subject" value="{{ email.subject }}" />
+            <input type="hidden" name="ident" value="{{ email.ident }}" />
             <input type="submit" value="Approve" />
             </form>
         </td>
