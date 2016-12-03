@@ -539,11 +539,19 @@ else:
 
 stripe.api_key = c.STRIPE_SECRET_KEY
 
+c.AWESOME_WORDS = [
+    "Fire",
+    "Water",
+    "Air",
+    "Earth",
+    "Satan"
+
+]
+
 c.PROMO_CODE_WORDS = {}
-with open("/home/vagrant/uber/sideboard/words.txt") as f:
-    lines = f.read().split("\n")
-    for x in (string.ascii_letters + string.digits):
-        if len(lines) > 0:
-            c.PROMO_CODE_WORDS[x] = lines.pop(random.randint(0, len(lines)-1))
-        else:
-            c.PROMO_CODE_WORDS[x] = x
+for x in (string.ascii_letters + string.digits):
+    words = c.AWESOME_WORDS
+    if len(words) > 0:
+        c.PROMO_CODE_WORDS[x] = words.pop(random.randint(0, len(words)-1))
+    else:
+        c.PROMO_CODE_WORDS[x] = x
