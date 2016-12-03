@@ -34,12 +34,20 @@
     <p>
       Congratulations! Your registration was successful.
     </p>
+      {% if total_cost > 0 %}
     <p>
       Your credit card was successfully charged for
       <strong>${{ total_cost }}</strong>, and you will receive a confirmation
       email sent to you shortly. If you paid for other registrations, those
       attendees will get their own confirmation email.
     </p>
+      {% else %}
+          <p>
+          Woah! You got a free badge{% if preregs|length > 1 %}s{% endif %}.
+          You will receive a confirmation email sent to you shortly.
+          {% if preregs|length > 1 %}All attendees will get their own confirmation email.{% endif %}
+          </p>
+      {% endif %}
   </div>
 </div>
 
