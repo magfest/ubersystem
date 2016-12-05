@@ -287,7 +287,7 @@ class Root:
         label = lambda s: 'size unknown' if s == c.SHIRTS[c.NO_SHIRT] else s
         status = lambda got_merch: 'picked_up' if got_merch else 'outstanding'
         sales_by_week = OrderedDict([(i, 0) for i in range(50)])
-        for attendee in session.staffers(only_staffing=False):
+        for attendee in session.all_attendees():
             shirt_label = attendee.shirt_label or 'size unknown'
             if attendee.gets_free_shirt:
                 counts['free'][label(shirt_label)][status(attendee.got_merch)] += 1
@@ -356,7 +356,7 @@ class Root:
         }
 
     def volunteers_owed_refunds(self, session):
-        attendees = session.staffers(only_staffing=False).filter(Attendee.paid.in_([c.HAS_PAID, c.PAID_BY_GROUP, c.REFUNDED])).all()
+        attendees = session.all_attendees().filter(Attendee.paid.in_([c.HAS_PAID, c.PAID_BY_GROUP, c.REFUNDED])).all()
         is_unrefunded = lambda a: a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid
         return {
             'attendees': [(

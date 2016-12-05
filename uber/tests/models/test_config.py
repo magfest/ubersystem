@@ -24,20 +24,6 @@ class TestPriceBumps:
         assert 40 == c.get_attendee_price((datetime.now(UTC) - timedelta(days=1, hours=2)))
 
 
-class request_cached_context():
-    """
-    We cache certain variables (like c.BADGES_SOLD) on a per-cherrypy.request basis.
-    In unit tests, we can simulate a per-request call by using this class, which
-    clears the per-request cache when it's done.
-    """
-
-    def __enter__(self):
-        pass
-
-    def __exit__(self, type, value, traceback):
-        threadlocal.clear()
-
-
 class TestPriceLimits:
     @pytest.fixture(autouse=True)
     def add_price_bump_limit(request, monkeypatch):
