@@ -866,7 +866,9 @@ class Root:
         codes = session.query(PromoCode).all()
         return {
             'message': message,
-            'promo_codes': codes
+            'promo_codes': codes,
+            'now': datetime.now().strftime("%Y-%m-%d"),
+            'max': c.ESCHATON.strftime('%Y-%m-%d')
         }
 
     def edit_code(self, session, message='', **params):
@@ -891,6 +893,29 @@ class Root:
                 session.commit()
                 return "Success!"
         return False
+
+    @ajax
+    def expire_code(self, session, message='No PromoCode provided.', **params):
+        if 'id' in params:
+            message = 'Failed for unknown reason.'
+            matchingCode = session.query(PromoCode).filter(PromoCode.id == params['id']).first()
+            if matchingCode:
+                matchingCode.expire()
+                session.commit()
+                message = "PromoCode '%s' has been successfully expired." % matchingCode.code
+        return message
+
+    @ajax
+    def edit_date(self, session, message='No PromoCode provided.', **params):
+        if 'id' and 'date' in params:
+            message = 'Failed for unknown reason.'
+            matchingCode = session.query(PromoCode).filter(PromoCode.id == params['id']).first()
+            if matchingCode:
+                date = c.EVENT_TIMEZONE.localize(datetime.strptime(params['date'], "%m-%d-%Y"))
+                matchingCode.expiration_date = date
+                session.commit()
+                message = "PromoCode '%s' has had its expiration date changed to %s" % (matchingCode.code, matchingCode.expiration_date)
+        return message
 
     def placeholders(self, session, department=''):
         return {

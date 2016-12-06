@@ -51,7 +51,7 @@
             <a href="#" onclick="editCode('{{ p.id }}', '{{ p.code }}')">{{ p.code }}</a>
         </td>
         <td>
-            <a href="#" onclick="editDate('{{ p.id }}')"><i>{{ p.expiration_date }}</i></a>
+            <a href="#" id="date{{ forloop.counter }}" name="date{{ forloop.counter }}" onclick="dateID = '{{ p.id }}'; cal.showCalendar('date{{ forloop.counter }}')"><i>{{ p.expiration_date }}</i></a>
         </td>
         <td>
             {% if p.uses == None %}
@@ -64,7 +64,7 @@
             ${{ p.price }}
         </td>
         <td>
-            {{ p.expired }}
+            {% if not p.expired %}<a href="#" onclick="expireCode('{{ p.id }}')">False</a>{% else %}True{% endif %}
         </td>
         <td>
             {% for a in p.used_by %}
@@ -77,7 +77,32 @@
 
 <i>Bolded fields are required</i>
 
+<script src="../static/js/CalendarPopup.js"></script>
 <script>
+
+var expireCode = function(id){
+    var confirmed = confirm("Are you sure you want to expire this code? This cannot be undone.");
+    if (confirmed){
+        $.ajax({
+            url: 'expire_code',
+            data: {
+                csrf_token: csrf_token,
+                id: id
+            },
+            type: "POST",
+            success: function(message){
+                toastr.info(message);
+                setTimeout(function(){
+                    location.reload(true);
+                }, 3000);
+            },
+            error: function(message){
+                toastr.error("An Unknown Error Occured.");
+            }
+        });
+    }
+};
+
 var editCode = function(id, old_code){
     var new_code = prompt("Edit the Promo Code:", old_code);
     if (new_code != null) {
@@ -91,12 +116,14 @@ var editCode = function(id, old_code){
             type: 'POST',
             success: function (message) {
                 toastr.info(message);
-                location.reload(true);
+                setTimeout(function(){
+                    location.reload(true);
+                }, 3000);
             },
             error: function (message) {
-                toastr.error(message);
+                toastr.error("An Unknown Error Occured.");
             }
-        })
+        });
     }
 };
 
@@ -110,16 +137,48 @@ var deleteCode = function(id){
         type:'POST',
         success: function(message){
             toastr.info(message);
-            location.reload(true);
+                setTimeout(function(){
+                    location.reload(true);
+                }, 3000);
         },
         error: function(message){
-            toastr.error(message);
+            toastr.error("An Unknown Error Occured.");
         }
-    })
+    });
 };
 
-var editDate = function(id){
+var editDate = function(id, date){
+    $.ajax({
+            url: 'edit_date',
+            data: {
+                csrf_token: csrf_token,
+                id: id,
+                date: date
+            },
+            type: 'POST',
+            success: function (message) {
+                toastr.info(message);
+                setTimeout(function(){
+                    location.reload(true);
+                }, 3000);
 
+            },
+            error: function (message) {
+                toastr.error("An Unknown Error Occured.");
+            }
+        });
 };
+
+var dateID = "";
+var changeDate = function(y, m, d){
+    var date = m + '-' + d + '-' + y;
+    editDate(dateID, date);
+};
+
+var cal = new CalendarPopup();
+console.log(cal);
+cal.addDisabledDates(null, '{{ now }}');
+cal.addDisabledDates('{{ max }}', null);
+cal.setReturnFunction("changeDate");
 </script>
 {% endblock %}
