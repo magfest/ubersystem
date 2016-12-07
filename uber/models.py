@@ -858,7 +858,6 @@ class Group(MagModel, TakesPaymentMixin):
     wares         = Column(UnicodeText)
     description   = Column(UnicodeText)
     special_needs = Column(UnicodeText)
-    overridden_price = Column(Integer, nullable=True, admin_only=True)
     amount_paid   = Column(Integer, default=0, admin_only=True)
     cost          = Column(Integer, default=0, admin_only=True)
     auto_recalc   = Column(Boolean, default=True, admin_only=True)
@@ -1049,6 +1048,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     checked_in = Column(UTCDateTime, nullable=True)
 
     paid             = Column(Choice(c.PAYMENT_OPTS), default=c.NOT_PAID, admin_only=True)
+    overridden_price = Column(Integer, nullable=True, admin_only=True)
     amount_paid      = Column(Integer, default=0, admin_only=True)
     amount_extra     = Column(Choice(c.DONATION_TIER_OPTS, allow_unspecified=True), default=0)
     amount_refunded  = Column(Integer, default=0, admin_only=True)
