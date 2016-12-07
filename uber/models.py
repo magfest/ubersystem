@@ -1200,6 +1200,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             return 0
         elif self.overridden_price is not None:
             return self.overridden_price
+        elif self.is_dealer:
+            return c.DEALER_BADGE_PRICE
         elif self.badge_type == c.ONE_DAY_BADGE:
             return c.get_oneday_price(registered)
         elif self.is_presold_oneday:
@@ -1402,8 +1404,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             stuff.append('a {} wristband'.format(c.WRISTBAND_COLORS[self.age_group]))
         if self.regdesk_info:
             stuff.append(self.regdesk_info)
-        if self.amount_extra >= c.SUPPORTER_LEVEL:
-            stuff.append('their Supporter badge')
         return (' with ' if stuff else '') + comma_and(stuff)
 
     @property
