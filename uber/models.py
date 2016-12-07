@@ -1048,7 +1048,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     checked_in = Column(UTCDateTime, nullable=True)
 
     paid             = Column(Choice(c.PAYMENT_OPTS), default=c.NOT_PAID, admin_only=True)
-    overridden_price = Column(Integer, nullable=True, admin_only=True)
     amount_paid      = Column(Integer, default=0, admin_only=True)
     amount_extra     = Column(Choice(c.DONATION_TIER_OPTS, allow_unspecified=True), default=0)
     amount_refunded  = Column(Integer, default=0, admin_only=True)
@@ -1096,6 +1095,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if self.paid != c.REFUNDED:
             self.amount_refunded = 0
+            
+        if self.overridden_price == 0 and self.paid == c.NOT_PAID:
+            self.paid = c.NEED_NOT_PAY
 
         if c.AT_THE_CON and self.badge_num and (self.is_new or self.badge_type not in c.PREASSIGNED_BADGE_TYPES):
             self.checked_in = datetime.now(UTC)
