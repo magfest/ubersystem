@@ -959,14 +959,14 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def new_badge_cost(self):
-        return c.DEALER_BADGE_PRICE if self.is_dealer else c.get_group_price(sa.localized_now())
+        return c.DEALER_BADGE_PRICE if self.is_dealer else c.get_group_price()
 
     @cost_property
     def badge_cost(self):
         total = 0
         for attendee in self.attendees:
             if attendee.paid == c.PAID_BY_GROUP:
-                total += c.DEALER_BADGE_PRICE if attendee.is_dealer else c.get_group_price(attendee.registered)
+                total += c.DEALER_BADGE_PRICE if attendee.is_dealer else max(0, attendee.badge_cost - c.GROUP_DISCOUNT)
         return total
 
     @cost_property
@@ -1195,8 +1195,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @cost_property
     def badge_cost(self):
-        registered = self.registered_local if self.registered else sa.localized_now()
-        if self.paid in [c.PAID_BY_GROUP, c.NEED_NOT_PAY]:
+        registered = self.registered_local if self.registered else None
+        if self.paid == c.NEED_NOT_PAY:
             return 0
         elif self.overridden_price is not None:
             return self.overridden_price
@@ -1208,7 +1208,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             return c.get_attendee_price(registered)
 
     @cost_property
-    def discount(self):
+    def age_discount(self):
         return -self.age_group_conf['discount']
 
     @property
@@ -1228,7 +1228,11 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def amount_unpaid(self):
-        return max(0, self.total_cost - self.amount_paid)
+        if self.paid == c.PAID_BY_GROUP:
+            personal_cost = max(0, self.total_cost - self.badge_cost)
+        else:
+            personal_cost = self.total_cost
+        return max(0, personal_cost - self.amount_paid)
 
     @property
     def is_unpaid(self):
