@@ -1207,7 +1207,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         elif self.is_presold_oneday:
             return c.get_presold_oneday_price(self.badge_type)
         else:
-            return c.get_attendee_price(registered)
+            return c.get_attendee_price(registered) - self.age_discount
 
     @cost_property
     def age_discount(self):
