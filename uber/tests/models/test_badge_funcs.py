@@ -68,15 +68,19 @@ class TestNeedsBadgeNum:
 
     def test_non_preassigned_not_checked_in(self, session):
         session.regular_attendee.checked_in = None
+        assert session.regular_attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES
         assert not needs_badge_num(attendee=session.regular_attendee)
 
     def test_preassigned_unassigned(self, session):
         session.staff_one.first_name = ''
-        assert not needs_badge_num(attendee=session.staff_one)
+        assert session.staff_one.badge_type in c.PREASSIGNED_BADGE_TYPES
+        assert needs_badge_num(attendee=session.staff_one)
 
     def test_non_preassigned_unassigned(self, session):
         session.regular_attendee.first_name = ''
-        assert not needs_badge_num(attendee=session.regular_attendee)
+        assert session.regular_attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES
+        assert session.regular_attendee.checked_in
+        assert needs_badge_num(attendee=session.regular_attendee)
 
     def test_preassigned_not_paid(self, session):
         session.staff_one.paid = c.NOT_PAID
