@@ -242,7 +242,10 @@ def attendee_money(attendee):
             return 'Invalid overridden price ({})'.format(attendee.overridden_price)
         else:
             if attendee.overridden_price == 0:
-                return 'Please set the payment type to "doesn\'t need to" instead of setting the badge price to 0.'
+                if attendee.paid == c.NOT_PAID:
+                    attendee.paid = c.NEED_NOT_PAY
+                elif attendee.paid == c.HAS_PAID:
+                    return 'Please do not manually set a badge price to $0 if an attendee has already paid.'
 
     try:
         amount_refunded = int(float(attendee.amount_refunded))
