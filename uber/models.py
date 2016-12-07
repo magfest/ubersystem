@@ -966,7 +966,7 @@ class Group(MagModel, TakesPaymentMixin):
         total = 0
         for attendee in self.attendees:
             if attendee.paid == c.PAID_BY_GROUP:
-                total += c.DEALER_BADGE_PRICE if attendee.is_dealer else max(0, attendee.badge_cost - c.GROUP_DISCOUNT)
+                total += attendee.badge_cost
         return total
 
     @cost_property
@@ -1206,8 +1206,12 @@ class Attendee(MagModel, TakesPaymentMixin):
             return c.get_oneday_price(registered)
         elif self.is_presold_oneday:
             return c.get_presold_oneday_price(self.badge_type)
-        else:
+        elif self.age_discount:
             return c.get_attendee_price(registered) - self.age_discount
+        elif self.group and self.paid == c.PAID_BY_GROUP:
+            return c.get_attendee_price(registered) - c.GROUP_DISCOUNT
+        else:
+            return c.get_attendee_price(registered)
 
     @cost_property
     def age_discount(self):
