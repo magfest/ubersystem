@@ -259,7 +259,7 @@ class Root:
         sort = lambda d: sorted(d.items(), key=lambda tup: labels.index(tup[0]))
         label = lambda s: 'size unknown' if s == c.SHIRTS[c.NO_SHIRT] else s
 
-        for attendee in session.staffers(only_staffing=False):
+        for attendee in session.staffers():
             shirt_label = attendee.shirt_label or 'size unknown'
 
             # TODO: eventually extract these conditions into properties on Attendee
