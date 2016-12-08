@@ -39,6 +39,7 @@
 <table class="table table-striped datatable">
 <thead><tr>
     <th> Attendee Name </th>
+    {% if c.HAS_ACCOUNTS_ACCESS %}<th> Admin </th>{% endif %}
     <th> Badge</th>
     <th> [D] </th>
     <th> [T] </th>
@@ -53,6 +54,7 @@
 {% for attendee in attendees %}
     <tr>
         <td width="20%" data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}"> <a href="../registration/shifts?id={{ attendee.id }}">{{ attendee.full_name }}</a>        </td>
+        {% if c.HAS_ACCOUNTS_ACCESS %}<td width="10">{% if attendee.admin_account %}Enabled{% else %}<input type="checkbox" name="id" value="{{ attendee.id }}" onclick="adminList(this.value)"> Check To Enable{% endif %}</td>{% endif %}
         <td width="10">{% if not attendee.badge_num %}<font size="-1">TBD</font>{% else %}{{ attendee.badge_num }}{% endif %}</td>
         <td width="10">{% if attendee.is_dept_head %}<font size="-1">[D]</font>{% endif %}</td>
         <td width="10">{% if attendee.trusted_here %}<font size="-1">[T]</font>{% endif %}</td>
@@ -67,6 +69,24 @@
 </table>
 
 <br/> <br/>
+
+{% if c.HAS_ACCOUNTS_ACCESS %}
+    <div>
+    <h4>Accounts Selected: <i id="count">0</i></h4>
+    <form id="admin_settings" method="post" action="add_bulk_admin_accounts" onsubmit="return add_admin_list()" role="form" class="form-inline">
+        <input type="hidden" name="ids" id="ids" value="" />
+        {% csrf_token %}
+        <div class="form-group">
+            {% checkgroup AdminAccount.access %}
+        </div>
+        <button type="submit" class="btn btn-default">Create Checked Accounts</button>
+    </form>
+    </div>
+
+    <br/> <br/>
+{% endif %}
+
+
 <div style="margin-left:10px">
     [D]: <i>Staffers marked with a "D" are department heads.</i> <br/>
     [M]: <i>Staffers marked with a "M" are assigned to multiple locations</i> <br/>
@@ -75,5 +95,30 @@
          </i> <br/>
     [L]: <i>Staffers marked with a "L" are working load-in and/or load-out</i>
 </div>
+
+
+{% if c.HAS_ACCOUNTS_ACCESS %}
+<script>
+var list_of_ids = [];
+
+var adminList = function(id){
+    var index = list_of_ids.indexOf(id);
+    if(index == -1){
+        list_of_ids.push(id);
+    }
+    else {
+        list_of_ids.splice(index, 1);
+    }
+    $("#count").text(list_of_ids.length);
+};
+
+var add_admin_list = function(){
+    var ids = $("#ids");
+    ids.attr("value", list_of_ids.join());
+    console.log(ids.attr("value"));
+    return true;
+}
+</script>
+{% endif %}
 
 {% endblock %}
