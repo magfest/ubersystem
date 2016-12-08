@@ -1095,7 +1095,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if self.paid != c.REFUNDED:
             self.amount_refunded = 0
-            
+
         if self.overridden_price == 0 and self.paid == c.NOT_PAID:
             self.paid = c.NEED_NOT_PAY
 
