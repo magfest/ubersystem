@@ -106,13 +106,21 @@ var list_of_ids = [];
 var admin_form = $("#admin_settings");
 
 admin_form.submit( function(eventObj) {
-    var ids = $( ".cbox:checkbox" )
-              .map(function() {
-                return this.id;
-              })
-              .get();
-    $('#ids').val(ids);
-    return true;
+    var checkboxes = $('.cbox:checked');
+    var length = checkboxes.length;
+    var safety_dance = confirm("This will create " + length +  " new admin accounts. Are you sure?");
+    if(safety_dance) {
+        var ids = checkboxes
+                .map(function () {
+                    return this.id;
+                })
+                .get();
+        $('#ids').val(ids);
+        return true;
+    }
+    else{
+        return false;
+    }
 });
 
 admin_form.ajaxForm(function(message){
