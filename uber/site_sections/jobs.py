@@ -225,26 +225,35 @@ class Root:
             ]
         }
 
+    @ajax
     def add_bulk_admin_accounts(self, session, ids, message='', **params):
         if isinstance(ids, str):
             ids = str(ids).split(",")
         success_count = 0
         for id in ids:
-            match = session.query(Attendee).filter(Attendee.id == id).first()
-            if match:
-                account = session.admin_account(params, checkgroups=['access'])
-                if account.is_new:
-                    password = genpasswd()
-                    account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
-                    account.attendee = match
-                    body = render('emails/accounts/new_account.txt', {
-                        'account': account,
-                        'password': password
-                    })
-                    send_email(c.ADMIN_EMAIL, match.email, 'New ' + c.EVENT_NAME + ' Ubersystem Account', body)
-                    success_count += 1
+            try:
+                uuid.UUID(id)
+            except ValueError:
+                pass
+            else:
+                match = session.query(Attendee).filter(Attendee.id == id).first()
+                if match:
+                    account = session.admin_account(params, checkgroups=['access'])
+                    if account.is_new:
+                        password = genpasswd()
+                        account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
+                        account.attendee = match
+                        session.add(account)
+                        body = render('emails/accounts/new_account.txt', {
+                            'account': account,
+                            'password': password
+                        })
+                        #send_email(c.ADMIN_EMAIL, match.email, 'New ' + c.EVENT_NAME + ' Ubersystem Account', body)
+
+                        success_count += 1
         if success_count == 0:
             message = 'No new accounts were created.'
         else:
+            session.commit()
             message = '%d new accounts have been created, and emailed their passwords.' % success_count
         return message
