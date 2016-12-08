@@ -54,7 +54,7 @@
 {% for attendee in attendees %}
     <tr>
         <td width="20%" data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}"> <a href="../registration/shifts?id={{ attendee.id }}">{{ attendee.full_name }}</a>        </td>
-        {% if c.HAS_ACCOUNTS_ACCESS %}<td width="10">{% if attendee.admin_account %}Enabled{% else %}<input type="checkbox" name="id{{ forloop.counter }}" value="{{ attendee.id }}" onclick="adminList(this.value)"> Check To Enable{% endif %}</td>{% endif %}
+        {% if c.HAS_ACCOUNTS_ACCESS %}<td width="10">{% if attendee.admin_account %}Enabled{% else %}<input type="checkbox" class="cbox" id="{{ attendee.id }}"> Enable?{% endif %}</td>{% endif %}
         <td width="10">{% if not attendee.badge_num %}<font size="-1">TBD</font>{% else %}{{ attendee.badge_num }}{% endif %}</td>
         <td width="10">{% if attendee.is_dept_head %}<font size="-1">[D]</font>{% endif %}</td>
         <td width="10">{% if attendee.trusted_here %}<font size="-1">[T]</font>{% endif %}</td>
@@ -72,10 +72,9 @@
 
 {% if c.HAS_ACCOUNTS_ACCESS %}
     <div>
-    <button class="btn btn-default" onclick="checkAll()">Select All</button>
-    <button class="btn btn-default" onclick="uncheckAll()">Deselect All</button>
+    <p><label><input type="checkbox" id="checkAll"/> Check all</label></p>
     <h4>Accounts Selected: <i id="count">0</i></h4>
-    <form id="admin_settings" method="post" action="add_bulk_admin_accounts" onsubmit="return add_admin_list()" role="form" class="form-inline">
+    <form id="admin_settings" method="post" action="add_bulk_admin_accounts" role="form" class="form-inline">
         <input type="hidden" name="ids" id="ids" value="" />
         {% csrf_token %}
         <div class="form-group">
@@ -104,41 +103,34 @@
 <script>
 var list_of_ids = [];
 
-$("#admin_settings").ajaxForm(function(message){
+var admin_form = $("#admin_settings");
+
+admin_form.submit( function(eventObj) {
+    var ids = $( ".cbox:checkbox" )
+              .map(function() {
+                return this.id;
+              })
+              .get();
+    $('#ids').val(ids);
+    return true;
+});
+
+admin_form.ajaxForm(function(message){
     toastr.info(message);
     setTimeout(function(){
         location.reload(true);
     }, 1500);
 });
 
-var checkAll = function(){
-    $.each( $("input[name^='id']"), function () {
-      $(this).prop("checked", true);
-    });
-};
+$("#checkAll").change(function () {
+    $('.cbox:checkbox').prop('checked', this.checked);
+    $("#count").text($('.cbox:checked').length);
+});
 
-var uncheckAll = function(){
-    $.each( $("input[name^='id']"), function () {
-      $(this).prop("checked", false);
-    });
-};
+$('.cbox').change(function(){
+   $("#count").text($('.cbox:checked').length);
+});
 
-var adminList = function(id){
-    var index = list_of_ids.indexOf(id);
-    if(index == -1){
-        list_of_ids.push(id);
-    }
-    else {
-        list_of_ids.splice(index, 1);
-    }
-    $("#count").text(list_of_ids.length);
-};
-
-var add_admin_list = function(){
-    var ids = $("#ids");
-    ids.attr("value", list_of_ids.join());
-    return true;
-}
 </script>
 {% endif %}
 

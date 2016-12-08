@@ -226,7 +226,8 @@ class Root:
         }
 
     @ajax
-    def add_bulk_admin_accounts(self, session, ids, message='', **params):
+    def add_bulk_admin_accounts(self, session, message='', **params):
+        ids = params.get('ids')
         if isinstance(ids, str):
             ids = str(ids).split(",")
         success_count = 0
