@@ -212,8 +212,7 @@ class Root:
         for group in charge.groups:
             group.amount_paid = group.default_cost - group.amount_extra
             for attendee in group.attendees:
-                if attendee.amount_extra:
-                    attendee.amount_paid = attendee.total_cost
+                attendee.amount_paid = attendee.total_cost - attendee.badge_cost
             session.add(group)
 
         self.unpaid_preregs.clear()

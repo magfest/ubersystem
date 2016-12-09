@@ -971,7 +971,7 @@ class Group(MagModel, TakesPaymentMixin):
     @cost_property
     def amount_extra(self):
         if self.is_new:
-            return sum(a.amount_unpaid for a in self.attendees if a.paid == c.PAID_BY_GROUP)
+            return sum(a.total_cost - a.badge_cost for a in self.attendees if a.paid == c.PAID_BY_GROUP)
         else:
             return 0
 
