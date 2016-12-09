@@ -311,11 +311,9 @@ class Root:
             group.amount_paid += charge.dollar_amount
 
             for attendee in charge.attendees:
-                # Subtract an attendee's kick-in level, if it's not already paid for.
-                if attendee.amount_paid < attendee.total_cost:
-                    group.amount_paid -= attendee.total_cost - attendee.amount_paid
-
-                attendee.amount_paid = attendee.total_cost
+                # Subtract an attendee's extras, if they're not already paid for.
+                group.amount_paid -= attendee.amount_unpaid
+                attendee.amount_paid += attendee.amount_unpaid
                 session.merge(attendee)
 
             session.merge(group)
