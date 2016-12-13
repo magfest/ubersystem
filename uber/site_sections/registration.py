@@ -917,6 +917,15 @@ class Root:
                 message = "PromoCode '%s' has had its expiration date changed to %s" % (matchingCode.code, matchingCode.expiration_date)
         return message
 
+    @ajax
+    def send_promo_email(self, session, message='', **params):
+        if 'id' and 'name' and 'email' in params:
+            matchingCode = session.query(PromoCode).filter(PromoCode.id == params['id']).first()
+            if matchingCode:
+                pass
+                # Generate an Approved Email to go out that informs the user at the given email address what the
+                # Promo Code is, what it is worth, and how to redeem it. Needs an email template.
+
     def placeholders(self, session, department=''):
         return {
             'department': department,
