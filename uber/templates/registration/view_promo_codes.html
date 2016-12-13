@@ -70,7 +70,8 @@
             {% if not p.expired %}<a href="#" onclick="expireCode('{{ p.id }}')">False</a>{% else %}True{% endif %}
         </td>
         <td>
-            <form>
+            <form onsubmit="generateEmail(this)">
+                <input type="text" value="{{ p.id }}" name="id" class="hidden">
                 <input type="submit" value="Click To Email Code">
             </form>
         </td>
@@ -87,6 +88,12 @@
 
 <script src="../static/js/CalendarPopup.js"></script>
 <script>
+
+var generateEmail = function(form){
+    console.log(form);
+    return false;
+
+};
 
 var expireCode = function(id){
     var confirmed = confirm("Are you sure you want to expire this code? This cannot be undone.");
