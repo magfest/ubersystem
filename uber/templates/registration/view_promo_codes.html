@@ -39,6 +39,9 @@
         Expired
     </th>
     <th>
+        Send Email?
+    </th>
+    <th>
         Users
     </th>
 </tr>
@@ -65,6 +68,11 @@
         </td>
         <td>
             {% if not p.expired %}<a href="#" onclick="expireCode('{{ p.id }}')">False</a>{% else %}True{% endif %}
+        </td>
+        <td>
+            <form>
+                <input type="submit" value="Click To Email Code">
+            </form>
         </td>
         <td>
             {% for a in p.used_by %}
