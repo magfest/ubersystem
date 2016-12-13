@@ -918,13 +918,22 @@ class Root:
         return message
 
     @ajax
-    def send_promo_email(self, session, message='', **params):
+    def send_promo_email(self, session, message='A completely unknown error has occured.', **params):
         if 'id' and 'name' and 'email' in params:
             matchingCode = session.query(PromoCode).filter(PromoCode.id == params['id']).first()
             if matchingCode:
-                pass
+                message = ""
                 # Generate an Approved Email to go out that informs the user at the given email address what the
                 # Promo Code is, what it is worth, and how to redeem it. Needs an email template.
+                message = "Email has been sent to %s" % (params['email'])
+                return {
+                    "success": message
+                }
+        message = "Missing possibly all three fields." \
+                  " Check that name, email, and promo code id are present in the request."
+        return {
+            "error": message
+        }
 
     def placeholders(self, session, department=''):
         return {
