@@ -102,7 +102,7 @@ class Root:
 
     def form(self, session, message='', **params):
         defaults = {}
-        if params['id'] == 'None' and cherrypy.request.method != 'POST':
+        if params.get('id') == 'None' and cherrypy.request.method != 'POST':
             defaults = cherrypy.session.get('job_defaults', defaultdict(dict))[params['location']]
             params.update(defaults)
 
@@ -112,7 +112,7 @@ class Root:
             message = check(job)
             if not message:
                 session.add(job)
-                if params['id'] == 'None':
+                if params.get('id') == 'None':
                     defaults = cherrypy.session.get('job_defaults', defaultdict(dict))
                     defaults[params['location']] = {field: getattr(job, field) for field in c.JOB_DEFAULTS}
                     cherrypy.session['job_defaults'] = defaults

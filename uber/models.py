@@ -656,10 +656,12 @@ class Session(SessionManager):
         def valid_attendees(self):
             return self.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS)
 
-        def staffers(self, only_staffing=True):
+        def all_attendees(self, only_staffing=False):
             """
-            Returns a Query of attendees with efficient loading for groups and
-            shifts/jobs.  By default we only return attendees where "staffing"
+            Returns a Query of Attendees with efficient loading for groups and
+            shifts/jobs.
+
+            In some cases we only want to return attendees where "staffing"
             is true, because before the event people can't sign up for shifts
             unless they're marked as volunteers.  However, on-site we relax that
             restriction, so we'll get attendees with shifts who are not actually
@@ -667,10 +669,13 @@ class Session(SessionManager):
             clients to indicate that all attendees should be returned.
             """
             return (self.query(Attendee)
-                        .filter(Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
-                                *[Attendee.staffing == True] if only_staffing else [])
-                        .options(subqueryload(Attendee.group), subqueryload(Attendee.shifts).subqueryload(Shift.job))
-                        .order_by(Attendee.full_name))
+                    .filter(Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
+                            *[Attendee.staffing == True] if only_staffing else [])
+                    .options(subqueryload(Attendee.group), subqueryload(Attendee.shifts).subqueryload(Shift.job))
+                    .order_by(Attendee.full_name))
+
+        def staffers(self):
+            return self.all_attendees(only_staffing=True)
 
         def jobs(self, location=None):
             return (self.query(Job)
@@ -754,7 +759,6 @@ class Session(SessionManager):
             if int(new_badge_type) in c.PREASSIGNED_BADGE_TYPES and c.AFTER_PRINTED_BADGE_DEADLINE and diff > 0:
                 return 'Custom badges have already been ordered, so you will need to select a different badge type'
             elif diff > 0:
-                group.cost += diff * group.new_badge_cost
                 for i in range(diff):
                     group.attendees.append(Attendee(badge_type=new_badge_type, ribbon=ribbon_to_use, paid=paid, **extra_create_args))
             elif diff < 0:
@@ -954,20 +958,20 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def new_badge_cost(self):
-        return c.DEALER_BADGE_PRICE if self.is_dealer else c.get_group_price(sa.localized_now())
+        return c.DEALER_BADGE_PRICE if self.is_dealer else c.get_group_price()
 
     @cost_property
     def badge_cost(self):
         total = 0
         for attendee in self.attendees:
             if attendee.paid == c.PAID_BY_GROUP:
-                total += c.DEALER_BADGE_PRICE if attendee.is_dealer else c.get_group_price(attendee.registered)
+                total += attendee.badge_cost
         return total
 
     @cost_property
     def amount_extra(self):
         if self.is_new:
-            return sum(a.amount_unpaid for a in self.attendees if a.paid == c.PAID_BY_GROUP)
+            return sum(a.total_cost - a.badge_cost for a in self.attendees if a.paid == c.PAID_BY_GROUP)
         else:
             return 0
 
@@ -1150,6 +1154,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.paid != c.REFUNDED:
             self.amount_refunded = 0
 
+        if self.overridden_price == 0 and self.paid == c.NOT_PAID:
+            self.paid = c.NEED_NOT_PAY
+
         if c.AT_THE_CON and self.badge_num and (self.is_new or self.badge_type not in c.PREASSIGNED_BADGE_TYPES):
             self.checked_in = datetime.now(UTC)
 
@@ -1248,20 +1255,26 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @cost_property
     def badge_cost(self):
-        registered = self.registered_local if self.registered else sa.localized_now()
-        if self.paid in [c.PAID_BY_GROUP, c.NEED_NOT_PAY]:
+        registered = self.registered_local if self.registered else None
+        if self.paid == c.NEED_NOT_PAY:
             return 0
         elif self.overridden_price is not None:
             return self.overridden_price
+        elif self.is_dealer:
+            return c.DEALER_BADGE_PRICE
         elif self.badge_type == c.ONE_DAY_BADGE:
             return c.get_oneday_price(registered)
         elif self.is_presold_oneday:
             return c.get_presold_oneday_price(self.badge_type)
+        elif self.age_discount != 0:
+            return c.get_attendee_price(registered) + self.age_discount
+        elif self.group and self.paid == c.PAID_BY_GROUP:
+            return c.get_attendee_price(registered) - c.GROUP_DISCOUNT
         else:
             return c.get_attendee_price(registered)
 
-    @cost_property
-    def discount(self):
+    @property
+    def age_discount(self):
         return -self.age_group_conf['discount']
 
     @property
@@ -1281,7 +1294,11 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def amount_unpaid(self):
-        return max(0, self.total_cost - self.amount_paid)
+        if self.paid == c.PAID_BY_GROUP:
+            personal_cost = max(0, self.total_cost - self.badge_cost)
+        else:
+            personal_cost = self.total_cost
+        return max(0, personal_cost - self.amount_paid)
 
     @property
     def is_unpaid(self):
@@ -1451,8 +1468,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             stuff.append('a {} wristband'.format(c.WRISTBAND_COLORS[self.age_group]))
         if self.regdesk_info:
             stuff.append(self.regdesk_info)
-        if self.amount_extra >= c.SUPPORTER_LEVEL:
-            stuff.append('their Supporter badge')
         return (' with ' if stuff else '') + comma_and(stuff)
 
     @property

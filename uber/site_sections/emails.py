@@ -16,10 +16,27 @@ class Root:
     sent.restricted = [c.PEOPLE, c.REG_AT_CON]
 
     def pending(self, session, message=''):
-        approved = {ae.ident for ae in session.query(ApprovedEmail).all()}
+        automated_emails = []
+        last_job_completed = SendAllAutomatedEmailsJob.last_result.get('completed', False)
+        categories_results = SendAllAutomatedEmailsJob.last_result.get('categories', None)
+
+        count_query = session.query(Email.ident, func.count(Email.ident)).group_by(Email.ident)
+        sent_email_counts = {c[0]: c[1] for c in count_query.all()}
+
+        for automated_email in AutomatedEmail.instances.values():
+            category_results = categories_results.get(automated_email.ident, None) if categories_results else None
+            unsent_because_unapproved = category_results.get('unsent_because_unapproved', 0) if category_results else 0
+
+            automated_emails.append({
+                'automated_email': automated_email,
+                'num_sent': sent_email_counts.get(automated_email.ident, 0),
+                'unsent_because_unapproved': unsent_because_unapproved if last_job_completed else '_'
+            })
+
         return {
             'message': message,
-            'pending': [ae for ae in AutomatedEmail.instances.values() if ae.needs_approval and ae.ident not in approved]
+            'automated_emails': automated_emails,
+            'last_job_completed': last_job_completed
         }
 
     def pending_examples(self, session, ident):
@@ -27,7 +44,7 @@ class Root:
         examples = []
         email = AutomatedEmail.instances[ident]
         for x in AutomatedEmail.queries[email.model](session):
-            if email.filter(x):
+            if email.filters_run(x):
                 count += 1
                 url = {
                     Group: '../groups/form?id={}',
@@ -39,7 +56,7 @@ class Root:
         return {
             'count': count,
             'examples': examples,
-            'subject': email.subject
+            'subject': email.subject,
         }
 
     def test_email(self, session, subject=None, body=None, from_address=None, to_address=None, **params):
