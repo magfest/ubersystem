@@ -81,7 +81,12 @@ suffix_property.check = _suffix_property_check
 def csrf_protected(func):
     @wraps(func)
     def protected(*args, csrf_token, **kwargs):
-        check_csrf(csrf_token)
+        try:
+            check_csrf(csrf_token)
+        except CSRFException as e:
+            message = "Your CSRF token is invalid. Please go back and try again."
+            log.error("CSRF Error: {}", e)
+            raise HTTPRedirect("../common/invalid?message={}", message)
         return func(*args, **kwargs)
     return protected
 
@@ -308,31 +313,27 @@ def prettify_breadcrumb(str):
 def renderable(func):
     @wraps(func)
     def with_rendering(*args, **kwargs):
+        result = func(*args, **kwargs)
+
         try:
-            result = func(*args, **kwargs)
+            result['breadcrumb_page_pretty_'] = prettify_breadcrumb(func.__name__) if func.__name__ != 'index' else 'Home'
+            result['breadcrumb_page_'] = func.__name__ if func.__name__ != 'index' else ''
+        except:
+            pass
 
-            try:
-                result['breadcrumb_page_pretty_'] = prettify_breadcrumb(func.__name__) if func.__name__ != 'index' else 'Home'
-                result['breadcrumb_page_'] = func.__name__ if func.__name__ != 'index' else ''
-            except:
-                pass
+        try:
+            result['breadcrumb_section_pretty_'] = prettify_breadcrumb(get_module_name(func))
+            result['breadcrumb_section_'] = get_module_name(func)
+        except:
+            pass
 
-            try:
-                result['breadcrumb_section_pretty_'] = prettify_breadcrumb(get_module_name(func))
-                result['breadcrumb_section_'] = get_module_name(func)
-            except:
-                pass
+        if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
+            return render('closed.html')
+        elif isinstance(result, dict):
+            return render(_get_template_filename(func), result)
+        else:
+            return result
 
-            if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
-                return render('closed.html')
-            elif isinstance(result, dict):
-                return render(_get_template_filename(func), result)
-            else:
-                return result
-        except CSRFException as e:
-            message = "Your CSRF token is invalid. Please go back and try again."
-            log.error("CSRF Error: {}", e)
-            raise HTTPRedirect("../common/invalid?message={}", message)
     return with_rendering
 
 
