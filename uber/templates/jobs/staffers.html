@@ -99,7 +99,6 @@
 
 
 {% if c.HAS_ACCOUNTS_ACCESS %}
-<script src="../static/js/jquery.form.js"></script>
 <script>
 var list_of_ids = [];
 
@@ -108,17 +107,23 @@ var admin_form = $("#admin_settings");
 admin_form.submit( function(eventObj) {
     var checkboxes = $('.cbox:checked');
     var length = checkboxes.length;
-    var safety_dance = confirm("This will create " + length +  " new admin accounts. Are you sure?");
-    if(safety_dance) {
-        var ids = checkboxes
-                .map(function () {
-                    return this.id;
-                })
-                .get();
-        $('#ids').val(ids);
-        return true;
+    if (length > 0) {
+        var safety_dance = confirm("This will create " + length + " new admin accounts. Are you sure?");
+        if (safety_dance) {
+            var ids = checkboxes
+                    .map(function () {
+                        return this.id;
+                    })
+                    .get();
+            $('#ids').val(ids);
+            return true;
+        }
+        else {
+            return false;
+        }
     }
-    else{
+    else {
+        alert("You have not selected any accounts.");
         return false;
     }
 });
