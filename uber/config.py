@@ -544,7 +544,7 @@ c.AWESOME_WORDS = [
     "Water",
     "Air",
     "Earth",
-    "Satan"
+    "Stan"
 
 ]
 
