@@ -26,7 +26,12 @@ def log_pageview(func):
                 pass  # we don't care about unrestricted pages for this version
             else:
                 sa.Tracking.track_pageview(cherrypy.request.path_info, cherrypy.request.query_string)
-        return func(*args, **kwargs)
+        try:
+            return func(*args, **kwargs)
+        except CSRFException as e:
+            message = "Your CSRF token is invalid. Please go back and try again."
+            log.error("CSRF Error: {}", e)
+            raise HTTPRedirect("../common/invalid?message={}", message)
     return with_check
 
 
@@ -81,12 +86,7 @@ suffix_property.check = _suffix_property_check
 def csrf_protected(func):
     @wraps(func)
     def protected(*args, csrf_token, **kwargs):
-        try:
-            check_csrf(csrf_token)
-        except CSRFException as e:
-            message = "Your CSRF token is invalid. Please go back and try again."
-            log.error("CSRF Error: {}", e)
-            raise HTTPRedirect("../common/invalid?message={}", message)
+        check_csrf(csrf_token)
         return func(*args, **kwargs)
     return protected
 
