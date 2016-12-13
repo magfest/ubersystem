@@ -249,7 +249,7 @@ class Root:
                             'account': account,
                             'password': password
                         })
-                        send_email(c.ADMIN_EMAIL, match.email, 'New ' + c.EVENT_NAME + ' Ubersystem Account', body)
+                        send_email(c.ADMIN_EMAIL, match.email, 'New ' + c.EVENT_NAME + ' RAMS Account', body)
 
                         success_count += 1
         if success_count == 0:
