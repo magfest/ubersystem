@@ -244,6 +244,42 @@ class Root:
             if a.worked_hours > 0:
                 out.writerow([a.badge_num, a.full_name, a.email, a.weighted_hours, a.worked_hours])
 
+    def shirt_manufacturing_counts(self, session):
+        """
+        This report should be the definitive report about the count and sizes of shirts needed to be ordered.
+
+        There are 2 types of shirts:
+        - "staff shirts" - staff uniforms, each staff gets TWO currently
+        - "swag shirts" - pre-ordered shirts, which the following groups receive:
+            - volunteers (non-staff who get one for free)
+            - attendees (who can pre-order them)
+        """
+        counts = defaultdict(lambda: defaultdict(int))
+        labels = ['size unknown'] + [label for val, label in c.SHIRT_OPTS][1:]
+        sort = lambda d: sorted(d.items(), key=lambda tup: labels.index(tup[0]))
+        label = lambda s: 'size unknown' if s == c.SHIRTS[c.NO_SHIRT] else s
+
+        for attendee in session.all_attendees():
+            shirt_label = attendee.shirt_label or 'size unknown'
+
+            # TODO: eventually extract these conditions into properties on Attendee
+            # Attendee.gets_free_shirt needs to be re-worked out.
+            gets_staff_shirt = attendee.badge_type == c.STAFF_BADGE
+            gets_swag_shirt = attendee.badge_type != c.STAFF_BADGE and (attendee.gets_paid_shirt or attendee.ribbon == c.VOLUNTEER_RIBBON)
+
+            if gets_staff_shirt:
+                counts['staff'][label(shirt_label)] += c.SHIRTS_PER_STAFFER
+
+            if gets_swag_shirt:
+                counts['swag'][label(shirt_label)] += 1
+
+        return {
+            'categories': [
+                ('Staff Uniform Shirts', sort(counts['staff'])),
+                ('Swag Shirts', sort(counts['swag'])),
+            ]
+        }
+
     def shirt_counts(self, session):
         counts = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
         labels = ['size unknown'] + [label for val, label in c.SHIRT_OPTS][1:]
@@ -251,7 +287,7 @@ class Root:
         label = lambda s: 'size unknown' if s == c.SHIRTS[c.NO_SHIRT] else s
         status = lambda got_merch: 'picked_up' if got_merch else 'outstanding'
         sales_by_week = OrderedDict([(i, 0) for i in range(50)])
-        for attendee in session.staffers(only_staffing=False):
+        for attendee in session.all_attendees():
             shirt_label = attendee.shirt_label or 'size unknown'
             if attendee.gets_free_shirt:
                 counts['free'][label(shirt_label)][status(attendee.got_merch)] += 1
@@ -320,7 +356,7 @@ class Root:
         }
 
     def volunteers_owed_refunds(self, session):
-        attendees = session.staffers(only_staffing=False).filter(Attendee.paid.in_([c.HAS_PAID, c.PAID_BY_GROUP, c.REFUNDED])).all()
+        attendees = session.all_attendees().filter(Attendee.paid.in_([c.HAS_PAID, c.PAID_BY_GROUP, c.REFUNDED])).all()
         is_unrefunded = lambda a: a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid
         return {
             'attendees': [(

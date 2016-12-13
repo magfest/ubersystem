@@ -24,6 +24,9 @@ def sensible_defaults():
     c.AT_THE_CON = False
     c.SHIFT_CUSTOM_BADGES = True
     c.PRINTED_BADGE_DEADLINE = deadline_not_reached
+    c.DEV_BOX = False
+    c.SEND_EMAILS = False
+    c.EVENT_NAME = 'CoolCon9000'
 
     # our tests should work no matter what departments exist, so we'll add these departments to use in our tests
     patched_depts = {'console': 'Console', 'arcade': 'Arcade', 'con_ops': 'Fest Ops'}
@@ -59,6 +62,12 @@ def sensible_defaults():
 
     # tests should turn this on to test the effects
     c.HARDCORE_OPTIMIZATIONS_ENABLED = False
+
+    # set some other config values off just to be safe
+    c.AWS_ACCESS_KEY = ''
+    c.AWS_SECRET_KEY = ''
+    c.STRIPE_PUBLIC_KEY = ''
+    c.STRIPE_PRIVATE_KEY = ''
 
 
 @pytest.fixture(scope='session', autouse=True)
