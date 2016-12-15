@@ -137,7 +137,9 @@ def _set_csv_base_filename(base_filename):
 
 
 def csv_file(func):
-    func.site_mappable = True
+    parameters = inspect.getargspec(func)
+    if len(parameters[0]) == 3:
+        func.site_mappable = True
 
     @wraps(func)
     def csvout(self, session, set_headers=True, **kwargs):
