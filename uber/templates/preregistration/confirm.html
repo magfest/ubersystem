@@ -61,6 +61,18 @@
     </div>
 </div>
 
+{% if not attendee.is_not_ready_to_checkin %}
+    <div class="form-group">
+    <label class="col-sm-2 control-label">Check-in Barcode</label>
+        <div class="col-sm-6">
+        <img src="barcode_generator?id={{ attendee.id }}" />
+        </div>
+    <p class="help-block col-sm-6 col-sm-offset-2">This can be shown at badge pick-up to help check in. <br/>
+        <strong>This barcode <em>does not</em> replace your Photo ID.</strong> <br/>
+        You will receive an email with this code before the event.</p>
+    </div>
+{% endif %}
+
 </form>
 
     {% if not attendee.amount_paid or not attendee.paid == c.NEED_NOT_PAY %}
@@ -68,6 +80,7 @@
         <input type="hidden" name="id" value="{{ attendee.id }}"/>
     </form>
     {% endif %}
+
 </div>
 
 {% endblock %}

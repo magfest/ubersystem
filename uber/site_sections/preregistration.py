@@ -472,6 +472,19 @@ class Root:
             'affiliates':    session.affiliates()
         }
 
+    def barcode_generator(self, id):
+        cherrypy.response.headers['Content-Type'] = "image/png"
+
+        checkin_barcode = treepoem.generate_barcode(
+            barcode_type='azteccode',
+            data=id,
+            options={},
+        )
+        buffer = BytesIO()
+        checkin_barcode.save(buffer, "PNG")
+        buffer.seek(0)
+        return cherrypy.lib.file_generator(buffer)
+
     def guest_food(self, session, id):
         attendee = session.attendee(id)
         assert attendee.badge_type == c.GUEST_BADGE, 'This form is for guests only'
