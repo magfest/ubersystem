@@ -14,6 +14,7 @@ import inspect
 import decimal
 import binascii
 import warnings
+import treepoem
 import importlib
 import mimetypes
 import threading
