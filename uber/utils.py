@@ -263,7 +263,7 @@ class Charge:
         except stripe.CardError as e:
             return 'Your card was declined with the following error from our processor: ' + str(e)
         except stripe.StripeError as e:
-            log.error('unexpected stripe error', exc_info=True)
+            uber.server.log_exception_with_verbose_context()
             return 'An unexpected problem occured while processing your card: ' + str(e)
 
 
