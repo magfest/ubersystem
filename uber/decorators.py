@@ -26,12 +26,7 @@ def log_pageview(func):
                 pass  # we don't care about unrestricted pages for this version
             else:
                 sa.Tracking.track_pageview(cherrypy.request.path_info, cherrypy.request.query_string)
-        try:
-            return func(*args, **kwargs)
-        except CSRFException as e:
-            message = "Your CSRF token is invalid. Please go back and try again."
-            log.error("CSRF Error: {}", e)
-            raise HTTPRedirect("../common/invalid?message={}", message)
+        return func(*args, **kwargs)
     return with_check
 
 
@@ -313,28 +308,38 @@ def prettify_breadcrumb(str):
 def renderable(func):
     @wraps(func)
     def with_rendering(*args, **kwargs):
-        result = func(*args, **kwargs)
-
         try:
-            result['breadcrumb_page_pretty_'] = prettify_breadcrumb(func.__name__) if func.__name__ != 'index' else 'Home'
-            result['breadcrumb_page_'] = func.__name__ if func.__name__ != 'index' else ''
-        except:
-            pass
-
-        try:
-            result['breadcrumb_section_pretty_'] = prettify_breadcrumb(get_module_name(func))
-            result['breadcrumb_section_'] = get_module_name(func)
-        except:
-            pass
-
-        if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
-            return render('closed.html')
-        elif isinstance(result, dict):
-            return render(_get_template_filename(func), result)
+            result = func(*args, **kwargs)
+        except CSRFException as e:
+            message = "Your CSRF token is invalid. Please go back and try again."
+            log.error("CSRF Error: {}", e)
+            raise HTTPRedirect("../common/invalid?message={}", message)
+        except AssertionError as e:
+            message = str(e)
+            log.error("Assertion Error: {}", e)
+            raise HTTPRedirect("../common/invalid?message={}", message)
         else:
-            return result
+            try:
+                result['breadcrumb_page_pretty_'] = prettify_breadcrumb(func.__name__) if func.__name__ != 'index' else 'Home'
+                result['breadcrumb_page_'] = func.__name__ if func.__name__ != 'index' else ''
+            except:
+                pass
+
+            try:
+                result['breadcrumb_section_pretty_'] = prettify_breadcrumb(get_module_name(func))
+                result['breadcrumb_section_'] = get_module_name(func)
+            except:
+                pass
+
+            if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
+                return render('closed.html')
+            elif isinstance(result, dict):
+                return render(_get_template_filename(func), result)
+            else:
+                return result
 
     return with_rendering
+
 
 
 def unrestricted(func):
