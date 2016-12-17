@@ -53,26 +53,6 @@
         }
     });
 
-    {% if not attendee.is_new and not attendee.amount_unpaid %}
-        // This removes any badge levels lower than the attendee has purchased already
-        if (window.BADGE_TYPES) {
-            while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].extra < {{ attendee.amount_extra }}) {
-                BADGE_TYPES.options.splice(0, 1);
-            }
-        }
-
-        // This is the same idea, except it disables the kick-in buttons and then hides them
-        $(function () {
-            if($('input:radio[name=amount_extra]').size()) {
-                $('input:radio[name=amount_extra]').each( function() {
-                    if (!isNaN($(this).val()) && Number($(this).val()) < {{ attendee.amount_extra }}) {
-                        $(this).prop('disabled', true);
-                        $(this).parent().hide();
-                    }
-                });
-            }
-        });
-    {% endif %}
 </script>
 
 {% if c.PAGE_PATH != '/registration/form' %}
@@ -526,3 +506,26 @@
 </div>
 
 {% include "regextra.html" %}
+
+<script type="text/javascript">
+    {% if not attendee.is_new and not attendee.amount_unpaid %}
+        // This removes any badge levels lower than the attendee has purchased already
+        if (window.BADGE_TYPES) {
+            while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].extra < {{ attendee.amount_extra }}) {
+                BADGE_TYPES.options.splice(0, 1);
+            }
+        }
+
+        // This is the same idea, except it disables the kick-in buttons and then hides them
+        $(function () {
+            if($('input:radio[name=amount_extra]').size()) {
+                $('input:radio[name=amount_extra]').each( function() {
+                    if (!isNaN($(this).val()) && Number($(this).val()) < {{ attendee.amount_extra }}) {
+                        $(this).prop('disabled', true);
+                        $(this).parent().hide();
+                    }
+                });
+            }
+        });
+    {% endif %}
+</script>
