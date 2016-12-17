@@ -341,7 +341,6 @@ def renderable(func):
     return with_rendering
 
 
-
 def unrestricted(func):
     func.restricted = False
     return func
