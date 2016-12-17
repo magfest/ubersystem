@@ -15,7 +15,6 @@
         var checked = $.field('staffing') && $.field('staffing').is(':visible:checked');
         setVisible('#departments', checked);
         if ($.field('no_cellphone')) {
-            setVisible($.field('no_cellphone').parents('.checkbox'), checked);
         }
         {% if not attendee.is_dealer %}
             if ($.field('cellphone')) {
@@ -486,14 +485,12 @@
     <div class="col-sm-6">
         <input type="text" name="cellphone" id="cellphone" value="{{ attendee.cellphone }}" class="form-control" placeholder="Your Personal Cellphone Number">
     </div>
-    {% if not attendee.is_dealer %}
         <div class="checkbox col-sm-6">
             <label class="cellphone-excuse">
                 {% checkbox attendee.no_cellphone %}
                 I don't own a cellphone.
             </label>
         </div>
-    {% endif %}
 </div>
 
 <div class="form-group">
