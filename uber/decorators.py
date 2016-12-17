@@ -12,7 +12,7 @@ def swallow_exceptions(func):
         try:
             return func(*args, **kwargs)
         except Exception:
-            log.error('encountered exception, forcing continuation anyway', exc_info=True)
+            log.error("Exception raised, but we're going to ignore it and continue.", exc_info=True)
     return swallow_exception
 
 
@@ -26,6 +26,15 @@ def log_pageview(func):
                 pass  # we don't care about unrestricted pages for this version
             else:
                 sa.Tracking.track_pageview(cherrypy.request.path_info, cherrypy.request.query_string)
+        return func(*args, **kwargs)
+    return with_check
+
+
+def redirect_if_at_con_to_kiosk(func):
+    @wraps(func)
+    def with_check(*args, **kwargs):
+        if c.AT_THE_CON and c.KIOSK_REDIRECT_URL:
+            raise HTTPRedirect(c.KIOSK_REDIRECT_URL)
         return func(*args, **kwargs)
     return with_check
 
@@ -103,6 +112,8 @@ def ajax_gettable(func):
 
 
 def multifile_zipfile(func):
+    func.site_mappable = True
+
     @wraps(func)
     def zipfile_out(self, session):
         zipfile_writer = BytesIO()
@@ -118,15 +129,43 @@ def multifile_zipfile(func):
     return zipfile_out
 
 
+def _set_csv_base_filename(base_filename):
+    """
+    Set the correct headers when outputting CSV files to specify the filename the browser should use
+    """
+    cherrypy.response.headers['Content-Disposition'] = 'attachment; filename=' + base_filename + '.csv'
+
+
 def csv_file(func):
+    parameters = inspect.getargspec(func)
+    if len(parameters[0]) == 3:
+        func.site_mappable = True
+
     @wraps(func)
-    def csvout(self, session, **kwargs):
-        cherrypy.response.headers['Content-Type'] = 'application/csv'
-        cherrypy.response.headers['Content-Disposition'] = 'attachment; filename=' + func.__name__ + '.csv'
+    def csvout(self, session, set_headers=True, **kwargs):
         writer = StringIO()
         func(self, csv.writer(writer), session, **kwargs)
-        return writer.getvalue().encode('utf-8')
+        output = writer.getvalue().encode('utf-8')
+
+        # set headers last in case there were errors, so end user still see error page
+        if set_headers:
+            cherrypy.response.headers['Content-Type'] = 'application/csv'
+            _set_csv_base_filename(func.__name__)
+
+        return output
     return csvout
+
+
+def set_csv_filename(func):
+    """
+    Use this to override CSV filenames, useful when working with aliases and redirects to make it print the correct name
+    """
+    @wraps(func)
+    def change_filename(self, override_filename=None, *args, **kwargs):
+        out = func(self, *args, **kwargs)
+        _set_csv_base_filename(override_filename or func.__name__)
+        return out
+    return change_filename
 
 
 def check_shutdown(func):
@@ -225,9 +264,24 @@ def renderable_data(data=None):
 # render using the first template that actually exists in template_name_list
 def render(template_name_list, data=None):
     data = renderable_data(data)
-    template = loader.select_template(listify(template_name_list))
-    rendered = template.render(Context(data))
-    rendered = screw_you_nick(rendered, template)  # lolz.
+
+    try:
+        template = loader.select_template(listify(template_name_list))
+        rendered = template.render(Context(data))
+    except django.template.base.TemplateDoesNotExist:
+        raise
+    except Exception as e:
+        source_template_name = '[unknown]'
+        django_template_source_info = getattr(e, 'django_template_source')
+        if django_template_source_info:
+            for info in django_template_source_info:
+                if 'LoaderOrigin' in str(type(info)):
+                    source_template_name = info.name
+                    break
+        raise Exception('error rendering template [{}]'.format(source_template_name)) from e
+
+    # disabled for performance optimzation.  so sad. IT SHALL RETURN
+    # rendered = screw_you_nick(rendered, template)  # lolz.
     return rendered.encode('utf-8')
 
 
@@ -241,18 +295,35 @@ def screw_you_nick(rendered, template):
         return rendered
 
 
-def _get_module_name(class_or_func):
+def get_module_name(class_or_func):
     return class_or_func.__module__.split('.')[-1]
 
 
 def _get_template_filename(func):
-    return os.path.join(_get_module_name(func), func.__name__ + '.html')
+    return os.path.join(get_module_name(func), func.__name__ + '.html')
+
+
+def prettify_breadcrumb(str):
+    return str.replace('_', ' ').title()
 
 
 def renderable(func):
     @wraps(func)
     def with_rendering(*args, **kwargs):
         result = func(*args, **kwargs)
+
+        try:
+            result['breadcrumb_page_pretty_'] = prettify_breadcrumb(func.__name__) if func.__name__ != 'index' else 'Home'
+            result['breadcrumb_page_'] = func.__name__ if func.__name__ != 'index' else ''
+        except:
+            pass
+
+        try:
+            result['breadcrumb_section_pretty_'] = prettify_breadcrumb(get_module_name(func))
+            result['breadcrumb_section_'] = get_module_name(func)
+        except:
+            pass
+
         if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
             return render('closed.html')
         elif isinstance(result, dict):
@@ -273,10 +344,10 @@ def restricted(func):
         if func.restricted:
             if func.restricted == (c.SIGNUPS,):
                 if not cherrypy.session.get('staffer_id'):
-                    raise HTTPRedirect('../signups/login?message=You+are+not+logged+in')
+                    raise HTTPRedirect('../signups/login?message=You+are+not+logged+in', save_location=True)
 
             elif cherrypy.session.get('account_id') is None:
-                raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in')
+                raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
 
             else:
                 access = sa.AdminAccount.access_set()
@@ -294,6 +365,16 @@ def restricted(func):
     return with_restrictions
 
 
+def set_renderable(func, acccess):
+    """
+    Return a function that is flagged correctly and is ready to be called by cherrypy as a request
+    """
+    func.restricted = getattr(func, 'restricted', acccess)
+    new_func = timed(cached_page(sessionized(restricted(renderable(func)))))
+    new_func.exposed = True
+    return new_func
+
+
 class all_renderable:
     def __init__(self, *needs_access):
         self.needs_access = needs_access
@@ -301,9 +382,7 @@ class all_renderable:
     def __call__(self, klass):
         for name, func in klass.__dict__.items():
             if hasattr(func, '__call__'):
-                func.restricted = getattr(func, 'restricted', self.needs_access)
-                new_func = timed(cached_page(sessionized(restricted(renderable(func)))))
-                new_func.exposed = True
+                new_func = set_renderable(func, self.needs_access)
                 setattr(klass, name, new_func)
         return klass
 
@@ -378,3 +457,61 @@ class class_property(object):
 
     def __get__(self, obj, owner):
         return self.func(owner)
+
+
+def create_redirect(url, access=[c.PEOPLE]):
+    """
+    Return a function which redirects to the given url when called.
+    """
+    def redirect(self):
+        raise HTTPRedirect(url)
+    renderable_func = set_renderable(redirect, access)
+    return renderable_func
+
+
+class alias_to_site_section(object):
+    """
+    Inject a URL redirect from another page to the decorated function.
+    This is useful for downstream plugins to add or change functions in upstream plugins to modify their behavior.
+
+    Example: if you move the explode_kittens() function from the core's site_section/summary.py page to a plugin,
+    in that plugin you can create an alias back to the original function like this:
+
+    @alias_to_site_section('summary')
+    def explode_kittens(...):
+        ...
+
+    Please note that this doesn't preserve arguments, it just causes a redirect.  It's most useful for pages without
+    arguments like reports and landing pages.
+    """
+    def __init__(self, site_section_name, alias_name=None, url=None):
+        self.site_section_name = site_section_name
+        self.alias_name = alias_name
+        self.url = url
+
+    def __call__(self, func):
+        root = getattr(uber.site_sections, self.site_section_name).Root
+        redirect_func = create_redirect(self.url or '../' + get_module_name(func) + '/' + func.__name__)
+        setattr(root, self.alias_name or func.__name__, redirect_func)
+        return func
+
+
+def attendee_id_required(func):
+    @wraps(func)
+    def check_id(*args, **params):
+        message = "No ID provided. Try using a different link or going back."
+        session = params['session']
+        if params.get('id'):
+            try:
+                uuid.UUID(params['id'])
+            except ValueError:
+                message = "That Attendee ID is not a valid format. Did you enter or edit it manually?"
+                log.error("check_id: invalid_id: {}", params['id'])
+            else:
+                if session.query(sa.Attendee).filter(sa.Attendee.id == params['id']).first():
+                    return func(*args, **params)
+                message = "The Attendee ID provided was not found in our database"
+                log.error("check_id: missing_id: {}", params['id'])
+        log.error("check_id: error: {}", message)
+        raise HTTPRedirect('../common/invalid?message=%s' % message)
+    return check_id

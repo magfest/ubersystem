@@ -16,7 +16,7 @@ def timestamp(dt):
 
 @register.filter
 def jsonize(x):
-    return SafeString(json.dumps(x, cls=serializer))
+    return SafeString(html.escape(json.dumps(x, cls=serializer), quote=False))
 
 
 @register.filter
@@ -40,8 +40,15 @@ def remove_newlines(string):
 
 
 @register.filter
-def form_link(attendee):
-    return SafeString('<a href="../registration/form?id={}">{}</a>'.format(attendee.id, attendee.full_name))
+def form_link(model):
+    if isinstance(model, Attendee):
+        return SafeString('<a href="../registration/form?id={}">{}</a>'.format(model.id, model.full_name))
+    elif isinstance(model, Group):
+        return SafeString('<a href="../groups/form?id={}">{}</a>'.format(model.id, model.name))
+    elif isinstance(model, Job):
+        return SafeString('<a href="../jobs/form?id={}">{}</a>'.format(model.id, model.name))
+    else:
+        return model.name or model.full_name
 
 
 @register.filter
@@ -175,8 +182,8 @@ class options(template.Node):
                 val = val.strftime(c.TIMESTAMP_FORMAT)
             else:
                 selected = 'selected="selected"' if str(val) == str(default) else ''
-            val  = str(val).replace('"',  '&quot;').replace('\n', '')
-            desc = str(desc).replace('"', '&quot;').replace('\n', '')
+            val  = html.escape(str(val), quote=False).replace('"',  '&quot;').replace('\n', '')
+            desc = html.escape(str(desc), quote=False).replace('"', '&quot;').replace('\n', '')
             results.append('<option value="{}" {}>{}</option>'.format(val, selected, desc))
         return '\n'.join(results)
 
@@ -184,7 +191,7 @@ class options(template.Node):
 @tag
 class checkbox(template.Node):
     def __init__(self, field):
-        model, self.field_name = field.split('.')
+        model, self.field_name = field.rsplit('.', 1)
         self.model = Variable(model)
 
     def render(self, context):
@@ -196,7 +203,7 @@ class checkbox(template.Node):
 @tag
 class checkgroup(template.Node):
     def __init__(self, field):
-        model, self.field_name = field.split('.')
+        model, self.field_name = field.rsplit('.', 1)
         self.model = Variable(model)
 
     def render(self, context):
@@ -251,7 +258,7 @@ class radio(template.Node):
 @tag
 class radiogroup(template.Node):
     def __init__(self, opts, field):
-        model, self.field_name = field.split('.')
+        model, self.field_name = field.rsplit('.', 1)
         self.model = Variable(model)
         self.opts = Variable(opts)
 
@@ -261,6 +268,7 @@ class radiogroup(template.Node):
         default = getattr(model, self.field_name, None)
         results = []
         for num, desc in options:
+            desc = html.escape(desc)
             checked = 'checked' if num == default else ''
             results.append('<label class="btn btn-default" style="text-align: left;"><input type="radio" name="{}" autocomplete="off" value="{}" onchange="donationChanged();" {} /> {}</label>'
                            .format(self.field_name, num, checked, desc))
@@ -308,8 +316,9 @@ class popup_link(template.Node):
         self.text = text.strip('"')
 
     def render(self, context):
-        return """<a onClick="window.open('{self.href}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;"
-                     href="{self.href}">{self.text}</a>""".format(self=self)
+        inner_text = "window.open('{self.href}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;".format(self=self)
+        inner_text = inner_text.replace("'", "&quot;")
+        return "<a onClick='{inner_text}' href='{self.href}'>{self.text}</a>".format(inner_text=inner_text, self=self)
 
 
 @tag
@@ -534,19 +543,32 @@ class PriceNotice(template.Node):
         self.takedown, self.amount_extra, self.discount = Variable(takedown), Variable(amount_extra), Variable(discount)
 
     def _notice(self, label, takedown, amount_extra, discount):
+
+        if c.HARDCORE_OPTIMIZATIONS_ENABLED:
+            # CPU optimizaiton: the calculations done in this function are somewhat expensive and even with caching,
+            # still do some expensive DB queries.  if hardcore optimizations mode is enabled, we display a
+            # simpler message.  This is intended to be enabled during the heaviest loads at the beginning of an event
+            # in order to reduce server load so the system stays up.  After the rush, it should be safe to turn this
+            # back off
+            return ''
+
         if not takedown:
-            raise ValueError('price_notice tag error: Takedown date not valid{}'.format(
-                ' for "' + label + '"' if label else ''))
+            takedown = c.ESCHATON
 
         if c.PAGE_PATH not in ['/preregistration/form', '/preregistration/register_group_member']:
             return ''  # we only display notices for new attendees
         else:
+            badge_price = c.BADGE_PRICE    # optimization.  this call is VERY EXPENSIVE.
+
             for day, price in sorted(c.PRICE_BUMPS.items()):
-                if day < takedown and localized_now() < day:
-                    return '<div class="prereg-price-notice">Price goes up to ${} at 11:59pm {} on {}</div>'.format(price - discount + int(amount_extra), (day - timedelta(days=1)).strftime('%Z'), (day - timedelta(days=1)).strftime('%A, %b %e'))
-                elif localized_now() < day and takedown == c.PREREG_TAKEDOWN:
+                if day < takedown and localized_now() < day and price > badge_price:
+                    return '<div class="prereg-price-notice">Price goes up to ${} no later than 11:59pm {} on {}</div>'.format(price - int(discount) + int(amount_extra), (day - timedelta(days=1)).strftime('%Z'), (day - timedelta(days=1)).strftime('%A, %b %e'))
+                elif localized_now() < day and takedown == c.PREREG_TAKEDOWN and takedown < c.EPOCH and price > badge_price:
                     return '<div class="prereg-type-closing">{} closes at 11:59pm {} on {}. Price goes up to ${} at-door.</div>'.format(label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'), price + amount_extra, (day - timedelta(days=1)).strftime('%A, %b %e'))
-            return '<div class="prereg-type-closing">{} closes at 11:59pm {} on {}</div>'.format(label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'))
+            if takedown < c.EPOCH:
+                return '<div class="prereg-type-closing">{} closes at 11:59pm {} on {}</div>'.format(label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'))
+            else:
+                return ''
 
     def render(self, context):
         return self._notice(self.label, self.takedown.resolve(context), self.amount_extra.resolve(context), self.discount.resolve(context))

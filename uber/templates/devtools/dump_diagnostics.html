@@ -1,0 +1,12 @@
+{% extends "base-admin.html" %}
+{% block title %}Developer Utility - System Diagnostics{% endblock %}
+{% block content %}
+
+<h1>System Diagnostics</h1>
+Showing live information about the state of this server<br/>
+
+<pre>
+{{ diagnostics_data|linebreaksbr }}
+</pre>
+
+{% endblock %}

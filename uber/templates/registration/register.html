@@ -25,17 +25,9 @@
             $('#day-warning').empty();
         }
     };
-    var removeDonationRows = function () {
-        $('.extra-row').remove();
-    };
-    var removeVolunteerRows = function () {
-        $('.staffing').remove();
-    };
     $(function () {
         {% if c.AT_THE_DOOR_BADGE_OPTS %}
             maybeBold();
-            removeDonationRows();
-            removeVolunteerRows();
             $('#bold-field-message').detach().prependTo('.form-horizontal');
             $.field('badge_type').on('change', maybeWarn);
             maybeWarn();

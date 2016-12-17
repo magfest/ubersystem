@@ -60,7 +60,7 @@
     {% if forloop.first %}<h2> Automated Emails </h2>{% endif %}
     <h3> {{ email.subject }} ({{ email.when|full_datetime }}) </h3>
     {% if email.is_html %}
-        (content of HTML email omitted; you can view the full email <a href="../emails/sent?dest={{ attendee.email }}">here</a>)
+        (content of HTML email omitted; you can view the full email <a href="../emails/sent?id={{ email.id }}">here</a>)
     {% else %}
         <div style="font-family:courier">{{ email.html }}</div>
     {% endif %}

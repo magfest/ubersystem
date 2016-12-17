@@ -1,26 +1,3 @@
-var csrf_token = '{{ c.CSRF_TOKEN }}';
-
-var setVisible = function (selector, visible) {
-    $(selector)[visible ? 'show' : 'hide']();
-}
-
-$.field = function (field) {
-    var $field = $('[name=' + field + ']');
-    return $field.size() ? $field : null;
-};
-
-$.val = function (field) {
-    var val = $.field(field).val();
-    if ($.field(field).is(':radio')) {
-        val = $.field(field).filter(':checked').val();
-    }
-    return val.match(/^\W*\d+\W*$/) ? parseInt(val) : val;
-};
-
-$.focus = function (field) {
-    $.field(field).focus();
-};
-
 var RATINGS = {
     {{ c.RATED_GOOD }}: {
         false: '../static/images/check_blank.png',
@@ -37,6 +14,7 @@ var RATINGS = {
         true:  '../static/images/aplus_filled.jpg'
     }
 };
+
 var renderRating = function (shift, $td) {
     shift = typeof shift === 'string' ? SHIFTS[shift] : shift;
     $td = ($td || $('#rating' + shift.id)).addClass('rating').data('shift', shift);
@@ -48,6 +26,7 @@ var renderRating = function (shift, $td) {
     });
     return $td;
 };
+
 var setupRatingClickHandler = function () {
     $(document.body).on('click', 'td.rating img', function (event) {
         var $img = $(event.target);
@@ -69,6 +48,7 @@ var setupRatingClickHandler = function () {
         }
     });
 };
+
 var setStatus = function (shiftId, status) {
     var $status = $(status);
     var statusVal = parseInt($status.val());
@@ -86,6 +66,7 @@ var setStatus = function (shiftId, status) {
         }
     });
 };
+
 var $undoForm = function (path, params, linkText) {
     var $form = $('<form method="POST"></form>').attr("action", path);
     $.each($.extend(params, {csrf_token: csrf_token}), function (name, value) {
@@ -97,13 +78,3 @@ var $undoForm = function (path, params, linkText) {
     });
     return $().add($undoLink).add($form);
 };
-
-$(function () {
-    $('.datepicker').datepicker({
-        changeMonth: true,
-        changeYear: true,
-        yearRange: '-100:+0',
-        defaultDate: '-20y',
-        dateFormat: 'yy-mm-dd'
-    });
-});

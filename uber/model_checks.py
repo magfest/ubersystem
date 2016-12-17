@@ -64,8 +64,8 @@ def dealer_address(group):
 def group_paid(group):
     try:
         amount = int(float(group.amount_paid))
-        if amount < 0 or amount > 2000:
-            return 'Amount Paid must be a reasonable number'
+        if amount < 0:
+            return 'Amount Paid must be a number that is 0 or higher.'
     except:
         return "What you entered for Amount Paid ({}) isn't even a number".format(group.amount_paid)
 
@@ -121,7 +121,7 @@ def full_name(attendee):
 def age(attendee):
     if c.COLLECT_EXACT_BIRTHDATE:
         if not attendee.birthdate:
-            return 'Enter your date of birth.'
+            return 'Please enter a date of birth.'
         elif attendee.birthdate > date.today():
             return 'You cannot be born in the future.'
     elif not attendee.age_group:
@@ -133,13 +133,13 @@ def age(attendee):
 def address(attendee):
     if c.COLLECT_FULL_ADDRESS:
         if not attendee.address1:
-            return 'Enter your street address.'
+            return 'Please enter a street address.'
         if not attendee.city:
-            return 'Enter your city.'
+            return 'Please enter a city.'
         if not attendee.region:
-            return 'Enter your state, province, or region.'
+            return 'Please enter a state, province, or region.'
         if not attendee.country:
-            return 'Enter your country.'
+            return 'Please enter a country.'
 
 
 @validation.Attendee
@@ -148,7 +148,7 @@ def email(attendee):
     if len(attendee.email) > 255:
         return 'Email addresses cannot be longer than 255 characters.'
 
-    if (c.AT_THE_CON and attendee.email and not re.match(c.EMAIL_RE, attendee.email)) or (not c.AT_THE_CON and not re.match(c.EMAIL_RE, attendee.email)):
+    if (c.AT_OR_POST_CON and attendee.email and not re.match(c.EMAIL_RE, attendee.email)) or (not c.AT_OR_POST_CON and not re.match(c.EMAIL_RE, attendee.email)):
         return 'Enter a valid email address'
 
 
@@ -178,27 +178,27 @@ def cellphone(attendee):
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def zip_code(attendee):
-    if not attendee.international and not c.AT_THE_CON:
+    if not attendee.international and not c.AT_OR_POST_CON:
         if _invalid_zip_code(attendee.zip_code):
             return 'Enter a valid zip code'
-
-
-@validation.Attendee
-def allowed_to_volunteer(attendee):
-    if attendee.staffing and not attendee.age_group_conf['can_volunteer'] and attendee.badge_type != c.STAFF_BADGE and c.PRE_CON:
-        return 'Volunteers cannot be ' + attendee.age_group_conf['desc']
-
-
-@validation.Attendee
-def allowed_to_register(attendee):
-    if not attendee.age_group_conf['can_register']:
-        return 'Attendees ' + attendee.age_group_conf['desc'] + ' years of age do not need to register, but MUST be accompanied by a parent at all times!'
 
 
 @validation.Attendee
 def printed_badge_deadline(attendee):
     if attendee.is_new and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
         return 'Custom badges have already been ordered so you cannot create new {} badges'.format(attendee.badge_type_label)
+
+
+@validation.Attendee
+def allowed_to_volunteer(attendee):
+    if attendee.staffing and not attendee.age_group_conf['can_volunteer'] and attendee.badge_type != c.STAFF_BADGE and c.PRE_CON:
+        return 'Your interest is appreciated, but ' + c.EVENT_NAME + ' volunteers must be 18 or older.'
+
+
+@validation.Attendee
+def allowed_to_register(attendee):
+    if not attendee.age_group_conf['can_register']:
+        return 'Attendees ' + attendee.age_group_conf['desc'] + ' years of age do not need to register, but MUST be accompanied by a parent at all times!'
 
 
 @validation.Attendee
@@ -240,9 +240,6 @@ def attendee_money(attendee):
                 return 'Overridden price must be a positive integer'
         except:
             return 'Invalid overridden price ({})'.format(attendee.overridden_price)
-        else:
-            if attendee.overridden_price == 0:
-                return 'Please set the payment type to "doesn\'t need to" instead of setting the badge price to 0.'
 
     try:
         amount_refunded = int(float(attendee.amount_refunded))
@@ -257,16 +254,50 @@ def attendee_money(attendee):
 
 
 @validation.Attendee
-def badge_range(attendee):
-    if c.AT_THE_CON:
+def dealer_needs_group(attendee):
+    if attendee.is_dealer and not attendee.badge_type == c.PSEUDO_DEALER_BADGE and not attendee.group_id:
+        return 'Dealers must be associated with a group'
+
+
+@validation.Attendee
+def dupe_badge_num(attendee):
+    if (attendee.badge_num != attendee.orig_value_of('badge_num') or attendee.is_new)\
+            and c.NUMBERED_BADGES and attendee.badge_num and not c.SHIFT_CUSTOM_BADGES:
+        with Session() as session:
+            existing = session.query(Attendee)\
+                .filter_by(badge_type=attendee.badge_type, badge_num=attendee.badge_num)
+            if existing.count():
+                return 'That badge number already belongs to {!r}'.format(existing.first().full_name)
+
+
+@validation.Attendee
+def invalid_badge_num(attendee):
+    if c.NUMBERED_BADGES and attendee.badge_num:
         try:
             badge_num = int(attendee.badge_num)
         except:
             return '{!r} is not a valid badge number'.format(attendee.badge_num)
         else:
             min_num, max_num = c.BADGE_RANGES[attendee.badge_type]
-            if attendee.badge_num != 0 and not (min_num <= badge_num <= max_num):
+            if not (min_num <= badge_num <= max_num):
                 return '{} badge numbers must fall within {} and {}'.format(attendee.badge_type_label, min_num, max_num)
+
+
+@validation.Attendee
+def no_more_custom_badges(attendee):
+    if (attendee.badge_type != attendee.orig_value_of('badge_type') or attendee.is_new)\
+            and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
+        return 'Custom badges have already been ordered'
+
+
+@validation.Attendee
+def out_of_badge_type(attendee):
+    if attendee.badge_type != attendee.orig_value_of('badge_type'):
+        with Session() as session:
+            try:
+                session.get_next_badge_num(attendee.badge_type_real)
+            except AssertionError:
+                return 'There are no more badges available for that type'
 
 
 @validation.MPointsForCash

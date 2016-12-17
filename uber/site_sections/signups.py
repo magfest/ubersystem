@@ -20,15 +20,12 @@ class Root:
         attendee = session.logged_in_volunteer()
         fr = attendee.food_restrictions or FoodRestrictions()
         if params:
-            fr = session.food_restrictions(dict(params, attendee_id=attendee.id), checkgroups=['standard', 'sandwich_pref'])
-            if not fr.sandwich_pref:
-                message = 'Please tell us your sandwich preference'
+            fr = session.food_restrictions(dict(params, attendee_id=attendee.id), checkgroups=['standard'])
+            session.add(fr)
+            if attendee.badge_type == c.GUEST_BADGE:
+                raise HTTPRedirect('food_restrictions?message={}', 'Your info has been recorded, thanks a bunch!')
             else:
-                session.add(fr)
-                if attendee.badge_type == c.GUEST_BADGE:
-                    raise HTTPRedirect('food_restrictions?message={}', 'Your info has been recorded, thanks a bunch!')
-                else:
-                    raise HTTPRedirect('index?message={}', 'Your dietary restrictions have been recorded')
+                raise HTTPRedirect('index?message={}', 'Your dietary restrictions have been recorded')
 
         return {
             'fr': fr,
@@ -102,7 +99,10 @@ class Root:
             return {'jobs': session.jobs_for_signups()}
 
     @unrestricted
-    def login(self, session, message='', full_name='', email='', zip_code=''):
+    def login(self, session, message='', full_name='', email='', zip_code='', original_location=None):
+        if not original_location or 'login' in original_location:
+            original_location = 'index'
+
         if full_name or email or zip_code:
             try:
                 attendee = session.lookup_attendee(full_name, email, zip_code)
@@ -116,13 +116,14 @@ class Root:
             if not message:
                 cherrypy.session['csrf_token'] = uuid4().hex
                 cherrypy.session['staffer_id'] = attendee.id
-                raise HTTPRedirect('index')
+                raise HTTPRedirect(original_location)
 
         return {
             'message':   message,
             'full_name': full_name,
             'email':     email,
-            'zip_code':  zip_code
+            'zip_code':  zip_code,
+            'original_location': original_location,
         }
 
     def onsite_jobs(self, session, message=''):

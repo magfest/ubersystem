@@ -21,22 +21,45 @@ class PersonalizedBadgeReport(ReportBase):
         self._include_badge_nums = include_badge_nums
 
     def run(self, out, session, *filters, order_by=None, badge_type_override=None):
+        badge_nums_seen = []
+
         for a in (session.query(sa.Attendee)
                          .filter(sa.Attendee.badge_status != c.INVALID_STATUS, *filters)
                          .order_by(order_by).all()):
+
+            # sanity check no duplicate badges
+            if a.badge_num:
+                if a.badge_num in badge_nums_seen:
+                    raise ValueError("duplicate badge number detected: %s" % a.badge_num)
+                badge_nums_seen += [a.badge_num]
+
+            # write the actual data
             row = [a.badge_num] if self._include_badge_nums else []
             badge_type_label = badge_type_override if badge_type_override else a.badge_type_label
-            row += [badge_type_label, a.badge_printed_name or a.full_name]
+
+            if a.unassigned_name:
+                printed_name = ''
+            else:
+                printed_name = a.badge_printed_name or a.full_name
+
+            row += [badge_type_label, printed_name]
             self.write_row(row, out)
 
 
 class PrintedBadgeReport(ReportBase):
     """Generate a CSV file of badges which do not have customized information"""
-    def __init__(self, badge_type, include_badge_nums=True):
+    def __init__(self, badge_type, include_badge_nums=True, range=None, badge_type_name=''):
         self._badge_type = badge_type
         self._include_badge_nums = include_badge_nums
+        self._range = range
+        self._badge_type_name = badge_type_name
 
     def run(self, out, session):
         badge_range = c.BADGE_RANGES[self._badge_type]
-        for badge_num in range(badge_range[0], badge_range[1] + 1):
-            self.write_row([badge_num], out)
+        min_badge_num = max([badge_range[0]] + ([self._range[0]] if self._range else []))
+        max_badge_num = min([badge_range[1]] + ([self._range[1]] if self._range else [])) + 1
+
+        empty_customized_name = ''
+
+        for badge_num in range(min_badge_num, max_badge_num):
+            self.write_row([badge_num, self._badge_type_name, empty_customized_name], out)
