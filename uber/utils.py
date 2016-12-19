@@ -263,11 +263,11 @@ class Charge:
         except stripe.CardError as e:
             return 'Your card was declined with the following error from our processor: ' + str(e)
         except stripe.error.InvalidRequestError as e:
-            log.error('Invalid source object provided the following error from our processor: ' + str(e), exc_info=True)
+            log.error('Invalid source object provided', exc_info=True)
             send_email(c.ADMIN_EMAIL, [c.ADMIN_EMAIL, 'dom@magfest.org'], 'MAGFest Stripe invalid request error',
                        'Got an error while calling charge_cc(self, token={!r}):\n{}'
                        .format(token, traceback.format_exc()))
-            return traceback.format_exc()
+            return 'An invalid source object was provided: ' + str(e)
         except stripe.StripeError as e:
             log.error('unexpected stripe error', exc_info=True)
             return 'An unexpected problem occured while processing your card: ' + str(e)
