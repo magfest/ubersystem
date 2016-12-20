@@ -188,9 +188,14 @@ def credit_card(func):
         except HTTPRedirect:
             raise
         except:
-            send_email(c.ADMIN_EMAIL, [c.ADMIN_EMAIL, 'dom@magfest.org'], 'MAGFest Stripe error',
-                       'Got an error while calling charge(self, payment_id={!r}, stripeToken={!r}, ignored={}):\n{}'
-                       .format(payment_id, stripeToken, ignored, traceback.format_exc()))
+            error_text = \
+                'Got an error while calling charge' \
+                '(self, payment_id={!r}, stripeToken={!r}, ignored={}):\n{}\n' \
+                '\n IMPORTANT: This could have resulted in an attendee paying and not being' \
+                'marked as paid in the database. Definitely double check.'\
+                .format(payment_id, stripeToken, ignored, traceback.format_exc())
+
+            report_critical_exception(msg=error_text, subject='ERROR: MAGFest Stripe error (Automated Message)')
             return traceback.format_exc()
     return charge
 
