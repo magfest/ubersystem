@@ -61,6 +61,15 @@ def numeric_range(count):
     return range(count)
 
 
+@register.filter
+def sum(values, attribute):
+    sum = 0
+    for value in values:
+        sum += getattr(value, attribute, 0)
+    return sum
+
+
+
 def _getter(x, attrName):
     if '.' in attrName:
         first, rest = attrName.split('.', 1)
