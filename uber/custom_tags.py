@@ -69,7 +69,6 @@ def sum(values, attribute):
     return sum
 
 
-
 def _getter(x, attrName):
     if '.' in attrName:
         first, rest = attrName.split('.', 1)
