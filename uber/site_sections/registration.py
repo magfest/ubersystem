@@ -146,9 +146,10 @@ class Root:
                 day = c.EPOCH.date() if date.today() <= c.EPOCH.date() else sa.localized_now().date()
                 attendee_age = (day - attendee.birthdate).days // 365.2425
                 reduce_years_by = 18-attendee_age
-                attendee.birthdate = attendee.birthdate\
-                    .replace(year=int(attendee.birthdate.year - reduce_years_by))
-                attendee.ribbon = c.NO_RIBBON
+                if reduce_years_by > 0.0:
+                    attendee.birthdate = attendee.birthdate\
+                        .replace(year=int(attendee.birthdate.year - reduce_years_by))
+                    attendee.ribbon = c.NO_RIBBON
 
             message = check(attendee)
 
