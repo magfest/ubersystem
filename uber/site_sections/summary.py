@@ -154,7 +154,7 @@ class Root:
         out.writerow(['Name', 'Description', 'URL'])
         dealer_groups = session.query(Group).filter(Group.tables > 0).all()
         for group in dealer_groups:
-            if group.approved:
+            if group.approved and group.is_dealer:
                 out.writerow([group.name, group.description, group.website])
 
     @csv_file
