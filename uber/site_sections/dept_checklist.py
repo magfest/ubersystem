@@ -5,8 +5,8 @@ from uber.common import *
 class Root:
     def index(self, session, message=''):
         attendee = session.admin_attendee()
-        #if not attendee.is_single_dept_head:
-        #    raise HTTPRedirect('overview?message={}', 'The checklist is for department heads with exactly one department')
+        # if not attendee.is_single_dept_head:
+        # raise HTTPRedirect('overview?message={}', 'The checklist is for department heads with exactly one department')
         checklist = [(conf, conf.path(attendee)) for conf in DeptChecklistConf.instances.values()]
         return {
             'message': message,
