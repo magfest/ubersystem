@@ -1017,8 +1017,8 @@ class PromoCode(MagModel):
     @presave_adjustment
     def _usage_count(self):
         if self.uses == 0:
-        # The first time uses is set by an Admin, it can only go as low as 0.
-        # 0 in that case is equivalent to Infinite which as said earlier is equivalent to 'None'.
+            # The first time uses is set by an Admin, it can only go as low as 0.
+            # 0 in that case is equivalent to Infinite which as said earlier is equivalent to 'None'.
             self.uses = None
 
     @presave_adjustment
