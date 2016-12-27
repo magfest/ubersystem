@@ -8,7 +8,7 @@
 {% if attendee.paid == c.NOT_PAID or attendee.overridden_price %}
     <h2> Badge Payment for {{ attendee.full_name }} </h2>
 
-    You've registered for {{ c.EVENT_NAME }} at a {% if attendee.overridden_price %}discounted{% endif %} price of ${{ attendee.overridden_price|default:attendee.badge_cost }}{% if attendee.amount_extra %} and you've also kicked in ${{ attendee.amount_extra }}{% endif %}; your total outstanding balance is ${{ attendee.amount_unpaid }}.
+    You've registered for {{ c.EVENT_NAME }} at a {% if attendee.overridden_price %}discounted{% endif %} price of ${{ attendee.overridden_price|default:attendee.badge_cost|floatformat:2 }}{% if attendee.amount_extra %} and you've also kicked in ${{ attendee.amount_extra|floatformat:2 }}{% endif %}; your total outstanding balance is ${{ attendee.amount_unpaid|floatformat:2 }}.
 
     <table style="width:auto ; margin-left:auto ; margin-right: auto"><tr>
         <td>{% stripe_form process_attendee_donation charge %}</td>
@@ -20,7 +20,7 @@
 {% else %}
     <h2> Extra Payment for {{ attendee.full_name }} </h2>
 
-    Thanks for offering to kick in money to help make {{ c.EVENT_NAME }} better.  As thanks, your total donation (of which ${{ attendee.amount_unpaid }} is outstanding) entitles you to the following:
+    Thanks for offering to kick in money to help make {{ c.EVENT_NAME }} better.  As thanks, your total donation (of which ${{ attendee.amount_unpaid|floatformat:2 }} is outstanding) entitles you to the following:
     <ul>
         {% for swag in attendee.donation_swag|add:attendee.addons %}
             <li>{{ swag }}</li>

@@ -146,6 +146,29 @@
         </div>
     </div>
 
+    {% if c.HAS_ACCOUNTS_ACCESS %}
+        <div class="form-group">
+            <label for="admin_status" class="col-sm-2 control-label">Admin</label>
+            <div class="col-sm-6">
+                {% if attendee.admin_account %}
+                    <p name="admin_status">True</p>
+                {% else %}
+                    <p name="admin_status">False</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if attendee.admin_account %}
+            <div class="form-group">
+                <label for="admin_options" class="col-sm-2 control-label">Permissions</label>
+                <div class="col-sm-6">
+                    {{ attendee.admin_account.access_labels|join:' / ' }}
+                </div>
+            </div>
+
+        {% endif %}
+    {% endif %}
+
 <div class="form-group">
     <label class="col-sm-2 control-label">Badge</label>
     <div class="col-sm-6">
@@ -172,9 +195,7 @@
         {% elif c.AT_THE_CON and not attendee.checked_in and not c.NUMBERED_BADGES %}
             <br/> <input type="checkbox" name="check_in" value="yes" {% if check_in %}checked{% endif %} /> Check in this attendee
         {% endif %}
-        {% if attendee.is_transferable %}
-            &nbsp;&nbsp; [<a href="../preregistration/confirm?id={{ attendee.id }}">Confirm/Transfer</a>]
-        {% endif %}
+        &nbsp;&nbsp; [<a href="../preregistration/confirm?id={{ attendee.id }}">Confirm{% if attendee.is_transferable %}/Transfer{% endif %}</a>]
     </div>
 </div>
 
@@ -253,7 +274,7 @@
 <div class="form-group">
     <label class="col-sm-2 control-label">Badge Price</label>
     <div class="col-sm-6">
-        Base Price: $<input type="text" style="width:4em" name="overridden_price" value="{{ attendee.badge_cost }}" />
+        Base Price: $<input type="text" style="width:4em" name="overridden_price" value="{{ attendee.badge_cost|floatformat:2 }}" />
         <input type="checkbox" name="no_override" {% if not attendee.overridden_price %} checked {% endif %}> Automatically recalculate badge price.
     </div>
 </div>

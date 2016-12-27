@@ -53,26 +53,6 @@
         }
     });
 
-    {% if not attendee.is_new and not attendee.amount_unpaid %}
-        // This removes any badge levels lower than the attendee has purchased already
-        if (window.BADGE_TYPES) {
-            while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].extra < {{ attendee.amount_extra }}) {
-                BADGE_TYPES.options.splice(0, 1);
-            }
-        }
-
-        // This is the same idea, except it disables the kick-in buttons and then hides them
-        $(function () {
-            if($('input:radio[name=amount_extra]').size()) {
-                $('input:radio[name=amount_extra]').each( function() {
-                    if (!isNaN($(this).val()) && Number($(this).val()) < {{ attendee.amount_extra }}) {
-                        $(this).prop('disabled', true);
-                        $(this).parent().hide();
-                    }
-                });
-            }
-        });
-    {% endif %}
 </script>
 
 {% if c.PAGE_PATH != '/registration/form' %}
@@ -96,6 +76,12 @@
     <div class="form-group">
         <label for="full_name" class="col-sm-2 control-label">Legal Name</label>
         <div class="col-sm-6">{{ attendee.full_name }}</div>
+    </div>
+    <div class="form-group">
+        <label for="badge_type" class="col-sm-2 control-label">Badge Type</label>
+        <div class="col-sm-6">
+            {{ attendee.badge_type_label }}
+        </div>
     </div>
 {% else %}
     <div class="form-group">
@@ -136,7 +122,7 @@
             $.each($("input:radio[name='amount_extra']"), function() {
                 $(this).parents('.btn').removeClass('active btn-primary');
                 $(this).parents('.btn').addClass('btn-default');
-                if ($(this).val() <= $.val('amount_extra')) {
+                if ($(this).val() == $.val('amount_extra')) {
                     $(this).parents('.btn').removeClass('btn-default');
                     $(this).parents('.btn').addClass('active btn-primary');
                 }
@@ -174,16 +160,125 @@
 
     {% if c.PAGE_PATH != '/preregistration/transfer_badge' %}
         <div class="extra-row form-group">
-            <label for="amount_extra" class="col-sm-2 control-label">Want to kick in extra?</label>
-            <div class="col-sm-6">
+            <label for="amount_extra" class="col-sm-2 control-label">Want to kick in extra?
+                <br>
+            {% popup_link "../static_views/givingExtra.html" "Why do this?" %}
+            </label>
+            <div class="col-sm-8">
                 {% if c.AFTER_SUPPORTER_DEADLINE and attendee.amount_extra >= c.SUPPORTER_LEVEL %}
                     {{ attendee.amount_extra_label }}
                     <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
                 {% else %}
-                    {% if c.DONATION_SLIDER_DISPLAY %}
-                        <div class="btn-group btn-group-vertical" data-toggle="buttons">
-                            {% radiogroup c.PREREG_DONATION_OPTS attendee.amount_extra %}
+                    {% if c.PREREG_DONATION_DESCRIPTIONS %}
+
+                        <style>
+                            @media all {
+
+                                .no-inline {
+                                    display: flex;
+                                    flex-direction: row;
+                                }
+
+                                .btn-group-inline {
+                                    display: flex;
+                                    flex-direction: row;
+                                    flex-wrap: nowrap;
+                                    justify-content: center;
+                                    margin-top: 7rem;
+                                }
+
+                                .btn-inline {
+                                    width: 180px;
+                                    height: 340px;
+
+                                }
+
+                                .h4-inline {
+
+                                    text-align: center;
+                                }
+
+                                .span-inline {
+                                    display: block;
+                                    margin-right: auto;
+                                    margin-left: auto;
+                                    width: 100%;
+                                    text-align: center;
+                                    font-size: 120%;
+                                    font-weight: bold;
+                                }
+
+                                .ul-inline {
+                                    list-style-type: none;
+                                    margin-top: 0;
+                                    padding-left: 0;
+                                    font-size: 80%
+                                }
+
+                                .li-inline {
+                                    padding: 0.5em;
+                                    text-align: center;
+                                    border-bottom: 1px solid whitesmoke;
+                                }
+
+                                .li-inline a, #supporter_popup a {
+                                    color: black;
+                                    text-decoration: underline;
+                                }
+                            }
+                        
+                        @media (max-width: 543px) {
+                            .btn-group-inline
+                                {
+                                    flex-direction: column;
+                                    flex-wrap: wrap;
+                                    width: 100vw;
+                                }
+
+                            .btn-inline
+                                {
+                                    width: 100%;
+                                    height: initial;
+                                }
+                        }
+
+                            </style>
+
+
+                        <div data-toggle="buttons" class="btn-group-inline">
+                        {% for tier in c.PREREG_DONATION_DESCRIPTIONS %}
+
+                            <label class="btn btn-default {% if tier.price == 0 %}no-inline{% else %}btn-inline{% endif %}">
+                            <input type="radio"
+                                   name="amount_extra"
+                                   autocomplete="off"
+                                   value="{{ tier.price }}"
+                                   onchange="donationChanged();"
+                                   {% if attendee.amount_extra == tier.price %}checked{% endif %}  />
+                            <h4 class="h4-inline">
+                                {{ tier.name }}
+                            </h4>
+                            {% if tier.price %}
+                            <span class="span-inline">
+                                <img src="{{ tier.icon }}" alt=""> + ${{ tier.price }}
+                            </span>
+                            <br>
+                            <ul class="ul-inline">
+                                {% for desc, link in tier.all_descriptions %}
+                                {% if link %}
+                                <li class="li-inline">
+                                    <a onClick="window.open('{{ link }}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;"
+                 href="{{ link }}">{{ desc }}</a>
+                                </li>
+                                {% endif %}
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                          </label>
+                        {% endfor %}
                         </div>
+
+
                     {% else %}
                         <select name="amount_extra" class="form-control" onchange="donationChanged();">
                             {% options c.PREREG_DONATION_OPTS attendee.amount_extra %}
@@ -191,7 +286,7 @@
                     {% endif %}
                 {% endif %}
             </div>
-            {% popup_link "../static_views/givingExtra.html" "Why do this?" %}
+
             <p class="help-block col-sm-6">
                 Each level includes all lower levels. <br/>
                 Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime }}.
@@ -202,12 +297,12 @@
     <div class="badge-row extra-row form-group" style="display:none">
         <label for="badge_printed_name" class="col-sm-2 control-label optional-field">Name Printed on Badge</label>
         <div class="col-sm-6">
-            <input type="text" class="form-control" name="badge_printed_name" maxlength="20" value="{{ attendee.badge_printed_name }}" {% if c.AFTER_PRINTED_BADGE_DEADLINE %}readonly{% endif %} />
+            <input type="text" class="form-control" name="badge_printed_name" maxlength="20" value="{{ attendee.badge_printed_name }}" {% if c.AFTER_PRINTED_BADGE_DEADLINE and attendee.badge_type in c.PREASSIGNED_BADGE_TYPES or c.AFTER_SUPPORTER_DEADLINE %}readonly{% endif %} />
         </div>
         <p class="help-block col-sm-6">Badge names have a maximum of 20 characters.</p>
     </div>
 
-    {% if c.AFTER_PRINTED_BADGE_DEADLINE %}
+    {% if c.AFTER_PRINTED_BADGE_DEADLINE and attendee.badge_type in c.PREASSIGNED_BADGE_TYPES or c.AFTER_SUPPORTER_DEADLINE %}
         <div class="badge-row extra-row form-group" style="display:none">
             <p class="help-block col-sm-6 col-sm-offset-2">(custom badges have already been ordered, so you can no longer set this)</p>
         </div>
@@ -285,8 +380,8 @@
     <p class="help-block col-sm-6 col-sm-offset-2">
         <span style="font-style:italic">
             {% if c.CONSENT_FORM_URL %}
-                Attendees under 18 <b>MUST</b> bring a signed and notarized parental
-                <nobr><a target="_blank" href="{{ c.CONSENT_FORM_URL }}">permission slip</a></nobr>.
+                Attendees under 18 <b>MUST</b> bring a signed (and notarized if not accompanied by parent or guardian during badge pickup) parental
+                <nobr><a target="_blank" href="{{ c.CONSENT_FORM_URL }}">consent form</a></nobr>.
             {% endif %}
         </span>
     </p>
@@ -411,3 +506,26 @@
 </div>
 
 {% include "regextra.html" %}
+
+<script type="text/javascript">
+    {% if not attendee.is_new and not attendee.amount_unpaid %}
+        // This removes any badge levels lower than the attendee has purchased already
+        if (window.BADGE_TYPES) {
+            while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].extra < {{ attendee.amount_extra }}) {
+                BADGE_TYPES.options.splice(0, 1);
+            }
+        }
+
+        // This is the same idea, except it disables the kick-in buttons and then hides them
+        $(function () {
+            if($('input:radio[name=amount_extra]').size()) {
+                $('input:radio[name=amount_extra]').each( function() {
+                    if (!isNaN($(this).val()) && Number($(this).val()) < {{ attendee.amount_extra }}) {
+                        $(this).prop('disabled', true);
+                        $(this).parent().hide();
+                    }
+                });
+            }
+        });
+    {% endif %}
+</script>

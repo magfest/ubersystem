@@ -4,10 +4,8 @@ Thanks for signing up to volunteer at {{ c.EVENT_NAME }}!  You're currently assi
 
 You can sign up for shifts at {{ c.URL_BASE }}/signups/login and if you have trouble logging in, you can verify/update your personal information at {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}
 
-You can add / drop / change your shifts anytime until {{ c.UBER_TAKEDOWN|datetime }}.
+You can add / drop / change your shifts anytime until {{ c.EPOCH|datetime }}.
 
 Please let us know if you have any questions.
 
 {{ c.STOPS_EMAIL_SIGNATURE }}
-
-{% if attendee.ribbon == c.DEPT_HEAD_RIBBON %}PS: Since you're a department head, you probably don't need to sign up for shifts, so you can probably ignore this automated email.{% endif %}

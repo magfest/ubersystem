@@ -51,7 +51,7 @@ class Root:
                 for item in checklist:
                     if item.completed(attendee):
                         statuses.append({'done': True})
-                    elif days_before(7, item.deadline):
+                    elif days_before(7, item.deadline)():
                         statuses.append({'approaching': True})
                     elif item.deadline < datetime.now(UTC):
                         statuses.append({'missed': True})

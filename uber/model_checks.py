@@ -184,21 +184,21 @@ def zip_code(attendee):
 
 
 @validation.Attendee
+def printed_badge_deadline(attendee):
+    if attendee.is_new and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
+        return 'Custom badges have already been ordered so you cannot create new {} badges'.format(attendee.badge_type_label)
+
+
+@validation.Attendee
 def allowed_to_volunteer(attendee):
     if attendee.staffing and not attendee.age_group_conf['can_volunteer'] and attendee.badge_type != c.STAFF_BADGE and c.PRE_CON:
-        return 'Volunteers cannot be ' + attendee.age_group_conf['desc']
+        return 'Your interest is appreciated, but ' + c.EVENT_NAME + ' volunteers must be 18 or older.'
 
 
 @validation.Attendee
 def allowed_to_register(attendee):
     if not attendee.age_group_conf['can_register']:
         return 'Attendees ' + attendee.age_group_conf['desc'] + ' years of age do not need to register, but MUST be accompanied by a parent at all times!'
-
-
-@validation.Attendee
-def printed_badge_deadline(attendee):
-    if attendee.is_new and attendee.has_personalized_badge and not c.SHIFT_CUSTOM_BADGES:
-        return 'Custom badges have already been ordered so you cannot create new {} badges'.format(attendee.badge_type_label)
 
 
 @validation.Attendee
@@ -240,9 +240,6 @@ def attendee_money(attendee):
                 return 'Overridden price must be a positive integer'
         except:
             return 'Invalid overridden price ({})'.format(attendee.overridden_price)
-        else:
-            if attendee.overridden_price == 0:
-                return 'Please set the payment type to "doesn\'t need to" instead of setting the badge price to 0.'
 
     try:
         amount_refunded = int(float(attendee.amount_refunded))
@@ -264,24 +261,43 @@ def dealer_needs_group(attendee):
 
 @validation.Attendee
 def dupe_badge_num(attendee):
-    if c.NUMBERED_BADGES and attendee.badge_num != 0 and attendee.session.query(Attendee)\
-            .filter(Attendee.id != attendee.id)\
-            .filter_by(badge_type=attendee.badge_type, badge_num=attendee.badge_num).count():
-        return 'Another attendee already exists with that badge number!'
+    if (attendee.badge_num != attendee.orig_value_of('badge_num') or attendee.is_new)\
+            and c.NUMBERED_BADGES and attendee.badge_num and not c.SHIFT_CUSTOM_BADGES:
+        with Session() as session:
+            existing = session.query(Attendee)\
+                .filter_by(badge_type=attendee.badge_type, badge_num=attendee.badge_num)
+            if existing.count():
+                return 'That badge number already belongs to {!r}'.format(existing.first().full_name)
 
 
 @validation.Attendee
 def invalid_badge_num(attendee):
-    if c.NUMBERED_BADGES:
+    if c.NUMBERED_BADGES and attendee.badge_num:
         try:
             badge_num = int(attendee.badge_num)
         except:
             return '{!r} is not a valid badge number'.format(attendee.badge_num)
         else:
-            if attendee.badge_num != 0:
-                min_num, max_num = c.BADGE_RANGES[attendee.badge_type]
-                if not (min_num <= badge_num <= max_num):
-                    return '{} badge numbers must fall within {} and {}'.format(attendee.badge_type_label, min_num, max_num)
+            min_num, max_num = c.BADGE_RANGES[attendee.badge_type]
+            if not (min_num <= badge_num <= max_num):
+                return '{} badge numbers must fall within {} and {}'.format(attendee.badge_type_label, min_num, max_num)
+
+
+@validation.Attendee
+def no_more_custom_badges(attendee):
+    if (attendee.badge_type != attendee.orig_value_of('badge_type') or attendee.is_new)\
+            and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
+        return 'Custom badges have already been ordered'
+
+
+@validation.Attendee
+def out_of_badge_type(attendee):
+    if attendee.badge_type != attendee.orig_value_of('badge_type'):
+        with Session() as session:
+            try:
+                session.get_next_badge_num(attendee.badge_type_real)
+            except AssertionError:
+                return 'There are no more badges available for that type'
 
 
 @validation.MPointsForCash

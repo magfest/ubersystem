@@ -14,12 +14,27 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
     current querystring to build an absolute URL.  Therefore it's EXTREMELY IMPORTANT
     that the only time you create this class is in the context of a pageload.
 
-    Do not persist this class, only create it when needed.
+    Do not save copies this class, only create it on-demand when needed as part of a 'raise' statement.
     """
     def __init__(self, page, *args, **kwargs):
+        save_location = kwargs.pop('save_location', False)
+
         args = [self.quote(s) for s in args]
         kwargs = {k: self.quote(v) for k, v in kwargs.items()}
-        cherrypy.HTTPRedirect.__init__(self, page.format(*args, **kwargs))
+        query = page.format(*args, **kwargs)
+
+        if save_location and cherrypy.request.method == 'GET':
+            # remember the original URI the user was trying to reach.
+            # useful if we want to redirect the user back to the same page after
+            # they complete an action, such as logging in
+            # example URI: '/uber/registration/form?id=786534'
+            original_location = cherrypy.request.wsgi_environ['REQUEST_URI']
+
+            # note: python does have utility functions for this. if this gets any more complex, use the urllib module
+            qs_char = '?' if '?' not in query else '&'
+            query += "{sep}original_location={loc}".format(sep=qs_char, loc=self.quote(original_location))
+
+        cherrypy.HTTPRedirect.__init__(self, query)
 
     def quote(self, s):
         return quote(s) if isinstance(s, str) else str(s)
@@ -27,8 +42,11 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
 
 def localized_now():
     """Returns datetime.now() but localized to the event's configured timezone."""
-    utc_now = datetime.utcnow().replace(tzinfo=UTC)
-    return utc_now.astimezone(c.EVENT_TIMEZONE)
+    return localize_datetime(datetime.utcnow())
+
+
+def localize_datetime(dt):
+    return dt.replace(tzinfo=UTC).astimezone(c.EVENT_TIMEZONE)
 
 
 def comma_and(xs):
@@ -129,9 +147,10 @@ def hour_day_format(dt):
     return dt.astimezone(c.EVENT_TIMEZONE).strftime('%I%p ').strip('0').lower() + dt.astimezone(c.EVENT_TIMEZONE).strftime('%a')
 
 
-def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=None):
+def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=None, ident=None):
     subject = subject.format(EVENT_NAME=c.EVENT_NAME)
     to, cc, bcc = map(listify, [dest, cc, bcc])
+    ident = ident or subject
     if c.DEV_BOX:
         for xs in [to, cc, bcc]:
             xs[:] = [email for email in xs if email.endswith('mailinator.com') or c.DEVELOPER_EMAIL in email]
@@ -152,13 +171,27 @@ def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=
     if model and dest:
         body = body.decode('utf-8') if isinstance(body, bytes) else body
         fk = {'model': 'n/a'} if model == 'n/a' else {'fk_id': model.id, 'model': model.__class__.__name__}
-        with sa.Session() as session:
-            session.add(sa.Email(subject=subject, dest=','.join(listify(dest)), body=body, **fk))
+        _record_email_sent(sa.Email(subject=subject, dest=','.join(listify(dest)), body=body, ident=ident, **fk))
+
+
+def _record_email_sent(email):
+    """
+    Save in our database the contents of the Email model passed in.
+    We'll use this for history tracking, and to know that we shouldn't re-send this email because it already exists
+
+    note: This is in a separate function so we can unit test it
+    """
+    with sa.Session() as session:
+        session.add(email)
 
 
 class Charge:
     def __init__(self, targets=(), amount=None, description=None):
         self.targets = [self.to_sessionized(m) for m in listify(targets)]
+
+        # performance optimization
+        self._models_cached = [self.from_sessionized(d) for d in self.targets]
+
         self.amount = amount or self.total_cost
         self.description = description or self.names
 
@@ -197,7 +230,7 @@ class Charge:
 
     @property
     def models(self):
-        return [self.from_sessionized(d) for d in self.targets]
+        return self._models_cached
 
     @property
     def total_cost(self):
@@ -230,8 +263,27 @@ class Charge:
         except stripe.CardError as e:
             return 'Your card was declined with the following error from our processor: ' + str(e)
         except stripe.StripeError as e:
-            log.error('unexpected stripe error', exc_info=True)
+            error_txt = 'Got an error while calling charge_cc(self, token={!r})'.format(token)
+            report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
             return 'An unexpected problem occured while processing your card: ' + str(e)
+
+
+def report_critical_exception(msg, subject="Critical Error"):
+    """
+    Report an exception to the loggers with as much context (request params/etc) as possible, and send an email.
+
+    Call this function when you really want to make some noise about something going really badly wrong.
+
+    :param msg: message to prepend to output
+    :param subject: optional: subject for emails going out
+    """
+
+    # log with lots of cherrypy context in here
+    uber.server.log_exception_with_verbose_context(msg)
+
+    # also attempt to email the admins
+    # TODO: Don't hardcode emails here.
+    send_email(c.ADMIN_EMAIL, [c.ADMIN_EMAIL, 'dom@magfest.org'], subject, msg + '\n{}'.format(traceback.format_exc()))
 
 
 def get_page(page, queryset):
@@ -285,3 +337,157 @@ def mount_site_sections(module_root):
     for section in sections:
         module = importlib.import_module(basename(module_root) + '.site_sections.' + section)
         setattr(Root, section, module.Root())
+
+
+def convert_to_absolute_url(relative_uber_page_url):
+    """
+    In ubersystem, we always use relative url's of the form "../{some_site_section}/{somepage}"
+    We use relative URLs so that no matter what proxy server we are behind on the web, it always works.
+
+    We normally avoid using absolute URLs at al costs, but sometimes it's needed when creating URLs for
+    use with emails or CSV exports.  In that case, we need to take a relative URL and turn it into
+    an absolute URL.
+
+    Do not use this function unless you absolutely need to, instead use relative URLs as much as possible.
+    """
+
+    if not relative_uber_page_url:
+        return ''
+
+    if relative_uber_page_url[:3] != '../':
+        raise ValueError("relative url MUST start with '../'")
+
+    return urljoin(c.URL_BASE + "/", relative_uber_page_url[3:])
+
+
+def get_real_badge_type(badge_type):
+    return c.ATTENDEE_BADGE if badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE] else badge_type
+
+
+_when_dateformat = "%m/%d"
+
+
+class DateBase:
+    @staticmethod
+    def now():
+        # This exists so we can patch this in unit tests
+        return localized_now()
+
+
+class days_before(DateBase):
+    """
+    Returns true if today is # days before a deadline.
+
+    :param: days - number of days before deadline to start
+    :param: deadline - datetime of the deadline
+    :param: until - (optional) number of days prior to deadline to end (default: 0)
+
+    Examples:
+        days_before(45, c.POSITRON_BEAM_DEADLINE)() - True if it's 45 days before c.POSITRON_BEAM_DEADLINE
+        days_before(10, c.WARP_COIL_DEADLINE, 2)() - True if it's between 10 and 2 days before c.WARP_COIL_DEADLINE
+    """
+    def __init__(self, days, deadline, until=None):
+        if days <= 0:
+            raise ValueError("'days' paramater must be > 0. days={}".format(days))
+
+        if until and days <= until:
+            raise ValueError("'days' paramater must be less than 'until'. days={}, until={}".format(days, until))
+
+        self.days, self.deadline, self.until = days, deadline, until
+
+        if deadline:
+            self.starting_date = self.deadline - timedelta(days=self.days)
+            self.ending_date = deadline if not until else (deadline - timedelta(days=until))
+
+            assert self.starting_date < self.ending_date
+
+    def __call__(self):
+        if not self.deadline:
+            return False
+
+        return self.starting_date < self.now() < self.ending_date
+
+    @property
+    def active_when(self):
+        if not self.deadline:
+            return ''
+
+        start_txt = self.starting_date.strftime(_when_dateformat)
+        end_txt = self.ending_date.strftime(_when_dateformat)
+
+        return 'between {} and {}'.format(start_txt, end_txt)
+
+
+class before(DateBase):
+    """
+    Returns true if today is anytime before a deadline.
+
+    :param: deadline - datetime of the deadline
+
+    Examples:
+        before(c.POSITRON_BEAM_DEADLINE)() - True if it's before c.POSITRON_BEAM_DEADLINE
+    """
+    def __init__(self, deadline):
+        self.deadline = deadline
+
+    def __call__(self):
+        return bool(self.deadline) and self.now() < self.deadline
+
+    @property
+    def active_when(self):
+        return 'before {}'.format(self.deadline.strftime(_when_dateformat)) if self.deadline else ''
+
+
+class days_after(DateBase):
+    """
+    Returns true if today is at least a certain number of days after a deadline.
+
+    :param: days - number of days after deadline to start
+    :param: deadline - datetime of the deadline
+
+    Examples:
+        days_after(6, c.TRANSPORTER_ROOM_DEADLINE)() - True if it's at least 6 days after c.TRANSPORTER_ROOM_DEADLINE
+    """
+    def __init__(self, days, deadline):
+        if days is None:
+            days = 0
+
+        if days < 0:
+            raise ValueError("'days' paramater must be >= 0. days={}".format(days))
+
+        self.starting_date = None if not deadline else deadline + timedelta(days=days)
+
+    def __call__(self):
+        return bool(self.starting_date) and (self.now() > self.starting_date)
+
+    @property
+    def active_when(self):
+        return 'after {}'.format(self.starting_date.strftime(_when_dateformat)) if self.starting_date else ''
+
+
+class request_cached_context:
+    """
+    We cache certain variables (like c.BADGES_SOLD) on a per-cherrypy.request basis.
+    There are situation situations, like unit tests or non-HTTP request contexts (like daemons) where we want to
+    carefully control this behavior, or where the cache will never be reset.
+
+    When this class is finished it will clear the per-request cache.
+
+    example of how to use:
+    with request_cached_context():
+        # do things that use the cached values, and after this block is done, the values won't be cached anymore.
+    """
+
+    def __init__(self, clear_cache_on_start=False):
+        self.clear_cache_on_start = clear_cache_on_start
+
+    def __enter__(self):
+        if self.clear_cache_on_start:
+            request_cached_context._clear_cache()
+
+    def __exit__(self, type, value, traceback):
+        request_cached_context._clear_cache()
+
+    @staticmethod
+    def _clear_cache():
+        threadlocal.clear()
