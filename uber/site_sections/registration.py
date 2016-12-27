@@ -142,31 +142,27 @@ class Root:
             except ValueError:
                 attendee.badge_num = None
 
-            altered = False
+            birthday_message = False
             # This if statement will check if the badge has changed from Minor, to Not-Minor
+            # If it has it will alter their birthday to be 18 so that the badge is not re-saved as a minor.
             if attendee.badge_type != c.CHILD_BADGE and old_badge_type == c.CHILD_BADGE:
                 # This will set the date either to the start of MAGFest, or if that has already passed, this moment.
                 day = c.EPOCH.date() if date.today() <= c.EPOCH.date() else sa.localized_now().date()
-                # This calculates how old the attendee is
                 attendee_age = (day - attendee.birthdate).days // 365.2425
-                # This figures out how many years need to be subtracted from their current birthyear to make them 18
-                # Subtracted because 1993-2 == 1991
                 reduce_years_by = 18-attendee_age
-                # Make sure they aren't going to be younger instead of older
                 if reduce_years_by > 0.0:
                     attendee.birthdate = attendee.birthdate\
                         .replace(year=int(attendee.birthdate.year - reduce_years_by))
-                    # Remove minor ribbon.
                     attendee.ribbon = c.NO_RIBBON
-                    altered = True
+                    birthday_message = "This attendee's birth-year has been changed to make them 18," \
+                                       " please make sure to update it accordingly."
 
             message = check(attendee)
 
             if not message:
                 message = session.update_badge(attendee, old_badge_type, old_badge_num)
-                if altered:
-                    message = "This attendee's birth-year has been changed to make them 18," \
-                              " please make sure to update it accordingly"
+                if birthday_message:
+                    message += birthday_message
                 raise HTTPRedirect('form?id={}&message={}', attendee.id, message or '')
 
         return {
