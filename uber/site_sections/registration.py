@@ -142,7 +142,7 @@ class Root:
             except ValueError:
                 attendee.badge_num = None
 
-            birthday_message = False
+            birthday_message = None
             # This if statement will check if the badge has changed from Minor, to Not-Minor
             # If it has it will alter their birthday to be 18 so that the badge is not re-saved as a minor.
             if attendee.badge_type != c.CHILD_BADGE and old_badge_type == c.CHILD_BADGE:
