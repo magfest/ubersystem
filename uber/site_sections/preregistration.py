@@ -191,12 +191,31 @@ class Root:
         attendee, group = self._get_unsaved(id)
         return {'attendee': attendee}
 
+    def freereg_payment(self, session):
+        charge = Charge(listify(self.unpaid_preregs.values()))
+        if charge.total_cost == 0:
+            for attendee in charge.attendees:
+                attendee.paid = c.HAS_PAID
+                attendee.amount_paid = attendee.total_cost
+                session.add(attendee)
+
+            for group in charge.groups:
+                group.amount_paid = group.default_cost - group.amount_extra
+                for attendee in group.attendees:
+                    attendee.amount_paid = attendee.total_cost - attendee.badge_cost
+                session.add(group)
+
+            self.unpaid_preregs.clear()
+            self.paid_preregs.extend(charge.targets)
+            raise HTTPRedirect('paid_preregistrations?payment_received={}', charge.dollar_amount)
+        else:
+            message = "These badges aren't free! Please pay for them."
+            raise HTTPRedirect('index?message={}', message)
+
     @credit_card
     def prereg_payment(self, session, payment_id, stripeToken):
         charge = Charge.get(payment_id)
-        if not charge.total_cost:
-            message = 'Your preregistration has already been paid for, so your credit card has not been charged'
-        elif charge.amount != charge.total_cost:
+        if charge.amount != charge.total_cost:
             message = 'Our preregistration price has gone up; please fill out the payment form again at the higher price'
         else:
             message = charge.charge_cc(stripeToken)
