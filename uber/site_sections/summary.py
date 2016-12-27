@@ -150,6 +150,32 @@ class Root:
             out.writerow([x.full_name, x.cellphone, x.email])
 
     @csv_file
+    def dealer_table_info(self, out, session):
+        out.writerow([
+            'Name',
+            'Description',
+            'URL',
+            'Address',
+            'Tables',
+            'Amount Paid',
+            'Cost',
+            'Badges'
+        ])
+        dealer_groups = session.query(Group).filter(Group.tables > 0).all()
+        for group in dealer_groups:
+            if group.approved and group.is_dealer:
+                out.writerow([
+                    group.name,
+                    group.description,
+                    group.website,
+                    group.address,
+                    group.tables,
+                    group.amount_paid,
+                    group.cost,
+                    group.badges
+                ])
+
+    @csv_file
     def printed_badges_attendee(self, out, session):
         uber.reports.PrintedBadgeReport(badge_type=c.ATTENDEE_BADGE, badge_type_name='Attendee').run(out, session)
 

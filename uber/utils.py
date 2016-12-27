@@ -263,8 +263,27 @@ class Charge:
         except stripe.CardError as e:
             return 'Your card was declined with the following error from our processor: ' + str(e)
         except stripe.StripeError as e:
-            log.error('unexpected stripe error', exc_info=True)
+            error_txt = 'Got an error while calling charge_cc(self, token={!r})'.format(token)
+            report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
             return 'An unexpected problem occured while processing your card: ' + str(e)
+
+
+def report_critical_exception(msg, subject="Critical Error"):
+    """
+    Report an exception to the loggers with as much context (request params/etc) as possible, and send an email.
+
+    Call this function when you really want to make some noise about something going really badly wrong.
+
+    :param msg: message to prepend to output
+    :param subject: optional: subject for emails going out
+    """
+
+    # log with lots of cherrypy context in here
+    uber.server.log_exception_with_verbose_context(msg)
+
+    # also attempt to email the admins
+    # TODO: Don't hardcode emails here.
+    send_email(c.ADMIN_EMAIL, [c.ADMIN_EMAIL, 'dom@magfest.org'], subject, msg + '\n{}'.format(traceback.format_exc()))
 
 
 def get_page(page, queryset):
