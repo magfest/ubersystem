@@ -6,6 +6,31 @@
     {% endif %}
 {% endblock %}
 {% block content %}
+<script type="text/javascript">
+    $().ready(function() {
+        $("form[action='unset_group_member'] :submit").click(function(event){
+            event.preventDefault();
+            bootbox.confirm({
+                message: "This will permanently delete this person's badge. They will receive an email about this. Are you sure?",
+                buttons: {
+                    confirm: {
+                        label: 'Yes',
+                        className: 'btn-success'
+                    },
+                    cancel: {
+                        label: 'No',
+                        className: 'btn-danger'
+                    }
+                },
+                callback: function (result) {
+                    if(result) {
+                        $("form[action='unset_group_member']").submit();
+                    }
+                }
+            });
+        })
+    });
+</script>
 <div class="masthead">
 </div>
 <div class="panel panel-default">
@@ -56,11 +81,11 @@
                 {% endif %}
             </td>
             <td>
-                {% if attendee != group.leader and not attendee.amount_extra %}
+                {% if attendee != group.leader and not attendee.amount_extra and attendee.is_transferable %}
                     <form method="post" action="unset_group_member">
                     {% csrf_token %}
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
-                    <input type="submit" value="This person isn't coming" />
+                    <button class="btn btn-warning" type="submit" >This person isn't coming</button>
                     </form>
                 {% elif attendee.is_transferable and attendee.amount_extra %}
                     <form method="get" action="transfer_badge">
