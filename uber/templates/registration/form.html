@@ -247,24 +247,28 @@
     </div>
 </div>
 
-{% if c.AT_THE_CON and not attendee.is_new %}
-    <div class="form-group">
-        <label class="col-sm-2 control-label">Received Merch</label>
-        <div class="col-sm-6">
-            {% checkbox attendee.got_merch %} Yes
+{% if not attendee.is_new %}
+    {% if c.AT_THE_CON %}
+        <div class="form-group">
+            <label class="col-sm-2 control-label">Received Merch</label>
+            <div class="col-sm-6">
+                {% checkbox attendee.got_merch %} Yes
+            </div>
         </div>
-    </div>
-
+    {% endif %}
     <div class="form-group">
         <label class="col-sm-2 control-label">Signed Up</label>
         <div class="col-sm-6">
             <i>{{ attendee.registered_local }}</i>
-            {% if c.AT_THE_CON %}
-                {% if attendee.checked_in %}
-                    (checked in at {{ attendee.checked_in_local }})
-                {% else %}
-                    (has not checked in yet)
-                {% endif %}
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="col-sm-2 control-label">Checked In</label>
+        <div class="col-sm-6">
+            {% if attendee.checked_in %}
+                Checked in at {{ attendee.checked_in_local }}
+            {% else %}
+                Has not checked in yet
             {% endif %}
         </div>
     </div>
