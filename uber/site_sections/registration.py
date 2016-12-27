@@ -154,8 +154,7 @@ class Root:
                     attendee.birthdate = attendee.birthdate\
                         .replace(year=int(attendee.birthdate.year - reduce_years_by))
                     attendee.ribbon = c.NO_RIBBON
-                    birthday_message = "This attendee's birth-year has been changed to make them 18," \
-                                       " please make sure to update it accordingly."
+                    birthday_message = "This attendee's birth year may now be incorrect. Please fix it."
 
             message = check(attendee)
 
