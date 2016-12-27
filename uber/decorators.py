@@ -319,11 +319,11 @@ def renderable(func):
             result = func(*args, **kwargs)
         except CSRFException as e:
             message = "Your CSRF token is invalid. Please go back and try again."
-            log.error("CSRF Error: {}", e)
+            uber.server.log_exception_with_verbose_context(e)
             raise HTTPRedirect("../common/invalid?message={}", message)
-        except AssertionError as e:
+        except (AssertionError, ValueError) as e:
             message = str(e)
-            log.error("Assertion Error: {}", e)
+            uber.server.log_exception_with_verbose_context(message)
             raise HTTPRedirect("../common/invalid?message={}", message)
         else:
             try:
