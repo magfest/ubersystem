@@ -1235,6 +1235,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.default_cost + self.amount_extra
 
     @property
+    def total_donation(self):
+        return self.total_cost - self.badge_cost
+
+    @property
     def amount_unpaid(self):
         if self.paid == c.PAID_BY_GROUP:
             personal_cost = max(0, self.total_cost - self.badge_cost)
