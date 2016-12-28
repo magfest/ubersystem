@@ -112,12 +112,16 @@ class Config(_Overridable):
                 badges_sold = 0
             else:
                 dt = sa.localized_now()
-                # this is a database query and very expensive
-                badges_sold = self.BADGES_SOLD
 
             for day, bumped_price in sorted(self.PRICE_BUMPS.items()):
                 if (dt or datetime.now(UTC)) >= day:
                     price = bumped_price
+                    # If we set a price during the event, it should be used regardless of badge sales
+                    if c.EPOCH >= day >= c.ESCHATON:
+                        return price
+
+            # this is a database query and very expensive
+            badges_sold = self.BADGES_SOLD
             for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
                 if badges_sold >= badge_cap and bumped_price > price:
                     price = bumped_price
