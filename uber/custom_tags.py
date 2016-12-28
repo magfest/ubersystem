@@ -214,7 +214,7 @@ class checkgroup(template.Node):
         results = []
         for num, desc in options:
             checked = 'checked' if str(num) in defaults else ''
-            results.append('<label><input type="checkbox" name="{}" value="{}" {} /> {}</label>'
+            results.append('<label style="font-weight: normal;"><input type="checkbox" name="{}" value="{}" {} /> {}</label>'
                            .format(self.field_name, num, checked, desc))
         return '&nbsp;&nbsp\n'.join(results)
 
