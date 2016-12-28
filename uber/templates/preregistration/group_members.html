@@ -75,6 +75,9 @@
                 {{ attendee.badge }}
             </td>
             <td>
+            Kicked in: <b>${{ attendee.amount_extra }}</b>!
+            </td>
+            <td>
                 <!-- placeholder group leader registrations won't have a zip code -->
                 {% if attendee.zip_code %}
                     zip code: {{ attendee.zip_code }}
@@ -100,9 +103,6 @@
             <td> <a style="font-size:10pt" href="register_group_member?group_id={{ group.id }}">Register someone for this badge</a>: </td>
             <td colspan="3">
                 {{ attendee.badge }}
-                {% if attendee.amount_extra %}
-                    <b>(Kicked in an extra ${{ attendee.amount_extra }}!)</b>
-                {% endif %}
             </td>
         {% endif %}
     </tr>
