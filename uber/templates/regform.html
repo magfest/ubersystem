@@ -105,7 +105,7 @@
     </div>
 {% endif %}
 
-{% if c.DONATIONS_ENABLED and c.PREREG_DONATION_OPTS and c.PAGE_PATH != '/registration/form' %}
+{% if c.DONATIONS_ENABLED and c.PAGE_PATH != '/registration/form' and c.PREREG_DONATION_OPTS.length > 1 or attendee.amount_extra %}
     <script type="text/javascript">
         var donationChanged = function () {
             setVisible('.affiliate-row', $.val('amount_extra') > 0);
@@ -165,7 +165,7 @@
             {% popup_link "../static_views/givingExtra.html" "Why do this?" %}
             </label>
             <div class="col-sm-8">
-                {% if c.AFTER_SUPPORTER_DEADLINE and attendee.amount_extra >= c.SUPPORTER_LEVEL %}
+                {% if c.AFTER_SUPPORTER_DEADLINE and attendee.amount_extra >= c.SUPPORTER_LEVEL or c.AFTER_SHIRT_DEADLINE and attendee.amount_extra >= c.SHIRT_LEVEL %}
                     {{ attendee.amount_extra_label }}
                     <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
                 {% else %}

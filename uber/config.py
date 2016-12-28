@@ -180,17 +180,22 @@ class Config(_Overridable):
     def PREREG_DONATION_OPTS(self):
         if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
             return self.DONATION_TIER_OPTS
-        else:
+        elif self.BEFORE_SHIRT_DEADLINE and self.SHIRT_AVAILABLE:
             return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS if amt < self.SUPPORTER_LEVEL]
+        else:
+            return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS if amt < self.SHIRT_LEVEL]
 
     @property
     def PREREG_DONATION_DESCRIPTIONS(self):
         # include only the items that are actually available for purchase
         if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
             donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
-        else:
+        elif self.BEFORE_SHIRT_DEADLINE and self.SHIRT_AVAILABLE:
             donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
                              if tier[1]['price'] < self.SUPPORTER_LEVEL]
+        else:
+            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
+                             if tier[1]['price'] < self.SHIRT_LEVEL]
 
         donation_list = sorted(donation_list, key=lambda tier: tier[1]['price'])
 
@@ -282,16 +287,23 @@ class Config(_Overridable):
     def HTTP_METHOD(self):
         return cherrypy.request.method
 
-    @request_cached_property
-    def SUPPORTER_COUNT(self):
+    def get_kickin_count(self, kickin_level):
         with sa.Session() as session:
             attendees = session.query(sa.Attendee)
             individual_supporters = attendees.filter(sa.Attendee.paid.in_([self.HAS_PAID, self.REFUNDED]),
-                                                     sa.Attendee.amount_extra >= self.SUPPORTER_LEVEL).count()
+                                                     sa.Attendee.amount_extra >= kickin_level).count()
             group_supporters = attendees.filter(sa.Attendee.paid == self.PAID_BY_GROUP,
-                                                sa.Attendee.amount_extra >= self.SUPPORTER_LEVEL,
-                                                sa.Attendee.amount_paid >= self.SUPPORTER_LEVEL).count()
+                                                sa.Attendee.amount_extra >= kickin_level,
+                                                sa.Attendee.amount_paid >= kickin_level).count()
             return individual_supporters + group_supporters
+
+    @request_cached_property
+    def SUPPORTER_COUNT(self):
+        return self.get_kickin_count(self.SUPPORTER_LEVEL)
+
+    @request_cached_property
+    def SHIRT_COUNT(self):
+        return self.get_kickin_count(self.SHIRT_LEVEL)
 
     @property
     def REMAINING_BADGES(self):
