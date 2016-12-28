@@ -12,7 +12,7 @@ class TestCosts:
         assert 20 == Attendee().badge_cost
         assert 30 == Attendee(overridden_price=30).badge_cost
         assert 0 == Attendee(paid=c.NEED_NOT_PAY).badge_cost
-        assert 0 == Attendee(paid=c.PAID_BY_GROUP).badge_cost
+        assert 20 == Attendee(paid=c.PAID_BY_GROUP).badge_cost
 
     def test_total_cost(self):
         assert 20 == Attendee().total_cost
@@ -25,19 +25,19 @@ class TestCosts:
         assert 0 == Attendee(amount_paid=50).amount_unpaid
         assert 0 == Attendee(amount_paid=51).amount_unpaid
 
-    def test_discount(self, monkeypatch):
+    def test_age_discount(self, monkeypatch):
         monkeypatch.setattr(Attendee, 'age_group_conf', {'discount': 5})
         assert 15 == Attendee().total_cost
         assert 20 == Attendee(amount_extra=5).total_cost
-        assert 5 == Attendee(overridden_price=10).total_cost
-        assert 10 == Attendee(overridden_price=10, amount_extra=5).total_cost
+        assert 10 == Attendee(overridden_price=10).total_cost
+        assert 15 == Attendee(overridden_price=10, amount_extra=5).total_cost
 
-    def test_free(self, monkeypatch):
-        monkeypatch.setattr(Attendee, 'age_group_conf', {'discount': 999})  # make sure we minimizee non-kickin costs at 0
+    def test_age_free(self, monkeypatch):
+        monkeypatch.setattr(Attendee, 'age_group_conf', {'discount': 999})  # makes badge_cost free unless overridden_price is set
         assert 0 == Attendee().total_cost
         assert 5 == Attendee(amount_extra=5).total_cost
-        assert 0 == Attendee(overridden_price=10).total_cost
-        assert 5 == Attendee(overridden_price=10, amount_extra=5).total_cost
+        assert 10 == Attendee(overridden_price=10).total_cost
+        assert 15 == Attendee(overridden_price=10, amount_extra=5).total_cost
 
 
 def test_is_unpaid():
