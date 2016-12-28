@@ -5,6 +5,7 @@ from uber.common import *
 class Root:
     def index(self, session, page='1', search_text=''):
         emails = session.query(Email).order_by(Email.when.desc())
+        search_text = search_text.strip()
         if search_text:
             emails = emails.icontains(Email.dest, search_text)
         return {
