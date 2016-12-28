@@ -8,7 +8,8 @@
 {% block content %}
 <script type="text/javascript">
     $().ready(function() {
-        $("form[action='unset_group_member'] :submit").click(function(event){
+        $("form[action='unset_group_member']").submit(function(event){
+            var formToSubmit = this;
             event.preventDefault();
             bootbox.confirm({
                 message: "This will permanently delete this person's badge. They will receive an email about this. Are you sure?",
@@ -24,7 +25,7 @@
                 },
                 callback: function (result) {
                     if(result) {
-                        $("form[action='unset_group_member']").submit();
+                        formToSubmit.submit();
                     }
                 }
             });
@@ -85,7 +86,7 @@
                     <form method="post" action="unset_group_member">
                     {% csrf_token %}
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
-                    <button class="btn btn-warning" type="submit" >This person isn't coming</button>
+                    <button class="btn btn-warning" type="submit">This person isn't coming</button>
                     </form>
                 {% elif attendee.is_transferable and attendee.amount_extra %}
                     <form method="get" action="transfer_badge">
