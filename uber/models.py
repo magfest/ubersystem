@@ -1096,7 +1096,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.paid != c.REFUNDED:
             self.amount_refunded = 0
 
-        if self.overridden_price == 0 and self.paid == c.NOT_PAID:
+        if self.badge_cost == 0 and self.paid == c.NOT_PAID:
             self.paid = c.NEED_NOT_PAY
 
         if c.AT_THE_CON and self.badge_num and (self.is_new or self.badge_type not in c.PREASSIGNED_BADGE_TYPES):
@@ -1209,7 +1209,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         elif self.is_presold_oneday:
             return c.get_presold_oneday_price(self.badge_type)
         elif self.age_discount != 0:
-            return c.get_attendee_price(registered) + self.age_discount
+            return max(0, c.get_attendee_price(registered) + self.age_discount)
         elif self.group and self.paid == c.PAID_BY_GROUP:
             return c.get_attendee_price(registered) - c.GROUP_DISCOUNT
         else:
