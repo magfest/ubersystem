@@ -1946,12 +1946,18 @@ class Tracking(MagModel):
             if "registration" in url:
                 with Session() as session:
                     attendee = session.query(Attendee).filter(Attendee.id == params['id']).first()
-                    Tracking.track(c.PAGE_VIEWED, attendee)
+                    if attendee is None:
+                        return
+                    else:
+                        Tracking.track(c.PAGE_VIEWED, attendee)
             # Looking at a group's details
             elif "groups" in url:
                 with Session() as session:
                     group = session.query(Group).filter(Group.id == params['id']).first()
-                    Tracking.track(c.PAGE_VIEWED, group)
+                    if group is None:
+                        return
+                    else:
+                        Tracking.track(c.PAGE_VIEWED, group)
 
 Tracking.UNTRACKED = [Tracking, Email]
 
@@ -1968,7 +1974,11 @@ def _make_getter(model):
             if id == 'None':
                 inst = model()
             else:
-                inst = self.query(model).filter_by(id=id).one()
+                try:
+                    inst = self.query(model).filter_by(id=id).one()
+                except NoResultFound:
+                    self.rollback()
+                    raise HTTPRedirect('../preregistration/error_attendee_not_found?id={}', id)
 
             if not ignore_csrf:
                 assert not {k for k in params if k not in allowed} or cherrypy.request.method == 'POST', 'POST required'
