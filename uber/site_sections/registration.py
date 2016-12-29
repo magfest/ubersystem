@@ -528,8 +528,8 @@ class Root:
     @check_atd
     def pay(self, session, id, message=''):
         attendee = session.attendee(id)
-        if attendee.paid == c.HAS_PAID:
-            raise HTTPRedirect('register?message={}', 'You are already paid and should proceed to the preregistration desk to pick up your badge')
+        if attendee.paid != c.NOT_PAID:
+            raise HTTPRedirect('register?message={}', 'You are already paid (or registered for a free badge) and should proceed to the preregistration desk to pick up your badge')
         else:
             return {
                 'message': message,
