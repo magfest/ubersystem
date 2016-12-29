@@ -28,10 +28,10 @@ class Root:
     def update(self, session, password='', message='', **params):
         account = session.admin_account(params, checkgroups=['access'])
         if account.is_new:
-            if c.AT_THE_CON and not password:
+            if c.AT_OR_POST_CON and not password:
                 message = 'You must enter a password'
             else:
-                password = password if c.AT_THE_CON else genpasswd()
+                password = password if c.AT_OR_POST_CON else genpasswd()
                 account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
 
         message = message or check(account)
@@ -39,7 +39,7 @@ class Root:
             message = 'Account settings uploaded'
             account.attendee = session.attendee(account.attendee_id)   # dumb temporary hack, will fix later with tests
             session.add(account)
-            if account.is_new and not c.AT_THE_CON:
+            if account.is_new and not c.AT_OR_POST_CON:
                 body = render('emails/accounts/new_account.txt', {
                     'account': account,
                     'password': password
