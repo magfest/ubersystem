@@ -100,8 +100,7 @@ class Root:
 
     @unrestricted
     def login(self, session, message='', full_name='', email='', zip_code='', original_location=None):
-        if not original_location or 'login' in original_location:
-            original_location = 'index'
+        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='index')
 
         if full_name or email or zip_code:
             try:
