@@ -205,7 +205,7 @@ class checkbox(template.Node):
     def render(self, context):
         model = self.model.resolve(context)
         checked = 'checked' if getattr(model, self.field_name) else ''
-        return '<input type="checkbox" name="{}" value="1" {} />'.format(self.field_name, checked)
+        return '<input type="checkbox" name="{}" id="{}" value="1" {} />'.format(self.field_name, self.field_name, checked)
 
 
 @tag
