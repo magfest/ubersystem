@@ -2,6 +2,11 @@
 {% block title %}Recently Sent Automated Emails{% endblock %}
 {% block content %}
 
+<form action="index">
+    <input type="email" placeholder="Search by email..." name="search_text" value="{{ search_text }}">
+    <input type="submit" value="Search">
+</form>
+
 {% pages page count %}
 
 <table class="list">
