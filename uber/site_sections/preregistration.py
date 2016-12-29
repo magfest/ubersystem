@@ -195,7 +195,6 @@ class Root:
         charge = Charge(listify(self.unpaid_preregs.values()))
         if charge.total_cost <= 0:
             for attendee in charge.attendees:
-                attendee.paid = c.NEED_NOT_PAY
                 session.add(attendee)
 
             for group in charge.groups:
