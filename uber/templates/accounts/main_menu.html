@@ -1,0 +1,19 @@
+
+<script type="text/javascript">
+    var mainMenuDropdownChanged = function () {
+        window.location = "bulk?location=" + $("#location").val();
+    };
+</script>
+
+<table style="text-align:center">
+<tr>
+    <td width="50%">
+        <select id="location" style="font-size:14pt ; font-weight:bold" onChange="mainMenuDropdownChanged()">
+            <option>All</option>
+            {% options c.JOB_LOCATION_OPTS location %}
+        </select>
+    </td>
+</tr>
+</table>
+
+<br/>

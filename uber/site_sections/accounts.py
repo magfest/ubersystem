@@ -52,6 +52,18 @@ class Root:
         session.delete(session.admin_account(id))
         raise HTTPRedirect('index?message={}', 'Account deleted')
 
+    def bulk(self, session, location=None, **params):
+        location = None if location == 'All' else int(location or c.JOB_LOCATION_OPTS[0][0])
+        attendees = session.staffers().filter(*[Attendee.assigned_depts.contains(str(location))] if location else []).all()
+        for attendee in attendees:
+            attendee.trusted_here = attendee.trusted_in(location) if location else attendee.trusted_somewhere
+            attendee.hours_here = sum(shift.job.weighted_hours for shift in attendee.shifts if shift.job.location == location) if location else attendee.weighted_hours
+
+        return {
+            'location':  location,
+            'attendees': attendees
+        }
+
     @unrestricted
     def login(self, session, message='', original_location=None, **params):
         if not original_location or 'login' in original_location:
@@ -174,3 +186,37 @@ class Root:
                             'path': '/{}/{}'.format(module_name, name)
                         })
         return {'pages': sorted(pages.items())}
+
+    @ajax
+    def add_bulk_admin_accounts(self, session, message='', **params):
+        ids = params.get('ids')
+        if isinstance(ids, str):
+            ids = str(ids).split(",")
+        success_count = 0
+        for id in ids:
+            try:
+                uuid.UUID(id)
+            except ValueError:
+                pass
+            else:
+                match = session.query(Attendee).filter(Attendee.id == id).first()
+                if match:
+                    account = session.admin_account(params, checkgroups=['access'])
+                    if account.is_new:
+                        password = genpasswd()
+                        account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
+                        account.attendee = match
+                        session.add(account)
+                        body = render('emails/accounts/new_account.txt', {
+                            'account': account,
+                            'password': password
+                        })
+                        send_email(c.ADMIN_EMAIL, match.email, 'New ' + c.EVENT_NAME + ' RAMS Account', body)
+
+                        success_count += 1
+        if success_count == 0:
+            message = 'No new accounts were created.'
+        else:
+            session.commit()
+            message = '%d new accounts have been created, and emailed their passwords.' % success_count
+        return message

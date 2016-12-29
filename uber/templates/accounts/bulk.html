@@ -1,0 +1,135 @@
+{% extends "base-admin.html" %}
+{% block title %}Add Admin Accounts{% endblock %}
+{% block content %}
+
+<script type="text/javascript">
+var mainMenuDropdownChanged = function () {
+    window.location = "bulk?location=" + $("#location").val();
+};
+</script>
+
+<div class="row">
+    <div class="col-md-3">{{ attendees|length }} Staffers</div>
+</div>
+
+<br/>
+<span style="font-size:14pt ; font-weight:bold"> Staffers Assigned to
+<select id="location" style="font-size:14pt ; font-weight:bold" onChange="mainMenuDropdownChanged()">
+    <option>All</option>
+    {% options c.JOB_LOCATION_OPTS location %}
+</select>
+</span>
+<br/> <br/>
+
+<table class="table table-striped datatable">
+<thead><tr>
+    <th> Attendee Name </th>
+    {% if c.HAS_ACCOUNTS_ACCESS %}<th> Admin </th>{% endif %}
+    <th> Badge</th>
+    <th> [D] </th>
+    <th> [T] </th>
+    <th> [M] </th>
+    <th> [L] </th>
+    <th> Placeholder</th>
+    <th> Hours Here </th>
+    <th> Hours Total </th>
+    <th> Checked In</th>
+</tr>
+</thead>
+{% for attendee in attendees %}
+    <tr>
+        <td width="20%" data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}"> <a href="../registration/shifts?id={{ attendee.id }}">{{ attendee.full_name }}</a>        </td>
+        {% if c.HAS_ACCOUNTS_ACCESS %}<td width="10">{% if attendee.admin_account %}Enabled{% else %}<input type="checkbox" class="cbox" id="{{ attendee.id }}"> Enable?{% endif %}</td>{% endif %}
+        <td width="10">{% if not attendee.badge_num %}<font size="-1">TBD</font>{% else %}{{ attendee.badge_num }}{% endif %}</td>
+        <td width="10">{% if attendee.is_dept_head %}<font size="-1">[D]</font>{% endif %}</td>
+        <td width="10">{% if attendee.trusted_here %}<font size="-1">[T]</font>{% endif %}</td>
+        <td width="10">{% if attendee.multiply_assigned %}<font size="-1">[M]</font>{% endif %}</td>
+        <td width="10">{% if attendee.can_work_setup or attendee.can_work_teardown %}<font size="-1">[L]</font>{% endif %}</td>
+        <td width="10">{{ attendee.placeholder }}</td>
+        <td width="10">{{ attendee.hours_here }}</td>
+        <td width="10">{{ attendee.weighted_hours }}</td>
+        <td width="10">{{ attendee.checked_in|yesno:"Checked In,Not Checked In" }}</td>
+    </tr>
+{% endfor %}
+</table>
+
+<br/> <br/>
+
+{% if c.HAS_ACCOUNTS_ACCESS %}
+    <div>
+    <p><label>Select All: <input type="checkbox" id="checkAll"/></label></p>
+    <h4>Accounts Selected: <i id="count">0</i></h4>
+    <form id="admin_settings" method="post" action="add_bulk_admin_accounts" role="form" class="form-inline">
+        <input type="hidden" name="ids" id="ids" value="" />
+        {% csrf_token %}
+        <div class="form-group">
+            {% checkgroup AdminAccount.access %}
+        </div>
+        <button type="submit" class="btn btn-default">Create Checked Accounts</button>
+    </form>
+    </div>
+
+    <br/> <br/>
+{% endif %}
+
+
+<div style="margin-left:10px">
+    [D]: <i>Staffers marked with a "D" are department heads.</i> <br/>
+    [M]: <i>Staffers marked with a "M" are assigned to multiple locations</i> <br/>
+    [T]: <i>Staffers marked with a "T" are trusted
+         {% if location %}in this department{% else %}in at least one department{% endif %}
+         </i> <br/>
+    [L]: <i>Staffers marked with a "L" are working load-in and/or load-out</i>
+</div>
+
+
+{% if c.HAS_ACCOUNTS_ACCESS %}
+<script>
+var list_of_ids = [];
+
+var admin_form = $("#admin_settings");
+
+admin_form.submit( function(eventObj) {
+    var checkboxes = $('.cbox:checked');
+    var length = checkboxes.length;
+    if (length > 0) {
+        var safety_dance = confirm("This will create " + length + " new admin accounts. Are you sure?");
+        if (safety_dance) {
+            var ids = checkboxes
+                    .map(function () {
+                        return this.id;
+                    })
+                    .get();
+            $('#ids').val(ids);
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    else {
+        alert("You have not selected any accounts.");
+        return false;
+    }
+});
+
+admin_form.ajaxForm(function(message){
+    toastr.info(message);
+    setTimeout(function(){
+        location.reload(true);
+    }, 1500);
+});
+
+$("#checkAll").change(function () {
+    $('.cbox:checkbox').prop('checked', this.checked);
+    $("#count").text($('.cbox:checked').length);
+});
+
+$('.cbox').change(function(){
+   $("#count").text($('.cbox:checked').length);
+});
+
+</script>
+{% endif %}
+
+{% endblock %}
