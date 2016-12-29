@@ -302,9 +302,13 @@ class MagModel:
         try:
             val = int(val)
         except ValueError:
+            log.debug('{} is not an int, did we forget to migrate data for {} during a DB migration?').format(val, name)
             return ''
 
-        return self.get_field(name).type.choices.get(val)
+        label = self.get_field(name).type.choices.get(val)
+        if not label:
+            log.debug('{} does not have a label for {}, check your enum generating code').format(name, val)
+        return label
 
     @suffix_property
     def _local(self, name, val):
