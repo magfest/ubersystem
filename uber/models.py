@@ -1100,7 +1100,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.paid != c.REFUNDED:
             self.amount_refunded = 0
 
-        if self.badge_cost == 0 and self.paid == c.NOT_PAID:
+        if self.badge_cost == 0 and self.paid in [c.NOT_PAID, c.PAID_BY_GROUP]:
             self.paid = c.NEED_NOT_PAY
 
         if c.AT_THE_CON and self.badge_num and (self.is_new or self.badge_type not in c.PREASSIGNED_BADGE_TYPES):
@@ -1171,6 +1171,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if self.badge_type == c.STAFF_BADGE:
             self.staffing = True
+            if not self.overridden_price and self.paid in [c.NOT_PAID, c.PAID_BY_GROUP]:
+                self.paid = c.NEED_NOT_PAY
 
         # remove trusted status from any dept we are not assigned to
         self.trusted_depts = ','.join(str(td) for td in self.trusted_depts_ints if td in self.assigned_depts_ints)
