@@ -289,6 +289,7 @@ class Root:
                 attendee.badge_num = badge_being_claimed.badge_num
                 attendee.ribbon = badge_being_claimed.ribbon
                 attendee.paid = badge_being_claimed.paid
+                attendee.overridden_price = badge_being_claimed.overridden_price
 
                 session.delete_from_group(badge_being_claimed, group)
                 group.attendees.append(attendee)
