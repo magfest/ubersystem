@@ -19,6 +19,7 @@ import importlib
 import mimetypes
 import threading
 import traceback
+import simplecrypt
 from glob import glob
 from uuid import uuid4
 from pprint import pprint
