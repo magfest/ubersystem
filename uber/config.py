@@ -113,14 +113,14 @@ class Config(_Overridable):
                     if c.EPOCH >= day >= c.ESCHATON:
                         return price
 
-                # Disable the bucket-based pricing if we're checking an existing badge OR
-                # if we have hardcore_optimizations_enabled config on.
-                # this is a database query and very expensive
-                badges_sold = self.BADGES_SOLD if dt or c.HARDCORE_OPTIMIZATIONS_ENABLED else 0
+                # Only check bucket-based pricing if we're not checking an existing badge AND
+                # we don't have hardcore_optimizations_enabled config on.
+                if not dt and not c.HARDCORE_OPTIMIZATIONS_ENABLED:
+                    badges_sold = self.BADGES_SOLD
 
-            for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
-                if badges_sold >= badge_cap and bumped_price > price:
-                    price = bumped_price
+                    for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
+                        if badges_sold >= badge_cap and bumped_price > price:
+                            price = bumped_price
         return price
 
     def get_group_price(self, dt=None):
