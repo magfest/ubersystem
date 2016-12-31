@@ -61,7 +61,7 @@
     </div>
 </div>
 
-{% if not attendee.is_not_ready_to_checkin %}
+{% if not attendee.is_not_ready_to_checkin and c.QR_CODE_PASSWORD %}
     <div class="form-group">
     <label class="col-sm-2 control-label">Check-in Barcode</label>
         <div class="col-sm-6">
