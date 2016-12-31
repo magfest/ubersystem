@@ -365,8 +365,6 @@ AutomatedEmail(Attendee, '{EVENT_NAME} extra payment received', 'reg_workflow/gr
          lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid == a.amount_extra,
          needs_approval=False)
 
-AutomatedEmail(Attendee, '{EVENT_NAME} payment refunded', 'reg_workflow/payment_refunded.txt',
-         lambda a: a.amount_refunded)
 
 # Reminder emails for groups to allocated their unassigned badges.  These emails are safe to be turned on for
 # all events, because they will only be sent for groups with unregistered badges, so if group preregistration
@@ -495,6 +493,12 @@ AutomatedEmail(Attendee, '{EVENT_NAME} parental consent form reminder', 'reg_wor
                lambda a: c.CONSENT_FORM_URL and a.age_group_conf['consent_form'],
                when=days_before(14, c.EPOCH))
 
+
+# Emails sent out to all attendees who can check in. These emails contain useful information about the event and are
+# sent close to the event start date.
+AutomatedEmail(Attendee, 'Check in faster at {EVENT_NAME}', 'reg_workflow/attendee_qrcode.html',
+               lambda a: not a.is_not_ready_to_checkin and c.QR_CODE_PASSWORD,
+               when=days_before(14, c.EPOCH), ident='qrcode_for_checkin')
 
 for _conf in DeptChecklistConf.instances.values():
     DeptChecklistEmail(_conf)
