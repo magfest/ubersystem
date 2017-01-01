@@ -172,7 +172,8 @@ class Root:
 
         """
         if not c.QR_CODE_PASSWORD or not qr_cipher:
-            return False  # Don't generate a QR Code if we can't encrypt it
+            # Don't generate a QR Code if we aren't configured for encryption
+            return 'QR code password not set, cannot generate images'
 
         encrypted_data = c.EVENT_QR_ID + bytes.decode(binascii.hexlify(qr_cipher.encrypt(uuid.UUID(data).hex)))
 
