@@ -164,7 +164,7 @@ class Root:
         Returns: A PNG buffer. Use this function in an img tag's src='' to display an image.
 
         NOTE: this will be called directly by attendee's client browsers to display their QR code.
-        This will be called potentially be called on the order of 100,000 times per event and serve up a lot of data.
+        This will potentially be called on the order of 100,000 times per event and serve up a lot of data.
         Be sure that any modifications to this code are fast and don't unnecessarily increase CPU load.
 
         If you run into performance issues, consider using an external cache to cache the results of
