@@ -6,4 +6,4 @@ pytz==2014.4
 pep8==1.6.2
 alembic==0.8.7
 treepoem==1.0.1
-simple-crypt==4.1.7
+pycrypto==2.6.1

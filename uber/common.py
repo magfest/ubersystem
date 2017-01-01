@@ -19,7 +19,6 @@ import importlib
 import mimetypes
 import threading
 import traceback
-import simplecrypt
 from glob import glob
 from uuid import uuid4
 from pprint import pprint
@@ -29,6 +28,7 @@ from hashlib import sha512
 from functools import wraps
 from xml.dom import minidom
 from random import randrange
+from Crypto.Cipher import AES
 from contextlib import closing
 from time import sleep, mktime
 from io import StringIO, BytesIO

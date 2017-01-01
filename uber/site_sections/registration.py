@@ -166,7 +166,7 @@ class Root:
         if not c.QR_CODE_PASSWORD:
             return False  # Don't generate a QR Code if we can't encrypt it
 
-        encrypted_data = c.EVENT_QR_ID + bytes.decode(binascii.hexlify(simplecrypt.encrypt(c.QR_CODE_PASSWORD, data)))
+        encrypted_data = c.EVENT_QR_ID + bytes.decode(binascii.hexlify(qr_cipher.encrypt(uuid.UUID(data).hex)))
 
         cherrypy.response.headers['Content-Type'] = "image/png"
 
@@ -197,13 +197,26 @@ class Root:
         if not qrcode:
             message = 'No QR Code scanned.'
         elif not c.QR_CODE_PASSWORD:
-            message = 'Cannot decrypt QR Code. Contact your administrator.'
+            message = 'Cannot decrypt QR Code: no decryption key. Contact your administrator.'
         elif not qrcode.startswith(c.EVENT_QR_ID):
-            message = 'Wrong Event ID for QR code.'
+            message = 'Wrong (or no) event ID provided.'
 
         if not message:
             data_to_decrypt = qrcode.split(c.EVENT_QR_ID, 1)[1]
-            decrypted_data = simplecrypt.decrypt(c.QR_CODE_PASSWORD, binascii.unhexlify(data_to_decrypt)).decode('utf8')
+
+            try:
+                decrypted_data = qr_cipher.decrypt(binascii.unhexlify(data_to_decrypt)).decode('utf8')
+            except binascii.Error:
+                message = 'Malformed QR code (not a valid hex).'
+            except ValueError:
+                message = 'Malformed QR code (decryption failed).'
+
+            # Convert to a UUID, if applicable.
+            try:
+                decrypted_data = str(uuid.UUID(decrypted_data))
+            except ValueError:
+                pass
+
             success = True
 
         return {
