@@ -1,7 +1,7 @@
 from uber.common import *
 
 
-qr_cipher = AES.new(c.QR_CODE_PASSWORD, AES.MODE_ECB)
+qr_cipher = AES.new(c.QR_CODE_PASSWORD, AES.MODE_ECB) if c.QR_CODE_PASSWORD else None
 
 
 class HTTPRedirect(cherrypy.HTTPRedirect):

@@ -153,6 +153,7 @@ class Root:
             'attendee': attendee
         }
 
+    @unrestricted
     def qrcode_generator(self, data):
         """
         Takes a piece of data and encrypts it using the QR_CODE_PASSWORD
@@ -162,13 +163,19 @@ class Root:
 
         Returns: A PNG buffer. Use this function in an img tag's src='' to display an image.
 
+        NOTE: this will be called directly by attendee's client browsers to display their QR code.
+        This will potentially be called on the order of 100,000 times per event and serve up a lot of data.
+        Be sure that any modifications to this code are fast and don't unnecessarily increase CPU load.
+
+        If you run into performance issues, consider using an external cache to cache the results of
+        this function.  Or, offload image generation to a dedicated microservice that replicates this functionality.
+
         """
-        if not c.QR_CODE_PASSWORD:
-            return False  # Don't generate a QR Code if we can't encrypt it
+        if not c.QR_CODE_PASSWORD or not qr_cipher:
+            # Don't generate a QR Code if we aren't configured for encryption
+            return 'QR code password not set, cannot generate images'
 
         encrypted_data = c.EVENT_QR_ID + bytes.decode(binascii.hexlify(qr_cipher.encrypt(uuid.UUID(data).hex)))
-
-        cherrypy.response.headers['Content-Type'] = "image/png"
 
         checkin_barcode = treepoem.generate_barcode(
             barcode_type='azteccode',
@@ -178,7 +185,12 @@ class Root:
         buffer = BytesIO()
         checkin_barcode.save(buffer, "PNG")
         buffer.seek(0)
-        return cherrypy.lib.file_generator(buffer)
+        png_file_output = cherrypy.lib.file_generator(buffer)
+
+        # set response headers last so that exceptions are displayed properly to the client
+        cherrypy.response.headers['Content-Type'] = "image/png"
+
+        return png_file_output
 
     @ajax
     def qrcode_reader(self, message='', qrcode=None):
@@ -196,7 +208,7 @@ class Root:
 
         if not qrcode:
             message = 'No QR Code scanned.'
-        elif not c.QR_CODE_PASSWORD:
+        elif not c.QR_CODE_PASSWORD or not qr_cipher:
             message = 'Cannot decrypt QR Code: no decryption key. Contact your administrator.'
         elif not qrcode.startswith(c.EVENT_QR_ID):
             message = 'Wrong (or no) event ID provided.'
