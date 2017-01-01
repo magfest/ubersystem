@@ -208,12 +208,10 @@ class Root:
 
         if not qrcode:
             message = 'No QR Code scanned.'
-        elif not c.QR_CODE_PASSWORD:
+        elif not c.QR_CODE_PASSWORD or not qr_cipher:
             message = 'Cannot decrypt QR Code: no decryption key. Contact your administrator.'
         elif not qrcode.startswith(c.EVENT_QR_ID):
             message = 'Wrong (or no) event ID provided.'
-        elif not qr_cipher:
-            message = 'No QR Cipher created. Contact your administrator.'
 
         if not message:
             data_to_decrypt = qrcode.split(c.EVENT_QR_ID, 1)[1]
