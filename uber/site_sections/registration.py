@@ -153,6 +153,78 @@ class Root:
             'attendee': attendee
         }
 
+    def qrcode_generator(self, data):
+        """
+        Takes a piece of data and encrypts it using the QR_CODE_PASSWORD
+        Then, adds the EVENT_QR_ID, and returns an Aztec barcode as an image stream.
+        Args:
+            data: A string to encrypt.
+
+        Returns: A PNG buffer. Use this function in an img tag's src='' to display an image.
+
+        """
+        if not c.QR_CODE_PASSWORD:
+            return False  # Don't generate a QR Code if we can't encrypt it
+
+        encrypted_data = c.EVENT_QR_ID + bytes.decode(binascii.hexlify(qr_cipher.encrypt(uuid.UUID(data).hex)))
+
+        cherrypy.response.headers['Content-Type'] = "image/png"
+
+        checkin_barcode = treepoem.generate_barcode(
+            barcode_type='azteccode',
+            data=encrypted_data,
+            options={},
+        )
+        buffer = BytesIO()
+        checkin_barcode.save(buffer, "PNG")
+        buffer.seek(0)
+        return cherrypy.lib.file_generator(buffer)
+
+    @ajax
+    def qrcode_reader(self, message='', qrcode=None):
+        """
+        Takes a scanned QR code and ensures it is the correct event using EVENT_QR_ID
+        Then, decrypts it and returns the decrypted data as a string.
+        Args:
+            message: The error message that the function will return
+            qrcode: The scanned QR code
+
+        Returns: Decrypted data, usually a UUID
+
+        """
+        success, decrypted_data = False, ''
+
+        if not qrcode:
+            message = 'No QR Code scanned.'
+        elif not c.QR_CODE_PASSWORD:
+            message = 'Cannot decrypt QR Code: no decryption key. Contact your administrator.'
+        elif not qrcode.startswith(c.EVENT_QR_ID):
+            message = 'Wrong (or no) event ID provided.'
+
+        if not message:
+            data_to_decrypt = qrcode.split(c.EVENT_QR_ID, 1)[1]
+
+            try:
+                decrypted_data = qr_cipher.decrypt(binascii.unhexlify(data_to_decrypt)).decode('utf8')
+            except binascii.Error:
+                message = 'Malformed QR code (not a valid hex).'
+            except ValueError:
+                message = 'Malformed QR code (decryption failed).'
+
+            # Convert to a UUID, if applicable.
+            try:
+                decrypted_data = str(uuid.UUID(decrypted_data))
+            except ValueError:
+                pass
+
+            success = True
+
+        return {
+            'success': success,
+            'message': message,
+            'data':    decrypted_data
+        }
+
     def history(self, session, id):
         attendee = session.attendee(id, allow_invalid=True)
         return {
