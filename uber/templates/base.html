@@ -69,7 +69,8 @@
             {% endif %}
             {% if c.HAS_STUFF_ACCESS %}
                 {Schedule: [
-                    {'View Schedule': '../schedule/'},
+                    {% if c.ALT_SCHEDULE_URL %}{'View External Schedule': '../schedule/guidebook'},{% endif %}
+                    {'View Internal Schedule': '../schedule/'},
                     {'Edit Schedule': '../schedule/edit'}
                 ]},
             {% endif %}
