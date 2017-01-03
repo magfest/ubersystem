@@ -885,6 +885,9 @@ class Group(MagModel, TakesPaymentMixin):
             self.approved = datetime.now(UTC)
         if self.leader and self.is_dealer:
             self.leader.ribbon = c.DEALER_RIBBON
+        if not self.is_unpaid:
+            for a in self.attendees:
+                a.presave_adjustments()
 
     @property
     def sorted_attendees(self):
@@ -1141,7 +1144,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 log.error('unable to send banned email about {}', self)
         elif self.badge_status == c.NEW_STATUS and not self.placeholder and self.first_name \
                 and (self.paid in [c.HAS_PAID, c.NEED_NOT_PAY]
-                     or self.paid == c.PAID_BY_GROUP and self.group_id and not self.group.amount_unpaid):
+                     or self.paid == c.PAID_BY_GROUP and self.group_id and not self.group.is_unpaid):
             self.badge_status = c.COMPLETED_STATUS
 
     @presave_adjustment
