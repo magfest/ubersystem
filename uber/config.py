@@ -109,13 +109,11 @@ class Config(_Overridable):
             for day, bumped_price in sorted(self.PRICE_BUMPS.items()):
                 if (dt or sa.localized_now()) >= day:
                     price = bumped_price
-                    # If we set a price during the event, it should be used regardless of badge sales
-                    if c.EPOCH >= day >= c.ESCHATON:
-                        return price
 
                 # Only check bucket-based pricing if we're not checking an existing badge AND
-                # we don't have hardcore_optimizations_enabled config on.
-                if not dt and not c.HARDCORE_OPTIMIZATIONS_ENABLED:
+                # we don't have hardcore_optimizations_enabled config on AND we're not on-site
+                # (because on-site pricing doesn't involve checking badges sold).
+                if not dt and not c.HARDCORE_OPTIMIZATIONS_ENABLED and sa.localized_now() < c.EPOCH:
                     badges_sold = self.BADGES_SOLD
 
                     for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
