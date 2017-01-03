@@ -1287,7 +1287,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.paid == c.NOT_PAID:
             return "Not paid"
 
-        if self.badge_status not in [c.NEW_STATUS, c.COMPLETED_STATUS]:
+        if self.badge_status != c.COMPLETED_STATUS:
             return "Badge status"
 
         if self.is_unassigned:
