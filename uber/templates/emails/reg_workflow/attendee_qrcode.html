@@ -9,7 +9,8 @@
 <br/><br/>To help speed up check-in, please bring the QR code below with you when you pick up your badge. You can print it out or display it on your phone.
 <br/><br/>Please note, however, that this code is <strong>not</strong> a replacement for your photo ID. You must still present your photo ID when picking up your badge.
 You cannot pick up badges on behalf of other attendees, even if you have a copy of their QR code.
-<img src="{{ c.URL_BASE }}/registration/qrcode_generator?data={{ attendee.id }}" />
+
+<br/><br/><img src="{{ c.URL_BASE }}/registration/qrcode_generator?data={{ attendee.id }}" />
 
 <br/> <br/>
 {% include "emails/reg_workflow/reg_notes.html" %}
