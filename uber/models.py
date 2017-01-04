@@ -734,14 +734,17 @@ class Session(SessionManager):
             elif len(terms) == 1 and terms[0].endswith(','):
                 return attendees.icontains(last_name=terms[0].rstrip(','))
             elif len(terms) == 1 and terms[0].isdigit():
-                return attendees.filter(Attendee.badge_num == terms[0])
+                if len(terms[0]) == 10:
+                    return attendees.filter(or_(Attendee.ec_phone == terms[0], Attendee.cellphone == terms[0]))
+                elif int(terms[0]) <= sorted(c.BADGE_RANGES.items(), key=lambda badge_range: badge_range[1][0])[-1][1][1]:
+                    return attendees.filter(Attendee.badge_num == terms[0])
             elif len(terms) == 1 and re.match('[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}', terms[0]):
                 return attendees.filter(or_(Attendee.id == terms[0], Group.id == terms[0]))
-            else:
-                checks = [Group.name.ilike('%' + text + '%')]
-                for attr in ['first_name', 'last_name', 'badge_printed_name', 'email', 'comments', 'admin_notes', 'for_review']:
-                    checks.append(getattr(Attendee, attr).ilike('%' + text + '%'))
-                return attendees.filter(or_(*checks))
+
+            checks = [Group.name.ilike('%' + text + '%')]
+            for attr in ['first_name', 'last_name', 'badge_printed_name', 'email', 'comments', 'admin_notes', 'for_review']:
+                checks.append(getattr(Attendee, attr).ilike('%' + text + '%'))
+            return attendees.filter(or_(*checks))
 
         def delete_from_group(self, attendee, group):
             """
