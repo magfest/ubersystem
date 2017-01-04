@@ -518,7 +518,7 @@ class Root:
                     message = '{a.full_name} ({a.badge}) already got {a.merch}'.format(a=attendee)
                 else:
                     id = attendee.id
-                    shirt = (attendee.shirt or c.SIZE_UNKNOWN) if attendee.gets_shirt else c.NO_SHIRT
+                    shirt = (attendee.shirt or c.SIZE_UNKNOWN) if attendee.gets_swag_shirt else c.NO_SHIRT
                     message = '{a.full_name} ({a.badge}) has not yet received {a.merch}'.format(a=attendee)
         return {
             'id': id,

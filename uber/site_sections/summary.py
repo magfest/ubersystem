@@ -288,16 +288,10 @@ class Root:
         for attendee in session.all_attendees():
             shirt_label = attendee.shirt_label or 'size unknown'
 
-            # TODO: eventually extract these conditions into properties on Attendee
-            # Attendee.gets_free_shirt needs to be re-worked out.
-            gets_staff_shirt = attendee.badge_type == c.STAFF_BADGE
-            gets_swag_shirt = attendee.badge_type != c.STAFF_BADGE and (attendee.gets_paid_shirt or attendee.ribbon == c.VOLUNTEER_RIBBON)
-
-            if gets_staff_shirt:
+            if attendee.gets_staff_shirt:
                 counts['staff'][label(shirt_label)] += c.SHIRTS_PER_STAFFER
 
-            if gets_swag_shirt:
-                counts['swag'][label(shirt_label)] += 1
+            counts['swag'][label(shirt_label)] += attendee.num_swag_shirts_owed
 
         return {
             'categories': [
@@ -307,6 +301,8 @@ class Root:
         }
 
     def shirt_counts(self, session):
+        # This report is now super-ridiculously wrong
+
         counts = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
         labels = ['size unknown'] + [label for val, label in c.SHIRT_OPTS][1:]
         sort = lambda d: sorted(d.items(), key=lambda tup: labels.index(tup[0]))
@@ -315,14 +311,14 @@ class Root:
         sales_by_week = OrderedDict([(i, 0) for i in range(50)])
         for attendee in session.all_attendees():
             shirt_label = attendee.shirt_label or 'size unknown'
-            if attendee.gets_free_shirt:
+            if attendee.gets_free_swag_shirt:
                 counts['free'][label(shirt_label)][status(attendee.got_merch)] += 1
                 counts['all'][label(shirt_label)][status(attendee.got_merch)] += 1
-            if attendee.gets_paid_shirt:
+            if attendee.paid_for_a_swag_shirt:
                 counts['paid'][label(shirt_label)][status(attendee.got_merch)] += 1
                 counts['all'][label(shirt_label)][status(attendee.got_merch)] += 1
                 sales_by_week[(datetime.now(UTC) - attendee.registered).days // 7] += 1
-            if attendee.gets_free_shirt and attendee.gets_paid_shirt:
+            if attendee.gets_free_swag_shirt and attendee.paid_for_a_swag_shirt:
                 counts['both'][label(shirt_label)][status(attendee.got_merch)] += 1
         for week in range(48, -1, -1):
             sales_by_week[week] += sales_by_week[week + 1]

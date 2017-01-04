@@ -110,7 +110,7 @@
         <script type="text/javascript">
             var donationChanged = function () {
                 setVisible('.affiliate-row', $.val('amount_extra') > 0);
-                {% if attendee.gets_shirt %}
+                {% if attendee.gets_any_kind_of_shirt %}   {# TODO: maybe. not sure.  do we show shirt-row when staff, or swag, or both #}
                     setVisible('.shirt-row', true);
                 {% else %}
                     setVisible('.shirt-row', $.val('amount_extra') >= {{ c.SHIRT_LEVEL }});
