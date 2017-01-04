@@ -375,7 +375,7 @@ GroupEmail('Reminder to pre-assign {EVENT_NAME} group badges', 'reg_workflow/gro
            needs_approval=False)
 
 AutomatedEmail(Group, 'Last chance to pre-assign {EVENT_NAME} group badges', 'reg_workflow/group_preassign_reminder.txt',
-         lambda g: c.AFTER_GROUP_PREREG_TAKEDOWN and g.unregistered_badges and (not g.is_dealer or g.status == APPROVED),
+         lambda g: c.AFTER_GROUP_PREREG_TAKEDOWN and g.unregistered_badges and (not g.is_dealer or g.status == c.APPROVED),
          needs_approval=False)
 
 
