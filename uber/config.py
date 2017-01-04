@@ -563,4 +563,7 @@ else:
 
 stripe.api_key = c.STRIPE_SECRET_KEY
 
+# plugins can use this to append paths which will be included as <script> tags, e.g. if a plugin
+# appends '../static/foo.js' to this list, that adds <script src="../static/foo.js"></script> to
+# all of the pages on the site except for preregistration pages (for performance)
 c.JAVASCRIPT_INCLUDES = []
