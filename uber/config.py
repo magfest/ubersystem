@@ -562,3 +562,5 @@ else:
     c.VOLUNTEER_CHECKLIST = [url for step, url in _items]
 
 stripe.api_key = c.STRIPE_SECRET_KEY
+
+c.JAVASCRIPT_INCLUDES = []
