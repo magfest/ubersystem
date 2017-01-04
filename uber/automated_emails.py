@@ -359,7 +359,7 @@ AutomatedEmail(Group, '{EVENT_NAME} group payment received', 'reg_workflow/group
 
 AutomatedEmail(Attendee, '{EVENT_NAME} group registration confirmed', 'reg_workflow/attendee_confirmation.html',
          lambda a: a.group and a != a.group.leader and not a.placeholder,
-         needs_approval=False)
+         needs_approval=False, allow_during_con=True)
 
 AutomatedEmail(Attendee, '{EVENT_NAME} extra payment received', 'reg_workflow/group_donation.txt',
          lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid == a.amount_extra,
