@@ -17,15 +17,8 @@ def pre_checkin_check(attendee, group):
     if group and attendee.paid == c.PAID_BY_GROUP and group.amount_unpaid:
         return 'This attendee\'s group has an outstanding balance of ${}'.format(group.amount_unpaid)
 
-    if attendee.paid == c.PAID_BY_GROUP and not attendee.group_id:
-        return 'You must select a group for this attendee.'
-
     if attendee.paid == c.NOT_PAID:
         return 'You cannot check in an attendee that has not paid.'
-
-    attendee._status_adjustments()
-    if attendee.badge_status != c.COMPLETED_STATUS:
-        return 'This badge is {} and cannot be checked in.'.format(attendee.badge_status_label)
 
     return check(attendee)
 
@@ -413,18 +406,21 @@ class Root:
         }
 
     @ajax
-    def check_in(self, session, message='', **params):
+    def check_in(self, session, message='', group_id='', **params):
         attendee = session.attendee(params, allow_invalid=True)
-        group = session.group(attendee.group_id) if attendee.group_id else None
+        group = attendee.group or (session.group(group_id) if group_id else None)
 
         pre_badge = attendee.badge_num
         success, increment = False, False
 
         message = pre_checkin_check(attendee, group)
+        if not message and group_id:
+            message = session.match_to_group(attendee, group)
+
+        if not message and attendee.paid == c.PAID_BY_GROUP and not attendee.group_id:
+            message = 'You must select a group for this attendee.'
 
         if not message:
-            if group:
-                session.match_to_group(attendee, group)
             message = ''
             success = True
             attendee.checked_in = sa.localized_now()
