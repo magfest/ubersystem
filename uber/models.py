@@ -1393,16 +1393,16 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.amount_extra >= c.SHIRT_LEVEL
 
     @property
-    def eligible_for_free_swag_shirt(self):
+    def volunteer_swag_shirt_eligible(self):
         return self.badge_type != c.STAFF_BADGE and self.ribbon == c.VOLUNTEER_RIBBON
 
     @property
-    def completed_enough_shift_hours_to_claim_staff_shirt(self):
-        return bool(self.assigned_depts_ints) and (not self.takes_shifts or self.weighted_hours >= 6)
+    def volunteer_swag_shirt_earned(self):
+        return self.volunteer_swag_shirt_eligible and (not self.takes_shifts or self.worked_hours >= 6)
 
     @property
     def num_swag_shirts_owed(self):
-        return int(self.paid_for_a_swag_shirt) + int(self.eligible_for_free_swag_shirt)
+        return int(self.paid_for_a_swag_shirt) + int(self.volunteer_swag_shirt_eligible)
 
     @property
     def gets_staff_shirt(self):
@@ -1411,9 +1411,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def gets_any_kind_of_shirt(self):
         return self.gets_staff_shirt or self.num_swag_shirts_owed > 0
-
-    # -----------------------------------------------------------------------------------------
-    # -----------------------------------------------------------------------------------------
 
     @property
     def has_personalized_badge(self):
@@ -1426,21 +1423,15 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def merch(self):
-        # KEEP
         merch = self.donation_swag
 
-
-
-        # FIX
-        """
-        if self.gets_paid_swag_shirt and c.DONATION_TIERS[c.SHIRT_LEVEL] not in merch:
-            merch.append(c.DONATION_TIERS[c.SHIRT_LEVEL])
-        elif self.gets_free_swag_shirt:
-            shirt = '2nd ' + c.DONATION_TIERS[c.SHIRT_LEVEL]
-            if self.takes_shifts and self.worked_hours < 6:
+        if self.volunteer_swag_shirt_eligible:
+            shirt = c.DONATION_TIERS[c.SHIRT_LEVEL]
+            if self.paid_for_a_swag_shirt:
+                shirt = 'a 2nd ' + shirt
+            if not self.volunteer_swag_shirt_earned:
                 shirt += ' (tell them they will be reported if they take their shirt then do not work their shifts)'
             merch.append(shirt)
-        """
 
         if self.gets_staff_shirt:
             merch.append('{} Staff Shirt{}'.format(c.SHIRTS_PER_STAFFER, 's' if c.SHIRTS_PER_STAFFER > 1 else ''))
@@ -1448,9 +1439,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.staffing:
             merch.append('Staffer Info Packet')
 
-        # KEEP
         if self.extra_merch:
             merch.append(self.extra_merch)
+
         return comma_and(merch)
 
     @property

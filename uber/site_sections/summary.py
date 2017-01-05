@@ -301,8 +301,6 @@ class Root:
         }
 
     def shirt_counts(self, session):
-        # This report is now super-ridiculously wrong
-
         counts = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
         labels = ['size unknown'] + [label for val, label in c.SHIRT_OPTS][1:]
         sort = lambda d: sorted(d.items(), key=lambda tup: labels.index(tup[0]))
@@ -311,15 +309,15 @@ class Root:
         sales_by_week = OrderedDict([(i, 0) for i in range(50)])
         for attendee in session.all_attendees():
             shirt_label = attendee.shirt_label or 'size unknown'
-            if attendee.gets_free_swag_shirt:
-                counts['free'][label(shirt_label)][status(attendee.got_merch)] += 1
-                counts['all'][label(shirt_label)][status(attendee.got_merch)] += 1
+            if attendee.volunteer_swag_shirt_eligible:
+                counts['free_swag_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
+                counts['all_swag_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
             if attendee.paid_for_a_swag_shirt:
-                counts['paid'][label(shirt_label)][status(attendee.got_merch)] += 1
-                counts['all'][label(shirt_label)][status(attendee.got_merch)] += 1
+                counts['paid_swag_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
+                counts['all_swag_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
                 sales_by_week[(datetime.now(UTC) - attendee.registered).days // 7] += 1
-            if attendee.gets_free_swag_shirt and attendee.paid_for_a_swag_shirt:
-                counts['both'][label(shirt_label)][status(attendee.got_merch)] += 1
+            if attendee.gets_staff_shirt:
+                counts['staff_shirts'][label(shirt_label)][status(attendee.got_merch)] += c.SHIRTS_PER_STAFFER
         for week in range(48, -1, -1):
             sales_by_week[week] += sales_by_week[week + 1]
         return {
