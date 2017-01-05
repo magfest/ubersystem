@@ -14,7 +14,7 @@ def pre_checkin_check(attendee, group):
     if attendee.checked_in:
         return attendee.full_name + ' was already checked in!'
 
-    if group and group.amount_unpaid:
+    if group and attendee.paid == c.PAID_BY_GROUP and group.amount_unpaid:
         return 'This attendee\'s group has an outstanding balance of ${}'.format(group.amount_unpaid)
 
     if attendee.paid == c.PAID_BY_GROUP and not attendee.group_id:
