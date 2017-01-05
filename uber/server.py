@@ -69,7 +69,14 @@ class AngularJavascript:
         We also need those apps to be able to make HTTP requests with CSRF tokens, so we set that default.
         """
         cherrypy.response.headers['Content-Type'] = 'text/javascript'
-        consts = {attr: getattr(c, attr, None) for attr in dir(c)}
+
+        consts = {}
+        for attr in dir(c):
+            try:
+                consts[attr] = getattr(c, attr, None)
+            except:
+                pass
+
         js_consts = json.dumps({k: v for k, v in consts.items() if isinstance(v, (bool, int, str))}, indent=4)
         return '\n'.join([
             'angular.module("magfest", [])',
