@@ -570,6 +570,32 @@ class Root:
         session.commit()
         return '{a.full_name} ({a.badge}) merch handout canceled'.format(a=attendee)
 
+    @ajax
+    def redeem_merch_discount(self, session, badge_num, apply=''):
+        try:
+            attendee = session.query(Attendee).filter_by(badge_num=badge_num).one()
+        except:
+            return {'error': 'No attendee exists with that badge number.'}
+
+        if attendee.badge_type != c.STAFF_BADGE:
+            return {'error': 'Only staff badges are eligible for discount.'}
+
+        discount = session.query(MerchDiscount).filter_by(attendee_id=attendee.id).first()
+        if not apply:
+            if discount:
+                return {
+                    'warning': True,
+                    'message': 'This staffer has already redeemed their discount {} time{}'.format(discount.uses, 's' if discount.uses > 1 else '')
+                }
+            else:
+                return {'message': 'Tell staffer their discount is only usable one time and confirm that they want to redeem it.'}
+
+        discount = discount or MerchDiscount(attendee_id=attendee.id, uses=0)
+        discount.uses += 1
+        session.add(discount)
+        session.commit()
+        return {'success': True, 'message': 'Discount on badge #{} has been marked as redeemed.'.format(badge_num)}
+
     @unrestricted
     @check_atd
     def register(self, session, message='', **params):
