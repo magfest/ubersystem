@@ -120,46 +120,6 @@ def test_trusted_somewhere():
     assert not Attendee(trusted_depts='').trusted_somewhere
 
 
-class TestGetsShirt:
-    def test_basics(self, monkeypatch):
-        assert not Attendee().gets_shirt
-        assert Attendee(amount_extra=c.SHIRT_LEVEL).gets_shirt
-        assert Attendee(ribbon=c.DEPT_HEAD_RIBBON).gets_shirt
-        assert Attendee(badge_type=c.STAFF_BADGE).gets_shirt
-        # assert Attendee(badge_type=c.SUPPORTER_BADGE).gets_shirt  # TODO: should this be true?
-
-    def test_shiftless_depts(self, monkeypatch):
-        monkeypatch.setattr(Attendee, 'takes_shifts', False)
-        assert not Attendee(assigned_depts='x').gets_shirt
-        assert Attendee(staffing=True, assigned_depts='x').gets_shirt
-
-    def test_shirt_hours(self, monkeypatch):
-        monkeypatch.setattr(Attendee, 'weighted_hours', 5)
-        assert not Attendee(staffing=True).gets_shirt
-        for amount in [6, 18, 24, 30]:
-            monkeypatch.setattr(Attendee, 'weighted_hours', amount)
-            assert not Attendee().gets_shirt
-            assert Attendee(staffing=True).gets_shirt
-
-
-class TestShirtEligible:
-    @pytest.fixture
-    def gets_shirt(self, monkeypatch):
-        monkeypatch.setattr(Attendee, 'gets_shirt', True)
-
-    @pytest.fixture
-    def gets_no_shirt(self, monkeypatch):
-        monkeypatch.setattr(Attendee, 'gets_shirt', False)
-
-    def test_gets_shirt_true(self, gets_shirt):
-        assert Attendee(staffing=False).shirt_eligible
-        assert Attendee(staffing=True).shirt_eligible
-
-    def test_gets_shirt_false(self, gets_no_shirt):
-        assert not Attendee(staffing=False).shirt_eligible
-        assert Attendee(staffing=True).shirt_eligible
-
-
 def test_has_personalized_badge():
     assert not Attendee().has_personalized_badge
     assert Attendee(badge_type=c.STAFF_BADGE).has_personalized_badge
@@ -203,16 +163,6 @@ class TestUnsetVolunteer:
         a = Attendee(affiliate='xxx')
         a._misc_adjustments()
         assert a.affiliate == ''
-
-    def test_gets_shirt_with_enough_extra(self):
-        a = Attendee(shirt=1, amount_extra=c.SHIRT_LEVEL)
-        a._misc_adjustments()
-        assert a.shirt == 1
-
-    def test_gets_shirt_without_enough_extra(self):
-        a = Attendee(shirt=1, amount_extra=1)
-        a._misc_adjustments()
-        assert a.shirt == c.NO_SHIRT
 
     def test_amount_refunded_when_refunded(self):
         a = Attendee(amount_refunded=123, paid=c.REFUNDED)

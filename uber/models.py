@@ -1046,7 +1046,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     ribbon       = Column(Choice(c.RIBBON_OPTS), default=c.NO_RIBBON, admin_only=True)
 
     affiliate    = Column(UnicodeText)
-    shirt        = Column(Choice(c.SHIRT_OPTS), default=c.NO_SHIRT)
+    shirt        = Column(Choice(c.SHIRT_OPTS), default=c.NO_SHIRT)   # attendee shirt size for both swag and staff shirts
     can_spam     = Column(Boolean, default=False)
     regdesk_info = Column(UnicodeText, admin_only=True)
     extra_merch  = Column(UnicodeText, admin_only=True)
@@ -1074,7 +1074,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     can_work_setup    = Column(Boolean, default=False, admin_only=True)
     can_work_teardown = Column(Boolean, default=False, admin_only=True)
 
+    # TODO: a record of when an attendee is unable to pickup a shirt (which type? swag or staff? prob swag)
     no_shirt          = relationship('NoShirt', backref=backref('attendee', load_on_pending=True), uselist=False)
+
     admin_account     = relationship('AdminAccount', backref=backref('attendee', load_on_pending=True), uselist=False)
     food_restrictions = relationship('FoodRestrictions', backref=backref('attendee', load_on_pending=True), uselist=False)
 
@@ -1100,7 +1102,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.birthdate == '':
             self.birthdate = None
 
-        if not self.shirt_eligible:
+        if not self.gets_any_kind_of_shirt:
             self.shirt = c.NO_SHIRT
 
         if self.paid != c.REFUNDED:
@@ -1303,6 +1305,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         return None
 
     @property
+    # should be OK
     def shirt_size_marked(self):
         return self.shirt not in [c.NO_SHIRT, c.SIZE_UNKNOWN]
 
@@ -1379,22 +1382,28 @@ class Attendee(MagModel, TakesPaymentMixin):
            and not self.admin_account
 
     @property
-    def gets_free_shirt(self):
-        return self.is_dept_head \
-            or self.badge_type == c.STAFF_BADGE \
-            or self.staffing and (self.assigned_depts and not self.takes_shifts or self.weighted_hours >= 6)
-
-    @property
-    def gets_paid_shirt(self):
+    def paid_for_a_swag_shirt(self):
         return self.amount_extra >= c.SHIRT_LEVEL
 
     @property
-    def gets_shirt(self):
-        return self.gets_paid_shirt or self.gets_free_shirt
+    def volunteer_swag_shirt_eligible(self):
+        return self.badge_type != c.STAFF_BADGE and self.ribbon == c.VOLUNTEER_RIBBON
 
     @property
-    def shirt_eligible(self):
-        return self.gets_shirt or self.staffing
+    def volunteer_swag_shirt_earned(self):
+        return self.volunteer_swag_shirt_eligible and (not self.takes_shifts or self.worked_hours >= 6)
+
+    @property
+    def num_swag_shirts_owed(self):
+        return int(self.paid_for_a_swag_shirt) + int(self.volunteer_swag_shirt_eligible)
+
+    @property
+    def gets_staff_shirt(self):
+        return self.badge_type == c.STAFF_BADGE
+
+    @property
+    def gets_any_kind_of_shirt(self):
+        return self.gets_staff_shirt or self.num_swag_shirts_owed > 0
 
     @property
     def has_personalized_badge(self):
@@ -1407,16 +1416,31 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def merch(self):
+        """
+        Here is the business logic surrounding shirts:
+        -> people who kick in enough to get a shirt get a shirt
+        -> people with staff badges get a configurable number of staff shirts
+        -> volunteers who meet the requirements get a complementary swag shirt (NOT a staff shirt)
+        """
         merch = self.donation_swag
-        if self.gets_shirt and c.DONATION_TIERS[c.SHIRT_LEVEL] not in merch:
-            merch.append(c.DONATION_TIERS[c.SHIRT_LEVEL])
-        elif self.gets_free_shirt:
-            shirt = '2nd ' + c.DONATION_TIERS[c.SHIRT_LEVEL]
-            if self.takes_shifts and self.worked_hours < 6:
+
+        if self.volunteer_swag_shirt_eligible:
+            shirt = c.DONATION_TIERS[c.SHIRT_LEVEL]
+            if self.paid_for_a_swag_shirt:
+                shirt = 'a 2nd ' + shirt
+            if not self.volunteer_swag_shirt_earned:
                 shirt += ' (tell them they will be reported if they take their shirt then do not work their shifts)'
             merch.append(shirt)
+
+        if self.gets_staff_shirt:
+            merch.append('{} Staff Shirt{}'.format(c.SHIRTS_PER_STAFFER, 's' if c.SHIRTS_PER_STAFFER > 1 else ''))
+
+        if self.staffing:
+            merch.append('Staffer Info Packet')
+
         if self.extra_merch:
             merch.append(self.extra_merch)
+
         return comma_and(merch)
 
     @property
@@ -1613,6 +1637,7 @@ class FoodRestrictions(MagModel):
                 return restriction in self.standard_ints
 
 
+# mark if they wanted to, but couldn't, pick up a SWAG shirt because we ran out of shirts
 class NoShirt(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
 
