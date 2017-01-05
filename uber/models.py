@@ -1637,9 +1637,18 @@ class FoodRestrictions(MagModel):
                 return restriction in self.standard_ints
 
 
-# mark if they wanted to, but couldn't, pick up a SWAG shirt because we ran out of shirts
 class NoShirt(MagModel):
+    """
+    Used to track when someone tried to pick up a shirt they were owed when we
+    were out of stock, so that we can contact them later.
+    """
     attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
+
+
+class MerchDiscount(MagModel):
+    """Staffers can apply a single-use discount to any merch purchases."""
+    attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
+    uses = Column(Integer)
 
 
 class MerchPickup(MagModel):
