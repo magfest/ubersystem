@@ -323,10 +323,10 @@ class Root:
         return {
             'sales_by_week': sales_by_week,
             'categories': [
-                ('Eligible free', sort(counts['free'])),
-                ('Paid', sort(counts['paid'])),
-                ('All pre-ordered', sort(counts['all'])),
-                ('People with both free and paid', sort(counts['both']))
+                ('Free Swag Shirts', sort(counts['free_swag_shirts'])),
+                ('Paid Swag Shirts', sort(counts['paid_swag_shirts'])),
+                ('All Swag Shirts', sort(counts['all_swag_shirts'])),
+                ('Staff Shirts', sort(counts['staff_shirts']))
             ]
         }
 
