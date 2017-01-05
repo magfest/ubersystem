@@ -9,28 +9,28 @@
         document.getElementById('search_bar').select();
     });
 
-    $(function(){
-        function decrypt_checkin_code(barcode) {
-            $.ajax({
-                method: 'POST',
-                url: 'qrcode_reader',
-                dataType: 'json',
-                data: {qrcode: barcode, csrf_token: csrf_token},
-                success: function (json) {
-                    toastr.clear();
-                    var message = json.message;
-                    if (json.success) {
-                        $("#search_bar").val(json.data).parents('form').submit()
-                    } else {
-                        toastr.error(message);
-                    }
-                },
-                error: function () {
-                    toastr.error('Unable to connect to server, please try again.');
+    function decrypt_checkin_code(barcode) {
+        $.ajax({
+            method: 'POST',
+            url: 'qrcode_reader',
+            dataType: 'json',
+            data: {qrcode: barcode, csrf_token: csrf_token},
+            success: function (json) {
+                toastr.clear();
+                var message = json.message;
+                if (json.success) {
+                    $("#search_bar").val(json.data).parents('form').submit()
+                } else {
+                    toastr.error(message);
                 }
-            });
-        }
-
+            },
+            error: function () {
+                toastr.error('Unable to connect to server, please try again.');
+            }
+        });
+    }
+    
+    $(function(){
         $("#qr-scan").click(function(){
             bootbox.prompt({
                 title: "Scan QR Code",
