@@ -19,7 +19,7 @@ class AutomatedEmail:
 
     def __init__(self, model, subject, template, filter, *, when=(),
                  sender=None, extra_data=None, cc=None, bcc=None,
-                 post_con=False, needs_approval=True, ident=None):
+                 post_con=False, needs_approval=True, ident=None, allow_during_con=False):
 
         self.subject = subject.format(EVENT_NAME=c.EVENT_NAME)
         self.ident = ident or self.subject
@@ -28,7 +28,7 @@ class AutomatedEmail:
 
         self.instances[self.ident] = self
 
-        self.model, self.template, self.needs_approval = model, template, needs_approval
+        self.model, self.template, self.needs_approval, self.allow_during_con = model, template, needs_approval, allow_during_con
         self.cc = cc or []
         self.bcc = bcc or []
         self.extra_data = extra_data or {}
@@ -106,6 +106,7 @@ class AutomatedEmail:
         """
 
         return all(condition() for condition in [
+            lambda: not c.AT_THE_CON or self.allow_during_con,
             lambda: isinstance(model_inst, self.model),
             lambda: getattr(model_inst, 'email', None),
             lambda: not self._already_sent(model_inst),
@@ -189,8 +190,7 @@ class SendAllAutomatedEmailsJob:
 
         :param raise_errors: If False, exceptions are squashed during email sending and we'll try the next email.
         """
-        allowed_to_run = not c.AT_THE_CON and (c.DEV_BOX or c.SEND_EMAILS)
-        if not allowed_to_run:
+        if not (c.DEV_BOX or c.SEND_EMAILS):
             return
 
         if not SendAllAutomatedEmailsJob.run_lock.acquire(blocking=False):
@@ -351,7 +351,7 @@ ident naming RULES:
 
 AutomatedEmail(Attendee, '{EVENT_NAME} payment received', 'reg_workflow/attendee_confirmation.html',
          lambda a: a.paid == c.HAS_PAID,
-         needs_approval=False)
+         needs_approval=False, allow_during_con=True)
 
 AutomatedEmail(Group, '{EVENT_NAME} group payment received', 'reg_workflow/group_confirmation.html',
          lambda g: g.amount_paid == g.cost and g.cost != 0,
@@ -359,7 +359,7 @@ AutomatedEmail(Group, '{EVENT_NAME} group payment received', 'reg_workflow/group
 
 AutomatedEmail(Attendee, '{EVENT_NAME} group registration confirmed', 'reg_workflow/attendee_confirmation.html',
          lambda a: a.group and a != a.group.leader and not a.placeholder,
-         needs_approval=False)
+         needs_approval=False, allow_during_con=True)
 
 AutomatedEmail(Attendee, '{EVENT_NAME} extra payment received', 'reg_workflow/group_donation.txt',
          lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid == a.amount_extra,
@@ -375,7 +375,7 @@ GroupEmail('Reminder to pre-assign {EVENT_NAME} group badges', 'reg_workflow/gro
            needs_approval=False)
 
 AutomatedEmail(Group, 'Last chance to pre-assign {EVENT_NAME} group badges', 'reg_workflow/group_preassign_reminder.txt',
-         lambda g: c.AFTER_GROUP_PREREG_TAKEDOWN and g.unregistered_badges and (not g.is_dealer or g.status == APPROVED),
+         lambda g: c.AFTER_GROUP_PREREG_TAKEDOWN and g.unregistered_badges and (not g.is_dealer or g.status == c.APPROVED),
          needs_approval=False)
 
 

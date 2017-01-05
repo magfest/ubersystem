@@ -21,6 +21,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     {% block sectionStyle %}{% endblock %}
     {% block additional_styles %}{% endblock %}
+    {% if 'preregistration' not in c.PAGE_PATH %}
+        {% for js in c.JAVASCRIPT_INCLUDES %}
+            <script src="{{ js }}" type="text/javascript"></script>
+        {% endfor %}
+    {% endif %}
     <style>
         .navbar {
             margin-bottom: 0px;
@@ -70,6 +75,7 @@
             {% if c.HAS_STUFF_ACCESS %}
                 {Schedule: [
                     {'View Schedule': '../schedule/'},
+                    {'View Schedule (Internal Only)': '../schedule/internal'},
                     {'Edit Schedule': '../schedule/edit'}
                 ]},
             {% endif %}
