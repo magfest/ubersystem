@@ -1381,16 +1381,6 @@ class Attendee(MagModel, TakesPaymentMixin):
            and self.badge_type in c.TRANSFERABLE_BADGE_TYPES \
            and not self.admin_account
 
-    # -----------------------------------------------------------------------------------------
-    # Swag shirts properties
-    #
-    # Attendees can get a swag (non-staff) shirt by either:
-    # 1) buying one, or
-    # 2) by being an eligible volunteer
-    #
-    # Staffers do not get swag shirts automatically
-    # -----------------------------------------------------------------------------------------
-
     @property
     def paid_for_a_swag_shirt(self):
         return self.amount_extra >= c.SHIRT_LEVEL
@@ -1426,6 +1416,12 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def merch(self):
+        """
+        Here is the business logic surrounding shirts:
+        -> people who kick in enough to get a shirt get a shirt
+        -> people with staff badges get a configurable number of staff shirts
+        -> volunteers who meet the requirements get a complementary swag shirt (NOT a staff shirt)
+        """
         merch = self.donation_swag
 
         if self.volunteer_swag_shirt_eligible:
