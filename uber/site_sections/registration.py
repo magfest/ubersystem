@@ -514,7 +514,6 @@ class Root:
                 message = "%s has been checked out." % a.full_name
         return message
 
-
     @ajax
     def check_merch(self, session, badge_num):
         id = shirt = None
