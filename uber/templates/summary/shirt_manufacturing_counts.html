@@ -10,6 +10,10 @@
 <p>
     This report is designed to give you the correct numbers ready to be sent to the manufacturer.
     We recommend adding in a few extra shirts for safety margins to these numbers.
+    {% if c.SHIRTS_PER_STAFFER > 1 %}
+        <br/> <br/>
+        <b>NOTE:</b> The "Staff Shirts" report shows the result of each staffer receiving {{ c.SHIRTS_PER_STAFFER }} shirts.
+    {% endif %}
 </p>
 
 {% for name, category in categories %}
