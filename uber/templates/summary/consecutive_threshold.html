@@ -1,0 +1,18 @@
+{% extends "base-admin.html" %}
+{% block title %}Volunteers With Alarming Hours{% endblock %}
+{% block content %}
+
+<h2>Volunteers With Alarming Hours</h2>
+
+The following {{ flagged|length }} volunteers have signed up for at least 13 hours worth of shifts within an 18-hour window
+(note that these are wall-clock hours since we don't care about weighting for this report):
+<table style="width:auto">
+    {% for attendee in flagged %}
+        <tr>
+            <td><a href="../registration/shifts?id={{ attendee.id }}">{{ attendee.full_name }}</a>:</td>
+            <td>{{ attendee.hours|length }} total (wall-clock) hours</td>
+        </tr>
+    {% endfor %}
+</table>
+
+{% endblock %}

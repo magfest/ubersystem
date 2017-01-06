@@ -1,16 +1,18 @@
 {% extends "./preregistration/preregbase.html" %}
 {% block title %}Group Members{% endblock %}
 {% block backlink %}
-    {% if HAS_PEOPLE_ACCESS %}
+    {% if c.HAS_PEOPLE_ACCESS %}
         <a href="../groups/form?id={{ group.id }}" style="float:right">Return to Group Admin Form</a>
     {% endif %}
 {% endblock %}
 {% block content %}
-
+<div class="masthead">
+</div>
+<div class="panel panel-default">
 <h2> Members of "{{ group.name }}" </h2>
 
-{% if group.amount_unpaid and group.status != WAITLISTED %}
-    {% if not group.is_dealer or group.status != UNAPPROVED %}
+{% if group.amount_unpaid and group.status != c.WAITLISTED %}
+    {% if not group.is_dealer or group.status != c.UNAPPROVED %}
         <div style="text-align:center">
             {% stripe_form process_group_payment charge %}
         </div>
@@ -18,18 +20,17 @@
 {% endif %}
 
 <div style="margin:15px">
-    {% if group.unregistered_badges %}
-        Some of your badges are not yet assigned to a specific person.  If you assign these
-        badges now (using the links below) then it will take much less time for their owners
-        to pick them up at the festival. You may also distribute each of the registration
-        links below to the individual members of your group, which will allow them to fill in
-        their own information, as well as kick in extra money to receive bonus items.
+    {% if group.unregistered_badges and group.tables %}
+        Some of your Dealer Assistant badges are not yet assigned to a specific person. Please assign these badges
+        between now (using the links below) and the close of preregistation; any badges unclaimed at that time will be
+        invalid. You may also distribute each of the registration links below to the individual members of your group,
+        which will allow them to fill in their own information as well as purchase any upgrades on their own.
         <br/> <br/>
     {% endif %}
-    If someone who has registered can't make it, you may use the "This person isn't coming"
-    button next to their entry on the list below to unset their badge, which may then be
-    assigned to someone else.  Badges with extra kicked in may only be transferred directly
-    between two people; they may not be reverted to an unassigned badge.
+    If a {{ group.is_dealer|yesno:"planned Dealer Assistant,group member" }} cannot attend, you may use the "This person
+    isn't coming" button next to their entry on the list below to unset their badge, which may then be assigned to
+    someone else. Upgraded badges may only be transferred directly between two people; please contact us at
+    <a href="{{ c.CONTACT_URL }}">{{ c.CONTACT_URL }}</a> if you wish to transfer badges.
 </div>
 
 <br/> <b>Here are the badges for your group:</b>
@@ -45,6 +46,7 @@
             <td>
                 <a href="mailto:{{ attendee.email }}">{{ attendee.email }}</a>
                 &nbsp;&nbsp;&nbsp;&nbsp;
+                {{ attendee.badge }}
             </td>
             <td>
                 <!-- placeholder group leader registrations won't have a zip code -->
@@ -54,20 +56,18 @@
                 {% endif %}
             </td>
             <td>
-                {% if attendee.is_transferrable %}
-                    {% if attendee != group.leader and not attendee.amount_extra %}
-                        <form method="post" action="unset_group_member">
-                        {% csrf_token %}
-                        <input type="hidden" name="id" value="{{ attendee.id }}" />
-                        <input type="submit" value="This person isn't coming" />
-                        </form>
-                    {% elif attendee.amount_extra %}
-                        <form method="get" action="transfer_badge">
-                        <input type="hidden" name="id" value="{{ attendee.id }}" />
-                        <b> Kicked in an extra ${{ attendee.amount_extra }}! </b>
-                        <input type="submit" value="Transfer Registration" />
-                        </form>
-                    {% endif %}
+                {% if attendee != group.leader and not attendee.amount_extra %}
+                    <form method="post" action="unset_group_member">
+                    {% csrf_token %}
+                    <input type="hidden" name="id" value="{{ attendee.id }}" />
+                    <input type="submit" value="This person isn't coming" />
+                    </form>
+                {% elif attendee.is_transferable and attendee.amount_extra %}
+                    <form method="get" action="transfer_badge">
+                    <input type="hidden" name="id" value="{{ attendee.id }}" />
+                    <b> Kicked in an extra ${{ attendee.amount_extra }}! </b>
+                    <input type="submit" value="Transfer Registration" />
+                    </form>
                 {% endif %}
             </td>
         {% else %}
@@ -85,24 +85,38 @@
 
 <br/>
 
-{% if group.min_badges_addable and not group.amount_unpaid %}
+{% if c.PRE_CON and group.min_badges_addable %}
     <div id="add" style="display:none">
         <form method="get" action="add_group_members">
         <input type="hidden" name="id" value="{{ group.id }}" />
-        Enter a number of group members to add{% if group.min_badges_addable > 1 %} (you cannot add fewer than {{ group.min_badges_addable }} badges to an existing group){% endif %}: <br/>
-        <select name="count">{% int_options group.min_badges_addable 10 %}</select>
-        <input type="submit" value="Add Members to Group">
+        Enter a number of {{ group.is_dealer|yesno:"Dealer Assistants,group members" }} to add{% if group.min_badges_addable > 1 %} (you cannot add fewer than {{ group.min_badges_addable }} badges to an existing group){% endif %}: <br/>
+        {% if group.is_dealer %}
+            <select name="count">{% int_options group.min_badges_addable group.dealer_badges_remaining %}</select>
+        {% else %}
+            <select name="count">{% int_options group.min_badges_addable 10 %}</select>
+        {% endif %}
+        <input type="submit" value="{{ group.is_dealer|yesno:"Add Dealer Assistants,Add Group Members" }}">
         </form>
     </div>
+    
     <script type="text/javascript">
-        $(function(){
-            $("body").append(
-                $('<a style="cursor:pointer">Click here to add more members to your group.</a>').click(function(e){
-                    $(e.target).hide();
-                    $("#add").show();
-                }));
-        });
+        {% if group.amount_unpaid %}
+            $(function(){
+                $(".panel").append(
+                    $('<button disabled title="Group must be paid for before new members can be added." style="cursor:pointer; background-color:#7F7F7F; border-style:none;">Click here to add more {{ group.is_dealer|yesno:"Dealer Assistants,group members" }}.</button>')
+                );
+            });
+        {% else %}
+            $(function(){
+                $(".panel").append(
+                    $('<button style="cursor:pointer">Click here to add more {{ group.is_dealer|yesno:"Dealer Assistants,group members" }}.</button>').click(function(e){
+                        $(e.target).hide();
+                        $("#add").show();
+                    }));
+            });
+        {% endif %}
     </script>
+    
 {% endif %}
-
+</div>
 {% endblock %}

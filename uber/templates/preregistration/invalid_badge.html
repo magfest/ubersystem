@@ -1,0 +1,13 @@
+{% extends "./preregistration/preregbase.html" %}
+{% block title %}Confirm Your Details{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+<div class="masthead">
+</div>
+
+<div class="panel panel-default">
+    <h3>Invalid Badge: {{ attendee.full_name }}</h3>
+    <p>The badge you are trying to access is no longer valid. This may be because it was a duplicate of another badge, because it was canceled before payment went through, or because you asked to no longer receive emails from us.</p>
+    <p>If you think you should have a valid badge, don't panic! You are probably just on the wrong page. If you can't find your confirmation email, please contact us at {{ c.REGDESK_EMAIL }}.</p>
+</div>
+{% endblock %}

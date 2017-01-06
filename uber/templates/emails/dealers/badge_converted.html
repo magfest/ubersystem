@@ -1,0 +1,15 @@
+<html>
+<head></head>
+<body>
+
+{{ attendee.first_name }},
+
+<br/><br/>Although your group ({{ group.name}}) has been declined, we think you may still want to come and enjoy all that {{ c.EVENT_NAME }} has to offer!
+Therefore, we have reserved a badge for you{% if c.PRICE_BUMPS and attendee.badge_cost < c.BADGE_PRICE %} at the price of registration when you first applied{% endif %}.
+
+<br/><br/>Please go ahead and confirm or decline <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">your registration</a>. We hope to see you this year!
+
+{% include "emails/reg_workflow/reg_notes.html" %}
+
+</body>
+</html>

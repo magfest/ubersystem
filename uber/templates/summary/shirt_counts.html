@@ -1,0 +1,39 @@
+{% extends "base-admin.html" %}
+{% block title %}Shirt Counts{% endblock %}
+{% block content %}
+
+<style type="text/css">
+    td { padding: 5px 10px 5px 10px; }
+</style>
+
+<h2>Shirt Counts</h2>
+
+{% for name, category in categories %}
+    <h3>{{ name }} shirts</h3>
+    <table>
+    {% for label, counts in category %}
+        <tr>
+            <td>{{ label }}:</td>
+            <td>{{ counts.outstanding }} outstanding</td>
+            <td>{{ counts.picked_up }} picked up</td>
+        </tr>
+    {% endfor %}
+    </table>
+{% endfor %}
+
+<h3>Shirt Sales by Week</h3>
+<ul>
+    {% for weeks_ago, count in sales_by_week.items %}
+        {% if count %}
+            <li>
+                {% if weeks_ago == 0 %}
+                    We have currently sold {{ count }} shirts.
+                {% else %}
+                    <b>{{ weeks_ago }} week{{ weeks_ago|pluralize }} ago:</b> {{ count }} shirt{{ count|pluralize }}
+                {% endif %}
+            </li>
+        {% endif %}
+    {% endfor %}
+</ul>
+
+{% endblock %}

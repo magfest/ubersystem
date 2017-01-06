@@ -3,60 +3,26 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-<form method="post" action="register_group_member">
+<div class="masthead"></div>
+
+<div class="panel panel-default">
+<form method="post" action="register_group_member" class="form-horizontal">
 {% csrf_token %}
 <input type="hidden" name="id" value="{{ attendee.db_id }}" />
 <input type="hidden" name="group_id" value="{{ group_id }}" />
 
-<table width="100%" cellspacing="5" cellpadding="5">
-<tr>
-    <td width="25%"> <b><nobr>First and Last Name:</nobr></b> </td>
-    <td width="75%">
-        <input type="text" style="width:10em" name="first_name" value="{{ attendee.first_name }}" class="focus" />
-        <input type="text" style="width:15em" name="last_name"  value="{{ attendee.last_name }}" />
-    </td>
-</tr>
-{% include "preregistration/extra.html" %}
-{% include "preregistration/age_and_staffing.html" %}
-<tr>
-    <td> <b>Email Address:</b> </td>
-    <td> <input type="text" name="email" value="{{ attendee.email }}" /> </td>
-</tr>
-<tr>
-    <td> <b>Postal Code:</b> </td>
-    <td>
-        <input type="text" name="zip_code" value="{{ attendee.zip_code }}" />
-        <input type="checkbox" name="international" value="1" {% if attendee.international %}checked{% endif %} />
-        I'm coming from outside the US.
-    </td>
-</tr>
-{% include "preregistration/phone_numbers.html" %}
-<tr>
-    <td> <nobr>What interests you?</nobr> </td>
-    <td> {% checkgroup attendee.interests %} </td>
-</tr>
-<tr>
-    <td> <nobr>How did you</nobr> <nobr>find {{ EVENT_NAME }}?</nobr> </td>
-    <td> <input type="text" name="found_how" value="{{ attendee.found_how }}" /> </td>
-</tr>
-<tr>
-    <td> Comments: </td>
-    <td> <input type="text" name="comments" value="{{ attendee.comments }}" />  </td>
-</tr>
-<tr>
-    <td> <nobr>Keep Me Updated:</nobr> </td>
-    <td>
-        <input type="checkbox" name="can_spam" value="1" {% if attendee.can_spam %}checked{% endif %} />
-        Send me emails relating to {{ EVENT_NAME }} in future years. &nbsp;&nbsp;
-        <span class="popup">{% popup_link "../static_views/privacy.html" "View Our Privacy Policy" %}</span>
-    </td>
-</tr>
-<tr>
-    <td></td>
-    <td> <input type="submit" value="Claim This Badge" /> </td>
-</tr>
-</table>
+<div class="form-group" id="badge-types">
+    <label class="col-sm-2 control-label">Badge Level</label>
+</div>
 
+{% include "regform.html" %}
+
+<div class="form-group">
+    <div class="col-sm-6 col-sm-offset-2">
+        <button type="submit" class="btn btn-primary" id="updateButton">Register</button>
+    </div>
+</div>
 </form>
+</div>
 
 {% endblock %}

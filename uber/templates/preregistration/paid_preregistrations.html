@@ -2,61 +2,79 @@
 {% block title %}Preregistraton Successful{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
+<div class="masthead">
+</div>
 
-<h2>Thanks for Preregistering!</h2>
+<div class="panel panel-default">
+<div class="row bs-wizard" style="border-bottom:0;border-top:0;">
+    <div class="col-xs-4 bs-wizard-step complete">
+      <div class="text-center bs-wizard-stepnum">Step 1</div>
+      <div class="progress"><div class="progress-bar"></div></div>
+      <a class="bs-wizard-dot"></a>
+      <div class="bs-wizard-info text-center">Enter Info</div>
+    </div>
+    <div class="col-xs-4 bs-wizard-step complete">
+      <div class="text-center bs-wizard-stepnum">Step 2</div>
+      <div class="progress"><div class="progress-bar"></div></div>
+      <a class="bs-wizard-dot"></a>
+      <div class="bs-wizard-info text-center">Review &amp; Pay</div>
+    </div>
+    <div class="col-xs-4 bs-wizard-step active">
+      <div class="text-center bs-wizard-stepnum">Step 3</div>
+      <div class="progress"><div class="progress-bar"></div></div>
+      <a class="bs-wizard-dot"></a>
+      <div class="bs-wizard-info text-center">Done</div>
+    </div>
+</div>
 
-Your payment has been successfully processed; simply bring a photo ID to {{ EVENT_NAME }} and you should have no trouble picking up
-your badge at our registration desk.
-<br/><br/>
-The following preregistrations have been made from this computer:
-<br/><br/>
-<ul>
+
+<div class="row">
+  <div class="well col-md-offset-1 col-md-10">
+    <h1>Registration Complete</h1>
+    <p>
+      Congratulations! Your registration was successful.
+    </p>
+    <p>
+      Your credit card was successfully charged for
+      <strong>${{ total_cost }}</strong>, and you will receive a confirmation
+      email sent to you shortly. If you paid for other registrations, those
+      attendees will get their own confirmation email.
+    </p>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-offset-1 col-md-10">
+
+<p>The following preregistrations have been made from this computer:</p>
+
+<table class="table table-striped">
+<tr>
+    <td>Legal Name</td>
+    <td>Confirmation Link</td>
+</tr>
 {% for prereg in preregs %}
     {% if prereg.first_name %}
-        <li>
-            {{ prereg.full_name }}
-            {% if prereg.donation_swag %}
-                ({{ prereg.donation_swag|join:", " }})
-            {% endif %}
-        </li>
+        <tr>
+            <td>{{ prereg.full_name }}</td>
+            <td><a href="../preregistration/confirm?id={{ prereg.id }}" target="_blank">Click Here</a></td>
+        </tr>
     {% else %}
-        <li>
-            <b>{{ prereg.name }}</b>
-            (<a href="group_members?id={{ prereg.id }}">Click Here</a> to assign your group's badges)
-        </li>
+        <tr>
+            <td>{{ prereg.name }}</td>
+            <td colspan="3">(<a href="group_members?id={{ prereg.id }}" target="_blank">Click Here</a> to assign your group's badges)</td>
+        </tr>
     {% endif %}
 {% endfor %}
-</ul>
-<br/>
+</table>
+</div>
+</div>
 
-<a href="index">Click Here</a> to return to the main preregistration form.
-
-{% if not DEV_BOX %}
-    <script src="//platform.twitter.com/oct.js" type="text/javascript"></script>
-    <script type="text/javascript">
-    twttr.conversion.trackPid('l4pyr');
-    </script>
-    <noscript>
-    <img height="1" width="1" style="display:none;" alt="" src="https://analytics.twitter.com/i/adsct?txn_id=l4pyr&p_id=Twitter" />
-    <img height="1" width="1" style="display:none;" alt="" src="//t.co/i/adsct?txn_id=l4pyr&p_id=Twitter" />
-    </noscript>
-    <!-- Facebook Conversion Code for 13 registrations -->
-    <script>(function() {
-      var _fbq = window._fbq || (window._fbq = []);
-      if (!_fbq.loaded) {
-        var fbds = document.createElement('script');
-        fbds.async = true;
-        fbds.src = '//connect.facebook.net/en_US/fbds.js';
-        var s = document.getElementsByTagName('script')[0];
-        s.parentNode.insertBefore(fbds, s);
-        _fbq.loaded = true;
-      }
-    })();
-    window._fbq = window._fbq || [];
-    window._fbq.push(['track', '6017767805715', {'value':'0.00','currency':'USD'}]);
-    </script>
-    <noscript><img height="1" width="1" alt="" style="display:none" src="https://www.facebook.com/tr?ev=6017767805715&amp;cd[value]=0.00&amp;cd[currency]=USD&amp;noscript=1" /></noscript>
-{% endif %}
+<div class="row">
+  <div class="col-md-offset-1 col-md-10">
+    <a href="index">
+      <button class="btn btn-primary">Add Another Registration</button>
+    </a>
 
 {% include "preregistration/disclaimers.html" %}
 

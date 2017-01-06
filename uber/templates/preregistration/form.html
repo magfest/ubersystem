@@ -1,158 +1,192 @@
 {% extends "./preregistration/preregbase.html" %}
 {% block title %}Preregistration{% endblock %}
-{% block backlink %}{% endblock %}
 {% block content %}
 
-<form method="post" action="form">
+<div class="masthead"></div>
+
+<div class="panel panel-default">
+{% if attendee.is_dealer %}
+    <span class="text-center"><h2>Dealer Application</h2></span>
+{% else %}
+    <div class="row bs-wizard" style="border-bottom:0;border-top:0;">   
+        <div class="col-xs-4 bs-wizard-step active">
+            <div class="text-center bs-wizard-stepnum">Step 1</div>
+            <div class="progress">
+                <div class="progress-bar"></div>
+            </div>
+            <a class="bs-wizard-dot"></a>
+            <div class="bs-wizard-info text-center">Enter Info</div>
+        </div> 
+        <div class="col-xs-4 bs-wizard-step disabled">
+            <div class="text-center bs-wizard-stepnum">Step 2</div>
+            <div class="progress">
+                <div class="progress-bar"></div>
+            </div>
+            <a class="bs-wizard-dot"></a>
+            <div class="bs-wizard-info text-center">Review &amp; Pay</div>
+        </div>
+        <div class="col-xs-4 bs-wizard-step disabled">
+            <div class="text-center bs-wizard-stepnum">Step 3</div>
+            <div class="progress">
+                <div class="progress-bar"></div>
+            </div>
+            <a class="bs-wizard-dot"></a>
+            <div class="bs-wizard-info text-center">Done</div>
+        </div>
+    </div>
+
+    {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.BEFORE_DEALER_REG_SHUTDOWN %}
+        <div class="form-group row">
+            <p class="col-sm-6 col-sm-offset-2">
+                <strong>Dealers:</strong>
+                {% if c.BEFORE_DEALER_REG_PUBLIC %}
+                    Registrations for dealer memberships begin {{ c.DEALER_REG_START|datetime }}.
+                {% else %}
+                    Please register <a href="dealer_registration">here</a>.
+                {% endif %}
+            </p>
+        </div>
+    {% endif %}
+
+    <div class="form-group" id="reg-types">
+        <label class="col-sm-2 control-label" style="white-space:nowrap">Registration Type</label>
+    </div>
+{% endif %}
+
+<form method="post" action="form" class="form-horizontal" role="form">
+
 <input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
 {% if edit_id %}
     <input type="hidden" name="edit_id" value="{{ edit_id }}" />
 {% endif %}
 
-<table class="form">
-<tr>
-    <td><b>Badge:</b></td>
-    <td>
-        {% if attendee.badge_type == PSEUDO_GROUP_BADGE %}
-            Group Registration
-        {% elif attendee.badge_type == PSEUDO_DEALER_BADGE %}
-            Dealer Application
-        {% else %}
-            {{ attendee.badge_type_label }}
-            {% if badge_type == ATTENDEE %}
-                (${{ BADGE_PRICE }})
-            {% endif %}
-        {% endif %}
-    </td>
-</tr>
-{% if attendee.is_dealer or attendee.badge_type == PSEUDO_GROUP_BADGE %}
-    <tr>
-        <td><b><nobr>{{ attendee.is_dealer|yesno:"Business,Group" }} Name:</nobr></b></td>
-        <td> <input type="text" class="focus" name="name" value="{{ group.name }}" /> </td>
-    </tr>
+{% if not attendee.is_dealer %}
+    <div class="form-group" id="badge-types">
+        <label class="col-sm-2 control-label">Badge Level</label>
+    </div>
+
+    <div class="group_fields hide">
+        <div class="form-group">
+            <label for="name" class="col-sm-2 control-label">Group Name</label>
+            <div class="col-sm-6">
+                <input type="text" name="name" class="form-control" value="{{ group.name }}" />
+            </div>
+        </div>
+    </div>
+
+    <div class="group_fields hide">
+        <div class="form-group">
+            <label for="name" class="col-sm-2 control-label">Badges</label>
+            <div class="col-sm-6">
+                <select name="badges" class="form-control">{% int_options c.MIN_GROUP_SIZE c.MAX_GROUP_SIZE badges %}</select>
+            </div>
+            (${{ c.GROUP_PRICE }} each)
+        </div>
+    </div>
+{% else %}
+    <script>
+        $(function () {
+            $('#bold-field-message').insertBefore($.field('name').parents('.form-group'));
+        });
+    </script>
+
+    <div class="form-group">
+        <label for="name" class="col-sm-2 control-label">Dealer Table Name</label>
+        <div class="col-sm-6">
+            <input class="form-control" type="text" class="focus" name="name" value="{{ group.name }}" maxlength="40" />
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="tables" class="col-sm-2 control-label">Tables</label>
+        <div class="col-sm-6">
+            <select class="form-control" name="tables">
+                {% options c.PREREG_TABLE_OPTS group.tables %}
+            </select>
+            <span id="table_prices">({% table_prices %})</span>
+        </div>
+    </div>
+    <div class="form-group">
+        <p class="help-block col-sm-6 col-sm-offset-2"><i>You may contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a> to request more than {{ c.MAX_TABLES }} tables.</i></p>
+    </div>
+
+    <div class="form-group">
+        <label for="badges" class="col-sm-2 control-label">Badges</label>
+        <div class="col-sm-6">
+            <select class="form-control" name="badges">{% int_options 1 c.MAX_DEALERS badges %}</select>
+            (${{ c.DEALER_BADGE_PRICE }} per badge)
+        </div>
+    </div>
+    <div class="form-group">
+        <p class="help-block col-sm-6 col-sm-offset-2">The number of people working your table, including yourself.</p>
+    </div>
+
+    <div class="form-group">
+        <label for="wares" class="col-sm-2 control-label">What do you sell?</label>
+        <div class="col-sm-6">
+            <textarea class="form-control" name="wares" rows="4">{{ group.wares }}</textarea>
+        </div>
+    </div>
+    <div class="form-group">
+        <p class="help-block col-sm-6 col-sm-offset-2">Please be detailed; include a link to view your wares if possible.</p>
+    </div>
+
+    <div class="form-group">
+        <label for="description" class="col-sm-2 control-label">Description</label>
+        <div class="col-sm-6">
+            <textarea class="form-control" name="description" rows="4" maxlength="400">{{ group.description }}</textarea>
+        </div>
+    </div>
+    <div class="form-group">
+        <p class="help-block col-sm-6 col-sm-offset-2">Please keep to one sentence.</p>
+    </div>
+
+    <div class="form-group">
+        <label for="special_needs" class="col-sm-2 control-label optional-field">Table Requests and Special Requests</label>
+        <div class="col-sm-6">
+            <textarea class="form-control" name="special_needs" rows="4" placeholder="E.g., specific table, who you would like to sit near, who you would not like to sit near.">{{ group.special_needs }}</textarea>
+        </div>
+    </div>
+    <div class="form-group">
+        <p class="help-block col-sm-6 col-sm-offset-2">No guarantees that we can accommodate any requests.</p>
+    </div>
+
+    <div class="form-group">
+        <label for="website" class="col-sm-2 control-label">Website URL</label>
+        <div class="col-sm-6">
+            <input class="form-control" type="text" name="website" value="{{ group.website }}" size="40" />
+        </div>
+    </div>
+    <div class="form-group">
+        <p class="help-block col-sm-6 col-sm-offset-2">The one you want us to link on our website, or n/a</p>
+    </div>
+
+    <div class="form-group">
+        <label for="website" class="col-sm-2 control-label">Address and Phone Number</label>
+        <div class="col-sm-6">
+            <textarea class="form-control" name="address" rows="4" placeholder="Your or your business' full address and phone number for tax purposes.">{{ group.address }}</textarea>
+        </div>
+    </div>
 {% endif %}
-{% if attendee.is_dealer %}
-    <tr class="dealer">
-        <td><b>Tables:</b></td>
-        <td>
-            <select name="tables">
-                {% int_options 1 MAX_TABLES group.tables %}
-            </select> ({{ TABLE_PRICES }}) &nbsp;&nbsp;
-            <nobr>[<i>You may <a href="mailto:marketplace@magfest.org">send an email</a> to request more than {{ MAX_TABLES }} tables.</i>]</nobr>
-        </td>
-    </tr>
-{% endif %}
-{% if attendee.is_dealer or attendee.badge_type == PSEUDO_GROUP_BADGE %}
-    <tr>
-        <td><b>Badges:</b></td>
-        <td>
-            {% if attendee.is_dealer %}
-                <select name="badges">{% int_options 1 MAX_DEALERS badges %}</select>
-                (${{ DEALER_BADGE_PRICE }} each) &nbsp;&nbsp; <nobr>[<i>The number of people working your table.</i>]</nobr>
-            {% else %}
-                <select name="badges">{% int_options MIN_GROUP_SIZE MAX_GROUP_SIZE badges %}</select>
-                (${{ GROUP_PRICE }} each)
-            {% endif %}
-        </td>
-    </tr>
-{% endif %}
-{% if attendee.is_dealer %}
-    <tr class="dealer">
-        <td>
-            <b>Address</b>
-            <br/> <i>For tax purposes</i>
-        </td>
-        <td> <textarea name="address" rows="4" cols="30">{{ group.address }}</textarea> </td>
-    </tr>
-    <tr class="dealer">
-        <td>
-            <b>What do you sell?</b>
-            <br/> <i>Please be detailed; include a link to view your wares if possible.</i>
-        </td>
-        <td> <textarea name="wares" rows="4" cols="30">{{ group.wares }}</textarea> </td>
-    </tr>
-    <tr>
-        <td> <b>Website URL</b> </td>
-        <td>
-            <input type="text" name="website" value="{{ group.website }}" size="40" />
-            <i>The one you want us to link on our Confirmed Dealers page, or</i> n/a
-        </td>
-    </tr>
-    <tr class="dealer">
-        <td>
-            <b>Brief Description</b>
-            <br/> <i>For our website; please keep to one sentence.</i>
-        </td>
-        <td> <textarea name="description" rows="4" cols="30">{{ group.description }}</textarea> </td>
-    </tr>
-    <tr class="dealer">
-        <td>
-            <b>Special Needs / Requests</b>
-            <br/> <i>No guarantees that we can accommodate any requests.</i>
-        </td>
-        <td> <textarea name="special_needs" rows="4" cols="30">{{ group.special_needs }}</textarea> </td>
-    </tr>
-{% endif %}
-<tr>
-    <td> <b><nobr>Legal First and Last Name:</nobr></b> </td>
-    <td>
-        <input type="text" style="width:10em" name="first_name" value="{{ attendee.first_name }}" class="focus" />
-        <input type="text" style="width:15em" name="last_name"  value="{{ attendee.last_name }}" />
-        <span class="popup">{% popup_link "../static_views/legal_name.html" "What does this mean?" %}</span>
-    </td>
-</tr>
-{% include "preregistration/extra.html" %}
-{% include "preregistration/noise_levels.html" %}
-{% include "preregistration/age_and_staffing.html" %}
-<tr>
-    <td> <b>Email Address:</b> </td>
-    <td> <input type="text" name="email" value="{{ attendee.email }}" /> </td>
-</tr>
-<tr>
-    <td> <b>Postal Code:</b> </td>
-    <td>
-        <table style="border-spacing:0px ; width:auto"> <tr>
-            <td style="padding:0px"> <input type="text" name="zip_code" value="{{ attendee.zip_code }}" /> </td>
-            <td style="padding-left:15px"> {% checkbox attendee.international %} I'm coming from outside the US. </td>
-        </tr> </table>
-    </td>
-</tr>
-{% include "preregistration/phone_numbers.html" %}
-<tr>
-    <td> What interests you? </td>
-    <td> {% checkgroup attendee.interests %} </td>
-</tr>
-<tr>
-    <td> How did you <br/> find {{ EVENT_NAME }}? </td>
-    <td> <input type="text" name="found_how" value="{{ attendee.found_how }}" /> </td>
-</tr>
-<tr>
-    <td> Comments: </td>
-    <td> <input type="text" name="comments" value="{{ attendee.comments }}" />  </td>
-</tr>
-<tr>
-    <td> Keep Me Updated: </td>
-    <td>
-        {% checkbox attendee.can_spam %} Send me emails relating to {% organization_and_event_name %} in future years. &nbsp;&nbsp;
-        <span class="popup">{% popup_link "../static_views/privacy.html" "View Our Privacy Policy" %}</span>
-    </td>
-</tr>
-<tr>
-    <td></td>
-    <td>
+
+{% include "regform.html" %}
+
+<div class="form-group">
+    <div class="col-sm-6 col-sm-offset-2">
         {% if attendee.is_dealer %}
-            <input type="submit" value="Submit Application" />
+            <button type="submit" class="btn btn-primary" value="Submit Application">Submit Application</button>
+        {% elif not edit_id %}
+            <button type="submit" class="btn btn-primary" value="Add to Cart">Add to Cart</button>
         {% else %}
-            <input type="submit" value="Preregister" />
+            <button type="submit" class="btn btn-primary" value="Update">Update</button>
         {% endif %}
-    </td>
-</tr>
-</table>
+    </div>
+</div>
 
 </form>
 
-<b>Bold fields are required</b>
-
 {% include "preregistration/disclaimers.html" %}
+
+</div>
 
 {% endblock %}

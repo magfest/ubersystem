@@ -1,0 +1,23 @@
+{% extends "base-admin.html" %}
+{% block title %}Setup/Teardown Shifts{% endblock %}
+{% block content %}
+
+<h2> Setup/Teardown Neglect </h2>
+
+{% for category, jobs in unfilled %}
+    <h3> {% if jobs|length %}{{ jobs|length }}{% endif %} Unfilled {{ category }} Shifts </h3>
+    <table style="width:auto">
+    {% for job in jobs %}
+        <tr>
+            <td><a href="../jobs/form?id={{ job.id }}">{{ job.name }}</a></td>
+            <td>{% timespan job %}</td>
+            <td>{{ job.location_label }}</td>
+            <td>{{ job.slots_taken }} / {{ job.slots }} slots filled</td>
+        </tr>
+    {% empty %}
+        <i>none</i>
+    {% endfor %}
+    </table>
+{% endfor %}
+
+{% endblock %}

@@ -3,149 +3,156 @@
 {% block content %}
 
 <script type="text/javascript">
-    var $shirtOpts = $("<select/>").attr("id", "shirt");
-    $.each({{ MERCH_SHIRT_OPTS|jsonize }}, function(i,size) {
-        $shirtOpts.append($("<option/>").val(size[0]).text(size[1]));
+    var $shirtOpts = $('<select/>').attr('id', 'shirt');
+    $.each({{ c.MERCH_SHIRT_OPTS|jsonize }}, function(i,size) {
+        $shirtOpts.append($('<option/>').val(size[0]).text(size[1]));
     });
-    
-    function recordSale() {
-        $.post("record_sale", {
-                id:         "None",
-                what:       $("#what_select").val() || $("#what_text").val() || "",
-                cash:       $("#store_cash").val(),
-                mpoints:    $("#store_mpoints").val(),
-                csrf_token: csrf_token
-            }, function(json) {
-                $("#message").html(json.message);
-                if (json.success) {
-                    $("#message").append(' &nbsp; <a href="#" onClick="undoSale(' + json.id + ') ; return false">Undo</a>');
-                }
-            }, "json");
+
+    var recordSale = function () {
+        $.post('record_sale', {
+            id:         'None',
+            what:       $('#what_select').val() || $('#what_text').val() || '',
+            cash:       $('#store_cash').val(),
+            mpoints:    $('#store_mpoints').val(),
+            csrf_token: csrf_token
+        }, function(json) {
+            $('#message').html(json.message);
+            if (json.success) {
+                $('#message').append(' &nbsp; <a href="#" onClick="undoSale(\'' + json.id + '\') ; return false">Undo</a>');
+            }
+        }, 'json');
     }
-    function undoSale(id) {
-        $.post("undo_sale", {"id": id, csrf_token: csrf_token}, function(message) {
-            $("#message").html(message);
+    var undoSale = function (id) {
+        $.post('undo_sale', {id: id, csrf_token: csrf_token}, function(message) {
+            $('#message').html(message);
         });
     }
-    function showOrHideWhatText(page_loading) {
-        $("#store_mpoints").val("0");
-        if( $("#what_select").val() == "" ) {
-            $("#what_text").show().focus();
-            $("#store_cash").val("");
+
+    var showOrHideWhatText = function (pageLoading) {
+        $('#store_mpoints').val('0');
+        if($('#what_select').val() === '') {
+            $('#what_text').show().focus();
+            $('#store_cash').val('');
         }
         else {
-            var prices = {{ STORE_PRICES|safe }};
-            $("#what_text").val("").hide();
-            $("#store_cash").val( prices[$("#what_select").val()] );
-            if( !page_loading )
-                $("#store_amount").focus();
+            var prices = {{ c.STORE_PRICES|jsonize }};
+            $('#what_text').val('').hide();
+            $('#store_cash').val( prices[$('#what_select').val()] );
+            if (!pageLoading) {
+                $('#store_amount').focus();
+            }
         }
     }
     
-    function recordMPointExchange() {
-        $.post("record_mpoint_exchange", {
-                badge_num:  $("#ex_badge_num").val(),
-                mpoints:    $("#ex_mpoints").val(),
-                csrf_token: csrf_token
-            }, function(json) {
-                $("#message").html(json.message);
-                if (json.success) {
-                    $("#ex_badge_num,#ex_mpoints").val("");
-                    $("#message").append(' &nbsp; ').append(
-                        $('<a href="#">Undo</a>').click(function(){
-                            undoMPointExchange(json.id);
-                            return false;
-                        }));
-                }
-           }, "json");
+    var recordMPointExchange = function () {
+        $.post('record_old_mpoint_exchange', {
+            badge_num:  $('#ex_badge_num').val(),
+            amount:     $('#ex_mpoints').val(),
+            csrf_token: csrf_token
+        }, function(json) {
+            $('#message').html(json.message);
+            if (json.success) {
+                $('#ex_badge_num,#ex_mpoints').val('');
+                $("#message").append(' &nbsp; ').append(
+                    $('<a href="#">Undo</a>').click(function(){
+                        undoMPointExchange(json.id);
+                        return false;
+                    }));
+            }
+       }, 'json');
     }
-    function undoMPointExchange(id) {
-        $.post("undo_mpoint_exchange", {"id": id, csrf_token: csrf_token}, function(s) {
-            $("#message").html(s);
+    var undoMPointExchange = function (id) {
+        $.post('undo_mpoint_exchange', {'id': id, csrf_token: csrf_token}, function(s) {
+            $('#message').html(s);
         });
     }
-    
-    function giveMerch(noShirt, id, shirtSize) {
-        $("#give button").attr("disabled", true);
-        $.post("give_merch", {id: id, csrf_token: csrf_token, no_shirt: noShirt, shirt_size: shirtSize || null}, function(json) {
-            $("#give").html("");
-            $("#badge_num").val("");
-            $("#message").html(json.message);
+
+    var giveMerch = function (noShirt, id, shirtSize) {
+        $('#give button').attr('disabled', true);
+        $.post('give_merch', {id: id, csrf_token: csrf_token, no_shirt: noShirt, shirt_size: shirtSize || null}, function(json) {
+            $('#give').html('');
+            $('#badge_num').val('');
+            $('#message').html(json.message);
             if (json.success) {
-                $("#message")
-                    .append(" &nbsp; ")
+                $('#message')
+                    .append(' &nbsp; ')
                     .append(
                         $('<a href="#">Undo</a>').click(function(){
                             takeBackMerch(id);
                             return false;
                          }));
             }
-        }, "json");
+        }, 'json');
     }
-    function takeBackMerch(id) {
-        $.post("take_back_merch", {id: id, csrf_token: csrf_token}, function(message) {
-            $("#message").html(message);
+    var takeBackMerch = function (id) {
+        $.post('take_back_merch', {id: id, csrf_token: csrf_token}, function(message) {
+            $('#message').html(message);
         });
     }
     
     $(function(){
-        $("#message").ajaxError(function(){
-            showTop("Oh noes - the web server is down or something!!!!!");
+        $('#message').ajaxError(function () {
+            toastr.error('Oh noes - the web server is down or something!!!!!');
         });
         
-        $("input[type=text],input[type=number]").on("focus", function(event){
+        $('input[type=text],input[type=number]').on('focus', function(event){
             var field = event.target;
             setTimeout(function(){ field.select(); }, 1);
         });
         
         showOrHideWhatText(true);
-        $("#what_text,#store_amount").keypress(function(e){
+        $('#what_text,#store_amount').keypress(function(e){
             if( (e.keyCode || e.which) == 13 )  // ENTER
                 recordSale();
         });
         
-        $("#ex_badge_num,#ex_mpoints,#cash").keypress(function(e){
+        $('#ex_badge_num,#ex_mpoints,#cash').keypress(function(e){
             if( (e.keyCode || e.which) == 13 )  // ENTER
                 recordMPointExchange();
         });
         
-        $("#swag").on("submit", function(e){
-            $("#give,#message").html("");
-            $.post("check_merch", {csrf_token: csrf_token, badge_num: $("#badge_num").val()}, function(resp) {
+        $('#swag').on('submit', function(e){
+            $('#give,#message').html('');
+            $.post('check_merch', {csrf_token: csrf_token, badge_num: $('#badge_num').val()}, function(resp) {
                 if (!resp.id) {
-                    $("#message").html(resp.message);
+                    $('#message').html(resp.message);
                 } else {
-                    $("#give").html(resp.message.replace(" and ", " ")
-                                        .replace(" received ", " received<br/>- ")
-                                        .replace(/,/g, "<br/>- ")
-                                  + "<br/>");
-                    if (resp.shirt != {{ NO_SHIRT }}) {
-                        $("#give").append("Choose a shirt size:").append($shirtOpts);
-                        $("#give select").val(resp.shirt);
+                    $('#give').html(resp.message.replace(' and ', ',')
+                                        .replace(' received ', ' received<br/>- ')
+                                        .replace(/,/g, '<br/>- ')
+                                        .replace('<br/>- <br/>- ', '<br/>- ')
+                                  + '<br/>');
+                    if (resp.shirt != {{ c.NO_SHIRT }}) {
+                        $('#give').append('Choose a shirt size:').append($shirtOpts);
+                        $('#give select').val(resp.shirt);
                     }
-                    $("#give").append(
+                    $('#give').append(
                         $('<button>Give Merch</button>').click(function() {
                             giveMerch('', resp.id, $("#shirt").val());
                             return false;
                         })
                     );
-                    {% if OUT_OF_SHIRTS %}
+                    {% if c.OUT_OF_SHIRTS %}
                         $("#give").append(
                             $('<button>Give Merch Without Shirt</button>').click(function() {
-                                giveMerch('no_shirt', resp.id, $("#shirt").val());
+                                giveMerch('no_shirt', resp.id, $('#shirt').val());
                                 return false;
                             })
                         );
                     {% endif %}
                 }
-            }, "json");
+            }, 'json');
             return false;
         });
     });
 </script>
 
+<div id="message" style="color:red ; margin-bottom:10px">&nbsp;</div>
+
 <div class="center" style="margin-bottom:10px ; font-style:italic">
     Square not working?  In a pinch, you can create arbitrary charges <a href="arbitrary_charge_form">here</a>.
+    <br/>See outstanding t-shirt counts <a href="../summary/shirt_counts">here</a>.
+    <br/>To have one person pick up merch for others, <a href="multi_merch_pickup">click here</a>.
 </div>
 
 <table>
@@ -160,7 +167,7 @@
     <td> Record a Sale: </td>
     <td>
         <select id="what_select" onChange="showOrHideWhatText()">
-            {% options STORE_ITEM_NAMES %}
+            {% options c.STORE_ITEM_NAMES %}
             <option value="">Other...</option>
         </select>
         <input type="text" id="what_text" size="20" maxlength="50" />

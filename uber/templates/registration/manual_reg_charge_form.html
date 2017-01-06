@@ -13,7 +13,7 @@
         <form method="post" action="mark_as_paid">
         {% csrf_token %}
         <input type="hidden" name="id" value="{{ attendee.id }}" />
-        <input type="hidden" name="payment_method" value="{{ SQUARE }}" />
+        <input type="hidden" name="payment_method" value="{{ c.SQUARE }}" />
         {% stripe_button "Nevermind, I'm actually using Square" %}
         </form>
     </td>
@@ -21,7 +21,7 @@
         <form method="post" action="mark_as_paid">
         {% csrf_token %}
         <input type="hidden" name="id" value="{{ attendee.id }}" />
-        <input type="hidden" name="payment_method" value="{{ CASH }}" />
+        <input type="hidden" name="payment_method" value="{{ c.CASH }}" />
         {% stripe_button "Nevermind, they're actually paying cash" %}
         </form>
     </td>

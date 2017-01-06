@@ -1,1 +1,5 @@
-{% nav_menu attendee "form?id={id}" "Attendee Data" True "shifts?id={id}" "Shifts" attendee.staffing "history?id={id}" "History" True "staffers" "Return to Staffer List" attendee.staffing "index" "Return to Attendee List" True %}
+{% if c.HAS_WATCHLIST_ACCESS %}
+    {% nav_menu attendee "form?id={id}" "Attendee Data" True "shifts?id={id}" "Shifts" attendee.staffing "history?id={id}" "History" True "watchlist?attendee_id={id}" "Watch List Entry" attendee.banned "index" "Return to Attendee List" c.PRE_CON "index?search_text={id}" "Return to Attendee List" c.AT_THE_CON "index" "Return to Attendee List" c.POST_CON %}
+{% else %}
+    {% nav_menu attendee "form?id={id}" "Attendee Data" True "shifts?id={id}" "Shifts" attendee.staffing "history?id={id}" "History" True "index" "Return to Attendee List" c.PRE_CON "index?search_text={id}" "Return to Attendee List" c.AT_THE_CON "index" "Return to Attendee List" c.POST_CON %}
+{% endif %}

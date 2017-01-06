@@ -4,9 +4,9 @@
 
 {% include "registration/menu.html" %}
 
-<h2>Changelog for {{ attendee.full_name }} {% if AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
+<h2>Changelog for {{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
 
-<table class="list">
+<table class="list" border="1" borderspacing="0">
 <tr class="header">
     <td>Which</td>
     <td>What</td>
@@ -16,11 +16,11 @@
 </tr>
 {% for tracked in changes %}
     <tr>
-        <td style="white-space:nowrap">{{ tracked.model }}</td>
-        <td style="white-space:nowrap">{{ tracked.action_label }}</td>
-        <td style="white-space:nowrap">{{ tracked.when|full_datetime }}</td>
-        <td style="white-space:nowrap">{{ tracked.who }}</td>
-        <td>{{ tracked.data }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.model }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.action_label }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.when|full_datetime }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.who }}</td>
+        <td valign="top">{{ tracked.data }}</td>
     </tr>
 {% endfor %}
 </table>
@@ -59,7 +59,11 @@
 {% for email in emails  %}
     {% if forloop.first %}<h2> Automated Emails </h2>{% endif %}
     <h3> {{ email.subject }} ({{ email.when|full_datetime }}) </h3>
-    <div style="font-family:courier">{{ email.html }}</div>
+    {% if email.is_html %}
+        (content of HTML email omitted; you can view the full email <a href="../emails/sent?id={{ email.id }}">here</a>)
+    {% else %}
+        <div style="font-family:courier">{{ email.html }}</div>
+    {% endif %}
 {% endfor %}
 
 {% endblock %}

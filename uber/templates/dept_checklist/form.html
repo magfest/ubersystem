@@ -1,0 +1,20 @@
+{% extends "base-admin.html" %}
+{% block title %}Department Checklist - {{ item.name }}{% endblock %}
+{% block content %}
+
+<h2>{{ conf.name }}</h2>
+
+<form method="post" action="form" class="center">
+{{ conf.description }}
+<br/> <br/>
+<input type="hidden" name="slug" value="{{ item.slug }}" />
+{% csrf_token %}
+<textarea name="comments" rows="5" cols="80">{{ item.comments|default:"" }}</textarea>
+<br/>
+<input type="submit" value="Upload" />
+{% if item.is_new %}
+    <br/><i>Note: please submit this even if this doesn't apply to you so we know you don't need anything from us.</i>
+{% endif %}
+</form>
+
+{% endblock %}

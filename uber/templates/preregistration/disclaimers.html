@@ -3,10 +3,17 @@
 
 <div style="font-weight:bold ; color:red ; margin-bottom:5px">Disclaimers:</div>
 <ul>
-    <li> Your registration is non-refundable but may be sold/transferred. </li>
-    <li> If you don't pay for your registration, it will be be deleted and you will have to pay full price at the door. </li>
-    <li> Attendees (including dealers) must abide by our <a target="_blank" href="{{CODE_OF_CONDUCT_URL}}">code of conduct</a>. </li>
-    <li> Submitting this form as a Dealer does not guarantee you will be selected for the Marketplace - it is only the application. </li>
+    <li> Please review our badge polices and other <a href="http://www.magfest.org/faq">frequently asked questions</a> prior to purchasing your badge for important information. </li> 
+    <li> If you don't pay for your registration, it will be deleted and you will have to pay full price at the door. </li> 
+    <li> Your registration is <a href="http://www.magfest.org/faq#-KAbbdlWaUSQd_sAxmw2">non-refundable</a> but may be <a href="http://www.magfest.org/faq#-KAbbiQUjpv0Zb11fwvw">sold/transferred</a>. </li> 
+    <li> MAGFest has a <a href="http://www.magfest.org/faq#-KAbb-J7_81rRy5jTDR1">one badge per person policy</a>. If you purchase multiple badges (for your family, as a gift), please ensure that each badge is purchased in the name of the individual who the badge is intended for. You may use the same email address for multiple badges so any surprises aren't ruined. </li> 
+    <li> Attendees (including dealers) must abide by our <a href="http://magfest.org/codeofconduct">code of conduct</a>. </li> 
+    {% if c.CONSENT_FORM_URL %}
+        <li> Attendees under 18 MUST bring a <a href="http://www.magfest.org/parentalconsentform">signed parental consent form</a>, which MUST be notarized if the parent is not with the minor when the badge is picked up. Also, All children 12 and under will need to be accompanied by an adult with a paid badge. </li> 
+    {% endif %}
+    {% if c.DEALER_REG_START %}
+        <li> Submitting this form as a Dealer does not guarantee you will be selected for the Dealers Room - it is only the application. </li> 
+    {% endif %}
 </ul>
 <br/>
 

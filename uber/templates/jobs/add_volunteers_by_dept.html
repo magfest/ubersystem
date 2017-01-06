@@ -1,0 +1,22 @@
+{% extends "base-admin.html" %}
+{% block title %}Add Volunteers{% endblock %}
+{% block content %}
+
+<!-- Here's the department we've selected.  We can change to the page for a different department just by changing the value in this dropdown. -->
+<script>
+    var deptChanged = function () {
+        window.location = 'add_volunteers_by_dept?location=' + $('#dept').val();
+    };
+</script>
+<select id="dept" onChange="deptChanged()">
+    {% options c.JOB_LOCATION_OPTS location %}
+</select>
+
+<br/><br/>
+
+<!-- Ok, now here's a dropdown with all of the MAGFest attendees who are NOT placeholder attendees (whether they're already volunteers or not) and who aren't already assigned to this department: -->
+<select name="attendee_id">
+    {% options not_already_here %}
+</select>
+
+{% endblock %}

@@ -2,7 +2,7 @@
 <head></head>
 <body>
 
-You ({{ attendee.full_name }}) have preregistered for {{ EVENT_NAME }}
+You ({{ attendee.full_name }}) have preregistered for {{ c.EVENT_NAME }} this coming {% event_dates %}
 {% if attendee.group %}
     by claiming one of the badges in the {{ attendee.group.name }} group.
 {% else %}
@@ -12,12 +12,12 @@ Your registration confirmation number is {{ attendee.id }}, and you can update y
 {% if attendee.amount_extra %}
     even more
 {% endif %}
-extra money <a href="{{ URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">here</a>.
+extra money <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">here</a>.
 
 <br/> <br/>
 
-Badges are not mailed out before the event, so your badge will be available for pickup at the registration desk when you arrive at {{ EVENT_NAME }}.  Simply bring a photo ID to the registration desk, where you'll be provided with your badge.
-{% if DONATIONS_ENABLED %}
+Badges are not mailed out before the event, so your badge will be available for pickup at the registration desk when you arrive at {{ c.EVENT_NAME }}.  Simply bring a photo ID to the registration desk, where you'll be provided with your badge.
+{% if c.DONATIONS_ENABLED %}
     If you ordered bonus items such as a ribbon, t-shirt, or supporter package, you can pick those up at our merchandise booth.
     The location and hours of the registration desk and merchandise booth will be e-mailed prior to the event.
 {% endif %}
@@ -26,7 +26,7 @@ Badges are not mailed out before the event, so your badge will be available for 
     <br/> <br/>
     Your additional contribution of ${{ attendee.amount_extra }} provides you with these bonus items, which may be picked up at our merch booth:
     <ul>
-    {% for swag in attendee.donation_swag %}
+    {% for swag in attendee.donation_swag|add:attendee.addons %}
         <li>{{ swag }}</li>
     {% endfor %}
     </ul>
@@ -34,12 +34,12 @@ Badges are not mailed out before the event, so your badge will be available for 
 
 {% include "emails/reg_workflow/reg_notes.html" %}
 
-{% if attendee.is_transferrable %}
+{% if attendee.is_transferable %}
     <br/> <br/>
-    {{ EVENT_NAME }} has a no-refund policy for all registrations.  If for any reason you can't make it, we allow and encourage
+    {{ c.EVENT_NAME }} has a no-refund policy for all registrations.  If for any reason you can't make it, we allow and encourage
     you to resell your registration for the exact price you paid for it.  To transfer your registration to another person,
-    send them <a href="{{ URL_BASE }}/preregistration/transfer_badge?id={{ attendee.id }}">this personalized link</a>,
-    which will work until {{ UBER_TAKEDOWN|datetime }}.
+    send them <a href="{{ c.URL_BASE }}/preregistration/transfer_badge?id={{ attendee.id }}">this personalized link</a>,
+    which will work until {{ c.UBER_TAKEDOWN|datetime }}.
 {% endif %}
 
 </body>

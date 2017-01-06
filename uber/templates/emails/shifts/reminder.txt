@@ -1,11 +1,11 @@
 {{ attendee.first_name }},
 
-Thanks again for signing up to volunteer at {{ EVENT_NAME }}!  You're not currently signed up for any shifts, and it's really helpful when our staffers sign up for shifts as far in advance as possible, since that lets us know which times and departments are shorthanded.
+Thanks again for signing up to volunteer at {{ c.EVENT_NAME }}!  You're not currently signed up for any shifts, and it's really helpful when our staffers sign up for shifts as far in advance as possible, since that lets us know which times and departments are shorthanded.
 
-Please sign up for shifts at {{ URL_BASE }}/signups/login and if you have trouble logging in, you can verify/update your personal information at {{ URL_BASE }}/preregistration/confirm?id={{ attendee.id }}
+Please sign up for shifts at {{ c.URL_BASE }}/signups/login and if you have trouble logging in, you can verify/update your personal information at {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}
 
-You can add / drop / change your shifts anytime until {{ UBER_TAKEDOWN|datetime }}.
+You can add / drop / change your shifts anytime until {{ c.UBER_TAKEDOWN|datetime }}.
 
 Please let us know if you have any questions.
 
-{{ STOPS_EMAIL_SIGNATURE }}
+{{ c.STOPS_EMAIL_SIGNATURE }}

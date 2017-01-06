@@ -1,49 +1,35 @@
 {% extends "base-admin.html" %}
 {% block title %}Staffing Admin{% endblock %}
 {% block content %}
+<ol class="breadcrumb">
+  <li><a href="../accounts/homepage">Home</a></li>
+  <li>People</li>
+  <li class="active">Staffers</li>
+</ol>
 
-<form method="get" action="staffers" style="text-align:center">
-<input type="hidden" name="order" value="{{ order }}" />
-<b>Search:</b> <input class="focus" type="text" name="search_text" style="width:15em" value="{{ search_text }}" />
-</form>
+<div class="row">
+    <div class="col-md-2">{{ staffers|length }} volunteers</div>
+    <div class="col-md-2">{{ taken_hours }} shift hours taken</div>
+    <div class="col-md-2">{{ total_hours }} shift hours exist</div>
+</div>
 
-<h2>
-    {% if search_text %}
-        Volunteer Search Results
-    {% else %}
-        Volunteers
+<table class="table table-striped datatable">
+<thead><tr>
+    <th>Name</th>
+    <th>Badge</th>
+    <th>Paid</th>
+    <th><nobr>Assigned To</nobr></th>
+    <th>Hours</th>
+    {% if c.AT_OR_POST_CON %}
+        <th>Worked</th>
     {% endif %}
-</h2>
-
-{% if search_text %}
-    <div class="center"><a href="staffers">Show All Volunteers</a></div>
-{% endif %}
-
-<table style="text-align:center ; font-weight: bold" cellspacing="25"><tr/>
-    <td width="33%">{{ staffer_count }} volunteers</td>
-    <td width="33%">{{ taken_hours }} shift hours taken</td>
-    <td width="33%">{{ total_hours }} shift hours exist</td>
-</tr></table>
-
-<br/>
-
-<table class="list">
-<tr class="header">
-    <td align="left"> <a href="index?order={{ order.first_name }}">Name</a> </td>
-    <td> <a href="staffers?order={{ order.badge_num }}">Badge</a> </td>
-    <td> <a href="staffers?order={{ order.paid }}">Paid</a> </td>
-    <td> <a href="staffers?order={{ order.assigned_depts }}">Assigned To</a> </td>
-    <td> <a href="staffers?order={{ order.weighted_hours }}">Hours</a> </td>
-    {% if AT_OR_POST_CON %}
-        <td> <a href="staffers?order={{ order.hours_worked }}">Worked</a> </td>
+    {% if c.AT_THE_CON %}
+        <th><nobr>Checked In</nobr></th>
     {% endif %}
-    {% if AT_THE_CON %}
-        <td> <a href="staffers?order={{ order.checked_in }}"><nobr>Checked In</nobr></a> </td>
-    {% endif %}
-</tr>
+</tr></thead>
 {% for attendee in staffers %}
-    <tr bgcolor="{% cycle #FFFFFF,#DDDDDD %}">
-        <td style="text-align:left"> <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a> </td>
+    <tr>
+        <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}" style="text-align:left"> <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a> </td>
         <td>{{ attendee.badge }}</td>
         <td>{{ attendee.paid_label }}</td>
         <td style="text-align:left">
@@ -55,11 +41,11 @@
                 {% endfor %}
             </ul>
         </td>
-        <td> <a href="shifts?id={{ attendee.id }}">{{ attendee.weighted_hours }}</a> </td>
-        {% if AT_OR_POST_CON %}
-            <td> <a href="shifts?id={{ attendee.id }}">{{ attendee.worked_hours }}</a> </td>
+        <td data-order="{{ attendee.weighted_hours }}" data-search="{{ attendee.weighted_hours }}"> <a href="shifts?id={{ attendee.id }}">{{ attendee.weighted_hours }}</a> </td>
+        {% if c.AT_OR_POST_CON %}
+            <td data-order="{{ attendee.worked_hours }}" data-search="{{ attendee.worked_hours }}"> <a href="shifts?id={{ attendee.id }}">{{ attendee.worked_hours }}</a> </td>
         {% endif %}
-        {% if AT_THE_CON %}
+        {% if c.AT_THE_CON %}
             <td>{{ attendee.checked_in|yesno:"Checked In,Not Checked In" }}</td>
         {% endif %}
     </tr>

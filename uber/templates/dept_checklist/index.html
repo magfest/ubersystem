@@ -1,0 +1,21 @@
+{% extends "base-admin.html" %}
+{% block title %}Department Checklist{% endblock %}
+{% block content %}
+
+<h2>Department Head Checklist for {{ attendee.full_name }}</h2>
+
+As one of the people running {{ attendee.assigned_depts_labels.0 }}, we need you to fill out the following information about your department.  Some of these may not apply to you, but we still need you to complete all items so that we can tell the difference between someone who doesn't need anything and someone who hasn't looked at this yet!
+
+<br/> <br/>
+<table style="width:auto">
+{% for item, done in checklist %}
+    <tr>
+        <td width="25"> <img style="vertical-align:top ; margin-right:5px" height="20" width="20" src="../static/images/{% if done %}checkbox_checked.png{% else %}checkbox_unchecked.png{% endif %}" /> </td>
+        <td><b>{{ item.name }}</b></td>
+        <td><a href="..{{ item|dept_checklist_path:attendee }}">{% if done %}Edit{% else %}Do This Now{% endif %}</a></td>
+        <td><i>Deadline:</i> {{ item.deadline|datetime }}</td>
+    </tr>
+    <tr><td colspan="4">{{ item.description }}<br/></br></td></tr>
+{% endfor %}
+
+{% endblock %}

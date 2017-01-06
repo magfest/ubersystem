@@ -1,19 +1,23 @@
 from uber.common import *
 
+words = []
+offset_from = c.EPOCH
+
 groups, attendees = {}, {}
-with open(join(MODULE_ROOT, 'tests', 'test_data.json')) as f:
+with open(join(c.MODULE_ROOT, 'tests', 'test_data.json')) as f:
     dump = json.load(f)
 
-offset_from = EPOCH
+
 def offset_to_datetime(offset):
     return offset_from + timedelta(hours=offset)
 
-words = []
+
 def random_group_name():
     if not words:
         with open('/usr/share/dict/words') as f:
             words[:] = [s.strip() for s in f if len(s) > 3 and re.match('^[a-z]+$', s)]
     return ' '.join(random.choice(words).title() for i in range(2))
+
 
 def import_groups(session):
     for g in dump['groups']:
@@ -22,6 +26,7 @@ def import_groups(session):
         g['name'] = random_group_name()
         groups[secret_id] = Group(**g)
         session.add(groups[secret_id])
+
 
 def import_attendees(session):
     for a in dump['attendees']:
@@ -32,14 +37,16 @@ def import_attendees(session):
 
     for f in dump['food']:
         f['attendee'] = attendees[f.pop('attendee_id')]
+        f.setdefault('sandwich_pref', PBJ)  # sandwich_pref didn't exist when the dump was taken
         session.add(FoodRestrictions(**f))
 
     for h in dump['hotel']:
         h['attendee'] = attendees[h.pop('attendee_id')]
         session.add(HotelRequests(**h))
 
+
 def import_events(session):
-    event_locs, _ = zip(*EVENT_LOCATION_OPTS)
+    event_locs, _ = zip(*c.EVENT_LOCATION_OPTS)
     for e in dump['events']:
         if e['location'] in event_locs:
             e['start_time'] = offset_to_datetime(e['start_time'])
@@ -49,8 +56,9 @@ def import_events(session):
             for secret_id in panelists:
                 session.add(AssignedPanelist(event=event, attendee=attendees[secret_id]))
 
+
 def import_jobs(session):
-    job_locs, _ = zip(*JOB_LOCATION_OPTS)
+    job_locs, _ = zip(*c.JOB_LOCATION_OPTS)
     for j in dump['jobs']:
         if j['location'] in job_locs:
             j['start_time'] = offset_to_datetime(j['start_time'])
@@ -59,6 +67,7 @@ def import_jobs(session):
             session.add(job)
             for secret_id in shifts:
                 job.shifts.append(Shift(attendee=attendees[secret_id]))
+
 
 @entry_point
 def import_uber_test_data():

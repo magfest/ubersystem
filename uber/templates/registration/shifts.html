@@ -2,6 +2,7 @@
 {% block title %}Staffing Shifts - {{ attendee.full_name }}{% endblock %}
 {% block content %}
 
+<script type="text/javascript" src="../static_views/ratings.js"></script>
 <script type="text/javascript">
     var SHIFTS = {{ shifts|jsonize }};
     $(setupRatingClickHandler);
@@ -9,31 +10,27 @@
 
 {% include "registration/menu.html" %} <br/>
 
-<h2>{{ attendee.full_name }} {% if AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
+<h2>{{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
 
 <table width="100%">
 <tr>
     <td width="50%">
-        {% if possible %}
-            <form method="post" action="assign">
-            {% csrf_token %}
-            <input type="hidden" name="staffer_id" value="{{ attendee.id }}" />
-            <b>Add a Shift:</b>
-            <select name="job_id">
-                {% options possible %}
-            </select>
-            <input type="submit" value="Assign" />
-            </form>
-        {% else %}
-            <i> No additional shifts are available. </i>
-        {% endif %}
+        <form method="post" action="assign">
+        {% csrf_token %}
+        <input type="hidden" name="staffer_id" value="{{ attendee.id }}" />
+        <b>Add a Shift:</b>
+        <select name="job_id">
+            {% options jobs %}
+        </select>
+        <input type="submit" value="Assign" />
+        </form>
     </td>
     <td width="50%" align="right">
         <form method="post" action="update_nonshift">
         {% csrf_token %}
         <input type="hidden" name="id" value="{{ attendee.id }}" />
         <b>Non-shift hours:</b>
-        <input type="text" class="focus" name="nonshift_hours" value="{{ attendee.nonshift_hours }}" style="width:2em" />
+        <input type="number" class="focus" name="nonshift_hours" value="{{ attendee.nonshift_hours }}" style="width:3em" />
         <input type="submit" value="Update" />
         </form>
     </td>
@@ -45,7 +42,7 @@
 {% if attendee.shifts %}
     <b>
         Shifts signed up for by {{ attendee.full_name }}
-        {% if AT_THE_CON %}
+        {% if c.AT_THE_CON %}
             {% if attendee.checked_in %}
                 <i>[checked in]</i>
             {% else %}
@@ -53,40 +50,49 @@
             {% endif %}
         {% endif %}
         ({{ attendee.weighted_hours }} weighted hours,
-        {{ attendee.hours|length|add:attendee.nonshift_hours }} actual hours):
-    </b>
+        {{ attendee.hours|length|add:attendee.nonshift_hours }} actual hours): </b>
+        {% if c.AT_OR_POST_CON %}<br />{{ attendee.worked_hours }} hours worked.{% endif %}
     <br/> <br/>
     <table width="95%" align="center">
     <tr style="font-weight:bold">
         <td>Job</td>
         <td>Dept</td>
         <td>Start</td>
+        <td>End</td>
         <td>Hours</td>
+        <td>Weighted Total</td>
         <td>Status</td>
         <td></td>
     </tr>
-    {% for shift in attendee.shifts %}
+    <style>
+        tr:nth-child(even){
+            background-color: #F5F5F5;
+        }
+    </style>
+    {% for shift in attendee.shifts|sortBy:'job.start_time' %}
         <tr>
             <td><a href="../jobs/form?id={{ shift.job.id }}">{{ shift.job.name }}</a></td>
             <td><a href="../jobs/index?location={{ shift.job.location }}">{{ shift.job.location_label }}</a></td>
             <td>{% hour_day shift.job.start_time %}</td>
+            <td>{% hour_day shift.job.end_time %}</td>
             <td>{{ shift.job.duration }} (x{{ shift.job.weight }})</td>
+            <td>{{ shift.job.weighted_hours}}</td>
             <td>
-                {% if shift.worked != SHIFT_UNMARKED %}
+                {% if shift.worked != c.SHIFT_UNMARKED %}
                     <i>{{ shift.worked_label }}</i>
                 {% else %}
                     <select onChange="setStatus('{{ shift.id }}', this)">
-                        {% options WORKED_OPTS shift.worked %}
+                        {% options c.WORKED_STATUS_OPTS shift.worked %}
                     </select>
                 {% endif %}
             </td>
             <form method="post" action="unassign">
             {% csrf_token %}
             <input type="hidden" name="shift_id" value="{{ shift.id }}" />
-            <td> <input type="submit" value="Unassign" /> </td>
+            <td style="padding-right:10px"> <input type="submit" value="Unassign" /> </td>
             </form>
             <td id="rating{{ shift.id }}"></td>
-            {% if shift.worked == SHIFT_WORKED %}
+            {% if shift.worked == c.SHIFT_WORKED %}
                 <script type="text/javascript">renderRating('{{ shift.id }}');</script>
             {% endif %}
         </tr>
@@ -99,10 +105,8 @@
 <form method="post" action="update_notes">
 {% csrf_token %}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
-{% if AT_OR_POST_CON %}
-    <br/> <b>Notes For Later Review:</b> <br/>
-    <textarea name="for_review" rows="4" style="margin-left:10px ; margin-top:5px ; width:80%">{{ attendee.for_review }}</textarea>
-{% endif %}
+<br/> <b>Notes For Later Review:</b> <br/>
+<textarea name="for_review" rows="4" style="margin-left:10px ; margin-top:5px ; width:80%">{{ attendee.for_review }}</textarea>
 <br/> <br/> <b>Admin Notes:</b> <br/>
 <textarea name="admin_notes" rows="4" style="margin-left:10px ; margin-top:5px ; width:80%">{{ attendee.admin_notes }}</textarea>
 <br/> <input style="margin-left:10px ; margin-top:5px" type="submit" value="Update Admin Notes" />

@@ -1,13 +1,11 @@
 {{ attendee.first_name }},
 
-Thanks for signing up to volunteer at {{ EVENT_NAME }}!  You're currently assigned to the {{ attendee.assigned_display|join_and }} department{{ attendee.assigned|length|pluralize }}, but let us know if you'd also like to work in any other departments.
+Thanks for signing up to volunteer at {{ c.EVENT_NAME }}!  You're currently assigned to the {{ attendee.assigned_depts_labels|join_and }} department{{ attendee.assigned_depts_labels|length|pluralize }}, but let us know if you'd also like to work in any other departments.
 
-You can sign up for shifts at {{ URL_BASE }}/signups/login and if you have trouble logging in, you can verify/update your personal information at {{ URL_BASE }}/preregistration/confirm?id={{ attendee.id }}
+You can sign up for shifts at {{ c.URL_BASE }}/signups/login and if you have trouble logging in, you can verify/update your personal information at {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}
 
-You can add / drop / change your shifts anytime until {{ UBER_TAKEDOWN|datetime }}.
+You can add / drop / change your shifts anytime until {{ c.EPOCH|datetime }}.
 
 Please let us know if you have any questions.
 
-{{ STOPS_EMAIL_SIGNATURE }}
-
-{% if attendee.ribbon == DEPT_HEAD_RIBBON %}PS: Since you're a department head, you probably don't need to sign up for shifts, so you can probably ignore this automated email.{% endif %}
+{{ c.STOPS_EMAIL_SIGNATURE }}

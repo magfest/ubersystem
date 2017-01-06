@@ -2,10 +2,12 @@
 {% block title %}Preregistration{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
-
+<div class="masthead">
+</div>
+<div class="panel panel-default">
 <h2> Extra Payment for {{ attendee.full_name }} </h2>
 
-Thanks for offering to kick in ${{ charge.dollar_amount }} extra to help make {{ EVENT_NAME }} better.  As thanks, this entitles you to the following:
+Thanks for offering to kick in ${{ charge.dollar_amount|floatformat:2 }} extra to help make {{ c.EVENT_NAME }} better.  As thanks, this entitles you to the following:
 <ul>
     {% for swag in attendee.donation_swag %}
         <li>{{ swag }}</li>
@@ -15,7 +17,7 @@ Thanks for offering to kick in ${{ charge.dollar_amount }} extra to help make {{
 <table style="width:auto ; margin-left:auto ; margin-right: auto"><tr>
     <td>{% stripe_form process_group_member_payment charge %}</td>
     <td style="width:100px ; text-align:center">or</td>
-    <td><a href="group_undo_extra_payment?id={{ attendee.id }}">{% stripe_button "Nevermind" %}</a></td>
+    <td><a href="undo_attendee_donation?id={{ attendee.id }}">{% stripe_button "Nevermind" %}</a></td>
 </tr></table>
-
+</div>
 {% endblock %}

@@ -3,27 +3,35 @@
 <body>
 
 Your {{ group.is_dealer|yesno:"Dealer registration,group" }} ({{ group.name }}) has been preregistered for
-{{ EVENT_NAME }} and your payment of ${{ group.amount_paid }} has been received.  
+{{ c.EVENT_NAME }} this coming {% event_dates %} and your payment of ${{ group.amount_paid }} has been received.  
 
 {% if group.unregistered_badges %}
     <br/> <br/>
     Some of your badges are not yet assigned to a specific person. If you assign these badges 
-    now then it will take much less time for their owners to pick them up at the festival. Preassigning
+    now then it will take much less time for their owners to pick them up at the event. Preassigning
     badges also allows individual members of your group to kick in extra money to upgrade their badge
     tier or order bonus items. You may preassign your badges on your
-    <a href="{{ URL_BASE }}/preregistration/group_members?id={{ group.id }}">group management page</a>.
+    <a href="{{ c.URL_BASE }}/preregistration/group_members?id={{ group.id }}">group management page</a>.
     The individual registration links on the group management page can be filled out by you, or distributed
     to your group members for them to fill out themselves.
     
+    <b>Your</b> registration confirmation number is {{ group.leader_id }}, and you can update your information or kick in
+    {% if attendee.amount_extra %}
+    even more
+    {% endif %}
+    extra money <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ group.leader_id }}">here</a>.
+
+    
     {% if not group.is_dealer %}
         <br/> <br/>
-        You can add badges to your group using the above link, but you must add at least 5 badges at a time.
+        You can add badges to your group using the above link, but you must add
+        at least {{ c.MIN_GROUP_ADDITION }} badges at a time.
     {% endif %}
 {% endif %}
 
 <br/> <br/>
 Badges are not mailed out before the event, so badges for your group will be available for pickup at the 
-registration desk when you arrive at {{ EVENT_NAME }}. Inform your group to bring a photo ID to the registration 
+registration desk when you arrive at {{ c.EVENT_NAME }}. Inform your group to bring a photo ID to the registration 
 desk, where they'll be provided with their badge. If anyone in your group ordered bonus items such as a 
 ribbon, t-shirt, or supporter package, they can pick those up at our merchandise booth. The location and
 hours of the registration desk and merchandise booth will be e-mailed prior to the event.

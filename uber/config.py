@@ -1,121 +1,376 @@
 from uber.common import *
 
-# Any configurable property defined in our configuration is automatically converted into a global constant,
-# so outside of this file, we should never need to access this dictionary directly.  So we should prefer
-# using the DONATIONS_ENABLED global constant instead of saying _config['donations_enabled'], etc.  See
-# the comments in configspec.ini for explanations of the particilar options, which are documented there.
-# All global constants defined and exported here are also passed to our templates.
-_config = parse_config(__file__)
 
-class State:
+class _Overridable:
+    "Base class we extend below to allow plugins to add/override config options."
+    @classmethod
+    def mixin(cls, klass):
+        for attr in dir(klass):
+            if not attr.startswith('_'):
+                setattr(cls, attr, getattr(klass, attr))
+        return cls
+
+    def include_plugin_config(self, plugin_config):
+        """Plugins call this method to merge their own config into the global c object."""
+
+        for attr, val in plugin_config.items():
+            if not isinstance(val, dict):
+                setattr(self, attr.upper(), val)
+
+        if 'enums' in plugin_config:
+            self.make_enums(plugin_config['enums'])
+
+        if 'dates' in plugin_config:
+            self.make_dates(plugin_config['dates'])
+
+    def make_dates(self, config_section):
+        """
+        Plugins can define a [dates] section in their config to create their
+        own deadlines on the global c object.  This method is called automatically
+        by c.include_plugin_config() if a "[dates]" section exists.
+        """
+        for _opt, _val in config_section.items():
+            if not _val:
+                _dt = None
+            elif ' ' in _val:
+                _dt = self.EVENT_TIMEZONE.localize(datetime.strptime(_val, '%Y-%m-%d %H'))
+            else:
+                _dt = self.EVENT_TIMEZONE.localize(datetime.strptime(_val + ' 23:59', '%Y-%m-%d %H:%M'))
+            setattr(self, _opt.upper(), _dt)
+            if _dt:
+                self.DATES[_opt.upper()] = _dt
+
+    def make_enums(self, config_section):
+        """
+        Plugins can define an [enums] section in their config to create their
+        own enums on the global c object.  This method is called automatically
+        by c.include_plugin_config() if an "[enums]" section exists.
+        """
+        for name, subsection in config_section.items():
+            c.make_enum(name, subsection)
+
+    def make_enum(self, enum_name, section, prices=False):
+        """
+        Plugins can call this to define individual enums, or call the make_enums
+        function to make all enums defined there.  See the [enums] section in
+        configspec.ini file, which explains what fields are added to the global
+        c object for each enum.
+        """
+        opts, lookup, varnames = [], {}, []
+        for name, desc in section.items():
+            if isinstance(desc, int):
+                val, desc = desc, name
+            else:
+                varnames.append(name.upper())
+                val = self.create_enum_val(name)
+
+            if desc:
+                opts.append((val, desc))
+                if prices:
+                    lookup[desc] = val
+                else:
+                    lookup[val] = desc
+
+        enum_name = enum_name.upper()
+        setattr(self, enum_name + '_OPTS', opts)
+        setattr(self, enum_name + '_VARS', varnames)
+        setattr(self, enum_name + ('' if enum_name.endswith('S') else 'S'), lookup)
+
+    def create_enum_val(self, name):
+        val = int(sha512(name.upper().encode()).hexdigest()[:7], 16)
+        setattr(self, name.upper(), val)
+        return val
+
+
+class Config(_Overridable):
     """
-    We use global constants for all of our configurable global state.  This works really well for things
-    which do not change over time, such a the name of our event or what features are enabled.  However,
-    some things depend on the date/time (such as the badge price, which can change over time), or whether
-    we've hit our configured attendance cap (which changes based on the state of the database).  This
-    class offers properties and methods for checking the state of these things.  Much like our global
-    constants, the properties defined here are also passed directly to our templates.
+    We have two types of configuration.  One is the values which come directly from our config file, such
+    as the name of our event.  The other is things which depend on the date/time (such as the badge price,
+    which can change over time), or whether we've hit our configured attendance cap (which changes based
+    on the state of the database).  See the comments in configspec.ini for explanations of the particilar
+    options, which are documented there.
 
-    There's a single global instance of this class called "state" which you should use, e.g. if you need
-    to check whether dealer registration is open in your code, you'd say state.DEALER_REG_OPEN (but in
-    a template you'd just say DEALER_REG_CLOSED).
-
+    This class has a single global instance called "c" which contains values of either type of config, e.g.
+    if you need to check whether dealer registration is open in your code, you'd say c.DEALER_REG_OPEN
     For all of the datetime config options, we also define BEFORE_ and AFTER_ properties, e.g. you can
-    check the booleans returned by state.BEFORE_PLACEHOLDER_DEADLINE or state.AFTER_PLACEHOLDER_DEADLINE
+    check the booleans returned by c.BEFORE_PLACEHOLDER_DEADLINE or c.AFTER_PLACEHOLDER_DEADLINE
     """
+
+    def get_oneday_price(self, dt):
+        return self.BADGE_PRICES['single_day'].get(dt.strftime('%A'), self.DEFAULT_SINGLE_DAY)
+
+    def get_presold_oneday_price(self, badge_type):
+        return self.BADGE_PRICES['single_day'].get(self.BADGES[badge_type], self.DEFAULT_SINGLE_DAY)
+
+    def get_attendee_price(self, dt=None):
+        price = self.INITIAL_ATTENDEE
+        if self.PRICE_BUMPS_ENABLED:
+
+            if dt or c.HARDCORE_OPTIMIZATIONS_ENABLED:
+                # Disable the bucket-based pricing if we're checking an existing badge OR
+                # if we have hardcore_optimizations_enabled config on.
+                badges_sold = 0
+            else:
+                dt = sa.localized_now()
+                # this is a database query and very expensive
+                badges_sold = self.BADGES_SOLD
+
+            for day, bumped_price in sorted(self.PRICE_BUMPS.items()):
+                if (dt or datetime.now(UTC)) >= day:
+                    price = bumped_price
+            for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
+                if badges_sold >= badge_cap and bumped_price > price:
+                    price = bumped_price
+        return price
+
+    def get_group_price(self, dt=None):
+        return self.get_attendee_price(dt) - self.GROUP_DISCOUNT
+
+    def get_badge_count_by_type(self, badge_type):
+        """
+        Returns the count of all "Complete" badges of the given type; unlike the
+        BADGES_SOLD property, this counts all paid values.  Thus we have counts
+        for badge types that aren't typically sold, e.g. Staff badges.
+        """
+        with sa.Session() as session:
+            return session.query(sa.Attendee).filter_by(badge_type=badge_type, badge_status=c.COMPLETED_STATUS).count()
 
     @property
     def DEALER_REG_OPEN(self):
         return self.AFTER_DEALER_REG_START and self.BEFORE_DEALER_REG_SHUTDOWN
 
-    @property
+    @request_cached_property
     def BADGES_SOLD(self):
-        with Session() as session:
-            attendees = session.query(Attendee)
-            individuals = attendees.filter(or_(Attendee.paid == HAS_PAID, Attendee.paid == REFUNDED)).count()
-            group_badges = attendees.join(Attendee.group).filter(Attendee.paid == PAID_BY_GROUP,
-                                                                 Group.amount_paid > 0).count()
+        with sa.Session() as session:
+            attendees = session.query(sa.Attendee)
+            individuals = attendees.filter(or_(sa.Attendee.paid == self.HAS_PAID, sa.Attendee.paid == self.REFUNDED)).filter(sa.Attendee.badge_status == self.COMPLETED_STATUS).count()
+            group_badges = attendees.join(sa.Attendee.group).filter(sa.Attendee.paid == self.PAID_BY_GROUP,
+                                                                    sa.Group.amount_paid > 0).count()
             return individuals + group_badges
-
-    def get_oneday_price(self, dt):
-        default = DEFAULT_SINGLE_DAY
-        return BADGE_PRICES['single_day'].get(dt.strftime('%A'), default)
-
-    def get_attendee_price(self, dt):
-        price = INITIAL_ATTENDEE
-        if PRICE_BUMPS_ENABLED:
-            for day, bumped_price in sorted(PRICE_BUMPS.items()):
-                if (dt or datetime.now(UTC)) >= day:
-                    price = bumped_price
-        return price
-
-    def get_group_price(self, dt):
-        return self.get_attendee_price(dt) - GROUP_DISCOUNT
 
     @property
     def ONEDAY_BADGE_PRICE(self):
-        return self.get_oneday_price(localized_now())
+        return self.get_oneday_price(sa.localized_now())
 
     @property
     def BADGE_PRICE(self):
-        return self.get_attendee_price(localized_now())
-
-    @property
-    def SUPPORTER_BADGE_PRICE(self):
-        return self.BADGE_PRICE + SUPPORTER_LEVEL
-        
-    @property
-    def SEASON_BADGE_PRICE(self):
-        return self.BADGE_PRICE + SEASON_LEVEL
+        return self.get_attendee_price()
 
     @property
     def GROUP_PRICE(self):
-        return self.get_group_price(localized_now())
+        return self.get_group_price()
 
     @property
     def PREREG_BADGE_TYPES(self):
-        types = [ATTENDEE_BADGE]
-        for reg_open, badge_type in [(self.DEALER_REG_OPEN, PSEUDO_DEALER_BADGE),
-                                     (self.BEFORE_GROUP_PREREG_TAKEDOWN, PSEUDO_GROUP_BADGE)]:
+        types = [self.ATTENDEE_BADGE, self.PSEUDO_DEALER_BADGE]
+        for reg_open, badge_type in [(self.BEFORE_GROUP_PREREG_TAKEDOWN, self.PSEUDO_GROUP_BADGE)]:
             if reg_open:
                 types.append(badge_type)
         return types
 
     @property
+    def PRESOLD_ONEDAY_BADGE_TYPES(self):
+        return {
+            badge_type: self.BADGES[badge_type]
+            for badge_type, desc in self.AT_THE_DOOR_BADGE_OPTS
+            if self.BADGES[badge_type] in c.DAYS_OF_WEEK
+        }
+
+    @property
     def PREREG_DONATION_OPTS(self):
-        if localized_now() < SUPPORTER_DEADLINE:
-            return DONATION_TIER_OPTS
+        if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
+            return self.DONATION_TIER_OPTS
         else:
-            return [(amt, desc) for amt,desc in DONATION_TIER_OPTS if amt < SUPPORTER_LEVEL]
+            return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS if amt < self.SUPPORTER_LEVEL]
 
     @property
-    def SUPPORTERS_ENABLED(self):
-        return SUPPORTER_LEVEL in dict(self.PREREG_DONATION_OPTS)
+    def PREREG_DONATION_DESCRIPTIONS(self):
+        # include only the items that are actually available for purchase
+        if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
+            donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
+        else:
+            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
+                             if tier[1]['price'] < self.SUPPORTER_LEVEL]
+
+        donation_list = sorted(donation_list, key=lambda tier: tier[1]['price'])
+
+        # add in all previous descriptions.  the higher tiers include all the lower tiers
+        for entry in donation_list:
+            all_desc_and_links = \
+                [(tier[1]['description'], tier[1]['link']) for tier in donation_list
+                    if tier[1]['price'] > 0 and tier[1]['price'] < entry[1]['price']] \
+                + [(entry[1]['description'], entry[1]['link'])]
+
+            # maybe slight hack. descriptions and links are separated by '|' characters so we can have multiple
+            # items displayed in the donation tiers.  in an ideal world, these would already be separated in the INI
+            # and we wouldn't have to do it here.
+            entry[1]['all_descriptions'] = []
+            for item in all_desc_and_links:
+                descriptions = item[0].split('|')
+                links = item[1].split('|')
+                entry[1]['all_descriptions'] += list(zip(descriptions, links))
+
+        return [dict(tier[1]) for tier in donation_list]
 
     @property
-    def SEASON_SUPPORTERS_ENABLED(self):
-        return SEASON_LEVEL in dict(self.PREREG_DONATION_OPTS)
+    def PREREG_DONATION_TIERS(self):
+        return dict(self.PREREG_DONATION_OPTS)
 
     @property
     def AT_THE_DOOR_BADGE_OPTS(self):
-        opts = [(ATTENDEE_BADGE, 'Full Weekend Pass (${})'.format(self.BADGE_PRICE))]
-        if ONE_DAYS_ENABLED:
-            opts.append((ONE_DAY_BADGE,  'Single Day Pass (${})'.format(self.ONEDAY_BADGE_PRICE)))
+        """
+        This provides the dropdown on the /registration/register page with its
+        list of badges available at-door.  It includes a "Full Weekend Pass"
+        if attendee badges are available.  If one-days are enabled, it includes
+        either a generic "Single Day Pass" or a list of specific day badges,
+        based on the c.PRESELL_ONE_DAYS setting.
+        """
+        opts = []
+        if self.ATTENDEE_BADGE_AVAILABLE:
+            opts.append((self.ATTENDEE_BADGE, 'Full Weekend Pass (${})'.format(self.BADGE_PRICE)))
+        if self.ONE_DAYS_ENABLED:
+            if self.PRESELL_ONE_DAYS:
+                day = max(sa.localized_now(), self.EPOCH)
+                while day.date() <= self.ESCHATON.date():
+                    day_name = day.strftime('%A')
+                    price = self.BADGE_PRICES['single_day'].get(day_name) or self.DEFAULT_SINGLE_DAY
+                    badge = getattr(self, day_name.upper())
+                    if getattr(self, day_name.upper() + '_AVAILABLE', None):
+                        opts.append((badge, day_name + ' Pass (${})'.format(price)))
+                    day += timedelta(days=1)
+            elif self.ONE_DAY_BADGE_AVAILABLE:
+                opts.append((self.ONE_DAY_BADGE,  'Single Day Pass (${})'.format(self.ONEDAY_BADGE_PRICE)))
         return opts
+
+    @property
+    def PREREG_AGE_GROUP_OPTS(self):
+        return [opt for opt in self.AGE_GROUP_OPTS if opt[0] != self.AGE_UNKNOWN]
+
+    @property
+    def AT_OR_POST_CON(self):
+        return self.AT_THE_CON or self.POST_CON
+
+    @property
+    def PRE_CON(self):
+        return not self.AT_OR_POST_CON
+
+    @property
+    def FINAL_EMAIL_DEADLINE(self):
+        return min(c.UBER_TAKEDOWN, c.EPOCH)
+
+    @property
+    def CSRF_TOKEN(self):
+        return cherrypy.session['csrf_token'] if 'csrf_token' in cherrypy.session else ''
+
+    @property
+    def PAGE_PATH(self):
+        return cherrypy.request.path_info
+
+    @property
+    def PAGE(self):
+        return cherrypy.request.path_info.split('/')[-1]
+
+    @request_cached_property
+    def CURRENT_ADMIN(self):
+        try:
+            with sa.Session() as session:
+                return session.admin_attendee().to_dict()
+        except:
+            return {}
+
+    @property
+    def HTTP_METHOD(self):
+        return cherrypy.request.method
+
+    @request_cached_property
+    def SUPPORTER_COUNT(self):
+        with sa.Session() as session:
+            attendees = session.query(sa.Attendee)
+            individual_supporters = attendees.filter(sa.Attendee.paid.in_([self.HAS_PAID, self.REFUNDED]),
+                                                     sa.Attendee.amount_extra >= self.SUPPORTER_LEVEL).count()
+            group_supporters = attendees.filter(sa.Attendee.paid == self.PAID_BY_GROUP,
+                                                sa.Attendee.amount_extra >= self.SUPPORTER_LEVEL,
+                                                sa.Attendee.amount_paid >= self.SUPPORTER_LEVEL).count()
+            return individual_supporters + group_supporters
+
+    @property
+    def REMAINING_BADGES(self):
+        return max(0, self.MAX_BADGE_SALES - self.BADGES_SOLD)
+
+    @request_cached_property
+    def ADMIN_ACCESS_SET(self):
+        return sa.AdminAccount.access_set()
+
+    @request_cached_property
+    def EMAIL_APPROVED_IDENTS(self):
+        with sa.Session() as session:
+            return {ae.ident for ae in session.query(sa.ApprovedEmail)}
+
+    @request_cached_property
+    def PREVIOUSLY_SENT_EMAILS(self):
+        with sa.Session() as session:
+            return set(session.query(sa.Email.model, sa.Email.fk_id, sa.Email.ident))
 
     def __getattr__(self, name):
         if name.split('_')[0] in ['BEFORE', 'AFTER']:
-            date_setting = globals()[name.split('_', 1)[1]]
+            date_setting = getattr(c, name.split('_', 1)[1])
             if not date_setting:
                 return False
             elif name.startswith('BEFORE_'):
-                return localized_now() < date_setting
+                return sa.localized_now() < date_setting
             else:
-                return localized_now() > date_setting
+                return sa.localized_now() > date_setting
+        elif name.startswith('HAS_') and name.endswith('_ACCESS'):
+            return getattr(c, '_'.join(name.split('_')[1:-1])) in c.ADMIN_ACCESS_SET
+        elif name.endswith('_COUNT'):
+            item_check = name.rsplit('_', 1)[0]
+            badge_type = getattr(self, item_check, None)
+            return self.get_badge_count_by_type(badge_type) if badge_type else None
+        elif name.endswith('_AVAILABLE'):
+            item_check = name.rsplit('_', 1)[0]
+            stock_setting = getattr(self, item_check + '_STOCK', None)
+            count_check = getattr(self, item_check + '_COUNT', None)
+            if count_check is None:
+                return False  # Things with no count are never considered available
+            elif stock_setting is None:
+                return True  # Defaults to unlimited stock for any stock not configured
+            else:
+                return int(count_check) < int(stock_setting)
+        elif hasattr(_secret, name):
+            return getattr(_secret, name)
+        elif name.lower() in _config['secret']:
+            return _config['secret'][name.lower()]
         else:
             raise AttributeError('no such attribute {}'.format(name))
 
-state = State()    
+
+class SecretConfig(_Overridable):
+    """
+    This class is for properties which we don't want to be used as Javascript
+    variables.  Properties on this class can be accessed normally through the
+    global c object as if they were defined there.
+    """
+
+    @property
+    def SQLALCHEMY_URL(self):
+        """
+        support reading the DB connection info from an environment var (used with Docker containers)
+        DB_CONNECTION_STRING should contain the full Postgres URI
+        """
+        db_connection_string = os.environ.get('DB_CONNECTION_STRING')
+
+        if db_connection_string is not None:
+            return db_connection_string
+        else:
+            return _config['secret']['sqlalchemy_url']
+
+c = Config()
+_secret = SecretConfig()
+
+_config = parse_config(__file__)  # outside this module, we use the above c global instead of using this directly
+
+django.conf.settings.configure(**_config['django'].dict())
+
 
 def _unrepr(d):
     for opt in d:
@@ -128,122 +383,169 @@ def _unrepr(d):
             _unrepr(d[opt])
 
 _unrepr(_config['appconf'])
-APPCONF = _config['appconf'].dict()
+c.APPCONF = _config['appconf'].dict()
 
-django.conf.settings.configure(**_config['django'].dict())
+c.BADGE_PRICES = _config['badge_prices']
+for _opt, _val in chain(_config.items(), c.BADGE_PRICES.items()):
+    if not isinstance(_val, dict) and not hasattr(c, _opt.upper()):
+        setattr(c, _opt.upper(), _val)
+for _opt, _val in c.BADGE_PRICES['stocks'].items():
+    _opt = _opt.upper() + '_STOCK'
+    if not hasattr(c, _opt):
+        setattr(c, _opt, _val)
 
-BADGE_PRICES = _config['badge_prices']
-for _opt, _val in chain(_config.items(), BADGE_PRICES.items()):
-    if not isinstance(_val, dict):
-        globals()[_opt.upper()] = _val
+c.DATES = {}
+c.TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S'
+c.DATE_FORMAT = '%Y-%m-%d'
+c.EVENT_TIMEZONE = pytz.timezone(c.EVENT_TIMEZONE)
+c.make_dates(_config['dates'])
 
-DATES = {}
-TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S'
-EVENT_TIMEZONE = pytz.timezone(EVENT_TIMEZONE)
-for _opt, _val in _config['dates'].items():
-    if not _val:
-        _dt = None
-    elif ' ' in _val:
-        _dt = EVENT_TIMEZONE.localize(datetime.strptime(_val, '%Y-%m-%d %H'))
-    else:
-        _dt = EVENT_TIMEZONE.localize(datetime.strptime(_val + ' 23:59', '%Y-%m-%d %H:%M'))
-    globals()[_opt.upper()] = _dt
-    if _dt:
-        DATES[_opt.upper()] = _dt
-
-PRICE_BUMPS = {}
-for _opt, _val in BADGE_PRICES['attendee'].items():
-    PRICE_BUMPS[EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d'))] = _val
-
-def _make_enum(enum_name, section):
-    opts, lookup = [], {}
-    for name, desc in section.items():
-        if isinstance(name, int):
-            val = name
+c.PRICE_BUMPS = {}
+c.PRICE_LIMITS = {}
+for _opt, _val in c.BADGE_PRICES['attendee'].items():
+    try:
+        if ' ' in _opt:
+            date = c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d %H%M'))
         else:
-            val = globals()[name.upper()] = int(sha512(name.upper().encode()).hexdigest()[:7], 16)
-        opts.append((val, desc))
-        lookup[val] = desc
+            date = c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d'))
+    except ValueError:
+        c.PRICE_LIMITS[int(_opt)] = _val
+    else:
+        c.PRICE_BUMPS[date] = _val
 
-    enum_name = enum_name.upper()
-    globals()[enum_name + '_OPTS'] = opts
-    globals()[enum_name + ('' if enum_name.endswith('S') else 'S')] = lookup
 
-for _name, _section in _config['enums'].items():
-    _make_enum(_name, _section)
+def _is_intstr(s):
+    if s and s[0] in ('-', '+'):
+        return s[1:].isdigit()
+    return s.isdigit()
+
+
+# Under certain conditions, we want to completely remove certain payment options from the system.
+# However, doing so cleanly also risks an exception being raised if these options are referenced elsewhere in the code
+# (i.e., c.STRIPE). So we create an enum val to allow code to check for these variables without exceptions.
+if not c.KIOSK_CC_ENABLED:
+    del _config['enums']['door_payment_method']['stripe']
+    c.create_enum_val('stripe')
+
+if not c.GROUPS_ENABLED:
+    del _config['enums']['door_payment_method']['group']
+    c.create_enum_val('group')
+
+c.make_enums(_config['enums'])
 
 for _name, _val in _config['integer_enums'].items():
     if isinstance(_val, int):
-        globals()[_name.upper()] = _val
+        setattr(c, _name.upper(), _val)
+
 for _name, _section in _config['integer_enums'].items():
     if isinstance(_section, dict):
         _interpolated = OrderedDict()
         for _desc, _val in _section.items():
-            _interpolated[int(_val) if _val.isdigit() else globals()[_val.upper()]] = _desc
-        _make_enum(_name, _interpolated)
+            if _is_intstr(_val):
+                _price = int(_val)
+            else:
+                _price = getattr(c, _val.upper())
 
-BADGE_RANGES = {}
+            _interpolated[_desc] = _price
+
+        c.make_enum(_name, _interpolated, prices=_name.endswith('_price'))
+
+c.BADGE_RANGES = {}
 for _badge_type, _range in _config['badge_ranges'].items():
-    BADGE_RANGES[globals()[_badge_type.upper()]] = _range
+    c.BADGE_RANGES[getattr(c, _badge_type.upper())] = _range
 
-SHIFTLESS_DEPTS = {globals()[dept.upper()] for dept in SHIFTLESS_DEPTS}
-PREASSIGNED_BADGE_TYPES = [globals()[badge_type.upper()] for badge_type in PREASSIGNED_BADGE_TYPES]
+c.make_enum('age_group', OrderedDict([(name, section['desc']) for name, section in _config['age_groups'].items()]))
+c.AGE_GROUP_CONFIGS = {}
+for _name, _section in _config['age_groups'].items():
+    _val = getattr(c, _name.upper())
+    c.AGE_GROUP_CONFIGS[_val] = dict(_section.dict(), val=_val)
 
-SEASON_EVENTS = _config['season_events']
+c.TABLE_PRICES = defaultdict(lambda: _config['table_prices']['default_price'],
+                             {int(k): v for k, v in _config['table_prices'].items() if k != 'default_price'})
+c.PREREG_TABLE_OPTS = list(range(1, c.MAX_TABLES + 1))
+c.ADMIN_TABLE_OPTS = [decimal.Decimal(x) for x in range(0, 9)]
+
+c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
+c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]
+c.TRANSFERABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.TRANSFERABLE_BADGE_TYPES]
+
+c.DEPT_HEAD_CHECKLIST = _config['dept_head_checklist']
+
+c.BADGE_LOCK = RLock()
+
+c.CON_LENGTH = int((c.ESCHATON - c.EPOCH).total_seconds() // 3600)
+c.START_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (c.EPOCH + timedelta(hours=i) for i in range(c.CON_LENGTH))]
+c.DURATION_OPTS = [(i, '%i hour%s' % (i, ('s' if i > 1 else ''))) for i in range(1, 9)]
+c.SETUP_TIME_OPTS = [(dt, dt.strftime('%I %p %a'))
+                     for dt in (c.EPOCH - timedelta(days=day) + timedelta(hours=hour)
+                                for day in range(c.SETUP_SHIFT_DAYS, 0, -1)
+                                for hour in range(24))]
+c.TEARDOWN_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (c.ESCHATON + timedelta(hours=i) for i in range(6))] \
+                     + [(dt, dt.strftime('%I %p %a'))
+                        for dt in ((c.ESCHATON + timedelta(days=1)).replace(hour=10) + timedelta(hours=i) for i in range(12))]
 
 
-BADGE_LOCK = RLock()
+c.EVENT_NAME_AND_YEAR = c.EVENT_NAME + (' {}'.format(c.YEAR) if c.YEAR else '')
+c.EVENT_YEAR = c.EPOCH.strftime('%Y')
+c.EVENT_MONTH = c.EPOCH.strftime('%B')
+c.EVENT_START_DAY = int(c.EPOCH.strftime('%d')) % 100
+c.EVENT_END_DAY = int(c.ESCHATON.strftime('%d')) % 100
 
-CON_LENGTH = int((ESCHATON - EPOCH).total_seconds() // 3600)
-START_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (EPOCH + timedelta(hours = i) for i in range(CON_LENGTH))]
-DURATION_OPTS   = [(i, '%i hour%s'%(i,('s' if i > 1 else ''))) for i in range(1,8)]
-EVENT_START_TIME_OPTS = [(dt, dt.strftime('%I %p %a') if not dt.minute else dt.strftime('%I:%M %a'))
-                         for dt in [EPOCH + timedelta(minutes = i * 30) for i in range(2 * CON_LENGTH)]]
-EVENT_DURATION_OPTS = [(i, '%.1f hour%s' % (i/2, 's' if i != 2 else '')) for i in range(1, 19)]
+c.DAYS = sorted({(dt.strftime('%Y-%m-%d'), dt.strftime('%a')) for dt, desc in c.START_TIME_OPTS})
+c.HOURS = ['{:02}'.format(i) for i in range(24)]
+c.MINUTES = ['{:02}'.format(i) for i in range(60)]
 
+c.DAYS_OF_WEEK = {'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'}
+if c.ONE_DAYS_ENABLED and c.PRESELL_ONE_DAYS:
+    _day = c.EPOCH.date()
+    while _day <= c.ESCHATON.date():
+        _name = _day.strftime('%A')
+        _val = c.create_enum_val(_name)
+        c.BADGES[_val] = _name
+        c.BADGE_OPTS.append((_val, _name))
+        c.BADGE_VARS.append(_name.upper())
+        c.BADGE_RANGES[_val] = c.BADGE_RANGES[c.ONE_DAY_BADGE]
+        c.TRANSFERABLE_BADGE_TYPES.append(_val)
+        _day += timedelta(days=1)
 
-EVENT_NAME_AND_YEAR = EVENT_NAME + (' {}'.format(YEAR) if YEAR else '')
-EVENT_MONTH = EPOCH.strftime('%B')
-EVENT_START_DAY = int(EPOCH.strftime('%d')) % 100
-EVENT_END_DAY = int(ESCHATON.strftime('%d')) % 100
+c.MAX_BADGE = max(xs[1] for xs in c.BADGE_RANGES.values())
 
-DAYS = sorted({(dt.strftime('%Y-%m-%d'), dt.strftime('%a')) for dt,desc in START_TIME_OPTS})
-HOURS = ['{:02}'.format(i) for i in range(24)]
-MINUTES = ['{:02}'.format(i) for i in range(60)]
+c.JOB_LOCATION_OPTS.sort(key=lambda tup: tup[1])
 
-ORDERED_EVENT_LOCS = [loc for loc, desc in EVENT_LOCATION_OPTS]
-EVENT_BOOKED = {'colspan': 0}
-EVENT_OPEN   = {'colspan': 1}
-
-MAX_BADGE = max(xs[1] for xs in BADGE_RANGES.values())
-
-JOB_PAGE_OPTS = (
+c.JOB_PAGE_OPTS = (
     ('index',    'Calendar View'),
     ('signups',  'Signups View'),
     ('staffers', 'Staffer Summary')
 )
-WEIGHT_OPTS = (
+c.WEIGHT_OPTS = (
     ('1.0', 'x1.0'),
     ('1.5', 'x1.5'),
     ('2.0', 'x2.0'),
     ('2.5', 'x2.5'),
 )
-JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'restricted', 'extra15']
+c.JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'restricted', 'extra15']
 
-TABLE_OPTS = [
-    (0,   'no table'),
-    (0.5, 'half-table')
-] + [(float(i), i) for i in range(1, 11)]
+c.PREREG_SHIRT_OPTS = c.SHIRT_OPTS[1:]
+c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + list(c.PREREG_SHIRT_OPTS)
+c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt, desc) if amt else desc) for amt, desc in c.DONATION_TIER_OPTS]
 
-NIGHT_DISPLAY_ORDER = [globals()[night.upper()] for night in NIGHT_DISPLAY_ORDER]
-NIGHT_NAMES = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+c.DONATION_TIER_DESCRIPTIONS = _config.get('donation_tier_descriptions', {})
+for tier in c.DONATION_TIER_DESCRIPTIONS.items():
+    tier[1]['price'] = [amt for amt, name in c.DONATION_TIERS.items() if name == tier[1]['name']][0]
 
-PREREG_SHIRT_OPTS = SHIRT_OPTS[1:]
-MERCH_SHIRT_OPTS = [(SIZE_UNKNOWN, 'select a size')] + list(PREREG_SHIRT_OPTS)
-DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt,desc) if amt else desc) for amt,desc in DONATION_TIER_OPTS]
+c.STORE_ITEM_NAMES = [desc for val, desc in c.STORE_PRICE_OPTS]
+c.FEE_ITEM_NAMES = [desc for val, desc in c.FEE_PRICE_OPTS]
 
-STORE_ITEM_NAMES = [name for price,name in STORE_PRICE_OPTS]
-FEE_ITEM_NAMES = [name for price,name in FEE_PRICE_OPTS]
+c.WRISTBAND_COLORS = defaultdict(lambda: c.WRISTBAND_COLORS[c.DEFAULT_WRISTBAND], c.WRISTBAND_COLORS)
 
-AT_OR_POST_CON = AT_THE_CON or POST_CON
-PRE_CON = not AT_OR_POST_CON
+c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
+
+try:
+    _items = sorted([int(step), url] for step, url in _config['volunteer_checklist'].items() if url)
+except ValueError:
+    log.error('[volunteer_checklist] config options must have integer option names')
+    raise
+else:
+    c.VOLUNTEER_CHECKLIST = [url for step, url in _items]
+
+stripe.api_key = c.STRIPE_SECRET_KEY

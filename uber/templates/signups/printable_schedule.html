@@ -1,34 +1,16 @@
-You are signed up for {{ attendee.weighted_hours }} hours (after weighting)
+{% if attendee.takes_shifts %}
+    You are signed up for {{ attendee.weighted_hours }} hours (after weighting)
 
-<br/> <br/>
-After working each shift, make sure you get a department chair to initial under the <b>Worked</b> column below.
-If your shifts are not marked as worked, you won't
-{% if attendee.paid != NEED_NOT_PAY %}
-    get your shirt and/or badge refund, plus you won't
-{% endif %}
-get a free badge or free hotel room space next year.
-
-<br/> <br/>
-Free food is available in the Hospitality Suite in Room 6135 during the following times:
-<ul>
-    <li>Breakfast: 8am to 11am</li>
-    <li>Lunch: 1pm to 4pm</li>
-    <li>Dinner: 6pm to 10pm</li>
-    <li>Overnight: 12am to 5am</li>
-</ul>
-
-{% if attendee.badge_type == ATTENDEE_BADGE %}
-    You'll become eligible for food after signing up for at least 12 weighted hours <b>AND</b> working at least 6 weighted hours.  Please come to Staffing Ops (in the Fest Ops room) to get your ribbon marked after working your first shift and getting your department head to sign this sheet.
-    <br/>
+    <br/> <br/>
+    After working each shift, make sure you get a department chair to initial under the <b>Worked</b> column below.
+    If your shifts are not marked as worked, you won't
+    {% if attendee.paid != c.NEED_NOT_PAY %}
+        get your badge refund, plus you won't
+    {% endif %}
+    get a free badge or free hotel room space next year.
 {% endif %}
 
-<br/>
-In addition to the Hospitality Suite, you can buy food at the Galaxy Cafe.  To get there, go to the far back of the Maryland Ballroom foyer, then go through the doors and turn left.  Just before you get to the Security desk in the hallway, look to your left and there will be a wide set of stairs going down.  Go down those stairs and then the Galaxy Cafe will be on your right.  You can use the Galaxy Cafe during any of the following times:
-<ul>
-    <li>Breakfast ($12.50): 6:30am - 8:00am</li>
-    <li>Lunch ($14.50): 1:00pm - 2:30pm</li>
-    <li>Dinner (14:50): 7:00pm - 9:00pm</li>
-</ul>
+{% include "signups/food_info.html" %}
 
 {% if attendee.shifts %}
     <i>You should report to a Department Chair for each department you're working before the start of your first shift:</i>
@@ -46,12 +28,13 @@ In addition to the Hospitality Suite, you can buy food at the Galaxy Cafe.  To g
         <td>Weight</td>
         <td>Worked</td>
     </tr>
-    {% for shift in attendee.shifts %}
+    {% for shift in attendee.shifts|sortBy:'job.start_time' %}
         <tr>
             <td>{{ shift.job.name }}</td>
             <td>{{ shift.job.location_label }}</td>
-            <td>{{ shift.job.start_time|time:"gA"|lower }} {{ shift.job.start_time|date:"D" }}</td>
-            <td>{{ shift.job.duration }}</td>
+            <td>{% hour_day shift.job.start_time %}</td>
+            <td>{% if shift.job.is_setup or shift.job.is_teardown %}__________
+                {% else %}{{ shift.job.duration }}{% endif %}</td>
             <td>(x{{ shift.job.weight }})</td>
             <td>__________</td>
         </tr>
@@ -62,6 +45,6 @@ In addition to the Hospitality Suite, you can buy food at the Galaxy Cafe.  To g
         {% endif %}
     {% endfor %}
     </table>
-{% else %}
+{% elif attendee.takes_shifts %}
     <h3>You have not signed up for any shifts.</h3>
 {% endif %}

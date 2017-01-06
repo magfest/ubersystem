@@ -1,0 +1,27 @@
+{% extends "base-admin.html" %}
+{% block title %}Volunteers Owed Refunds{% endblock %}
+{% block content %}
+
+{% for title, matching in attendees %}
+    <h2>{{ title }} ({{ matching|length }})</h2>
+    <table style="width:100%">
+    <thead>
+        <tr>
+            <th>Volunteer</th>
+            <th>Departments</th>
+            <th>Hours Worked / Hours Taken</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for attendee in matching %}
+            <tr>
+                <td>{{ attendee|form_link }}</td>
+                <td>{{ attendee.assigned_depts_labels|join:' / ' }}</td>
+                <td>{{ attendee.worked_hours }} / {{ attendee.weighted_hours }}</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+    </table>
+{% endfor %}
+
+{% endblock %}

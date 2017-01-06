@@ -8,57 +8,60 @@
     }
 </style>
 
-<h2>Revenue</h2>
+<ol class="breadcrumb">
+  <li><a href="../accounts/homepage">Home</a></li>
+  <li>Money</li>
+  <li class="active">Budget</li>
+</ol>
 
-<div class="center">
-    (${{ total }} total)
+<div class="jumbotron">
+    <h1 class="text-center">(${{ total }} total)</h1>
 </div>
 
-<br/> <br/>
 
-<div style="margin-left:5%">
-    <table class="list" style="width:auto" align="center">
-    <tr class="header">
-        <td width="80%" align="left">Name</td>
-        <td width="20%">Amount</td>
-    </tr>
-    <tr bgcolor="{% zebra credits start %}">
-        <td align="left">Attendee Badges</td>
+<div class="panel panel-default">
+    <table class="table table-striped datatable">
+    <thead><tr>
+        <th>Name</th>
+        <th>Amount</th>
+    </tr></thead>
+    <tr>
+        <td>Attendee Badges</td>
         <td>${{ preregs.Attendee }}</td>
     </tr>
-    <tr bgcolor="{% zebra credits %}">
-        <td align="left">Kicked-In Extra</td>
+    <tr>
+        <td>Extra Payments (Kickins, Shirts, Food, anything else)</td>
         <td>${{ preregs.extra }}</td>
     </tr>
-    <tr bgcolor="{% zebra credits %}">
-        <td align="left">Group Badges</td>
+    <tr>
+        <td>Group Badges</td>
         <td>${{ preregs.group_badges }}</td>
     </tr>
-    <tr bgcolor="{% zebra credits %}">
-        <td align="left">Dealer Badges</td>
+    <tr>
+        <td>Dealer Badges</td>
         <td>${{ preregs.dealer_badges }}</td>
     </tr>
-    <tr bgcolor="{% zebra credits %}">
-        <td align="left">Dealer Tables</td>
+    <tr>
+        <td>Dealer Tables</td>
         <td>${{ preregs.dealer_tables }}</td>
     </tr>
-    <tr bgcolor="{% zebra credits %}">
-        <td align="left">Staff Badges</td>
+    <tr>
+        <td>Staff Badges</td>
         <td>${{ preregs.Staff }} </td>
     </tr>
-    <tr bgcolor="{% zebra credits %}">
-        <td align="left">Single Day Badges</td>
+    <tr>
+        <td>Single Day Badges</td>
         <td>${{ preregs.OneDay }}</td>
     </tr>
     {% for what, total in sales.items %}
-        <tr bgcolor="{% zebra credits %}">
-            <td align="left">{{ what }} sales</td>
+        <tr>
+            <td>{{ what }} sales</td>
             <td>${{ total }}</td>
         </tr>
     {% endfor %}
     {% for item in credits %}
-        <tr bgcolor="{% zebra credits %}">
-            <td align="left"><a href="form?id={{ item.id }}">{{ item.name }}</a>
+        <tr>
+            <td><a href="form?id={{ item.id }}">{{ item.name }}</a>
             <td>${{ item.amount }}</td>
         </tr>
     {% endfor %}

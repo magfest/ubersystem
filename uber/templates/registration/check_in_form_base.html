@@ -1,0 +1,85 @@
+<form action="/" id="check_in_form_{{ attendee.id }}">
+    {% csrf_token %}
+    <input type="hidden" name="id" value="{{ attendee.id }}" />
+<table class="check-in">
+    {% block checkin_fields %}
+    <tr>
+        <td>Name:</td>
+        <td>{{ attendee|form_link }}</td>
+    </tr>
+    {% if c.COLLECT_EXACT_BIRTHDATE %}
+        <tr>
+            <td>Birthdate</td>
+            <td>
+                <input type="text" id="checkin-birthdate" name="birthdate" class="date" value="{{ attendee.birthdate|date:"Y-m-d"}}" />
+            </td>
+        </tr>
+         {% if attendee.birthdate %}
+            <tr>
+                <td>Age Group:</td>
+                <td>{{ attendee.age_group_conf.desc }}</td>
+            </tr>
+        {% endif %}
+    {% else %}
+        <tr>
+            <td>Age Group:</td>
+            <td>
+                <select id="checkin-age">
+                    {% options c.AGE_GROUP_OPTS attendee.age_group %}
+                </select>
+            </td>
+        </tr>
+    {% endif %}
+    {% if attendee.paid == c.PAID_BY_GROUP and not attendee.group_id %}
+        <tr>
+            <td>Group:</td>
+            <td>
+                <select id="checkin-group" name="group_id">
+                    <option value="">No Group</option>
+                    {% options groups attendee.group_id %}
+                </select>
+            </td>
+        </tr>
+    {% endif %}
+    <tr>
+        <td>Email:</td>
+        <td>{{ attendee.email }}</td>
+    </tr>
+    <tr>
+        <td>Zipcode:</td>
+        <td>{{ attendee.zip_code }}</td>
+    </tr>
+    <tr>
+        <td>Emergency Contact:</td>
+        <td>{{ attendee.ec_phone }}</td>
+    </tr>
+    <tr>
+        <td>Badge Type:</td>
+        <td>{{ attendee.badge_type_label }}
+            {% if attendee.ribbon != c.NO_RIBBON %}
+                ({{ attendee.ribbon_label }})
+            {% endif %}
+        </td>
+    </tr>
+    {% if attendee.badge_printed_name %}
+        <tr>
+            <td>Badge Printed Name:</td>
+            <td>{{ attendee.badge_printed_name }}</td>
+        </tr>
+    {% endif %}
+    {% if c.NUMBERED_BADGES %}
+        <tr>
+            <td>Badge Number:</td>
+            <td>
+                {% if attendee.badge_num %}
+                    {{ attendee.badge_num }}
+                    <input type="hidden" id="checkin-badge" name="badge_num" value="{{ attendee.badge_num }}" />
+                {% else %}
+                    # <input class="num" id="checkin-badge" name="badge_num" type="number" size="5" />
+                {% endif %}
+            </td>
+        </tr>
+    {% endif %}
+    {% endblock checkin_fields %}
+</table>
+</form>

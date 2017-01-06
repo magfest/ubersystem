@@ -1,7 +1,7 @@
 {{ attendee.first_name }},
 
-Thanks for preregistering for {{ EVENT_NAME }}!  You checked a box on your registration form which indicated that you were interested in volunteering, and the deadline for signing up for shifts is coming up.  If you'd still like to help, you can sign up for shifts until {{ UBER_TAKEDOWN|datetime }} by logging in at {{ URL_BASE }}/signups/login
+Thanks for preregistering for {{ c.EVENT_NAME }}!  You checked a box on your registration form which indicated that you were interested in volunteering, and the deadline for signing up for shifts is coming up.  If you'd still like to help, you can sign up for shifts until {{ c.UBER_TAKEDOWN|datetime }} by logging in at {{ c.URL_BASE }}/signups/login
 
-It's fine if you decide not to volunteer; if you change your mind after the deadline, just come see us in Staffing Ops at {{ EVENT_NAME }} and we'll let you know what shifts are still available.
+It's fine if you decide not to volunteer; if you change your mind after the deadline, just come see us in Staffing Ops at {{ c.EVENT_NAME }} and we'll let you know what shifts are still available.
 
-{{ STOPS_EMAIL_SIGNATURE }}
+{{ c.STOPS_EMAIL_SIGNATURE }}

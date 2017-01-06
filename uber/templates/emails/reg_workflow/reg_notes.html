@@ -1,23 +1,23 @@
 {% if attendee.staffing %}
     <br/> <br/>
     Thanks for your interest in volunteering!
-    {% if attendee.paid == HAS_PAID %}
+    {% if attendee.paid == c.HAS_PAID %}
         Now that we've received your payment
-    {% elif attendee.paid == PAID_BY_GROUP %}
+    {% elif attendee.paid == c.PAID_BY_GROUP %}
         As soon as we get a chance,
     {% else %}
         After we receive your payment
     {% endif %}
-     we will review your request to volunteer at {{ EVENT_NAME }}. If you are selected, we will email further
+     we will review your request to volunteer at {{ c.EVENT_NAME }}. If you are selected, we will email further
     instructions about your department assignment and how to sign up for shifts.
 {% endif %}
 
-{% if CONSENT_FORM_URL and attendee.age_group == UNDER_18 %}
+{% if c.CONSENT_FORM_URL and attendee.consent_form %}
     <br/> <br/>
     Because you are under 18, you must bring a signed and notarized parental permission
-    to be granted admission to {{ EVENT_NAME }}.  You may download the permission slip 
-    <a href="{{ CONSENT_FORM_URL }}">by clicking here</a>.
+    to be granted admission to {{ c.EVENT_NAME }}.  You may download the consent form 
+    <a href="{{ c.CONSENT_FORM_URL }}">by clicking here</a>.
     <br/> <br/>
-    You may <a href="{{ URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">click here</a>
+    You may <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">click here</a>
     to edit your info if you are over 18 and entered that age by mistake.
 {% endif %}
