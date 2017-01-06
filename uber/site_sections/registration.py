@@ -163,7 +163,7 @@ class Root:
 
         Returns: A PNG buffer. Use this function in an img tag's src='' to display an image.
 
-        NOTE: this will be called directly by attendee's client browsers to display their QR code.
+        NOTE: this will be called directly by attendee's client browsers to display their 2D barcode.
         This will potentially be called on the order of 100,000 times per event and serve up a lot of data.
         Be sure that any modifications to this code are fast and don't unnecessarily increase CPU load.
 
@@ -172,8 +172,8 @@ class Root:
 
         """
         if not c.QR_CODE_PASSWORD or not qr_cipher:
-            # Don't generate a QR Code if we aren't configured for encryption
-            return 'QR code password not set, cannot generate images'
+            # Don't generate a 2D barcode if we aren't configured for encryption
+            return '2D barcode password not set, cannot generate images'
 
         encrypted_data = c.EVENT_QR_ID + bytes.decode(binascii.hexlify(qr_cipher.encrypt(uuid.UUID(data).hex)))
 
@@ -195,11 +195,11 @@ class Root:
     @ajax
     def qrcode_reader(self, message='', qrcode=None):
         """
-        Takes a scanned QR code and ensures it is the correct event using EVENT_QR_ID
+        Takes a scanned 2D barcode and ensures it is the correct event using EVENT_QR_ID
         Then, decrypts it and returns the decrypted data as a string.
         Args:
             message: The error message that the function will return
-            qrcode: The scanned QR code
+            qrcode: The scanned barcode
 
         Returns: Decrypted data, usually a UUID
 
@@ -207,9 +207,9 @@ class Root:
         success, decrypted_data = False, ''
 
         if not qrcode:
-            message = 'No QR Code scanned.'
+            message = 'No barcode scanned.'
         elif not c.QR_CODE_PASSWORD or not qr_cipher:
-            message = 'Cannot decrypt QR Code: no decryption key. Contact your administrator.'
+            message = 'Cannot decrypt barcode: no decryption key. Contact your administrator.'
         elif not qrcode.startswith(c.EVENT_QR_ID):
             message = 'Wrong (or no) event ID provided.'
 
@@ -219,9 +219,9 @@ class Root:
             try:
                 decrypted_data = qr_cipher.decrypt(binascii.unhexlify(data_to_decrypt)).decode('utf8')
             except binascii.Error:
-                message = 'Malformed QR code (not a valid hex).'
+                message = 'Malformed barcode (not a valid hex).'
             except ValueError:
-                message = 'Malformed QR code (decryption failed).'
+                message = 'Malformed barcode (decryption failed).'
 
             # Convert to a UUID, if applicable.
             try:
