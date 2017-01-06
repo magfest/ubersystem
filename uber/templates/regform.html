@@ -468,7 +468,7 @@
     <div class="col-sm-6">
         <input type="text" name="cellphone" id="cellphone" value="{{ attendee.cellphone }}" class="form-control" placeholder="Your Personal Cellphone Number">
     </div>
-    {% if not attendee.is_dealer %}
+    {% if not attendee.is_dealer or c.PAGE_PATH == '/registration/form' %}
         <div class="checkbox col-sm-6">
             <label class="cellphone-excuse">
                 {% checkbox attendee.no_cellphone %}

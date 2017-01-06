@@ -1292,7 +1292,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.paid == c.NOT_PAID:
             return "Not paid"
 
-        if self.badge_status != c.COMPLETED_STATUS:
+        # When someone claims an unassigned group badge on-site, they first fill out a new registration
+        # which is paid-by-group but isn't assigned to a group yet (the admin does that when they check in).
+        if self.badge_status != c.COMPLETED_STATUS \
+                and not (self.badge_status == c.NEW_STATUS and self.paid == c.PAID_BY_GROUP and not self.group_id):
             return "Badge status"
 
         if self.is_unassigned:
