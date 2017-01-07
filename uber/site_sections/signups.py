@@ -104,7 +104,7 @@ class Root:
 
         if first_name or last_name or email or zip_code:
             try:
-                attendee = session.lookup_attendee(first_name, last_name, email, zip_code)
+                attendee = session.lookup_attendee(first_name.strip(), last_name.strip(), email, zip_code)
                 if not attendee.staffing:
                     message = SafeString('You are not signed up as a volunteer.  <a href="volunteer?id={}">Click Here</a> to sign up.'.format(attendee.id))
                 elif not attendee.assigned_depts_ints and not c.AT_THE_CON:
