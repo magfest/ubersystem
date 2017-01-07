@@ -517,6 +517,7 @@ class request_cached_context:
     def _clear_cache():
         threadlocal.clear()
 
+
 def normalize_email(address):
     """
     For only @gmail addresses, periods need to be parsed
