@@ -493,9 +493,11 @@ class Session(SessionManager):
             return not self.query(Email).filter_by(subject=subject).all()
 
         def lookup_attendee(self, input_first_name, input_last_name, email, zip_code):
+            email = normalize_email(email)
             attendee = self.query(Attendee).iexact(first_name=first_name, last_name=last_name, email=email, zip_code=zip_code).all()
             if attendee:
                 return attendee[0]
+
             raise ValueError('attendee not found')
 
         def get_next_badge_num(self, badge_type):
@@ -1181,6 +1183,10 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         # remove trusted status from any dept we are not assigned to
         self.trusted_depts = ','.join(str(td) for td in self.trusted_depts_ints if td in self.assigned_depts_ints)
+
+    @presave_adjustment
+    def _email_adjustment(self):
+        self.email = normalize_email(self.email)
 
     def unset_volunteering(self):
         self.staffing = False
