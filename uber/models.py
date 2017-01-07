@@ -492,15 +492,12 @@ class Session(SessionManager):
         def no_email(self, subject):
             return not self.query(Email).filter_by(subject=subject).all()
 
-        def lookup_attendee(self, full_name, email, zip_code):
-            words = full_name.split()
+        def lookup_attendee(self, input_first_name, input_last_name, email, zip_code):
             email = normalize_email(email)
+            attendee = self.query(Attendee).iexact(first_name=first_name, last_name=last_name, email=email, zip_code=zip_code).all()
+            if attendee:
+                return attendee[0]
 
-            for i in range(1, len(words)):
-                first, last = ' '.join(words[:i]), ' '.join(words[i:])
-                attendee = self.query(Attendee).iexact(first_name=first, last_name=last, email=email, zip_code=zip_code).all()
-                if attendee:
-                    return attendee[0]
             raise ValueError('attendee not found')
 
         def get_next_badge_num(self, badge_type):
