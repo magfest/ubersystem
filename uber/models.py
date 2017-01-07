@@ -493,7 +493,7 @@ class Session(SessionManager):
             return not self.query(Email).filter_by(subject=subject).all()
 
         def lookup_attendee(self, input_first_name, input_last_name, email, zip_code):
-            attendee = self.query(Attendee).iexact(first_name=input_first_name, last_name=input_last_name, email=email, zip_code=zip_code).all()
+            attendee = self.query(Attendee).iexact(first_name=first_name, last_name=last_name, email=email, zip_code=zip_code).all()
             if attendee:
                 return attendee[0]
             raise ValueError('attendee not found')
