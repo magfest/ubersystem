@@ -494,6 +494,8 @@ class Session(SessionManager):
 
         def lookup_attendee(self, full_name, email, zip_code):
             words = full_name.split()
+            email = normalize_email(email)
+
             for i in range(1, len(words)):
                 first, last = ' '.join(words[:i]), ' '.join(words[i:])
                 attendee = self.query(Attendee).iexact(first_name=first, last_name=last, email=email, zip_code=zip_code).all()
@@ -1184,6 +1186,10 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         # remove trusted status from any dept we are not assigned to
         self.trusted_depts = ','.join(str(td) for td in self.trusted_depts_ints if td in self.assigned_depts_ints)
+
+    @presave_adjustment
+    def _email_adjustment(self):
+        self.email = normalize_email(self.email)
 
     def unset_volunteering(self):
         self.staffing = False

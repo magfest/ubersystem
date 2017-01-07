@@ -516,3 +516,15 @@ class request_cached_context:
     @staticmethod
     def _clear_cache():
         threadlocal.clear()
+
+def normalize_email(address):
+    """
+    For only @gmail addresses, periods need to be parsed
+    out because they simply don't matter.
+
+    For all other addresses, they are read normally.
+    """
+    address = address.lower()
+    if address.endswith("@gmail.com"):
+        return address[:-10].replace(".", "") + "@gmail.com"
+    return address
