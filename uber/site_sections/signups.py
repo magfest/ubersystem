@@ -99,12 +99,12 @@ class Root:
             return {'jobs': session.jobs_for_signups()}
 
     @unrestricted
-    def login(self, session, message='', full_name='', email='', zip_code='', original_location=None):
+    def login(self, session, message='',  first_name='', last_name='', email='', zip_code='', original_location=None):
         original_location = create_valid_user_supplied_redirect_url(original_location, default_url='index')
 
-        if full_name or email or zip_code:
+        if first_name or last_name or email or zip_code:
             try:
-                attendee = session.lookup_attendee(full_name, email, zip_code)
+                attendee = session.lookup_attendee(first_name.strip(), last_name.strip(), email, zip_code)
                 if not attendee.staffing:
                     message = SafeString('You are not signed up as a volunteer.  <a href="volunteer?id={}">Click Here</a> to sign up.'.format(attendee.id))
                 elif not attendee.assigned_depts_ints and not c.AT_THE_CON:
@@ -119,8 +119,9 @@ class Root:
 
         return {
             'message':   message,
-            'full_name': full_name,
-            'email':     email,
+            'first_name': first_name,
+            'last_name': last_name,
+            'email': email,
             'zip_code':  zip_code,
             'original_location': original_location,
         }
