@@ -125,6 +125,27 @@ class Root:
             'message': message
         }
 
+    def update_password_of_other(self, session, id, message='', updater_password=None, new_password=None, csrf_token=None, confirm_new_password=None):
+        if updater_password is not None:
+            new_password = new_password.strip()
+            updater_account = session.admin_account(cherrypy.session['account_id'])
+            if not new_password:
+                message = 'New password is required'
+            elif not valid_password(updater_password, updater_account):
+                message = 'Your password is incorrect'
+            elif new_password != confirm_new_password:
+                message = 'Passwords do not match'
+            else:
+                check_csrf(csrf_token)
+                account = session.admin_account(id)
+                account.hashed = bcrypt.hashpw(new_password, bcrypt.gensalt())
+                raise HTTPRedirect('index?message={}', 'Account Password Updated')
+
+        return {
+            'account': session.admin_account(id),
+            'message': message
+        }
+
     @unrestricted
     def change_password(self, session, message='', old_password=None, new_password=None, csrf_token=None, confirm_new_password=None):
         if not cherrypy.session.get('account_id'):
@@ -137,6 +158,8 @@ class Root:
                 message = 'New password is required'
             elif not valid_password(old_password, account):
                 message = 'Incorrect old password; please try again'
+            elif new_password != confirm_new_password:
+                message = 'Passwords do not match'
             else:
                 check_csrf(csrf_token)
                 account.hashed = bcrypt.hashpw(new_password, bcrypt.gensalt())
