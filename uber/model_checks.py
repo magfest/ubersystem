@@ -12,6 +12,7 @@ To perform these validations, call the "check" method on the instance you're val
 on success and a string error message on validation failure.
 """
 from uber.common import *
+from email_validator import validate_email, EmailNotValidError
 
 
 AdminAccount.required = [('attendee', 'Attendee'), ('hashed', 'Password')]
@@ -148,8 +149,12 @@ def email(attendee):
     if len(attendee.email) > 255:
         return 'Email addresses cannot be longer than 255 characters.'
 
-    if (c.AT_OR_POST_CON and attendee.email and not re.match(c.EMAIL_RE, attendee.email)) or (not c.AT_OR_POST_CON and not re.match(c.EMAIL_RE, attendee.email)):
-        return 'Enter a valid email address'
+    if (c.AT_OR_POST_CON and attendee.email) or not c.AT_OR_POST_CON:
+        try:
+            validate_email(attendee.email)
+        except EmailNotValidError as e:
+            message = str(e)
+            return 'Enter a valid email address. ' + message
 
 
 @validation.Attendee
