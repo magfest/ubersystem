@@ -442,7 +442,7 @@ class Root:
 
     @csrf_protected
     def undo_checkin(self, session, id, pre_badge):
-        attendee = session.attendee(id)
+        attendee = session.attendee(id, allow_invalid=True)
         attendee.checked_in, attendee.badge_num = None, pre_badge
         session.add(attendee)
         session.commit()
@@ -491,7 +491,7 @@ class Root:
         }
 
     def lost_badge(self, session, id):
-        a = session.attendee(id)
+        a = session.attendee(id, allow_invalid=True)
         a.for_review += "Automated message: Badge reported lost on {}. Previous payment type: {}.".format(localized_now().strftime('%m/%d, %H:%M'), a.paid_label)
         a.paid = c.LOST_BADGE
         session.add(a)
@@ -531,7 +531,7 @@ class Root:
             shirt_size = None
 
         success = False
-        attendee = session.attendee(id)
+        attendee = session.attendee(id, allow_invalid=True)
         if not attendee.merch:
             message = '{} has no merch'.format(attendee.full_name)
         elif attendee.got_merch:
@@ -560,7 +560,7 @@ class Root:
 
     @ajax
     def take_back_merch(self, session, id):
-        attendee = session.attendee(id)
+        attendee = session.attendee(id, allow_invalid=True)
         attendee.got_merch = False
         if attendee.no_shirt:
             session.delete(attendee.no_shirt)
@@ -821,7 +821,7 @@ class Root:
         return params
 
     def undo_new_checkin(self, session, id):
-        attendee = session.attendee(id)
+        attendee = session.attendee(id, allow_invalid=True)
         if attendee.group:
             session.add(Attendee(group=attendee.group, paid=c.PAID_BY_GROUP, badge_type=attendee.badge_type, ribbon=attendee.ribbon))
         attendee.badge_num = None
@@ -829,7 +829,7 @@ class Root:
         raise HTTPRedirect('new?message={}', 'Attendee un-checked-in')
 
     def shifts(self, session, id, shift_id='', message=''):
-        attendee = session.attendee(id)
+        attendee = session.attendee(id, allow_invalid=True)
         return {
             'message':  message,
             'shift_id': shift_id,
@@ -848,7 +848,7 @@ class Root:
 
     @csrf_protected
     def update_nonshift(self, session, id, nonshift_hours):
-        attendee = session.attendee(id)
+        attendee = session.attendee(id, allow_invalid=True)
         if not re.match('^[0-9]+$', nonshift_hours):
             raise HTTPRedirect('shifts?id={}&message={}', attendee.id, 'Invalid integer')
         else:
@@ -857,7 +857,7 @@ class Root:
 
     @csrf_protected
     def update_notes(self, session, id, admin_notes, for_review=None):
-        attendee = session.attendee(id)
+        attendee = session.attendee(id, allow_invalid=True)
         attendee.admin_notes = admin_notes
         if for_review is not None:
             attendee.for_review = for_review
