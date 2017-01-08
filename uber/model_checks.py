@@ -177,6 +177,13 @@ def cellphone(attendee):
 
 @validation.Attendee
 @ignore_unassigned_and_placeholders
+def emergency_contact_not_cellphone(attendee):
+    if not attendee.international and attendee.cellphone and attendee.cellphone == attendee.ec_phone:
+        return "Your cellphone number cannot be the same as your emergency contact number"
+
+
+@validation.Attendee
+@ignore_unassigned_and_placeholders
 def zip_code(attendee):
     if not attendee.international and not c.AT_OR_POST_CON:
         if _invalid_zip_code(attendee.zip_code):
