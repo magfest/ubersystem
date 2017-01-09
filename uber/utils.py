@@ -534,5 +534,5 @@ def normalize_email(address):
         # get normalized result
         address = validation_info["email"]
     except EmailNotValidError:
-        pass # ignore invalid emails
+        pass  # ignore invalid emails
     return address
