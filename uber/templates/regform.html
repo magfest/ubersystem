@@ -392,7 +392,7 @@
 <div class="form-group">
     <label for="email" class="col-sm-2 control-label">Email Address</label>
     <div class="col-sm-6">
-        <input type="email" name="email" id="email" value="{{ attendee.email }}" class="form-control" placeholder="Email Address">
+        <input type="email" type="email" name="email" id="email" value="{{ attendee.email }}" class="form-control" placeholder="Email Address">
     </div>
 </div>
 
@@ -486,7 +486,7 @@
 </div>
 
 <div class="form-group">
-    <label for="email" class="col-sm-2 control-label optional-field">How did you find {{ c.EVENT_NAME }}?</label>
+    <label for="found_how" class="col-sm-2 control-label optional-field">How did you find {{ c.EVENT_NAME }}?</label>
     <div class="col-sm-6">
         <input type="text" name="found_how" id="found_how" value="{{ attendee.found_how }}" class="form-control" placeholder="How did you find {{ c.EVENT_NAME }}?">
     </div>
