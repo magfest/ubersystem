@@ -389,13 +389,51 @@
     </p>
 </div>
 
+<!-- This is the area of code that deals with getting the user's email address and verifies it -->
+<!-- This field handles getting their address -->
 <div class="form-group">
     <label for="email" class="col-sm-2 control-label">Email Address</label>
     <div class="col-sm-6">
-        <input type="email" name="email" id="email" value="{{ attendee.email }}" class="form-control" placeholder="Email Address">
+        <input type="email" name="email" id="emailIn1" value="{{ attendee.email }}" class="form-control" placeholder="Email Address" id="mailValue1">
     </div>
 </div>
 
+<!-- This is a field only used to compare to the first email address -->
+<div class="form-group">
+    <label for="email" class="col-sm-2 control-label">Email Address Confirmation</label>
+    <div class="col-sm-6">
+        <input type="email" name="email2" id="emailIn2" value="" class="form-control" placeholder="Email Address Confirmation" id="mailValue2">
+    </div>
+</div>
+
+<!-- This div contains an error message that displays an error message when the two email addresses entered do not match -->
+<div class="email-error" id="email-error" style="display: none;">
+        <br>
+    <p style="text-indent: 23em; color: red"><b>The email addresses do not match, please enter them again.</b></p>
+</div> <br>
+
+<!-- This script field is what compares the email addresses -->
+<script type="text/javascript">
+    $(document).ready(function(){
+        <!-- Hides the error message div on page loading -->
+        $(".email-error").hide();
+
+        <!-- Runs email handler on both email entry fields when focusing out -->
+        $("#emailIn1").focusout(emailHandler);
+        $("#emailIn2").focusout(emailHandler);
+
+    });
+
+    <!-- The function that compares the email fields. Shows the error if they are not equal, hides the error when they are equal -->
+    function emailHandler() {
+        if ($("#emailIn1").val() != $("#emailIn2").val()) {
+            $(".email-error").show();
+        }
+        else {
+            $(".email-error").hide();
+        }
+    }
+</script>
 {% if c.COLLECT_FULL_ADDRESS %}
     {% if c.PRE_CON %}
         <div class="form-group">
@@ -464,7 +502,7 @@
 </div>
 
 <div class="form-group">
-    <label for="cellphone" class="col-sm-2 control-label">Your Cellphone Number</label>
+    <label for="cellphone" class="col-sm-2 control-label"><b>Your Cellphone Number</b></label>
     <div class="col-sm-6">
         <input type="text" name="cellphone" id="cellphone" value="{{ attendee.cellphone }}" class="form-control" placeholder="Your Personal Cellphone Number">
     </div>
