@@ -1,4 +1,5 @@
 from uber.common import *
+from email_validator import validate_email, EmailNotValidError
 
 
 qr_cipher = AES.new(c.QR_CODE_PASSWORD, AES.MODE_ECB) if c.QR_CODE_PASSWORD else None
@@ -527,5 +528,11 @@ def normalize_email(address):
     """
     address = address.lower()
     if address.endswith("@gmail.com"):
-        return address[:-10].replace(".", "") + "@gmail.com"
+        address = address[:-10].replace(".", "") + "@gmail.com"
+    try:
+        validation_info = validate_email(address)
+        # get normalized result
+        address = validation_info["email"]
+    except EmailNotValidError:
+        pass # ignore invalid emails
     return address
