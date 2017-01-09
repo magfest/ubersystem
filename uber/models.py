@@ -492,9 +492,9 @@ class Session(SessionManager):
         def no_email(self, subject):
             return not self.query(Email).filter_by(subject=subject).all()
 
-        def lookup_attendee(self, input_first_name, input_last_name, email, zip_code):
+        def lookup_attendee(self, first_name, last_name, email, zip_code):
             email = normalize_email(email)
-            attendee = self.query(Attendee).iexact(first_name=first_name, last_name=last_name, email=email, zip_code=zip_code).all()
+            attendee = self.query(Attendee).iexact(first_name=first_name, last_name=last_name, email=email, zip_code=zip_code).filter(Attendee.badge_status != c.INVALID_STATUS).all()
             if attendee:
                 return attendee[0]
 
