@@ -11,5 +11,8 @@
 {%  endblock %}
 
 {% block additional_styles %}
+   <!-- inside additional_styles -->
    <link rel="stylesheet" type="text/css" href="../static_views/additional-styles.css" />
+   <link rel="stylesheet" href="../static/styles/bootstrap.min.css" />
+    {% block page_styles %} {% endblock %}
 {%  endblock %}

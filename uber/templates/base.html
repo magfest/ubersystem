@@ -20,6 +20,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     {% block sectionStyle %}{% endblock %}
+    <!-- additional styles -->
     {% block additional_styles %}{% endblock %}
     {% if 'preregistration' not in c.PAGE_PATH %}
         {% for js in c.JAVASCRIPT_INCLUDES %}

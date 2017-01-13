@@ -1,5 +1,13 @@
 {% extends "base-admin.html" %}
 {% block title %}Shifts{% endblock %}
+{% block page_styles %}
+<!--inside page_style -->
+<link rel="stylesheet" href="../static/styles/fullcalendar.min.css" />
+<link rel="stylesheet" href="../static/styles/fullcalendar.print.css" media="print"/>
+
+
+{% endblock %}
+
 {% block content %}
 
 {% include "jobs/main_menu.html" %}
@@ -32,12 +40,44 @@
             [<b>{{ job.start_time|datetime:"%I %p %a" }}</b> for an expected ~{{ job.duration }} hours]
             <a href="form?id={{ job.id }}">{{ job.name }}</a>:
             {{ job.shifts|length }}/{{ job.slots }} Staffers <a href="staffers_by_job?id={{ job.id }}">Signed Up</a>
+	    <!-- {{ job.start_time|datetime:"%Y-%m-%d %H:%M" }} -->
         </li>
     {% endfor %}
     </ul>
     <br/>
 </div>
 
+
+<div style="border:1px">
+    <h3>Teardown Shifts</h3>
+    <a href="form?id=None&location={{ location }}&type={{ c.TEARDOWN }}">Add a teardown shift</a>
+    <ul>
+    {% for job in teardown %}
+        <li>
+            [<b>{{ job.start_time|datetime:"%I %p %a" }}</b> for an expected ~{{ job.duration }} hours]
+            <a href="form?id={{ job.id }}">{{ job.name }}</a>:
+            {{ job.shifts|length }}/{{ job.slots }} Staffers <a href="staffers_by_job?id={{ job.id }}">Signed Up</a>
+ <!-- {{ job.start_time|datetime:"%Y-%m-%d %H:%M" }} -->
+
+        </li>
+    {% endfor %}
+    </ul>
+    <br/>
+</div>
+
+
+<!-- Starting with calendar implementation -->
+<div class="container">
+	<div class="row">
+		<div class="col-md-12">
+			<div id="shift_cal"></div>
+		</div>
+	</div>
+	<div class="row" style="margin-bottom:50px;">
+	</div>
+</div>
+
+<!--
 <table class="calendar" border="1">
 {% for curr_dt, prev_dt, jobs in times %}
     <tr>
@@ -68,19 +108,53 @@
 {% endfor %}
 </table>
 
-<div style="border:1px">
-    <h3>Teardown Shifts</h3>
-    <a href="form?id=None&location={{ location }}&type={{ c.TEARDOWN }}">Add a teardown shift</a>
-    <ul>
-    {% for job in teardown %}
+-->
+<script type="text/javascript" src="../static/js/moment.js"></script>
+
+<script type="text/javascript" src="../static/js/fullcalendar.min.js"></script> 
+<script type="text/javascript"> 
+
+
+	$(document).ready(function() {
+		
+		$('#shift_cal').fullCalendar({
+			header: {
+				left: 'prev,next today',
+				center: 'title',
+				right: 'agendaWeek,agendaDay'
+			},
+			defaultView: 'agendaDay',
+			editable: true,
+			allDaySlot: false,
+			eventLimit: true, // allow "more" link when too many events
+			events: [
+    {% for job in setup %}
+				{
+					title : "{{job.name}}",
+					start : "{{ job.start_time|datetime:"%Y-%m-%dT%H:%M:%S" }}"
+				},
+	/*
         <li>
             [<b>{{ job.start_time|datetime:"%I %p %a" }}</b> for an expected ~{{ job.duration }} hours]
             <a href="form?id={{ job.id }}">{{ job.name }}</a>:
             {{ job.shifts|length }}/{{ job.slots }} Staffers <a href="staffers_by_job?id={{ job.id }}">Signed Up</a>
+            <!-- {{ job.start_time|datetime:"%Y-%m-%d %H:%M" }} -->
         </li>
+	*/
     {% endfor %}
-    </ul>
-    <br/>
-</div>
+    {% for job in teardown %}
+                                {
+                                        title : "{{job.name}}",
+                                        start : "{{ job.start_time|datetime:"%Y-%m-%dT%H:%M:%S" }}"
+                                },
+    {% endfor %}
 
+			]
+		});
+		
+	});
+
+
+</script> 
 {% endblock %}
+
