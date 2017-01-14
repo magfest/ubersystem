@@ -73,7 +73,7 @@ class Root:
             'name': session.logged_in_volunteer().full_name
         }
     @check_shutdown
-    def shiftsb(self, session):
+    def shiftsb(self, session,tgtDate=''):
         return {
             'jobs': session.jobs_for_signups(),
             'name': session.logged_in_volunteer().full_name

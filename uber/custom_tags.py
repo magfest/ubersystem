@@ -5,8 +5,13 @@ from uber.common import *
 def datetime(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
     return ' '.join(dt.astimezone(c.EVENT_TIMEZONE).strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm')
 
-from datetime import datetime  # noqa: now that we've registered our filter, re-import the "datetime" class to avoid conflicts
+from datetime import datetime,timedelta  # noqa: now that we've registered our filter, re-import the "datetime" class to avoid conflicts
 
+@register.filter
+def shift_end(dt, duration):
+    curdate = dt + timedelta(hours=int(duration))
+    fmt = "%Y-%m-%dT%H:%M:%S"
+    return ' '.join(curdate.astimezone(c.EVENT_TIMEZONE).strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm')
 
 @register.filter
 def timestamp(dt):

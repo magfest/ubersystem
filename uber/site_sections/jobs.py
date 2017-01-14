@@ -56,7 +56,8 @@ class Root:
             'teardown':  [j for j in jobs if j.type == c.TEARDOWN],
             'checklist': location and session.checklist_status('creating_shifts', location),
             'times':     [(t, t + timedelta(hours=1), by_start[t]) for i, t in enumerate(times)],
-	    'jobs': jobs
+	    'jobs': jobs,
+	    'c' : c
         }
 
     def signups(self, session, location=None, message=''):

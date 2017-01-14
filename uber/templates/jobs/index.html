@@ -100,9 +100,6 @@
 	</div>
 
 
-{% for job in jobs %}
-{{job}}
-{% endfor %}
 <!--
 <table class="calendar" border="1">
 {% for curr_dt, prev_dt, jobs in times %}
@@ -152,13 +149,22 @@
 			defaultView: 'agendaDay',
 			editable: true,
 			allDaySlot: false,
+			slotEventOverlap:false,
 			eventLimit: true, // allow "more" link when too many events
 			events: [
     {% for job in jobs %}
 				{
 					title : "{{job.name}}",
-					start : "{{ job.start_time|datetime:"%Y-%m-%dT%H:%M:%S" }}"
-				},
+					start : "{{ job.start_time|datetime:"%Y-%m-%dT%H:%M:%S" }}",
+					// duration {{job.duration}}
+					end: "{{job.start_time|shift_end:job.duration}}",
+					url : "form?id={{ job.id }}",
+					{% if job.type == c.SETUP %}
+					backgroundColor:"#0ff"
+					{% else %}
+					backgroundColor:"#0f0"
+					{% endif %}		
+				},	
     {% endfor %}
 
 			]

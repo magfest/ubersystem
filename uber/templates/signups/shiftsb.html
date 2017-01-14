@@ -1,12 +1,27 @@
 {% extends 'signup_base.html' %}
 
+{% block page_style %}
+<style>
+.fc-toolbar.fc-header-toolbar {
+	margin-left:15px;
+	margin-right:15px;
+}
+</style>
+{% endblock %}
 {% block main_content %}
 <div class="row">
-	<div class="col-md-12">
+	<div class="col-md-12 text-center">
 	<span style="font-size:16pt ; font-weight:bold" class="ng-binding">T U's available shifts</span>
-   <br>
-   <span style="font-size:12pt ; font-style:italic" class="ng-binding">(If you are not T U, <a href="login">log in here</a>.)</span>
-   <table width="100%" style="text-align:center">
+   	</div>
+</div>
+<div class="row">
+	<div class="col-md-12 text-center">
+   		<span style="font-size:12pt ; font-style:italic" class="ng-binding">(If you are not T U, <a href="login">log in here</a>.)</span>
+	</div>
+</div>
+<div class=row">
+	<div class="col-md-12 text-center">
+<table width="100%" style="text-align:center">
    <tbody><tr>
        <td ng-bind-html-unsafe="'../static_views/stafferComps.html' | popupLink:'See What You Get For Volunteering'"></td>
        <!-- ngIf: !c.HIDE_SCHEDULE -->
@@ -20,10 +35,12 @@
 
 <div class="row">
 
-	<div class="col-md-12">
+	<div class="col-md-10 col-md-offset-1 col-xs-12">
 		<div id="shift_cal"></div>
 	</div>
 </div>
+{% endblock %}
+{% block page_script %}
     <script src="../static/deps/combined.js"></script>
     <script src="../angular/magfest.js"></script>
 
@@ -38,9 +55,14 @@
                         header: {
                                 left: 'prev,next today',
                                 center: 'title',
-                                right: 'listDay,listWeek'
+                                right: 'agendaDay,listWeek'
                         },
-                        defaultView: 'listDay',
+			views: {
+                agendaDay: { buttonText: 'list day' },
+                listWeek: { buttonText: 'list week' }
+            },
+
+                        defaultView: 'listWeek',
                         editable: true,
                         allDaySlot: false,
                         eventLimit: true, // allow "more" link when too many events
@@ -48,13 +70,40 @@
     {% for job in jobs %}
                                 {
                                         title : "{{job.name}}",
-                                        start : "{{ job.start_time_local|datetime:"%Y-%m-%dT%H:%M:%S" }}"
+                                        start : "{{ job.start_time_local|datetime:"%Y-%m-%dT%H:%M:%S" }}",
+					end : "{{job.start_time_local|shift_end:job.duration}}",
+					id : "{{job.id}}",
+					{% if job.taken %}
+					backgroundColor: "#239875",
+					taken: true
+					{% else %}
+					backgroundColor: "#305fc9",
+					taken: false
+					{% endif %}
                                 },
     {% endfor %}
 
-                        ]
+                        ],
+			eventClick: function(event) {
+				console.log(event.id + " " + event.taken);
+				window.location.href = window.location.pathname + "?tgtDate=" + moment(event.start).toISOString();
+			}
                 });
+		// if opened with tgtDate, go to date in calendar
+		var curDate = $.urlParam('tgtDate');
+		if(curDate != null) {
+			$("#shift_cal").fullCalendar('gotoDate', curDate);
+		}
 
         });
+$.urlParam = function(name){
+   var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
+   if (results==null){
+      return null;
+   }
+   else{
+      return results[1] || 0;
+   }
+}
 </script>
 {% endblock %}
