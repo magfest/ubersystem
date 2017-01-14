@@ -12,6 +12,7 @@
 
 {% include "jobs/main_menu.html" %}
 
+<div clas="row">
 {% if checklist.relevant %}
     {% if checklist.completed %}
         You've already indicated that what's here and/or whatever shifts STOPS creates are fine.  Let us know if that's in error.
@@ -28,46 +29,68 @@
         <input type="submit" value="I Confirm I Don't Need To Do Anything Else Here" />
         </form>
     {% endif %}
-    <br/><br/>
 {% endif %}
+</div>
+<div class="row">
+	<div class="col-md-12">
+	    <h3>Setup Shifts</h3>	
+	</div>
+</div>
+<div class="row">
+        <div class="col-md-12">
+	    <a href="form?id=None&location={{ location }}&type={{ c.SETUP }}">Add a setup shift</a>
 
-<div style="border:1px">
-    <h3>Setup Shifts</h3>
-    <a href="form?id=None&location={{ location }}&type={{ c.SETUP }}">Add a setup shift</a>
-    <ul>
+        </div>
+</div>
+
+<div class="row">
+        <div class="col-md-12">
     {% for job in setup %}
         <li>
             [<b>{{ job.start_time|datetime:"%I %p %a" }}</b> for an expected ~{{ job.duration }} hours]
             <a href="form?id={{ job.id }}">{{ job.name }}</a>:
             {{ job.shifts|length }}/{{ job.slots }} Staffers <a href="staffers_by_job?id={{ job.id }}">Signed Up</a>
-	    <!-- {{ job.start_time|datetime:"%Y-%m-%d %H:%M" }} -->
+            <!-- {{ job.start_time|datetime:"%Y-%m-%d %H:%M" }} -->
         </li>
     {% endfor %}
-    </ul>
-    <br/>
+
+        </div>
 </div>
 
+<div class="row">
+        <div class="col-md-12">
+    		<h3>Teardown Shifts</h3>
+        </div>
+</div>
 
-<div style="border:1px">
-    <h3>Teardown Shifts</h3>
-    <a href="form?id=None&location={{ location }}&type={{ c.TEARDOWN }}">Add a teardown shift</a>
-    <ul>
+<div class="row">
+        <div class="col-md-12">
+		<a href="form?id=None&location={{ location }}&type={{ c.TEARDOWN }}">Add a teardown shift</a>
+        </div>
+</div>
+
+<div class="row">
+        <div class="col-md-12">
     {% for job in teardown %}
         <li>
             [<b>{{ job.start_time|datetime:"%I %p %a" }}</b> for an expected ~{{ job.duration }} hours]
             <a href="form?id={{ job.id }}">{{ job.name }}</a>:
             {{ job.shifts|length }}/{{ job.slots }} Staffers <a href="staffers_by_job?id={{ job.id }}">Signed Up</a>
- <!-- {{ job.start_time|datetime:"%Y-%m-%d %H:%M" }} -->
-
         </li>
     {% endfor %}
-    </ul>
-    <br/>
+
+        </div>
+</div>
+<div class="row">
+
+	<div class="col-md-12">
+		<a href="form?id=None&location={{ location }}">Add Shift</a></nobr>	
+	</div>
 </div>
 
 
+
 <!-- Starting with calendar implementation -->
-<div class="container">
 	<div class="row">
 		<div class="col-md-12">
 			<div id="shift_cal"></div>
@@ -75,8 +98,11 @@
 	</div>
 	<div class="row" style="margin-bottom:50px;">
 	</div>
-</div>
 
+
+{% for job in jobs %}
+{{job}}
+{% endfor %}
 <!--
 <table class="calendar" border="1">
 {% for curr_dt, prev_dt, jobs in times %}
@@ -107,8 +133,8 @@
     </tr>
 {% endfor %}
 </table>
-
 -->
+
 <script type="text/javascript" src="../static/js/moment.js"></script>
 
 <script type="text/javascript" src="../static/js/fullcalendar.min.js"></script> 
@@ -128,25 +154,11 @@
 			allDaySlot: false,
 			eventLimit: true, // allow "more" link when too many events
 			events: [
-    {% for job in setup %}
+    {% for job in jobs %}
 				{
 					title : "{{job.name}}",
 					start : "{{ job.start_time|datetime:"%Y-%m-%dT%H:%M:%S" }}"
 				},
-	/*
-        <li>
-            [<b>{{ job.start_time|datetime:"%I %p %a" }}</b> for an expected ~{{ job.duration }} hours]
-            <a href="form?id={{ job.id }}">{{ job.name }}</a>:
-            {{ job.shifts|length }}/{{ job.slots }} Staffers <a href="staffers_by_job?id={{ job.id }}">Signed Up</a>
-            <!-- {{ job.start_time|datetime:"%Y-%m-%d %H:%M" }} -->
-        </li>
-	*/
-    {% endfor %}
-    {% for job in teardown %}
-                                {
-                                        title : "{{job.name}}",
-                                        start : "{{ job.start_time|datetime:"%Y-%m-%dT%H:%M:%S" }}"
-                                },
     {% endfor %}
 
 			]

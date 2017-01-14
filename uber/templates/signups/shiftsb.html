@@ -1,0 +1,60 @@
+{% extends 'signup_base.html' %}
+
+{% block main_content %}
+<div class="row">
+	<div class="col-md-12">
+	<span style="font-size:16pt ; font-weight:bold" class="ng-binding">T U's available shifts</span>
+   <br>
+   <span style="font-size:12pt ; font-style:italic" class="ng-binding">(If you are not T U, <a href="login">log in here</a>.)</span>
+   <table width="100%" style="text-align:center">
+   <tbody><tr>
+       <td ng-bind-html-unsafe="'../static_views/stafferComps.html' | popupLink:'See What You Get For Volunteering'"></td>
+       <!-- ngIf: !c.HIDE_SCHEDULE -->
+   </tr>
+   </tbody></table>
+   <br>
+   <a href="#/schedule">Click Here</a> to see the 6 weighted hours worth of shifts you are signed up for
+   <br> or <a href="index">Click Here</a> to return to the main page of the Volunteer Checklist.
+	</div>
+</div>
+
+<div class="row">
+
+	<div class="col-md-12">
+		<div id="shift_cal"></div>
+	</div>
+</div>
+    <script src="../static/deps/combined.js"></script>
+    <script src="../angular/magfest.js"></script>
+
+<script type="text/javascript" src="../static/js/moment.js"></script>
+
+<script type="text/javascript" src="../static/js/fullcalendar.min.js"></script>
+
+<script type="text/javascript">
+        $(document).ready(function() {
+
+                $('#shift_cal').fullCalendar({
+                        header: {
+                                left: 'prev,next today',
+                                center: 'title',
+                                right: 'listDay,listWeek'
+                        },
+                        defaultView: 'listDay',
+                        editable: true,
+                        allDaySlot: false,
+                        eventLimit: true, // allow "more" link when too many events
+                        events: [
+    {% for job in jobs %}
+                                {
+                                        title : "{{job.name}}",
+                                        start : "{{ job.start_time_local|datetime:"%Y-%m-%dT%H:%M:%S" }}"
+                                },
+    {% endfor %}
+
+                        ]
+                });
+
+        });
+</script>
+{% endblock %}

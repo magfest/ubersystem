@@ -72,6 +72,13 @@ class Root:
             'jobs': session.jobs_for_signups(),
             'name': session.logged_in_volunteer().full_name
         }
+    @check_shutdown
+    def shiftsb(self, session):
+        return {
+            'jobs': session.jobs_for_signups(),
+            'name': session.logged_in_volunteer().full_name
+        }
+
 
     @check_shutdown
     @ajax_gettable
