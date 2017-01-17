@@ -13,6 +13,11 @@ def shift_end(dt, duration):
     fmt = "%Y-%m-%dT%H:%M:%S"
     return ' '.join(curdate.astimezone(c.EVENT_TIMEZONE).strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm')
 
+
+@register.filter
+def list_length(tgtlist):
+    return len(tgtlist)
+
 @register.filter
 def timestamp(dt):
     from time import mktime

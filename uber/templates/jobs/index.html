@@ -33,7 +33,7 @@
 </div>
 <div class="row">
 	<div class="col-md-12">
-	    <h3>Setup Shifts</h3>	
+	    <h3>Setup Shifts ({{ setup|list_length }})</h3>	
 	</div>
 </div>
 <div class="row">
@@ -42,7 +42,7 @@
 
         </div>
 </div>
-
+{% comment %}
 <div class="row">
         <div class="col-md-12">
     {% for job in setup %}
@@ -56,10 +56,10 @@
 
         </div>
 </div>
-
+{% endcomment %}
 <div class="row">
         <div class="col-md-12">
-    		<h3>Teardown Shifts</h3>
+    		<h3>Teardown Shifts ({{teardown|list_length}})</h3>
         </div>
 </div>
 
@@ -68,7 +68,7 @@
 		<a href="form?id=None&location={{ location }}&type={{ c.TEARDOWN }}">Add a teardown shift</a>
         </div>
 </div>
-
+{% comment %}
 <div class="row">
         <div class="col-md-12">
     {% for job in teardown %}
@@ -81,6 +81,7 @@
 
         </div>
 </div>
+{% endcomment %}
 <div class="row">
 
 	<div class="col-md-12">
@@ -91,13 +92,12 @@
 
 
 <!-- Starting with calendar implementation -->
-	<div class="row">
-		<div class="col-md-12">
-			<div id="shift_cal"></div>
-		</div>
+<div class="row">
+	<div class="col-md-12">
+		<div id="shift_cal"></div>
 	</div>
-	<div class="row" style="margin-bottom:50px;">
-	</div>
+</div>
+<div class="row" style="margin-bottom:50px;"></div>
 
 
 <!--
@@ -131,8 +131,10 @@
 {% endfor %}
 </table>
 -->
+{% endblock %}
+{% block page_scripts %}
+<script type="text/javascript" src="../static/js/moment.js"></script> 
 
-<script type="text/javascript" src="../static/js/moment.js"></script>
 
 <script type="text/javascript" src="../static/js/fullcalendar.min.js"></script> 
 <script type="text/javascript"> 
@@ -154,7 +156,7 @@
 			events: [
     {% for job in jobs %}
 				{
-					title : "{{job.name}}",
+					title : "{{job.name}} ({{job.shifts | length }}/{{job.slots}})",
 					start : "{{ job.start_time|datetime:"%Y-%m-%dT%H:%M:%S" }}",
 					// duration {{job.duration}}
 					end: "{{job.start_time|shift_end:job.duration}}",
@@ -169,10 +171,10 @@
 
 			]
 		});
-		
+	 $('#shift_cal').fullCalendar( 'gotoDate', moment("2017-01-05T08:00:00" ));
+	
 	});
 
-
-</script> 
+</script>
 {% endblock %}
 
