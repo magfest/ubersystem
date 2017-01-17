@@ -2,9 +2,6 @@ from uber.common import *
 from email_validator import validate_email, EmailNotValidError
 
 
-qr_cipher = AES.new(c.QR_CODE_PASSWORD, AES.MODE_ECB) if c.QR_CODE_PASSWORD else None
-
-
 class HTTPRedirect(cherrypy.HTTPRedirect):
     """
     CherryPy uses exceptions to indicate things like HTTP 303 redirects.  This

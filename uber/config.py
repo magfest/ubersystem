@@ -501,9 +501,6 @@ c.EVENT_MONTH = c.EPOCH.strftime('%B')
 c.EVENT_START_DAY = int(c.EPOCH.strftime('%d')) % 100
 c.EVENT_END_DAY = int(c.ESCHATON.strftime('%d')) % 100
 
-c.EVENT_QR_ID = c.EVENT_QR_ID or c.EVENT_NAME_AND_YEAR.replace(' ', '_').lower()
-_secret.QR_CODE_PASSWORD = sha512(c.QR_CODE_PASSWORD.encode('UTF-8')).hexdigest()[:24] if c.QR_CODE_PASSWORD else None
-
 c.DAYS = sorted({(dt.strftime('%Y-%m-%d'), dt.strftime('%a')) for dt, desc in c.START_TIME_OPTS})
 c.HOURS = ['{:02}'.format(i) for i in range(24)]
 c.MINUTES = ['{:02}'.format(i) for i in range(60)]
