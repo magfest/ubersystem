@@ -742,8 +742,9 @@ class Session(SessionManager):
                                             Group.id == terms[0], Group.search_key == terms[0]))
             elif len(terms) == 1 and terms[0].startswith(c.EVENT_QR_ID):
                 search_uuid = terms[0][len(c.EVENT_QR_ID):]
-                return attendees.filter(or_(Attendee.search_key == search_uuid,
-                                            Group.search_key == search_uuid))
+                if re.match('[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}', search_uuid):
+                    return attendees.filter(or_(Attendee.search_key == search_uuid,
+                                                Group.search_key == search_uuid))
 
             checks = [Group.name.ilike('%' + text + '%')]
             for attr in ['first_name', 'last_name', 'badge_printed_name', 'email', 'comments', 'admin_notes', 'for_review']:
