@@ -738,13 +738,13 @@ class Session(SessionManager):
                 elif int(terms[0]) <= sorted(c.BADGE_RANGES.items(), key=lambda badge_range: badge_range[1][0])[-1][1][1]:
                     return attendees.filter(Attendee.badge_num == terms[0])
             elif len(terms) == 1 and re.match('[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}', terms[0]):
-                return attendees.filter(or_(Attendee.id == terms[0], Attendee.search_key == terms[0],
-                                            Group.id == terms[0], Group.search_key == terms[0]))
+                return attendees.filter(or_(Attendee.id == terms[0], Attendee.public_id == terms[0],
+                                            Group.id == terms[0], Group.public_id == terms[0]))
             elif len(terms) == 1 and terms[0].startswith(c.EVENT_QR_ID):
                 search_uuid = terms[0][len(c.EVENT_QR_ID):]
                 if re.match('[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}', search_uuid):
-                    return attendees.filter(or_(Attendee.search_key == search_uuid,
-                                                Group.search_key == search_uuid))
+                    return attendees.filter(or_(Attendee.public_id == search_uuid,
+                                                Group.public_id == search_uuid))
 
             checks = [Group.name.ilike('%' + text + '%')]
             for attr in ['first_name', 'last_name', 'badge_printed_name', 'email', 'comments', 'admin_notes', 'for_review']:
@@ -862,7 +862,7 @@ class Session(SessionManager):
 
 
 class Group(MagModel, TakesPaymentMixin):
-    search_key    = Column(UUID, default=lambda: str(uuid4()))
+    public_id    = Column(UUID, default=lambda: str(uuid4()))
     name          = Column(UnicodeText)
     tables        = Column(Numeric, default=0)
     address       = Column(UnicodeText)
@@ -1046,7 +1046,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     for_review  = Column(UnicodeText, admin_only=True)
     admin_notes = Column(UnicodeText, admin_only=True)
 
-    search_key   = Column(UUID, default=lambda: str(uuid4()))
+    public_id   = Column(UUID, default=lambda: str(uuid4()))
     badge_num    = Column(Integer, default=None, nullable=True, admin_only=True)
     badge_type   = Column(Choice(c.BADGE_OPTS), default=c.ATTENDEE_BADGE)
     badge_status = Column(Choice(c.BADGE_STATUS_OPTS), default=c.NEW_STATUS, admin_only=True)
