@@ -10,7 +10,7 @@
 <br/><br/>Please note, however, that this code is <strong>not</strong> a replacement for your photo ID. You must still present your photo ID when picking up your badge.
 You cannot pick up badges on behalf of other attendees, even if you have a copy of their barcode.
 
-<br/><br/><img src="{{ c.URL_BASE }}/registration/qrcode_generator?data={{ attendee.id }}" />
+<br/><br/><img src="{{ c.URL_BASE }}/registration/qrcode_generator?data={{ attendee.public_id }}" />
 
 <br/> <br/>
 {% include "emails/reg_workflow/reg_notes.html" %}
