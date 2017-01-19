@@ -1870,15 +1870,49 @@ class Email(MagModel):
             return SafeString(self.body.replace('\n', '<br/>'))
 
 
+class PageViewTracking(MagModel):
+    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    who = Column(UnicodeText)
+    page = Column(UnicodeText)
+    what = Column(UnicodeText)
+
+    @classmethod
+    def track_pageview(cls, url, query):
+        # Track any views of the budget pages
+        if "budget" in url:
+            what = "Budget page"
+        else:
+            # Only log the page view if there's a valid attendee ID
+            params = dict(parse_qsl(query))
+            if 'id' not in params or params['id'] == 'None':
+                return
+
+            # Looking at an attendee's details
+            if "registration" in url:
+                what = "Attendee id={}".format(params['id'])
+            # Looking at a group's details
+            elif "groups" in url:
+                what = "Group id={}".format(params['id'])
+
+        with Session() as session:
+            session.add(PageViewTracking(
+                who=AdminAccount.admin_name(),
+                page=c.PAGE_PATH,
+                what=what
+            ))
+
+
 class Tracking(MagModel):
-    fk_id  = Column(UUID)
-    model  = Column(UnicodeText)
-    when   = Column(UTCDateTime, default=lambda: datetime.now(UTC))
-    who    = Column(UnicodeText)
-    which  = Column(UnicodeText)
-    links  = Column(UnicodeText)
-    action = Column(Choice(c.TRACKING_OPTS))
-    data   = Column(UnicodeText)
+    fk_id    = Column(UUID, index=True)
+    model    = Column(UnicodeText)
+    when     = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    who      = Column(UnicodeText)
+    page     = Column(UnicodeText)
+    which    = Column(UnicodeText)
+    links    = Column(UnicodeText)
+    action   = Column(Choice(c.TRACKING_OPTS))
+    data     = Column(UnicodeText)
+    snapshot = Column(UnicodeText)
 
     @classmethod
     def format(cls, values):
@@ -1935,7 +1969,6 @@ class Tracking(MagModel):
                 diff[attr] = "'{} -> {}'".format(old_val_repr, new_val_repr)
         return diff
 
-    # TODO: add new table for page views to eliminated track_pageview method and to eliminate Budget special case
     @classmethod
     def track(cls, action, instance):
         if action in [c.CREATED, c.UNPAID_PREREG, c.EDITED_PREREG]:
@@ -1948,20 +1981,6 @@ class Tracking(MagModel):
                 action = c.AUTO_BADGE_SHIFT
             elif not data:
                 return
-        elif instance == 'Budget':  # Vaguely horrifying special-casing where we make up fake data so we can insert this entry into the tracking DB
-            data = 'Budget Page'
-            who = AdminAccount.admin_name() or (current_thread().name if current_thread().daemon else 'non-admin')
-            with Session() as session:
-                session.add(Tracking(
-                    model='Budget',
-                    fk_id=str(uuid4()),
-                    which='Budget',
-                    who=who,
-                    links='',
-                    action=action,
-                    data=data
-                ))
-            return
         else:
             data = 'id={}'.format(instance.id)
         links = ', '.join(
@@ -1969,7 +1988,11 @@ class Tracking(MagModel):
             for name, column in instance.__table__.columns.items()
             if column.foreign_keys and getattr(instance, name)
         )
-        who = AdminAccount.admin_name() or (current_thread().name if current_thread().daemon else 'non-admin')
+
+        if sys.argv == ['']:
+            who = 'server admin'
+        else:
+            who = AdminAccount.admin_name() or (current_thread().name if current_thread().daemon else 'non-admin')
 
         def _insert(session):
             session.add(Tracking(
@@ -1977,37 +2000,17 @@ class Tracking(MagModel):
                 fk_id=instance.id,
                 which=repr(instance),
                 who=who,
+                page=c.PAGE_PATH,
                 links=links,
                 action=action,
-                data=data
+                data=data,
+                snapshot=json.dumps(instance.to_dict(), cls=serializer)
             ))
         if instance.session:
             _insert(instance.session)
         else:
             with Session() as session:
                 _insert(session)
-
-    @classmethod
-    def track_pageview(cls, url, query):
-        # Track any views of the budget pages
-        if "budget" in url:
-            Tracking.track(c.PAGE_VIEWED, "Budget")
-        else:
-            # Only log the page view if there's a valid attendee ID
-            params = dict(parse_qsl(query))
-            if 'id' not in params or params['id'] == 'None':
-                return
-
-            # Looking at an attendee's details
-            if "registration" in url:
-                with Session() as session:
-                    attendee = session.query(Attendee).filter(Attendee.id == params['id']).first()
-                    Tracking.track(c.PAGE_VIEWED, attendee)
-            # Looking at a group's details
-            elif "groups" in url:
-                with Session() as session:
-                    group = session.query(Group).filter(Group.id == params['id']).first()
-                    Tracking.track(c.PAGE_VIEWED, group)
 
 Tracking.UNTRACKED = [Tracking, Email]
 
@@ -2086,7 +2089,7 @@ def register_session_listeners():
     """
     listen(Session.session_factory, 'before_flush', _acquire_badge_lock)
     listen(Session.session_factory, 'before_flush', _presave_adjustments)
-    listen(Session.session_factory, 'before_flush', _track_changes)
+    listen(Session.session_factory, 'after_flush', _track_changes)
     listen(Session.session_factory, 'after_flush', _release_badge_lock)
     listen(Session.engine, 'dbapi_error', _release_badge_lock_on_error)
 register_session_listeners()
