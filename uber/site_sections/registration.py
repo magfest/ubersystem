@@ -193,6 +193,21 @@ class Root:
                                .order_by(Tracking.when).all()
         }
 
+    @ajax
+    def resend_email(self, session, id, a_id):
+        message = {''}
+        if id:
+            email = session.query(Email).filter(Email.model == 'Attendee', Email.fk_id == id).first()
+            attendee = session.attendee(a_id, allow_invalid=True)
+            if email is not None:
+                try:
+                    send_email(c.ADMIN_EMAIL, attendee.email, email.subject, email.html)
+                    message = 'The email has been resent'
+                except:
+                    message = "Invalid Key Or Something Maybe"
+
+        return message
+
     def watchlist(self, session, attendee_id, watchlist_id=None, message='', **params):
         attendee = session.attendee(attendee_id, allow_invalid=True)
         if watchlist_id:
