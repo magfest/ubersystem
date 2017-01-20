@@ -36,7 +36,7 @@ def update_counts(job, counts):
 
 @all_renderable(c.PEOPLE)
 class Root:
-    def index(self, session, location=None, message=''):
+    def index(self, session, location=None, message='',time=None):
         if not location:
             if c.AT_THE_CON:
                 raise HTTPRedirect('signups')
@@ -54,6 +54,7 @@ class Root:
             'location':  location,
             'setup':     [j for j in jobs if j.type == c.SETUP],
             'teardown':  [j for j in jobs if j.type == c.TEARDOWN],
+            'normal': [j for j in jobs if j.type != c.SETUP and j.type != c.TEARDOWN],
             'checklist': location and session.checklist_status('creating_shifts', location),
             'times':     [(t, t + timedelta(hours=1), by_start[t]) for i, t in enumerate(times)],
 	    'jobs': jobs,
@@ -119,8 +120,8 @@ class Root:
                     defaults = cherrypy.session.get('job_defaults', defaultdict(dict))
                     defaults[params['location']] = {field: getattr(job, field) for field in c.JOB_DEFAULTS}
                     cherrypy.session['job_defaults'] = defaults
-                tgt_start_time = str(job.start_time_local)
-                raise HTTPRedirect('index?location={}#{}', job.location, tgt_start_time)
+                tgt_start_time = str(job.start_time_local).replace(" ","T")
+                raise HTTPRedirect('index?location=' + str(job.location) + '&time=' + tgt_start_time)
 
         return {
             'job':      job,

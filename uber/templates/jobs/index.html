@@ -31,42 +31,33 @@
     {% endif %}
 {% endif %}
 </div>
-<div class="row">
-	<div class="col-md-12">
+<div class="row text-center">
+	<div class="col-md-4">
 	    <h3>Setup Shifts ({{ setup|list_length }})</h3>	
 	</div>
+        <div class="col-md-4">
+            <h3>Teardown Shifts ({{teardown|list_length}})</h3>
+        </div>
+	<div class="col-md-4">
+	    <h3>Regular Shifts ({{normal|list_length}})</h3>
+	</div>
+
 </div>
-<div class="row">
-        <div class="col-md-12">
-	    <a href="form?id=None&location={{ location }}&type={{ c.SETUP }}">Add a setup shift</a>
+<div class="row text-center">
+
+        <div class="col-md-4">
+	    <a class="btn btn-primary" href="form?id=None&location={{ location }}&type={{c.SETUP}}">Add Setup Shift</a>
 
         </div>
-</div>
-{% comment %}
-<div class="row">
-        <div class="col-md-12">
-    {% for job in setup %}
-        <li>
-            [<b>{{ job.start_time|datetime:"%I %p %a" }}</b> for an expected ~{{ job.duration }} hours]
-            <a href="form?id={{ job.id }}">{{ job.name }}</a>:
-            {{ job.shifts|length }}/{{ job.slots }} Staffers <a href="staffers_by_job?id={{ job.id }}">Signed Up</a>
-            <!-- {{ job.start_time|datetime:"%Y-%m-%d %H:%M" }} -->
-        </li>
-    {% endfor %}
+        <div class="col-md-4">
+            <a class="btn btn-primary" href="form?id=None&location={{ location }}&type={{c.TEARDOWN}}">Add Teardown Shift</a>
 
         </div>
-</div>
-{% endcomment %}
-<div class="row">
-        <div class="col-md-12">
-    		<h3>Teardown Shifts ({{teardown|list_length}})</h3>
-        </div>
-</div>
+        <div class="col-md-4">
+            <a class="btn btn-primary" href="form?id=None&location={{ location }}">Add Shift</a>
 
-<div class="row">
-        <div class="col-md-12">
-		<a href="form?id=None&location={{ location }}&type={{ c.TEARDOWN }}">Add a teardown shift</a>
         </div>
+
 </div>
 {% comment %}
 <div class="row">
@@ -82,12 +73,6 @@
         </div>
 </div>
 {% endcomment %}
-<div class="row">
-
-	<div class="col-md-12">
-		<a href="form?id=None&location={{ location }}">Add Shift</a></nobr>	
-	</div>
-</div>
 
 
 
@@ -141,39 +126,56 @@
 
 
 	$(document).ready(function() {
-		
+
+		var eventList =  new Array();
+		    {% for job in jobs %}
+                    eventList.push({
+                                        title : "{{job.name}} ({{job.shifts | length }}/{{job.slots}})",
+                                        start : "{{ job.start_time|datetime:"%Y-%m-%dT%H:%M:%S" }}",
+                                        // duration {{job.duration}}
+                                        end: "{{job.start_time|shift_end:job.duration}}",
+                                        url : "form?id={{ job.id }}",
+                                        {% if job.type == c.SETUP %}
+                                        backgroundColor:"#0ff"
+                                        {% else %}
+                                        backgroundColor:"#0f0"
+                                        {% endif %}
+                                });
+    {% endfor %}
+
 		$('#shift_cal').fullCalendar({
 			header: {
 				left: 'prev,next today',
 				center: 'title',
-				right: 'agendaWeek,agendaDay'
+				right: 'agendaWeek,agendaDay,listWeek'
 			},
 			defaultView: 'agendaDay',
 			editable: true,
 			allDaySlot: false,
 			slotEventOverlap:false,
 			eventLimit: true, // allow "more" link when too many events
-			events: [
-    {% for job in jobs %}
-				{
-					title : "{{job.name}} ({{job.shifts | length }}/{{job.slots}})",
-					start : "{{ job.start_time|datetime:"%Y-%m-%dT%H:%M:%S" }}",
-					// duration {{job.duration}}
-					end: "{{job.start_time|shift_end:job.duration}}",
-					url : "form?id={{ job.id }}",
-					{% if job.type == c.SETUP %}
-					backgroundColor:"#0ff"
-					{% else %}
-					backgroundColor:"#0f0"
-					{% endif %}		
-				},	
-    {% endfor %}
-
-			]
+			events: eventList
 		});
-	 $('#shift_cal').fullCalendar( 'gotoDate', moment("2017-01-05T08:00:00" ));
+                var curDate = $.urlParam('time');
+                if(curDate != null) {
+                        $("#shift_cal").fullCalendar( 'gotoDate',curDate);
+
+                } else {
+                        $("#shift_cal").fullCalendar('gotoDate', eventList[0].start);
+                }
+
 	
 	});
+
+$.urlParam = function(name){
+   var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
+   if (results==null){
+      return null;
+   }
+   else{
+      return results[1] || 0;
+   }
+}
 
 </script>
 {% endblock %}

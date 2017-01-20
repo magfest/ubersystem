@@ -66,14 +66,14 @@ class Root:
             'requested_depts': requested_depts
         }
 
+    #@check_shutdown
+    #def shifts(self, session):
+    #    return {
+    #        'jobs': session.jobs_for_signups(),
+    #        'name': session.logged_in_volunteer().full_name
+    #    }
     @check_shutdown
-    def shifts(self, session):
-        return {
-            'jobs': session.jobs_for_signups(),
-            'name': session.logged_in_volunteer().full_name
-        }
-    @check_shutdown
-    def shiftsb(self, session,tgtDate='',state=''):
+    def shifts(self, session,tgtDate='',state=''):
         joblist = session.jobs_for_signups()
         return {
             'jobs': joblist,
