@@ -3,6 +3,7 @@ from uber.common import *
 
 @all_renderable(c.SIGNUPS)
 class Root:
+
     def index(self, session, message=''):
         if c.UBER_SHUT_DOWN or c.AT_THE_CON:
             return render('signups/printable.html', {'attendee': session.logged_in_volunteer()})
@@ -65,15 +66,17 @@ class Root:
             'attendee': attendee,
             'requested_depts': requested_depts
         }
+
     @check_shutdown
-    def shifts(self, session,tgtDate='',state=''):
+    def shifts(self, session, tgtDate='', state=''):
         joblist = session.jobs_for_signups()
         return {
             'jobs': joblist,
             'name': session.logged_in_volunteer().full_name,
             'hours': session.logged_in_volunteer().weighted_hours,
-            'c':c
+            'c': c
         }
+
     @check_shutdown
     @ajax_gettable
     def jobs(self, session):
@@ -86,6 +89,7 @@ class Root:
             'error': session.assign(session.logged_in_volunteer().id, job_id),
             'jobs': session.jobs_for_signups(),
         }
+
     @check_shutdown
     @ajax
     def drop(self, session, job_id):

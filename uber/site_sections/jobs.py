@@ -22,6 +22,7 @@ def job_dict(job, shifts=None):
         } for shift in job.shifts]
     }
 
+
 def update_counts(job, counts):
     counts['all_total'] += job.total_hours
     counts['all_signups'] += job.weighted_hours * len(job.shifts)
@@ -35,7 +36,8 @@ def update_counts(job, counts):
 
 @all_renderable(c.PEOPLE)
 class Root:
-    def index(self, session, location=None, message='',time=None):
+
+    def index(self, session, location=None, message='', time=None):
         if not location:
             if c.AT_THE_CON:
                 raise HTTPRedirect('signups')
@@ -56,8 +58,8 @@ class Root:
             'normal': [j for j in jobs if j.type != c.SETUP and j.type != c.TEARDOWN],
             'checklist': location and session.checklist_status('creating_shifts', location),
             'times':     [(t, t + timedelta(hours=1), by_start[t]) for i, t in enumerate(times)],
-	    'jobs': jobs,
-	    'c' : c
+            'jobs': jobs,
+            'c': c
         }
 
     def signups(self, session, location=None, message=''):
@@ -119,7 +121,7 @@ class Root:
                     defaults = cherrypy.session.get('job_defaults', defaultdict(dict))
                     defaults[params['location']] = {field: getattr(job, field) for field in c.JOB_DEFAULTS}
                     cherrypy.session['job_defaults'] = defaults
-                tgt_start_time = str(job.start_time_local).replace(" ","T")
+                tgt_start_time = str(job.start_time_local).replace(" ", "T")
                 raise HTTPRedirect('index?location=' + str(job.location) + '&time=' + tgt_start_time)
 
         return {
