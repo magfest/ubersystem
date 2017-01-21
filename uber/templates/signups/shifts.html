@@ -18,6 +18,10 @@
 .shift_available {
 	background-color:#305fc9;
 }
+.fc-list-item-title .shift_button {
+	color:white;
+	float:right;
+}
 </style>
 {% endblock %}
 {% block main_content %}
@@ -49,7 +53,6 @@
         <a href="{{c.PATH}}{{c.PAGE_PATH}}">Click Here</a> to sign up for more shifts; you are currently signed up for {{hours}} weighted hours
    {% else %}
         <a href="{{c.PATH}}{{c.PAGE_PATH}}?{{c.QUERY_STRING}}&state=schedule">Click Here</a> to see the {{hours}} weighted hours worth of shifts you are signed up for
-
    {% endif %}
    <br> or <a href="index">Click Here</a> to return to the main page of the Volunteer Checklist.
 	</div>
@@ -107,10 +110,10 @@
                                         end : "{{job.start_time_local|shift_end:job.duration}}",
                                         id : "{{job.id}}",
                                         {% if job.taken %}
-                                        backgroundColor: "#239875",
+                                        //backgroundColor: "#239875",
                                         taken: true
                                         {% else %}
-                                        backgroundColor: "#305fc9",
+                                        //backgroundColor: "#305fc9",
                                         taken: false
                                         {% endif %}
                                 });
@@ -131,9 +134,22 @@
 
                         defaultView: 'listWeek',
                         editable: true,
+			slotDuration: '00:15:00',
                         allDaySlot: false,
                         eventLimit: true, // allow "more" link when too many events
-                        events: eventList,
+                        slotEventOverlap: false,
+			events: eventList,
+			eventRender:function(event,element) {
+				var buttonTag = '<a class="btn btn-primary shift_button">';
+				if(event.taken) {
+					buttonTag += 'Drop';
+				} else {
+					buttonTag += 'Sign-up';
+				}
+				buttonTag += '</a>';
+				element.find('.fc-list-item-title').append(buttonTag);
+				element.find('.fc-title').append('</br>' + buttonTag);
+			},
 			eventClick: function(event) {
 				var postData = {};
 				//postData['job_id'] = event.id,
@@ -157,7 +173,6 @@
 				}
 				$.post( tgtShiftURL,postData,function( data,status ) {
 					window.location.href = window.location.pathname + "?tgtDate=" + moment(event.start).toISOString();
-
 				});
 				}
 			}

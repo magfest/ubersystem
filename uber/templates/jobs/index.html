@@ -5,7 +5,16 @@
 <link rel="stylesheet" href="../static/styles/fullcalendar.min.css" />
 <link rel="stylesheet" href="../static/styles/fullcalendar.print.css" media="print"/>
 
+<style>
+.setup_button {
+ background-color: '#239875';
 
+}
+.teardown_button {
+ background-color: '#239875';
+
+}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -46,7 +55,7 @@
 <div class="row text-center">
 
         <div class="col-md-4">
-	    <a class="btn btn-primary" href="form?id=None&location={{ location }}&type={{c.SETUP}}">Add Setup Shift</a>
+	    <a class="btn btn-primary setup_button" href="form?id=None&location={{ location }}&type={{c.SETUP}}">Add Setup Shift</a>
 
         </div>
         <div class="col-md-4">
@@ -54,7 +63,7 @@
 
         </div>
         <div class="col-md-4">
-            <a class="btn btn-primary" href="form?id=None&location={{ location }}">Add Shift</a>
+            <a class="btn btn-primary teardown_button" href="form?id=None&location={{ location }}">Add Shift</a>
 
         </div>
 
@@ -135,10 +144,10 @@
                                         // duration {{job.duration}}
                                         end: "{{job.start_time|shift_end:job.duration}}",
                                         url : "form?id={{ job.id }}",
-                                        {% if job.type == c.SETUP %}
-                                        backgroundColor:"#0ff"
+                                        {% if job.type == c.SETUP or job.type == c.TEARDOWN %}
+                                        backgroundColor: '#239875'
                                         {% else %}
-                                        backgroundColor:"#0f0"
+                                        backgroundColor:'#305fc9'
                                         {% endif %}
                                 });
     {% endfor %}
@@ -149,9 +158,13 @@
 				center: 'title',
 				right: 'agendaWeek,agendaDay,listWeek'
 			},
+                        slotDuration: '00:15:00',
+                        allDaySlot: false,
+                        eventLimit: true, // allow "more" link when too many events
+                        slotEventOverlap: false,
+
 			defaultView: 'agendaDay',
-			editable: true,
-			allDaySlot: false,
+			editable: false,
 			slotEventOverlap:false,
 			eventLimit: true, // allow "more" link when too many events
 			events: eventList
