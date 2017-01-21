@@ -6,12 +6,12 @@
 <link rel="stylesheet" href="../static/styles/fullcalendar.print.css" media="print"/>
 
 <style>
-.setup_button {
- background-color: '#239875';
+.button_row div a.setup_button {
+ background-color: #239875;
 
 }
-.teardown_button {
- background-color: '#239875';
+.button_row div a.teardown_button {
+ background-color: #239875;
 
 }
 </style>
@@ -52,18 +52,18 @@
 	</div>
 
 </div>
-<div class="row text-center">
+<div class="row text-center button_row">
 
         <div class="col-md-4">
 	    <a class="btn btn-primary setup_button" href="form?id=None&location={{ location }}&type={{c.SETUP}}">Add Setup Shift</a>
 
         </div>
         <div class="col-md-4">
-            <a class="btn btn-primary" href="form?id=None&location={{ location }}&type={{c.TEARDOWN}}">Add Teardown Shift</a>
+            <a class="btn btn-primary teardown_button" href="form?id=None&location={{ location }}&type={{c.TEARDOWN}}">Add Teardown Shift</a>
 
         </div>
         <div class="col-md-4">
-            <a class="btn btn-primary teardown_button" href="form?id=None&location={{ location }}">Add Shift</a>
+            <a class="btn btn-primary" href="form?id=None&location={{ location }}">Add Shift</a>
 
         </div>
 
@@ -150,7 +150,7 @@
                                         backgroundColor:'#305fc9'
                                         {% endif %}
                                 });
-    {% endfor %}
+    		    {% endfor %}
 
 		$('#shift_cal').fullCalendar({
 			header: {

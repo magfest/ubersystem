@@ -57,17 +57,6 @@
    <br> or <a href="index">Click Here</a> to return to the main page of the Volunteer Checklist.
 	</div>
 </div>
-<div class="row">
-
-        <div class="col-md-10 col-md-offset-1 col-xs-12">
-                <span>
-			<div class="shift_icon shift_taken"></div>= Available
-		</span>
-		<span>
-		 <div class="shift_icon shift_available"></div> = Signed Up
-		</span>
-        </div>
-</div>
 
 <div class="row">
 
@@ -140,7 +129,13 @@
                         slotEventOverlap: false,
 			events: eventList,
 			eventRender:function(event,element) {
-				var buttonTag = '<a class="btn btn-primary shift_button">';
+				var buttonTag = '<a class="btn btn-primary shift_button" ';
+				buttonTag += 'onclick="click_shift(\'' + event.taken;
+				buttonTag += '\',\'' +  event.id;
+                                buttonTag += '\',\'' +  moment(event.start).toISOString();
+                                buttonTag += '\',\'' +  event.title
+				buttonTag += '\')" ';
+				buttonTag += '>';
 				if(event.taken) {
 					buttonTag += 'Drop';
 				} else {
@@ -150,32 +145,6 @@
 				element.find('.fc-list-item-title').append(buttonTag);
 				element.find('.fc-title').append('</br>' + buttonTag);
 			},
-			eventClick: function(event) {
-				var postData = {};
-				//postData['job_id'] = event.id,
-				postData['csrf_token'] =  $("div.csrf_token input").attr('value');
-				var confirmStr = "Do you want to ";
-				if (event.taken) {
-					confirmStr += "drop ";
-				} else {
-					confirmStr += "signup ";
-				}
-
-				confirmStr += event.title + " at " + moment(event.start).toISOString() + "?";
-				var r = confirm(confirmStr);
-				if (r == true) {
-    					txt = "You pressed OK!";
-				
-				
-				var tgtShiftURL = "sign_up?job_id="+ event.id;
-				if(event.taken) {
-						tgtShiftURL = "drop?job_id=" + event.id;
-				}
-				$.post( tgtShiftURL,postData,function( data,status ) {
-					window.location.href = window.location.pathname + "?tgtDate=" + moment(event.start).toISOString();
-				});
-				}
-			}
                 });
    		{% if 'schedule' in c.QUERY_STRING %}
 			
@@ -194,7 +163,32 @@
                 } else {
 			$("#shift_cal").fullCalendar('gotoDate', eventList[0].start);
 		}
+
         });
+
+function click_shift(state,id,time,title) {
+        var postData = {};
+        postData['csrf_token'] =  $("div.csrf_token input").attr('value');
+        var confirmStr = "Do you want to ";
+        if (state=='true') {
+        	confirmStr += "drop ";
+        } else {
+                confirmStr += "signup ";
+        }
+        confirmStr += title + " at " + time + "?";
+        var r = confirm(confirmStr);
+        if (r == true) {
+        	var tgtShiftURL = "sign_up?job_id="+ id;
+                if(state=='true') {
+                	tgtShiftURL = "drop?job_id=" + id;
+                }
+                $.post( tgtShiftURL,postData,function( data,status ) {
+                        window.location.href = window.location.pathname + "?tgtDate=" + moment(event.start).toISOString();
+                });
+        }
+
+}
+
 $.urlParam = function(name){
    var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
    if (results==null){
