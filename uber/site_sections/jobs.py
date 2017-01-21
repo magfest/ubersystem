@@ -22,7 +22,6 @@ def job_dict(job, shifts=None):
         } for shift in job.shifts]
     }
 
-
 def update_counts(job, counts):
     counts['all_total'] += job.total_hours
     counts['all_signups'] += job.weighted_hours * len(job.shifts)
