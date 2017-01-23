@@ -7,40 +7,49 @@ def datetime(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
 
 from datetime import datetime  # noqa: now that we've registered our filter, re-import the "datetime" class to avoid conflicts
 
+
 @register.filter
 def shift_end(dt, duration):
     curdate = dt + timedelta(hours=int(duration))
     fmt = "%Y-%m-%dT%H:%M:%S"
     return ' '.join(curdate.astimezone(c.EVENT_TIMEZONE).strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm')
 
+
 @register.filter
 def list_length(tgtlist):
     return len(tgtlist)
+
 
 @register.filter
 def timestamp(dt):
     from time import mktime
     return str(int(mktime(dt.timetuple())))
 
+
 @register.filter
 def jsonize(x):
     return SafeString(html.escape(json.dumps(x, cls=serializer), quote=False))
+
 
 @register.filter
 def subtract(x, y):
     return x - y
 
+
 @register.filter
 def percent(numerator, denominator):
     return '0/0' if denominator == 0 else '{} / {} ({}%)'.format(numerator, denominator, int(100 * numerator / denominator))
+
 
 @register.filter
 def percent_of(numerator, denominator):
     return 'n/a' if denominator == 0 else '{}%'.format(int(100 * numerator / denominator))
 
+
 @register.filter
 def remove_newlines(string):
     return string.replace('\n', ' ')
+
 
 @register.filter
 def form_link(model):
@@ -53,13 +62,16 @@ def form_link(model):
     else:
         return model.name or model.full_name
 
+
 @register.filter
 def dept_checklist_path(conf, attendee=None):
     return SafeString(conf.path(attendee))
 
+
 @register.filter
 def numeric_range(count):
     return range(count)
+
 
 @register.filter
 def sum(values, attribute):
@@ -68,6 +80,7 @@ def sum(values, attribute):
         sum += getattr(value, attribute, 0)
     return sum
 
+
 def _getter(x, attrName):
     if '.' in attrName:
         first, rest = attrName.split('.', 1)
@@ -75,22 +88,27 @@ def _getter(x, attrName):
     else:
         return getattr(x, attrName)
 
+
 @register.filter
 def sortBy(xs, attrName):
     return sorted(xs, key=lambda x: _getter(x, attrName))
+
 
 @register.filter
 def time_day(dt):
     return SafeString('<nobr>{} {}</nobr>'.format(dt.astimezone(c.EVENT_TIMEZONE).strftime('%I:%M%p').lstrip('0').lower(),
                                                   dt.astimezone(c.EVENT_TIMEZONE).strftime('%a')))
 
+
 @register.filter
 def full_datetime(dt):
     return dt.astimezone(c.EVENT_TIMEZONE).strftime('%H:%M on %B %d %Y')
 
+
 @register.filter
 def idize(s):
     return re.sub('\W+', '_', str(s)).strip('_')
+
 
 @register.filter
 def maybe_red(amount, comp):
@@ -99,9 +117,11 @@ def maybe_red(amount, comp):
     else:
         return amount
 
+
 @register.filter
 def maybe_last_year(day):
     return 'last year' if day <= c.STAFFERS_IMPORTED else day
+
 
 @register.filter
 def join_and(xs):
@@ -110,6 +130,7 @@ def join_and(xs):
     else:
         xs = xs[:-1] + ['and ' + xs[-1]]
         return ', '.join(xs)
+
 
 @register.filter
 def email_only(email):
@@ -120,6 +141,7 @@ def email_only(email):
     can be in either format and spits out just the email address portion.
     """
     return re.search(c.EMAIL_RE.lstrip('^').rstrip('$'), email).group()
+
 
 @tag
 class maybe_anchor(template.Node):
@@ -134,6 +156,7 @@ class maybe_anchor(template.Node):
             return '<a name="{}"></a>'.format(letter)
         else:
             return ""
+
 
 @tag
 class zebra(template.Node):
@@ -150,6 +173,7 @@ class zebra(template.Node):
             counter = (counter + 1) % 2
         setattr(self.counters, self.name, counter)
         return ['#ffffff', '#eeeeee'][counter]
+
 
 @tag
 class options(template.Node):
@@ -183,8 +207,10 @@ class options(template.Node):
             results.append('<option value="{}" {}>{}</option>'.format(val, selected, desc))
         return '\n'.join(results)
 
+
 @tag
 class checkbox(template.Node):
+
     def __init__(self, field):
         model, self.field_name = field.rsplit('.', 1)
         self.model = Variable(model)
@@ -193,6 +219,7 @@ class checkbox(template.Node):
         model = self.model.resolve(context)
         checked = 'checked' if getattr(model, self.field_name) else ''
         return '<input type="checkbox" name="{}" id="{}" value="1" {} />'.format(self.field_name, self.field_name, checked)
+
 
 @tag
 class checkgroup(template.Node):
@@ -211,6 +238,7 @@ class checkgroup(template.Node):
             results.append('<label style="font-weight: normal;"><input type="checkbox" name="{}" value="{}" {} /> {}</label>'
                            .format(self.field_name, num, checked, desc))
         return '&nbsp;&nbsp\n'.join(results)
+
 
 @tag
 class int_options(template.Node):
@@ -233,6 +261,7 @@ class int_options(template.Node):
             results.append('<option value="{val}" {selected}>{val}</option>'.format(val=i, selected=selected))
         return '\n'.join(results)
 
+
 @tag
 class radio(template.Node):
     def __init__(self, name, value, default):
@@ -245,6 +274,7 @@ class radio(template.Node):
         default = self.default.resolve(context)
         checked = 'checked' if str(value) == str(default) else ''
         return """<div class="radio"><label class="btn btn-primary"><input type="radio" name="%s" value="%s" %s /></label></div>""" % (self.name, value, checked)
+
 
 @tag
 class radiogroup(template.Node):
@@ -265,6 +295,7 @@ class radiogroup(template.Node):
                            .format(self.field_name, num, checked, desc))
         return ''.join(results)
 
+
 @tag
 class hour_day(template.Node):
     def __init__(self, dt):
@@ -272,6 +303,7 @@ class hour_day(template.Node):
 
     def render(self, context):
         return hour_day_format(self.dt.resolve(context))
+
 
 @tag
 class timespan(template.Node):
@@ -297,6 +329,7 @@ class timespan(template.Node):
     def render(self, context):
         return self.pretty(self.model.resolve(context))
 
+
 @tag
 class popup_link(template.Node):
     def __init__(self, href, text='"<sup>?</sup>"'):
@@ -307,6 +340,7 @@ class popup_link(template.Node):
         inner_text = "window.open('{self.href}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;".format(self=self)
         inner_text = inner_text.replace("'", "&quot;")
         return "<a onClick='{inner_text}' href='{self.href}'>{self.text}</a>".format(inner_text=inner_text, self=self)
+
 
 @tag
 class must_contact(template.Node):
@@ -325,6 +359,7 @@ class must_contact(template.Node):
         locations = [s.job.location for s in staffer.shifts]
         dept_names = dict(c.JOB_LOCATION_OPTS)
         return '<br/>'.join(sorted({'({}) {}'.format(dept_names[dept], ' / '.join(chairs[dept])) for dept in locations}))
+
 
 @tag
 class pages(template.Node):
@@ -348,6 +383,7 @@ class pages(template.Node):
                 pages.append('<a href="{}">{}</a>'.format(path, pagenum))
         return 'Page: ' + ' '.join(map(str, pages))
 
+
 def extract_fields(what):
     if isinstance(what, Attendee):
         return 'a{}'.format(what.id), what.full_name, what.total_cost
@@ -355,6 +391,7 @@ def extract_fields(what):
         return 'g{}'.format(what.id), what.name, what.amount_unpaid
     else:
         return None, None, None
+
 
 @tag
 class nav_menu(template.Node):
@@ -404,12 +441,14 @@ class checked_if(template.Node):
         image = 'checked' if checked else 'unchecked'
         return '<img src="../static/images/checkbox_{}.png" style="vertical-align:top ; margin-right:5px" height="20" width="20" />'.format(image)
 
+
 @tag
 class csrf_token(template.Node):
     def render(self, context):
         if not cherrypy.session.get('csrf_token'):
             cherrypy.session['csrf_token'] = uuid4().hex
         return '<input type="hidden" name="csrf_token" value="{}" />'.format(cherrypy.session["csrf_token"])
+
 
 @tag
 class stripe_button(template.Node):
@@ -422,6 +461,7 @@ class stripe_button(template.Node):
                 <span class="display: block; min-height: 30px;">{label}</span>
             </button>
         """.format(label=self.label)
+
 
 @tag
 class stripe_form(template.Node):
@@ -458,12 +498,14 @@ class stripe_form(template.Node):
 
         return render('preregistration/stripeForm.html', params)
 
+
 @register.tag('bold_if')
 def do_bold_if(parser, token):
     [cond] = token.split_contents()[1:]
     nodelist = parser.parse(('end_bold_if',))
     parser.delete_first_token()
     return BoldIfNode(cond, nodelist)
+
 
 class BoldIfNode(template.Node):
     def __init__(self, cond, nodelist):
@@ -478,6 +520,7 @@ class BoldIfNode(template.Node):
         else:
             return output
 
+
 @tag
 class organization_and_event_name(template.Node):
     def render(self, context):
@@ -486,6 +529,7 @@ class organization_and_event_name(template.Node):
         else:
             return c.EVENT_NAME
 
+
 @tag
 class organization_or_event_name(template.Node):
     def render(self, context):
@@ -493,6 +537,7 @@ class organization_or_event_name(template.Node):
             return c.EVENT_NAME + ' or ' + c.ORGANIZATION_NAME
         else:
             return c.EVENT_NAME
+
 
 @tag
 class single_day_prices(template.Node):
@@ -507,9 +552,11 @@ class single_day_prices(template.Node):
         # prices += 'and ${} for other days'.format(c.BADGE_PRICES['default_single_day'])
         return prices
 
+
 @register.tag(name='price_notice')
 def price_notice(parser, token):
     return PriceNotice(*token.split_contents()[1:])
+
 
 class PriceNotice(template.Node):
     def __init__(self, label, takedown, amount_extra='0', discount='0'):
@@ -546,6 +593,7 @@ class PriceNotice(template.Node):
     def render(self, context):
         return self._notice(self.label, self.takedown.resolve(context), self.amount_extra.resolve(context), self.discount.resolve(context))
 
+
 @tag
 class table_prices(template.Node):
     def render(self, context):
@@ -560,6 +608,7 @@ class table_prices(template.Node):
             costs[-1] = 'and ' + costs[-1]
             return ', '.join(costs)
 
+
 @tag
 class event_dates(template.Node):
     def render(self, context):
@@ -571,6 +620,8 @@ class event_dates(template.Node):
             return '{}-{}'.format(c.EPOCH.strftime('%B %-d'), c.ESCHATON.strftime('%-d'))
 
 # FIXME this can probably be cleaned up more
+
+
 @register.tag(name='random_hash')
 def random_hash(parser, token):
     items = []
@@ -578,6 +629,7 @@ def random_hash(parser, token):
     for item in bits:
         items.append(item)
     return RandomgenNode(items[1:])
+
 
 class RandomgenNode(template.Node):
     def __init__(self, items):
