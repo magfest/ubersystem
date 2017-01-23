@@ -22,12 +22,16 @@
 	color:white;
 	float:right;
 }
-</style>
-{% endblock %}
-{% block main_content %}
-<div class="hidden csrf_token">
-{% csrf_token %}
-</div>
+.shift_button { 
+	background-color:#3276b1;
+
+}
+
+.shift_button.drop {
+	background-color:#239875;
+
+}
+</style> {% endblock %} {% block main_content %} <div class="hidden csrf_token"> {% csrf_token %} </div>
 
 
 <div class="row">
@@ -49,11 +53,11 @@
    </tr>
    </tbody></table>
    <br>
-   {% if 'schedule' in c.QUERY_STRING %}
-        <a href="{{c.PATH}}{{c.PAGE_PATH}}">Click Here</a> to sign up for more shifts; you are currently signed up for {{hours}} weighted hours
-   {% else %}
-        <a href="{{c.PATH}}{{c.PAGE_PATH}}?{{c.QUERY_STRING}}&state=schedule">Click Here</a> to see the {{hours}} weighted hours worth of shifts you are signed up for
-   {% endif %}
+        <a href="#" class="toggle-cal" state="all">Click Here</a>
+	<span class="all-state-text state-text"> to see the {{hours}} weighted hours worth of shifts you are signed up for</span>
+        <span class="shift-state-text hidden state-text"> to sign up for more shifts; you are currently signed up for {{hours}} weighted hours</span>
+      
+	
    <br> or <a href="index">Click Here</a> to return to the main page of the Volunteer Checklist.
 	</div>
 </div>
@@ -74,12 +78,15 @@
 <script type="text/javascript" src="../static/js/fullcalendar.min.js"></script>
 
 <script type="text/javascript">
-        $(document).ready(function() {
+	var eventList = new Array();
+	var shiftList = new Array();
 
-		var eventList = new Array();
+
+
+        $(document).ready(function() {
 		    {% for job in jobs %}
-                    {% if 'schedule' in c.QUERY_STRING and job.taken %}
-			eventList.push({
+                    {% if job.taken %}
+			shiftList.push({
                                         title : "{{job.name}}",
                                         start : "{{ job.start_time_local|datetime:"%Y-%m-%dT%H:%M:%S" }}",
                                         end : "{{job.start_time_local|shift_end:job.duration}}",
@@ -92,22 +99,21 @@
                                         taken: false
                                         {% endif %}
                                 });
-		            {% elif 'schedule' not in c.QUERY_STRING %}
+			{% endif %}
                         eventList.push({
                                         title : "{{job.name}}",
                                         start : "{{ job.start_time_local|datetime:"%Y-%m-%dT%H:%M:%S" }}",
                                         end : "{{job.start_time_local|shift_end:job.duration}}",
                                         id : "{{job.id}}",
                                         {% if job.taken %}
-                                        //backgroundColor: "#239875",
+                                        backgroundColor: "#239875",
                                         taken: true
                                         {% else %}
-                                        //backgroundColor: "#305fc9",
+                                        backgroundColor: "#305fc9",
                                         taken: false
                                         {% endif %}
                                 });
 
-		    {% endif %}
     		    {% endfor %}
 
                 $('#shift_cal').fullCalendar({
@@ -116,11 +122,16 @@
                                 center: 'title',
                                 right: 'agendaDay,listWeek'
                         },
+			buttonText : {
+                                today : 'Today',
+                                agendaWeek : 'Week',
+                                agendaDay : 'Day',
+                                listWeek : 'Week'
+                        },
 			views: {
-                agendaDay: { buttonText: 'list day' },
-                listWeek: { buttonText: 'list week' }
-            },
-
+                		agendaDay: { buttonText: 'Day' },
+                		listWeek: { buttonText: 'Week' }
+           	 	},
                         defaultView: 'listWeek',
                         editable: true,
 			slotDuration: '00:15:00',
@@ -129,7 +140,12 @@
                         slotEventOverlap: false,
 			events: eventList,
 			eventRender:function(event,element) {
-				var buttonTag = '<a class="btn btn-primary shift_button" ';
+				var buttonTag = '<a class="btn btn-primary shift_button ';
+				if (event.taken) {
+				buttonTag += 'drop';
+				}	
+				buttonTag += '" ';
+				
 				buttonTag += 'onclick="click_shift(\'' + event.taken;
 				buttonTag += '\',\'' +  event.id;
                                 buttonTag += '\',\'' +  moment(event.start).toISOString();
@@ -163,6 +179,19 @@
                 } else {
 			$("#shift_cal").fullCalendar('gotoDate', eventList[0].start);
 		}
+		$(".toggle-cal").click(function() {
+			$("#shift_cal").fullCalendar('removeEventSources');
+			if($(this).attr('state')=='all') {
+				$("#shift_cal").fullCalendar('addEventSource',shiftList);
+				$(this).attr('state','shift');
+			} else {
+				console.log("YO");
+				$("#shift_cal").fullCalendar('addEventSource',eventList);
+				$(this).attr('state','all');
+			}
+			$("#shift_cal").fullCalendar('refetchEvents');
+			$(".state-text").toggleClass('hidden');
+		});
 
         });
 
