@@ -150,10 +150,9 @@ class Root:
     @unrestricted
     def qrcode_generator(self, data):
         """
-        Takes a piece of data and encrypts it using the QR_CODE_PASSWORD
-        Then, adds the EVENT_QR_ID, and returns an Aztec barcode as an image stream.
+        Takes a piece of data, adds the EVENT_QR_ID, and returns an Aztec barcode as an image stream.
         Args:
-            data: A string to encrypt.
+            data: A string to create a 2D barcode from.
 
         Returns: A PNG buffer. Use this function in an img tag's src='' to display an image.
 
@@ -165,15 +164,9 @@ class Root:
         this function.  Or, offload image generation to a dedicated microservice that replicates this functionality.
 
         """
-        if not c.QR_CODE_PASSWORD or not qr_cipher:
-            # Don't generate a 2D barcode if we aren't configured for encryption
-            return '2D barcode password not set, cannot generate images'
-
-        encrypted_data = c.EVENT_QR_ID + bytes.decode(binascii.hexlify(qr_cipher.encrypt(uuid.UUID(data).hex)))
-
         checkin_barcode = treepoem.generate_barcode(
             barcode_type='azteccode',
-            data=encrypted_data,
+            data=c.EVENT_QR_ID + str(data),
             options={},
         )
         buffer = BytesIO()
@@ -185,51 +178,6 @@ class Root:
         cherrypy.response.headers['Content-Type'] = "image/png"
 
         return png_file_output
-
-    @ajax
-    def qrcode_reader(self, message='', qrcode=None):
-        """
-        Takes a scanned 2D barcode and ensures it is the correct event using EVENT_QR_ID
-        Then, decrypts it and returns the decrypted data as a string.
-        Args:
-            message: The error message that the function will return
-            qrcode: The scanned barcode
-
-        Returns: Decrypted data, usually a UUID
-
-        """
-        success, decrypted_data = False, ''
-
-        if not qrcode:
-            message = 'No barcode scanned.'
-        elif not c.QR_CODE_PASSWORD or not qr_cipher:
-            message = 'Cannot decrypt barcode: no decryption key. Contact your administrator.'
-        elif not qrcode.startswith(c.EVENT_QR_ID):
-            message = 'Wrong (or no) event ID provided.'
-
-        if not message:
-            data_to_decrypt = qrcode.split(c.EVENT_QR_ID, 1)[1]
-
-            try:
-                decrypted_data = qr_cipher.decrypt(binascii.unhexlify(data_to_decrypt)).decode('utf8')
-            except binascii.Error:
-                message = 'Malformed barcode (not a valid hex).'
-            except ValueError:
-                message = 'Malformed barcode (decryption failed).'
-
-            # Convert to a UUID, if applicable.
-            try:
-                decrypted_data = str(uuid.UUID(decrypted_data))
-            except ValueError:
-                pass
-
-            success = True
-
-        return {
-            'success': success,
-            'message': message,
-            'data':    decrypted_data
-        }
 
     def history(self, session, id):
         attendee = session.attendee(id, allow_invalid=True)

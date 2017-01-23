@@ -497,7 +497,7 @@ AutomatedEmail(Attendee, '{EVENT_NAME} parental consent form reminder', 'reg_wor
 # Emails sent out to all attendees who can check in. These emails contain useful information about the event and are
 # sent close to the event start date.
 AutomatedEmail(Attendee, 'Check in faster at {EVENT_NAME}', 'reg_workflow/attendee_qrcode.html',
-               lambda a: not a.is_not_ready_to_checkin and c.QR_CODE_PASSWORD,
+               lambda a: not a.is_not_ready_to_checkin and c.USE_CHECKIN_BARCODE,
                when=days_before(14, c.EPOCH), ident='qrcode_for_checkin')
 
 for _conf in DeptChecklistConf.instances.values():
