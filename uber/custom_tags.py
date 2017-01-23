@@ -178,7 +178,6 @@ class zebra(template.Node):
 
 @tag
 class options(template.Node):
-
     def __init__(self, options, default='""'):
         self.options = Variable(options)
         self.default = default[1:-1] if default[0] == '"' else Variable(default)
@@ -212,7 +211,6 @@ class options(template.Node):
 
 @tag
 class checkbox(template.Node):
-
     def __init__(self, field):
         model, self.field_name = field.rsplit('.', 1)
         self.model = Variable(model)
@@ -225,7 +223,6 @@ class checkbox(template.Node):
 
 @tag
 class checkgroup(template.Node):
-
     def __init__(self, field):
         model, self.field_name = field.rsplit('.', 1)
         self.model = Variable(model)
@@ -245,7 +242,6 @@ class checkgroup(template.Node):
 
 @tag
 class int_options(template.Node):
-
     def __init__(self, minval, maxval, default="1"):
         self.minval  = int(minval) if minval.isdigit() else Variable(minval)
         self.maxval  = int(maxval) if maxval.isdigit() else Variable(maxval)
@@ -268,7 +264,6 @@ class int_options(template.Node):
 
 @tag
 class radio(template.Node):
-
     def __init__(self, name, value, default):
         self.name    = name[1:-1]
         self.value   = Variable(value)
@@ -283,7 +278,6 @@ class radio(template.Node):
 
 @tag
 class radiogroup(template.Node):
-
     def __init__(self, opts, field):
         model, self.field_name = field.rsplit('.', 1)
         self.model = Variable(model)
@@ -304,7 +298,6 @@ class radiogroup(template.Node):
 
 @tag
 class hour_day(template.Node):
-
     def __init__(self, dt):
         self.dt = Variable(dt)
 
@@ -314,7 +307,6 @@ class hour_day(template.Node):
 
 @tag
 class timespan(template.Node):
-
     def __init__(self, model):
         self.model = Variable(model)
 
@@ -340,7 +332,6 @@ class timespan(template.Node):
 
 @tag
 class popup_link(template.Node):
-
     def __init__(self, href, text='"<sup>?</sup>"'):
         self.href = href.strip('"')
         self.text = text.strip('"')
@@ -353,7 +344,6 @@ class popup_link(template.Node):
 
 @tag
 class must_contact(template.Node):
-
     def __init__(self, staffer):
         self.staffer = Variable(staffer)
 
@@ -373,7 +363,6 @@ class must_contact(template.Node):
 
 @tag
 class pages(template.Node):
-
     def __init__(self, page, count):
         self.page, self.count = Variable(page), Variable(count)
 
@@ -406,7 +395,6 @@ def extract_fields(what):
 
 @tag
 class nav_menu(template.Node):
-
     def __init__(self, inst, *items):
         self.inst = Variable(inst)
         self.menu_items = []
@@ -440,7 +428,6 @@ class nav_menu(template.Node):
 
 @tag
 class checked_if(template.Node):
-
     def __init__(self, *args):
         self.negated = len(args) > 1
         self.cond = Variable(args[-1])
@@ -457,7 +444,6 @@ class checked_if(template.Node):
 
 @tag
 class csrf_token(template.Node):
-
     def render(self, context):
         if not cherrypy.session.get('csrf_token'):
             cherrypy.session['csrf_token'] = uuid4().hex
@@ -466,7 +452,6 @@ class csrf_token(template.Node):
 
 @tag
 class stripe_button(template.Node):
-
     def __init__(self, *label):
         self.label = ' '.join(label).strip('"')
 
@@ -480,7 +465,6 @@ class stripe_button(template.Node):
 
 @tag
 class stripe_form(template.Node):
-
     def __init__(self, action, charge):
         self.action = action
         self.charge = Variable(charge)
@@ -524,7 +508,6 @@ def do_bold_if(parser, token):
 
 
 class BoldIfNode(template.Node):
-
     def __init__(self, cond, nodelist):
         self.cond = Variable(cond)
         self.nodelist = nodelist
@@ -540,7 +523,6 @@ class BoldIfNode(template.Node):
 
 @tag
 class organization_and_event_name(template.Node):
-
     def render(self, context):
         if c.EVENT_NAME.lower() != c.ORGANIZATION_NAME.lower():
             return c.EVENT_NAME + ' and ' + c.ORGANIZATION_NAME
@@ -550,7 +532,6 @@ class organization_and_event_name(template.Node):
 
 @tag
 class organization_or_event_name(template.Node):
-
     def render(self, context):
         if c.EVENT_NAME.lower() != c.ORGANIZATION_NAME.lower():
             return c.EVENT_NAME + ' or ' + c.ORGANIZATION_NAME
@@ -560,7 +541,6 @@ class organization_or_event_name(template.Node):
 
 @tag
 class single_day_prices(template.Node):
-
     def render(self, context):
         prices = ''
         for day, price in c.BADGE_PRICES['single_day'].items():
@@ -579,13 +559,11 @@ def price_notice(parser, token):
 
 
 class PriceNotice(template.Node):
-
     def __init__(self, label, takedown, amount_extra='0', discount='0'):
         self.label = label.strip('"').strip("'")
         self.takedown, self.amount_extra, self.discount = Variable(takedown), Variable(amount_extra), Variable(discount)
 
     def _notice(self, label, takedown, amount_extra, discount):
-
         if c.HARDCORE_OPTIMIZATIONS_ENABLED:
             # CPU optimizaiton: the calculations done in this function are somewhat expensive and even with caching,
             # still do some expensive DB queries.  if hardcore optimizations mode is enabled, we display a
@@ -618,7 +596,6 @@ class PriceNotice(template.Node):
 
 @tag
 class table_prices(template.Node):
-
     def render(self, context):
         if len(c.TABLE_PRICES) <= 1:
             return '${} per table'.format(c.TABLE_PRICES['default_price'])
@@ -634,7 +611,6 @@ class table_prices(template.Node):
 
 @tag
 class event_dates(template.Node):
-
     def render(self, context):
         if c.EPOCH.date() == c.ESCHATON.date():
             return c.EPOCH.strftime('%B %-d')
@@ -655,7 +631,6 @@ def random_hash(parser, token):
 
 
 class RandomgenNode(template.Node):
-
     def __init__(self, items):
         self.items = []
         for item in items:
