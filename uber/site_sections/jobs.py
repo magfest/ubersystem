@@ -124,9 +124,7 @@ class Root:
                 raise HTTPRedirect('index?location=' + str(job.location) + '&time=' + tgt_start_time)
 
         if 'start_time' in params and 'type' not in params:
-            print(params['start_time'])
             local_start_time = c.EVENT_TIMEZONE.localize(datetime.strptime(params['start_time'], "%Y-%m-%d %H:%M:%S"))
-            print(local_start_time, c.ESCHATON, c.TEARDOWN, c.EPOCH)
             if c.EPOCH <= local_start_time < c.ESCHATON:
                 job.type = c.REGULAR
             else:

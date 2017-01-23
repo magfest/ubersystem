@@ -86,7 +86,7 @@ class Root:
     def sign_up(self, session, job_id):
         return {
             'error': session.assign(session.logged_in_volunteer().id, job_id),
-            'jobs': session.jobs_for_signups(),
+            'jobs': session.jobs_for_signups()
         }
 
     @check_shutdown
@@ -126,7 +126,7 @@ class Root:
             'last_name': last_name,
             'email': email,
             'zip_code':  zip_code,
-            'original_location': original_location,
+            'original_location': original_location
         }
 
     def onsite_jobs(self, session, message=''):
