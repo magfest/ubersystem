@@ -94,37 +94,7 @@
 <div class="row" style="margin-bottom:50px;"></div>
 
 
-<!--
-<table class="calendar" border="1">
-{% for curr_dt, prev_dt, jobs in times %}
-    <tr>
-        <td>
-            <nobr>{{ curr_dt|date:"gA"|lower }} {{ curr_dt|date:"D" }}</nobr>
-            <br/> <br/>
-            <nobr><a href="form?id=None&location={{ location }}&start_time={{ curr_dt|date:"Y-m-d H:i:s" }}">Add Shift</a></nobr>
-            <a name="{{ prev_dt|stringformat:"s" }}"></a>
-        </td>
-        {% for job in jobs %}
-            <td rowspan="{{ job.duration }}">
-                <nobr> <a href="form?id={{ job.id }}"><b>{{ job.name }}{% if job.restricted %}*{% endif %}</b></a> </nobr>
-                <br/> <br/>
-                <nobr> Weight: x{{ job.weight }}{% if job.extra15 %}*{% endif %} </nobr>
-                <br/>
-                <nobr> {{ job.shifts|length }}/{{ job.slots }} Staffers <a href="staffers_by_job?id={{ job.id }}">Signed Up</a>
-                {% if job.shifts %}
-                    <a href="#" onClick="$(this).next().show().prev().remove() ; return false" style="display:block">View Staffers</a>
-                    <div style="display:none">
-                        {% for shift in job.shifts %}
-                            <a href="../registration/form?id={{ shift.attendee.id }}">{{ shift.attendee.full_name }}</a> <br/>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            </td>
-        {% endfor %}
-    </tr>
-{% endfor %}
-</table>
--->
+
 {% endblock %}
 {% block page_scripts %}
 <script type="text/javascript" src="../static/js/moment.js"></script> 
@@ -167,7 +137,10 @@
 			editable: false,
 			slotEventOverlap:false,
 			eventLimit: true, // allow "more" link when too many events
-			events: eventList
+			events: eventList,
+            dayClick: function(date) {
+			    window.location.href = "form?id=None&location={{ location }}&start_time=" + date.format("YYYY-MM-DD HH:mm:ss");
+            }
 		});
                 var curDate = $.urlParam('time');
                 if(curDate != null) {

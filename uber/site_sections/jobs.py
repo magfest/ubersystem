@@ -58,8 +58,7 @@ class Root:
             'normal': [j for j in jobs if j.type != c.SETUP and j.type != c.TEARDOWN],
             'checklist': location and session.checklist_status('creating_shifts', location),
             'times':     [(t, t + timedelta(hours=1), by_start[t]) for i, t in enumerate(times)],
-            'jobs': jobs,
-            'c': c
+            'jobs': jobs
         }
 
     def signups(self, session, location=None, message=''):
@@ -123,6 +122,14 @@ class Root:
                     cherrypy.session['job_defaults'] = defaults
                 tgt_start_time = str(job.start_time_local).replace(" ", "T")
                 raise HTTPRedirect('index?location=' + str(job.location) + '&time=' + tgt_start_time)
+
+        if 'start_time' in params and 'type' not in params:
+            local_start_time = c.EVENT_TIMEZONE.localize(datetime.strptime(params['start_time'], "%Y-%m-%d %H:%M:%S"))
+            if c.EPOCH < local_start_time < c.ESCHATON:
+                job.type = c.REGULAR
+            else:
+                job.type = c.SETUP if local_start_time < c.EPOCH else c.TEARDOWN
+
 
         return {
             'job':      job,

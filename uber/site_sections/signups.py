@@ -73,8 +73,7 @@ class Root:
         return {
             'jobs': joblist,
             'name': session.logged_in_volunteer().full_name,
-            'hours': session.logged_in_volunteer().weighted_hours,
-            'c': c
+            'hours': session.logged_in_volunteer().weighted_hours
         }
 
     @check_shutdown
