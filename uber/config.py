@@ -266,6 +266,10 @@ class Config(_Overridable):
         return cherrypy.session['csrf_token'] if 'csrf_token' in cherrypy.session else ''
 
     @property
+    def QUERY_STRING(self):
+        return cherrypy.request.query_string
+
+    @property
     def PAGE_PATH(self):
         return cherrypy.request.path_info
 

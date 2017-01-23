@@ -1,5 +1,9 @@
 {% extends "base-admin.html" %}
 {% block title %}Job Form{% endblock %}
+{% block page_styles %}
+
+{% endblock %}
+
 {% block content %}
 
 {% include "jobs/job_menu.html" %}
@@ -34,6 +38,7 @@
 <input type="hidden" name="type" value="{{ job.type }}" />
 <input type="hidden" name="from_schedule" value="{{ from_schedule }}" />
 {% csrf_token %}
+
 
 <table>
 <tr>
@@ -125,3 +130,7 @@
 {% endif %}
 
 {% endblock %}
+{% block page_scripts %}
+
+{% endblock %}
+
