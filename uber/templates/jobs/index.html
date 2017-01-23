@@ -6,13 +6,13 @@
 <link rel="stylesheet" href="../static/styles/fullcalendar.print.css" media="print"/>
 
 <style>
-.button_row div a.setup_button {
+.button_row div a.setup_button, .button_row div a.teardown_button {
  background-color: #239875;
 
-}
-.button_row div a.teardown_button {
- background-color: #239875;
-
+    background-image: -webkit-linear-gradient(top, #239875 0%, #209572 100%);
+    background-image: -o-linear-gradient(top, #239875 0%, #209572 100%);
+    background-image: -webkit-gradient(linear, left top, left bottom, from(#239875), to(#209572));
+    background-image: linear-gradient(to bottom, #239875 0%, #209572 100%);
 }
 </style>
 {% endblock %}
@@ -55,15 +55,15 @@
 <div class="row text-center button_row">
 
         <div class="col-md-4">
-	    <a class="btn btn-primary setup_button" href="form?id=None&location={{ location }}&type={{c.SETUP}}">Add Setup Shift</a>
+	    <a class="btn btn-primary setup_button" href="form?id=None&location={{ location }}&type={{ c.SETUP }}">Add Setup Shift</a>
 
         </div>
         <div class="col-md-4">
-            <a class="btn btn-primary teardown_button" href="form?id=None&location={{ location }}&type={{c.TEARDOWN}}">Add Teardown Shift</a>
+            <a class="btn btn-primary teardown_button" href="form?id=None&location={{ location }}&type={{ c.TEARDOWN }}">Add Teardown Shift</a>
 
         </div>
         <div class="col-md-4">
-            <a class="btn btn-primary" href="form?id=None&location={{ location }}">Add Shift</a>
+            <a class="btn btn-primary" href="form?id=None&location={{ location }}&type={{ c.REGULAR }}">Add Shift</a>
 
         </div>
 
@@ -138,9 +138,9 @@
 			slotEventOverlap:false,
 			eventLimit: true, // allow "more" link when too many events
 			events: eventList,
-            dayClick: function(date) {
+            		dayClick: function(date) {
 			    window.location.href = "form?id=None&location={{ location }}&start_time=" + date.format("YYYY-MM-DD HH:mm:ss");
-            }
+            		}
 		});
                 var curDate = $.urlParam('time');
                 if(curDate != null) {

@@ -54,11 +54,17 @@
     <td>
         <select name="start_time">
             {% if job.type == c.SETUP %}
+		<!-- SETUP -->
                 {% options c.SETUP_TIME_OPTS job.start_time %}
             {% elif job.type == c.TEARDOWN %}
-                {% options c.TEARDOWN_TIME_OPTS job.start_time %}
-            {% else %}
-                {% options c.START_TIME_OPTS job.start_time %}
+		<!-- TEARDOWN -->
+		{% options c.TEARDOWN_TIME_OPTS job.start_time %}
+            {% elif job.type == c.REGULAR %}
+		<!-- REGULAR -->
+		{% options c.START_TIME_OPTS job.start_time %}
+	    {% else %}
+		<!-- ALL -->
+		{% options c.ALL_TIME_OPTS job.start_time %}
             {% endif %}
         </select>
     </td>
