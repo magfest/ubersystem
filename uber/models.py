@@ -1877,7 +1877,8 @@ class PageViewTracking(MagModel):
     what = Column(UnicodeText)
 
     @classmethod
-    def track_pageview(cls, url, query):
+    def track_pageview(cls):
+        url, query = cherrypy.request.path_info, cherrypy.request.query_string
         # Track any views of the budget pages
         if "budget" in url:
             what = "Budget page"
@@ -2012,7 +2013,7 @@ class Tracking(MagModel):
             with Session() as session:
                 _insert(session)
 
-Tracking.UNTRACKED = [Tracking, Email]
+Tracking.UNTRACKED = [Tracking, Email, PageViewTracking]
 
 
 def _make_getter(model):
