@@ -68,7 +68,7 @@ class Root:
         }
 
     @check_shutdown
-    def shifts(self, session, tgtDate='', state=''):
+    def shifts(self, session, tgt_date='', state=''):
         joblist = session.jobs_for_signups()
         return {
             'jobs': joblist,

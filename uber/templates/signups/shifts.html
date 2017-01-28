@@ -168,10 +168,10 @@
 
 		{% else %}
 
-                // if opened with tgtDate, go to date in calendar
+                // if opened with tgt_date, go to date in calendar
 
 		{% endif %}
-                var curDate = $.urlParam('tgtDate');
+                var curDate = $.urlParam('tgt_date');
                 if(curDate != null) {
                         $("#shift_cal").fullCalendar( 'changeView','agendaDay');
 			$("#shift_cal").fullCalendar( 'gotoDate',curDate);
@@ -211,7 +211,7 @@ function click_shift(state,id,time,title) {
                 	tgtShiftURL = "drop?job_id=" + id;
                 }
                 $.post( tgtShiftURL,postData,function( data,status ) {
-                        window.location.href = window.location.pathname + "?tgtDate=" + moment(event.start).toISOString();
+                        window.location.href = window.location.pathname + "?tgt_date=" + moment(event.start).toISOString();
                 });
         }
 
