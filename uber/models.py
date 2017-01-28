@@ -1094,6 +1094,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     dept_checklist_items = relationship('DeptChecklistItem', backref='attendee')
 
     _repr_attr_names = ['full_name']
+    __table_args__ = (
+        UniqueConstraint('badge_num', deferrable=True, initially='DEFERRED'),
+    )
 
     @predelete_adjustment
     def _shift_badges(self):
