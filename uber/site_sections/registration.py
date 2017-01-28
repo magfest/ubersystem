@@ -182,17 +182,19 @@ class Root:
     def history(self, session, id):
         attendee = session.attendee(id, allow_invalid=True)
         return {
-            'attendee': attendee,
-            'emails':   session.query(Email)
-                               .filter(or_(Email.dest == attendee.email,
-                                           and_(Email.model == 'Attendee', Email.fk_id == id)))
-                               .order_by(Email.when).all(),
-            'changes':  session.query(Tracking)
-                               .filter(or_(Tracking.links.like('%attendee({})%'.format(id)),
-                                           and_(Tracking.model == 'Attendee', Tracking.fk_id == id)))
-                               .order_by(Tracking.when).all()
+            'attendee':  attendee,
+            'emails':    session.query(Email)
+                                .filter(or_(Email.dest == attendee.email,
+                                            and_(Email.model == 'Attendee', Email.fk_id == id)))
+                                .order_by(Email.when).all(),
+            'changes':   session.query(Tracking)
+                                .filter(or_(Tracking.links.like('%attendee({})%'.format(id)),
+                                            and_(Tracking.model == 'Attendee', Tracking.fk_id == id)))
+                                .order_by(Tracking.when).all(),
+            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Attendee id={}".format(id))
         }
 
+    @log_pageview
     def watchlist(self, session, attendee_id, watchlist_id=None, message='', **params):
         attendee = session.attendee(attendee_id, allow_invalid=True)
         if watchlist_id:

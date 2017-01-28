@@ -25,7 +25,7 @@ def log_pageview(func):
             except:
                 pass  # we don't care about unrestricted pages for this version
             else:
-                sa.Tracking.track_pageview(cherrypy.request.path_info, cherrypy.request.query_string)
+                sa.PageViewTracking.track_pageview()
         return func(*args, **kwargs)
     return with_check
 

@@ -2,6 +2,8 @@
 {% block title %}Group Form{% endblock %}
 {% block content %}
 
+    {% nav_menu group "form?id={id}" "Group Page" True "history?id={id}" "History" True "index" "Return to Group List" True %}
+
 <script type="text/javascript">
     var unapprove = function(action, convert) {
         if (!$.val("email")) {
