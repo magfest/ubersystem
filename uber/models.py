@@ -439,14 +439,18 @@ class Session(SessionManager):
                 order.append(col.desc() if attr.startswith('-') else col)
             return self.order_by(*order)
 
-        def icontains(self, attr=None, val=None, **filters):
-            query = self
+        def icontains_predicate(self, attr=None, val=None, **filters):
+            predicates = []
             if len(self.column_descriptions) == 1 and filters:
                 for colname, val in filters.items():
-                    query = query.filter(getattr(self.model, colname).ilike('%{}%'.format(val)))
+                    predicates.append(getattr(self.model, colname).ilike('%{}%'.format(val)))
             if attr and val:
-                query = self.filter(attr.ilike('%{}%'.format(val)))
-            return query
+                predicates.append(attr.ilike('%{}%'.format(val)))
+            return and_(*predicates)
+
+        def icontains(self, attr=None, val=None, **filters):
+            predicate = self.icontains_predicate(attr=attr, val=val, **filters)
+            return self.filter(predicate)
 
         def iexact(self, **filters):
             return self.filter(*[func.lower(getattr(self.model, attr)) == func.lower(val) for attr, val in filters.items()])
@@ -729,9 +733,15 @@ class Session(SessionManager):
                 first, last = terms
                 if first.endswith(','):
                     last, first = first.strip(','), last
-                return attendees.icontains(first_name=first, last_name=last)
+                name_pred = attendees.icontains_predicate(first_name=first, last_name=last)
+                legal_name_pred = attendees.icontains_predicate(legal_name_opt="{}%{}".format(first, last))
+                return attendees.filter(or_(name_pred, legal_name_pred))
             elif len(terms) == 1 and terms[0].endswith(','):
-                return attendees.icontains(last_name=terms[0].rstrip(','))
+                last = terms[0].rstrip(',')
+                name_pred = attendees.icontains_predicate(last_name=last)
+                # Known issue: search may include first name if legal name is set
+                legal_name_pred = attendees.icontains_predicate(legal_name_opt=last)
+                return attendees.filter(or_(name_pred, legal_name_pred))
             elif len(terms) == 1 and terms[0].isdigit():
                 if len(terms[0]) == 10:
                     return attendees.filter(or_(Attendee.ec_phone == terms[0], Attendee.cellphone == terms[0]))
@@ -747,7 +757,7 @@ class Session(SessionManager):
                                                 Group.public_id == search_uuid))
 
             checks = [Group.name.ilike('%' + text + '%')]
-            for attr in ['first_name', 'last_name', 'badge_printed_name', 'email', 'comments', 'admin_notes', 'for_review']:
+            for attr in ['first_name', 'last_name', 'legal_name', 'badge_printed_name', 'email', 'comments', 'admin_notes', 'for_review']:
                 checks.append(getattr(Attendee, attr).ilike('%' + text + '%'))
             return attendees.filter(or_(*checks))
 
@@ -1025,6 +1035,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     placeholder   = Column(Boolean, default=False, admin_only=True)
     first_name    = Column(UnicodeText)
     last_name     = Column(UnicodeText)
+    legal_name_   = Column('legal_name', UnicodeText, nullable=True, default=None)
     email         = Column(UnicodeText)
     birthdate     = Column(Date, nullable=True, default=None)
     age_group     = Column(Choice(c.AGE_GROUPS), default=c.AGE_UNKNOWN, nullable=True)
@@ -1341,6 +1352,36 @@ class Attendee(MagModel, TakesPaymentMixin):
         return case([
             (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
         ], else_=func.lower(cls.first_name + ' ' + cls.last_name))
+
+    @hybrid_property
+    def legal_name(self):
+        return self.unassigned_name or self.legal_name_ or '{self.first_name} {self.last_name}'.format(self=self)
+
+    @legal_name.expression
+    def legal_name(cls):
+        return case([
+            (or_(cls.first_name == None, cls.first_name == ''), 'zzz'),
+            (cls.legal_name_ != None, cls.legal_name_)
+        ], else_=func.lower(cls.first_name + ' ' + cls.last_name))
+
+    @legal_name.setter
+    def legal_name(cls, value):
+        # make sure value is not the empty string
+        if not value:
+            value = None
+        cls.legal_name_ = value
+
+    # This property should be used in situations where we specifically want an empty string when legal_name is unset
+    # (as opposed to falling back to full_name
+    @hybrid_property
+    def legal_name_opt(self):
+        return self.legal_name_ or ''
+
+    @legal_name_opt.expression
+    def legal_name_opt(cls):
+        return case([
+            (cls.legal_name_ != None, cls.legal_name_)
+        ], else_='')
 
     @hybrid_property
     def last_first(self):

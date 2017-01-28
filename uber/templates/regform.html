@@ -96,12 +96,17 @@
         <div class="col-sm-6">
             <input type="text" name="last_name" id="last_name" value="{{ attendee.last_name }}" class="form-control" placeholder="Last Name">
         </div>
-        {% if c.PAGE_PATH != '/registration/form' %}
-            <p class="help-block col-sm-6 col-sm-offset-2">
-                These must be your legal name.
-                <span class="popup">{% popup_link "../static_views/legal_name.html" "What does this mean?" %}</span>
-            </p>
-        {% endif %}
+    </div>
+
+    <div class="form-group">
+        <label for="legal_name" class="col-sm-2 control-label optional-field">Legal Name</label>
+        <div class="col-sm-6">
+            <input type="text" name="legal_name" id="legal_name" value="{{ attendee.legal_name_opt }}" class="form-control" placeholder="Legal Name">
+        </div>
+        <p class="help-block col-sm-6 col-sm-offset-2">
+            Only enter your legal name if it is different from your preferred name.
+            <span class="popup">{% popup_link "../static_views/legal_name.html" "What does legal name mean?" %}</span>
+        </p>
     </div>
 {% endif %}
 

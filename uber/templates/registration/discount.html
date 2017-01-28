@@ -8,6 +8,9 @@
 {% csrf_token %}
 <table class="form">
 <tr>
+    <!-- Note that this is preferred first and last name.
+    May want to change, probably by sending an attendee ID to this page as a hidden field/something,
+    instead of having to re-search for them with potentially ambiguous/problematic results. -->
     <td> <b>First and Last Name:</b> </td>
     <td>
         <input class="focus" type="text" style="width:10em" name="first_name" />
