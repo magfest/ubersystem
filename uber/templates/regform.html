@@ -443,7 +443,7 @@
     </div>
 {% else %}
     <div class="form-group">
-        <label for="zip_code" class="col-sm-2 control-label">ZIP/Postal Code</label>
+        <label for="zip_code" class="col-sm-2 control-label {% if c.AT_OR_POST_CON %}optional-field{% endif %}">ZIP/Postal Code</label>
         <div class="col-sm-6">
             <input type="text" name="zip_code" class="form-control" value="{{ attendee.zip_code }}" />
         </div>
