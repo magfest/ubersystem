@@ -291,6 +291,19 @@ class MagModel:
 
     @suffix_property
     def _ints(self, name, val):
+        """
+        Given a column that uses a tuple of integers and strings, returns a
+        list of integers. This allows us to use 'x in y' searching for
+        MultiChoice columns.
+        Args:
+            These arguments are supplied by the @suffix_property decorator
+        based on the variable name preceding '_ints'
+            name: the name of the column we're inspecting, e.g., "interests"
+            val: the list of tuples the column uses as possible values, e.g., "c.INTEREST_OPTS"
+
+        Returns: A list of integers or an empty list if val is falsey.
+
+        """
         choices = dict(self.get_field(name).type.choices)
         return [int(i) for i in str(val).split(',') if int(i) in choices] if val else []
 
@@ -924,14 +937,14 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def new_ribbon(self):
-        return c.DEALER_RIBBON if self.is_dealer else c.NO_RIBBON
+        return c.DEALER_RIBBON if self.is_dealer else ''
 
     @property
     def ribbon_and_or_badge(self):
         badge_being_claimed = self.unassigned[0]
         if badge_being_claimed.ribbon != c.NO_RIBBON and badge_being_claimed.badge_type != c.ATTENDEE_BADGE:
             return badge_being_claimed.badge_type_label + " / " + self.ribbon_label
-        elif badge_being_claimed.ribbon != c.NO_RIBBON:
+        elif badge_being_claimed.ribbon:
             return badge_being_claimed.ribbon_label
         else:
             return badge_being_claimed.badge_type_label
@@ -1121,7 +1134,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_cost == 0 and self.paid in [c.NOT_PAID, c.PAID_BY_GROUP]:
             self.paid = c.NEED_NOT_PAY
 
-        if c.AT_THE_CON and self.badge_num and (self.is_new or self.badge_type not in c.PREASSIGNED_BADGE_TYPES):
+        if c.AT_THE_CON and self.badge_num and not self.checked_in and \
+                (self.is_new or self.badge_type not in c.PREASSIGNED_BADGE_TYPES):
             self.checked_in = datetime.now(UTC)
 
         if self.birthdate:
