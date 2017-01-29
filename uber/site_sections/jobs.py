@@ -36,7 +36,8 @@ def update_counts(job, counts):
 
 @all_renderable(c.PEOPLE)
 class Root:
-    def index(self, session, location=None, message=''):
+
+    def index(self, session, location=None, message='', time=None):
         if not location:
             if c.AT_THE_CON:
                 raise HTTPRedirect('signups')
@@ -54,8 +55,10 @@ class Root:
             'location':  location,
             'setup':     [j for j in jobs if j.type == c.SETUP],
             'teardown':  [j for j in jobs if j.type == c.TEARDOWN],
+            'normal': [j for j in jobs if j.type != c.SETUP and j.type != c.TEARDOWN],
             'checklist': location and session.checklist_status('creating_shifts', location),
-            'times':     [(t, t + timedelta(hours=1), by_start[t]) for i, t in enumerate(times)]
+            'times':     [(t, t + timedelta(hours=1), by_start[t]) for i, t in enumerate(times)],
+            'jobs': jobs
         }
 
     def signups(self, session, location=None, message=''):
@@ -117,8 +120,15 @@ class Root:
                     defaults = cherrypy.session.get('job_defaults', defaultdict(dict))
                     defaults[params['location']] = {field: getattr(job, field) for field in c.JOB_DEFAULTS}
                     cherrypy.session['job_defaults'] = defaults
+                tgt_start_time = str(job.start_time_local).replace(" ", "T")
+                raise HTTPRedirect('index?location=' + str(job.location) + '&time=' + tgt_start_time)
 
-                raise HTTPRedirect('index?location={}#{}', job.location, job.start_time_local)
+        if 'start_time' in params and 'type' not in params:
+            local_start_time = c.EVENT_TIMEZONE.localize(datetime.strptime(params['start_time'], "%Y-%m-%d %H:%M:%S"))
+            if c.EPOCH <= local_start_time < c.ESCHATON:
+                job.type = c.REGULAR
+            else:
+                job.type = c.SETUP if local_start_time < c.EPOCH else c.TEARDOWN
 
         return {
             'job':      job,

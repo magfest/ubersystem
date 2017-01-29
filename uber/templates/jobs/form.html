@@ -1,5 +1,9 @@
 {% extends "base-admin.html" %}
 {% block title %}Job Form{% endblock %}
+{% block page_styles %}
+
+{% endblock %}
+
 {% block content %}
 
 {% include "jobs/job_menu.html" %}
@@ -35,6 +39,7 @@
 <input type="hidden" name="from_schedule" value="{{ from_schedule }}" />
 {% csrf_token %}
 
+
 <table>
 <tr>
     <td width="25%"> <b>Job Name:</b> </td>
@@ -49,11 +54,17 @@
     <td>
         <select name="start_time">
             {% if job.type == c.SETUP %}
+		<!-- SETUP -->
                 {% options c.SETUP_TIME_OPTS job.start_time %}
             {% elif job.type == c.TEARDOWN %}
-                {% options c.TEARDOWN_TIME_OPTS job.start_time %}
-            {% else %}
-                {% options c.START_TIME_OPTS job.start_time %}
+		<!-- TEARDOWN -->
+		{% options c.TEARDOWN_TIME_OPTS job.start_time %}
+            {% elif job.type == c.REGULAR %}
+		<!-- REGULAR -->
+		{% options c.START_TIME_OPTS job.start_time %}
+	    {% else %}
+		<!-- ALL -->
+		{% options c.ALL_TIME_OPTS job.start_time %}
             {% endif %}
         </select>
     </td>
@@ -125,3 +136,7 @@
 {% endif %}
 
 {% endblock %}
+{% block page_scripts %}
+
+{% endblock %}
+
