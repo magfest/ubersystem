@@ -32,6 +32,7 @@
         {% endif %}
     });
 </script>
+    {% include "check_in.html" %}
 
 <div class="panel panel-default">
 
@@ -282,16 +283,23 @@
                     </form> 
                 {% endif %}
             </td>
-            <td style="padding:15px;">                
-                {% if attendee.checked_in %}
-                    <b>Checked-in {{ attendee.checked_in_local|time:"fA"|lower }} {{ attendee.checked_in_local|date:"D" }}</b>
-                {% endif %}
-                
+            <td style="padding:15px;">
                 {% if attendee.amount_extra %}
                     <b>Kicked in an extra ${{ attendee.amount_extra }}!</b>
                 {% endif %}
             </td>
             <td style="padding:15px;">{{ attendee.weighted_hours }} Hours</td>
+            {% if attendee.checked_in %}
+                <td><b>Checked-in {{ attendee.checked_in_local|time:"fA"|lower }} {{ attendee.checked_in_local|date:"D" }}</b></td>
+            {% elif c.AT_THE_CON %}
+                {% if attendee.is_not_ready_to_checkin %}
+                    <td>Can't checkin ({{ attendee.is_not_ready_to_checkin }})</td>
+                {% else %}
+                    <td id="cin_{{ attendee.id }}">
+                        <button class="attendee-checkin" data-attendee-id="{{ attendee.id }}">Check In</button>
+                    </td>
+                {% endif %}
+            {% endif %}
         </tr>
     {% endfor %}
     </table>

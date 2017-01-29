@@ -274,7 +274,8 @@ def dealer_needs_group(attendee):
 @validation.Attendee
 def dupe_badge_num(attendee):
     if (attendee.badge_num != attendee.orig_value_of('badge_num') or attendee.is_new)\
-            and c.NUMBERED_BADGES and attendee.badge_num and not c.SHIFT_CUSTOM_BADGES:
+            and c.NUMBERED_BADGES and attendee.badge_num and\
+            (not c.SHIFT_CUSTOM_BADGES or c.AFTER_PRINTED_BADGE_DEADLINE or c.AT_THE_CON):
         with Session() as session:
             existing = session.query(Attendee)\
                 .filter_by(badge_type=attendee.badge_type, badge_num=attendee.badge_num)
