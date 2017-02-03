@@ -18,7 +18,9 @@ def job_dict(job, shifts=None):
             'worked_label': shift.worked_label,
             'attendee_id': shift.attendee.id,
             'attendee_name': shift.attendee.full_name,
-            'attendee_badge': shift.attendee.badge_num
+            'attendee_badge': shift.attendee.badge_num,
+            'check_in':shift.check_in,
+            'check_out':shift.check_out
         } for shift in job.shifts]
     }
 
@@ -72,6 +74,7 @@ class Root:
             'location':  location,
             'attendees': session.staffers_for_dropdown(),
             'jobs':      [job_dict(job) for job in session.jobs(location)],
+            'jobsb':     session.jobs(location),
             'checklist': location and session.checklist_status('postcon_hours', location)
         }
 

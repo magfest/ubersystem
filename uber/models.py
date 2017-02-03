@@ -1811,6 +1811,8 @@ class Shift(MagModel):
     worked      = Column(Choice(c.WORKED_STATUS_OPTS), default=c.SHIFT_UNMARKED)
     rating      = Column(Choice(c.RATING_OPTS), default=c.UNRATED)
     comment     = Column(UnicodeText)
+    check_in    = Column(UTCDateTime, nullable=True)
+    check_out   = Column(UTCDateTime, nullable=True)
 
     @property
     def name(self):

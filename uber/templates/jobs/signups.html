@@ -1,11 +1,37 @@
 {% extends "base-admin.html" %}
 {% block title %}Shifts{% endblock %}
+{% block page_styles %}
+<!--inside page_style -->
+<link rel="stylesheet" href="../static/styles/fullcalendar.min.css" />
+<link rel="stylesheet" href="../static/styles/fullcalendar.print.css" media="print"/>
+
+<style>
+.button_row div a.setup_button, .button_row div a.teardown_button {
+ background-color: #239875;
+
+    background-image: -webkit-linear-gradient(top, #239875 0%, #209572 100%);
+    background-image: -o-linear-gradient(top, #239875 0%, #209572 100%);
+    background-image: -webkit-gradient(linear, left top, left bottom, from(#239875), to(#209572));
+    background-image: linear-gradient(to bottom, #239875 0%, #209572 100%);
+}
+</style>
+
+{% endblock %}
+
 {% block content %}
 
-<script type="text/javascript" src="../static_views/ratings.js"></script>
+<div class="row">
+	<div class="col-xs-10 col-xs-offset-1">
+	<h4>Shift Signup View</h4>
+	</div>
+</div>
+<div class="row>
+	<div class="col-xs-10 col-xs-offset-1">
+		<div id="shift_cal">
 
-{% include "jobs/main_menu.html" %}
-
+		</div>
+	</div>
+</div>
 {% if c.POST_CON and checklist.relevant %}
     <div class="center">
         {% if checklist.completed %}
@@ -22,6 +48,60 @@
 {% endif %}
 
 <script>SHOW_FULL_JOBS = true;</script>
+{% comment %}
 {% include "jobs/job_renderer.html" %}
+{% endcomment %}
+{% endblock %}
+{% block page_scripts %}
+<script type="text/javascript" src="../static_views/ratings.js"></script>
 
+<script type="text/javascript" src="../static/js/moment.js"></script>
+
+
+<script type="text/javascript" src="../static/js/fullcalendar.min.js"></script>
+<script type="text/javascript">
+
+        $(document).ready(function() {
+
+                var eventList =  new Array();
+                    {% for job in jobsb %}
+			{% if job.shifts|length != job.slots %}
+			
+                    		eventList.push({
+                                        title : "{{job.name}} ({{job.shifts|length}} / {{job.slots}})",
+                                        start : "{{ job.start_time|datetime:"%Y-%m-%dT%H:%M:%S" }}",
+                                        end: "{{job.start_time|shift_end:job.duration}}",
+                                });
+			{% endif %}
+			{% for shift in job.shifts %}
+			        eventList.push({
+                                        title : "{{job.name}} {{shift.attendee.full_name}}",
+                                        start : "{{ job.start_time|datetime:"%Y-%m-%dT%H:%M:%S" }}",
+                                        end: "{{job.start_time|shift_end:job.duration}}",
+                                });
+
+
+			{% endfor %}
+                    {% endfor %}
+
+                $('#shift_cal').fullCalendar({
+                        header: {
+                                left: 'prev,next today',
+                                center: 'title',
+                        },
+                        slotDuration: '00:15:00',
+                        allDaySlot: false,
+                        eventLimit: true, // allow "more" link when too many events
+                        slotEventOverlap: false,
+                        defaultView: 'listDay',
+                        editable: false,
+                        slotEventOverlap:false,
+                        eventLimit: true, // allow "more" link when too many events
+                        events: eventList,
+                });
+	$("#shift_cal").fullCalendar('gotoDate', eventList[0].start);
+
+        });
+
+</script>
 {% endblock %}
