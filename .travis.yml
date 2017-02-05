@@ -3,7 +3,7 @@ python:
     - "3.4"
 before_install:
     - "git clone https://github.com/magfest/sideboard"
-    - "mv uber sideboard/plugins/uber/"
+    - "mv uber sideboard/plugins/uber/uber"
 install:
     - "pip install pep8"
 script:
