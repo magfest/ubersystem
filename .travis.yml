@@ -5,4 +5,4 @@ install:
     - "pip install pep8"
     - "pip install -r requirements.txt"
 script: "pep8 uber/"
-script: "pytest uber/sideboard/plugins/"
+script: "pytest uber/"
