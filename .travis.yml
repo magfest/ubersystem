@@ -7,6 +7,7 @@ before_install:
     - "mv uber sideboard/plugins/uber/uber"
 install:
     - "pip install pep8"
+    - "pip install -r requirements.txt"
 script:
-    - "pep8 sideboard/plugins/uber/"
+    - "pep8 sideboard/plugins/uber/uber"
     - "py.test sideboard/plugins/uber/uber/tests"
