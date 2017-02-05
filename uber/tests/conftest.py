@@ -27,6 +27,7 @@ def sensible_defaults():
     c.DEV_BOX = False
     c.SEND_EMAILS = False
     c.EVENT_NAME = 'CoolCon9000'
+    c.HARDCORE_OPTIMIZATIONS_ENABLED = False
 
     # our tests should work no matter what departments exist, so we'll add these departments to use in our tests
     patched_depts = {'console': 'Console', 'arcade': 'Arcade', 'con_ops': 'Fest Ops'}

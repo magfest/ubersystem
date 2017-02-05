@@ -394,19 +394,19 @@ class TestLookupAttendee:
 
     def test_search_not_found(self):
         with Session() as session:
-            pytest.raises(ValueError, session.lookup_attendee, 'Searchable Attendee', 'searchable@example.com', 'xxxxx')
-            pytest.raises(ValueError, session.lookup_attendee, 'XXX XXX', 'searchable@example.com', '12345')
-            pytest.raises(ValueError, session.lookup_attendee, 'Searchable Attendee', 'xxx', '12345')
+            pytest.raises(ValueError, session.lookup_attendee, 'Searchable', 'Attendee', 'searchable@example.com', 'xxxxx')
+            pytest.raises(ValueError, session.lookup_attendee, 'XXX', 'XXX', 'searchable@example.com', '12345')
+            pytest.raises(ValueError, session.lookup_attendee, 'Searchable', 'Attendee', 'xxx', '12345')
 
     def test_search_basic(self, searchable):
         with Session() as session:
-            assert str(searchable) == session.lookup_attendee('Searchable Attendee', 'searchable@example.com', '12345').id
+            assert str(searchable) == session.lookup_attendee('Searchable', 'Attendee', 'searchable@example.com', '12345').id
 
     def test_search_case_insensitive(self, searchable):
         with Session() as session:
-            assert str(searchable) == session.lookup_attendee('searchablE attendeE', 'seArchAble@exAmple.com', '12345').id
+            assert str(searchable) == session.lookup_attendee('searchablE', 'attendeE', 'seArchAble@exAmple.com', '12345').id
 
     def test_search_multi_word_names(self):
         with Session() as session:
-            assert session.lookup_attendee('Two First Names', 'searchable@example.com', '12345')
-            assert session.lookup_attendee('Two Last Names', 'searchable@example.com', '12345')
+            assert session.lookup_attendee('Two First', 'Names', 'searchable@example.com', '12345')
+            assert session.lookup_attendee('Two', 'Last Names', 'searchable@example.com', '12345')
