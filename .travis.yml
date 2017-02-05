@@ -1,6 +1,11 @@
 language: python
 python:
     - "3.4"
+before_install:
+    - "git clone https://github.com/magfest/sideboard"
+    - "mv uber sideboard/plugins/uber/"
 install:
     - "pip install pep8"
-script: "pep8 uber/"
+script:
+    - "pep8 sideboard/plugins/uber/"
+    - "py.test sideboard/plugins/uber/uber/tests"
