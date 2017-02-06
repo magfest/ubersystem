@@ -1037,6 +1037,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     region        = Column(UnicodeText)
     country       = Column(UnicodeText)
     no_cellphone  = Column(Boolean, default=False)
+    ec_name       = Column(UnicodeText)
     ec_phone      = Column(UnicodeText)
     cellphone     = Column(UnicodeText)
 
