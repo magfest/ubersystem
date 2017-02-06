@@ -124,6 +124,14 @@ def test_assign_new_badges(session, monkeypatch):
         assert attendee.badge_type == 222
 
 
+def test_assign_new_comped_badges(session, monkeypatch):
+    group = Group()
+    session.assign_badges(group, 2, paid=c.NEED_NOT_PAY)
+    assert 2 == group.badges == len(group.attendees)
+    for attendee in group.attendees:
+        assert attendee.paid == c.NEED_NOT_PAY
+
+
 def test_assign_extra_create_arguments(session):
     group = Group()
     registered = localized_now()
@@ -150,6 +158,12 @@ def test_assign_removing_badges(monkeypatch, session):
     session.delete.assert_any_call(attendees[3])
 
 
+def test_assign_custom_badges_after_deadline(session, after_printed_badge_deadline):
+    group = Group()
+    message = session.assign_badges(group, 2, new_badge_type=c.STAFF_BADGE)
+    assert message and 'ordered' in message
+
+
 def test_badge_cost(monkeypatch):
     monkeypatch.setattr(c, 'get_group_price', Mock(return_value=c.DEALER_BADGE_PRICE + 10))
     assert 4 * c.DEALER_BADGE_PRICE + 20 == Group(attendees=[
@@ -171,3 +185,12 @@ def test_new_extra():
 def test_existing_extra(monkeypatch):
     monkeypatch.setattr(Group, 'is_new', False)
     assert 0 == Group(attendees=[Attendee(paid=c.PAID_BY_GROUP, amount_extra=20)]).amount_extra
+
+
+def test_group_badge_status_cascade():
+    g = Group(cost=0, auto_recalc=False)
+    taken = Attendee(group_id=g.id, paid=c.PAID_BY_GROUP, badge_status=c.NEW_STATUS, first_name='Liam', last_name='Neeson')
+    floating = Attendee(group_id=g.id, paid=c.PAID_BY_GROUP, badge_status=c.NEW_STATUS)
+    g.attendees = [taken, floating]
+    g.presave_adjustments()
+    assert taken.badge_status == c.COMPLETED_STATUS and floating.badge_status == c.NEW_STATUS

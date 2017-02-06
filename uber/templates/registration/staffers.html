@@ -4,36 +4,21 @@
 <ol class="breadcrumb">
   <li><a href="../accounts/homepage">Home</a></li>
   <li>People</li>
-  <li class="active">Staffers{% if search_results %} (Search Results){% endif %}</li>
+  <li class="active">Staffers</li>
 </ol>
 
-{% if search_text %}
-    <div class="panel panel-info">
-        <a href="index?order={{ order }}">Click here</a> to view full volunteer list instead of only search results.
-    </div>
-{% endif %}
-
-<form method="get" action="staffers">
-    <div class="row">
-        <div class="col-md-6">
-            <div class="input-group">
-                <input class="form-control" type="text" name="search_text" value="{{ search_text }}" placeholder="Type Here to Search"/>
-                <input type="hidden" name="order" value="{{ order }}" />
-                <span class="input-group-addon"><span class="glyphicon glyphicon-search"></span></span>
-            </div>
-        </div>
-        <div class="col-md-2">{{ staffer_count }} volunteers</div>
-        <div class="col-md-2">{{ taken_hours }} shift hours taken</div>
-        <div class="col-md-2">{{ total_hours }} shift hours exist</div>
-    </div>
-</form>
+<div class="row">
+    <div class="col-md-2">{{ staffers|length }} volunteers</div>
+    <div class="col-md-2">{{ taken_hours }} shift hours taken</div>
+    <div class="col-md-2">{{ total_hours }} shift hours exist</div>
+</div>
 
 <table class="table table-striped datatable">
 <thead><tr>
     <th>Name</th>
     <th>Badge</th>
     <th>Paid</th>
-    <th>Assigned To</th>
+    <th><nobr>Assigned To</nobr></th>
     <th>Hours</th>
     {% if c.AT_OR_POST_CON %}
         <th>Worked</th>

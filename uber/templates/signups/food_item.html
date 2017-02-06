@@ -1,6 +1,6 @@
 <li>
     {% checked_if attendee.food_restrictions %}
-    {% if not attendee.placeholder %}
+    {% if not attendee.placeholder and attendee.shirt_size_marked %}
         <a href="food_restrictions">Let us know</a>
     {% else %}
         Let us know

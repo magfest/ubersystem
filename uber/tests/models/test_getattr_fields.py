@@ -10,6 +10,7 @@ def test_ints():
 def test_label():
     assert '' == Attendee(paid=None).paid_label
     assert 'yes' == Attendee(paid=c.HAS_PAID).paid_label
+    assert '' == Attendee(paid="none").paid_label
 
 
 def test_local():

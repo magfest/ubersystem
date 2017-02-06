@@ -9,7 +9,7 @@
 
 <div class="panel panel-default">
 <div class="panel-heading"><h3>New Account</h3></div>
-<form id="new_admin" method="post" action="update" role="form" class="form-inline">
+<form id="new_admin" method="post" action="update" onsubmit="return check_passwords()" role="form" class="form-inline">
 <input type="hidden" name="id" value="None" />
 {% csrf_token %}
 <div class="form-group">
@@ -21,12 +21,15 @@
 <div class="form-group">
     <div class="input-group input-group-sm">
     <label for="password" class="sr-only">Password</label>
-    <input type="password" class="form-control" id="password" name="password" placeholder="Password" 
-       {% if not c.AT_THE_CON %}disabled{% endif %}>
-       {% if not c.AT_THE_CON %}
+    <input type="password" class="form-control" id="password" name="password" placeholder="Password"
+       {% if not c.AT_OR_POST_CON %}disabled{% endif %}>
+       {% if not c.AT_OR_POST_CON %}
            <span class="input-group-addon glyphicon glyphicon-ban-circle">
            </span>
        {% endif %}
+    </div>
+    <input type="password" class="form-control" id="check-password" name="check-password" placeholder="Re-enter Password"
+           {% if not c.AT_OR_POST_CON %}disabled{% endif %}>
     </div>
 </div>
 <div class="form-group">
@@ -46,6 +49,7 @@
     <th>Name</th>
     <th>Email</th>
     <th data-hide="phone">Access</th>
+    <th></th>
 </tr></thead>
 <tbody>
 {% for account in accounts %}
@@ -59,7 +63,7 @@
                 </form>
             </div>
         </td>
-        <td> <nobr><a href="../registration/form?id={{ account.attendee.id }}">{{ account.attendee.full_name }}</a></nobr> </td>
+        <td data-order="{{ account.attendee.last_first }}" data-search="{{ account.attendee.last_first }}"> <nobr><a href="../registration/form?id={{ account.attendee.id }}">{{ account.attendee.last_first }}</a></nobr> </td>
         <td> <a href="mailto:{{ account.attendee.email }}">{{ account.attendee.email }}</a> </td>
         <td>
             <form class="form update-form" method="post" action="update">
@@ -68,6 +72,10 @@
                 <div class="form-group">{% checkgroup account.access %}</div>
             </form>
         </td>
+        <td>
+                <!--<input type="hidden" name="id" value="{{account.id}}"/ />-->
+            <a href="update_password_of_other?id={{account.id}}">Change Password</a>
+        </td>
     </tr>
 {% endfor %}
 </tbody>
@@ -75,6 +83,14 @@
 </div>
 
 <script>
+    function check_passwords() {
+        if (document.getElementById("password").value != document.getElementById("check-password").value) {
+            alert("Passwords must match");
+            return false;
+        }
+        return true;
+    }
+
 $(function() {
     $(document.body).on('click', '.delete-button', function (event) {
         event.preventDefault();
@@ -89,6 +105,7 @@ $(function() {
     $(document.body).on('click', '.update-button', function (event) {
         $(event.target).parents('tr').find('.update-form').submit();
     });
+
 });
 </script>
 

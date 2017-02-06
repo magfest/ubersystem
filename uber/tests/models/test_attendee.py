@@ -12,7 +12,7 @@ class TestCosts:
         assert 20 == Attendee().badge_cost
         assert 30 == Attendee(overridden_price=30).badge_cost
         assert 0 == Attendee(paid=c.NEED_NOT_PAY).badge_cost
-        assert 0 == Attendee(paid=c.PAID_BY_GROUP).badge_cost
+        assert 20 == Attendee(paid=c.PAID_BY_GROUP).badge_cost
 
     def test_total_cost(self):
         assert 20 == Attendee().total_cost
@@ -25,19 +25,19 @@ class TestCosts:
         assert 0 == Attendee(amount_paid=50).amount_unpaid
         assert 0 == Attendee(amount_paid=51).amount_unpaid
 
-    def test_discount(self, monkeypatch):
+    def test_age_discount(self, monkeypatch):
         monkeypatch.setattr(Attendee, 'age_group_conf', {'discount': 5})
         assert 15 == Attendee().total_cost
         assert 20 == Attendee(amount_extra=5).total_cost
-        assert 5 == Attendee(overridden_price=10).total_cost
-        assert 10 == Attendee(overridden_price=10, amount_extra=5).total_cost
+        assert 10 == Attendee(overridden_price=10).total_cost
+        assert 15 == Attendee(overridden_price=10, amount_extra=5).total_cost
 
-    def test_free(self, monkeypatch):
-        monkeypatch.setattr(Attendee, 'age_group_conf', {'discount': 999})  # make sure we minimizee non-kickin costs at 0
+    def test_age_free(self, monkeypatch):
+        monkeypatch.setattr(Attendee, 'age_group_conf', {'discount': 999})  # makes badge_cost free unless overridden_price is set
         assert 0 == Attendee().total_cost
         assert 5 == Attendee(amount_extra=5).total_cost
-        assert 0 == Attendee(overridden_price=10).total_cost
-        assert 5 == Attendee(overridden_price=10, amount_extra=5).total_cost
+        assert 10 == Attendee(overridden_price=10).total_cost
+        assert 15 == Attendee(overridden_price=10, amount_extra=5).total_cost
 
 
 def test_is_unpaid():
@@ -120,46 +120,6 @@ def test_trusted_somewhere():
     assert not Attendee(trusted_depts='').trusted_somewhere
 
 
-class TestGetsShirt:
-    def test_basics(self, monkeypatch):
-        assert not Attendee().gets_shirt
-        assert Attendee(amount_extra=c.SHIRT_LEVEL).gets_shirt
-        assert Attendee(ribbon=c.DEPT_HEAD_RIBBON).gets_shirt
-        assert Attendee(badge_type=c.STAFF_BADGE).gets_shirt
-        # assert Attendee(badge_type=c.SUPPORTER_BADGE).gets_shirt  # TODO: should this be true?
-
-    def test_shiftless_depts(self, monkeypatch):
-        monkeypatch.setattr(Attendee, 'takes_shifts', False)
-        assert not Attendee(assigned_depts='x').gets_shirt
-        assert Attendee(staffing=True, assigned_depts='x').gets_shirt
-
-    def test_shirt_hours(self, monkeypatch):
-        monkeypatch.setattr(Attendee, 'weighted_hours', 5)
-        assert not Attendee(staffing=True).gets_shirt
-        for amount in [6, 18, 24, 30]:
-            monkeypatch.setattr(Attendee, 'weighted_hours', amount)
-            assert not Attendee().gets_shirt
-            assert Attendee(staffing=True).gets_shirt
-
-
-class TestShirtEligible:
-    @pytest.fixture
-    def gets_shirt(self, monkeypatch):
-        monkeypatch.setattr(Attendee, 'gets_shirt', True)
-
-    @pytest.fixture
-    def gets_no_shirt(self, monkeypatch):
-        monkeypatch.setattr(Attendee, 'gets_shirt', False)
-
-    def test_gets_shirt_true(self, gets_shirt):
-        assert Attendee(staffing=False).shirt_eligible
-        assert Attendee(staffing=True).shirt_eligible
-
-    def test_gets_shirt_false(self, gets_no_shirt):
-        assert not Attendee(staffing=False).shirt_eligible
-        assert Attendee(staffing=True).shirt_eligible
-
-
 def test_has_personalized_badge():
     assert not Attendee().has_personalized_badge
     assert Attendee(badge_type=c.STAFF_BADGE).has_personalized_badge
@@ -192,8 +152,7 @@ class TestUnsetVolunteer:
             monkeypatch.setattr(Attendee, 'session', Mock())
             a = Attendee(badge_type=c.STAFF_BADGE, badge_num=123)
             a.unset_volunteering()
-            assert a.badge_type == c.ATTENDEE_BADGE
-            a.session.shift_badges.assert_called_with(c.STAFF_BADGE, 123, down=True)
+            assert a.badge_type == c.ATTENDEE_BADGE and a.badge_num is None
 
     def test_affiliate_with_extra(self):
         a = Attendee(affiliate='xxx', amount_extra=1)
@@ -204,16 +163,6 @@ class TestUnsetVolunteer:
         a = Attendee(affiliate='xxx')
         a._misc_adjustments()
         assert a.affiliate == ''
-
-    def test_gets_shirt_with_enough_extra(self):
-        a = Attendee(shirt=1, amount_extra=c.SHIRT_LEVEL)
-        a._misc_adjustments()
-        assert a.shirt == 1
-
-    def test_gets_shirt_without_enough_extra(self):
-        a = Attendee(shirt=1, amount_extra=1)
-        a._misc_adjustments()
-        assert a.shirt == c.NO_SHIRT
 
     def test_amount_refunded_when_refunded(self):
         a = Attendee(amount_refunded=123, paid=c.REFUNDED)
@@ -242,7 +191,7 @@ class TestUnsetVolunteer:
         monkeypatch.setattr(Attendee, 'is_new', False)
         a = Attendee(badge_num=1)
         a._misc_adjustments()
-        assert not a.checked_in
+        assert a.checked_in
 
     def test_names(self):
         a = Attendee(first_name='nac', last_name='mac Feegle')
@@ -355,7 +304,7 @@ class TestBadgeAdjustments:
     @pytest.fixture(autouse=True)
     def mock_attendee_session(self, monkeypatch):
         monkeypatch.setattr(Attendee, 'session', Mock())
-        Attendee.session.next_badge_num = Mock(return_value=123)
+        Attendee.session.get_next_badge_num = Mock(return_value=123)
 
     @pytest.fixture
     def fully_paid(self, monkeypatch):
@@ -372,17 +321,6 @@ class TestBadgeAdjustments:
         a._badge_adjustments()
         assert a.badge_type == c.ATTENDEE_BADGE and a.ribbon == c.DEALER_RIBBON
 
-    def test_unpaid_badges_reset_to_zero(self):
-        a = Attendee(badge_type=c.SUPPORTER_BADGE, badge_num=1)
-        a._badge_adjustments()
-        assert a.badge_num == 0
-
-    def test_preassigned_badge_assignment(self):
-        for paid in [c.HAS_PAID, c.NEED_NOT_PAY, c.REFUNDED]:
-            a = Attendee(badge_type=c.SUPPORTER_BADGE, paid=paid, first_name='Not', last_name='Unassigned')
-            a._badge_adjustments()
-            assert a.badge_num == 123  # mocked next badge num
-
 
 class TestStatusAdjustments:
     def test_set_paid_to_complete(self):
@@ -398,7 +336,7 @@ class TestStatusAdjustments:
     def test_set_group_paid_to_complete(self, monkeypatch):
         monkeypatch.setattr(Group, 'amount_unpaid', 0)
         g = Group()
-        a = Attendee(paid=c.PAID_BY_GROUP, badge_status=c.NEW_STATUS, first_name='Paid', placeholder=False, group=g)
+        a = Attendee(paid=c.PAID_BY_GROUP, badge_status=c.NEW_STATUS, first_name='Paid', placeholder=False, group=g, group_id=g.id)
         a._status_adjustments()
         assert a.badge_status == c.COMPLETED_STATUS
 
@@ -423,7 +361,7 @@ class TestStatusAdjustments:
         a = Attendee(paid=c.HAS_PAID, badge_status=c.NEW_STATUS, first_name='Paid', placeholder=False)
         monkeypatch.setattr(Attendee, 'banned', True)
         a._status_adjustments()
-        assert a.badge_status == c.DEFERRED_STATUS
+        assert a.badge_status == c.WATCHED_STATUS
 
 
 class TestLookupAttendee:

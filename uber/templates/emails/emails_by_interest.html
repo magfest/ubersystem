@@ -1,0 +1,16 @@
+{% extends "base-admin.html" %}
+{% block title %}Email addresses by interest{% endblock %}
+{% block content %}
+
+    <h1>Emails by Interest</h1>
+
+    Use this page to generate a CSV file of emails of people interested in hearing about a particular area of
+    {{ c.EVENT_NAME }}.  <br/><br/>
+
+    <form action="emails_by_interest_csv">
+        Generate list of emails from attendees matching any of the following:<br/>
+        {% checkgroup Attendee.interests %}<br/>
+        <input name="submit" type="submit" /><br/>
+    </form>
+
+{% endblock %}

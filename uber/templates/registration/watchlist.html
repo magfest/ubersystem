@@ -54,7 +54,7 @@
             (Permanently associate watchlist entry with this attendee, ignoring any other watchlist entries.)
         </div>
         {% endif %}
-        {% if attendee.badge_status == c.DEFERRED_STATUS %}
+        {% if attendee.badge_status == c.WATCHED_STATUS %}
         <div class="form-group">
             <label class="btn btn-default">
                 <input type="checkbox" name="ignore" />

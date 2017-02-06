@@ -5,7 +5,7 @@
 // Put this on any page that uses Stripe, especially any page that takes credit cards at the door on old laptops with
 // broken batteries that can't save the right time (yes......   really.....   Magfest.......)
 function showAlertIfServerAndClientDatesMismatched() {
-    $.getJSON('../preregistration/stats', function (stats) {
+    $.getJSON('../registration/stats', function (stats) {
         if (!stats.warn_if_server_browser_time_mismatch) {
             return;
         }
