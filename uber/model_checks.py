@@ -160,6 +160,8 @@ def email(attendee):
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def emergency_contact(attendee):
+    if not attendee.ec_name:
+        return 'Please tell us the name of your emergency contact.'
     if not attendee.international and _invalid_phone_number(attendee.ec_phone):
         if c.COLLECT_FULL_ADDRESS:
             return 'Enter a 10-digit US phone number or include a country code (e.g. +44).'
