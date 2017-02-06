@@ -1165,7 +1165,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.ribbon == c.DEPT_HEAD_RIBBON:
             self.staffing = True
             self.trusted_depts = self.assigned_depts
-            if c.SHIFT_CUSTOM_BADGES or c.STAFF_BADGE not in c.PREASSIGNED_BADGE_TYPES:
+            if (c.SHIFT_CUSTOM_BADGES or c.BEFORE_PRINTED_BADGE_DEADLINE) or c.STAFF_BADGE not in c.PREASSIGNED_BADGE_TYPES:
                 self.badge_type = c.STAFF_BADGE
             if self.paid == c.NOT_PAID:
                 self.paid = c.NEED_NOT_PAY
