@@ -176,7 +176,7 @@ def needs_badge_num(attendee=None, badge_type=None):
 
     if c.NUMBERED_BADGES:
         if attendee:
-            return (badge_type in c.PREASSIGNED_BADGE_TYPES or attendee.checked_in) \
+            return (badge_type in c.PREASSIGNED_BADGE_TYPES and c.BEFORE_PRINTED_BADGE_DEADLINE or attendee.checked_in) \
                    and attendee.paid != c.NOT_PAID and attendee.badge_status != c.INVALID_STATUS
         else:
-            return badge_type in c.PREASSIGNED_BADGE_TYPES
+            return badge_type in c.PREASSIGNED_BADGE_TYPES if c.BEFORE_PRINTED_BADGE_DEADLINE else None

@@ -628,12 +628,10 @@ class Session(SessionManager):
                 return out_of_range
             elif not badge_num and next > c.BADGE_RANGES[badge_type][1]:
                 return 'There are no more badges available for that type'
-            elif badge_type in c.PREASSIGNED_BADGE_TYPES and c.AFTER_PRINTED_BADGE_DEADLINE:
-                return 'Custom badges have already been ordered'
 
-            if not c.SHIFT_CUSTOM_BADGES:
+            if not c.SHIFT_CUSTOM_BADGES or badge_type in c.PREASSIGNED_BADGE_TYPES and c.AFTER_PRINTED_BADGE_DEADLINE:
                 badge_num = badge_num or next
-                if badge_num != 0:
+                if badge_num:
                     existing = self.query(Attendee).filter_by(badge_type=badge_type, badge_num=badge_num) \
                                                    .filter(Attendee.id != attendee.id)
                     if existing.count():
