@@ -79,6 +79,7 @@ def group_money(group):
     except:
         return "What you entered for Amount Refunded ({}) wasn't even a number".format(group.amount_refunded)
 
+
 def _invalid_phone_number(s):
     if not s.startswith('+'):
         return len(re.findall(r'\d', s)) != 10 or re.search(c.SAME_NUMBER_REPEATED, re.sub(r'[^0-9]', '', s))
