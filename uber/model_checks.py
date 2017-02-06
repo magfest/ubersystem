@@ -62,7 +62,7 @@ def dealer_address(group):
 
 
 @validation.Group
-def group_paid(group):
+def group_money(group):
     try:
         amount = int(float(group.amount_paid))
         if amount < 0:
@@ -70,6 +70,14 @@ def group_paid(group):
     except:
         return "What you entered for Amount Paid ({}) isn't even a number".format(group.amount_paid)
 
+    try:
+        amount_refunded = int(float(group.amount_refunded))
+        if amount_refunded < 0:
+            return 'Amount Refunded must be positive'
+        elif amount_refunded > amount_paid:
+            return 'Amount Refunded cannot be greater than Amount Paid'
+    except:
+        return "What you entered for Amount Refunded ({}) wasn't even a number".format(group.amount_refunded)
 
 def _invalid_phone_number(s):
     if not s.startswith('+'):

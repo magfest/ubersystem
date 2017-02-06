@@ -862,24 +862,25 @@ class Session(SessionManager):
 
 
 class Group(MagModel, TakesPaymentMixin):
-    public_id    = Column(UUID, default=lambda: str(uuid4()))
-    name          = Column(UnicodeText)
-    tables        = Column(Numeric, default=0)
-    address       = Column(UnicodeText)
-    website       = Column(UnicodeText)
-    wares         = Column(UnicodeText)
-    description   = Column(UnicodeText)
-    special_needs = Column(UnicodeText)
-    amount_paid   = Column(Integer, default=0, admin_only=True)
-    cost          = Column(Integer, default=0, admin_only=True)
-    auto_recalc   = Column(Boolean, default=True, admin_only=True)
-    can_add       = Column(Boolean, default=False, admin_only=True)
-    admin_notes   = Column(UnicodeText, admin_only=True)
-    status        = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
-    registered    = Column(UTCDateTime, server_default=utcnow())
-    approved      = Column(UTCDateTime, nullable=True)
-    leader_id     = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader'), nullable=True)
-    leader        = relationship('Attendee', foreign_keys=leader_id, post_update=True, cascade='all')
+    public_id       = Column(UUID, default=lambda: str(uuid4()))
+    name            = Column(UnicodeText)
+    tables          = Column(Numeric, default=0)
+    address         = Column(UnicodeText)
+    website         = Column(UnicodeText)
+    wares           = Column(UnicodeText)
+    description     = Column(UnicodeText)
+    special_needs   = Column(UnicodeText)
+    amount_paid     = Column(Integer, default=0, admin_only=True)
+    amount_refunded = Column(Integer, default=0, admin_only=True)
+    cost            = Column(Integer, default=0, admin_only=True)
+    auto_recalc     = Column(Boolean, default=True, admin_only=True)
+    can_add         = Column(Boolean, default=False, admin_only=True)
+    admin_notes     = Column(UnicodeText, admin_only=True)
+    status          = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
+    registered      = Column(UTCDateTime, server_default=utcnow())
+    approved        = Column(UTCDateTime, nullable=True)
+    leader_id       = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader'), nullable=True)
+    leader          = relationship('Attendee', foreign_keys=leader_id, post_update=True, cascade='all')
 
     _repr_attr_names = ['name']
 
@@ -1067,8 +1068,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     overridden_price = Column(Integer, nullable=True, admin_only=True)
     amount_paid      = Column(Integer, default=0, admin_only=True)
     amount_extra     = Column(Choice(c.DONATION_TIER_OPTS, allow_unspecified=True), default=0)
-    amount_refunded  = Column(Integer, default=0, admin_only=True)
     payment_method   = Column(Choice(c.PAYMENT_METHOD_OPTS), nullable=True)
+    amount_refunded  = Column(Integer, default=0, admin_only=True)
 
     badge_printed_name = Column(UnicodeText)
 
