@@ -328,7 +328,6 @@ class Root:
         else:
             group.amount_paid += charge.dollar_amount
 
-
             for attendee in group.attendees:
                 # Subtract an attendee's extras, if they're not already paid for.
                 group.amount_paid -= attendee.amount_unpaid
