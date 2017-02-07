@@ -440,8 +440,9 @@ StopsEmail('{EVENT_NAME} Volunteer Badge Confirmation', 'placeholders/volunteer.
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Badge Confirmation', 'placeholders/regular.txt',
                lambda a: a.placeholder and a.first_name and a.last_name
-                                       and a.badge_type not in [c.GUEST_BADGE, c.STAFF_BADGE]
-                                       and a.ribbon not in [c.DEALER_RIBBON, c.PANELIST_RIBBON, c.VOLUNTEER_RIBBON])
+                                       and (c.AT_THE_CON or a.badge_type not in [c.GUEST_BADGE, c.STAFF_BADGE]
+                                       and a.ribbon not in [c.DEALER_RIBBON, c.PANELIST_RIBBON, c.VOLUNTEER_RIBBON]),
+               allow_during_con=True)
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Badge Confirmation Reminder', 'placeholders/reminder.txt',
                lambda a: days_after(7, a.registered)() and a.placeholder and a.first_name and a.last_name and not a.is_dealer)
