@@ -439,18 +439,37 @@ class Session(SessionManager):
                 order.append(col.desc() if attr.startswith('-') else col)
             return self.order_by(*order)
 
-        def icontains_predicate(self, attr=None, val=None, **filters):
-            predicates = []
+        def icontains_condition(self, attr=None, val=None, **filters):
+            """
+            Take column names and values, and build a condition/expression
+            that is true when all named columns contain the corresponding values, case-insensitive.
+
+            This operation is very similar to the "contains" method in SQLAlchemy,
+            but case insensitive - i.e. it uses "ilike" instead of "like".
+
+            Note that an "and" is used: all columns must match, not just one.
+            More complex conditions can be built by using or_/etc on the result of this method.
+            """
+            conditions = []
             if len(self.column_descriptions) == 1 and filters:
                 for colname, val in filters.items():
-                    predicates.append(getattr(self.model, colname).ilike('%{}%'.format(val)))
+                    conditions.append(getattr(self.model, colname).ilike('%{}%'.format(val)))
             if attr and val:
-                predicates.append(attr.ilike('%{}%'.format(val)))
-            return and_(*predicates)
+                conditions.append(attr.ilike('%{}%'.format(val)))
+            return and_(*conditions)
 
         def icontains(self, attr=None, val=None, **filters):
-            predicate = self.icontains_predicate(attr=attr, val=val, **filters)
-            return self.filter(predicate)
+            """
+            Take the names of columns and values, and filters the query to items
+            where each named columns contain the values, case-insensitive.
+
+            This operation is very similar to calling query.filter(contains(...)),
+            but works with a case-insensitive "contains".
+
+            Note that an "and" is used: all columns must match, not just one.
+            """
+            condition = self.icontains_condition(attr=attr, val=val, **filters)
+            return self.filter(condition)
 
         def iexact(self, **filters):
             return self.filter(*[func.lower(getattr(self.model, attr)) == func.lower(val) for attr, val in filters.items()])
@@ -733,15 +752,15 @@ class Session(SessionManager):
                 first, last = terms
                 if first.endswith(','):
                     last, first = first.strip(','), last
-                name_pred = attendees.icontains_predicate(first_name=first, last_name=last)
-                legal_name_pred = attendees.icontains_predicate(legal_name_opt="{}%{}".format(first, last))
-                return attendees.filter(or_(name_pred, legal_name_pred))
+                name_cond = attendees.icontains_condition(first_name=first, last_name=last)
+                legal_name_cond = attendees.icontains_condition(legal_name="{}%{}".format(first, last))
+                return attendees.filter(or_(name_cond, legal_name_cond))
             elif len(terms) == 1 and terms[0].endswith(','):
                 last = terms[0].rstrip(',')
-                name_pred = attendees.icontains_predicate(last_name=last)
+                name_cond = attendees.icontains_condition(last_name=last)
                 # Known issue: search may include first name if legal name is set
-                legal_name_pred = attendees.icontains_predicate(legal_name_opt=last)
-                return attendees.filter(or_(name_pred, legal_name_pred))
+                legal_name_cond = attendees.icontains_condition(legal_name=last)
+                return attendees.filter(or_(name_cond, legal_name_cond))
             elif len(terms) == 1 and terms[0].isdigit():
                 if len(terms[0]) == 10:
                     return attendees.filter(or_(Attendee.ec_phone == terms[0], Attendee.cellphone == terms[0]))
@@ -1035,7 +1054,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     placeholder   = Column(Boolean, default=False, admin_only=True)
     first_name    = Column(UnicodeText)
     last_name     = Column(UnicodeText)
-    legal_name_   = Column('legal_name', UnicodeText, nullable=True, default=None)
+    legal_name    = Column(UnicodeText)
     email         = Column(UnicodeText)
     birthdate     = Column(Date, nullable=True, default=None)
     age_group     = Column(Choice(c.AGE_GROUPS), default=c.AGE_UNKNOWN, nullable=True)
@@ -1352,36 +1371,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         return case([
             (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
         ], else_=func.lower(cls.first_name + ' ' + cls.last_name))
-
-    @hybrid_property
-    def legal_name(self):
-        return self.unassigned_name or self.legal_name_ or '{self.first_name} {self.last_name}'.format(self=self)
-
-    @legal_name.expression
-    def legal_name(cls):
-        return case([
-            (or_(cls.first_name == None, cls.first_name == ''), 'zzz'),
-            (cls.legal_name_ != None, cls.legal_name_)
-        ], else_=func.lower(cls.first_name + ' ' + cls.last_name))
-
-    @legal_name.setter
-    def legal_name(cls, value):
-        # make sure value is not the empty string
-        if not value:
-            value = None
-        cls.legal_name_ = value
-
-    # This property should be used in situations where we specifically want an empty string when legal_name is unset
-    # (as opposed to falling back to full_name
-    @hybrid_property
-    def legal_name_opt(self):
-        return self.legal_name_ or ''
-
-    @legal_name_opt.expression
-    def legal_name_opt(cls):
-        return case([
-            (cls.legal_name_ != None, cls.legal_name_)
-        ], else_='')
 
     @hybrid_property
     def last_first(self):

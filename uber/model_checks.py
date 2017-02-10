@@ -120,7 +120,7 @@ def full_name(attendee):
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def legal_name(attendee):
-    if attendee.legal_name_opt and attendee.full_name == attendee.legal_name_opt:
+    if attendee.legal_name and attendee.full_name == attendee.legal_name:
         return 'When entering a legal name, it must be different than your preferred name. Otherwise, leave it blank.'
 
 

@@ -53,6 +53,19 @@
         }
     });
 
+    var sameLegalNameChecked = function () {
+        if ($("#same_legal_name").prop('checked')) {
+            $("#legal_name").prop('disabled', true)
+            $("#legal_name").val('')
+        } else {
+            $("#legal_name").prop('disabled', false)
+        }
+    };
+    $(function () {
+        sameLegalNameChecked()
+        $('#same_legal_name').change(sameLegalNameChecked)
+    })
+
 </script>
 
 {% if c.PAGE_PATH != '/registration/form' %}
@@ -74,7 +87,7 @@
 
 {% if c.PAGE == 'confirm' %}
     <div class="form-group">
-        <label for="full_name" class="col-sm-2 control-label">Legal Name</label>
+        <label for="full_name" class="col-sm-2 control-label">Name</label>
         <div class="col-sm-6">{{ attendee.full_name }}</div>
     </div>
     <div class="form-group">
@@ -99,12 +112,18 @@
     </div>
 
     <div class="form-group">
+        <label for="same_legal_name" class="col-sm-2 control-label">The above name is exactly what appears on my ID</label>
+        <div class="col-sm-6">
+            <input type="checkbox" name="same_legal_name" id="same_legal_name" value="Yep, that's right" {% if attendee.first_name != '' and attendee.legal_name == '' %}checked="checked"{% endif %} />
+        </div>
+    </div>
+
+    <div class="form-group">
         <label for="legal_name" class="col-sm-2 control-label optional-field">Legal Name</label>
         <div class="col-sm-6">
-            <input type="text" name="legal_name" id="legal_name" value="{{ attendee.legal_name_opt }}" class="form-control" placeholder="Legal Name">
+            <input type="text" name="legal_name" id="legal_name" value="{{ attendee.legal_name }}" class="form-control" placeholder="Legal Name" />
         </div>
         <p class="help-block col-sm-6 col-sm-offset-2">
-            Only enter your legal name if it is different from your preferred name.
             <span class="popup">{% popup_link "../static_views/legal_name.html" "What does legal name mean?" %}</span>
         </p>
     </div>

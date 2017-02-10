@@ -229,7 +229,7 @@
                     <a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a>
                 </td>
                     <td id="name_{{ attendee.id }}" style="text-align:left">
-                        <a href="form?id={{ attendee.id }}">{{ attendee.legal_name_opt }}</a>
+                        <a href="form?id={{ attendee.id }}">{{ attendee.legal_name }}</a>
                     </td>
                 {% if c.PREASSIGNED_BADGE_TYPES %}<td>{{ attendee.badge_printed_name }}</td>{% endif %}
                 <td><nobr>{{ attendee.badge_type_label }}</nobr></td>
