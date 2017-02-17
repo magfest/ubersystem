@@ -55,15 +55,14 @@
 
     var sameLegalNameChecked = function () {
         if ($("#same_legal_name").prop('checked')) {
-            $("#legal_name").prop('disabled', true)
-            $("#legal_name").val('')
+            $.field('legal_name').prop('readonly', true).val('').attr('required', false);
         } else {
-            $("#legal_name").prop('disabled', false)
+            $.field('legal_name').prop('readonly', false).attr('required', true);
         }
     };
     $(function () {
-        sameLegalNameChecked()
-        $('#same_legal_name').change(sameLegalNameChecked)
+        sameLegalNameChecked();
+        $('#same_legal_name').change(sameLegalNameChecked);
     })
 
 </script>
@@ -121,7 +120,7 @@
     <div class="form-group">
         <label for="legal_name" class="col-sm-2 control-label optional-field">Legal Name</label>
         <div class="col-sm-6">
-            <input type="text" name="legal_name" id="legal_name" value="{{ attendee.legal_name }}" class="form-control" placeholder="Legal Name" />
+            <input type="text" name="legal_name" value="{{ attendee.legal_name }}" class="form-control" placeholder="Legal Name" />
         </div>
         <p class="help-block col-sm-6 col-sm-offset-2">
             <span class="popup">{% popup_link "../static_views/legal_name.html" "What does legal name mean?" %}</span>
