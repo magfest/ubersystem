@@ -136,13 +136,11 @@
 			},
                         slotDuration: '00:15:00',
                         allDaySlot: false,
-                        eventLimit: true, // allow "more" link when too many events
                         slotEventOverlap: false,
-
 			defaultView: 'agendaDay',
 			editable: false,
 			slotEventOverlap:false,
-			eventLimit: true, // allow "more" link when too many events
+			eventLimit: false, // allow "more" link when too many events
 			events: eventList,
             		dayClick: function(date) {
 			    window.location.href = "form?id=None&location={{ location }}&start_time=" + date.format("YYYY-MM-DD HH:mm:ss");

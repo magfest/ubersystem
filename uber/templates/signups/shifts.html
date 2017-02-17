@@ -91,6 +91,7 @@
                                         start : "{{ job.start_time_local|datetime:"%Y-%m-%dT%H:%M:%S" }}",
                                         end : "{{job.start_time_local|shift_end:job.duration}}",
                                         id : "{{job.id}}",
+					idx : eventList.length,
                                         {% if job.taken %}
                                         backgroundColor: "#239875",
                                         taken: true
@@ -105,6 +106,7 @@
                                         start : "{{ job.start_time_local|datetime:"%Y-%m-%dT%H:%M:%S" }}",
                                         end : "{{job.start_time_local|shift_end:job.duration}}",
                                         id : "{{job.id}}",
+					idx : eventList.length,
                                         {% if job.taken %}
                                         backgroundColor: "#239875",
                                         taken: true
@@ -147,7 +149,7 @@
 				buttonTag += '" ';
 				
 				buttonTag += 'onclick="click_shift(\'' + event.taken;
-				buttonTag += '\',\'' +  event.id;
+				buttonTag += '\',\'' +  event.idx;
                                 buttonTag += '\',\'' +  moment(event.start).toISOString();
                                 buttonTag += '\',\'' +  event.title
 				buttonTag += '\')" ';
@@ -194,7 +196,8 @@
 
         });
 
-function click_shift(state,id,time,title) {
+function click_shift(state,idx,time,title) {
+	var cur_event = eventList[idx];
         var postData = {};
         postData['csrf_token'] =  $("div.csrf_token input").attr('value');
         var confirmStr = "Do you want to ";
@@ -206,15 +209,14 @@ function click_shift(state,id,time,title) {
         confirmStr += title + " at " + time + "?";
         var r = confirm(confirmStr);
         if (r == true) {
-        	var tgtShiftURL = "sign_up?job_id="+ id;
+        	var tgtShiftURL = "sign_up?job_id="+ cur_event.id;
                 if(state=='true') {
-                	tgtShiftURL = "drop?job_id=" + id;
+                	tgtShiftURL = "drop?job_id=" + cur_event.id;
                 }
                 $.post( tgtShiftURL,postData,function( data,status ) {
-                        window.location.href = window.location.pathname + "?tgt_date=" + moment(event.start).toISOString();
+                        window.location.href = window.location.pathname + "?tgt_date=" + cur_event.start;
                 });
         }
-
 }
 
 $.urlParam = function(name){

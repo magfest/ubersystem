@@ -63,7 +63,7 @@ class Root:
             'jobs': jobs
         }
 
-    def signups(self, session, location=None, message=''):
+    def signups(self, session, location=None, tgt_date=None, message=''):
         if not location:
             location = cherrypy.session.get('prev_location') or c.JOB_LOCATION_OPTS[0][0]
         location = None if location == 'All' else location
@@ -196,6 +196,16 @@ class Root:
         else:
             return job_dict(session.job(shift.job_id))
 
+    @ajax
+    def check_in(self, session, shift_id, tgt_time):
+        shift = session.shift(shift_id)
+        print(shift_id,tgt_time)
+        if tgt_time == 'ontime':
+            print("setting to ontime")
+            shift.check_in = shift.job.start_time
+        session.commit()
+        return {'location':shift.job.location,'tgt_date':shift.job.start_time}
+    
     @csrf_protected
     def undo_worked(self, session, id):
         shift = session.shift(id)

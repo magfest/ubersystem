@@ -14,11 +14,15 @@
     background-image: -webkit-gradient(linear, left top, left bottom, from(#239875), to(#209572));
     background-image: linear-gradient(to bottom, #239875 0%, #209572 100%);
 }
+.fc-list-item-title.fc-widget-content .btn {
+	margin-right:15px;
+}
 </style>
 
 {% endblock %}
 
 {% block content %}
+ <div class="hidden csrf_token"> {% csrf_token %} </div>
 
 <div class="row">
 	<div class="col-xs-10 col-xs-offset-1">
@@ -54,32 +58,64 @@
 {% endblock %}
 {% block page_scripts %}
 <script type="text/javascript" src="../static_views/ratings.js"></script>
-
 <script type="text/javascript" src="../static/js/moment.js"></script>
-
-
 <script type="text/javascript" src="../static/js/fullcalendar.min.js"></script>
 <script type="text/javascript">
+var eventList;
+function get_event_button(event) {
+        var buttonList = '<span class="pull-right">';
+        if(event.type=="shift") {
+                if(event.check_in == "") {
+                       buttonList += '<button type="button" class="btn btn-primary" ';
+                       buttonList += 'onclick="check_in(' + event.idx +  ",'ontime')" + '"';
+                       buttonList += '>Check-in at Start</button>';
+                       buttonList += '<button type="button" class="btn btn-warning">Check-in Manual</button>';
+               } else if(event.check_out == "") {
+                       buttonList += '<button type="button" class="btn btn-primary" ';
+                       buttonList += 'onclick="check_out(' + event.idx +  ",'ontime')" + '"';
+                       buttonList += '>Check-out at End</button>';
+                       buttonList += '<button type="button" class="btn btn-warning">Check-out Manual</button>';
 
+               }
+        }
+        buttonList += '</span>';
+        return buttonList
+}
         $(document).ready(function() {
-
-                var eventList =  new Array();
+                eventList =  new Array();
                     {% for job in jobsb %}
 			{% if job.shifts|length != job.slots %}
-			
                     		eventList.push({
                                         title : "{{job.name}} ({{job.shifts|length}} / {{job.slots}})",
                                         start : "{{ job.start_time|datetime:"%Y-%m-%dT%H:%M:%S" }}",
                                         end: "{{job.start_time|shift_end:job.duration}}",
+					id: "{{job.id}}",
+					type: "job",
+					idx: eventList.length
                                 });
 			{% endif %}
 			{% for shift in job.shifts %}
-			        eventList.push({
+				var cur_shift = {
                                         title : "{{job.name}} {{shift.attendee.full_name}}",
                                         start : "{{ job.start_time|datetime:"%Y-%m-%dT%H:%M:%S" }}",
                                         end: "{{job.start_time|shift_end:job.duration}}",
-                                });
+					type: "shift",
+					id: "{{shift.id}}",
+					idx: eventList.length,
+					{% if shift.check_in %}
+						check_in: "{{ shift.check_in|datetime:"%Y-%m-%dT%H:%M:%S" }}",
+					{% else %}
+						check_in:"",
+					{% endif %}
+                                        {% if shift.check_out %}
+                                                check_out: "{{ shift.check_out|datetime:"%Y-%m-%dT%H:%M:%S" }}"
+                                        {% else %}
+                                                check_out:""
+                                        {% endif %}
 
+                                };
+				
+			        eventList.push(cur_shift);
 
 			{% endfor %}
                     {% endfor %}
@@ -91,17 +127,58 @@
                         },
                         slotDuration: '00:15:00',
                         allDaySlot: false,
-                        eventLimit: true, // allow "more" link when too many events
                         slotEventOverlap: false,
                         defaultView: 'listDay',
                         editable: false,
                         slotEventOverlap:false,
-                        eventLimit: true, // allow "more" link when too many events
+                        eventLimit: false, // allow "more" link when too many events
                         events: eventList,
+    			eventRender: function(event, element) {
+				var eventButton = get_event_button(event);
+				element.find(".fc-list-item-title.fc-widget-content").append(eventButton);
+
+    			}
+			
                 });
-	$("#shift_cal").fullCalendar('gotoDate', eventList[0].start);
+                var curDate = $.urlParam('tgt_date');
+                if(curDate != null) {
+                        $("#shift_cal").fullCalendar( 'gotoDate',curDate);
+                } else {
+                        $("#shift_cal").fullCalendar('gotoDate', eventList[0].start);
+                }
+
 
         });
+function check_in(idx,tgt_time) {
+	var cur_event = eventList[idx];
+
+        var postData = {};
+        postData['csrf_token'] =  $("div.csrf_token input").attr('value');
+        var confirmStr = "Do you check in this volunteer";
+        if (tgt_time=='ontime') {
+                confirmStr += "at " + cur_event.start;
+        }
+        confirmStr += "?"
+        var r = confirm(confirmStr);
+        if (r == true) {
+                var tgtShiftURL = "check_in?shift_id="+ cur_event.id+"&tgt_time=" + tgt_time;
+                $.post( tgtShiftURL,postData,function( data,status ) {
+                        var tgtURL = window.location.pathname;
+			tgtURL += "?location=" + data["location"];
+			tgtURL += "&tgt_date=" + cur_event.start;
+			window.location.href = tgtURL;
+                });
+        }	
+}
+$.urlParam = function(name){
+   var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
+   if (results==null){
+      return null;
+   }
+   else{
+      return results[1] || 0;
+   }
+}
 
 </script>
 {% endblock %}
