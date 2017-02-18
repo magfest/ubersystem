@@ -3,12 +3,16 @@ from uber.common import *
 
 @all_renderable(c.PEOPLE)
 class Root:
-    def index(self, session, page='1'):
+    def index(self, session, page='1', search_text=''):
         emails = session.query(Email).order_by(Email.when.desc())
+        search_text = search_text.strip()
+        if search_text:
+            emails = emails.icontains(Email.dest, search_text)
         return {
             'page': page,
             'emails': get_page(page, emails),
-            'count': emails.count()
+            'count': emails.count(),
+            'search_text': search_text
         }
 
     def sent(self, session, **params):

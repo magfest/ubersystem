@@ -78,7 +78,7 @@
                 extra: 0
             }]
         };
-        {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS and not attendee.gets_free_shirt %}
+        {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS and c.SHIRT_AVAILABLE %}
             BADGE_TYPES.options.push({
                 title: 'Add a tshirt',
                 description: 'Add a {{ c.EVENT_NAME }} themed t-shirt to your registration.',

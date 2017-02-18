@@ -9,6 +9,13 @@ from datetime import datetime  # noqa: now that we've registered our filter, re-
 
 
 @register.filter
+def shift_end(dt, duration):
+    curdate = dt + timedelta(hours=int(duration))
+    fmt = "%Y-%m-%dT%H:%M:%S"
+    return ' '.join(curdate.astimezone(c.EVENT_TIMEZONE).strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm')
+
+
+@register.filter
 def timestamp(dt):
     from time import mktime
     return str(int(mktime(dt.timetuple())))
@@ -59,6 +66,14 @@ def dept_checklist_path(conf, attendee=None):
 @register.filter
 def numeric_range(count):
     return range(count)
+
+
+@register.filter
+def sum(values, attribute):
+    sum = 0
+    for value in values:
+        sum += getattr(value, attribute, 0)
+    return sum
 
 
 def _getter(x, attrName):
@@ -190,6 +205,7 @@ class options(template.Node):
 
 @tag
 class checkbox(template.Node):
+
     def __init__(self, field):
         model, self.field_name = field.rsplit('.', 1)
         self.model = Variable(model)
@@ -197,7 +213,7 @@ class checkbox(template.Node):
     def render(self, context):
         model = self.model.resolve(context)
         checked = 'checked' if getattr(model, self.field_name) else ''
-        return '<input type="checkbox" name="{}" value="1" {} />'.format(self.field_name, checked)
+        return '<input type="checkbox" name="{}" id="{}" value="1" {} />'.format(self.field_name, self.field_name, checked)
 
 
 @tag
@@ -214,7 +230,7 @@ class checkgroup(template.Node):
         results = []
         for num, desc in options:
             checked = 'checked' if str(num) in defaults else ''
-            results.append('<nobr><input type="checkbox" name="{}" value="{}" {} /> {}</nobr>'
+            results.append('<label style="font-weight: normal;"><input type="checkbox" name="{}" value="{}" {} /> {}</label>'
                            .format(self.field_name, num, checked, desc))
         return '&nbsp;&nbsp\n'.join(results)
 
@@ -543,7 +559,6 @@ class PriceNotice(template.Node):
         self.takedown, self.amount_extra, self.discount = Variable(takedown), Variable(amount_extra), Variable(discount)
 
     def _notice(self, label, takedown, amount_extra, discount):
-
         if c.HARDCORE_OPTIMIZATIONS_ENABLED:
             # CPU optimizaiton: the calculations done in this function are somewhat expensive and even with caching,
             # still do some expensive DB queries.  if hardcore optimizations mode is enabled, we display a
@@ -599,8 +614,9 @@ class event_dates(template.Node):
         else:
             return '{}-{}'.format(c.EPOCH.strftime('%B %-d'), c.ESCHATON.strftime('%-d'))
 
-
 # FIXME this can probably be cleaned up more
+
+
 @register.tag(name='random_hash')
 def random_hash(parser, token):
     items = []

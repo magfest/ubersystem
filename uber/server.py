@@ -11,9 +11,9 @@ def _add_email():
 cherrypy.tools.add_email_to_error_page = cherrypy.Tool('after_error_response', _add_email)
 
 
-def _custom_verbose_logger(debug=False):
+def log_exception_with_verbose_context(debug=False, msg=''):
     """
-    Write the request headers, and the last error's traceback to the cherrypy error log.
+    Write the request headers, session params, page location, and the last error's traceback to the cherrypy error log.
     Do this all one line so all the information can be collected by external log collectors and easily displayed.
     """
 
@@ -32,9 +32,9 @@ def _custom_verbose_logger(debug=False):
     h = ["  %s: %s" % (k, v) for k, v in cherrypy.request.header_list]
     headers_txt = 'Request Headers:\n' + '\n'.join(h)
 
-    msg = '\n'.join(['Exception encountered', page_location, admin_txt, post_txt, session_txt, headers_txt])
-    log.error(msg, exc_info=True)
-cherrypy.tools.custom_verbose_logger = cherrypy.Tool('before_error_response', _custom_verbose_logger)
+    full_msg = '\n'.join([msg, 'Exception encountered', page_location, admin_txt, post_txt, session_txt, headers_txt])
+    log.error(full_msg, exc_info=True)
+cherrypy.tools.custom_verbose_logger = cherrypy.Tool('before_error_response', log_exception_with_verbose_context)
 
 
 class StaticViews:
@@ -69,7 +69,14 @@ class AngularJavascript:
         We also need those apps to be able to make HTTP requests with CSRF tokens, so we set that default.
         """
         cherrypy.response.headers['Content-Type'] = 'text/javascript'
-        consts = {attr: getattr(c, attr, None) for attr in dir(c)}
+
+        consts = {}
+        for attr in dir(c):
+            try:
+                consts[attr] = getattr(c, attr, None)
+            except:
+                pass
+
         js_consts = json.dumps({k: v for k, v in consts.items() if isinstance(v, (bool, int, str))}, indent=4)
         return '\n'.join([
             'angular.module("magfest", [])',

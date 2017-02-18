@@ -62,6 +62,11 @@ class TestAutomatedEmailCategory:
     def test_should_send_not_approved(self, get_test_email_category, attendee1):
         assert not get_test_email_category._should_send(model_inst=attendee1)
 
+    def test_should_send_at_con(self, at_con, get_test_email_category, set_test_approved_idents, attendee1):
+        assert not get_test_email_category._should_send(model_inst=attendee1)
+        get_test_email_category.allow_during_con = True
+        assert get_test_email_category._should_send(model_inst=attendee1)
+
     # -----------
 
     def test_send_doesnt_throw_exception(self, monkeypatch, get_test_email_category):

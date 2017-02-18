@@ -65,6 +65,26 @@ class Root:
             'email': email
         }
 
+    def history(self, session, id):
+        group = session.group(id)
+
+        if group.leader:
+            emails = session.query(Email)\
+                .filter(or_(Email.dest == group.leader.email, and_(Email.model == 'Attendee', Email.fk_id == id)))\
+                .order_by(Email.when).all()
+        else:
+            emails = {}
+
+        return {
+            'group': group,
+            'emails': emails,
+            'changes': session.query(Tracking)
+                .filter(or_(Tracking.links.like('%group({})%'.format(id)),
+                            and_(Tracking.model == 'Group', Tracking.fk_id == id)))
+                .order_by(Tracking.when).all(),
+            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Group id={}".format(id))
+        }
+
     @ajax
     def unapprove(self, session, id, action, email, convert=None, message=''):
         assert action in ['waitlisted', 'declined']
