@@ -302,12 +302,12 @@ class MagModel:
         try:
             val = int(val)
         except ValueError:
-            log.debug('{} is not an int, did we forget to migrate data for {} during a DB migration?'.format(val, name))
+            log.debug('{} is not an int, did we forget to migrate data for {} during a DB migration?', val, name)
             return ''
 
         label = self.get_field(name).type.choices.get(val)
         if not label:
-            log.debug('{} does not have a label for {}, check your enum generating code'.format(name, val))
+            log.debug('{} does not have a label for {}, check your enum generating code', name, val)
         return label
 
     @suffix_property
@@ -1094,11 +1094,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     dept_checklist_items = relationship('DeptChecklistItem', backref='attendee')
 
     _repr_attr_names = ['full_name']
-
-    if Session.engine.dialect == 'postgresql':
-        __table_args__ = (
-            UniqueConstraint('badge_num', deferrable=True, initially='DEFERRED'),
-        )
 
     @predelete_adjustment
     def _shift_badges(self):
@@ -2124,6 +2119,11 @@ def initialize_db():
     """
     for _model in Session.all_models():
         setattr(Session.SessionMixin, _model.__tablename__, _make_getter(_model))
+
+    if Session.engine.dialect.name == 'postgresql':
+        Attendee.__table_args__ = (
+            UniqueConstraint('badge_num', deferrable=True, initially='DEFERRED'),
+        )
 
     num_tries_remaining = 10
     while not stopped.is_set():
