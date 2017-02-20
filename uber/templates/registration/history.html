@@ -25,6 +25,24 @@
 {% endfor %}
 </table>
 
+    <h2>Page View History for {{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
+
+<table class="list" border="1" borderspacing="0">
+<tr class="header">
+    <td>When</td>
+    <td>Who</td>
+    <td>Page Path</td>
+</tr>
+{% for view in pageviews %}
+    <tr>
+        <td valign="top" style="white-space:nowrap">{{ view.when|full_datetime }}</td>
+        <td valign="top" style="white-space:nowrap">{{ view.who }}</td>
+        <td valign="top">{{ view.page }}</td>
+    </tr>
+{% endfor %}
+</table>
+
+
 {% if attendee.past_years %}
     <h2> Past Years' Staffing </h2>
     {% for year in attendee.past_years_json %}

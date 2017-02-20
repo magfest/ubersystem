@@ -31,7 +31,7 @@ If you cannot make it to one or more of your existing shifts, contact {{ c.STAFF
     <tbody>
     {% for job in jobs %}
         <tr>
-            <td>Feb {{ job.start_time|datetime("%-d at %H:%M (%-I %p %a)") }}</td>
+            <td>{{ job.start_time|datetime("%b %-d at %H:%M (%-I %p %a)") }}</td>
             <td>{{ job.duration }}</td>
             <td>{{ job.location_label }}</td>
             <td>{{ job.name }}</td>

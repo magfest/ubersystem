@@ -1,4 +1,5 @@
 from uber.tests import *
+from uber.badge_funcs import needs_badge_num
 
 
 @pytest.fixture
@@ -50,48 +51,52 @@ def change_badge(session, attendee, new_type, new_num=None, expected_num=None):
 class TestNeedsBadgeNum:
     def test_numbered_badges_off(self, session, monkeypatch):
         monkeypatch.setattr(c, 'NUMBERED_BADGES', False)
-        assert not session.needs_badge_num(badge_type=c.STAFF_BADGE)
-        assert not session.needs_badge_num(session.regular_attendee)
+        assert not needs_badge_num(badge_type=c.STAFF_BADGE)
+        assert not needs_badge_num(session.regular_attendee)
 
     def test_preassigned_by_type(self, session):
-        assert session.needs_badge_num(badge_type=c.STAFF_BADGE)
+        assert needs_badge_num(badge_type=c.STAFF_BADGE)
 
     def test_non_preassigned_by_type(self, session):
-        assert not session.needs_badge_num(badge_type=c.ATTENDEE_BADGE)
+        assert not needs_badge_num(badge_type=c.ATTENDEE_BADGE)
 
     def test_preassigned_ready(self, session):
-        assert session.needs_badge_num(session.staff_one)
+        assert needs_badge_num(session.staff_one)
 
     def test_non_preassigned_ready(self, session):
-        assert session.needs_badge_num(attendee=session.regular_attendee)
+        assert needs_badge_num(attendee=session.regular_attendee)
 
     def test_non_preassigned_not_checked_in(self, session):
         session.regular_attendee.checked_in = None
-        assert not session.needs_badge_num(attendee=session.regular_attendee)
+        assert session.regular_attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES
+        assert not needs_badge_num(attendee=session.regular_attendee)
 
     def test_preassigned_unassigned(self, session):
         session.staff_one.first_name = ''
-        assert not session.needs_badge_num(attendee=session.staff_one)
+        assert session.staff_one.badge_type in c.PREASSIGNED_BADGE_TYPES
+        assert needs_badge_num(attendee=session.staff_one)
 
     def test_non_preassigned_unassigned(self, session):
         session.regular_attendee.first_name = ''
-        assert not session.needs_badge_num(attendee=session.regular_attendee)
+        assert session.regular_attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES
+        assert session.regular_attendee.checked_in
+        assert needs_badge_num(attendee=session.regular_attendee)
 
     def test_preassigned_not_paid(self, session):
         session.staff_one.paid = c.NOT_PAID
-        assert not session.needs_badge_num(attendee=session.staff_one)
+        assert not needs_badge_num(attendee=session.staff_one)
 
     def test_non_preassigned_not_paid(self, session):
         session.regular_attendee.paid = c.NOT_PAID
-        assert not session.needs_badge_num(attendee=session.regular_attendee)
+        assert not needs_badge_num(attendee=session.regular_attendee)
 
     def test_preassigned_invalid_status(self, session):
         session.staff_one.badge_status = c.INVALID_STATUS
-        assert not session.needs_badge_num(attendee=session.staff_one)
+        assert not needs_badge_num(attendee=session.staff_one)
 
     def test_non_preassigned_invalid_status(self, session):
         session.regular_attendee.badge_status = c.INVALID_STATUS
-        assert not session.needs_badge_num(attendee=session.regular_attendee)
+        assert not needs_badge_num(attendee=session.regular_attendee)
 
 
 class TestGetNextBadgeNum:
@@ -151,6 +156,12 @@ class TestGetNextBadgeNum:
         session.add(Attendee(badge_type=c.STAFF_BADGE, badge_num=under_min))
         assert 6 == session.get_next_badge_num(c.STAFF_BADGE)
 
+    def test_badge_range_full(self, session, monkeypatch):
+        monkeypatch.setitem(c.BADGE_RANGES, c.STAFF_BADGE, [1, 5])
+        with pytest.raises(AssertionError) as message:
+            session.get_next_badge_num(c.STAFF_BADGE)
+        assert 'There are no more badge numbers available in this range!' == str(message.value)
+
 
 class TestAutoBadgeNum:
     def test_preassigned_no_gap(self, session):
@@ -178,8 +189,25 @@ class TestAutoBadgeNum:
         session.commit()
         assert 3002 == session.auto_badge_num(c.ATTENDEE_BADGE)
 
+    def test_dupe_nums(self, session, monkeypatch):
+        session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), first_name="3002", paid=c.HAS_PAID, badge_num=3001))
+        session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), first_name="3000", paid=c.HAS_PAID, badge_num=3001))
+        # Skip the badge adjustments here, which prevent us from setting duplicate numbers
+        monkeypatch.setattr(Attendee, '_badge_adjustments', 0)
+        session.commit()
+        assert 3002 == session.auto_badge_num(c.ATTENDEE_BADGE)
+
+    def test_beginning_skip(self, session):
+        session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), first_name="3002", paid=c.HAS_PAID, badge_num=3002))
+        session.commit()
+        assert 3001 == session.auto_badge_num(c.ATTENDEE_BADGE)
+
 
 class TestShiftBadges:
+    @pytest.fixture(autouse=True)
+    def before_print_badges_deadline(self, before_printed_badge_deadline):
+        pass
+
     def staff_badges(self, session):
         # This loads badges from the session, which isn't reloaded, so the result is not always what you'd expect
         return sorted(a.badge_num for a in session.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS).filter_by(badge_type=c.STAFF_BADGE).all())
@@ -188,13 +216,12 @@ class TestShiftBadges:
         pytest.raises(AssertionError, session.shift_badges, c.STAFF_BADGE, 1, invalid='param')
         pytest.raises(AssertionError, session.shift_badges, c.STAFF_BADGE, 1, up=True, down=False)
 
-    def test_shift_not_enabled(self, session, monkeypatch):
-        monkeypatch.setattr(c, 'SHIFT_CUSTOM_BADGES', False)
+    def test_shift_not_enabled(self, session, monkeypatch, custom_badges_ordered):
         session.shift_badges(c.STAFF_BADGE, 2)
         assert [1, 2, 3, 4, 5] == self.staff_badges(session)
 
-    def test_custom_badges_ordered(self, session, monkeypatch):
-        monkeypatch.setattr(c, 'PRINTED_BADGE_DEADLINE', datetime.now(UTC)-timedelta(days=1))
+    def test_custom_badges_ordered(self, session, monkeypatch, after_printed_badge_deadline):
+        assert c.AFTER_PRINTED_BADGE_DEADLINE
         session.shift_badges(c.STAFF_BADGE, 2)
         assert [1, 2, 3, 4, 5] == self.staff_badges(session)
 
@@ -328,6 +355,10 @@ class TestBadgeDeletion:
 
 
 class TestShiftOnChange:
+    @pytest.fixture(autouse=True)
+    def before_print_badges_deadline(self, before_printed_badge_deadline):
+        pass
+
     def staff_badges(self, session):
         # This loads badges from the session, which isn't reloaded, so the result is not always what you'd expect
         return sorted(a.badge_num for a in session.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS).filter_by(badge_type=c.STAFF_BADGE).all())
@@ -365,6 +396,13 @@ class TestShiftOnChange:
         assert session.staff_two.badge_num == 1
         assert [1, 2, 3, 4] == self.staff_badges(session)
 
+    def test_dont_shift_if_gap(self, session):
+        session.staff_five.badge_num = 10
+        session.commit()
+        session.update_badge(Attendee(first_name='NewStaff', paid=c.NEED_NOT_PAY, badge_type=c.STAFF_BADGE, badge_num=5), None, None)
+        session.commit()
+        assert [1, 2, 3, 4, 10] == self.staff_badges(session)
+
 
 class TestBadgeValidations:
     def test_dupe_badge_num(self, session, monkeypatch):
@@ -381,16 +419,33 @@ class TestBadgeValidations:
         session.staff_one.badge_num = 5000
         assert 'Staff badge numbers must fall within 1 and 399' == check(session.staff_one)
 
-    def test_no_more_custom_badges(self, session, monkeypatch):
-        monkeypatch.setattr(c, 'PRINTED_BADGE_DEADLINE', datetime.now(UTC)-timedelta(days=1))
+    def test_no_more_custom_badges(self, session, monkeypatch, after_printed_badge_deadline):
         session.regular_attendee.badge_type = session.regular_attendee.badge_type
         session.regular_attendee.badge_type = c.STAFF_BADGE
         session.regular_attendee.badge_num = None
         assert 'Custom badges have already been ordered' == check(session.regular_attendee)
 
-    def test_out_of_badge_type(self, session, monkeypatch):
+    def test_out_of_badge_type(self, session, monkeypatch, before_printed_badge_deadline):
         monkeypatch.setitem(c.BADGE_RANGES, c.STAFF_BADGE, [1, 5])
         session.regular_attendee.badge_type = session.regular_attendee.badge_type
         session.regular_attendee.badge_type = c.STAFF_BADGE
         session.regular_attendee.badge_num = None
         assert 'There are no more badges available for that type' == check(session.regular_attendee)
+
+
+class TestDupeFixes:
+    @pytest.fixture(autouse=True)
+    def create_dupe_nums(self, session, monkeypatch):
+        session.staff_five.badge_num = 1
+        # Skip the badge adjustments here, which prevent us from setting duplicate numbers
+        monkeypatch.setattr(Attendee, '_badge_adjustments', 0)
+        session.commit()
+        session.staff_five.badge_num = None
+
+    def test_resave_if_dupe(self, session):
+        assert 'Badge updated' == session.update_badge(session.staff_five, c.STAFF_BADGE, 1)
+        assert 5 == session.staff_five.badge_num
+
+    def test_dont_fill_dupe_gap(self, session):
+        session.update_badge(session.staff_five, c.STAFF_BADGE, 1)
+        assert 2 == session.staff_two.badge_num

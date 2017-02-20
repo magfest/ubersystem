@@ -1,4 +1,5 @@
 from uber.common import *
+from email_validator import validate_email, EmailNotValidError
 
 
 class HTTPRedirect(cherrypy.HTTPRedirect):
@@ -40,10 +41,35 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
         return quote(s) if isinstance(s, str) else str(s)
 
 
+def create_valid_user_supplied_redirect_url(url, default_url):
+    """
+    Create a valid redirect from user-supplied data.
+
+    If there is invalid data, or a security issue is detected, then ignore and redirect to the homepage
+
+    :param url: user-supplied URL that is being requested to redirect to
+    :param default_url: the name of the URL we should redirect to if there's an issue
+    :return: a secure and valid URL that we allow a redirect to be made to
+    """
+
+    # security: ignore cross-site redirects that aren't for local pages.
+    # i.e. if an attacker passes in 'original_location=https://badsite.com/stuff/" then just ignore it
+    parsed_url = urlparse(url)
+    security_issue = parsed_url.scheme or parsed_url.netloc
+
+    if not url or 'login' in url or security_issue:
+        return default_url
+
+    return url
+
+
 def localized_now():
     """Returns datetime.now() but localized to the event's configured timezone."""
-    utc_now = datetime.utcnow().replace(tzinfo=UTC)
-    return utc_now.astimezone(c.EVENT_TIMEZONE)
+    return localize_datetime(datetime.utcnow())
+
+
+def localize_datetime(dt):
+    return dt.replace(tzinfo=UTC).astimezone(c.EVENT_TIMEZONE)
 
 
 def comma_and(xs):
@@ -168,8 +194,18 @@ def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=
     if model and dest:
         body = body.decode('utf-8') if isinstance(body, bytes) else body
         fk = {'model': 'n/a'} if model == 'n/a' else {'fk_id': model.id, 'model': model.__class__.__name__}
-        with sa.Session() as session:
-            session.add(sa.Email(subject=subject, dest=','.join(listify(dest)), body=body, ident=ident, **fk))
+        _record_email_sent(sa.Email(subject=subject, dest=','.join(listify(dest)), body=body, ident=ident, **fk))
+
+
+def _record_email_sent(email):
+    """
+    Save in our database the contents of the Email model passed in.
+    We'll use this for history tracking, and to know that we shouldn't re-send this email because it already exists
+
+    note: This is in a separate function so we can unit test it
+    """
+    with sa.Session() as session:
+        session.add(email)
 
 
 class Charge:
@@ -250,8 +286,27 @@ class Charge:
         except stripe.CardError as e:
             return 'Your card was declined with the following error from our processor: ' + str(e)
         except stripe.StripeError as e:
-            log.error('unexpected stripe error', exc_info=True)
+            error_txt = 'Got an error while calling charge_cc(self, token={!r})'.format(token)
+            report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
             return 'An unexpected problem occured while processing your card: ' + str(e)
+
+
+def report_critical_exception(msg, subject="Critical Error"):
+    """
+    Report an exception to the loggers with as much context (request params/etc) as possible, and send an email.
+
+    Call this function when you really want to make some noise about something going really badly wrong.
+
+    :param msg: message to prepend to output
+    :param subject: optional: subject for emails going out
+    """
+
+    # log with lots of cherrypy context in here
+    uber.server.log_exception_with_verbose_context(msg)
+
+    # also attempt to email the admins
+    # TODO: Don't hardcode emails here.
+    send_email(c.ADMIN_EMAIL, [c.ADMIN_EMAIL, 'dom@magfest.org'], subject, msg + '\n{}'.format(traceback.format_exc()))
 
 
 def get_page(page, queryset):
@@ -322,3 +377,151 @@ def convert_to_absolute_url(relative_uber_page_url):
 
 def get_real_badge_type(badge_type):
     return c.ATTENDEE_BADGE if badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE] else badge_type
+
+
+_when_dateformat = "%m/%d"
+
+
+class DateBase:
+    @staticmethod
+    def now():
+        # This exists so we can patch this in unit tests
+        return localized_now()
+
+
+class days_before(DateBase):
+    """
+    Returns true if today is # days before a deadline.
+
+    :param: days - number of days before deadline to start
+    :param: deadline - datetime of the deadline
+    :param: until - (optional) number of days prior to deadline to end (default: 0)
+
+    Examples:
+        days_before(45, c.POSITRON_BEAM_DEADLINE)() - True if it's 45 days before c.POSITRON_BEAM_DEADLINE
+        days_before(10, c.WARP_COIL_DEADLINE, 2)() - True if it's between 10 and 2 days before c.WARP_COIL_DEADLINE
+    """
+    def __init__(self, days, deadline, until=None):
+        if days <= 0:
+            raise ValueError("'days' paramater must be > 0. days={}".format(days))
+
+        if until and days <= until:
+            raise ValueError("'days' paramater must be less than 'until'. days={}, until={}".format(days, until))
+
+        self.days, self.deadline, self.until = days, deadline, until
+
+        if deadline:
+            self.starting_date = self.deadline - timedelta(days=self.days)
+            self.ending_date = deadline if not until else (deadline - timedelta(days=until))
+
+            assert self.starting_date < self.ending_date
+
+    def __call__(self):
+        if not self.deadline:
+            return False
+
+        return self.starting_date < self.now() < self.ending_date
+
+    @property
+    def active_when(self):
+        if not self.deadline:
+            return ''
+
+        start_txt = self.starting_date.strftime(_when_dateformat)
+        end_txt = self.ending_date.strftime(_when_dateformat)
+
+        return 'between {} and {}'.format(start_txt, end_txt)
+
+
+class before(DateBase):
+    """
+    Returns true if today is anytime before a deadline.
+
+    :param: deadline - datetime of the deadline
+
+    Examples:
+        before(c.POSITRON_BEAM_DEADLINE)() - True if it's before c.POSITRON_BEAM_DEADLINE
+    """
+    def __init__(self, deadline):
+        self.deadline = deadline
+
+    def __call__(self):
+        return bool(self.deadline) and self.now() < self.deadline
+
+    @property
+    def active_when(self):
+        return 'before {}'.format(self.deadline.strftime(_when_dateformat)) if self.deadline else ''
+
+
+class days_after(DateBase):
+    """
+    Returns true if today is at least a certain number of days after a deadline.
+
+    :param: days - number of days after deadline to start
+    :param: deadline - datetime of the deadline
+
+    Examples:
+        days_after(6, c.TRANSPORTER_ROOM_DEADLINE)() - True if it's at least 6 days after c.TRANSPORTER_ROOM_DEADLINE
+    """
+    def __init__(self, days, deadline):
+        if days is None:
+            days = 0
+
+        if days < 0:
+            raise ValueError("'days' paramater must be >= 0. days={}".format(days))
+
+        self.starting_date = None if not deadline else deadline + timedelta(days=days)
+
+    def __call__(self):
+        return bool(self.starting_date) and (self.now() > self.starting_date)
+
+    @property
+    def active_when(self):
+        return 'after {}'.format(self.starting_date.strftime(_when_dateformat)) if self.starting_date else ''
+
+
+class request_cached_context:
+    """
+    We cache certain variables (like c.BADGES_SOLD) on a per-cherrypy.request basis.
+    There are situation situations, like unit tests or non-HTTP request contexts (like daemons) where we want to
+    carefully control this behavior, or where the cache will never be reset.
+
+    When this class is finished it will clear the per-request cache.
+
+    example of how to use:
+    with request_cached_context():
+        # do things that use the cached values, and after this block is done, the values won't be cached anymore.
+    """
+
+    def __init__(self, clear_cache_on_start=False):
+        self.clear_cache_on_start = clear_cache_on_start
+
+    def __enter__(self):
+        if self.clear_cache_on_start:
+            request_cached_context._clear_cache()
+
+    def __exit__(self, type, value, traceback):
+        request_cached_context._clear_cache()
+
+    @staticmethod
+    def _clear_cache():
+        threadlocal.clear()
+
+
+def normalize_email(address):
+    """
+    For only @gmail addresses, periods need to be parsed
+    out because they simply don't matter.
+
+    For all other addresses, they are read normally.
+    """
+    address = address.lower()
+    if address.endswith("@gmail.com"):
+        address = address[:-10].replace(".", "") + "@gmail.com"
+    try:
+        validation_info = validate_email(address)
+        # get normalized result
+        address = validation_info["email"]
+    except EmailNotValidError:
+        pass  # ignore invalid emails
+    return address

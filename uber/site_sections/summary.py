@@ -1,6 +1,19 @@
 from uber.common import *
 
 
+def generate_staff_badges(start_badge, end_badge, out, session):
+    assert start_badge >= c.BADGE_RANGES[c.STAFF_BADGE][0]
+    assert end_badge <= c.BADGE_RANGES[c.STAFF_BADGE][1]
+
+    badge_range = (start_badge, end_badge)
+
+    uber.reports.PrintedBadgeReport(
+        badge_type=c.STAFF_BADGE,
+        range=badge_range,
+        badge_type_name='Staff') \
+        .run(out, session)
+
+
 @all_renderable(c.STATS)
 class Root:
     def index(self, session):
@@ -130,31 +143,80 @@ class Root:
         }
 
     @csv_file
+    def dept_head_emails(self, out, session):
+        out.writerow(['Name', 'Phone', 'Email'])
+        dhs = session.query(Attendee).filter(Attendee.ribbon == c.DEPT_HEAD_RIBBON).all()
+        for x in dhs:
+            out.writerow([x.full_name, x.cellphone, x.email])
+
+    @csv_file
+    def dealer_table_info(self, out, session):
+        out.writerow([
+            'Name',
+            'Description',
+            'URL',
+            'Address',
+            'Tables',
+            'Amount Paid',
+            'Cost',
+            'Badges'
+        ])
+        dealer_groups = session.query(Group).filter(Group.tables > 0).all()
+        for group in dealer_groups:
+            if group.approved and group.is_dealer:
+                out.writerow([
+                    group.name,
+                    group.description,
+                    group.website,
+                    group.address,
+                    group.tables,
+                    group.amount_paid,
+                    group.cost,
+                    group.badges
+                ])
+
+    @csv_file
     def printed_badges_attendee(self, out, session):
-        uber.reports.PrintedBadgeReport(badge_type=c.ATTENDEE_BADGE).run(out, session)
+        uber.reports.PrintedBadgeReport(badge_type=c.ATTENDEE_BADGE, badge_type_name='Attendee').run(out, session)
 
     @csv_file
     def printed_badges_guest(self, out, session):
-        uber.reports.PrintedBadgeReport(badge_type=c.GUEST_BADGE).run(out, session)
+        uber.reports.PrintedBadgeReport(badge_type=c.GUEST_BADGE, badge_type_name='Guest').run(out, session)
 
     @csv_file
     def printed_badges_one_day(self, out, session):
-        uber.reports.PrintedBadgeReport(badge_type=c.ONE_DAY_BADGE).run(out, session)
+        uber.reports.PrintedBadgeReport(badge_type=c.ONE_DAY_BADGE, badge_type_name='OneDay').run(out, session)
+
+    @csv_file
+    def printed_badges_minor(self, out, session):
+        uber.reports.PrintedBadgeReport(badge_type=c.CHILD_BADGE, badge_type_name='Minor').run(out, session)
 
     @csv_file
     def printed_badges_staff(self, out, session):
 
         # part 1, include only staff badges that have an assigned name
         uber.reports.PersonalizedBadgeReport().run(out, session,
-            sa.Attendee.badge_type == c.STAFF_BADGE,
-            sa.Attendee.badge_num != None,
-            order_by='badge_num')
+                                                   Attendee.badge_type == c.STAFF_BADGE,
+                                                   Attendee.badge_num != None,
+                                                   order_by='badge_num')
 
-        # part 2, include a bunch of extra badges so we have some printed
+        # part 2, include some extra for safety marging
+        minimum_extra_amount = 5
+
         max_badges = c.BADGE_RANGES[c.STAFF_BADGE][1]
-        extra_count = 20
-        badge_range = (max_badges - extra_count, max_badges)
-        uber.reports.PrintedBadgeReport(badge_type=c.STAFF_BADGE, range=badge_range).run(out, session)
+        start_badge = max_badges - minimum_extra_amount + 1
+        end_badge = max_badges
+
+        generate_staff_badges(start_badge, end_badge, out, session)
+
+    @csv_file
+    def printed_badges_staff__expert_mode_only(self, out, session, start_badge, end_badge):
+        """
+        Generate a CSV of staff badges. Note: This is not normally what you would call to do the badge export.
+        For use by experts only.
+        """
+
+        generate_staff_badges(int(start_badge), int(end_badge), out, session)
 
     @csv_file
     def badge_hangars_supporters(self, out, session):
@@ -163,14 +225,32 @@ class Root:
             order_by=sa.Attendee.full_name,
             badge_type_override='supporter')
 
+    """
+    Enumerate individual CSVs here that will be intergrated into the .zip which will contain all the
+    badge types.  Downstream plugins can override which items are in this list.
+    """
+    badge_zipfile_contents = [
+        printed_badges_attendee,
+        printed_badges_guest,
+        printed_badges_one_day,
+        printed_badges_minor,
+        printed_badges_staff,
+        badge_hangars_supporters,
+    ]
+
     @multifile_zipfile
     def personalized_badges_zip(self, zip_file, session):
-        """All printed badge CSV files in one zipfile."""
-        zip_file.writestr('printed_badges_attendee.csv', self.printed_badges_attendee())
-        zip_file.writestr('printed_badges_guest.csv', self.printed_badges_guest())
-        zip_file.writestr('printed_badges_one_day.csv', self.printed_badges_one_day())
-        zip_file.writestr('printed_badges_staff.csv', self.printed_badges_staff())
-        zip_file.writestr('badge_hangars_supporters.csv', self.badge_hangars_supporters())
+        """
+        Put all printed badge CSV files in one convenient zipfile.  The idea
+        is that this ZIP file, unmodified, should be completely ready to send to
+        the badge printers.
+
+        Plugins can override badge_zipfile_contents to do something different/event-specific.
+        """
+        for badge_csv_fn in self.badge_zipfile_contents:
+            csv_filename = '{}.csv'.format(badge_csv_fn.__name__)
+            output = badge_csv_fn(self, session, set_headers=False)
+            zip_file.writestr(csv_filename, output)
 
     def food_eligible(self, session):
         cherrypy.response.headers['Content-Type'] = 'application/xml'
@@ -183,102 +263,6 @@ class Root:
         }
         return render('summary/food_eligible.xml', {'attendees': eligible})
 
-    def csv_import(self, message='', all_instances=None):
-
-        return {
-            'message': message,
-            'tables': sorted(model.__name__ for model in Session.all_models()),
-            'attendees': all_instances
-        }
-    csv_import.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]
-
-    def import_model(self, session, model_import, selected_model='', date_format="%Y-%m-%d"):
-        model = Session.resolve_model(selected_model)
-        message = ''
-
-        cols = {col.name: getattr(model, col.name) for col in model.__table__.columns}
-        result = csv.DictReader(model_import.file.read().decode('utf-8').split('\n'))
-        id_list = []
-
-        for row in result:
-            if 'id' in row:
-                id = row.pop('id')  # id needs special treatment
-
-                try:
-                    # get the instance if it already exists
-                    model_instance = getattr(session, selected_model)(id, allow_invalid=True)
-                except:
-                    session.rollback()
-                    # otherwise, make a new one and add it to the session for when we commit
-                    model_instance = model()
-                    session.add(model_instance)
-
-            for colname, val in row.items():
-                col = cols[colname]
-                if not val:
-                    # in a lot of cases we'll just have the empty string, so we'll just
-                    # do nothing for those cases
-                    continue
-                if isinstance(col.type, Choice):
-                    # the export has labels, and we want to convert those back into their
-                    # integer values, so let's look that up (note: we could theoretically
-                    # modify the Choice class to do this automatically in the future)
-                    label_lookup = {val: key for key, val in col.type.choices.items()}
-                    val = label_lookup[val]
-                elif isinstance(col.type, MultiChoice):
-                    # the export has labels separated by ' / ' and we want to convert that
-                    # back into a comma-separate list of integers
-                    label_lookup = {val: key for key, val in col.type.choices}
-                    vals = [label_lookup[label] for label in val.split(' / ')]
-                    val = ','.join(map(str, vals))
-                elif isinstance(col.type, UTCDateTime):
-                    # we'll need to make sure we use whatever format string we used to
-                    # export this date in the first place
-                    try:
-                        val = UTC.localize(datetime.strptime(val, date_format + ' %H:%M:%S'))
-                    except:
-                        val = UTC.localize(datetime.strptime(val, date_format))
-                elif isinstance(col.type, Date):
-                    val = datetime.strptime(val, date_format).date()
-                elif isinstance(col.type, Integer):
-                    val = int(val)
-
-                # now that we've converted val to whatever it actually needs to be, we
-                # can just set it on the model
-                setattr(model_instance, colname, val)
-
-            try:
-                session.commit()
-            except:
-                log.error('ImportError', exc_info=True)
-                session.rollback()
-                message = 'Import unsuccessful'
-
-            id_list.append(model_instance.id)
-
-        all_instances = session.query(model).filter(model.id.in_(id_list)).all() if id_list else None
-
-        return self.csv_import(message, all_instances)
-    import_model.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]
-
-    def valid_attendees(self):
-        return self.export_model(selected_model='attendee')
-    valid_attendees.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]
-
-    def all_attendees(self):
-        return self.export_model(selected_model='attendee')
-    all_attendees.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]
-
-    def csv_export(self, message='', **params):
-        if 'model' in params:
-            self.export_model(selected_model=params['model'])
-
-        return {
-            'message': message,
-            'tables': sorted(model.__name__ for model in Session.all_models())
-        }
-    csv_export.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]
-
     @csv_file
     def volunteers_with_worked_hours(self, out, session):
         out.writerow(['Badge #', 'Full Name', 'E-mail Address', 'Weighted Hours Scheduled', 'Weighted Hours Worked'])
@@ -286,37 +270,35 @@ class Root:
             if a.worked_hours > 0:
                 out.writerow([a.badge_num, a.full_name, a.email, a.weighted_hours, a.worked_hours])
 
-    @csv_file
-    def export_model(self, out, session, selected_model=''):
-        model = Session.resolve_model(selected_model)
+    def shirt_manufacturing_counts(self, session):
+        """
+        This report should be the definitive report about the count and sizes of shirts needed to be ordered.
 
-        cols = [getattr(model, col.name) for col in model.__table__.columns]
-        out.writerow([col.name for col in cols])
+        There are 2 types of shirts:
+        - "staff shirts" - staff uniforms, each staff gets TWO currently
+        - "swag shirts" - pre-ordered shirts, which the following groups receive:
+            - volunteers (non-staff who get one for free)
+            - attendees (who can pre-order them)
+        """
+        counts = defaultdict(lambda: defaultdict(int))
+        labels = ['size unknown'] + [label for val, label in c.SHIRT_OPTS][1:]
+        sort = lambda d: sorted(d.items(), key=lambda tup: labels.index(tup[0]))
+        label = lambda s: 'size unknown' if s == c.SHIRTS[c.NO_SHIRT] else s
 
-        for attendee in session.query(model).all():
-            row = []
-            for col in cols:
-                if isinstance(col.type, Choice):
-                    # Choice columns are integers with a single value with an automatic
-                    # _label property, e.g. the "shirt" column has a "shirt_label"
-                    # property, so we'll use that.
-                    row.append(getattr(attendee, col.name + '_label'))
-                elif isinstance(col.type, MultiChoice):
-                    # MultiChoice columns are comma-separated integer lists with an
-                    # automatic _labels property which is a list of string labels.
-                    # So we'll get that and then separate the labels with slashes.
-                    row.append(' / '.join(getattr(attendee, col.name + '_labels')))
-                elif isinstance(col.type, UTCDateTime):
-                    # Use the empty string if this is null, otherwise use strftime.
-                    # Also you should fill in whatever actual format you want.
-                    val = getattr(attendee, col.name)
-                    row.append(val.strftime('%Y-%m-%d %H:%M:%S') if val else '')
-                else:
-                    # For everything else we'll just dump the value, although we might
-                    # consider adding more special cases for things like foreign keys.
-                    row.append(getattr(attendee, col.name))
-            out.writerow(row)
-    export_model.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]
+        for attendee in session.all_attendees():
+            shirt_label = attendee.shirt_label or 'size unknown'
+
+            if attendee.gets_staff_shirt:
+                counts['staff'][label(shirt_label)] += c.SHIRTS_PER_STAFFER
+
+            counts['swag'][label(shirt_label)] += attendee.num_swag_shirts_owed
+
+        return {
+            'categories': [
+                ('Staff Uniform Shirts', sort(counts['staff'])),
+                ('Swag Shirts', sort(counts['swag'])),
+            ]
+        }
 
     def shirt_counts(self, session):
         counts = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
@@ -325,26 +307,26 @@ class Root:
         label = lambda s: 'size unknown' if s == c.SHIRTS[c.NO_SHIRT] else s
         status = lambda got_merch: 'picked_up' if got_merch else 'outstanding'
         sales_by_week = OrderedDict([(i, 0) for i in range(50)])
-        for attendee in session.staffers(only_staffing=False):
+        for attendee in session.all_attendees():
             shirt_label = attendee.shirt_label or 'size unknown'
-            if attendee.gets_free_shirt:
-                counts['free'][label(shirt_label)][status(attendee.got_merch)] += 1
-                counts['all'][label(shirt_label)][status(attendee.got_merch)] += 1
-            if attendee.gets_paid_shirt:
-                counts['paid'][label(shirt_label)][status(attendee.got_merch)] += 1
-                counts['all'][label(shirt_label)][status(attendee.got_merch)] += 1
+            if attendee.volunteer_swag_shirt_eligible:
+                counts['free_swag_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
+                counts['all_swag_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
+            if attendee.paid_for_a_swag_shirt:
+                counts['paid_swag_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
+                counts['all_swag_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
                 sales_by_week[(datetime.now(UTC) - attendee.registered).days // 7] += 1
-            if attendee.gets_free_shirt and attendee.gets_paid_shirt:
-                counts['both'][label(shirt_label)][status(attendee.got_merch)] += 1
+            if attendee.gets_staff_shirt:
+                counts['staff_shirts'][label(shirt_label)][status(attendee.got_merch)] += c.SHIRTS_PER_STAFFER
         for week in range(48, -1, -1):
             sales_by_week[week] += sales_by_week[week + 1]
         return {
             'sales_by_week': sales_by_week,
             'categories': [
-                ('Eligible free', sort(counts['free'])),
-                ('Paid', sort(counts['paid'])),
-                ('All pre-ordered', sort(counts['all'])),
-                ('People with both free and paid shirts', sort(counts['both']))
+                ('Free Swag Shirts', sort(counts['free_swag_shirts'])),
+                ('Paid Swag Shirts', sort(counts['paid_swag_shirts'])),
+                ('All Swag Shirts', sort(counts['all_swag_shirts'])),
+                ('Staff Shirts', sort(counts['staff_shirts']))
             ]
         }
 
@@ -394,7 +376,7 @@ class Root:
         }
 
     def volunteers_owed_refunds(self, session):
-        attendees = session.staffers(only_staffing=False).filter(Attendee.paid.in_([c.HAS_PAID, c.PAID_BY_GROUP, c.REFUNDED])).all()
+        attendees = session.all_attendees().filter(Attendee.paid.in_([c.HAS_PAID, c.PAID_BY_GROUP, c.REFUNDED])).all()
         is_unrefunded = lambda a: a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid
         return {
             'attendees': [(

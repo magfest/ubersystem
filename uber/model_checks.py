@@ -12,6 +12,7 @@ To perform these validations, call the "check" method on the instance you're val
 on success and a string error message on validation failure.
 """
 from uber.common import *
+from email_validator import validate_email, EmailNotValidError
 
 
 AdminAccount.required = [('attendee', 'Attendee'), ('hashed', 'Password')]
@@ -148,13 +149,19 @@ def email(attendee):
     if len(attendee.email) > 255:
         return 'Email addresses cannot be longer than 255 characters.'
 
-    if (c.AT_OR_POST_CON and attendee.email and not re.match(c.EMAIL_RE, attendee.email)) or (not c.AT_OR_POST_CON and not re.match(c.EMAIL_RE, attendee.email)):
-        return 'Enter a valid email address'
+    if (c.AT_OR_POST_CON and attendee.email) or not c.AT_OR_POST_CON:
+        try:
+            validate_email(attendee.email)
+        except EmailNotValidError as e:
+            message = str(e)
+            return 'Enter a valid email address. ' + message
 
 
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def emergency_contact(attendee):
+    if not attendee.ec_name:
+        return 'Please tell us the name of your emergency contact.'
     if not attendee.international and _invalid_phone_number(attendee.ec_phone):
         if c.COLLECT_FULL_ADDRESS:
             return 'Enter a 10-digit US phone number or include a country code (e.g. +44).'
@@ -173,6 +180,13 @@ def cellphone(attendee):
 
     if not attendee.no_cellphone and attendee.staffing and not attendee.cellphone:
         return "Cellphone number is required for volunteers (unless you don't own a cellphone)"
+
+
+@validation.Attendee
+@ignore_unassigned_and_placeholders
+def emergency_contact_not_cellphone(attendee):
+    if not attendee.international and attendee.cellphone and attendee.cellphone == attendee.ec_phone:
+        return "Your cellphone number cannot be the same as your emergency contact number"
 
 
 @validation.Attendee
@@ -240,9 +254,6 @@ def attendee_money(attendee):
                 return 'Overridden price must be a positive integer'
         except:
             return 'Invalid overridden price ({})'.format(attendee.overridden_price)
-        else:
-            if attendee.overridden_price == 0:
-                return 'Please set the payment type to "doesn\'t need to" instead of setting the badge price to 0.'
 
     try:
         amount_refunded = int(float(attendee.amount_refunded))
@@ -297,7 +308,9 @@ def no_more_custom_badges(attendee):
 def out_of_badge_type(attendee):
     if attendee.badge_type != attendee.orig_value_of('badge_type'):
         with Session() as session:
-            if session.get_next_badge_num(attendee.badge_type_real) > c.BADGE_RANGES[attendee.badge_type_real][1]:
+            try:
+                session.get_next_badge_num(attendee.badge_type_real)
+            except AssertionError:
                 return 'There are no more badges available for that type'
 
 

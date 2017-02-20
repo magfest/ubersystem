@@ -89,28 +89,70 @@
             $('#message').html(message);
         });
     }
+
+    var checkDiscount = function () {
+        var $num = $('#dis_badge_num'),
+            $confirm = $('#discount_confirm'),
+            $checkButton = $('#discount_check');
+        var reset = function () {
+            toastr.clear();
+            $confirm.empty();
+            $checkButton.show();
+            $num.prop('disabled', false).val('');
+        };
+        $num.prop('disabled', true);
+        $confirm.empty();
+        $checkButton.hide();
+        toastr.clear();
+        var params = {badge_num: $num.val(), csrf_token: csrf_token};
+        $.post('redeem_merch_discount', params, function (checkResponse) {
+            if (!checkResponse.message) {
+                reset();
+                toastr.error(checkResponse.error || 'An unexpected error occurred');
+            } else {
+                toastr[checkResponse.warning ? 'warning' : 'info'](checkResponse.message);
+                $confirm.append(
+                    $('<button></button>').click(function () {
+                        params.apply = 'true';
+                        $.post('redeem_merch_discount', params, function (applyResponse) {
+                            reset();
+                            toastr.info(applyResponse.message || applyResponse.error);
+                        });
+                    }).text(checkResponse.warning ? 'Redeem Anyway' : 'Redeem')
+                ).append('<span>&nbsp;&nbsp;</span>').append(
+                    $('<button>Cancel</button>').click(reset)
+                );
+            }
+        });
+    };
     
     $(function(){
         $('#message').ajaxError(function () {
             toastr.error('Oh noes - the web server is down or something!!!!!');
         });
-        
+
         $('input[type=text],input[type=number]').on('focus', function(event){
             var field = event.target;
             setTimeout(function(){ field.select(); }, 1);
         });
-        
+
         showOrHideWhatText(true);
         $('#what_text,#store_amount').keypress(function(e){
             if( (e.keyCode || e.which) == 13 )  // ENTER
                 recordSale();
         });
-        
+
         $('#ex_badge_num,#ex_mpoints,#cash').keypress(function(e){
             if( (e.keyCode || e.which) == 13 )  // ENTER
                 recordMPointExchange();
         });
-        
+
+        $('#dis_badge_num').keypress(function (e) {
+            if ( (e.keyCode || e.which) == 13 ) {  // ENTER
+                checkDiscount();
+            }
+        });
+
         $('#swag').on('submit', function(e){
             $('#give,#message').html('');
             $.post('check_merch', {csrf_token: csrf_token, badge_num: $('#badge_num').val()}, function(resp) {
@@ -176,6 +218,15 @@
     <td> MPoints: <input type="number" id="store_mpoints" min="0" max="999" /> </td>
     <td> <input type="submit" id="record_sale" value="Record Sale" onClick="recordSale()" />
 </td>
+</tr><tr> <td colspan="4"> ---OR--- </td> </tr>
+    <td> Apply a merch discount </td>
+    <td>
+        Badge num: <input type="number" id="dis_badge_num" min="1" max="99999" />
+        <input type="submit" id="discount_check" value="Check Eligibility" onClick="checkDiscount()" />
+        &nbsp;
+        <span id="discount_confirm"></span>
+    <td></td>
+    <td></td>
 <tr> <td colspan="4"> ---OR--- </td>
 <tr>
     <td> Give Merch </td>

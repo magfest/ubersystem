@@ -10,7 +10,8 @@
     {% if c.DEV_BOX or c.AFTER_SHIFTS_CREATED %}
         <form class="form-signin" role="form">
             <h2 class="form-signin-heading">Volunteer Login</h2>
-            <input type="text" class="form-control" placeholder="First and Last Name" name="full_name" value="{{ full_name }}" required autofocus />
+            <input type="text" class="form-control" placeholder="First Name" name="first_name" value="{{ first_name }}" required autofocus />
+            <input type="text" class="form-control" placeholder="Last Name" name="last_name" value="{{ last_name }}" required autofocus />
             <input type="email" class="form-control" placeholder="Email address" name="email" value="{{ email }}" required />
             <input type="text" class="form-control" placeholder="Zip Code" name="zip_code" value="{{ zip_code }}" required />
             <input type="hidden" name="original_location" value="{{ original_location }}" />

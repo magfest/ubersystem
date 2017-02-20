@@ -1,22 +1,230 @@
-<!doctype html>
-<html>
-<head>
-    <title>{{ name }}'s shifts</title>
-    <link rel="stylesheet" type="text/css" href="../static/styles/styles.css" />
+{% extends 'signup_base.html' %}
+
+{% block page_style %}
+<style>
+.fc-toolbar.fc-header-toolbar {
+	margin-left:15px;
+	margin-right:15px;
+}
+.shift_icon {
+	border-radius:15px;
+	width:30px;
+	height:30px;
+	display:inline-block;
+}
+.shift_taken {
+	background-color:#239875;
+}
+.shift_available {
+	background-color:#305fc9;
+}
+.fc-list-item-title .shift_button {
+	color:white;
+	float:right;
+}
+.shift_button { 
+	background-color:#3276b1;
+
+}
+
+.shift_button.drop {
+	background-color:#239875;
+
+}
+</style> {% endblock %} {% block main_content %} <div class="hidden csrf_token"> {% csrf_token %} </div>
+
+
+<div class="row">
+	<div class="col-md-12 text-center">
+	<span style="font-size:16pt ; font-weight:bold" class="ng-binding">T U's available shifts</span>
+   	</div>
+</div>
+<div class="row">
+	<div class="col-md-12 text-center">
+   		<span style="font-size:12pt ; font-style:italic" class="ng-binding">(If you are not T U, <a href="login">log in here</a>.)</span>
+	</div>
+</div>
+<div class=row">
+	<div class="col-md-12 text-center">
+		<table width="100%" style="text-align:center">
+   		<tbody><tr>
+       			<td ng-bind-html-unsafe="'../static_views/stafferComps.html' | popupLink:'See What You Get For Volunteering'"></td>
+       <!-- ngIf: !c.HIDE_SCHEDULE -->
+   </tr>
+   </tbody></table>
+   <br>
+        <a href="#" class="toggle-cal" state="all">Click Here</a>
+	<span class="all-state-text state-text"> to see the {{hours}} weighted hours worth of shifts you are signed up for</span>
+        <span class="shift-state-text hidden state-text"> to sign up for more shifts; you are currently signed up for {{hours}} weighted hours</span>
+      
+	
+   <br> or <a href="index">Click Here</a> to return to the main page of the Volunteer Checklist.
+	</div>
+</div>
+
+<div class="row">
+
+	<div class="col-md-10 col-md-offset-1 col-xs-12">
+		<div id="shift_cal"></div>
+	</div>
+</div>
+{% endblock %}
+{% block page_script %}
     <script src="../static/deps/combined.js"></script>
     <script src="../angular/magfest.js"></script>
-    <script src="../static/angular-apps/signups/app.js"></script>
-    <script>
-        var JOBS = {{ jobs|jsonize }};  // the Job service checks for a global variable with this name to preload the data
-        angular.module('signups')
-            .controller('MainController', function ($scope) {
-                $scope.name = '{{ name }}';
-            });
-    </script>
-</head>
-<body ng-app="signups">
-    <div ng-controller="MainController">
-        <div ng-view></div>
-    </div>
-</body>
-</html>
+
+<script type="text/javascript" src="../static/js/moment.js"></script>
+
+<script type="text/javascript" src="../static/js/fullcalendar.min.js"></script>
+
+<script type="text/javascript">
+	var eventList = new Array();
+	var shiftList = new Array();
+
+
+
+        $(document).ready(function() {
+		    {% for job in jobs %}
+                    {% if job.taken %}
+			shiftList.push({
+                                        title : "{{job.name}}",
+                                        start : "{{ job.start_time_local|datetime:"%Y-%m-%dT%H:%M:%S" }}",
+                                        end : "{{job.start_time_local|shift_end:job.duration}}",
+                                        id : "{{job.id}}",
+                                        {% if job.taken %}
+                                        backgroundColor: "#239875",
+                                        taken: true
+                                        {% else %}
+                                        backgroundColor: "#305fc9",
+                                        taken: false
+                                        {% endif %}
+                                });
+			{% endif %}
+                        eventList.push({
+                                        title : "{{job.name}}",
+                                        start : "{{ job.start_time_local|datetime:"%Y-%m-%dT%H:%M:%S" }}",
+                                        end : "{{job.start_time_local|shift_end:job.duration}}",
+                                        id : "{{job.id}}",
+                                        {% if job.taken %}
+                                        backgroundColor: "#239875",
+                                        taken: true
+                                        {% else %}
+                                        backgroundColor: "#305fc9",
+                                        taken: false
+                                        {% endif %}
+                                });
+
+    		    {% endfor %}
+
+                $('#shift_cal').fullCalendar({
+                        header: {
+                                left: 'prev,next today',
+                                center: 'title',
+                                right: 'agendaDay,listWeek'
+                        },
+			buttonText : {
+                                today : 'Today',
+                                agendaWeek : 'Week',
+                                agendaDay : 'Day',
+                                listWeek : 'Week'
+                        },
+			views: {
+                		agendaDay: { buttonText: 'Day' },
+                		listWeek: { buttonText: 'Week' }
+           	 	},
+                        defaultView: 'listWeek',
+                        editable: true,
+			slotDuration: '00:15:00',
+                        allDaySlot: false,
+                        eventLimit: true, // allow "more" link when too many events
+                        slotEventOverlap: false,
+			events: eventList,
+			eventRender:function(event,element) {
+				var buttonTag = '<a class="btn btn-primary shift_button ';
+				if (event.taken) {
+				buttonTag += 'drop';
+				}	
+				buttonTag += '" ';
+				
+				buttonTag += 'onclick="click_shift(\'' + event.taken;
+				buttonTag += '\',\'' +  event.id;
+                                buttonTag += '\',\'' +  moment(event.start).toISOString();
+                                buttonTag += '\',\'' +  event.title
+				buttonTag += '\')" ';
+				buttonTag += '>';
+				if(event.taken) {
+					buttonTag += 'Drop';
+				} else {
+					buttonTag += 'Sign-up';
+				}
+				buttonTag += '</a>';
+				element.find('.fc-list-item-title').append(buttonTag);
+				element.find('.fc-title').append('</br>' + buttonTag);
+			},
+                });
+   		{% if 'schedule' in c.QUERY_STRING %}
+			
+                        $("#shift_cal").fullCalendar( 'changeView','listWeek');
+
+		{% else %}
+
+                // if opened with tgt_date, go to date in calendar
+
+		{% endif %}
+                var curDate = $.urlParam('tgt_date');
+                if(curDate != null) {
+                        $("#shift_cal").fullCalendar( 'changeView','agendaDay');
+			$("#shift_cal").fullCalendar( 'gotoDate',curDate);
+
+                } else {
+			$("#shift_cal").fullCalendar('gotoDate', eventList[0].start);
+		}
+		$(".toggle-cal").click(function() {
+			$("#shift_cal").fullCalendar('removeEventSources');
+			if($(this).attr('state')=='all') {
+				$("#shift_cal").fullCalendar('addEventSource',shiftList);
+				$(this).attr('state','shift');
+			} else {
+				$("#shift_cal").fullCalendar('addEventSource',eventList);
+				$(this).attr('state','all');
+			}
+			$("#shift_cal").fullCalendar('refetchEvents');
+			$(".state-text").toggleClass('hidden');
+		});
+
+        });
+
+function click_shift(state,id,time,title) {
+        var postData = {};
+        postData['csrf_token'] =  $("div.csrf_token input").attr('value');
+        var confirmStr = "Do you want to ";
+        if (state=='true') {
+        	confirmStr += "drop ";
+        } else {
+                confirmStr += "signup ";
+        }
+        confirmStr += title + " at " + time + "?";
+        var r = confirm(confirmStr);
+        if (r == true) {
+        	var tgtShiftURL = "sign_up?job_id="+ id;
+                if(state=='true') {
+                	tgtShiftURL = "drop?job_id=" + id;
+                }
+                $.post( tgtShiftURL,postData,function( data,status ) {
+                        window.location.href = window.location.pathname + "?tgt_date=" + moment(event.start).toISOString();
+                });
+        }
+
+}
+
+$.urlParam = function(name){
+   var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
+   if (results==null){
+      return null;
+   }
+   else{
+      return results[1] || 0;
+   }
+}
+</script>
+{% endblock %}
