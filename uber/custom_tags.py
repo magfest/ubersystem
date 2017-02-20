@@ -9,6 +9,8 @@ def safe_string(str):
 def date_filter(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
     # TODO: if this is a datetime.time object, do we have to correct for timezone with .astimezone()?
     return ' '.join(dt.strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm') if dt else ''
+
+# TODO: fix this to work with JINJA2
 @register.filter
 def shift_end(dt, duration):
     curdate = dt + timedelta(hours=int(duration))
@@ -118,6 +120,7 @@ def numeric_range(count):
     return range(count)
 
 
+# TODO: fix this to work with JINJA2
 @register.filter
 def sum(values, attribute):
     sum = 0
@@ -239,6 +242,8 @@ def int_options(minval, maxval, default="1"):
 @JinjaEnv.jinja_export()
 def hour_day(dt):
     return hour_day_format(dt)
+
+
 @JinjaEnv.jinja_export()
 def pages(page, count):
     page = int(page)
@@ -352,24 +357,6 @@ def price_notice(label, takedown, amount_extra=0, discount=0):
         # in order to reduce server load so the system stays up.  After the rush, it should be safe to turn this
         # back off
         return ''
-@register.tag(name='price_notice')
-def price_notice(parser, token):
-    return PriceNotice(*token.split_contents()[1:])
-
-
-class PriceNotice(template.Node):
-    def __init__(self, label, takedown, amount_extra='0', discount='0'):
-        self.label = label.strip('"').strip("'")
-        self.takedown, self.amount_extra, self.discount = Variable(takedown), Variable(amount_extra), Variable(discount)
-
-    def _notice(self, label, takedown, amount_extra, discount):
-        if c.HARDCORE_OPTIMIZATIONS_ENABLED:
-            # CPU optimizaiton: the calculations done in this function are somewhat expensive and even with caching,
-            # still do some expensive DB queries.  if hardcore optimizations mode is enabled, we display a
-            # simpler message.  This is intended to be enabled during the heaviest loads at the beginning of an event
-            # in order to reduce server load so the system stays up.  After the rush, it should be safe to turn this
-            # back off
-            return ''
 
     if not takedown:
         takedown = c.ESCHATON
@@ -413,30 +400,6 @@ def event_dates():
     else:
         return '{}-{}'.format(c.EPOCH.strftime('%B %-d'), c.ESCHATON.strftime('%-d'))
 
-# FIXME this can probably be cleaned up more
-
-
-@register.tag(name='random_hash')
-def random_hash(parser, token):
-    items = []
-    bits = token.split_contents()
-    for item in bits:
-        items.append(item)
-    return RandomgenNode(items[1:])
-
-
-class RandomgenNode(template.Node):
-    def __init__(self, items):
-        self.items = []
-        for item in items:
-            self.items.append(item)
-
-    def render(self, context):
-        random = os.urandom(16)
-        result = binascii.hexlify(random)
-        return result
-
-template.builtins.append(register)
 
 @JinjaEnv.jinja_export()
 def random_hash():

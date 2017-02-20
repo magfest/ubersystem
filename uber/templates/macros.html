@@ -18,17 +18,17 @@
     <a onClick="window.open('{{ href }}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;"
        href="{{ href }}">{{ text }}</a>
 
-{#
-TODO: integrate these changes from upstream, if needed. they may not be needed anymore
+    {#
+    TODO: integrate these changes from upstream, if needed. they may not be needed anymore
 
-inner_text = "window.open('{self.href}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;".format(self=self)
-inner_text = inner_text.replace("'", "&quot;")
-return "<a onClick='{inner_text}' href='{self.href}'>{self.text}</a>".format(inner_text=inner_text, self=self)
-#}
+    inner_text = "window.open('{self.href}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;".format(self=self)
+    inner_text = inner_text.replace("'", "&quot;")
+    return "<a onClick='{inner_text}' href='{self.href}'>{self.text}</a>".format(inner_text=inner_text, self=self)
+    #}
 {%- endmacro %}
 
-{% macro checkbox(model, field_name) -%}
-    <input type="checkbox" name="{{ field_name }}" value="1" {{ model.html_checkbox_value(field_name) }} />
+{% macro checkbox(model, field_name, id=None) -%}
+    <input type="checkbox" name="{{ field_name }}" {% if id %}id="{{ id }}"{% endif %} value="1" {{ model.html_checkbox_value(field_name) }} />
 {%- endmacro %}
 
 {% macro checklist_image(enabled) -%}

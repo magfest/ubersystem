@@ -430,7 +430,9 @@ class MagModel:
         results = []
         for num, desc in options:
             checked = 'checked' if str(num) in defaults else ''
-            results.append('<nobr><input type="checkbox" name="{}" value="{}" {} /> {}</nobr>'
+            results.append('<label style="font-weight: normal;">'
+                           '<input type="checkbox" name="{}" value="{}" {} /> {}'
+                           '</label>'
                            .format(field_name, num, checked, desc))
         return '&nbsp;&nbsp\n'.join(results)
 
@@ -443,9 +445,12 @@ class MagModel:
 
         results = []
         for num, desc in options.items():
+            desc = html.escape(desc)
             checked = 'checked' if num == default else ''
             results.append(
-                '<label class="btn btn-default" style="text-align: left;"><input type="radio" name="{}" autocomplete="off" value="{}" onchange="{}" {} /> {}</label>'
+                '<label class="btn btn-default" style="text-align: left;">'
+                '<input type="radio" name="{}" autocomplete="off" value="{}" onchange="{}" {} /> {}'
+                '</label>'
                 .format(field_name, num, onchanged, checked, desc))
         return ''.join(results)
 
