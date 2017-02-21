@@ -1853,7 +1853,7 @@ class ArbitraryCharge(MagModel):
 
 
 class ApprovedEmail(MagModel):
-    ident = Column('subject', UnicodeText)  # TODO: rename column to "ident" in the database; will require a db migration
+    ident = Column(UnicodeText)
 
     _repr_attr_names = ['ident']
 
