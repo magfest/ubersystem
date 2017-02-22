@@ -12,7 +12,7 @@
     </script>
     <select id="dept" onChange="deptChanged()">
         <option value="">All Departments</option>
-        {% options c.JOB_LOCATION_OPTS department %}
+        {{ options(c.JOB_LOCATION_OPTS,department) }}
     </select>
 </div>
 {% if checklist.relevant %}
@@ -22,7 +22,7 @@
     {% else %}
         <a href="#" onClick="$('#checkoff').show(); return false;">This all looks good to me.</a>
         <form id="checkoff" style="display:none" method="post" action="../dept_checklist/mark_item_complete">
-        {% csrf_token %}
+        {{ csrf_token() }}
         <input type="hidden" name="slug" value="{{ checklist.conf.slug }}" />
         Volunteers with unclaimed placeholder registrations will NOT be coming to MAGFest if they don't claim their badges by the deadline.  So by clicking the button below, you're telling us:
         <ul>
@@ -56,7 +56,7 @@ We create placeholder registrations for volunteers and ask them to fill out the 
                 n/a
             {% endif %}
         </td>
-        <td>{{ attendee.assigned_depts_labels|join:' / ' }}</td>
+        <td>{{ attendee.assigned_depts_labels|join(' / ') }}</td>
     </tr>
 {% endfor %}
 </table>

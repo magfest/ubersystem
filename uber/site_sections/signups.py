@@ -3,6 +3,7 @@ from uber.common import *
 
 @all_renderable(c.SIGNUPS)
 class Root:
+
     def index(self, session, message=''):
         if c.UBER_SHUT_DOWN or c.AT_THE_CON:
             return render('signups/printable.html', {'attendee': session.logged_in_volunteer()})
@@ -67,10 +68,12 @@ class Root:
         }
 
     @check_shutdown
-    def shifts(self, session):
+    def shifts(self, session, tgt_date='', state=''):
+        joblist = session.jobs_for_signups()
         return {
-            'jobs': session.jobs_for_signups(),
-            'name': session.logged_in_volunteer().full_name
+            'jobs': joblist,
+            'name': session.logged_in_volunteer().full_name,
+            'hours': session.logged_in_volunteer().weighted_hours
         }
 
     @check_shutdown
@@ -99,16 +102,15 @@ class Root:
             return {'jobs': session.jobs_for_signups()}
 
     @unrestricted
-    def login(self, session, message='', full_name='', email='', zip_code='', original_location=None):
-        if not original_location or 'login' in original_location:
-            original_location = 'index'
+    def login(self, session, message='',  first_name='', last_name='', email='', zip_code='', original_location=None):
+        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='index')
 
-        if full_name or email or zip_code:
+        if first_name or last_name or email or zip_code:
             try:
-                attendee = session.lookup_attendee(full_name, email, zip_code)
+                attendee = session.lookup_attendee(first_name.strip(), last_name.strip(), email, zip_code)
                 if not attendee.staffing:
                     message = SafeString('You are not signed up as a volunteer.  <a href="volunteer?id={}">Click Here</a> to sign up.'.format(attendee.id))
-                elif not attendee.assigned_depts_ints:
+                elif not attendee.assigned_depts_ints and not c.AT_THE_CON:
                     message = 'You have not been assigned to any departmemts; an admin must assign you to a department before you can log in'
             except:
                 message = 'No attendee matches that name and email address and zip code'
@@ -120,10 +122,11 @@ class Root:
 
         return {
             'message':   message,
-            'full_name': full_name,
-            'email':     email,
+            'first_name': first_name,
+            'last_name': last_name,
+            'email': email,
             'zip_code':  zip_code,
-            'original_location': original_location,
+            'original_location': original_location
         }
 
     def onsite_jobs(self, session, message=''):

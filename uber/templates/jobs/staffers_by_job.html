@@ -4,16 +4,16 @@
 
 {% include "jobs/job_menu.html" %}
 
-<h3 class="center">{% timespan job %} {{ job.name }} shift in {{ job.location_label }}</h3>
+<h3 class="center">{{ job.timespan() }} {{ job.name }} shift in {{ job.location_label }}</h3>
 
 {% if job.shifts|length < job.slots %}
     <form method="post" action="assign_from_job">
-    {% csrf_token %}
+    {{ csrf_token() }}
     <input type="hidden" name="job_id" value="{{ job.id }}" />
     {% if attendees %}
         <b>Assign Staffer:</b>
         <select name="staffer_id">
-            {% options attendees %}
+            {{ options(attendees) }}
         </select>
         <input type="submit" value="Assign" />
     {% else %}
@@ -23,14 +23,14 @@
 {% endif %}
 <br/>
 {% if job.shifts %}
-    <b> This job has {{ job.slots }} slot{{ job.slots|pluralize }} and {{ job.shifts|length }} staffer{{ job.shifts|length|pluralize:" is,s are" }} signed up: </b>
+    <b> This job has {{ job.slots }} slot{{ job.slots|pluralize }} and {{ job.shifts|length }} staffer{{ job.shifts|length|pluralize(" is,s are") }} signed up: </b>
     <table style="width:auto">
     {% for shift in job.shifts %}
         <tr>
             <td> <ul><li></li></ul> </td>
             <td> <a href="../registration/shifts?id={{ shift.attendee.id }}">{{ shift.attendee.full_name }}</a> </td>
             <form method="post" action="unassign_from_job">
-            {% csrf_token %}
+            {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ shift.id }}" />
             <td> <input type="submit" value="Unassign" /> </td>
             </form>

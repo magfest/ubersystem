@@ -16,7 +16,7 @@ This group still has unassigned badges:
 
 Deleting this group will also delete all of these badges and anything linked to them (e.g. volunteer shifts).  This often isn't a good idea, but if you're sure you know what you're doing, click the button below:
 <form method="post" action="delete">
-{% csrf_token %}
+{{ csrf_token() }}
 <input type="hidden" name="id" value="{{ group.id }}" />
 <input type="hidden" name="confirmed" value="true" />
 <input type="submit" value="Delete Group and All Its Badges" />

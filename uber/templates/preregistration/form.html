@@ -40,7 +40,7 @@
             <p class="col-sm-6 col-sm-offset-2">
                 <strong>Dealers:</strong>
                 {% if c.BEFORE_DEALER_REG_PUBLIC %}
-                    Registrations for dealer memberships begin {{ c.DEALER_REG_START|datetime }}.
+                    Registrations for dealer memberships begin {{ c.DEALER_REG_START|datetime() }}.
                 {% else %}
                     Please register <a href="dealer_registration">here</a>.
                 {% endif %}
@@ -78,7 +78,7 @@
         <div class="form-group">
             <label for="name" class="col-sm-2 control-label">Badges</label>
             <div class="col-sm-6">
-                <select name="badges" class="form-control">{% int_options c.MIN_GROUP_SIZE c.MAX_GROUP_SIZE badges %}</select>
+                <select name="badges" class="form-control">{{ int_options(c.MIN_GROUP_SIZE, c.MAX_GROUP_SIZE, badges) }}</select>
             </div>
             (${{ c.GROUP_PRICE }} each)
         </div>
@@ -101,9 +101,9 @@
         <label for="tables" class="col-sm-2 control-label">Tables</label>
         <div class="col-sm-6">
             <select class="form-control" name="tables">
-                {% options c.PREREG_TABLE_OPTS group.tables %}
+                {{ options(c.PREREG_TABLE_OPTS,group.tables) }}
             </select>
-            <span id="table_prices">({% table_prices %})</span>
+            <span id="table_prices">({{ table_prices() }})</span>
         </div>
     </div>
     <div class="form-group">
@@ -113,7 +113,7 @@
     <div class="form-group">
         <label for="badges" class="col-sm-2 control-label">Badges</label>
         <div class="col-sm-6">
-            <select class="form-control" name="badges">{% int_options 1 c.MAX_DEALERS badges %}</select>
+            <select class="form-control" name="badges">{{ int_options(1,c.MAX_DEALERS,badges) }}</select>
             (${{ c.DEALER_BADGE_PRICE }} per badge)
         </div>
     </div>

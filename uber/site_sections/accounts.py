@@ -28,10 +28,10 @@ class Root:
     def update(self, session, password='', message='', **params):
         account = session.admin_account(params, checkgroups=['access'])
         if account.is_new:
-            if c.AT_THE_CON and not password:
+            if c.AT_OR_POST_CON and not password:
                 message = 'You must enter a password'
             else:
-                password = password if c.AT_THE_CON else genpasswd()
+                password = password if c.AT_OR_POST_CON else genpasswd()
                 account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
 
         message = message or check(account)
@@ -39,7 +39,7 @@ class Root:
             message = 'Account settings uploaded'
             account.attendee = session.attendee(account.attendee_id)   # dumb temporary hack, will fix later with tests
             session.add(account)
-            if account.is_new and not c.AT_THE_CON:
+            if account.is_new and not c.AT_OR_POST_CON:
                 body = render('emails/accounts/new_account.txt', {
                     'account': account,
                     'password': password
@@ -52,10 +52,21 @@ class Root:
         session.delete(session.admin_account(id))
         raise HTTPRedirect('index?message={}', 'Account deleted')
 
+    def bulk(self, session, location=None, **params):
+        location = None if location == 'All' else int(location or c.JOB_LOCATION_OPTS[0][0])
+        attendees = session.staffers().filter(*[Attendee.assigned_depts.contains(str(location))] if location else []).all()
+        for attendee in attendees:
+            attendee.trusted_here = attendee.trusted_in(location) if location else attendee.trusted_somewhere
+            attendee.hours_here = sum(shift.job.weighted_hours for shift in attendee.shifts if shift.job.location == location) if location else attendee.weighted_hours
+
+        return {
+            'location':  location,
+            'attendees': attendees
+        }
+
     @unrestricted
     def login(self, session, message='', original_location=None, **params):
-        if not original_location or 'login' in original_location:
-            original_location = 'homepage'
+        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='homepage')
 
         if 'email' in params:
             try:
@@ -114,6 +125,27 @@ class Root:
             'message': message
         }
 
+    def update_password_of_other(self, session, id, message='', updater_password=None, new_password=None, csrf_token=None, confirm_new_password=None):
+        if updater_password is not None:
+            new_password = new_password.strip()
+            updater_account = session.admin_account(cherrypy.session['account_id'])
+            if not new_password:
+                message = 'New password is required'
+            elif not valid_password(updater_password, updater_account):
+                message = 'Your password is incorrect'
+            elif new_password != confirm_new_password:
+                message = 'Passwords do not match'
+            else:
+                check_csrf(csrf_token)
+                account = session.admin_account(id)
+                account.hashed = bcrypt.hashpw(new_password, bcrypt.gensalt())
+                raise HTTPRedirect('index?message={}', 'Account Password Updated')
+
+        return {
+            'account': session.admin_account(id),
+            'message': message
+        }
+
     @unrestricted
     def change_password(self, session, message='', old_password=None, new_password=None, csrf_token=None, confirm_new_password=None):
         if not cherrypy.session.get('account_id'):
@@ -126,6 +158,8 @@ class Root:
                 message = 'New password is required'
             elif not valid_password(old_password, account):
                 message = 'Incorrect old password; please try again'
+            elif new_password != confirm_new_password:
+                message = 'Passwords do not match'
             else:
                 check_csrf(csrf_token)
                 account.hashed = bcrypt.hashpw(new_password, bcrypt.gensalt())
@@ -174,3 +208,37 @@ class Root:
                             'path': '/{}/{}'.format(module_name, name)
                         })
         return {'pages': sorted(pages.items())}
+
+    @ajax
+    def add_bulk_admin_accounts(self, session, message='', **params):
+        ids = params.get('ids')
+        if isinstance(ids, str):
+            ids = str(ids).split(",")
+        success_count = 0
+        for id in ids:
+            try:
+                uuid.UUID(id)
+            except ValueError:
+                pass
+            else:
+                match = session.query(Attendee).filter(Attendee.id == id).first()
+                if match:
+                    account = session.admin_account(params, checkgroups=['access'])
+                    if account.is_new:
+                        password = genpasswd()
+                        account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
+                        account.attendee = match
+                        session.add(account)
+                        body = render('emails/accounts/new_account.txt', {
+                            'account': account,
+                            'password': password
+                        })
+                        send_email(c.ADMIN_EMAIL, match.email, 'New ' + c.EVENT_NAME + ' RAMS Account', body)
+
+                        success_count += 1
+        if success_count == 0:
+            message = 'No new accounts were created.'
+        else:
+            session.commit()
+            message = '%d new accounts have been created, and emailed their passwords.' % success_count
+        return message

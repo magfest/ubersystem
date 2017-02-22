@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base-admin.html" %}
 {% block title %}On-Site Shifts{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
@@ -31,7 +31,7 @@ If you cannot make it to one or more of your existing shifts, contact {{ c.STAFF
     <tbody>
     {% for job in jobs %}
         <tr>
-            <td>{{ job.start_time|datetime:"%b %-d at %H:%M (%-I %p %a)" }}</td>
+            <td>{{ job.start_time|datetime("%b %-d at %H:%M (%-I %p %a)") }}</td>
             <td>{{ job.duration }}</td>
             <td>{{ job.location_label }}</td>
             <td>{{ job.name }}</td>
@@ -42,7 +42,7 @@ If you cannot make it to one or more of your existing shifts, contact {{ c.STAFF
                     Signed Up!
                 {% else %}
                     <form method="post" action="onsite_sign_up">
-                    {% csrf_token %}
+                    {{ csrf_token() }}
                     <input type="hidden" name="job_id" value="{{ job.id }}" />
                     <button>Sign Up</button>
                     </form>

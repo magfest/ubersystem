@@ -25,7 +25,7 @@ def log_pageview(func):
             except:
                 pass  # we don't care about unrestricted pages for this version
             else:
-                sa.Tracking.track_pageview(cherrypy.request.path_info, cherrypy.request.query_string)
+                sa.PageViewTracking.track_pageview()
         return func(*args, **kwargs)
     return with_check
 
@@ -188,9 +188,14 @@ def credit_card(func):
         except HTTPRedirect:
             raise
         except:
-            send_email(c.ADMIN_EMAIL, [c.ADMIN_EMAIL, 'dom@magfest.org'], 'MAGFest Stripe error',
-                       'Got an error while calling charge(self, payment_id={!r}, stripeToken={!r}, ignored={}):\n{}'
-                       .format(payment_id, stripeToken, ignored, traceback.format_exc()))
+            error_text = \
+                'Got an error while calling charge' \
+                '(self, payment_id={!r}, stripeToken={!r}, ignored={}):\n{}\n' \
+                '\n IMPORTANT: This could have resulted in an attendee paying and not being' \
+                'marked as paid in the database. Definitely double check.'\
+                .format(payment_id, stripeToken, ignored, traceback.format_exc())
+
+            report_critical_exception(msg=error_text, subject='ERROR: MAGFest Stripe error (Automated Message)')
             return traceback.format_exc()
     return charge
 
@@ -264,24 +269,13 @@ def renderable_data(data=None):
 # render using the first template that actually exists in template_name_list
 def render(template_name_list, data=None):
     data = renderable_data(data)
-
-    try:
-        template = loader.select_template(listify(template_name_list))
-        rendered = template.render(Context(data))
-    except django.template.base.TemplateDoesNotExist:
-        raise
-    except Exception as e:
-        source_template_name = '[unknown]'
-        django_template_source_info = getattr(e, 'django_template_source')
-        if django_template_source_info:
-            for info in django_template_source_info:
-                if 'LoaderOrigin' in str(type(info)):
-                    source_template_name = info.name
-                    break
-        raise Exception('error rendering template [{}]'.format(source_template_name)) from e
+    env = JinjaEnv.env()
+    template = env.get_template(template_name_list)
+    rendered = template.render(data)
 
     # disabled for performance optimzation.  so sad. IT SHALL RETURN
     # rendered = screw_you_nick(rendered, template)  # lolz.
+
     return rendered.encode('utf-8')
 
 
@@ -333,6 +327,19 @@ def renderable(func):
     return with_rendering
 
 
+def renderable(func):
+    @wraps(func)
+    def with_rendering(*args, **kwargs):
+        result = func(*args, **kwargs)
+        if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
+            return render('closed.html')
+        elif isinstance(result, dict):
+            return render(_get_template_filename(func), result)
+        else:
+            return result
+    return with_rendering
+
+
 def unrestricted(func):
     func.restricted = False
     return func
@@ -369,7 +376,7 @@ def set_renderable(func, acccess):
     """
     Return a function that is flagged correctly and is ready to be called by cherrypy as a request
     """
-    func.restricted = getattr(func, 'restricted', acccess)
+    func.restricted = getattr(func, 'restricted', access)
     new_func = timed(cached_page(sessionized(restricted(renderable(func)))))
     new_func.exposed = True
     return new_func
@@ -385,16 +392,6 @@ class all_renderable:
                 new_func = set_renderable(func, self.needs_access)
                 setattr(klass, name, new_func)
         return klass
-
-
-register = template.Library()
-
-
-def tag(klass):
-    @register.tag(klass.__name__)
-    def tagged(parser, token):
-        return klass(*token.split_contents()[1:])
-    return klass
 
 
 class Validation:

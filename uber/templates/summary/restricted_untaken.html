@@ -12,11 +12,11 @@
         <ul>
             {% for taken_job, untaken_jobs in overlapping %}
                 <li>
-                    <i><a href="../jobs/form?id={{ taken_job.id }}">{{ taken_job.name }}</a> ({{ taken_job.location_label }}) [{% timespan taken_job %}]</i>
+                    <i><a href="../jobs/form?id={{ taken_job.id }}">{{ taken_job.name }}</a> ({{ taken_job.location_label }}) [{{ taken_job.timespan() }}]</i>
                     overlaps with the following:
                     <ul>
                         {% for untaken_job in untaken_jobs %}
-                            <li> <a href="../jobs/form?id={{ untaken_job.id }}">{{ untaken_job.name }}</a> ({{ untaken_job.location_label }}) [{% timespan untaken_job %}]
+                            <li> <a href="../jobs/form?id={{ untaken_job.id }}">{{ untaken_job.name }}</a> ({{ untaken_job.location_label }}) [{{ untaken_job.timespan() }}]
                         {% endfor %}
                     </ul>
                 </li>

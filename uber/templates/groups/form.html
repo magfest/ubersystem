@@ -2,6 +2,8 @@
 {% block title %}Group Form{% endblock %}
 {% block content %}
 
+    {% nav_menu group "form?id={id}" "Group Page" True "history?id={id}" "History" True "index" "Return to Group List" True %}
+
 <script type="text/javascript">
     var unapprove = function(action, convert) {
         if (!$.val("email")) {
@@ -40,7 +42,7 @@
 </div>
 
 <form method="post" action="form" class="form-horizontal">
-{% csrf_token %}
+{{ csrf_token() }}
 <input type="hidden" name="id" value="{{ group.db_id }}" />
 <input type="hidden" name="new_dealer" value="{{ new_dealer }}" />
 
@@ -73,7 +75,7 @@
     <label class="col-sm-2 control-label">Tables</label>
     <div class="col-sm-6">
         <select name="tables">
-            {% options c.ADMIN_TABLE_OPTS group.tables %}
+            {{ options(c.ADMIN_TABLE_OPTS,group.tables) }}
         </select>
     </div>
 </div>
@@ -82,7 +84,7 @@
     <label class="col-sm-2 control-label">Badges</label>
     <div class="col-sm-6">
         <select name="badges">
-            {% int_options 0 c.MAX_GROUP_SIZE group.badges %}
+            {{ int_options(0, c.MAX_GROUP_SIZE, group.badges) }}
         </select>
         {% if not group.is_new %}
             [{{ group.badges_purchased }} badge(s) purchased]
@@ -94,7 +96,7 @@
     <label class="col-sm-2 control-label">Badge Type</label>
     <div class="col-sm-6">
         <select name="badge_type">
-            {% options c.BADGE_OPTS group.leader.badge_type %}
+            {{ options(c.BADGE_OPTS,group.leader.badge_type) }}
         </select>
         Does not change existing badges in this group, only affects newly added badges.
     </div>
@@ -105,7 +107,7 @@
     <label class="col-sm-2 control-label">Ribbon Type</label>
     <div class="col-sm-6">
         <select name="ribbon">
-            {% options c.RIBBON_OPTS group.new_ribbon %}
+            {{ options(c.RIBBON_OPTS,group.new_ribbon) }}
         </select>
          Does not change existing badges in this group, only affects newly added badges.
     </div>
@@ -123,14 +125,14 @@
     <label class="col-sm-2 control-label">Total Group Price</label>
     <div class="col-sm-6">
         $<input type="text" style="width:4em" name="cost" value="{{ group.cost }}" />
-        {% checkbox group.auto_recalc %} Automatically recalculate this number.
+        {{ macros.checkbox(group, 'auto_recalc') }} Automatically recalculate this number.
     </div>
 </div>
 
 <div class="form-group">
     <label class="col-sm-2 control-label">Can Add Badges</label>
     <div class="col-sm-6">
-        {% checkbox group.can_add %} Allow this group to add badges
+        {{ macros.checkbox(group, 'can_add') }} Allow this group to add badges
     </div>
 </div>
 
@@ -234,7 +236,7 @@
     <br/>
     <div style="margin-left:25%">
         <form method="post" action="delete" />
-            {% csrf_token %}
+            {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ group.id }}" />
             <input type="submit" value="Delete Group" />
         </form>
@@ -243,6 +245,7 @@
 {% if not group.is_new %} <a style="font-size:10pt" href="../preregistration/group_members?id={{ group.id }}">Link for group leader</a> {% endif %}
 {% if not group.is_new and group.sorted_attendees %}
     <hr/>
+    <h5>Total Hours: {{ group.attendees|sum:'weighted_hours' }}</h5>
     <h3> Badges: &nbsp; </h3>
     <table style="width:auto;">
     {% for attendee in group.attendees %}
@@ -260,7 +263,7 @@
                     <b>Leader</b>
                 {% elif not attendee.is_unassigned %}
                     <form method="post" action="assign_leader">
-                    {% csrf_token %}
+                    {{ csrf_token() }}
                     <input type="hidden" name="group_id" value="{{ group.id }}" />
                     <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
                     <input type="submit" value="Make Leader" />
@@ -272,7 +275,7 @@
                     <b>(Cannot Unassign group leader)</b>
                 {% elif not attendee.is_unassigned %}
                     <form method="post" action="../registration/delete" onSubmit="return confirm('Are you sure you want to unassign this badge?');">
-                        {% csrf_token %}
+                        {{ csrf_token() }}
                         <input type="hidden" name="id" value="{{ attendee.id }}" />
                         <input type="hidden" name="return_to" value="../groups/form?id={{ group.id }}" />
                         <input type="submit" value="Unassign" />
@@ -281,13 +284,14 @@
             </td>
             <td style="padding:15px;">                
                 {% if attendee.checked_in %}
-                    <b>Checked-in {{ attendee.checked_in_local|time:"fA"|lower }} {{ attendee.checked_in_local|date:"D" }}</b>
+                    <b>Checked-in {{ attendee.checked_in_local|date("%I:%M %p")|lower }} {{ attendee.checked_in_local|date("%D") }}</b>
                 {% endif %}
                 
                 {% if attendee.amount_extra %}
                     <b>Kicked in an extra ${{ attendee.amount_extra }}!</b>
                 {% endif %}
             </td>
+            <td style="padding:15px;">{{ attendee.weighted_hours }} Hours</td>
         </tr>
     {% endfor %}
     </table>

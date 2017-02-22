@@ -16,18 +16,18 @@
 <tr>
     <td width="50%">
         <form method="post" action="assign">
-        {% csrf_token %}
+        {{ csrf_token() }}
         <input type="hidden" name="staffer_id" value="{{ attendee.id }}" />
         <b>Add a Shift:</b>
         <select name="job_id">
-            {% options jobs %}
+            {{ options(jobs) }}
         </select>
         <input type="submit" value="Assign" />
         </form>
     </td>
     <td width="50%" align="right">
         <form method="post" action="update_nonshift">
-        {% csrf_token %}
+        {{ csrf_token() }}
         <input type="hidden" name="id" value="{{ attendee.id }}" />
         <b>Non-shift hours:</b>
         <input type="number" class="focus" name="nonshift_hours" value="{{ attendee.nonshift_hours }}" style="width:3em" />
@@ -50,7 +50,7 @@
             {% endif %}
         {% endif %}
         ({{ attendee.weighted_hours }} weighted hours,
-        {{ attendee.hours|length|add:attendee.nonshift_hours }} actual hours): </b>
+        {{ attendee.hours|length + attendee.nonshift_hours }} actual hours): </b>
         {% if c.AT_OR_POST_CON %}<br />{{ attendee.worked_hours }} hours worked.{% endif %}
     <br/> <br/>
     <table width="95%" align="center">
@@ -69,12 +69,12 @@
             background-color: #F5F5F5;
         }
     </style>
-    {% for shift in attendee.shifts|sortBy:'job.start_time' %}
+    {% for shift in attendee.shifts|sort(attribute='job.start_time') %}
         <tr>
             <td><a href="../jobs/form?id={{ shift.job.id }}">{{ shift.job.name }}</a></td>
             <td><a href="../jobs/index?location={{ shift.job.location }}">{{ shift.job.location_label }}</a></td>
-            <td>{% hour_day shift.job.start_time %}</td>
-            <td>{% hour_day shift.job.end_time %}</td>
+            <td>{{ hour_day(shift.job.start_time) }}</td>
+            <td>{{ hour_day(shift.job.end_time) }}</td>
             <td>{{ shift.job.duration }} (x{{ shift.job.weight }})</td>
             <td>{{ shift.job.weighted_hours}}</td>
             <td>
@@ -82,12 +82,12 @@
                     <i>{{ shift.worked_label }}</i>
                 {% else %}
                     <select onChange="setStatus('{{ shift.id }}', this)">
-                        {% options c.WORKED_STATUS_OPTS shift.worked %}
+                        {{ options(c.WORKED_STATUS_OPTS,shift.worked) }}
                     </select>
                 {% endif %}
             </td>
             <form method="post" action="unassign">
-            {% csrf_token %}
+            {{ csrf_token() }}
             <input type="hidden" name="shift_id" value="{{ shift.id }}" />
             <td style="padding-right:10px"> <input type="submit" value="Unassign" /> </td>
             </form>
@@ -103,7 +103,7 @@
 {% endif %}
 
 <form method="post" action="update_notes">
-{% csrf_token %}
+{{ csrf_token() }}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 <br/> <b>Notes For Later Review:</b> <br/>
 <textarea name="for_review" rows="4" style="margin-left:10px ; margin-top:5px ; width:80%">{{ attendee.for_review }}</textarea>
