@@ -1553,6 +1553,17 @@ class Attendee(MagModel, TakesPaymentMixin):
         wh = sum((shift.job.real_duration * shift.job.weight for shift in self.worked_shifts), 0.0)
         return wh + self.nonshift_hours
 
+    @property
+    def worked_hours_checked(self):
+        # might not be possible to be one line
+        wh = 0.0
+        for shift in self.shifts:
+            if shift.check_in is not None and shift.check_out is not None:
+                worked_time = str(shift.check_out - shift.check_in).split(":")
+                wh += int(worked_time[0])
+                wh += int(worked_time[1]) / 60.0
+        return wh
+
     def requested(self, department):
         return department in self.requested_depts_ints
 

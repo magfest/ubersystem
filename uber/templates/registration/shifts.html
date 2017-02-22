@@ -51,7 +51,10 @@
         {% endif %}
         ({{ attendee.weighted_hours }} weighted hours,
         {{ attendee.hours|length|add:attendee.nonshift_hours }} actual hours): </b>
-        {% if c.AT_OR_POST_CON %}<br />{{ attendee.worked_hours }} hours worked.{% endif %}
+        {% if c.AT_OR_POST_CON %}
+	<div>{{ attendee.worked_hours }} hours worked.</div>
+	<div>{{ attendee.worked_hours_checked }} hours confirmed</div>
+	{% endif %}
     <br/> <br/>
     <table width="95%" align="center">
     <tr style="font-weight:bold">
@@ -78,6 +81,12 @@
             <td>{{ shift.job.duration }} (x{{ shift.job.weight }})</td>
             <td>{{ shift.job.weighted_hours}}</td>
             <td>
+		{% if shift.check_in != None and shift.check_out == None %}
+			Checked-in
+		{% elif shift.check_in != None and shift.check_out != None %}
+			Checked-out
+		{% endif %}
+		{% comment %}
                 {% if shift.worked != c.SHIFT_UNMARKED %}
                     <i>{{ shift.worked_label }}</i>
                 {% else %}
@@ -85,6 +94,7 @@
                         {% options c.WORKED_STATUS_OPTS shift.worked %}
                     </select>
                 {% endif %}
+		{% endcomment %}
             </td>
             <form method="post" action="unassign">
             {% csrf_token %}

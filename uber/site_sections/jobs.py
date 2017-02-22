@@ -19,8 +19,8 @@ def job_dict(job, shifts=None):
             'attendee_id': shift.attendee.id,
             'attendee_name': shift.attendee.full_name,
             'attendee_badge': shift.attendee.badge_num,
-            'check_in':shift.check_in,
-            'check_out':shift.check_out
+            'check_in': shift.check_in,
+            'check_out': shift.check_out
         } for shift in job.shifts]
     }
 
@@ -197,15 +197,17 @@ class Root:
             return job_dict(session.job(shift.job_id))
 
     @ajax
-    def check_in(self, session, shift_id, tgt_time):
+    def shift_check_io(self, session, check_io_action, shift_id, local_check_io_datetime):
         shift = session.shift(shift_id)
-        print(shift_id,tgt_time)
-        if tgt_time == 'ontime':
-            print("setting to ontime")
-            shift.check_in = shift.job.start_time
+        # get UTC time from milliseconds
+        cur_time = c.EVENT_TIMEZONE.localize(datetime.strptime(local_check_io_datetime, "%Y-%m-%dT%H:%M:%S"))
+        if check_io_action == "Check-in":
+            shift.check_in = cur_time
+        elif check_io_action == "Check-out":
+            shift.check_out = cur_time
         session.commit()
-        return {'location':shift.job.location,'tgt_date':shift.job.start_time}
-    
+        raise HTTPRedirect('signups?location=' + str(shift.job.location) + "&tgt_date=" + local_check_io_datetime)
+
     @csrf_protected
     def undo_worked(self, session, id):
         shift = session.shift(id)

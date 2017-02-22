@@ -22,7 +22,9 @@
 {% endblock %}
 
 {% block content %}
- <div class="hidden csrf_token"> {% csrf_token %} </div>
+{% include "jobs/main_menu.html" %}
+
+<div class="hidden csrf_token"> {% csrf_token %} </div>
 
 <div class="row">
 	<div class="col-xs-10 col-xs-offset-1">
@@ -35,6 +37,42 @@
 
 		</div>
 	</div>
+</div>
+  Launch demo modal
+</button>
+
+<!-- Modal -->
+<div class="modal fade" id="check_in_out_modal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="myModalLabel">Modal title</h4>
+      </div>
+      <div class="modal-body">
+	<div class="attendee">Attendee:&nbsp;<span></span></div>
+	<div class="shift">Shift:&nbsp;<span></span></div>
+	<div class="shift_start">Start:&nbsp;<span></span></div>
+	<div class="shift_end">End:&nbsp;<span></span></div>
+		<span class="check_io_time">
+			<select name="check_io_day" id="check_io_day"></select>
+			<input type="time" value="" name="check_io_time" id="check_io_time"/>
+
+		</span>
+
+	<form id="shift_io" action="shift_check_io" method="POST">
+		{% csrf_token %}
+		<input type="hidden" value="" name="check_io_action" id="check_io_action"/>
+		<input type="hidden" value="" name="shift_id" id="shift_id"/>
+		<input type="hidden" value="" name="local_check_io_datetime" id="local_check_io_datetime"/>
+	</form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary check_io_btn" onclick="check_io_submit();">Save changes</button>
+      </div>
+    </div>
+  </div>
 </div>
 {% if c.POST_CON and checklist.relevant %}
     <div class="center">
@@ -62,25 +100,6 @@
 <script type="text/javascript" src="../static/js/fullcalendar.min.js"></script>
 <script type="text/javascript">
 var eventList;
-function get_event_button(event) {
-        var buttonList = '<span class="pull-right">';
-        if(event.type=="shift") {
-                if(event.check_in == "") {
-                       buttonList += '<button type="button" class="btn btn-primary" ';
-                       buttonList += 'onclick="check_in(' + event.idx +  ",'ontime')" + '"';
-                       buttonList += '>Check-in at Start</button>';
-                       buttonList += '<button type="button" class="btn btn-warning">Check-in Manual</button>';
-               } else if(event.check_out == "") {
-                       buttonList += '<button type="button" class="btn btn-primary" ';
-                       buttonList += 'onclick="check_out(' + event.idx +  ",'ontime')" + '"';
-                       buttonList += '>Check-out at End</button>';
-                       buttonList += '<button type="button" class="btn btn-warning">Check-out Manual</button>';
-
-               }
-        }
-        buttonList += '</span>';
-        return buttonList
-}
         $(document).ready(function() {
                 eventList =  new Array();
                     {% for job in jobsb %}
@@ -97,6 +116,8 @@ function get_event_button(event) {
 			{% for shift in job.shifts %}
 				var cur_shift = {
                                         title : "{{job.name}} {{shift.attendee.full_name}}",
+					attendee: "{{shift.attendee.full_name}}",
+					job: "{{job.name}}",
                                         start : "{{ job.start_time|datetime:"%Y-%m-%dT%H:%M:%S" }}",
                                         end: "{{job.start_time|shift_end:job.duration}}",
 					type: "shift",
@@ -112,7 +133,6 @@ function get_event_button(event) {
                                         {% else %}
                                                 check_out:""
                                         {% endif %}
-
                                 };
 				
 			        eventList.push(cur_shift);
@@ -147,21 +167,82 @@ function get_event_button(event) {
                         $("#shift_cal").fullCalendar('gotoDate', eventList[0].start);
                 }
 
-
         });
+
+
+function get_event_button(event) {
+        var buttonList = '<span class="pull-right">';
+        if(event.type=="shift") {
+		if(event.check_in == "") {
+			buttonList += '<button type="button" class="btn btn-primary btn-lg" data-toggle="modal" data-target="#check_in_out_modal" onclick="update_modal(' + event.idx+ ')">';
+
+                	buttonList += 'Check in';
+	               buttonList += '</button>';
+
+		} else if (event.check_out==""){
+		                buttonList += '<button type="button" class="btn btn-primary btn-lg" data-toggle="modal" data-target="#check_in_out_modal" onclick="update_modal(' + event.idx+ ')">';
+
+                	buttonList += 'Check out';
+                buttonList += '</button>';
+
+		}
+        }
+        buttonList += '</span>';
+        return buttonList
+}
+
+
+function update_modal(idx) {
+	var cur_event = eventList[idx];
+	// update default time 
+	var actionName = "";
+	console.log(cur_event);
+        if(cur_event.check_in == "") {
+		actionName = "Check-in";
+		$("#check_io_time").val(eventList[idx].start.substring(11,16));
+		
+	}  else if (cur_event.check_out == "") {
+		actionName = "Check-out";
+		console.log("HIT");
+		$("#check_io_time").val(eventList[idx].end.substring(11,16));
+	}
+        $("#myModalLabel").html(actionName + " Form");
+	$("#check_in_out_modal .attendee span").html(cur_event.attendee);
+	$("#check_in_out_modal .shift span").html(cur_event.job);
+	//display scheduled duration
+	$("#check_in_out_modal .shift_start span").html(cur_event.start);
+	$("#check_in_out_modal .shift_end span").html(cur_event.end);
+	$("#check_in_out_modal #check_io_action").val(actionName);
+	$("#check_in_out_modal #shift_id").val(cur_event.id);
+	// create option select
+	var curdate = cur_event.start.substring(0,10);
+	$("#check_io_day").append($("<option>",{value:curdate,text:curdate}));
+	if(cur_event.end.substring(0,10)!=curdate) {
+		curdate = cur_event.end.substring(0,10);
+		$("#check_io_day").append($("<option>",{value:curdate,text:curdate}));		
+	}
+	$("#check_in_out_modal .btn-primary.check_io_btn").html(actionName);
+}
+function check_io_submit() {
+	//get UTC epoch from input time
+	var tgt_time = $("#check_io_day").val() + "T" + $("#check_io_time").val() + ":00";
+	$("#local_check_io_datetime").val(tgt_time);
+	$("form#shift_io").submit();
+};
 function check_in(idx,tgt_time) {
 	var cur_event = eventList[idx];
 
         var postData = {};
         postData['csrf_token'] =  $("div.csrf_token input").attr('value');
         var confirmStr = "Do you check in this volunteer";
-        if (tgt_time=='ontime') {
-                confirmStr += "at " + cur_event.start;
-        }
+
         confirmStr += "?"
         var r = confirm(confirmStr);
         if (r == true) {
-                var tgtShiftURL = "check_in?shift_id="+ cur_event.id+"&tgt_time=" + tgt_time;
+                var tgtShiftURL = "check_in_out?";
+		tgtShiftURL += "shift_id="+ cur_event.id;
+		tgtShiftURL += "&action=check_in";
+		tgtShiftURL += "&tgt_time=" + tgt_time;
                 $.post( tgtShiftURL,postData,function( data,status ) {
                         var tgtURL = window.location.pathname;
 			tgtURL += "?location=" + data["location"];
