@@ -108,7 +108,7 @@
 {% endif %}
 
 {% if c.DONATIONS_ENABLED and c.PAGE_PATH != '/registration/form' %}
-    {% if c.PREREG_DONATION_OPTS.length > 1 or attendee.amount_extra %}
+    {% if c.PREREG_DONATION_OPTS|length > 1 or attendee.amount_extra %}
         <script type="text/javascript">
             var donationChanged = function () {
                 setVisible('.affiliate-row', $.val('amount_extra') > 0);
