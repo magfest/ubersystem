@@ -10,8 +10,9 @@ def date_filter(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
     # TODO: if this is a datetime.time object, do we have to correct for timezone with .astimezone()?
     return ' '.join(dt.strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm') if dt else ''
 
+
 # TODO: fix this to work with JINJA2
-@register.filter
+@JinjaEnv.jinja_filter()
 def shift_end(dt, duration):
     curdate = dt + timedelta(hours=int(duration))
     fmt = "%Y-%m-%dT%H:%M:%S"
@@ -98,7 +99,8 @@ def remove_newlines(string):
     return string.replace('\n', ' ')
 
 
-@register.filter
+# TODO: fix this to work with JINJA2
+@JinjaEnv.jinja_filter()
 def form_link(model):
     if isinstance(model, Attendee):
         return safe_string('<a href="../registration/form?id={}">{}</a>'.format(model.id, model.full_name))
@@ -121,7 +123,7 @@ def numeric_range(count):
 
 
 # TODO: fix this to work with JINJA2
-@register.filter
+@JinjaEnv.jinja_filter()
 def sum(values, attribute):
     sum = 0
     for value in values:
