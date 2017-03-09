@@ -372,7 +372,7 @@ def restricted(func):
     return with_restrictions
 
 
-def set_renderable(func, acccess):
+def set_renderable(func, access):
     """
     Return a function that is flagged correctly and is ready to be called by cherrypy as a request
     """
