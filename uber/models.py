@@ -1450,16 +1450,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
         ], else_=func.lower(cls.last_name + ', ' + cls.first_name))
 
-    @hybrid_property
-    def last_first(self):
-        return self.unassigned_name or '{self.last_name}, {self.first_name}'.format(self=self)
-
-    @last_first.expression
-    def last_first(cls):
-        return case([
-            (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
-        ], else_=func.lower(cls.last_name + ', ' + cls.first_name))
-
     @property
     def watchlist_guess(self):
         try:
@@ -1948,7 +1938,7 @@ class ArbitraryCharge(MagModel):
 
 
 class ApprovedEmail(MagModel):
-    ident = Column('subject', UnicodeText)  # TODO: rename column to "ident" in the database; will require a db migration
+    ident = Column(UnicodeText)
 
     _repr_attr_names = ['ident']
 
