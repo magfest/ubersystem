@@ -452,14 +452,37 @@ class Session(SessionManager):
                 order.append(col.desc() if attr.startswith('-') else col)
             return self.order_by(*order)
 
-        def icontains(self, attr=None, val=None, **filters):
-            query = self
+        def icontains_condition(self, attr=None, val=None, **filters):
+            """
+            Take column names and values, and build a condition/expression
+            that is true when all named columns contain the corresponding values, case-insensitive.
+
+            This operation is very similar to the "contains" method in SQLAlchemy,
+            but case insensitive - i.e. it uses "ilike" instead of "like".
+
+            Note that an "and" is used: all columns must match, not just one.
+            More complex conditions can be built by using or_/etc on the result of this method.
+            """
+            conditions = []
             if len(self.column_descriptions) == 1 and filters:
                 for colname, val in filters.items():
-                    query = query.filter(getattr(self.model, colname).ilike('%{}%'.format(val)))
+                    conditions.append(getattr(self.model, colname).ilike('%{}%'.format(val)))
             if attr and val:
-                query = self.filter(attr.ilike('%{}%'.format(val)))
-            return query
+                conditions.append(attr.ilike('%{}%'.format(val)))
+            return and_(*conditions)
+
+        def icontains(self, attr=None, val=None, **filters):
+            """
+            Take the names of columns and values, and filters the query to items
+            where each named columns contain the values, case-insensitive.
+
+            This operation is very similar to calling query.filter(contains(...)),
+            but works with a case-insensitive "contains".
+
+            Note that an "and" is used: all columns must match, not just one.
+            """
+            condition = self.icontains_condition(attr=attr, val=val, **filters)
+            return self.filter(condition)
 
         def iexact(self, **filters):
             return self.filter(*[func.lower(getattr(self.model, attr)) == func.lower(val) for attr, val in filters.items()])
@@ -742,9 +765,15 @@ class Session(SessionManager):
                 first, last = terms
                 if first.endswith(','):
                     last, first = first.strip(','), last
-                return attendees.icontains(first_name=first, last_name=last)
+                name_cond = attendees.icontains_condition(first_name=first, last_name=last)
+                legal_name_cond = attendees.icontains_condition(legal_name="{}%{}".format(first, last))
+                return attendees.filter(or_(name_cond, legal_name_cond))
             elif len(terms) == 1 and terms[0].endswith(','):
-                return attendees.icontains(last_name=terms[0].rstrip(','))
+                last = terms[0].rstrip(',')
+                name_cond = attendees.icontains_condition(last_name=last)
+                # Known issue: search may include first name if legal name is set
+                legal_name_cond = attendees.icontains_condition(legal_name=last)
+                return attendees.filter(or_(name_cond, legal_name_cond))
             elif len(terms) == 1 and terms[0].isdigit():
                 if len(terms[0]) == 10:
                     return attendees.filter(or_(Attendee.ec_phone == terms[0], Attendee.cellphone == terms[0]))
@@ -760,7 +789,7 @@ class Session(SessionManager):
                                                 Group.public_id == search_uuid))
 
             checks = [Group.name.ilike('%' + text + '%')]
-            for attr in ['first_name', 'last_name', 'badge_printed_name', 'email', 'comments', 'admin_notes', 'for_review']:
+            for attr in ['first_name', 'last_name', 'legal_name', 'badge_printed_name', 'email', 'comments', 'admin_notes', 'for_review']:
                 checks.append(getattr(Attendee, attr).ilike('%' + text + '%'))
             return attendees.filter(or_(*checks))
 
@@ -1038,6 +1067,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     placeholder   = Column(Boolean, default=False, admin_only=True)
     first_name    = Column(UnicodeText)
     last_name     = Column(UnicodeText)
+    legal_name    = Column(UnicodeText)
     email         = Column(UnicodeText)
     birthdate     = Column(Date, nullable=True, default=None)
     age_group     = Column(Choice(c.AGE_GROUPS), default=c.AGE_UNKNOWN, nullable=True)
