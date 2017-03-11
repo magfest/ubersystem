@@ -131,6 +131,13 @@
 </div>
 
 <div class="form-group">
+    <label class="col-sm-2 control-label">Amount Refunded</label>
+    <div class="col-sm-6">
+        $<input type="text" style="width:4em" name="amount_refunded" value="{{ group.amount_refunded }}" />
+    </div>
+</div>
+
+    <div class="form-group">
     <label class="col-sm-2 control-label">Can Add Badges</label>
     <div class="col-sm-6">
         {% checkbox group.can_add %} Allow this group to add badges
