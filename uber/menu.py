@@ -8,6 +8,9 @@ class MenuItem:
     name = None     # name of Menu item to show
 
     def __init__(self, href=None, access=None, submenu=None, name=None):
+        assert submenu or href, "menu items must contain ONE nonempty: href or submenu"
+        assert not submenu or not href, "menu items must not contain both a href and submenu"
+
         if submenu:
             self.submenu = listify(submenu)
         else:
@@ -16,18 +19,58 @@ class MenuItem:
         self.name = name
         self.access = access
 
-    def __getitem__(self, key):
-        for sm in self.submenu:
-            if sm.name == key:
-                return sm
-
     def append_menu_item(self, m):
-        # if we aren't a submenu, convert us to one now
+        """
+        If we're appending a new menu item, and we aren't a submenu, convert us to one now.
+        Create a new submenu and append a new item to it with the same name and href as us.
+
+        Example:
+            Original menu:
+                (name='Rectangles', href="rectangle.html')
+
+            Append to it a new menu item:
+                [name='Squares', href='square.html']
+
+            New result is:
+                (name='Rectangles', submenu=
+                    [
+                        (Name='Rectangles', href="rectangle.html"),
+                        (Name='Squares', href="square.html")
+                    ]
+                )
+        """
         if not self.submenu and self.href:
             self.submenu = [MenuItem(name=self.name, href=self.href)]
             self.href = None
 
         self.submenu.append(m)
+
+    def render_items_filtered_by_current_access(self):
+        """
+        Returns: dict of menu items which are allowed to be seen by the logged in user's access levels
+        """
+        out = {}
+
+        allowed = True
+        if self.access:
+            allowed = False
+            for access_level in listify(self.access):
+                if access_level in sa.AdminAccount.access_set():
+                    allowed = True
+                    break
+
+        if not allowed:
+            return None
+
+        out['name'] = self.name
+        if self.submenu:
+            out['submenu'] = []
+            for submenu in self.submenu:
+                out['submenu'].append(submenu.render_items_filtered_by_current_access())
+        else:
+            out['href'] = self.href
+
+        return out
 
 
 c.MENU = MenuItem(name='Root', submenu=[

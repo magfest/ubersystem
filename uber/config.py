@@ -311,41 +311,9 @@ class Config(_Overridable):
     def REMAINING_BADGES(self):
         return max(0, self.MAX_BADGE_SALES - self.BADGES_SOLD)
 
-    class MenuItemEncoder(json.JSONEncoder):
-        def default(self, o):
-            out = {}
-
-            # check if user is allowed to access this menu item
-            allowed = True
-            if 'access' in o.__dict__ and o.access:
-                allowed = False
-                for a in listify(o.access):
-                    if a in sa.AdminAccount.access_set():
-                        allowed = True
-                        break
-
-            if not allowed:
-                return None
-
-            # exclude None values and access tokens from output
-            for key, value in o.__dict__.items():
-                if value and key not in ['access']:
-                    out[key] = value
-
-            out['name_key'] = o.name.replace(' ', '_').lower()
-            return out
-
-    @property
-    def MENU_JSON(self):
-        return json.dumps(c.MENU.submenu, cls=self.MenuItemEncoder, sort_keys=True, indent=2)
-
-    # HACK. if we do end up doing this, just get rid of the JSON altogether, we don't need it
-    # this is a proof of concept for doing foreach() in the tempplates, not in javascript.
-    #
-    # this is totally backwards, don't use as-is, testing only.
-    @property
-    def MENU_JSON_DECODED(self):
-        return json.loads(self.MENU_JSON)
+    @request_cached_property
+    def MENU_FILTERED_BY_ACCESS_LEVELS(self):
+        return c.MENU.render_items_filtered_by_current_access()
 
     @request_cached_property
     def ADMIN_ACCESS_SET(self):

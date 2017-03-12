@@ -162,7 +162,7 @@
                     {% block mainmenu %}
                     <ul class="nav navbar-nav" id="main-menu">
                         {% block mainmenu_items %}
-                        {% for menu_item in c.MENU_JSON_DECODED %}
+                        {% for menu_item in c.MENU_FILTERED_BY_ACCESS_LEVELS.submenu %}
                             {% if menu_item.href %}
                                 <li><a href="{{ menu_item.href }}">{{ menu_item.name }}</a></li>
                             {% elif menu_item.submenu %}
@@ -176,7 +176,7 @@
                                     <ul class="dropdown-menu" role="menu">
                                     {% for submenu_item in menu_item.submenu %}
                                         <li>
-                                            {% if not submenu_item.href %}
+                                            {% if submenu_item.href %}
                                                 <a href="{{ submenu_item.href }}">
                                             {% else %}
                                                 <a class="disabled">
