@@ -22,6 +22,9 @@ psql
     CREATE DATABASE mydbname;
 psql -d mydbname -f backupfile.sql
 
+# grant all on a database to a user
+GRANT ALL PRIVILEGES ON DATABASE some_database_name TO some_username;
+
 # after restoring the DB, check the most recent registered attendee
 SELECT registered FROM attendee ORDER BY registered desc LIMIT 1;
 

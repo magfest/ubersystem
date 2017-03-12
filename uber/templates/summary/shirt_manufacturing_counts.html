@@ -1,0 +1,31 @@
+{% extends "base-admin.html" %}
+{% block title %}Shirt Counts{% endblock %}
+{% block content %}
+
+<style type="text/css">
+    td { padding: 2px 5px 2px 5px; }
+</style>
+
+<h2>Shirt Manufacturing Reports</h2>
+<p>
+    This report is designed to give you the correct numbers ready to be sent to the manufacturer.
+    We recommend adding in a few extra shirts for safety margins to these numbers.
+    {% if c.SHIRTS_PER_STAFFER > 1 %}
+        <br/> <br/>
+        <b>NOTE:</b> The "Staff Shirts" report shows the result of each staffer receiving {{ c.SHIRTS_PER_STAFFER }} shirts.
+    {% endif %}
+</p>
+
+{% for name, category in categories %}
+    <h3>{{ name }}</h3>
+    <table>
+    {% for label, counts in category %}
+        <tr>
+            <td>{{ label }}: </td>
+            <td>{{ counts }}</td>
+        </tr>
+    {% endfor %}
+    </table>
+{% endfor %}
+
+{% endblock %}

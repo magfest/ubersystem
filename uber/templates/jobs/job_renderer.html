@@ -72,7 +72,7 @@
                                 return $('<tr></tr>')
                                     .attr('id', 'shift_' + shift.id)
                                     .append('<td> <ul><li></li></ul> </td>')
-                                    .append('<td> <a href="../registration/shifts?id=' + shift.attendee_id + '">' + shift.attendee_name + '</a>&nbsp;&nbsp; </td>')
+                                    .append('<td> <a href="../registration/shifts?id=' + shift.attendee_id + '">' + shift.attendee_name  + ' (#' + shift.attendee_badge + ')</a>&nbsp;&nbsp; </td>')
                                     .append(
                                         $('<button>Unassign</button>').click(function () {
                                             $.post('unassign', {

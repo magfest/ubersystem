@@ -102,15 +102,26 @@ class Config(_Overridable):
     def get_presold_oneday_price(self, badge_type):
         return self.BADGE_PRICES['single_day'].get(self.BADGES[badge_type], self.DEFAULT_SINGLE_DAY)
 
-    def get_attendee_price(self, dt):
+    def get_attendee_price(self, dt=None):
         price = self.INITIAL_ATTENDEE
         if self.PRICE_BUMPS_ENABLED:
+
             for day, bumped_price in sorted(self.PRICE_BUMPS.items()):
-                if (dt or datetime.now(UTC)) >= day:
+                if (dt or sa.localized_now()) >= day:
                     price = bumped_price
+
+                # Only check bucket-based pricing if we're not checking an existing badge AND
+                # we don't have hardcore_optimizations_enabled config on AND we're not on-site
+                # (because on-site pricing doesn't involve checking badges sold).
+                if not dt and not c.HARDCORE_OPTIMIZATIONS_ENABLED and sa.localized_now() < c.EPOCH:
+                    badges_sold = self.BADGES_SOLD
+
+                    for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
+                        if badges_sold >= badge_cap and bumped_price > price:
+                            price = bumped_price
         return price
 
-    def get_group_price(self, dt):
+    def get_group_price(self, dt=None):
         return self.get_attendee_price(dt) - self.GROUP_DISCOUNT
 
     def get_badge_count_by_type(self, badge_type):
@@ -126,7 +137,7 @@ class Config(_Overridable):
     def DEALER_REG_OPEN(self):
         return self.AFTER_DEALER_REG_START and self.BEFORE_DEALER_REG_SHUTDOWN
 
-    @property
+    @request_cached_property
     def BADGES_SOLD(self):
         with sa.Session() as session:
             attendees = session.query(sa.Attendee)
@@ -141,15 +152,15 @@ class Config(_Overridable):
 
     @property
     def BADGE_PRICE(self):
-        return self.get_attendee_price(sa.localized_now())
+        return self.get_attendee_price()
 
     @property
     def GROUP_PRICE(self):
-        return self.get_group_price(sa.localized_now())
+        return self.get_group_price()
 
     @property
     def PREREG_BADGE_TYPES(self):
-        types = [self.ATTENDEE_BADGE, self.PSEUDO_DEALER_BADGE, self.IND_DEALER_BADGE]
+        types = [self.ATTENDEE_BADGE, self.PSEUDO_DEALER_BADGE]
         for reg_open, badge_type in [(self.BEFORE_GROUP_PREREG_TAKEDOWN, self.PSEUDO_GROUP_BADGE)]:
             if reg_open:
                 types.append(badge_type)
@@ -167,8 +178,42 @@ class Config(_Overridable):
     def PREREG_DONATION_OPTS(self):
         if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
             return self.DONATION_TIER_OPTS
-        else:
+        elif self.BEFORE_SHIRT_DEADLINE and self.SHIRT_AVAILABLE:
             return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS if amt < self.SUPPORTER_LEVEL]
+        else:
+            return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS if amt < self.SHIRT_LEVEL]
+
+    @property
+    def PREREG_DONATION_DESCRIPTIONS(self):
+        # include only the items that are actually available for purchase
+        if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
+            donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
+        elif self.BEFORE_SHIRT_DEADLINE and self.SHIRT_AVAILABLE:
+            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
+                             if tier[1]['price'] < self.SUPPORTER_LEVEL]
+        else:
+            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
+                             if tier[1]['price'] < self.SHIRT_LEVEL]
+
+        donation_list = sorted(donation_list, key=lambda tier: tier[1]['price'])
+
+        # add in all previous descriptions.  the higher tiers include all the lower tiers
+        for entry in donation_list:
+            all_desc_and_links = \
+                [(tier[1]['description'], tier[1]['link']) for tier in donation_list
+                    if tier[1]['price'] > 0 and tier[1]['price'] < entry[1]['price']] \
+                + [(entry[1]['description'], entry[1]['link'])]
+
+            # maybe slight hack. descriptions and links are separated by '|' characters so we can have multiple
+            # items displayed in the donation tiers.  in an ideal world, these would already be separated in the INI
+            # and we wouldn't have to do it here.
+            entry[1]['all_descriptions'] = []
+            for item in all_desc_and_links:
+                descriptions = item[0].split('|')
+                links = item[1].split('|')
+                entry[1]['all_descriptions'] += list(zip(descriptions, links))
+
+        return [dict(tier[1]) for tier in donation_list]
 
     @property
     def PREREG_DONATION_TIERS(self):
@@ -213,8 +258,16 @@ class Config(_Overridable):
         return not self.AT_OR_POST_CON
 
     @property
+    def FINAL_EMAIL_DEADLINE(self):
+        return min(c.UBER_TAKEDOWN, c.EPOCH)
+
+    @property
     def CSRF_TOKEN(self):
         return cherrypy.session['csrf_token'] if 'csrf_token' in cherrypy.session else ''
+
+    @property
+    def QUERY_STRING(self):
+        return cherrypy.request.query_string
 
     @property
     def PAGE_PATH(self):
@@ -224,7 +277,7 @@ class Config(_Overridable):
     def PAGE(self):
         return cherrypy.request.path_info.split('/')[-1]
 
-    @property
+    @request_cached_property
     def CURRENT_ADMIN(self):
         try:
             with sa.Session() as session:
@@ -236,16 +289,23 @@ class Config(_Overridable):
     def HTTP_METHOD(self):
         return cherrypy.request.method
 
-    @property
-    def SUPPORTER_COUNT(self):
+    def get_kickin_count(self, kickin_level):
         with sa.Session() as session:
             attendees = session.query(sa.Attendee)
             individual_supporters = attendees.filter(sa.Attendee.paid.in_([self.HAS_PAID, self.REFUNDED]),
-                                                     sa.Attendee.amount_extra >= self.SUPPORTER_LEVEL).count()
+                                                     sa.Attendee.amount_extra >= kickin_level).count()
             group_supporters = attendees.filter(sa.Attendee.paid == self.PAID_BY_GROUP,
-                                                sa.Attendee.amount_extra >= self.SUPPORTER_LEVEL,
-                                                sa.Attendee.amount_paid >= self.SUPPORTER_LEVEL).count()
+                                                sa.Attendee.amount_extra >= kickin_level,
+                                                sa.Attendee.amount_paid >= kickin_level).count()
             return individual_supporters + group_supporters
+
+    @request_cached_property
+    def SUPPORTER_COUNT(self):
+        return self.get_kickin_count(self.SUPPORTER_LEVEL)
+
+    @request_cached_property
+    def SHIRT_COUNT(self):
+        return self.get_kickin_count(self.SHIRT_LEVEL)
 
     @property
     def REMAINING_BADGES(self):
@@ -287,6 +347,20 @@ class Config(_Overridable):
     def MENU_JSON_DECODED(self):
         return json.loads(self.MENU_JSON)
 
+    @request_cached_property
+    def ADMIN_ACCESS_SET(self):
+        return sa.AdminAccount.access_set()
+
+    @request_cached_property
+    def EMAIL_APPROVED_IDENTS(self):
+        with sa.Session() as session:
+            return {ae.ident for ae in session.query(sa.ApprovedEmail)}
+
+    @request_cached_property
+    def PREVIOUSLY_SENT_EMAILS(self):
+        with sa.Session() as session:
+            return set(session.query(sa.Email.model, sa.Email.fk_id, sa.Email.ident))
+
     def __getattr__(self, name):
         if name.split('_')[0] in ['BEFORE', 'AFTER']:
             date_setting = getattr(c, name.split('_', 1)[1])
@@ -297,7 +371,7 @@ class Config(_Overridable):
             else:
                 return sa.localized_now() > date_setting
         elif name.startswith('HAS_') and name.endswith('_ACCESS'):
-            return getattr(c, '_'.join(name.split('_')[1:-1])) in sa.AdminAccount.access_set()
+            return getattr(c, '_'.join(name.split('_')[1:-1])) in c.ADMIN_ACCESS_SET
         elif name.endswith('_COUNT'):
             item_check = name.rsplit('_', 1)[0]
             badge_type = getattr(self, item_check, None)
@@ -377,8 +451,17 @@ c.EVENT_TIMEZONE = pytz.timezone(c.EVENT_TIMEZONE)
 c.make_dates(_config['dates'])
 
 c.PRICE_BUMPS = {}
+c.PRICE_LIMITS = {}
 for _opt, _val in c.BADGE_PRICES['attendee'].items():
-    c.PRICE_BUMPS[c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d'))] = _val
+    try:
+        if ' ' in _opt:
+            date = c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d %H%M'))
+        else:
+            date = c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d'))
+    except ValueError:
+        c.PRICE_LIMITS[int(_opt)] = _val
+    else:
+        c.PRICE_BUMPS[date] = _val
 
 
 def _is_intstr(s):
@@ -430,7 +513,7 @@ for _name, _section in _config['age_groups'].items():
 c.TABLE_PRICES = defaultdict(lambda: _config['table_prices']['default_price'],
                              {int(k): v for k, v in _config['table_prices'].items() if k != 'default_price'})
 c.PREREG_TABLE_OPTS = list(range(1, c.MAX_TABLES + 1))
-c.ADMIN_TABLE_OPTS = list(range(0, 9))
+c.ADMIN_TABLE_OPTS = [decimal.Decimal(x) for x in range(0, 9)]
 
 c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
 c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]
@@ -451,6 +534,9 @@ c.TEARDOWN_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (c.ESCHATON + ti
                      + [(dt, dt.strftime('%I %p %a'))
                         for dt in ((c.ESCHATON + timedelta(days=1)).replace(hour=10) + timedelta(hours=i) for i in range(12))]
 
+# code for all time slots
+c.CON_TOTAL_LENGTH = int((c.TEARDOWN_TIME_OPTS[-1][0] - c.SETUP_TIME_OPTS[0][0]).seconds / 3600)
+c.ALL_TIME_OPTS = [(dt, dt.strftime('%I %p %a %d %b')) for dt in ((c.EPOCH - timedelta(days=c.SETUP_SHIFT_DAYS) + timedelta(hours=i)) for i in range(c.CON_TOTAL_LENGTH))]
 
 c.EVENT_NAME_AND_YEAR = c.EVENT_NAME + (' {}'.format(c.YEAR) if c.YEAR else '')
 c.EVENT_YEAR = c.EPOCH.strftime('%Y')
@@ -496,12 +582,17 @@ c.PREREG_SHIRT_OPTS = c.SHIRT_OPTS[1:]
 c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + list(c.PREREG_SHIRT_OPTS)
 c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt, desc) if amt else desc) for amt, desc in c.DONATION_TIER_OPTS]
 
+c.DONATION_TIER_DESCRIPTIONS = _config.get('donation_tier_descriptions', {})
+for tier in c.DONATION_TIER_DESCRIPTIONS.items():
+    tier[1]['price'] = [amt for amt, name in c.DONATION_TIERS.items() if name == tier[1]['name']][0]
+
 c.STORE_ITEM_NAMES = [desc for val, desc in c.STORE_PRICE_OPTS]
 c.FEE_ITEM_NAMES = [desc for val, desc in c.FEE_PRICE_OPTS]
 
 c.WRISTBAND_COLORS = defaultdict(lambda: c.WRISTBAND_COLORS[c.DEFAULT_WRISTBAND], c.WRISTBAND_COLORS)
 
 c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
+c.EVENT_QR_ID = c.EVENT_QR_ID or c.EVENT_NAME_AND_YEAR.replace(' ', '_').lower()
 
 try:
     _items = sorted([int(step), url] for step, url in _config['volunteer_checklist'].items() if url)
@@ -512,3 +603,8 @@ else:
     c.VOLUNTEER_CHECKLIST = [url for step, url in _items]
 
 stripe.api_key = c.STRIPE_SECRET_KEY
+
+# plugins can use this to append paths which will be included as <script> tags, e.g. if a plugin
+# appends '../static/foo.js' to this list, that adds <script src="../static/foo.js"></script> to
+# all of the pages on the site except for preregistration pages (for performance)
+c.JAVASCRIPT_INCLUDES = []

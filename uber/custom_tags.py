@@ -9,6 +9,13 @@ from datetime import datetime  # noqa: now that we've registered our filter, re-
 
 
 @register.filter
+def shift_end(dt, duration):
+    curdate = dt + timedelta(hours=int(duration))
+    fmt = "%Y-%m-%dT%H:%M:%S"
+    return ' '.join(curdate.astimezone(c.EVENT_TIMEZONE).strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm')
+
+
+@register.filter
 def timestamp(dt):
     from time import mktime
     return str(int(mktime(dt.timetuple())))
@@ -16,7 +23,7 @@ def timestamp(dt):
 
 @register.filter
 def jsonize(x):
-    return SafeString(json.dumps(x, cls=serializer))
+    return SafeString(html.escape(json.dumps(x, cls=serializer), quote=False))
 
 
 @register.filter
@@ -40,8 +47,15 @@ def remove_newlines(string):
 
 
 @register.filter
-def form_link(attendee):
-    return SafeString('<a href="../registration/form?id={}">{}</a>'.format(attendee.id, attendee.full_name))
+def form_link(model):
+    if isinstance(model, Attendee):
+        return SafeString('<a href="../registration/form?id={}">{}</a>'.format(model.id, model.full_name))
+    elif isinstance(model, Group):
+        return SafeString('<a href="../groups/form?id={}">{}</a>'.format(model.id, model.name))
+    elif isinstance(model, Job):
+        return SafeString('<a href="../jobs/form?id={}">{}</a>'.format(model.id, model.name))
+    else:
+        return model.name or model.full_name
 
 
 @register.filter
@@ -52,6 +66,14 @@ def dept_checklist_path(conf, attendee=None):
 @register.filter
 def numeric_range(count):
     return range(count)
+
+
+@register.filter
+def sum(values, attribute):
+    sum = 0
+    for value in values:
+        sum += getattr(value, attribute, 0)
+    return sum
 
 
 def _getter(x, attrName):
@@ -175,14 +197,15 @@ class options(template.Node):
                 val = val.strftime(c.TIMESTAMP_FORMAT)
             else:
                 selected = 'selected="selected"' if str(val) == str(default) else ''
-            val  = str(val).replace('"',  '&quot;').replace('\n', '')
-            desc = str(desc).replace('"', '&quot;').replace('\n', '')
+            val  = html.escape(str(val), quote=False).replace('"',  '&quot;').replace('\n', '')
+            desc = html.escape(str(desc), quote=False).replace('"', '&quot;').replace('\n', '')
             results.append('<option value="{}" {}>{}</option>'.format(val, selected, desc))
         return '\n'.join(results)
 
 
 @tag
 class checkbox(template.Node):
+
     def __init__(self, field):
         model, self.field_name = field.rsplit('.', 1)
         self.model = Variable(model)
@@ -190,7 +213,7 @@ class checkbox(template.Node):
     def render(self, context):
         model = self.model.resolve(context)
         checked = 'checked' if getattr(model, self.field_name) else ''
-        return '<input type="checkbox" name="{}" value="1" {} />'.format(self.field_name, checked)
+        return '<input type="checkbox" name="{}" id="{}" value="1" {} />'.format(self.field_name, self.field_name, checked)
 
 
 @tag
@@ -207,7 +230,7 @@ class checkgroup(template.Node):
         results = []
         for num, desc in options:
             checked = 'checked' if str(num) in defaults else ''
-            results.append('<nobr><input type="checkbox" name="{}" value="{}" {} /> {}</nobr>'
+            results.append('<label style="font-weight: normal;"><input type="checkbox" name="{}" value="{}" {} /> {}</label>'
                            .format(self.field_name, num, checked, desc))
         return '&nbsp;&nbsp\n'.join(results)
 
@@ -261,6 +284,7 @@ class radiogroup(template.Node):
         default = getattr(model, self.field_name, None)
         results = []
         for num, desc in options:
+            desc = html.escape(desc)
             checked = 'checked' if num == default else ''
             results.append('<label class="btn btn-default" style="text-align: left;"><input type="radio" name="{}" autocomplete="off" value="{}" onchange="donationChanged();" {} /> {}</label>'
                            .format(self.field_name, num, checked, desc))
@@ -308,8 +332,9 @@ class popup_link(template.Node):
         self.text = text.strip('"')
 
     def render(self, context):
-        return """<a onClick="window.open('{self.href}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;"
-                     href="{self.href}">{self.text}</a>""".format(self=self)
+        inner_text = "window.open('{self.href}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;".format(self=self)
+        inner_text = inner_text.replace("'", "&quot;")
+        return "<a onClick='{inner_text}' href='{self.href}'>{self.text}</a>".format(inner_text=inner_text, self=self)
 
 
 @tag
@@ -534,16 +559,26 @@ class PriceNotice(template.Node):
         self.takedown, self.amount_extra, self.discount = Variable(takedown), Variable(amount_extra), Variable(discount)
 
     def _notice(self, label, takedown, amount_extra, discount):
+        if c.HARDCORE_OPTIMIZATIONS_ENABLED:
+            # CPU optimizaiton: the calculations done in this function are somewhat expensive and even with caching,
+            # still do some expensive DB queries.  if hardcore optimizations mode is enabled, we display a
+            # simpler message.  This is intended to be enabled during the heaviest loads at the beginning of an event
+            # in order to reduce server load so the system stays up.  After the rush, it should be safe to turn this
+            # back off
+            return ''
+
         if not takedown:
             takedown = c.ESCHATON
 
         if c.PAGE_PATH not in ['/preregistration/form', '/preregistration/register_group_member']:
             return ''  # we only display notices for new attendees
         else:
+            badge_price = c.BADGE_PRICE    # optimization.  this call is VERY EXPENSIVE.
+
             for day, price in sorted(c.PRICE_BUMPS.items()):
-                if day < takedown and localized_now() < day:
-                    return '<div class="prereg-price-notice">Price goes up to ${} at 11:59pm {} on {}</div>'.format(price - int(discount) + int(amount_extra), (day - timedelta(days=1)).strftime('%Z'), (day - timedelta(days=1)).strftime('%A, %b %e'))
-                elif localized_now() < day and takedown == c.PREREG_TAKEDOWN and takedown < c.EPOCH:
+                if day < takedown and localized_now() < day and price > badge_price:
+                    return '<div class="prereg-price-notice">Price goes up to ${} no later than 11:59pm {} on {}</div>'.format(price - int(discount) + int(amount_extra), (day - timedelta(days=1)).strftime('%Z'), (day - timedelta(days=1)).strftime('%A, %b %e'))
+                elif localized_now() < day and takedown == c.PREREG_TAKEDOWN and takedown < c.EPOCH and price > badge_price:
                     return '<div class="prereg-type-closing">{} closes at 11:59pm {} on {}. Price goes up to ${} at-door.</div>'.format(label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'), price + amount_extra, (day - timedelta(days=1)).strftime('%A, %b %e'))
             if takedown < c.EPOCH:
                 return '<div class="prereg-type-closing">{} closes at 11:59pm {} on {}</div>'.format(label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'))
@@ -579,8 +614,9 @@ class event_dates(template.Node):
         else:
             return '{}-{}'.format(c.EPOCH.strftime('%B %-d'), c.ESCHATON.strftime('%-d'))
 
-
 # FIXME this can probably be cleaned up more
+
+
 @register.tag(name='random_hash')
 def random_hash(parser, token):
     items = []

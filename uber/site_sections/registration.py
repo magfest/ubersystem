@@ -1,23 +1,26 @@
 from uber.common import *
 
 
-def check_everything(attendee):
-    if c.AT_THE_CON and attendee.id is None:
-        if isinstance(attendee.badge_num, str) or attendee.badge_num < 0:
-            return 'Invalid badge number'
+def pre_checkin_check(attendee, group):
+    if c.NUMBERED_BADGES and not attendee.badge_num:
+        return 'Badge number is required'
 
-        if attendee.id is None and attendee.badge_num != 0 and attendee.session.query(Attendee).filter_by(badge_type=attendee.badge_type, badge_num=attendee.badge_num).count():
-            return 'Another attendee already exists with that badge number'
+    if c.COLLECT_EXACT_BIRTHDATE:
+        if not attendee.birthdate:
+            return 'You may not check someone in without a valid date of birth.'
+    elif not attendee.age_group or attendee.age_group == c.AGE_UNKNOWN:
+        return 'You may not check someone in without confirming their age.'
 
-    if attendee.is_dealer and not attendee.group:
-        return 'Dealers must be associated with a group'
+    if attendee.checked_in:
+        return attendee.full_name + ' was already checked in!'
 
-    message = check(attendee)
-    if message:
-        return message
+    if group and attendee.paid == c.PAID_BY_GROUP and group.amount_unpaid:
+        return 'This attendee\'s group has an outstanding balance of ${}'.format(group.amount_unpaid)
 
-    if c.AT_THE_CON and not attendee.age_group and attendee.is_new:
-        return "You must enter this attendee's age group"
+    if attendee.paid == c.NOT_PAID:
+        return 'You cannot check in an attendee that has not paid.'
+
+    return check(attendee)
 
 
 def check_atd(func):
@@ -85,12 +88,13 @@ class Root:
         attendee = session.attendee(params, checkgroups=Attendee.all_checkgroups, bools=Attendee.all_bools, allow_invalid=True)
         if 'first_name' in params:
             attendee.group_id = params['group_opt'] or None
-            if c.AT_THE_CON and omit_badge:
-                attendee.badge_num = 0
+            if (c.AT_THE_CON and omit_badge) or not attendee.badge_num:
+                attendee.badge_num = None
+
             if 'no_override' in params:
                 attendee.overridden_price = None
 
-            message = check_everything(attendee)
+            message = check(attendee)
             if not message:
                 # Free group badges are only considered 'registered' when they are actually claimed.
                 if attendee.paid == c.PAID_BY_GROUP and attendee.group_id and attendee.group.cost == 0:
@@ -98,15 +102,16 @@ class Root:
                 if check_in:
                     attendee.checked_in = localized_now()
                 session.add(attendee)
-                if return_to:
-                    raise HTTPRedirect(return_to + '&message={}', 'Attendee data saved')
-                else:
-                    msg_text = '{} has been saved'.format(attendee.full_name)
-                    if params.get('save') == 'save_return_to_search':
+
+                msg_text = '{} has been saved'.format(attendee.full_name)
+                if params.get('save') == 'save_return_to_search':
+                    if return_to:
+                        raise HTTPRedirect(return_to + '&message={}', 'Attendee data saved')
+                    else:
                         raise HTTPRedirect('index?uploaded_id={}&message={}&search_text={}', attendee.id, msg_text,
                             '{} {}'.format(attendee.first_name, attendee.last_name) if c.AT_THE_CON else '')
-                    else:
-                        raise HTTPRedirect('form?id={}&message={}', attendee.id, msg_text)
+                else:
+                    raise HTTPRedirect('form?id={}&message={}&return_to={}', attendee.id, msg_text, return_to)
 
         return {
             'message':    message,
@@ -124,15 +129,17 @@ class Root:
     def change_badge(self, session, id, message='', **params):
         attendee = session.attendee(id, allow_invalid=True)
         if 'badge_type' in params:
-            preassigned = c.AT_THE_CON or attendee.badge_type in c.PREASSIGNED_BADGE_TYPES
-            if preassigned:
-                message = check(attendee)
+            old_badge_type, old_badge_num = attendee.badge_type, attendee.badge_num
+            attendee.badge_type = int(params['badge_type'])
+            try:
+                attendee.badge_num = int(params['badge_num'])
+            except ValueError:
+                attendee.badge_num = None
+
+            message = check(attendee)
 
             if not message:
-                badge_num = int(params.get('newnum') or 0)
-                if c.AT_THE_CON and badge_num == 0:  # sometimes admins need to unset accidental badge assignments
-                    attendee.badge_num = 0
-                message = session.change_badge(attendee, params['badge_type'], badge_num)
+                message = session.update_badge(attendee, old_badge_type, old_badge_num)
                 raise HTTPRedirect('form?id={}&message={}', attendee.id, message or '')
 
         return {
@@ -140,20 +147,54 @@ class Root:
             'attendee': attendee
         }
 
+    @unrestricted
+    def qrcode_generator(self, data):
+        """
+        Takes a piece of data, adds the EVENT_QR_ID, and returns an Aztec barcode as an image stream.
+        Args:
+            data: A string to create a 2D barcode from.
+
+        Returns: A PNG buffer. Use this function in an img tag's src='' to display an image.
+
+        NOTE: this will be called directly by attendee's client browsers to display their 2D barcode.
+        This will potentially be called on the order of 100,000 times per event and serve up a lot of data.
+        Be sure that any modifications to this code are fast and don't unnecessarily increase CPU load.
+
+        If you run into performance issues, consider using an external cache to cache the results of
+        this function.  Or, offload image generation to a dedicated microservice that replicates this functionality.
+
+        """
+        checkin_barcode = treepoem.generate_barcode(
+            barcode_type='azteccode',
+            data=c.EVENT_QR_ID + str(data),
+            options={},
+        )
+        buffer = BytesIO()
+        checkin_barcode.save(buffer, "PNG")
+        buffer.seek(0)
+        png_file_output = cherrypy.lib.file_generator(buffer)
+
+        # set response headers last so that exceptions are displayed properly to the client
+        cherrypy.response.headers['Content-Type'] = "image/png"
+
+        return png_file_output
+
     def history(self, session, id):
         attendee = session.attendee(id, allow_invalid=True)
         return {
-            'attendee': attendee,
-            'emails':   session.query(Email)
-                               .filter(or_(Email.dest == attendee.email,
-                                           and_(Email.model == 'Attendee', Email.fk_id == id)))
-                               .order_by(Email.when).all(),
-            'changes':  session.query(Tracking)
-                               .filter(or_(Tracking.links.like('%attendee({})%'.format(id)),
-                                           and_(Tracking.model == 'Attendee', Tracking.fk_id == id)))
-                               .order_by(Tracking.when).all()
+            'attendee':  attendee,
+            'emails':    session.query(Email)
+                                .filter(or_(Email.dest == attendee.email,
+                                            and_(Email.model == 'Attendee', Email.fk_id == id)))
+                                .order_by(Email.when).all(),
+            'changes':   session.query(Tracking)
+                                .filter(or_(Tracking.links.like('%attendee({})%'.format(id)),
+                                            and_(Tracking.model == 'Attendee', Tracking.fk_id == id)))
+                                .order_by(Tracking.when).all(),
+            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Attendee id={}".format(id))
         }
 
+    @log_pageview
     def watchlist(self, session, attendee_id, watchlist_id=None, message='', **params):
         attendee = session.attendee(attendee_id, allow_invalid=True)
         if watchlist_id:
@@ -316,60 +357,24 @@ class Root:
         }
 
     @ajax
-    def check_in(self, session, id, age_group=None, birthdate=None, group=None, badge_num=None, message=''):
-        attendee = session.attendee(id)
+    def check_in(self, session, message='', group_id='', **params):
+        attendee = session.attendee(params, allow_invalid=True)
+        group = attendee.group or (session.group(group_id) if group_id else None)
+
         pre_badge = attendee.badge_num
-        success, increment = True, False
+        success, increment = False, False
 
-        if not message and not attendee.badge_num and c.NUMBERED_BADGES:
-            message = check_range(badge_num, attendee.badge_type)
-            if not message:
-                attendee.badge_num = int(badge_num)
-                if not attendee.badge_num:
-                    message = 'Badge number is required'
-                else:
-                    maybe_dupe = session.query(Attendee).filter_by(badge_num=badge_num, badge_type=attendee.badge_type)
-                    if maybe_dupe.count():
-                        message = 'That badge number already belongs to ' + maybe_dupe.first().full_name
+        message = pre_checkin_check(attendee, group)
+        if not message and group_id:
+            message = session.match_to_group(attendee, group)
 
-        if not message and birthdate:
-            try:
-                attendee.birthdate = datetime.strptime(birthdate, '%Y-%m-%d').date()
-            except:
-                message = 'Invalid date of birth {!r}'.format(birthdate)
-
-        if not message and age_group:
-            try:
-                attendee.age_group = int(age_group)
-                assert attendee.age_group != c.AGE_UNKNOWN
-            except:
-                message = 'Invalid age group'
-
-        if not message and attendee.checked_in:
-            message = attendee.full_name + ' was already checked in!'
-
-        if not message and group:
-            g = session.group(group)
-            if g.amount_unpaid:
-                message = 'That group has an outstanding balance of ${}'.format(g.amount_unpaid)
-            else:
-                session.match_to_group(attendee, g)
-        elif not message and attendee.paid == c.PAID_BY_GROUP and not attendee.group:
+        if not message and attendee.paid == c.PAID_BY_GROUP and not attendee.group_id:
             message = 'You must select a group for this attendee.'
 
         if not message:
-            attendee._status_adjustments()
-            if attendee.badge_status != c.COMPLETED_STATUS:
-                message = 'This badge is {} and cannot be checked in.'.format(attendee.badge_status_label)
-
-        success = not message
-        if success:
-            message = ""
-            attendee.checked_in = datetime.now(UTC)
-            if attendee.paid == c.NOT_PAID:
-                attendee.paid = c.HAS_PAID
-                attendee.amount_paid = attendee.total_cost
-                message = '<b>This attendee has not paid for their badge; make them pay ${}!</b> <br/>'.format(attendee.total_cost)
+            message = ''
+            success = True
+            attendee.checked_in = sa.localized_now()
             session.commit()
             increment = True
             message += '{0.full_name} checked in as {0.badge}{0.accoutrements}'.format(attendee)
@@ -387,7 +392,7 @@ class Root:
 
     @csrf_protected
     def undo_checkin(self, session, id, pre_badge):
-        attendee = session.attendee(id)
+        attendee = session.attendee(id, allow_invalid=True)
         attendee.checked_in, attendee.badge_num = None, pre_badge
         session.add(attendee)
         session.commit()
@@ -436,7 +441,7 @@ class Root:
         }
 
     def lost_badge(self, session, id):
-        a = session.attendee(id)
+        a = session.attendee(id, allow_invalid=True)
         a.for_review += "Automated message: Badge reported lost on {}. Previous payment type: {}.".format(localized_now().strftime('%m/%d, %H:%M'), a.paid_label)
         a.paid = c.LOST_BADGE
         session.add(a)
@@ -460,7 +465,7 @@ class Root:
                     message = '{a.full_name} ({a.badge}) already got {a.merch}'.format(a=attendee)
                 else:
                     id = attendee.id
-                    shirt = (attendee.shirt or c.SIZE_UNKNOWN) if attendee.gets_shirt else c.NO_SHIRT
+                    shirt = (attendee.shirt or c.SIZE_UNKNOWN) if attendee.gets_any_kind_of_shirt else c.NO_SHIRT
                     message = '{a.full_name} ({a.badge}) has not yet received {a.merch}'.format(a=attendee)
         return {
             'id': id,
@@ -476,7 +481,7 @@ class Root:
             shirt_size = None
 
         success = False
-        attendee = session.attendee(id)
+        attendee = session.attendee(id, allow_invalid=True)
         if not attendee.merch:
             message = '{} has no merch'.format(attendee.full_name)
         elif attendee.got_merch:
@@ -505,12 +510,38 @@ class Root:
 
     @ajax
     def take_back_merch(self, session, id):
-        attendee = session.attendee(id)
+        attendee = session.attendee(id, allow_invalid=True)
         attendee.got_merch = False
         if attendee.no_shirt:
             session.delete(attendee.no_shirt)
         session.commit()
         return '{a.full_name} ({a.badge}) merch handout canceled'.format(a=attendee)
+
+    @ajax
+    def redeem_merch_discount(self, session, badge_num, apply=''):
+        try:
+            attendee = session.query(Attendee).filter_by(badge_num=badge_num).one()
+        except:
+            return {'error': 'No attendee exists with that badge number.'}
+
+        if attendee.badge_type != c.STAFF_BADGE:
+            return {'error': 'Only staff badges are eligible for discount.'}
+
+        discount = session.query(MerchDiscount).filter_by(attendee_id=attendee.id).first()
+        if not apply:
+            if discount:
+                return {
+                    'warning': True,
+                    'message': 'This staffer has already redeemed their discount {} time{}'.format(discount.uses, 's' if discount.uses > 1 else '')
+                }
+            else:
+                return {'message': 'Tell staffer their discount is only usable one time and confirm that they want to redeem it.'}
+
+        discount = discount or MerchDiscount(attendee_id=attendee.id, uses=0)
+        discount.uses += 1
+        session.add(discount)
+        session.commit()
+        return {'success': True, 'message': 'Discount on badge #{} has been marked as redeemed.'.format(badge_num)}
 
     @unrestricted
     @check_atd
@@ -554,8 +585,8 @@ class Root:
     @check_atd
     def pay(self, session, id, message=''):
         attendee = session.attendee(id)
-        if attendee.paid == c.HAS_PAID:
-            raise HTTPRedirect('register?message={}', 'You are already paid and should proceed to the preregistration desk to pick up your badge')
+        if attendee.paid != c.NOT_PAID:
+            raise HTTPRedirect('register?message={}', 'You are already paid (or registered for a free badge) and should proceed to the preregistration desk to pick up your badge')
         else:
             return {
                 'message': message,
@@ -659,32 +690,26 @@ class Root:
             raise HTTPRedirect('new?message={}', 'Payment accepted')
 
     @csrf_protected
-    def new_checkin(self, session, id, badge_num='', ec_phone='', message='', group=''):
+    def new_checkin(self, session, message='', **params):
+        attendee = session.attendee(params, allow_invalid=True)
+        group = session.group(attendee.group_id) if attendee.group_id else None
+
         checked_in = ''
-        badge_num = int(badge_num) if badge_num.isdigit() else 0
-        attendee = session.attendee(id)
-        existing = session.query(Attendee).filter_by(badge_num=badge_num).all() if badge_num else []
         if 'reg_station' not in cherrypy.session:
             raise HTTPRedirect('new_reg_station')
-        elif c.NUMBERED_BADGES and not badge_num:
-            message = "You didn't enter a valid badge number"
-        elif existing:
-            message = '{a.badge} already belongs to {a.full_name}'.format(a=existing[0])
-        else:
-            message = check_range(badge_num, attendee.badge_type)
-            if not message:
-                attendee.badge_num = badge_num
-                if group:
-                    session.match_to_group(attendee, session.group(group))
-                elif attendee.paid != c.HAS_PAID:
-                    message = 'You must mark this attendee as paid before you can check them in'
 
-        if not message:
-            attendee.ec_phone = ec_phone
-            attendee.checked_in = datetime.now(UTC)
+        message = pre_checkin_check(attendee, group)
+
+        if message:
+            session.rollback()
+        else:
+            if group:
+                session.match_to_group(attendee, group)
+            attendee.checked_in = sa.localized_now()
             attendee.reg_station = cherrypy.session['reg_station']
             message = '{a.full_name} checked in as {a.badge}{a.accoutrements}'.format(a=attendee)
             checked_in = attendee.id
+            session.commit()
 
         raise HTTPRedirect('new?message={}&checked_in={}', message, checked_in)
 
@@ -746,15 +771,15 @@ class Root:
         return params
 
     def undo_new_checkin(self, session, id):
-        attendee = session.attendee(id)
+        attendee = session.attendee(id, allow_invalid=True)
         if attendee.group:
             session.add(Attendee(group=attendee.group, paid=c.PAID_BY_GROUP, badge_type=attendee.badge_type, ribbon=attendee.ribbon))
-        attendee.badge_num = 0
+        attendee.badge_num = None
         attendee.checked_in = attendee.group = None
         raise HTTPRedirect('new?message={}', 'Attendee un-checked-in')
 
     def shifts(self, session, id, shift_id='', message=''):
-        attendee = session.attendee(id)
+        attendee = session.attendee(id, allow_invalid=True)
         return {
             'message':  message,
             'shift_id': shift_id,
@@ -773,7 +798,7 @@ class Root:
 
     @csrf_protected
     def update_nonshift(self, session, id, nonshift_hours):
-        attendee = session.attendee(id)
+        attendee = session.attendee(id, allow_invalid=True)
         if not re.match('^[0-9]+$', nonshift_hours):
             raise HTTPRedirect('shifts?id={}&message={}', attendee.id, 'Invalid integer')
         else:
@@ -782,7 +807,7 @@ class Root:
 
     @csrf_protected
     def update_notes(self, session, id, admin_notes, for_review=None):
-        attendee = session.attendee(id)
+        attendee = session.attendee(id, allow_invalid=True)
         attendee.admin_notes = admin_notes
         if for_review is not None:
             attendee.for_review = for_review
@@ -839,12 +864,18 @@ class Root:
     def discount(self, session, message='', **params):
         attendee = session.attendee(params)
         if 'first_name' in params:
-            if not attendee.first_name or not attendee.last_name:
-                message = 'First and Last Name are required'
-            elif not attendee.overridden_price:
+            try:
+                if not attendee.first_name or not attendee.last_name:
+                    message = 'First and Last Name are required'
+                elif attendee.overridden_price < 0:
+                    message = 'Non-Negative Discounted Price is required'
+                elif attendee.overridden_price > c.BADGE_PRICE:
+                    message = 'You cannot create a discounted badge that costs more than the regular price!'
+                elif attendee.overridden_price == 0:
+                    attendee.paid = c.NEED_NOT_PAY
+                    attendee.overridden_price = c.BADGE_PRICE
+            except TypeError:
                 message = 'Discounted Price is required'
-            elif attendee.overridden_price > c.BADGE_PRICE:
-                message = 'You cannot create a discounted badge that costs more than the regular price!'
 
             if not message:
                 session.add(attendee)
@@ -853,78 +884,6 @@ class Root:
                 raise HTTPRedirect('../preregistration/confirm?id={}', attendee.id)
 
         return {'message': message}
-
-    def attendee_upload(self, session, message='', attendee_import=None, date_format="%Y-%m-%d"):
-        attendees = None
-
-        if attendee_import:
-            cols = {col.name: getattr(Attendee, col.name) for col in Attendee.__table__.columns}
-            result = csv.DictReader(attendee_import.file.read().decode('utf-8').split('\n'))
-            id_list = []
-
-            for row in result:
-                if 'id' in row:
-                    id = row.pop('id')  # id needs special treatment
-
-                try:
-                    # get the Attendee if it already exists
-                    attendee = session.attendee(id, allow_invalid=True)
-                except:
-                    session.rollback()
-                    # otherwise, make a new one and add it to the session for when we commit
-                    attendee = Attendee()
-                    session.add(attendee)
-
-                for colname, val in row.items():
-                    col = cols[colname]
-                    if not val:
-                        # in a lot of cases we'll just have the empty string, so we'll just
-                        # do nothing for those cases
-                        continue
-                    if isinstance(col.type, Choice):
-                        # the export has labels, and we want to convert those back into their
-                        # integer values, so let's look that up (note: we could theoretically
-                        # modify the Choice class to do this automatically in the future)
-                        label_lookup = {val: key for key, val in col.type.choices.items()}
-                        val = label_lookup[val]
-                    elif isinstance(col.type, MultiChoice):
-                        # the export has labels separated by ' / ' and we want to convert that
-                        # back into a comma-separate list of integers
-                        label_lookup = {val: key for key, val in col.type.choices}
-                        vals = [label_lookup[label] for label in val.split(' / ')]
-                        val = ','.join(map(str, vals))
-                    elif isinstance(col.type, UTCDateTime):
-                        # we'll need to make sure we use whatever format string we used to
-                        # export this date in the first place
-                        try:
-                            val = UTC.localize(datetime.strptime(val, date_format + ' %H:%M:%S'))
-                        except:
-                            val = UTC.localize(datetime.strptime(val, date_format))
-                    elif isinstance(col.type, Date):
-                        val = datetime.strptime(val, date_format).date()
-                    elif isinstance(col.type, Integer):
-                        val = int(val)
-
-                    # now that we've converted val to whatever it actually needs to be, we
-                    # can just set it on the attendee
-                    setattr(attendee, colname, val)
-
-                try:
-                    session.commit()
-                except:
-                    log.error('ImportError', exc_info=True)
-                    session.rollback()
-                    message = 'Import unsuccessful'
-
-                id_list.append(attendee.id)
-
-            if id_list:
-                attendees = session.query(Attendee).filter(Attendee.id.in_(id_list)).all()
-
-        return {
-            'message': message,
-             'attendees': attendees
-        }
 
     def placeholders(self, session, department=''):
         return {
@@ -952,7 +911,14 @@ class Root:
         return json.dumps({
             'badges_sold': c.BADGES_SOLD,
             'remaining_badges': c.REMAINING_BADGES,
-
+            'badges_price': c.BADGE_PRICE,
             'server_current_timestamp': int(datetime.utcnow().timestamp()),
             'warn_if_server_browser_time_mismatch': c.WARN_IF_SERVER_BROWSER_TIME_MISMATCH
+        })
+
+    @unrestricted
+    def price(self):
+        cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
+        return json.dumps({
+            'badges_price': c.BADGE_PRICE
         })

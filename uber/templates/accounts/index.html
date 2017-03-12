@@ -21,16 +21,15 @@
 <div class="form-group">
     <div class="input-group input-group-sm">
     <label for="password" class="sr-only">Password</label>
-    <input type="password" class="form-control" id="password" name="password" placeholder="Password" 
-       {% if not c.AT_THE_CON %}disabled{% endif %}>
-       {% if not c.AT_THE_CON %}
+    <input type="password" class="form-control" id="password" name="password" placeholder="Password"
+       {% if not c.AT_OR_POST_CON %}disabled{% endif %}>
+       {% if not c.AT_OR_POST_CON %}
            <span class="input-group-addon glyphicon glyphicon-ban-circle">
            </span>
        {% endif %}
     </div>
     <input type="password" class="form-control" id="check-password" name="check-password" placeholder="Re-enter Password"
-           {% if not c.AT_THE_CON %}disabled{% endif %}>
-    </div>
+           {% if not c.AT_OR_POST_CON %}disabled{% endif %}>
 </div>
 <div class="form-group">
     {% checkgroup AdminAccount.access %}
@@ -49,6 +48,7 @@
     <th>Name</th>
     <th>Email</th>
     <th data-hide="phone">Access</th>
+    <th></th>
 </tr></thead>
 <tbody>
 {% for account in accounts %}
@@ -70,6 +70,10 @@
                 {% csrf_token %}
                 <div class="form-group">{% checkgroup account.access %}</div>
             </form>
+        </td>
+        <td>
+                <!--<input type="hidden" name="id" value="{{account.id}}"/ />-->
+            <a href="update_password_of_other?id={{account.id}}">Change Password</a>
         </td>
     </tr>
 {% endfor %}
@@ -100,6 +104,7 @@ $(function() {
     $(document.body).on('click', '.update-button', function (event) {
         $(event.target).parents('tr').find('.update-form').submit();
     });
+
 });
 </script>
 
