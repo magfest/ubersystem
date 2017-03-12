@@ -44,6 +44,7 @@ c.MENU = MenuItem(name='Root', submenu=[
 
     MenuItem(name='Schedule', access=c.STUFF, submenu=[
         MenuItem(name='View Schedule', href='../schedule/'),
+        MenuItem(name='View Schedule (Internal Only)', href='../schedule/internal'),
         MenuItem(name='Edit Schedule', href='../schedule/edit'),
     ]),
 
