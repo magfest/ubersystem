@@ -312,6 +312,10 @@ class Config(_Overridable):
         return max(0, self.MAX_BADGE_SALES - self.BADGES_SOLD)
 
     @request_cached_property
+    def MENU_FILTERED_BY_ACCESS_LEVELS(self):
+        return c.MENU.render_items_filtered_by_current_access()
+
+    @request_cached_property
     def ADMIN_ACCESS_SET(self):
         return sa.AdminAccount.access_set()
 
