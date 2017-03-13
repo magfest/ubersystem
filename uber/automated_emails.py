@@ -324,26 +324,13 @@ class DeptChecklistEmail(AutomatedEmail):
 """
 IMPORTANT NOTES FOR CHANGING/ADDING EMAIL CATEGORIES:
 
-'ident' is a unique ID for that email category that must not change after emails in that category have started to send.
-If an 'ident' is not set (not recommended), 'ident' will default to be the 'subject' line.
+'ident' is a unique ID for that email category that must not change after
+emails in that category have started to send.
 
-************************************************************************
-IF IDENT IS NOT SET ON A CATEGORY, AND IF YOU CHANGE THE SUBJECT,
-IT WILL CAUSE ANY EMAILS THAT HAVE ALREADY SENT TO RE-SEND.
-************************************************************************
-
-Going forward, every single email category below should have an explicit 'ident' set. However,
-mid-year we can't change the idents effectively because it will cause emails in these categories to be re-sent.
-
-ident naming RULES:
- - every single email below should have an explicit ident paramater set. some don't and we should fix that up.
- - if no 'ident' is set, the ident is set to the 'subject'
- - name the ident anything you want, ideally something related to the email category i.e. "reg confirmation email"
- - HOWEVER, IF an ident was not explicitly sent, and you want to rename the subject, you must:
-   - set the ident to the OLD subject first (do not include any {EVENT_NAME} in the ident)
-     example: set the ident to exactly what the old subject is, without using variable names
-     (e.g., "MAGFest 2017" instead of "{EVENT_NAME}")
-   - set the subject to something different
+*****************************************************************************
+IF YOU CHANGE THE IDENT FOR A CATEGORY, IT WILL CAUSE ANY EMAILS THAT HAVE
+ALREADY SENT FOR THAT CATEGORY TO RE-SEND.
+*****************************************************************************
 
 """
 
