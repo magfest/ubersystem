@@ -416,7 +416,7 @@ MarketplaceEmail('Last chance to pay for your {EVENT_NAME} Dealer registration',
 MarketplaceEmail('{EVENT_NAME} Dealer waitlist has been exhausted', 'dealers/waitlist_closing.txt',
                  lambda g: g.status == c.WAITLISTED,
                  when=days_after(0, c.DEALER_WAITLIST_CLOSED),
-                 ident='dealer_waitlist_exhausted')
+                 ident='uber_marketplace_waitlist_exhausted')
 
 
 # Placeholder badge emails; when an admin creates a "placeholder" badge, we send one of three different emails depending
