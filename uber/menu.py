@@ -51,26 +51,25 @@ class MenuItem:
         """
         out = {}
 
-        allowed = True
-        if self.access:
-            allowed = False
-            for access_level in listify(self.access):
-                if access_level in sa.AdminAccount.access_set():
-                    allowed = True
-                    break
-
-        if not allowed:
+        if self.access and set(listify(self.access)).isdisjoint(sa.AdminAccount.access_set()):
             return None
 
         out['name'] = self.name
         if self.submenu:
             out['submenu'] = []
-            for submenu in self.submenu:
-                out['submenu'].append(submenu.render_items_filtered_by_current_access())
+            for menu_item in self.submenu:
+                filtered_menu_items = menu_item.render_items_filtered_by_current_access()
+                if filtered_menu_items:
+                    out['submenu'].append(filtered_menu_items)
         else:
             out['href'] = self.href
 
         return out
+
+    def __getitem__(self, key):
+        for sm in self.submenu:
+            if sm.name == key:
+                return sm
 
 
 c.MENU = MenuItem(name='Root', submenu=[
