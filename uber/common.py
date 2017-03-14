@@ -4,6 +4,8 @@ import csv
 import sys
 import json
 import math
+import html
+import uuid
 import string
 import socket
 import random
@@ -12,6 +14,7 @@ import inspect
 import decimal
 import binascii
 import warnings
+import treepoem
 import importlib
 import mimetypes
 import threading
@@ -75,6 +78,7 @@ from uber.decorators import *
 from uber.models import *
 from uber.automated_emails import *
 from uber.badge_funcs import *
+from uber.menu import *
 from uber import model_checks
 from uber import custom_tags
 from uber import server

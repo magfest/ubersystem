@@ -12,6 +12,7 @@ To perform these validations, call the "check" method on the instance you're val
 on success and a string error message on validation failure.
 """
 from uber.common import *
+from email_validator import validate_email, EmailNotValidError
 
 
 AdminAccount.required = [('attendee', 'Attendee'), ('hashed', 'Password')]
@@ -61,13 +62,22 @@ def dealer_address(group):
 
 
 @validation.Group
-def group_paid(group):
+def group_money(group):
     try:
         amount = int(float(group.amount_paid))
         if amount < 0:
             return 'Amount Paid must be a number that is 0 or higher.'
     except:
         return "What you entered for Amount Paid ({}) isn't even a number".format(group.amount_paid)
+
+    try:
+        amount_refunded = int(float(group.amount_refunded))
+        if amount_refunded < 0:
+            return 'Amount Refunded must be positive'
+        elif amount_refunded > amount_paid:
+            return 'Amount Refunded cannot be greater than Amount Paid'
+    except:
+        return "What you entered for Amount Refunded ({}) wasn't even a number".format(group.amount_refunded)
 
 
 def _invalid_phone_number(s):
@@ -118,6 +128,13 @@ def full_name(attendee):
 
 @validation.Attendee
 @ignore_unassigned_and_placeholders
+def legal_name(attendee):
+    if attendee.legal_name and attendee.full_name == attendee.legal_name:
+        return 'When entering a legal name, it must be different than your preferred name. Otherwise, leave it blank.'
+
+
+@validation.Attendee
+@ignore_unassigned_and_placeholders
 def age(attendee):
     if c.COLLECT_EXACT_BIRTHDATE:
         if not attendee.birthdate:
@@ -148,13 +165,19 @@ def email(attendee):
     if len(attendee.email) > 255:
         return 'Email addresses cannot be longer than 255 characters.'
 
-    if (c.AT_OR_POST_CON and attendee.email and not re.match(c.EMAIL_RE, attendee.email)) or (not c.AT_OR_POST_CON and not re.match(c.EMAIL_RE, attendee.email)):
-        return 'Enter a valid email address'
+    if (c.AT_OR_POST_CON and attendee.email) or not c.AT_OR_POST_CON:
+        try:
+            validate_email(attendee.email)
+        except EmailNotValidError as e:
+            message = str(e)
+            return 'Enter a valid email address. ' + message
 
 
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def emergency_contact(attendee):
+    if not attendee.ec_name:
+        return 'Please tell us the name of your emergency contact.'
     if not attendee.international and _invalid_phone_number(attendee.ec_phone):
         if c.COLLECT_FULL_ADDRESS:
             return 'Enter a 10-digit US phone number or include a country code (e.g. +44).'
@@ -177,6 +200,13 @@ def cellphone(attendee):
 
 @validation.Attendee
 @ignore_unassigned_and_placeholders
+def emergency_contact_not_cellphone(attendee):
+    if not attendee.international and attendee.cellphone and attendee.cellphone == attendee.ec_phone:
+        return "Your cellphone number cannot be the same as your emergency contact number"
+
+
+@validation.Attendee
+@ignore_unassigned_and_placeholders
 def zip_code(attendee):
     if not attendee.international and not c.AT_OR_POST_CON:
         if _invalid_zip_code(attendee.zip_code):
@@ -187,6 +217,27 @@ def zip_code(attendee):
 def printed_badge_deadline(attendee):
     if attendee.is_new and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
         return 'Custom badges have already been ordered so you cannot create new {} badges'.format(attendee.badge_type_label)
+
+
+@validation.Attendee
+def printed_badge_change(attendee):
+    badge_name_changes_allowed = True
+
+    # this is getting kinda messy and we probably need to rework the entire concept of "printed badge deadline".
+    # right now we want to:
+    # 1) allow supporters to change their badge names until c.SUPPORTER_DEADLINE
+    # 2) allow staff to change their badge names until c.PRINTED_BADGE_DEADLINE
+    #
+    # this implies that we actually have two different printed badge deadlines: 1 for staff, 1 for supporters.
+    # we might just want to make that explicit.
+    if attendee.badge_type == c.STAFF_BADGE and c.AFTER_PRINTED_BADGE_DEADLINE:
+        badge_name_changes_allowed = False
+    elif attendee.amount_extra >= c.SUPPORTER_LEVEL and c.AFTER_SUPPORTER_DEADLINE:
+        badge_name_changes_allowed = False
+
+    if not badge_name_changes_allowed:
+        if attendee.badge_printed_name != attendee.orig_value_of('badge_printed_name'):
+            return 'Custom badges have already been ordered, so you cannot change the printed name of this Attendee'
 
 
 @validation.Attendee
@@ -240,9 +291,6 @@ def attendee_money(attendee):
                 return 'Overridden price must be a positive integer'
         except:
             return 'Invalid overridden price ({})'.format(attendee.overridden_price)
-        else:
-            if attendee.overridden_price == 0:
-                return 'Please set the payment type to "doesn\'t need to" instead of setting the badge price to 0.'
 
     try:
         amount_refunded = int(float(attendee.amount_refunded))
@@ -265,7 +313,8 @@ def dealer_needs_group(attendee):
 @validation.Attendee
 def dupe_badge_num(attendee):
     if (attendee.badge_num != attendee.orig_value_of('badge_num') or attendee.is_new)\
-            and c.NUMBERED_BADGES and attendee.badge_num and not c.SHIFT_CUSTOM_BADGES:
+            and c.NUMBERED_BADGES and attendee.badge_num and\
+            (not c.SHIFT_CUSTOM_BADGES or c.AFTER_PRINTED_BADGE_DEADLINE or c.AT_THE_CON):
         with Session() as session:
             existing = session.query(Attendee)\
                 .filter_by(badge_type=attendee.badge_type, badge_num=attendee.badge_num)
@@ -297,7 +346,9 @@ def no_more_custom_badges(attendee):
 def out_of_badge_type(attendee):
     if attendee.badge_type != attendee.orig_value_of('badge_type'):
         with Session() as session:
-            if session.get_next_badge_num(attendee.badge_type_real) > c.BADGE_RANGES[attendee.badge_type_real][1]:
+            try:
+                session.get_next_badge_num(attendee.badge_type_real)
+            except AssertionError:
                 return 'There are no more badges available for that type'
 
 

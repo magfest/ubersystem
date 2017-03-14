@@ -5,9 +5,19 @@
 {{ attendee.first_name }},
 <br/> <br/>
 
-Thanks again for volunteering at {{ c.EVENT_NAME }}!
+{% if attendee.badge_type == c.STAFF_BADGE %}    
+Thanks again for Staffing at {{ c.EVENT_NAME }}!
+{% endif %}
+    
+{% if attendee.ribbon == c.VOLUNTEER_RIBBON %}    
+Thanks again for Volunteering at {{ c.EVENT_NAME }}!
+{% endif %}
 <br/> <br/>
 
+{% if attendee.badge_type == c.STAFF_BADGE %}   
+- Please remember to also pick up your TWO {{ c.EVENT_NAME }} Staff Shirts from the MAGFest MERCH Booth when you get to {{ c.EVENT_NAME }}.  As a reminder, there is an expectation that you will wear one of these two shirts while working your scheduled shifts during {{ c.EVENT_NAME }}, (Thurs-Sunday, not during load-in or load-out).  When not on shift, you should wear a different shirt, so you can enjoy MAGFest 2017 with everyone else.    
+{% endif %}    
+    
 {% if attendee.takes_shifts and attendee.shifts %}
     The schedule of shifts you've signed up for is below; please print it out so that you can have your department managers
     mark each shift as worked.

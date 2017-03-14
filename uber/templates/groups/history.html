@@ -1,0 +1,46 @@
+{% extends "base-admin.html" %}
+{% block title %}Group History - {{ group.name }}{% endblock %}
+{% block content %}
+
+{% nav_menu group "form?id={id}" "Group Page" True "history?id={id}" "History" True "index" "Return to Group List" True %}
+
+<h2>Changelog for {{ group.name }}</h2>
+
+<table class="list" border="1" borderspacing="0">
+<tr class="header">
+    <td>Which</td>
+    <td>What</td>
+    <td>When</td>
+    <td>Who</td>
+    <td>Changes</td>
+</tr>
+{% for tracked in changes %}
+    <tr>
+        <td valign="top" style="white-space:nowrap">{{ tracked.model }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.action_label }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.when|full_datetime }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.who }}</td>
+        <td valign="top">{{ tracked.data }}</td>
+    </tr>
+{% endfor %}
+</table>
+
+    <h2>Page View History for {{ group.name }} </h2>
+
+<table class="list" border="1" borderspacing="0">
+<tr class="header">
+    <td>When</td>
+    <td>Who</td>
+    <td>Page Path</td>
+</tr>
+{% for view in pageviews %}
+    <tr>
+        <td valign="top" style="white-space:nowrap">{{ view.when|full_datetime }}</td>
+        <td valign="top" style="white-space:nowrap">{{ view.who }}</td>
+        <td valign="top">{{ view.page }}</td>
+    </tr>
+{% endfor %}
+</table>
+
+
+{% endblock %}
