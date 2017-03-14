@@ -90,5 +90,5 @@ c.MENU = MenuItem(name='Root', submenu=[
         MenuItem(name='Edit Schedule', href='../schedule/edit'),
     ]),
 
-    MenuItem(name='Statistics', href='../summary/'),
+    MenuItem(name='Statistics', access=c.STATS, href='../summary/'),
 ])
