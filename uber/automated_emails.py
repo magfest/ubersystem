@@ -435,7 +435,7 @@ AutomatedEmail(Attendee, '{EVENT_NAME} Dealer Information Required', 'placeholde
 
 StopsEmail('Want to staff {EVENT_NAME} again?', 'placeholders/imported_volunteer.txt',
            lambda a: a.placeholder and a.staffing and a.registered_local <= c.PREREG_OPEN,
-           ident='previous_volunteer_again_inquiry')
+           ident='volunteer_again_inquiry')
 
 StopsEmail('{EVENT_NAME} Volunteer Badge Confirmation', 'placeholders/volunteer.txt',
            lambda a: a.placeholder and a.first_name and a.last_name
