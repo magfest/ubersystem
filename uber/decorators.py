@@ -25,7 +25,7 @@ def log_pageview(func):
             except:
                 pass  # we don't care about unrestricted pages for this version
             else:
-                sa.Tracking.track_pageview(cherrypy.request.path_info, cherrypy.request.query_string)
+                sa.PageViewTracking.track_pageview()
         return func(*args, **kwargs)
     return with_check
 
@@ -137,7 +137,9 @@ def _set_csv_base_filename(base_filename):
 
 
 def csv_file(func):
-    func.site_mappable = True
+    parameters = inspect.getargspec(func)
+    if len(parameters[0]) == 3:
+        func.site_mappable = True
 
     @wraps(func)
     def csvout(self, session, set_headers=True, **kwargs):
@@ -186,9 +188,14 @@ def credit_card(func):
         except HTTPRedirect:
             raise
         except:
-            send_email(c.ADMIN_EMAIL, [c.ADMIN_EMAIL, 'dom@magfest.org'], 'MAGFest Stripe error',
-                       'Got an error while calling charge(self, payment_id={!r}, stripeToken={!r}, ignored={}):\n{}'
-                       .format(payment_id, stripeToken, ignored, traceback.format_exc()))
+            error_text = \
+                'Got an error while calling charge' \
+                '(self, payment_id={!r}, stripeToken={!r}, ignored={}):\n{}\n' \
+                '\n IMPORTANT: This could have resulted in an attendee paying and not being' \
+                'marked as paid in the database. Definitely double check.'\
+                .format(payment_id, stripeToken, ignored, traceback.format_exc())
+
+            report_critical_exception(msg=error_text, subject='ERROR: MAGFest Stripe error (Automated Message)')
             return traceback.format_exc()
     return charge
 
@@ -308,26 +315,36 @@ def prettify_breadcrumb(str):
 def renderable(func):
     @wraps(func)
     def with_rendering(*args, **kwargs):
-        result = func(*args, **kwargs)
-
         try:
-            result['breadcrumb_page_pretty_'] = prettify_breadcrumb(func.__name__) if func.__name__ != 'index' else 'Home'
-            result['breadcrumb_page_'] = func.__name__ if func.__name__ != 'index' else ''
-        except:
-            pass
-
-        try:
-            result['breadcrumb_section_pretty_'] = prettify_breadcrumb(get_module_name(func))
-            result['breadcrumb_section_'] = get_module_name(func)
-        except:
-            pass
-
-        if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
-            return render('closed.html')
-        elif isinstance(result, dict):
-            return render(_get_template_filename(func), result)
+            result = func(*args, **kwargs)
+        except CSRFException as e:
+            message = "Your CSRF token is invalid. Please go back and try again."
+            uber.server.log_exception_with_verbose_context(str(e))
+            raise HTTPRedirect("../common/invalid?message={}", message)
+        except (AssertionError, ValueError) as e:
+            message = str(e)
+            uber.server.log_exception_with_verbose_context(message)
+            raise HTTPRedirect("../common/invalid?message={}", message)
         else:
-            return result
+            try:
+                result['breadcrumb_page_pretty_'] = prettify_breadcrumb(func.__name__) if func.__name__ != 'index' else 'Home'
+                result['breadcrumb_page_'] = func.__name__ if func.__name__ != 'index' else ''
+            except:
+                pass
+
+            try:
+                result['breadcrumb_section_pretty_'] = prettify_breadcrumb(get_module_name(func))
+                result['breadcrumb_section_'] = get_module_name(func)
+            except:
+                pass
+
+            if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
+                return render('closed.html')
+            elif isinstance(result, dict):
+                return render(_get_template_filename(func), result)
+            else:
+                return result
+
     return with_rendering
 
 

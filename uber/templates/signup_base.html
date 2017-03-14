@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head>
+    <title>{{ name }}'s shifts</title>
+    <link rel="stylesheet" href="../static/styles/bootstrap.min.css" />
+
+    <link rel="stylesheet" type="text/css" href="../static/styles/styles.css" />
+<link rel="stylesheet" href="../static/styles/fullcalendar.min.css" />
+<link rel="stylesheet" href="../static/styles/fullcalendar.print.css" media="print"/>
+<meta name="viewport"
+ content="
+   height = device-height,
+   width = device-width,
+   initial-scale = 1.0,
+   minimum-scale = 1.0,
+   maximum-scale = 1.0,
+   user-scalable = no,
+   target-densitydpi = device-dpi
+   " />
+{% block page_style %}{% endblock %}    
+</head>
+<body>
+<div class="container-fluid">
+{% block main_content %} {% endblock %}
+</div>
+</body>
+{% block page_script %} {% endblock %}
+</html>

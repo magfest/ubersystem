@@ -1,4 +1,4 @@
-{% if attendee.staffing %}
+{% if attendee.staffing and not attendee.assigned_depts %}
     <br/> <br/>
     Thanks for your interest in volunteering!
     {% if attendee.paid == c.HAS_PAID %}

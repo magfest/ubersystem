@@ -5,3 +5,5 @@ stripe==1.11.0
 pytz==2014.4
 pep8==1.6.2
 alembic==0.8.7
+treepoem==1.0.1
+email_validator==1.0.2

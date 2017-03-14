@@ -6,6 +6,32 @@
     {% endif %}
 {% endblock %}
 {% block content %}
+<script type="text/javascript">
+    $().ready(function() {
+        $("form[action='unset_group_member']").submit(function(event){
+            var formToSubmit = this;
+            event.preventDefault();
+            bootbox.confirm({
+                message: "This will permanently delete this person's badge. They will receive an email about this. Are you sure?",
+                buttons: {
+                    confirm: {
+                        label: 'Yes',
+                        className: 'btn-success'
+                    },
+                    cancel: {
+                        label: 'No',
+                        className: 'btn-danger'
+                    }
+                },
+                callback: function (result) {
+                    if(result) {
+                        formToSubmit.submit();
+                    }
+                }
+            });
+        })
+    });
+</script>
 <div class="masthead">
 </div>
 <div class="panel panel-default">
@@ -56,16 +82,16 @@
                 {% endif %}
             </td>
             <td>
-                {% if attendee != group.leader and not attendee.amount_extra %}
+                {% if attendee != group.leader and not attendee.amount_extra and attendee.is_transferable %}
                     <form method="post" action="unset_group_member">
                     {% csrf_token %}
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
-                    <input type="submit" value="This person isn't coming" />
+                    <button class="btn btn-warning" type="submit">This person isn't coming</button>
                     </form>
-                {% elif attendee.is_transferable and attendee.amount_extra %}
+                {% elif attendee.is_transferable and attendee.total_donation %}
                     <form method="get" action="transfer_badge">
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
-                    <b> Kicked in an extra ${{ attendee.amount_extra }}! </b>
+                    <b> Added on an extra ${{ attendee.total_donation }}! </b>
                     <input type="submit" value="Transfer Registration" />
                     </form>
                 {% endif %}
@@ -74,9 +100,6 @@
             <td> <a style="font-size:10pt" href="register_group_member?group_id={{ group.id }}">Register someone for this badge</a>: </td>
             <td colspan="3">
                 {{ attendee.badge }}
-                {% if attendee.amount_extra %}
-                    <b>(Kicked in an extra ${{ attendee.amount_extra }}!)</b>
-                {% endif %}
             </td>
         {% endif %}
     </tr>

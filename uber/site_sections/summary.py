@@ -151,6 +151,32 @@ class Root:
                 out.writerow([a.full_name, a.email, a.cellphone, label])
 
     @csv_file
+    def dealer_table_info(self, out, session):
+        out.writerow([
+            'Name',
+            'Description',
+            'URL',
+            'Address',
+            'Tables',
+            'Amount Paid',
+            'Cost',
+            'Badges'
+        ])
+        dealer_groups = session.query(Group).filter(Group.tables > 0).all()
+        for group in dealer_groups:
+            if group.approved and group.is_dealer:
+                out.writerow([
+                    group.name,
+                    group.description,
+                    group.website,
+                    group.address,
+                    group.tables,
+                    group.amount_paid,
+                    group.cost,
+                    group.badges
+                ])
+
+    @csv_file
     def printed_badges_attendee(self, out, session):
         uber.reports.PrintedBadgeReport(badge_type=c.ATTENDEE_BADGE, badge_type_name='Attendee').run(out, session)
 
@@ -263,16 +289,10 @@ class Root:
         for attendee in session.all_attendees():
             shirt_label = attendee.shirt_label or 'size unknown'
 
-            # TODO: eventually extract these conditions into properties on Attendee
-            # Attendee.gets_free_shirt needs to be re-worked out.
-            gets_staff_shirt = attendee.badge_type == c.STAFF_BADGE
-            gets_swag_shirt = attendee.badge_type != c.STAFF_BADGE and (attendee.gets_paid_shirt or attendee.ribbon == c.VOLUNTEER_RIBBON)
-
-            if gets_staff_shirt:
+            if attendee.gets_staff_shirt:
                 counts['staff'][label(shirt_label)] += c.SHIRTS_PER_STAFFER
 
-            if gets_swag_shirt:
-                counts['swag'][label(shirt_label)] += 1
+            counts['swag'][label(shirt_label)] += attendee.num_swag_shirts_owed
 
         return {
             'categories': [
@@ -290,24 +310,24 @@ class Root:
         sales_by_week = OrderedDict([(i, 0) for i in range(50)])
         for attendee in session.all_attendees():
             shirt_label = attendee.shirt_label or 'size unknown'
-            if attendee.gets_free_shirt:
-                counts['free'][label(shirt_label)][status(attendee.got_merch)] += 1
-                counts['all'][label(shirt_label)][status(attendee.got_merch)] += 1
-            if attendee.gets_paid_shirt:
-                counts['paid'][label(shirt_label)][status(attendee.got_merch)] += 1
-                counts['all'][label(shirt_label)][status(attendee.got_merch)] += 1
+            if attendee.volunteer_swag_shirt_eligible:
+                counts['free_swag_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
+                counts['all_swag_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
+            if attendee.paid_for_a_swag_shirt:
+                counts['paid_swag_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
+                counts['all_swag_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
                 sales_by_week[(datetime.now(UTC) - attendee.registered).days // 7] += 1
-            if attendee.gets_free_shirt and attendee.gets_paid_shirt:
-                counts['both'][label(shirt_label)][status(attendee.got_merch)] += 1
+            if attendee.gets_staff_shirt:
+                counts['staff_shirts'][label(shirt_label)][status(attendee.got_merch)] += c.SHIRTS_PER_STAFFER
         for week in range(48, -1, -1):
             sales_by_week[week] += sales_by_week[week + 1]
         return {
             'sales_by_week': sales_by_week,
             'categories': [
-                ('Eligible free', sort(counts['free'])),
-                ('Paid', sort(counts['paid'])),
-                ('All pre-ordered', sort(counts['all'])),
-                ('People with both free and paid', sort(counts['both']))
+                ('Free Swag Shirts', sort(counts['free_swag_shirts'])),
+                ('Paid Swag Shirts', sort(counts['paid_swag_shirts'])),
+                ('All Swag Shirts', sort(counts['all_swag_shirts'])),
+                ('Staff Shirts', sort(counts['staff_shirts']))
             ]
         }
 
@@ -358,14 +378,15 @@ class Root:
 
     def volunteers_owed_refunds(self, session):
         attendees = session.all_attendees().filter(Attendee.paid.in_([c.HAS_PAID, c.PAID_BY_GROUP, c.REFUNDED])).all()
-        is_unrefunded = lambda a: a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid
+        is_unrefunded = lambda a: a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid\
+                                                          and not a.group.amount_refunded
         return {
             'attendees': [(
                 'Volunteers Owed Refunds',
                 [a for a in attendees if is_unrefunded(a) and a.worked_hours >= c.HOURS_FOR_REFUND]
             ), (
                 'Volunteers Already Refunded',
-                [a for a in attendees if a.paid == c.REFUNDED and a.staffing]
+                [a for a in attendees if not is_unrefunded(a) and a.staffing]
             ), (
                 'Volunteers Who Can Be Refunded Once Their Shifts Are Marked',
                 [a for a in attendees if is_unrefunded(a) and a.worked_hours < c.HOURS_FOR_REFUND

@@ -3,110 +3,48 @@
 {% block content %}
 
 {% block adminheader %}
-<div class="dialog-form" id="checkin-dialog" title="Quick Check-In"></div>
-<script type="text/javascript">    
+<script type="text/javascript">
     $(function(){
         document.getElementById('search_bar').select();
     });
-    
-    $(function() {
-        var $dialog = $('#checkin-dialog').dialog({
-            autoOpen: false,
-            width: 666,
-            modal: true,
-            buttons: [{
-                text: 'Save & Check In',
-                click: function() {
-                    checkIn();
-                    $dialog.dialog('close');
-                }
-            }, {
-                text: 'Cancel',
-                click: function () {
-                    $dialog.dialog('close');
-                }
-            }]
-        });
 
-        $('.attendee-checkin').on('click', function () {
-            var attendeeId = $(this).attr('data-attendee-id');
-            $dialog.data('attendeeId', attendeeId).text('Loading...').dialog('open');
-            $.ajax({
-                method: 'GET',
-                dataType: 'html',
-                url: 'check_in_form',
-                data: {id: attendeeId},
-                success: function (response) {
-                    $dialog.html(response);
-                    $dialog.find('input.num').keypress(function (event) {
-                        if (event.keyCode === 13) {  // Enter key
-                            event.preventDefault();
-                            checkIn(attendeeId);
-                            $dialog.dialog('close');
-                        }
-                    });
-                    $dialog.find('input.date').datetextentry({
-                        field_order: 'MDY',
-                        show_tooltips: false
-                    });
-                    $dialog.dialog('option', 'position', {at: 'center', of: window});
-                },
-                error: function () {
-                    $dialog.text('Unexpected error pulling up attendee form - please try again.');
-                }
-            });
-        });
-    });
-
-    var checkIn = function () {
-        var id = $('#checkin-dialog').data('attendeeId');
+    function decrypt_checkin_code(barcode) {
         $.ajax({
             method: 'POST',
-            url: 'check_in',
+            url: 'qrcode_reader',
             dataType: 'json',
-            data: $("#check_in_form_" + id).serialize(),
+            data: {qrcode: barcode, csrf_token: csrf_token},
             success: function (json) {
                 toastr.clear();
                 var message = json.message;
                 if (json.success) {
-                    message += ' &nbsp; <a href="#" onClick="undoCheckIn(\'' + id + '\', ' + json.pre_badge + ') ; return false">Undo</a>';
-                    $('#paid_' + id).html(json.paid);
-                    $('#cin_' + id).html(json.checked_in);
-                    $('#age_' + id).parent().html(json.age_group);
-                    $('#num_' + id).parent().html(json.badge);
-                    toastr.info(message);
+                    $("#search_bar").val(json.data).parents('form').submit()
                 } else {
                     toastr.error(message);
-                }
-                if (json.increment) {
-                    $('#checkin_count').html(1 + parseInt($("#checkin_count").text()));
                 }
             },
             error: function () {
                 toastr.error('Unable to connect to server, please try again.');
             }
         });
-    };
-    var undoCheckIn = function (id, pre_badge) {
-        $.post('undo_checkin', {id: id, csrf_token: csrf_token, pre_badge: pre_badge}, function(s) {
-            var sep = location.href.indexOf('?') === -1 ? '?' : '&';
-            location.href += sep + 'message=' + encodeURIComponent(s);
-        });
-    };
-</script>
+    }
 
-<style type="text/css">
-    table.check-in td {
-        padding: 5px;
-    }
-    table.check-in input.num {
-        width: 5em;
-    }
-    table.check-in td:first-child {
-        font-weight: bold;
-        white-space: nowrap;
-    }
-</style>
+    $(function(){
+        $("#qr-scan").click(function(){
+            bootbox.prompt({
+                title: "Scan 2D Barcode",
+                backdrop: true,
+                callback: function (result) {
+                    if(result) {
+                        decrypt_checkin_code(result);
+                    }
+                }
+            });
+        });
+    });
+
+</script>
+    {% include "check_in.html" %}
 
 <ol class="breadcrumb">
   <li><a href="../accounts/homepage">Home</a></li>
@@ -119,6 +57,7 @@
     <div class="panel col-md-5">
         <form role="form" method="get" action="index">
             <input type="hidden" name="order" value="{{ order }}" />
+            <input type="hidden" name="invalid" value="{{ invalid }}" />
             <div class="input-group">
                 <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
                 <span class="input-group-btn">
@@ -140,6 +79,8 @@
         {% else %}
             <a class="btn btn-info" href="index?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid=True">Show all badge statuses</a>
         {% endif %}
+
+        <button class="btn btn-primary" id="qr-scan">Scan 2D Barcode</button>
     </div>
     <div class="panel col-md-4">
         <div class="col-md-6">{{ attendee_count }} Attendee{{ attendee_count|pluralize }}</div>
@@ -166,7 +107,8 @@
         <thead><tr>
             {% block tableheadings %}
             <th> <a href="index?order={{ order.group_id }}">Group Name</a> </th>
-            <th> <a href="index?order={{ order.last_first }}">Legal Name</a> </th>
+            <th> <a href="index?order={{ order.last_first }}">Preferred Name</a> </th>
+            <th> <a href="index?order={{ order.legal_name }}">Legal Name</a> </th>
             {% if c.PREASSIGNED_BADGE_TYPES %}<th> <a href="index?order={{ order.badge_printed_name }}">Badge Name</a> </th>{% endif %}
             <th> <a href="index?order={{ order.badge_type }}">Membership Type</a></th>
             {% if c.NUMBERED_BADGES %}<th> <a href="index?order={{ order.badge_num }}">Badge #</a> </th> {% endif %}
@@ -189,6 +131,9 @@
                 <td id="name_{{ attendee.id }}" style="text-align:left">
                     <a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a>
                 </td>
+                    <td id="name_{{ attendee.id }}" style="text-align:left">
+                        <a href="form?id={{ attendee.id }}">{{ attendee.legal_name }}</a>
+                    </td>
                 {% if c.PREASSIGNED_BADGE_TYPES %}<td>{{ attendee.badge_printed_name }}</td>{% endif %}
                 <td><nobr>{{ attendee.badge_type_label }}</nobr></td>
                 {% if c.NUMBERED_BADGES %}<td>{{ attendee.badge_num }}</td>{% endif %}

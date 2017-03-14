@@ -62,6 +62,11 @@ class TestAutomatedEmailCategory:
     def test_should_send_not_approved(self, get_test_email_category, attendee1):
         assert not get_test_email_category._should_send(model_inst=attendee1)
 
+    def test_should_send_at_con(self, at_con, get_test_email_category, set_test_approved_idents, attendee1):
+        assert not get_test_email_category._should_send(model_inst=attendee1)
+        get_test_email_category.allow_during_con = True
+        assert get_test_email_category._should_send(model_inst=attendee1)
+
     # -----------
 
     def test_send_doesnt_throw_exception(self, monkeypatch, get_test_email_category):
@@ -128,9 +133,20 @@ class TestAutomatedEmailCategory:
 
     def test_none_filter(self):
         with pytest.raises(AssertionError):
-            AutomatedEmail(Attendee, '', '', None)
+            AutomatedEmail(Attendee, '', '', None, ident='test_none_filter')
 
     def test_no_filter(self):
         # this is slightly silly but, if this ever changes, we should be explicit about what the expected result is
         with pytest.raises(TypeError):
-            AutomatedEmail(Attendee, '', '')
+            AutomatedEmail(Attendee, '', '', ident='test_no_filter')
+
+    def test_missing_ident_arg(self):
+        with pytest.raises(TypeError):
+            AutomatedEmail(Attendee, '', '', lambda a: False)
+
+    def test_empty_ident_arg(self):
+        with pytest.raises(AssertionError):
+            AutomatedEmail(Attendee, '', '', lambda a: False, ident='')
+
+        with pytest.raises(AssertionError):
+            AutomatedEmail(Attendee, '', '', lambda a: False, ident=None)
