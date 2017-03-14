@@ -142,11 +142,10 @@ class Root:
             } for dept, desc in c.JOB_LOCATION_OPTS]
         }
 
-    # print out a CSV list of department heads with their associated departments and contact information
     @csv_file
-    def department_head_sheet(self, out, session):
-        out.writerow(["Full Name", "Email", "Phone", "Department"])
-        for a in session.query(Attendee).filter_by(staffing=True, placeholder=False, ribbon=c.DEPT_HEAD_RIBBON).order_by('last_name').all():
+    def dept_head_contact_info(self, out, session):
+        out.writerow(["Full Name", "Email", "Phone", "Department(s)"])
+        for a in session.query(Attendee).filter_by(ribbon=c.DEPT_HEAD_RIBBON).order_by('last_name'):
             for label in a.assigned_depts_labels:
                 out.writerow([a.full_name, a.email, a.cellphone, label])
 
