@@ -54,7 +54,6 @@ import sqlalchemy
 from sqlalchemy.sql import case
 from sqlalchemy.event import listen
 from sqlalchemy.ext import declarative
-from sqlalchemy.exc import StatementError
 from sqlalchemy import func, or_, and_, not_
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm.exc import NoResultFound
