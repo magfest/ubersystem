@@ -143,11 +143,11 @@ class Root:
         }
 
     @csv_file
-    def dept_head_emails(self, out, session):
-        out.writerow(['Name', 'Phone', 'Email'])
-        dhs = session.query(Attendee).filter(Attendee.ribbon == c.DEPT_HEAD_RIBBON).all()
-        for x in dhs:
-            out.writerow([x.full_name, x.cellphone, x.email])
+    def dept_head_contact_info(self, out, session):
+        out.writerow(["Full Name", "Email", "Phone", "Department(s)"])
+        for a in session.query(Attendee).filter_by(ribbon=c.DEPT_HEAD_RIBBON).order_by('last_name'):
+            for label in a.assigned_depts_labels:
+                out.writerow([a.full_name, a.email, a.cellphone, label])
 
     @csv_file
     def dealer_table_info(self, out, session):
