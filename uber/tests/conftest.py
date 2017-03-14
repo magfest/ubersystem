@@ -6,6 +6,14 @@ from sideboard.tests import patch_session
 TEST_DB_FILE = '/tmp/uber.db'
 
 
+deadline_not_reached = localized_now() + timedelta(days=1)
+deadline_has_passed  = localized_now() - timedelta(days=1)
+
+
+def monkeypatch_db_column(column, patched_config_value):
+    column.property.columns[0].type.choices = dict(patched_config_value)
+
+
 @pytest.fixture(scope='session')
 def sensible_defaults():
     """
@@ -15,9 +23,17 @@ def sensible_defaults():
     c.POST_CON = False
     c.AT_THE_CON = False
     c.SHIFT_CUSTOM_BADGES = True
+    c.PRINTED_BADGE_DEADLINE = deadline_not_reached
+    c.DEV_BOX = False
+    c.SEND_EMAILS = False
+    c.EVENT_NAME = 'CoolCon9000'
+    c.HARDCORE_OPTIMIZATIONS_ENABLED = False
+    c.NUMBERED_BADGES = True
 
     # our tests should work no matter what departments exist, so we'll add these departments to use in our tests
-    c.make_enum('test_departments', {'console': 'Console', 'arcade': 'Arcade', 'con_ops': 'Fest Ops'})
+    patched_depts = {'console': 'Console', 'arcade': 'Arcade', 'con_ops': 'Fest Ops'}
+
+    c.make_enum('test_departments', patched_depts)
     c.SHIFTLESS_DEPTS = [c.CON_OPS]
 
     # we want 2 preassigned types to test some of our logic, so we've
@@ -25,9 +41,36 @@ def sensible_defaults():
     c.PREASSIGNED_BADGE_TYPES = [c.STAFF_BADGE, c.SUPPORTER_BADGE]
     c.BADGE_RANGES[c.STAFF_BADGE] = [1, 399]
     c.BADGE_RANGES[c.SUPPORTER_BADGE] = [500, 999]
+    c.BADGE_RANGES[c.ATTENDEE_BADGE] = [3000, 5999]
 
     # we need to set some default table prices so we can write tests against them without worrying about what's been configured
     c.TABLE_PRICES = defaultdict(lambda: 400, {1: 100, 2: 200, 3: 300})
+
+    # override whatever is in c.JOB_LOCATION with our own test data
+    # ensure that c.ARCADE and c.CONSOLES exist in any model columns using c.JOB_LOCATION
+    c.make_enum('job_location', patched_depts)
+    monkeypatch_db_column(Job.location, c.JOB_LOCATION_OPTS)
+    monkeypatch_db_column(Attendee.assigned_depts, c.JOB_LOCATION_OPTS)
+    monkeypatch_db_column(Attendee.trusted_depts, c.JOB_LOCATION_OPTS)
+
+    # ensure that we have uniform c.INTERESTS despite whatever is in the INI
+    c.make_enum('interest', {'console': 'Consoles', 'arcade': 'Arcade'})
+    monkeypatch_db_column(Attendee.interests, c.INTEREST_OPTS)
+
+    # default attendee prices
+    c.INITIAL_ATTENDEE = 40
+    c.GROUP_DISCOUNT = 10
+    c.DEALER_BADGE_PRICE = 20
+    c.PRICE_BUMPS = {}
+
+    # tests should turn this on to test the effects
+    c.HARDCORE_OPTIMIZATIONS_ENABLED = False
+
+    # set some other config values off just to be safe
+    c.AWS_ACCESS_KEY = ''
+    c.AWS_SECRET_KEY = ''
+    c.STRIPE_PUBLIC_KEY = ''
+    c.STRIPE_PRIVATE_KEY = ''
 
 
 @pytest.fixture(scope='session', autouse=True)
@@ -161,6 +204,11 @@ def cp_session():
     cherrypy.session = {}
 
 
+@pytest.fixture(autouse=True)
+def reset_threadlocal_cache():
+    threadlocal.clear()
+
+
 @pytest.fixture
 def at_con(monkeypatch): monkeypatch.setattr(c, 'AT_THE_CON', True)
 
@@ -171,6 +219,14 @@ def shifts_created(monkeypatch): monkeypatch.setattr(c, 'SHIFTS_CREATED', locali
 
 @pytest.fixture
 def shifts_not_created(monkeypatch): monkeypatch.setattr(c, 'SHIFTS_CREATED', '')
+
+
+@pytest.fixture
+def before_printed_badge_deadline(monkeypatch): monkeypatch.setattr(c, 'PRINTED_BADGE_DEADLINE', deadline_not_reached)
+
+
+@pytest.fixture
+def after_printed_badge_deadline(monkeypatch): monkeypatch.setattr(c, 'PRINTED_BADGE_DEADLINE', deadline_has_passed)
 
 
 @pytest.fixture

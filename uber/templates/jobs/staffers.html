@@ -5,10 +5,10 @@
 {% include "jobs/main_menu.html" %}
 
 <div class="row">
-    <div class="col-md-2">{{ attendees|length }} Staffers</div>
-    <div class="col-md-2">{{ regular_signups }} / {{ regular_total }} Regular Hours Taken</div>
-    <div class="col-md-2">{{ restricted_signups }} / {{ restricted_total }} Restricted Hours Taken</div>
-    <div class="col-md-2">{{ all_signups }} / {{ all_total }} Total Hours Taken</div>
+    <div class="col-md-3">{{ attendees|length }} Staffers</div>
+    <div class="col-md-3">{{ counts.regular_signups }} / {{ counts.regular_total }} Regular Hours Taken</div>
+    <div class="col-md-3">{{ counts.restricted_signups }} / {{ counts.restricted_total }} Restricted Hours Taken</div>
+    <div class="col-md-3">{{ counts.all_signups }} / {{ counts.all_total }} Total Hours Taken</div>
 </div>
 
 {% if checklist.relevant %}
@@ -53,7 +53,7 @@
 {% for attendee in attendees %}
     <tr>
         <td width="20%" data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}"> <a href="../registration/shifts?id={{ attendee.id }}">{{ attendee.full_name }}</a>        </td>
-        <td width="10">{{ attendee.badge_num }}</a></td>
+        <td width="10">{% if not attendee.badge_num %}<font size="-1">TBD</font>{% else %}{{ attendee.badge_num }}{% endif %}</td>
         <td width="10">{% if attendee.is_dept_head %}<font size="-1">[D]</font>{% endif %}</td>
         <td width="10">{% if attendee.trusted_here %}<font size="-1">[T]</font>{% endif %}</td>
         <td width="10">{% if attendee.multiply_assigned %}<font size="-1">[M]</font>{% endif %}</td>
@@ -67,6 +67,7 @@
 </table>
 
 <br/> <br/>
+
 <div style="margin-left:10px">
     [D]: <i>Staffers marked with a "D" are department heads.</i> <br/>
     [M]: <i>Staffers marked with a "M" are assigned to multiple locations</i> <br/>

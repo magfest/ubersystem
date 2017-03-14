@@ -30,13 +30,20 @@ def get_badge_type(badge_num):
 
 
 def detect_duplicates():
+    '''
+    Every day, this function looks through registered attendees for attendees with the same names and email addresses.
+    It first deletes any unpaid duplicates, then sets paid duplicates from "Completed" to "New" and sends an email to
+    the registration email address. This allows us to see new duplicate attendees without repetitive emails.
+    '''
     if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS):
         subject = c.EVENT_NAME + ' Duplicates Report for ' + localized_now().strftime('%Y-%m-%d')
         with Session() as session:
             if session.no_email(subject):
                 grouped = defaultdict(list)
-                for a in session.query(Attendee).filter(Attendee.first_name != '').options(joinedload(Attendee.group)).order_by(Attendee.registered):
-                    if not a.group or a.group.status != c.WAITLISTED:
+                for a in session.query(Attendee).filter(Attendee.first_name != '')\
+                        .filter(Attendee.badge_status == c.COMPLETED_STATUS).options(joinedload(Attendee.group))\
+                        .order_by(Attendee.registered):
+                    if not a.group or a.group.status not in [c.WAITLISTED, c.UNAPPROVED]:
                         grouped[a.full_name, a.email.lower()].append(a)
 
                 dupes = {k: v for k, v in grouped.items() if len(v) > 1}
@@ -48,6 +55,8 @@ def detect_duplicates():
                         for a in unpaid:
                             session.delete(a)
                         del dupes[who]
+                    for a in paid:
+                        a.badge_status = c.NEW_STATUS
 
                 if dupes:
                     body = render('emails/daily_checks/duplicates.html', {'dupes': sorted(dupes.items())})
@@ -69,6 +78,7 @@ def check_placeholders():
                     placeholders = (session.query(Attendee)
                                            .filter(Attendee.placeholder == True,
                                                    Attendee.registered < localized_now() - timedelta(days=3),
+                                                   Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
                                                    per_email_filter)
                                            .options(joinedload(Attendee.group))
                                            .order_by(Attendee.registered, Attendee.full_name).all())
@@ -85,6 +95,88 @@ def check_unassigned():
             if unassigned and session.no_email(subject):
                 body = render('emails/daily_checks/unassigned.html', {'unassigned': unassigned})
                 send_email(c.STAFF_EMAIL, c.STAFF_EMAIL, subject, body, format='html', model='n/a')
-
-
 # TODO: perhaps a check_leaderless() for checking for leaderless groups, since those don't get emails
+
+
+# run through all badges and check 2 things:
+# 1) there are no gaps in badge numbers
+# 2) all badge numbers are in the ranges set by c.BADGE_RANGES
+# note: does not do any duplicates checking, that's a different pre-existing check
+def badge_consistency_check(session):
+    errors = []
+
+    # check 1, see if anything is out of range, or has a duplicate badge number
+    badge_nums_seen = []
+
+    attendees = session.query(Attendee)\
+        .filter(Attendee.first_name != '')\
+        .filter(Attendee.badge_num != 0)\
+        .order_by('badge_num')\
+        .all()
+
+    for attendee in attendees:
+        out_of_range_error = check_range(attendee.badge_num, attendee.badge_type)
+        if out_of_range_error:
+            msg = '{a.full_name}: badge #{a.badge_num}: {err}'.format(a=attendee, err=out_of_range_error)
+            errors.append(msg)
+
+        if attendee.badge_num in badge_nums_seen:
+            msg = '{a.full_name}: badge #{a.badge_num}: Has been assigned the same badge number ' \
+                  'of another badge, which is not supposed to happen'.format(a=attendee)
+            errors.append(msg)
+
+        badge_nums_seen.append(attendee.badge_num)
+
+    # check 2: see if there are any gaps in each of the badge ranges
+    for badge_type_val, badge_type_desc in c.BADGE_OPTS:
+        prev_badge_num = -1
+        prev_attendee_name = ""
+
+        attendees = session.query(Attendee) \
+            .filter_by(badge_type=badge_type_val)\
+            .filter(Attendee.first_name != '') \
+            .filter(Attendee.badge_num != 0) \
+            .order_by('badge_num') \
+            .all()
+
+        for attendee in attendees:
+            if prev_badge_num == -1:
+                prev_badge_num = attendee.badge_num
+                prev_attendee_name = attendee.full_name
+                continue
+
+            if attendee.badge_num - 1 != prev_badge_num:
+                msg = "gap in badge sequence between " + badge_type_desc + " " + \
+                      "badge# " + str(prev_badge_num) + "(" + prev_attendee_name + ")" + " and " + \
+                      "badge# " + str(attendee.badge_num) + "(" + attendee.full_name + ")"
+
+                errors.append(msg)
+
+            prev_badge_num = attendee.badge_num
+            prev_attendee_name = attendee.full_name
+
+    return errors
+
+
+def needs_badge_num(attendee=None, badge_type=None):
+    """
+    Takes either an Attendee object, a badge_type, or both and returns whether or not the attendee should be
+    assigned a badge number. If neither parameter is given, always returns False.
+
+    :param attendee: Passing an existing attendee allows us to check for a new badge num whenever the attendee
+    is updated, particularly for when they are checked in.
+    :param badge_type: Must be an integer. Allows checking for a new badge number before adding/updating the
+    Attendee() object.
+    :return:
+    """
+    if not badge_type and attendee:
+        badge_type = attendee.badge_type
+    elif not badge_type and not attendee:
+        return None
+
+    if c.NUMBERED_BADGES:
+        if attendee:
+            return (badge_type in c.PREASSIGNED_BADGE_TYPES or attendee.checked_in) \
+                   and attendee.paid != c.NOT_PAID and attendee.badge_status != c.INVALID_STATUS
+        else:
+            return badge_type in c.PREASSIGNED_BADGE_TYPES

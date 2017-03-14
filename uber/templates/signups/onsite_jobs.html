@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}On-Site Shifts{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<h2>All Available Shifts</h2>
+
+<div style="text-align:center ; font-style:italic">
+    <a href="login">Click here</a> to log in as someone else. <br/>
+    <a href="printable">Click here</a> to see a printable schedule of the {{ attendee.weighted_hours }} weighted hours worth of shifts you are signed up for.
+</div>
+
+<br/>
+{{ c.EVENT_NAME }} has already started, so it's too late to drop shifts.  However, you can sign up for new shifts below.
+<br/> <br/>
+If you cannot make it to one or more of your existing shifts, contact {{ c.STAFF_EMAIL }}
+<br/> <br/>
+
+<table class="datatable" style="width:100%" data-page-length="-1">
+    <thead>
+        <tr>
+            <th>Start</th>
+            <th>Hours</th>
+            <th>Department</th>
+            <th>Job</th>
+            <th>Weight</th>
+            <th>Weighted Total</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for job in jobs %}
+        <tr>
+            <td>{{ job.start_time|datetime:"%b %-d at %H:%M (%-I %p %a)" }}</td>
+            <td>{{ job.duration }}</td>
+            <td>{{ job.location_label }}</td>
+            <td>{{ job.name }}</td>
+            <td>(x{{ job.weight }})</td>
+            <td>{{ job.weighted_hours }} hours</td>
+            <td>
+                {% if job.taken %}
+                    Signed Up!
+                {% else %}
+                    <form method="post" action="onsite_sign_up">
+                    {% csrf_token %}
+                    <input type="hidden" name="job_id" value="{{ job.id }}" />
+                    <button>Sign Up</button>
+                    </form>
+                {% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

@@ -40,3 +40,9 @@
     </td>
 </tr>
 </table>
+
+<div ng-hide="jobs.length">
+    <p>
+        If you are seeing this message, your department has not entered shifts yet, or all the existing shifts are full.  Please contact your Department Head or {{ c.STAFF_EMAIL }} for more information.
+    </p>
+</div>

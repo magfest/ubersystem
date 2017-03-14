@@ -2,6 +2,8 @@
 {% block title %}Group Form{% endblock %}
 {% block content %}
 
+    {% nav_menu group "form?id={id}" "Group Page" True "history?id={id}" "History" True "index" "Return to Group List" True %}
+
 <script type="text/javascript">
     var unapprove = function(action, convert) {
         if (!$.val("email")) {
@@ -30,6 +32,7 @@
         {% endif %}
     });
 </script>
+    {% include "check_in.html" %}
 
 <div class="panel panel-default">
 
@@ -73,7 +76,7 @@
     <label class="col-sm-2 control-label">Tables</label>
     <div class="col-sm-6">
         <select name="tables">
-            {% int_options 0 9 group.tables %}
+            {% options c.ADMIN_TABLE_OPTS group.tables %}
         </select>
     </div>
 </div>
@@ -128,6 +131,13 @@
 </div>
 
 <div class="form-group">
+    <label class="col-sm-2 control-label">Amount Refunded</label>
+    <div class="col-sm-6">
+        $<input type="text" style="width:4em" name="amount_refunded" value="{{ group.amount_refunded }}" />
+    </div>
+</div>
+
+    <div class="form-group">
     <label class="col-sm-2 control-label">Can Add Badges</label>
     <div class="col-sm-6">
         {% checkbox group.can_add %} Allow this group to add badges
@@ -199,13 +209,14 @@
             <textarea rows="3" cols="30" name="special_needs">{{ group.special_needs }}</textarea>
         </div>
     </div>
-
+    {% if not c.COLLECT_FULL_ADDRESS %}
     <div class="form-group">
         <label class="col-sm-2 control-label">Address</label>
         <div class="col-sm-6">
             <textarea rows="3" cols="30" name="address">{{ group.address }}</textarea>
         </div>
     </div>
+    {% endif %}
 {% endif %}
 
 {% include "groupextra.html" %}
@@ -219,7 +230,7 @@
 
 <div class="form-group">
     <div class="col-sm-6 col-sm-offset-2">
-        <button type="submit" class="btn btn-primary" value="Upload">Upload</button>
+        <button type="submit" class="btn btn-primary" value="Upload">Save</button>
     </div>
 </div>
 
@@ -242,19 +253,20 @@
 {% if not group.is_new %} <a style="font-size:10pt" href="../preregistration/group_members?id={{ group.id }}">Link for group leader</a> {% endif %}
 {% if not group.is_new and group.sorted_attendees %}
     <hr/>
+    <h5>Total Hours: {{ group.attendees|sum:'weighted_hours' }}</h5>
     <h3> Badges: &nbsp; </h3>
-    <table style="width:auto">
+    <table style="width:auto;">
     {% for attendee in group.attendees %}
         <tr>
             <td> <ul><li></li></ul> </td>
-            <td> <a href="../registration/form?id={{ attendee.id }}&return_to=../groups/form?id={{ group.id }}">{{ attendee.full_name }}</a> </td>
+            <td style="padding:15px;"> <a href="../registration/form?id={{ attendee.id }}&return_to=../groups/form?id={{ group.id }}">{{ attendee.full_name }}</a> </td>
             <td>
                 <i>
-                    (paid => {{ attendee.paid_label }}, &nbsp;&nbsp;
+                     (paid => {{ attendee.paid_label }}, &nbsp;&nbsp;
                      badge => {{ attendee.badge }})
                 </i>
             </td>
-            <td>
+            <td style="padding:15px">
                 {% if attendee == group.leader %}
                     <b>Leader</b>
                 {% elif not attendee.is_unassigned %}
@@ -268,20 +280,33 @@
             </td>
             <td>
                 {% if attendee == group.leader %}
-                    (cannot unassign group leader)
-                {% elif attendee.checked_in %}
-                    <b>Checked-in {{ attendee.checked_in|time:"fA"|lower }} {{ attendee.checked_in|date:"D" }}</b>
-                {% elif attendee.amount_extra %}
-                    <b>Kicked in an extra ${{ attendee.amount_extra }}!</b>
+                    <b>(Cannot Unassign group leader)</b>
                 {% elif not attendee.is_unassigned %}
                     <form method="post" action="../registration/delete" onSubmit="return confirm('Are you sure you want to unassign this badge?');">
                         {% csrf_token %}
                         <input type="hidden" name="id" value="{{ attendee.id }}" />
                         <input type="hidden" name="return_to" value="../groups/form?id={{ group.id }}" />
                         <input type="submit" value="Unassign" />
-                    </form>
+                    </form> 
                 {% endif %}
             </td>
+            <td style="padding:15px;">
+                {% if attendee.amount_extra %}
+                    <b>Kicked in an extra ${{ attendee.amount_extra }}!</b>
+                {% endif %}
+            </td>
+            <td style="padding:15px;">{{ attendee.weighted_hours }} Hours</td>
+            {% if attendee.checked_in %}
+                <td><b>Checked-in {{ attendee.checked_in_local|time:"fA"|lower }} {{ attendee.checked_in_local|date:"D" }}</b></td>
+            {% elif c.AT_THE_CON %}
+                {% if attendee.is_not_ready_to_checkin %}
+                    <td>Can't checkin ({{ attendee.is_not_ready_to_checkin }})</td>
+                {% else %}
+                    <td id="cin_{{ attendee.id }}">
+                        <button class="attendee-checkin" data-attendee-id="{{ attendee.id }}">Check In</button>
+                    </td>
+                {% endif %}
+            {% endif %}
         </tr>
     {% endfor %}
     </table>

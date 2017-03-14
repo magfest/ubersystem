@@ -1,0 +1,206 @@
+{% extends "base-admin.html" %}
+{% block title %}Recent At-the-Door Registrations{% endblock %}
+{% block content %}
+{% block adminheader %}
+<link rel="stylesheet" type="text/css" href="../static/styles/styles.css" />
+
+{% if checked_in %}
+    <a href="undo_new_checkin?id={{ checked_in }}">Undo</a>
+{% endif %}
+<script src="../static/js/servertimecheck.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+    {% if not c.DEV_BOX %}
+        // automatically log out after 15 minutes of inactivity
+        setTimeout(function () {
+            window.location = "../accounts/logout";
+        }, 900000);
+    {% endif %}
+
+    var UNASSIGNED = {{ unassigned|jsonize }};
+    var toggleMarkButton = function (dropdown) {
+        var $button = $(dropdown).parent().find(':submit');
+        if ($(dropdown).val()) {
+            $button.removeAttr('disabled');
+        } else {
+            $button.attr('disabled', 'disabled');
+        }
+    };
+    var toggleAllMarkButtons = function () {
+        $('table select[name=payment_method]').each(function (i, dropdown) {
+            toggleMarkButton(dropdown);
+        });
+    };
+    $(toggleAllMarkButtons);
+    
+    var recordFee = function() {
+        $.post('record_sale', {
+                id:             'None',
+                what:           $('#what_select').val() || $('#what_text').val() || '',
+                cash:           $('#store_cash').val(),
+                badge_num:      $('#badge_num').val() || undefined,
+                payment_method: $('#payment_method').val(),
+                mpoints:        0,
+                csrf_token:     csrf_token
+            }, function(json) {
+                toastr.remove();
+                if (!json.success) {
+                    toastr.error(json.message);
+                } else {
+                    $('#badge_num').val('');
+                    toastr.info(json.message);
+                    $('.toast-message').append(' &nbsp; <a href="#" onClick="undoSale(\'' + json.id + '\') ; return false">Undo</a>');
+                }
+            }, 'json');
+    };
+    var undoSale = function(id) {
+        $.post('undo_sale', {id: id, csrf_token: csrf_token}, function(message) {
+            toastr.remove();
+            toastr.info(message);
+        });
+    };
+    var showOrHideWhatText = function(page_loading) {
+        $('#store_mpoints').val('0');
+        if( $('#what_select').val() == '' ) {
+            $('#what_text').show().focus();
+            $('#store_cash').val('');
+        }
+        else {
+            var prices = {{ c.FEE_PRICES|safe }};
+            $('#what_text').val('').hide();
+            $('#store_cash').val( prices[$('#what_select').val()] );
+            if( !page_loading )
+                $('#store_amount').focus();
+        }
+    };
+    $(showOrHideWhatText);
+</script>
+{% endblock adminheader %}
+
+{% block admin_controls %}
+<h2> {% if not show_all %}Recent{% endif %} At-the-Door Registrations </h2>
+
+<div style="text-align:center">
+    {% if show_all %}
+        <a href="new">Click Here</a> to see only recent at-the-door registrations
+    {% else %}
+        <a href="new?show_all=true">Click Here</a> to see all at-the-door registrations instead of only recent ones
+    {% endif %}
+    <br/> <a href="index{% if c.AT_THE_CON %}?invalid=True{% endif %}">Click Here</a> to view the preregistered and checked in attendee list
+    <br/> <a href="arbitrary_charge_form">Click Here</a> to create arbitrary credit card charges if Square stops working
+</div>
+
+<div style="text-align:center; font-weight:bold; {% if c.REMAINING_BADGES < 50 %} font-size:18pt; {% endif %}">
+    <br/> Badges remaining: <font color="red">{{ c.REMAINING_BADGES }}</font>
+</div>
+
+<div id="transactions" style="text-align:center ; margin-top:5px ; padding:10px ; background:lightgray ; width:100%">
+    <table style="width:100%"> <tr>
+        <td>Record a Fee: </td>
+        <td>
+            Payment Method:
+            <select id="payment_method">
+                {% options c.FEE_PAYMENT_METHOD_OPTS %}
+            </select>
+        </td>
+        {% if c.NUMBERED_BADGES %}
+            <td>Badge Num: <input type="number" id="badge_num" size="4" style="width:5em" class="focus" /></td>
+        {% endif %}
+        <td>
+            <select id="what_select" onChange="showOrHideWhatText()">
+                {% options c.FEE_ITEM_NAMES %}
+                <option value="">Other...</option>
+            </select>
+            <input type="text" id="what_text" size="20" maxlength="50" />
+        </td>
+        <td> Money: $<input type="text" id="store_cash" size="2" /> </td>
+        <td> <input type="submit" id="record_sale" value="Record Fee" onClick="recordFee()" /> </td>
+    </tr> </table>
+</div>
+{% endblock admin_controls %}
+
+<br/>
+
+{% block table %}
+<table class="table datatable" data-page-length="-1">
+<thead>
+    <tr>
+        {% block tableheadings %}
+        <th align="left">Registered</th>
+        <th align="left">Name</th>
+        <th>Badge Type</th>
+        <th>Age</th>
+        <th>Cost</th>
+        <th>Paid</th>
+        {% if c.NUMBERED_BADGES %}
+            <th>Badge</th>
+        {% endif %}
+        <th></th>
+        {% endblock tableheadings %}
+    </tr>
+</thead>
+<tbody>
+{% for attendee in recent %}
+    <tr>
+        {% block tablerows %}
+        <td>{{ attendee.registered|datetime:"%b %-d %-H:%M (%-I:%M%p)" }}</td>
+        <td align="left">
+            <a href="form?return_to=new%3f&id={{ attendee.id }}">{{ attendee.full_name }}</a>
+            {% if attendee.banned %}
+                <div style="color:red">This attendee's name matches the name of a banned person.  Please get a department head to handle this.</div>
+            {% endif %}
+        </td>
+        <td>{{ attendee.badge_type_label }}</td>
+        <td>
+            {% if c.COLLECT_EXACT_BIRTHDATE %}
+                {{ attendee.birthdate|date:"m / d / Y" }}
+            {% else %}
+                {{ attendee.age_group_conf.desc }}
+            {% endif %}
+        </td>
+        <td>{% if attendee.paid != c.PAID_BY_GROUP %}${{ attendee.total_cost }}{% endif %}</td>
+        <td>
+            {% if attendee.paid == c.HAS_PAID %}
+                paid
+            {% elif attendee.paid == c.PAID_BY_GROUP %}
+                paid by group
+            {% else %}
+                <form method="post" action="mark_as_paid">
+                {% csrf_token %}
+                <input type="hidden" name="id" value="{{ attendee.id }}" />
+                <select name="payment_method" onChange="toggleMarkButton(this)">
+                    <option value="">Payment Method</option>
+                    {% options c.NEW_REG_PAYMENT_METHOD_OPTS attendee.payment_method %}
+                </select>
+                <input type="submit" disabled="disabled" value="Mark as Paid" />
+                </form>
+            {% endif %}
+        </td>
+        {% if attendee.paid == c.PAID_BY_GROUP %}
+            <td>
+                check in group badges <a href="index?search_text={{ attendee.id }}">here</a>
+            </td>
+            <td></td>
+        {% else %}
+            <form method="post" id="new_checkin_{{ attendee.id }}" action="new_checkin">
+            {% if c.NUMBERED_BADGES %}
+                <td>
+                    &nbsp;&nbsp;&nbsp;&nbsp;
+                    <input type="number" name="badge_num" size="5" style="width:5em" {% if attendee.paid == c.NOT_PAID %}disabled{% endif %} />
+                </td>
+            {% endif %}
+            <td>
+                {% csrf_token %}
+                <input type="hidden" name="id" value="{{ attendee.id }}" />
+                <button class="btn btn-primary" {% if attendee.paid == c.NOT_PAID %}disabled{% endif %}>Check In</button>
+            </td>
+            </form>
+        {% endif %}
+        {% endblock tablerows %}
+    </tr>
+{% endfor %}
+</tbody>
+</table>
+{% endblock table %}
+
+{% endblock %}

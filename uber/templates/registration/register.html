@@ -9,24 +9,31 @@
     window.setTimeout(toastr.clear, 10000);
 
     var maybeBold = function() {
-        if ($.val('payment_method') === {{ c.MANUAL }}) {
-            $('#email').css('font-weight', 'bold');
+        var $emailLabel = $('#email').parents('.form-group').find('label');
+        if (!$.field('payment_method') || _(['', {{ c.STRIPE }}, {{ c.MANUAL }}]).contains($.val('payment_method'))) {
+            $emailLabel.removeClass('optional-field');
         } else {
-            $('#email').css('font-weight', 'normal');
+            $emailLabel.addClass('optional-field');
         }
     };
-    $(maybeBold);
-
-    var removeDonationRows = function () {
-        $('.extra-row').remove();
-    };
-    var removeVolunteerRows = function () {
-        $('.staffing').remove();
+    var maybeWarn = function () {
+        var types = {{ c.PRESOLD_ONEDAY_BADGE_TYPES|jsonize }};
+        var badgeType = $.val('badge_type');
+        if (badgeType in types && types[badgeType] !== moment().format('dddd')) {
+            $('#day-warning').text('This badge can ONLY be picked up on ' + types[badgeType] + '.  You cannot pick it up today or any other day than ' + types[badgeType] + '.');
+        } else {
+            $('#day-warning').empty();
+        }
     };
     $(function () {
-        removeDonationRows();
-        removeVolunteerRows();
-        $('#bold-field-message').detach().prependTo('.form-horizontal');
+        {% if c.AT_THE_DOOR_BADGE_OPTS %}
+            maybeBold();
+            $('#bold-field-message').detach().prependTo('.form-horizontal');
+            $.field('badge_type').on('change', maybeWarn);
+            maybeWarn();
+        {% else %}
+            $('.panel').empty().append('<h1>All badges are sold out!</h1>');
+        {% endif %}
     });
 </script>
 
@@ -40,10 +47,14 @@
 <div class="form-group">
     <label class="col-sm-2 control-label">Payment Method</label>
     <div class="col-sm-6">
-        <select name="payment_method" class="form-control" onChange="maybeBold()">
-            <option value="">Select a payment option</option>
-            {% options c.DOOR_PAYMENT_METHOD_OPTS attendee.payment_method %}
-        </select>
+        {% if c.AFTER_BADGE_PRICE_WAIVED %}
+            <div style="margin-top:10px">All badge types are now free - enjoy {{ c.EVENT_NAME }}!</div>
+        {% else %}
+            <select name="payment_method" class="form-control" onChange="maybeBold()">
+                <option value="">Select a payment option</option>
+                {% options c.DOOR_PAYMENT_METHOD_OPTS attendee.payment_method %}
+            </select>
+        {% endif %}
     </div>
 </div>
 
@@ -53,6 +64,7 @@
         <select name="badge_type" class="form-control">
             {% options c.AT_THE_DOOR_BADGE_OPTS attendee.badge_type %}
         </select>
+        <p id="day-warning" class="help-block"></p>
     </div>
 </div>
 
@@ -64,7 +76,9 @@
     </div>
 </div>
 
-</form>
+{% include "preregistration/disclaimers.html" %}
+
 </div>
+</form>
 
 {% endblock %}

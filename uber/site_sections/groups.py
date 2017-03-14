@@ -32,7 +32,7 @@ class Root:
 
     @log_pageview
     def form(self, session, new_dealer='', first_name='', last_name='', email='', message='', **params):
-        group = session.group(params, bools=['auto_recalc', 'can_add'])
+        group = session.group(params, checkgroups=Group.all_checkgroups, bools=Group.all_bools,)
         if 'name' in params:
             message = check(group)
             if not message:
@@ -65,8 +65,28 @@ class Root:
             'email': email
         }
 
+    def history(self, session, id):
+        group = session.group(id)
+
+        if group.leader:
+            emails = session.query(Email)\
+                .filter(or_(Email.dest == group.leader.email, and_(Email.model == 'Attendee', Email.fk_id == id)))\
+                .order_by(Email.when).all()
+        else:
+            emails = {}
+
+        return {
+            'group': group,
+            'emails': emails,
+            'changes': session.query(Tracking)
+                .filter(or_(Tracking.links.like('%group({})%'.format(id)),
+                            and_(Tracking.model == 'Group', Tracking.fk_id == id)))
+                .order_by(Tracking.when).all(),
+            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Group id={}".format(id))
+        }
+
     @ajax
-    def unapprove(self, session, id, action, email, convert=None):
+    def unapprove(self, session, id, action, email, convert=None, message=''):
         assert action in ['waitlisted', 'declined']
         group = session.group(id)
         subject = 'Your {EVENT_NAME} Dealer registration has been ' + action

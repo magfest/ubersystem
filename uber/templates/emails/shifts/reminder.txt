@@ -4,7 +4,7 @@ Thanks again for signing up to volunteer at {{ c.EVENT_NAME }}!  You're not curr
 
 Please sign up for shifts at {{ c.URL_BASE }}/signups/login and if you have trouble logging in, you can verify/update your personal information at {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}
 
-You can add / drop / change your shifts anytime until {{ c.UBER_TAKEDOWN|datetime }}.
+You can add / drop / change your shifts anytime until {{ c.FINAL_EMAIL_DEADLINE|datetime }}.
 
 Please let us know if you have any questions.
 

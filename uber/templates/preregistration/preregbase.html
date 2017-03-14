@@ -2,6 +2,7 @@
 {% block backlink %}{% endblock %}
 {% block header %}
     <link href="../static/theme/prereg.css" rel="stylesheet">
+    <link href="../static/theme/prereg_extra.css" rel="stylesheet">
     <script type="text/javascript">
         var PREREG_CHECK_INTERVAL = 15 * 60 * 1000;
         var checkCap = function () {
@@ -52,13 +53,19 @@
                 {% if c.BEFORE_GROUP_PREREG_TAKEDOWN %}
                     description: '<p class="list-group-item-text">Register a group of {{ c.MIN_GROUP_SIZE }} people or more.</p>',
                 {% else %}
-                    description: '<p class="list-group-item-text">The deadline for Group registration has passed, but you can still register as a regular attendee.</p>'
+                    description: '<p class="list-group-item-text">The deadline for Group registration has passed, but you can still register as a regular attendee.</p>',
                 {% endif %}
                 onClick: function () {
-                    $('.group_fields').removeClass('hide');
-                    $('input[name="badge_type"]').val('{{ c.PSEUDO_GROUP_BADGE }}');
-                    $('#bold-field-message').insertBefore($.field('name').parents('.form-group'));
-                    togglePrices();
+                    {% if c.BEFORE_GROUP_PREREG_TAKEDOWN %}
+                        $('.group_fields').removeClass('hide');
+                        $('input[name="badge_type"]').val('{{ c.PSEUDO_GROUP_BADGE }}');
+                        $('#bold-field-message').insertBefore($.field('name').parents('.form-group'));
+                        togglePrices();
+                    {% else %}
+                        setBadge(REG_TYPES, 0);
+                        toastr.clear();
+                        toastr.error('Group registration has closed.');
+                    {% endif %}
                 }
             });
         {% endif %}
@@ -71,7 +78,7 @@
                 extra: 0
             }]
         };
-        {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS and not attendee.gets_free_shirt %}
+        {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS and c.SHIRT_AVAILABLE %}
             BADGE_TYPES.options.push({
                 title: 'Add a tshirt',
                 description: 'Add a {{ c.EVENT_NAME }} themed t-shirt to your registration.',
@@ -87,7 +94,7 @@
         {% endif %}
 
         var togglePrices = function () {
-            var showTotalPrices = {% if c.PAGE_PATH == '/preregistration/form' and not c.DONATION_SLIDER_DISPLAY %}($.val('badge_type') === {{ c.ATTENDEE_BADGE }}){% else %}false{% endif %};
+            var showTotalPrices = {% if c.PAGE_PATH == '/preregistration/form' and not c.PREREG_DONATION_DESCRIPTIONS %}($.val('badge_type') === {{ c.ATTENDEE_BADGE }}){% else %}false{% endif %};
             $.each(BADGE_TYPES.options, function (i, type) {
                 var $price = $(BADGE_TYPES.selector).slice(i, i + 1).find('.price').empty();
                 var $price_notice = $(BADGE_TYPES.selector).slice(i, i + 1).find('.price_notice').empty();
@@ -129,7 +136,7 @@
         var setKickinFromBadge = function (types, index) {
             var type = types.options[index];
             if (type.extra !== undefined && type.extra !== null && $.field('amount_extra')) {
-                {% if c.DONATION_SLIDER_DISPLAY %}
+                {% if c.PREREG_DONATION_DESCRIPTIONS %}
                     $('input:radio[name=amount_extra][value='+ type.extra +']').prop('checked', true).trigger('change');
                 {% else %}
                     $.field('amount_extra').val(type.extra).trigger('change');
@@ -167,10 +174,12 @@
                     });
                     $(types.row).append('<div style="clear:both">&nbsp;</div>');
                 });
-                setBadge(REG_TYPES, $.field('name') && $.val('name') ? 1 : 0);  // default to attendee or group
+                if (window.REG_TYPES && $(REG_TYPES.row).size()) {
+                    setBadge(REG_TYPES, $.field('name') && $.val('name') ? 1 : 0);  // default to attendee or group
+                }
                 makeBadgeMatchExtra();
                 if ($.field('amount_extra')) {
-                    {% if not c.DONATION_SLIDER_DISPLAY %}
+                    {% if not c.PREREG_DONATION_DESCRIPTIONS %}
                         $.field('amount_extra').parents('.form-group').hide();
                     {% else %}
                         $.field('amount_extra').on('change', makeBadgeMatchExtra);
