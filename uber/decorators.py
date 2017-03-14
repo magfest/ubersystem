@@ -315,26 +315,36 @@ def prettify_breadcrumb(str):
 def renderable(func):
     @wraps(func)
     def with_rendering(*args, **kwargs):
-        result = func(*args, **kwargs)
-
         try:
-            result['breadcrumb_page_pretty_'] = prettify_breadcrumb(func.__name__) if func.__name__ != 'index' else 'Home'
-            result['breadcrumb_page_'] = func.__name__ if func.__name__ != 'index' else ''
-        except:
-            pass
-
-        try:
-            result['breadcrumb_section_pretty_'] = prettify_breadcrumb(get_module_name(func))
-            result['breadcrumb_section_'] = get_module_name(func)
-        except:
-            pass
-
-        if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
-            return render('closed.html')
-        elif isinstance(result, dict):
-            return render(_get_template_filename(func), result)
+            result = func(*args, **kwargs)
+        except CSRFException as e:
+            message = "Your CSRF token is invalid. Please go back and try again."
+            uber.server.log_exception_with_verbose_context(str(e))
+            raise HTTPRedirect("../common/invalid?message={}", message)
+        except (AssertionError, ValueError) as e:
+            message = str(e)
+            uber.server.log_exception_with_verbose_context(message)
+            raise HTTPRedirect("../common/invalid?message={}", message)
         else:
-            return result
+            try:
+                result['breadcrumb_page_pretty_'] = prettify_breadcrumb(func.__name__) if func.__name__ != 'index' else 'Home'
+                result['breadcrumb_page_'] = func.__name__ if func.__name__ != 'index' else ''
+            except:
+                pass
+
+            try:
+                result['breadcrumb_section_pretty_'] = prettify_breadcrumb(get_module_name(func))
+                result['breadcrumb_section_'] = get_module_name(func)
+            except:
+                pass
+
+            if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
+                return render('closed.html')
+            elif isinstance(result, dict):
+                return render(_get_template_filename(func), result)
+            else:
+                return result
+
     return with_rendering
 
 
@@ -506,17 +516,23 @@ def attendee_id_required(func):
     def check_id(*args, **params):
         message = "No ID provided. Try using a different link or going back."
         session = params['session']
-        if params.get('id'):
+
+        attendee_id = params.get('id') or None
+        if attendee_id:
+            # Some pages use the string 'None' is indicate that a new model should be created, so this is a valid ID
+            if attendee_id == 'None':
+                return func(*args, **params)
+
             try:
-                uuid.UUID(params['id'])
+                uuid.UUID(attendee_id)
             except ValueError:
                 message = "That Attendee ID is not a valid format. Did you enter or edit it manually?"
-                log.error("check_id: invalid_id: {}", params['id'])
             else:
-                if session.query(sa.Attendee).filter(sa.Attendee.id == params['id']).first():
+                if session.query(sa.Attendee).filter(sa.Attendee.id == attendee_id).first():
                     return func(*args, **params)
-                message = "The Attendee ID provided was not found in our database"
-                log.error("check_id: missing_id: {}", params['id'])
-        log.error("check_id: error: {}", message)
-        raise HTTPRedirect('../common/invalid?message=%s' % message)
+                else:
+                    message = "The Attendee ID provided was not found in our database."
+
+        log.error("check_id error: {}", message)
+        raise HTTPRedirect('../preregistration/confirmation_not_found?id={}&message={}', attendee_id, message)
     return check_id

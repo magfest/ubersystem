@@ -315,12 +315,12 @@ class MagModel:
         try:
             val = int(val)
         except ValueError:
-            log.debug('{} is not an int, did we forget to migrate data for {} during a DB migration?').format(val, name)
+            log.debug('{} is not an int, did we forget to migrate data for {} during a DB migration?', val, name)
             return ''
 
         label = self.get_field(name).type.choices.get(val)
         if not label:
-            log.debug('{} does not have a label for {}, check your enum generating code').format(name, val)
+            log.debug('{} does not have a label for {}, check your enum generating code', name, val)
         return label
 
     @suffix_property
@@ -452,14 +452,37 @@ class Session(SessionManager):
                 order.append(col.desc() if attr.startswith('-') else col)
             return self.order_by(*order)
 
-        def icontains(self, attr=None, val=None, **filters):
-            query = self
+        def icontains_condition(self, attr=None, val=None, **filters):
+            """
+            Take column names and values, and build a condition/expression
+            that is true when all named columns contain the corresponding values, case-insensitive.
+
+            This operation is very similar to the "contains" method in SQLAlchemy,
+            but case insensitive - i.e. it uses "ilike" instead of "like".
+
+            Note that an "and" is used: all columns must match, not just one.
+            More complex conditions can be built by using or_/etc on the result of this method.
+            """
+            conditions = []
             if len(self.column_descriptions) == 1 and filters:
                 for colname, val in filters.items():
-                    query = query.filter(getattr(self.model, colname).ilike('%{}%'.format(val)))
+                    conditions.append(getattr(self.model, colname).ilike('%{}%'.format(val)))
             if attr and val:
-                query = self.filter(attr.ilike('%{}%'.format(val)))
-            return query
+                conditions.append(attr.ilike('%{}%'.format(val)))
+            return and_(*conditions)
+
+        def icontains(self, attr=None, val=None, **filters):
+            """
+            Take the names of columns and values, and filters the query to items
+            where each named columns contain the values, case-insensitive.
+
+            This operation is very similar to calling query.filter(contains(...)),
+            but works with a case-insensitive "contains".
+
+            Note that an "and" is used: all columns must match, not just one.
+            """
+            condition = self.icontains_condition(attr=attr, val=val, **filters)
+            return self.filter(condition)
 
         def iexact(self, **filters):
             return self.filter(*[func.lower(getattr(self.model, attr)) == func.lower(val) for attr, val in filters.items()])
@@ -742,25 +765,31 @@ class Session(SessionManager):
                 first, last = terms
                 if first.endswith(','):
                     last, first = first.strip(','), last
-                return attendees.icontains(first_name=first, last_name=last)
+                name_cond = attendees.icontains_condition(first_name=first, last_name=last)
+                legal_name_cond = attendees.icontains_condition(legal_name="{}%{}".format(first, last))
+                return attendees.filter(or_(name_cond, legal_name_cond))
             elif len(terms) == 1 and terms[0].endswith(','):
-                return attendees.icontains(last_name=terms[0].rstrip(','))
+                last = terms[0].rstrip(',')
+                name_cond = attendees.icontains_condition(last_name=last)
+                # Known issue: search may include first name if legal name is set
+                legal_name_cond = attendees.icontains_condition(legal_name=last)
+                return attendees.filter(or_(name_cond, legal_name_cond))
             elif len(terms) == 1 and terms[0].isdigit():
                 if len(terms[0]) == 10:
                     return attendees.filter(or_(Attendee.ec_phone == terms[0], Attendee.cellphone == terms[0]))
                 elif int(terms[0]) <= sorted(c.BADGE_RANGES.items(), key=lambda badge_range: badge_range[1][0])[-1][1][1]:
                     return attendees.filter(Attendee.badge_num == terms[0])
-            elif len(terms) == 1 and re.match('[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}', terms[0]):
+            elif len(terms) == 1 and re.match('^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$', terms[0]):
                 return attendees.filter(or_(Attendee.id == terms[0], Attendee.public_id == terms[0],
                                             Group.id == terms[0], Group.public_id == terms[0]))
             elif len(terms) == 1 and terms[0].startswith(c.EVENT_QR_ID):
                 search_uuid = terms[0][len(c.EVENT_QR_ID):]
-                if re.match('[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}', search_uuid):
+                if re.match('^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$', search_uuid):
                     return attendees.filter(or_(Attendee.public_id == search_uuid,
                                                 Group.public_id == search_uuid))
 
             checks = [Group.name.ilike('%' + text + '%')]
-            for attr in ['first_name', 'last_name', 'badge_printed_name', 'email', 'comments', 'admin_notes', 'for_review']:
+            for attr in ['first_name', 'last_name', 'legal_name', 'badge_printed_name', 'email', 'comments', 'admin_notes', 'for_review']:
                 checks.append(getattr(Attendee, attr).ilike('%' + text + '%'))
             return attendees.filter(or_(*checks))
 
@@ -875,24 +904,25 @@ class Session(SessionManager):
 
 
 class Group(MagModel, TakesPaymentMixin):
-    public_id    = Column(UUID, default=lambda: str(uuid4()))
-    name          = Column(UnicodeText)
-    tables        = Column(Numeric, default=0)
-    address       = Column(UnicodeText)
-    website       = Column(UnicodeText)
-    wares         = Column(UnicodeText)
-    description   = Column(UnicodeText)
-    special_needs = Column(UnicodeText)
-    amount_paid   = Column(Integer, default=0, admin_only=True)
-    cost          = Column(Integer, default=0, admin_only=True)
-    auto_recalc   = Column(Boolean, default=True, admin_only=True)
-    can_add       = Column(Boolean, default=False, admin_only=True)
-    admin_notes   = Column(UnicodeText, admin_only=True)
-    status        = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
-    registered    = Column(UTCDateTime, server_default=utcnow())
-    approved      = Column(UTCDateTime, nullable=True)
-    leader_id     = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader'), nullable=True)
-    leader        = relationship('Attendee', foreign_keys=leader_id, post_update=True, cascade='all')
+    public_id       = Column(UUID, default=lambda: str(uuid4()))
+    name            = Column(UnicodeText)
+    tables          = Column(Numeric, default=0)
+    address         = Column(UnicodeText)
+    website         = Column(UnicodeText)
+    wares           = Column(UnicodeText)
+    description     = Column(UnicodeText)
+    special_needs   = Column(UnicodeText)
+    amount_paid     = Column(Integer, default=0, admin_only=True)
+    amount_refunded = Column(Integer, default=0, admin_only=True)
+    cost            = Column(Integer, default=0, admin_only=True)
+    auto_recalc     = Column(Boolean, default=True, admin_only=True)
+    can_add         = Column(Boolean, default=False, admin_only=True)
+    admin_notes     = Column(UnicodeText, admin_only=True)
+    status          = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
+    registered      = Column(UTCDateTime, server_default=utcnow())
+    approved        = Column(UTCDateTime, nullable=True)
+    leader_id       = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader'), nullable=True)
+    leader          = relationship('Attendee', foreign_keys=leader_id, post_update=True, cascade='all')
 
     _repr_attr_names = ['name']
 
@@ -937,7 +967,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def new_ribbon(self):
-        return c.DEALER_RIBBON if self.is_dealer else ''
+        return c.DEALER_RIBBON if self.is_dealer else c.NO_RIBBON
 
     @property
     def ribbon_and_or_badge(self):
@@ -1038,6 +1068,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     placeholder   = Column(Boolean, default=False, admin_only=True)
     first_name    = Column(UnicodeText)
     last_name     = Column(UnicodeText)
+    legal_name    = Column(UnicodeText)
     email         = Column(UnicodeText)
     birthdate     = Column(Date, nullable=True, default=None)
     age_group     = Column(Choice(c.AGE_GROUPS), default=c.AGE_UNKNOWN, nullable=True)
@@ -1050,6 +1081,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     region        = Column(UnicodeText)
     country       = Column(UnicodeText)
     no_cellphone  = Column(Boolean, default=False)
+    ec_name       = Column(UnicodeText)
     ec_phone      = Column(UnicodeText)
     cellphone     = Column(UnicodeText)
 
@@ -1080,8 +1112,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     overridden_price = Column(Integer, nullable=True, admin_only=True)
     amount_paid      = Column(Integer, default=0, admin_only=True)
     amount_extra     = Column(Choice(c.DONATION_TIER_OPTS, allow_unspecified=True), default=0)
-    amount_refunded  = Column(Integer, default=0, admin_only=True)
     payment_method   = Column(Choice(c.PAYMENT_METHOD_OPTS), nullable=True)
+    amount_refunded  = Column(Integer, default=0, admin_only=True)
 
     badge_printed_name = Column(UnicodeText)
 
@@ -1107,9 +1139,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     dept_checklist_items = relationship('DeptChecklistItem', backref='attendee')
 
     _repr_attr_names = ['full_name']
-    __table_args__ = (
-        UniqueConstraint('badge_num', deferrable=True, initially='DEFERRED'),
-    )
 
     @predelete_adjustment
     def _shift_badges(self):
@@ -1180,7 +1209,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     def _staffing_adjustments(self):
         if self.ribbon == c.DEPT_HEAD_RIBBON:
             self.staffing = True
-            self.trusted_depts = self.assigned_depts
             if c.SHIFT_CUSTOM_BADGES or c.STAFF_BADGE not in c.PREASSIGNED_BADGE_TYPES:
                 self.badge_type = c.STAFF_BADGE
             if self.paid == c.NOT_PAID:
@@ -1358,16 +1386,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         return case([
             (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
         ], else_=func.lower(cls.first_name + ' ' + cls.last_name))
-
-    @hybrid_property
-    def last_first(self):
-        return self.unassigned_name or '{self.last_name}, {self.first_name}'.format(self=self)
-
-    @last_first.expression
-    def last_first(cls):
-        return case([
-            (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
-        ], else_=func.lower(cls.last_name + ', ' + cls.first_name))
 
     @hybrid_property
     def last_first(self):
@@ -1853,7 +1871,7 @@ class ArbitraryCharge(MagModel):
 
 
 class ApprovedEmail(MagModel):
-    ident = Column('subject', UnicodeText)  # TODO: rename column to "ident" in the database; will require a db migration
+    ident = Column(UnicodeText)
 
     _repr_attr_names = ['ident']
 
@@ -2136,6 +2154,11 @@ def initialize_db():
     """
     for _model in Session.all_models():
         setattr(Session.SessionMixin, _model.__tablename__, _make_getter(_model))
+
+    if Session.engine.dialect.name == 'postgresql':
+        Attendee.__table_args__ = (
+            UniqueConstraint('badge_num', deferrable=True, initially='DEFERRED'),
+        )
 
     num_tries_remaining = 10
     while not stopped.is_set():

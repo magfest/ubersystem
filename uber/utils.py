@@ -2,6 +2,12 @@ from uber.common import *
 from email_validator import validate_email, EmailNotValidError
 
 
+class CSRFException(Exception):
+    """
+    This class will raise a custom exception to help catch a specific error in later functions.
+    """
+
+
 class HTTPRedirect(cherrypy.HTTPRedirect):
     """
     CherryPy uses exceptions to indicate things like HTTP 303 redirects.  This
@@ -93,10 +99,11 @@ def check_csrf(csrf_token):
     """
     if csrf_token is None:
         csrf_token = cherrypy.request.headers.get('CSRF-Token')
-    assert csrf_token, 'CSRF token missing'
+    if not csrf_token:
+        raise CSRFException("CSRF token missing")
     if csrf_token != cherrypy.session['csrf_token']:
         log.error("csrf tokens don't match: {!r} != {!r}", csrf_token, cherrypy.session['csrf_token'])
-        raise AssertionError('CSRF check failed')
+        raise CSRFException('CSRF check failed')
     else:
         cherrypy.request.headers['CSRF-Token'] = csrf_token
 

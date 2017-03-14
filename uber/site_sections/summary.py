@@ -143,11 +143,11 @@ class Root:
         }
 
     @csv_file
-    def dept_head_emails(self, out, session):
-        out.writerow(['Name', 'Phone', 'Email'])
-        dhs = session.query(Attendee).filter(Attendee.ribbon == c.DEPT_HEAD_RIBBON).all()
-        for x in dhs:
-            out.writerow([x.full_name, x.cellphone, x.email])
+    def dept_head_contact_info(self, out, session):
+        out.writerow(["Full Name", "Email", "Phone", "Department(s)"])
+        for a in session.query(Attendee).filter_by(ribbon=c.DEPT_HEAD_RIBBON).order_by('last_name'):
+            for label in a.assigned_depts_labels:
+                out.writerow([a.full_name, a.email, a.cellphone, label])
 
     @csv_file
     def dealer_table_info(self, out, session):
@@ -377,14 +377,15 @@ class Root:
 
     def volunteers_owed_refunds(self, session):
         attendees = session.all_attendees().filter(Attendee.paid.in_([c.HAS_PAID, c.PAID_BY_GROUP, c.REFUNDED])).all()
-        is_unrefunded = lambda a: a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid
+        is_unrefunded = lambda a: a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid\
+                                                          and not a.group.amount_refunded
         return {
             'attendees': [(
                 'Volunteers Owed Refunds',
                 [a for a in attendees if is_unrefunded(a) and a.worked_hours >= c.HOURS_FOR_REFUND]
             ), (
                 'Volunteers Already Refunded',
-                [a for a in attendees if a.paid == c.REFUNDED and a.staffing]
+                [a for a in attendees if not is_unrefunded(a) and a.staffing]
             ), (
                 'Volunteers Who Can Be Refunded Once Their Shifts Are Marked',
                 [a for a in attendees if is_unrefunded(a) and a.worked_hours < c.HOURS_FOR_REFUND
