@@ -266,6 +266,10 @@ class Config(_Overridable):
         return cherrypy.session['csrf_token'] if 'csrf_token' in cherrypy.session else ''
 
     @property
+    def QUERY_STRING(self):
+        return cherrypy.request.query_string
+
+    @property
     def PAGE_PATH(self):
         return cherrypy.request.path_info
 
@@ -306,6 +310,10 @@ class Config(_Overridable):
     @property
     def REMAINING_BADGES(self):
         return max(0, self.MAX_BADGE_SALES - self.BADGES_SOLD)
+
+    @request_cached_property
+    def MENU_FILTERED_BY_ACCESS_LEVELS(self):
+        return c.MENU.render_items_filtered_by_current_access()
 
     @request_cached_property
     def ADMIN_ACCESS_SET(self):
@@ -494,6 +502,9 @@ c.TEARDOWN_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (c.ESCHATON + ti
                      + [(dt, dt.strftime('%I %p %a'))
                         for dt in ((c.ESCHATON + timedelta(days=1)).replace(hour=10) + timedelta(hours=i) for i in range(12))]
 
+# code for all time slots
+c.CON_TOTAL_LENGTH = int((c.TEARDOWN_TIME_OPTS[-1][0] - c.SETUP_TIME_OPTS[0][0]).seconds / 3600)
+c.ALL_TIME_OPTS = [(dt, dt.strftime('%I %p %a %d %b')) for dt in ((c.EPOCH - timedelta(days=c.SETUP_SHIFT_DAYS) + timedelta(hours=i)) for i in range(c.CON_TOTAL_LENGTH))]
 
 c.EVENT_NAME_AND_YEAR = c.EVENT_NAME + (' {}'.format(c.YEAR) if c.YEAR else '')
 c.EVENT_YEAR = c.EPOCH.strftime('%Y')

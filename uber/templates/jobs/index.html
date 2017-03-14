@@ -1,9 +1,27 @@
 {% extends "base-admin.html" %}
 {% block title %}Shifts{% endblock %}
+{% block page_styles %}
+<!--inside page_style -->
+<link rel="stylesheet" href="../static/styles/fullcalendar.min.css" />
+<link rel="stylesheet" href="../static/styles/fullcalendar.print.css" media="print"/>
+
+<style>
+.button_row div a.setup_button, .button_row div a.teardown_button {
+ background-color: #239875;
+
+    background-image: -webkit-linear-gradient(top, #239875 0%, #209572 100%);
+    background-image: -o-linear-gradient(top, #239875 0%, #209572 100%);
+    background-image: -webkit-gradient(linear, left top, left bottom, from(#239875), to(#209572));
+    background-image: linear-gradient(to bottom, #239875 0%, #209572 100%);
+}
+</style>
+{% endblock %}
+
 {% block content %}
 
 {% include "jobs/main_menu.html" %}
 
+<div clas="row">
 {% if checklist.relevant %}
     {% if checklist.completed %}
         You've already indicated that what's here and/or whatever shifts STOPS creates are fine.  Let us know if that's in error.
@@ -20,58 +38,39 @@
         <input type="submit" value="I Confirm I Don't Need To Do Anything Else Here" />
         </form>
     {% endif %}
-    <br/><br/>
 {% endif %}
-
-<div style="border:1px">
-    <h3>Setup Shifts</h3>
-    <a href="form?id=None&location={{ location }}&type={{ c.SETUP }}">Add a setup shift</a>
-    <ul>
-    {% for job in setup %}
-        <li>
-            [<b>{{ job.start_time|datetime:"%I %p %a" }}</b> for an expected ~{{ job.duration }} hours]
-            <a href="form?id={{ job.id }}">{{ job.name }}</a>:
-            {{ job.shifts|length }}/{{ job.slots }} Staffers <a href="staffers_by_job?id={{ job.id }}">Signed Up</a>
-        </li>
-    {% endfor %}
-    </ul>
-    <br/>
 </div>
+<div class="row text-center">
+	<div class="col-md-4">
+	    <h3>Setup Shifts ({{ setup|length }})</h3>	
+	</div>
+        <div class="col-md-4">
+            <h3>Teardown Shifts ({{teardown|length}})</h3>
+        </div>
+	<div class="col-md-4">
+	    <h3>Regular Shifts ({{normal|length}})</h3>
+	</div>
 
-<table class="calendar" border="1">
-{% for curr_dt, prev_dt, jobs in times %}
-    <tr>
-        <td>
-            <nobr>{{ curr_dt|date:"gA"|lower }} {{ curr_dt|date:"D" }}</nobr>
-            <br/> <br/>
-            <nobr><a href="form?id=None&location={{ location }}&start_time={{ curr_dt|date:"Y-m-d H:i:s" }}">Add Shift</a></nobr>
-            <a name="{{ prev_dt|stringformat:"s" }}"></a>
-        </td>
-        {% for job in jobs %}
-            <td rowspan="{{ job.duration }}">
-                <nobr> <a href="form?id={{ job.id }}"><b>{{ job.name }}{% if job.restricted %}*{% endif %}</b></a> </nobr>
-                <br/> <br/>
-                <nobr> Weight: x{{ job.weight }}{% if job.extra15 %}*{% endif %} </nobr>
-                <br/>
-                <nobr> {{ job.shifts|length }}/{{ job.slots }} Staffers <a href="staffers_by_job?id={{ job.id }}">Signed Up</a>
-                {% if job.shifts %}
-                    <a href="#" onClick="$(this).next().show().prev().remove() ; return false" style="display:block">View Staffers</a>
-                    <div style="display:none">
-                        {% for shift in job.shifts %}
-                            <a href="../registration/form?id={{ shift.attendee.id }}">{{ shift.attendee.full_name }}</a> <br/>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            </td>
-        {% endfor %}
-    </tr>
-{% endfor %}
-</table>
+</div>
+<div class="row text-center button_row">
 
-<div style="border:1px">
-    <h3>Teardown Shifts</h3>
-    <a href="form?id=None&location={{ location }}&type={{ c.TEARDOWN }}">Add a teardown shift</a>
-    <ul>
+        <div class="col-md-4">
+	    <a class="btn btn-primary setup_button" href="form?id=None&location={{ location }}&type={{ c.SETUP }}">Add Setup Shift</a>
+
+        </div>
+        <div class="col-md-4">
+            <a class="btn btn-primary teardown_button" href="form?id=None&location={{ location }}&type={{ c.TEARDOWN }}">Add Teardown Shift</a>
+
+        </div>
+        <div class="col-md-4">
+            <a class="btn btn-primary" href="form?id=None&location={{ location }}&type={{ c.REGULAR }}">Add Shift</a>
+
+        </div>
+
+</div>
+{% comment %}
+<div class="row">
+        <div class="col-md-12">
     {% for job in teardown %}
         <li>
             [<b>{{ job.start_time|datetime:"%I %p %a" }}</b> for an expected ~{{ job.duration }} hours]
@@ -79,8 +78,97 @@
             {{ job.shifts|length }}/{{ job.slots }} Staffers <a href="staffers_by_job?id={{ job.id }}">Signed Up</a>
         </li>
     {% endfor %}
-    </ul>
-    <br/>
+
+        </div>
 </div>
+{% endcomment %}
+
+
+
+<!-- Starting with calendar implementation -->
+<div class="row">
+	<div class="col-md-12">
+		<div id="shift_cal"></div>
+	</div>
+</div>
+<div class="row" style="margin-bottom:50px;"></div>
+
+
 
 {% endblock %}
+{% block page_scripts %}
+<script type="text/javascript" src="../static/js/moment.js"></script> 
+
+
+<script type="text/javascript" src="../static/js/fullcalendar.min.js"></script> 
+<script type="text/javascript"> 
+
+
+	$(document).ready(function() {
+
+		var eventList =  new Array();
+		    {% for job in jobs %}
+                    eventList.push({
+                                        title : "{{job.name}} ({{job.shifts | length }}/{{job.slots}})",
+                                        start : "{{ job.start_time|datetime:"%Y-%m-%dT%H:%M:%S" }}",
+                                        // duration {{job.duration}}
+                                        end: "{{job.start_time|shift_end:job.duration}}",
+                                        url : "form?id={{ job.id }}",
+                                        {% if job.type == c.SETUP or job.type == c.TEARDOWN %}
+                                        backgroundColor: '#239875'
+                                        {% else %}
+                                        backgroundColor:'#305fc9'
+                                        {% endif %}
+                                });
+    		    {% endfor %}
+
+		$('#shift_cal').fullCalendar({
+			header: {
+				left: 'prev,next today',
+				center: 'title',
+				right: 'agendaWeek,agendaDay,listWeek'
+			},
+			buttonText : {
+				today : 'Today',
+				agendaWeek : 'Week',
+				agendaDay : 'Day',
+				listWeek : 'Week'
+			},
+                        slotDuration: '00:15:00',
+                        allDaySlot: false,
+                        eventLimit: true, // allow "more" link when too many events
+                        slotEventOverlap: false,
+
+			defaultView: 'agendaDay',
+			editable: false,
+			slotEventOverlap:false,
+			eventLimit: true, // allow "more" link when too many events
+			events: eventList,
+            		dayClick: function(date) {
+			    window.location.href = "form?id=None&location={{ location }}&start_time=" + date.format("YYYY-MM-DD HH:mm:ss");
+            		}
+		});
+                var curDate = $.urlParam('time');
+                if(curDate != null) {
+                        $("#shift_cal").fullCalendar( 'gotoDate',curDate);
+
+                } else {
+                        $("#shift_cal").fullCalendar('gotoDate', eventList[0].start);
+                }
+
+	
+	});
+
+$.urlParam = function(name){
+   var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
+   if (results==null){
+      return null;
+   }
+   else{
+      return results[1] || 0;
+   }
+}
+
+</script>
+{% endblock %}
+

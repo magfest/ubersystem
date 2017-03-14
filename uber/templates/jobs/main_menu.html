@@ -1,24 +1,22 @@
-
+<!-- main menu -->
 <script type="text/javascript">
     var mainMenuDropdownChanged = function () {
         window.location = $("#page").val() + "?location=" + $("#location").val();
     };
 </script>
 
-<table style="text-align:center">
-<tr>
-    <td width="50%">
-        <select id="location" style="font-size:14pt ; font-weight:bold" onChange="mainMenuDropdownChanged()">
-            <option>All</option>
-            {% options c.JOB_LOCATION_OPTS location %}
-        </select>
-    </td>
-    <td width="50%">
-        <select id="page" style="font-size:14pt ; font-weight:bold" onChange="mainMenuDropdownChanged()">
-            {% options c.JOB_PAGE_OPTS c.PAGE %}
-        </select>
-    </td>
-</tr>
-</table>
+<div class="row">
+	<div class="col-md-6">
+		<!-- font-size:14pt -->
+        	<select id="location" style="font-weight:bold" onChange="mainMenuDropdownChanged()">
+            		<option>All</option>
+           		 {% options c.JOB_LOCATION_OPTS location %}
+        	</select>
+	</div>
+	<div class="col-md-6">
+        	<select id="page" style="font-weight:bold" onChange="mainMenuDropdownChanged()">
+           	 {% options c.JOB_PAGE_OPTS c.PAGE %}
+        	</select>
+	</div>
 
-<br/>
+</div>

@@ -17,14 +17,15 @@ class AutomatedEmail:
         Group: lambda session: session.query(Group).options(subqueryload(Group.attendees))
     }
 
-    def __init__(self, model, subject, template, filter, *, when=(),
+    def __init__(self, model, subject, template, filter, ident, *, when=(),
                  sender=None, extra_data=None, cc=None, bcc=None,
-                 post_con=False, needs_approval=True, ident=None, allow_during_con=False):
+                 post_con=False, needs_approval=True, allow_during_con=False):
 
         self.subject = subject.format(EVENT_NAME=c.EVENT_NAME)
-        self.ident = ident or self.subject
+        self.ident = ident
 
-        assert self.ident not in self.instances, 'error: ident "{}" is registered twice.'.format(self.ident)
+        assert self.ident, 'error: automated email ident may not be empty.'
+        assert self.ident not in self.instances, 'error: automated email ident "{}" is registered twice.'.format(self.ident)
 
         self.instances[self.ident] = self
 
@@ -289,23 +290,23 @@ class SendAllAutomatedEmailsJob:
 
 
 class StopsEmail(AutomatedEmail):
-    def __init__(self, subject, template, filter, **kwargs):
-        AutomatedEmail.__init__(self, Attendee, subject, template, lambda a: a.staffing and filter(a), sender=c.STAFF_EMAIL, **kwargs)
+    def __init__(self, subject, template, filter, ident, **kwargs):
+        AutomatedEmail.__init__(self, Attendee, subject, template, lambda a: a.staffing and filter(a), ident, sender=c.STAFF_EMAIL, **kwargs)
 
 
 class GuestEmail(AutomatedEmail):
-    def __init__(self, subject, template, filter=lambda a: True, **kwargs):
-        AutomatedEmail.__init__(self, Attendee, subject, template, lambda a: a.badge_type == c.GUEST_BADGE and filter(a), sender=c.GUEST_EMAIL, **kwargs)
+    def __init__(self, subject, template, ident, filter=lambda a: True, **kwargs):
+        AutomatedEmail.__init__(self, Attendee, subject, template, lambda a: a.badge_type == c.GUEST_BADGE and filter(a), ident=ident, sender=c.GUEST_EMAIL, **kwargs)
 
 
 class GroupEmail(AutomatedEmail):
-    def __init__(self, subject, template, filter, **kwargs):
-        AutomatedEmail.__init__(self, Group, subject, template, lambda g: not g.is_dealer and filter(g), sender=c.REGDESK_EMAIL, **kwargs)
+    def __init__(self, subject, template, filter, ident, **kwargs):
+        AutomatedEmail.__init__(self, Group, subject, template, lambda g: not g.is_dealer and filter(g), ident, sender=c.REGDESK_EMAIL, **kwargs)
 
 
 class MarketplaceEmail(AutomatedEmail):
-    def __init__(self, subject, template, filter, **kwargs):
-        AutomatedEmail.__init__(self, Group, subject, template, lambda g: g.is_dealer and filter(g), sender=c.MARKETPLACE_EMAIL, **kwargs)
+    def __init__(self, subject, template, filter, ident, **kwargs):
+        AutomatedEmail.__init__(self, Group, subject, template, lambda g: g.is_dealer and filter(g), ident, sender=c.MARKETPLACE_EMAIL, **kwargs)
 
 
 class DeptChecklistEmail(AutomatedEmail):
@@ -314,6 +315,7 @@ class DeptChecklistEmail(AutomatedEmail):
                                 subject='{EVENT_NAME} Department Checklist: ' + conf.name,
                                 template='shifts/dept_checklist.txt',
                                 filter=lambda a: a.is_single_dept_head and a.admin_account and not conf.completed(a),
+                                ident='department_checklist_{}'.format(conf.name),
                                 when=days_before(7, conf.deadline),
                                 sender=c.STAFF_EMAIL,
                                 extra_data={'conf': conf})
@@ -322,26 +324,13 @@ class DeptChecklistEmail(AutomatedEmail):
 """
 IMPORTANT NOTES FOR CHANGING/ADDING EMAIL CATEGORIES:
 
-'ident' is a unique ID for that email category that must not change after emails in that category have started to send.
-If an 'ident' is not set (not recommended), 'ident' will default to be the 'subject' line.
+'ident' is a unique ID for that email category that must not change after
+emails in that category have started to send.
 
-************************************************************************
-IF IDENT IS NOT SET ON A CATEGORY, AND IF YOU CHANGE THE SUBJECT,
-IT WILL CAUSE ANY EMAILS THAT HAVE ALREADY SENT TO RE-SEND.
-************************************************************************
-
-WORK WE NEED TO DO: Going forward, every single email category below should have an explicit 'ident' set. However,
-mid-year we can't change the idents effectively because it will cause emails in these categories to be re-sent.
-
-ident naming RULES:
- - every single email below should have an explicit ident paramater set. some don't and we should fix that up.
- - if no 'ident' is set, the ident is set to the 'subject'
- - name the ident anything you want, ideally something related to the email category i.e. "reg confirmation email"
- - HOWEVER, IF an ident was not explicitly sent, and you want to rename the subject, you must:
-   - set the ident to the OLD subject first (do not include any {EVENT_NAME} in the ident)
-     example: set the ident to exactly what the old subject is, without using variable names
-     (e.g., "MAGFest 2017" instead of "{EVENT_NAME}")
-   - set the subject to something different
+*****************************************************************************
+IF YOU CHANGE THE IDENT FOR A CATEGORY, IT WILL CAUSE ANY EMAILS THAT HAVE
+ALREADY SENT FOR THAT CATEGORY TO RE-SEND.
+*****************************************************************************
 
 """
 
@@ -351,19 +340,23 @@ ident naming RULES:
 
 AutomatedEmail(Attendee, '{EVENT_NAME} payment received', 'reg_workflow/attendee_confirmation.html',
          lambda a: a.paid == c.HAS_PAID,
-         needs_approval=False, allow_during_con=True)
+         needs_approval=False, allow_during_con=True,
+         ident='attendee_payment_received')
 
 AutomatedEmail(Group, '{EVENT_NAME} group payment received', 'reg_workflow/group_confirmation.html',
          lambda g: g.amount_paid == g.cost and g.cost != 0,
-         needs_approval=False)
+         needs_approval=False,
+         ident='group_payment_received')
 
 AutomatedEmail(Attendee, '{EVENT_NAME} group registration confirmed', 'reg_workflow/attendee_confirmation.html',
          lambda a: a.group and a != a.group.leader and not a.placeholder,
-         needs_approval=False, allow_during_con=True)
+         needs_approval=False, allow_during_con=True,
+         ident='attendee_group_reg_confirmation')
 
 AutomatedEmail(Attendee, '{EVENT_NAME} extra payment received', 'reg_workflow/group_donation.txt',
          lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid == a.amount_extra,
-         needs_approval=False)
+         needs_approval=False,
+         ident='group_extra_payment_received')
 
 
 # Reminder emails for groups to allocated their unassigned badges.  These emails are safe to be turned on for
@@ -372,11 +365,13 @@ AutomatedEmail(Attendee, '{EVENT_NAME} extra payment received', 'reg_workflow/gr
 
 GroupEmail('Reminder to pre-assign {EVENT_NAME} group badges', 'reg_workflow/group_preassign_reminder.txt',
            lambda g: days_after(30, g.registered)() and c.BEFORE_GROUP_PREREG_TAKEDOWN and g.unregistered_badges,
-           needs_approval=False)
+           needs_approval=False,
+           ident='group_preassign_badges_reminder')
 
 AutomatedEmail(Group, 'Last chance to pre-assign {EVENT_NAME} group badges', 'reg_workflow/group_preassign_reminder.txt',
          lambda g: c.AFTER_GROUP_PREREG_TAKEDOWN and g.unregistered_badges and (not g.is_dealer or g.status == c.APPROVED),
-         needs_approval=False)
+         needs_approval=False,
+         ident='group_preassign_badges_reminder_last_chance')
 
 
 # Dealer emails; these are safe to be turned on for all events because even if the event doesn't have dealers,
@@ -385,21 +380,25 @@ AutomatedEmail(Group, 'Last chance to pre-assign {EVENT_NAME} group badges', 're
 
 MarketplaceEmail('Your {EVENT_NAME} Dealer registration has been approved', 'dealers/approved.html',
                  lambda g: g.status == c.APPROVED,
-                 needs_approval=False)
+                 needs_approval=False,
+                 ident='dealer_reg_approved')
 
 MarketplaceEmail('Reminder to pay for your {EVENT_NAME} Dealer registration', 'dealers/payment_reminder.txt',
                  lambda g: g.status == c.APPROVED and days_after(30, g.approved)() and g.is_unpaid,
-                 needs_approval=False)
+                 needs_approval=False,
+                 ident='dealer_reg_payment_reminder')
 
 MarketplaceEmail('Your {EVENT_NAME} Dealer registration is due in one week', 'dealers/payment_reminder.txt',
                  lambda g: g.status == c.APPROVED and g.is_unpaid,
                  when=days_before(7, c.DEALER_PAYMENT_DUE, 2),
-                 needs_approval=False)
+                 needs_approval=False,
+                 ident='dealer_reg_payment_reminder_due_soon')
 
 MarketplaceEmail('Last chance to pay for your {EVENT_NAME} Dealer registration', 'dealers/payment_reminder.txt',
                  lambda g: g.status == c.APPROVED and g.is_unpaid,
                  when=days_before(2, c.DEALER_PAYMENT_DUE),
-                 needs_approval=False)
+                 needs_approval=False,
+                 ident='dealer_reg_payment_reminder_last_chance')
 
 MarketplaceEmail('{EVENT_NAME} Dealer waitlist has been exhausted', 'dealers/waitlist_closing.txt',
                  lambda g: g.status == c.WAITLISTED,
@@ -421,58 +420,72 @@ MarketplaceEmail('{EVENT_NAME} Dealer waitlist has been exhausted', 'dealers/wai
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Panelist Badge Confirmation', 'placeholders/panelist.txt',
                lambda a: a.placeholder and a.first_name and a.last_name and a.ribbon == c.PANELIST_RIBBON,
-               sender=c.PANELS_EMAIL)
+               sender=c.PANELS_EMAIL,
+               ident='panelist_badge_confirmation')
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Guest Badge Confirmation', 'placeholders/guest.txt',
                lambda a: a.placeholder and a.first_name and a.last_name and a.badge_type == c.GUEST_BADGE,
-               sender=c.GUEST_EMAIL)
+               sender=c.GUEST_EMAIL,
+               ident='guest_badge_confirmation')
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Dealer Information Required', 'placeholders/dealer.txt',
                lambda a: a.placeholder and a.is_dealer and a.group.status == c.APPROVED,
-               sender=c.MARKETPLACE_EMAIL)
+               sender=c.MARKETPLACE_EMAIL,
+               ident='dealer_info_required')
 
 StopsEmail('Want to staff {EVENT_NAME} again?', 'placeholders/imported_volunteer.txt',
-           lambda a: a.placeholder and a.staffing and a.registered_local <= c.PREREG_OPEN)
+           lambda a: a.placeholder and a.staffing and a.registered_local <= c.PREREG_OPEN,
+           ident='volunteer_again_inquiry')
 
 StopsEmail('{EVENT_NAME} Volunteer Badge Confirmation', 'placeholders/volunteer.txt',
            lambda a: a.placeholder and a.first_name and a.last_name
-                                      and a.registered_local > c.PREREG_OPEN)
+                                      and a.registered_local > c.PREREG_OPEN,
+           ident='volunteer_badge_confirmation')
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Badge Confirmation', 'placeholders/regular.txt',
                lambda a: a.placeholder and a.first_name and a.last_name
-                                       and a.badge_type not in [c.GUEST_BADGE, c.STAFF_BADGE]
-                                       and a.ribbon not in [c.DEALER_RIBBON, c.PANELIST_RIBBON, c.VOLUNTEER_RIBBON])
+                                       and (c.AT_THE_CON or a.badge_type not in [c.GUEST_BADGE, c.STAFF_BADGE]
+                                       and a.ribbon not in [c.DEALER_RIBBON, c.PANELIST_RIBBON, c.VOLUNTEER_RIBBON]),
+               allow_during_con=True,
+               ident='regular_badge_confirmation')
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Badge Confirmation Reminder', 'placeholders/reminder.txt',
-               lambda a: days_after(7, a.registered)() and a.placeholder and a.first_name and a.last_name and not a.is_dealer)
+               lambda a: days_after(7, a.registered)() and a.placeholder and a.first_name and a.last_name and not a.is_dealer,
+               ident='badge_confirmation_reminder')
 
 AutomatedEmail(Attendee, 'Last Chance to Accept Your {EVENT_NAME} Badge', 'placeholders/reminder.txt',
                lambda a: a.placeholder and a.first_name and a.last_name and not a.is_dealer,
-               when=days_before(7, c.PLACEHOLDER_DEADLINE))
+               when=days_before(7, c.PLACEHOLDER_DEADLINE),
+               ident='badge_confirmation_reminder_last_chance')
 
 
 # Volunteer emails; none of these will be sent unless SHIFTS_CREATED is set.
 
 StopsEmail('Please complete your {EVENT_NAME} Staff/Volunteer Checklist', 'shifts/created.txt',
            lambda a: a.takes_shifts,
-           when=days_after(0, c.SHIFTS_CREATED))
+           when=days_after(0, c.SHIFTS_CREATED),
+           ident='volunteer_checklist_completion_request')
 
 StopsEmail('Reminder to sign up for {EVENT_NAME} shifts', 'shifts/reminder.txt',
            lambda a: c.AFTER_SHIFTS_CREATED and days_after(30, max(a.registered_local, c.SHIFTS_CREATED))()
                  and a.takes_shifts and not a.hours,
-           when=before(c.PREREG_TAKEDOWN))
+           when=before(c.PREREG_TAKEDOWN),
+           ident='volunteer_shift_signup_reminder')
 
 StopsEmail('Last chance to sign up for {EVENT_NAME} shifts', 'shifts/reminder.txt',
-              lambda a: c.AFTER_SHIFTS_CREATED and c.BEFORE_PREREG_TAKEDOWN and a.takes_shifts and not a.hours,
-              when=days_before(10, c.EPOCH))
+           lambda a: c.AFTER_SHIFTS_CREATED and c.BEFORE_PREREG_TAKEDOWN and a.takes_shifts and not a.hours,
+           when=days_before(10, c.EPOCH),
+           ident='volunteer_shift_signup_reminder_last_chance')
 
 StopsEmail('Still want to volunteer at {EVENT_NAME}?', 'shifts/volunteer_check.txt',
-            lambda a: c.SHIFTS_CREATED and a.ribbon == c.VOLUNTEER_RIBBON and a.takes_shifts and a.weighted_hours == 0,
-            when=days_before(5, c.FINAL_EMAIL_DEADLINE))
+           lambda a: c.SHIFTS_CREATED and a.ribbon == c.VOLUNTEER_RIBBON and a.takes_shifts and a.weighted_hours == 0,
+           when=days_before(5, c.FINAL_EMAIL_DEADLINE),
+           ident='volunteer_still_interested_inquiry')
 
 StopsEmail('Your {EVENT_NAME} shift schedule', 'shifts/schedule.html',
            lambda a: c.SHIFTS_CREATED and a.weighted_hours,
-           when=days_before(1, c.FINAL_EMAIL_DEADLINE))
+           when=days_before(1, c.FINAL_EMAIL_DEADLINE),
+           ident='volunteer_shift_schedule')
 
 
 # For events with customized badges, these emails remind people to let us know what we want on their badges.  We have
@@ -480,18 +493,21 @@ StopsEmail('Your {EVENT_NAME} shift schedule', 'shifts/schedule.html',
 
 StopsEmail('Last chance to personalize your {EVENT_NAME} badge', 'personalized_badges/volunteers.txt',
            lambda a: a.staffing and a.badge_type in c.PREASSIGNED_BADGE_TYPES and a.placeholder,
-           when=days_before(7, c.PRINTED_BADGE_DEADLINE))
+           when=days_before(7, c.PRINTED_BADGE_DEADLINE),
+           ident='volunteer_personalized_badge_reminder')
 
 AutomatedEmail(Attendee, 'Personalized {EVENT_NAME} badges will be ordered next week', 'personalized_badges/reminder.txt',
                lambda a: a.badge_type in c.PREASSIGNED_BADGE_TYPES and not a.placeholder,
-               when=days_before(7, c.PRINTED_BADGE_DEADLINE))
+               when=days_before(7, c.PRINTED_BADGE_DEADLINE),
+               ident='personalized_badge_reminder')
 
 
 # MAGFest requires signed and notarized parental consent forms for anyone under 18.  This automated email reminder to
 # bring the consent form only happens if this feature is turned on by setting the CONSENT_FORM_URL config option.
 AutomatedEmail(Attendee, '{EVENT_NAME} parental consent form reminder', 'reg_workflow/under_18_reminder.txt',
                lambda a: c.CONSENT_FORM_URL and a.age_group_conf['consent_form'],
-               when=days_before(14, c.EPOCH))
+               when=days_before(14, c.EPOCH),
+               ident='under_18_parental_consent_reminder')
 
 
 # Emails sent out to all attendees who can check in. These emails contain useful information about the event and are

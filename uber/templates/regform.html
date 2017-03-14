@@ -26,6 +26,8 @@
     $(function () {
         staffingClicked();
         if ($.field('staffing')) {
+            {% if c.AT_THE_CON %} $.field('staffing').prop('disabled', true).prop('title', 'Please see Staffing Operations to change your volunteer status.'); {% endif %}
+            {% if attendee.shifts %} $.field('staffing').prop('disabled', true).prop('title', 'Please {{ c.AT_THE_CON|yesno:"contact your department head to drop shifts,unassign yourself from shifts" }} before changing your volunteer status.'); {% endif %}
             $.field('staffing').on('click', staffingClicked);
         }
     });
@@ -53,6 +55,18 @@
         }
     });
 
+    var sameLegalNameChecked = function () {
+        if ($("#same_legal_name").prop('checked')) {
+            $.field('legal_name').prop('readonly', true).val('').attr('required', false);
+        } else {
+            $.field('legal_name').prop('readonly', false).attr('required', true);
+        }
+    };
+    $(function () {
+        sameLegalNameChecked();
+        $('#same_legal_name').change(sameLegalNameChecked);
+    })
+
 </script>
 
 {% if c.PAGE_PATH != '/registration/form' %}
@@ -74,7 +88,7 @@
 
 {% if c.PAGE == 'confirm' %}
     <div class="form-group">
-        <label for="full_name" class="col-sm-2 control-label">Legal Name</label>
+        <label for="full_name" class="col-sm-2 control-label">Name</label>
         <div class="col-sm-6">{{ attendee.full_name }}</div>
     </div>
     <div class="form-group">
@@ -96,17 +110,28 @@
         <div class="col-sm-6">
             <input type="text" name="last_name" id="last_name" value="{{ attendee.last_name }}" class="form-control" placeholder="Last Name">
         </div>
-        {% if c.PAGE_PATH != '/registration/form' %}
-            <p class="help-block col-sm-6 col-sm-offset-2">
-                These must be your legal name.
-                <span class="popup">{% popup_link "../static_views/legal_name.html" "What does this mean?" %}</span>
-            </p>
-        {% endif %}
+    </div>
+
+    <div class="form-group">
+        <label for="same_legal_name" class="col-sm-2 control-label">The above name is exactly what appears on my ID</label>
+        <div class="col-sm-6">
+            <input type="checkbox" name="same_legal_name" id="same_legal_name" value="Yep, that's right" {% if attendee.first_name != '' and attendee.legal_name == '' %}checked="checked"{% endif %} />
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="legal_name" class="col-sm-2 control-label optional-field">Legal Name</label>
+        <div class="col-sm-6">
+            <input type="text" name="legal_name" value="{{ attendee.legal_name }}" class="form-control" placeholder="Legal Name" />
+        </div>
+        <p class="help-block col-sm-6 col-sm-offset-2">
+            <span class="popup">{% popup_link "../static_views/legal_name.html" "What does legal name mean?" %}</span>
+        </p>
     </div>
 {% endif %}
 
 {% if c.DONATIONS_ENABLED and c.PAGE_PATH != '/registration/form' %}
-    {% if c.PREREG_DONATION_OPTS.length > 1 or attendee.amount_extra %}
+    {% if c.PREREG_DONATION_OPTS|length > 1 or attendee.amount_extra %}
         <script type="text/javascript">
             var donationChanged = function () {
                 setVisible('.affiliate-row', $.val('amount_extra') > 0);
@@ -343,7 +368,7 @@
                 <a href='goto_volunteer_checklist?id={{ attendee.id }}'>volunteering</a>
             {% endif %}
         {% else %}
-            Sign me up! &nbsp;
+            {% if attendee.badge_type == c.STAFF_BADGE %} Yes, I want to staff {{ c.EVENT_NAME }}. {% else %} Sign me up! {% endif %}
             <span class="popup">{% popup_link "../static_views/stafferComps.html" "What do I get for volunteering?" %}</span>
         {% endif %}
     </div>
@@ -443,7 +468,7 @@
     </div>
 {% else %}
     <div class="form-group">
-        <label for="zip_code" class="col-sm-2 control-label">ZIP/Postal Code</label>
+        <label for="zip_code" class="col-sm-2 control-label {% if c.AT_OR_POST_CON %}optional-field{% endif %}">ZIP/Postal Code</label>
         <div class="col-sm-6">
             <input type="text" name="zip_code" class="form-control" value="{{ attendee.zip_code }}" />
         </div>
@@ -457,9 +482,15 @@
 {% endif %}
 
 <div class="form-group">
-    <label for="ec_phone" class="col-sm-2 control-label">Emergency Contact Phone Number</label>
+    <label for="ec_name" class="col-sm-2 control-label">Emergency Contact</label>
     <div class="col-sm-6">
-        <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" class="form-control" placeholder="Who we should contact if something happens to you">
+        <input type="text" name="ec_name" value="{{ attendee.ec_name }}" class="form-control" placeholder="Who we should contact if something happens to you">
+    </div>
+</div>
+<div class="form-group">
+    <label for="ec_phone" class="col-sm-2 control-label">Emergency Phone</label>
+    <div class="col-sm-6">
+        <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" class="form-control" placeholder="A valid phone number for your emergency contact">
     </div>
 </div>
 

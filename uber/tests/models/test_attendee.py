@@ -219,8 +219,6 @@ class TestStaffingAdjustments:
         a = Attendee(ribbon=c.DEPT_HEAD_RIBBON, assigned_depts=c.CONSOLE)
         a._staffing_adjustments()
         assert a.staffing
-        assert a.trusted_in(c.CONSOLE)
-        assert a.trusted_somewhere
         assert a.badge_type == c.STAFF_BADGE
 
     def test_staffing_still_trusted_assigned(self):

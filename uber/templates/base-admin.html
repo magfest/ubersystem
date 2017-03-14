@@ -11,5 +11,12 @@
 {%  endblock %}
 
 {% block additional_styles %}
+   <!-- inside additional_styles -->
    <link rel="stylesheet" type="text/css" href="../static_views/additional-styles.css" />
+
+    {% block page_styles %} {% endblock %}
 {%  endblock %}
+
+{% block additional_scripts %}
+    {% block page_scripts %} {% endblock %}
+{% endblock %}
