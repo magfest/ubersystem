@@ -967,7 +967,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def new_ribbon(self):
-        return c.DEALER_RIBBON if self.is_dealer else ''
+        return c.DEALER_RIBBON if self.is_dealer else c.NO_RIBBON
 
     @property
     def ribbon_and_or_badge(self):

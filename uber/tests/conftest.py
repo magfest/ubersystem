@@ -28,6 +28,7 @@ def sensible_defaults():
     c.SEND_EMAILS = False
     c.EVENT_NAME = 'CoolCon9000'
     c.HARDCORE_OPTIMIZATIONS_ENABLED = False
+    c.NUMBERED_BADGES = True
 
     # our tests should work no matter what departments exist, so we'll add these departments to use in our tests
     patched_depts = {'console': 'Console', 'arcade': 'Arcade', 'con_ops': 'Fest Ops'}
@@ -40,6 +41,7 @@ def sensible_defaults():
     c.PREASSIGNED_BADGE_TYPES = [c.STAFF_BADGE, c.SUPPORTER_BADGE]
     c.BADGE_RANGES[c.STAFF_BADGE] = [1, 399]
     c.BADGE_RANGES[c.SUPPORTER_BADGE] = [500, 999]
+    c.BADGE_RANGES[c.ATTENDEE_BADGE] = [3000, 5999]
 
     # we need to set some default table prices so we can write tests against them without worrying about what's been configured
     c.TABLE_PRICES = defaultdict(lambda: 400, {1: 100, 2: 200, 3: 300})
