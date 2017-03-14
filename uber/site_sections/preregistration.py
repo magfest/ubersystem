@@ -402,13 +402,7 @@ class Root:
     @attendee_id_required
     @log_pageview
     def transfer_badge(self, session, message='', **params):
-        try:
-            if not params.get('id'):
-                raise NoResultFound
-            old = session.attendee(params['id'])
-        except (NoResultFound, ValueError):
-            log.debug('transfer_badge received invalid params/id: %s' % repr(params))
-            raise HTTPRedirect('confirmation_not_found?id={}', params.get('id', 'unknown'))
+        old = session.attendee(params['id'])
 
         assert old.is_transferable, 'This badge is not transferrable'
         session.expunge(old)
@@ -450,8 +444,8 @@ class Root:
     def invalid_badge(self, session, id, message=''):
         return {'attendee': session.attendee(id, allow_invalid=True), 'message': message}
 
-    def confirmation_not_found(self, id):
-        return {'id': id}
+    def confirmation_not_found(self, id, message):
+        return {'id': id, 'message': message}
 
     def invalidate(self, session, id):
         attendee = session.attendee(id)
@@ -461,13 +455,7 @@ class Root:
     @attendee_id_required
     @log_pageview
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
-        try:
-            if not params.get('id'):
-                raise NoResultFound
-            attendee = session.attendee(params, restricted=True)
-        except (NoResultFound, StatementError):
-            log.debug('confirm received invalid params/id: %s' % repr(params))
-            raise HTTPRedirect('confirmation_not_found?id={}', params.get('id', 'unknown'))
+        attendee = session.attendee(params, restricted=True)
 
         placeholder = attendee.placeholder
         if 'email' in params and not message:
@@ -510,6 +498,7 @@ class Root:
         cherrypy.session['staffer_id'] = attendee.id
         raise HTTPRedirect('../signups/food_restrictions')
 
+    @attendee_id_required
     def attendee_donation_form(self, session, id, message=''):
         attendee = session.attendee(id)
         if attendee.amount_unpaid <= 0:

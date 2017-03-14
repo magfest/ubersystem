@@ -516,17 +516,23 @@ def attendee_id_required(func):
     def check_id(*args, **params):
         message = "No ID provided. Try using a different link or going back."
         session = params['session']
-        if params.get('id'):
+
+        attendee_id = params.get('id') or None
+        if attendee_id:
+            # Some pages use the string 'None' is indicate that a new model should be created, so this is a valid ID
+            if attendee_id == 'None':
+                return func(*args, **params)
+
             try:
-                uuid.UUID(params['id'])
+                uuid.UUID(attendee_id)
             except ValueError:
                 message = "That Attendee ID is not a valid format. Did you enter or edit it manually?"
-                log.error("check_id: invalid_id: {}", params['id'])
             else:
-                if session.query(sa.Attendee).filter(sa.Attendee.id == params['id']).first():
+                if session.query(sa.Attendee).filter(sa.Attendee.id == attendee_id).first():
                     return func(*args, **params)
-                message = "The Attendee ID provided was not found in our database"
-                log.error("check_id: missing_id: {}", params['id'])
-        log.error("check_id: error: {}", message)
-        raise HTTPRedirect('../common/invalid?message=%s' % message)
+                else:
+                    message = "The Attendee ID provided was not found in our database."
+
+        log.error("check_id error: {}", message)
+        raise HTTPRedirect('../preregistration/confirmation_not_found?id={}&message={}', attendee_id, message)
     return check_id
