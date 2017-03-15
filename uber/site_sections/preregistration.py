@@ -260,7 +260,7 @@ class Root:
     @log_pageview
     def group_members(self, session, id, message=''):
         group = session.group(id)
-        charge = Charge([group, group.leader]) if group.leader else Charge(group)
+        charge = Charge(group)
         return {
             'group':   group,
             'charge':  charge,
@@ -327,12 +327,6 @@ class Root:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
         else:
             group.amount_paid += charge.dollar_amount
-
-            for attendee in charge.attendees:
-                # Subtract an attendee's extras, if they're not already paid for.
-                group.amount_paid -= attendee.amount_unpaid
-                attendee.amount_paid += attendee.amount_unpaid
-                session.merge(attendee)
 
             session.merge(group)
             if group.tables:
