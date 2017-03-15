@@ -74,7 +74,7 @@ def group_money(group):
         amount_refunded = int(float(group.amount_refunded))
         if amount_refunded < 0:
             return 'Amount Refunded must be positive'
-        elif amount_refunded > amount_paid:
+        elif amount_refunded > group.amount_paid:
             return 'Amount Refunded cannot be greater than Amount Paid'
     except:
         return "What you entered for Amount Refunded ({}) wasn't even a number".format(group.amount_refunded)
