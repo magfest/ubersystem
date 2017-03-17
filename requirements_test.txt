@@ -1,0 +1,3 @@
+-r requirements.txt
+pep8
+-e "git+https://github.com/magfest/sideboard#egg=sideboard"

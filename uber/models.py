@@ -408,7 +408,10 @@ class TakesPaymentMixin(object):
 
 
 class Session(SessionManager):
-    engine = sqlalchemy.create_engine(c.SQLALCHEMY_URL, pool_size=50, max_overflow=100)
+    _engine_kwargs = dict((k, v) for (k, v) in [
+        ('pool_size', c.SQLALCHEMY_POOL_SIZE),
+        ('max_overflow', c.SQLALCHEMY_MAX_OVERFLOW)] if v > -1)
+    engine = sqlalchemy.create_engine(c.SQLALCHEMY_URL, **_engine_kwargs)
 
     @classmethod
     def initialize_db(cls, modify_tables=False, drop=False):
@@ -1137,6 +1140,11 @@ class Attendee(MagModel, TakesPaymentMixin):
     mpoints_for_cash = relationship('MPointsForCash', backref='attendee')
     old_mpoint_exchanges = relationship('OldMPointExchange', backref='attendee')
     dept_checklist_items = relationship('DeptChecklistItem', backref='attendee')
+
+    if Session.engine.dialect.name == 'postgresql':
+        __table_args__ = (
+            UniqueConstraint('badge_num', deferrable=True, initially='DEFERRED'),
+        )
 
     _repr_attr_names = ['full_name']
 
@@ -2154,11 +2162,6 @@ def initialize_db():
     """
     for _model in Session.all_models():
         setattr(Session.SessionMixin, _model.__tablename__, _make_getter(_model))
-
-    if Session.engine.dialect.name == 'postgresql':
-        Attendee.__table_args__ = (
-            UniqueConstraint('badge_num', deferrable=True, initially='DEFERRED'),
-        )
 
     num_tries_remaining = 10
     while not stopped.is_set():
