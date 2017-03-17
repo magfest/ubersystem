@@ -3,7 +3,11 @@ import shutil
 import pytest
 from sideboard.tests import patch_session
 
-TEST_DB_FILE = '/tmp/uber.db'
+
+try:
+    TEST_DB_FILE = c.TEST_DB_FILE
+except AttributeError:
+    TEST_DB_FILE = '/tmp/uber.db'
 
 
 deadline_not_reached = localized_now() + timedelta(days=1)

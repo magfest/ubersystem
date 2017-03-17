@@ -18,3 +18,7 @@ up.bat
 add_table_extras.sql
 bower_components/
 node_modules/
+.tox
+.cache
+.eggs/
+.coverage
