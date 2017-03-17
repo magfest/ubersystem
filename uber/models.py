@@ -408,6 +408,11 @@ class TakesPaymentMixin(object):
 
 
 class Session(SessionManager):
+    # This looks strange, but `sqlalchemy.create_engine` will throw an error
+    # if it's passed arguments that aren't supported by the given DB engine.
+    # For example, SQLite doesn't support either `pool_size` or `max_overflow`,
+    # so if `sqlalchemy_pool_size` or `sqlalchemy_max_overflow` are set with
+    # a value of -1, they are not added to the keyword args.
     _engine_kwargs = dict((k, v) for (k, v) in [
         ('pool_size', c.SQLALCHEMY_POOL_SIZE),
         ('max_overflow', c.SQLALCHEMY_MAX_OVERFLOW)] if v > -1)
