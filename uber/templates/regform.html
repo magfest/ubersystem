@@ -25,6 +25,7 @@
         {% endif %}
     };
     $(function () {
+        togglePrices();
         staffingClicked();
         if ($.field('staffing')) {
             {% if c.AT_THE_CON %} $.field('staffing').prop('disabled', true).prop('title', 'Please see Staffing Operations to change your volunteer status.'); {% endif %}
@@ -132,7 +133,7 @@
 {% endif %}
 
 {% if c.DONATIONS_ENABLED and c.PAGE_PATH != '/registration/form' %}
-    {% if c.PREREG_DONATION_OPTS|length > 1 or attendee.amount_extra %}
+    {% if c.PREREG_DONATION_OPTS and c.PREREG_DONATION_OPTS|length > 1 or attendee.amount_extra %}
         <script type="text/javascript">
             var donationChanged = function () {
                 setVisible('.affiliate-row', $.val('amount_extra') > 0);
@@ -539,6 +540,10 @@
     </div>
 </div>
 
+{% if c.PAGE_PATH != '/registration/form' %}
+<input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
+{% endif %}
+
 {% include "regextra.html" %}
 
 <script type="text/javascript">
@@ -546,6 +551,9 @@
         // This removes any badge levels lower than the attendee has purchased already
         if (window.BADGE_TYPES) {
             while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].extra < {{ attendee.amount_extra }}) {
+                BADGE_TYPES.options.splice(0, 1);
+            }
+            while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].price && BADGE_TYPES.options[0].price < {{ c.BADGE_TYPE_PRICES[attendee.badge_type] }}) {
                 BADGE_TYPES.options.splice(0, 1);
             }
         }

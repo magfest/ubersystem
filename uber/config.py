@@ -164,6 +164,9 @@ class Config(_Overridable):
         for reg_open, badge_type in [(self.BEFORE_GROUP_PREREG_TAKEDOWN, self.PSEUDO_GROUP_BADGE)]:
             if reg_open:
                 types.append(badge_type)
+        for badge_type in self.BADGE_TYPE_PRICES:
+            if badge_type not in types:
+                types.append(badge_type)
         return types
 
     @property
@@ -469,6 +472,13 @@ for _name, _section in _config['integer_enums'].items():
 c.BADGE_RANGES = {}
 for _badge_type, _range in _config['badge_ranges'].items():
     c.BADGE_RANGES[getattr(c, _badge_type.upper())] = _range
+
+c.BADGE_TYPE_PRICES = {}
+for _badge_type, _price in _config['badge_type_prices'].items():
+    try:
+        c.BADGE_TYPE_PRICES[getattr(c, _badge_type.upper())] = _price
+    except AttributeError:
+        pass
 
 c.make_enum('age_group', OrderedDict([(name, section['desc']) for name, section in _config['age_groups'].items()]))
 c.AGE_GROUP_CONFIGS = {}
