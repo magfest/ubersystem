@@ -133,9 +133,20 @@ class TestAutomatedEmailCategory:
 
     def test_none_filter(self):
         with pytest.raises(AssertionError):
-            AutomatedEmail(Attendee, '', '', None)
+            AutomatedEmail(Attendee, '', '', None, ident='test_none_filter')
 
     def test_no_filter(self):
         # this is slightly silly but, if this ever changes, we should be explicit about what the expected result is
         with pytest.raises(TypeError):
-            AutomatedEmail(Attendee, '', '')
+            AutomatedEmail(Attendee, '', '', ident='test_no_filter')
+
+    def test_missing_ident_arg(self):
+        with pytest.raises(TypeError):
+            AutomatedEmail(Attendee, '', '', lambda a: False)
+
+    def test_empty_ident_arg(self):
+        with pytest.raises(AssertionError):
+            AutomatedEmail(Attendee, '', '', lambda a: False, ident='')
+
+        with pytest.raises(AssertionError):
+            AutomatedEmail(Attendee, '', '', lambda a: False, ident=None)

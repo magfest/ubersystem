@@ -110,15 +110,15 @@ class Config(_Overridable):
                 if (dt or sa.localized_now()) >= day:
                     price = bumped_price
 
-                # Only check bucket-based pricing if we're not checking an existing badge AND
-                # we don't have hardcore_optimizations_enabled config on AND we're not on-site
-                # (because on-site pricing doesn't involve checking badges sold).
-                if not dt and not c.HARDCORE_OPTIMIZATIONS_ENABLED and sa.localized_now() < c.EPOCH:
-                    badges_sold = self.BADGES_SOLD
+            # Only check bucket-based pricing if we're not checking an existing badge AND
+            # we don't have hardcore_optimizations_enabled config on AND we're not on-site
+            # (because on-site pricing doesn't involve checking badges sold).
+            if not dt and not c.HARDCORE_OPTIMIZATIONS_ENABLED and sa.localized_now() < c.EPOCH:
+                badges_sold = self.BADGES_SOLD
 
-                    for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
-                        if badges_sold >= badge_cap and bumped_price > price:
-                            price = bumped_price
+                for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
+                    if badges_sold >= badge_cap and bumped_price > price:
+                        price = bumped_price
         return price
 
     def get_group_price(self, dt=None):
@@ -310,6 +310,10 @@ class Config(_Overridable):
     @property
     def REMAINING_BADGES(self):
         return max(0, self.MAX_BADGE_SALES - self.BADGES_SOLD)
+
+    @request_cached_property
+    def MENU_FILTERED_BY_ACCESS_LEVELS(self):
+        return c.MENU.render_items_filtered_by_current_access()
 
     @request_cached_property
     def ADMIN_ACCESS_SET(self):

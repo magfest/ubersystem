@@ -4,6 +4,9 @@ some quick reference notes on how to manipulate postgres quickly.
 sudo bash
 su postgres
 
+# as postgres user, commandline drop and create database (IRRETRIEVABLY DESTROYS ALL DATA IN mydbname)
+dropdb mydbname
+createdb mydbname
 
 # backup a database named 'mydbname' into a file named 'uber-backup-2014-11-20-08:32:50.sql' (or whatever today's date is)
 sudo bash
@@ -15,9 +18,9 @@ su postgres -c 'pg_dump mydbname -f /home/backups/uber-backup-`date +%F-%H:%M:%S
 
 # restore a database named 'mydbname' from a file named 'backupfile.sql'
 sudo bash
-service postgresql restart        
+service postgresql restart
 su postgres
-psql                              
+psql
     DROP DATABASE mydbname;
     CREATE DATABASE mydbname;
 psql -d mydbname -f backupfile.sql
