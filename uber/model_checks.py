@@ -62,13 +62,22 @@ def dealer_address(group):
 
 
 @validation.Group
-def group_paid(group):
+def group_money(group):
     try:
-        amount = int(float(group.amount_paid))
-        if amount < 0:
+        amount_paid = int(float(group.amount_paid))
+        if amount_paid < 0:
             return 'Amount Paid must be a number that is 0 or higher.'
     except:
         return "What you entered for Amount Paid ({}) isn't even a number".format(group.amount_paid)
+
+    try:
+        amount_refunded = int(float(group.amount_refunded))
+        if amount_refunded < 0:
+            return 'Amount Refunded must be positive'
+        elif amount_refunded > amount_paid:
+            return 'Amount Refunded cannot be greater than Amount Paid'
+    except:
+        return "What you entered for Amount Refunded ({}) wasn't even a number".format(group.amount_refunded)
 
 
 def _invalid_phone_number(s):
@@ -115,6 +124,13 @@ def full_name(attendee):
         return 'First Name is a required field'
     elif not attendee.last_name:
         return 'Last Name is a required field'
+
+
+@validation.Attendee
+@ignore_unassigned_and_placeholders
+def legal_name(attendee):
+    if attendee.legal_name and attendee.full_name == attendee.legal_name:
+        return 'When entering a legal name, it must be different than your preferred name. Otherwise, leave it blank.'
 
 
 @validation.Attendee
@@ -204,6 +220,27 @@ def printed_badge_deadline(attendee):
 
 
 @validation.Attendee
+def printed_badge_change(attendee):
+    badge_name_changes_allowed = True
+
+    # this is getting kinda messy and we probably need to rework the entire concept of "printed badge deadline".
+    # right now we want to:
+    # 1) allow supporters to change their badge names until c.SUPPORTER_DEADLINE
+    # 2) allow staff to change their badge names until c.PRINTED_BADGE_DEADLINE
+    #
+    # this implies that we actually have two different printed badge deadlines: 1 for staff, 1 for supporters.
+    # we might just want to make that explicit.
+    if attendee.badge_type == c.STAFF_BADGE and c.AFTER_PRINTED_BADGE_DEADLINE:
+        badge_name_changes_allowed = False
+    elif attendee.amount_extra >= c.SUPPORTER_LEVEL and c.AFTER_SUPPORTER_DEADLINE:
+        badge_name_changes_allowed = False
+
+    if not badge_name_changes_allowed:
+        if attendee.badge_printed_name != attendee.orig_value_of('badge_printed_name'):
+            return 'Custom badges have already been ordered, so you cannot change the printed name of this Attendee'
+
+
+@validation.Attendee
 def allowed_to_volunteer(attendee):
     if attendee.staffing and not attendee.age_group_conf['can_volunteer'] and attendee.badge_type != c.STAFF_BADGE and c.PRE_CON:
         return 'Your interest is appreciated, but ' + c.EVENT_NAME + ' volunteers must be 18 or older.'
@@ -276,7 +313,8 @@ def dealer_needs_group(attendee):
 @validation.Attendee
 def dupe_badge_num(attendee):
     if (attendee.badge_num != attendee.orig_value_of('badge_num') or attendee.is_new)\
-            and c.NUMBERED_BADGES and attendee.badge_num and not c.SHIFT_CUSTOM_BADGES:
+            and c.NUMBERED_BADGES and attendee.badge_num and\
+            (not c.SHIFT_CUSTOM_BADGES or c.AFTER_PRINTED_BADGE_DEADLINE or c.AT_THE_CON):
         with Session() as session:
             existing = session.query(Attendee)\
                 .filter_by(badge_type=attendee.badge_type, badge_num=attendee.badge_num)

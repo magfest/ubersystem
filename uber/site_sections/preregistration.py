@@ -260,7 +260,7 @@ class Root:
     @log_pageview
     def group_members(self, session, id, message=''):
         group = session.group(id)
-        charge = Charge([group, group.leader]) if group.leader else Charge(group)
+        charge = Charge(group)
         return {
             'group':   group,
             'charge':  charge,
@@ -327,12 +327,6 @@ class Root:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
         else:
             group.amount_paid += charge.dollar_amount
-
-            for attendee in charge.attendees:
-                # Subtract an attendee's extras, if they're not already paid for.
-                group.amount_paid -= attendee.amount_unpaid
-                attendee.amount_paid += attendee.amount_unpaid
-                session.merge(attendee)
 
             session.merge(group)
             if group.tables:
@@ -403,13 +397,14 @@ class Root:
     @log_pageview
     def transfer_badge(self, session, message='', **params):
         old = session.attendee(params['id'])
+
         assert old.is_transferable, 'This badge is not transferrable'
         session.expunge(old)
         attendee = session.attendee(params, restricted=True)
 
         if 'first_name' in params:
             message = check(attendee, prereg=True)
-            if old.first_name == attendee.first_name and old.last_name == attendee.last_name:
+            if (old.first_name == attendee.first_name and old.last_name == attendee.last_name) or (old.legal_name and old.legal_name == attendee.legal_name):
                 message = 'You cannot transfer your badge to yourself.'
             elif not message and (not params['first_name'] and not params['last_name']):
                 message = check(attendee, prereg=True)
@@ -442,6 +437,9 @@ class Root:
 
     def invalid_badge(self, session, id, message=''):
         return {'attendee': session.attendee(id, allow_invalid=True), 'message': message}
+
+    def confirmation_not_found(self, id, message):
+        return {'id': id, 'message': message}
 
     def invalidate(self, session, id):
         attendee = session.attendee(id)
@@ -494,6 +492,7 @@ class Root:
         cherrypy.session['staffer_id'] = attendee.id
         raise HTTPRedirect('../signups/food_restrictions')
 
+    @attendee_id_required
     def attendee_donation_form(self, session, id, message=''):
         attendee = session.attendee(id)
         if attendee.amount_unpaid <= 0:

@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/magfest/ubersystem.svg)](https://travis-ci.org/magfest/ubersystem) [![Coverage Status](https://coveralls.io/repos/github/magfest/ubersystem/badge.svg?branch=master)](https://coveralls.io/github/magfest/ubersystem?branch=master)
+
 IMPORTANT NOTE
 ==============
 
