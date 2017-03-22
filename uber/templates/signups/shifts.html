@@ -22,7 +22,7 @@
 	color:white;
 	float:right;
 }
-.shift_button { 
+.shift_button {
 	background-color:#3276b1;
 
 }
@@ -31,7 +31,7 @@
 	background-color:#239875;
 
 }
-</style> {% endblock %} {% block main_content %} <div class="hidden csrf_token"> {% csrf_token %} </div>
+</style> {% endblock %} {% block main_content %} <div class="hidden csrf_token"> {{ csrf_token() }} </div>
 
 
 <div class="row">
@@ -56,8 +56,8 @@
         <a href="#" class="toggle-cal" state="all">Click Here</a>
 	<span class="all-state-text state-text"> to see the {{hours}} weighted hours worth of shifts you are signed up for</span>
         <span class="shift-state-text hidden state-text"> to sign up for more shifts; you are currently signed up for {{hours}} weighted hours</span>
-      
-	
+
+
    <br> or <a href="index">Click Here</a> to return to the main page of the Volunteer Checklist.
 	</div>
 </div>
@@ -88,8 +88,8 @@
                     {% if job.taken %}
 			shiftList.push({
                                         title : "{{job.name}}",
-                                        start : "{{ job.start_time_local|datetime:"%Y-%m-%dT%H:%M:%S" }}",
-                                        end : "{{job.start_time_local|shift_end:job.duration}}",
+                                        start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
+                                        end : "{{job.start_time_local|shift_end(job.duration) }}",
                                         id : "{{job.id}}",
                                         {% if job.taken %}
                                         backgroundColor: "#239875",
@@ -102,8 +102,8 @@
 			{% endif %}
                         eventList.push({
                                         title : "{{job.name}}",
-                                        start : "{{ job.start_time_local|datetime:"%Y-%m-%dT%H:%M:%S" }}",
-                                        end : "{{job.start_time_local|shift_end:job.duration}}",
+                                        start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
+                                        end : "{{job.start_time_local|shift_end(job.duration) }}",
                                         id : "{{job.id}}",
                                         {% if job.taken %}
                                         backgroundColor: "#239875",
@@ -143,9 +143,9 @@
 				var buttonTag = '<a class="btn btn-primary shift_button ';
 				if (event.taken) {
 				buttonTag += 'drop';
-				}	
+				}
 				buttonTag += '" ';
-				
+
 				buttonTag += 'onclick="click_shift(\'' + event.taken;
 				buttonTag += '\',\'' +  event.id;
                                 buttonTag += '\',\'' +  moment(event.start).toISOString();
@@ -163,7 +163,7 @@
 			},
                 });
    		{% if 'schedule' in c.QUERY_STRING %}
-			
+
                         $("#shift_cal").fullCalendar( 'changeView','listWeek');
 
 		{% else %}

@@ -16,7 +16,7 @@ var mainMenuDropdownChanged = function () {
 <span style="font-size:14pt ; font-weight:bold"> Staffers Assigned to
 <select id="location" style="font-size:14pt ; font-weight:bold" onChange="mainMenuDropdownChanged()">
     <option>All</option>
-    {% options c.JOB_LOCATION_OPTS location %}
+    {{ options(c.JOB_LOCATION_OPTS, default=location) }}
 </select>
 </span>
 <br/> <br/>
@@ -48,7 +48,7 @@ var mainMenuDropdownChanged = function () {
         <td width="10">{{ attendee.placeholder }}</td>
         <td width="10">{{ attendee.hours_here }}</td>
         <td width="10">{{ attendee.weighted_hours }}</td>
-        <td width="10">{{ attendee.checked_in|yesno:"Checked In,Not Checked In" }}</td>
+        <td width="10">{{ attendee.checked_in|yesno("Checked In,Not Checked In") }}</td>
     </tr>
 {% endfor %}
 </table>
@@ -61,9 +61,9 @@ var mainMenuDropdownChanged = function () {
     <h4>Accounts Selected: <i id="count">0</i></h4>
     <form id="admin_settings" method="post" action="add_bulk_admin_accounts" role="form" class="form-inline">
         <input type="hidden" name="ids" id="ids" value="" />
-        {% csrf_token %}
+        {{ csrf_token() }}
         <div class="form-group">
-            {% checkgroup AdminAccount.access %}
+            {{ AdminAccount.html_checkgroup(AdminAccount, 'access', no_instance=True) }}
         </div>
         <button type="submit" class="btn btn-default">Create Checked Accounts</button>
     </form>

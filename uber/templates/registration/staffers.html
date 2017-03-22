@@ -36,7 +36,7 @@
             <ul>
                 {% for dept in attendee.assigned_depts_labels %}
                     <li>{{ dept }}</li>
-                {% empty %}
+                {% else %}
                     <span style="color:red">No assignments</span>
                 {% endfor %}
             </ul>

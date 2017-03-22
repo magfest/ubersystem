@@ -2,7 +2,11 @@
 {% block title %}Group History - {{ group.name }}{% endblock %}
 {% block content %}
 
-{% nav_menu group "form?id={id}" "Group Page" True "history?id={id}" "History" True "index" "Return to Group List" True %}
+{{ group.nav_menu(
+    "form?id={id}", "Group Page", True,
+    "history?id={id}", "History", True,
+    "index", "Return to Group List", True
+) }}
 
 <h2>Changelog for {{ group.name }}</h2>
 

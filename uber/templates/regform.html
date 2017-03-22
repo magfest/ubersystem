@@ -127,7 +127,7 @@
             <input type="text" name="legal_name" value="{{ attendee.legal_name }}" class="form-control" placeholder="Legal Name" />
         </div>
         <p class="help-block col-sm-6 col-sm-offset-2">
-            <span class="popup">{% popup_link "../static_views/legal_name.html" "What does legal name mean?" %}</span>
+            <span class="popup">{{ macros.popup_link("../static_views/legal_name.html", text="What does legal name mean?") }}</span>
         </p>
     </div>
 {% endif %}
