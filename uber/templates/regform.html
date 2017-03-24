@@ -127,7 +127,7 @@
             <input type="text" name="legal_name" value="{{ attendee.legal_name }}" class="form-control" placeholder="Legal Name" />
         </div>
         <p class="help-block col-sm-6 col-sm-offset-2">
-            <span class="popup">{{ macros.popup_link("../static_views/legal_name.html", text="What does legal name mean?") }}</span>
+            <span class="popup">{{ macros.popup_link("../static_views/legal_name.html", "What does legal name mean?") }}</span>
         </p>
     </div>
 {% endif %}
@@ -190,7 +190,7 @@
             <div class="extra-row form-group">
                 <label for="amount_extra" class="col-sm-2 control-label">Want to kick in extra?
                     <br>
-                {{ macros.popup_link("../static_views/givingExtra.html","Why do this?") }}
+                {{ macros.popup_link("../static_views/givingExtra.html", "Why do this?") }}
                 </label>
                 <div class="col-sm-8">
                     {% if c.AFTER_SUPPORTER_DEADLINE and attendee.amount_extra >= c.SUPPORTER_LEVEL or c.AFTER_SHIRT_DEADLINE and attendee.amount_extra >= c.SHIRT_LEVEL %}
@@ -371,7 +371,7 @@
             {% endif %}
         {% else %}
             {% if attendee.badge_type == c.STAFF_BADGE %} Yes, I want to staff {{ c.EVENT_NAME }}. {% else %} Sign me up! {% endif %}
-            <span class="popup">{{ macros.popup_link("../static_views/stafferComps.html" "What do I get for volunteering?") }}</span>
+            <span class="popup">{{ macros.popup_link("../static_views/stafferComps.html", "What do I get for volunteering?") }}</span>
         {% endif %}
     </div>
 </div>
@@ -536,7 +536,7 @@
     <label for="email_option" class="col-sm-2 control-label optional-field">Keep Me Updated</label>
     <div class="col-sm-6">
         {{ macros.checkbox(attendee, 'can_spam') }} Send me emails relating to {{ organization_and_event_name() }} in future years. <br/>
-        <span class="popup">{{ macros.popup_link("../static_views/privacy.html","View Our Privacy Policy") }}</span>
+        <span class="popup">{{ macros.popup_link("../static_views/privacy.html", "View Our Privacy Policy") }}</span>
     </div>
 </div>
 
