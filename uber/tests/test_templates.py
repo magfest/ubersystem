@@ -17,22 +17,33 @@ def guess_template_dirs(file_path):
 
 
 def collect_template_paths(file_path):
-    template_dirs = c.TEMPLATE_DIRS
+    try:
+        template_dirs = c.TEMPLATE_DIRS
+    except AttributeError:
+        template_dirs = []
+
     if not template_dirs:
         template_dirs = guess_template_dirs(file_path)
 
     template_paths = []
     for template_dir in template_dirs:
-        template_paths.extend(glob(os.path.join(template_dir, '*.html')))
-        template_paths.extend(glob(os.path.join(template_dir, '**', '*.html')))
+        for root, _, _ in os.walk(template_dir):
+            for ext in ('html', 'htm', 'txt'):
+                file_pattern = '*.{}'.format(ext)
+                template_paths.extend(glob(os.path.join(root, file_pattern)))
+
     return template_paths
+
+
+def is_valid_jinja_template(template_path):
+    env = JinjaEnv.env()
+    with open(template_path) as t:
+        env.parse(t.read())
 
 
 @pytest.mark.parametrize("template_path", collect_template_paths(__file__))
 def test_is_valid_jinja_template(template_path):
-    env = JinjaEnv.env()
-    with open(template_path) as t:
-        env.parse(t.read())
+    is_valid_jinja_template(template_path)
 
 
 def test_verify_jinja_autoescape_template():
