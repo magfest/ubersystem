@@ -23,7 +23,7 @@ class JinjaEnv:
     @staticmethod
     def _init_env():
         env = jinja2.Environment(
-                # autoescape=_guess_autoescape,
+                autoescape=True,
                 loader=jinja2.FileSystemLoader(JinjaEnv._template_dirs)
             )
 
