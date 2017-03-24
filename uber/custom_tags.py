@@ -1,3 +1,10 @@
+"""
+Portions of this file are copied from the Django project. Relevant portions are
+Copyright (c) Django Software Foundation and individual contributors.
+Licensed under BSD license, see full license for details:
+https://github.com/django/django/blob/4696078832f486ba63f0783a0795294b3d80d862/LICENSE
+"""
+
 from uber.common import *
 
 
@@ -77,7 +84,7 @@ def subtract(x, y):
 
 @JinjaEnv.jinja_filter()
 def urlencode(s):
-    if type(s) == 'Markup':
+    if isinstance(s, jinja2.Markup):
         s = s.unescape()
     s = s.encode('utf8')
     s = quote_plus(s)
@@ -233,7 +240,7 @@ def options(options, default='""'):
 
 
 @JinjaEnv.jinja_export()
-def int_options(minval, maxval, default="1"):
+def int_options(minval, maxval, default=1):
     results = []
     for i in range(minval, maxval+1):
         selected = 'selected="selected"' if i == default else ''
