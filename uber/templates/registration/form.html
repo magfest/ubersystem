@@ -258,7 +258,10 @@
         <label class="col-sm-2 control-label">Checked In</label>
         <div class="col-sm-6">
             {% if attendee.checked_in %}
-                Checked in at {{ attendee.checked_in_local }}
+                Checked in at {{ attendee.checked_in_local }}{% if c.HAS_ACCOUNTS_ACCESS %}<br>
+                <i>Was this an error?</i>
+                <input type="button" value="Check-Out" onclick="confirmAction()">
+                {% endif %}
             {% else %}
                 Has not checked in yet
             {% endif %}
@@ -373,5 +376,29 @@
 {% endif %}
 
 </div>
+
+<script>
+var confirmAction = function(){
+    var check = confirm("Are you sure you'd like to check out this attendee?");
+    if (check){
+        $.ajax({
+            "url":"check_out_attendee_in_error",
+            "type":"POST",
+            "dataType":"json",
+            "data":{
+                "id":"{{ attendee.id }}",
+                "csrf_token":"{{ c.CSRF_TOKEN }}"
+            },
+            success: function(message){
+                toastr.info(message);
+                setTimeout(function(){
+                    location.reload(true);
+                }, 1500);
+            }
+        });
+    }
+};
+
+</script>
 
 {% endblock %}

@@ -449,6 +449,19 @@ class Root:
         raise HTTPRedirect('index?message={}', 'Badge has been recorded as lost.')
 
     @ajax
+    def check_out_attendee_in_error(self, session, **params):
+        message = "That ID was not found."
+        if params.get('id'):
+            a = session.query(Attendee).filter(Attendee.id == params['id']).first()
+            if a:
+                a.checked_in = None
+                if a.badge_type not in c.PREASSIGNED_BADGE_TYPES:
+                    a.badge_num = None
+                session.commit()
+                message = "%s has been checked out." % a.full_name
+        return message
+
+    @ajax
     def check_merch(self, session, badge_num):
         id = shirt = None
         if not (badge_num.isdigit() and 0 < int(badge_num) < 99999):
