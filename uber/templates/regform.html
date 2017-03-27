@@ -63,8 +63,10 @@
         }
     };
     $(function () {
-        sameLegalNameChecked();
-        $('#same_legal_name').change(sameLegalNameChecked);
+        if ($('#same_legal_name').length) {
+            sameLegalNameChecked();
+            $('#same_legal_name').change(sameLegalNameChecked);
+        }
     })
 
 </script>
