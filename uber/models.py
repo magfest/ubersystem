@@ -1,4 +1,5 @@
 from uber.common import *
+from uber.custom_tags import safe_string
 
 
 def _get_defaults(func):
@@ -433,8 +434,8 @@ class MagModel:
             results.append('<label style="font-weight: normal;">'
                            '<input type="checkbox" name="{}" value="{}" {} /> {}'
                            '</label>'
-                           .format(field_name, num, checked, desc))
-        return '&nbsp;&nbsp\n'.join(results)
+                           .format(jinja2.escape(field_name), num, checked, desc))
+        return safe_string('&nbsp;&nbsp\n'.join(results))
 
     def html_radiogroup(self, field_name, onchanged="donationChanged();"):
         # TODO: eventually just return the values, let a macro actually render the HTML
@@ -451,8 +452,8 @@ class MagModel:
                 '<label class="btn btn-default" style="text-align: left;">'
                 '<input type="radio" name="{}" autocomplete="off" value="{}" onchange="{}" {} /> {}'
                 '</label>'
-                .format(field_name, num, onchanged, checked, desc))
-        return ''.join(results)
+                .format(jinja2.escape(field_name), num, onchanged, checked, desc))
+        return safe_string(''.join(results))
 
     def html_nav_menu(self, *items):
         # we can probably do all of this in a jinja macro, and probably should to avoid hardcoding <table> tags
@@ -474,11 +475,11 @@ class MagModel:
         items = ['<table class="menu"><tr>']
         for href, label in pages:
             if cherrypy.request.path_info.endswith(href.split('?')[0]):
-                link = label
+                link = jinja2.escape(label)
             else:
-                link = '<a href="{}">{}</a>'.format(href, label)
+                link = '<a href="{}">{}</a>'.format(href, jinja2.escape(label))
             items.append('<td width="{}%">{}</td>'.format(width, link))
-        return '\n'.join(items + ['</tr></table>'])
+        return safe_string('\n'.join(items + ['</tr></table>']))
 
 
 class TakesPaymentMixin(object):
@@ -1703,8 +1704,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         locations = [s.job.location for s in self.shifts]
         dept_names = dict(c.JOB_LOCATION_OPTS)
-        return '<br/>'.join(
-            sorted({'({}) {}'.format(dept_names[dept], ' / '.join(chairs[dept])) for dept in locations}))
+        return safe_string('<br/>'.join(
+            sorted({'({}) {}'.format(dept_names[dept], ' / '.join(chairs[dept])) for dept in locations})))
 
 
 class WatchList(MagModel):
@@ -2016,9 +2017,9 @@ class Email(MagModel):
     @property
     def html(self):
         if self.is_html:
-            return SafeString(re.split('<body[^>]*>', self.body)[1].split('</body>')[0])
+            return safe_string(re.split('<body[^>]*>', self.body)[1].split('</body>')[0])
         else:
-            return SafeString(self.body.replace('\n', '<br/>'))
+            return safe_string(self.body.replace('\n', '<br/>'))
 
 
 class PageViewTracking(MagModel):

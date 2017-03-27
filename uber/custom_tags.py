@@ -9,7 +9,7 @@ from uber.common import *
 
 
 def safe_string(str):
-    return JinjaEnv.env().filters['safe'](str)
+    return jinja2.Markup(str)
 
 
 @JinjaEnv.jinja_filter(name='date')
@@ -110,11 +110,11 @@ def remove_newlines(string):
 @JinjaEnv.jinja_filter()
 def form_link(model):
     if isinstance(model, Attendee):
-        return safe_string('<a href="../registration/form?id={}">{}</a>'.format(model.id, model.full_name))
+        return safe_string('<a href="../registration/form?id={}">{}</a>'.format(model.id, jinja2.escape(model.full_name)))
     elif isinstance(model, Group):
-        return safe_string('<a href="../groups/form?id={}">{}</a>'.format(model.id, model.name))
+        return safe_string('<a href="../groups/form?id={}">{}</a>'.format(model.id, jinja2.escape(model.name)))
     elif isinstance(model, Job):
-        return safe_string('<a href="../jobs/form?id={}">{}</a>'.format(model.id, model.name))
+        return safe_string('<a href="../jobs/form?id={}">{}</a>'.format(model.id, jinja2.escape(model.name)))
     else:
         return model.name or model.full_name
 
@@ -178,7 +178,7 @@ def pluralize(number, singular='', plural='s'):
 @JinjaEnv.jinja_filter()
 def maybe_red(amount, comp):
     if amount >= comp:
-        return safe_string('<span style="color:red ; font-weight:bold">{}</span>'.format(amount))
+        return safe_string('<span style="color:red ; font-weight:bold">{}</span>'.format(jinja2.escape(amount)))
     else:
         return amount
 
@@ -236,7 +236,7 @@ def options(options, default='""'):
         val  = html.escape(str(val), quote=False).replace('"',  '&quot;').replace('\n', '')
         desc = html.escape(str(desc), quote=False).replace('"', '&quot;').replace('\n', '')
         results.append('<option value="{}" {}>{}</option>'.format(val, selected, desc))
-    return '\n'.join(results)
+    return safe_string('\n'.join(results))
 
 
 @JinjaEnv.jinja_export()
@@ -245,7 +245,7 @@ def int_options(minval, maxval, default=1):
     for i in range(minval, maxval+1):
         selected = 'selected="selected"' if i == default else ''
         results.append('<option value="{val}" {selected}>{val}</option>'.format(val=i, selected=selected))
-    return '\n'.join(results)
+    return safe_string('\n'.join(results))
 
 
 @JinjaEnv.jinja_export()
@@ -268,7 +268,7 @@ def pages(page, count):
             else:
                 path += ('&' if '?' in path else '?') + page_qs
             pages.append('<a href="{}">{}</a>'.format(path, pagenum))
-    return 'Page: ' + ' '.join(map(str, pages))
+    return safe_string('Page: ' + ' '.join(map(str, pages)))
 
 
 def extract_fields(what):
@@ -283,7 +283,7 @@ def extract_fields(what):
 @JinjaEnv.jinja_filter()
 def linebreaksbr(text):
     """ Re-implementation of django's linebreaksbr. Probably not as robust """
-    return normalize_newlines(text).replace('\n', '<br />')
+    return safe_string(jinja2.escape(normalize_newlines(text)).replace('\n', '<br />'))
 
 
 def normalize_newlines(text):
@@ -294,7 +294,7 @@ def normalize_newlines(text):
 def csrf_token():
     if not cherrypy.session.get('csrf_token'):
         cherrypy.session['csrf_token'] = uuid4().hex
-    return '<input type="hidden" name="csrf_token" value="{}" />'.format(cherrypy.session["csrf_token"])
+    return safe_string('<input type="hidden" name="csrf_token" value="{}" />'.format(cherrypy.session["csrf_token"]))
 
 
 @JinjaEnv.jinja_export()
@@ -377,11 +377,11 @@ def price_notice(label, takedown, amount_extra=0, discount=0):
 
         for day, price in sorted(c.PRICE_BUMPS.items()):
             if day < takedown and localized_now() < day and price > badge_price:
-                return '<div class="prereg-price-notice">Price goes up to ${} no later than 11:59pm {} on {}</div>'.format(price - int(discount) + int(amount_extra), (day - timedelta(days=1)).strftime('%Z'), (day - timedelta(days=1)).strftime('%A, %b %e'))
+                return safe_string('<div class="prereg-price-notice">Price goes up to ${} no later than 11:59pm {} on {}</div>'.format(price - int(discount) + int(amount_extra), (day - timedelta(days=1)).strftime('%Z'), (day - timedelta(days=1)).strftime('%A, %b %e')))
             elif localized_now() < day and takedown == c.PREREG_TAKEDOWN and takedown < c.EPOCH and price > badge_price:
-                return '<div class="prereg-type-closing">{} closes at 11:59pm {} on {}. Price goes up to ${} at-door.</div>'.format(label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'), price + amount_extra, (day - timedelta(days=1)).strftime('%A, %b %e'))
+                return safe_string('<div class="prereg-type-closing">{} closes at 11:59pm {} on {}. Price goes up to ${} at-door.</div>'.format(label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'), price + amount_extra, (day - timedelta(days=1)).strftime('%A, %b %e')))
         if takedown < c.EPOCH:
-            return '<div class="prereg-type-closing">{} closes at 11:59pm {} on {}</div>'.format(label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'))
+            return safe_string('<div class="prereg-type-closing">{} closes at 11:59pm {} on {}</div>'.format(jinja2.escape(label), takedown.strftime('%Z'), takedown.strftime('%A, %b %e')))
         else:
             return ''
 
@@ -397,7 +397,7 @@ def table_prices():
             table_plural, cost_plural = ('', 's') if i == 1 else ('s', '')
             costs.append('<nobr>{} table{} cost{} ${}</nobr>'.format(i, table_plural, cost_plural, cost))
         costs[-1] = 'and ' + costs[-1]
-        return ', '.join(costs)
+        return safe_string(', '.join(costs))
 
 
 @JinjaEnv.jinja_export()
