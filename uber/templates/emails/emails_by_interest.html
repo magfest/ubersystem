@@ -9,7 +9,7 @@
 
     <form action="emails_by_interest_csv">
         Generate list of emails from attendees matching any of the following:<br/>
-        {{ Attendee.html_checkgroup('interests') }}<br/>
+        {{ macros.checkgroup(Attendee, 'interests', no_instance=True) }}<br/>
         <input name="submit" type="submit" /><br/>
     </form>
 

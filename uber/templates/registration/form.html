@@ -219,14 +219,14 @@
 <div class="form-group staffing staffing-checked">
     <label class="col-sm-2 control-label">Assigned Depts</label>
     <div class="col-sm-6">
-        {{ attendee.html_checkgroup('assigned_depts') }}
+        {{ macros.checkgroup(attendee, 'assigned_depts') }}
     </div>
 </div>
 
 <div class="form-group staffing staffing-checked">
     <label class="col-sm-2 control-label">Trusted in which depts</label>
     <div class="col-sm-6">
-        {{ attendee.html_checkgroup('trusted_depts') }}
+        {{ macros.checkgroup(attendee, 'trusted_depts') }}
         <span class="popup">{{ macros.popup_link("../static_views/trustDesc.html", "What does this mean?") }}</span>
     </div>
 </div>

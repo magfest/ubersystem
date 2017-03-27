@@ -1,8 +1,9 @@
-{{ attendee.html_nav_menu(
+{{ macros.nav_menu(
+    attendee, c.PAGE_PATH,
     "form?id={id}", "Attendee Data", True,
     "shifts?id={id}", "Shifts", attendee.staffing,
     "history?id={id}", "History", True,
-    "watchlist?attendee_id={id}","Watch List Entry",attendee.banned and c.HAS_WATCHLIST_ACCESS,
+    "watchlist?attendee_id={id}", "Watch List Entry", attendee.banned and c.HAS_WATCHLIST_ACCESS,
     "index", "Return to Attendee List", c.PRE_CON,
     "index?search_text={id}", "Return to Attendee List", c.AT_THE_CON,
     "index", "Return to Attendee List", c.POST_CON

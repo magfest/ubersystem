@@ -379,7 +379,7 @@
 <div class="form-group staffing" id="departments">
     <label for="requested_depts" class="col-sm-2 control-label">Where do you want to help?</label>
     <div class="col-sm-6">
-        {{ attendee.html_checkgroup('requested_depts') }}
+        {{ macros.checkgroup(attendee, 'requested_depts') }}
     </div>
 </div>
 
@@ -514,7 +514,7 @@
 <div class="form-group">
     <label class="col-sm-2 control-label optional-field">What interests you?</label>
     <div class="col-sm-10">
-        {{ attendee.html_checkgroup('interests') }}
+        {{ macros.checkgroup(attendee, 'interests') }}
     </div>
 </div>
 

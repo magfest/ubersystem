@@ -1,5 +1,6 @@
-{{ job.html_nav_menu(
-    "form?id={id}","Job,Data",True,
-    "staffers_by_job?id={id}","Staffer,Signups",True,
-    "index?location={location}#{start_time}","Return,to,Shift,List",True
+{{ macros.nav_menu(
+    job, c.PAGE_PATH,
+    "form?id={id}", "Job,Data", True,
+    "staffers_by_job?id={id}", "Staffer,Signups", True,
+    "index?location={location}#{start_time}", "Return,to,Shift,List", True
 )}}

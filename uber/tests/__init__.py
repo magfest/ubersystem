@@ -1,21 +1,10 @@
 from uber.common import *
 
+from jinja2 import meta
 from mock import Mock
 from unittest import TestCase
 
 import pytest
-
-'''
-class TestPreassignedBadgeDeletion(TestBadgeChange):
-    def test_delete_first(self):
-        self.staff_one.delete()
-
-    def test_delete_middle(self):
-        self.staff_three.delete()
-
-    def test_delete_end(self):
-        self.staff_five.delete()
-'''
 
 
 def guess_template_dirs(file_path):
@@ -45,5 +34,7 @@ def collect_template_paths(file_path):
 
 def is_valid_jinja_template(template_path):
     env = JinjaEnv.env()
-    with open(template_path) as t:
-        env.parse(t.read())
+    with open(template_path) as template_file:
+        template = template_file.read()
+        ast = env.parse(template)
+        meta.find_undeclared_variables(ast)

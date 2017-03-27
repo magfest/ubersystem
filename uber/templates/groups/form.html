@@ -2,7 +2,8 @@
 {% block title %}Group Form{% endblock %}
 {% block content %}
 
-    {{ group.html_nav_menu(
+    {{ macros.nav_menu(
+        group, c.PAGE_PATH,
         "form?id={id}", "Group Page", True,
         "history?id={id}", "History", True,
         "index", "Return to Group List", True
@@ -302,7 +303,7 @@
             </td>
             <td style="padding:15px;">{{ attendee.weighted_hours }} Hours</td>
             {% if attendee.checked_in %}
-                <td><b>Checked-in {{ attendee.checked_in_local|time("fA")|lower }} {{ attendee.checked_in_local|date("D") }}</b></td>
+                <td><b>Checked-in {{ attendee.checked_in_local|datetime("fA")|lower }} {{ attendee.checked_in_local|datetime("D") }}</b></td>
             {% elif c.AT_THE_CON %}
                 {% if attendee.is_not_ready_to_checkin %}
                     <td>Can't checkin ({{ attendee.is_not_ready_to_checkin }})</td>
