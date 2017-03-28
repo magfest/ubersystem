@@ -153,7 +153,7 @@ def address(attendee):
             return 'Please enter a street address.'
         if not attendee.city:
             return 'Please enter a city.'
-        if not attendee.region:
+        if not attendee.region and attendee.country in ['United States','Canada']:
             return 'Please enter a state, province, or region.'
         if not attendee.country:
             return 'Please enter a country.'
