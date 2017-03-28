@@ -72,7 +72,6 @@ class JinjaEnv:
             return registrar
 
 
-
 def template_overrides(dirname):
     """
     Each event can have its own plugin and override our default templates with
