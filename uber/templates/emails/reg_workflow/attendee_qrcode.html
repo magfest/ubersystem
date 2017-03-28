@@ -20,7 +20,7 @@ You cannot pick up badges on behalf of other attendees, even if you have a copy 
     {{ c.EVENT_NAME }} has a no-refund policy for all registrations.  If for any reason you can't make it, we allow and encourage
     you to resell your registration for the exact price you paid for it.  To transfer your registration to another person,
     send them <a href="{{ c.URL_BASE }}/preregistration/transfer_badge?id={{ attendee.id }}">this personalized link</a>,
-    which will work until {{ c.FINAL_EMAIL_DEADLINE|datetime }}.
+    which will work until {{ c.FINAL_EMAIL_DEADLINE|datetime_local }}.
 {% endif %}
 
 </body>

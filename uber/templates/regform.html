@@ -316,7 +316,7 @@
 
                 <p class="help-block col-sm-6">
                     Each level includes all lower levels. <br/>
-                    Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime() }}.
+                    Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime_local }}.
                 </p>
             </div>
         {% endif %}
@@ -387,7 +387,7 @@
         <label for="birthdate" class="col-sm-2 control-label">Date of Birth</label>
         <div class="col-sm-6">
             <nobr>
-                <input type='text' class="form-control date" name="birthdate" value="{{ attendee.birthdate|date("%Y-%m-%d") }} "/>
+                <input type='text' class="form-control date" name="birthdate" value="{{ attendee.birthdate|datetime("%Y-%m-%d") }} "/>
                 {% if c.PAGE_PATH == '/registration/form' and attendee.birthdate %}
                     ({{ attendee.age_group_conf.desc }})
                 {% endif %}
@@ -534,7 +534,7 @@
 <div class="form-group">
     <label for="email_option" class="col-sm-2 control-label optional-field">Keep Me Updated</label>
     <div class="col-sm-6">
-        {{ macros.checkbox(attendee, 'can_spam') }} Send me emails relating to {{ organization_and_event_name() }} in future years. <br/>
+        {{ macros.checkbox(attendee, 'can_spam') }} Send me emails relating to {{ organization_with_event_name() }} in future years. <br/>
         <span class="popup">{{ macros.popup_link("../static_views/privacy.html", "View Our Privacy Policy") }}</span>
     </div>
 </div>

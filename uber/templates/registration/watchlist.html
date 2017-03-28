@@ -23,7 +23,7 @@
     </div>
     <div class="row">
         <label class="col-sm-2 control-label">Watchlist DOB: </label>
-        <div class="col-sm-6"> {{ entry.birthdate|date("%Y-%m-%d") }}</div>
+        <div class="col-sm-6"> {{ entry.birthdate|datetime("%Y-%m-%d") }}</div>
     </div>
     {% endif %}
     <div class="row">

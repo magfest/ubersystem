@@ -87,8 +87,8 @@ $(document).ready(function() {
     {% for job in jobs %}
         eventList.push({
             title: "{{ job.name }} ({{ job.shifts | length }}/{{ job.slots }})",
-            start: "{{ job.start_time|datetime("%Y-%m-%dT%H:%M:%S") }}",
-            end: "{{ job.start_time|shift_end(job.duration) }}",
+            start: "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
+            end: "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
             url: "form?id={{ job.id }}",
             {% if job.type == c.SETUP or job.type == c.TEARDOWN %}
                 backgroundColor: '#239875'
