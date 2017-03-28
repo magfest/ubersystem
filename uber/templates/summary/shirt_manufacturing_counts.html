@@ -10,14 +10,14 @@
 <p>
     This report is designed to give you the correct numbers ready to be sent to the manufacturer.
     We recommend adding in a few extra shirts for safety margins to these numbers.
-</p>
-
-<p>
-    <b>IMPORTANT NOTE: The STAFF SHIRT report shows the result of EACH staffer receiving {{ c.SHIRTS_PER_STAFFER }} shirt(s).</b>
+    {% if c.SHIRTS_PER_STAFFER > 1 %}
+        <br/> <br/>
+        <b>NOTE:</b> The "Staff Shirts" report shows the result of each staffer receiving {{ c.SHIRTS_PER_STAFFER }} shirts.
+    {% endif %}
 </p>
 
 {% for name, category in categories %}
-    <h3>{{ name }} shirts</h3>
+    <h3>{{ name }}</h3>
     <table>
     {% for label, counts in category %}
         <tr>

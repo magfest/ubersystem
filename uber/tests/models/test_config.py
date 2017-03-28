@@ -30,7 +30,7 @@ class TestPriceLimits:
         monkeypatch.setattr(c, 'PRICE_LIMITS', {1: 50})
 
     def test_under_limit_no_price_bump(self):
-        assert 40 == c.get_attendee_price(datetime.now(UTC))
+        assert 40 == c.get_attendee_price()
 
     def test_over_limit_price_bump(self):
         session = Session().session
@@ -41,7 +41,7 @@ class TestPriceLimits:
             session.commit()
 
         assert c.BADGES_SOLD == 1
-        assert 50 == c.get_attendee_price(datetime.now(UTC))
+        assert 50 == c.get_attendee_price()
 
     def test_refunded_badge_price_bump(self):
         session = Session().session
@@ -52,7 +52,7 @@ class TestPriceLimits:
             session.commit()
 
         assert c.BADGES_SOLD == 1
-        assert 50 == c.get_attendee_price(datetime.now(UTC))
+        assert 50 == c.get_attendee_price()
 
     def test_invalid_badge_no_price_bump(self):
         session = Session().session
@@ -63,7 +63,7 @@ class TestPriceLimits:
             session.commit()
 
         assert c.BADGES_SOLD == 0
-        assert 40 == c.get_attendee_price(datetime.now(UTC))
+        assert 40 == c.get_attendee_price()
 
     def test_free_badge_no_price_bump(self):
         session = Session().session
@@ -74,6 +74,6 @@ class TestPriceLimits:
             session.commit()
 
         assert c.BADGES_SOLD == 0
-        assert 40 == c.get_attendee_price(datetime.now(UTC))
+        assert 40 == c.get_attendee_price()
 
     # todo: Test badges that are paid by group

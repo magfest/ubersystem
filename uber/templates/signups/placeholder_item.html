@@ -1,5 +1,7 @@
+{% import 'macros.html' as macros %}
+
 <li>
-    {% checked_if not attendee.placeholder %}
+    {{ macros.checklist_image(not attendee.placeholder) }}
     {% if attendee.placeholder %}
         <a href="../preregistration/confirm?return_to=../signups/index&id={{ attendee.id }}">Confirm</a>
     {% else %}

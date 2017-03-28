@@ -185,3 +185,12 @@ def test_new_extra():
 def test_existing_extra(monkeypatch):
     monkeypatch.setattr(Group, 'is_new', False)
     assert 0 == Group(attendees=[Attendee(paid=c.PAID_BY_GROUP, amount_extra=20)]).amount_extra
+
+
+def test_group_badge_status_cascade():
+    g = Group(cost=0, auto_recalc=False)
+    taken = Attendee(group_id=g.id, paid=c.PAID_BY_GROUP, badge_status=c.NEW_STATUS, first_name='Liam', last_name='Neeson')
+    floating = Attendee(group_id=g.id, paid=c.PAID_BY_GROUP, badge_status=c.NEW_STATUS)
+    g.attendees = [taken, floating]
+    g.presave_adjustments()
+    assert taken.badge_status == c.COMPLETED_STATUS and floating.badge_status == c.NEW_STATUS

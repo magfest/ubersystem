@@ -5,14 +5,14 @@
     <ul style="margin-top:0px ; margin-bottom:10px">
     {% for attendee in placeholders %}
             <li>
-                {{ attendee.registered|datetime:"%Y-%m-%d" }}
+                {{ attendee.registered|datetime("%Y-%m-%d") }}
                 <a href="{{ c.URL_BASE }}/registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a>
                 [{{ attendee.badge }}]
                 {% if attendee.group %}
                     (<a href="{{ c.URL_BASE }}/groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>)
                 {% endif %}
                 {% if attendee.assigned_depts %}
-                    => {{ attendee.assigned_depts_labels|join:' / ' }}
+                    => {{ attendee.assigned_depts_labels|join(' / ') }}
                 {% endif %}
             </li>
     {% endfor %}

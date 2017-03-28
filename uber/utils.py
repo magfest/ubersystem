@@ -1,4 +1,5 @@
 from uber.common import *
+from email_validator import validate_email, EmailNotValidError
 
 
 class HTTPRedirect(cherrypy.HTTPRedirect):
@@ -38,6 +39,28 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
 
     def quote(self, s):
         return quote(s) if isinstance(s, str) else str(s)
+
+
+def create_valid_user_supplied_redirect_url(url, default_url):
+    """
+    Create a valid redirect from user-supplied data.
+
+    If there is invalid data, or a security issue is detected, then ignore and redirect to the homepage
+
+    :param url: user-supplied URL that is being requested to redirect to
+    :param default_url: the name of the URL we should redirect to if there's an issue
+    :return: a secure and valid URL that we allow a redirect to be made to
+    """
+
+    # security: ignore cross-site redirects that aren't for local pages.
+    # i.e. if an attacker passes in 'original_location=https://badsite.com/stuff/" then just ignore it
+    parsed_url = urlparse(url)
+    security_issue = parsed_url.scheme or parsed_url.netloc
+
+    if not url or 'login' in url or security_issue:
+        return default_url
+
+    return url
 
 
 def localized_now():
@@ -263,8 +286,27 @@ class Charge:
         except stripe.CardError as e:
             return 'Your card was declined with the following error from our processor: ' + str(e)
         except stripe.StripeError as e:
-            log.error('unexpected stripe error', exc_info=True)
+            error_txt = 'Got an error while calling charge_cc(self, token={!r})'.format(token)
+            report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
             return 'An unexpected problem occured while processing your card: ' + str(e)
+
+
+def report_critical_exception(msg, subject="Critical Error"):
+    """
+    Report an exception to the loggers with as much context (request params/etc) as possible, and send an email.
+
+    Call this function when you really want to make some noise about something going really badly wrong.
+
+    :param msg: message to prepend to output
+    :param subject: optional: subject for emails going out
+    """
+
+    # log with lots of cherrypy context in here
+    uber.server.log_exception_with_verbose_context(msg)
+
+    # also attempt to email the admins
+    # TODO: Don't hardcode emails here.
+    send_email(c.ADMIN_EMAIL, [c.ADMIN_EMAIL, 'dom@magfest.org'], subject, msg + '\n{}'.format(traceback.format_exc()))
 
 
 def get_page(page, queryset):
@@ -283,14 +325,6 @@ def genpasswd():
             return ' '.join(random.choice(words) for i in range(4))
     except:
         return ''.join(chr(randrange(33, 127)) for i in range(8))
-
-
-def template_overrides(dirname):
-    """
-    Each event can have its own plugin and override our default templates with
-    its own by calling this method and passing its templates directory.
-    """
-    django.conf.settings.TEMPLATE_DIRS.insert(0, dirname)
 
 
 def static_overrides(dirname):
@@ -472,3 +506,22 @@ class request_cached_context:
     @staticmethod
     def _clear_cache():
         threadlocal.clear()
+
+
+def normalize_email(address):
+    """
+    For only @gmail addresses, periods need to be parsed
+    out because they simply don't matter.
+
+    For all other addresses, they are read normally.
+    """
+    address = address.lower()
+    if address.endswith("@gmail.com"):
+        address = address[:-10].replace(".", "") + "@gmail.com"
+    try:
+        validation_info = validate_email(address)
+        # get normalized result
+        address = validation_info["email"]
+    except EmailNotValidError:
+        pass  # ignore invalid emails
+    return address

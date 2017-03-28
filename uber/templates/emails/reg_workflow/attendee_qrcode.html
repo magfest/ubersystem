@@ -1,0 +1,27 @@
+<html>
+<head></head>
+<body>
+
+{{ attendee.first_name }},
+
+{{ c.EVENT_NAME_AND_YEAR }} is coming up soon ({% event_dates %})!
+
+<br/><br/>To help speed up check-in, please bring the 2D barcode below with you when you pick up your badge. You can print it out or display it on your phone.
+<br/><br/>Please note, however, that this code is <strong>not</strong> a replacement for your photo ID. You must still present your photo ID when picking up your badge.
+You cannot pick up badges on behalf of other attendees, even if you have a copy of their barcode.
+
+<br/><br/><img src="{{ c.URL_BASE }}/registration/qrcode_generator?data={{ attendee.public_id }}" />
+
+<br/> <br/>
+{% include "emails/reg_workflow/reg_notes.html" %}
+
+{% if attendee.is_transferable %}
+    <br/> <br/>
+    {{ c.EVENT_NAME }} has a no-refund policy for all registrations.  If for any reason you can't make it, we allow and encourage
+    you to resell your registration for the exact price you paid for it.  To transfer your registration to another person,
+    send them <a href="{{ c.URL_BASE }}/preregistration/transfer_badge?id={{ attendee.id }}">this personalized link</a>,
+    which will work until {{ c.FINAL_EMAIL_DEADLINE|datetime }}.
+{% endif %}
+
+</body>
+</html>

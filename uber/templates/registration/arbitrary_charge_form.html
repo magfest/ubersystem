@@ -5,7 +5,7 @@
 {% if charge %}
     <h2>${{ amount }}: {{ description }}</h2>
     <div class="center">
-        {% stripe_form arbitrary_charge charge %}
+        {{ stripe_form('arbitrary_charge',charge) }}
     </div>
 {% else %}
     <h2>Create Arbitrary Credit Card Charges</h2>

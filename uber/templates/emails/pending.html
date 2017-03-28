@@ -37,7 +37,7 @@
             {% else %}
                 {% if not entry.automated_email.approved %}
                     <form method="post" action="approve">
-                    {% csrf_token %}
+                    {{ csrf_token() }}
                     <input type="hidden" name="ident" value="{{ entry.automated_email.ident }}" />
                     <input type="submit" value="Approve" />
                     </form>

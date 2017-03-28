@@ -7,7 +7,7 @@
 
 <div class="panel panel-default">
 <form method="post" action="register_group_member" class="form-horizontal">
-{% csrf_token %}
+{{ csrf_token() }}
 <input type="hidden" name="id" value="{{ attendee.db_id }}" />
 <input type="hidden" name="group_id" value="{{ group_id }}" />
 

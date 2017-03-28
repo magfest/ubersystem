@@ -46,7 +46,7 @@
             <td data-order="{{ attendee.worked_hours }}" data-search="{{ attendee.worked_hours }}"> <a href="shifts?id={{ attendee.id }}">{{ attendee.worked_hours }}</a> </td>
         {% endif %}
         {% if c.AT_THE_CON %}
-            <td>{{ attendee.checked_in|yesno:"Checked In,Not Checked In" }}</td>
+            <td>{{ attendee.checked_in|yesno("Checked In,Not Checked In") }}</td>
         {% endif %}
     </tr>
 {% endfor %}

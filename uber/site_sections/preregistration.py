@@ -191,11 +191,27 @@ class Root:
         attendee, group = self._get_unsaved(id)
         return {'attendee': attendee}
 
+    def process_free_prereg(self, session):
+        charge = Charge(listify(self.unpaid_preregs.values()))
+        if charge.total_cost <= 0:
+            for attendee in charge.attendees:
+                session.add(attendee)
+
+            for group in charge.groups:
+                session.add(group)
+
+            self.unpaid_preregs.clear()
+            self.paid_preregs.extend(charge.targets)
+            raise HTTPRedirect('paid_preregistrations?payment_received={}', charge.dollar_amount)
+        else:
+            message = "These badges aren't free! Please pay for them."
+            raise HTTPRedirect('index?message={}', message)
+
     @credit_card
     def prereg_payment(self, session, payment_id, stripeToken):
         charge = Charge.get(payment_id)
         if not charge.total_cost:
-            message = 'Your preregistration has already been paid for, so your credit card has not been charged'
+            message = 'Your total cost was $0. Your credit card has not been charged.'
         elif charge.amount != charge.total_cost:
             message = 'Our preregistration price has gone up; please fill out the payment form again at the higher price'
         else:
@@ -241,6 +257,7 @@ class Root:
     def dealer_confirmation(self, session, id):
         return {'group': session.group(id)}
 
+    @log_pageview
     def group_members(self, session, id, message=''):
         group = session.group(id)
         charge = Charge([group, group.leader]) if group.leader else Charge(group)
@@ -273,6 +290,7 @@ class Root:
                 attendee.badge_num = badge_being_claimed.badge_num
                 attendee.ribbon = badge_being_claimed.ribbon
                 attendee.paid = badge_being_claimed.paid
+                attendee.overridden_price = badge_being_claimed.overridden_price
 
                 session.delete_from_group(badge_being_claimed, group)
                 group.attendees.append(attendee)
@@ -347,8 +365,7 @@ class Root:
         except:
             log.error('unable to send group unset email', exc_info=True)
 
-        session.assign_badges(attendee.group, attendee.group.badges + 1, registered=attendee.registered, paid=attendee.paid)
-        attendee.group.cost -= attendee.group.new_badge_cost  # We add this value to the group in assign_badges; undo!
+        session.assign_badges(attendee.group, attendee.group.badges + 1, new_badge_type=attendee.badge_type, new_ribbon_type=attendee.ribbon, registered=attendee.registered, paid=attendee.paid)
         session.delete_from_group(attendee, attendee.group)
         raise HTTPRedirect('group_members?id={}&message={}', attendee.group_id, 'Attendee unset; you may now assign their badge to someone else')
 
@@ -383,6 +400,7 @@ class Root:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, 'You payment has been accepted and the badges have been added to your group')
 
     @attendee_id_required
+    @log_pageview
     def transfer_badge(self, session, message='', **params):
         old = session.attendee(params['id'])
         assert old.is_transferable, 'This badge is not transferrable'
@@ -431,6 +449,7 @@ class Root:
         raise HTTPRedirect('invalid_badge?id={}&message={}', attendee.id, 'Sorry you can\'t make it! We hope to see you next year!')
 
     @attendee_id_required
+    @log_pageview
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
         attendee = session.attendee(params, restricted=True)
 
@@ -513,6 +532,7 @@ class Root:
         return {}
 
     # TODO: figure out if this is the best way to handle the issue of people not getting shirts
+    # TODO: this may be all now-dead one-time code (attendee.owed_shirt doesn't exist anymore)
     def shirt_reorder(self, session, message='', **params):
         attendee = session.attendee(params, restricted=True)
         assert attendee.owed_shirt, "There's no record of {} being owed a tshirt".format(attendee.full_name)

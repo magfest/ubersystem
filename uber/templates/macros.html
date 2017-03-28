@@ -1,0 +1,42 @@
+{% macro ie7_compatibility_check() -%}
+    <!--[if lte IE 7]>
+        <script>
+            if (!document.documentMode) { //if documentMode exists, this is a later IE in compatibility mode
+                alert("This website requires IE 8 or later.");
+            }
+        </script>
+    <![endif]-->
+{%- endmacro %}
+
+{% macro stripe_button(label) -%}
+    <button class="stripe-button-el">
+        <span class="display: block; min-height: 30px;">{{label}}</span>
+    </button>
+{%- endmacro %}
+
+{% macro popup_link(href, text='<sup>?</sup>') -%}
+    <a onClick="window.open('{{ href }}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;"
+       href="{{ href }}">{{ text }}</a>
+
+    {#
+    TODO: integrate these changes from upstream, if needed. they may not be needed anymore
+
+    inner_text = "window.open('{self.href}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;".format(self=self)
+    inner_text = inner_text.replace("'", "&quot;")
+    return "<a onClick='{inner_text}' href='{self.href}'>{self.text}</a>".format(inner_text=inner_text, self=self)
+    #}
+{%- endmacro %}
+
+{% macro checkbox(model, field_name, id=None) -%}
+    <input type="checkbox" name="{{ field_name }}" {% if id %}id="{{ id }}"{% endif %} value="1" {{ model.html_checkbox_value(field_name) }} />
+{%- endmacro %}
+
+{% macro checklist_image(enabled) -%}
+    <img src="../static/images/checkbox_{% if not enabled %}un{% endif %}checked.png" style="vertical-align:top ; margin-right:5px" height="20" width="20" />
+{%- endmacro %}
+
+{% macro radio(name, value, checked) -%}
+    {# TODO: BROKEN: make this look more like the checkbox macro, prob don't need to pass in all the params.
+    checked can likely be model.html_checkbox_value() #}
+    <div class="radio"><label class="btn btn-primary"><input type="radio" name="{{ name }}" value="{{ value }}" {{ checked }} /></label></div>
+{%- endmacro %}

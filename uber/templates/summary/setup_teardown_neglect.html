@@ -10,7 +10,7 @@
     {% for job in jobs %}
         <tr>
             <td><a href="../jobs/form?id={{ job.id }}">{{ job.name }}</a></td>
-            <td>{% timespan job %}</td>
+            <td>{{ job.timespan() }}</td>
             <td>{{ job.location_label }}</td>
             <td>{{ job.slots_taken }} / {{ job.slots }} slots filled</td>
         </tr>

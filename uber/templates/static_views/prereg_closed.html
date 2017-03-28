@@ -2,7 +2,7 @@
     <h2 style='color:red'>{{ c.EVENT_NAME_AND_YEAR }} pre-registration has closed.</h2>
     We'll see everyone {{ c.EVENT_MONTH }} {{ c.EVENT_START_DAY }} - {{ c.EVENT_END_DAY }}.<br/>
     <br/>
-    Full weekend passes will be available at the door for ${{ c.BADGE_PRICE }}. Single days passes will be available for {% single_day_prices %}. We do not anticipate selling out, so you should have no problem purchasing a pass at-event.<br/>
+    Full weekend passes will be available at the door for ${{ c.BADGE_PRICE }}. Single days passes will be available for {{ single_day_prices() }}. We do not anticipate selling out, so you should have no problem purchasing a pass at-event.<br/>
     <br/>
     Please <a href="{{ c.CONTACT_URL }}">contact us</a> if you have any questions.<br/>
 </body></html>
