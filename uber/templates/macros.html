@@ -58,26 +58,6 @@
 {%- endmacro %}
 
 
-{% macro radiogroup(model, field_name, onchanged="donationChanged();") -%}
-    {# TODO: remove hardcoded "donationChanged()" param #}
-
-    {% set default = model[field_name] %}
-
-    {% for num, desc in model.get_field(field_name).type.choices -%}
-        <label class="btn btn-default" style="text-align: left;">
-            <input
-                type="radio"
-                autocomplete="off"
-                name="{{ field_name }}"
-                value="{{ num }}"
-                onchange="{{ onchanged }}"
-                {% if num|string == defaults %}checked{% endif %} />
-            {{ desc }}
-        </label>
-    {%- endfor %}
-{%- endmacro %}
-
-
 {% macro nav_menu(model, current_page_path) -%}
     {% if not model.is_new -%}
         <table class="menu"><tr>
@@ -102,14 +82,4 @@
         style="vertical-align:top ; margin-right:5px"
         height="20"
         width="20" />
-{%- endmacro %}
-
-
-{% macro radio(name, value, checked) -%}
-    {# TODO: BROKEN: make this look more like the checkbox macro, prob don't need to pass in all the params. #}
-    <div class="radio">
-        <label class="btn btn-primary">
-            <input type="radio" name="{{ name }}" value="{{ value }}" {{ checked }} />
-        </label>
-    </div>
 {%- endmacro %}

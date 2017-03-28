@@ -303,7 +303,7 @@
             </td>
             <td style="padding:15px;">{{ attendee.weighted_hours }} Hours</td>
             {% if attendee.checked_in %}
-                <td><b>Checked-in {{ attendee.checked_in_local|datetime("fA")|lower }} {{ attendee.checked_in_local|datetime("D") }}</b></td>
+                <td><b>Checked-in {{ attendee.checked_in_local|datetime("%-I:%M%p")|lower }} {{ attendee.checked_in_local|datetime("%a") }}</b></td>
             {% elif c.AT_THE_CON %}
                 {% if attendee.is_not_ready_to_checkin %}
                     <td>Can't checkin ({{ attendee.is_not_ready_to_checkin }})</td>

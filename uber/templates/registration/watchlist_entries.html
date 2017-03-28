@@ -27,7 +27,7 @@
     </div>
     <div class="form-group">
         <label for="birthdate">Date of Birth</label><br/>
-        <input type="text" id="birthdate" class="form-control date" name="birthdate" value="{{ new_watch.birthdate|date("%Y-%m-%d") }}"/>
+        <input type="text" id="birthdate" class="form-control date" name="birthdate" value="{{ new_watch.birthdate|datetime("%Y-%m-%d") }}"/>
     </div>
     <div class="form-group">
         <label for="reason">Reason</label><br/>
@@ -74,7 +74,7 @@
         </td>
         <td>
             <div class="form-group">
-                <input type="text" form="edit_entry_{{ loop.index }}" class="form-control date" name="birthdate" value="{{ entry.birthdate|date("%Y-%m-%d") }}"/>
+                <input type="text" form="edit_entry_{{ loop.index }}" class="form-control date" name="birthdate" value="{{ entry.birthdate|datetime("%Y-%m-%d") }}"/>
             </div>
         </td>
         <td>
