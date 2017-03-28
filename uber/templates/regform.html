@@ -1,4 +1,5 @@
-
+{% import 'macros.html' as macros %}
+<script src="../static/deps/selectToAutocomplete/jquery.select-to-autocomplete.js"></script>
 <script type="text/javascript">
     var AGE_GROUPS = {{ c.AGE_GROUP_CONFIGS|jsonize }};
     var ageGroupSelected = function () {
@@ -24,7 +25,23 @@
             }
         {% endif %}
     };
+    var regionChange = function() {
+        setInternational();
+
+        var regionopts = $("select[name='region'] optgroup");
+        regionopts.hide();
+        $.field("region").parents('.form-group').hide();
+        var opttoshow = $("select[name='region'] optgroup[label='"+$($.field("country")).find(':selected').html() + "']");
+        opttoshow.children().andSelf().show();
+        opttoshow.parents('.form-group').show();
+    };
     $(function () {
+        $.field("country").val('{{ attendee.country }}');
+        $.field("country").selectToAutocomplete();
+        $.field("country").change(regionChange);
+
+        $.field("region").val('{{ attendee.region }}');
+        regionChange();
         staffingClicked();
         if ($.field('staffing')) {
             {% if c.AT_THE_CON %} $.field('staffing').prop('disabled', true).prop('title', 'Please see Staffing Operations to change your volunteer status.'); {% endif %}
@@ -423,17 +440,16 @@
 </div>
 
 {% if c.COLLECT_FULL_ADDRESS %}
-    {% if c.PRE_CON %}
-        <div class="form-group">
-            <label for="full_address" class="col-sm-2 control-label">Address</label>
-            <div class="col-sm-6">
-                <input type="text" name="full_address" class="form-control geolocator" placeholder="Search for your address here." />
-                <img src="../static/images/powered-by-google-on-white.png" alt="Powered by Google." />
-            </div>
-        </div>
-    {% endif %}
     <div class="form-group address_details">
-        <label for="address1" class="col-sm-2 control-label"></label>
+        <label for="country" class="col-sm-2 control-label">Country</label>
+        <div class="col-sm-6">
+            <select name="country" class="form-control" placeholder="Country" autofocus="autofocus" autocorrect="off" autocomplete="off">
+                {% include "country_opts.html" %}
+            </select>
+        </div>
+    </div>
+    <div class="form-group address_details">
+        <label for="address1" class="col-sm-2 control-label">Street</label>
         <div class="col-sm-6">
             <input type="text" name="address1" class="form-control" placeholder="Address Line 1" value="{{ attendee.address1 }}" data-geo="name" />
         </div>
@@ -451,20 +467,17 @@
         </div>
     </div>
     <div class="form-group address_details">
-        <label for="region" class="col-sm-2 control-label">State</label>
-        <div class="col-sm-3">
-            <input type="text" name="region" class="form-control" placeholder="State/Province/Region" value="{{ attendee.region }}" data-geo="administrative_area_level_1" />
-        </div>
-
-        <label for="zip_code" class="col-sm-1 control-label">ZIP</label>
-        <div class="col-sm-2">
-            <input type="text" name="zip_code" class="form-control" placeholder="ZIP/PostCode" value="{{ attendee.zip_code }}" data-geo="postal_code" />
+        <label for="region" class="col-sm-2 control-label">State/Region</label>
+        <div class="col-sm-6">
+            <select name="region" class="form-control" placeholder="State/Province" autofocus="autofocus" autocorrect="off" autocomplete="off" data-geo="administrative_area_level_1">
+                {% include "region_opts.html" %}
+            </select>
         </div>
     </div>
     <div class="form-group address_details">
-        <label for="country" class="col-sm-2 control-label">Country</label>
+        <label for="zip_code" class="col-sm-2 control-label">ZIP</label>
         <div class="col-sm-6">
-             <input type="text" name="country" onchange="setInternational()" class="form-control" placeholder="Country" value="{{ attendee.country }}" data-geo="country" />
+            <input type="text" name="zip_code" class="form-control" placeholder="ZIP/Postal Code" value="{{ attendee.zip_code }}" data-geo="postal_code" />
         </div>
     </div>
 {% else %}
