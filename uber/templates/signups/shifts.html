@@ -89,7 +89,7 @@
 			shiftList.push({
                                         title : "{{job.name}}",
                                         start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
-                                        end : "{{job.start_time_local|shift_end(job.duration) }}",
+                                        end : "{{job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                                         id : "{{job.id}}",
                                         {% if job.taken %}
                                         backgroundColor: "#239875",
@@ -103,7 +103,7 @@
                         eventList.push({
                                         title : "{{job.name}}",
                                         start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
-                                        end : "{{job.start_time_local|shift_end(job.duration) }}",
+                                        end : "{{job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                                         id : "{{job.id}}",
                                         {% if job.taken %}
                                         backgroundColor: "#239875",

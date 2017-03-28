@@ -1,6 +1,6 @@
 {{ attendee.first_name }},
 
-You're eligible for a personalized Staff badge, but you haven't told us what you want printed on it!  If you don't fill out the form at {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }} by {{ c.PRINTED_BADGE_DEADLINE|datetime }} then you won't receive a personalized badge.
+You're eligible for a personalized Staff badge, but you haven't told us what you want printed on it!  If you don't fill out the form at {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }} by {{ c.PRINTED_BADGE_DEADLINE|datetime_local }} then you won't receive a personalized badge.
 
 {{ c.STOPS_EMAIL_SIGNATURE }}
 

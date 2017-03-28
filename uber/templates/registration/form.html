@@ -111,10 +111,10 @@
 <input type="hidden" name="return_to" value="{{ return_to }}" />
 
 {% if not attendee.is_new %}
-    Created by {{ attendee.created.who }} on {{ attendee.created.when|full_datetime }}
+    Created by {{ attendee.created.who }} on {{ attendee.created.when|full_datetime_local }}
 {% endif %}
 {% if attendee.last_updated %}
-    Last Updated by {{ attendee.last_updated.who }} on {{ attendee.last_updated.when|full_datetime }}
+    Last Updated by {{ attendee.last_updated.who }} on {{ attendee.last_updated.when|full_datetime_local }}
 {% endif %}
 
     <div class="form-group">
