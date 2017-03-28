@@ -36,6 +36,7 @@ from collections import defaultdict, OrderedDict
 from urllib.parse import quote, urlparse, parse_qsl, quote_plus, urljoin
 from datetime import date, time, datetime, timedelta
 from threading import Thread, RLock, local, current_thread
+from types import FunctionType
 from os.path import abspath, basename, dirname, exists, join
 
 import pytz

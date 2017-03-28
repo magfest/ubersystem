@@ -8,7 +8,7 @@ class JinjaEnv:
     _template_dirs = []
 
     @staticmethod
-    def append_template_dir(dirname):
+    def insert_template_dir(dirname):
         """
         Add another template directory we should search when looking up templates.
         """
@@ -42,12 +42,20 @@ class JinjaEnv:
             return func
         return wrap
 
-    @staticmethod
-    def jinja_filter(name=None):
-        def wrap(func):
-            JinjaEnv._filter_functions[name if name else func.__name__] = func
-            return func
-        return wrap
+    @classmethod
+    def jinja_filter(cls, name=None):
+        def _register(func, _name=None):
+            cls._filter_functions[_name if _name else func.__name__] = func
+
+        if isinstance(name, FunctionType):
+            _register(name)
+            return name
+        else:
+            def registrar(func):
+                _register(func, name)
+                return func
+            return registrar
+
 
 
 def template_overrides(dirname):
@@ -55,7 +63,7 @@ def template_overrides(dirname):
     Each event can have its own plugin and override our default templates with
     its own by calling this method and passing its templates directory.
     """
-    JinjaEnv.append_template_dir(dirname)
+    JinjaEnv.insert_template_dir(dirname)
 
-for directory in c.TEMPLATE_DIRS:
-    template_overrides(directory)
+for _directory in c.TEMPLATE_DIRS:
+    template_overrides(_directory)

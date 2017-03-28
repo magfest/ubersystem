@@ -53,21 +53,19 @@
     <td> <b>Start Time:</b> </td>
     <td>
         <select name="start_time">
-
-        {% if job.type == c.SETUP %}
-		    <!-- SETUP -->
-            {{ options(c.SETUP_TIME_OPTS,job.start_time) }}
-        {% elif job.type == c.TEARDOWN %}
-		    <!-- TEARDOWN -->
-		    {{ options(c.TEARDOWN_TIME_OPTS,job.start_time) }}
-        {% elif job.type == c.REGULAR %}
-		    <!-- REGULAR -->
-		    {{ options(c.START_TIME_OPTS,job.start_time) }}
-	    {% else %}
-		    <!-- ALL -->
-            {{ options(c.ALL_TIME_OPTS,job.start_time) }}
-        {% endif %}
-
+            {% if job.type == c.SETUP %}
+                <!-- SETUP -->
+                {{ options(c.SETUP_TIME_OPTS,job.start_time) }}
+            {% elif job.type == c.TEARDOWN %}
+                <!-- TEARDOWN -->
+                {{ options(c.TEARDOWN_TIME_OPTS,job.start_time) }}
+            {% elif job.type == c.REGULAR %}
+                <!-- REGULAR -->
+                {{ options(c.START_TIME_OPTS,job.start_time) }}
+            {% else %}
+                <!-- ALL -->
+                {{ options(c.ALL_TIME_OPTS,job.start_time) }}
+            {% endif %}
         </select>
     </td>
 </tr>

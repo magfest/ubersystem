@@ -19,7 +19,7 @@ def date_filter(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
 
 
 # TODO: fix this to work with JINJA2
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def shift_end(dt, duration):
     curdate = dt + timedelta(hours=int(duration))
     fmt = "%Y-%m-%dT%H:%M:%S"
@@ -31,7 +31,7 @@ def datetime_filter(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
     return ' '.join(dt.astimezone(c.EVENT_TIMEZONE).strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm') if dt else ''
 
 
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def yesno(value, arg=None):
     """
     PORTED FROM DJANGO
@@ -66,23 +66,23 @@ def yesno(value, arg=None):
     return no
 
 
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def timestamp(dt):
     from time import mktime
     return str(int(mktime(dt.timetuple())))
 
 
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def jsonize(x):
     return safe_string(html.escape(json.dumps(x, cls=serializer), quote=False)) if x else '{}'
 
 
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def subtract(x, y):
     return x - y
 
 
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def urlencode(s):
     if isinstance(s, jinja2.Markup):
         s = s.unescape()
@@ -91,23 +91,23 @@ def urlencode(s):
     return jinja2.Markup(s)
 
 
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def percent(numerator, denominator):
     return '0/0' if denominator == 0 else '{} / {} ({}%)'.format(numerator, denominator, int(100 * numerator / denominator))
 
 
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def percent_of(numerator, denominator):
     return 'n/a' if denominator == 0 else '{}%'.format(int(100 * numerator / denominator))
 
 
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def remove_newlines(string):
     return string.replace('\n', ' ')
 
 
 # TODO: fix this to work with JINJA2
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def form_link(model):
     if isinstance(model, Attendee):
         return safe_string('<a href="../registration/form?id={}">{}</a>'.format(model.id, jinja2.escape(model.full_name)))
@@ -119,18 +119,18 @@ def form_link(model):
         return model.name or model.full_name
 
 
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def dept_checklist_path(conf, attendee=None):
     return safe_string(conf.path(attendee))
 
 
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def numeric_range(count):
     return range(count)
 
 
 # TODO: fix this to work with JINJA2
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def sum(values, attribute):
     sum = 0
     for value in values:
@@ -146,28 +146,28 @@ def _getter(x, attrName):
         return getattr(x, attrName)
 
 
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def sortBy(xs, attrName):
     return sorted(xs, key=lambda x: _getter(x, attrName))
 
 
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def time_day(dt):
     return safe_string('<nobr>{} {}</nobr>'.format(dt.astimezone(c.EVENT_TIMEZONE).strftime('%I:%M%p').lstrip('0').lower(),
                                                   dt.astimezone(c.EVENT_TIMEZONE).strftime('%a')))
 
 
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def full_datetime(dt):
     return dt.astimezone(c.EVENT_TIMEZONE).strftime('%H:%M on %B %d %Y')
 
 
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def idize(s):
     return re.sub('\W+', '_', str(s)).strip('_')
 
 
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def pluralize(number, singular='', plural='s'):
     if number == 1:
         return singular
@@ -175,7 +175,7 @@ def pluralize(number, singular='', plural='s'):
         return plural
 
 
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def maybe_red(amount, comp):
     if amount >= comp:
         return safe_string('<span style="color:red ; font-weight:bold">{}</span>'.format(jinja2.escape(amount)))
@@ -183,12 +183,12 @@ def maybe_red(amount, comp):
         return amount
 
 
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def maybe_last_year(day):
     return 'last year' if day <= c.STAFFERS_IMPORTED else day
 
 
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def join_and(xs):
     if len(xs) in [0, 1, 2]:
         return ' and '.join(xs)
@@ -197,7 +197,7 @@ def join_and(xs):
         return ', '.join(xs)
 
 
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def email_only(email):
     """
     Our configured email addresses support either the "email@domain.com" format
@@ -280,7 +280,7 @@ def extract_fields(what):
         return None, None, None
 
 
-@JinjaEnv.jinja_filter()
+@JinjaEnv.jinja_filter
 def linebreaksbr(text):
     """ Re-implementation of django's linebreaksbr. Probably not as robust """
     return safe_string(jinja2.escape(normalize_newlines(text)).replace('\n', '<br />'))

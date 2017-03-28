@@ -2,7 +2,8 @@
 {% block title %}Group History - {{ group.name }}{% endblock %}
 {% block content %}
 
-{{ group.nav_menu(
+{{ macros.nav_menu(
+    group, c.PAGE_PATH,
     "form?id={id}", "Group Page", True,
     "history?id={id}", "History", True,
     "index", "Return to Group List", True
