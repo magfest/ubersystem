@@ -35,12 +35,19 @@ class JinjaEnv:
 
         return env
 
-    @staticmethod
-    def jinja_export(name=None):
-        def wrap(func):
-            JinjaEnv._exportable_functions[name if name else func.__name__] = func
-            return func
-        return wrap
+    @classmethod
+    def jinja_export(cls, name=None):
+        def _register(func, _name=None):
+            cls._exportable_functions[_name if _name else func.__name__] = func
+
+        if isinstance(name, FunctionType):
+            _register(name)
+            return name
+        else:
+            def registrar(func):
+                _register(func, name)
+                return func
+            return registrar
 
     @classmethod
     def jinja_filter(cls, name=None):

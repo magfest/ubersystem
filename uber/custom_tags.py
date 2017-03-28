@@ -208,17 +208,11 @@ def email_only(email):
     return re.search(c.EMAIL_RE.lstrip('^').rstrip('$'), email).group()
 
 
-@JinjaEnv.jinja_export()
+@JinjaEnv.jinja_export
 def options(options, default='""'):
     """
-    TODO: see if we can move this look something more like:
-    {{ attendee.html_options('shirt_size') }}
-
-    It would involve this function finding c.SHIRT_OPTS using the string 'shirt_size'. check html_checkgroup
-    for more info.
-
-    We do need to accomodate explicitly passing in other options though (include None), so make sure to check all the
-    client calls for that info.
+    We do need to accomodate explicitly passing in other options though
+    (include None), so make sure to check all the client calls for that info.
     """
     if isinstance(default, datetime):
         default = default.astimezone(c.EVENT_TIMEZONE)
@@ -239,7 +233,7 @@ def options(options, default='""'):
     return safe_string('\n'.join(results))
 
 
-@JinjaEnv.jinja_export()
+@JinjaEnv.jinja_export
 def int_options(minval, maxval, default=1):
     results = []
     for i in range(minval, maxval+1):
@@ -248,12 +242,12 @@ def int_options(minval, maxval, default=1):
     return safe_string('\n'.join(results))
 
 
-@JinjaEnv.jinja_export()
+@JinjaEnv.jinja_export
 def hour_day(dt):
     return hour_day_format(dt)
 
 
-@JinjaEnv.jinja_export()
+@JinjaEnv.jinja_export
 def pages(page, count):
     page = int(page)
     pages = []
@@ -290,14 +284,14 @@ def normalize_newlines(text):
     return re.sub(r'\r\n|\r|\n', '\n', text)
 
 
-@JinjaEnv.jinja_export()
+@JinjaEnv.jinja_export
 def csrf_token():
     if not cherrypy.session.get('csrf_token'):
         cherrypy.session['csrf_token'] = uuid4().hex
     return safe_string('<input type="hidden" name="csrf_token" value="{}" />'.format(cherrypy.session["csrf_token"]))
 
 
-@JinjaEnv.jinja_export()
+@JinjaEnv.jinja_export
 def stripe_form(action, charge):
     payment_id = uuid4().hex
     cherrypy.session[payment_id] = charge.to_dict()
@@ -329,7 +323,7 @@ def stripe_form(action, charge):
     return render('preregistration/stripeForm.html', params).decode('utf-8')
 
 
-@JinjaEnv.jinja_export()
+@JinjaEnv.jinja_export
 def organization_and_event_name():
     if c.EVENT_NAME.lower() != c.ORGANIZATION_NAME.lower():
         return c.EVENT_NAME + ' and ' + c.ORGANIZATION_NAME
@@ -337,7 +331,7 @@ def organization_and_event_name():
         return c.EVENT_NAME
 
 
-@JinjaEnv.jinja_export()
+@JinjaEnv.jinja_export
 def organization_or_event_name():
     if c.EVENT_NAME.lower() != c.ORGANIZATION_NAME.lower():
         return c.EVENT_NAME + ' or ' + c.ORGANIZATION_NAME
@@ -345,7 +339,7 @@ def organization_or_event_name():
         return c.EVENT_NAME
 
 
-@JinjaEnv.jinja_export()
+@JinjaEnv.jinja_export
 def single_day_prices():
     prices = ''
     for day, price in c.BADGE_PRICES['single_day'].items():
@@ -357,7 +351,7 @@ def single_day_prices():
     return prices
 
 
-@JinjaEnv.jinja_export()
+@JinjaEnv.jinja_export
 def price_notice(label, takedown, amount_extra=0, discount=0):
     if c.HARDCORE_OPTIMIZATIONS_ENABLED:
         # CPU optimizaiton: the calculations done in this function are somewhat expensive and even with caching,
@@ -386,7 +380,7 @@ def price_notice(label, takedown, amount_extra=0, discount=0):
             return ''
 
 
-@JinjaEnv.jinja_export()
+@JinjaEnv.jinja_export
 def table_prices():
     if len(c.TABLE_PRICES) <= 1:
         return '${} per table'.format(c.TABLE_PRICES['default_price'])
@@ -400,7 +394,7 @@ def table_prices():
         return safe_string(', '.join(costs))
 
 
-@JinjaEnv.jinja_export()
+@JinjaEnv.jinja_export
 def event_dates():
     if c.EPOCH.date() == c.ESCHATON.date():
         return c.EPOCH.strftime('%B %-d')
@@ -410,7 +404,7 @@ def event_dates():
         return '{}-{}'.format(c.EPOCH.strftime('%B %-d'), c.ESCHATON.strftime('%-d'))
 
 
-@JinjaEnv.jinja_export()
+@JinjaEnv.jinja_export
 def random_hash():
     random = os.urandom(16)
     result = binascii.hexlify(random)
