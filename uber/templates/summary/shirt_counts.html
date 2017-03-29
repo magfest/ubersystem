@@ -23,7 +23,7 @@
 
 <h3>Shirt Sales by Week</h3>
 <ul>
-    {% for weeks_ago, count in sales_by_week.items %}
+    {% for weeks_ago, count in sales_by_week.items() %}
         {% if count %}
             <li>
                 {% if weeks_ago == 0 %}

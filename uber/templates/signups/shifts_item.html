@@ -1,6 +1,8 @@
+{% import 'macros.html' as macros %}
+
 {% if attendee.takes_shifts %}
     <li>
-        {% checked_if attendee.shifts %}
+        {{ macros.checklist_image(attendee.shifts) }}
         {% if attendee.shift_prereqs_complete %}
             <a href="shifts">Sign up</a>
         {% else %}

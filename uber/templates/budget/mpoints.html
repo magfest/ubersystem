@@ -11,7 +11,7 @@
     <td>Breakdown</td>
 </tr>
 {% for total,group,mpus in all %}
-    <tr bgcolor="{% cycle #ffffff,#eeeeee %}">
+    <tr bgcolor="{{ loop.cycle('#ffffff', '#eeeeee') }}">
         <td>${{ total }}</td>
         <td>
             {% if group %}
@@ -23,7 +23,7 @@
             <ul>
                 {% for mpu in mpus %}
                     <li>
-                        ${{ mpu.amount }} from 
+                        ${{ mpu.amount }} from
                         {% if mpu.attendee %}
                             <a href="../registration/form?id={{ mpu.attendee.id }}">{{ mpu.attendee.full_name }}</a>
                         {% else %}

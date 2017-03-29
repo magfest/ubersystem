@@ -3,7 +3,7 @@
 <body style='text-align:center'>
     <h2 style='color:red'>{{ c.EVENT_NAME_AND_YEAR }} pre-registration is not yet open.</h2>
     {% if not c.HIDE_PREREG_OPEN_DATE %}
-        Please check back on {{ c.PREREG_OPEN|datetime:"%B %d" }}.<br/>
+        Please check back on {{ c.PREREG_OPEN|datetime("%B %d") }}.<br/>
     {% else %}
         Please check back soon.
     {% endif %}

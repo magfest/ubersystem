@@ -8,7 +8,7 @@ def job_dict(job, shifts=None):
         'slots': job.slots,
         'weight': job.weight,
         'restricted': job.restricted,
-        'timespan': custom_tags.timespan.pretty(job),
+        'timespan': job.timespan(),
         'location_label': job.location_label,
         'shifts': [{
             'id': shift.id,

@@ -13,7 +13,7 @@
         {% else %}
             <a href="#" onClick="$('#checkoff').show(); return false;">I've marked everything I can remember.</a>
             <form id="checkoff" style="display:none" method="post" action="../dept_checklist/mark_item_complete">
-            {% csrf_token %}
+            {{ csrf_token() }}
             <input type="hidden" name="slug" value="{{ checklist.conf.slug }}" />
             <input type="submit" value="I've marked everything I remember" />
             </form>

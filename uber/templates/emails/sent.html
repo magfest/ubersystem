@@ -7,7 +7,7 @@
 <div style="text-align:center"><a href="index">Go Back</a></div>
 
 {% for email in emails  %}
-    <h3> {{ email.subject }} ({{ email.when|full_datetime }}) </h3>
+    <h3> {{ email.subject }} ({{ email.when|full_datetime_local }}) </h3>
     <div style="font-family:courier">{{ email.html }}</div>
 {% endfor %}
 

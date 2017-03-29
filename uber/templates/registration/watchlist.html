@@ -23,7 +23,7 @@
     </div>
     <div class="row">
         <label class="col-sm-2 control-label">Watchlist DOB: </label>
-        <div class="col-sm-6"> {{ entry.birthdate|date:"Y-m-d" }}</div>
+        <div class="col-sm-6"> {{ entry.birthdate|datetime("%Y-%m-%d") }}</div>
     </div>
     {% endif %}
     <div class="row">
@@ -36,7 +36,7 @@
     </div>
 
     <form class="form-inline" role="form" method="post" action="watchlist">
-        {% csrf_token %}
+        {{ csrf_token() }}
         <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
         <input type="hidden" name="watchlist_id" value="{{ entry.id }}" />
         <div class="form-group">

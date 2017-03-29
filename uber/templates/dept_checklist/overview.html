@@ -91,7 +91,7 @@
 
 
 {% for dept, dept_name, heads in overview %}
-    <tr><td colspan="checklist|length|add:1" class="dept">{{ dept_name }}</td></tr>
+    <tr><td {# **even though this breaks the table, it still looks better** colspan="{{ checklist|length + 1 }}" #} class="dept">{{ dept_name }}</td></tr>
     {% for attendee, items in heads %}
         <tr>
             <td class="dept-head" title="{{ attendee.email }} / {{ attendee.cellphone }}">{{ attendee|form_link }}</td>
@@ -110,12 +110,12 @@
                     </td>
                 {% endfor %}
             {% else %}
-                <td colspan="{{ checklist|length }}"><i>This dept head doesn't have an admin account.</i></td>
+                <td colspan="{{ checklist.length }}"><i>This dept head doesn't have an admin account.</i></td>
             {% endif %}
         </tr>
     {% endfor %}
 {% endfor %}
-</tbody>
+
 </table>
 
 {% endblock %}
