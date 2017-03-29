@@ -25,7 +25,6 @@
         {% endif %}
     };
     $(function () {
-        togglePrices();
         staffingClicked();
         if ($.field('staffing')) {
             {% if c.AT_THE_CON %} $.field('staffing').prop('disabled', true).prop('title', 'Please see Staffing Operations to change your volunteer status.'); {% endif %}
@@ -321,42 +320,42 @@
                 </p>
             </div>
         {% endif %}
-
-        <div class="badge-row extra-row form-group" style="display:none">
-            <label for="badge_printed_name" class="col-sm-2 control-label optional-field">Name Printed on Badge</label>
-            <div class="col-sm-6">
-                <input type="text" class="form-control" name="badge_printed_name" maxlength="20" value="{{ attendee.badge_printed_name }}" {% if c.AFTER_PRINTED_BADGE_DEADLINE and attendee.badge_type in c.PREASSIGNED_BADGE_TYPES or c.AFTER_SUPPORTER_DEADLINE %}readonly{% endif %} />
-            </div>
-            <p class="help-block col-sm-6">Badge names have a maximum of 20 characters.</p>
-        </div>
-
-        {% if c.AFTER_PRINTED_BADGE_DEADLINE and attendee.badge_type in c.PREASSIGNED_BADGE_TYPES or c.AFTER_SUPPORTER_DEADLINE %}
-            <div class="badge-row extra-row form-group" style="display:none">
-                <p class="help-block col-sm-6 col-sm-offset-2">(custom badges have already been ordered, so you can no longer set this)</p>
-            </div>
-        {% endif %}
-
-        <div class="affiliate-row extra-row form-group" style="display:none">
-            <label for="affiliate" class="col-sm-2 control-label optional-field">Affiliate</label>
-            <div class="col-sm-6">
-                <select name="affiliate">
-                    <option value="" selected="selected"></option>
-                </select>
-            </div>
-            {{ macros.popup_link("../static_views/affiliates.html", "What's an affiliate?") }}
-        </div>
-
-        <div class="shirt-row extra-row form-group" style="display:none">
-            <label for="shirt" class="col-sm-2 control-label">Shirt Size</label>
-            <div class="col-sm-6">
-                <select name="shirt" class="form-control">
-                    <option value="{{ c.NO_SHIRT }}">Select a shirt size</option>
-                    {{ options(c.PREREG_SHIRT_OPTS,attendee.shirt) }}
-                </select>
-            </div>
-        </div>
     {% endif %}
 {% endif %}
+
+<div class="badge-row extra-row form-group" style="display:none">
+    <label for="badge_printed_name" class="col-sm-2 control-label optional-field">Name Printed on Badge</label>
+    <div class="col-sm-6">
+        <input type="text" class="form-control" name="badge_printed_name" maxlength="20" value="{{ attendee.badge_printed_name }}" {% if c.AFTER_PRINTED_BADGE_DEADLINE and attendee.badge_type in c.PREASSIGNED_BADGE_TYPES or c.AFTER_SUPPORTER_DEADLINE %}readonly{% endif %} />
+    </div>
+    <p class="help-block col-sm-6">Badge names have a maximum of 20 characters.</p>
+</div>
+
+{% if c.AFTER_PRINTED_BADGE_DEADLINE and attendee.badge_type in c.PREASSIGNED_BADGE_TYPES or c.AFTER_SUPPORTER_DEADLINE %}
+    <div class="badge-row extra-row form-group" style="display:none">
+        <p class="help-block col-sm-6 col-sm-offset-2">(custom badges have already been ordered, so you can no longer set this)</p>
+    </div>
+{% endif %}
+
+<div class="affiliate-row extra-row form-group" style="display:none">
+    <label for="affiliate" class="col-sm-2 control-label optional-field">Affiliate</label>
+    <div class="col-sm-6">
+        <select name="affiliate">
+            <option value="" selected="selected"></option>
+        </select>
+    </div>
+    {{ macros.popup_link("../static_views/affiliates.html", "What's an affiliate?") }}
+</div>
+
+<div class="shirt-row extra-row form-group" style="display:none">
+    <label for="shirt" class="col-sm-2 control-label">Shirt Size</label>
+    <div class="col-sm-6">
+        <select name="shirt" class="form-control">
+            <option value="{{ c.NO_SHIRT }}">Select a shirt size</option>
+            {{ options(c.PREREG_SHIRT_OPTS,attendee.shirt) }}
+        </select>
+    </div>
+</div>
 
 <div class="form-group staffing">
     <label for="staffing" class="col-sm-2 optional-field control-label">Want to Volunteer?</label>
@@ -540,9 +539,7 @@
     </div>
 </div>
 
-{% if c.PAGE_PATH != '/registration/form' %}
 <input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
-{% endif %}
 
 {% include "regextra.html" %}
 
