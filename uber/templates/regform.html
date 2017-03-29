@@ -25,23 +25,42 @@
             }
         {% endif %}
     };
-    var regionChange = function() {
-        setInternational();
 
-        var regionopts = $("select[name='region'] optgroup");
-        regionopts.hide();
-        $.field("region").parents('.form-group').hide();
-        var opttoshow = $("select[name='region'] optgroup[label='"+$($.field("country")).find(':selected').html() + "']");
-        opttoshow.children().andSelf().show();
-        opttoshow.parents('.form-group').show();
-    };
+    {% if c.COLLECT_FULL_ADDRESS %}
+        var setInternational = function () {
+            countryName = $('input[name="country"]').val();
+            if(countryName == 'USA' || countryName == 'US' || countryName == 'United States') {
+                $('input[name="international"]').prop('checked', false);
+            } else {
+                $('input[name="international"]').prop('checked', true);
+            }
+        };
+
+        var regionChange = function() {
+            setInternational();
+
+            var regionopts = $("select[name='region'] optgroup");
+            regionopts.hide();
+            $.field("region").parents('.form-group').hide();
+            var opttoshow = $("select[name='region'] optgroup[label='"+$($.field("country")).find(':selected').html() + "']");
+            opttoshow.children().andSelf().show();
+            opttoshow.parents('.form-group').show();
+        };
+
+        $(function() {
+            $('#international').hide();
+            setInternational()
+            $.field("country").val('{{ attendee.country }}');
+            $.field("country").selectToAutocomplete();
+            $.field("country").change(regionChange);
+
+            $.field("region").val('{{ attendee.region }}');
+            regionChange();
+        });
+
+    {% endif %}
+
     $(function () {
-        $.field("country").val('{{ attendee.country }}');
-        $.field("country").selectToAutocomplete();
-        $.field("country").change(regionChange);
-
-        $.field("region").val('{{ attendee.region }}');
-        regionChange();
         staffingClicked();
         if ($.field('staffing')) {
             {% if c.AT_THE_CON %} $.field('staffing').prop('disabled', true).prop('title', 'Please see Staffing Operations to change your volunteer status.'); {% endif %}

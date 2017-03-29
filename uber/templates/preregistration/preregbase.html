@@ -14,21 +14,6 @@
         };
         setTimeout(checkCap, PREREG_CHECK_INTERVAL);
 
-        {% if c.COLLECT_FULL_ADDRESS %}
-            var setInternational = function () {
-                countryName = $('input[name="country"]').val();
-                if(countryName == 'USA' || countryName == 'US' || countryName == 'United States') {
-                    $('input[name="international"]').prop('checked', false);
-                } else {
-                    $('input[name="international"]').prop('checked', true);
-                }
-            };
-            $(function() {
-                $('#international').hide();
-                setInternational()
-            });
-        {% endif %}
-
         var REG_TYPES = {
             row: '#reg-types',
             selector: '.reg-type-selector',
