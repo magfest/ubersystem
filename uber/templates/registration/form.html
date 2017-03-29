@@ -251,14 +251,14 @@
     <div class="form-group">
         <label class="col-sm-2 control-label">Signed Up</label>
         <div class="col-sm-6">
-            <i>{{ attendee.registered_local }}</i>
+            <i>{{ attendee.registered_local|datetime("%B %-d, %Y, %-I:%M %p") }}</i>
         </div>
     </div>
     <div class="form-group">
         <label class="col-sm-2 control-label">Checked In</label>
         <div class="col-sm-6">
             {% if attendee.checked_in %}
-                Checked in at {{ attendee.checked_in_local }}
+                Checked in at {{ attendee.checked_in_local|datetime("%B %-d, %Y, %-I:%M %p") }}
             {% else %}
                 Has not checked in yet
             {% endif %}
