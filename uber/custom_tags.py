@@ -92,7 +92,7 @@ def yesno(value, arg=None):
 
 @JinjaEnv.jinja_filter
 def jsonize(x):
-    return safe_string(html.escape(json.dumps(x, cls=serializer), quote=False)) if x else '{}'
+    return safe_string('{}' if x is None else html.escape(json.dumps(x, cls=serializer), quote=False))
 
 
 @JinjaEnv.jinja_filter
