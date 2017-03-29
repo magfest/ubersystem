@@ -18,25 +18,25 @@
 
 {% macro popup_link(href, text='<sup>?</sup>') -%}
     <a onClick="window.open('{{ href }}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;" href="{{ href }}">{{ text|safe }}</a>
-    {#
+    {#-
     TODO: integrate these changes from upstream, if needed. they may not be needed anymore
 
     inner_text = "window.open('{self.href}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;".format(self=self)
     inner_text = inner_text.replace("'", "&quot;")
     return "<a onClick='{inner_text}' href='{self.href}'>{self.text}</a>".format(inner_text=inner_text, self=self)
-    #}
+    -#}
 {%- endmacro %}
 
 
 {% macro checkbox(model, field_name, id=None) -%}
-    <input type="checkbox" name="{{ field_name }}" value="1" id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}" {% if model[field_name] %}checked{% endif %} />
+    <input type="checkbox" name="{{ field_name }}" id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}" value="1" {% if model[field_name] %}checked{% endif %} />
 {%- endmacro %}
 
 
 {% macro checkgroup(model, field_name, no_instance=False) -%}
     {%- set defaults = model[field_name] if not no_instance else None -%}
     {%- set defaults = defaults.split(",") if defaults else [] -%}
-    {% for num, desc in model.get_field(field_name).type.choices %}
+    {% for num, desc in model.get_field(field_name).type.choices -%}
         <label style="font-weight: normal;">
             <input type="checkbox" name="{{ field_name }}" value="{{ num }}" {% if num|string in defaults %}checked{% endif %} />
             {{ desc }}
