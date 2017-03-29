@@ -4,7 +4,7 @@ As a department head for {{ attendee.assigned_depts_labels|join('') }} we need s
 
 {{ conf.description|safe }}
 
-Please fill out the form at {{ c.URL_BASE }}{{ conf|dept_checklist_path(attendee) }} by {{ conf.deadline|datetime_local }}; we need you to submit the linked form even if this doesn't apply to your department so that we know you've looked at it.
+Please fill out the form at {{ c.URL_BASE }}{{ conf|dept_checklist_path(attendee) }} by {{ conf.deadline|datetime }}; we need you to submit the linked form even if this doesn't apply to your department so that we know you've looked at it.
 
 You can review the complete checklist of all information we'll eventually need from you at {{ c.URL_BASE }}/dept_checklist
 

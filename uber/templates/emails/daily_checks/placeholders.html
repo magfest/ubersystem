@@ -5,7 +5,7 @@
     <ul style="margin-top:0px ; margin-bottom:10px">
     {% for attendee in placeholders %}
             <li>
-                {{ attendee.registered|datetime_local("%Y-%m-%d") }}
+                {{ attendee.registered|datetime("%Y-%m-%d") }}
                 <a href="{{ c.URL_BASE }}/registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a>
                 [{{ attendee.badge }}]
                 {% if attendee.group %}

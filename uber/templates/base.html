@@ -238,5 +238,8 @@
     {% block additional_scripts %}
         {% block page_scripts %} {% endblock %}
     {% endblock %}
+    {% if c.COLLECT_FULL_ADDRESS %}
+        <script src="https://maps.googleapis.com/maps/api/js?sensor=false&libraries=places"></script>
+    {% endif %}
 </body>
 </html>

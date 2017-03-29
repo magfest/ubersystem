@@ -1,4 +1,3 @@
-<script src="../static/deps/selectToAutocomplete/jquery.select-to-autocomplete.js"></script>
 
 <script type="text/javascript">
     var AGE_GROUPS = {{ c.AGE_GROUP_CONFIGS|jsonize }};
@@ -25,24 +24,7 @@
             }
         {% endif %}
     };
-    var regionChange = function() {
-        setInternational();
-
-        var regionopts = $("select[name='region'] optgroup");
-        regionopts.hide();
-        $.field("region").parents('.form-group').hide();
-        var opttoshow = $("select[name='region'] optgroup[label='"+$($.field("country")).find(':selected').html() + "']");
-        opttoshow.children().andSelf().show();
-        opttoshow.parents('.form-group').show();
-    };
     $(function () {
-        $.field("country").val('{{ attendee.country }}');
-        $.field("country").selectToAutocomplete();
-        $.field("country").change(regionChange);
-
-        $.field("region").val('{{ attendee.region }}');
-        regionChange();
-        togglePrices();
         staffingClicked();
         if ($.field('staffing')) {
             {% if c.AT_THE_CON %} $.field('staffing').prop('disabled', true).prop('title', 'Please see Staffing Operations to change your volunteer status.'); {% endif %}
@@ -150,7 +132,7 @@
 {% endif %}
 
 {% if c.DONATIONS_ENABLED and c.PAGE_PATH != '/registration/form' %}
-    {% if c.PREREG_DONATION_OPTS and c.PREREG_DONATION_OPTS.length > 1 or attendee.amount_extra %}
+    {% if c.PREREG_DONATION_OPTS|length > 1 or attendee.amount_extra %}
         <script type="text/javascript">
             var donationChanged = function () {
                 setVisible('.affiliate-row', $.val('amount_extra') > 0);
@@ -334,7 +316,7 @@
 
                 <p class="help-block col-sm-6">
                     Each level includes all lower levels. <br/>
-                    Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime_local }}.
+                    Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime() }}.
                 </p>
             </div>
         {% endif %}
@@ -405,7 +387,7 @@
         <label for="birthdate" class="col-sm-2 control-label">Date of Birth</label>
         <div class="col-sm-6">
             <nobr>
-                <input type='text' class="form-control date" name="birthdate" value="{{ attendee.birthdate|datetime("%Y-%m-%d") }} "/>
+                <input type='text' class="form-control date" name="birthdate" value="{{ attendee.birthdate|date("%Y-%m-%d") }} "/>
                 {% if c.PAGE_PATH == '/registration/form' and attendee.birthdate %}
                     ({{ attendee.age_group_conf.desc }})
                 {% endif %}
@@ -441,16 +423,17 @@
 </div>
 
 {% if c.COLLECT_FULL_ADDRESS %}
-    <div class="form-group address_details">
-        <label for="country" class="col-sm-2 control-label">Country</label>
-        <div class="col-sm-6">
-            <select name="country" class="form-control" placeholder="Country" autofocus="autofocus" autocorrect="off" autocomplete="off">
-                {% include "country_opts.html" %}
-            </select>
+    {% if c.PRE_CON %}
+        <div class="form-group">
+            <label for="full_address" class="col-sm-2 control-label">Address</label>
+            <div class="col-sm-6">
+                <input type="text" name="full_address" class="form-control geolocator" placeholder="Search for your address here." />
+                <img src="../static/images/powered-by-google-on-white.png" alt="Powered by Google." />
+            </div>
         </div>
-    </div>
+    {% endif %}
     <div class="form-group address_details">
-        <label for="address1" class="col-sm-2 control-label">Street</label>
+        <label for="address1" class="col-sm-2 control-label"></label>
         <div class="col-sm-6">
             <input type="text" name="address1" class="form-control" placeholder="Address Line 1" value="{{ attendee.address1 }}" data-geo="name" />
         </div>
@@ -468,17 +451,20 @@
         </div>
     </div>
     <div class="form-group address_details">
-        <label for="region" class="col-sm-2 control-label">State/Region</label>
-        <div class="col-sm-6">
-            <select name="region" class="form-control" placeholder="State/Province" autofocus="autofocus" autocorrect="off" autocomplete="off" data-geo="administrative_area_level_1">
-                {% include "region_opts.html" %}
-            </select>
+        <label for="region" class="col-sm-2 control-label">State</label>
+        <div class="col-sm-3">
+            <input type="text" name="region" class="form-control" placeholder="State/Province/Region" value="{{ attendee.region }}" data-geo="administrative_area_level_1" />
+        </div>
+
+        <label for="zip_code" class="col-sm-1 control-label">ZIP</label>
+        <div class="col-sm-2">
+            <input type="text" name="zip_code" class="form-control" placeholder="ZIP/PostCode" value="{{ attendee.zip_code }}" data-geo="postal_code" />
         </div>
     </div>
     <div class="form-group address_details">
-        <label for="zip_code" class="col-sm-2 control-label">ZIP</label>
+        <label for="country" class="col-sm-2 control-label">Country</label>
         <div class="col-sm-6">
-            <input type="text" name="zip_code" class="form-control" placeholder="ZIP/Postal Code" value="{{ attendee.zip_code }}" data-geo="postal_code" />
+             <input type="text" name="country" onchange="setInternational()" class="form-control" placeholder="Country" value="{{ attendee.country }}" data-geo="country" />
         </div>
     </div>
 {% else %}
@@ -548,14 +534,10 @@
 <div class="form-group">
     <label for="email_option" class="col-sm-2 control-label optional-field">Keep Me Updated</label>
     <div class="col-sm-6">
-        {{ macros.checkbox(attendee, 'can_spam') }} Send me emails relating to {{ organization_with_event_name() }} in future years. <br/>
+        {{ macros.checkbox(attendee, 'can_spam') }} Send me emails relating to {{ organization_and_event_name() }} in future years. <br/>
         <span class="popup">{{ macros.popup_link("../static_views/privacy.html", "View Our Privacy Policy") }}</span>
     </div>
 </div>
-
-{% if c.PAGE_PATH != '/registration/form' %}
-<input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
-{% endif %}
 
 {% include "regextra.html" %}
 
@@ -564,9 +546,6 @@
         // This removes any badge levels lower than the attendee has purchased already
         if (window.BADGE_TYPES) {
             while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].extra < {{ attendee.amount_extra }}) {
-                BADGE_TYPES.options.splice(0, 1);
-            }
-            while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].price && BADGE_TYPES.options[0].price < {{ c.BADGE_TYPE_PRICES[attendee.badge_type] }}) {
                 BADGE_TYPES.options.splice(0, 1);
             }
         }

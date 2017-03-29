@@ -12,47 +12,23 @@ def safe_string(str):
     return jinja2.Markup(str)
 
 
-@JinjaEnv.jinja_filter(name='datetime')
-def datetime_filter(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
+@JinjaEnv.jinja_filter(name='date')
+def date_filter(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
+    # TODO: if this is a datetime.time object, do we have to correct for timezone with .astimezone()?
     return ' '.join(dt.strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm') if dt else ''
 
 
-@JinjaEnv.jinja_filter(name='datetime_local')
-def datetime_local_filter(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
-    return datetime_filter(dt.astimezone(c.EVENT_TIMEZONE), fmt=fmt)
-
-
+# TODO: fix this to work with JINJA2
 @JinjaEnv.jinja_filter
-def time_day_local(dt):
-    time_str = dt.astimezone(c.EVENT_TIMEZONE).strftime('%-I:%M%p').lstrip('0').lower()
-    day_str = dt.astimezone(c.EVENT_TIMEZONE).strftime('%a')
-    return safe_string('<nobr>{} {}</nobr>'.format(time_str, day_str))
+def shift_end(dt, duration):
+    curdate = dt + timedelta(hours=int(duration))
+    fmt = "%Y-%m-%dT%H:%M:%S"
+    return ' '.join(curdate.astimezone(c.EVENT_TIMEZONE).strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm')
 
 
-@JinjaEnv.jinja_filter
-def full_datetime_local(dt):
-    return dt.astimezone(c.EVENT_TIMEZONE).strftime('%H:%M on %B %d %Y')
-
-
-@JinjaEnv.jinja_export
-def event_dates():
-    if c.EPOCH.date() == c.ESCHATON.date():
-        return c.EPOCH.strftime('%B %-d')
-    elif c.EPOCH.month != c.ESCHATON.month:
-        return '{} - {}'.format(c.EPOCH.strftime('%B %-d'), c.ESCHATON.strftime('%B %-d'))
-    else:
-        return '{}-{}'.format(c.EPOCH.strftime('%B %-d'), c.ESCHATON.strftime('%-d'))
-
-
-@JinjaEnv.jinja_export
-def hour_day_local(dt):
-    return hour_day_format(dt)
-
-
-@JinjaEnv.jinja_filter
-def timestamp(dt):
-    from time import mktime
-    return str(int(mktime(dt.timetuple())))
+@JinjaEnv.jinja_filter(name='datetime')
+def datetime_filter(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
+    return ' '.join(dt.astimezone(c.EVENT_TIMEZONE).strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm') if dt else ''
 
 
 @JinjaEnv.jinja_filter
@@ -91,6 +67,12 @@ def yesno(value, arg=None):
 
 
 @JinjaEnv.jinja_filter
+def timestamp(dt):
+    from time import mktime
+    return str(int(mktime(dt.timetuple())))
+
+
+@JinjaEnv.jinja_filter
 def jsonize(x):
     return safe_string(html.escape(json.dumps(x, cls=serializer), quote=False)) if x else '{}'
 
@@ -124,6 +106,7 @@ def remove_newlines(string):
     return string.replace('\n', ' ')
 
 
+# TODO: fix this to work with JINJA2
 @JinjaEnv.jinja_filter
 def form_link(model):
     if isinstance(model, Attendee):
@@ -146,6 +129,7 @@ def numeric_range(count):
     return range(count)
 
 
+# TODO: fix this to work with JINJA2
 @JinjaEnv.jinja_filter
 def sum(values, attribute):
     sum = 0
@@ -165,6 +149,17 @@ def _getter(x, attrName):
 @JinjaEnv.jinja_filter
 def sortBy(xs, attrName):
     return sorted(xs, key=lambda x: _getter(x, attrName))
+
+
+@JinjaEnv.jinja_filter
+def time_day(dt):
+    return safe_string('<nobr>{} {}</nobr>'.format(dt.astimezone(c.EVENT_TIMEZONE).strftime('%I:%M%p').lstrip('0').lower(),
+                                                  dt.astimezone(c.EVENT_TIMEZONE).strftime('%a')))
+
+
+@JinjaEnv.jinja_filter
+def full_datetime(dt):
+    return dt.astimezone(c.EVENT_TIMEZONE).strftime('%H:%M on %B %d %Y')
 
 
 @JinjaEnv.jinja_filter
@@ -248,6 +243,11 @@ def int_options(minval, maxval, default=1):
 
 
 @JinjaEnv.jinja_export
+def hour_day(dt):
+    return hour_day_format(dt)
+
+
+@JinjaEnv.jinja_export
 def pages(page, count):
     page = int(page)
     pages = []
@@ -318,13 +318,23 @@ def stripe_form(action, charge):
         'charge': charge
     }
 
-    return safe_string(render('preregistration/stripeForm.html', params).decode('utf-8'))
+    # TODO: not 100% sure this is kosher with the way we're doing our
+    # singleton JinjaEnv() class.  might have to make this not a singleton
+    return render('preregistration/stripeForm.html', params).decode('utf-8')
 
 
 @JinjaEnv.jinja_export
-def organization_with_event_name(separator='and'):
+def organization_and_event_name():
     if c.EVENT_NAME.lower() != c.ORGANIZATION_NAME.lower():
-        return '{} {} {}'.format(c.EVENT_NAME, separator.strip(), c.ORGANIZATION_NAME)
+        return c.EVENT_NAME + ' and ' + c.ORGANIZATION_NAME
+    else:
+        return c.EVENT_NAME
+
+
+@JinjaEnv.jinja_export
+def organization_or_event_name():
+    if c.EVENT_NAME.lower() != c.ORGANIZATION_NAME.lower():
+        return c.EVENT_NAME + ' or ' + c.ORGANIZATION_NAME
     else:
         return c.EVENT_NAME
 
@@ -382,6 +392,16 @@ def table_prices():
             costs.append('<nobr>{} table{} cost{} ${}</nobr>'.format(i, table_plural, cost_plural, cost))
         costs[-1] = 'and ' + costs[-1]
         return safe_string(', '.join(costs))
+
+
+@JinjaEnv.jinja_export
+def event_dates():
+    if c.EPOCH.date() == c.ESCHATON.date():
+        return c.EPOCH.strftime('%B %-d')
+    elif c.EPOCH.month != c.ESCHATON.month:
+        return '{} - {}'.format(c.EPOCH.strftime('%B %-d'), c.ESCHATON.strftime('%B %-d'))
+    else:
+        return '{}-{}'.format(c.EPOCH.strftime('%B %-d'), c.ESCHATON.strftime('%-d'))
 
 
 @JinjaEnv.jinja_export

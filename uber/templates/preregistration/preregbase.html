@@ -37,13 +37,10 @@
                 description: 'A single registration; you can register more before paying.',
                 onClick: function () {
                     $('.group_fields').addClass('hide');
-                    if ($.field('badge_type').val() == '{{ c.PSEUDO_GROUP_BADGE }}') {
-                        $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
-                    }
+                    $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
                     if ($.field('first_name')) {
                         $('#bold-field-message').insertBefore($.field('first_name').parents('.form-group'));
                     }
-                    showOrHideBadgeTypes();
                     togglePrices();
                 }
             }]
@@ -61,7 +58,6 @@
                         $('.group_fields').removeClass('hide');
                         $('input[name="badge_type"]').val('{{ c.PSEUDO_GROUP_BADGE }}');
                         $('#bold-field-message').insertBefore($.field('name').parents('.form-group'));
-                        showOrHideBadgeTypes();
                         togglePrices();
                     {% else %}
                         setBadge(REG_TYPES, 0);
@@ -75,58 +71,33 @@
             row: '#badge-types',
             selector: '.badge-type-selector',
             options: [{
-                title: '{% if c.PAGE_PATH == "/preregistration/form" or c.PAGE_PATH == "/preregistration/dealer_registration" or undoing_extra %}Attending{% elif attendee %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
+                title: '{% if c.PAGE_PATH == "/preregistration/form" or c.PAGE_PATH == "/preregistration/dealer_registration" %}Attending{% elif attendee %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
                 description: 'Allows access to the convention for its duration.',
-                extra: 0,
-                price: {{ c.BADGE_PRICE }},
-                onClick: function () {
-                    $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
-                }
+                extra: 0
             }]
         };
         {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS and c.SHIRT_AVAILABLE %}
             BADGE_TYPES.options.push({
                 title: 'Add a tshirt',
                 description: 'Add a {{ c.EVENT_NAME }} themed t-shirt to your registration.',
-                extra: {{ c.SHIRT_LEVEL }},
-                price: {{ c.BADGE_PRICE }}
+                extra: {{ c.SHIRT_LEVEL }}
             });
         {% endif %}
         {% if c.SUPPORTER_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE %}
             BADGE_TYPES.options.push({
                 title: 'Supporter',
                 description: 'Donate extra and get more swag with your registration.',
-                extra: {{ c.SUPPORTER_LEVEL }},
-                price: {{ c.BADGE_PRICE }}
+                extra: {{ c.SUPPORTER_LEVEL }}
             });
         {% endif %}
 
-        {% for badge_type in c.BADGE_TYPE_PRICES %}
-            {% if badge_type != c.ATTENDEE_BADGE %}
-            BADGE_TYPES.options.push({
-                title: '{{ c.BADGES[badge_type] }}',
-                description: 'Donate extra to get an upgraded badge with perks.',
-                extra: 0,
-                price: {{ c.BADGE_TYPE_PRICES[badge_type] }},
-                badge_type: '{{ badge_type }}',
-                onClick: function () {
-                    $('input[name="badge_type"]').val('{{ badge_type }}');
-                }
-            });
-            {% endif %}
-        {% endfor %}
-
-        BADGE_TYPES.options.sort(function(a, b){
-            return a.price > b.price;
-        });
-
         var togglePrices = function () {
-            var showTotalPrices = {% if c.PAGE_PATH == '/preregistration/form' and not c.PREREG_DONATION_DESCRIPTIONS %}($.val('badge_type') != {{ c.PSEUDO_DEALER_BADGE }}){% else %}false{% endif %};
+            var showTotalPrices = {% if c.PAGE_PATH == '/preregistration/form' and not c.PREREG_DONATION_DESCRIPTIONS %}($.val('badge_type') === {{ c.ATTENDEE_BADGE }}){% else %}false{% endif %};
             $.each(BADGE_TYPES.options, function (i, type) {
                 var $price = $(BADGE_TYPES.selector).slice(i, i + 1).find('.price').empty();
                 var $price_notice = $(BADGE_TYPES.selector).slice(i, i + 1).find('.price_notice').empty();
                 if (showTotalPrices) {
-                    $price.append(': $').append(type.extra + type.price);
+                    $price.append(': $').append(type.extra + {{ c.BADGE_PRICE }});
                     {% for amount_extra, val in c.PREREG_DONATION_OPTS %}
                         if (type.extra == {{ amount_extra }} && type.extra >= {{ c.SUPPORTER_LEVEL }}) {
                             $price_notice.append('{{ price_notice("Supporter registration", c.SUPPORTER_DEADLINE, c.SUPPORTER_LEVEL) }}')
@@ -136,8 +107,6 @@
                     {% endfor %}
                 } else if (type.extra) {
                     $price.append(': +$').append(type.extra);
-                } else if (type.price) {
-                    $price.append(': $').append(type.price);
                 }
             });
             $.each(REG_TYPES.options, function (i, type) {
@@ -153,24 +122,6 @@
                     }
                 }
             });
-        };
-        var showOrHideBadgeTypes = function () {
-            // We use 'pseudo' badge types to create dealers and groups, which is antithetical to using attending-facing
-            // badge types for upgrades. We thus want to hide any badge buttons with a unique badge type if the attendee
-            // is a dealer or group leader.
-            if ($(BADGE_TYPES.row).size()) {
-                $.each(BADGE_TYPES.options, function (i, badgeType) {
-                    if (badgeType.badge_type && badgeType.badge_type != {{ c.ATTENDEE_BADGE }}) {
-                        var current_button = $(BADGE_TYPES.selector).slice(i, 1+i);
-                        current_button.toggle($.field('badge_type').val() != '{{ c.PSEUDO_GROUP_BADGE }}' && $.field('badge_type').val() != '{{ c.PSEUDO_DEALER_BADGE }}');
-                        // If an 'invalid' badge type is currently selected when the reg type is changed, reset to the
-                        // first in the list
-                        if (!current_button.is(":visible") && current_button.hasClass('active')) {
-                            setBadge(BADGE_TYPES, 0);
-                        }
-                    }
-                });
-            }
         };
         var setBadge = function (types, index) {
             var type = types.options[index];
@@ -196,8 +147,6 @@
                 $.each(BADGE_TYPES.options, function (i, badgeType) {
                     if (badgeType.extra && $.field('amount_extra') && badgeType.extra == $.val('amount_extra')) {
                         target = i;
-                    } else if (badgeType.badge_type && badgeType.badge_type == $.val('badge_type')) {
-                        target = i;
                     }
                 });
                 if (!$(BADGE_TYPES.selector).slice(target, 1 + target).is('.active')) {
@@ -206,7 +155,6 @@
             }
         };
         $(function () {
-            showOrHideBadgeTypes();
             if ($(BADGE_TYPES.row).size()) {
                 $.each([REG_TYPES, BADGE_TYPES], function (i, types) {
                     $.each(types.options, function (index, type) {

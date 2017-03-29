@@ -4,7 +4,7 @@ Thanks for signing up to volunteer at {{ c.EVENT_NAME }}!  You're currently assi
 
 You can sign up for shifts at {{ c.URL_BASE }}/signups/login and if you have trouble logging in, you can verify/update your personal information at {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}
 
-You can add / drop / change your shifts anytime until {{ c.EPOCH|datetime_local }}.
+You can add / drop / change your shifts anytime until {{ c.EPOCH|datetime }}.
 
 Please let us know if you have any questions.
 

@@ -11,7 +11,7 @@
         <tr>
             <td>Birthdate</td>
             <td>
-                <input type="text" id="checkin-birthdate" name="birthdate" class="date" value="{{ attendee.birthdate|datetime("%Y-%m-%d")}}" />
+                <input type="text" id="checkin-birthdate" name="birthdate" class="date" value="{{ attendee.birthdate|date("%Y-%m-%d")}}" />
             </td>
         </tr>
          {% if attendee.birthdate %}

@@ -44,7 +44,7 @@
 </tr>
 {% for tracked in feed %}
     <tr>
-        <td style="white-space:nowrap">{{ tracked.when|full_datetime_local }}</td>
+        <td style="white-space:nowrap">{{ tracked.when|full_datetime }}</td>
         <td style="white-space:nowrap">{{ tracked.who }}</td>
         <td style="white-space:nowrap">{{ tracked.model }}</td>
         <td style="white-space:nowrap">{{ tracked.which }}</td>
