@@ -37,7 +37,7 @@
 <input type="hidden" name="id" value="{{ job.db_id }}" />
 <input type="hidden" name="type" value="{{ job.type }}" />
 <input type="hidden" name="from_schedule" value="{{ from_schedule }}" />
-{% csrf_token %}
+{{ csrf_token() }}
 
 
 <table>
@@ -54,17 +54,17 @@
     <td>
         <select name="start_time">
             {% if job.type == c.SETUP %}
-		<!-- SETUP -->
-                {% options c.SETUP_TIME_OPTS job.start_time %}
+                <!-- SETUP -->
+                {{ options(c.SETUP_TIME_OPTS,job.start_time) }}
             {% elif job.type == c.TEARDOWN %}
-		<!-- TEARDOWN -->
-		{% options c.TEARDOWN_TIME_OPTS job.start_time %}
+                <!-- TEARDOWN -->
+                {{ options(c.TEARDOWN_TIME_OPTS,job.start_time) }}
             {% elif job.type == c.REGULAR %}
-		<!-- REGULAR -->
-		{% options c.START_TIME_OPTS job.start_time %}
-	    {% else %}
-		<!-- ALL -->
-		{% options c.ALL_TIME_OPTS job.start_time %}
+                <!-- REGULAR -->
+                {{ options(c.START_TIME_OPTS,job.start_time) }}
+            {% else %}
+                <!-- ALL -->
+                {{ options(c.ALL_TIME_OPTS,job.start_time) }}
             {% endif %}
         </select>
     </td>
@@ -73,21 +73,21 @@
     <td><b>{% if job.type != c.REGULAR %}Expected Approximate {% endif %}Duration:</b></td>
     <td>
         <select name="duration">
-            {% options c.DURATION_OPTS job.duration %}
+            {{ options(c.DURATION_OPTS,job.duration) }}
         </select>
     </td>
 </tr>
 {% if job.type == c.REGULAR %}
     <tr>
-        <td> <b>Extra 15{% popup_link "../static_views/extra15.html" %}</b> </td>
-        <td> {% checkbox job.extra15 %} Yes </td>
+        <td> <b>Extra 15{{ macros.popup_link("../static_views/extra15.html") }}</b> </td>
+        <td> {{ macros.checkbox(job, 'extra15') }} Yes </td>
     </tr>
 {% endif %}
 <tr>
     <td> <b>Slots:</b> </td>
     <td>
         <select name="slots">
-            {% int_options 1 50 job.slots %}
+            {{ int_options(1, 50, job.slots) }}
         </select>
         {% if not job.is_new %}({{ job.shifts|length }} filled){% endif %}
     </td>
@@ -96,23 +96,23 @@
     <td> <b>Location:</b> </td>
     <td>
         <select name="location">
-            {% options c.JOB_LOCATION_OPTS job.location %}
+            {{ options(c.JOB_LOCATION_OPTS,job.location) }}
         </select>
     </td>
 </tr>
 {% if job.type == c.REGULAR %}
     <tr>
-        <td> <b>Weight:{% popup_link "../static_views/weightDesc.html" %}</b> </td>
+        <td> <b>Weight:{{ macros.popup_link("../static_views/weightDesc.html") }}</b> </td>
         <td>
             <select name="weight">
-                {% options c.WEIGHT_OPTS job.weight %}
+                {{ options(c.WEIGHT_OPTS,job.weight) }}
             </select>
         </td>
     </tr>
 {% endif %}
 <tr>
-    <td> <b>Restricted:{% popup_link "../static_views/trustDesc.html" %}</b> </td>
-    <td> {% checkbox job.restricted %} Yes </td>
+    <td> <b>Restricted:{{ macros.popup_link("../static_views/trustDesc.html") }}</b> </td>
+    <td> {{ macros.checkbox(job, 'restricted') }} Yes </td>
 </tr>
 <tr>
     <td></td>
@@ -124,7 +124,7 @@
 
 {% if not job.is_new %}
     <form method="post" action="delete">
-    {% csrf_token %}
+    {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ job.id }}" />
     <table width="100%" cellspacing="5" cellpadding="5">
     <tr>

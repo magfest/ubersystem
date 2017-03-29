@@ -11,7 +11,7 @@
                 {% for shift in job.shifts %}
                     <tr>
                         <td>{{ job.name }}</td>
-                        <td>{% timespan job %}</td>
+                        <td>{{ job.timespan() }}</td>
                         <td>{{ shift.attendee.full_name }}</td>
                         <td><b>Circle One:</b> &nbsp; <i>worked</i> &nbsp; <b>/</b> &nbsp; <i>didn't show up</i></td>
                         <td>Comments: _____________________________________________</td>
@@ -20,7 +20,7 @@
                 {% for i in job.slots_untaken|numeric_range %}
                     <tr>
                         <td>{{ job.name }}</td>
-                        <td>{% timespan job %}</td>
+                        <td>{{ job.timespan() }}</td>
                         <td>____________________<i>(open slot)</i></td>
                         <td><b>Circle One:</b> &nbsp; <i>worked</i> &nbsp; <b>/</b> &nbsp; <i>didn't show up</i></td>
                         <td>Comments: _____________________________________________</td>

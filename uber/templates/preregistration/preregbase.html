@@ -1,8 +1,6 @@
 {% extends "base.html" %}
-{% block backlink %}{% endblock %}
-{% block header %}
-    <link href="../static/theme/prereg.css" rel="stylesheet">
-    <link href="../static/theme/prereg_extra.css" rel="stylesheet">
+{% block head_javascript %}
+    {{ super() }}
     <script type="text/javascript">
         var PREREG_CHECK_INTERVAL = 15 * 60 * 1000;
         var checkCap = function () {
@@ -47,7 +45,7 @@
                 }
             }]
         };
-        {% if c.GROUPS_ENABLED and attendee.is_new and not group_id %}
+        {% if c.GROUPS_ENABLED and attendee and attendee.is_new and not group_id %}
             REG_TYPES.options.push({
                 title: 'Group Leader',
                 {% if c.BEFORE_GROUP_PREREG_TAKEDOWN %}
@@ -73,7 +71,7 @@
             row: '#badge-types',
             selector: '.badge-type-selector',
             options: [{
-                title: '{% if c.PAGE_PATH == "/preregistration/form" or c.PAGE_PATH == "/preregistration/dealer_registration" %}Attending{% else %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
+                title: '{% if c.PAGE_PATH == "/preregistration/form" or c.PAGE_PATH == "/preregistration/dealer_registration" %}Attending{% elif attendee %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
                 description: 'Allows access to the convention for its duration.',
                 extra: 0
             }]
@@ -102,9 +100,9 @@
                     $price.append(': $').append(type.extra + {{ c.BADGE_PRICE }});
                     {% for amount_extra, val in c.PREREG_DONATION_OPTS %}
                         if (type.extra == {{ amount_extra }} && type.extra >= {{ c.SUPPORTER_LEVEL }}) {
-                            $price_notice.append('{% price_notice "Supporter registration" c.SUPPORTER_DEADLINE c.SUPPORTER_LEVEL %}')
+                            $price_notice.append('{{ price_notice("Supporter registration", c.SUPPORTER_DEADLINE, c.SUPPORTER_LEVEL) }}')
                         } else if (type.extra == {{ amount_extra }}) {
-                            $price_notice.append('{% price_notice "Preregistration" c.PREREG_TAKEDOWN amount_extra %}')
+                            $price_notice.append('{{ price_notice("Preregistration", c.PREREG_TAKEDOWN, amount_extra) }}')
                         }
                     {% endfor %}
                 } else if (type.extra) {
@@ -117,10 +115,10 @@
                 if (!showTotalPrices) {
                     if (type.title == 'Single Attendee') {
                         $price.append(': $').append({{ c.BADGE_PRICE }});
-                        $price_notice.append('{% price_notice "Preregistration" c.PREREG_TAKEDOWN %}')
+                        $price_notice.append('{{ price_notice("Preregistration", c.PREREG_TAKEDOWN) }}')
                     } else if (type.title == 'Group Leader') {
                         $price.append(': $').append({{ c.GROUP_PRICE }}).append(' per badge');
-                        $price_notice.append('{% price_notice "Group registration" c.GROUP_PREREG_TAKEDOWN 0 c.GROUP_DISCOUNT %}')
+                        $price_notice.append('{{ price_notice("Group registration", c.GROUP_PREREG_TAKEDOWN, 0, c.GROUP_DISCOUNT) }}')
                     }
                 }
             });
@@ -188,4 +186,4 @@
             }
         });
     </script>
-{% endblock header %}
+{% endblock head_javascript %}

@@ -24,7 +24,7 @@
 
 <div class="panel panel-default">
 <form method="post" action="confirm" class="form-horizontal">
-{% csrf_token %}
+{{ csrf_token() }}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
 <input type="hidden" name="undoing_extra" value="{{ undoing_extra }}" />

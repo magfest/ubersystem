@@ -19,11 +19,11 @@ Thanks for volunteering, welcome to the fold! Please let us know any dietary res
 <br/> <br/>
 
 <form method="post" action="food_restrictions">
-    {% csrf_token %}
+    {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ fr.db_id }}" />
 
     Please select any options that apply:<br/>
-    <div id="restrictions">{% checkgroup fr.standard %}</div>
+    <div id="restrictions">{{ macros.checkgroup(fr, 'standard') }}</div>
 
     <br/>
     Let us know if you have any other allergies or restrictions,

@@ -18,7 +18,7 @@
     {% else %}
         <a href="#" onClick="$('#checkoff').show(); return false;">As a head of this department, this looks good to me.</a>
         <form id="checkoff" style="display:none" method="post" action="../dept_checklist/mark_item_complete">
-        {% csrf_token %}
+        {{ csrf_token() }}
         <input type="hidden" name="slug" value="{{ checklist.conf.slug }}" />
         By clicking this button, you are telling us you've reviewed your volunteers and confirmed:
         <ul>
@@ -61,7 +61,7 @@
         <td width="10">{{ attendee.placeholder }}</td>
         <td width="10">{{ attendee.hours_here }}</td>
         <td width="10">{{ attendee.weighted_hours }}</td>
-        <td width="10">{{ attendee.checked_in|yesno:"Checked In,Not Checked In" }}</td>
+        <td width="10">{{ attendee.checked_in|yesno("Checked In,Not Checked In") }}</td>
     </tr>
 {% endfor %}
 </table>

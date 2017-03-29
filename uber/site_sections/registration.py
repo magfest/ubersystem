@@ -785,7 +785,7 @@ class Root:
             'shift_id': shift_id,
             'attendee': attendee,
             'shifts':   Shift.dump(attendee.shifts),
-            'jobs':     [(job.id, '({}) [{}] {}'.format(custom_tags.timespan.pretty(job), job.location_label, job.name))
+            'jobs':     [(job.id, '({}) [{}] {}'.format(job.timespan(), job.location_label, job.name))
                          for job in session.query(Job)
                                            .outerjoin(Job.shifts)
                                            .filter(Job.location.in_(attendee.assigned_depts_ints),

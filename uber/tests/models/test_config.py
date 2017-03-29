@@ -2,10 +2,10 @@ from uber.tests import *
 
 
 class TestPrices:
-    def test_initial_attendee(self):
+    def test_initial_attendee(self, clear_price_bumps):
         assert 40 == c.get_attendee_price(datetime.now(UTC))
 
-    def test_group_member(self):
+    def test_group_member(self, clear_price_bumps):
         assert 30 == c.get_group_price(datetime.now(UTC))
 
 

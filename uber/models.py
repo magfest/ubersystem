@@ -1,4 +1,5 @@
 from uber.common import *
+from uber.custom_tags import safe_string
 
 
 def _get_defaults(func):
@@ -398,6 +399,21 @@ class MagModel:
 
             if not ignore_csrf:
                 check_csrf(params.get('csrf_token'))
+
+    def timespan(self, minute_increment=60):
+        minutestr = lambda dt: ':30' if dt.minute == 30 else ''
+        endtime = self.start_time_local + timedelta(minutes=minute_increment * self.duration)
+        startstr = self.start_time_local.strftime('%I').lstrip('0') + minutestr(self.start_time_local)
+        endstr = endtime.strftime('%I').lstrip('0') + minutestr(endtime) + endtime.strftime('%p').lower()
+
+        if self.start_time_local.day == endtime.day:
+            endstr += endtime.strftime(' %A')
+            if self.start_time_local.hour < 12 and endtime.hour >= 12:
+                return startstr + 'am - ' + endstr
+            else:
+                return startstr + '-' + endstr
+        else:
+            return startstr + self.start_time_local.strftime('pm %a - ') + endstr + endtime.strftime(' %a')
 
 
 class TakesPaymentMixin(object):
@@ -1611,6 +1627,20 @@ class Attendee(MagModel, TakesPaymentMixin):
     def past_years_json(self):
         return json.loads(self.past_years or '[]')
 
+    @property
+    def must_contact(self):
+        chairs = defaultdict(list)
+        for dept, head in c.DEPT_HEAD_OVERRIDES.items():
+            chairs[dept].append(head)
+        for head in self.session.query(Attendee).filter_by(ribbon=c.DEPT_HEAD_RIBBON).order_by('badge_num').all():
+            for dept in head.assigned_depts_ints:
+                chairs[dept].append(head.full_name)
+
+        locations = [s.job.location for s in self.shifts]
+        dept_names = dict(c.JOB_LOCATION_OPTS)
+        return safe_string('<br/>'.join(
+            sorted({'({}) {}'.format(dept_names[dept], ' / '.join(chairs[dept])) for dept in locations})))
+
 
 class WatchList(MagModel):
     first_names     = Column(UnicodeText)
@@ -1813,7 +1843,7 @@ class Job(MagModel):
 
     @property
     def capable_volunteers_opts(self):
-        # format output for use with the {% options %} template decorator
+        # format output for use with the {{ options() }} template decorator
         return [(a.id, a.full_name) for a in self.capable_volunteers]
 
     @property
@@ -1921,9 +1951,9 @@ class Email(MagModel):
     @property
     def html(self):
         if self.is_html:
-            return SafeString(re.split('<body[^>]*>', self.body)[1].split('</body>')[0])
+            return safe_string(re.split('<body[^>]*>', self.body)[1].split('</body>')[0])
         else:
-            return SafeString(self.body.replace('\n', '<br/>'))
+            return safe_string(self.body.replace('\n', '<br/>'))
 
 
 class PageViewTracking(MagModel):

@@ -9,6 +9,7 @@ development.conf
 production.conf
 event.conf
 development.ini
+test.ini
 #Project
 workspace.xml
 tasks.xml

@@ -19,7 +19,7 @@
         </form>
     {% else %}
         <div class="well">
-            Shifts are not yet available. If you are signed up as a volunteer, you will 
+            Shifts are not yet available. If you are signed up as a volunteer, you will
             be emailed when shifts become available.  We anticipate that volunteer shifts and the volunteer checklist will go live on {{ c.SHIFTS_CREATED }}.
             You should receive an email with more information at that time, thanks so much for volunteering!
         </div>
@@ -27,7 +27,7 @@
 </div>
 
 <div class="text-center">
-    {% popup_link "../static_views/howToStaff.html" "How do I volunteer?" %}
+    {{ macros.popup_link("../static_views/howToStaff.html", "How do I volunteer?") }}
 </div>
 
 {% endblock %}

@@ -1,22 +1,2 @@
+{% set admin_area=True %}
 {% extends "base.html" %}
-
-{% block top_of_body_additional %}
-    <div id="floating_logo">
-        <img src="../static/theme/bg-logo.png" />
-    </div>
-    {% if c.DEV_BOX %}
-    <div id="devbox_cautiontape"></div>
-    <div id="devbox_text">DEVELOPMENT</div>
-    {% endif %}
-{%  endblock %}
-
-{% block additional_styles %}
-   <!-- inside additional_styles -->
-   <link rel="stylesheet" type="text/css" href="../static_views/additional-styles.css" />
-
-    {% block page_styles %} {% endblock %}
-{%  endblock %}
-
-{% block additional_scripts %}
-    {% block page_scripts %} {% endblock %}
-{% endblock %}

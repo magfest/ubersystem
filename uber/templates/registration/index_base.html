@@ -124,9 +124,11 @@
         <tbody>
         {% for attendee in attendees %}
             <tr {% if attendee.badge_status == c.INVALID_STATUS %}bgcolor="#FFE4E1"{% endif %}>
-                {% block tablerows %}
+                {% block tablerows scoped %}
                 <td id="group_{{ attendee.id }}">
+                    {% if attendee.group %}
                     <a href="../groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
+                    {% endif %}
                 </td>
                 <td id="name_{{ attendee.id }}" style="text-align:left">
                     <a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a>
@@ -147,7 +149,7 @@
                                 {% if attendee.paid == c.LOST_BADGE %}
                                     <strong>Badge reported as lost!</strong>
                                 {% else %}
-                                    {{ attendee.checked_in_local|time:"fA"|lower }} {{ attendee.checked_in_local|date:"D" }} <br/>
+                                    {{ attendee.checked_in_local.strftime('fA')|lower }} {{ attendee.checked_in_local.strftime('D') }} <br/>
                                     <form method="post" action="lost_badge">
                                         <input type="hidden" name="id" value="{{ attendee.id }}" />
                                         <input type="submit" value="Report Lost Badge">

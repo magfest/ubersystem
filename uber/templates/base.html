@@ -1,32 +1,47 @@
+{% import 'macros.html' as macros %}
 <!DOCTYPE HTML>
 <html>
 <head>
-    <!--[if lte IE 7]>
-        <script>
-            if (!document.documentMode) { //if documentMode exists, this is a later IE in compatibility mode
-                alert("This website requires IE 8 or later.");
-            }
-        </script>
-    <![endif]-->
+    {{ macros.ie7_compatibility_check() }}
     <title>{{ c.EVENT_NAME }} - {% block title %}{% endblock %}</title>
     <link rel="icon" href="../static/images/favicon.png" type="image/x-icon" />
-    <link rel="stylesheet" href="../static/deps/combined.css" />
-    <script type="text/javascript" src="../static/deps/combined.js"></script>
-    <script type="text/javascript">
-        var csrf_token = '{{ c.CSRF_TOKEN }}';
-    </script>
-    <script src="../static/js/common-static.js" type="text/javascript"></script>
+
+    {% block head_styles %}
+        <link rel="stylesheet" href="../static/deps/combined.css" />
+        <link rel="stylesheet" href="../static_views/styles/main.css" />
+        {% if admin_area %}
+            <link rel="stylesheet" type="text/css" href="../static_views/additional-styles.css" />
+        {% else %}
+            <link rel="stylesheet" href="../static/theme/prereg.css">
+            <link rel="stylesheet" href="../static/theme/prereg_extra.css">
+        {% endif %}
+
+         <!-- additional styles -->
+        {% block additional_styles %}
+            {% block page_styles %}{% endblock %}
+        {% endblock %}
+    {% endblock %}
+
+    {% block head_javascript %}
+        <script>
+            var message = '{{ message|e }}';
+        </script>
+
+        <script src="../static/deps/combined.js" type="text/javascript"></script>
+        <script src="../static/js/common-static.js" type="text/javascript"></script>
+
+        {% if 'preregistration' not in c.PAGE_PATH %}
+            {% for js in c.JAVASCRIPT_INCLUDES %}
+                <script src="{{ js }}" type="text/javascript"></script>
+            {% endfor %}
+        {% endif %}
+    {% endblock %}
+
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     {% block sectionStyle %}{% endblock %}
-    <!-- additional styles -->
-    {% block additional_styles %}{% endblock %}
-    {% if 'preregistration' not in c.PAGE_PATH %}
-        {% for js in c.JAVASCRIPT_INCLUDES %}
-            <script src="{{ js }}" type="text/javascript"></script>
-        {% endfor %}
-    {% endif %}
+
     <style>
         .navbar {
             margin-bottom: 0px;
@@ -39,7 +54,7 @@
             width: 60%;
             height: 25%;
             z-index: 9999;
-            background: rgb(249,249,249) url('../static/images/loading.gif{% if not c.HARDCORE_OPTIMIZATIONS_ENABLED %}?{% random_hash %}{% endif %}') no-repeat center center;
+            background: rgb(249,249,249) url('../static/images/loading.gif{% if not c.HARDCORE_OPTIMIZATIONS_ENABLED %}?{{ random_hash() }}{% endif %}') no-repeat center center;
             background-size: 50%;
         }
         .loader {
@@ -130,9 +145,20 @@
     {% if c.PRE_CON %}
         <div class="loader"><a class="loader_link" href="../static_views/slow_load.html" target="_blank"></a></div>
     {% endif %}
-    {% block top_of_body_additional %}{% endblock %}
+    {% block top_of_body_additional %}
+        {% if admin_area %}
+            <div id="floating_logo">
+                <img src="../static/theme/bg-logo.png"/>
+            </div>
+            {% if c.DEV_BOX %}
+                <div id="devbox_cautiontape"></div>
+                <div id="devbox_text">DEVELOPMENT</div>
+            {% endif %}
+        {% endif %}
+    {% endblock %}
     <div id="mainContainer" class="container-fluid">
         {% block backlink %}
+        {% if admin_area %}
             <nav class="navbar navbar-default navbar-static-top" role="navigation">
                 <!-- Brand and toggle get grouped for better mobile display -->
                 <div class="navbar-header">
@@ -194,6 +220,7 @@
                     {% endblock mainmenu %}
                 </div>
             </nav>
+        {% endif %}
         {% endblock %}
         {% block header %}{% endblock %}
         {% block content %}{% endblock %}
@@ -208,9 +235,9 @@
         <![endif]-->
         {% include "baseextra.html" %}
     {% endblock %}
-{% block additional_scripts %}
-
-{% endblock %}
+    {% block additional_scripts %}
+        {% block page_scripts %} {% endblock %}
+    {% endblock %}
     {% if c.COLLECT_FULL_ADDRESS %}
         <script src="https://maps.googleapis.com/maps/api/js?sensor=false&libraries=places"></script>
     {% endif %}

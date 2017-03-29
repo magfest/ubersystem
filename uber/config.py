@@ -387,8 +387,6 @@ _secret = SecretConfig()
 
 _config = parse_config(__file__)  # outside this module, we use the above c global instead of using this directly
 
-django.conf.settings.configure(**_config['django'].dict())
-
 
 def _unrepr(d):
     for opt in d:

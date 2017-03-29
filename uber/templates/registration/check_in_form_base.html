@@ -1,5 +1,5 @@
 <form action="/" id="check_in_form_{{ attendee.id }}">
-    {% csrf_token %}
+    {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ attendee.id }}" />
 <table class="check-in">
     {% block checkin_fields %}
@@ -11,7 +11,7 @@
         <tr>
             <td>Birthdate</td>
             <td>
-                <input type="text" id="checkin-birthdate" name="birthdate" class="date" value="{{ attendee.birthdate|date:"Y-m-d"}}" />
+                <input type="text" id="checkin-birthdate" name="birthdate" class="date" value="{{ attendee.birthdate|datetime("%Y-%m-%d")}}" />
             </td>
         </tr>
          {% if attendee.birthdate %}
@@ -25,7 +25,7 @@
             <td>Age Group:</td>
             <td>
                 <select id="checkin-age">
-                    {% options c.AGE_GROUP_OPTS attendee.age_group %}
+                    {{ options(c.AGE_GROUP_OPTS,attendee.age_group) }}
                 </select>
             </td>
         </tr>
@@ -36,7 +36,7 @@
             <td>
                 <select id="checkin-group" name="group_id">
                     <option value="">No Group</option>
-                    {% options groups attendee.group_id %}
+                    {{ options(groups,attendee.group_id) }}
                 </select>
             </td>
         </tr>
