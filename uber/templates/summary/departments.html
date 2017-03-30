@@ -10,10 +10,10 @@
             $(".email").toggle();
         });
         $('#chkShowDeptHeadsOnly').change(function() {
-			$(".nondepthead").toggle();
+            $(".nondepthead").toggle();
         });
         $('#chkShowAssignedStaffOnly').change(function() {
-			$(".requested").toggle();
+            $(".requested").toggle();
         });
     });
 </script>
@@ -27,23 +27,23 @@
     <table style="text-align:center"><tr>
         <td valign="top" width="50%">
             <h4> Assigned </h4><br/>
-            {% for attendee in assigned|dictsort("ribbon") %}
-			<span {% if attendee.ribbon != c.DEPT_HEAD_RIBBON %}class="nondepthead"{% endif %}>
+            {% for attendee in assigned|sort(attribute="ribbon") %}
+            <span {% if attendee.ribbon != c.DEPT_HEAD_RIBBON %}class="nondepthead"{% endif %}>
             <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a><span class="email">|{{ attendee.email }}</span>
             {% if attendee.ribbon == c.DEPT_HEAD_RIBBON %}|[Dept Head]{% endif %}
             <br/></span>
             {% endfor %}
         </td>
         <td valign="top" width="50%">
-			<div class="requested">
+            <div class="requested">
             <h4> Requested </h4><br/>
-            {% for attendee in requested|dictsort("ribbon") %}
-			<span {% if attendee.ribbon != c.DEPT_HEAD_RIBBON %}class="nondepthead"{% endif %}>
+            {% for attendee in requested|sort(attribute="ribbon") %}
+            <span {% if attendee.ribbon != c.DEPT_HEAD_RIBBON %}class="nondepthead"{% endif %}>
             <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a><span class="email">|{{ attendee.email }}</span>
             {% if attendee.ribbon == c.DEPT_HEAD_RIBBON %}|[Dept Head]{% endif %}
             <br/></span>
             {% endfor %}
-			</div>
+            </div>
         </td>
     </tr></table>
 {% endfor %}
