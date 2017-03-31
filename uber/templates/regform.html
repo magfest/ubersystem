@@ -36,20 +36,29 @@
             }
         };
 
+        {% include "region_opts.html" %}
+
         var regionChange = function() {
             setInternational();
 
-            var regionopts = $("select[name='region'] optgroup");
-            regionopts.hide();
-            $.field("region").parents('.form-group').hide();
-            var opttoshow = $("select[name='region'] optgroup[label='"+$($.field("country")).find(':selected').html() + "']");
-            opttoshow.children().andSelf().show();
-            opttoshow.parents('.form-group').show();
+            $("[name='region']").replaceWith('<select name="region" class="form-control"></select>');
+            var regionopts = $("[name='region']");
+            var whichCountry = $.field("country").find(':selected').text();
+            switch(whichCountry) {
+                case 'United States':
+                    regionopts.html(regionsforUS);
+                    break;
+                case 'Canada':
+                    regionopts.html(regionsforCanada);
+                    break;
+                default:
+                    regionopts.replaceWith('<input type="text" name="region" value="{{ attendee.region }}" class="form-control" placeholder="State/Province">');
+            }
         };
 
         $(function() {
             $('#international').hide();
-            setInternational()
+            setInternational();
             $.field("country").val('{{ attendee.country }}');
             $.field("country").selectToAutocomplete();
             $.field("country").change(regionChange);
@@ -488,8 +497,8 @@
     <div class="form-group address_details">
         <label for="region" class="col-sm-2 control-label">State/Region</label>
         <div class="col-sm-6">
-            <select name="region" class="form-control" placeholder="State/Province" autofocus="autofocus" autocorrect="off" autocomplete="off" data-geo="administrative_area_level_1">
-                {% include "region_opts.html" %}
+            <select name="region" class="form-control" placeholder="State/Province" data-geo="administrative_area_level_1">
+
             </select>
         </div>
     </div>
