@@ -251,9 +251,12 @@ class Root:
                 session.delete_from_group(attendee, attendee.group)
                 message = 'Unassigned badge removed.'
             else:
-                session.add(Attendee(**{attr: getattr(attendee, attr) for attr in [
+                replacement_attendee = Attendee(**{attr: getattr(attendee, attr) for attr in [
                     'group', 'registered', 'badge_type', 'badge_num', 'paid', 'amount_paid', 'amount_extra'
-                ]}))
+                ]})
+                if replacement_attendee.group and replacement_attendee.group.is_dealer:
+                    replacement_attendee.ribbon == c.DEALER_RIBBON
+                session.add(replacement_attendee)
                 session.delete_from_group(attendee, attendee.group)
                 message = 'Attendee deleted, but this badge is still available to be assigned to someone else in the same group'
         else:

@@ -1208,7 +1208,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def _badge_adjustments(self):
         # _assert_badge_lock()
         from uber.badge_funcs import needs_badge_num
-        if self.is_dealer:
+        if self.badge_type == c.PSEUDO_DEALER_BADGE:
             self.ribbon = c.DEALER_RIBBON
 
         self.badge_type = get_real_badge_type(self.badge_type)
@@ -1355,7 +1355,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def is_dealer(self):
-        return self.ribbon == c.DEALER_RIBBON or self.badge_type == c.PSEUDO_DEALER_BADGE
+        return self.ribbon == c.DEALER_RIBBON or self.badge_type == c.PSEUDO_DEALER_BADGE or \
+               (self.group and self.group.is_dealer and self.paid == c.PAID_BY_GROUP)
 
     @property
     def is_dept_head(self):
