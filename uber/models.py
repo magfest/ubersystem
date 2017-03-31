@@ -1339,7 +1339,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def is_dealer(self):
-        return self.ribbon == c.DEALER_RIBBON or self.badge_type == c.PSEUDO_DEALER_BADGE or self.group and self.group.is_dealer and self.paid == c.PAID_BY_GROUP
+        return self.ribbon == c.DEALER_RIBBON or self.badge_type == c.PSEUDO_DEALER_BADGE or \
+               (self.group and self.group.is_dealer and self.paid == c.PAID_BY_GROUP)
 
     @property
     def is_dept_head(self):

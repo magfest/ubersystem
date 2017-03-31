@@ -62,6 +62,7 @@ def test_is_dealer():
     # not all attendees in a dealer group are necessarily dealers
     dealer_group = Group(tables=1)
     assert not Attendee(group=dealer_group).is_dealer
+    assert Attendee(group=dealer_group, paid=c.PAID_BY_GROUP)
 
 
 def test_is_dept_head():
