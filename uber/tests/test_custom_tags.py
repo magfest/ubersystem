@@ -1,7 +1,22 @@
 import pytest
 
 from uber.common import *
-from uber.custom_tags import linebreaksbr
+from uber.custom_tags import jsonize, linebreaksbr
+
+
+class TestJsonize(object):
+
+    @pytest.mark.parametrize("test_input,expected", [
+        (None, '{}'),
+        ('', '""'),
+        ('asdf', '"asdf"'),
+        ({}, '{}'),
+        ([], '[]'),
+        (True, 'true'),
+        (False, 'false'),
+    ])
+    def test_jsonize(self, test_input, expected):
+        assert expected == jsonize(test_input)
 
 
 class TestLinebreaksbr(object):

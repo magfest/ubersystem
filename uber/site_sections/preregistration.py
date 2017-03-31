@@ -432,7 +432,8 @@ class Root:
         return {
             'old':      old,
             'attendee': attendee,
-            'message':  message
+            'message':  message,
+            'affiliates': session.affiliates()
         }
 
     def invalid_badge(self, session, id, message=''):
