@@ -8,8 +8,11 @@ https://github.com/django/django/blob/4696078832f486ba63f0783a0795294b3d80d862/L
 from uber.common import *
 
 
-def safe_string(str):
-    return jinja2.Markup(str)
+def safe_string(text):
+    if isinstance(text, jinja2.Markup):
+        return text
+    else:
+        return jinja2.Markup(text)
 
 
 @JinjaEnv.jinja_filter(name='datetime')
@@ -276,8 +279,13 @@ def extract_fields(what):
 
 @JinjaEnv.jinja_filter
 def linebreaksbr(text):
-    """ Re-implementation of django's linebreaksbr. Probably not as robust """
-    return safe_string(jinja2.escape(normalize_newlines(text)).replace('\n', '<br />'))
+    """Convert all newlines ("\n") in a string to HTML line breaks ("<br />")"""
+    is_markup = isinstance(text, Markup)
+    text = normalize_newlines(text)
+    if not is_markup:
+        text = text_type(jinja2.escape(text))
+    text = text.replace('\n', '<br />')
+    return safe_string(text)
 
 
 def normalize_newlines(text):
