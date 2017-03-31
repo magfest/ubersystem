@@ -9,10 +9,10 @@ from uber.common import *
 
 
 def safe_string(text):
-    if isinstance(text, jinja2.Markup):
+    if isinstance(text, Markup):
         return text
     else:
-        return jinja2.Markup(text)
+        return Markup(text)
 
 
 @JinjaEnv.jinja_filter(name='datetime')
