@@ -1,0 +1,21 @@
+{% extends "./preregistration/preregbase.html" %}
+{% block title %}Repurchase Your Badge{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<div class="masthead"></div>
+
+<h2>Refunded Badge</h2>
+
+<div class="form-group">
+    According to our records, your badge has been refunded. You may repurchase your badge at the current price of
+    ${{ c.BADGE_PRICE }} for an Attendee badge. We will pre-fill your details into the pre-registration form.
+
+    <form method="post" action="repurchase" class="form-horizontal">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ id }}" />
+        <button type="submit" class="btn btn-primary" value="Repurchase">Yes, I want to repurchase my badge</button>
+    </form>
+</div>
+
+{% endblock %}}

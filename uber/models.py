@@ -719,6 +719,9 @@ class Session(SessionManager):
         def valid_attendees(self):
             return self.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS)
 
+        def attendees_with_badges(self):
+            return self.query(Attendee).filter(not_(Attendee.badge_status.in_([c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS])))
+
         def all_attendees(self, only_staffing=False):
             """
             Returns a Query of Attendees with efficient loading for groups and
