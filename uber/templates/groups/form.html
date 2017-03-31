@@ -259,7 +259,7 @@
 {% if not group.is_new %} <a style="font-size:10pt" href="../preregistration/group_members?id={{ group.id }}">Link for group leader</a> {% endif %}
 {% if not group.is_new and group.sorted_attendees %}
     <hr/>
-    <h5>Total Hours: {{ sum(group.attendees, 'weighted_hours') }}</h5>
+    <h5>Total Hours: {{ group.attendees|sum(attribute='weighted_hours') }}</h5>
     <h3> Badges: &nbsp; </h3>
     <table style="width:auto;">
     {% for attendee in group.attendees %}
