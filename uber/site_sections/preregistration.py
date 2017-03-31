@@ -98,6 +98,17 @@ class Root:
     def dealer_registration(self, message=''):
         return self.form(badge_type=c.PSEUDO_DEALER_BADGE, message=message)
 
+    @check_if_can_reg
+    def repurchase(self, session, id, **params):
+        if 'csrf_token' in params:
+            new_attendee = Attendee(**session.attendee(id).to_dict(c.UNTRANSFERABLE_ATTRS))
+            self.unpaid_preregs[new_attendee.id] = to_sessionized(new_attendee, Group())
+            Tracking.track(c.UNPAID_PREREG, new_attendee)
+            raise HTTPRedirect("form?edit_id={}", new_attendee.id)
+        return {
+            'id': id
+        }
+
     @redirect_if_at_con_to_kiosk
     @check_if_can_reg
     def form(self, session, message='', edit_id=None, **params):
@@ -154,7 +165,7 @@ class Root:
                     if group.badges:
                         Tracking.track(track_type, group)
 
-                if session.valid_attendees().filter_by(first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).count():
+                if session.attendees_with_badges().filter_by(first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).count():
                     raise HTTPRedirect('duplicate?id={}', group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
 
                 if attendee.banned:
@@ -450,6 +461,9 @@ class Root:
     @log_pageview
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
         attendee = session.attendee(params, restricted=True)
+
+        if attendee.badge_status == c.REFUNDED_STATUS:
+            raise HTTPRedirect('repurchase?id={}', attendee.id)
 
         placeholder = attendee.placeholder
         if 'email' in params and not message:
