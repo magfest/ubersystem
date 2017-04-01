@@ -17,16 +17,22 @@ def safe_string(text):
 
 @JinjaEnv.jinja_filter(name='datetime')
 def datetime_filter(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
-    return ' '.join(dt.strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm') if dt else ''
+    if not dt:
+        return ''
+    return ' '.join(dt.strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm')
 
 
 @JinjaEnv.jinja_filter(name='datetime_local')
 def datetime_local_filter(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
+    if not dt:
+        return ''
     return datetime_filter(dt.astimezone(c.EVENT_TIMEZONE), fmt=fmt)
 
 
 @JinjaEnv.jinja_filter
 def time_day_local(dt):
+    if not dt:
+        return ''
     time_str = dt.astimezone(c.EVENT_TIMEZONE).strftime('%-I:%M%p').lstrip('0').lower()
     day_str = dt.astimezone(c.EVENT_TIMEZONE).strftime('%a')
     return safe_string('<nobr>{} {}</nobr>'.format(time_str, day_str))
@@ -34,6 +40,8 @@ def time_day_local(dt):
 
 @JinjaEnv.jinja_filter
 def full_datetime_local(dt):
+    if not dt:
+        return ''
     return dt.astimezone(c.EVENT_TIMEZONE).strftime('%H:%M on %B %d %Y')
 
 
@@ -49,11 +57,15 @@ def event_dates():
 
 @JinjaEnv.jinja_export
 def hour_day_local(dt):
+    if not dt:
+        return ''
     return hour_day_format(dt)
 
 
 @JinjaEnv.jinja_filter
 def timestamp(dt):
+    if not dt:
+        return ''
     from time import mktime
     return str(int(mktime(dt.timetuple())))
 

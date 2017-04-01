@@ -55,7 +55,7 @@ class Root:
                     Attendee: '../registration/form?id={}'
                 }.get(x.__class__, '').format(x.id)
                 if len(examples) < 10:
-                    examples.append([url, email.render(x)])
+                    examples.append([url, email.render(x).decode('utf-8')])
 
         return {
             'count': count,
