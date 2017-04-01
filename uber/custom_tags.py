@@ -105,11 +105,11 @@ def subtract(x, y):
 
 @JinjaEnv.jinja_filter
 def urlencode(s):
-    if isinstance(s, jinja2.Markup):
+    if isinstance(s, Markup):
         s = s.unescape()
     s = s.encode('utf8')
     s = quote_plus(s)
-    return jinja2.Markup(s)
+    return Markup(s)
 
 
 @JinjaEnv.jinja_filter
@@ -129,11 +129,11 @@ def remove_newlines(string):
 
 @JinjaEnv.jinja_filter
 def form_link(model):
-    if isinstance(model, Attendee):
+    if isinstance(model, uber.models.Attendee):
         return safe_string('<a href="../registration/form?id={}">{}</a>'.format(model.id, jinja2.escape(model.full_name)))
-    elif isinstance(model, Group):
+    elif isinstance(model, uber.models.Group):
         return safe_string('<a href="../groups/form?id={}">{}</a>'.format(model.id, jinja2.escape(model.name)))
-    elif isinstance(model, Job):
+    elif isinstance(model, uber.models.Job):
         return safe_string('<a href="../jobs/form?id={}">{}</a>'.format(model.id, jinja2.escape(model.name)))
     else:
         return model.name or model.full_name
