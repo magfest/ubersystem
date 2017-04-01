@@ -189,10 +189,14 @@ class TestUnsetVolunteer:
         a._misc_adjustments()
         assert a.checked_in
 
+        a = Attendee(badge_num=1, badge_type=c.PREASSIGNED_BADGE_TYPES[0])
+        a._misc_adjustments()
+        assert not a.checked_in
+
         monkeypatch.setattr(Attendee, 'is_new', False)
         a = Attendee(badge_num=1)
         a._misc_adjustments()
-        assert a.checked_in
+        assert not a.checked_in
 
     def test_names(self):
         a = Attendee(first_name='nac', last_name='mac Feegle')

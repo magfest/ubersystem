@@ -1193,7 +1193,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             self.paid = c.NEED_NOT_PAY
 
         if c.AT_THE_CON and self.badge_num and not self.checked_in and \
-                (self.is_new or self.badge_type not in c.PREASSIGNED_BADGE_TYPES):
+                self.is_new and self.badge_type not in c.PREASSIGNED_BADGE_TYPES:
             self.checked_in = datetime.now(UTC)
 
         if self.birthdate:
