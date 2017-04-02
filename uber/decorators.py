@@ -270,7 +270,7 @@ def renderable_data(data=None):
 def render(template_name_list, data=None):
     data = renderable_data(data)
     env = JinjaEnv.env()
-    template = env.get_template(template_name_list)
+    template = env.get_or_select_template(template_name_list)
     rendered = template.render(data)
 
     # disabled for performance optimzation.  so sad. IT SHALL RETURN
