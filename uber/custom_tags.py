@@ -37,6 +37,11 @@ def time_day_local(dt):
 
 @JinjaEnv.jinja_filter(name='timedelta')
 def timedelta_filter(dt, *args, **kwargs):
+    """Returns a datetime object offset by a timedelta specified by the given arguments.
+
+    Takes the same arguments as the standard library's datetime.timedelta class.
+    Returns None if an empty datetime object is given.
+    """
     if not dt:
         return None
     return dt + timedelta(*args, **kwargs)

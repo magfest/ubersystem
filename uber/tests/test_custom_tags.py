@@ -45,13 +45,13 @@ class TestDatetimeFilters(object):
     def test_timedelta_filter_in_template(self):
         dt = datetime.utcnow()
         env = JinjaEnv.env()
-        template = env.from_string('{{ dt|timedelta(days=5)|datetime("%A, %b %-e") }}')
-        expected = (dt + timedelta(days=5)).strftime("%A, %b %-e")
+        template = env.from_string('{{ dt|timedelta(days=-5)|datetime("%A, %B %-e") }}')
+        expected = (dt + timedelta(days=-5)).strftime("%A, %B %-e")
         assert expected == template.render(dt=dt)
 
     def test_timedelta_filter_in_template_with_empty_date(self):
         env = JinjaEnv.env()
-        template = env.from_string('{{ dt|timedelta(days=5)|datetime("%A, %b %-e") }}')
+        template = env.from_string('{{ dt|timedelta(days=-5)|datetime("%A, %B %-e") }}')
         expected = ''
         assert expected == template.render(dt=None)
 
