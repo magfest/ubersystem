@@ -16,12 +16,12 @@ def safe_string(text):
 
 
 @JinjaEnv.jinja_filter(name='datetime')
-def datetime_filter(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
+def datetime_filter(dt, fmt='%-I:%M%p %Z on %A, %b %-e'):
     return '' if not dt else ' '.join(dt.strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm')
 
 
 @JinjaEnv.jinja_filter(name='datetime_local')
-def datetime_local_filter(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
+def datetime_local_filter(dt, fmt='%-I:%M%p %Z on %A, %b %-e'):
     return '' if not dt else datetime_filter(dt.astimezone(c.EVENT_TIMEZONE), fmt=fmt)
 
 
@@ -33,6 +33,13 @@ def time_day_local(dt):
     time_str = dt_local.strftime('%-I:%M%p').lstrip('0').lower()
     day_str = dt_local.strftime('%a')
     return safe_string('<nobr>{} {}</nobr>'.format(time_str, day_str))
+
+
+@JinjaEnv.jinja_filter(name='timedelta')
+def timedelta_filter(dt, *args, **kwargs):
+    if not dt:
+        return None
+    return dt + timedelta(*args, **kwargs)
 
 
 @JinjaEnv.jinja_filter
