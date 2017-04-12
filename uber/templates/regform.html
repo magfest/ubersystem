@@ -54,6 +54,10 @@
                 default:
                     regionopts.replaceWith('<input type="text" name="region" value="{{ attendee.region }}" class="form-control" placeholder="State/Province">');
             }
+            var optionToSelect = $("select[name='region'] option[value='{{ attendee.region }}']");
+            if (optionToSelect.length) {
+                optionToSelect.prop('selected', true)
+            }
         };
 
         $(function() {
