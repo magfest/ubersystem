@@ -1207,9 +1207,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             if value.isupper() or value.islower():
                 setattr(self, attr, value.title())
 
-        if attendee.region and attendee.country not in ['United States', 'Canada']:
-            attendee.region = ''
-
     @presave_adjustment
     def _badge_adjustments(self):
         # _assert_badge_lock()
