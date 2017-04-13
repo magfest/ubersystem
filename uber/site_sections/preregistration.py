@@ -141,10 +141,12 @@ class Root:
                     group.attendees = [attendee]
                     session.assign_badges(group, params['badges'])
                     if attendee.badge_type == c.PSEUDO_GROUP_BADGE:
+                        attendee.badge_type = c.ATTENDEE_BADGE
                         group.tables = 0
                     elif attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                         group.status = c.WAITLISTED if c.AFTER_DEALER_REG_DEADLINE else c.UNAPPROVED
                         attendee.ribbon = c.DEALER_RIBBON
+                        attendee.badge_type = c.ATTENDEE_BADGE
 
                 if attendee.is_dealer:
                     session.add_all([attendee, group])
@@ -152,8 +154,8 @@ class Root:
                     try:
                         send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Application Received',
                                    render('emails/dealers/reg_notification.txt', {'group': group}), model=group)
-                        send_email(c.MARKETPLACE_EMAIL, group.leader.email, 'Dealer Application Received',
-                                   render('emails/dealers/dealer_received.txt', {'group': group}), model=group)
+                        send_email(c.MARKETPLACE_EMAIL, attendee.email, 'Dealer Application Received',
+                                   render('emails/dealers/application.html', {'group': group}), model=group)
                     except:
                         log.error('unable to send marketplace application confirmation email', exc_info=True)
                     raise HTTPRedirect('dealer_confirmation?id={}', group.id)
