@@ -8,30 +8,48 @@ https://github.com/django/django/blob/4696078832f486ba63f0783a0795294b3d80d862/L
 from uber.common import *
 
 
-def safe_string(str):
-    return jinja2.Markup(str)
+def safe_string(text):
+    if isinstance(text, Markup):
+        return text
+    else:
+        return Markup(text)
 
 
 @JinjaEnv.jinja_filter(name='datetime')
-def datetime_filter(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
-    return ' '.join(dt.strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm') if dt else ''
+def datetime_filter(dt, fmt='%-I:%M%p %Z on %A, %b %-e'):
+    return '' if not dt else ' '.join(dt.strftime(fmt).split()).replace('AM', 'am').replace('PM', 'pm')
 
 
 @JinjaEnv.jinja_filter(name='datetime_local')
-def datetime_local_filter(dt, fmt='%-I:%M%p %Z on %A, %b %e'):
-    return datetime_filter(dt.astimezone(c.EVENT_TIMEZONE), fmt=fmt)
+def datetime_local_filter(dt, fmt='%-I:%M%p %Z on %A, %b %-e'):
+    return '' if not dt else datetime_filter(dt.astimezone(c.EVENT_TIMEZONE), fmt=fmt)
 
 
 @JinjaEnv.jinja_filter
 def time_day_local(dt):
-    time_str = dt.astimezone(c.EVENT_TIMEZONE).strftime('%-I:%M%p').lstrip('0').lower()
-    day_str = dt.astimezone(c.EVENT_TIMEZONE).strftime('%a')
+    if not dt:
+        return ''
+    dt_local = dt.astimezone(c.EVENT_TIMEZONE)
+    time_str = dt_local.strftime('%-I:%M%p').lstrip('0').lower()
+    day_str = dt_local.strftime('%a')
     return safe_string('<nobr>{} {}</nobr>'.format(time_str, day_str))
+
+
+@JinjaEnv.jinja_filter(name='timedelta')
+def timedelta_filter(dt, *args, **kwargs):
+    """Returns a datetime object offset by a timedelta specified by the given arguments.
+
+    Takes the same arguments as the standard library's datetime.timedelta class.
+    Returns None if an empty datetime object is given.
+    """
+    if not dt:
+        return None
+    return dt + timedelta(*args, **kwargs)
 
 
 @JinjaEnv.jinja_filter
 def full_datetime_local(dt):
-    return dt.astimezone(c.EVENT_TIMEZONE).strftime('%H:%M on %B %d %Y')
+    return '' if not dt else dt.astimezone(c.EVENT_TIMEZONE).strftime('%H:%M on %B %d %Y')
 
 
 @JinjaEnv.jinja_export
@@ -46,13 +64,14 @@ def event_dates():
 
 @JinjaEnv.jinja_export
 def hour_day_local(dt):
-    return hour_day_format(dt)
+    # NOTE: hour_day_format() already localizes the given datetime object
+    return '' if not dt else hour_day_format(dt)
 
 
 @JinjaEnv.jinja_filter
 def timestamp(dt):
     from time import mktime
-    return str(int(mktime(dt.timetuple())))
+    return '' if not dt else str(int(mktime(dt.timetuple())))
 
 
 @JinjaEnv.jinja_filter
@@ -102,11 +121,11 @@ def subtract(x, y):
 
 @JinjaEnv.jinja_filter
 def urlencode(s):
-    if isinstance(s, jinja2.Markup):
+    if isinstance(s, Markup):
         s = s.unescape()
     s = s.encode('utf8')
     s = quote_plus(s)
-    return jinja2.Markup(s)
+    return Markup(s)
 
 
 @JinjaEnv.jinja_filter
@@ -126,11 +145,11 @@ def remove_newlines(string):
 
 @JinjaEnv.jinja_filter
 def form_link(model):
-    if isinstance(model, Attendee):
+    if isinstance(model, uber.models.Attendee):
         return safe_string('<a href="../registration/form?id={}">{}</a>'.format(model.id, jinja2.escape(model.full_name)))
-    elif isinstance(model, Group):
+    elif isinstance(model, uber.models.Group):
         return safe_string('<a href="../groups/form?id={}">{}</a>'.format(model.id, jinja2.escape(model.name)))
-    elif isinstance(model, Job):
+    elif isinstance(model, uber.models.Job):
         return safe_string('<a href="../jobs/form?id={}">{}</a>'.format(model.id, jinja2.escape(model.name)))
     else:
         return model.name or model.full_name
@@ -276,8 +295,13 @@ def extract_fields(what):
 
 @JinjaEnv.jinja_filter
 def linebreaksbr(text):
-    """ Re-implementation of django's linebreaksbr. Probably not as robust """
-    return safe_string(jinja2.escape(normalize_newlines(text)).replace('\n', '<br />'))
+    """Convert all newlines ("\n") in a string to HTML line breaks ("<br />")"""
+    is_markup = isinstance(text, Markup)
+    text = normalize_newlines(text)
+    if not is_markup:
+        text = text_type(jinja2.escape(text))
+    text = text.replace('\n', '<br />')
+    return safe_string(text)
 
 
 def normalize_newlines(text):

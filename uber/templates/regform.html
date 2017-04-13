@@ -113,8 +113,10 @@
         }
     };
     $(function () {
-        sameLegalNameChecked();
-        $('#same_legal_name').change(sameLegalNameChecked);
+        if ($('#same_legal_name').length) {
+            sameLegalNameChecked();
+            $('#same_legal_name').change(sameLegalNameChecked);
+        }
     })
 
 </script>
@@ -240,7 +242,7 @@
                     <br>
                 {{ macros.popup_link("../static_views/givingExtra.html", "Why do this?") }}
                 </label>
-                <div class="col-sm-8">
+                <div class="col-sm-10">
                     {% if c.AFTER_SUPPORTER_DEADLINE and attendee.amount_extra >= c.SUPPORTER_LEVEL or c.AFTER_SHIRT_DEADLINE and attendee.amount_extra >= c.SHIRT_LEVEL %}
                         {{ attendee.amount_extra_label }}
                         <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
@@ -259,18 +261,13 @@
                                         display: flex;
                                         flex-direction: row;
                                         flex-wrap: nowrap;
-                                        justify-content: center;
-                                        margin-top: 7rem;
                                     }
 
-                                    .btn-inline {
-                                        width: 180px;
-                                        height: 340px;
-
+                                    .no-inline, .btn-inline {
+                                        margin-right: 15px;
                                     }
 
                                     .h4-inline {
-
                                         text-align: center;
                                     }
 
@@ -294,7 +291,6 @@
                                     .li-inline {
                                         padding: 0.5em;
                                         text-align: center;
-                                        border-bottom: 1px solid whitesmoke;
                                     }
 
                                     .li-inline a, #supporter_popup a {
@@ -303,19 +299,18 @@
                                     }
                                 }
 
-                            @media (max-width: 543px) {
-                                .btn-group-inline
-                                    {
-                                        flex-direction: column;
-                                        flex-wrap: wrap;
-                                        width: 100vw;
-                                    }
+                            @media (max-width: 633px) {
+                                .btn-group-inline {
+                                    flex-direction: column;
+                                    flex-wrap: wrap;
+                                    padding-left: 15px;
+                                    padding-right: 15px;
+                                }
 
-                                .btn-inline
-                                    {
-                                        width: 100%;
-                                        height: initial;
-                                    }
+                                .no-inline, .btn-inline {
+                                    margin-right: 0;
+                                    width: 100%;
+                                }
                             }
 
                                 </style>
@@ -363,7 +358,7 @@
                     {% endif %}
                 </div>
 
-                <p class="help-block col-sm-6">
+                <p class="help-block col-sm-offset-2 col-sm-10">
                     Each level includes all lower levels. <br/>
                     Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime_local }}.
                 </p>

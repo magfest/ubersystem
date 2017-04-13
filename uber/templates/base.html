@@ -29,6 +29,9 @@
 
         <script src="../static/deps/combined.js" type="text/javascript"></script>
         <script src="../static/js/common-static.js" type="text/javascript"></script>
+        <script type="text/javascript">
+            var csrf_token = '{{ c.CSRF_TOKEN }}';
+        </script>
 
         {% if 'preregistration' not in c.PAGE_PATH %}
             {% for js in c.JAVASCRIPT_INCLUDES %}

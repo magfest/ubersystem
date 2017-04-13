@@ -54,7 +54,7 @@ class StaticViews:
         template_name = self.get_full_path_from_path_args(path_args)
         try:
             content = render(template_name)
-        except django.template.base.TemplateDoesNotExist as e:
+        except jinja2.exceptions.TemplateNotFound as e:
             raise cherrypy.HTTPError(404, "Couldn't find {}".format(template_name)) from e
 
         guessed_content_type = mimetypes.guess_type(content_filename)[0]
