@@ -2,7 +2,7 @@
 {% block title %}Attendee History - {{ attendee.full_name }}{% endblock %}
 {% block content %}
 {{ macros }}
-{% include "registration/menu.html" with context %}
+{% include "registration/menu.html" %}
 
 <h2>Changelog for {{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
 
