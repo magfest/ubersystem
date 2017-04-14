@@ -1,8 +1,8 @@
 {% extends "base-admin.html" %}
 {% block title %}Attendee History - {{ attendee.full_name }}{% endblock %}
 {% block content %}
-
-{% include "registration/menu.html" %}
+{{ macros }}
+{% include "registration/menu.html" with context %}
 
 <h2>Changelog for {{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
 
