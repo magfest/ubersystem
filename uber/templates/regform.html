@@ -579,7 +579,9 @@
     </div>
 </div>
 
-<input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
+{% if c.PAGE_PATH != '/registration/form' %}
+    <input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
+{% endif %}
 
 {% include "regextra.html" %}
 
