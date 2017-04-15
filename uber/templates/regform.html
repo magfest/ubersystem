@@ -28,11 +28,11 @@
 
     {% if c.COLLECT_FULL_ADDRESS %}
         var setInternational = function () {
-            countryName = $('input[name="country"]').val();
-            if(countryName == 'USA' || countryName == 'US' || countryName == 'United States') {
-                $('input[name="international"]').prop('checked', false);
+            countryName = $.field('country').val();
+            if(countryName == 'United States') {
+                $.field('international').prop('checked', false);
             } else {
-                $('input[name="international"]').prop('checked', true);
+                $.field('international').prop('checked', true);
             }
         };
 
@@ -61,7 +61,7 @@
         };
 
         $(function() {
-            $('#international').hide();
+            $.field('international').parents('.checkbox').hide();
             setInternational();
             $.field("country").val('{{ attendee.country }}');
             $.field("country").selectToAutocomplete();
@@ -501,13 +501,7 @@
             </select>
         </div>
     </div>
-    <div class="form-group address_details">
-        <label for="zip_code" class="col-sm-2 control-label">ZIP</label>
-        <div class="col-sm-6">
-            <input type="text" name="zip_code" class="form-control" placeholder="ZIP/Postal Code" value="{{ attendee.zip_code }}" data-geo="postal_code" />
-        </div>
-    </div>
-{% else %}
+{% endif %}
     <div class="form-group">
         <label for="zip_code" class="col-sm-2 control-label {% if c.AT_OR_POST_CON %}optional-field{% endif %}">ZIP/Postal Code</label>
         <div class="col-sm-6">
@@ -520,7 +514,6 @@
             </label>
         </div>
     </div>
-{% endif %}
 
 <div class="form-group">
     <label for="ec_name" class="col-sm-2 control-label">Emergency Contact</label>
