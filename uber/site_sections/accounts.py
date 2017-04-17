@@ -72,9 +72,9 @@ class Root:
             try:
                 account = session.get_account_by_email(params['email'])
                 if not valid_password(params['password'], account):
-                    message = 'Incorrect password'
+                    message = 'The ID/Password combination provided is invalid'
             except NoResultFound:
-                message = 'No account exists for that email address'
+                message = 'The ID/Password combination provided is not valid'
 
             if not message:
                 cherrypy.session['account_id'] = account.id
@@ -106,7 +106,7 @@ class Root:
             try:
                 account = session.get_account_by_email(email)
             except NoResultFound:
-                message = 'No account exists for email address {!r}'.format(email)
+                message = 'The ID/Password combination provided is not valid {!r}'.format(email)
             else:
                 password = genpasswd()
                 if account.password_reset:
