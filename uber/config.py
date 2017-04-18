@@ -261,7 +261,7 @@ class Config(_Overridable):
     def STAFF_GET_FOOD(self):
         """
         Certain events may run a complimentary consuite for staff and guests. Whether or not the consuite exists changes
-        a lot of little things, like whether we collect food restrictions or describe free food as a benefit to 
+        a lot of little things, like whether we collect food restrictions or describe free food as a benefit to
         staffing. To turn this on, add a department with the variable name `staff_suite` to [[job_location]].
         Returns:
             Boolean, true if staff_suite is in job_location config
