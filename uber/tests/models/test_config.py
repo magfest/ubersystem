@@ -111,26 +111,11 @@ class TestPriceLimits:
 
 class TestStaffGetFood:
 
-    def test_job_locations_from_test_defaults_ini(self):
-        config.Config.STAFF_GET_FOOD.fget.cache_clear()
+    def test_job_locations_with_food_prep(self):
         assert c.STAFF_GET_FOOD
 
-    @pytest.mark.parametrize('job_locations,expected', [
-        ({}, False),
-        ({1: 'Job One'}, False),
-        ({1: 'Job One', 2: 'Job Two'}, False),
-        ({3: 'Staff Suite'}, True),
-        ({1: 'Job One', 3: 'Staff Suite'}, True),
-        ({1: 'Job One', 2: 'Job Two', 3: 'Staff Suite'}, True),
-        ({3: 'Staff  Suite'}, True),
-        ({3: ' Staff  Suite '}, True),
-        ({3: '  staff  suite  '}, True),
-        ({1: 'Job One', 2: 'Job Two', 3: '  STAFF  SUITE  '}, True),
-        ({1: 'Job One', 2: 'Job Two', 3: '  sTAFf  sUITe  '}, True),
-        ({3: 'Staffs Suite'}, False),
-    ])
-    def test_job_locations_monkeypatched(self, job_locations, expected, monkeypatch):
+    def test_job_locations_without_food_prep(self, monkeypatch):
+        job_locations = dict(c.JOB_LOCATIONS)
+        del job_locations[c.FOOD_PREP]
         monkeypatch.setattr(c, 'JOB_LOCATIONS', job_locations)
-        config.Config.STAFF_GET_FOOD.fget.cache_clear()
-        assert c.STAFF_GET_FOOD == expected
-        config.Config.STAFF_GET_FOOD.fget.cache_clear()
+        assert not c.STAFF_GET_FOOD
