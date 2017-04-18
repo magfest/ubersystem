@@ -262,11 +262,11 @@ class Config(_Overridable):
         """
         Certain events may run a complimentary consuite for staff and guests. Whether or not the consuite exists changes
         a lot of little things, like whether we collect food restrictions or describe free food as a benefit to
-        staffing. To turn this on, add a department with the variable name `staff_suite` to [[job_location]].
+        staffing. To turn this on, add a department with the variable name `food_prep` to [[job_location]].
         Returns:
-            Boolean, true if staff_suite is in job_location config
+            Boolean: true if `food_prep` is defined in [[job_location]] config
         """
-        return getattr(c, 'STAFF_SUITE', None) in c.JOB_LOCATIONS
+        return getattr(c, 'FOOD_PREP', None) in c.JOB_LOCATIONS
 
     @property
     def FINAL_EMAIL_DEADLINE(self):
