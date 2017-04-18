@@ -1,3 +1,4 @@
+from functools import lru_cache
 from uber.common import *
 
 
@@ -258,15 +259,21 @@ class Config(_Overridable):
         return not self.AT_OR_POST_CON
 
     @property
+    @lru_cache(maxsize=1)
     def STAFF_GET_FOOD(self):
         """
-        Certain events may run a complimentary consuite for staff and guests. Whether or not the consuite exists changes
-        a lot of little things, like whether we collect food restrictions or describe free food as a benefit to
-        staffing. To turn this on, add a department with the variable name `staff_suite` to [[job_location]].
+        True if a job location named "Staff Suite" exists, False otherwise.
+
+        Certain events may run a complimentary consuite for staff and guests.
+        Whether or not the consuite exists changes a lot of little things, like
+        whether we collect food restrictions or describe free food as a benefit
+        to staffing. To turn this on, add a department named "Staff Suite"
+        to [[job_location]].
+
         Returns:
-            Boolean, true if staff_suite is in job_location config
+            Boolean: True if "Staff Suite" is in [[job_location]] config
         """
-        return getattr(c, 'STAFF_SUITE', None) in c.JOB_LOCATIONS
+        return 'STAFFSUITE' in [x.replace(' ', '').upper() for x in c.JOB_LOCATIONS.values()]
 
     @property
     def FINAL_EMAIL_DEADLINE(self):

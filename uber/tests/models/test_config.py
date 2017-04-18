@@ -1,3 +1,4 @@
+from uber import config
 from uber.tests import *
 
 
@@ -106,3 +107,30 @@ class TestPriceLimits:
         assert 40 == c.get_attendee_price()
 
     # todo: Test badges that are paid by group
+
+
+class TestStaffGetFood:
+
+    def test_job_locations_from_test_defaults_ini(self):
+        config.Config.STAFF_GET_FOOD.fget.cache_clear()
+        assert c.STAFF_GET_FOOD
+
+    @pytest.mark.parametrize('job_locations,expected', [
+        ({}, False),
+        ({1: 'Job One'}, False),
+        ({1: 'Job One', 2: 'Job Two'}, False),
+        ({3: 'Staff Suite'}, True),
+        ({1: 'Job One', 3: 'Staff Suite'}, True),
+        ({1: 'Job One', 2: 'Job Two', 3: 'Staff Suite'}, True),
+        ({3: 'Staff  Suite'}, True),
+        ({3: ' Staff  Suite '}, True),
+        ({3: '  staff  suite  '}, True),
+        ({1: 'Job One', 2: 'Job Two', 3: '  STAFF  SUITE  '}, True),
+        ({1: 'Job One', 2: 'Job Two', 3: '  sTAFf  sUITe  '}, True),
+        ({3: 'Staffs Suite'}, False),
+    ])
+    def test_job_locations_monkeypatched(self, job_locations, expected, monkeypatch):
+        monkeypatch.setattr(c, 'JOB_LOCATIONS', job_locations)
+        config.Config.STAFF_GET_FOOD.fget.cache_clear()
+        assert c.STAFF_GET_FOOD == expected
+        config.Config.STAFF_GET_FOOD.fget.cache_clear()
