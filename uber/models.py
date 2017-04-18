@@ -1621,8 +1621,12 @@ class Attendee(MagModel, TakesPaymentMixin):
         return any(shift.job.location == department for shift in self.shifts)
 
     @property
+    def food_restrictions_filled_out(self):
+        return self.food_restrictions if c.STAFF_GET_FOOD else True
+
+    @property
     def shift_prereqs_complete(self):
-        return not self.placeholder and self.food_restrictions and self.shirt_size_marked
+        return not self.placeholder and self.food_restrictions_filled_out and self.shirt_size_marked
 
     @property
     def past_years_json(self):
