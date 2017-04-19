@@ -61,7 +61,7 @@ used to specify which config files should be loaded.
 
 To run the tests using pytest:
 ```
-SIDEBOARD_CONFIG_OVERRIDES='development-defaults.ini;test-defaults.ini' pytest
+SIDEBOARD_CONFIG_OVERRIDES='development-defaults.ini;test-defaults.ini' pytest uber
 ```
 
 
