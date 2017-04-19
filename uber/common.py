@@ -55,7 +55,7 @@ from sqlalchemy import func, or_, and_, not_
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.sql.expression import FunctionElement
+from sqlalchemy.sql.expression import FunctionElement, cast
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.schema import Column, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Query, relationship, joinedload, subqueryload, backref
