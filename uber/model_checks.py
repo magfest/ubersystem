@@ -80,6 +80,10 @@ def group_money(group):
         return "What you entered for Amount Refunded ({}) wasn't even a number".format(group.amount_refunded)
 
 
+def _valid_donation(s):
+        return (s.isnumeric() and int(s) > -1 and int(s) < 1000000)
+
+
 def _invalid_phone_number(s):
     if not s.startswith('+'):
         return len(re.findall(r'\d', s)) != 10 or re.search(c.SAME_NUMBER_REPEATED, re.sub(r'[^0-9]', '', s))
@@ -115,6 +119,12 @@ def shirt_size(attendee):
 def total_cost_over_paid(attendee):
     if attendee.total_cost < attendee.amount_paid:
         return 'You have already paid ${}, you cannot reduce your extras below that.'.format(attendee.amount_paid)
+
+
+@prereg_validation.Attendee
+def reasonable_donation_amount(attendee):
+    if not _valid_donation(attendee.amount_extra):
+        return 'Donation amount must be a positive integer less than 1 million, or zero.'
 
 
 @validation.Attendee
