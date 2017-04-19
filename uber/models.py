@@ -2162,10 +2162,14 @@ def _release_badge_lock_on_error(*args, **kwargs):
 
 @swallow_exceptions
 def _track_changes(session, context, instances='deprecated'):
-    for action, instances in {c.CREATED: session.new, c.UPDATED: session.dirty, c.DELETED: session.deleted}.items():
-        for instance in instances:
-            if instance.__class__ not in Tracking.UNTRACKED:
-                Tracking.track(action, instance)
+    try:
+        for action, instances in {c.CREATED: session.new, c.UPDATED: session.dirty, c.DELETED: session.deleted}.items():
+            for instance in instances:
+                if instance.__class__ not in Tracking.UNTRACKED:
+                    Tracking.track(action, instance)
+    except Exception as e:
+        log.error('encountered error when trying to save tracking info, not tracking', exc_info=True)
+        pass
 
 
 def register_session_listeners():
