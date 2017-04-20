@@ -420,6 +420,9 @@ class Root:
             session.assign_badges(group, group.badges + badges_to_add)
             group.amount_paid += charge.dollar_amount
             session.merge(group)
+            if group.is_dealer:
+                send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Paid for Extra Members',
+                           render('emails/dealers/payment_notification.txt', {'group': group}), model=group)
             raise HTTPRedirect('group_members?id={}&message={}', group.id, 'You payment has been accepted and the badges have been added to your group')
 
     @attendee_id_required
