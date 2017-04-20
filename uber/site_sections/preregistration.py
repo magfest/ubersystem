@@ -295,7 +295,7 @@ class Root:
                 message = 'First and Last Name are required fields'
             if not message:
                 if not group.unassigned:
-                    raise HTTPRedirect('group_members?id={}&message={}', group_id, 'No more unassigned badges exist in this group')
+                    raise HTTPRedirect('register_group_member?group_id={}&message={}', group_id, 'No more unassigned badges exist in this group')
 
                 badge_being_claimed = group.unassigned[0]
 
@@ -317,7 +317,7 @@ class Root:
                 if attendee.amount_unpaid:
                     raise HTTPRedirect('group_extra_payment_form?id={}', attendee.id)
                 else:
-                    raise HTTPRedirect('group_members?id={}&message={}', group.id, 'Badge registered successfully')
+                    raise HTTPRedirect('confirm?id={}&message={}', attendee.id, 'Badge registered successfully')
         else:
             attendee.can_spam = True    # only defaults to true for these forms
 
@@ -331,7 +331,7 @@ class Root:
 
     def group_extra_payment_form(self, session, id):
         attendee = session.attendee(id)
-        cherrypy.session['return_to'] = 'group_members?id={}&message=Extra+payment+undone'.format(attendee.group_id)
+        cherrypy.session['return_to'] = 'confirm?id={}&message=Extra+payment+undone'.format(attendee.id)
         return {
             'attendee': attendee,
             'charge':   Charge(attendee, description='{} kicking in extra'.format(attendee.full_name))
@@ -364,10 +364,10 @@ class Root:
         message = charge.charge_cc(stripeToken)
         if message:
             attendee.amount_extra -= attendee.amount_unpaid
-            raise HTTPRedirect('group_members?id={}&message={}', attendee.group_id, message)
+            raise HTTPRedirect('confirm?id={}&message={}', attendee.id, message)
         else:
             attendee.amount_paid += charge.dollar_amount
-            raise HTTPRedirect('group_members?id={}&message={}', attendee.group_id, 'Extra payment accepted')
+            raise HTTPRedirect('confirm?id={}&message={}', attendee.id, 'Extra payment accepted')
 
     @csrf_protected
     def unset_group_member(self, session, id):
@@ -438,10 +438,8 @@ class Root:
                     log.error('unable to send badge change email', exc_info=True)
 
                 if attendee.amount_unpaid:
-                    cherrypy.session['return_to'] = 'group_members?id={}&'.format(attendee.group_id)
+                    cherrypy.session['return_to'] = 'confirm?id={}&'.format(attendee.id)
                     raise HTTPRedirect('attendee_donation_form?id={}', attendee.id)
-                elif attendee.group_id:
-                    raise HTTPRedirect('group_members?id={}&message={}', attendee.group_id, 'Registration successfully transferred')
                 else:
                     raise HTTPRedirect('confirm?id={}&message={}', attendee.id, 'Your registration has been transferred')
         else:
