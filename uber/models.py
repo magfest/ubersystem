@@ -1217,7 +1217,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         self.badge_type = get_real_badge_type(self.badge_type)
 
         if not needs_badge_num(self):
-            if self.orig_value_of('badge_num'):
+            if self.orig_value_of('badge_num') and c.SHIFT_CUSTOM_BADGES:
                 self.session.shift_badges(self.orig_value_of('badge_type'), self.orig_value_of('badge_num') + 1, down=True)
             self.badge_num = None
         elif needs_badge_num(self) and not self.badge_num:
