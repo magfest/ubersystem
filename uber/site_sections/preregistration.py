@@ -271,9 +271,15 @@ class Root:
         return {'group': session.group(id)}
 
     @log_pageview
-    def group_members(self, session, id, message=''):
+    def group_members(self, session, id, message='', **params):
         group = session.group(id)
         charge = Charge(group)
+        if group.status != c.APPROVED and 'name' in params:
+            group.apply(params, restricted=True)
+            message = check(group, prereg=True)
+            if not message:
+                session.commit()
+                message = "Thank you! Your application has been updated."
         return {
             'group':   group,
             'charge':  charge,
