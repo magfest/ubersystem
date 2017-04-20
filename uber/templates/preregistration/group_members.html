@@ -33,7 +33,7 @@
     });
     {% if group.status == c.APPROVED %}
         $(function() {
-            $("form[action*='group_members'] :input").attr("disabled", true).prop('title','You cannot edit your information after you have been approved.')
+            $("form[action='group_members'] :input").attr("disabled", true).prop('title','You cannot edit your information after you have been approved.')
         });
     {% endif %}
 </script>
