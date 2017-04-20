@@ -274,12 +274,22 @@ class Root:
     def group_members(self, session, id, message='', **params):
         group = session.group(id)
         charge = Charge(group)
+        changes = False
         if group.status != c.APPROVED and 'name' in params:
-            group.apply(params, restricted=True)
-            message = check(group, prereg=True)
-            if not message:
-                session.commit()
-                message = "Thank you! Your application has been updated."
+            for val in params:
+                if params[val] != getattr(group, val):
+                    changes = True
+            if changes:
+                group.apply(params, restricted=True)
+                message = check(group, prereg=True)
+                if not message:
+                    session.commit()
+                    if group.is_dealer:
+                        send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Application Changed',
+                                   render('emails/dealers/appchange_notification.html', {'group': group}), model=group)
+                    message = 'Thank you! Your application has been updated.'
+
+            raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
         return {
             'group':   group,
             'charge':  charge,
