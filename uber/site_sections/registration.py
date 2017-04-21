@@ -136,10 +136,26 @@ class Root:
             except ValueError:
                 attendee.badge_num = None
 
+            birthday_message = None
+            # This if statement will check if the badge has changed from Minor, to Not-Minor
+            # If it has it will alter their birthday to be 18 so that the badge is not re-saved as a minor.
+            if attendee.badge_type != c.CHILD_BADGE and old_badge_type == c.CHILD_BADGE:
+                # This will set the date either to the start of MAGFest, or if that has already passed, this moment.
+                day = c.EPOCH.date() if date.today() <= c.EPOCH.date() else sa.localized_now().date()
+                attendee_age = (day - attendee.birthdate).days // 365.2425
+                reduce_years_by = 18-attendee_age
+                if reduce_years_by > 0.0:
+                    attendee.birthdate = attendee.birthdate\
+                        .replace(year=int(attendee.birthdate.year - reduce_years_by))
+                    attendee.ribbon = c.NO_RIBBON
+                    birthday_message = " This attendee's birth year may now be incorrect. Please fix it."
+
             message = check(attendee)
 
             if not message:
                 message = session.update_badge(attendee, old_badge_type, old_badge_num)
+                if birthday_message:
+                    message += birthday_message
                 raise HTTPRedirect('form?id={}&message={}', attendee.id, message or '')
 
         return {
