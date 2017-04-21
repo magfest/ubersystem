@@ -131,6 +131,13 @@
             <span class="popup">{{ macros.popup_link("../static_views/legal_name.html", "What does legal name mean?") }}</span>
         </p>
     </div>
+    <div class="form-group">
+        <label for="badge_printed_name" class="col-sm-2 control-label">Badge Name</label>
+        <div class="col-sm-6">
+            <input type="text" name="badge_printed_name" id="badge_printed_name" value="{{ attendee.badge_printed_name }}" class="form-control" placeholder="Badge Name">
+        </div>
+    </div>
+
 {% endif %}
 
 {% if c.DONATIONS_ENABLED and c.PAGE_PATH != '/registration/form' %}
