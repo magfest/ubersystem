@@ -1,11 +1,6 @@
 from uber.common import *
 from uber.custom_tags import safe_string
-
-
-def _get_defaults(func):
-    spec = inspect.getfullargspec(func)
-    return dict(zip(reversed(spec.args), reversed(spec.defaults)))
-default_constructor = _get_defaults(declarative.declarative_base)['constructor']
+from sideboard.lib.sa import check_constraint_naming_convention
 
 
 SQLAlchemyColumn = Column
@@ -133,19 +128,21 @@ class MultiChoice(TypeDecorator):
         return value if isinstance(value, str) else ','.join(value)
 
 
-@declarative_base
+default_metadata = MetaData(
+    naming_convention=immutabledict({
+        'unnamed_ck': check_constraint_naming_convention,
+        'ix': 'ix_%(column_0_label)s',
+        'uq': 'uq_%(table_name)s_%(column_0_name)s',
+        'ck': 'ck_%(table_name)s_%(unnamed_ck)s',
+        'fk': 'fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s',
+        'pk': 'pk_%(table_name)s'}))
+
+
+@declarative_base(metadata=default_metadata)
 class MagModel:
     id = Column(UUID, primary_key=True, default=lambda: str(uuid4()))
 
     required = ()
-
-    def __init__(self, *args, **kwargs):
-        if '_model' in kwargs:
-            assert kwargs.pop('_model') == self.__class__.__name__
-        default_constructor(self, *args, **kwargs)
-        for attr, col in self.__table__.columns.items():
-            if col.default:
-                self.__dict__.setdefault(attr, col.default.execute())
 
     @property
     def _class_attrs(self):
@@ -453,11 +450,15 @@ class Session(SessionManager):
         i.e. ubersystem is forcing all calls that don't specify modify_tables=True to be ignored
 
         Keyword Arguments:
-        modify_tables -- If False, this function does nothing.
-        drop -- USE WITH CAUTION: If True, then we will drop any tables in the database
+            modify_tables: If False, this function does nothing.
+            drop: USE WITH CAUTION: If True, then we will drop any tables in the database
         """
         if modify_tables:
             super(Session, cls).initialize_db(drop=drop)
+            if drop:
+                from uber.migration import stamp
+                stamp('head')
+
 
     class QuerySubclass(Query):
         @property

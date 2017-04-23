@@ -2,6 +2,49 @@ from uber.common import *
 
 
 @entry_point
+def alembic():
+    """
+    Frontend for alembic script with additional uber specific facilities.
+    """
+    argv = sys.argv[1:]
+    plugin_name = 'uber'
+    for plugin_opt in ('-p', '--plugin'):
+        if plugin_opt in argv:
+            plugin_index = argv.index(plugin_opt)
+            argv.pop(plugin_index)
+            plugin_name = argv.pop(plugin_index)
+
+    from glob import glob
+    from os.path import exists, join
+    from alembic.config import CommandLine, Config as AlembicConfig
+    from sideboard.config import config as sideboard_config
+    from uber.migration import version_locations, version_locations_option
+
+    commandline = CommandLine(prog='sep alembic')
+    options = commandline.parser.parse_args(argv)
+
+    assert plugin_name in version_locations, 'Plugin "{}" does not exist in {}'.format(
+        plugin_name, sideboard_config['plugins_dir'])
+
+    if not hasattr(options, 'cmd'):
+        commandline.parser.error('too few arguments')
+
+    kwarg_names = options.cmd[2]
+    if 'version_path' in kwarg_names and not options.version_path:
+        options.version_path = version_locations[plugin_name]
+        if not exists(options.version_path) or not glob(join(options.version_path, '*.py')):
+            if 'branch_label' in kwarg_names and not options.branch_label:
+                options.branch_label = plugin_name
+
+    alembic_config = AlembicConfig(
+        file_=options.config,
+        ini_section=options.name,
+        cmd_opts=options)
+    alembic_config.set_main_option('version_locations', version_locations_option)
+    commandline.run_cmd(alembic_config, options)
+
+
+@entry_point
 def print_config():
     """
     print all config values to stdout, used for debugging / status checking
