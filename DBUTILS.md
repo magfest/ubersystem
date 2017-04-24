@@ -8,6 +8,17 @@ su postgres
 dropdb mydbname
 createdb mydbname
 
+
+# another way to drop the contents of a database without dropping the database itself
+psql -U some_user -f drop_schema.sql mydbname
+
+# where drop_schema.sql:
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA IF NOT EXISTS public AUTHORIZATION some_user;
+GRANT ALL ON SCHEMA public TO public;
+GRANT ALL ON SCHEMA public TO some_user;
+
+
 # backup a database named 'mydbname' into a file named 'uber-backup-2014-11-20-08:32:50.sql' (or whatever today's date is)
 sudo bash
 su postgres

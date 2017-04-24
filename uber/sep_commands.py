@@ -5,8 +5,33 @@ from uber.common import *
 def alembic():
     """
     Frontend for alembic script with additional uber specific facilities.
+
+    "sep alembic" supports all the same arguments as the regular "alembic"
+    command, with the addition of the "--plugin PLUGIN_NAME" option.
+
+    Passing "--plugin PLUGIN_NAME" will choose the correct alembic version path
+    for the given plugin. If "--plugin" is omitted, it will default to "uber".
+
+    If "--version-path PATH" is also specified, it will override the version
+    path chosen for the plugin. This functionality is rarely needed, and best
+    left unused.
+
+    If a new migration revision is created for a plugin that previously did
+    not have any revisions, then a new branch label is applied using the
+    plugin name. For example::
+
+        sep alembic --plugin new_plugin revision --autogenerate -m "Initial migration"
+
+    A new revision script will be created in "new_plugin/alembic/versions/"
+    with a branch label of "new_plugin". The "new_plugin/alembic/versions/"
+    directory will be created if it does not already exist.
+
+    If "--branch-label LABEL" is also specified, it will override the plugin
+    name as the new branch label.
     """
     argv = sys.argv[1:]
+
+    # Extract the "--plugin" option from argv.
     plugin_name = 'uber'
     for plugin_opt in ('-p', '--plugin'):
         if plugin_opt in argv:
@@ -16,31 +41,45 @@ def alembic():
 
     from glob import glob
     from os.path import exists, join
-    from alembic.config import CommandLine, Config as AlembicConfig
+    from alembic.config import CommandLine
     from sideboard.config import config as sideboard_config
-    from uber.migration import version_locations, version_locations_option
+    from uber.migration import create_alembic_config, version_locations
+
+    assert plugin_name in version_locations, (
+        'Plugin "{}" does not exist in {}'.format(
+            plugin_name, sideboard_config['plugins_dir']))
 
     commandline = CommandLine(prog='sep alembic')
-    options = commandline.parser.parse_args(argv)
+    if any([h in argv for h in ('-h', '--help')]):
+        # If "--help" is passed, add a description of the "--plugin" option
+        commandline.parser.add_argument(
+            '-p', '--plugin',
+            type=str,
+            default='uber',
+            help='Plugin in which to add new versions')
 
-    assert plugin_name in version_locations, 'Plugin "{}" does not exist in {}'.format(
-        plugin_name, sideboard_config['plugins_dir'])
+    options = commandline.parser.parse_args(argv)
 
     if not hasattr(options, 'cmd'):
         commandline.parser.error('too few arguments')
 
     kwarg_names = options.cmd[2]
     if 'version_path' in kwarg_names and not options.version_path:
+        # If the command supports the "--version-path" option and it was not
+        # specified, default to the version path of the given plugin.
         options.version_path = version_locations[plugin_name]
-        if not exists(options.version_path) or not glob(join(options.version_path, '*.py')):
-            if 'branch_label' in kwarg_names and not options.branch_label:
-                options.branch_label = plugin_name
 
-    alembic_config = AlembicConfig(
+        if 'branch_label' in kwarg_names and not options.branch_label and \
+                not glob(join(options.version_path, '*.py')):
+            # If the command supports the "--branch-label" option and it was
+            # not specified and there aren't any existing revisions, then
+            # apply the plugin name as the branch label
+            options.branch_label = plugin_name
+
+    alembic_config = create_alembic_config(
         file_=options.config,
         ini_section=options.name,
         cmd_opts=options)
-    alembic_config.set_main_option('version_locations', version_locations_option)
     commandline.run_cmd(alembic_config, options)
 
 
@@ -113,7 +152,13 @@ def insert_admin():
 
 
 @entry_point
+def drop_uber_db():
+    assert c.DEV_BOX, 'drop_uber_db is only available on development boxes'
+    Session.initialize_db(modify_tables=False, drop=True)
+
+
+@entry_point
 def reset_uber_db():
     assert c.DEV_BOX, 'reset_uber_db is only available on development boxes'
-    Session.initialize_db(drop=True, modify_tables=True)
+    Session.initialize_db(modify_tables=True, drop=True)
     insert_admin()
