@@ -18,6 +18,18 @@ import sqlalchemy as sa
 ${imports if imports else ""}
 
 
+try:
+    is_sqlite = op.get_context().dialect.name == 'sqlite'
+except:
+    is_sqlite = False
+
+if is_sqlite:
+    op.get_context().connection.execute('PRAGMA foreign_keys=ON;')
+    utcnow_server_default = "(datetime('now', 'utc'))"
+else:
+    utcnow_server_default = "timezone('utc', current_timestamp)"
+
+
 def upgrade():
     ${upgrades if upgrades else "pass"}
 
