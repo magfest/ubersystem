@@ -12,8 +12,6 @@ from uber.migration import version_locations_option
 from uber.models import Choice, MultiChoice, Session
 
 
-logger = logging.getLogger('alembic.env')
-
 # This is the alembic Config object, which provides access to "alembic.ini".
 alembic_config = context.config
 
@@ -25,6 +23,7 @@ assert version_locations == version_locations_option, (
 # Interpret the config file for Python logging. This sets up alembic loggers.
 if alembic_config.config_file_name:
     fileConfig(alembic_config.config_file_name)
+logger = logging.getLogger('alembic.env')
 
 # Add the model's MetaData object here for "autogenerate" support.
 target_metadata = Session.BaseClass.metadata
@@ -45,21 +44,8 @@ def render_item(type_, obj, autogen_context):
         elif isinstance(obj, (CoerceUTF8, MultiChoice)):
             return 'sa.Unicode()'
         elif isinstance(obj, UUID):
-            autogen_context.imports.add(
-                'from sqlalchemy.dialects import postgresql')
-            return 'postgresql.UUID()'
-
-            # We always want our generated migration files to use the
-            # postgresql dialect, because that's what we use in production.
-            # If that ever changes, this is is how we'd conditionally
-            # render items:
-            #
-            # if autogen_context.dialect.name == 'postgresql':
-            #     autogen_context.imports.add(
-            #         'from sqlalchemy.dialects import postgresql')
-            #     return 'postgresql.UUID()'
-            # else:
-            #     return 'sa.Unicode()'
+            autogen_context.imports.add('import sideboard')
+            return 'sideboard.lib.sa.UUID()'
 
     # Default rendering for other objects
     return False
