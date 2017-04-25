@@ -2,7 +2,7 @@ from uber.common import *
 
 
 @entry_point
-def alembic():
+def alembic(*args):
     """
     Frontend for alembic script with additional uber specific facilities.
 
@@ -29,7 +29,7 @@ def alembic():
     If "--branch-label LABEL" is also specified, it will override the plugin
     name as the new branch label.
     """
-    argv = sys.argv[1:]
+    argv = args if args else sys.argv[1:]
 
     # Extract the "--plugin" option from argv.
     plugin_name = 'uber'
