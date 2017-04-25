@@ -52,6 +52,3 @@ plugin name. For example::
 A new revision script will be created in `myplugin/alembic/versions/`
 with a branch label of "myplugin". The `myplugin/alembic/versions/`
 directory will be created if it does not already exist.
-
-If `--branch-label LABEL` is also specified, it will override the plugin
-name as the new branch label.

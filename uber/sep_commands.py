@@ -25,9 +25,6 @@ def alembic(*args):
     A new revision script will be created in "new_plugin/alembic/versions/"
     with a branch label of "new_plugin". The "new_plugin/alembic/versions/"
     directory will be created if it does not already exist.
-
-    If "--branch-label LABEL" is also specified, it will override the plugin
-    name as the new branch label.
     """
     argv = args if args else sys.argv[1:]
 
