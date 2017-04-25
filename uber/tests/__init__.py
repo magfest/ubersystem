@@ -1,43 +1,10 @@
-import pytest
+from uber.common import *
+
 from jinja2 import meta
 from mock import Mock
-from sqlalchemy.schema import CreateTable, MetaData
+from unittest import TestCase
 
-from uber.common import *
-from uber.models import Session
-from uber.sep_commands import alembic, drop_uber_db, reset_uber_db
-
-
-def sort_lines(text, to_strip=' '):
-    lines = [s.strip(to_strip) for s in text.split('\n') if s.strip(to_strip)]
-    return '\n'.join(sorted(lines))
-
-
-def dump_schema(sort=True):
-    with Session.engine.connect() as connection:
-        meta = MetaData()
-        meta.reflect(bind=connection)
-        tables = meta.sorted_tables if sort else meta.tables.values()
-        table_statements = []
-        for table in tables:
-            table_statement = str(CreateTable(table))
-            if sort:
-                table_statements.append(sort_lines(table_statement, ', '))
-            else:
-                table_statements.append(table_statement)
-        return '\n'.join(table_statements)
-    return ''
-
-
-def dump_alembic_schema(sort=True):
-    drop_uber_db()
-    alembic('upgrade', 'heads')
-    return dump_schema(sort)
-
-
-def dump_reset_uber_db_schema(sort=True):
-    reset_uber_db()
-    return dump_schema(sort)
+import pytest
 
 
 def guess_template_dirs(file_path):
