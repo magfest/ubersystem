@@ -43,7 +43,9 @@ def alembic(*args):
     from os.path import exists, join
     from alembic.config import CommandLine
     from sideboard.config import config as sideboard_config
-    from uber.migration import create_alembic_config, version_locations
+    from sideboard.internal.imports import plugin_dirs
+    from uber.migration import create_alembic_config, \
+        get_plugin_head_revision, version_locations
 
     assert plugin_name in version_locations, (
         'Plugin "{}" does not exist in {}'.format(
@@ -70,17 +72,24 @@ def alembic(*args):
         options.version_path = version_locations[plugin_name]
 
         if 'branch_label' in kwarg_names and not options.branch_label and \
+                options.version_path and \
                 not glob(join(options.version_path, '*.py')):
             # If the command supports the "--branch-label" option and it was
             # not specified and there aren't any existing revisions, then
-            # apply the plugin name as the branch label
+            # apply the plugin name as the branch label.
             options.branch_label = plugin_name
 
-    alembic_config = create_alembic_config(
-        file_=options.config,
-        ini_section=options.name,
-        cmd_opts=options)
-    commandline.run_cmd(alembic_config, options)
+    if 'head' in kwarg_names and not options.head and \
+            options.branch_label != plugin_name:
+        # If the command supports the "--head" option and it was not specified
+        # and the we're not creating a new branch for the plugin, then make
+        # this revision on top of the plugin's branch head.
+        revision = get_plugin_head_revision(plugin_name)
+        options.head = revision.revision
+        if revision.is_branch_point:
+            options.splice = True
+
+    commandline.run_cmd(create_alembic_config(cmd_opts=options), options)
 
 
 @entry_point

@@ -466,7 +466,7 @@ class Session(SessionManager):
             super(Session, cls).initialize_db(drop=drop, create=True)
             if drop:
                 from uber.migration import stamp
-                stamp('head')
+                stamp('heads')
         elif drop:
             super(Session, cls).initialize_db(drop=True, create=False)
             from uber.migration import stamp
