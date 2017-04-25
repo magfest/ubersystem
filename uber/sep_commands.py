@@ -71,12 +71,11 @@ def alembic(*args):
         # specified, default to the version path of the given plugin.
         options.version_path = version_locations[plugin_name]
 
-        if 'branch_label' in kwarg_names and not options.branch_label and \
-                options.version_path and \
+        if 'branch_label' in kwarg_names and options.version_path and \
                 not glob(join(options.version_path, '*.py')):
-            # If the command supports the "--branch-label" option and it was
-            # not specified and there aren't any existing revisions, then
-            # apply the plugin name as the branch label.
+            # If the command supports the "--branch-label" option and there
+            # aren't any existing revisions, then always apply the plugin
+            # name as the branch label.
             options.branch_label = plugin_name
 
     if 'head' in kwarg_names and not options.head and \
