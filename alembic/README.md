@@ -19,14 +19,22 @@ to the database, try generating new revisions again:
 sep alembic --plugin myplugin revision --autogenerate -m "Additional alter statements"
 sep alembic upgrade head
 ```
-4. Verify the new migrations by running a comparison of the migration and the
-results of `sep reset_uber_db`:
+4. Verify the new migrations manually by inspecting the generated revision
+scripts and editing them as necessary; auto-generation is not perfect and may
+try to unnecessarily drop and re-add columns. Keep in mind, relationship
+"columns" are not real, you do not need migrations for them.
+5. Additionally, you can also verify the new migrations by running a
+comparison of the migration and the results of `sep reset_uber_db`:
 ```
 pg_dump -s mydbname > alembic.sql
 sep reset_uber_db
 pg_dump -s mydbname > reset_uber_db.sql
 diff alembic.sql reset_uber_db.sql
 ```
+The unit tests already do this automatically, which is why this step is
+optional. Keep in mind, even if the resulting schemas are identical, alembic
+could internally be dropping and re-adding columns or tables resulting in
+catastrophic data loss. That is why manual inspection is always recommended.
 
 # `sep alembic` Command
 
@@ -45,7 +53,7 @@ left unused.
 
 If a new migration revision is created for a plugin that previously did
 not have any revisions, then a new branch label is applied using the
-plugin name. For example::
+plugin name. For example:
 
     sep alembic --plugin myplugin revision --autogenerate -m "Initial migration"
 
