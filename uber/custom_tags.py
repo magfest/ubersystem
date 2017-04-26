@@ -382,10 +382,11 @@ def price_notice(label, takedown, amount_extra=0, discount=0):
         return ''  # we only display notices for new attendees
     else:
         badge_price = c.BADGE_PRICE  # optimization.  this call is VERY EXPENSIVE.
+        on_or_by = "no later than" if c.PRICE_LIMITS else "on"
 
         for day, price in sorted(c.PRICE_BUMPS.items()):
             if day < takedown and localized_now() < day and price > badge_price:
-                return safe_string('<div class="prereg-price-notice">Price goes up to ${} no later than 11:59pm {} on {}</div>'.format(price - int(discount) + int(amount_extra), (day - timedelta(days=1)).strftime('%Z'), (day - timedelta(days=1)).strftime('%A, %b %e')))
+                return safe_string('<div class="prereg-price-notice">Price goes up to ${} {} 11:59pm {} on {}</div>'.format(price - int(discount) + int(amount_extra), on_or_by, (day - timedelta(days=1)).strftime('%Z'), (day - timedelta(days=1)).strftime('%A, %b %e')))
             elif localized_now() < day and takedown == c.PREREG_TAKEDOWN and takedown < c.EPOCH and price > badge_price:
                 return safe_string('<div class="prereg-type-closing">{} closes at 11:59pm {} on {}. Price goes up to ${} at-door.</div>'.format(label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'), price + amount_extra, (day - timedelta(days=1)).strftime('%A, %b %e')))
         if takedown < c.EPOCH:
