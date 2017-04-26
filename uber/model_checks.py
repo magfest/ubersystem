@@ -329,10 +329,6 @@ def invalid_badge_num(attendee):
             badge_num = int(attendee.badge_num)
         except:
             return '{!r} is not a valid badge number'.format(attendee.badge_num)
-        else:
-            min_num, max_num = c.BADGE_RANGES[attendee.badge_type]
-            if not (min_num <= badge_num <= max_num):
-                return '{} badge numbers must fall within {} and {}'.format(attendee.badge_type_label, min_num, max_num)
 
 
 @validation.Attendee
