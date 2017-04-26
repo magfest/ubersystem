@@ -32,6 +32,30 @@ def test_verify_jinja_autoescape_template():
     assert result == expected
 
 
+def test_render_empty():
+    env = JinjaEnv.env()
+    cur_dir = os.path.dirname(__file__)
+    env.loader.searchpath.append(cur_dir)
+    try:
+        template = env.get_template('autoescape_template.html')
+    finally:
+        if cur_dir in env.loader.searchpath:
+            env.loader.searchpath.remove(cur_dir)
+
+    result = str(open(template.filename, 'r').read())
+    expected = '''\
+<!DOCTYPE HTML>
+<html>
+<body>
+{{ unsafe_string }}
+{% autoescape false %}{{ safe_string }}{% endautoescape %}
+</body>
+</html>
+'''
+
+    assert result == expected
+
+
 def test_verify_jinja_autoescape_string():
     env = JinjaEnv.env()
     template = env.from_string('''\

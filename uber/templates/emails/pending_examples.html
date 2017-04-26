@@ -13,6 +13,8 @@
     The following are some examples of the {{ count }} emails that will be sent once this email is approved:
 {% else %}
     Nobody matches the email criteria.  Perhaps the email is time-based and it's not yet time for it to be sent out?
+    <br>Here's what the template looks like though:<br>
+    <pre style="white-space:pre-wrap">{{ example }}</pre>
 {% endif %}
 
 {% for url, email in examples %}
