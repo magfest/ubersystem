@@ -151,30 +151,25 @@
     </div>
 {% else %}
     <div class="form-group">
-        <label for="first_name" class="col-sm-2 control-label">First Name</label>
-        <div class="col-sm-6">
+        <label for="first_name" class="col-sm-2 control-label">Name</label>
+        <div class="col-sm-3">
             <input type="text" name="first_name" id="first_name" value="{{ attendee.first_name }}" class="form-control" placeholder="First Name">
         </div>
-    </div>
-
-    <div class="form-group">
-        <label for="last_name" class="col-sm-2 control-label">Last Name</label>
-        <div class="col-sm-6">
+        <div class="col-sm-3">
             <input type="text" name="last_name" id="last_name" value="{{ attendee.last_name }}" class="form-control" placeholder="Last Name">
         </div>
     </div>
 
     <div class="form-group">
-        <label for="same_legal_name" class="col-sm-2 control-label">The above name is exactly what appears on my ID</label>
-        <div class="col-sm-6">
-            <input type="checkbox" name="same_legal_name" id="same_legal_name" value="Yep, that's right" {% if attendee.first_name != '' and attendee.legal_name == '' %}checked="checked"{% endif %} />
+        <div class="col-sm-6 col-sm-offset-2">
+            <input type="checkbox" name="same_legal_name" id="same_legal_name" value="1" {% if not attendee.is_new and attendee.legal_name == '' %}checked="checked"{% endif %} /> <label for="same_legal_name">The above name is exactly what appears on my ID</label>
         </div>
     </div>
 
     <div class="form-group">
-        <label for="legal_name" class="col-sm-2 control-label optional-field">Legal Name</label>
+        <label for="legal_name" class="col-sm-2 control-label optional-field">Name on ID</label>
         <div class="col-sm-6">
-            <input type="text" name="legal_name" value="{{ attendee.legal_name }}" class="form-control" placeholder="Legal Name" />
+            <input type="text" name="legal_name" value="{{ attendee.legal_name }}" class="form-control" placeholder="Your name exactly as it appears on your Photo ID" />
         </div>
         <p class="help-block col-sm-6 col-sm-offset-2">
             <span class="popup">{{ macros.popup_link("../static_views/legal_name.html", "What does legal name mean?") }}</span>
