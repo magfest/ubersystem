@@ -47,6 +47,7 @@ class Root:
         count = 0
         examples = []
         email = AutomatedEmail.instances[ident]
+        example = render_empty('emails/' + email.template)
         for x in AutomatedEmail.queries[email.model](session):
             if email.filters_run(x):
                 count += 1
@@ -59,6 +60,7 @@ class Root:
 
         return {
             'count': count,
+            'example': example,
             'examples': examples,
             'subject': email.subject,
         }
