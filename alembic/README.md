@@ -28,7 +28,7 @@ pg_dump -s mydbname > reset_uber_db.sql
 diff alembic.sql reset_uber_db.sql
 ```
 
-# sep alembic command
+# `sep alembic` Command
 
 `sep alembic` is a frontend for the alembic script with additional uber
 specific facilities.
@@ -52,3 +52,38 @@ plugin name. For example::
 A new revision script will be created in `myplugin/alembic/versions/`
 with a branch label of "myplugin". The `myplugin/alembic/versions/`
 directory will be created if it does not already exist.
+
+
+# Uber's Alembic Branches
+
+Uber's alembic branches mirror the dependency structure of the plugins
+themselves:
+```
+(uber)-+->[uber@head]
+       |
+       +-(panels)-+->[panels@head]
+       |          |
+       |          +-(bands)->[bands@head]
+       |          |
+       |          +-(tabletop)->[tabletop@head]
+       |
+       +-(attendee_tournaments)->[attendee_tournaments@head]
+       |
+       +-(hotel)->[hotel@head]
+       |
+       +-(magprime)->[magprime@head]
+       |
+       +-(magstock)->[magstock@head]
+       |
+       +-(mivs)->[mivs@head]
+```
+
+When adding revisions with `sep alembic --plugin NAME revision --autogenerate`
+care must be taken to make sure that the correct plugin is chosen for updated
+models. If you've made changes in `panels/models.py` you must specify the
+panels plugin like so: `sep alembic --plugin panels`.
+
+If you specify the wrong plugin then the migrations will be added to the
+wrong repository. This isn't the end of the world – the tests will fail and
+you'll have to revert your changes in GitHub, but that's the worst that will
+happen.
