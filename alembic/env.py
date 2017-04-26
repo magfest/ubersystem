@@ -40,12 +40,12 @@ def render_item(type_, obj, autogen_context):
         if isinstance(obj, Choice):
             return 'sa.Integer()'
         elif isinstance(obj, UTCDateTime):
-            autogen_context.imports.add('import sideboard')
+            autogen_context.imports.add('import sideboard.lib.sa')
             return 'sideboard.lib.sa.UTCDateTime()'
         elif isinstance(obj, (CoerceUTF8, MultiChoice)):
             return 'sa.Unicode()'
         elif isinstance(obj, UUID):
-            autogen_context.imports.add('import sideboard')
+            autogen_context.imports.add('import sideboard.lib.sa')
             return 'sideboard.lib.sa.UUID()'
 
     # Default rendering for other objects

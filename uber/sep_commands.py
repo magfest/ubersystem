@@ -1,3 +1,5 @@
+from glob import glob
+from os.path import exists, join
 from uber.common import *
 
 
@@ -26,6 +28,12 @@ def alembic(*args):
     with a branch label of "new_plugin". The "new_plugin/alembic/versions/"
     directory will be created if it does not already exist.
     """
+    from alembic.config import CommandLine
+    from sideboard.config import config as sideboard_config
+    from sideboard.internal.imports import plugin_dirs
+    from uber.migration import create_alembic_config, \
+        get_plugin_head_revision, version_locations
+
     argv = args if args else sys.argv[1:]
 
     # Extract the "--plugin" option from argv.
@@ -36,26 +44,18 @@ def alembic(*args):
             argv.pop(plugin_index)
             plugin_name = argv.pop(plugin_index)
 
-    from glob import glob
-    from os.path import exists, join
-    from alembic.config import CommandLine
-    from sideboard.config import config as sideboard_config
-    from sideboard.internal.imports import plugin_dirs
-    from uber.migration import create_alembic_config, \
-        get_plugin_head_revision, version_locations
-
     assert plugin_name in version_locations, (
         'Plugin "{}" does not exist in {}'.format(
             plugin_name, sideboard_config['plugins_dir']))
 
     commandline = CommandLine(prog='sep alembic')
-    if any([h in argv for h in ('-h', '--help')]):
+    if {'-h', '--help'}.intersection(argv):
         # If "--help" is passed, add a description of the "--plugin" option
         commandline.parser.add_argument(
             '-p', '--plugin',
             type=str,
             default='uber',
-            help='Plugin in which to add new versions')
+            help='Name of plugin in which to add new versions')
 
     options = commandline.parser.parse_args(argv)
 

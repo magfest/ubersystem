@@ -128,6 +128,9 @@ class MultiChoice(TypeDecorator):
         return value if isinstance(value, str) else ','.join(value)
 
 
+# Consistent naming conventions are necessary for alembic to be able to
+# reliably upgrade and downgrade versions. For more details, see:
+# http://alembic.zzzcomputing.com/en/latest/naming.html
 default_metadata = MetaData(
     naming_convention=immutabledict({
         'unnamed_ck': check_constraint_naming_convention,

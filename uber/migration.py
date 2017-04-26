@@ -43,7 +43,7 @@ def create_alembic_config(**kwargs):
 
 
 def get_plugin_head_revision(plugin_name):
-    """Returns a `alembic.script.Revision` object for the given plugin's head.
+    """Returns an `alembic.script.Revision` object for the given plugin's head.
     """
     alembic_config = create_alembic_config()
     script = ScriptDirectory.from_config(alembic_config)
