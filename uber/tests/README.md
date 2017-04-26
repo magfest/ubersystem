@@ -6,43 +6,50 @@ RAMS plugins require Python 3.4.
 ## Using tox
 
 The first time tox runs, it may take a few minutes to build its virtual
-environment, but each subsequent run should start quickly.
+environment at the `installdeps` step. Each subsequent run should start quickly.
 
-Installing tox:
-```
-pip install tox
-```
+1. Install tox if it's not already installed:
+    ```
+    pip install tox
+    ```
 
-To run all tests and pep8 validation from the command line:
-```
-tox
-```
+2. Navigate to the plugin whose tests you want to run. You should be in the same
+directory as the `tox.ini` file -- this should always be the root folder of
+the plugin. E.g.:
+    ```
+    cd sideboard/plugins/my_plugin
+    ```
 
-To run pep8 validation only, without running any tests:
-```
-tox -e pep8
-```
+3. Run your tests! To run all tests and pep8 validation from the command line:
+    ```
+    tox
+    ```
 
-To run the tests only, without pep8:
-```
-tox -e py34
-```
+    1. To run pep8 validation only, without running any tests:
+        ```
+        tox -e pep8
+        ```
+    
+    2. To run the tests only, without pep8:
+        ```
+        tox -e py34
+        ```
+    
+    3. To run only the tests in a specific file:
+        ```
+        tox -e py34 -- -k test_templates.py
+        ```
+    
+    4. To run only the tests matching a given substring, like "jinja" for example:
+        ```
+        tox -e py34 -- -k jinja
+        ```
 
-To run only the tests in a specific file:
-```
-tox -e py34 -- -k test_templates.py
-```
-
-To run only the tests matching a given substring, like "jinja" for example:
-```
-tox -e py34 -- -k jinja
-```
-
-In general, everything after the `--` is passed as arguments to pytest. For
+4. In general, everything after the `--` is passed as arguments to pytest. For
 example, to run the tests with verbose output and without capturing stdout:
-```
-tox -e py34 -- --verbose --capture=no
-```
+    ```
+    tox -e py34 -- --verbose --capture=no
+    ```
 
 
 ## Using pytest
