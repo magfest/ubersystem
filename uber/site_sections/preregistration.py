@@ -186,7 +186,8 @@ class Root:
             'group':      group,
             'edit_id':    edit_id,
             'badges':     params.get('badges'),
-            'affiliates': session.affiliates()
+            'affiliates': session.affiliates(),
+            'cart_not_empty': self.unpaid_preregs
         }
 
     def duplicate(self, session, id):

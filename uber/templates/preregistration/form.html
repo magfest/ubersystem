@@ -72,6 +72,10 @@
         {% else %}
             <button type="submit" class="btn btn-primary" value="Update">Update</button>
         {% endif %}
+
+        {% if edit_id or cart_not_empty %}
+        <a href="index" class="btn btn-default" value="Cancel">Cancel</a>
+        {% endif %}
     </div>
 </div>
 
