@@ -79,7 +79,7 @@
     var setLegalNameRequired = function() {
         if ($("#same_legal_name").length) {
             $.field('legal_name').attr('required', function() {
-                return !$.field('placeholder').is(':checked')
+                return !($.field('placeholder').is(':checked') || $("#same_legal_name").prop('checked'))
             });
         }
     };
@@ -97,9 +97,10 @@
     };
 
     $(function(){
-        $.field("placeholder").click(boldOrRegular).click(setPreassigned).click(setLegalNameRequired);
+        $.field("placeholder").click(boldOrRegular).click(setPreassigned).change(setLegalNameRequired);
         setBadgeMessage();
         boldOrRegular();
+        setLegalNameRequired();
         setGroupLink();
         showOrHideAmounts();
         toggleStaffingAdminRows();
