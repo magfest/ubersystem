@@ -3,7 +3,9 @@
 <body>
 
 Your group ({{ group.name }}) has successfully submitted a Dealer application for {{ c.EVENT_NAME }}
-this coming {{ event_dates() }}. Below is a copy of your application:
+this coming {{ event_dates() }}. Below is a copy of your application. You may
+<a href="{{ c.URL_BASE }}/preregistration/group_members?id={{ group.id }}">update it here</a> or
+<a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ group.leader.id }}">view your badge here</a>.
 <ul>
     <li><strong>Dealer Table Name</strong>: {{ group.name }}</li>
     <li><strong>Tables</strong>: {{ group.tables }} table{{ group.tables|pluralize }} (${{ group.table_cost|round(2) }}) </li>
