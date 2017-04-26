@@ -414,12 +414,14 @@
     </div>
 </div>
 
+{% if c.JOB_INTEREST_OPTS %}
 <div class="form-group staffing" id="departments">
     <label for="requested_depts" class="col-sm-2 control-label">Where do you want to help?</label>
     <div class="col-sm-6">
         {{ macros.checkgroup(attendee, 'requested_depts') }}
     </div>
 </div>
+{% endif %}
 
 <div class="form-group">
     {% if c.COLLECT_EXACT_BIRTHDATE %}
@@ -538,12 +540,14 @@
     {% endif %}
 </div>
 
+{% if c.INTEREST_OPTS %}
 <div class="form-group">
     <label class="col-sm-2 control-label optional-field">What interests you?</label>
     <div class="col-sm-10">
         {{ macros.checkgroup(attendee, 'interests') }}
     </div>
 </div>
+{% endif %}
 
 <div class="form-group">
     <label for="found_how" class="col-sm-2 control-label optional-field">How did you find {{ c.EVENT_NAME }}?</label>
