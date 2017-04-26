@@ -58,14 +58,20 @@
 {% endif %}
 {% endblock admin_controls %}
 {% block table %}
+<ul class="pagination{% if not page %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
+{% for pagenum in pages %}
+    {% if pagenum == page %}
+    <li class="page-item active">
+        <a class="page-link" href="#">{{ pagenum }}</a>
+    </li>
+    {% else %}
+    <li class="page-item">
+        <a class="page-link" href="index?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">{{ pagenum }}</a>
+    {% endif %}
+    </li>
+{% endfor %}
+</ul>
 <div class="panel panel-default">
-    {% for pagenum in pages %}
-        {% if pagenum == page %}
-            {{ pagenum }}
-        {% else %}
-            <a href="index?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">{{ pagenum }}</a>
-        {% endif %}
-    {% endfor %}
     {% if page %}
         <table class="table table-striped" data-page-size="9999999">
         <thead><tr>
@@ -133,11 +139,14 @@
         {% endfor %}
         </tbody>
     </table>
-</div>
 {% else %}
-    <div class="center">
+    <div class="lead text-center">
         <em>Use the search box above to filter the attendees or select a page to browse all attendees.</em>
+
+        <br/><br/>Try searching for 'email:name@example.com' or 'group:Group Name'. You can also search by phone number,
+        unique confirmation ID, and most text fields.
     </div>
 {% endif %}
+    </div>
 {% endblock table %}
 {% endblock content %}
