@@ -925,3 +925,15 @@ class Root:
         return json.dumps({
             'badges_price': c.BADGE_PRICE
         })
+
+    @unrestricted
+    def badges_animation(self):
+        return {
+            'sold': c.BADGES_SOLD
+        }
+
+    @ajax_gettable
+    def badge_stats(self):
+        return {
+            'sold': c.BADGES_SOLD
+        }
