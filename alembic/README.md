@@ -78,10 +78,10 @@ themselves:
        +-(mivs)->[mivs@head]
 ```
 
-When adding revisions with `sep alembic --plugin NAME revision --autogenerate`
-care must be taken to make sure that the correct plugin is chosen for updated
-models. If you've made changes in `panels/models.py` you must specify the
-panels plugin like so: `sep alembic --plugin panels`.
+When adding revisions with `sep alembic --plugin NAME revision --autogenerate`,
+care must be taken to make sure that the correct plugin is chosen for the
+updated models. If you've made changes in `panels/models.py` you must specify
+the panels plugin like so: `sep alembic --plugin panels`.
 
 If you specify the wrong plugin then the migrations will be added to the
 wrong repository. This isn't the end of the world – the tests will fail and
