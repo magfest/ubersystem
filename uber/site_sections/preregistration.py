@@ -328,7 +328,7 @@ class Root:
                 if attendee.amount_unpaid:
                     raise HTTPRedirect('group_extra_payment_form?id={}', attendee.id)
                 else:
-                    raise HTTPRedirect('confirm?id={}&message={}', attendee.id, 'Badge registered successfully')
+                    raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Badge registered successfully')
         else:
             attendee.can_spam = True    # only defaults to true for these forms
 
@@ -378,7 +378,7 @@ class Root:
             raise HTTPRedirect('confirm?id={}&message={}', attendee.id, message)
         else:
             attendee.amount_paid += charge.dollar_amount
-            raise HTTPRedirect('confirm?id={}&message={}', attendee.id, 'Extra payment accepted')
+            raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Extra payment accepted')
 
     @csrf_protected
     def unset_group_member(self, session, id):
@@ -455,7 +455,7 @@ class Root:
                     cherrypy.session['return_to'] = 'confirm?id={}&'.format(attendee.id)
                     raise HTTPRedirect('attendee_donation_form?id={}', attendee.id)
                 else:
-                    raise HTTPRedirect('confirm?id={}&message={}', attendee.id, 'Your registration has been transferred')
+                    raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Your registration has been transferred')
         else:
             for attr in c.UNTRANSFERABLE_ATTRS:
                 setattr(attendee, attr, getattr(Attendee(), attr))
@@ -478,6 +478,9 @@ class Root:
         attendee.badge_status = c.INVALID_STATUS
         raise HTTPRedirect('invalid_badge?id={}&message={}', attendee.id, 'Sorry you can\'t make it! We hope to see you next year!')
 
+    def badge_updated(self, session, id, message=''):
+        return {'id': id, 'message': message}
+
     @attendee_id_required
     @log_pageview
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
@@ -492,11 +495,11 @@ class Root:
             message = check(attendee, prereg=True)
             if not message:
                 if placeholder:
-                    message = 'Your registration has been confirmed.'
+                    message = 'Your registration has been confirmed'
                 else:
-                    message = 'Your information has been updated.'
+                    message = 'Your information has been updated'
 
-                page = ('confirm?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
+                page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
                 if attendee.amount_unpaid:
                     cherrypy.session['return_to'] = page
                     raise HTTPRedirect('attendee_donation_form?id={}', attendee.id)
@@ -560,7 +563,7 @@ class Root:
             if attendee.paid == c.NOT_PAID and attendee.amount_paid == attendee.total_cost:
                 attendee.paid = c.HAS_PAID
             session.merge(attendee)
-            raise HTTPRedirect(return_to, 'Your payment has been accepted, thanks so much!')
+            raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Your payment has been accepted')
 
     def credit_card_retry(self):
         return {}
