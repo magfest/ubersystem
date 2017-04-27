@@ -3,12 +3,12 @@
 IMPORTANT NOTE
 ==============
 
-This is a fork of the RAMS Project used by [MAGFest](http://magfest.org).  It may contain MAGFest-specific modifications and some less well-tested code. We recommend, unless you are actively devloping for MAGFest, that you visit the parent project at https://github.com/ramsproject/rams
+This is a fork of the RAMS Project used by [MAGFest](http://magfest.org).  It may contain MAGFest-specific modifications and some less well-tested code. We recommend, unless you are actively developing for MAGFest, that you visit the parent project at https://github.com/ramsproject/rams
 
 The RAMS Project
 =======
 
-The RAMS (Registration And Management System) Project is a web app written in Python and designed for high customization to suit event's needs. It's aimed largely at fandom events and can track things like registration, events, staffers, groups, dealers, jobs, game checkouts, etc.
+The RAMS (Registration And Management System) Project is a web app written in Python and designed for high customization to suit any event's needs. It's aimed largely at fandom events and can track things like registration, events, staffers, groups, dealers, jobs, game checkouts, etc.
 
 This app was originally developed by [MAGFest](http://magfest.org) as their internal registration system, named UberSystem, and is now open source and available for anyone to use. This is the community edition, known simply as RAMS. Eternal thanks to [Eli Courtwright](https://github.com/EliAndrewC) for tirelessly developing UberSystem for ten years.
 
