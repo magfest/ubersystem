@@ -574,8 +574,8 @@ class Session(SessionManager):
             new_badge_num = self.auto_badge_num(badge_type)
             # Adjusts the badge number based on badges in the session
             for attendee in [m for m in chain(self.new, self.dirty) if isinstance(m, Attendee)]:
-                if attendee.badge_type == badge_type and attendee.badge_num is not None\
-                        and attendee.badge_num <= c.BADGE_RANGES[badge_type][1]\
+                if attendee.badge_num is not None \
+                        and c.BADGE_RANGES[badge_type][0] <= attendee.badge_num <= c.BADGE_RANGES[badge_type][1]\
                         and attendee.badge_num <= self.auto_badge_num(badge_type):
                     new_badge_num = max(self.auto_badge_num(badge_type), 1 + attendee.badge_num)
 
@@ -596,8 +596,7 @@ class Session(SessionManager):
             """
             from uber.badge_funcs import needs_badge_num
             old_badge_num = int(old_badge_num or 0) or None
-            was_dupe_num = self.query(Attendee).filter(Attendee.badge_type == old_badge_type,
-                                                       Attendee.badge_num == old_badge_num,
+            was_dupe_num = self.query(Attendee).filter(Attendee.badge_num == old_badge_num,
                                                        Attendee.id != attendee.id).first()
 
             if not was_dupe_num and old_badge_type == attendee.badge_type and (not attendee.badge_num or old_badge_num == attendee.badge_num):
@@ -636,18 +635,17 @@ class Session(SessionManager):
             a specific range.
             :return:
             """
-            sametype = self.query(Attendee.badge_num).filter(Attendee.badge_type == badge_type,
-                                                   Attendee.badge_num >= c.BADGE_RANGES[badge_type][0],
-                                                   Attendee.badge_num <= c.BADGE_RANGES[badge_type][1])
-            if sametype.count():
-                sametype_list = [int(row[0]) for row in sametype.order_by(Attendee.badge_num).all()]
+            in_range = self.query(Attendee.badge_num).filter(Attendee.badge_num >= c.BADGE_RANGES[badge_type][0],
+                                                             Attendee.badge_num <= c.BADGE_RANGES[badge_type][1])
+            if in_range.count():
+                in_range_list = [int(row[0]) for row in in_range.order_by(Attendee.badge_num).all()]
 
                 # Searches badge range for a gap in badge numbers; if none found, returns the latest badge number + 1
                 # Doing this lets admins manually set high badge numbers without filling up the badge type's range.
-                start, end = c.BADGE_RANGES[badge_type][0], sametype_list[-1]
-                gap_nums = sorted(set(range(start, end + 1)).difference(sametype_list))
+                start, end = c.BADGE_RANGES[badge_type][0], in_range_list[-1]
+                gap_nums = sorted(set(range(start, end + 1)).difference(in_range_list))
                 if not gap_nums:
-                    return sametype.order_by(Attendee.badge_num.desc()).first().badge_num + 1
+                    return in_range.order_by(Attendee.badge_num.desc()).first().badge_num + 1
                 else:
                     return gap_nums[0]
             else:
@@ -662,8 +660,7 @@ class Session(SessionManager):
             assert len(direction) < 2, 'you cannot specify both up and down parameters'
             down = (not direction['up']) if 'up' in direction else direction.get('down', True)
             shift = -1 if down else 1
-            for a in self.query(Attendee).filter(Attendee.badge_type == badge_type,
-                                                 Attendee.badge_num is not None,
+            for a in self.query(Attendee).filter(Attendee.badge_num is not None,
                                                  Attendee.badge_num >= badge_num,
                                                  Attendee.badge_num <= until):
                 a.badge_num += shift
