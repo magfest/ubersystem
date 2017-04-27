@@ -162,7 +162,7 @@
 
     <div class="form-group">
         <div class="col-sm-6 col-sm-offset-2">
-            <input type="checkbox" name="same_legal_name" id="same_legal_name" value="1" {% if not attendee.is_new and attendee.legal_name == '' %}checked="checked"{% endif %} /> <label for="same_legal_name">The above name is exactly what appears on my ID</label>
+            <input type="checkbox" name="same_legal_name" id="same_legal_name" value="1" {% if attendee.first_name != '' and attendee.legal_name == '' %}checked="checked"{% endif %} /> <label for="same_legal_name">The above name is exactly what appears on my ID</label>
         </div>
     </div>
 
