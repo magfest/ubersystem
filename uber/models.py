@@ -1220,6 +1220,9 @@ class Attendee(MagModel, TakesPaymentMixin):
             if value.isupper() or value.islower():
                 setattr(self, attr, value.title())
 
+        if self.legal_name and self.full_name == self.legal_name:
+            self.legal_name = ''
+
     @presave_adjustment
     def _badge_adjustments(self):
         # _assert_badge_lock()
