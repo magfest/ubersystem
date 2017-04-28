@@ -131,14 +131,17 @@ class MultiChoice(TypeDecorator):
 # Consistent naming conventions are necessary for alembic to be able to
 # reliably upgrade and downgrade versions. For more details, see:
 # http://alembic.zzzcomputing.com/en/latest/naming.html
-default_metadata = MetaData(
-    naming_convention=immutabledict({
-        'unnamed_ck': check_constraint_naming_convention,
-        'ix': 'ix_%(column_0_label)s',
-        'uq': 'uq_%(table_name)s_%(column_0_name)s',
-        'ck': 'ck_%(table_name)s_%(unnamed_ck)s',
-        'fk': 'fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s',
-        'pk': 'pk_%(table_name)s'}))
+default_naming_convention = {
+    'ix': 'ix_%(column_0_label)s',
+    'uq': 'uq_%(table_name)s_%(column_0_name)s',
+    'fk': 'fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s',
+    'pk': 'pk_%(table_name)s'}
+
+if not c.SQLALCHEMY_URL.startswith('sqlite'):
+    default_naming_convention['unnamed_ck'] = check_constraint_naming_convention
+    default_naming_convention['ck'] = 'ck_%(table_name)s_%(unnamed_ck)s',
+
+default_metadata = MetaData(naming_convention=immutabledict(default_naming_convention))
 
 
 @declarative_base(metadata=default_metadata)

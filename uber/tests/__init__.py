@@ -3,17 +3,20 @@ from jinja2 import meta
 from mock import Mock
 from sqlalchemy.schema import CreateTable, MetaData
 
+from sideboard.config import uniquify as remove_duplicates
 from uber.common import *
 from uber.models import Session
 from uber.sep_commands import alembic, drop_uber_db, reset_uber_db
 
 
-def sort_lines(text, to_strip=' '):
+def sort_lines(text, to_strip=' ', uniquify=True):
     lines = [s.strip(to_strip) for s in text.split('\n') if s.strip(to_strip)]
+    if uniquify:
+        lines = remove_duplicates(lines)
     return '\n'.join(sorted(lines))
 
 
-def dump_schema(sort=True):
+def dump_schema(sort=True, uniquify=True):
     with Session.engine.connect() as connection:
         meta = MetaData()
         meta.reflect(bind=connection)
@@ -22,22 +25,21 @@ def dump_schema(sort=True):
         for table in tables:
             table_statement = str(CreateTable(table))
             if sort:
-                table_statements.append(sort_lines(table_statement, ', '))
-            else:
-                table_statements.append(table_statement)
+                table_statement = sort_lines(table_statement, ', ', uniquify)
+            table_statements.append(table_statement)
         return '\n'.join(table_statements)
     return ''
 
 
-def dump_alembic_schema(sort=True):
+def dump_alembic_schema(sort=True, uniquify=True):
     drop_uber_db()
     alembic('upgrade', 'heads')
-    return dump_schema(sort)
+    return dump_schema(sort, uniquify)
 
 
-def dump_reset_uber_db_schema(sort=True):
+def dump_reset_uber_db_schema(sort=True, uniquify=True):
     reset_uber_db()
-    return dump_schema(sort)
+    return dump_schema(sort, uniquify)
 
 
 def guess_template_dirs(file_path):
