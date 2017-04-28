@@ -89,11 +89,17 @@
     </p>
 </div>
 
-{% if c.PAGE == 'confirm' %}
+{% if c.PAGE == 'confirm' and not attendee.placeholder %}
     <div class="form-group">
         <label for="full_name" class="col-sm-2 control-label">Name</label>
         <div class="col-sm-6">{{ attendee.full_name }}</div>
     </div>
+    {% if attendee.legal_name %}
+        <div class="form-group">
+            <label for="legal_name" class="col-sm-2 control-label">Name on ID</label>
+            <div class="col-sm-6">{{ attendee.legal_name }}</div>
+        </div>
+    {% endif %}
     <div class="form-group">
         <label for="badge_type" class="col-sm-2 control-label">Badge Type</label>
         <div class="col-sm-6">
