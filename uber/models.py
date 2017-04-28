@@ -1204,8 +1204,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             if value.isupper() or value.islower():
                 setattr(self, attr, value.title())
 
-        if attendee.legal_name and attendee.full_name == attendee.legal_name:
-            attendee.legal_name = ''
+        if self.legal_name and self.full_name == self.legal_name:
+            self.legal_name = ''
 
     @presave_adjustment
     def _badge_adjustments(self):
