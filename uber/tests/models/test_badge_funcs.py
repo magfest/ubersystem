@@ -107,20 +107,21 @@ class TestGetNextBadgeNum:
         session.add(Attendee(badge_type=c.STAFF_BADGE, badge_num=6))
         assert 7 == session.get_next_badge_num(c.STAFF_BADGE)
 
+    def test_preassigned_two_new(self, session):
+        session.add(Attendee(badge_type=c.STAFF_BADGE, badge_num=6))
+        session.add(Attendee(badge_type=c.STAFF_BADGE, badge_num=7))
+        assert 8 == session.get_next_badge_num(c.STAFF_BADGE)
+
     def test_preassigned_with_dirty(self, session):
         session.supporter_five.badge_type, session.supporter_five.badge_num = c.STAFF_BADGE, 6
         assert 7 == session.get_next_badge_num(c.STAFF_BADGE)
         session.expunge(session.supporter_five)
 
-    def test_preassigned_with_new_gap(self, session):
-        session.add(Attendee(badge_type=c.STAFF_BADGE, badge_num=8))
-        session.add(Attendee(badge_type=c.STAFF_BADGE, badge_num=6))
-        assert 7 == session.get_next_badge_num(c.STAFF_BADGE)
-
-    def test_preassigned_with_dirty_gap(self, session):
-        session.supporter_five.badge_type, session.supporter_five.badge_num = c.STAFF_BADGE, 8
-        session.supporter_four.badge_type, session.supporter_four.badge_num = c.STAFF_BADGE, 6
-        assert 7 == session.get_next_badge_num(c.STAFF_BADGE)
+    def test_preassigned_two_dirty(self, session):
+        session.supporter_five.badge_type, session.supporter_five.badge_num = c.STAFF_BADGE, 6
+        session.supporter_four.badge_type, session.supporter_four.badge_num = c.STAFF_BADGE, 7
+        assert 8 == session.get_next_badge_num(c.STAFF_BADGE)
+        session.expunge(session.supporter_four)
         session.expunge(session.supporter_five)
 
     def test_non_preassigned(self, session):
@@ -130,20 +131,30 @@ class TestGetNextBadgeNum:
         session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), badge_num=3001))
         assert 3002 == session.get_next_badge_num(c.ATTENDEE_BADGE)
 
+    def test_non_preassigned_two_new(self, session):
+        session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), badge_num=3001))
+        session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), badge_num=3002))
+        assert 3003 == session.get_next_badge_num(c.ATTENDEE_BADGE)
+
     def test_non_preassigned_with_dirty(self, session):
         session.supporter_five.badge_type, session.supporter_five.badge_num = c.ATTENDEE_BADGE, 3001
         assert 3002 == session.get_next_badge_num(c.ATTENDEE_BADGE)
         session.expunge(session.supporter_five)
 
-    def test_non_preassigned_with_new_gap(self, session):
-        session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), badge_num=3003))
-        session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), badge_num=3001))
-        assert 3002 == session.get_next_badge_num(c.ATTENDEE_BADGE)
+    def test_non_preassigned_two_dirty(self, session):
+        session.supporter_five.badge_type, session.supporter_five.badge_num = c.ATTENDEE_BADGE, 3001
+        session.supporter_four.badge_type, session.supporter_five.badge_num = c.ATTENDEE_BADGE, 3002
+        assert 3003 == session.get_next_badge_num(c.ATTENDEE_BADGE)
+        session.expunge(session.supporter_four)
+        session.expunge(session.supporter_five)
 
-    def test_non_preassigned_with_dirty_gap(self, session):
-        session.supporter_five.badge_type, session.supporter_five.badge_num = c.ATTENDEE_BADGE, 3003
-        session.supporter_four.badge_type, session.supporter_four.badge_num = c.ATTENDEE_BADGE, 3001
-        assert 3002 == session.get_next_badge_num(c.ATTENDEE_BADGE)
+    def test_diff_type_new(self, session):
+        session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), badge_num=6))
+        assert 7 == session.get_next_badge_num(c.STAFF_BADGE)
+
+    def test_diff_type_dirty(self, session):
+        session.supporter_five.badge_type, session.supporter_five.badge_num = c.ATTENDEE_BADGE, 6
+        assert 7 == session.get_next_badge_num(c.STAFF_BADGE)
         session.expunge(session.supporter_five)
 
     def test_ignore_too_high(self, session):
@@ -196,6 +207,13 @@ class TestAutoBadgeNum:
         monkeypatch.setattr(Attendee, '_badge_adjustments', 0)
         session.commit()
         assert 3002 == session.auto_badge_num(c.ATTENDEE_BADGE)
+
+    def test_diff_type_with_num_in_range(self, session, monkeypatch):
+        session.add(Attendee(badge_type=c.SUPPORTER_BADGE, badge_num=6))
+        # We want to force the badge number we set even though it's incorrect
+        monkeypatch.setattr(Attendee, '_badge_adjustments', 0)
+        session.commit()
+        assert 7 == session.auto_badge_num(c.STAFF_BADGE)
 
     def test_beginning_skip(self, session):
         session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), first_name="3002", paid=c.HAS_PAID, badge_num=3002))
