@@ -155,10 +155,10 @@
     <div class="form-group">
         <label for="first_name" class="col-sm-2 control-label">Name</label>
         <div class="col-sm-3">
-            <input type="text" name="first_name" id="first_name" value="{{ attendee.first_name }}" class="form-control" placeholder="First Name">
+            <input type="text" name="first_name" id="first_name" value="{{ attendee.first_name }}" class="form-control" placeholder="First Name" autocomplete="fname">
         </div>
         <div class="col-sm-3">
-            <input type="text" name="last_name" id="last_name" value="{{ attendee.last_name }}" class="form-control" placeholder="Last Name">
+            <input type="text" name="last_name" id="last_name" value="{{ attendee.last_name }}" class="form-control" placeholder="Last Name" autocomplete="lname">
         </div>
     </div>
 
@@ -171,7 +171,7 @@
     <div class="form-group">
         <label for="legal_name" class="col-sm-2 control-label optional-field">Name on ID</label>
         <div class="col-sm-6">
-            <input type="text" name="legal_name" value="{{ attendee.legal_name }}" class="form-control" placeholder="Your name exactly as it appears on your Photo ID" />
+            <input type="text" name="legal_name" value="{{ attendee.legal_name }}" class="form-control" placeholder="Your name exactly as it appears on your Photo ID" autocomplete="name" />
         </div>
         <p class="help-block col-sm-6 col-sm-offset-2">
             <span class="popup">{{ macros.popup_link("../static_views/legal_name.html", "What does this mean?") }}</span>
@@ -469,7 +469,7 @@
     <div class="form-group address_details">
         <label for="country" class="col-sm-2 control-label">Country</label>
         <div class="col-sm-6">
-            <select name="country" class="form-control" placeholder="Country" autofocus="autofocus" autocorrect="off" autocomplete="off">
+            <select name="country" class="form-control" placeholder="Country" autofocus="autofocus" autocorrect="off" autocomplete="country">
                 {% include "country_opts.html" %}
             </select>
         </div>
@@ -495,7 +495,7 @@
     <div class="form-group address_details">
         <label for="region" class="col-sm-2 control-label">State/Region</label>
         <div class="col-sm-6">
-            <input type="text" name="region" class="form-control" placeholder="State/Province" value="{{ attendee.region }}" />
+            <input type="text" name="region" class="form-control" placeholder="State/Province" value="{{ attendee.region }}" autocomplete="address-level1" />
         </div>
     </div>
 {% endif %}
