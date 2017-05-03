@@ -180,9 +180,9 @@ def emergency_contact(attendee):
         return 'Please tell us the name of your emergency contact.'
     if not attendee.international and _invalid_phone_number(attendee.ec_phone):
         if c.COLLECT_FULL_ADDRESS:
-            return 'Enter a 10-digit US phone number or include a country code (e.g. +44).'
+            return 'Enter a 10-digit US phone number or include a country code (e.g. +44) for your emergency contact number.'
         else:
-            return 'Enter a 10-digit emergency contact number'
+            return 'Enter a 10-digit emergency contact number.'
 
 
 @validation.Attendee
@@ -190,19 +190,19 @@ def emergency_contact(attendee):
 def cellphone(attendee):
     if attendee.cellphone and _invalid_phone_number(attendee.cellphone):
         if c.COLLECT_FULL_ADDRESS:
-            return 'Enter a 10-digit US phone number or include a country code (e.g. +44).'
+            return 'Enter a 10-digit US phone number or include a country code (e.g. +44) for your phone number.'
         else:
-            return 'Your cellphone number was not a valid 10-digit phone number'
+            return 'Your phone number was not a valid 10-digit phone number'
 
     if not attendee.no_cellphone and attendee.staffing and not attendee.cellphone:
-        return "Cellphone number is required for volunteers (unless you don't own a cellphone)"
+        return "Phone number is required for volunteers (unless you don't own a cellphone)"
 
 
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def emergency_contact_not_cellphone(attendee):
     if not attendee.international and attendee.cellphone and attendee.cellphone == attendee.ec_phone:
-        return "Your cellphone number cannot be the same as your emergency contact number"
+        return "Your phone number cannot be the same as your emergency contact number"
 
 
 @validation.Attendee
