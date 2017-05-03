@@ -110,8 +110,10 @@
     var sameLegalNameChecked = function () {
         if ($("#same_legal_name").prop('checked')) {
             $.field('legal_name').prop('readonly', true).val('').attr('required', false);
+            $("label[for='legal_name']").addClass('optional-field');
         } else if ($("#same_legal_name").length) {
             $.field('legal_name').prop('readonly', false).attr('required', true);
+            $("label[for='legal_name']").removeClass('optional-field');
         }
     };
     $(function () {
@@ -169,7 +171,7 @@
     </div>
 
     <div class="form-group">
-        <label for="legal_name" class="col-sm-2 control-label optional-field">Name on ID</label>
+        <label for="legal_name" class="col-sm-2 control-label">Name on ID</label>
         <div class="col-sm-6">
             <input type="text" name="legal_name" value="{{ attendee.legal_name }}" class="form-control" placeholder="Your name exactly as it appears on your Photo ID" autocomplete="name" />
         </div>
