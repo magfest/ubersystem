@@ -77,8 +77,8 @@
         <thead><tr>
             {% block tableheadings %}
             <th> <a href="index?order={{ order.group_id }}">Group Name</a> </th>
-            <th> <a href="index?order={{ order.last_first }}">Preferred Name</a> </th>
-            <th> <a href="index?order={{ order.legal_name }}">Legal Name</a> </th>
+            <th> <a href="index?order={{ order.last_first }}">Full Name</a> </th>
+            <th> <a href="index?order={{ order.legal_name }}">Name on ID</a> </th>
             {% if c.PREASSIGNED_BADGE_TYPES %}<th> <a href="index?order={{ order.badge_printed_name }}">Badge Name</a> </th>{% endif %}
             <th> <a href="index?order={{ order.badge_type }}">Membership Type</a></th>
             {% if c.NUMBERED_BADGES %}<th> <a href="index?order={{ order.badge_num }}">Badge #</a> </th> {% endif %}
