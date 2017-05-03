@@ -41,18 +41,17 @@
         var regionChange = function() {
             setInternational();
 
-            $("[name='region']").replaceWith('<select name="region" class="form-control"></select>');
             var regionopts = $("[name='region']");
             var whichCountry = $.field("country").find(':selected').text();
             switch(whichCountry) {
                 case 'United States':
-                    regionopts.html(regionsforUS);
+                    regionopts.replaceWith('<select name="region" class="form-control"></select>');
+                    $("[name='region']").html(regionsforUS);
                     break;
                 case 'Canada':
-                    regionopts.html(regionsforCanada);
+                    regionopts.replaceWith('<select name="region" class="form-control"></select>');
+                    $("[name='region']").html(regionsforCanada);
                     break;
-                default:
-                    regionopts.replaceWith('<input type="text" name="region" value="{{ attendee.region }}" class="form-control" placeholder="State/Province">');
             }
             var optionToSelect = $("select[name='region'] option[value='{{ attendee.region }}']");
             if (optionToSelect.length) {
@@ -65,7 +64,10 @@
             setInternational();
             $.field("country").val('{{ attendee.country }}');
             $.field("country").selectToAutocomplete();
-            $.field("country").change(regionChange);
+            $.field("country").change(function() {
+                $("[name='region']").replaceWith('<input type="text" name="region" value="{{ attendee.region }}" class="form-control" placeholder="State/Province">');
+                regionChange();
+            });
 
             $.field("region").val('{{ attendee.region }}');
             regionChange();
@@ -475,7 +477,7 @@
     <div class="form-group address_details">
         <label for="address1" class="col-sm-2 control-label">Street</label>
         <div class="col-sm-6">
-            <input type="text" name="address1" class="form-control" placeholder="Address Line 1" value="{{ attendee.address1 }}" data-geo="name" />
+            <input type="text" name="address1" class="form-control" placeholder="Address Line 1" value="{{ attendee.address1 }}" />
         </div>
     </div>
     <div class="form-group address_details">
@@ -487,15 +489,13 @@
     <div class="form-group address_details">
         <label for="city" class="col-sm-2 control-label">City</label>
         <div class="col-sm-6">
-            <input type="text" name="city" class="form-control" placeholder="City" value="{{ attendee.city }}" data-geo="locality" />
+            <input type="text" name="city" class="form-control" placeholder="City" value="{{ attendee.city }}" />
         </div>
     </div>
     <div class="form-group address_details">
         <label for="region" class="col-sm-2 control-label">State/Region</label>
         <div class="col-sm-6">
-            <select name="region" class="form-control" placeholder="State/Province" data-geo="administrative_area_level_1">
-
-            </select>
+            <input type="text" name="region" class="form-control" placeholder="State/Province" value="{{ attendee.region }}" />
         </div>
     </div>
 {% endif %}
