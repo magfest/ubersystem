@@ -24,3 +24,25 @@ def test_absolute_url_error(base_url):
 
     with pytest.raises(ValueError) as e_info:
         convert_to_absolute_url('////')
+
+
+class TestCharge:
+    def test_charge_one_email(self):
+        attendee = Attendee(email='test@example.com')
+        charge = Charge(targets=[attendee])
+        assert charge.email == attendee.email
+
+    def test_charge_group_leader_email(self):
+        attendee = Attendee(email='test@example.com')
+        group = Group(attendees=[attendee])
+        charge = Charge(targets=[group])
+        assert charge.email == attendee.email
+
+    def test_charge_first_email(self):
+        attendee = Attendee(email='test@example.com')
+        charge = Charge(targets=[attendee, Attendee(email='test2@example.com'), Attendee(email='test3@example.com')])
+        assert charge.email == attendee.email
+
+    def test_charge_no_email(self):
+        charge = Charge(targets=[Group()])
+        assert charge.email == ''
