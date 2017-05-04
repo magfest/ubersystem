@@ -1,11 +1,6 @@
 from uber.common import *
 from uber.custom_tags import safe_string
-
-
-def _get_defaults(func):
-    spec = inspect.getfullargspec(func)
-    return dict(zip(reversed(spec.args), reversed(spec.defaults)))
-default_constructor = _get_defaults(declarative.declarative_base)['constructor']
+from sideboard.lib.sa import check_constraint_naming_convention
 
 
 SQLAlchemyColumn = Column
@@ -133,19 +128,27 @@ class MultiChoice(TypeDecorator):
         return value if isinstance(value, str) else ','.join(value)
 
 
-@declarative_base
+# Consistent naming conventions are necessary for alembic to be able to
+# reliably upgrade and downgrade versions. For more details, see:
+# http://alembic.zzzcomputing.com/en/latest/naming.html
+default_naming_convention = {
+    'ix': 'ix_%(column_0_label)s',
+    'uq': 'uq_%(table_name)s_%(column_0_name)s',
+    'fk': 'fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s',
+    'pk': 'pk_%(table_name)s'}
+
+if not c.SQLALCHEMY_URL.startswith('sqlite'):
+    default_naming_convention['unnamed_ck'] = check_constraint_naming_convention
+    default_naming_convention['ck'] = 'ck_%(table_name)s_%(unnamed_ck)s',
+
+default_metadata = MetaData(naming_convention=immutabledict(default_naming_convention))
+
+
+@declarative_base(metadata=default_metadata)
 class MagModel:
     id = Column(UUID, primary_key=True, default=lambda: str(uuid4()))
 
     required = ()
-
-    def __init__(self, *args, **kwargs):
-        if '_model' in kwargs:
-            assert kwargs.pop('_model') == self.__class__.__name__
-        default_constructor(self, *args, **kwargs)
-        for attr, col in self.__table__.columns.items():
-            if col.default:
-                self.__dict__.setdefault(attr, col.default.execute())
 
     @property
     def _class_attrs(self):
@@ -437,7 +440,7 @@ class Session(SessionManager):
     @classmethod
     def initialize_db(cls, modify_tables=False, drop=False):
         """
-        Initialize the database and optionally create/drop tables
+        Initialize the database and optionally create/drop tables.
 
         Initializes the database connection for use, and attempt to create any
         tables registered in our metadata which do not actually exist yet in the
@@ -448,16 +451,32 @@ class Session(SessionManager):
         all models from all plugins to insert their mixin data, so we wait until one spot
         in order to create the database tables.
 
-        Any calls to initialize_db() that do not specify modify_tables=True are ignored.
-        i.e. anywhere in Sideboard that calls initialize_db() will be ignored
-        i.e. ubersystem is forcing all calls that don't specify modify_tables=True to be ignored
+        Any calls to initialize_db() that do not specify modify_tables=True or
+        drop=True are ignored.
+
+        i.e. anywhere in Sideboard that calls initialize_db() will be ignored.
+        i.e. ubersystem is forcing all calls that don't specify modify_tables=True
+        or drop=True to be ignored.
+
+        Calling initialize_db with modify_tables=False and drop=True will leave
+        you with an empty database.
 
         Keyword Arguments:
-        modify_tables -- If False, this function does nothing.
-        drop -- USE WITH CAUTION: If True, then we will drop any tables in the database
+            modify_tables: If False, this function will not attempt to create
+                any database objects (tables, columns, constraints, etc...)
+                Defaults to False.
+            drop: USE WITH CAUTION: If True, then we will drop any tables in
+                the database. Defaults to False.
         """
         if modify_tables:
-            super(Session, cls).initialize_db(drop=drop)
+            super(Session, cls).initialize_db(drop=drop, create=True)
+            if drop:
+                from uber.migration import stamp
+                stamp('heads')
+        elif drop:
+            super(Session, cls).initialize_db(drop=True, create=False)
+            from uber.migration import stamp
+            stamp(None)
 
     class QuerySubclass(Query):
         @property
@@ -575,9 +594,8 @@ class Session(SessionManager):
             # Adjusts the badge number based on badges in the session
             for attendee in [m for m in chain(self.new, self.dirty) if isinstance(m, Attendee)]:
                 if attendee.badge_num is not None \
-                        and c.BADGE_RANGES[badge_type][0] <= attendee.badge_num <= c.BADGE_RANGES[badge_type][1]\
-                        and attendee.badge_num <= self.auto_badge_num(badge_type):
-                    new_badge_num = max(self.auto_badge_num(badge_type), 1 + attendee.badge_num)
+                        and c.BADGE_RANGES[badge_type][0] <= attendee.badge_num <= c.BADGE_RANGES[badge_type][1]:
+                    new_badge_num = max(self.auto_badge_num(badge_type), 1 + attendee.badge_num, new_badge_num)
 
             assert new_badge_num < c.BADGE_RANGES[badge_type][1], 'There are no more badge numbers available in this range!'
 
@@ -1204,6 +1222,9 @@ class Attendee(MagModel, TakesPaymentMixin):
             if value.isupper() or value.islower():
                 setattr(self, attr, value.title())
 
+        if self.legal_name and self.full_name == self.legal_name:
+            self.legal_name = ''
+
     @presave_adjustment
     def _badge_adjustments(self):
         # _assert_badge_lock()
@@ -1623,8 +1644,12 @@ class Attendee(MagModel, TakesPaymentMixin):
         return any(shift.job.location == department for shift in self.shifts)
 
     @property
+    def food_restrictions_filled_out(self):
+        return self.food_restrictions if c.STAFF_GET_FOOD else True
+
+    @property
     def shift_prereqs_complete(self):
-        return not self.placeholder and self.food_restrictions and self.shirt_size_marked
+        return not self.placeholder and self.food_restrictions_filled_out and self.shirt_size_marked
 
     @property
     def past_years_json(self):

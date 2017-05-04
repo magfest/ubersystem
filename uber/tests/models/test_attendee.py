@@ -1,3 +1,4 @@
+from uber import config
 from uber.tests import *
 
 
@@ -89,6 +90,18 @@ def test_last_first(monkeypatch):
     assert 'xxx' == Attendee(first_name='x', last_name='y').last_first
 
 
+def test_legal_name_same_as_full_name():
+    same_legal_name = Attendee(first_name='First', last_name='Last', legal_name='First Last')
+    same_legal_name._misc_adjustments()
+    assert '' == same_legal_name.legal_name
+
+
+def test_legal_name_diff_from_full_name():
+    diff_legal_name = Attendee(first_name='first', last_name='last', legal_name='diff name')
+    diff_legal_name._misc_adjustments()
+    assert 'diff name' == diff_legal_name.legal_name
+
+
 def test_badge():
     assert Attendee().badge == 'Unpaid Attendee'
     assert Attendee(paid=c.HAS_PAID).badge == 'Attendee'
@@ -135,6 +148,43 @@ def test_takes_shifts():
     assert Attendee(staffing=True, assigned_depts=c.CONSOLE).takes_shifts
     assert not Attendee(staffing=True, assigned_depts=c.CON_OPS).takes_shifts
     assert Attendee(staffing=True, assigned_depts=','.join(map(str, [c.CONSOLE, c.CON_OPS]))).takes_shifts
+
+
+class TestAttendeeFoodRestrictionsFilledOut:
+    @pytest.fixture
+    def staff_get_food_true(self, monkeypatch):
+        monkeypatch.setattr(config.Config, 'STAFF_GET_FOOD', property(lambda x: True))
+        assert c.STAFF_GET_FOOD == True
+
+    @pytest.fixture
+    def staff_get_food_false(self, monkeypatch):
+        monkeypatch.setattr(config.Config, 'STAFF_GET_FOOD', property(lambda x: False))
+        assert c.STAFF_GET_FOOD == False
+
+    def test_food_restrictions_filled_out(self, staff_get_food_true):
+        assert Attendee(food_restrictions=FoodRestrictions()).food_restrictions_filled_out
+
+    def test_food_restrictions_not_filled_out(self, staff_get_food_true):
+        assert not Attendee().food_restrictions_filled_out
+
+    def test_food_restrictions_not_needed(self, staff_get_food_false):
+        assert Attendee().food_restrictions_filled_out
+
+    def test_shift_prereqs_complete(self, staff_get_food_true):
+        assert Attendee(placeholder=False, shirt=1, food_restrictions=FoodRestrictions()).shift_prereqs_complete
+
+    def test_shift_prereqs_placeholder(self, staff_get_food_true):
+        assert not Attendee(placeholder=True, shirt=1, food_restrictions=FoodRestrictions()).shift_prereqs_complete
+
+    def test_shift_prereqs_no_shirt(self, staff_get_food_true):
+        assert not Attendee(placeholder=False, shirt=c.NO_SHIRT, food_restrictions=FoodRestrictions()).shift_prereqs_complete
+        assert not Attendee(placeholder=False, shirt=c.SIZE_UNKNOWN, food_restrictions=FoodRestrictions()).shift_prereqs_complete
+
+    def test_shift_prereqs_no_food(self, staff_get_food_true):
+        assert not Attendee(placeholder=False, shirt=1).shift_prereqs_complete
+
+    def test_shift_prereqs_food_not_needed(self, staff_get_food_false):
+        assert Attendee(placeholder=False, shirt=1).shift_prereqs_complete
 
 
 class TestUnsetVolunteer:

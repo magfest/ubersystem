@@ -524,12 +524,6 @@ class Root:
             'affiliates':    session.affiliates()
         }
 
-    def guest_food(self, session, id):
-        attendee = session.attendee(id)
-        assert attendee.badge_type == c.GUEST_BADGE, 'This form is for guests only'
-        cherrypy.session['staffer_id'] = attendee.id
-        raise HTTPRedirect('../signups/food_restrictions')
-
     @attendee_id_required
     def attendee_donation_form(self, session, id, message=''):
         attendee = session.attendee(id)
