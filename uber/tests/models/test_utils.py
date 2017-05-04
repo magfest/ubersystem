@@ -25,6 +25,7 @@ def test_absolute_url_error(base_url):
     with pytest.raises(ValueError) as e_info:
         convert_to_absolute_url('////')
 
+
 class TestCharge:
     def test_charge_one_email(self):
         attendee = Attendee(email='test@example.com')
