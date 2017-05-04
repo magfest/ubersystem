@@ -1,21 +1,21 @@
-"""${message}
+"""Initial alter statements
 
-Revision ID: ${up_revision}
-Revises: ${down_revision | comma,n}
-Create Date: ${create_date}
+Revision ID: 1ed43776064f
+Revises: ff7e7ae6d711
+Create Date: 2017-04-23 19:06:40.644549
 
 """
 
 
 # revision identifiers, used by Alembic.
-revision = ${repr(up_revision)}
-down_revision = ${repr(down_revision)}
-branch_labels = ${repr(branch_labels)}
-depends_on = ${repr(depends_on)}
+revision = '1ed43776064f'
+down_revision = 'ff7e7ae6d711'
+branch_labels = None
+depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-${imports if imports else ""}
+
 
 
 try:
@@ -31,8 +31,10 @@ else:
 
 
 def upgrade():
-    ${upgrades if upgrades else "pass"}
+    if not is_sqlite:
+        op.create_foreign_key('fk_leader', 'group', 'attendee', ['leader_id'], ['id'], use_alter=True)
 
 
 def downgrade():
-    ${downgrades if downgrades else "pass"}
+    if not is_sqlite:
+        op.drop_constraint('fk_leader', 'group', type_='foreignkey')

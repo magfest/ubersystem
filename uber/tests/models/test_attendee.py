@@ -90,6 +90,18 @@ def test_last_first(monkeypatch):
     assert 'xxx' == Attendee(first_name='x', last_name='y').last_first
 
 
+def test_legal_name_same_as_full_name():
+    same_legal_name = Attendee(first_name='First', last_name='Last', legal_name='First Last')
+    same_legal_name._misc_adjustments()
+    assert '' == same_legal_name.legal_name
+
+
+def test_legal_name_diff_from_full_name():
+    diff_legal_name = Attendee(first_name='first', last_name='last', legal_name='diff name')
+    diff_legal_name._misc_adjustments()
+    assert 'diff name' == diff_legal_name.legal_name
+
+
 def test_badge():
     assert Attendee().badge == 'Unpaid Attendee'
     assert Attendee(paid=c.HAS_PAID).badge == 'Attendee'

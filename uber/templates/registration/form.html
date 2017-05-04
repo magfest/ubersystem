@@ -76,6 +76,14 @@
         showOrHideAmounts();
     };
 
+    var setLegalNameRequired = function() {
+        if ($("#same_legal_name").length) {
+            $.field('legal_name').attr('required', function() {
+                return !($.field('placeholder').is(':checked') || $("#same_legal_name").prop('checked'))
+            });
+        }
+    };
+
     var setBadgeMessage = function () {
         if ($.field("badge_type") && isPreassignedBadgeType($.val("badge_type"))) {
             $("#badge_message").text("(next available badge number)");
@@ -89,9 +97,10 @@
     };
 
     $(function(){
-        $.field("placeholder").click(boldOrRegular).click(setPreassigned);
+        $.field("placeholder").click(boldOrRegular).click(setPreassigned).change(setLegalNameRequired);
         setBadgeMessage();
         boldOrRegular();
+        setLegalNameRequired();
         setGroupLink();
         showOrHideAmounts();
         toggleStaffingAdminRows();

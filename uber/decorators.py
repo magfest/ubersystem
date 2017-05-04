@@ -279,6 +279,12 @@ def render(template_name_list, data=None):
     return rendered.encode('utf-8')
 
 
+def render_empty(template_name_list):
+    env = JinjaEnv.env()
+    template = env.get_or_select_template(template_name_list)
+    return str(open(template.filename, 'r').read())
+
+
 # this is a Magfest inside joke.
 # Nick gets mad when people call Magfest a "convention".  He always says "It's not a convention, it's a festival"
 # So........ if Nick is logged in.... let's annoy him a bit :)
