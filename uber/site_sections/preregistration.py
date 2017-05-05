@@ -264,9 +264,9 @@ class Root:
                 'total_cost': payment_received
             }
 
-    def delete(self, id):
+    def delete(self, id, message='Preregistration deleted'):
         self.unpaid_preregs.pop(id, None)
-        raise HTTPRedirect('index?message={}', 'Preregistration deleted')
+        raise HTTPRedirect('index?message={}', message)
 
     def dealer_confirmation(self, session, id):
         return {'group': session.group(id)}
