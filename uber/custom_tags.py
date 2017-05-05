@@ -272,7 +272,7 @@ def pages(page, count):
     pages = []
     for pagenum in range(1, int(math.ceil(count / 100)) + 1):
         if pagenum == page:
-            pages.append(pagenum)
+            pages.append('<li class="page-item active"><a class="page-link" href="#">{}</a></li>'.format(pagenum))
         else:
             path = cherrypy.request.request_line.split()[1].split('/')[-1]
             page_qs = 'page={}'.format(pagenum)
@@ -280,8 +280,8 @@ def pages(page, count):
                 path = re.sub(r'page=\d+', page_qs, path)
             else:
                 path += ('&' if '?' in path else '?') + page_qs
-            pages.append('<a href="{}">{}</a>'.format(path, pagenum))
-    return safe_string('Page: ' + ' '.join(map(str, pages)))
+            pages.append('<li class="page-item"><a class="page-link" href="{}">{}</a></li>'.format(path, pagenum))
+    return safe_string('<ul class="pagination">' + ' '.join(map(str, pages)) + '</ul>')
 
 
 def extract_fields(what):
