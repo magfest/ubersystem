@@ -192,7 +192,6 @@ class Root:
                                             and_(Tracking.model == 'Attendee', Tracking.fk_id == id)))
                                 .order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Attendee id={}".format(id)),
-            'ledgeritems': session.query(LedgerItem).filter(LedgerItem.attendee == attendee)
         }
 
     @log_pageview

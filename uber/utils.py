@@ -299,8 +299,19 @@ class Charge:
             error_txt = 'Got an error while calling charge_cc(self, token={!r})'.format(token)
             report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
             return 'An unexpected problem occured while processing your card: ' + str(e)
+        else:
+            session.add(self.stripe_transaction_from_charge())
 
-        session.add_ledger_item_from_charge(self)
+    def stripe_transaction_from_charge(self, type=c.PAYMENT):
+        return sa.StripeTransaction(
+            stripe_id=self.response.id or None,
+            amount=self.amount,
+            desc=self.description,
+            type=type,
+            who=sa.AdminAccount.admin_name() or 'non-admin',
+            fk_id=self.models[0].id,
+            fk_model=self.models[0].__class__.__name__
+        )
 
 
 def report_critical_exception(msg, subject="Critical Error"):

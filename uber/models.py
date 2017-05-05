@@ -204,6 +204,15 @@ class MagModel:
         """
         return max(0, sum([getattr(self, name) for name in self.cost_property_names], 0))
 
+    @property
+    def stripe_transactions(self):
+        """
+
+        Returns: All logged Stripe transactions with this model's ID.
+
+        """
+        return self.session.query(StripeTransaction).filter_by(fk_id=self.id).all()
+
     @class_property
     def unrestricted(cls):
         """
@@ -578,21 +587,6 @@ class Session(SessionManager):
                 return attendee[0]
 
             raise ValueError('attendee not found')
-
-        def add_ledger_item_from_charge(self, charge_obj, type=c.ACCOUNTS_RECEIVED, method=c.CC_STRIPE):
-            ledger_item = LedgerItem(
-                ident=charge_obj.response.id,
-                amount=charge_obj.amount,
-                desc=charge_obj.description,
-                type=type,
-                method=method,
-                who=AdminAccount.admin_name() or 'non-admin'
-            )
-            if isinstance(charge_obj.models[0], sa.Group):
-                ledger_item.group = charge_obj.models[0]
-            elif isinstance(charge_obj.models[0], sa.Attendee):
-                ledger_item.attendee = charge_obj.models[0]
-            self.add(ledger_item)
 
         def get_next_badge_num(self, badge_type):
             """
@@ -1953,20 +1947,15 @@ class ArbitraryCharge(MagModel):
     _repr_attr_names = ['what']
 
 
-class LedgerItem(MagModel):
-    ident = Column(UnicodeText, nullable=True)
-    type = Column(Choice(c.LEDGER_TYPE_OPTS), default=c.ACCOUNTS_RECEIVED)
-    method = Column(Choice(c.LEDGER_METHOD_OPTS), default=c.CC_STRIPE)
+class StripeTransaction(MagModel):
+    stripe_id = Column(UnicodeText, nullable=True)
+    type = Column(Choice(c.TRANSACTION_TYPE_OPTS), default=c.PAYMENT)
     amount = Column(Integer)
     when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     who = Column(UnicodeText)
     desc = Column(UnicodeText)
-
-    group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
-    group = relationship(Group, backref='ledger_items', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
-
-    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
-    attendee = relationship(Attendee, backref='ledger_items', foreign_keys=attendee_id, cascade='save-update,merge,refresh-expire,expunge')
+    fk_id = Column(UUID)
+    fk_model = Column(UnicodeText)
 
 
 class ApprovedEmail(MagModel):
