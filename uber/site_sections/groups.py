@@ -82,7 +82,7 @@ class Root:
                 .filter(or_(Tracking.links.like('%group({})%'.format(id)),
                             and_(Tracking.model == 'Group', Tracking.fk_id == id)))
                 .order_by(Tracking.when).all(),
-            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Group id={}".format(id)),
+            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Group id={}".format(id))
         }
 
     @ajax
