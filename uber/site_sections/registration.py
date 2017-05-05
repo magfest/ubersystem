@@ -191,7 +191,8 @@ class Root:
                                 .filter(or_(Tracking.links.like('%attendee({})%'.format(id)),
                                             and_(Tracking.model == 'Attendee', Tracking.fk_id == id)))
                                 .order_by(Tracking.when).all(),
-            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Attendee id={}".format(id))
+            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Attendee id={}".format(id)),
+            'ledgeritems': session.query(LedgerItem).filter(LedgerItem.attendee == attendee)
         }
 
     @log_pageview
@@ -603,7 +604,7 @@ class Root:
     def take_payment(self, session, payment_id, stripeToken):
         charge = Charge.get(payment_id)
         [attendee] = charge.attendees
-        message = charge.charge_cc(stripeToken)
+        message = charge.charge_cc(session, stripeToken)
         if message:
             raise HTTPRedirect('pay?id={}&message={}', attendee.id, message)
         else:
@@ -683,7 +684,7 @@ class Root:
     def manual_reg_charge(self, session, payment_id, stripeToken):
         charge = Charge.get(payment_id)
         [attendee] = charge.attendees
-        message = charge.charge_cc(stripeToken)
+        message = charge.charge_cc(session, stripeToken)
         if message:
             raise HTTPRedirect('new_credit_form?id={}&message={}', attendee.id, message)
         else:
@@ -738,7 +739,7 @@ class Root:
     @credit_card
     def arbitrary_charge(self, session, payment_id, stripeToken):
         charge = Charge.get(payment_id)
-        message = charge.charge_cc(stripeToken)
+        message = charge.charge_cc(session, stripeToken)
         if message:
             raise HTTPRedirect('arbitrary_charge_form?message={}', message)
         else:

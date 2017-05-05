@@ -284,7 +284,7 @@ class Charge:
     def groups(self):
         return [m for m in self.models if isinstance(m, sa.Group)]
 
-    def charge_cc(self, token):
+    def charge_cc(self, session, token):
         try:
             self.response = stripe.Charge.create(
                 card=token,
@@ -299,6 +299,8 @@ class Charge:
             error_txt = 'Got an error while calling charge_cc(self, token={!r})'.format(token)
             report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
             return 'An unexpected problem occured while processing your card: ' + str(e)
+
+        session.add_ledger_item_from_charge(self)
 
 
 def report_critical_exception(msg, subject="Critical Error"):
