@@ -364,11 +364,12 @@ class Config(_Overridable):
         elif name.endswith('_AVAILABLE'):
             item_check = name.rsplit('_', 1)[0]
             stock_setting = getattr(self, item_check + '_STOCK', None)
-            count_check = getattr(self, item_check + '_COUNT', None)
+            if stock_setting is None:
+                return True # Defaults to unlimited stock for any stock not configured
+
+            count_check = getattr(self, item_check + '_COUNT', None) # Only poll the DB if stock is configured
             if count_check is None:
-                return False  # Things with no count are never considered available
-            elif stock_setting is None:
-                return True  # Defaults to unlimited stock for any stock not configured
+                return False # Things with no count are never considered available
             else:
                 return int(count_check) < int(stock_setting)
         elif hasattr(_secret, name):
