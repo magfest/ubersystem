@@ -130,6 +130,9 @@ class TestBadgeOpts:
 
     def test_at_door_badge_opts_presold_one_days(self, monkeypatch):
         monkeypatch.setattr(c, 'PRESELL_ONE_DAYS', True)
+        monday_after_now = localized_now() + timedelta(days=(7-localized_now().weekday()))
+        monkeypatch.setattr(c, 'EPOCH', monday_after_now + timedelta(days=4))
+        monkeypatch.setattr(c, 'ESCHATON', monday_after_now + timedelta(days=6))
         assert dict(c.AT_THE_DOOR_BADGE_OPTS).keys() == {c.ATTENDEE_BADGE, c.FRIDAY, c.SATURDAY, c.SUNDAY}
 
     def test_at_door_badge_opts_with_extra(self, monkeypatch):
