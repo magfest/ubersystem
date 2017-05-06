@@ -229,7 +229,7 @@ class Root:
         elif charge.amount != charge.total_cost:
             message = 'Our preregistration price has gone up; please fill out the payment form again at the higher price'
         else:
-            message = charge.charge_cc(stripeToken)
+            message = charge.charge_cc(session, stripeToken)
 
         if message:
             raise HTTPRedirect('index?message={}', message)
@@ -352,7 +352,7 @@ class Root:
     def process_group_payment(self, session, payment_id, stripeToken):
         charge = Charge.get(payment_id)
         [group] = charge.groups
-        message = charge.charge_cc(stripeToken)
+        message = charge.charge_cc(session, stripeToken)
         if message:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
         else:
@@ -372,7 +372,7 @@ class Root:
         charge = Charge.get(payment_id)
         [attendee] = charge.attendees
         attendee = session.merge(attendee)
-        message = charge.charge_cc(stripeToken)
+        message = charge.charge_cc(session, stripeToken)
         if message:
             attendee.amount_extra -= attendee.amount_unpaid
             raise HTTPRedirect('confirm?id={}&message={}', attendee.id, message)
@@ -413,7 +413,7 @@ class Root:
         if charge.dollar_amount % c.GROUP_PRICE:
             message = 'Our preregistration price has gone up since you tried to add the badges; please try again'
         else:
-            message = charge.charge_cc(stripeToken)
+            message = charge.charge_cc(session, stripeToken)
 
         if message:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
@@ -548,7 +548,7 @@ class Root:
     def process_attendee_donation(self, session, payment_id, stripeToken):
         charge = Charge.get(payment_id)
         [attendee] = charge.attendees
-        message = charge.charge_cc(stripeToken)
+        message = charge.charge_cc(session, stripeToken)
         return_to = cherrypy.session.pop('return_to', 'confirm?id=' + attendee.id + '&') + 'message={}'
         if message:
             raise HTTPRedirect(return_to, message)

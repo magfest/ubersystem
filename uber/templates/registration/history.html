@@ -1,19 +1,19 @@
 {% extends "base-admin.html" %}
 {% block title %}Attendee History - {{ attendee.full_name }}{% endblock %}
 {% block content %}
-{{ macros }}
+
 {% include "registration/menu.html" %}
 
 <h2>Changelog for {{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
 
-<table class="list" border="1" borderspacing="0">
-<tr class="header">
-    <td>Which</td>
-    <td>What</td>
-    <td>When</td>
-    <td>Who</td>
-    <td>Changes</td>
-</tr>
+<table class="table-striped table-bordered table-condensed">
+<thead><tr>
+    <th>Which</th>
+    <th>What</th>
+    <th>When</th>
+    <th>Who</th>
+    <th>Changes</th>
+</tr></thead>
 {% for tracked in changes %}
     <tr>
         <td valign="top" style="white-space:nowrap">{{ tracked.model }}</td>
@@ -25,14 +25,36 @@
 {% endfor %}
 </table>
 
+    {% if attendee.stripe_transactions %}
+    <h2>Payment History for {{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
+    <table class="table-striped table-bordered table-condensed">
+    <thead><tr>
+        <th>Payment ID</th>
+        <th>Amount</th>
+        <th>When</th>
+        <th>Who</th>
+        <th>Description</th>
+    </tr></thead>
+    {% for transaction in attendee.stripe_transactions %}
+        <tr>
+        <td valign="top" style="white-space:nowrap">{{ transaction.stripe_id }}</td>
+        <td valign="top" style="white-space:nowrap">${{ '%0.2f' % (transaction.amount / 100) }} {{ transaction.type_label }}</td>
+        <td valign="top" style="white-space:nowrap">{{ transaction.when|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
+        <td valign="top" style="white-space:nowrap">{{ transaction.who }}</td>
+        <td valign="top" style="white-space:nowrap">{{ transaction.desc }}</td>
+        </tr>
+    {% endfor %}
+    </table>
+    {% endif %}
+
     <h2>Page View History for {{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
 
-<table class="list" border="1" borderspacing="0">
-<tr class="header">
-    <td>When</td>
-    <td>Who</td>
-    <td>Page Path</td>
-</tr>
+<table class="table-striped table-bordered table-condensed">
+<thead><tr>
+    <th>When</th>
+    <th>Who</th>
+    <th>Page Path</th>
+</tr></thead>
 {% for view in pageviews %}
     <tr>
         <td valign="top" style="white-space:nowrap">{{ view.when|full_datetime_local }}</td>

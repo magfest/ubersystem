@@ -216,7 +216,7 @@ def _record_email_sent(email):
 
 
 class Charge:
-    def __init__(self, targets=(), amount=None, description=None):
+    def __init__(self, targets=(), amount=None, description=None, email=''):
         self.targets = [self.to_sessionized(m) for m in listify(targets)]
 
         # performance optimization
@@ -224,6 +224,7 @@ class Charge:
 
         self.amount = amount or self.total_cost
         self.description = description or self.names
+        self.email = self.models[0].email if self.targets and self.models[0].email else email
 
     @staticmethod
     def to_sessionized(m):
@@ -255,7 +256,8 @@ class Charge:
         return {
             'targets': self.targets,
             'amount': self.amount,
-            'description': self.description
+            'description': self.description,
+            'email': self.email
         }
 
     @property
@@ -282,13 +284,14 @@ class Charge:
     def groups(self):
         return [m for m in self.models if isinstance(m, sa.Group)]
 
-    def charge_cc(self, token):
+    def charge_cc(self, session, token):
         try:
             self.response = stripe.Charge.create(
                 card=token,
                 currency='usd',
                 amount=self.amount,
-                description=self.description
+                description=self.description,
+                receipt_email=self.email
             )
         except stripe.CardError as e:
             return 'Your card was declined with the following error from our processor: ' + str(e)
@@ -296,6 +299,19 @@ class Charge:
             error_txt = 'Got an error while calling charge_cc(self, token={!r})'.format(token)
             report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
             return 'An unexpected problem occured while processing your card: ' + str(e)
+        else:
+            session.add(self.stripe_transaction_from_charge())
+
+    def stripe_transaction_from_charge(self, type=c.PAYMENT):
+        return sa.StripeTransaction(
+            stripe_id=self.response.id or None,
+            amount=self.amount,
+            desc=self.description,
+            type=type,
+            who=sa.AdminAccount.admin_name() or 'non-admin',
+            fk_id=self.models[0].id,
+            fk_model=self.models[0].__class__.__name__
+        )
 
 
 def report_critical_exception(msg, subject="Critical Error"):

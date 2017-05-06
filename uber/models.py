@@ -204,6 +204,15 @@ class MagModel:
         """
         return max(0, sum([getattr(self, name) for name in self.cost_property_names], 0))
 
+    @property
+    def stripe_transactions(self):
+        """
+
+        Returns: All logged Stripe transactions with this model's ID.
+
+        """
+        return self.session.query(StripeTransaction).filter_by(fk_id=self.id).all()
+
     @class_property
     def unrestricted(cls):
         """
@@ -1939,6 +1948,17 @@ class ArbitraryCharge(MagModel):
     reg_station = Column(Integer, nullable=True)
 
     _repr_attr_names = ['what']
+
+
+class StripeTransaction(MagModel):
+    stripe_id = Column(UnicodeText, nullable=True)
+    type = Column(Choice(c.TRANSACTION_TYPE_OPTS), default=c.PAYMENT)
+    amount = Column(Integer)
+    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    who = Column(UnicodeText)
+    desc = Column(UnicodeText)
+    fk_id = Column(UUID)
+    fk_model = Column(UnicodeText)
 
 
 class ApprovedEmail(MagModel):
