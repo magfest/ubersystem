@@ -108,6 +108,7 @@ class TestPriceLimits:
 
     # todo: Test badges that are paid by group
 
+
 class TestBadgeOpts:
     def test_prereg_badge_opts_with_group(self, monkeypatch):
         monkeypatch.setattr(c, 'GROUP_PREREG_TAKEDOWN', localized_now() + timedelta(days=1))
@@ -129,9 +130,6 @@ class TestBadgeOpts:
 
     def test_at_door_badge_opts_presold_one_days(self, monkeypatch):
         monkeypatch.setattr(c, 'PRESELL_ONE_DAYS', True)
-        monkeypatch.setattr(c, 'FRIDAY_STOCK', None)
-        monkeypatch.setattr(c, 'SATURDAY_STOCK', None)
-        monkeypatch.setattr(c, 'SUNDAY_STOCK', None)
         assert dict(c.AT_THE_DOOR_BADGE_OPTS).keys() == {c.ATTENDEE_BADGE, c.FRIDAY, c.SATURDAY, c.SUNDAY}
 
     def test_at_door_badge_opts_with_extra(self, monkeypatch):
