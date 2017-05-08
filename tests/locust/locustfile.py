@@ -14,17 +14,20 @@ class AttendeeBehavior(TaskSet):
     max_wait = 10000
 
     def on_start(self):
+        self.verify = not(
+            '//localhost' in self.client.base_url or
+            '//127.0.0.1' in self.client.base_url)
         self.get_preregistration()
 
     @task(4)
     def get_preregistration(self):
-        self.client.get('/uber/preregistration/form', verify=False)
+        self.client.get('/uber/preregistration/form', verify=self.verify)
 
     @task(1)
     def post_preregistration(self):
         response = self.client.post(
             '/uber/preregistration/form',
-            verify=False,
+            verify=self.verify,
             data={
                 'badge_type': '51352218',
                 'name': '',
