@@ -155,7 +155,7 @@ class Root:
                         send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Application Received',
                                    render('emails/dealers/reg_notification.txt', {'group': group}), model=group)
                         send_email(c.MARKETPLACE_EMAIL, attendee.email, 'Dealer Application Received',
-                                   render('emails/dealers/application.html', {'group': group}), model=group)
+                                   render('emails/dealers/application.html', {'group': group}), 'html', model=group)
                     except:
                         log.error('unable to send marketplace application confirmation email', exc_info=True)
                     raise HTTPRedirect('dealer_confirmation?id={}', group.id)
@@ -287,7 +287,7 @@ class Root:
                     session.commit()
                     if group.is_dealer:
                         send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Application Changed',
-                                   render('emails/dealers/appchange_notification.html', {'group': group}), model=group)
+                                   render('emails/dealers/appchange_notification.html', {'group': group}), 'html', model=group)
                     message = 'Thank you! Your application has been updated.'
 
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
