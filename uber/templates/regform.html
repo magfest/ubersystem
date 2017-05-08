@@ -98,13 +98,15 @@
             $.field('no_cellphone').on('click', noCellphoneClicked);
         }
 
-        if ($.field('address')) {
-            $('#group-explanation').insertAfter($.field('address').parents('.form-group'));
-        } else if ($.field('badges')) {
-            $('#group-explanation').insertAfter($.field('badges').parents('.form-group'));
-        } else {
-            $('#group-explanation').remove();
-        }
+        {% if attendee.is_dealer %}
+            $('#group-explanation').insertBefore($.field('first_name').parents('.form-group'));
+        {% else %}
+            if ($.field('badges')) {
+                $('#group-explanation').insertAfter($.field('badges').parents('.form-group'));
+            } else {
+                $('#group-explanation').remove();
+            }
+        {% endif %}
     });
 
     var sameLegalNameChecked = function () {
