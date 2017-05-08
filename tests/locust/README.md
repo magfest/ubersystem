@@ -1,4 +1,4 @@
-Load tests using [locust.io](http://locust.io).
+Load testing using [locust.io](http://locust.io).
 
 # Quick Start
 
