@@ -98,7 +98,7 @@
             $.field('no_cellphone').on('click', noCellphoneClicked);
         }
 
-        {% if attendee.is_dealer %}
+        {% if attendee.badge_type == c.PSEUDO_DEALER_BADGE %}
             $('#group-explanation').insertBefore($.field('first_name').parents('.form-group'));
         {% else %}
             if ($.field('badges')) {
