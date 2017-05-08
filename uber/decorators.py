@@ -1,3 +1,4 @@
+from sideboard.lib import profile
 from uber.common import *
 
 
@@ -380,7 +381,7 @@ def set_renderable(func, access):
     Return a function that is flagged correctly and is ready to be called by cherrypy as a request
     """
     func.restricted = getattr(func, 'restricted', access)
-    new_func = timed(cached_page(sessionized(restricted(renderable(func)))))
+    new_func = profile(timed(cached_page(sessionized(restricted(renderable(func))))))
     new_func.exposed = True
     return new_func
 
