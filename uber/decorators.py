@@ -1,3 +1,4 @@
+from sideboard.lib import profile
 from uber.common import *
 
 
@@ -343,19 +344,6 @@ def renderable(func):
     return with_rendering
 
 
-def renderable(func):
-    @wraps(func)
-    def with_rendering(*args, **kwargs):
-        result = func(*args, **kwargs)
-        if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
-            return render('closed.html')
-        elif isinstance(result, dict):
-            return render(_get_template_filename(func), result)
-        else:
-            return result
-    return with_rendering
-
-
 def unrestricted(func):
     func.restricted = False
     return func
@@ -393,7 +381,7 @@ def set_renderable(func, access):
     Return a function that is flagged correctly and is ready to be called by cherrypy as a request
     """
     func.restricted = getattr(func, 'restricted', access)
-    new_func = timed(cached_page(sessionized(restricted(renderable(func)))))
+    new_func = profile(timed(cached_page(sessionized(restricted(renderable(func))))))
     new_func.exposed = True
     return new_func
 
