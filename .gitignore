@@ -9,6 +9,7 @@ development.conf
 production.conf
 event.conf
 development.ini
+test.ini
 #Project
 workspace.xml
 tasks.xml
@@ -18,3 +19,7 @@ up.bat
 add_table_extras.sql
 bower_components/
 node_modules/
+.tox
+.cache
+.eggs/
+.coverage

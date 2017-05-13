@@ -32,7 +32,7 @@
         });
     };
     $(toggleAllMarkButtons);
-    
+
     var recordFee = function() {
         $.post('record_sale', {
                 id:             'None',
@@ -143,7 +143,7 @@
 {% for attendee in recent %}
     <tr>
         {% block tablerows %}
-        <td>{{ attendee.registered|datetime("%b %-d %-H:%M (%-I:%M%p)") }}</td>
+        <td>{{ attendee.registered|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
         <td align="left">
             <a href="form?return_to=new%3f&id={{ attendee.id }}">{{ attendee.full_name }}</a>
             {% if attendee.banned %}
@@ -153,7 +153,7 @@
         <td>{{ attendee.badge_type_label }}</td>
         <td>
             {% if c.COLLECT_EXACT_BIRTHDATE %}
-                {{ attendee.birthdate|date("%m / %d / %Y") }}
+                {{ attendee.birthdate|datetime("%m / %d / %Y") }}
             {% else %}
                 {{ attendee.age_group_conf.desc }}
             {% endif %}

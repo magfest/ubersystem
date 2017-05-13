@@ -31,8 +31,23 @@
             });
         })
     });
+    {% if group.status == c.APPROVED %}
+        $(function() {
+            $("form[action='group_members'] :input").attr("disabled", true).prop('title','You cannot edit your information after you have been approved.')
+        });
+    {% endif %}
 </script>
 <div class="masthead">
+</div>
+<div class="panel panel-default">
+{% if group.is_dealer %}
+    <h2>"{{ group.name }}" Information</h2>
+    <form method="post" action="group_members" class="form-horizontal" role="form">
+        <input type="hidden" name="id" value="{{ group.id }}" />
+        {% include "groupform.html" %}
+        <button type="submit" class="btn btn-primary" value="Update Application">Update Application</button>
+    </form>
+{% endif%}
 </div>
 <div class="panel panel-default">
 <h2> Members of "{{ group.name }}" </h2>
@@ -48,7 +63,7 @@
 <div style="margin:15px">
     {% if group.unregistered_badges and group.tables %}
         Some of your Dealer Assistant badges are not yet assigned to a specific person. Please assign these badges
-        between now (using the links below) and the close of preregistation; any badges unclaimed at that time will be
+        between now (using the links below) and the close of preregistration; any badges unclaimed at that time will be
         invalid. You may also distribute each of the registration links below to the individual members of your group,
         which will allow them to fill in their own information as well as purchase any upgrades on their own.
         <br/> <br/>
@@ -125,17 +140,15 @@
     <script type="text/javascript">
         {% if group.amount_unpaid %}
             $(function(){
-                $(".panel").append(
-                    $('<button disabled title="Group must be paid for before new members can be added." style="cursor:pointer; background-color:#7F7F7F; border-style:none;">Click here to add more {{ group.is_dealer|yesno("Dealer Assistants,group members") }}.</button>')
-                );
+                $('<button disabled title="Group must be paid for before new members can be added." style="cursor:pointer; background-color:#7F7F7F; border-style:none;">Click here to add more {{ group.is_dealer|yesno("Dealer Assistants,group members") }}.</button>')
+                    .insertAfter($("#add"));
             });
         {% else %}
             $(function(){
-                $(".panel").append(
-                    $('<button style="cursor:pointer">Click here to add more {{ group.is_dealer|yesno("Dealer Assistants,group members") }}.</button>').click(function(e){
+                $('<button style="cursor:pointer">Click here to add more {{ group.is_dealer|yesno("Dealer Assistants,group members") }}.</button>').click(function(e){
                         $(e.target).hide();
                         $("#add").show();
-                    }));
+                    }).insertAfter($("#add"));
             });
         {% endif %}
     </script>

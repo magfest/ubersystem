@@ -62,13 +62,22 @@ def dealer_address(group):
 
 
 @validation.Group
-def group_paid(group):
+def group_money(group):
     try:
-        amount = int(float(group.amount_paid))
-        if amount < 0:
+        amount_paid = int(float(group.amount_paid))
+        if amount_paid < 0:
             return 'Amount Paid must be a number that is 0 or higher.'
     except:
         return "What you entered for Amount Paid ({}) isn't even a number".format(group.amount_paid)
+
+    try:
+        amount_refunded = int(float(group.amount_refunded))
+        if amount_refunded < 0:
+            return 'Amount Refunded must be positive'
+        elif amount_refunded > amount_paid:
+            return 'Amount Refunded cannot be greater than Amount Paid'
+    except:
+        return "What you entered for Amount Refunded ({}) wasn't even a number".format(group.amount_refunded)
 
 
 def _invalid_phone_number(s):
@@ -88,12 +97,6 @@ def ignore_unassigned_and_placeholders(func):
         if not unassigned_group_reg and not valid_placeholder:
             return func(attendee)
     return with_skipping
-
-
-@prereg_validation.Attendee
-def dealer_cellphone(attendee):
-    if attendee.badge_type == c.PSEUDO_DEALER_BADGE and not attendee.cellphone:
-        return 'Your phone number is required'
 
 
 @prereg_validation.Attendee
@@ -118,6 +121,12 @@ def full_name(attendee):
 
 
 @validation.Attendee
+def allowed_to_volunteer(attendee):
+    if attendee.staffing and not attendee.age_group_conf['can_volunteer'] and attendee.badge_type != c.STAFF_BADGE and c.PRE_CON:
+        return 'Your interest is appreciated, but ' + c.EVENT_NAME + ' volunteers must be 18 or older.'
+
+
+@validation.Attendee
 @ignore_unassigned_and_placeholders
 def age(attendee):
     if c.COLLECT_EXACT_BIRTHDATE:
@@ -130,17 +139,9 @@ def age(attendee):
 
 
 @validation.Attendee
-@ignore_unassigned_and_placeholders
-def address(attendee):
-    if c.COLLECT_FULL_ADDRESS:
-        if not attendee.address1:
-            return 'Please enter a street address.'
-        if not attendee.city:
-            return 'Please enter a city.'
-        if not attendee.region:
-            return 'Please enter a state, province, or region.'
-        if not attendee.country:
-            return 'Please enter a country.'
+def allowed_to_register(attendee):
+    if not attendee.age_group_conf['can_register']:
+        return 'Attendees ' + attendee.age_group_conf['desc'] + ' years of age do not need to register, but MUST be accompanied by a parent at all times!'
 
 
 @validation.Attendee
@@ -159,34 +160,16 @@ def email(attendee):
 
 @validation.Attendee
 @ignore_unassigned_and_placeholders
-def emergency_contact(attendee):
-    if not attendee.ec_name:
-        return 'Please tell us the name of your emergency contact.'
-    if not attendee.international and _invalid_phone_number(attendee.ec_phone):
-        if c.COLLECT_FULL_ADDRESS:
-            return 'Enter a 10-digit US phone number or include a country code (e.g. +44).'
-        else:
-            return 'Enter a 10-digit emergency contact number'
-
-
-@validation.Attendee
-@ignore_unassigned_and_placeholders
-def cellphone(attendee):
-    if attendee.cellphone and _invalid_phone_number(attendee.cellphone):
-        if c.COLLECT_FULL_ADDRESS:
-            return 'Enter a 10-digit US phone number or include a country code (e.g. +44).'
-        else:
-            return 'Your cellphone number was not a valid 10-digit phone number'
-
-    if not attendee.no_cellphone and attendee.staffing and not attendee.cellphone:
-        return "Cellphone number is required for volunteers (unless you don't own a cellphone)"
-
-
-@validation.Attendee
-@ignore_unassigned_and_placeholders
-def emergency_contact_not_cellphone(attendee):
-    if not attendee.international and attendee.cellphone and attendee.cellphone == attendee.ec_phone:
-        return "Your cellphone number cannot be the same as your emergency contact number"
+def address(attendee):
+    if c.COLLECT_FULL_ADDRESS:
+        if not attendee.address1:
+            return 'Please enter a street address.'
+        if not attendee.city:
+            return 'Please enter a city.'
+        if not attendee.region and attendee.country in ['United States', 'Canada']:
+            return 'Please enter a state, province, or region.'
+        if not attendee.country:
+            return 'Please enter a country.'
 
 
 @validation.Attendee
@@ -198,21 +181,68 @@ def zip_code(attendee):
 
 
 @validation.Attendee
+@ignore_unassigned_and_placeholders
+def emergency_contact(attendee):
+    if not attendee.ec_name:
+        return 'Please tell us the name of your emergency contact.'
+    if not attendee.international and _invalid_phone_number(attendee.ec_phone):
+        if c.COLLECT_FULL_ADDRESS:
+            return 'Enter a 10-digit US phone number or include a country code (e.g. +44) for your emergency contact number.'
+        else:
+            return 'Enter a 10-digit emergency contact number.'
+
+
+@validation.Attendee
+@ignore_unassigned_and_placeholders
+def cellphone(attendee):
+    if attendee.cellphone and _invalid_phone_number(attendee.cellphone):
+        if c.COLLECT_FULL_ADDRESS:
+            return 'Enter a 10-digit US phone number or include a country code (e.g. +44) for your phone number.'
+        else:
+            return 'Your phone number was not a valid 10-digit phone number'
+
+    if not attendee.no_cellphone and attendee.staffing and not attendee.cellphone:
+        return "Phone number is required for volunteers (unless you don't own a cellphone)"
+
+
+@prereg_validation.Attendee
+def dealer_cellphone(attendee):
+    if attendee.badge_type == c.PSEUDO_DEALER_BADGE and not attendee.cellphone:
+        return 'Your phone number is required'
+
+
+@validation.Attendee
+@ignore_unassigned_and_placeholders
+def emergency_contact_not_cellphone(attendee):
+    if not attendee.international and attendee.cellphone and attendee.cellphone == attendee.ec_phone:
+        return "Your phone number cannot be the same as your emergency contact number"
+
+
+@validation.Attendee
 def printed_badge_deadline(attendee):
     if attendee.is_new and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
         return 'Custom badges have already been ordered so you cannot create new {} badges'.format(attendee.badge_type_label)
 
 
 @validation.Attendee
-def allowed_to_volunteer(attendee):
-    if attendee.staffing and not attendee.age_group_conf['can_volunteer'] and attendee.badge_type != c.STAFF_BADGE and c.PRE_CON:
-        return 'Your interest is appreciated, but ' + c.EVENT_NAME + ' volunteers must be 18 or older.'
+def printed_badge_change(attendee):
+    badge_name_changes_allowed = True
 
+    # this is getting kinda messy and we probably need to rework the entire concept of "printed badge deadline".
+    # right now we want to:
+    # 1) allow supporters to change their badge names until c.SUPPORTER_DEADLINE
+    # 2) allow staff to change their badge names until c.PRINTED_BADGE_DEADLINE
+    #
+    # this implies that we actually have two different printed badge deadlines: 1 for staff, 1 for supporters.
+    # we might just want to make that explicit.
+    if attendee.badge_type == c.STAFF_BADGE and c.AFTER_PRINTED_BADGE_DEADLINE:
+        badge_name_changes_allowed = False
+    elif attendee.amount_extra >= c.SUPPORTER_LEVEL and c.AFTER_SUPPORTER_DEADLINE:
+        badge_name_changes_allowed = False
 
-@validation.Attendee
-def allowed_to_register(attendee):
-    if not attendee.age_group_conf['can_register']:
-        return 'Attendees ' + attendee.age_group_conf['desc'] + ' years of age do not need to register, but MUST be accompanied by a parent at all times!'
+    if not badge_name_changes_allowed:
+        if attendee.badge_printed_name != attendee.orig_value_of('badge_printed_name'):
+            return 'Custom badges have already been ordered, so you cannot change the printed name of this Attendee'
 
 
 @validation.Attendee
@@ -276,7 +306,8 @@ def dealer_needs_group(attendee):
 @validation.Attendee
 def dupe_badge_num(attendee):
     if (attendee.badge_num != attendee.orig_value_of('badge_num') or attendee.is_new)\
-            and c.NUMBERED_BADGES and attendee.badge_num and not c.SHIFT_CUSTOM_BADGES:
+            and c.NUMBERED_BADGES and attendee.badge_num and\
+            (not c.SHIFT_CUSTOM_BADGES or c.AFTER_PRINTED_BADGE_DEADLINE or c.AT_THE_CON):
         with Session() as session:
             existing = session.query(Attendee)\
                 .filter_by(badge_type=attendee.badge_type, badge_num=attendee.badge_num)
@@ -291,10 +322,6 @@ def invalid_badge_num(attendee):
             badge_num = int(attendee.badge_num)
         except:
             return '{!r} is not a valid badge number'.format(attendee.badge_num)
-        else:
-            min_num, max_num = c.BADGE_RANGES[attendee.badge_type]
-            if not (min_num <= badge_num <= max_num):
-                return '{} badge numbers must fall within {} and {}'.format(attendee.badge_type_label, min_num, max_num)
 
 
 @validation.Attendee

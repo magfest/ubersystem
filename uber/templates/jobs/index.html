@@ -40,56 +40,37 @@
     {% endif %}
 {% endif %}
 </div>
+
 <div class="row text-center">
-	<div class="col-md-4">
-	    <h3>Setup Shifts ({{ setup|length }})</h3>
-	</div>
-        <div class="col-md-4">
-            <h3>Teardown Shifts ({{teardown|length}})</h3>
-        </div>
-	<div class="col-md-4">
-	    <h3>Regular Shifts ({{normal|length}})</h3>
-	</div>
-
+    <div class="col-md-4">
+        <h3>Setup Shifts ({{ setup|length }})</h3>
+    </div>
+    <div class="col-md-4">
+        <h3>Teardown Shifts ({{teardown|length}})</h3>
+    </div>
+    <div class="col-md-4">
+        <h3>Regular Shifts ({{normal|length}})</h3>
+    </div>
 </div>
+
 <div class="row text-center button_row">
-
-        <div class="col-md-4">
-	    <a class="btn btn-primary setup_button" href="form?id=None&location={{ location }}&type={{ c.SETUP }}">Add Setup Shift</a>
-
-        </div>
-        <div class="col-md-4">
-            <a class="btn btn-primary teardown_button" href="form?id=None&location={{ location }}&type={{ c.TEARDOWN }}">Add Teardown Shift</a>
-
-        </div>
-        <div class="col-md-4">
-            <a class="btn btn-primary" href="form?id=None&location={{ location }}&type={{ c.REGULAR }}">Add Shift</a>
-
-        </div>
-
+    <div class="col-md-4">
+        <a class="btn btn-primary setup_button" href="form?id=None&location={{ location }}&type={{ c.SETUP }}">Add Setup Shift</a>
+    </div>
+    <div class="col-md-4">
+        <a class="btn btn-primary teardown_button" href="form?id=None&location={{ location }}&type={{ c.TEARDOWN }}">Add Teardown Shift</a>
+    </div>
+    <div class="col-md-4">
+        <a class="btn btn-primary" href="form?id=None&location={{ location }}&type={{ c.REGULAR }}">Add Shift</a>
+    </div>
 </div>
-{% comment %}
-<div class="row">
-        <div class="col-md-12">
-    {% for job in teardown %}
-        <li>
-            [<b>{{ job.start_time|datetime("%I %p %a") }}</b> for an expected ~{{ job.duration }} hours]
-            <a href="form?id={{ job.id }}">{{ job.name }}</a>:
-            {{ job.shifts|length }}/{{ job.slots }} Staffers <a href="staffers_by_job?id={{ job.id }}">Signed Up</a>
-        </li>
-    {% endfor %}
-
-        </div>
-</div>
-{% endcomment %}
-
 
 
 <!-- Starting with calendar implementation -->
 <div class="row">
-	<div class="col-md-12">
-		<div id="shift_cal"></div>
-	</div>
+    <div class="col-md-12">
+        <div id="shift_cal"></div>
+    </div>
 </div>
 <div class="row" style="margin-bottom:50px;"></div>
 
@@ -98,73 +79,64 @@
 {% endblock %}
 {% block page_scripts %}
 <script type="text/javascript" src="../static/js/moment.js"></script>
-
-
 <script type="text/javascript" src="../static/js/fullcalendar.min.js"></script>
 <script type="text/javascript">
 
+$(document).ready(function() {
+    var eventList = new Array();
+    {% for job in jobs %}
+        eventList.push({
+            title: "{{ job.name }} ({{ job.shifts | length }}/{{ job.slots }})",
+            start: "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
+            end: "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
+            url: "form?id={{ job.id }}",
+            {% if job.type == c.SETUP or job.type == c.TEARDOWN %}
+                backgroundColor: '#239875'
+            {% else %}
+                backgroundColor:'#305fc9'
+            {% endif %}
+        });
+    {% endfor %}
 
-	$(document).ready(function() {
+    $('#shift_cal').fullCalendar({
+        header: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'agendaWeek,agendaDay,listWeek'
+        },
+        buttonText : {
+            today : 'Today',
+            agendaWeek : 'Week',
+            agendaDay : 'Day',
+            listWeek : 'Week'
+        },
+        slotDuration: '00:15:00',
+        allDaySlot: false,
+        eventLimit: true, // allow "more" link when too many events
+        slotEventOverlap: false,
+        defaultView: 'agendaDay',
+        editable: false,
+        slotEventOverlap:false,
+        eventLimit: true, // allow "more" link when too many events
+        events: eventList,
+        dayClick: function(date) {
+            window.location.href = "form?id=None&location={{ location }}&start_time=" + date.format("YYYY-MM-DD HH:mm:ss");
+        }
+    });
 
-		var eventList =  new Array();
-		    {% for job in jobs %}
-                    eventList.push({
-                                        title : "{{job.name}} ({{job.shifts | length }}/{{job.slots}})",
-                                        start : "{{ job.start_time|datetime:"%Y-%m-%dT%H:%M:%S" }}",
-                                        // duration {{job.duration}}
-                                        end: "{{job.start_time|shift_end:job.duration}}",
-                                        url : "form?id={{ job.id }}",
-                                        {% if job.type == c.SETUP or job.type == c.TEARDOWN %}
-                                        backgroundColor: '#239875'
-                                        {% else %}
-                                        backgroundColor:'#305fc9'
-                                        {% endif %}
-                                });
-    		    {% endfor %}
-
-		$('#shift_cal').fullCalendar({
-			header: {
-				left: 'prev,next today',
-				center: 'title',
-				right: 'agendaWeek,agendaDay,listWeek'
-			},
-			buttonText : {
-				today : 'Today',
-				agendaWeek : 'Week',
-				agendaDay : 'Day',
-				listWeek : 'Week'
-			},
-                        slotDuration: '00:15:00',
-                        allDaySlot: false,
-                        eventLimit: true, // allow "more" link when too many events
-                        slotEventOverlap: false,
-
-			defaultView: 'agendaDay',
-			editable: false,
-			slotEventOverlap:false,
-			eventLimit: true, // allow "more" link when too many events
-			events: eventList,
-            		dayClick: function(date) {
-			    window.location.href = "form?id=None&location={{ location }}&start_time=" + date.format("YYYY-MM-DD HH:mm:ss");
-            		}
-		});
-                var curDate = $.urlParam('time');
-                if(curDate != null) {
-                        $("#shift_cal").fullCalendar( 'gotoDate',curDate);
-
-                } else {
-                        $("#shift_cal").fullCalendar('gotoDate', eventList[0].start);
-                }
-
-
-	});
+    var curDate = $.urlParam('time');
+    if(curDate != null) {
+        $("#shift_cal").fullCalendar( 'gotoDate',curDate);
+    } else {
+        $("#shift_cal").fullCalendar('gotoDate', eventList[0].start);
+    }
+});
 
 $.urlParam = function(name){
    var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
-   if (results==null){
+   if (results==null) {
       return null;
-   }
-   else{
+   } else {
       return results[1] || 0;
    }
 }

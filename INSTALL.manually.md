@@ -13,7 +13,6 @@ Let's start by getting all of the Python dependencies installed.  We'll clone th
 $ git clone https://github.com/magfest/ubersystem  # or your fork
 $ cd magfest
 $ python3.3 -m venv env
-$ ./env/bin/python distribute_setup.py
 $ ./env/bin/python setup.py develop
 ```
 

@@ -36,6 +36,7 @@ from collections import defaultdict, OrderedDict
 from urllib.parse import quote, urlparse, parse_qsl, quote_plus, urljoin
 from datetime import date, time, datetime, timedelta
 from threading import Thread, RLock, local, current_thread
+from types import FunctionType
 from os.path import abspath, basename, dirname, exists, join
 
 import pytz
@@ -43,6 +44,7 @@ import bcrypt
 import stripe
 import jinja2
 import cherrypy
+from markupsafe import text_type, Markup
 from pytz import UTC
 
 import sqlalchemy
@@ -55,9 +57,10 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.sql.expression import FunctionElement
 from sqlalchemy.orm.attributes import get_history, instance_state
-from sqlalchemy.schema import Column, ForeignKey, UniqueConstraint
+from sqlalchemy.schema import Column, ForeignKey, MetaData, UniqueConstraint
 from sqlalchemy.orm import Query, relationship, joinedload, subqueryload, backref
 from sqlalchemy.types import Boolean, Integer, Float, TypeDecorator, Date, Numeric
+from sqlalchemy.util import immutabledict
 
 from sideboard.lib import log, parse_config, entry_point, listify, DaemonTask, serializer, cached_property, request_cached_property, stopped, on_startup, services, threadlocal
 from sideboard.lib.sa import declarative_base, SessionManager, UTCDateTime, UUID, CoerceUTF8 as UnicodeText
@@ -73,6 +76,7 @@ from uber.decorators import *
 from uber.models import *
 from uber.automated_emails import *
 from uber.badge_funcs import *
+from uber.menu import *
 from uber import model_checks
 from uber import custom_tags
 from uber import server

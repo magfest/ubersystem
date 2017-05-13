@@ -8,7 +8,7 @@
 <form method="post" action="volunteer" style="text-align:center">
 {{ csrf_token() }}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
-{{ attendee.html_checkgroup('requested_depts') }}
+{{ macros.checkgroup(attendee, 'requested_depts') }}
 <br/><br/> <input type="submit" value="Volunteer for These Departments" />
 </form>
 

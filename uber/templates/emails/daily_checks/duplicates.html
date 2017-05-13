@@ -17,7 +17,7 @@
                             has not paid)
                         {% endif %}
                     {% endif %}
-                    {{ attendee.registered|datetime("%Y-%m-%d") }}
+                    {{ attendee.registered|datetime_local("%Y-%m-%d") }}
                 </li>
             {% endfor %}
         </ul>

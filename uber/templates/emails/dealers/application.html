@@ -2,11 +2,20 @@
 <head></head>
 <body>
 
-Your group ({{ attendee.group.name}}) has successfully submitted a Dealer application for {{ c.EVENT_NAME }}
-this coming {{ event_dates() }}.  Your application includes the following:
+Your group ({{ group.name }}) has successfully submitted a Dealer application for {{ c.EVENT_NAME }}
+this coming {{ event_dates() }}. Below is a copy of your application. You may
+<a href="{{ c.URL_BASE }}/preregistration/group_members?id={{ group.id }}">update it here</a> or
+<a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ group.leader.id }}">view your badge here</a>.
 <ul>
-    <li> {{ attendee.group.tables }} table{{ attendee.group.tables|pluralize }} (${{ attendee.group.table_cost|round(2) }}) </li>
-    <li> {{ attendee.group.badges }} badge{{ attendee.group.badges|pluralize }} (${{ attendee.group.badge_cost|round(2) }}) </li>
+    <li><strong>Dealer Table Name</strong>: {{ group.name }}</li>
+    <li><strong>Tables</strong>: {{ group.tables }} table{{ group.tables|pluralize }} (${{ group.table_cost|round(2) }}) </li>
+    <li><strong>Badges</strong>: {{ group.badges }} badge{{ group.badges|pluralize }} (${{ group.badge_cost|round(2) }}) </li>
+    <li><strong>Total Price</strong> ${{ group.cost }}</li>
+    <li><strong>What do you sell?</strong> {{ group.wares }}</li>
+    <li><strong>Description</strong>: {{ group.description }}</li>
+    {% if group.special_needs %}<li><strong>Table Requests and Special Requests</strong>: {{ group.special_needs }}</li>{% endif %}
+    <li><strong>Website URL</strong>: {{ group.website }}</li>
+    {% if group.address %}<li><strong>Address and Phone Number</strong>: {{ group.address }}</li>{% endif %}
 </ul>
 
 {% if c.AFTER_DEALER_REG_DEADLINE %}
@@ -14,8 +23,6 @@ this coming {{ event_dates() }}.  Your application includes the following:
 {% else %}
     We will review your request and provide you with a payment link once your application has been approved.
 {% endif %}
-
-{% include "emails/reg_workflow/reg_notes.html" %}
 
 <br/> <br/> <u>Dealer Rules and Information</u>
 {% include "static_views/dealerRules.html" %}

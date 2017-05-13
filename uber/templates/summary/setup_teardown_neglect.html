@@ -14,7 +14,7 @@
             <td>{{ job.location_label }}</td>
             <td>{{ job.slots_taken }} / {{ job.slots }} slots filled</td>
         </tr>
-    {% empty %}
+    {% else %}
         <i>none</i>
     {% endfor %}
     </table>
