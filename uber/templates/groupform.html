@@ -20,13 +20,13 @@
                 <div class="col-sm-6">
                     <select name="badges" class="form-control">{{ int_options(c.MIN_GROUP_SIZE, c.MAX_GROUP_SIZE, badges) }}</select>
                 </div>
-            (${{ c.GROUP_PRICE }} each)
-                <p class="help-block col-sm-6 col-sm-offset-2">
+                (${{ c.GROUP_PRICE }} each)
                 {% if c.MIN_GROUP_ADDITION > 1 %}
+                <p class="help-block col-sm-6 col-sm-offset-2">
                     You may add badges to your group later, but you must add at least {{ c.MIN_GROUP_ADDITION }}
                     badges at a time.
-                {% endif %}
                 </p>
+                {% endif %}
             </div>
         </div>
     {% endif %}
