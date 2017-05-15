@@ -30,6 +30,28 @@
 {% endfor %}
 </table>
 
+    {% if group.stripe_transactions %}
+    <h2>Payment History for {{ group.name }}</h2>
+    <table class="list" border="1" borderspacing="0">
+    <tr class="header">
+        <td>Payment ID</td>
+        <td>Amount</td>
+        <td>When</td>
+        <td>Who</td>
+        <td>Description</td>
+    </tr>
+    {% for transaction in group.stripe_transactions %}
+        <tr>
+        <td valign="top" style="white-space:nowrap">{{ transaction.stripe_id }}</td>
+        <td valign="top" style="white-space:nowrap">${{ '%0.2f' % (transaction.amount / 100) }} {{ transaction.type_label }}</td>
+        <td valign="top" style="white-space:nowrap">{{ transaction.when|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
+        <td valign="top" style="white-space:nowrap">{{ transaction.who }}</td>
+        <td valign="top" style="white-space:nowrap">{{ transaction.desc }}</td>
+        </tr>
+    {% endfor %}
+    </table>
+    {% endif %}
+
     <h2>Page View History for {{ group.name }} </h2>
 
 <table class="list" border="1" borderspacing="0">
