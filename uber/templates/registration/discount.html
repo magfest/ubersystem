@@ -5,7 +5,7 @@
 <h2> Create a Discounted Badge </h2>
 
 <form method="post" action="discount">
-{% csrf_token %}
+{{ csrf_token() }}
 <table class="form">
 <tr>
     <td> <b>First and Last Name:</b> </td>

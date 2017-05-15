@@ -47,6 +47,7 @@ class Root:
         count = 0
         examples = []
         email = AutomatedEmail.instances[ident]
+        example = render_empty('emails/' + email.template)
         for x in AutomatedEmail.queries[email.model](session):
             if email.filters_run(x):
                 count += 1
@@ -55,10 +56,11 @@ class Root:
                     Attendee: '../registration/form?id={}'
                 }.get(x.__class__, '').format(x.id)
                 if len(examples) < 10:
-                    examples.append([url, email.render(x)])
+                    examples.append([url, email.render(x).decode('utf-8')])
 
         return {
             'count': count,
+            'example': example,
             'examples': examples,
             'subject': email.subject,
         }

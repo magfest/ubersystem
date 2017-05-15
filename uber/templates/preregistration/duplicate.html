@@ -3,54 +3,56 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-    <div class="panel panel-default">
-<h2> You are already registered </h2>
+<div class="masthead"></div>
+<div class="panel panel-default">
+    <h2> You are already registered </h2>
 
-We already have a {{ attendee.full_name }} with email address {{ attendee.email }} in our database with a
-{% if attendee.paid == c.PAID_BY_GROUP and attendee.group.status == c.WAITLISTED %}
-    waitlisted
-{% elif attendee.paid == c.HAS_PAID or attendee.paid == c.PAID_BY_GROUP %}
-    paid
-{% elif attendee.paid == c.NEED_NOT_PAY %}
-    complementary
-{% elif attendee.paid == c.NOT_PAID %}
-    unpaid
-{% else %}
-    {{ attendee.paid_label }}
-{% endif %}
-{{ attendee.badge_type_label }}
-{% if attendee.ribbon != c.NO_RIBBON %}
-    ({{ attendee.ribbon_label }})
-{% endif %}
-badge{% if attendee.group %}
-    (with the group <a href="group_members?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>)
-{% endif %}.
+    We already have a {{ attendee.full_name }} with email address {{ attendee.email }} in our database with a
+    {% if attendee.paid == c.PAID_BY_GROUP and attendee.group.status == c.WAITLISTED %}
+        waitlisted
+    {% elif attendee.paid == c.HAS_PAID or attendee.paid == c.PAID_BY_GROUP %}
+        paid
+    {% elif attendee.paid == c.NEED_NOT_PAY %}
+        complementary
+    {% elif attendee.paid == c.NOT_PAID %}
+        unpaid
+    {% else %}
+        {{ attendee.paid_label }}
+    {% endif %}
+    {{ attendee.badge_type_label }}
+    {% if attendee.ribbon != c.NO_RIBBON %}
+        ({{ attendee.ribbon_label }})
+    {% endif %}
+    badge{% if attendee.group %}
+        (with the group <a href="group_members?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>)
+    {% endif %}.
 
-If you have any questions then please contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a>.
+    If you have any questions then please contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a>.
 
-{% if attendee.badge_type == c.STAFF_BADGE and attendee.registered == c.STAFFERS_IMPORTED %}
+    {% if attendee.badge_type == c.STAFF_BADGE and attendee.registered == c.STAFFERS_IMPORTED %}
+        <br/> <br/>
+        You were registered automatically for a complementary Staff badge as thanks for volunteering
+        last year.  You should have already received an email letting you know about this; if you didn't
+        then please contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a> and let us know.
+    {% endif %}
+
     <br/> <br/>
-    You were registered automatically for a complementary Staff badge as thanks for volunteering
-    last year.  You should have already received an email letting you know about this; if you didn't
-    then please contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a> and let us know.
-{% endif %}
 
-<br/> <br/>
+    If you're absolutely sure that this is someone else, you can continue and pay for this registration.
 
-If you're absolutely sure that this is someone else, you can continue and pay for this registration.
+    <br/> <br/>
 
-<br/> <br/>
-
-<table style="width:auto" align="center"><tr>
-{% if attendee.group and attendee.group.is_dealer and attendee.group.status != c.APPROVED %}
-    <td><a href="index">I'm doing this because my Dealer request isn't approved!</a></td>
-{% else %}
-    <td><a href="index">I'm someone else, let me pay!</a></td>
-{% endif %}
-    <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>
-    <td><a href="delete?id={% if duplicate.group %}{{ duplicate.group.id }}{% else %}{{ duplicate.id }}{% endif %}">Well never mind then!</a></td>
-</tr></table>
-
-    </div>
+    <table style="width:auto" align="center">
+    <tr>
+    {% if attendee.group and attendee.group.is_dealer and attendee.group.status != c.APPROVED %}
+        <td><a href="index">I'm doing this because my Dealer request isn't approved!</a></td>
+    {% else %}
+        <td><a href="index">I'm someone else, let me pay!</a></td>
+    {% endif %}
+        <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>
+        <td><a href="delete?id={% if duplicate.group %}{{ duplicate.group.id }}{% else %}{{ duplicate.id }}{% endif %}&message=Duplicate badge canceled">Well never mind then!</a></td>
+    </tr>
+    </table>
+</div>
 
 {% endblock %}

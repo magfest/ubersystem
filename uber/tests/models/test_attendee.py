@@ -1,3 +1,4 @@
+from uber import config
 from uber.tests import *
 
 
@@ -62,6 +63,7 @@ def test_is_dealer():
     # not all attendees in a dealer group are necessarily dealers
     dealer_group = Group(tables=1)
     assert not Attendee(group=dealer_group).is_dealer
+    assert Attendee(group=dealer_group, paid=c.PAID_BY_GROUP).is_dealer
 
 
 def test_is_dept_head():
@@ -86,6 +88,18 @@ def test_last_first(monkeypatch):
     assert 'y, x' == Attendee(first_name='x', last_name='y').last_first
     monkeypatch.setattr(Attendee, 'unassigned_name', 'xxx')
     assert 'xxx' == Attendee(first_name='x', last_name='y').last_first
+
+
+def test_legal_name_same_as_full_name():
+    same_legal_name = Attendee(first_name='First', last_name='Last', legal_name='First Last')
+    same_legal_name._misc_adjustments()
+    assert '' == same_legal_name.legal_name
+
+
+def test_legal_name_diff_from_full_name():
+    diff_legal_name = Attendee(first_name='first', last_name='last', legal_name='diff name')
+    diff_legal_name._misc_adjustments()
+    assert 'diff name' == diff_legal_name.legal_name
 
 
 def test_badge():
@@ -134,6 +148,43 @@ def test_takes_shifts():
     assert Attendee(staffing=True, assigned_depts=c.CONSOLE).takes_shifts
     assert not Attendee(staffing=True, assigned_depts=c.CON_OPS).takes_shifts
     assert Attendee(staffing=True, assigned_depts=','.join(map(str, [c.CONSOLE, c.CON_OPS]))).takes_shifts
+
+
+class TestAttendeeFoodRestrictionsFilledOut:
+    @pytest.fixture
+    def staff_get_food_true(self, monkeypatch):
+        monkeypatch.setattr(config.Config, 'STAFF_GET_FOOD', property(lambda x: True))
+        assert c.STAFF_GET_FOOD == True
+
+    @pytest.fixture
+    def staff_get_food_false(self, monkeypatch):
+        monkeypatch.setattr(config.Config, 'STAFF_GET_FOOD', property(lambda x: False))
+        assert c.STAFF_GET_FOOD == False
+
+    def test_food_restrictions_filled_out(self, staff_get_food_true):
+        assert Attendee(food_restrictions=FoodRestrictions()).food_restrictions_filled_out
+
+    def test_food_restrictions_not_filled_out(self, staff_get_food_true):
+        assert not Attendee().food_restrictions_filled_out
+
+    def test_food_restrictions_not_needed(self, staff_get_food_false):
+        assert Attendee().food_restrictions_filled_out
+
+    def test_shift_prereqs_complete(self, staff_get_food_true):
+        assert Attendee(placeholder=False, shirt=1, food_restrictions=FoodRestrictions()).shift_prereqs_complete
+
+    def test_shift_prereqs_placeholder(self, staff_get_food_true):
+        assert not Attendee(placeholder=True, shirt=1, food_restrictions=FoodRestrictions()).shift_prereqs_complete
+
+    def test_shift_prereqs_no_shirt(self, staff_get_food_true):
+        assert not Attendee(placeholder=False, shirt=c.NO_SHIRT, food_restrictions=FoodRestrictions()).shift_prereqs_complete
+        assert not Attendee(placeholder=False, shirt=c.SIZE_UNKNOWN, food_restrictions=FoodRestrictions()).shift_prereqs_complete
+
+    def test_shift_prereqs_no_food(self, staff_get_food_true):
+        assert not Attendee(placeholder=False, shirt=1).shift_prereqs_complete
+
+    def test_shift_prereqs_food_not_needed(self, staff_get_food_false):
+        assert Attendee(placeholder=False, shirt=1).shift_prereqs_complete
 
 
 class TestUnsetVolunteer:
@@ -188,10 +239,14 @@ class TestUnsetVolunteer:
         a._misc_adjustments()
         assert a.checked_in
 
+        a = Attendee(badge_num=1, badge_type=c.PREASSIGNED_BADGE_TYPES[0])
+        a._misc_adjustments()
+        assert not a.checked_in
+
         monkeypatch.setattr(Attendee, 'is_new', False)
         a = Attendee(badge_num=1)
         a._misc_adjustments()
-        assert a.checked_in
+        assert not a.checked_in
 
     def test_names(self):
         a = Attendee(first_name='nac', last_name='mac Feegle')
@@ -392,19 +447,19 @@ class TestLookupAttendee:
 
     def test_search_not_found(self):
         with Session() as session:
-            pytest.raises(ValueError, session.lookup_attendee, 'Searchable Attendee', 'searchable@example.com', 'xxxxx')
-            pytest.raises(ValueError, session.lookup_attendee, 'XXX XXX', 'searchable@example.com', '12345')
-            pytest.raises(ValueError, session.lookup_attendee, 'Searchable Attendee', 'xxx', '12345')
+            pytest.raises(ValueError, session.lookup_attendee, 'Searchable', 'Attendee', 'searchable@example.com', 'xxxxx')
+            pytest.raises(ValueError, session.lookup_attendee, 'XXX', 'XXX', 'searchable@example.com', '12345')
+            pytest.raises(ValueError, session.lookup_attendee, 'Searchable', 'Attendee', 'xxx', '12345')
 
     def test_search_basic(self, searchable):
         with Session() as session:
-            assert str(searchable) == session.lookup_attendee('Searchable Attendee', 'searchable@example.com', '12345').id
+            assert str(searchable) == session.lookup_attendee('Searchable', 'Attendee', 'searchable@example.com', '12345').id
 
     def test_search_case_insensitive(self, searchable):
         with Session() as session:
-            assert str(searchable) == session.lookup_attendee('searchablE attendeE', 'seArchAble@exAmple.com', '12345').id
+            assert str(searchable) == session.lookup_attendee('searchablE', 'attendeE', 'seArchAble@exAmple.com', '12345').id
 
     def test_search_multi_word_names(self):
         with Session() as session:
-            assert session.lookup_attendee('Two First Names', 'searchable@example.com', '12345')
-            assert session.lookup_attendee('Two Last Names', 'searchable@example.com', '12345')
+            assert session.lookup_attendee('Two First', 'Names', 'searchable@example.com', '12345')
+            assert session.lookup_attendee('Two', 'Last Names', 'searchable@example.com', '12345')

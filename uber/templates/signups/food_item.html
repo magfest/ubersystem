@@ -1,5 +1,7 @@
+{% import 'macros.html' as macros %}
+
 <li>
-    {% checked_if attendee.food_restrictions %}
+    {{ macros.checklist_image(attendee.food_restrictions) }}
     {% if not attendee.placeholder and attendee.shirt_size_marked %}
         <a href="food_restrictions">Let us know</a>
     {% else %}

@@ -1,18 +1,75 @@
-from uber.common import *
-
-from mock import Mock
-from unittest import TestCase
-
 import pytest
+from jinja2 import meta
+from mock import Mock
+from sqlalchemy.schema import CreateTable, MetaData
 
-'''
-class TestPreassignedBadgeDeletion(TestBadgeChange):
-    def test_delete_first(self):
-        self.staff_one.delete()
+from sideboard.config import uniquify as remove_duplicates
+from uber.common import *
+from uber.models import Session
+from uber.sep_commands import alembic, drop_uber_db, reset_uber_db
 
-    def test_delete_middle(self):
-        self.staff_three.delete()
 
-    def test_delete_end(self):
-        self.staff_five.delete()
-'''
+def sort_lines(text, to_strip=' ', uniquify=True):
+    lines = [s.strip(to_strip) for s in text.split('\n') if s.strip(to_strip)]
+    if uniquify:
+        lines = remove_duplicates(lines)
+    return '\n'.join(sorted(lines))
+
+
+def dump_schema(sort=True, uniquify=True):
+    with Session.engine.connect() as connection:
+        meta = MetaData()
+        meta.reflect(bind=connection)
+        tables = meta.sorted_tables if sort else meta.tables.values()
+        table_statements = []
+        for table in tables:
+            table_statement = str(CreateTable(table))
+            if sort:
+                table_statement = sort_lines(table_statement, ', ', uniquify)
+            table_statements.append(table_statement)
+        return '\n'.join(table_statements)
+    return ''
+
+
+def dump_alembic_schema(sort=True, uniquify=True):
+    drop_uber_db()
+    alembic('upgrade', 'heads')
+    return dump_schema(sort, uniquify)
+
+
+def dump_reset_uber_db_schema(sort=True, uniquify=True):
+    reset_uber_db()
+    return dump_schema(sort, uniquify)
+
+
+def guess_template_dirs(file_path):
+    if not file_path:
+        return []
+
+    current_path = os.path.abspath(os.path.expanduser(file_path))
+    while current_path != '/':
+        template_dir = os.path.join(current_path, 'templates')
+        if os.path.exists(template_dir):
+            return [template_dir]
+        current_path = os.path.normpath(os.path.join(current_path, '..'))
+    return []
+
+
+def collect_template_paths(file_path):
+    template_dirs = guess_template_dirs(file_path)
+    template_paths = []
+    for template_dir in template_dirs:
+        for root, _, _ in os.walk(template_dir):
+            for ext in ('html', 'htm', 'txt'):
+                file_pattern = '*.{}'.format(ext)
+                template_paths.extend(glob(os.path.join(root, file_pattern)))
+
+    return template_paths
+
+
+def is_valid_jinja_template(template_path):
+    env = JinjaEnv.env()
+    with open(template_path) as template_file:
+        template = template_file.read()
+        ast = env.parse(template)
+        meta.find_undeclared_variables(ast)

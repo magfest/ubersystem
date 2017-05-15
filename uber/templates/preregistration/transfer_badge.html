@@ -12,7 +12,7 @@ to someone else.  {{ old.full_name }} will no longer have a paid {{ c.EVENT_NAME
 our Registration Desk; that will belong to whomever the badge is transferred.
 
 <form method="POST" action="transfer_badge" class="form-horizontal">
-{% csrf_token %}
+{{ csrf_token() }}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 
 <div class="form-group" id="badge-types">

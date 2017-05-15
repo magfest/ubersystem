@@ -1,6 +1,18 @@
 language: python
-python:
-    - "3.4"
+matrix:
+  include:
+    - python: "3.4"
+      env: TOX_ENV=pep8
+    - python: "3.4"
+      env: TOX_ENV=py34
 install:
-    - "pip install pep8"
-script: "pep8 uber/"
+  - pip install tox
+  - if [[ $TOX_ENV == py34 ]]; then
+      pip install coveralls;
+    fi
+script:
+  - tox -e $TOX_ENV
+after_success:
+  - if [[ $TOX_ENV == py34 ]]; then
+      coveralls;
+    fi

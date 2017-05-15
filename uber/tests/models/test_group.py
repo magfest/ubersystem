@@ -164,7 +164,7 @@ def test_assign_custom_badges_after_deadline(session, after_printed_badge_deadli
     assert message and 'ordered' in message
 
 
-def test_badge_cost(monkeypatch):
+def test_badge_cost(monkeypatch, clear_price_bumps):
     monkeypatch.setattr(c, 'get_group_price', Mock(return_value=c.DEALER_BADGE_PRICE + 10))
     assert 4 * c.DEALER_BADGE_PRICE + 20 == Group(attendees=[
         Attendee(paid=c.REFUNDED), Attendee(ribbon=c.DEALER_RIBBON),

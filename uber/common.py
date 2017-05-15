@@ -33,22 +33,19 @@ from time import sleep, mktime
 from io import StringIO, BytesIO
 from itertools import chain, count
 from collections import defaultdict, OrderedDict
-from urllib.parse import quote, urlparse, parse_qsl, urljoin
+from urllib.parse import quote, urlparse, parse_qsl, quote_plus, urljoin
 from datetime import date, time, datetime, timedelta
 from threading import Thread, RLock, local, current_thread
+from types import FunctionType
 from os.path import abspath, basename, dirname, exists, join
 
 import pytz
 import bcrypt
 import stripe
+import jinja2
 import cherrypy
-import django.conf
+from markupsafe import text_type, Markup
 from pytz import UTC
-
-from django import template
-from django.utils.safestring import SafeString
-from django.utils.text import normalize_newlines
-from django.template import loader, Context, Variable, TemplateSyntaxError
 
 import sqlalchemy
 from sqlalchemy.sql import case
@@ -60,9 +57,10 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.sql.expression import FunctionElement
 from sqlalchemy.orm.attributes import get_history, instance_state
-from sqlalchemy.schema import Column, ForeignKey, UniqueConstraint
+from sqlalchemy.schema import Column, ForeignKey, MetaData, UniqueConstraint
 from sqlalchemy.orm import Query, relationship, joinedload, subqueryload, backref
 from sqlalchemy.types import Boolean, Integer, Float, TypeDecorator, Date, Numeric
+from sqlalchemy.util import immutabledict
 
 from sideboard.lib import log, parse_config, entry_point, listify, DaemonTask, serializer, cached_property, request_cached_property, stopped, on_startup, services, threadlocal
 from sideboard.lib.sa import declarative_base, SessionManager, UTCDateTime, UUID, CoerceUTF8 as UnicodeText
@@ -71,15 +69,16 @@ import uber
 import uber as sa  # used to avoid circular dependency import issues for SQLAlchemy models
 from uber.amazon_ses import AmazonSES, EmailMessage  # TODO: replace this after boto adds Python 3 support
 from uber.config import c, Config, SecretConfig
+from uber.jinja import *
 from uber.utils import *
 from uber.reports import *
 from uber.decorators import *
 from uber.models import *
 from uber.automated_emails import *
 from uber.badge_funcs import *
+from uber.menu import *
 from uber import model_checks
 from uber import custom_tags
 from uber import server
 from uber import sep_commands
-from uber.tests import import_test_data
 import uber.api

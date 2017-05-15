@@ -31,7 +31,7 @@
 <h3 align="center"> Assign New Badge to {{ attendee.full_name }} </h3>
 
 <form method="post" action="change_badge">
-{% csrf_token %}
+{{ csrf_token() }}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 
 <table>
@@ -39,7 +39,7 @@
     <td width="25%"> <b>Badge Type:</b> </td>
     <td width="75%">
         <select name="badge_type">
-            {% options c.BADGE_OPTS attendee.badge_type %}
+            {{ options(c.BADGE_OPTS,attendee.badge_type) }}
         </select>
     </td>
 </tr>

@@ -8,7 +8,7 @@
     Search by who did it:
     <select name="who" onChange="$(this).parents('form').submit()">
         <option value="">{% if who %}Show all{% else %}Choose an admin{% endif %}</option>
-        {% options who_opts who %}
+        {{ options(who_opts,who) }}
     </select>
 
     &nbsp;&nbsp;&nbsp;&nbsp;
@@ -18,7 +18,7 @@
     Search by action:
     <select name="action" onChange="$(this).parents('form').submit()">
         <option value="">{% if action %}Show all{% else %}Choose an action{% endif %}</option>
-        {% options action_opts action %}
+        {{ options(action_opts,action) }}
     </select>
 
     &nbsp;&nbsp;&nbsp;&nbsp;
@@ -31,25 +31,25 @@
 
 <br/>
 
-{% pages page count %}
+{{ pages(page,count) }}
 
-<table class="list">
-<tr class="header">
-    <td>When</td>
-    <td>Who</td>
-    <td>Table</td>
-    <td>Which</td>
-    <td>Action</td>
-    <td>Changes</td>
-</tr>
+<table class="table-striped table-bordered table-condensed">
+<thead><tr>
+    <th>When</th>
+    <th>Who</th>
+    <th>Table</th>
+    <th>Which</th>
+    <th>Action</th>
+    <th>Changes</th>
+</tr></thead>
 {% for tracked in feed %}
     <tr>
-        <td style="white-space:nowrap">{{ tracked.when|full_datetime }}</td>
-        <td style="white-space:nowrap">{{ tracked.who }}</td>
-        <td style="white-space:nowrap">{{ tracked.model }}</td>
-        <td style="white-space:nowrap">{{ tracked.which }}</td>
-        <td style="white-space:nowrap">{{ tracked.action_label }}</td>
-        <td>{{ tracked.data }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.when|full_datetime_local }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.who }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.model }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.which }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.action_label }}</td>
+        <td valign="top">{{ tracked.data }}</td>
     </tr>
 {% endfor %}
 

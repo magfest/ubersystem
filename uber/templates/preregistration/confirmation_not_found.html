@@ -1,0 +1,25 @@
+{% extends "./preregistration/preregbase.html" %}
+{% block title %}Confirmation Not Found{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+<div class="masthead">
+</div>
+
+<div class="panel panel-default">
+    <h3>Confirmation Number Not Valid: {{ id }}</h3>
+
+    <p>The confirmation number {{ id }} you are trying to access is not valid.<br/>
+        If your badge was not found in our database, it could be because:
+        <ul>
+            <li>It was a duplicate of another badge and was deleted</li>
+            <li>It was canceled before payment went through</li>
+            <li>You asked to no longer receive emails from us and missed a confirmation email</li>
+            <li>This badge was part of a group and the group owner deleted the badge</li>
+            <li>You clicked on a confirmation link for a badge from a different event</li>
+        </ul>
+    </p>
+
+    <p>If you think you should have a valid badge, don't panic! You are probably just on the wrong page.
+        Please contact us at {{ c.REGDESK_EMAIL }} and we're happy to look into it for you.</p>
+</div>
+{% endblock %}

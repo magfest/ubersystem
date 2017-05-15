@@ -2,8 +2,8 @@
 <head></head>
 <body>
 
-Your {{ group.is_dealer|yesno:"Dealer registration,group" }} ({{ group.name }}) has been preregistered for
-{{ c.EVENT_NAME }} this coming {% event_dates %} and your payment of ${{ group.amount_paid }} has been received.  
+Your {{ group.is_dealer|yesno("Dealer registration,group") }} ({{ group.name }}) has been preregistered for
+{{ c.EVENT_NAME }} this coming {{ event_dates() }} and your payment of ${{ group.amount_paid }} has been received.
 
 {% if group.unregistered_badges %}
     <br/> <br/>
@@ -16,7 +16,7 @@ Your {{ group.is_dealer|yesno:"Dealer registration,group" }} ({{ group.name }}) 
     to your group members for them to fill out themselves.
     
     <b>Your</b> registration confirmation number is {{ group.leader_id }}, and you can update your information or kick in
-    {% if attendee.amount_extra %}
+    {% if group.leader.amount_extra %}
     even more
     {% endif %}
     extra money <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ group.leader_id }}">here</a>.

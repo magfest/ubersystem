@@ -16,7 +16,7 @@
         {% for attendee in matching %}
             <tr>
                 <td>{{ attendee|form_link }}</td>
-                <td>{{ attendee.assigned_depts_labels|join:' / ' }}</td>
+                <td>{{ attendee.assigned_depts_labels|join(' / ') }}</td>
                 <td>{{ attendee.worked_hours }} / {{ attendee.weighted_hours }}</td>
             </tr>
         {% endfor %}

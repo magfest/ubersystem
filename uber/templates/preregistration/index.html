@@ -3,6 +3,33 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
+<script type="text/javascript">
+    $().ready(function() {
+        $("a[href^='delete']").click(function(event){
+            var urlToUse = $(this).attr('href');
+            event.preventDefault();
+            bootbox.confirm({
+                message: "Are you sure you want to delete this badge?",
+                buttons: {
+                    confirm: {
+                        label: 'Yes',
+                        className: 'btn-success'
+                    },
+                    cancel: {
+                        label: 'No',
+                        className: 'btn-danger'
+                    }
+                },
+                callback: function (result) {
+                    if(result) {
+                        window.location.href = urlToUse
+                    }
+                }
+            });
+        })
+    });
+</script>
+
 <div class="masthead">
 </div>
 
@@ -33,16 +60,16 @@
         <div class="col-sm-8 col-sm-offset-2">
             <div class="col-sm-5 text-center">
                 {% if charge.total_cost > 0 %}
-                    {% stripe_form prereg_payment charge %}
+                    {{ stripe_form('prereg_payment',charge) }}
                 {% else %}
-                    <a href="process_free_prereg">{% stripe_button "Register!" %}</a>
+                    <a href="process_free_prereg">{{ macros.stripe_button("Register!") }}</a>
                 {% endif %}
             </div>
             <div class="col-sm-2 text-center">
                 or
             </div>
             <div class="col-sm-5 text-center">
-                <a href="form">{% stripe_button "Add Another Prereg" %}</a>
+                <a href="form">{{ macros.stripe_button("Add Another Prereg") }}</a>
             </div>
         </div>
     </div>
@@ -66,12 +93,12 @@
                 {% elif attendee.discount %}
                     <li>${{ attendee.age_group_conf.discount }} discount for attendees who are {{ attendee.age_group_conf.desc|lower }}.</li>
                 {% endif %}
-                {% for swag in attendee.donation_swag|add:attendee.addons %}
+                {% for swag in attendee.donation_swag|list + attendee.addons|list %}
                     <li>{{ swag }}</li>
                 {% endfor %}
             </ul>
         </td>
-        <td>${{ attendee.total_cost|floatformat:2 }}</td>
+        <td>${{ attendee.total_cost|round(2) }}</td>
         <td>
             <a href="form?edit_id={{ attendee.id }}">Edit</a> /
             <a href="delete?id={{ attendee.id }}">Delete</a>
@@ -84,12 +111,12 @@
         <td>
             <ul>
                 <li>{{ group.badges }} badges</li>
-                {% for swag in group.attendees.0.donation_swag|add:group.addons %}
+                {% for swag in group.attendees.0.donation_swag|list + group.addons|list %}
                     <li>{{ swag }}</li>
                 {% endfor %}
             </ul>
         </td>
-        <td>${{ group.default_cost|floatformat:2 }}</td>
+        <td>${{ group.default_cost|round(2) }}</td>
         <td>
             <a href="form?edit_id={{ group.id }}">Edit</a> /
             <a href="delete?id={{ group.id }}">Delete</a>
@@ -102,7 +129,7 @@
     <tr>
         <th></th>
         <th style="text-align:right;"><i>Total:</i></th>
-        <th><b>${{ charge.dollar_amount|floatformat:2 }}</b></th>
+        <th><b>${{ charge.dollar_amount|round(2) }}</b></th>
         <th></th>
     </tr>
 </tfoot>

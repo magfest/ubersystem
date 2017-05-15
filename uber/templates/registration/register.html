@@ -42,7 +42,7 @@
 <div class="form-group"></div> <!-- spacing -->
 
 <form method="post" action="register" autocomplete="off" class="form-horizontal">
-{% csrf_token %}
+{{ csrf_token() }}
 
 <div class="form-group">
     <label class="col-sm-2 control-label">Payment Method</label>
@@ -52,7 +52,7 @@
         {% else %}
             <select name="payment_method" class="form-control" onChange="maybeBold()">
                 <option value="">Select a payment option</option>
-                {% options c.DOOR_PAYMENT_METHOD_OPTS attendee.payment_method %}
+                {{ options(c.DOOR_PAYMENT_METHOD_OPTS,attendee.payment_method) }}
             </select>
         {% endif %}
     </div>
@@ -62,7 +62,7 @@
     <label class="col-sm-2 control-label">Badge Type</label>
     <div class="col-sm-6">
         <select name="badge_type" class="form-control">
-            {% options c.AT_THE_DOOR_BADGE_OPTS attendee.badge_type %}
+            {{ options(c.AT_THE_DOOR_BADGE_OPTS,attendee.badge_type) }}
         </select>
         <p id="day-warning" class="help-block"></p>
     </div>

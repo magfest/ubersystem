@@ -45,7 +45,7 @@
 </script>
 
 <form method="post" action="">
-{% csrf_token %}
+{{ csrf_token() }}
 This form is for when someone picks up merch for multiple other people.
 Enter the badge numbers of everyone involved (blank fields will be ignored).
 

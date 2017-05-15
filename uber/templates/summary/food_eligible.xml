@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <attendees>
-{% for attendee, food_categories in attendees.items %}
+{% for attendee, food_categories in attendees.items() %}
     <attendee name="{{ attendee.full_name }}"
               badge_type="{{ attendee.badge_type_label }}"
               {% if attendee.badge_num %}badge_number="{{ attendee.badge_num }}"{% endif %}
-              {% if attendee.ribbon == c.VOLUNTEER_RIBBON %}now_eligible="{{ attendee.worked_hours|yesno:"true,false" }}"{% endif %}
-              {% for attr, val in food_categories.items %}
+              {% if attendee.ribbon == c.VOLUNTEER_RIBBON %}now_eligible="{{ attendee.worked_hours|yesno("true,false") }}"{% endif %}
+              {% for attr, val in food_categories.items() %}
                   {% if val %}
                       {{ attr }}="true"
                   {% endif %}
