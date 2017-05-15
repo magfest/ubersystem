@@ -407,13 +407,6 @@ class TestShiftOnChange:
         assert session.staff_two.badge_num == 1
         assert [1, 2, 3, 4] == self.staff_badges(session)
 
-    def test_shift_on_invalidate(self, session):
-        session.staff_one.badge_status = c.INVALID_STATUS
-        session.commit()
-        assert not session.staff_one.badge_num
-        assert session.staff_two.badge_num == 1
-        assert [1, 2, 3, 4] == self.staff_badges(session)
-
     def test_dont_shift_if_gap(self, session):
         session.staff_five.badge_num = 10
         session.commit()
