@@ -693,53 +693,6 @@ class Session(SessionManager):
                 a.badge_num += shift
             return True
 
-        def change_badge(self, attendee, badge_type, badge_num=None):
-            """
-            Badges should always be assigned a number if they're marked as
-            pre-assigned or if they've been checked in.  If auto-shifting is
-            also turned off, badge numbers cannot clobber other numbers,
-            otherwise we'll shift all the other badge numbers around the old
-            and new numbers.
-            """
-            # assert_badge_locked()
-            from uber.badge_funcs import check_range
-            badge_type = int(badge_type)
-            old_badge_type, old_badge_num = attendee.badge_type, attendee.badge_num
-
-            out_of_range = check_range(badge_num, badge_type)
-            next = self.next_badge_num(badge_type, old_badge_num)
-            if out_of_range:
-                return out_of_range
-            elif not badge_num and next > c.BADGE_RANGES[badge_type][1]:
-                return 'There are no more badges available for that type'
-            elif badge_type in c.PREASSIGNED_BADGE_TYPES and c.AFTER_PRINTED_BADGE_DEADLINE:
-                return 'Custom badges have already been ordered'
-
-            if not c.SHIFT_CUSTOM_BADGES:
-                badge_num = badge_num or next
-                if badge_num != 0:
-                    existing = self.query(Attendee).filter_by(badge_type=badge_type, badge_num=badge_num) \
-                                                   .filter(Attendee.id != attendee.id)
-                    if existing.count():
-                        return 'That badge number already belongs to {!r}'.format(existing.first().full_name)
-            else:
-                # fill in the gap from the old number, if applicable
-                if old_badge_num:
-                    self.shift_badges(old_badge_type, old_badge_num + 1, down=True)
-
-                # determine the new badge number now that the badges have shifted
-                next = self.next_badge_num(badge_type, old_badge_num)
-                badge_num = min(int(badge_num) or next, next)
-
-                # make room for the new number, if applicable
-                if badge_num:
-                    offset = 1 if badge_type == old_badge_type and old_badge_num and badge_num > old_badge_num else 0
-                    self.shift_badges(badge_type, badge_num + offset, up=True)
-
-            attendee.badge_num = badge_num
-            attendee.badge_type = badge_type
-            return 'Badge updated'
-
         def valid_attendees(self):
             return self.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS)
 
@@ -1244,8 +1197,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         self.badge_type = get_real_badge_type(self.badge_type)
 
         if not needs_badge_num(self):
-            if self.orig_value_of('badge_num') and c.SHIFT_CUSTOM_BADGES:
-                self.session.shift_badges(self.orig_value_of('badge_type'), self.orig_value_of('badge_num') + 1, down=True)
             self.badge_num = None
         elif needs_badge_num(self) and not self.badge_num:
             self.badge_num = self.session.get_next_badge_num(self.badge_type)
