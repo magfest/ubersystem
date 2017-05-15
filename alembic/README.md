@@ -8,16 +8,17 @@ normally do.
 commands:
 ```
 sep drop_uber_db
-sep alembic upgrade head
+sep alembic upgrade heads
+# If you have only the uber plugin installed, use `alembic update head` instead of `heads`
 sep alembic --plugin myplugin revision --autogenerate -m "Migration description"
-sep alembic upgrade head
+sep alembic upgrade heads
 ```
 3. Though it is unusual, alembic will sometimes miss `ALTER` statements when
 the initial migration is created. To make sure alembic recognizes every change
 to the database, try generating new revisions again:
 ```
 sep alembic --plugin myplugin revision --autogenerate -m "Additional alter statements"
-sep alembic upgrade head
+sep alembic upgrade heads
 ```
 4. Verify the new migrations manually by inspecting the generated revision
 scripts and editing them as necessary; auto-generation is not perfect and may
