@@ -3,6 +3,33 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
+<script type="text/javascript">
+    $().ready(function() {
+        $("a[href^='delete']").click(function(event){
+            var urlToUse = $(this).attr('href');
+            event.preventDefault();
+            bootbox.confirm({
+                message: "Are you sure you want to delete this badge?",
+                buttons: {
+                    confirm: {
+                        label: 'Yes',
+                        className: 'btn-success'
+                    },
+                    cancel: {
+                        label: 'No',
+                        className: 'btn-danger'
+                    }
+                },
+                callback: function (result) {
+                    if(result) {
+                        window.location.href = urlToUse
+                    }
+                }
+            });
+        })
+    });
+</script>
+
 <div class="masthead">
 </div>
 

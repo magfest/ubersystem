@@ -433,10 +433,6 @@ class TestBadgeValidations:
         session.staff_one.badge_num = 'Junk Badge Number'
         assert '{!r} is not a valid badge number'.format(session.staff_one.badge_num) == check(session.staff_one)
 
-    def test_out_of_range_badge_num(self, session):
-        session.staff_one.badge_num = 5000
-        assert 'Staff badge numbers must fall within 1 and 399' == check(session.staff_one)
-
     def test_no_more_custom_badges(self, session, monkeypatch, after_printed_badge_deadline):
         session.regular_attendee.badge_type = session.regular_attendee.badge_type
         session.regular_attendee.badge_type = c.STAFF_BADGE

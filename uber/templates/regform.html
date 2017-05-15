@@ -1,4 +1,5 @@
-
+{% import 'macros.html' as macros %}
+<script src="../static/deps/selectToAutocomplete/jquery.select-to-autocomplete.js"></script>
 <script type="text/javascript">
     var AGE_GROUPS = {{ c.AGE_GROUP_CONFIGS|jsonize }};
     var ageGroupSelected = function () {
@@ -24,6 +25,56 @@
             }
         {% endif %}
     };
+
+    {% if c.COLLECT_FULL_ADDRESS %}
+        var setInternational = function () {
+            countryName = $.field('country').val();
+            if(countryName == 'United States') {
+                $.field('international').prop('checked', false);
+            } else {
+                $.field('international').prop('checked', true);
+            }
+        };
+
+        {% include "region_opts.html" %}
+
+        var regionChange = function() {
+            setInternational();
+
+            var regionopts = $("[name='region']");
+            var whichCountry = $.field("country").find(':selected').text();
+            switch(whichCountry) {
+                case 'United States':
+                    regionopts.replaceWith('<select name="region" class="form-control"></select>');
+                    $("[name='region']").html(regionsforUS);
+                    break;
+                case 'Canada':
+                    regionopts.replaceWith('<select name="region" class="form-control"></select>');
+                    $("[name='region']").html(regionsforCanada);
+                    break;
+            }
+            var optionToSelect = $("select[name='region'] option[value='{{ attendee.region }}']");
+            if (optionToSelect.length) {
+                optionToSelect.prop('selected', true)
+            }
+        };
+
+        $(function() {
+            $.field('international').parents('.checkbox').hide();
+            setInternational();
+            $.field("country").val('{{ attendee.country }}');
+            $.field("country").selectToAutocomplete();
+            $.field("country").change(function() {
+                $("[name='region']").replaceWith('<input type="text" name="region" value="{{ attendee.region }}" class="form-control" placeholder="State/Province">');
+                regionChange();
+            });
+
+            $.field("region").val('{{ attendee.region }}');
+            regionChange();
+        });
+
+    {% endif %}
+
     $(function () {
         staffingClicked();
         if ($.field('staffing')) {
@@ -47,20 +98,24 @@
             $.field('no_cellphone').on('click', noCellphoneClicked);
         }
 
-        if ($.field('address')) {
-            $('#group-explanation').insertAfter($.field('address').parents('.form-group'));
-        } else if ($.field('badges')) {
-            $('#group-explanation').insertAfter($.field('badges').parents('.form-group'));
-        } else {
-            $('#group-explanation').remove();
-        }
+        {% if attendee.badge_type == c.PSEUDO_DEALER_BADGE %}
+            $('#group-explanation').insertBefore($.field('first_name').parents('.form-group'));
+        {% else %}
+            if ($.field('badges')) {
+                $('#group-explanation').insertAfter($.field('badges').parents('.form-group'));
+            } else {
+                $('#group-explanation').remove();
+            }
+        {% endif %}
     });
 
     var sameLegalNameChecked = function () {
         if ($("#same_legal_name").prop('checked')) {
             $.field('legal_name').prop('readonly', true).val('').attr('required', false);
-        } else {
+            $("label[for='legal_name']").addClass('optional-field');
+        } else if ($("#same_legal_name").length) {
             $.field('legal_name').prop('readonly', false).attr('required', true);
+            $("label[for='legal_name']").removeClass('optional-field');
         }
     };
     $(function () {
@@ -108,30 +163,25 @@
     </div>
 {% else %}
     <div class="form-group">
-        <label for="first_name" class="col-sm-2 control-label">First Name</label>
-        <div class="col-sm-6">
-            <input type="text" name="first_name" id="first_name" value="{{ attendee.first_name }}" class="form-control" placeholder="First Name">
+        <label for="first_name" class="col-sm-2 control-label">Name</label>
+        <div class="col-sm-3">
+            <input type="text" name="first_name" id="first_name" value="{{ attendee.first_name }}" class="form-control" placeholder="First Name" autocomplete="fname">
+        </div>
+        <div class="col-sm-3">
+            <input type="text" name="last_name" id="last_name" value="{{ attendee.last_name }}" class="form-control" placeholder="Last Name" autocomplete="lname">
         </div>
     </div>
 
     <div class="form-group">
-        <label for="last_name" class="col-sm-2 control-label">Last Name</label>
-        <div class="col-sm-6">
-            <input type="text" name="last_name" id="last_name" value="{{ attendee.last_name }}" class="form-control" placeholder="Last Name">
+        <div class="col-sm-6 col-sm-offset-2">
+            <input type="checkbox" name="same_legal_name" id="same_legal_name" value="1" {% if attendee.first_name != '' and attendee.legal_name == '' %}checked="checked"{% endif %} /> <label for="same_legal_name">The above name is exactly what appears on my ID</label>
         </div>
     </div>
 
     <div class="form-group">
-        <label for="same_legal_name" class="col-sm-2 control-label">The above name is exactly what appears on my ID</label>
+        <label for="legal_name" class="col-sm-2 control-label">Name on ID</label>
         <div class="col-sm-6">
-            <input type="checkbox" name="same_legal_name" id="same_legal_name" value="Yep, that's right" {% if attendee.first_name != '' and attendee.legal_name == '' %}checked="checked"{% endif %} />
-        </div>
-    </div>
-
-    <div class="form-group">
-        <label for="legal_name" class="col-sm-2 control-label optional-field">Legal Name</label>
-        <div class="col-sm-6">
-            <input type="text" name="legal_name" value="{{ attendee.legal_name }}" class="form-control" placeholder="Legal Name" />
+            <input type="text" name="legal_name" value="{{ attendee.legal_name }}" class="form-control" placeholder="Your name exactly as it appears on your Photo ID" autocomplete="name" />
         </div>
         <p class="help-block col-sm-6 col-sm-offset-2">
             <span class="popup">{{ macros.popup_link("../static_views/legal_name.html", "What does this mean?") }}</span>
@@ -140,7 +190,7 @@
 {% endif %}
 
 {% if c.DONATIONS_ENABLED and c.PAGE_PATH != '/registration/form' %}
-    {% if c.PREREG_DONATION_OPTS|length > 1 or attendee.amount_extra %}
+    {% if c.PREREG_DONATION_OPTS and c.PREREG_DONATION_OPTS|length > 1 or attendee.amount_extra %}
         <script type="text/javascript">
             var donationChanged = function () {
                 setVisible('.affiliate-row', $.val('amount_extra') > 0);
@@ -321,41 +371,41 @@
                 </p>
             </div>
         {% endif %}
-
-        <div class="badge-row extra-row form-group" style="display:none">
-            <label for="badge_printed_name" class="col-sm-2 control-label optional-field">Name Printed on Badge</label>
-            <div class="col-sm-6">
-                <input type="text" class="form-control" name="badge_printed_name" maxlength="20" value="{{ attendee.badge_printed_name }}" {% if c.AFTER_PRINTED_BADGE_DEADLINE and attendee.badge_type in c.PREASSIGNED_BADGE_TYPES or c.AFTER_SUPPORTER_DEADLINE %}readonly{% endif %} />
-            </div>
-            <p class="help-block col-sm-6">Badge names have a maximum of 20 characters.</p>
-        </div>
-
-        {% if c.AFTER_PRINTED_BADGE_DEADLINE and attendee.badge_type in c.PREASSIGNED_BADGE_TYPES or c.AFTER_SUPPORTER_DEADLINE %}
-            <div class="badge-row extra-row form-group" style="display:none">
-                <p class="help-block col-sm-6 col-sm-offset-2">(custom badges have already been ordered, so you can no longer set this)</p>
-            </div>
-        {% endif %}
-
-        <div class="affiliate-row extra-row form-group" style="display:none">
-            <label for="affiliate" class="col-sm-2 control-label optional-field">Affiliate</label>
-            <div class="col-sm-6">
-                <select name="affiliate">
-                    <option value="" selected="selected"></option>
-                </select>
-            </div>
-            {{ macros.popup_link("../static_views/affiliates.html", "What's an affiliate?") }}
-        </div>
-
-        <div class="shirt-row extra-row form-group" style="display:none">
-            <label for="shirt" class="col-sm-2 control-label">Shirt Size</label>
-            <div class="col-sm-6">
-                <select name="shirt" class="form-control">
-                    <option value="{{ c.NO_SHIRT }}">Select a shirt size</option>
-                    {{ options(c.PREREG_SHIRT_OPTS,attendee.shirt) }}
-                </select>
-            </div>
-        </div>
     {% endif %}
+
+<div class="badge-row extra-row form-group" style="display:none">
+    <label for="badge_printed_name" class="col-sm-2 control-label optional-field">Name Printed on Badge</label>
+    <div class="col-sm-6">
+        <input type="text" class="form-control" name="badge_printed_name" maxlength="20" value="{{ attendee.badge_printed_name }}" {% if c.AFTER_PRINTED_BADGE_DEADLINE and attendee.badge_type in c.PREASSIGNED_BADGE_TYPES or c.AFTER_SUPPORTER_DEADLINE %}readonly{% endif %} />
+    </div>
+    <p class="help-block col-sm-6">Badge names have a maximum of 20 characters.</p>
+</div>
+
+{% if c.AFTER_PRINTED_BADGE_DEADLINE and attendee.badge_type in c.PREASSIGNED_BADGE_TYPES or c.AFTER_SUPPORTER_DEADLINE %}
+    <div class="badge-row extra-row form-group" style="display:none">
+        <p class="help-block col-sm-6 col-sm-offset-2">(custom badges have already been ordered, so you can no longer set this)</p>
+    </div>
+{% endif %}
+
+<div class="affiliate-row extra-row form-group" style="display:none">
+    <label for="affiliate" class="col-sm-2 control-label optional-field">Affiliate</label>
+    <div class="col-sm-6">
+        <select name="affiliate">
+            <option value="" selected="selected"></option>
+        </select>
+    </div>
+    {{ macros.popup_link("../static_views/affiliates.html", "What's an affiliate?") }}
+</div>
+
+<div class="shirt-row extra-row form-group" style="display:none">
+    <label for="shirt" class="col-sm-2 control-label">Shirt Size</label>
+    <div class="col-sm-6">
+        <select name="shirt" class="form-control">
+            <option value="{{ c.NO_SHIRT }}">Select a shirt size</option>
+            {{ options(c.PREREG_SHIRT_OPTS,attendee.shirt) }}
+        </select>
+    </div>
+</div>
 {% endif %}
 
 <div class="form-group staffing">
@@ -376,12 +426,14 @@
     </div>
 </div>
 
+{% if c.JOB_INTEREST_OPTS %}
 <div class="form-group staffing" id="departments">
     <label for="requested_depts" class="col-sm-2 control-label">Where do you want to help?</label>
     <div class="col-sm-6">
         {{ macros.checkgroup(attendee, 'requested_depts') }}
     </div>
 </div>
+{% endif %}
 
 <div class="form-group">
     {% if c.COLLECT_EXACT_BIRTHDATE %}
@@ -424,19 +476,18 @@
 </div>
 
 {% if c.COLLECT_FULL_ADDRESS %}
-    {% if c.PRE_CON %}
-        <div class="form-group">
-            <label for="full_address" class="col-sm-2 control-label">Address</label>
-            <div class="col-sm-6">
-                <input type="text" name="full_address" class="form-control geolocator" placeholder="Search for your address here." />
-                <img src="../static/images/powered-by-google-on-white.png" alt="Powered by Google." />
-            </div>
-        </div>
-    {% endif %}
     <div class="form-group address_details">
-        <label for="address1" class="col-sm-2 control-label"></label>
+        <label for="country" class="col-sm-2 control-label">Country</label>
         <div class="col-sm-6">
-            <input type="text" name="address1" class="form-control" placeholder="Address Line 1" value="{{ attendee.address1 }}" data-geo="name" />
+            <select name="country" class="form-control" placeholder="Country" autofocus="autofocus" autocorrect="off" autocomplete="country">
+                {% include "country_opts.html" %}
+            </select>
+        </div>
+    </div>
+    <div class="form-group address_details">
+        <label for="address1" class="col-sm-2 control-label">Street</label>
+        <div class="col-sm-6">
+            <input type="text" name="address1" class="form-control" placeholder="Address Line 1" value="{{ attendee.address1 }}" />
         </div>
     </div>
     <div class="form-group address_details">
@@ -448,27 +499,16 @@
     <div class="form-group address_details">
         <label for="city" class="col-sm-2 control-label">City</label>
         <div class="col-sm-6">
-            <input type="text" name="city" class="form-control" placeholder="City" value="{{ attendee.city }}" data-geo="locality" />
+            <input type="text" name="city" class="form-control" placeholder="City" value="{{ attendee.city }}" />
         </div>
     </div>
     <div class="form-group address_details">
-        <label for="region" class="col-sm-2 control-label">State</label>
-        <div class="col-sm-3">
-            <input type="text" name="region" class="form-control" placeholder="State/Province/Region" value="{{ attendee.region }}" data-geo="administrative_area_level_1" />
-        </div>
-
-        <label for="zip_code" class="col-sm-1 control-label">ZIP</label>
-        <div class="col-sm-2">
-            <input type="text" name="zip_code" class="form-control" placeholder="ZIP/PostCode" value="{{ attendee.zip_code }}" data-geo="postal_code" />
-        </div>
-    </div>
-    <div class="form-group address_details">
-        <label for="country" class="col-sm-2 control-label">Country</label>
+        <label for="region" class="col-sm-2 control-label">State/Region</label>
         <div class="col-sm-6">
-             <input type="text" name="country" onchange="setInternational()" class="form-control" placeholder="Country" value="{{ attendee.country }}" data-geo="country" />
+            <input type="text" name="region" class="form-control" placeholder="State/Province" value="{{ attendee.region }}" autocomplete="address-level1" />
         </div>
     </div>
-{% else %}
+{% endif %}
     <div class="form-group">
         <label for="zip_code" class="col-sm-2 control-label {% if c.AT_OR_POST_CON %}optional-field{% endif %}">ZIP/Postal Code</label>
         <div class="col-sm-6">
@@ -481,7 +521,6 @@
             </label>
         </div>
     </div>
-{% endif %}
 
 <div class="form-group">
     <label for="ec_name" class="col-sm-2 control-label">Emergency Contact</label>
@@ -497,9 +536,9 @@
 </div>
 
 <div class="form-group">
-    <label for="cellphone" class="col-sm-2 control-label">Your Cellphone Number</label>
+    <label for="cellphone" class="col-sm-2 control-label">Your Phone Number</label>
     <div class="col-sm-6">
-        <input type="text" name="cellphone" id="cellphone" value="{{ attendee.cellphone }}" class="form-control" placeholder="Your Personal Cellphone Number">
+        <input type="text" name="cellphone" id="cellphone" value="{{ attendee.cellphone }}" class="form-control" placeholder="A phone number we can use to contact you during the event">
     </div>
     {% if not attendee.is_dealer or c.PAGE_PATH == '/registration/form' %}
         <div class="checkbox col-sm-6">
@@ -511,12 +550,14 @@
     {% endif %}
 </div>
 
+{% if c.INTEREST_OPTS %}
 <div class="form-group">
     <label class="col-sm-2 control-label optional-field">What interests you?</label>
     <div class="col-sm-10">
         {{ macros.checkgroup(attendee, 'interests') }}
     </div>
 </div>
+{% endif %}
 
 <div class="form-group">
     <label for="found_how" class="col-sm-2 control-label optional-field">How did you find {{ c.EVENT_NAME }}?</label>
@@ -540,6 +581,10 @@
     </div>
 </div>
 
+{% if c.PAGE_PATH != '/registration/form' or not attendee.is_new %}
+    <input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
+{% endif %}
+
 {% include "regextra.html" %}
 
 <script type="text/javascript">
@@ -547,6 +592,9 @@
         // This removes any badge levels lower than the attendee has purchased already
         if (window.BADGE_TYPES) {
             while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].extra < {{ attendee.amount_extra }}) {
+                BADGE_TYPES.options.splice(0, 1);
+            }
+            while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].price && BADGE_TYPES.options[0].price < {{ c.BADGE_TYPE_PRICES[attendee.badge_type]|default(c.BADGE_PRICE) }}) {
                 BADGE_TYPES.options.splice(0, 1);
             }
         }

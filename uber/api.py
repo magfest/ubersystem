@@ -30,8 +30,6 @@ class AttendeeLookup:
         with Session() as session:
             return [a.to_dict(fields) for a in session.search(query).all()]
 
-services.register(AttendeeLookup(), 'attendee')
-
 job_fields = dict({
     'name': True,
     'description': True,
@@ -62,8 +60,6 @@ class JobLookup:
             label_lookup = {val: key for key, val in location_column.type.choices.items()}
             return [job.to_dict(job_fields) for job in session.query(Job).filter_by(location=label_lookup[location]).all()]
 
-services.register(JobLookup(), 'shifts')
-
 
 class DepartmentLookup:
     def list(self):
@@ -72,8 +68,6 @@ class DepartmentLookup:
             for dept in c.JOB_LOCATION_VARS:
                 output[dept] = dict(c.JOB_LOCATION_OPTS)[getattr(c, dept)]
             return output
-
-services.register(DepartmentLookup(), 'dept')
 
 config_fields = [
     'EVENT_NAME',
@@ -103,4 +97,8 @@ class ConfigLookup:
         if field.upper() in config_fields:
             return getattr(c, field.upper())
 
-services.register(ConfigLookup(), 'config')
+if c.API_ENABLED:
+    services.register(AttendeeLookup(), 'attendee')
+    services.register(JobLookup(), 'shifts')
+    services.register(DepartmentLookup(), 'dept')
+    services.register(ConfigLookup(), 'config')

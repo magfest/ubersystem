@@ -1,0 +1,15 @@
+{% extends "./preregistration/preregbase.html" %}
+{% block title %}Badge Updated{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+<div class="masthead">
+</div>
+<div class="panel panel-default">
+    <h2>{{ message }}!</h2>
+
+    You have successfully {% if 'registered' or 'confirmed' in message %}confirmed{% else %}updated{% endif %} your registration.
+    Thank you{% if 'payment' in message %} for upgrading your badge{% endif %}!
+
+    <br/><br/><a href="confirm?id={{ id }}" class="btn btn-primary">Go Back to My Badge</a>
+</div>
+{% endblock %}

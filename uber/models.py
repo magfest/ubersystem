@@ -623,8 +623,7 @@ class Session(SessionManager):
             """
             from uber.badge_funcs import needs_badge_num
             old_badge_num = int(old_badge_num or 0) or None
-            was_dupe_num = self.query(Attendee).filter(Attendee.badge_type == old_badge_type,
-                                                       Attendee.badge_num == old_badge_num,
+            was_dupe_num = self.query(Attendee).filter(Attendee.badge_num == old_badge_num,
                                                        Attendee.id != attendee.id).first()
 
             if not was_dupe_num and old_badge_type == attendee.badge_type and (not attendee.badge_num or old_badge_num == attendee.badge_num):
@@ -688,8 +687,7 @@ class Session(SessionManager):
             assert len(direction) < 2, 'you cannot specify both up and down parameters'
             down = (not direction['up']) if 'up' in direction else direction.get('down', True)
             shift = -1 if down else 1
-            for a in self.query(Attendee).filter(Attendee.badge_type == badge_type,
-                                                 Attendee.badge_num is not None,
+            for a in self.query(Attendee).filter(Attendee.badge_num is not None,
                                                  Attendee.badge_num >= badge_num,
                                                  Attendee.badge_num <= until):
                 a.badge_num += shift
@@ -744,6 +742,9 @@ class Session(SessionManager):
 
         def valid_attendees(self):
             return self.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS)
+
+        def attendees_with_badges(self):
+            return self.query(Attendee).filter(not_(Attendee.badge_status.in_([c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS])))
 
         def all_attendees(self, only_staffing=False):
             """
@@ -1243,7 +1244,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         self.badge_type = get_real_badge_type(self.badge_type)
 
         if not needs_badge_num(self):
-            if self.orig_value_of('badge_num'):
+            if self.orig_value_of('badge_num') and c.SHIFT_CUSTOM_BADGES:
                 self.session.shift_badges(self.orig_value_of('badge_type'), self.orig_value_of('badge_num') + 1, down=True)
             self.badge_num = None
         elif needs_badge_num(self) and not self.badge_num:
@@ -1336,6 +1337,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             return c.get_oneday_price(registered)
         elif self.is_presold_oneday:
             return c.get_presold_oneday_price(self.badge_type)
+        if self.badge_type in c.BADGE_TYPE_PRICES:
+            return int(c.BADGE_TYPE_PRICES[self.badge_type])
         elif self.age_discount != 0:
             return max(0, c.get_attendee_price(registered) + self.age_discount)
         elif self.group and self.paid == c.PAID_BY_GROUP:

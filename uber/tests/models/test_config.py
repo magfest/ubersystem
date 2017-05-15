@@ -109,6 +109,37 @@ class TestPriceLimits:
     # todo: Test badges that are paid by group
 
 
+class TestBadgeOpts:
+    def test_prereg_badge_opts_with_group(self, monkeypatch):
+        monkeypatch.setattr(c, 'GROUP_PREREG_TAKEDOWN', localized_now() + timedelta(days=1))
+        assert c.PREREG_BADGE_TYPES == [c.ATTENDEE_BADGE, c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE]
+
+    def test_prereg_badge_opts_no_group(self):
+        assert c.PREREG_BADGE_TYPES == [c.ATTENDEE_BADGE, c.PSEUDO_DEALER_BADGE]
+
+    def test_prereg_badge_opts_with_extra(self, monkeypatch):
+        monkeypatch.setattr(c, 'BADGE_TYPE_PRICES', {c.SUPPORTER_BADGE: 55})
+        assert c.PREREG_BADGE_TYPES == [c.ATTENDEE_BADGE, c.PSEUDO_DEALER_BADGE, c.SUPPORTER_BADGE]
+
+    def test_at_door_badge_opts_plain(self, monkeypatch):
+        monkeypatch.setattr(c, 'ONE_DAYS_ENABLED', False)
+        assert dict(c.AT_THE_DOOR_BADGE_OPTS).keys() == {c.ATTENDEE_BADGE}
+
+    def test_at_door_badge_opts_simple_one_days(self):
+        assert dict(c.AT_THE_DOOR_BADGE_OPTS).keys() == {c.ATTENDEE_BADGE, c.ONE_DAY_BADGE}
+
+    def test_at_door_badge_opts_presold_one_days(self, monkeypatch):
+        monkeypatch.setattr(c, 'PRESELL_ONE_DAYS', True)
+        monday_after_now = localized_now() + timedelta(days=(7-localized_now().weekday()))
+        monkeypatch.setattr(c, 'EPOCH', monday_after_now + timedelta(days=4))
+        monkeypatch.setattr(c, 'ESCHATON', monday_after_now + timedelta(days=6))
+        assert dict(c.AT_THE_DOOR_BADGE_OPTS).keys() == {c.ATTENDEE_BADGE, c.FRIDAY, c.SATURDAY, c.SUNDAY}
+
+    def test_at_door_badge_opts_with_extra(self, monkeypatch):
+        monkeypatch.setattr(c, 'BADGE_TYPE_PRICES', {c.SUPPORTER_BADGE: 55})
+        assert dict(c.AT_THE_DOOR_BADGE_OPTS).keys() == {c.ATTENDEE_BADGE, c.ONE_DAY_BADGE, c.SUPPORTER_BADGE}
+
+
 class TestStaffGetFood:
 
     def test_job_locations_with_food_prep(self):
