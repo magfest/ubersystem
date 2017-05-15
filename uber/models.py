@@ -631,16 +631,12 @@ class Session(SessionManager):
                 return 'Attendee is already {} with badge {}'.format(c.BADGES[old_badge_type], old_badge_num)
 
             if c.SHIFT_CUSTOM_BADGES:
-                # fill in the gap from the old number, if applicable
                 badge_num_keep = attendee.badge_num
-                if old_badge_num and not was_dupe_num:
-                    self.shift_badges(old_badge_type, old_badge_num + 1, down=True)
 
                 # make room for the new number, if applicable
                 if attendee.badge_num:
                     offset = 1 if old_badge_type == attendee.badge_type and attendee.badge_num > (old_badge_num or 0) else 0
-                    no_gap = self.query(Attendee).filter(Attendee.badge_type == attendee.badge_type,
-                                                         Attendee.badge_num == attendee.badge_num,
+                    no_gap = self.query(Attendee).filter(Attendee.badge_num == attendee.badge_num,
                                                          Attendee.id != attendee.id).first()
 
                     if no_gap:
@@ -1195,6 +1191,10 @@ class Attendee(MagModel, TakesPaymentMixin):
             self.ribbon = c.DEALER_RIBBON
 
         self.badge_type = get_real_badge_type(self.badge_type)
+
+        if c.SHIFT_CUSTOM_BADGES and self.orig_value_of('badge_num'):
+            if self.orig_value_of('badge_type') != self.badge_type or not needs_badge_num(self):
+                self.session.shift_badges(self.orig_value_of('badge_type'), self.orig_value_of('badge_num') + 1, down=True)
 
         if not needs_badge_num(self):
             self.badge_num = None
