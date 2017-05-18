@@ -72,8 +72,8 @@ SIDEBOARD_CONFIG_OVERRIDES='development-defaults.ini;test-defaults.ini' pytest u
 ```
 
 
-## Potential pitfalls
-
+## Troubleshooting
+### No test-defaults.ini
 You will see errors like the following if the tests are run without loading
 `test-defaults.ini`:
 ```
@@ -86,6 +86,11 @@ E       sqlite3.OperationalError: near "DEFERRABLE": syntax error
 
 Make sure `SIDEBOARD_CONFIG_OVERRIDES` is set to
 `development-defaults.ini;test-defaults.ini`.
+
+### Tox using old code
+In some cases, you may see errors that look like you have old code even though you're on the latest master.
+For example, tox may report being unable to import a module recently added to Sideboard. In these cases, tox's 
+environment needs to be refreshed by add the `-r` flag to a command. Try running `tox -r`!
 
 The easiest way to make sure everything is set up correctly is to use tox as
 described above. Use tox! Tox is great!
