@@ -9,7 +9,6 @@ commands:
 ```
 sep drop_uber_db
 sep alembic upgrade heads
-# If you have only the uber plugin installed, use `alembic upgrade head` instead of `heads`
 sep alembic --plugin myplugin revision --autogenerate -m "Migration description"
 sep alembic upgrade heads
 ```
