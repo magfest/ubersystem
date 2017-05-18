@@ -623,7 +623,7 @@ class Session(SessionManager):
             """
             from uber.badge_funcs import needs_badge_num
 
-            if c.SHIFT_CUSTOM_BADGES:
+            if c.SHIFT_CUSTOM_BADGES and c.BEFORE_PRINTED_BADGE_DEADLINE:
                 # fill in the gap from the old number, if applicable
                 badge_num_keep = attendee.badge_num
                 if old_badge_num:

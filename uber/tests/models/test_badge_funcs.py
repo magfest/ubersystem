@@ -303,13 +303,6 @@ class TestBadgeTypeChange:
     def test_from_non_preassigned(self, session):
         change_badge(session, session.regular_attendee, c.STAFF_BADGE, expected_num=6)
 
-    def test_no_double_shift(self, session):
-        # Regression test -- presave adjustments used to try shifting badges
-        # after they'd already been shifted by update_badge()
-        change_badge(session, session.staff_three, c.ATTENDEE_BADGE)
-        assert session.staff_four.badge_num == 3
-        assert session.staff_five.badge_num == 4
-
 
 class TestInternalBadgeChange:
     def test_beginning_to_end(self, session):
@@ -427,6 +420,13 @@ class TestShiftOnChange:
         session.update_badge(Attendee(first_name='NewStaff', paid=c.NEED_NOT_PAY, badge_type=c.STAFF_BADGE, badge_num=5), None, None)
         session.commit()
         assert [1, 2, 3, 4, 10] == self.staff_badges(session)
+
+    def test_no_double_shift(self, session):
+        # Regression test -- presave adjustments used to try shifting badges
+        # after they'd already been shifted by update_badge()
+        change_badge(session, session.staff_three, c.ATTENDEE_BADGE)
+        assert session.staff_four.badge_num == 3
+        assert session.staff_five.badge_num == 4
 
 
 class TestBadgeValidations:
