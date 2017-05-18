@@ -452,4 +452,3 @@ class TestBadgeValidations:
         session.regular_attendee.badge_type = c.STAFF_BADGE
         session.regular_attendee.badge_num = None
         assert 'There are no more badges available for that type' == check(session.regular_attendee)
-
