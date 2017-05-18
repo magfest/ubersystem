@@ -98,6 +98,9 @@ class TestNeedsBadgeNum:
         session.regular_attendee.badge_status = c.INVALID_STATUS
         assert not needs_badge_num(attendee=session.regular_attendee)
 
+    def test_preassigned_after_deadline(self, session, after_printed_badge_deadline):
+        assert not needs_badge_num(attendee=session.staff_one)
+
 
 class TestGetNextBadgeNum:
     def test_preassigned(self, session):

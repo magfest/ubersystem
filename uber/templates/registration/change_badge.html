@@ -34,6 +34,12 @@
 {{ csrf_token() }}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 
+{% if c.AFTER_PRINTED_BADGE_DEADLINE %}
+    WARNING: All custom badges have been ordered. New custom badges will not be automatically numbered -- you must use
+    a number that you KNOW to be available and to belong to an 'extra' blank custom badge. Do not assign a custom badge
+    type unless you know exactly what you are doing.
+{% endif %}
+
 <table>
 <tr>
     <td width="25%"> <b>Badge Type:</b> </td>
