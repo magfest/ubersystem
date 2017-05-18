@@ -541,7 +541,7 @@
         <input type="text" name="cellphone" id="cellphone" value="{{ attendee.cellphone }}" class="form-control" placeholder="A phone number we can use to contact you during the event">
     </div>
     {% if not attendee.is_dealer or c.PAGE_PATH == '/registration/form' %}
-        <div class="checkbox col-sm-6">
+        <div class="checkbox col-sm-6 col-sm-offset-2">
             <label class="cellphone-excuse">
                 {{ macros.checkbox(attendee, 'no_cellphone') }}
                 I don't own a cellphone.
