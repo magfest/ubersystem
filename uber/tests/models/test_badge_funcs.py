@@ -1,5 +1,5 @@
 from uber.tests import *
-from uber.badge_funcs import needs_badge_num, is_badge_the_same
+from uber.badge_funcs import needs_badge_num, reset_badge_if_unchanged
 
 
 @pytest.fixture
@@ -41,7 +41,7 @@ def check_ranges(session):
 def change_badge(session, attendee, new_type, new_num=None, expected_num=None):
     old_type, old_num = attendee.badge_type, attendee.badge_num
     attendee.badge_type, attendee.badge_num = new_type, new_num
-    is_badge_the_same(attendee, old_type, old_num)
+    reset_badge_if_unchanged(attendee, old_type, old_num)
     session.commit()
     session.refresh(attendee)
     assert new_type == attendee.badge_type
@@ -339,9 +339,9 @@ class TestInternalBadgeChange:
         change_badge(session, session.staff_four, c.STAFF_BADGE, new_num=2)
 
     def test_self_assignment(self, session):
-        assert 'Attendee is already Staff with badge 1' == is_badge_the_same(session.staff_one, c.STAFF_BADGE, 1)
-        assert 'Attendee is already Staff with badge 3' == is_badge_the_same(session.staff_three, c.STAFF_BADGE, 3)
-        assert 'Attendee is already Staff with badge 5' == is_badge_the_same(session.staff_five, c.STAFF_BADGE, 5)
+        assert 'Attendee is already Staff with badge 1' == reset_badge_if_unchanged(session.staff_one, c.STAFF_BADGE, 1)
+        assert 'Attendee is already Staff with badge 3' == reset_badge_if_unchanged(session.staff_three, c.STAFF_BADGE, 3)
+        assert 'Attendee is already Staff with badge 5' == reset_badge_if_unchanged(session.staff_five, c.STAFF_BADGE, 5)
 
 
 class TestBadgeDeletion:
