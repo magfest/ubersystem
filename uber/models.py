@@ -1181,23 +1181,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             self.legal_name = ''
 
     @presave_adjustment
-    def _badge_adjustments(self):
-        # _assert_badge_lock()
-        from uber.badge_funcs import needs_badge_num
-        if self.badge_type == c.PSEUDO_DEALER_BADGE:
-            self.ribbon = c.DEALER_RIBBON
-
-        self.badge_type = get_real_badge_type(self.badge_type)
-
-        if not needs_badge_num(self):
-            self.badge_num = None
-
-        if self.orig_value_of('badge_type') != self.badge_type or self.orig_value_of('badge_num') != self.badge_num:
-            self.session.update_badge(self, self.orig_value_of('badge_type'), self.orig_value_of('badge_num'))
-        elif needs_badge_num(self) and not self.badge_num:
-            self.badge_num = self.session.get_next_badge_num(self.badge_type)
-
-    @presave_adjustment
     def _status_adjustments(self):
         if self.badge_status == c.NEW_STATUS and self.banned:
             self.badge_status = c.WATCHED_STATUS
@@ -1244,6 +1227,23 @@ class Attendee(MagModel, TakesPaymentMixin):
         self.trusted_depts = ','.join(str(td) for td in self.trusted_depts_ints if td in self.assigned_depts_ints)
 
     @presave_adjustment
+    def _badge_adjustments(self):
+        # _assert_badge_lock()
+        from uber.badge_funcs import needs_badge_num
+        if self.badge_type == c.PSEUDO_DEALER_BADGE:
+            self.ribbon = c.DEALER_RIBBON
+
+        self.badge_type = get_real_badge_type(self.badge_type)
+
+        if not needs_badge_num(self):
+            self.badge_num = None
+
+        if self.orig_value_of('badge_type') != self.badge_type or self.orig_value_of('badge_num') != self.badge_num:
+            self.session.update_badge(self, self.orig_value_of('badge_type'), self.orig_value_of('badge_num'))
+        elif needs_badge_num(self) and not self.badge_num:
+            self.badge_num = self.session.get_next_badge_num(self.badge_type)
+
+    @presave_adjustment
     def _email_adjustment(self):
         self.email = normalize_email(self.email)
 
@@ -1255,7 +1255,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_type == c.STAFF_BADGE:
             self.badge_type = c.ATTENDEE_BADGE
             self.badge_num = None
-            self.session.update_badge(self, c.STAFF_BADGE, self.orig_value_of('badge_num'))
         del self.shifts[:]
 
     @property
