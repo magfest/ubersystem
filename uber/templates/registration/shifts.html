@@ -73,8 +73,8 @@
         <tr>
             <td><a href="../jobs/form?id={{ shift.job.id }}">{{ shift.job.name }}</a></td>
             <td><a href="../jobs/index?location={{ shift.job.location }}">{{ shift.job.location_label }}</a></td>
-            <td>{{ hour_day(shift.job.start_time) }}</td>
-            <td>{{ hour_day(shift.job.end_time) }}</td>
+            <td>{{ hour_day_local(shift.job.start_time) }}</td>
+            <td>{{ hour_day_local(shift.job.end_time) }}</td>
             <td>{{ shift.job.duration }} (x{{ shift.job.weight }})</td>
             <td>{{ shift.job.weighted_hours}}</td>
             <td>
