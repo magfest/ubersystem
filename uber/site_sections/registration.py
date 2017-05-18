@@ -129,7 +129,7 @@ class Root:
     def change_badge(self, session, id, message='', **params):
         attendee = session.attendee(id, allow_invalid=True)
         if 'badge_type' in params:
-            from uber.badge_funcs import is_badge_the_same
+            from uber.badge_funcs import reset_badge_if_unchanged
             old_badge_type, old_badge_num = attendee.badge_type, attendee.badge_num
             attendee.badge_type = int(params['badge_type'])
             try:
@@ -140,7 +140,7 @@ class Root:
             message = check(attendee)
 
             if not message:
-                message = is_badge_the_same(attendee, old_badge_type, old_badge_num) or "Badge updated."
+                message = reset_badge_if_unchanged(attendee, old_badge_type, old_badge_num) or "Badge updated."
                 raise HTTPRedirect('form?id={}&message={}', attendee.id, message or '')
 
         return {
