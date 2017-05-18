@@ -14,6 +14,15 @@ def check_range(badge_num, badge_type):
                 return '{} badge numbers must fall within the range {} - {}'.format(dict(c.BADGE_OPTS)[badge_type], min_num, max_num)
 
 
+def is_badge_the_same(attendee, old_badge_type, old_badge_num):
+    old_badge_num = int(old_badge_num or 0) or None
+
+    if old_badge_type == attendee.badge_type and \
+            (not attendee.badge_num or old_badge_num == attendee.badge_num):
+        attendee.badge_num = old_badge_num
+        return 'Attendee is already {} with badge {}'.format(c.BADGES[old_badge_type], old_badge_num)
+
+
 # TODO: returning (result, error) is not a convention we're using anywhere else,
 #       so maybe change this to be more idiomatic if convenient, but not a big deal
 def get_badge_type(badge_num):

@@ -622,18 +622,11 @@ class Session(SessionManager):
             :return:
             """
             from uber.badge_funcs import needs_badge_num
-            old_badge_num = int(old_badge_num or 0) or None
-            was_dupe_num = self.query(Attendee).filter(Attendee.badge_num == old_badge_num,
-                                                       Attendee.id != attendee.id).first()
-
-            if not was_dupe_num and old_badge_type == attendee.badge_type and (not attendee.badge_num or old_badge_num == attendee.badge_num):
-                attendee.badge_num = old_badge_num
-                return 'Attendee is already {} with badge {}'.format(c.BADGES[old_badge_type], old_badge_num)
 
             if c.SHIFT_CUSTOM_BADGES:
                 # fill in the gap from the old number, if applicable
                 badge_num_keep = attendee.badge_num
-                if old_badge_num and not was_dupe_num:
+                if old_badge_num:
                     self.shift_badges(old_badge_type, old_badge_num + 1, down=True)
 
                 # make room for the new number, if applicable
@@ -1196,11 +1189,11 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         self.badge_type = get_real_badge_type(self.badge_type)
 
-        if self.orig_value_of('badge_type') != self.badge_type:
-            self.session.update_badge(self, self.orig_value_of('badge_type'), self.orig_value_of('badge_num'))
-
         if not needs_badge_num(self):
             self.badge_num = None
+
+        if self.orig_value_of('badge_type') != self.badge_type or self.orig_value_of('badge_num') != self.badge_num:
+            self.session.update_badge(self, self.orig_value_of('badge_type'), self.orig_value_of('badge_num'))
         elif needs_badge_num(self) and not self.badge_num:
             self.badge_num = self.session.get_next_badge_num(self.badge_type)
 
