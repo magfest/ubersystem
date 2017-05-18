@@ -1,0 +1,89 @@
+{% extends "base-admin.html" %}
+{% block title %}Generate Promo Codes{% endblock %}
+{% block content %}
+
+<style>
+.decent > th,td{
+    padding: 1em;
+}
+.decent-row:hover{
+    background-color: #f5f5f5;
+}
+</style>
+<h2> Generate Promo Codes </h2>
+
+    <a class="btn btn-default" href="view_promo_codes">View All Promo Codes</a>
+
+    <div class="panel panel-default">
+<form method="post" action="generate_promo_codes" class="form-horizontal">
+{{ csrf_token() }}
+<div class="form-group">
+    <label for="count" class="col-sm-2 control-label"># of Codes:</label>
+    <div class="col-sm-1"><input type="number" name="count" class="form-control" min="1" value="1" /></div>
+</div>
+<div class="form-group">
+    <label for="code" class="col-sm-2 control-label optional-field">Promo Code:</label>
+    <div class="col-sm-3">
+        <input type="text" name="code" class="form-control" value="{{ promo_code.code }}" placeholder="Enter a custom code, or leave blank to generate a random one." />
+    </div>
+</div>
+<div class="form-group">
+    <label for="expiration_date" class="col-sm-2 control-label">Expiration Date:</label>
+    <div class="col-sm-6">
+        <input type="text" name="expiration_date" class="form-control expiration-date" value="{{ promo_code.expiration_date }}" />
+        <p class="help-block">Promo codes will expire on 11:59pm of this date in the event's timezone.</p>
+    </div>
+</div>
+<div class="form-group">
+    <label for="discount" class="col-sm-2 control-label optional-field">Discount:</label>
+    <div class="col-sm-3">Discount the badge by at most: <br/>
+        $<input type="text" name="discount" value="{{ promo_code.discount if promo_code.discount is not none else '' }}" />
+        <p class="help-block">Leave blank to simply set badges to 'minimum price' below.</p></div>
+</div>
+<div class="form-group">
+    <label for="price" class="col-sm-2 control-label"> Minimum Price: </label>
+    <div class="col-sm-3">When using this promo code, the badge price shouldn't go below: <br/>
+        $<input type="number" name="price" min="0" value="{{ promo_code.price }}" /> </div>
+</div>
+<div class="form-group">
+    <label for="uses" class="col-sm-2 control-label optional-field">Number of Uses:</label>
+    <div class="col-sm-3">
+        <input type="text" name="uses" class="form-control" size="4" value="{{ promo_code.uses if promo_code.uses is not none else '' }}" />
+        <p class="help-block">Leave blank for infinite-use code(s).</p></div>
+</div>
+<div class="form-group">
+    <label for="" class="col-sm-2 control-label"></label>
+    <div class="col-sm-6"> <button type="submit" class="btn btn-primary">Generate Promo Codes</button>
+        <button type="submit" class="btn btn-primary" name="export" value="1">Generate and Export as CSV</button>
+    <p class="help-block"><em>Bold fields are required.</em></p></div>
+</div>
+</form>
+    </div>
+
+    {% if promo_code_list %}
+        <table class="table table-striped datatable">
+            <thead><tr>
+                <th>Promo Code</th>
+                <th>Expiration Date</th>
+                <th>Discount or Badge Price</th>
+                <th>Number of Uses</th>
+            </tr></thead>
+        {% for code in promo_code_list %}
+            <tr>
+            <td>{{ code.code }}</td>
+            <td>{{ code.expiration_date }}</td>
+            <td>
+                {% if code.discount is not none %}
+                ${{ code.discount }} discount
+                {% else %}
+                Badge price of ${{ code.price }}
+                {% endif %}
+            </td>
+            <td>
+                {{ code.uses if code.uses is not none else 'Unlimited' }}
+            </td>
+            </tr>
+        {% endfor %}
+        </table>
+    {% endif %}
+{% endblock %}

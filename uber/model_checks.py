@@ -111,6 +111,32 @@ def total_cost_over_paid(attendee):
         return 'You have already paid ${}, you cannot reduce your extras below that.'.format(attendee.amount_paid)
 
 
+@prereg_validation.Attendee
+def promo_code_is_useful(attendee):
+    if attendee.promo_code and attendee.promo_code != attendee.orig_value_of('promo_code'):
+        if not attendee.is_unpaid:
+            return "You can't apply a promo code after you've paid or if you're in a group."
+        elif attendee.overridden_price:
+            return "You already have a special badge price, you can't use a promo code on top of that."
+        elif attendee.badge_cost_with_promo_code >= attendee.badge_cost:
+            return "The promo code you entered doesn't end up making your badge cheaper. The code may be " \
+                   "configured incorrectly, or you may have other discounts."
+
+
+@prereg_validation.Attendee
+def promo_code_not_expired(attendee):
+    if attendee.promo_code and attendee.promo_code != attendee.orig_value_of('promo_code'):
+        if attendee.promo_code.expired:
+            return "This promo code is expired."
+
+
+@prereg_validation.Attendee
+def promo_code_uses_left(attendee):
+    if attendee.promo_code and attendee.promo_code != attendee.orig_value_of('promo_code'):
+        if not attendee.promo_code.uses_remaining == "Unlimited" and attendee.promo_code.uses_remaining <= 0:
+            return "This promo code is no longer valid."
+
+
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def full_name(attendee):
@@ -381,3 +407,42 @@ def cash_and_mpoints(sale):
         return 'Cash must be a positive integer'
     if not str(sale.mpoints).isdigit() or int(sale.mpoints) < 0:
         return 'MPoints must be a positive integer'
+
+PromoCode.required = [('expiration_date', 'Expiration date')]
+
+@validation.PromoCode
+def valid_discount(promo_code):
+    if promo_code.discount:
+        try:
+            promo_code.discount = int(promo_code.discount)
+            if promo_code.discount < 0:
+                return 'You cannot give out promo codes that increase badge prices.'
+        except:
+            return "What you entered for the discount isn't even a number."
+
+@validation.PromoCode
+def valid_uses(promo_code):
+    if promo_code.uses:
+        try:
+            promo_code.uses = int(promo_code.uses)
+            if promo_code.uses < 0 or promo_code.uses < len(promo_code.used_by):
+                return 'Promo codes must have at least 0 uses remaining.'
+        except:
+            return "What you entered for the number of uses isn't even a number."
+
+@validation.PromoCode
+def no_dupe_code(promo_code):
+    if promo_code.code != promo_code.orig_value_of('code') and promo_code.code != '':
+        matchingCode = session.query(PromoCode).filter(PromoCode.code.ilike('%{}%'.format(params['code']))).first()
+        if matchingCode:
+            return 'The code you entered already belongs to another promo code. Note that promo codes are case insensitive.'
+
+@validation.PromoCode
+def valid_price(promo_code):
+    # Although we use the 'number' input type for price, some browsers (< IE9) still allow any input.
+    try:
+        promo_code.price = int(promo_code.price)
+        if promo_code.price < 0:
+            return "You cannot enter a negative minimum badge price."
+    except:
+        return "What you entered for the minimum badge price isn't even a number."

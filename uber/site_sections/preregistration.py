@@ -120,14 +120,6 @@ class Root:
             params.setdefault('badges', group.badges)
         else:
             attendee = session.attendee(params, ignore_csrf=True, restricted=True)
-            if attendee.found_how:
-                code = session.query(PromoCode).filter(PromoCode.code == attendee.found_how).first()
-                attendee.promo_code = code
-                attendee.promo_code_id = code.id
-                if code.price > 0:
-                    attendee.overridden_price = code.price
-                else:
-                    attendee.paid = c.NEED_NOT_PAY
             group = session.group(params, ignore_csrf=True, restricted=True)
 
         if not attendee.badge_type:
@@ -198,6 +190,7 @@ class Root:
             'attendee':   attendee,
             'group':      group,
             'edit_id':    edit_id,
+            'promo_code': params.get('promo_code', ''),
             'badges':     params.get('badges'),
             'affiliates': session.affiliates(),
             'cart_not_empty': self.unpaid_preregs

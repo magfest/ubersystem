@@ -1111,58 +1111,46 @@ class Group(MagModel, TakesPaymentMixin):
 
 
 class PromoCode(MagModel):
-    expiration_date = Column(UTCDateTime, default=c.ESCHATON)
+    expiration_date = Column(Date, default=c.ESCHATON)
+    discount = Column(Integer, nullable=True, default=None)
     price = Column(Integer, default=0)
     code = Column(UnicodeText)
     uses = Column(Integer, nullable=True, default=None)
-    # Uses should be -1 to make expired
-    # if Uses is set to 'None' it is considered to be infinite
-
-    def generate_code(self, count):
-        code = []
-        for x in range(count):
-            code.append(c.PROMO_CODE_WORDS[random.choice(string.ascii_letters + string.digits)])
-        return "_".join(code)
 
     @presave_adjustment
-    def _usage_count(self):
-        if self.uses == 0:
-            # The first time uses is set by an Admin, it can only go as low as 0.
-            # 0 in that case is equivalent to Infinite which as said earlier is equivalent to 'None'.
+    def _empty_adjustments(self):
+        # If 'uses' is not entered by admin, it is an infinite-use code
+        if self.uses == '':
             self.uses = None
 
+        # Much like uses, an empty discount is equivalent to an infinite discount (where badge is always set to 'price')
+        if self.discount == '':
+            self.discount = None
+
     @presave_adjustment
-    def _check_code(self):
+    def _generate_code(self):
         if self.code == '':
-            self.code = self.generate_code(6)
-        elif self.code != self.orig_value_of('code'):
-            with Session() as session:
-                while True:
-                    match = session.query(PromoCode).filter(PromoCode.code == self.code and PromoCode.id != self.id).first()
-                    if match:
-                        split_code = self.code.split("_")
-                        split_code.append(self.generate_code(1))
-                        self.code = "_".join(split_code)
-                    else:
-                        break
-
-    def use(self, user):
-        if not self.expired:
-            self.used_by.append(user)
-            return True
-        else:
-            user.promo_code_id = None
-
-    def expire(self):
-        self.expiration_date = localized_now()
+            self.code = self.generate_code()
 
     @property
     def expired(self):
-        if self.uses:
-            if len(self.used_by) >= self.uses:
-                return True
-        if self.expiration_date < datetime.now(UTC):
-            return True
+        return self.expiration_date < localized_now().date()
+
+    @property
+    def uses_remaining(self):
+        return self.uses - len(self.used_by) if self.uses else "Unlimited"
+
+    # TODO: Need a property for 'actually used by' that only counts attendees with certain badge statuses
+
+    def generate_code(self):
+        code = ''.join(random.choice(c.PROMO_CODE_STUBS) for ch in range(c.PROMO_CODE_LENGTH))
+
+        with Session() as session:
+            if session.query(PromoCode).filter(PromoCode.code == code).all():
+                # This is rare, so we can be inefficient about it.
+                code = self.generate_code()
+
+        return code
 
 
 class Attendee(MagModel, TakesPaymentMixin):
@@ -1172,7 +1160,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     group = relationship(Group, backref='attendees', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
 
     promo_code_id = Column(UUID, ForeignKey('promo_code.id'), nullable=True)
-    promo_code = relationship(PromoCode, backref='used_by', foreign_keys=promo_code_id, cascade='save-update,merge,refresh-expire,expunge')
+    promo_code    = relationship(PromoCode, backref='used_by', foreign_keys=promo_code_id, cascade='save-update,merge,refresh-expire,expunge')
 
     placeholder   = Column(Boolean, default=False, admin_only=True)
     first_name    = Column(UnicodeText)
@@ -1358,6 +1346,19 @@ class Attendee(MagModel, TakesPaymentMixin):
     def _email_adjustment(self):
         self.email = normalize_email(self.email)
 
+    @presave_adjustment
+    def _find_promo_code(self):
+        if self.promo_code:
+
+
+    @presave_adjustment
+    def _use_promo_code(self):
+        if self.promo_code and not self.overridden_price and self.is_unpaid:
+            if self.badge_cost_with_promo_code > 0:
+                self.overridden_price = self.badge_cost_with_promo_code
+            else:
+                self.paid = c.NEED_NOT_PAY
+
     def unset_volunteering(self):
         self.staffing = False
         self.trusted_depts = self.requested_depts = self.assigned_depts = ''
@@ -1403,6 +1404,18 @@ class Attendee(MagModel, TakesPaymentMixin):
             return c.get_attendee_price(registered) - c.GROUP_DISCOUNT
         else:
             return c.get_attendee_price(registered)
+
+    @property
+    def badge_cost_with_promo_code(self):
+        # This property is used to check to make sure a promo code will actually discount a badge
+        if self.overridden_price:
+            return self.overriden_price
+
+        if self.promo_code and self.promo_code.discount:
+            minus_discount = self.badge_cost - self.promo_code.discount
+            return minus_discount if minus_discount < self.promo_code.price else self.promo_code.price
+        elif self.promo_code:
+            return self.promo_code.price
 
     @property
     def age_discount(self):

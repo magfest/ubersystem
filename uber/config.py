@@ -603,19 +603,10 @@ stripe.api_key = c.STRIPE_SECRET_KEY
 # all of the pages on the site except for preregistration pages (for performance)
 c.JAVASCRIPT_INCLUDES = []
 
-c.AWESOME_WORDS = [
-    "Fire",
-    "Water",
-    "Air",
-    "Earth",
-    "Stan"
-
-]
-
-c.PROMO_CODE_WORDS = {}
-for x in (string.ascii_letters + string.digits):
-    words = c.AWESOME_WORDS
-    if len(words) > 0:
-        c.PROMO_CODE_WORDS[x] = words.pop(random.randint(0, len(words)-1))
-    else:
-        c.PROMO_CODE_WORDS[x] = x
+if not c.ONLY_WORDS_IN_PROMO_CODES:
+    plus_one = sorted(c.PROMO_CODE_STUBS)[-1] + 1
+    count = plus_one
+    unambiguous_chars = re.sub('[B8G6I1l0OQDS5Z2]', '', (string.ascii_uppercase + string.digits))
+    for val in unambiguous_chars:
+        c.PROMO_CODE_STUBS.update({count: val})
+        count += 1

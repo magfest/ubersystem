@@ -889,36 +889,33 @@ class Root:
         return {'message': message}
 
     @csv_file
-    def generate_promo_codes(self, out, session, **params):
-        date = params['expiration_date'].split("-")
-        params['expiration_date'] = datetime(int(date[0]), month=int(date[1]), day=int(date[2]))
-        out.writerow(['Code', 'Price', 'Uses', 'Expiration Date'])
-        count = int(params['count'])
-        codes = []
-        for x in range(count):
-            code = session.promo_code(params)
-            session.add(code)
-            codes.append(code)
-        session.commit()
+    def export_promo_codes(self, out, session, codes):
+        codes = codes or session.query(PromoCode).all()
+        out.writerow(['Code', 'Expiration Date', 'Discount', 'Uses'])
         for code in codes:
-            uses = code.uses
-            if uses is None:
-                uses = "Unlimited"
-            out.writerow([code.code, code.price, uses, code.expiration_date])
+            out.writerow([code.code, code.expiration_date, code.discount or ("Set price to $" + str(code.price)),
+                          code.uses or "Unlimited"])
 
     @site_mappable
-    def generate_promo_code(self, session, message='', **params):
-        if 'code' in params:
-            date = params['expiration_date'].split("-")
-            params['expiration_date'] = datetime(int(date[0]), month=int(date[1]), day=int(date[2]))
-            code = session.promo_code(params)
-            session.add(code)
-            session.commit()
-            message = 'Your Code is: %s' % code.code
+    def generate_promo_codes(self, session, message='', **params):
+        promo_code = session.promo_code(params)
+        generated_codes = []
+        if 'count' in params:
+            message = check(promo_code)
+
+            if not message:
+                for num in params['count']:
+                    new_code = session.promo_code(params)
+                    session.add(new_code)
+                    generated_codes.append(new_code)
+                session.commit()
+                message = 'Promo codes generated successfully.'
+                if 'export' in params:
+                    return self.export_promo_codes(codes=generated_codes)
         return {
             'message': message,
-            'now': datetime.now().strftime("%Y-%m-%d"),
-            'max': c.ESCHATON.strftime('%Y-%m-%d')
+            'promo_code': promo_code,
+            'promo_code_list': generated_codes
         }
 
     @site_mappable
@@ -926,74 +923,27 @@ class Root:
         codes = session.query(PromoCode).all()
         return {
             'message': message,
-            'promo_codes': codes,
-            'now': datetime.now().strftime("%Y-%m-%d"),
-            'max': c.ESCHATON.strftime('%Y-%m-%d')
+            'promo_codes': codes
         }
 
-    def edit_code(self, session, message='', **params):
-        if 'id' and 'new_code' in params:
-            message = 'Failed for unknown reason.'
-            if params['new_code'] is not '':
-                matchingCode = session.query(PromoCode).filter(PromoCode.code == params['new_code']).first()
-                if matchingCode:
-                    message = 'Code Already Exists!'
-                else:
-                    old_code = session.query(PromoCode).filter(PromoCode.id == params['id']).first()
-                    old_code.code = params['new_code']
-                    message = "Code Updated!"
-                    session.commit()
-        return message
-
-    def delete_code(self, session, **params):
+    def update_promo_code(self, session, message='', **params):
         if 'id' in params:
-            match = session.query(PromoCode).filter(PromoCode.id == params['id']).first()
-            if match:
-                session.delete(match)
-                session.commit()
-                return "Success!"
-        return False
+            promo_code = session.promo_code(params)
 
-    @ajax
-    def expire_code(self, session, message='No PromoCode provided.', **params):
-        if 'id' in params:
-            message = 'Failed for unknown reason.'
-            matchingCode = session.query(PromoCode).filter(PromoCode.id == params['id']).first()
-            if matchingCode:
-                matchingCode.expire()
-                session.commit()
-                message = "PromoCode '%s' has been successfully expired." % matchingCode.code
-        return message
+            message = check(promo_code)
 
-    @ajax
-    def edit_date(self, session, message='No PromoCode provided.', **params):
-        if 'id' and 'date' in params:
-            message = 'Failed for unknown reason.'
-            matchingCode = session.query(PromoCode).filter(PromoCode.id == params['id']).first()
-            if matchingCode:
-                date = c.EVENT_TIMEZONE.localize(datetime.strptime(params['date'], "%m-%d-%Y"))
-                matchingCode.expiration_date = date
-                session.commit()
-                message = "PromoCode '%s' has had its expiration date changed to %s" % (matchingCode.code, matchingCode.expiration_date)
-        return message
+            if not message:
+                if 'expire' in params:
+                    promo_code.expiration_date = localized_now() - timedelta(days=1)
 
-    @ajax
-    def send_promo_email(self, session, message='A completely unknown error has occured.', **params):
-        if 'id' and 'name' and 'email' in params:
-            matchingCode = session.query(PromoCode).filter(PromoCode.id == params['id']).first()
-            if matchingCode:
-                message = ""
-                # Generate an Approved Email to go out that informs the user at the given email address what the
-                # Promo Code is, what it is worth, and how to redeem it. Needs an email template.
-                message = "Email has been sent to %s" % (params['email'])
-                return {
-                    "success": message
-                }
-        message = "Missing possibly all three fields." \
-                  " Check that name, email, and promo code id are present in the request."
-        return {
-            "error": message
-        }
+                message="Promo code updated"
+                session.commit()
+
+            raise HTTPRedirect('view_promo_codes?message={}', message)
+
+    def delete_promo_code(self, session, id, **params):
+        session.delete(session.promo_code(id))
+        raise HTTPRedirect('view_promo_codes?message={}', 'Promo code deleted')
 
     def placeholders(self, session, department=''):
         return {

@@ -1,230 +1,98 @@
 {% extends "base-admin.html" %}
 {% block title %}View Promo Codes{% endblock %}
 {% block content %}
-<style>
-.decent > th,td{
-    padding: 1em;
-}
-.decent-rows:hover{
-    background-color: #f5f5f5;
-}
-.delete{
-    font-size: 36px;
-}
-
-.delete:hover{
-    color: #FF0011;
-}
-</style>
+<script type="text/javascript">
+    $().ready(function() {
+        $("form[action='delete_promo_code']").submit(function(event){
+            var formToSubmit = this;
+            event.preventDefault();
+            bootbox.confirm({
+                message: "This will permanently delete this promo code. Anyone who has used the code will keep their " +
+                "current badge price. This cannot be undone. Are you sure?",
+                buttons: {
+                    confirm: {
+                        label: 'Yes',
+                        className: 'btn-success'
+                    },
+                    cancel: {
+                        label: 'No',
+                        className: 'btn-danger'
+                    }
+                },
+                callback: function (result) {
+                    if(result) {
+                        formToSubmit.submit();
+                    }
+                }
+            });
+        })
+    });
+</script>
 <h2> View Promo Codes </h2>
 
-<table>
-<tr class="decent">
-    <th>
-        Delete?
-    </th>
-    <th>
-        Code
-    </th>
-    <th>
-        Expiration Date
-    </th>
-    <th>
-        Uses
-    </th>
-    <th>
-        Ticket Price
-    </th>
-    <th>
-        Expired
-    </th>
-    <th>
-        Send Email?
-    </th>
-    <th>
-        Users
-    </th>
-</tr>
-{% for p in promo_codes %}
-    <tr class="decent decent-rows">
-        <td class="delete">
-            <a href="#" onclick="deleteCode('{{ p.id }}')"><i>X</i></a>
-        </td>
-        <td>
-            <a href="#" onclick="editCode('{{ p.id }}', '{{ p.code }}')">{{ p.code }}</a>
-        </td>
-        <td>
-            <a href="#" id="date{{ forloop.counter }}" name="date{{ forloop.counter }}" onclick="dateID = '{{ p.id }}'; cal.showCalendar('date{{ forloop.counter }}')"><i>{{ p.expiration_date }}</i></a>
-        </td>
-        <td>
-            {% if p.uses == None %}
-                Unlimited
-            {% else %}
-                {{ p.uses }}
-            {% endif %}
-        </td>
-        <td>
-            ${{ p.price }}
-        </td>
-        <td>
-            {% if not p.expired %}<a href="#" onclick="expireCode('{{ p.id }}')">False</a>{% else %}True{% endif %}
-        </td>
-        <td>
-            <form onsubmit="return generateEmail(this)" id="emailForm{{ forloop.counter }}" method="POST"
-                  action="send_promo_email">
-                <input type="text" value="{{ p.id }}" name="id" class="hidden">
-                <input type="text" value="" name="email" class="hidden">
-                <input type="text" value="" name="name" class="hidden">
-                <input type="submit" value="Click To Email Code">
-                {% csrf_token %}
-            </form>
-        </td>
-        <td>
-            {% for a in p.used_by %}
-                <a href="form?id={{ a.id }}">{{ a.full_name }}</a>{% if not forloop.last %},{% endif %}
-            {% endfor %}
-        </td>
-    </tr>
-{% endfor %}
-</table>
-
-<i>Bolded fields are required</i>
-
-<script src="../static/js/CalendarPopup.js"></script>
-<script>
-
-var generateEmail = function(form){
-
-    var formID = form.getAttribute("id");
-
-    var emailField = form[1];
-    var nameField = form[2];
-
-    var email = prompt("What is the recipient's email?");
-    var name = prompt("What is the name of the recipient?");
-
-    emailField.setAttribute("value", email);
-    nameField.setAttribute("value", name);
-
-    $("#" + formID).ajaxSubmit(function(json){
-        if('success' in json){
-            toastr.info(json['success']);
-            setTimeout(function(){
-                location.reload(true);
-            }, 3000);
-        }
-        else if ('error' in json){
-            toastr.error(json['error']);
-        }
-        else{
-            toastr.error("An unknown error has occurred.");
-        }
-
-    });
-
-    return false;
-
-};
-
-var expireCode = function(id){
-    var confirmed = confirm("Are you sure you want to expire this code? This cannot be undone.");
-    if (confirmed){
-        $.ajax({
-            url: 'expire_code',
-            data: {
-                csrf_token: csrf_token,
-                id: id
-            },
-            type: "POST",
-            success: function(message){
-                toastr.info(message);
-                setTimeout(function(){
-                    location.reload(true);
-                }, 3000);
-            },
-            error: function(message){
-                toastr.error("An Unknown Error Occured.");
-            }
-        });
-    }
-};
-
-var editCode = function(id, old_code){
-    var new_code = prompt("Edit the Promo Code:", old_code);
-    if (new_code != null) {
-        $.ajax({
-            url: 'edit_code',
-            data: {
-                csrf_token: csrf_token,
-                id: id,
-                new_code: new_code
-            },
-            type: 'POST',
-            success: function (message) {
-                toastr.info(message);
-                setTimeout(function(){
-                    location.reload(true);
-                }, 3000);
-            },
-            error: function (message) {
-                toastr.error("An Unknown Error Occured.");
-            }
-        });
-    }
-};
-
-var deleteCode = function(id){
-    $.ajax({
-        url:'delete_code',
-        data:{
-            csrf_token:csrf_token,
-            id:id
-        },
-        type:'POST',
-        success: function(message){
-            toastr.info(message);
-                setTimeout(function(){
-                    location.reload(true);
-                }, 3000);
-        },
-        error: function(message){
-            toastr.error("An Unknown Error Occured.");
-        }
-    });
-};
-
-var editDate = function(id, date){
-    $.ajax({
-            url: 'edit_date',
-            data: {
-                csrf_token: csrf_token,
-                id: id,
-                date: date
-            },
-            type: 'POST',
-            success: function (message) {
-                toastr.info(message);
-                setTimeout(function(){
-                    location.reload(true);
-                }, 3000);
-
-            },
-            error: function (message) {
-                toastr.error("An Unknown Error Occured.");
-            }
-        });
-};
-
-var dateID = "";
-var changeDate = function(y, m, d){
-    var date = m + '-' + d + '-' + y;
-    editDate(dateID, date);
-};
-
-var cal = new CalendarPopup();
-console.log(cal);
-cal.addDisabledDates(null, '{{ now }}');
-cal.addDisabledDates('{{ max }}', null);
-cal.setReturnFunction("changeDate");
-</script>
+    <div class="table-responsive">
+    <table class="table table-striped datatable">
+        <thead><tr>
+            <th></th>
+            <th>Promo Code</th>
+            <th>Expiration Date</th>
+            <th>Expired?</th>
+            <th>Discount or Badge Price</th>
+            <th>Number of Uses</th>
+            <th>Attendees With Promo Code</th>
+        </tr></thead>
+        <tbody>
+        {% for promo_code in promo_codes %}
+            <tr id="{{ promo_code.id }}">
+            <td>
+                <div class="btn-group-vertical">
+                    <form id="update_promo_code_{{ promo_code.id }}" method="post" action="update_promo_code">
+                        {{ csrf_token() }}
+                        <input type="hidden" name="id" value="{{ promo_code.id }}" />
+                        <button type="submit" class="btn btn-primary update-button">
+                            <span class="glyphicon glyphicon-floppy-disk"></span></button>
+                    </form>
+                <form method="post" action="delete_promo_code">
+                    {{ csrf_token() }}
+                    <input type="hidden" name="id" value="{{ promo_code.id }}" />
+                    <button type="submit" class="btn btn-danger delete-button">
+                        <span class="glyphicon glyphicon-trash"></span></button>
+                </form>
+            </div>
+            </td>
+            <td data-order="{{ promo_code.code }}" data-search="{{ promo_code.code }}">
+                <input type="text" form="update_promo_code_{{ promo_code.id }}" name="code" class="form-control" value="{{ promo_code.code }}" placeholder="Enter a custom code, or leave blank to generate a new random one." />
+            </td>
+            <td data-order="{{ promo_code.expiration_date }}" data-search="{{ promo_code.expiration_date }}">
+                <input type="text" form="update_promo_code_{{ promo_code.id }}" name="expiration_date" class="form-control expiration-date" value="{{ promo_code.expiration_date }}" />
+            </td>
+            <td>
+                {% if promo_code.expired %}
+                Yes
+                {% else %}
+                <button type="submit" class="btn btn-warning" name="expire" value="1" form="update_promo_code_{{ promo_code.id }}">Expire Now</button>
+                {% endif %}
+            </td>
+            <td>
+                {% if promo_code.discount is not none %}
+                ${{ promo_code.discount }} discount
+                {% else %}
+                Badge price of ${{ promo_code.price }}
+                {% endif %}
+            </td>
+            <td>
+                <input type="text" form="update_promo_code_{{ promo_code.id }}" name="uses" class="form-control" size="4" value="{{ promo_code.uses if promo_code.uses is not none else '' }}" />
+                <br />({{ promo_code.uses_remaining }} use(s) remaining)
+            </td>
+            <td>
+                {{ promo_code.used_by|length }} attendees are using this promo code. <br/>
+                {% for attendee in promo_code.used_by %}
+                    <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a>{% if not loop.last %}, {% endif %}
+                {% endfor %}
+            </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
 {% endblock %}
