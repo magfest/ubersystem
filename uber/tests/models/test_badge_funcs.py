@@ -1,5 +1,5 @@
 from uber.tests import *
-from uber.badge_funcs import needs_badge_num
+from uber.badge_funcs import needs_badge_num, reset_badge_if_unchanged
 
 
 @pytest.fixture
@@ -41,7 +41,7 @@ def check_ranges(session):
 def change_badge(session, attendee, new_type, new_num=None, expected_num=None):
     old_type, old_num = attendee.badge_type, attendee.badge_num
     attendee.badge_type, attendee.badge_num = new_type, new_num
-    session.update_badge(attendee, old_type, old_num)
+    reset_badge_if_unchanged(attendee, old_type, old_num)
     session.commit()
     session.refresh(attendee)
     assert new_type == attendee.badge_type
@@ -339,9 +339,9 @@ class TestInternalBadgeChange:
         change_badge(session, session.staff_four, c.STAFF_BADGE, new_num=2)
 
     def test_self_assignment(self, session):
-        assert 'Attendee is already Staff with badge 1' == session.update_badge(session.staff_one, c.STAFF_BADGE, 1)
-        assert 'Attendee is already Staff with badge 3' == session.update_badge(session.staff_three, c.STAFF_BADGE, 3)
-        assert 'Attendee is already Staff with badge 5' == session.update_badge(session.staff_five, c.STAFF_BADGE, 5)
+        assert 'Attendee is already Staff with badge 1' == reset_badge_if_unchanged(session.staff_one, c.STAFF_BADGE, 1)
+        assert 'Attendee is already Staff with badge 3' == reset_badge_if_unchanged(session.staff_three, c.STAFF_BADGE, 3)
+        assert 'Attendee is already Staff with badge 5' == reset_badge_if_unchanged(session.staff_five, c.STAFF_BADGE, 5)
 
 
 class TestBadgeDeletion:
@@ -421,6 +421,13 @@ class TestShiftOnChange:
         session.commit()
         assert [1, 2, 3, 4, 10] == self.staff_badges(session)
 
+    def test_no_double_shift(self, session):
+        # Regression test -- presave adjustments used to try shifting badges
+        # after they'd already been shifted by update_badge()
+        change_badge(session, session.staff_three, c.ATTENDEE_BADGE)
+        assert session.staff_four.badge_num == 3
+        assert session.staff_five.badge_num == 4
+
 
 class TestBadgeValidations:
     def test_dupe_badge_num(self, session, monkeypatch):
@@ -445,21 +452,3 @@ class TestBadgeValidations:
         session.regular_attendee.badge_type = c.STAFF_BADGE
         session.regular_attendee.badge_num = None
         assert 'There are no more badges available for that type' == check(session.regular_attendee)
-
-
-class TestDupeFixes:
-    @pytest.fixture(autouse=True)
-    def create_dupe_nums(self, session, monkeypatch):
-        session.staff_five.badge_num = 1
-        # Skip the badge adjustments here, which prevent us from setting duplicate numbers
-        monkeypatch.setattr(Attendee, '_badge_adjustments', 0)
-        session.commit()
-        session.staff_five.badge_num = None
-
-    def test_resave_if_dupe(self, session):
-        assert 'Badge updated' == session.update_badge(session.staff_five, c.STAFF_BADGE, 1)
-        assert 5 == session.staff_five.badge_num
-
-    def test_dont_fill_dupe_gap(self, session):
-        session.update_badge(session.staff_five, c.STAFF_BADGE, 1)
-        assert 2 == session.staff_two.badge_num
