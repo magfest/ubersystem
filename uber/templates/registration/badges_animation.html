@@ -1,0 +1,107 @@
+<head>
+    <title>{{ c.EVENT_NAME }} - {% block title %}{% endblock %}</title>
+    <link rel="icon" href="../static/images/favicon.png" type="image/x-icon" />
+
+    {% block head_styles %}
+        <link rel="stylesheet" href="../static/deps/combined.css" />
+        <link rel="stylesheet" href="../static_views/styles/main.css" />
+        {% if admin_area %}
+            <link rel="stylesheet" type="text/css" href="../static_views/additional-styles.css" />
+        {% else %}
+        {% endif %}
+
+         <!-- additional styles -->
+        {% block additional_styles %}
+            {% block page_styles %}{% endblock %}
+        {% endblock %}
+    {% endblock %}
+
+    {% block head_javascript %}
+        <script>
+            var message = '{{ message|e }}';
+        </script>
+
+        <script src="../static/deps/combined.js" type="text/javascript"></script>
+        <script src="../static/js/common-static.js" type="text/javascript"></script>
+        <script type="text/javascript">
+            var csrf_token = '{{ c.CSRF_TOKEN }}';
+        </script>
+
+        {% if 'preregistration' not in c.PAGE_PATH %}
+            {% for js in c.JAVASCRIPT_INCLUDES %}
+                <script src="{{ js }}" type="text/javascript"></script>
+            {% endfor %}
+        {% endif %}
+    {% endblock %}
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+body {
+  font: 400 1em/1.5 "Neuton";
+  background: #00FF00;
+  color: rgba(255, 255, 255, 0.25);
+  text-align: center;
+  margin: 0;
+}
+
+p {
+  text-transform: uppercase;
+  letter-spacing: .5em;
+  display: inline-block;
+  border: 4px double rgba(255, 255, 255, 0.25);
+  border-width: 4px 0;
+  padding: 1.5em 0em;
+  position: absolute;
+  top: 18%;
+  left: 50%;
+  width: 40em;
+  margin: 0 0 0 -20em;
+}
+.animate {
+  font: 700 4em/1 "Oswald", sans-serif;
+  letter-spacing: 0;
+  padding: .25em 0 .325em;
+  display: block;
+  margin: 0 auto;
+  text-shadow: 0 0 80px rgba(255, 255, 255, 0.5);
+  /* Clip Background Image */
+  background: url(http://f.cl.ly/items/010q3E1u3p2Q0j1L1S1o/animated_text_fill.png) repeat-y;
+  -webkit-background-clip: text;
+  /* Animate Background Image */
+  -webkit-text-fill-color: transparent;
+  -webkit-animation: aitf 80s linear infinite;
+  /* Activate hardware acceleration for smoother animations */
+  -webkit-transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+}
+
+/* Animate Background Image */
+@-webkit-keyframes aitf {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+</style>
+    </head>
+<body>
+  <span id="sold" class="animate">
+    {{ sold }}
+  </span>
+<script>
+    setInterval(function(){
+        $.ajax({
+            url: "badge_stats",
+            success: function(result){
+                $("#sold").html(result.sold);
+            }
+        })
+    }, 3000)
+</script>
+</body>
