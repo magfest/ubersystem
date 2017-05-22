@@ -111,7 +111,8 @@ def yesno(value, arg=None):
 
 @JinjaEnv.jinja_filter
 def jsonize(x):
-    return safe_string('{}' if x is None else html.escape(json.dumps(x, cls=serializer), quote=False))
+    is_empty = x is None or isinstance(x, jinja2.runtime.Undefined)
+    return safe_string('{}' if is_empty else html.escape(json.dumps(x, cls=serializer), quote=False))
 
 
 @JinjaEnv.jinja_filter

@@ -66,6 +66,7 @@ class TestJsonize(object):
         ([], '[]'),
         (True, 'true'),
         (False, 'false'),
+        (jinja2.runtime.Undefined(), '{}'),
     ])
     def test_jsonize(self, test_input, expected):
         assert expected == jsonize(test_input)
