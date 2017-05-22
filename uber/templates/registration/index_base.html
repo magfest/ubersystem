@@ -19,7 +19,7 @@
 {% endblock adminheader %}
 {% block admin_controls %}
 <div class="row">
-    <div class="panel col-md-5">
+    <div class="col-sm-6 col-md-4">
         <form role="form" method="get" action="index">
             <input type="hidden" name="order" value="{{ order }}" />
             <input type="hidden" name="invalid" value="{{ invalid }}" />
@@ -34,7 +34,7 @@
         </form>
     </div>
 
-    <div class="panel col-md-4">
+    <div class="col-sm-6 col-md-8">
         <a class="btn btn-primary" href="form?id=None">Add an attendee</a>
         <a class="btn btn-default" {% if not c.AT_THE_CON %}disabled="disabled"{% endif %}
            href="new">View Recent At-the-Door Registrations</a>
@@ -44,16 +44,23 @@
         {% else %}
             <a class="btn btn-info" href="index?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid=True">Show all badge statuses</a>
         {% endif %}
-
-    </div>
-    <div class="panel col-md-4">
-        <div class="col-md-6">{{ attendee_count }} Attendee{{ attendee_count|pluralize }}</div>
-        <div class="col-md-6"><span id="checkin_count">{{ checkin_count }}</span> Checked In</div>
     </div>
 </div>
+
+<div class="row" style="margin-top: 15px;">
+    <div class="col-xs-12">
+        <span style="margin-right: 15px;">{{ attendee_count }} Attendee{{ attendee_count|pluralize }}</span>
+        <span><span id="checkin_count">{{ checkin_count }}</span> Checked In</span>
+    </div>
+</div>
+
+
+
 {% if search_results %}
     <div class="panel panel-info">
+      <div class="panel-body">
         <a href="index?order={{ order }}&page=1&invalid={{ invalid }}">Click here</a> to view full attendee list instead of only search results.
+      </div>
     </div>
 {% endif %}
 {% endblock admin_controls %}
@@ -73,8 +80,9 @@
 </ul>
 <div class="panel panel-default">
     {% if page %}
-        <table class="table table-striped" data-page-size="9999999">
-        <thead><tr>
+      <table class="table table-striped" data-page-size="9999999">
+        <thead>
+          <tr>
             {% block tableheadings %}
             <th> <a href="index?order={{ order.group_id }}">Group Name</a> </th>
             <th> <a href="index?order={{ order.last_first }}">Full Name</a> </th>
@@ -90,9 +98,10 @@
                 <th> <a href="index?order={{ order.checked_in }}"><nobr>Checked In</nobr></a> </th>
             {% endif %}
             {% endblock tableheadings %}
-        </tr></thead>
+          </tr>
+        </thead>
         <tbody>
-        {% for attendee in attendees %}
+          {% for attendee in attendees %}
             <tr {% if attendee.badge_status == c.INVALID_STATUS %}bgcolor="#FFE4E1"{% endif %}>
                 {% block tablerows scoped %}
                 <td id="group_{{ attendee.id }}">
@@ -134,19 +143,19 @@
                         </td>
                     {% endif %}
                 {% endif %}
-                {% endblock tablerows %}
+              {% endblock tablerows %}
             </tr>
-        {% endfor %}
+          {% endfor %}
         </tbody>
-    </table>
-{% else %}
-    <div class="lead text-center">
+      </table>
+    {% else %}
+      <div class="lead text-center">
         <em>Use the search box above to filter the attendees or select a page to browse all attendees.</em>
-
         <br/><br/>Try searching for 'email:name@example.com' or 'group:Group Name'. You can also search by phone number,
         unique confirmation ID, and most text fields.
-    </div>
-{% endif %}
-    </div>
+      </div>
+    {% endif %}
+</div>
+
 {% endblock table %}
 {% endblock content %}
