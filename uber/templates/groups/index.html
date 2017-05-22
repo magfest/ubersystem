@@ -14,43 +14,44 @@
   <li class="active">Groups</li>
 </ol>
 
-
 <div class="panel panel-default">
+  <div class="panel-body">
     <b>Total:</b> {{ total_groups }} groups ({{ total_badges }} badges, {{ tables }} tables)
     &nbsp;&nbsp;&nbsp;&nbsp;
     <b>With Tables:</b> {{ tabled_groups }} groups ({{ tabled_badges }} badges)
     &nbsp;&nbsp;&nbsp;&nbsp;
-    <b>Without Tables:</b> {{ untabled_groups }} groups ({{ untabled_badges }} badges)    
+    <b>Without Tables:</b> {{ untabled_groups }} groups ({{ untabled_badges }} badges)
     <br/> <br/>
     {{ approved_tables }} approved tables / {{ waitlisted_tables }} waitlisted tables / {{ unapproved_tables }} unapproved tables
-</div>
-
-<div class="panel panel-default">
-    <div class="col-md-4">
+  </div>
+  <div class="panel-footer">
     <a class="btn btn-default" href="form?id=None">Add a group</a>
     <a class="btn btn-default" href="form?id=None&new_dealer=true">Add a dealer</a>
-    </div>
+  </div>
+</div>
 
 <ul class="nav nav-tabs" role="tablist">
   <li {% if show == "all" %}class="active"{% endif %}><a href="index?order=name&show=all">All</a></li>
-  <li {% if show == "tables" %}class="active"{% endif %}><a href="index?order=name&show=tables">Tables</a></li>
-  <li {% if show == "groups" %}class="active"{% endif %}><a href="index?order=name&show=groups">Groups</a></li>
+  <li {% if show == "tables" %}class="active"{% endif %}><a href="index?order=name&show=tables">With Tables</a></li>
+  <li {% if show == "groups" %}class="active"{% endif %}><a href="index?order=name&show=groups">Without Tables</a></li>
 </ul>
-</div>
 
-<div class="panel panel-default">
+<div class="panel panel-default" style="border-top: none; border-radius: 0 0 4px 4px;">
 <table class="table table-striped datatable">
-<thead><tr>
-    <th>Name</th>
-    <th>Approved</th>
-    <th>Badges{{ macros.popup_link("../static_views/badgeCounts.html") }}</th>
-    <th>Tables</th>
-    <th>Cost</th>
-    <th>Owed</th>
-    <th>Paid</th>
-    <th>Admin Notes</th>
-</tr></thead>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Approved</th>
+      <th>Badges{{ macros.popup_link("../static_views/badgeCounts.html") }}</th>
+      <th>Tables</th>
+      <th>Cost</th>
+      <th>Owed</th>
+      <th>Paid</th>
+      <th>Admin Notes</th>
+    </tr>
+  </thead>
 {% for group in groups %}
+  <tbody>
     <tr>
         <td style="text-align:left" data-order="{{ group.name }}" data-search="{{ group.name }}"> <a href="form?id={{ group.id }}">{{ group.name|default("?????") }}</a> </td>
         <td>
@@ -67,9 +68,11 @@
         <td>${{ group.amount_paid }}</td>
         <td>{{ group.admin_notes }}</td>
     </tr>
+  </tbody>
 {% endfor %}
-	<caption align="bottom">
-		<ul class="pagination"></ul>
-	</caption>
+  <caption align="bottom">
+    <ul class="pagination"></ul>
+  </caption>
 </table>
+</div>
 {% endblock %}
