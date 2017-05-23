@@ -115,6 +115,8 @@
                     {% for amount_extra, val in c.PREREG_DONATION_OPTS %}
                         if (type.extra == {{ amount_extra }} && type.extra >= {{ c.SUPPORTER_LEVEL }}) {
                             $price_notice.append('{{ price_notice("Supporter registration", c.SUPPORTER_DEADLINE, c.SUPPORTER_LEVEL) }}')
+                        } else if (type.extra == {{ amount_extra }} && type.extra >= {{ c.SHIRT_LEVEL }}) {
+                            $price_notice.append('{{ price_notice("T-Shirt registration", c.SHIRT_DEADLINE, c.SHIRT_LEVEL) }}')
                         } else if (type.extra == {{ amount_extra }} && !type.badge_type ) {
                             $price_notice.append('{{ price_notice("Preregistration", c.PREREG_TAKEDOWN, amount_extra) }}')
                         }
