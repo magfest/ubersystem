@@ -410,17 +410,21 @@
 
 <div class="form-group staffing">
     <label for="staffing" class="col-sm-2 optional-field control-label">Want to Volunteer?</label>
-    <div class="col-sm-6">
+    <div class="checkbox col-sm-6">
+        <label for="staffing">
         {{ macros.checkbox(attendee, 'staffing') }}
         {% if c.PAGE_PATH == '/registration/form' %}
             This attendee is
             {% if attendee.is_new or not attendee.staffing %}
                 volunteering
+                </label>
             {% else %}
+                </label>
                 <a href='goto_volunteer_checklist?id={{ attendee.id }}'>volunteering</a>
             {% endif %}
         {% else %}
             {% if attendee.badge_type == c.STAFF_BADGE %} Yes, I want to staff {{ c.EVENT_NAME }}. {% else %} Sign me up! {% endif %}
+            </label>
             <span class="popup">{{ macros.popup_link("../static_views/stafferComps.html", "What do I get for volunteering?") }}</span>
         {% endif %}
     </div>
@@ -515,10 +519,7 @@
             <input type="text" name="zip_code" class="form-control" value="{{ attendee.zip_code }}" />
         </div>
         <div class="checkbox col-sm-6 col-sm-offset-2">
-            <label>
-                {{ macros.checkbox(attendee, 'international') }}
-                I'm coming from outside the US.
-            </label>
+            {{ macros.checkbox(attendee, 'international', label="I'm coming from outside the US.") }}
         </div>
     </div>
 
@@ -542,10 +543,7 @@
     </div>
     {% if not attendee.is_dealer or c.PAGE_PATH == '/registration/form' %}
         <div class="checkbox col-sm-6 col-sm-offset-2">
-            <label class="cellphone-excuse">
-                {{ macros.checkbox(attendee, 'no_cellphone') }}
-                I don't own a cellphone.
-            </label>
+            {{ macros.checkbox(attendee, 'no_cellphone', label="I don't own a cellphone.", label_class='cellphone-excuse') }}
         </div>
     {% endif %}
 </div>
@@ -575,8 +573,8 @@
 
 <div class="form-group">
     <label for="email_option" class="col-sm-2 control-label optional-field">Keep Me Updated</label>
-    <div class="col-sm-6">
-        {{ macros.checkbox(attendee, 'can_spam') }} Send me emails relating to {{ organization_with_event_name() }} in future years. <br/>
+    <div class="checkbox col-sm-6">
+        {{ macros.checkbox(attendee, 'can_spam', label='Send me emails relating to ') }} {{ organization_with_event_name() }} in future years.<br/>
         <span class="popup">{{ macros.popup_link("../static_views/privacy.html", "View Our Privacy Policy") }}</span>
     </div>
 </div>
