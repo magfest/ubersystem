@@ -39,6 +39,7 @@ from threading import Thread, RLock, local, current_thread
 from types import FunctionType
 from os.path import abspath, basename, dirname, exists, join
 
+import dateparser
 import pytz
 import bcrypt
 import stripe
@@ -53,11 +54,12 @@ from sqlalchemy.event import listen
 from sqlalchemy.ext import declarative
 from sqlalchemy import func, or_, and_, not_
 from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.sql.expression import FunctionElement
 from sqlalchemy.orm.attributes import get_history, instance_state
-from sqlalchemy.schema import Column, ForeignKey, MetaData, UniqueConstraint
+from sqlalchemy.schema import Column, ForeignKey, Index, MetaData, UniqueConstraint
 from sqlalchemy.orm import Query, relationship, joinedload, subqueryload, backref
 from sqlalchemy.types import Boolean, Integer, Float, TypeDecorator, Date, Numeric
 from sqlalchemy.util import immutabledict

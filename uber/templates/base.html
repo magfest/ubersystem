@@ -94,28 +94,36 @@
             if (message.length) {
                 toastr.info(message);
             }
+
+            var createDateTextEntries = function() {
+                $('.date:not(.jq-dte .date)').datetextentry({
+                    field_order: 'MDY',
+                    min_year: '1890',
+                    max_date: function() { return this.get_today(); },
+                    max_date_message: 'You cannot be born in the future.',
+                    show_tooltips: false,
+                    errorbox_x: -135,
+                    errorbox_y: 28
+                });
+
+                $('.expiration-date:not(.jq-dte .expiration-date)').datetextentry({
+                    field_order: 'MDY',
+                    show_tooltips: false,
+                    errorbox_x: -135,
+                    errorbox_y: 28
+                });
+            };
+
             $('.datatable').dataTable({
                 aLengthMenu: [
                     [25, 50, 100, 200, -1],
-                    [25, 50, 100, 200, "All"]
-                    ],
-                stateSave: true
+                    [25, 50, 100, 200, 'All']
+                ],
+                stateSave: true,
+                drawCallback: createDateTextEntries
             });
-            $('.date').datetextentry({
-                field_order: 'MDY',
-                min_year : '1890',
-                max_date : function() { return this.get_today(); },
-                max_date_message : 'You cannot be born in the future.',
-                show_tooltips : false,
-                errorbox_x    : -135,
-                errorbox_y    : 28
-            });
-            $('.expiration-date').datetextentry({
-                field_order: 'MDY',
-                show_tooltips : false,
-                errorbox_x    : -135,
-                errorbox_y    : 28
-            });
+            createDateTextEntries();
+
             $('.geolocator').geocomplete({
                 details: '.address_details',
                 detailsAttribute: 'data-geo'

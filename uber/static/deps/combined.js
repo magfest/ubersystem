@@ -41446,15 +41446,25 @@ return jQuery;
             this[name] = input;
         }
 
+        // ,set_field_widths: function() {
+        //     var opt = this.options;
+        //     var available = this.$element.width() - 2;
+        //     var total = opt.field_width_year + opt.field_width_sep + opt.field_width_month +
+        //                 opt.field_width_sep + opt.field_width_day;
+        //     this.input_day.set_width  ( Math.floor(opt.field_width_day   * available / total) );
+        //     this.input_month.set_width( Math.floor(opt.field_width_month * available / total) );
+        //     this.input_year.set_width ( Math.floor(opt.field_width_year  * available / total) );
+        // }
+
+        // Updated by @RobRuana 2017-05-23
+        // Changes field widths to use percents rather than fixed pixels
         ,set_field_widths: function() {
             var opt = this.options;
-            var available = this.$element.width() - 2;
             var total = opt.field_width_year + opt.field_width_sep + opt.field_width_month +
                         opt.field_width_sep + opt.field_width_day;
-            this.input_day.set_width  ( Math.floor(opt.field_width_day   * available / total) );
-            this.input_month.set_width( Math.floor(opt.field_width_month * available / total) );
-            this.input_year.set_width ( Math.floor(opt.field_width_year  * available / total) );
-
+            this.input_day.set_width(Math.floor(100.0 * opt.field_width_day / total) - 1.0 + '%');
+            this.input_month.set_width(Math.floor(100.0 * opt.field_width_month / total) - 1.0 + '%');
+            this.input_year.set_width(Math.floor(100.0 * opt.field_width_year / total) - 1.0 + '%');
         }
 
         ,set_date: function(new_date) {

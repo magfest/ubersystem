@@ -34,13 +34,13 @@
 </div>
 
 <div class="panel panel-default">
-<div class="row bs-wizard" style="border-bottom:0;border-top:0;">   
+<div class="row bs-wizard" style="border-bottom:0;border-top:0;">
     <div class="col-xs-4 bs-wizard-step complete">
         <div class="text-center bs-wizard-stepnum">Step 1</div>
         <div class="progress"><div class="progress-bar"></div></div>
         <a class="bs-wizard-dot"></a>
         <div class="bs-wizard-info text-center">Enter Info</div>
-    </div> 
+    </div>
     <div class="col-xs-4 bs-wizard-step active">
         <div class="text-center bs-wizard-stepnum">Step 2</div>
         <div class="progress"><div class="progress-bar"></div></div>
@@ -140,24 +140,4 @@
 {% include "preregistration/disclaimers.html" %}
 </div>
 
-<script>
-    var applyPromoCode = function(id){
-    var code = prompt("Enter Promotional Code");
-        $.ajax({
-            url:'apply_promo_code',
-            data: {
-                id: id,
-                code: code,
-                csrf_token: csrf_token
-            },
-            error: function(json){
-                toastr.error(json);
-            },
-            success: function(json){
-                toastr.info(json);
-            },
-            type:'POST'
-            });
-    };
-</script>
 {% endblock %}

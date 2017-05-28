@@ -122,6 +122,9 @@ class Root:
             attendee = session.attendee(params, ignore_csrf=True, restricted=True)
             group = session.group(params, ignore_csrf=True, restricted=True)
 
+        if 'promo_code' in params and c.PROMO_CODES_ENABLED:
+            attendee.promo_code = session.lookup_promo_code(params['promo_code'])
+
         if not attendee.badge_type:
             attendee.badge_type = c.ATTENDEE_BADGE
         if attendee.badge_type not in c.PREREG_BADGE_TYPES:
@@ -190,7 +193,6 @@ class Root:
             'attendee':   attendee,
             'group':      group,
             'edit_id':    edit_id,
-            'promo_code': params.get('promo_code', ''),
             'badges':     params.get('badges'),
             'affiliates': session.affiliates(),
             'cart_not_empty': self.unpaid_preregs

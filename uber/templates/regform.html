@@ -581,11 +581,11 @@
     </div>
 </div>
 
-{% if attendee.is_unpaid %}
+{% if attendee.is_unpaid and c.PROMO_CODES_ENABLED %}
 <div class="form-group">
     <label for="comments" class="col-sm-2 control-label optional-field">Promo Code</label>
     <div class="col-sm-6">
-        <input type="textarea" name="promo_code" value="{{ promo_code }}" class="form-control" placeholder="Promo Code">
+        <input type="textarea" name="promo_code" value="{{ attendee.promo_code_code }}" class="form-control" placeholder="Promo Code">
     </div>
 </div>
 {% endif %}

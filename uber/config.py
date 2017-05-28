@@ -602,11 +602,3 @@ stripe.api_key = c.STRIPE_SECRET_KEY
 # appends '../static/foo.js' to this list, that adds <script src="../static/foo.js"></script> to
 # all of the pages on the site except for preregistration pages (for performance)
 c.JAVASCRIPT_INCLUDES = []
-
-if not c.ONLY_WORDS_IN_PROMO_CODES:
-    plus_one = sorted(c.PROMO_CODE_STUBS)[-1] + 1
-    count = plus_one
-    unambiguous_chars = re.sub('[B8G6I1l0OQDS5Z2]', '', (string.ascii_uppercase + string.digits))
-    for val in unambiguous_chars:
-        c.PROMO_CODE_STUBS.update({count: val})
-        count += 1

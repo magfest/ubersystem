@@ -25,6 +25,7 @@ class Root:
             ], key=lambda tup: tup[1])
         }
 
+    @csrf_protected
     def update(self, session, password='', message='', **params):
         account = session.admin_account(params, checkgroups=['access'])
         if account.is_new:
@@ -48,6 +49,7 @@ class Root:
 
         raise HTTPRedirect('index?message={}', message)
 
+    @csrf_protected
     def delete(self, session, id, **params):
         session.delete(session.admin_account(id))
         raise HTTPRedirect('index?message={}', 'Account deleted')

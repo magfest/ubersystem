@@ -231,7 +231,7 @@ class Charge:
         if isinstance(m, dict):
             return m
         elif isinstance(m, sa.Attendee):
-            return m.to_dict()
+            return m.to_dict(sa.Attendee.to_dict_default_attrs + ['promo_code'])
         elif isinstance(m, sa.Group):
             return m.to_dict(sa.Group.to_dict_default_attrs + ['attendees'])
         else:
@@ -241,8 +241,20 @@ class Charge:
     def from_sessionized(d):
         assert d['_model'] in {'Attendee', 'Group'}
         if d['_model'] == 'Group':
-            d = dict(d, attendees=[sa.Attendee(**a) for a in d.get('attendees', [])])
-        return sa.Session.resolve_model(d['_model'])(**d)
+            return Charge.from_sessionized_group(d)
+        else:
+            return Charge.from_sessionized_attendee(d)
+
+    @staticmethod
+    def from_sessionized_group(d):
+        d = dict(d, attendees=[Charge.from_sessionized_attendee(a) for a in d.get('attendees', [])])
+        return sa.Group(**d)
+
+    @staticmethod
+    def from_sessionized_attendee(d):
+        if 'promo_code' in d:
+            d = dict(d, promo_code=sa.PromoCode(**d['promo_code']))
+        return sa.Attendee(**d)
 
     @staticmethod
     def get(payment_id):

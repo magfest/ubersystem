@@ -1,5 +1,6 @@
 from uber.tests import *
 
+
 class TestPromoCodeAdjustments:
     def test_generate_code_no_stubs(self, monkeypatch):
         monkeypatch.setattr(c, 'PROMO_CODE_STUBS', {})
@@ -26,6 +27,7 @@ class TestPromoCodeAdjustments:
         p = PromoCode(code='')
         p._generate_code()
         assert PromoCode.generate_code.called
+
 
 class TestPromoCodeUse:
     def test_set_price_use(self):

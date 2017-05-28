@@ -1,3 +1,5 @@
+import shlex
+from six.moves import urllib
 from uber.common import *
 
 
@@ -888,42 +890,122 @@ class Root:
 
         return {'message': message}
 
+    @ajax
+    def add_promo_code_words(self, session, text='', part_of_speech=0):
+        text = text.strip()
+        words = []
+        if text:
+            with Session() as session:
+                old_words = set(s for (s,) in session.query(
+                    PromoCodeWord.normalized_word).all())
+
+            for word in [s for s in shlex.split(text.replace(',', ' ')) if s]:
+                if PromoCodeWord.normalize_word(word) not in old_words:
+                    words.append(PromoCodeWord().apply(
+                        dict(word=word, part_of_speech=part_of_speech)))
+            words = [word.word for word in session.bulk_insert(words)]
+        return {'words': words}
+
+    @ajax
+    def delete_promo_code_word(self, session, word=''):
+        result = 0
+        word = word.strip().lower()
+        if word:
+            result = session.query(PromoCodeWord).filter(
+                PromoCodeWord.normalized_word == word).delete(
+                    synchronize_session=False)
+        return {'result': result}
+
+    @ajax
+    def delete_all_promo_code_words(self, session, part_of_speech=None):
+        query = session.query(PromoCodeWord)
+        if part_of_speech is not None:
+            query = query.filter(
+                PromoCodeWord.part_of_speech == part_of_speech)
+        result = query.delete(synchronize_session=False)
+        return {'result': result}
+
     @csv_file
     def export_promo_codes(self, out, session, codes):
         codes = codes or session.query(PromoCode).all()
         out.writerow(['Code', 'Expiration Date', 'Discount', 'Uses'])
         for code in codes:
-            out.writerow([code.code, code.expiration_date, code.discount or ("Set price to $" + str(code.price)),
-                          code.uses or "Unlimited"])
+            out.writerow([
+                code.code,
+                code.expiration_date,
+                code.discount_display,
+                code.uses_allowed_display])
 
     @site_mappable
-    def generate_promo_codes(self, session, message='', **params):
-        promo_code = session.promo_code(params)
-        generated_codes = []
-        if 'count' in params:
-            message = check(promo_code)
+    def generate_promo_codes(
+            self,
+            session,
+            message='',
+            is_single_promo_code=0,
+            count=1,
+            use_words=False,
+            **params):
 
-            if not message:
-                for num in params['count']:
-                    new_code = session.promo_code(params)
-                    session.add(new_code)
-                    generated_codes.append(new_code)
-                session.commit()
-                message = 'Promo codes generated successfully.'
-                if 'export' in params:
-                    return self.export_promo_codes(codes=generated_codes)
-        return {
+        words = PromoCodeWord.group_by_parts_of_speech(
+            session.query(PromoCodeWord).order_by(
+                PromoCodeWord.normalized_word).all())
+
+        result = {
             'message': message,
-            'promo_code': promo_code,
-            'promo_code_list': generated_codes
+            'promo_codes': [],
+            'words': [(i, s) for (i, s) in words.items()],
+            'DISCOUNT_OPTS': PromoCode.DISCOUNT_OPTS,
+            'PARTS_OF_SPEECH': PromoCodeWord.PARTS_OF_SPEECH
         }
+
+        if use_words and not any(s for (_, s) in words.items()):
+            result['message'] = 'Please add some promo code words!'
+            return result
+
+        try:
+            count = int(count)
+        except:
+            count = 1
+
+        try:
+            is_single_promo_code = int(is_single_promo_code)
+        except:
+            is_single_promo_code = 0
+
+        if cherrypy.request.method == 'POST':
+            codes = None
+            if is_single_promo_code:
+                if params.get('code', '').strip():
+                    codes = [params['code']]
+                else:
+                    count = 1
+
+            if not codes:
+                if use_words:
+                    codes = PromoCode.generate_word_code(count)
+                else:
+                    length = int(params.get('length', 12))
+                    segment_length = int(params.get('segment_length', 3))
+                    codes = PromoCode.generate_random_code(
+                        count, length, segment_length)
+
+            promo_codes = []
+            for code in codes:
+                params['code'] = code
+                promo_codes.append(PromoCode().apply(params))
+
+            result['promo_codes'] = session.bulk_insert(promo_codes)
+
+        if 'export' in params:
+            return self.export_promo_codes(codes=result['promo_codes'])
+        return result
 
     @site_mappable
     def view_promo_codes(self, session, message='', **params):
-        codes = session.query(PromoCode).all()
+        promo_codes = session.query(PromoCode).all()
         return {
             'message': message,
-            'promo_codes': codes
+            'promo_codes': promo_codes
         }
 
     def update_promo_code(self, session, message='', **params):
@@ -936,14 +1018,24 @@ class Root:
                 if 'expire' in params:
                     promo_code.expiration_date = localized_now() - timedelta(days=1)
 
-                message="Promo code updated"
+                message='Promo code updated'
                 session.commit()
 
             raise HTTPRedirect('view_promo_codes?message={}', message)
 
-    def delete_promo_code(self, session, id, **params):
-        session.delete(session.promo_code(id))
-        raise HTTPRedirect('view_promo_codes?message={}', 'Promo code deleted')
+    def delete_promo_codes(self, session, id=None, **params):
+        query = session.query(PromoCode)
+        if id is not None:
+            ids = [s.strip() for s in id.split(',') if s.strip()]
+            query = query.filter(PromoCode.id.in_(ids))
+        result = query.delete(synchronize_session=False)
+
+        referer = cherrypy.request.headers.get('Referer', 'view_promo_codes')
+        page = urllib.parse.urlparse(referer).path.split('/')[-1]
+
+        raise HTTPRedirect(page + '?message={}',
+            '{} promo code{} deleted'.format(
+                result, '' if result == 1 else 's'))
 
     def placeholders(self, session, department=''):
         return {
