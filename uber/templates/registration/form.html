@@ -192,9 +192,9 @@
             {{ options(c.RIBBON_OPTS,attendee.ribbon) }}
         </select>
         {% if c.AT_THE_CON and not attendee.badge_num and c.NUMBERED_BADGES %}
-            <br/> <input type="checkbox" name="omit_badge" value="yes" {% if omit_badge %}checked{% endif %} /> Omit badge number
+            <br/> <input type="checkgroup" name="omit_badge" value="yes" {% if omit_badge %}checked{% endif %} /> Omit badge number
         {% elif c.AT_THE_CON and not attendee.checked_in and not c.NUMBERED_BADGES %}
-            <br/> <input type="checkbox" name="check_in" value="yes" {% if check_in %}checked{% endif %} /> Check in this attendee
+            <br/> <input type="checkgroup" name="check_in" value="yes" {% if check_in %}checked{% endif %} /> Check in this attendee
         {% endif %}
         &nbsp;&nbsp; [<a href="../preregistration/confirm?id={{ attendee.id }}">Confirm{% if attendee.is_transferable %}/Transfer{% endif %}</a>]
     </div>
@@ -243,8 +243,8 @@
 <div class="form-group staffing staffing-checked">
     <label class="col-sm-2 control-label">Approved for Setup/Teardown</label>
     <div class="col-sm-6">
-        {{ macros.checkbox(attendee, 'can_work_setup') }} Approved for setup <br/>
-        {{ macros.checkbox(attendee, 'can_work_teardown') }} Approved for teardown
+        {{ macros.checkgroup(attendee, 'can_work_setup') }} Approved for setup <br/>
+        {{ macros.checkgroup(attendee, 'can_work_teardown') }} Approved for teardown
     </div>
 </div>
 
@@ -253,7 +253,7 @@
         <div class="form-group">
             <label class="col-sm-2 control-label">Received Merch</label>
             <div class="col-sm-6">
-                {{ macros.checkbox(attendee, 'got_merch') }} Yes
+                {{ macros.checkgroup(attendee, 'got_merch') }} Yes
             </div>
         </div>
     {% endif %}
@@ -280,7 +280,7 @@
     <label class="col-sm-2 control-label">Badge Price</label>
     <div class="col-sm-6">
         Base Price: $<input type="text" style="width:4em" name="overridden_price" value="{{ attendee.badge_cost|round(2) }}" />
-        <input type="checkbox" name="no_override" {% if attendee.overridden_price == None %} checked {% endif %}> Automatically recalculate badge price.
+        <input type="checkgroup" name="no_override" {% if attendee.overridden_price == None %} checked {% endif %}> Automatically recalculate badge price.
     </div>
 </div>
 
