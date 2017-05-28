@@ -28,8 +28,10 @@
 {%- endmacro %}
 
 
-{% macro checkbox(model, field_name, id=None) -%}
+{% macro checkbox(model, field_name, id=None, label=None, label_class=None) -%}
+    {% if label %}<label {% if label_class %}class="{{ label_class }}"{% endif %}>{% endif %}
     <input type="checkbox" name="{{ field_name }}" id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}" value="1" {% if model[field_name] %}checked{% endif %} />
+    {% if label %}{{ label }}</label>{% endif %}
 {%- endmacro %}
 
 

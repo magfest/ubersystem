@@ -80,7 +80,7 @@
 {% if job.type == c.REGULAR %}
     <tr>
         <td> <b>Extra 15{{ macros.popup_link("../static_views/extra15.html") }}</b> </td>
-        <td> {{ macros.checkbox(job, 'extra15') }} Yes </td>
+        <td class="checkbox"> {{ macros.checkbox(job, 'extra15', label='Yes') }} </td>
     </tr>
 {% endif %}
 <tr>
@@ -112,7 +112,7 @@
 {% endif %}
 <tr>
     <td> <b>Restricted:{{ macros.popup_link("../static_views/trustDesc.html") }}</b> </td>
-    <td> {{ macros.checkbox(job, 'restricted') }} Yes </td>
+    <td class="checkbox"> {{ macros.checkbox(job, 'restricted', label='Yes') }} </td>
 </tr>
 <tr>
     <td></td>
