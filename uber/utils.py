@@ -533,14 +533,8 @@ class request_cached_context:
 
 def normalize_email(address):
     """
-    For only @gmail addresses, periods need to be parsed
-    out because they simply don't matter.
-
-    For all other addresses, they are read normally.
+    We check the validity of the email and normalize the domain using the email_validator library.
     """
-    address = address.lower()
-    if address.endswith("@gmail.com"):
-        address = address[:-10].replace(".", "") + "@gmail.com"
     try:
         validation_info = validate_email(address)
         # get normalized result

@@ -70,7 +70,7 @@ class Root:
 
         if 'email' in params:
             try:
-                account = session.get_account_by_email(params['email'])
+                account = session.get_account_by_email(normalize_email(params['email']))
                 if not valid_password(params['password'], account):
                     message = 'Incorrect password'
             except NoResultFound:
