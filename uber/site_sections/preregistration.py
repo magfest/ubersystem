@@ -113,6 +113,7 @@ class Root:
     @check_if_can_reg
     def form(self, session, message='', edit_id=None, **params):
         params['id'] = 'None'   # security!
+
         if edit_id is not None:
             attendee, group = self._get_unsaved(edit_id, if_not_found=HTTPRedirect('form?message={}', 'That preregistration has already been finalized'))
             attendee.apply(params, restricted=True)
@@ -122,13 +123,32 @@ class Root:
             attendee = session.attendee(params, ignore_csrf=True, restricted=True)
             group = session.group(params, ignore_csrf=True, restricted=True)
 
-        if 'promo_code' in params and c.PROMO_CODES_ENABLED:
-            attendee.promo_code = session.lookup_promo_code(params['promo_code'])
+        message = ''
+        if c.PROMO_CODES_ENABLED:
+            code = params.get('promo_code', '').strip()
+            if code:
+                attendee.promo_code = session.lookup_promo_code(code)
+                if attendee.promo_code:
+                    attendee.promo_code_id = attendee.promo_code.id
+                else:
+                    attendee.promo_code_id = None
+                    message = 'The promo code you entered is invalid.'
 
         if not attendee.badge_type:
             attendee.badge_type = c.ATTENDEE_BADGE
         if attendee.badge_type not in c.PREREG_BADGE_TYPES:
-            raise HTTPRedirect('form?message={}', 'Invalid badge type!')
+            message = 'Invalid badge type!'
+
+        if message:
+            return {
+                'message':    message,
+                'attendee':   attendee,
+                'group':      group,
+                'edit_id':    edit_id,
+                'badges':     params.get('badges'),
+                'affiliates': session.affiliates(),
+                'cart_not_empty': self.unpaid_preregs
+            }
 
         if attendee.is_dealer and not c.DEALER_REG_OPEN:
             return render('static_views/dealer_reg_closed.html') if c.AFTER_DEALER_REG_SHUTDOWN else render('static_views/dealer_reg_not_open.html')

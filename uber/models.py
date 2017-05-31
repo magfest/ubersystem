@@ -1195,7 +1195,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     group = relationship(Group, backref='attendees', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
 
     promo_code_id = Column(UUID, ForeignKey('promo_code.id'), nullable=True, index=True)
-    promo_code    = relationship('PromoCode', backref='used_by', foreign_keys=promo_code_id, cascade='save-update,merge,refresh-expire,expunge')
+    promo_code    = relationship('PromoCode',
+        backref=backref('used_by', cascade='merge,refresh-expire,expunge'),
+        foreign_keys=promo_code_id,
+        cascade='merge,refresh-expire,expunge')
 
     placeholder   = Column(Boolean, default=False, admin_only=True)
     first_name    = Column(UnicodeText)
@@ -1394,6 +1397,14 @@ class Attendee(MagModel, TakesPaymentMixin):
         elif needs_badge_num(self) and not self.badge_num:
             self.badge_num = self.session.get_next_badge_num(self.badge_type)
 
+    @presave_adjustment
+    def _use_promo_code(self):
+        if self.promo_code and not self.overridden_price and self.is_unpaid:
+            if self.badge_cost > 0:
+                self.overridden_price = self.badge_cost
+            else:
+                self.paid = c.NEED_NOT_PAY
+
     def unset_volunteering(self):
         self.staffing = False
         self.trusted_depts = self.requested_depts = self.assigned_depts = ''
@@ -1422,9 +1433,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     def badge_cost(self):
         registered = self.registered_local if self.registered else None
         if self.paid == c.NEED_NOT_PAY:
-            cost = 0
+            return 0
         elif self.overridden_price is not None:
-            cost = self.overridden_price
+            return self.overridden_price
         elif self.is_dealer:
             cost = c.DEALER_BADGE_PRICE
         elif self.badge_type == c.ONE_DAY_BADGE:
@@ -1828,8 +1839,7 @@ class PromoCodeWord(MagModel):
 
     __table_args__ = (
         Index('uq_promo_code_word_normalized_word',
-            func.lower(func.trim(word)),
-            unique=True),
+            func.lower(func.trim(word)), unique=True),
         CheckConstraint(func.trim(word) != '',
             name='ck_promo_code_word_non_empty_word'))
 
@@ -1994,12 +2004,12 @@ class PromoCode(MagModel):
     @property
     def discount_display(self):
         if not self.discount:
-            return 'Free'
+            return 'Free badge'
 
         if self.discount_type == self.FIXED_DISCOUNT:
             return '${} discount'.format(self.discount)
         elif self.discount_type == self.FIXED_PRICE:
-            return 'Price is ${}'.format(self.discount)
+            return '${} badge'.format(self.discount)
         else:
             return '%{} discount'.format(self.discount)
 

@@ -252,7 +252,7 @@ class Charge:
 
     @staticmethod
     def from_sessionized_attendee(d):
-        if 'promo_code' in d:
+        if d.get('promo_code'):
             d = dict(d, promo_code=sa.PromoCode(**d['promo_code']))
         return sa.Attendee(**d)
 

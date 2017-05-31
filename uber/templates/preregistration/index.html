@@ -96,6 +96,9 @@
                 {% for swag in attendee.donation_swag|list + attendee.addons|list %}
                     <li>{{ swag }}</li>
                 {% endfor %}
+                {% if attendee.promo_code %}
+                    <li>Promo code "{{ attendee.promo_code.code }}", {{ attendee.promo_code.discount_display }}</li>
+                {% endif %}
             </ul>
         </td>
         <td>${{ attendee.total_cost|round(2) }}</td>

@@ -958,10 +958,6 @@ class Root:
             'PARTS_OF_SPEECH': PromoCodeWord.PARTS_OF_SPEECH
         }
 
-        if use_words and not any(s for (_, s) in words.items()):
-            result['message'] = 'Please add some promo code words!'
-            return result
-
         try:
             count = int(count)
         except:
@@ -979,6 +975,11 @@ class Root:
                     codes = [params['code']]
                 else:
                     count = 1
+
+            if use_words and not codes and \
+                    not any(s for (_, s) in words.items()):
+                result['message'] = 'Please add some promo code words!'
+                return result
 
             if not codes:
                 if use_words:
@@ -1025,7 +1026,9 @@ class Root:
 
     def delete_promo_codes(self, session, id=None, **params):
         query = session.query(PromoCode)
-        if id is not None:
+        if id is None:
+            query = query.filter(PromoCode.uses_count == 0)
+        else:
             ids = [s.strip() for s in id.split(',') if s.strip()]
             query = query.filter(PromoCode.id.in_(ids))
         result = query.delete(synchronize_session=False)

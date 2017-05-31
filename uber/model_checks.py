@@ -118,6 +118,9 @@ def promo_code_is_useful(attendee):
             return "You can't apply a promo code after you've paid or if you're in a group."
         elif attendee.overridden_price:
             return "You already have a special badge price, you can't use a promo code on top of that."
+        elif attendee.badge_cost_with_promo_code >= attendee.badge_cost:
+            return "The promo code you entered doesn't end up making your badge cheaper. " \
+                "You may already have other discounts."
 
 
 @prereg_validation.Attendee
