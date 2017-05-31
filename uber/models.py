@@ -575,7 +575,8 @@ class Session(SessionManager):
                                                      WatchList.active == True)).all()
 
         def get_account_by_email(self, email):
-            return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
+            return self.query(AdminAccount).join(Attendee).filter(
+                Attendee.normalized_email == Attendee.normalize_email(email)).one()
 
         def no_email(self, subject):
             return not self.query(Email).filter_by(subject=subject).all()
@@ -753,7 +754,7 @@ class Session(SessionManager):
             if ':' in text:
                 target, term = text.split(':', 1)
                 if target == 'email':
-                    return attendees.icontains(Attendee.email, term.strip())
+                    return attendees.filter(Attendee.normalized_email == Attendee.normalize_email(term)).one()
                 elif target == 'group':
                     return attendees.icontains(Group.name, term.strip())
 
@@ -1243,10 +1244,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         elif needs_badge_num(self) and not self.badge_num:
             self.badge_num = self.session.get_next_badge_num(self.badge_type)
 
-    @presave_adjustment
-    def _email_adjustment(self):
-        self.email = normalize_email(self.email)
-
     def unset_volunteering(self):
         self.staffing = False
         self.trusted_depts = self.requested_depts = self.assigned_depts = ''
@@ -1404,6 +1401,18 @@ class Attendee(MagModel, TakesPaymentMixin):
         return case([
             (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
         ], else_=func.lower(cls.last_name + ', ' + cls.first_name))
+
+    @hybrid_property
+    def normalized_email(self):
+        return self.normalize_email(self.email)
+
+    @normalized_email.expression
+    def normalized_email(cls):
+        return func.replace(func.lower(func.trim(cls.email)), '.', '')
+
+    @classmethod
+    def normalize_email(cls, email):
+        return email.strip().lower().replace('.', '')
 
     @property
     def watchlist_guess(self):

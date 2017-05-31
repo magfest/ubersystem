@@ -1,5 +1,4 @@
 from uber.common import *
-from email_validator import validate_email, EmailNotValidError
 
 
 class CSRFException(Exception):
@@ -529,16 +528,3 @@ class request_cached_context:
     @staticmethod
     def _clear_cache():
         threadlocal.clear()
-
-
-def normalize_email(address):
-    """
-    We check the validity of the email and normalize the domain using the email_validator library.
-    """
-    try:
-        validation_info = validate_email(address)
-        # get normalized result
-        address = validation_info["email"]
-    except EmailNotValidError:
-        pass  # ignore invalid emails
-    return address
