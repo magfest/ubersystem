@@ -1480,7 +1480,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             cost = c.get_oneday_price(registered)
         elif self.is_presold_oneday:
             cost = c.get_presold_oneday_price(self.badge_type)
-        if self.badge_type in c.BADGE_TYPE_PRICES:
+        elif self.badge_type in c.BADGE_TYPE_PRICES:
             cost = int(c.BADGE_TYPE_PRICES[self.badge_type])
         elif self.age_discount != 0:
             cost = max(0, c.get_attendee_price(registered) + self.age_discount)
