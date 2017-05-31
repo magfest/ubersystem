@@ -581,7 +581,6 @@ class Session(SessionManager):
             return not self.query(Email).filter_by(subject=subject).all()
 
         def lookup_attendee(self, first_name, last_name, email, zip_code):
-            email = normalize_email(email)
             attendee = self.query(Attendee).iexact(first_name=first_name, last_name=last_name, email=email, zip_code=zip_code).filter(Attendee.badge_status != c.INVALID_STATUS).all()
             if attendee:
                 return attendee[0]
@@ -819,7 +818,7 @@ class Session(SessionManager):
             if ':' in text:
                 target, term = text.split(':', 1)
                 if target == 'email':
-                    return attendees.icontains(Attendee.email, term.strip())
+                    return attendees.icontains(Attendee.normalized_email, Attendee.normalize_email(term))
                 elif target == 'group':
                     return attendees.icontains(Group.name, term.strip())
 
@@ -1309,8 +1308,21 @@ class Attendee(MagModel, TakesPaymentMixin):
         self.trusted_depts = ','.join(str(td) for td in self.trusted_depts_ints if td in self.assigned_depts_ints)
 
     @presave_adjustment
-    def _email_adjustment(self):
-        self.email = normalize_email(self.email)
+    def _badge_adjustments(self):
+        # _assert_badge_lock()
+        from uber.badge_funcs import needs_badge_num
+        if self.badge_type == c.PSEUDO_DEALER_BADGE:
+            self.ribbon = c.DEALER_RIBBON
+
+        self.badge_type = get_real_badge_type(self.badge_type)
+
+        if not needs_badge_num(self):
+            self.badge_num = None
+
+        if self.orig_value_of('badge_type') != self.badge_type or self.orig_value_of('badge_num') != self.badge_num:
+            self.session.update_badge(self, self.orig_value_of('badge_type'), self.orig_value_of('badge_num'))
+        elif needs_badge_num(self) and not self.badge_num:
+            self.badge_num = self.session.get_next_badge_num(self.badge_type)
 
     def unset_volunteering(self):
         self.staffing = False
@@ -1473,6 +1485,18 @@ class Attendee(MagModel, TakesPaymentMixin):
         return case([
             (or_(cls.first_name == None, cls.first_name == ''), 'zzz')
         ], else_=func.lower(cls.last_name + ', ' + cls.first_name))
+
+    @hybrid_property
+    def normalized_email(self):
+        return self.normalize_email(self.email)
+
+    @normalized_email.expression
+    def normalized_email(cls):
+        return func.replace(func.lower(func.trim(cls.email)), '.', '')
+
+    @classmethod
+    def normalize_email(cls, email):
+        return email.strip().lower().replace('.', '')
 
     @property
     def watchlist_guess(self):
