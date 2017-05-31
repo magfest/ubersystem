@@ -753,7 +753,7 @@ class Session(SessionManager):
             if ':' in text:
                 target, term = text.split(':', 1)
                 if target == 'email':
-                    return attendees.filter(Attendee.normalized_email == Attendee.normalize_email(term))
+                    return attendees.icontains(Attendee.normalized_email, Attendee.normalize_email(term))
                 elif target == 'group':
                     return attendees.icontains(Group.name, term.strip())
 
