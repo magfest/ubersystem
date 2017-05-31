@@ -621,19 +621,26 @@ class Session(SessionManager):
             Arguments:
                 attendee (Attendee): The Attendee for which the promo code
                     should be added.
-                code (str): The promo code as typed by an end user.
+                code (str): The promo code as typed by an end user, or an
+                    empty string to unset the promo code.
 
             Returns:
                 str: Either a failure message or an empty string
                     indicating success.
             """
-            attendee.promo_code = self.lookup_promo_code(code)
-            if attendee.promo_code:
-                attendee.promo_code_id = attendee.promo_code.id
-                return ''
+            code = code.strip()
+            if code:
+                attendee.promo_code = self.lookup_promo_code(code)
+                if attendee.promo_code:
+                    attendee.promo_code_id = attendee.promo_code.id
+                    return ''
+                else:
+                    attendee.promo_code_id = None
+                    return 'The promo code you entered is invalid.'
             else:
+                attendee.promo_code = None
                 attendee.promo_code_id = None
-                return 'The promo code you entered is invalid.'
+                return ''
 
         def lookup_promo_code(self, code):
             """
@@ -1415,6 +1422,13 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @cost_property
     def badge_cost(self):
+        return self.calculate_badge_cost()
+
+    @property
+    def badge_cost_without_promo_code(self):
+        return self.calculate_badge_cost(use_promo_code=False)
+
+    def calculate_badge_cost(self, use_promo_code=True):
         registered = self.registered_local if self.registered else None
         if self.paid == c.NEED_NOT_PAY:
             return 0
@@ -1435,7 +1449,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         else:
             cost = c.get_attendee_price(registered)
 
-        if self.promo_code:
+        if self.promo_code and use_promo_code:
             return self.promo_code.calculate_discounted_price(cost)
         else:
             return cost

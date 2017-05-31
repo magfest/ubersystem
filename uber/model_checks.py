@@ -113,28 +113,28 @@ def total_cost_over_paid(attendee):
 
 @prereg_validation.Attendee
 def promo_code_is_useful(attendee):
-    if attendee.promo_code and attendee.promo_code != attendee.orig_value_of('promo_code'):
+    if attendee.promo_code:
         if not attendee.is_unpaid:
             return "You can't apply a promo code after you've paid or if you're in a group."
         elif attendee.overridden_price:
             return "You already have a special badge price, you can't use a promo code on top of that."
-        elif attendee.badge_cost_with_promo_code >= attendee.badge_cost:
-            return "The promo code you entered doesn't end up making your badge cheaper. " \
+        elif attendee.badge_cost >= attendee.badge_cost_without_promo_code:
+            return "That promo code doesn't make your badge any cheaper. " \
                 "You may already have other discounts."
 
 
 @prereg_validation.Attendee
 def promo_code_not_is_expired(attendee):
-    if attendee.promo_code and attendee.promo_code != attendee.orig_value_of('promo_code'):
+    if attendee.promo_code:
         if attendee.promo_code.is_expired:
-            return 'This promo code is expired.'
+            return 'That promo code is expired.'
 
 
 @prereg_validation.Attendee
 def promo_code_has_uses_remaining(attendee):
-    if attendee.promo_code and attendee.promo_code != attendee.orig_value_of('promo_code'):
+    if attendee.promo_code:
         if not attendee.promo_code.is_unlimited and attendee.promo_code.uses_remaining <= 0:
-            return 'This promo code has been used too many times.'
+            return 'That promo code has been used too many times.'
 
 
 @validation.Attendee
