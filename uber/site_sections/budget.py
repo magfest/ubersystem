@@ -186,7 +186,7 @@ class Root:
                 if 'expire' in params:
                     promo_code.expiration_date = localized_now() - timedelta(days=1)
 
-                message='Promo code updated'
+                message = 'Promo code updated'
                 session.commit()
 
             raise HTTPRedirect('view_promo_codes?message={}', message)

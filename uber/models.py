@@ -2020,6 +2020,8 @@ class PromoCode(MagModel):
     for _, s in AMBIGUOUS_CHARS.items():
         UNAMBIGUOUS_CHARS = re.sub('[{}]'.format(s), '', UNAMBIGUOUS_CHARS)
 
+    # id is redefined here (instead of using the superclass MagModel.id) so
+    # that the `uses_count` property can access it
     id = Column(UUID, primary_key=True, default=lambda: str(uuid4()))
 
     code = Column(UnicodeText)
@@ -2112,6 +2114,24 @@ class PromoCode(MagModel):
         return 'Unlimited uses' if uses is None \
             else '{} use{} remaining'.format(uses, '' if uses == 1 else 's')
 
+    @presave_adjustment
+    def _attribute_adjustments(self):
+        # If 'uses_allowed' is empty, then this is an unlimited use code
+        if not self.uses_allowed:
+            self.uses_allowed = None
+
+        # If 'discount' is empty, then this is a full discount, free badge
+        if not self.discount:
+            self.discount = None
+
+        # If 'code' is empty, then generate a random code
+        self.code = self.code.strip()
+        if not self.code:
+            self.code = self.generate_random_code()
+
+        # Replace multiple whitespace characters with a single space
+        self.code = re.sub(r'\s+', ' ', self.code)
+
     def calculate_discounted_price(self, price):
         """
         Returns the discounted price based on the promo code's `discount_type`.
@@ -2136,24 +2156,6 @@ class PromoCode(MagModel):
             discounted_price = int(price * ((100.0 - self.discount) / 100.0))
 
         return min(max(discounted_price, 0), price)
-
-    @presave_adjustment
-    def _attribute_adjustments(self):
-        # If 'uses_allowed' is empty, then this is an unlimited use code
-        if not self.uses_allowed:
-            self.uses_allowed = None
-
-        # If 'discount' is empty, then this is a full discount, free badge
-        if not self.discount:
-            self.discount = None
-
-        # If 'code' is empty, then generate a random code
-        self.code = self.code.strip()
-        if not self.code:
-            self.code = self.generate_random_code()
-
-        # Replace multiple whitespace characters with a single space
-        self.code = re.sub(r'\s+', ' ', self.code)
 
     @classmethod
     def _generate_code(cls, generator, count=None):
