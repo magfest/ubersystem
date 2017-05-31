@@ -194,7 +194,8 @@ class Root:
     @site_mappable
     @log_pageview
     def view_promo_codes(self, session, message='', **params):
-        promo_codes = session.query(PromoCode).all()
+        promo_codes = session.query(PromoCode).options(
+            joinedload(PromoCode.used_by)).all()
         return {
             'message': message,
             'promo_codes': promo_codes

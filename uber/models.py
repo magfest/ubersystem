@@ -1980,17 +1980,11 @@ class PromoCode(MagModel):
     for _, s in AMBIGUOUS_CHARS.items():
         UNAMBIGUOUS_CHARS = re.sub('[{}]'.format(s), '', UNAMBIGUOUS_CHARS)
 
-    # id is redefined here (instead of using the superclass MagModel.id) so
-    # that the `uses_count` property can access it
-    id = Column(UUID, primary_key=True, default=lambda: str(uuid4()))
-
     code = Column(UnicodeText)
     discount = Column(Integer, nullable=True, default=None)
     discount_type = Column(Choice(DISCOUNT_OPTS), default=FIXED_DISCOUNT)
     expiration_date = Column(UTCDateTime, default=c.ESCHATON)
     uses_allowed = Column(Integer, nullable=True, default=None)
-    uses_count = column_property(select([func.count(Attendee.id)]).where(
-        Attendee.promo_code_id == id))
 
     __table_args__ = (
         Index('uq_promo_code_normalized_code',
@@ -2053,6 +2047,15 @@ class PromoCode(MagModel):
         uses = self.uses_allowed
         return 'Unlimited uses' if uses is None \
             else '{} use{} allowed'.format(uses, '' if uses == 1 else 's')
+
+    @hybrid_property
+    def uses_count(self):
+        return len(self.used_by)
+
+    @uses_count.expression
+    def uses_count(cls):
+        return select([func.count(Attendee.id)]).where(
+            Attendee.promo_code_id == cls.id)
 
     @property
     def uses_count_display(self):
