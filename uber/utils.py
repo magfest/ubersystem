@@ -1,5 +1,4 @@
 from uber.common import *
-from email_validator import validate_email, EmailNotValidError
 
 
 class CSRFException(Exception):
@@ -529,22 +528,3 @@ class request_cached_context:
     @staticmethod
     def _clear_cache():
         threadlocal.clear()
-
-
-def normalize_email(address):
-    """
-    For only @gmail addresses, periods need to be parsed
-    out because they simply don't matter.
-
-    For all other addresses, they are read normally.
-    """
-    address = address.lower()
-    if address.endswith("@gmail.com"):
-        address = address[:-10].replace(".", "") + "@gmail.com"
-    try:
-        validation_info = validate_email(address)
-        # get normalized result
-        address = validation_info["email"]
-    except EmailNotValidError:
-        pass  # ignore invalid emails
-    return address
