@@ -32,7 +32,7 @@
         <tr>
             <td>{{ shift.job.name }}</td>
             <td>{{ shift.job.location_label }}</td>
-            <td>{{ hour_day(shift.job.start_time) }}</td>
+            <td>{{ hour_day_local(shift.job.start_time) }}</td>
             <td>{% if shift.job.is_setup or shift.job.is_teardown %}__________
                 {% else %}{{ shift.job.duration }}{% endif %}</td>
             <td>(x{{ shift.job.weight }})</td>

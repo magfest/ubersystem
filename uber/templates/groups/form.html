@@ -1,4 +1,4 @@
-{% extends "base-admin.html" %}
+{% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Group Form{% endblock %}
 {% block content %}
 
@@ -41,6 +41,7 @@
     {% include "check_in.html" %}
 
 <div class="panel panel-default">
+<div class="panel-body">
 
 <h2> Group Info </h2>
 
@@ -317,7 +318,7 @@
     {% endfor %}
     </table>
 {% endif %}
-
+</div>
 </div>
 
 {% endblock %}

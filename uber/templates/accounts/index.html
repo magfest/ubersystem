@@ -1,4 +1,4 @@
-{% extends "base-admin.html" %}
+{% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Accounts{% endblock %}
 {% block content %}
 
@@ -14,81 +14,85 @@ table form {
 </ol>
 
 <div class="panel panel-default">
-<div class="panel-heading"><h3>New Account</h3></div>
-<form id="new_admin" method="post" action="update" onsubmit="return check_passwords()" role="form" class="form-inline">
-<input type="hidden" name="id" value="None" />
-{{ csrf_token() }}
-<div class="form-group">
-    <label for="attendee_id" class="sr-only">Attendee</label>
-    <select class="form-control" id="attendee_id" name="attendee_id">
-        {{ options(all_attendees) }}
-    </select>
-</div>
-<div class="form-group">
-  <label for="password" class="sr-only">Password</label>
-  <div class="input-group">
-    <input type="password" class="form-control" id="password" name="password" placeholder="Password" {% if not c.AT_OR_POST_CON %}disabled{% endif %}>
-     {% if not c.AT_OR_POST_CON %}
-     <span class="input-group-addon"><span class="glyphicon glyphicon-ban-circle"></span></span>
-     {% endif %}
+  <div class="panel-heading">
+    <h3 class="panel-title">New Account</h3>
   </div>
-  <input type="password" class="form-control" id="check-password" name="check-password" placeholder="Re-enter Password"
-         {% if not c.AT_OR_POST_CON %}disabled{% endif %}>
-</div>
-<div class="form-group">
-    {{ macros.checkgroup(AdminAccount, 'access', no_instance=True) }}
-</div>
-<button type="submit" class="btn btn-default">Create Account</button>
-</form>
+  <div class="panel-body">
+    <form id="new_admin" method="post" action="update" onsubmit="return check_passwords()" role="form" class="form-inline">
+      <input type="hidden" name="id" value="None" />
+      {{ csrf_token() }}
+      <div class="form-group">
+        <label for="attendee_id" class="sr-only">Attendee</label>
+        <select class="form-control" id="attendee_id" name="attendee_id">
+            {{ options(all_attendees) }}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="password" class="sr-only">Password</label>
+        <div class="input-group">
+          <input type="password" class="form-control" id="password" name="password" placeholder="Password" {% if not c.AT_OR_POST_CON %}disabled{% endif %}>
+           {% if not c.AT_OR_POST_CON %}
+           <span class="input-group-addon"><span class="glyphicon glyphicon-ban-circle"></span></span>
+           {% endif %}
+        </div>
+        <input type="password" class="form-control" id="check-password" name="check-password" placeholder="Re-enter Password"
+               {% if not c.AT_OR_POST_CON %}disabled{% endif %}>
+      </div>
+      <div class="form-group">
+        {{ macros.checkgroup(AdminAccount, 'access', no_instance=True) }}
+      </div>
+      <button type="submit" class="btn btn-default">Create Account</button>
+    </form>
+  </div>
 </div>
 
 <div class="panel panel-default">
-<div class="panel-heading"><h3>Existing Accounts</h3></div>
-
-<div class="table-responsive">
-<table class="table table-striped datatable">
-<thead>
-  <tr>
-    <th>Name</th>
-    <th>Email</th>
-    <th data-hide="phone">Access</th>
-    <th></th>
-    <th></th>
-  </tr>
-</thead>
-<tbody>
-{% for account in accounts %}
-  <tr id="{{ account.attendee.email|idize }}">
-    <td data-order="{{ account.attendee.last_first }}" data-search="{{ account.attendee.last_first }}">
-      <nobr><a href="../registration/form?id={{ account.attendee.id }}">{{ account.attendee.last_first }}</a></nobr>
-    </td>
-    <td> <a href="mailto:{{ account.attendee.email }}">{{ account.attendee.email }}</a> </td>
-    <td>
-      <form class="form update-form" method="post" action="update">
-        {{ csrf_token() }}
-        <input type="hidden" name="id" value="{{ account.id }}" />
-        <div class="form-group">{{ macros.checkgroup(account, 'access') }}</div>
-      </form>
-    </td>
-    <td>
-      <a href="update_password_of_other?id={{account.id}}">Change Password</a>
-    </td>
-    <td class="text-nowrap">
-      <button type="submit" class="btn btn-sm btn-primary update-button">
-        <span class="glyphicon glyphicon-ok"></span>
-      </button>
-      <form class="form delete-form" method="post" action="delete">
-        {{ csrf_token() }}
-        <input type="hidden" name="id" value="{{ account.id }}" />
-        <button type="submit" type="button" class="btn btn-sm btn-danger delete-button" data-last_first="{{ account.attendee.last_first }}">
-          <span class="glyphicon glyphicon-trash"></span>
-        </button>
-      </form>
-    </td>
-  </tr>
-{% endfor %}
-</tbody>
-</table>
+  <div class="panel-heading">
+    <h3 class="panel-title">Existing Accounts</h3>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-striped datatable">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th data-hide="phone">Access</th>
+          <th></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for account in accounts %}
+        <tr id="{{ account.email|idize }}">
+          <td data-order="{{ account.attendee.last_first }}" data-search="{{ account.attendee.last_first }}"> <nobr><a href="../registration/form?id={{ account.attendee.id }}">{{ account.attendee.last_first }}</a></nobr> </td>
+          <td> <a href="mailto:{{ account.attendee.email }}">{{ account.attendee.email }}</a> </td>
+          <td>
+            <form class="form update-form" method="post" action="update">
+              <input type="hidden" name="id" value="{{ account.id }}" />
+              {{ csrf_token() }}
+              <div class="form-group">{{ macros.checkgroup(account, 'access') }}</div>
+            </form>
+          </td>
+          <td>
+            <a href="update_password_of_other?id={{account.id}}">Change Password</a>
+          </td>
+          <td class="text-nowrap">
+            <button type="submit" class="btn btn-sm btn-primary update-button">
+              <span class="glyphicon glyphicon-ok"></span>
+            </button>
+            <form class="form delete-form" method="post" action="delete">
+              {{ csrf_token() }}
+              <input type="hidden" name="id" value="{{ account.id }}" />
+              <button type="submit" type="button" class="btn btn-sm btn-danger delete-button" data-last_first="{{ account.attendee.last_first }}">
+                <span class="glyphicon glyphicon-trash"></span>
+              </button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 
 <script>
@@ -128,5 +132,4 @@ $(document).ready(function() {
 });
 </script>
 
-</div>
 {% endblock %}

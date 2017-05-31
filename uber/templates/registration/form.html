@@ -1,4 +1,4 @@
-{% extends "base-admin.html" %}
+{% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Attendee Form - {{ attendee.full_name }}{% endblock %}
 {% block content %}
 
@@ -113,7 +113,7 @@
 </script>
 
 <div class="panel panel-default">
-
+<div class="panel-body">
 <form method="post" action="form" class="form-horizontal">
 {{ csrf_token() }}
 <input type="hidden" name="id" value="{{ attendee.db_id }}" />
@@ -381,6 +381,7 @@
     {% endif %}
 {% endif %}
 
+</div>
 </div>
 
 {% endblock %}

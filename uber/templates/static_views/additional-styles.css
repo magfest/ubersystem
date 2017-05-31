@@ -33,20 +33,36 @@
 }
 
 .modal-header {
-  border-bottom: none;
+    border-bottom: none;
 }
 
 .modal-footer {
-  border-top: none;
+    border-top: none;
 }
 
 h1 small {
-  font-size: 50%;
-  white-space: nowrap;
+    font-size: 50%;
+    white-space: nowrap;
 }
 
 .width-auto {
-  width: auto;
+    width: auto;
+}
+
+.panel .dataTables_length {
+    padding: 10px 0 0 15px;
+}
+
+.panel .dataTables_filter {
+    padding: 10px 15px 0 0;
+}
+
+.panel .dataTables_paginate {
+    padding: 0 15px 5px 0;
+}
+
+.panel .dataTables_info {
+    padding: 0 0 5px 15px;
 }
 
 {% endblock additional_css %}

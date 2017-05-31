@@ -20,36 +20,40 @@
 </div>
 
 {% macro table_entry(label, value) -%}
-    <tr>
-        <td>{{ label }}</td>
-        <td>${{ value }}</td>
-    </tr>
+  <tr>
+    <td>{{ label }}</td>
+    <td>${{ value }}</td>
+  </tr>
 {%- endmacro %}
 
 <div class="panel panel-default">
-    <table class="table table-striped datatable">
-    <thead><tr>
+  <table class="table table-striped datatable">
+    <thead>
+      <tr>
         <th>Name</th>
         <th>Amount</th>
-    </tr></thead>
+      </tr>
+    </thead>
+    <tbody>
+      {{ table_entry('Attendee Badges', preregs.Attendee) }}
+      {{ table_entry('Extra Payments (Kickins, Shirts, Food, anything else)', preregs.extra) }}
+      {{ table_entry('Group Badges', preregs.group_badges) }}
+      {{ table_entry('Dealer Badges', preregs.dealer_badges) }}
+      {{ table_entry('Staff Badges', preregs.Staff) }}
+      {{ table_entry('Single Day Badges', preregs.OneDay) }}
 
-    {{ table_entry('Attendee Badges', preregs.Attendee) }}
-    {{ table_entry('Extra Payments (Kickins, Shirts, Food, anything else)', preregs.extra) }}
-    {{ table_entry('Group Badges', preregs.group_badges) }}
-    {{ table_entry('Dealer Badges', preregs.dealer_badges) }}
-    {{ table_entry('Staff Badges', preregs.Staff) }}
-    {{ table_entry('Single Day Badges', preregs.OneDay) }}
-
-    {% for what, total in sales.items() %}
+      {% for what, total in sales.items() %}
         {{ table_entry(what, total) }}
-    {% endfor %}
-    {% for item in credits %}
+      {% endfor %}
+
+      {% for item in credits %}
         <tr>
-            <td><a href="form?id={{ item.id }}">{{ item.name }}</a></td>
-            <td>${{ item.amount }}</td>
+          <td><a href="form?id={{ item.id }}">{{ item.name }}</a></td>
+          <td>${{ item.amount }}</td>
         </tr>
-    {% endfor %}
-    </table>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
 
 {% endblock %}

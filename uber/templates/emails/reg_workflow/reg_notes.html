@@ -12,7 +12,7 @@
     instructions about your department assignment and how to sign up for shifts.
 {% endif %}
 
-{% if c.CONSENT_FORM_URL and attendee.consent_form %}
+{% if c.CONSENT_FORM_URL and attendee.age_group_conf['consent_form'] %}
     <br/> <br/>
     Because you are under 18, you must bring a signed and notarized parental permission
     to be granted admission to {{ c.EVENT_NAME }}.  You may download the consent form 
