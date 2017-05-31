@@ -575,8 +575,7 @@ class Session(SessionManager):
                                                      WatchList.active == True)).all()
 
         def get_account_by_email(self, email):
-            return self.query(AdminAccount).join(Attendee).filter(
-                Attendee.normalized_email == Attendee.normalize_email(email)).one()
+            return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
 
         def no_email(self, subject):
             return not self.query(Email).filter_by(subject=subject).all()
@@ -754,7 +753,7 @@ class Session(SessionManager):
             if ':' in text:
                 target, term = text.split(':', 1)
                 if target == 'email':
-                    return attendees.filter(Attendee.normalized_email == Attendee.normalize_email(term)).one()
+                    return attendees.filter(Attendee.normalized_email == Attendee.normalize_email(term))
                 elif target == 'group':
                     return attendees.icontains(Group.name, term.strip())
 
