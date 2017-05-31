@@ -152,6 +152,7 @@ def email(attendee):
     elif not attendee.email and not c.AT_OR_POST_CON:
         return 'Please enter an email address.'
 
+
 @validation.Attendee
 def email_valid(attendee):
     if attendee.email:
