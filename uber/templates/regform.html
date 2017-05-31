@@ -581,13 +581,13 @@
     </div>
 </div>
 
-{% if c.PROMO_CODES_ENABLED and (attendee.is_unpaid or attendee.promo_code) %}
+{% if c.PROMO_CODES_ENABLED %}
 <div class="form-group">
     <label for="promo_code" class="col-sm-2 control-label optional-field">Promo Code</label>
     <div class="col-sm-6">
         {% if attendee.is_unpaid %}
         <input type="textarea" name="promo_code" value="{{ attendee.promo_code_code }}" class="form-control" placeholder="Promo Code">
-        {% elif attendee.promo_code %}
+        {% else %}
         <p name="promo_code" class="form-control-static">{{ attendee.promo_code_code }}</p>
         {% endif %}
     </div>

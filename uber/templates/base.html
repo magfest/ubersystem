@@ -95,7 +95,14 @@
                 toastr.info(message);
             }
 
+            {#
+              If datetextentries are contained inside of a multi-page
+              datatable, the datetextentries that aren't on the first page
+              won't be rendered. To overcome this, we attempt to instantiate
+              datetextentries every time the datatable finishes drawing.
+            -#}
             var createDateTextEntries = function() {
+                {# Only create datetextentry if it wasn't already created. -#}
                 $('.date:not(.jq-dte .date)').datetextentry({
                     field_order: 'MDY',
                     min_year: '1890',

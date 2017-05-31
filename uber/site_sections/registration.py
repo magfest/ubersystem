@@ -94,7 +94,14 @@ class Root:
             if 'no_override' in params:
                 attendee.overridden_price = None
 
-            message = check(attendee)
+            message = ''
+            if c.PROMO_CODES_ENABLED and 'promo_code' in params:
+                message = session.add_promo_code_to_attendee(
+                    attendee, params.get('promo_code'))
+
+            if not message:
+                message = check(attendee)
+
             if not message:
                 # Free group badges are only considered 'registered' when they are actually claimed.
                 if attendee.paid == c.PAID_BY_GROUP and attendee.group_id and attendee.group.cost == 0:

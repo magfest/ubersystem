@@ -608,6 +608,33 @@ class Session(SessionManager):
 
             raise ValueError('attendee not found')
 
+        def add_promo_code_to_attendee(self, attendee, code):
+            """
+            Convenience method for adding a promo code to an attendee.
+
+            This method sets both the `promo_code` and `promo_code_id`
+            properties of `attendee`. Due to the way the `Attendee.promo_code`
+            relationship is defined, the `Attendee.promo_code_id` isn't
+            automatically set, which makes this method a nice way of setting
+            both.
+
+            Arguments:
+                attendee (Attendee): The Attendee for which the promo code
+                    should be added.
+                code (str): The promo code as typed by an end user.
+
+            Returns:
+                str: Either a failure message or an empty string
+                    indicating success.
+            """
+            attendee.promo_code = self.lookup_promo_code(code)
+            if attendee.promo_code:
+                attendee.promo_code_id = attendee.promo_code.id
+                return ''
+            else:
+                attendee.promo_code_id = None
+                return 'The promo code you entered is invalid.'
+
         def lookup_promo_code(self, code):
             """
             Convenience method for finding a promo code by id or code.
@@ -1194,8 +1221,19 @@ class Attendee(MagModel, TakesPaymentMixin):
     group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(Group, backref='attendees', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
 
-    promo_code_id = Column(UUID, ForeignKey('promo_code.id'), nullable=True, index=True)
-    promo_code    = relationship('PromoCode',
+    # NOTE: The cascade relationships for promo_code do NOT include
+    # "save-update". During the preregistration workflow, before an Attendee
+    # has paid, we create ephemeral Attendee objects that are saved in the
+    # cherrypy session, but are NOT saved in the database. If the cascade
+    # relationships specified "save-update" then the Attendee would
+    # automatically be inserted in the database when the promo_code is set on
+    # the Attendee object (which we do not want until the attendee pays).
+    #
+    # The practical result of this is that we must manually set promo_code_id
+    # in order for the relationship to be persisted.
+    promo_code_id = Column(UUID, ForeignKey('promo_code.id'), nullable=True,
+        index=True)
+    promo_code = relationship('PromoCode',
         backref=backref('used_by', cascade='merge,refresh-expire,expunge'),
         foreign_keys=promo_code_id,
         cascade='merge,refresh-expire,expunge')
@@ -2082,8 +2120,8 @@ class PromoCode(MagModel):
             price (int): The badge price in whole dollars.
 
         Returns:
-            int: The discounted price. The return value will never be a
-                negative number or greater than `price`. If `price` is None
+            int: The discounted price. The returned number will never be
+                less than zero or greater than `price`. If `price` is None
                 or a negative number, then the return value will always be 0.
         """
         if not self.discount or not price or price < 0:

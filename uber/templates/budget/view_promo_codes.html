@@ -23,7 +23,6 @@ $(document).ready(function() {
             $formToSubmit = $self.closest('form'),
             code = $self.data('code');
         bootbox.confirm({
-            size: 'small',
             backdrop: true,
             title: 'Delete "' + code + '"?',
             message: 'Anyone who has already used this promo code, but has not yet ' +
@@ -111,7 +110,7 @@ $(document).ready(function() {
           {{ promo_code.uses_count_display }}, {{ promo_code.uses_remaining_display }}
           <br>
           {% for attendee in promo_code.used_by %}
-          <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a>{% if not loop.last %}, {% endif %}
+          <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a>{% if not loop.last %}, {% endif %}
           {% endfor %}
         </td>
         <td class="text-nowrap">

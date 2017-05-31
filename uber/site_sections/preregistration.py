@@ -124,15 +124,9 @@ class Root:
             group = session.group(params, ignore_csrf=True, restricted=True)
 
         message = ''
-        if c.PROMO_CODES_ENABLED:
-            code = params.get('promo_code', '').strip()
-            if code:
-                attendee.promo_code = session.lookup_promo_code(code)
-                if attendee.promo_code:
-                    attendee.promo_code_id = attendee.promo_code.id
-                else:
-                    attendee.promo_code_id = None
-                    message = 'The promo code you entered is invalid.'
+        if c.PROMO_CODES_ENABLED and 'promo_code' in params:
+            message = session.add_promo_code_to_attendee(
+                attendee, params.get('promo_code'))
 
         if not attendee.badge_type:
             attendee.badge_type = c.ATTENDEE_BADGE
