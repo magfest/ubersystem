@@ -17,6 +17,7 @@ import warnings
 import treepoem
 import importlib
 import mimetypes
+import shlex
 import threading
 import traceback
 from glob import glob
@@ -47,6 +48,7 @@ import jinja2
 import cherrypy
 from markupsafe import text_type, Markup
 from pytz import UTC
+from six.moves import urllib
 
 import sqlalchemy
 from sqlalchemy.sql import case

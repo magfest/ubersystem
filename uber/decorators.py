@@ -95,6 +95,7 @@ def ajax(func):
         assert cherrypy.request.method == 'POST', 'POST required, got {}'.format(cherrypy.request.method)
         check_csrf(kwargs.pop('csrf_token', None))
         return json.dumps(func(*args, **kwargs), cls=serializer).encode('utf-8')
+    returns_json.ajax = True
     return returns_json
 
 

@@ -203,6 +203,7 @@ class Root:
                 if getattr(method, 'exposed', False):
                     spec = inspect.getfullargspec(get_innermost(method))
                     if set(getattr(method, 'restricted', []) or []).intersection(AdminAccount.access_set()) \
+                            and not getattr(method, 'ajax', False) \
                             and (getattr(method, 'site_mappable', False)
                               or len([arg for arg in spec.args[1:] if arg != 'session']) == len(spec.defaults or []) and not spec.varkw):
                         pages[module_name].append({

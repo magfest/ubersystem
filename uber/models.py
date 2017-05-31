@@ -1838,8 +1838,8 @@ class PromoCodeWord(MagModel):
     part_of_speech = Column(Choice(PART_OF_SPEECH_OPTS), default=ADJECTIVE)
 
     __table_args__ = (
-        Index('uq_promo_code_word_normalized_word',
-            func.lower(func.trim(word)), unique=True),
+        Index('uq_promo_code_word_normalized_word_part_of_speech',
+            func.lower(func.trim(word)), part_of_speech, unique=True),
         CheckConstraint(func.trim(word) != '',
             name='ck_promo_code_word_non_empty_word'))
 
