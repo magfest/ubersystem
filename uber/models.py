@@ -2087,13 +2087,13 @@ class PromoCode(MagModel):
         if not self.discount:
             self.discount = None
 
-        # If 'code' is empty, then generate a random code
-        self.code = self.code.strip()
+        self.code = '' if self.code is None else self.code.strip()
         if not self.code:
+            # If 'code' is empty, then generate a random code
             self.code = self.generate_random_code()
-
-        # Replace multiple whitespace characters with a single space
-        self.code = re.sub(r'\s+', ' ', self.code)
+        else:
+            # Replace multiple whitespace characters with a single space
+            self.code = re.sub(r'\s+', ' ', self.code)
 
     def calculate_discounted_price(self, price):
         """
