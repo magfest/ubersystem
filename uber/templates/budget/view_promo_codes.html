@@ -94,7 +94,7 @@ $(document).ready(function() {
           <button type="submit" class="btn btn-sm btn-warning" name="expire" value="1" form="update_promo_code_{{ promo_code.id }}">Expire Now</button>
           {% endif %}
         </td>
-        <td data-order="{{ promo_code.discount }}">{{ promo_code.discount_display }}</td>
+        <td data-order="{{ promo_code.discount }}">{{ promo_code.discount_str }}</td>
         <td data-order="{{ promo_code.uses_allowed }}">
           <input
             type="text"
@@ -109,7 +109,7 @@ $(document).ready(function() {
             {%- endif -%}/>
         </td>
         <td data-order="{{ promo_code.uses_count }}">
-          {{ promo_code.uses_count_display }}, {{ promo_code.uses_remaining_display }}
+          {{ promo_code.uses_count_str }}, {{ promo_code.uses_remaining_str }}
           <br>
           {% for attendee in promo_code.used_by %}
           <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a>{% if not loop.last %}, {% endif %}

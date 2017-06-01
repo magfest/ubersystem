@@ -97,7 +97,7 @@
                     <li>{{ swag }}</li>
                 {% endfor %}
                 {% if attendee.promo_code %}
-                    <li>{{ attendee.promo_code.discount_display }} with promo code "{{ attendee.promo_code.code }}"</li>
+                    <li>{{ attendee.promo_code.discount_str }} with promo code "{{ attendee.promo_code.code }}"</li>
                 {% endif %}
             </ul>
         </td>

@@ -262,7 +262,7 @@ $(document).ready(function() {
       <div class="form-group">
         <label for="length" class="col-sm-3 control-label">Number of characters</label>
         <div class="col-sm-3">
-          <input type="number" name="length" class="form-control" min="1" value="12"/>
+          <input type="number" name="length" class="form-control" min="1" value="9"/>
         </div>
         <label for="segment_length" class="col-sm-2 control-label text-nowrap" style="padding-top: 7px;">per segment</label>
         <div class="col-sm-3">
@@ -338,8 +338,8 @@ $(document).ready(function() {
     <tr>
       <td>{{ code.code }}</td>
       <td>{{ code.expiration_date|datetime_local("%Y-%m-%d") }}</td>
-      <td>{{ code.discount_display }}</td>
-      <td>{{ code.uses_allowed_display }}</td>
+      <td>{{ code.discount_str }}</td>
+      <td>{{ code.uses_allowed_str }}</td>
     </tr>
     {% endfor %}
   </table>

@@ -628,7 +628,7 @@ class Session(SessionManager):
                 str: Either a failure message or an empty string
                     indicating success.
             """
-            code = code.strip()
+            code = code.strip() if code else ''
             if code:
                 attendee.promo_code = self.lookup_promo_code(code)
                 if attendee.promo_code:
@@ -1021,7 +1021,7 @@ class Session(SessionManager):
         for name in dir(model):
             if not name.startswith('_'):
                 attr = getattr(model, name)
-                if hasattr(target, '__table__') and name in target.__table__.c:
+                if hasattr('target', '__table__') and name in target.__table__.c:
                     attr.key = attr.key or name
                     attr.name = attr.name or name
                     attr.table = target.__table__
@@ -1394,19 +1394,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     @presave_adjustment
     def _email_adjustment(self):
         self.email = normalize_email(self.email)
-
-    def _badge_adjustments(self):
-        # _assert_badge_lock()
-        from uber.badge_funcs import needs_badge_num
-        if self.badge_type == c.PSEUDO_DEALER_BADGE:
-            self.ribbon = c.DEALER_RIBBON
-
-        self.badge_type = get_real_badge_type(self.badge_type)
-
-        if self.orig_value_of('badge_type') != self.badge_type or self.orig_value_of('badge_num') != self.badge_num:
-            self.session.update_badge(self, self.orig_value_of('badge_type'), self.orig_value_of('badge_num'))
-        elif needs_badge_num(self) and not self.badge_num:
-            self.badge_num = self.session.get_next_badge_num(self.badge_type)
 
     @presave_adjustment
     def _use_promo_code(self):
@@ -1836,7 +1823,7 @@ class PromoCodeWord(MagModel):
 
             * 3 `ADVERB`: `word` is an adverb
 
-        part_of_speech_display (str): A human readable description of
+        part_of_speech_str (str): A human readable description of
             `part_of_speech`.
     """
 
@@ -1871,7 +1858,7 @@ class PromoCodeWord(MagModel):
         return func.lower(func.trim(cls.word))
 
     @property
-    def part_of_speech_display(self):
+    def part_of_speech_str(self):
         return self.PARTS_OF_SPEECH[self.part_of_speech].title()
 
     @presave_adjustment
@@ -1932,7 +1919,7 @@ class PromoCode(MagModel):
             purchase price of a badge. The interpretation of this value
             depends on the value of `discount_type`. In any case, a value of
             0 equates to a full discount, i.e. a free badge.
-        discount_display (str): A human readable description of the discount.
+        discount_str (str): A human readable description of the discount.
         discount_type (int): The type of discount this promo code will apply.
             Valid values are:
 
@@ -1968,14 +1955,14 @@ class PromoCode(MagModel):
         uses_allowed (int): The total number of times this promo code may be
             used. A value of None means this promo code may be used an
             unlimited number of times.
-        uses_allowed_display (int): A human readable description of
+        uses_allowed_str (str): A human readable description of
             uses_allowed.
         uses_count (int): The number of times this promo code has already
             been used.
-        uses_count_display (int): A human readable description of uses_count.
+        uses_count_str (str): A human readable description of uses_count.
         uses_remaining (int): Remaining number of times this promo code may
             be used.
-        uses_remaining_display (int): A human readable description of
+        uses_remaining_str (str): A human readable description of
             uses_remaining.
     """
 
@@ -2015,7 +2002,7 @@ class PromoCode(MagModel):
     _repr_attr_names = ('code',)
 
     @property
-    def discount_display(self):
+    def discount_str(self):
         if not self.discount:
             return 'Free badge'
 
@@ -2062,7 +2049,7 @@ class PromoCode(MagModel):
             func.replace(func.lower(cls.code), '-', ''), ' ', '')
 
     @property
-    def uses_allowed_display(self):
+    def uses_allowed_str(self):
         uses = self.uses_allowed
         return 'Unlimited uses' if uses is None \
             else '{} use{} allowed'.format(uses, '' if uses == 1 else 's')
@@ -2077,7 +2064,7 @@ class PromoCode(MagModel):
             Attendee.promo_code_id == cls.id)
 
     @property
-    def uses_count_display(self):
+    def uses_count_str(self):
         uses = self.uses_count
         return 'Used by {} attendee{}'.format(uses, '' if uses == 1 else 's')
 
@@ -2091,7 +2078,7 @@ class PromoCode(MagModel):
         return cls.uses_allowed - cls.uses_count
 
     @property
-    def uses_remaining_display(self):
+    def uses_remaining_str(self):
         uses = self.uses_remaining
         return 'Unlimited uses' if uses is None \
             else '{} use{} remaining'.format(uses, '' if uses == 1 else 's')
@@ -2106,7 +2093,7 @@ class PromoCode(MagModel):
         if not self.discount:
             self.discount = None
 
-        self.code = '' if self.code is None else self.code.strip()
+        self.code = self.code.strip() if self.code else ''
         if not self.code:
             # If 'code' is empty, then generate a random code
             self.code = self.generate_random_code()
@@ -2177,7 +2164,7 @@ class PromoCode(MagModel):
         return (codes.pop() if codes else None) if count is None else codes
 
     @classmethod
-    def generate_random_code(cls, count=None, length=12, segment_length=3):
+    def generate_random_code(cls, count=None, length=9, segment_length=3):
         """
         Generates a random promo code.
 

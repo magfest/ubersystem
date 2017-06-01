@@ -107,8 +107,8 @@ class Root:
             out.writerow([
                 code.code,
                 code.expiration_date,
-                code.discount_display,
-                code.uses_allowed_display])
+                code.discount_str,
+                code.uses_allowed_str])
 
     @site_mappable
     @log_pageview

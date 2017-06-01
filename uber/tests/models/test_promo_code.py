@@ -15,7 +15,7 @@ class TestPromoCodeAdjustments:
         promo_code._attribute_adjustments()
         assert promo_code.discount is None
 
-    @pytest.mark.parametrize('code', [None, '', '   '])
+    @pytest.mark.parametrize('code', [None, '', '   ', 0])
     def test_empty_code_auto_generated(self, code, monkeypatch):
         monkeypatch.setattr(PromoCode, 'generate_random_code', Mock())
         promo_code = PromoCode(code=code)
