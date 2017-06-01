@@ -2,8 +2,6 @@ language: python
 sudo: false
 addons:
   apt:
-    sources:
-      - travis-ci/sqlite3
     packages:
       - sqlite3
 matrix:
