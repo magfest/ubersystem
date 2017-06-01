@@ -25,7 +25,7 @@ def teardown_range_check(request):
         if c.SHIFT_CUSTOM_BADGES:
             with Session() as session:
                 check_ranges(session)
-        request.addfinalizer(_check_range)
+    request.addfinalizer(_check_range)
 
 
 def check_ranges(session):
