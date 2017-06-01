@@ -966,6 +966,25 @@ class Session(SessionManager):
             return True
 
         def bulk_insert(self, models):
+            """
+            Convenience method for bulk inserting model objects.
+
+            In general, doing a bulk insert is much faster than individual
+            inserts, but the whole insert will fail if a single object
+            violates the database's referential integrity.
+
+            This function does a bulk insert, but if an `IntegrityError` is
+            encountered, it falls back to inserting the model objects
+            one-by-one, and ignores the individual integrity errors.
+
+            Arguments:
+                models (list): A list of sqlalchemy model objects.
+
+            Returns:
+                list: A list of model objects that was succesfully inserted.
+                    The returned list will not include any model objects that
+                    failed insertion.
+            """
             for model in models:
                 model.presave_adjustments()
             try:
