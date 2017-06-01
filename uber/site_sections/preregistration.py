@@ -179,12 +179,7 @@ class Root:
                 else:
                     target = group if group.badges else attendee
                     track_type = c.EDITED_PREREG if target.id in self.unpaid_preregs else c.UNPAID_PREREG
-                    if attendee.paid == c.NEED_NOT_PAY:
-                        session.add(attendee)
-                        self.paid_preregs.extend([Charge.to_sessionized(attendee)])
-                        raise HTTPRedirect('paid_preregistrations?payment_received={}', 0)
-                    else:
-                        self.unpaid_preregs[target.id] = to_sessionized(attendee, group)
+                    self.unpaid_preregs[target.id] = to_sessionized(attendee, group)
                     Tracking.track(track_type, attendee)
                     if group.badges:
                         Tracking.track(track_type, group)
@@ -272,16 +267,19 @@ class Root:
         raise HTTPRedirect('paid_preregistrations?payment_received={}', charge.dollar_amount)
 
     def paid_preregistrations(self, session, payment_received=None):
-        preregs = [session.merge(Charge.from_sessionized(d)) for d in self.paid_preregs]
-        for prereg in preregs:
-            try:
-                session.refresh(prereg)
-            except:
-                pass  # this badge must have subsequently been transferred or deleted
-        return {
-            'preregs': preregs,
-            'total_cost': payment_received
-        }
+        if not self.paid_preregs:
+            raise HTTPRedirect('index')
+        else:
+            preregs = [session.merge(Charge.from_sessionized(d)) for d in self.paid_preregs]
+            for prereg in preregs:
+                try:
+                    session.refresh(prereg)
+                except:
+                    pass  # this badge must have subsequently been transferred or deleted
+            return {
+                'preregs': preregs,
+                'total_cost': payment_received
+            }
 
     def delete(self, id, message='Preregistration deleted'):
         self.unpaid_preregs.pop(id, None)
