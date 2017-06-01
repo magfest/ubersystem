@@ -1,5 +1,11 @@
 language: python
 sudo: true
+addons:
+  apt:
+    sources:
+      - travis-ci/sqlite3
+    packages:
+      - sqlite3
 matrix:
   include:
     - python: "3.4"

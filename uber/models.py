@@ -1969,7 +1969,7 @@ class PromoCode(MagModel):
     FIXED_DISCOUNT = 0
     FIXED_PRICE = 1
     PERCENT_DISCOUNT = 2
-    DISCOUNT_OPTS = [
+    DISCOUNT_TYPE_OPTS = [
         (FIXED_DISCOUNT, 'Fixed Discount'),
         (FIXED_PRICE, 'Fixed Price'),
         (PERCENT_DISCOUNT, 'Percent Discount')]
@@ -1988,7 +1988,7 @@ class PromoCode(MagModel):
 
     code = Column(UnicodeText)
     discount = Column(Integer, nullable=True, default=None)
-    discount_type = Column(Choice(DISCOUNT_OPTS), default=FIXED_DISCOUNT)
+    discount_type = Column(Choice(DISCOUNT_TYPE_OPTS), default=FIXED_DISCOUNT)
     expiration_date = Column(UTCDateTime, default=c.ESCHATON)
     uses_allowed = Column(Integer, nullable=True, default=None)
 

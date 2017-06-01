@@ -129,7 +129,7 @@ class Root:
             'message': message,
             'promo_codes': [],
             'words': [(i, s) for (i, s) in words.items()],
-            'DISCOUNT_OPTS': PromoCode.DISCOUNT_OPTS,
+            'DISCOUNT_TYPE_OPTS': PromoCode.DISCOUNT_TYPE_OPTS,
             'PARTS_OF_SPEECH': PromoCodeWord.PARTS_OF_SPEECH
         }
 
