@@ -8,12 +8,12 @@ matrix:
       env: TOX_ENV=py34
 before_install:
   - if [[ $TOX_ENV == py34 ]]; then
-      wget --quiet -c http://sqlite.org/2017/sqlite-autoconf-3190200.tar.gz;
+      wget http://sqlite.org/2017/sqlite-autoconf-3190200.tar.gz;
       tar -zxvf sqlite-autoconf-3190200.tar.gz;
       cd sqlite-autoconf-3190200;
       ./configure --prefix=/usr;
       make;
-      make install;
+      sudo make install;
       cd ..;
       rm -fr sqlite-autoconf-3190200;
     fi
