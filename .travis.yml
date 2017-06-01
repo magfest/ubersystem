@@ -6,12 +6,21 @@ matrix:
       env: TOX_ENV=pep8
     - python: "3.4"
       env: TOX_ENV=py34
+before_install:
+  - if [[ $TOX_ENV == py34 ]]; then
+      wget --quiet -c http://sqlite.org/2017/sqlite-autoconf-3190200.tar.gz;
+      tar -zxvf sqlite-autoconf-3190200.tar.gz;
+      cd sqlite-autoconf-3190200;
+      ./configure --prefix=$HOME/local;
+      make;
+      make install;
+      cd ..;
+      rm -fr sqlite-autoconf-3190200;
+    fi
 install:
   - pip install tox
   - if [[ $TOX_ENV == py34 ]]; then
       pip install coveralls;
-      wget --quiet -c https://www.sqlite.org/2016/sqlite-autoconf-3140100.tar.gz;
-      tar zxf sqlite-autoconf-3140100.tar.gz; cd sqlite-autoconf-3140100; ./configure --prefix=$HOME/local; make; make install; cd ..; rm -fr sqlite-autoconf-3140100;
     fi
 script:
   - sqlite3 --version
