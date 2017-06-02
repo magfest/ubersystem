@@ -497,11 +497,10 @@ class Session(SessionManager):
             drop: USE WITH CAUTION: If True, then we will drop any tables in
                 the database. Defaults to False.
         """
-        if modify_tables or drop:
-            super(Session, cls).initialize_db(drop=drop, create=modify_tables)
-            if drop:
-                from uber.migration import stamp
-                stamp('heads' if modify_tables else None)
+        super(Session, cls).initialize_db(drop=drop, create=modify_tables)
+        if drop:
+            from uber.migration import stamp
+            stamp('heads' if modify_tables else None)
 
     class QuerySubclass(Query):
         @property
@@ -2837,6 +2836,22 @@ def initialize_db():
     """
     for _model in Session.all_models():
         setattr(Session.SessionMixin, _model.__tablename__, _make_getter(_model))
+
+    num_tries_remaining = 10
+    while not stopped.is_set():
+        try:
+            Session.initialize_db()
+        except KeyboardInterrupt:
+            log.critical('DB initialize: Someone hit Ctrl+C while we were starting up')
+        except:
+            num_tries_remaining -= 1
+            if num_tries_remaining == 0:
+                log.error("DB initialize: couldn't connect to DB, we're giving up")
+                raise
+            log.error("DB initialize: can't connect to / initialize DB, will try again in 5 seconds", exc_info=True)
+            stopped.wait(5)
+        else:
+            break
 
 
 @on_startup
