@@ -497,15 +497,11 @@ class Session(SessionManager):
             drop: USE WITH CAUTION: If True, then we will drop any tables in
                 the database. Defaults to False.
         """
-        if modify_tables:
-            super(Session, cls).initialize_db(drop=drop, create=True)
+        if modify_tables or drop:
+            super(Session, cls).initialize_db(drop=drop, create=modify_tables)
             if drop:
                 from uber.migration import stamp
-                stamp('heads')
-        elif drop:
-            super(Session, cls).initialize_db(drop=True, create=False)
-            from uber.migration import stamp
-            stamp(None)
+                stamp('heads' if modify_tables else None)
 
     class QuerySubclass(Query):
         @property
@@ -2833,35 +2829,14 @@ register_session_listeners()
 
 def initialize_db():
     """
-    Initialize the database on startup
+    Initialize the session on startup
 
     We want to do this only after all other plugins have had a chance to initialize
     and add their 'mixin' data (i.e. extra colums) into the models.
 
-    Also, it's possible that the DB is still initializing and isn't ready to accept connections, so,
-    if this fails, keep trying until we're able to connect.
-
-    This should be the ONLY spot (except for maintenance tools) in all of core ubersystem or any plugins
-    that attempts to create tables by passing modify_tables=True to Session.initialize_db()
     """
     for _model in Session.all_models():
         setattr(Session.SessionMixin, _model.__tablename__, _make_getter(_model))
-
-    num_tries_remaining = 10
-    while not stopped.is_set():
-        try:
-            Session.initialize_db(modify_tables=True)
-        except KeyboardInterrupt:
-            log.critical('DB initialize: Someone hit Ctrl+C while we were starting up')
-        except:
-            num_tries_remaining -= 1
-            if num_tries_remaining == 0:
-                log.error("DB initialize: couldn't connect to DB, we're giving up")
-                raise
-            log.error("DB initialize: can't connect to / initialize DB, will try again in 5 seconds", exc_info=True)
-            stopped.wait(5)
-        else:
-            break
 
 
 @on_startup
