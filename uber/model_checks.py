@@ -63,15 +63,23 @@ def dealer_address(group):
 
 @validation.Group
 def group_money(group):
+    if not group.auto_recalc:
+        try:
+            cost = int(float(group.cost if group.cost else 0))
+            if cost < 0:
+                return 'Total Group Price must be a number that is 0 or higher.'
+        except:
+            return "What you entered for Total Group Price ({}) isn't even a number".format(group.cost)
+
     try:
-        amount_paid = int(float(group.amount_paid))
+        amount_paid = int(float(group.amount_paid if group.amount_paid else 0))
         if amount_paid < 0:
             return 'Amount Paid must be a number that is 0 or higher.'
     except:
         return "What you entered for Amount Paid ({}) isn't even a number".format(group.amount_paid)
 
     try:
-        amount_refunded = int(float(group.amount_refunded))
+        amount_refunded = int(float(group.amount_refunded if group.amount_refunded else 0))
         if amount_refunded < 0:
             return 'Amount Refunded must be positive'
         elif amount_refunded > amount_paid:

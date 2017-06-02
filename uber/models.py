@@ -929,6 +929,12 @@ class Group(MagModel, TakesPaymentMixin):
             [self.leader] = assigned
         if self.auto_recalc:
             self.cost = self.default_cost
+        elif not self.cost:
+            self.cost = 0
+        if not self.amount_paid:
+            self.amount_paid = 0
+        if not self.amount_refunded:
+            self.amount_refunded = 0
         if self.status == c.APPROVED and not self.approved:
             self.approved = datetime.now(UTC)
         if self.leader and self.is_dealer:
