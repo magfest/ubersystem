@@ -1,33 +1,16 @@
 language: python
-sudo: true
-global:
-  - LDFLAGS=-L/usr/local/sqlite/lib
-  - CPPFLAGS=-I/usr/local/sqlite/include
 matrix:
   include:
     - python: "3.4"
       env: TOX_ENV=pep8
     - python: "3.4"
       env: TOX_ENV=py34
-before_install:
-  - if [[ $TOX_ENV == py34 ]]; then
-      wget http://sqlite.org/2017/sqlite-autoconf-3190200.tar.gz;
-      tar -zxvf sqlite-autoconf-3190200.tar.gz;
-      cd sqlite-autoconf-3190200;
-      ./configure --prefix=/usr/local;
-      make;
-      sudo make install;
-      cd ..;
-      rm -fr sqlite-autoconf-3190200;
-    fi
 install:
   - pip install tox
   - if [[ $TOX_ENV == py34 ]]; then
       pip install coveralls;
     fi
 script:
-  - sqlite3 --version
-  - python -c 'import sqlite3; print(sqlite3.sqlite_version)'
   - tox -e $TOX_ENV
 after_success:
   - if [[ $TOX_ENV == py34 ]]; then
