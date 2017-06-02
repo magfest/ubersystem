@@ -84,10 +84,8 @@ class Root:
         return {'result': result}
 
     def delete_promo_codes(self, session, id=None, **params):
-        query = session.query(PromoCode)
-        if id is None:
-            query = query.filter(PromoCode.uses_count == 0)
-        else:
+        query = session.query(PromoCode).filter(PromoCode.uses_count == 0)
+        if id is not None:
             ids = [s.strip() for s in id.split(',') if s.strip()]
             query = query.filter(PromoCode.id.in_(ids))
         result = query.delete(synchronize_session=False)

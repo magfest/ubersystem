@@ -2073,7 +2073,7 @@ class PromoCode(MagModel):
     @uses_count.expression
     def uses_count(cls):
         return select([func.count(Attendee.id)]).where(
-            Attendee.promo_code_id == cls.id)
+            Attendee.promo_code_id == cls.id).label('uses_count')
 
     @property
     def uses_count_str(self):
