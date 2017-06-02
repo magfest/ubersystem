@@ -124,7 +124,7 @@ class Root:
             group = session.group(params, ignore_csrf=True, restricted=True)
 
         message = ''
-        if c.PROMO_CODES_ENABLED and 'promo_code' in params:
+        if c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
             message = session.add_promo_code_to_attendee(
                 attendee, params.get('promo_code'))
 
