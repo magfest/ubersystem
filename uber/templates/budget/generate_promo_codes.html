@@ -1,0 +1,392 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Generate Promo Codes{% endblock %}
+{% block content %}
+
+<style>
+h1 {
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+#word-list .words {
+  padding-bottom: 30px;
+}
+
+#word-list .labels {
+  margin: 5px 0 15px 0;
+}
+
+#word-list .label {
+  display: inline-block;
+  font-size: 100%;
+  font-weight: normal;
+  margin: 0 0.25em 0.5em 0;
+}
+
+#word-list .label a {
+  color: #fff;
+}
+
+#word-list .label a:hover {
+  opacity: 0.5;
+}
+
+#word-list .label .glyphicon {
+  vertical-align: bottom;
+}
+
+#discount-group label {
+  text-align: right;
+}
+
+#discount-group select {
+  display: inline-block;
+}
+</style>
+
+{% set PART_OF_SPEECH_STYLES = ['primary', 'info', 'success', 'warning'] %}
+
+<script>
+
+{# Make our PART_OF_SPEECH_STYLES template variable available in javascript -#}
+var partOfSpeechStyles = [
+    {% for style in PART_OF_SPEECH_STYLES %}'{{style}}'{% if not loop.last %}, {% endif %}{% endfor %}
+];
+
+{# Make our c.PROMO_CODE_WORD_PARTS_OF_SPEECH template variable available in javascript -#}
+var partsOfSpeech = {
+    {% for i, s in c.PROMO_CODE_WORD_PARTS_OF_SPEECH.items() %}'{{i}}': '{{s}}'{% if not loop.last %}, {% endif %}{% endfor %}
+};
+
+var addPromoCodeWords = function(partOfSpeechIndex) {
+    var partOfSpeech = partsOfSpeech[partOfSpeechIndex],
+        $button = $('#' + partOfSpeech + 's .btn-add'),
+        $wordsTextarea = $('#' + partOfSpeech + 's textarea'),
+        text = $wordsTextarea.val().trim(),
+        style = partOfSpeechStyles[partOfSpeechIndex];
+
+    if (!text) {
+      return false;
+    }
+
+    $button.prop('disabled', true);
+    $.ajax({
+        method: 'POST',
+        url: 'add_promo_code_words',
+        data: {
+            text: text,
+            part_of_speech: partOfSpeechIndex,
+            csrf_token: csrf_token
+        },
+        complete: function() {
+            $button.prop('disabled', false);
+        },
+        success: function(response) {
+            $wordsTextarea.val('');
+            var $labels = $('#word-list #' + partOfSpeech + 's .labels');
+            $.each(response.words, function(index, word) {
+                var html = '<span class="label label-' + style + ' ' + partOfSpeech + '" style="display: none;"> ' +
+                  '<span class="word"> ' + word + ' </span> ' +
+                  '<a href="#"><span class="glyphicon glyphicon-remove"></span></a> ' +
+                  '</span> ';
+                $labels.append(html);
+            });
+            var $sortedLabels = $labels.children('.label').sort(function(a, b) {
+                var vA = $('.word', a).text().trim().toLowerCase();
+                var vB = $('.word', b).text().trim().toLowerCase();
+                return (vA < vB) ? -1 : (vA > vB) ? 1 : 0;
+            });
+            $labels.append($sortedLabels);
+            $sortedLabels.fadeIn(300);
+        }
+    });
+};
+
+var deletePromoCodeWord = function($label) {
+    var word = $label.select('.word').text().trim();
+    if (!word) {
+        return false;
+    }
+    $.ajax({
+        method: 'POST',
+        url: 'delete_promo_code_word',
+        data: {
+            word: word,
+            csrf_token: csrf_token
+        },
+        success: function(response) {
+            if (response.result > 0) {
+                $label.fadeOut(300, function() { $label.remove(); });
+            }
+        }
+    });
+};
+
+var deleteAllPromoCodeWords = function(partOfSpeechIndex) {
+    var partOfSpeech = partsOfSpeech[partOfSpeechIndex];
+    $.ajax({
+        method: 'POST',
+        url: 'delete_all_promo_code_words',
+        data: {
+            csrf_token: csrf_token,
+            part_of_speech: partOfSpeechIndex
+        },
+        success: function(response) {
+            if (response.result > 0) {
+                $('#word-list #' + partOfSpeech + 's .label').fadeOut(300, function() { $(this).remove(); });
+            }
+        }
+    });
+}
+
+var onDiscountTypeChanged = function() {
+    var $discountType = $('#discount-group select'),
+        value = $discountType.val(),
+        $addon = $('#discount-group .input-group-addon'),
+        $help = $('#discount-group .discount-type-desc');
+
+    if (value == 2) {
+        $addon.text('%');
+        $help.text('Reduces the badge price by a percentage');
+    } else if (value == 1) {
+        $addon.text('$');
+        $help.text('Sets the badge price to a fixed dollar amount');
+    } else {
+        $addon.text('$');
+        $help.text('Reduces the badge price by a fixed dollar amount');
+    }
+};
+
+var onUseWordsChanged = function() {
+    var $lengthGroup = $('#length-group'),
+        $useWords = $('input[name="use_words"]'),
+        isChecked = $useWords.is(':checked');
+    if (isChecked) {
+        $lengthGroup.fadeOut();
+    } else {
+        $lengthGroup.fadeIn();
+    }
+};
+
+$(document).ready(function() {
+    $('#word-list').on('click', '.label a', function(event) {
+        event.preventDefault();
+        deletePromoCodeWord($(this).closest('.label'));
+    });
+
+    $('#word-list').on('click', '.btn-add', function(event) {
+        event.preventDefault();
+        var partOfSpeechIndex = parseInt($(this).data('part_of_speech_index'));
+        addPromoCodeWords(partOfSpeechIndex);
+    });
+
+    $('#word-list').on('click', '.btn-clear', function(event) {
+        event.preventDefault();
+        var partOfSpeechIndex = parseInt($(this).data('part_of_speech_index')),
+            partOfSpeech = partsOfSpeech[partOfSpeechIndex];
+        bootbox.confirm({
+            size: 'small',
+            backdrop: true,
+            message: '<h4>Clear all promo code ' + partOfSpeech + 's?</h4>',
+            buttons: {
+                confirm: { label: 'Clear All ' + _.startCase(partOfSpeech) + 's', className: 'btn-danger' },
+                cancel: { label: 'Nevermind', className: 'btn-default' }
+            },
+            callback: function(result) {
+                if (result) {
+                    deleteAllPromoCodeWords(partOfSpeechIndex);
+                }
+            }
+        });
+    });
+});
+</script>
+
+<h1>
+  Generate Promo Codes
+  <small><a href="view_promo_codes">View all promo codes</a></small>
+</h1>
+
+<div class="" style="max-width: 720px;">
+  <form method="post" action="generate_promo_codes" class="form-horizontal">
+    {{ csrf_token() }}
+
+    <div class="form-group">
+      <label for="is_single_promo_code" class="col-sm-3 control-label">How many?</label>
+      <div class="col-sm-9">
+        <div class="btn-group" data-toggle="buttons">
+          <a href="#promo-code-single" aria-controls="promo-code-single" role="tab" data-toggle="tab" class="btn btn-default active">
+            <input type="radio" name="is_single_promo_code" id="promo_code_single" value="1" checked
+              aria-controls="promo-code-single" role="tab" data-toggle="tab">
+            Just one promo code
+          </a>
+          <a href="#promo-code-multi" aria-controls="promo-code-multi" role="tab" data-toggle="tab" class="btn btn-default">
+            <input type="radio" name="is_single_promo_code" id="promo_code_multi" value="0"
+              aria-controls="promo-code-multi" role="tab" data-toggle="tab">
+            A bunch of promo codes
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content">
+      <div id="promo-code-single" role="tabpanel" class="tab-pane active">
+        <div class="form-group">
+          <label for="code" class="col-sm-3 control-label">Promo code</label>
+          <div class="col-sm-8  col--5">
+            <input type="text" name="code" class="form-control" placeholder="Enter a custom code, or leave blank to generate a random one" />
+          </div>
+        </div>
+      </div>
+
+      <div id="promo-code-multi" role="tabpanel" class="tab-pane">
+        <div class="form-group">
+          <label for="count" class="col-sm-3 control-label">Number of codes</label>
+          <div class="col-sm-8">
+            <input type="number" name="count" class="form-control" min="1" max="1000" value="1" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="checkbox col-sm-9 col-sm-offset-3">
+        <label>
+          <input type="checkbox" name="use_words" value="1" checked onchange="onUseWordsChanged()"/>
+          Use word list to generate promo codes
+        </label>
+      </div>
+    </div>
+
+    <div id="length-group" style="display: none;">
+      <div class="form-group">
+        <label for="length" class="col-sm-3 control-label">Number of characters</label>
+        <div class="col-sm-3">
+          <input type="number" name="length" class="form-control" min="1" value="9"/>
+        </div>
+        <label for="segment_length" class="col-sm-2 control-label text-nowrap" style="padding-top: 7px;">per segment</label>
+        <div class="col-sm-3">
+          <input type="number" name="segment_length" class="form-control" min="1" value="3"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="expiration_date" class="col-sm-3 control-label">Expiration date</label>
+      <div class="col-sm-8">
+        <input type="text" name="expiration_date" class="form-control expiration-date" />
+      </div>
+      <div class="col-sm-9 col-sm-offset-3 help-block">
+        Promo codes will expire on 11:59pm of this date in the event's timezone
+      </div>
+    </div>
+
+    <div id="discount-group" class="form-group">
+      <label class="col-sm-3 ">
+        <select class="form-control width-auto" name="discount_type" onchange="onDiscountTypeChanged()">
+          {{ options(c.PROMO_CODE_DISCOUNT_TYPE_OPTS) }}
+        </select>
+      </label>
+      <div class="col-sm-8">
+        <div class="input-group">
+          <span class="input-group-addon">$</span>
+          <input type="text" class="form-control" name="discount"
+            placeholder="Leave blank for full discount, free badges" />
+        </div>
+      </div>
+      <div class="col-sm-9 col-sm-offset-3 help-block discount-type-desc">
+        Reduces the badge price by a fixed dollar amount
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="uses_allowed" class="col-sm-3 control-label">Number of uses</label>
+      <div class="col-sm-8">
+        <input type="number" name="uses_allowed" class="form-control" min="0"
+          placeholder="Leave blank for unlimited use codes" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="" class="col-sm-3 control-label"></label>
+      <div class="col-sm-9">
+        <button type="submit" class="btn btn-primary">Generate Promo Codes</button>
+        <button type="submit" class="btn btn-primary" name="export" value="1">Generate and Export as CSV</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+{% if promo_codes %}
+<div class="panel panel-default">
+  <div class="panel-body">
+    <form method="post" action="delete_promo_codes">
+      <input type="hidden" name="id" value="{% for code in promo_codes -%}{{code.id}}{% if not loop.last %},{% endif %}{%- endfor %}"/>
+      <button class="btn btn-danger">Undo Generate Promo Codes</button>
+    </form>
+  </div>
+  <table class="table table-striped datatable">
+    <thead>
+      <tr>
+        <th>Promo Code</th>
+        <th>Expiration Date</th>
+        <th>Discount</th>
+        <th>Allowed Uses</th>
+      </tr>
+    </thead>
+    {% for code in promo_codes %}
+    <tr>
+      <td>{{ code.code }}</td>
+      <td>{{ code.expiration_date|datetime_local("%Y-%m-%d") }}</td>
+      <td>{{ code.discount_str }}</td>
+      <td>{{ code.uses_allowed_str }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% else %}
+<hr>
+{% endif %}
+
+<div id="word-list">
+  <h1>Promo Code Words</h1>
+  <p class="help-block">
+    Promo codes are generated by randomly choosing a word from each category in the following order:
+    {% for i, s in c.PROMO_CODE_WORD_PARTS_OF_SPEECH.items() %}{{s}}{% if not loop.last %} {% endif %}{% endfor %}.
+  </p>
+  <p class="help-block">
+    Enter words separated by commas, spaces, or newlines.<br>
+    To include spaces in a word, use 'single quotes' or "double quotes".<br>
+    To include quotes in a word, escape them using a backslash like \' or \".
+  </p>
+  <div class="row">
+    {% for (part_of_speech_index, word_list) in words %}
+    {% set part_of_speech = c.PROMO_CODE_WORD_PARTS_OF_SPEECH[part_of_speech_index] %}
+    {% set style = PART_OF_SPEECH_STYLES[part_of_speech_index] %}
+    <div id="{{part_of_speech}}s" class="words col-sm-6 col-md-3">
+      <h4>
+        {{part_of_speech|title}}s
+        <button class="btn btn-clear btn-xs btn-default pull-right" data-part_of_speech_index="{{part_of_speech_index}}">
+          Clear All
+        </button>
+      </h4>
+      <div class="labels">
+        {% for word in word_list -%}
+        <span class="label label-{{style}} {{part_of_speech}}">
+          <span class="word">{{ word }}</span>
+          <a href="#"><span class="glyphicon glyphicon-remove"></span></a>
+        </span>
+        {%- endfor %}
+      </div>
+      <textarea class="form-control" rows="3"
+        placeholder="Type some new promo code {{part_of_speech}}s..."></textarea>
+      <br>
+      <button class="btn btn-add btn-{{style}}" data-part_of_speech_index="{{part_of_speech_index}}">
+        Add {{part_of_speech|title}}s
+      </button>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}

@@ -119,6 +119,32 @@ def total_cost_over_paid(attendee):
         return 'You have already paid ${}, you cannot reduce your extras below that.'.format(attendee.amount_paid)
 
 
+@prereg_validation.Attendee
+def promo_code_is_useful(attendee):
+    if attendee.promo_code:
+        if not attendee.is_unpaid:
+            return "You can't apply a promo code after you've paid or if you're in a group."
+        elif attendee.overridden_price:
+            return "You already have a special badge price, you can't use a promo code on top of that."
+        elif attendee.badge_cost >= attendee.badge_cost_without_promo_code:
+            return "That promo code doesn't make your badge any cheaper. " \
+                "You may already have other discounts."
+
+
+@prereg_validation.Attendee
+def promo_code_not_is_expired(attendee):
+    if attendee.promo_code:
+        if attendee.promo_code.is_expired:
+            return 'That promo code is expired.'
+
+
+@prereg_validation.Attendee
+def promo_code_has_uses_remaining(attendee):
+    if attendee.promo_code:
+        if not attendee.promo_code.is_unlimited and attendee.promo_code.uses_remaining <= 0:
+            return 'That promo code has been used too many times.'
+
+
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def full_name(attendee):
@@ -394,3 +420,36 @@ def cash_and_mpoints(sale):
         return 'Cash must be a positive integer'
     if not str(sale.mpoints).isdigit() or int(sale.mpoints) < 0:
         return 'MPoints must be a positive integer'
+
+
+PromoCode.required = [('expiration_date', 'Expiration date')]
+
+
+@validation.PromoCode
+def valid_discount(promo_code):
+    if promo_code.discount:
+        try:
+            promo_code.discount = int(promo_code.discount)
+            if promo_code.discount < 0:
+                return 'You cannot give out promo codes that increase badge prices.'
+        except:
+            return "What you entered for the discount isn't even a number."
+
+
+@validation.PromoCode
+def valid_uses_allowed(promo_code):
+    if promo_code.uses_allowed:
+        try:
+            promo_code.uses_allowed = int(promo_code.uses_allowed)
+            if promo_code.uses_allowed < 0 or promo_code.uses_allowed < promo_code.uses_count:
+                return 'Promo codes must have at least 0 uses remaining.'
+        except:
+            return "What you entered for the number of uses allowed isn't even a number."
+
+
+@validation.PromoCode
+def no_dupe_code(promo_code):
+    if promo_code.code != promo_code.orig_value_of('code') and promo_code.code:
+        if session.lookup_promo_code(code):
+            return 'The code you entered already belongs to another promo ' \
+                'code. Note that promo codes are case insensitive.'

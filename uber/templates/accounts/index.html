@@ -2,6 +2,12 @@
 {% block title %}Accounts{% endblock %}
 {% block content %}
 
+<style>
+table form {
+  display: inline;
+}
+</style>
+
 <ol class="breadcrumb">
   <li><a href="../accounts/homepage">Home</a></li>
   <li class="active">Accounts</li>
@@ -22,13 +28,11 @@
         </select>
       </div>
       <div class="form-group">
-        <div class="input-group input-group-sm">
         <label for="password" class="sr-only">Password</label>
-        <input type="password" class="form-control" id="password" name="password" placeholder="Password"
-           {% if not c.AT_OR_POST_CON %}disabled{% endif %}>
+        <div class="input-group">
+          <input type="password" class="form-control" id="password" name="password" placeholder="Password" {% if not c.AT_OR_POST_CON %}disabled{% endif %}>
            {% if not c.AT_OR_POST_CON %}
-               <span class="input-group-addon glyphicon glyphicon-ban-circle">
-               </span>
+           <span class="input-group-addon"><span class="glyphicon glyphicon-ban-circle"></span></span>
            {% endif %}
         </div>
         <input type="password" class="form-control" id="check-password" name="check-password" placeholder="Re-enter Password"
@@ -50,25 +54,16 @@
     <table class="table table-striped datatable">
       <thead>
         <tr>
-          <th></th>
           <th>Name</th>
           <th>Email</th>
           <th data-hide="phone">Access</th>
+          <th></th>
           <th></th>
         </tr>
       </thead>
       <tbody>
       {% for account in accounts %}
         <tr id="{{ account.email|idize }}">
-          <td>
-            <div class="btn-group-vertical">
-              <button type="submit" class="btn btn-primary update-button"><span class="glyphicon glyphicon-floppy-disk"></span></button>
-              <form method="post" action="delete">
-                <input type="hidden" name="id" value="{{ account.id }}" />
-                <button type="submit" type="button" class="btn btn-danger delete-button"><span class="glyphicon glyphicon-trash"></span></button>
-              </form>
-            </div>
-          </td>
           <td data-order="{{ account.attendee.last_first }}" data-search="{{ account.attendee.last_first }}"> <nobr><a href="../registration/form?id={{ account.attendee.id }}">{{ account.attendee.last_first }}</a></nobr> </td>
           <td> <a href="mailto:{{ account.attendee.email }}">{{ account.attendee.email }}</a> </td>
           <td>
@@ -79,8 +74,19 @@
             </form>
           </td>
           <td>
-            <!--<input type="hidden" name="id" value="{{account.id}}"/ />-->
             <a href="update_password_of_other?id={{account.id}}">Change Password</a>
+          </td>
+          <td class="text-nowrap">
+            <button type="submit" class="btn btn-sm btn-primary update-button">
+              <span class="glyphicon glyphicon-ok"></span>
+            </button>
+            <form class="form delete-form" method="post" action="delete">
+              {{ csrf_token() }}
+              <input type="hidden" name="id" value="{{ account.id }}" />
+              <button type="submit" type="button" class="btn btn-sm btn-danger delete-button" data-last_first="{{ account.attendee.last_first }}">
+                <span class="glyphicon glyphicon-trash"></span>
+              </button>
+            </form>
           </td>
         </tr>
       {% endfor %}
@@ -90,29 +96,39 @@
 </div>
 
 <script>
-    function check_passwords() {
-        if (document.getElementById("password").value != document.getElementById("check-password").value) {
-            alert("Passwords must match");
-            return false;
-        }
-        return true;
+function check_passwords() {
+    if (document.getElementById("password").value != document.getElementById("check-password").value) {
+        alert("Passwords must match");
+        return false;
     }
+    return true;
+}
 
-$(function() {
-    $(document.body).on('click', '.delete-button', function (event) {
+$(document).ready(function() {
+    $('table').on('click', '.delete-button', function (event) {
         event.preventDefault();
-        $.confirm({
-            text: 'Are you sure you want to delete that account?',
-            confirm: function () {
-                $(event.target).parents('form').submit();
+        var $self = $(this),
+            lastFirst = $self.data('last_first'),
+            $formToSubmit = $self.closest('form');
+        bootbox.confirm({
+            backdrop: true,
+            title: 'Delete "' + lastFirst + '"?',
+            message: 'Are you sure you want to delete this account? This cannot be undone.',
+            buttons: {
+                confirm: { label: 'Delete Account', className: 'btn-danger' },
+                cancel: { label: 'Nevermind', className: 'btn-default' }
             },
-            cancel: function () { }
+            callback: function (result) {
+                if (result) {
+                    $formToSubmit.submit();
+                }
+            }
         });
     });
-    $(document.body).on('click', '.update-button', function (event) {
-        $(event.target).parents('tr').find('.update-form').submit();
-    });
 
+    $('table').on('click', '.update-button', function (event) {
+        $(event.target).closest('tr').find('.update-form').submit();
+    });
 });
 </script>
 

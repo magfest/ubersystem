@@ -25,6 +25,7 @@ class Root:
             ], key=lambda tup: tup[1])
         }
 
+    @csrf_protected
     def update(self, session, password='', message='', **params):
         account = session.admin_account(params, checkgroups=['access'])
         if account.is_new:
@@ -48,6 +49,7 @@ class Root:
 
         raise HTTPRedirect('index?message={}', message)
 
+    @csrf_protected
     def delete(self, session, id, **params):
         session.delete(session.admin_account(id))
         raise HTTPRedirect('index?message={}', 'Account deleted')
@@ -201,6 +203,7 @@ class Root:
                 if getattr(method, 'exposed', False):
                     spec = inspect.getfullargspec(get_innermost(method))
                     if set(getattr(method, 'restricted', []) or []).intersection(AdminAccount.access_set()) \
+                            and not getattr(method, 'ajax', False) \
                             and (getattr(method, 'site_mappable', False)
                               or len([arg for arg in spec.args[1:] if arg != 'session']) == len(spec.defaults or []) and not spec.varkw):
                         pages[module_name].append({

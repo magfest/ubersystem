@@ -32,6 +32,23 @@
     opacity: 0.1;
 }
 
+.modal-header {
+    border-bottom: none;
+}
+
+.modal-footer {
+    border-top: none;
+}
+
+h1 small {
+    font-size: 50%;
+    white-space: nowrap;
+}
+
+.width-auto {
+    width: auto;
+}
+
 .panel .dataTables_length {
     padding: 10px 0 0 15px;
 }

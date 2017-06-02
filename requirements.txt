@@ -1,3 +1,4 @@
+dateparser==0.6.0
 psycopg2==2.5.2
 py3k-bcrypt==0.3
 stripe==1.11.0

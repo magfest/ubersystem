@@ -579,6 +579,19 @@
     </div>
 </div>
 
+{% if c.BADGE_PROMO_CODES_ENABLED %}
+<div class="form-group">
+    <label for="promo_code" class="col-sm-2 control-label optional-field">Promo Code</label>
+    <div class="col-sm-6">
+        {% if attendee.is_unpaid %}
+        <input type="textarea" name="promo_code" value="{{ attendee.promo_code_code }}" class="form-control" placeholder="Promo Code">
+        {% else %}
+        <p name="promo_code" class="form-control-static">{{ attendee.promo_code_code }}</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 {% if c.PAGE_PATH != '/registration/form' or not attendee.is_new %}
     <input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
 {% endif %}
