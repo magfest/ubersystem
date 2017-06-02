@@ -14,7 +14,7 @@ before_install:
       wget http://sqlite.org/2017/sqlite-autoconf-3190200.tar.gz;
       tar -zxvf sqlite-autoconf-3190200.tar.gz;
       cd sqlite-autoconf-3190200;
-      ./configure --prefix=/usr/local/sqlite;
+      ./configure --prefix=/usr/local;
       make;
       sudo make install;
       cd ..;
