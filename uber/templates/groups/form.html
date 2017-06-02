@@ -131,9 +131,9 @@
 
 <div class="form-group">
     <label class="col-sm-2 control-label">Total Group Price</label>
-    <div class="col-sm-6">
+    <div class="checkbox col-sm-6">
         $<input type="text" style="width:4em" name="cost" value="{{ group.cost }}" />
-        {{ macros.checkbox(group, 'auto_recalc') }} Automatically recalculate this number.
+        {{ macros.checkbox(group, 'auto_recalc', label='Automatically recalculate this number') }}
     </div>
 </div>
 
@@ -146,8 +146,8 @@
 
     <div class="form-group">
     <label class="col-sm-2 control-label">Can Add Badges</label>
-    <div class="col-sm-6">
-        {{ macros.checkbox(group, 'can_add') }} Allow this group to add badges
+    <div class="checkbox col-sm-6">
+        {{ macros.checkbox(group, 'can_add', label='Allow this group to add badges') }}
     </div>
 </div>
 

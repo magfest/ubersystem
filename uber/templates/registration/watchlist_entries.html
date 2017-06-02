@@ -95,9 +95,9 @@
                 <textarea form="edit_entry_{{ loop.index }}" class="form-control" name="action">{{ entry.action }}</textarea>
             </div>
         </td>
-        <td><div class="form-group">
+        <td><div class="form-group checkbox">
             <form method="post" id="edit_entry_{{ loop.index }}" action="watchlist_entries" role="form" class="form-inline">
-                {{ macros.checkbox(entry, 'active') }}
+                {{ macros.checkbox(entry, 'active', label='Active') }}
                 {{ csrf_token() }}
             </form>
         </div></td>
