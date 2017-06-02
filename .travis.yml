@@ -1,5 +1,8 @@
 language: python
 sudo: true
+global:
+  - LDFLAGS=-L/usr/local/sqlite/lib
+  - CPPFLAGS=-I/usr/local/sqlite/include
 matrix:
   include:
     - python: "3.4"
@@ -11,7 +14,7 @@ before_install:
       wget http://sqlite.org/2017/sqlite-autoconf-3190200.tar.gz;
       tar -zxvf sqlite-autoconf-3190200.tar.gz;
       cd sqlite-autoconf-3190200;
-      ./configure --prefix=/usr/local;
+      ./configure --prefix=/usr/local/sqlite;
       make;
       sudo make install;
       cd ..;

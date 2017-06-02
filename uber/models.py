@@ -1905,6 +1905,9 @@ class PromoCodeWord(MagModel):
         """
         return re.sub(r'\s+', ' ', word.strip().lower())
 
+c.PROMO_CODE_WORD_PART_OF_SPEECH_OPTS = PromoCodeWord.PART_OF_SPEECH_OPTS
+c.PROMO_CODE_WORD_PARTS_OF_SPEECH = PromoCodeWord.PARTS_OF_SPEECH
+
 
 class PromoCode(MagModel):
     """
@@ -2260,6 +2263,8 @@ class PromoCode(MagModel):
         if not code:
             return ''
         return re.sub(r'[\s\-]+', '', code.lower())
+
+c.PROMO_CODE_DISCOUNT_TYPE_OPTS = PromoCode.DISCOUNT_TYPE_OPTS
 
 
 class WatchList(MagModel):
