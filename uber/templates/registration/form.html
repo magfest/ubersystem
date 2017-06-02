@@ -128,11 +128,14 @@
 
     <div class="form-group">
         <label for="first_name" class="col-sm-2 control-label">Placeholder</label>
-        <div class="col-sm-6">
+        <div class="checkbox col-sm-6">
+            <label for='placeholder'>
             {{ macros.checkbox(attendee, 'placeholder') }} This attendee needs to
             {% if attendee.is_new %}
                 register themself
+                </label>
             {% else %}
+                </label>
                 <a href="../preregistration/confirm?id={{ attendee.id }}">register themself</a>
             {% endif %}
         </div>
@@ -242,9 +245,9 @@
 
 <div class="form-group staffing staffing-checked">
     <label class="col-sm-2 control-label">Approved for Setup/Teardown</label>
-    <div class="col-sm-6">
-        {{ macros.checkbox(attendee, 'can_work_setup') }} Approved for setup <br/>
-        {{ macros.checkbox(attendee, 'can_work_teardown') }} Approved for teardown
+    <div class="checkbox col-sm-6">
+        {{ macros.checkbox(attendee, 'can_work_setup', label='Approved for setup') }} <br/>
+        {{ macros.checkbox(attendee, 'can_work_teardown', label='Approved for teardown') }}
     </div>
 </div>
 
@@ -252,8 +255,8 @@
     {% if c.AT_THE_CON %}
         <div class="form-group">
             <label class="col-sm-2 control-label">Received Merch</label>
-            <div class="col-sm-6">
-                {{ macros.checkbox(attendee, 'got_merch') }} Yes
+            <div class="checkbox col-sm-6">
+                {{ macros.checkbox(attendee, 'got_merch', label='Yes') }}
             </div>
         </div>
     {% endif %}
@@ -278,9 +281,12 @@
 <!-- TODO: integrate this with extra stuff -->
 <div class="form-group">
     <label class="col-sm-2 control-label">Badge Price</label>
-    <div class="col-sm-6">
+    <div class="checkbox col-sm-6">
         Base Price: $<input type="text" style="width:4em" name="overridden_price" value="{{ attendee.badge_cost|round(2) }}" />
-        <input type="checkbox" name="no_override" {% if attendee.overridden_price == None %} checked {% endif %}> Automatically recalculate badge price.
+        <label>
+          <input type="checkbox" name="no_override" {% if attendee.overridden_price == None %} checked {% endif %}>
+          Automatically recalculate badge price.
+        </label>
     </div>
 </div>
 

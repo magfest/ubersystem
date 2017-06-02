@@ -315,7 +315,7 @@ class Root:
             if attendee.paid_for_a_swag_shirt:
                 counts['paid_swag_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
                 counts['all_swag_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
-                sales_by_week[(datetime.now(UTC) - attendee.registered).days // 7] += 1
+                sales_by_week[(min(datetime.now(UTC), c.ESCHATON) - attendee.registered).days // 7] += 1
             if attendee.gets_staff_shirt:
                 counts['staff_shirts'][label(shirt_label)][status(attendee.got_merch)] += c.SHIRTS_PER_STAFFER
         for week in range(48, -1, -1):
