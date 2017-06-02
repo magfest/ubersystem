@@ -24,6 +24,7 @@ install:
     fi
 script:
   - sqlite3 --version
+  - python -c 'import sqlite3; print(sqlite3.sqlite_version)'
   - tox -e $TOX_ENV
 after_success:
   - if [[ $TOX_ENV == py34 ]]; then
