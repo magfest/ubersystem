@@ -467,7 +467,7 @@ class Session(SessionManager):
     engine = sqlalchemy.create_engine(c.SQLALCHEMY_URL, **_engine_kwargs)
 
     @classmethod
-    def initialize_db(cls, modify_tables=False, drop=False):
+    def initialize_db(cls, modify_tables=False, drop=False, initialize=False):
         """
         Initialize the database and optionally create/drop tables.
 
@@ -497,10 +497,11 @@ class Session(SessionManager):
             drop: USE WITH CAUTION: If True, then we will drop any tables in
                 the database. Defaults to False.
         """
-        super(Session, cls).initialize_db(drop=drop, create=modify_tables)
-        if drop:
-            from uber.migration import stamp
-            stamp('heads' if modify_tables else None)
+        if drop or modify_tables or initialize:
+            super(Session, cls).initialize_db(drop=drop, create=modify_tables)
+            if drop:
+                from uber.migration import stamp
+                stamp('heads' if modify_tables else None)
 
     class QuerySubclass(Query):
         @property
@@ -2833,6 +2834,12 @@ def initialize_db():
     We want to do this only after all other plugins have had a chance to initialize
     and add their 'mixin' data (i.e. extra colums) into the models.
 
+    Also, it's possible that the DB is still initializing and isn't ready to accept connections, so,
+    if this fails, keep trying until we're able to connect.
+
+    This should be the ONLY spot (except for maintenance tools) in all of core ubersystem or any plugins
+    that attempts to create tables by passing drop=True or modify_tables=True or initialize=True to
+    Session.initialize_db()
     """
     for _model in Session.all_models():
         setattr(Session.SessionMixin, _model.__tablename__, _make_getter(_model))
@@ -2840,7 +2847,7 @@ def initialize_db():
     num_tries_remaining = 10
     while not stopped.is_set():
         try:
-            Session.initialize_db()
+            Session.initialize_db(initialize=True)
         except KeyboardInterrupt:
             log.critical('DB initialize: Someone hit Ctrl+C while we were starting up')
         except:
