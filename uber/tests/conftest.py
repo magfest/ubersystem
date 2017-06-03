@@ -28,7 +28,7 @@ def init_db(request):
     if os.path.exists(TEST_DB_FILE):
         os.remove(TEST_DB_FILE)
     patch_session(Session, request)
-    initialize_db()
+    initialize_db(modify_tables=True)
     register_session_listeners()
     with Session() as session:
         session.add(Attendee(

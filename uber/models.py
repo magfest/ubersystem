@@ -2827,7 +2827,7 @@ def register_session_listeners():
 register_session_listeners()
 
 
-def initialize_db():
+def initialize_db(modify_tables=False):
     """
     Initialize the session on startup
 
@@ -2847,7 +2847,7 @@ def initialize_db():
     num_tries_remaining = 10
     while not stopped.is_set():
         try:
-            Session.initialize_db(initialize=True)
+            Session.initialize_db(modify_tables=modify_tables, initialize=True)
         except KeyboardInterrupt:
             log.critical('DB initialize: Someone hit Ctrl+C while we were starting up')
         except:
