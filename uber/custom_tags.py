@@ -306,7 +306,10 @@ def linebreaksbr(text):
 
 
 def normalize_newlines(text):
-    return re.sub(r'\r\n|\r|\n', '\n', text)
+    if text:
+        return re.sub(r'\r\n|\r|\n', '\n', text)
+    else:
+        return ''
 
 
 @JinjaEnv.jinja_export
