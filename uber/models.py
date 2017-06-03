@@ -1394,7 +1394,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def _use_promo_code(self):
-        if self.promo_code and not self.overridden_price and self.is_unpaid:
+        if c.BADGE_PROMO_CODES_ENABLED and self.promo_code and not self.overridden_price and self.is_unpaid:
             if self.badge_cost > 0:
                 self.overridden_price = self.badge_cost
             else:
@@ -1452,7 +1452,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         else:
             cost = c.get_attendee_price(registered)
 
-        if self.promo_code and use_promo_code:
+        if c.BADGE_PROMO_CODES_ENABLED and self.promo_code and use_promo_code:
             return self.promo_code.calculate_discounted_price(cost)
         else:
             return cost
