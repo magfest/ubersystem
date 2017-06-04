@@ -87,7 +87,7 @@
 		    {% for job in jobs %}
                     {% if job.taken %}
 			shiftList.push({
-                                        title : "{{job.name}}",
+                                        title : "{{ job.name }} ({{ job.location_label }})",
                                         start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                                         end : "{{job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                                         id : "{{job.id}}",
@@ -101,7 +101,7 @@
                                 });
 			{% endif %}
                         eventList.push({
-                                        title : "{{job.name}}",
+                                        title : "{{ job.name }} ({{ job.location_label }})",
                                         start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                                         end : "{{job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                                         id : "{{job.id}}",
