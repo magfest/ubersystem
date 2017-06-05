@@ -16,7 +16,7 @@ def watchlist_session():
             first_names='Martin, Marty, Calvin',
             last_name='McFly',
             email='88mph@example.com',
-            birthdate=dateparser.parse('June 12, 1968'))
+            birthdate=dateparser.parse('June 12, 1968').date())
         session.add(watch_list)
         session.commit()
         yield session
@@ -61,7 +61,30 @@ class TestGuessWatchListEntry:
         dict(
             last_name='MCFLY',
             first_name='ANONYMOUS',
-            birthdate=dateparser.parse('June 12, 1968').date())
+            email='88MPH@EXAMPLE.COM',
+            birthdate=None),
+        dict(
+            last_name='MCFLY',
+            first_name='ANONYMOUS',
+            email='88MPH@EXAMPLE.COM',
+            birthdate=''),
+        dict(
+            last_name='MCFLY',
+            first_name='ANONYMOUS',
+            email='88MPH@EXAMPLE.COM',
+            birthdate='INVALID_DATE'),
+        dict(
+            last_name='MCFLY',
+            first_name='ANONYMOUS',
+            birthdate=dateparser.parse('June 12, 1968').date()),
+        dict(
+            last_name='MCFLY',
+            first_name='ANONYMOUS',
+            birthdate=dateparser.parse('June 12, 1968')),
+        dict(
+            last_name='MCFLY',
+            first_name='ANONYMOUS',
+            birthdate='June 12, 1968')
     ])
     def test_partial_match(self, attendee_attrs, watchlist_session):
         attendee = Attendee(**attendee_attrs)
@@ -71,6 +94,12 @@ class TestGuessWatchListEntry:
 
     @pytest.mark.parametrize('attendee_attrs', [
         dict(last_name='McFly', first_name='Anonymous'),
+        dict(last_name='McFly', first_name='Anonymous', birthdate=None),
+        dict(last_name='McFly', first_name='Anonymous', birthdate=''),
+        dict(
+            last_name='McFly',
+            first_name='Anonymous',
+            birthdate='INVALID_DATE'),
         dict(
             last_name='McFly',
             first_name='Anonymous',

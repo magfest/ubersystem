@@ -1,4 +1,5 @@
 import textwrap
+import six
 from itertools import zip_longest
 from sqlalchemy import func, select, CheckConstraint
 from sqlalchemy.orm import column_property
@@ -588,7 +589,17 @@ class Session(SessionManager):
                 func.lower(WatchList.first_names).contains(attendee.first_name.lower()),
                 and_(WatchList.email != '', func.lower(WatchList.email) == attendee.email.lower())]
             if attendee.birthdate:
-                or_clauses.append(WatchList.birthdate == attendee.birthdate)
+                if isinstance(attendee.birthdate, six.string_types):
+                    try:
+                        birthdate = dateparser.parse(attendee.birthdate).date()
+                    except:
+                        pass
+                    else:
+                        or_clauses.append(WatchList.birthdate == birthdate)
+                elif isinstance(attendee.birthdate, datetime):
+                    or_clauses.append(WatchList.birthdate == attendee.birthdate.date())
+                elif isinstance(attendee.birthdate, date):
+                    or_clauses.append(WatchList.birthdate == attendee.birthdate)
 
             return self.query(WatchList).filter(and_(
                 or_(*or_clauses),
