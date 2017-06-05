@@ -584,11 +584,16 @@ class Session(SessionManager):
             return [job.to_dict(fields) for job in jobs if job.restricted or frozenset(job.hours) not in restricted_hours]
 
         def guess_attendee_watchentry(self, attendee):
-            return self.query(WatchList).filter(and_(or_(WatchList.first_names.contains(attendee.first_name),
-                                                         and_(WatchList.email != '', WatchList.email == attendee.email),
-                                                         and_(WatchList.birthdate != None, WatchList.birthdate == attendee.birthdate)),
-                                                     WatchList.last_name == attendee.last_name,
-                                                     WatchList.active == True)).all()
+            or_clauses = [
+                func.lower(WatchList.first_names).contains(attendee.first_name.lower()),
+                and_(WatchList.email != '', func.lower(WatchList.email) == attendee.email.lower())]
+            if attendee.birthdate:
+                or_clauses.append(WatchList.birthdate == attendee.birthdate)
+
+            return self.query(WatchList).filter(and_(
+                or_(*or_clauses),
+                func.lower(WatchList.last_name) == attendee.last_name.lower(),
+                WatchList.active == True)).all()
 
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
@@ -1595,11 +1600,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def watchlist_guess(self):
-        try:
-            with Session() as session:
-                return [w.to_dict() for w in session.guess_attendee_watchentry(self)]
-        except:
-            return None
+        with Session() as session:
+            return [w.to_dict() for w in session.guess_attendee_watchentry(self)]
 
     @property
     def banned(self):
