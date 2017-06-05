@@ -9,6 +9,20 @@ def session(request):
     return session
 
 
+@pytest.fixture()
+def watchlist_session():
+    with Session() as session:
+        watch_list = WatchList(
+            first_names='Martin, Marty, Calvin',
+            last_name='McFly',
+            email='88mph@example.com',
+            birthdate=dateparser.parse('June 12, 1968'))
+        session.add(watch_list)
+        session.commit()
+        yield session
+        session.delete(watch_list)
+
+
 class TestIfBanned:
     def test_no_last_name_match(self, session):
         assert not Attendee(first_name='Banned', last_name='Not').banned
@@ -32,3 +46,46 @@ class TestIfBanned:
         session.watchlist_entry.active = False
         session.commit()
         assert not Attendee(first_name='Banned', last_name='Attendee').banned
+
+
+class TestGuessWatchListEntry:
+    @pytest.mark.parametrize('attendee_attrs', [
+        dict(last_name='MCFLY', first_name='MARTY'),
+        dict(last_name='MCFLY', first_name='MARTIN'),
+        dict(last_name='MCFLY', first_name='CALVIN'),
+        dict(last_name='MCFLY', first_name='MARTIN, MARTY, CALVIN'),
+        dict(
+            last_name='MCFLY',
+            first_name='ANONYMOUS',
+            email='88MPH@EXAMPLE.COM'),
+        dict(
+            last_name='MCFLY',
+            first_name='ANONYMOUS',
+            birthdate=dateparser.parse('June 12, 1968').date())
+    ])
+    def test_partial_match(self, attendee_attrs, watchlist_session):
+        attendee = Attendee(**attendee_attrs)
+        entries = watchlist_session.guess_attendee_watchentry(attendee)
+        assert len(entries) == 1
+        assert entries[0].first_names == 'Martin, Marty, Calvin'
+
+    @pytest.mark.parametrize('attendee_attrs', [
+        dict(last_name='McFly', first_name='Anonymous'),
+        dict(
+            last_name='McFly',
+            first_name='Anonymous',
+            email='outatime@example.com'),
+        dict(
+            last_name='McFly',
+            first_name='Anonymous',
+            birthdate=dateparser.parse('June 13, 1968').date()),
+        dict(
+            last_name='Smith',
+            first_name='Marty',
+            email='88mph@example.com',
+            birthdate=dateparser.parse('June 12, 1968').date()),
+    ])
+    def test_no_match(self, attendee_attrs, watchlist_session):
+        attendee = Attendee(**attendee_attrs)
+        entries = watchlist_session.guess_attendee_watchentry(attendee)
+        assert len(entries) == 0
