@@ -43,7 +43,7 @@
                     </form>
                 {% else %}
                     Yes
-                    <form method="post" action="disapprove">
+                    <form method="post" action="unapprove">
                     {{ csrf_token() }}
                     <input type="hidden" name="ident" value="{{ entry.automated_email.ident }}" />
                     <input type="submit" value="Emergency Undo" />

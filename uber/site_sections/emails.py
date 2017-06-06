@@ -94,7 +94,7 @@ class Root:
         raise HTTPRedirect('pending?message={}', 'Email approved and will be sent out shortly')
 
     @csrf_protected
-    def disapprove(self, session, ident):
+    def unapprove(self, session, ident):
         approved_email = session.query(ApprovedEmail).filter(ApprovedEmail.ident == ident).first()
         if approved_email:
             session.delete(approved_email)
