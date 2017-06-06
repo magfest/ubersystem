@@ -98,7 +98,8 @@ class Root:
         approved_email = session.query(ApprovedEmail).filter(ApprovedEmail.ident == ident).first()
         if approved_email:
             session.delete(approved_email)
-            raise HTTPRedirect('pending?message={}', 'Email disapproved and will no longer be sent out')
+            raise HTTPRedirect('pending?message={}', 'Approval to send this e-mail has been rescinded,'
+                                                     ' and no further copies will be sent.')
         raise HTTPRedirect('pending?message={}', 'Email not found.')
 
     def emails_by_interest(self, message=''):
