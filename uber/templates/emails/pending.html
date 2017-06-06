@@ -42,7 +42,11 @@
                     <input type="submit" value="Approve" />
                     </form>
                 {% else %}
-                    Yes
+                    <form method="post" action="disapprove">
+                    {{ csrf_token() }}
+                    <input type="hidden" name="ident" value="{{ entry.automated_email.ident }}" />
+                    <input type="submit" value="Disapprove" />
+                    </form>
                 {% endif %}
             {% endif %}
         </td>
