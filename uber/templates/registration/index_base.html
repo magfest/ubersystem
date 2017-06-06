@@ -128,7 +128,7 @@
                                 {% if attendee.paid == c.LOST_BADGE %}
                                     <strong>Badge reported as lost!</strong>
                                 {% else %}
-                                    {{ attendee.checked_in_local.strftime('fA')|lower }} {{ attendee.checked_in_local.strftime('D') }} <br/>
+                                    {{ hour_day_local(attendee.checked_in) }} <br/>
                                     <form method="post" action="lost_badge">
                                         <input type="hidden" name="id" value="{{ attendee.id }}" />
                                         <input type="submit" value="Report Lost Badge">
