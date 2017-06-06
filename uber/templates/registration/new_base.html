@@ -247,10 +247,8 @@
                 </select>
                     <button class="btn btn-success" type="submit" disabled="disabled">Mark as Paid</button>
                 </form>
-                {% if c.KIOSK_CC_ENABLED %}
-                    OR <br/>
-                    {{ stripe_form('manual_reg_charge',Charge(attendee)) }}
-                {% endif %}
+                OR <br/>
+                {{ stripe_form('manual_reg_charge',Charge(attendee)) }}
             {% endif %}
         </td>
         {% if attendee.paid == c.PAID_BY_GROUP %}
