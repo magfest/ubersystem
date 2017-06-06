@@ -392,3 +392,35 @@ class Root:
                                                           and a.weighted_hours >= c.HOURS_FOR_REFUND]
             )]
         }
+
+    @csv_file
+    def attendee_birthday_calendar(self, out, session, year=datetime.now(UTC).year):
+        out.writerow(['Subject', 'Start Date', 'Start Time', 'End Date', 'End Time', 'All Day Event', 'Description',
+                      'Location', 'Private'])
+        for person in session.query(Attendee).filter(Attendee.birthdate != None).all():
+            subject = "%s's Birthday" % person.full_name
+            bday = person.birthdate
+            start_date = bday.replace(year=year)
+            end_date = start_date
+            all_day = True
+            private = False
+            out.writerow([
+                subject, start_date, '', end_date, '', all_day, '', '', private
+            ])
+
+    @csv_file
+    def event_birthday_calendar(self, out, session):
+        out.writerow(['Subject', 'Start Date', 'Start Time', 'End Date', 'End Time', 'All Day Event', 'Description',
+                      'Location', 'Private'])
+        for person in session.query(Attendee).filter(Attendee.birthdate != None).filter(extract('month', Attendee.birthdate) >= c.EPOCH.month,
+                                                     extract('month', Attendee.birthdate) <= c.ESCHATON.month,
+                                                     extract('day', Attendee.birthdate) >= c.EPOCH.day,
+                                                     extract('day', Attendee.birthdate) <= c.ESCHATON.day).all():
+            subject = "%s's Birthday" % person.full_name
+            start_date = person.birthdate.replace(year=c.EPOCH.year)
+            end_date = person.birthdate.replace(year=c.EPOCH.year)
+            all_day = True
+            private = False
+            out.writerow([
+                subject, start_date, '', end_date, '', all_day, '', '', private
+            ])
