@@ -1,4 +1,5 @@
 import textwrap
+import six
 from itertools import zip_longest
 from sqlalchemy import func, select, CheckConstraint
 from sqlalchemy.orm import column_property
@@ -584,11 +585,26 @@ class Session(SessionManager):
             return [job.to_dict(fields) for job in jobs if job.restricted or frozenset(job.hours) not in restricted_hours]
 
         def guess_attendee_watchentry(self, attendee):
-            return self.query(WatchList).filter(and_(or_(WatchList.first_names.contains(attendee.first_name),
-                                                         and_(WatchList.email != '', WatchList.email == attendee.email),
-                                                         and_(WatchList.birthdate != None, WatchList.birthdate == attendee.birthdate)),
-                                                     WatchList.last_name == attendee.last_name,
-                                                     WatchList.active == True)).all()
+            or_clauses = [
+                func.lower(WatchList.first_names).contains(attendee.first_name.lower()),
+                and_(WatchList.email != '', func.lower(WatchList.email) == attendee.email.lower())]
+            if attendee.birthdate:
+                if isinstance(attendee.birthdate, six.string_types):
+                    try:
+                        birthdate = dateparser.parse(attendee.birthdate).date()
+                    except:
+                        pass
+                    else:
+                        or_clauses.append(WatchList.birthdate == birthdate)
+                elif isinstance(attendee.birthdate, datetime):
+                    or_clauses.append(WatchList.birthdate == attendee.birthdate.date())
+                elif isinstance(attendee.birthdate, date):
+                    or_clauses.append(WatchList.birthdate == attendee.birthdate)
+
+            return self.query(WatchList).filter(and_(
+                or_(*or_clauses),
+                func.lower(WatchList.last_name) == attendee.last_name.lower(),
+                WatchList.active == True)).all()
 
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
