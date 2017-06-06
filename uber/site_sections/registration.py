@@ -473,7 +473,8 @@ class Root:
                 if not attendee.merch:
                     message = '{a.full_name} ({a.badge}) has no merch'.format(a=attendee)
                 elif attendee.got_merch:
-                    message = '{a.full_name} ({a.badge}) already got {a.merch}'.format(a=attendee)
+                    message = '{a.full_name} ({a.badge}) already got {a.merch}.' \
+                              ' Their shirt size is {shirt}'.format(a=attendee, shirt=c.SHIRTS[attendee.shirt])
                 else:
                     id = attendee.id
                     shirt = (attendee.shirt or c.SIZE_UNKNOWN) if attendee.gets_any_kind_of_shirt else c.NO_SHIRT
