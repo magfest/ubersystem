@@ -142,7 +142,7 @@
 <tbody>
 {% for attendee in recent %}
     <tr>
-        {% block tablerows %}
+        {% block tablerows scoped %}
         <td>{{ attendee.registered|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
         <td align="left">
             <a href="form?return_to=new%3f&id={{ attendee.id }}">{{ attendee.full_name }}</a>
