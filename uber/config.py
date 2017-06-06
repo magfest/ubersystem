@@ -460,10 +460,6 @@ def _is_intstr(s):
 # Under certain conditions, we want to completely remove certain payment options from the system.
 # However, doing so cleanly also risks an exception being raised if these options are referenced elsewhere in the code
 # (i.e., c.STRIPE). So we create an enum val to allow code to check for these variables without exceptions.
-if not c.KIOSK_CC_ENABLED:
-    del _config['enums']['door_payment_method']['stripe']
-    c.create_enum_val('stripe')
-
 if not c.GROUPS_ENABLED:
     del _config['enums']['door_payment_method']['group']
     c.create_enum_val('group')

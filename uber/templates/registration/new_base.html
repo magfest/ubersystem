@@ -74,6 +74,79 @@
         }
     };
     $(showOrHideWhatText);
+
+    var refreshRow = function(currentForm) {
+        currentForm.closest('tr').find(':contains("Check In")').removeAttr('disabled');
+        currentForm.closest('td').text('paid');
+    };
+
+    var makeStripeAjax = function() {
+        if($("form[action='manual_reg_charge']").length) {
+            $("form[action='manual_reg_charge']").each(function(index) {
+                $(this).get(0).submit = function() {
+                    var data = $(this).serialize();
+                    var currentForm = $(this);
+                    // process data and send ajax request
+
+                    $.ajax({
+                        method: 'POST',
+                        url: '../registration/manual_reg_charge',
+                        dataType: 'json',
+                        data: data,
+                        success: function (json) {
+                            toastr.clear();
+                            var message = json.message;
+                            if (json.success) {
+                                toastr.info(message);
+                                refreshRow(currentForm);
+                            } else {
+                                toastr.error(message);
+                            }
+                        },
+                        error: function () {
+                            toastr.error('Unable to connect to server, please try again.');
+                        }
+                    });
+
+                    // Prevent form submit.
+                    return false;
+                }
+            });
+        }
+    };
+    $(makeStripeAjax);
+    $(function() {
+        $("form[action='mark_as_paid']").each(function(index) {
+            $(this).submit(function (e) {
+                // Prevent form submit.
+                e.preventDefault();
+
+                var data = $(this).serialize();
+                var currentForm = $(this);
+
+                $.ajax({
+                    method: 'POST',
+                    url: '../registration/mark_as_paid',
+                    dataType: 'json',
+                    data: data,
+                    success: function (json) {
+                        toastr.clear();
+                        var message = json.message;
+                        if (json.success) {
+                            toastr.info(message);
+                            // Refresh the form
+                            refreshRow(currentForm);
+                        } else {
+                            toastr.error(message);
+                        }
+                    },
+                    error: function () {
+                        toastr.error('Unable to connect to server, please try again.');
+                    }
+                });
+            });
+        });
+    });
 </script>
 {% endblock adminheader %}
 
@@ -122,7 +195,7 @@
 <br/>
 
 {% block table %}
-<table class="table datatable" data-page-length="-1">
+<table class="table datatable table-striped" data-page-length="10">
 <thead>
     <tr>
         {% block tableheadings %}
@@ -147,7 +220,7 @@
         <td align="left">
             <a href="form?return_to=new%3f&id={{ attendee.id }}">{{ attendee.full_name }}</a>
             {% if attendee.banned %}
-                <div style="color:red">This attendee's name matches the name of a banned person.  Please get a department head to handle this.</div>
+                <div style="color:red">There is a problem with this registration. Please contact your department head.</div>
             {% endif %}
         </td>
         <td>{{ attendee.badge_type_label }}</td>
@@ -172,8 +245,12 @@
                     <option value="">Payment Method</option>
                     {{ options(c.NEW_REG_PAYMENT_METHOD_OPTS,attendee.payment_method) }}
                 </select>
-                <input type="submit" disabled="disabled" value="Mark as Paid" />
+                    <button class="btn btn-success" type="submit" disabled="disabled">Mark as Paid</button>
                 </form>
+                {% if c.KIOSK_CC_ENABLED %}
+                    OR <br/>
+                    {{ stripe_form('manual_reg_charge',Charge(attendee)) }}
+                {% endif %}
             {% endif %}
         </td>
         {% if attendee.paid == c.PAID_BY_GROUP %}
@@ -185,7 +262,6 @@
             <form method="post" id="new_checkin_{{ attendee.id }}" action="new_checkin">
             {% if c.NUMBERED_BADGES %}
                 <td>
-                    &nbsp;&nbsp;&nbsp;&nbsp;
                     <input type="number" name="badge_num" size="5" style="width:5em" {% if attendee.paid == c.NOT_PAID %}disabled{% endif %} />
                 </td>
             {% endif %}
