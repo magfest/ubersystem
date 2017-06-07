@@ -69,7 +69,9 @@
                 extra: 0,
                 price: {{ c.BADGE_PRICE }},
                 onClick: function () {
-                    $('input[name="badge_type"]').val('{{ attendee.badge_type if attendee and attendee.badge_type else c.ATTENDEE_BADGE }}');
+                    if ($('input[name="badge_type"]').val() != '{{ c.STAFF_BADGE }}') {
+                        $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
+                    }
                 }
             }]
         };
