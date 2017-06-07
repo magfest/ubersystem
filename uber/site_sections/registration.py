@@ -645,7 +645,8 @@ class Root:
                                          Attendee.first_name != '',
                                          Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
                                          *restrict_to)
-                                 .order_by(Attendee.registered).all()
+                                 .order_by(Attendee.registered).all(),
+            'Charge': Charge
         }
 
     def new_reg_station(self, reg_station='', message=''):
@@ -662,12 +663,10 @@ class Root:
             'reg_station': reg_station
         }
 
-    @csrf_protected
+    @ajax
     def mark_as_paid(self, session, id, payment_method):
         if cherrypy.session['reg_station'] == 0:
-            raise HTTPRedirect('new_reg_station?message={}', 'Reg station 0 is for prereg only and may not accept payments')
-        elif int(payment_method) == c.MANUAL:
-            raise HTTPRedirect('manual_reg_charge_form?id={}', id)
+            return {'success': False, 'message': 'Reg station 0 is for prereg only and may not accept payments'}
 
         attendee = session.attendee(id)
         attendee.paid = c.HAS_PAID
@@ -676,30 +675,24 @@ class Root:
         attendee.payment_method = payment_method
         attendee.amount_paid = attendee.total_cost
         attendee.reg_station = cherrypy.session['reg_station']
-        raise HTTPRedirect('new?message={}', 'Attendee marked as paid')
+        session.commit()
+        return {'success': True, 'message': 'Attendee marked as paid.', 'id': attendee.id}
 
-    def manual_reg_charge_form(self, session, id):
-        attendee = session.attendee(id)
-        if attendee.paid != c.NOT_PAID:
-            raise HTTPRedirect('new?message={}{}', attendee.full_name, ' is already marked as paid')
-
-        return {
-            'attendee': attendee,
-            'charge': Charge(attendee)
-        }
-
+    @ajax
     @credit_card
     def manual_reg_charge(self, session, payment_id, stripeToken):
         charge = Charge.get(payment_id)
         [attendee] = charge.attendees
         message = charge.charge_cc(session, stripeToken)
         if message:
-            raise HTTPRedirect('new_credit_form?id={}&message={}', attendee.id, message)
+            return {'success': False, 'message': 'Error processing card: {}'.format(message)}
         else:
             attendee.paid = c.HAS_PAID
+            attendee.payment_method = c.MANUAL
             attendee.amount_paid = attendee.total_cost
             session.merge(attendee)
-            raise HTTPRedirect('new?message={}', 'Payment accepted')
+            session.commit()
+            return {'success': True, 'message': 'Payment accepted.', 'id': attendee.id}
 
     @csrf_protected
     def new_checkin(self, session, message='', **params):

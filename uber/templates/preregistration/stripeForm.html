@@ -1,5 +1,6 @@
 <form class="stripe" method="post" action="{{ action }}">
     <input type="hidden" name="payment_id" value="{{ payment_id }}" />
+    {{ csrf_token() }}
     <script
         src="https://checkout.stripe.com/v2/checkout.js" class="stripe-button"
         data-key="{{ c.STRIPE_PUBLIC_KEY }}"
