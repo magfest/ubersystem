@@ -23,7 +23,9 @@
                 onClick: function () {
                     $('.group_fields').addClass('hide');
                     if ($.field('badge_type').val() == '{{ c.PSEUDO_GROUP_BADGE }}') {
-                        $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
+                        if ($('input[name="badge_type"]').val() != '{{ c.STAFF_BADGE }}') {
+                            $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
+                        }
                     }
                     if ($.field('first_name')) {
                         $('#bold-field-message').insertBefore($.field('first_name').parents('.form-group'));
@@ -44,7 +46,9 @@
                 onClick: function () {
                     {% if c.BEFORE_GROUP_PREREG_TAKEDOWN %}
                         $('.group_fields').removeClass('hide');
-                        $('input[name="badge_type"]').val('{{ c.PSEUDO_GROUP_BADGE }}');
+                        if ($('input[name="badge_type"]').val() != '{{ c.STAFF_BADGE }}') {
+                            $('input[name="badge_type"]').val('{{ c.PSEUDO_GROUP_BADGE }}');
+                        }
                         $('#bold-field-message').insertBefore($.field('name').parents('.form-group'));
                         showOrHideBadgeTypes();
                         togglePrices();
@@ -65,7 +69,7 @@
                 extra: 0,
                 price: {{ c.BADGE_PRICE }},
                 onClick: function () {
-                    $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
+                    $('input[name="badge_type"]').val('{{ attendee.badge_type if attendee and attendee.badge_type else c.ATTENDEE_BADGE }}');
                 }
             }]
         };
@@ -95,7 +99,9 @@
                 price: {{ c.BADGE_TYPE_PRICES[badge_type] }},
                 badge_type: '{{ badge_type }}',
                 onClick: function () {
-                    $('input[name="badge_type"]').val('{{ badge_type }}');
+                    if ($('input[name="badge_type"]').val() != '{{ c.STAFF_BADGE }}') {
+                        $('input[name="badge_type"]').val('{{ badge_type }}');
+                    }
                 }
             });
             {% endif %}
