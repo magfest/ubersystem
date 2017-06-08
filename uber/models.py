@@ -592,6 +592,12 @@ class Session(SessionManager):
             return [job.to_dict(fields) for job in jobs if job.restricted or frozenset(job.hours) not in restricted_hours]
 
         def guess_attendee_watchentry(self, attendee):
+            # NOTE: slight hack. we put this import here instead of common.py due to
+            # having path issues with settings.yaml from dateparser.  this is due to some kind of
+            # sideboard include path problem during early initialization, and we should look into
+            # why this is happening and fix it.
+            import dateparser
+
             or_clauses = [
                 func.lower(WatchList.first_names).contains(attendee.first_name.lower()),
                 and_(WatchList.email != '', func.lower(WatchList.email) == attendee.email.lower())]
@@ -600,7 +606,7 @@ class Session(SessionManager):
                     try:
                         birthdate = dateparser.parse(attendee.birthdate).date()
                     except:
-                        pass
+                        log.debug('Error parsing attendee birthdate: {}'.format(attendee.birthdate))
                     else:
                         or_clauses.append(WatchList.birthdate == birthdate)
                 elif isinstance(attendee.birthdate, datetime):
