@@ -75,14 +75,14 @@
 
     {% endif %}
 
-    $(function () {
-        staffingClicked();
-        if ($.field('staffing')) {
-            {% if c.AT_THE_CON %} $.field('staffing').prop('disabled', true).prop('title', 'Please see Staffing Operations to change your volunteer status.'); {% endif %}
-            {% if attendee.shifts %} $.field('staffing').prop('disabled', true).prop('title', 'Please {{ "contact your department head to drop shifts" if c.AT_THE_CON else "unassign yourself from shifts" }} before changing your volunteer status.'); {% endif %}
-            $.field('staffing').on('click', staffingClicked);
-        }
-    });
+//    $(function () {
+//        staffingClicked();
+//        if ($.field('staffing')) {
+//            {% if c.AT_THE_CON %} $.field('staffing').prop('readonly', true).prop('title', 'Please see Staffing Operations to change your volunteer status.'); {% endif %}
+//            {% if attendee.shifts %} $.field('staffing').prop('readonly', true).prop('title', 'Please {{ "contact your department head to drop shifts" if c.AT_THE_CON else "unassign yourself from shifts" }} before changing your volunteer status.'); {% endif %}
+//            $.field('staffing').on('click', staffingClicked);
+//        }
+//    });
 
     var noCellphoneClicked = function () {
         if ($.field('no_cellphone')) {
