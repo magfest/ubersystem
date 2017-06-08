@@ -40,7 +40,6 @@ from threading import Thread, RLock, local, current_thread
 from types import FunctionType
 from os.path import abspath, basename, dirname, exists, join
 
-import dateparser
 import pytz
 import bcrypt
 import stripe

@@ -380,6 +380,13 @@ class MagModel:
             restricted (bool): if true, restrict any changes only to fields which we allow attendees to set on their own
                 if false, allow changes to any fields.
         """
+
+        # NOTE: slight hack. we put this import here instead of common.py due to
+        # having path issues with settings.yaml from dateparser.  this is due to some kind of
+        # sideboard include path problem during early initialization, and we should look into
+        # why this is happening and fix it.
+        import dateparser
+
         bools = self.regform_bools if restricted else bools
         checkgroups = self.regform_checkgroups if restricted else checkgroups
         for column in self.__table__.columns:
