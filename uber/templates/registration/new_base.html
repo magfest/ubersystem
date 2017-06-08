@@ -160,7 +160,6 @@
         <a href="new?show_all=true">Click Here</a> to see all at-the-door registrations instead of only recent ones
     {% endif %}
     <br/> <a href="index{% if c.AT_THE_CON %}?invalid=True{% endif %}">Click Here</a> to view the preregistered and checked in attendee list
-    <br/> <a href="arbitrary_charge_form">Click Here</a> to create arbitrary credit card charges if Square stops working
 </div>
 
 <div style="text-align:center; font-weight:bold; {% if c.REMAINING_BADGES < 50 %} font-size:18pt; {% endif %}">
@@ -206,7 +205,7 @@
         <th>Cost</th>
         <th>Paid</th>
         {% if c.NUMBERED_BADGES %}
-            <th>Badge</th>
+            <th>Badge #</th>
         {% endif %}
         <th></th>
         {% endblock tableheadings %}
@@ -257,18 +256,19 @@
             </td>
             <td></td>
         {% else %}
-            <form method="post" id="new_checkin_{{ attendee.id }}" action="new_checkin">
             {% if c.NUMBERED_BADGES %}
                 <td>
-                    <input type="number" name="badge_num" size="5" style="width:5em" {% if attendee.paid == c.NOT_PAID %}disabled{% endif %} />
+                    <input type="number" name="badge_num" form="new_checkin_{{ attendee.id }}" size="5"
+                           {% if attendee.paid == c.NOT_PAID %}disabled{% endif %} />
                 </td>
             {% endif %}
             <td>
+                <form method="post" id="new_checkin_{{ attendee.id }}" action="new_checkin">
                 {{ csrf_token() }}
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
                 <button class="btn btn-primary" {% if attendee.paid == c.NOT_PAID %}disabled{% endif %}>Check In</button>
+                </form>
             </td>
-            </form>
         {% endif %}
         {% endblock tablerows %}
     </tr>
