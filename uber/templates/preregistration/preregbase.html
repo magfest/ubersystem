@@ -2,6 +2,14 @@
 {% block head_javascript %}
     {{ super() }}
     <script type="text/javascript">
+        {#
+          Make the PREREG_BADGE_TYPES array available in javascript. Also
+          converts the integer values to strings, because that is what we'll
+          be comparing them to.
+        #}
+        var PREREG_BADGE_TYPES = [
+            {% for i in c.PREREG_BADGE_TYPES %}'{{ i }}'{% if not loop.last %}, {% endif %}{% endfor %}
+        ];
         var PREREG_CHECK_INTERVAL = 15 * 60 * 1000;
         var checkCap = function () {
             $.getJSON('../preregistration/check_prereg', function (check) {
@@ -14,6 +22,12 @@
         };
         setTimeout(checkCap, PREREG_CHECK_INTERVAL);
 
+        var updateBadgeTypeHiddenInput = function(newBadgeType) {
+            if ($.inArray($('input[name="badge_type"]').val(), PREREG_BADGE_TYPES) > -1) {
+                $('input[name="badge_type"]').val(newBadgeType);
+            }
+        };
+
         var REG_TYPES = {
             row: '#reg-types',
             selector: '.reg-type-selector',
@@ -23,7 +37,7 @@
                 onClick: function () {
                     $('.group_fields').addClass('hide');
                     if ($.field('badge_type').val() == '{{ c.PSEUDO_GROUP_BADGE }}') {
-                        $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
+                        updateBadgeTypeHiddenInput('{{ c.ATTENDEE_BADGE }}');
                     }
                     if ($.field('first_name')) {
                         $('#bold-field-message').insertBefore($.field('first_name').parents('.form-group'));
@@ -44,7 +58,7 @@
                 onClick: function () {
                     {% if c.BEFORE_GROUP_PREREG_TAKEDOWN %}
                         $('.group_fields').removeClass('hide');
-                        $('input[name="badge_type"]').val('{{ c.PSEUDO_GROUP_BADGE }}');
+                        updateBadgeTypeHiddenInput('{{ c.PSEUDO_GROUP_BADGE }}');
                         $('#bold-field-message').insertBefore($.field('name').parents('.form-group'));
                         showOrHideBadgeTypes();
                         togglePrices();
@@ -65,7 +79,7 @@
                 extra: 0,
                 price: {{ c.BADGE_PRICE }},
                 onClick: function () {
-                    $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
+                    updateBadgeTypeHiddenInput('{{ c.ATTENDEE_BADGE }}');
                 }
             }]
         };
