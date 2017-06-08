@@ -2,6 +2,14 @@
 {% block head_javascript %}
     {{ super() }}
     <script type="text/javascript">
+        {#
+          Make the PREREG_BADGE_TYPES array available in javascript. Also
+          converts the integer values to strings, because that is what we'll
+          be comparing them to.
+        #}
+        var PREREG_BADGE_TYPES = [
+            {% for i in c.PREREG_BADGE_TYPES %}'{{ i }}'{% if not loop.last %}, {% endif %}{% endfor %}
+        ];
         var PREREG_CHECK_INTERVAL = 15 * 60 * 1000;
         var checkCap = function () {
             $.getJSON('../preregistration/check_prereg', function (check) {
@@ -23,7 +31,7 @@
                 onClick: function () {
                     $('.group_fields').addClass('hide');
                     if ($.field('badge_type').val() == '{{ c.PSEUDO_GROUP_BADGE }}') {
-                        if ($('input[name="badge_type"]').val() != '{{ c.STAFF_BADGE }}') {
+                        if ($.inArray($('input[name="badge_type"]').val(), PREREG_BADGE_TYPES) > -1) {
                             $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
                         }
                     }
@@ -46,7 +54,7 @@
                 onClick: function () {
                     {% if c.BEFORE_GROUP_PREREG_TAKEDOWN %}
                         $('.group_fields').removeClass('hide');
-                        if ($('input[name="badge_type"]').val() != '{{ c.STAFF_BADGE }}') {
+                        if ($.inArray($('input[name="badge_type"]').val(), PREREG_BADGE_TYPES) > -1) {
                             $('input[name="badge_type"]').val('{{ c.PSEUDO_GROUP_BADGE }}');
                         }
                         $('#bold-field-message').insertBefore($.field('name').parents('.form-group'));
@@ -69,7 +77,7 @@
                 extra: 0,
                 price: {{ c.BADGE_PRICE }},
                 onClick: function () {
-                    if ($('input[name="badge_type"]').val() != '{{ c.STAFF_BADGE }}') {
+                    if ($.inArray($('input[name="badge_type"]').val(), PREREG_BADGE_TYPES) > -1) {
                         $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
                     }
                 }
@@ -101,9 +109,7 @@
                 price: {{ c.BADGE_TYPE_PRICES[badge_type] }},
                 badge_type: '{{ badge_type }}',
                 onClick: function () {
-                    if ($('input[name="badge_type"]').val() != '{{ c.STAFF_BADGE }}') {
-                        $('input[name="badge_type"]').val('{{ badge_type }}');
-                    }
+                    $('input[name="badge_type"]').val('{{ badge_type }}');
                 }
             });
             {% endif %}
