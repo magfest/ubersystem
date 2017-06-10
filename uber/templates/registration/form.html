@@ -126,6 +126,18 @@
     Last Updated by {{ attendee.last_updated.who }} on {{ attendee.last_updated.when|full_datetime_local }}
 {% endif %}
 
+{% if attendee.regdesk_info %}
+    <div class="form-group">
+        <div class="col-sm-2 text-right">
+          <span class="label label-danger">Special Regdesk Instructions:</span>
+        </div>
+        <div class="col-sm-6">
+          {{ attendee.regdesk_info }}
+          <p class="help-block"><em>You can update these instructions below</em></p>
+        </div>
+    </div>
+{% endif %}
+
     <div class="form-group">
         <label for="first_name" class="col-sm-2 control-label">Placeholder</label>
         <div class="checkbox col-sm-6">

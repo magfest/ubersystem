@@ -81,6 +81,12 @@
             </td>
         </tr>
     {% endif %}
+    {% if attendee.regdesk_info %}
+        <tr>
+            <td><span class="label label-danger">Special Instructions:</span></td>
+            <td>{{ attendee.regdesk_info }}</td>
+        </tr>
+    {% endif %}
     {% endblock checkin_fields %}
 </table>
 </form>
