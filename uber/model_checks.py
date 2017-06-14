@@ -133,15 +133,16 @@ def promo_code_is_useful(attendee):
 
 @prereg_validation.Attendee
 def promo_code_not_is_expired(attendee):
-    if attendee.promo_code:
-        if attendee.promo_code.is_expired:
-            return 'That promo code is expired.'
+    if attendee.promo_code and attendee.promo_code.is_expired:
+        return 'That promo code is expired.'
 
 
 @prereg_validation.Attendee
 def promo_code_has_uses_remaining(attendee):
-    if attendee.promo_code:
-        if not attendee.promo_code.is_unlimited and attendee.promo_code.uses_remaining <= 0:
+    if attendee.promo_code and not attendee.promo_code.is_unlimited:
+        unpaid_uses_count = Charge.get_unpaid_promo_code_uses_count(
+            attendee.promo_code.id, attendee.id)
+        if (attendee.promo_code.uses_remaining - unpaid_uses_count) < 0:
             return 'That promo code has been used too many times.'
 
 

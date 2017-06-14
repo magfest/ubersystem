@@ -225,8 +225,47 @@ class Charge:
         self.description = description or self.names
         self.email = self.models[0].email if self.targets and self.models[0].email else email
 
-    @staticmethod
-    def to_sessionized(m):
+    @classproperty
+    def paid_preregs(cls):
+        return cherrypy.session.setdefault('paid_preregs', [])
+
+    @classproperty
+    def unpaid_preregs(cls):
+        return cherrypy.session.setdefault('unpaid_preregs', OrderedDict())
+
+    @classmethod
+    def get_unpaid_promo_code_uses_count(cls, id, already_counted_attendee_ids=None):
+        attendees_with_promo_code = set()
+        if already_counted_attendee_ids:
+            attendees_with_promo_code.update(listify(already_counted_attendee_ids))
+
+        promo_code_count = 0
+
+        targets = [t for t in cls.unpaid_preregs.values() if '_model' in t]
+        for target in targets:
+            if target['_model'] == 'Attendee':
+                if target.get('id') not in attendees_with_promo_code \
+                        and target.get('promo_code') \
+                        and target['promo_code'].get('id') == id:
+                    attendees_with_promo_code.add(target.get('id'))
+                    promo_code_count += 1
+
+            elif target['_model'] == 'Group':
+                for attendee in target.get('attendees', []):
+                    if attendee.get('id') not in attendees_with_promo_code \
+                            and attendee.get('promo_code') \
+                            and attendee['promo_code'].get('id') == id:
+                        attendees_with_promo_code.add(attendee.get('id'))
+                        promo_code_count += 1
+
+            elif target['_model'] == 'PromoCode' and target.get('id') == id:
+                # Should never get here
+                promo_code_count += 1
+
+        return promo_code_count
+
+    @classmethod
+    def to_sessionized(cls, m):
         if isinstance(m, dict):
             return m
         elif isinstance(m, sa.Attendee):
@@ -236,30 +275,30 @@ class Charge:
         else:
             raise AssertionError('{} is not an attendee or group'.format(m))
 
-    @staticmethod
-    def from_sessionized(d):
+    @classmethod
+    def from_sessionized(cls, d):
         assert d['_model'] in {'Attendee', 'Group'}
         if d['_model'] == 'Group':
-            return Charge.from_sessionized_group(d)
+            return cls.from_sessionized_group(d)
         else:
-            return Charge.from_sessionized_attendee(d)
+            return cls.from_sessionized_attendee(d)
 
-    @staticmethod
-    def from_sessionized_group(d):
-        d = dict(d, attendees=[Charge.from_sessionized_attendee(a) for a in d.get('attendees', [])])
+    @classmethod
+    def from_sessionized_group(cls, d):
+        d = dict(d, attendees=[cls.from_sessionized_attendee(a) for a in d.get('attendees', [])])
         return sa.Group(**d)
 
-    @staticmethod
-    def from_sessionized_attendee(d):
+    @classmethod
+    def from_sessionized_attendee(cls, d):
         if d.get('promo_code'):
             d = dict(d, promo_code=sa.PromoCode(**d['promo_code']))
         return sa.Attendee(**d)
 
-    @staticmethod
-    def get(payment_id):
+    @classmethod
+    def get(cls, payment_id):
         charge = cherrypy.session.pop(payment_id, None)
         if charge:
-            return Charge(**charge)
+            return cls(**charge)
         else:
             raise HTTPRedirect('../preregistration/credit_card_retry')
 
