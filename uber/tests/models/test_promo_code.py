@@ -167,7 +167,7 @@ class TestAttendeePromoCodeModelChecks:
         assert check(attendee, prereg=True) == 'That promo code is expired.'
 
     def test_promo_code_has_uses_remaining(self):
-        expire = datetime.now().replace(tzinfo=pytz.UTC) + timedelta(days=1)
+        expire = datetime.utcnow().replace(tzinfo=pytz.UTC) + timedelta(days=9)
         promo_code = PromoCode(uses_allowed=1, expiration_date=expire)
         sess = Attendee(
             promo_code=promo_code,
