@@ -75,15 +75,6 @@
 
     {% endif %}
 
-//    $(function () {
-//        staffingClicked();
-//        if ($.field('staffing')) {
-//            {% if c.AT_THE_CON %} $.field('staffing').prop('readonly', true).prop('title', 'Please see Staffing Operations to change your volunteer status.'); {% endif %}
-//            {% if attendee.shifts %} $.field('staffing').prop('readonly', true).prop('title', 'Please {{ "contact your department head to drop shifts" if c.AT_THE_CON else "unassign yourself from shifts" }} before changing your volunteer status.'); {% endif %}
-//            $.field('staffing').on('click', staffingClicked);
-//        }
-//    });
-
     var noCellphoneClicked = function () {
         if ($.field('no_cellphone')) {
            $.field('cellphone').prop('disabled', $.field('no_cellphone').prop('checked'));
@@ -579,8 +570,8 @@
     </div>
 </div>
 
-{% if c.BADGE_PROMO_CODES_ENABLED %}
-<div class="form-group">
+{% if c.BADGE_PROMO_CODES_ENABLED and not group_id %}
+<div class="non_group_fields form-group">
     <label for="promo_code" class="col-sm-2 control-label optional-field">Promo Code</label>
     <div class="col-sm-6">
         {% if attendee.is_unpaid %}

@@ -449,8 +449,17 @@ def valid_uses_allowed(promo_code):
 
 
 @validation.PromoCode
+def no_unlimited_free_badges(promo_code):
+    if promo_code.is_unlimited and promo_code.is_free:
+        return 'Unlimited-use, free-badge promo codes are not allowed.'
+
+
+@validation.PromoCode
 def no_dupe_code(promo_code):
-    if promo_code.code != promo_code.orig_value_of('code') and promo_code.code:
-        if session.lookup_promo_code(code):
-            return 'The code you entered already belongs to another promo ' \
-                'code. Note that promo codes are case insensitive.'
+    if promo_code.code and (
+            promo_code.is_new or
+            promo_code.code != promo_code.orig_value_of('code')):
+        with Session() as session:
+            if session.lookup_promo_code(promo_code.code):
+                return 'The code you entered already belongs to another ' \
+                    'promo code. Note that promo codes are not case sensitive.'

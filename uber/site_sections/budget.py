@@ -166,7 +166,15 @@ class Root:
                 params['code'] = code
                 promo_codes.append(PromoCode().apply(params))
 
+            message = check_all(promo_codes)
+            if message:
+                result['message'] = message
+                return result
+
             result['promo_codes'] = session.bulk_insert(promo_codes)
+            if len(result['promo_codes']) != count:
+                result['message'] = 'Some of the requested promo codes ' \
+                    'could not be generated'
 
         if 'export' in params:
             return self.export_promo_codes(codes=result['promo_codes'])
@@ -178,7 +186,9 @@ class Root:
 
             message = check(promo_code)
 
-            if not message:
+            if message:
+                session.rollback()
+            else:
                 if 'expire' in params:
                     promo_code.expiration_date = localized_now() - timedelta(days=1)
 

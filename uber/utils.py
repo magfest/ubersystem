@@ -109,9 +109,15 @@ def check_csrf(csrf_token):
 
 def check(model, *, prereg=False):
     """
-    Runs all default validations against the supplied model instance.  Returns
-    either a string error message if any validation fails and returns None if
-    all validations passed.
+    Runs all default validations against the supplied model instance.
+
+    Args:
+        model (sqlalchemy.Model): A single model instance.
+        prereg (bool): True if this is an ephemeral model used in the
+            preregistration workflow.
+
+    Returns:
+        str: None for success, or a failure message if any validation fails.
     """
     for field, name in model.required:
         if not str(getattr(model, field)).strip():
@@ -122,6 +128,25 @@ def check(model, *, prereg=False):
             message = validator(model)
             if message:
                 return message
+
+
+def check_all(models, *, prereg=False):
+    """
+    Runs all default validations against multiple model instances.
+
+    Args:
+        models (list): A single model instance or a list of model instances.
+        prereg (bool): True if this is an ephemeral model used in the
+            preregistration workflow.
+
+    Returns:
+        str: None for success, or the first failure message encountered.
+    """
+    models = listify(models) if models else []
+    for model in models:
+        message = check(model, prereg=prereg)
+        if message:
+            return message
 
 
 class Order:

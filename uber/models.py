@@ -1027,6 +1027,7 @@ class Session(SessionManager):
                         self.commit()
                         inserted_models.append(model)
                     except IntegrityError:
+                        log.debug('Individual insert failed: {}', error)
                         # Ignore db integrity errors
                         self.rollback()
                 return inserted_models
@@ -1982,6 +1983,17 @@ class PromoCode(MagModel):
         expiration_date (datetime): The date & time upon which this promo code
             expires. An expired promo code may no longer be used to receive
             discounted badges.
+        is_free (bool): True if this promo code will always cause a badge to
+            be free. False if this promo code may not cause a badge to be free.
+
+            Note:
+                It's possible for this value to be False for a promo code that
+                still reduces a badge's price to zero. Internally this property
+                is testing if `discount` is zero, or if the price is reduced
+                by 100%. A fixed discount of equal or greater value than the
+                current badge price will produce a free badge while this
+                property remains false.
+
         is_expired (bool): True if this promo code is expired, False otherwise.
         is_unlimited (bool): True if this promo code may be used an unlimited
             number of times, False otherwise.
@@ -1991,8 +2003,10 @@ class PromoCode(MagModel):
             database queries. Normalization converts `code` to all lowercase
             and removes dashes ("-").
         used_by (list): List of attendees that have used this promo code.
+
             Note:
                 This property is declared as a backref in the Attendee class.
+
         uses_allowed (int): The total number of times this promo code may be
             used. A value of None means this promo code may be used an
             unlimited number of times.
@@ -2038,7 +2052,9 @@ class PromoCode(MagModel):
             func.replace(func.replace(func.lower(code), '-', ''), ' ', ''),
             unique=True),
         CheckConstraint(func.trim(code) != '',
-            name='ck_promo_code_non_empty_code'))
+            name='ck_promo_code_non_empty_code'),
+        CheckConstraint(or_(discount != None, uses_allowed != None),
+            name='ck_promo_code_no_unlimited_use_free_badge'))
 
     _repr_attr_names = ('code',)
 
@@ -2063,8 +2079,18 @@ class PromoCode(MagModel):
         return cls.expiration_date < localized_now()
 
     @hybrid_property
+    def is_free(self):
+        return not self.discount or (
+            self.discount_type == self.PERCENT_DISCOUNT and self.discount > 99)
+
+    @is_free.expression
+    def is_free(cls):
+        return or_(cls.discount == None, and_(
+            cls.discount_type == cls.PERCENT_DISCOUNT, cls.discount > 99))
+
+    @hybrid_property
     def is_unlimited(self):
-        return self.uses_allowed is None
+        return not self.uses_allowed
 
     @is_unlimited.expression
     def is_unlimited(cls):
@@ -2130,8 +2156,8 @@ class PromoCode(MagModel):
         if not self.uses_allowed:
             self.uses_allowed = None
 
-        # If 'discount' is empty, then this is a full discount, free badge
-        if not self.discount:
+        # If this is a full discount, free badge, then nullify 'discount'
+        if self.is_free:
             self.discount = None
 
         self.code = self.code.strip() if self.code else ''
