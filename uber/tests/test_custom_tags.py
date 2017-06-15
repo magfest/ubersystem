@@ -3,7 +3,7 @@ import pytest
 from uber.common import *
 from uber.custom_tags import (jsonize, linebreaksbr, datetime_local_filter,
     datetime_filter, full_datetime_local, hour_day_local, time_day_local,
-    timedelta_filter, timestamp, normalize_newlines)
+    timedelta_filter, timestamp, normalize_newlines, url_to_link)
 
 
 class TestDatetimeFilters(object):
@@ -106,3 +106,18 @@ class TestLinebreaksbr(object):
     ])
     def test_normalize_newlines(self, test_input, expected):
         assert expected == normalize_newlines(test_input)
+
+
+class TestUrlToLink(object):
+
+    @pytest.mark.parametrize('url_args, url_kwargs, expected', [
+        ('', {}, ''),
+        ('/regular/url', {}, '<a href="/regular/url">/regular/url</a>'),
+        (['/regular/url', 'normaltext'], {}, '<a href="/regular/url">normaltext</a>'),
+        (['/regular/url', 'normaltext', '_blank'], {}, '<a href="/regular/url" target="_blank">normaltext</a>'),
+        (['&<>"\'', 'normaltext'], {}, '<a href="&amp;&lt;&gt;&#34;&#39;">normaltext</a>'),
+        (['/regular/url', '&<>"\''], {}, '<a href="/regular/url">&amp;&lt;&gt;&#34;&#39;</a>'),
+        (['/regular/url', 'normaltext', '&<>"\''], {}, '<a href="/regular/url" target="&amp;&lt;&gt;&#34;&#39;">normaltext</a>')
+    ])
+    def test_urltolink(self, url_args, url_kwargs, expected):
+        assert expected == url_to_link(*url_args, **url_kwargs)
