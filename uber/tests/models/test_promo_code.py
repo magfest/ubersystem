@@ -1,6 +1,9 @@
 from uber.tests import *
 
 
+next_week = datetime.utcnow().replace(tzinfo=pytz.UTC) + timedelta(days=7)
+
+
 class TestPromoCodeAdjustments:
 
     @pytest.mark.parametrize('uses_allowed', [None, '', 0])
@@ -123,7 +126,7 @@ class TestAttendeePromoCodeModelChecks:
 
     @pytest.mark.parametrize('paid', [c.PAID_BY_GROUP, c.NEED_NOT_PAY])
     def test_promo_code_is_useful_not_is_unpaid(self, paid):
-        promo_code = PromoCode(discount=1)
+        promo_code = PromoCode(discount=1, expiration_date=next_week)
         attendee = Attendee(
             paid=paid,
             promo_code=promo_code,
@@ -134,7 +137,7 @@ class TestAttendeePromoCodeModelChecks:
             "You can't apply a promo code after you've paid or if you're in a group."
 
     def test_promo_code_is_useful_overridden_price(self):
-        promo_code = PromoCode(discount=1)
+        promo_code = PromoCode(discount=1, expiration_date=next_week)
         attendee = Attendee(
             overridden_price=10,
             promo_code=promo_code,
@@ -145,7 +148,7 @@ class TestAttendeePromoCodeModelChecks:
             "You already have a special badge price, you can't use a promo code on top of that."
 
     def test_promo_code_is_useful_special_price(self):
-        promo_code = PromoCode(discount=1)
+        promo_code = PromoCode(discount=1, expiration_date=next_week)
         attendee = Attendee(
             birthdate=date.today(),
             promo_code=promo_code,
@@ -157,7 +160,7 @@ class TestAttendeePromoCodeModelChecks:
             "You may already have other discounts."
 
     def test_promo_code_not_is_expired(self):
-        expire = datetime.now().replace(tzinfo=pytz.UTC) - timedelta(days=1)
+        expire = datetime.utcnow().replace(tzinfo=pytz.UTC) - timedelta(days=9)
         promo_code = PromoCode(discount=1, expiration_date=expire)
         attendee = Attendee(
             promo_code=promo_code,
@@ -167,8 +170,7 @@ class TestAttendeePromoCodeModelChecks:
         assert check(attendee, prereg=True) == 'That promo code is expired.'
 
     def test_promo_code_has_uses_remaining(self):
-        expire = datetime.utcnow().replace(tzinfo=pytz.UTC) + timedelta(days=9)
-        promo_code = PromoCode(uses_allowed=1, expiration_date=expire)
+        promo_code = PromoCode(uses_allowed=1, expiration_date=next_week)
         sess = Attendee(
             promo_code=promo_code,
             placeholder=True,
