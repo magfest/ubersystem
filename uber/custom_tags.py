@@ -130,6 +130,19 @@ def urlencode(s):
 
 
 @JinjaEnv.jinja_filter
+def url_to_link(url=None, text=None, target=None):
+    # Jinja2 has a 'urlize' filter but it depends on links having `.com` or `http` in the name
+    # This works with relative links and allows you to also define link text
+    if not url:
+        return ''
+
+    if not text:
+        text = url
+
+    return safe_string('<a href="{}" {}>{}</a>'.format(url, 'target="{}"'.format(target) if target else '', text))
+
+
+@JinjaEnv.jinja_filter
 def percent(numerator, denominator):
     return '0/0' if denominator == 0 else '{} / {} ({}%)'.format(numerator, denominator, int(100 * numerator / denominator))
 
