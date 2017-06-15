@@ -107,6 +107,15 @@ class TestPromoCodeModelChecks:
             uses_allowed=uses_allowed)) == \
             'Unlimited-use, free-badge promo codes are not allowed.'
 
+    @pytest.mark.parametrize('uses_allowed', [None, 0, ''])
+    @pytest.mark.parametrize('discount', [c.BADGE_PRICE, c.BADGE_PRICE + 1])
+    def test_no_unlimited_full_badge_discount(self, discount, uses_allowed):
+        assert check(PromoCode(
+            discount=discount,
+            discount_type=PromoCode.FIXED_DISCOUNT,
+            uses_allowed=uses_allowed)) == \
+            'Unlimited-use, free-badge promo codes are not allowed.'
+
     @pytest.mark.parametrize('code', [
         'ten percent off',
         'ten dollars off',
