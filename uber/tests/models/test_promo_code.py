@@ -147,10 +147,11 @@ class TestAttendeePromoCodeModelChecks:
         assert check(attendee, prereg=True) == \
             "You already have a special badge price, you can't use a promo code on top of that."
 
-    def test_promo_code_is_useful_special_price(self):
+    def test_promo_code_is_useful_special_price(self, monkeypatch):
+        monkeypatch.setattr(c, 'get_oneday_price', lambda r: 0)
         promo_code = PromoCode(discount=1, expiration_date=next_week)
         attendee = Attendee(
-            birthdate=date.today(),
+            badge_type=c.ONE_DAY_BADGE,
             promo_code=promo_code,
             placeholder=True,
             first_name='First',
