@@ -450,10 +450,12 @@ def valid_uses_allowed(promo_code):
 
 @validation.PromoCode
 def no_unlimited_free_badges(promo_code):
-    if promo_code.is_unlimited and (promo_code.is_free or (
-            promo_code.discount_type == PromoCode.FIXED_DISCOUNT and
-            promo_code.discount >= c.BADGE_PRICE)):
-        return 'Unlimited-use, free-badge promo codes are not allowed.'
+    if promo_code.is_new \
+            or promo_code.uses_allowed != promo_code.orig_value_of('uses_allowed') \
+            or promo_code.discount != promo_code.orig_value_of('discount') \
+            or promo_code.discount_type != promo_code.orig_value_of('discount_type'):
+        if promo_code.is_unlimited and promo_code.is_free:
+            return 'Unlimited-use, free-badge promo codes are not allowed.'
 
 
 @validation.PromoCode

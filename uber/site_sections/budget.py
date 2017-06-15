@@ -149,8 +149,8 @@ class Root:
 
             if use_words and not codes and \
                     not any(s for (_, s) in words.items()):
-                result['message'] = 'Please add some promo code words!'
-                return result
+                raise HTTPRedirect('generate_promo_codes?message='
+                    'Please add some promo code words!')
 
             if not codes:
                 if use_words:
@@ -168,8 +168,7 @@ class Root:
 
             message = check_all(promo_codes)
             if message:
-                result['message'] = message
-                return result
+                raise HTTPRedirect('generate_promo_codes?message={}', message)
 
             result['promo_codes'] = session.bulk_insert(promo_codes)
             if len(result['promo_codes']) != count:

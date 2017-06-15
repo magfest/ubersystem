@@ -24,12 +24,20 @@ class TestPromoCodeAdjustments:
         assert promo_code.discount is None
         assert promo_code.is_free
 
-    def test_100_percent_discount_set_to_none(self):
+    @pytest.mark.parametrize('discount', [100, 200])
+    def test_100_percent_discount_is_free(self, discount):
         promo_code = PromoCode(
-            discount=100,
+            discount=discount,
             discount_type=PromoCode.PERCENT_DISCOUNT)
         promo_code._attribute_adjustments()
-        assert promo_code.discount is None
+        assert promo_code.is_free
+
+    @pytest.mark.parametrize('discount', [c.BADGE_PRICE, 20000])
+    def test_badge_price_fixed_discount_is_free(self, discount):
+        promo_code = PromoCode(
+            discount=discount,
+            discount_type=PromoCode.FIXED_DISCOUNT)
+        promo_code._attribute_adjustments()
         assert promo_code.is_free
 
     @pytest.mark.parametrize('code', [None, '', '   ', 0])
