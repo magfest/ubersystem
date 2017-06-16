@@ -111,8 +111,8 @@ class TestLinebreaksbr(object):
 class TestUrlToLink(object):
 
     @pytest.mark.parametrize('url_args, url_kwargs, expected', [
-        ('', {}, ''),
-        ('/regular/url', {}, '<a href="/regular/url">/regular/url</a>'),
+        ([''], {}, ''),
+        (['/regular/url'], {}, '<a href="/regular/url">/regular/url</a>'),
         (['/regular/url', 'normaltext'], {}, '<a href="/regular/url">normaltext</a>'),
         (['/regular/url', 'normaltext', '_blank'], {}, '<a href="/regular/url" target="_blank">normaltext</a>'),
         (['&<>"\'', 'normaltext'], {}, '<a href="&amp;&lt;&gt;&#34;&#39;">normaltext</a>'),
