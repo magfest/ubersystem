@@ -124,9 +124,23 @@ def subtract(x, y):
 def urlencode(s):
     if isinstance(s, Markup):
         s = s.unescape()
-    s = s.encode('utf8')
-    s = quote_plus(s)
+    s = quote_plus(s.encode('utf8'))
     return Markup(s)
+
+
+@JinjaEnv.jinja_filter
+def url_to_link(url=None, text=None, target=None):
+    # Jinja2 has a 'urlize' filter but it depends on links having `.com` or `http` in the name
+    # This works with relative links and allows you to also define link text
+    if not url:
+        return ''
+
+    if not text:
+        text = url
+
+    return safe_string('<a href="{}"{}>{}</a>'.format(jinja2.escape(url),
+                                                       ' target="{}"'.format(jinja2.escape(target)) if target else '',
+                                                       jinja2.escape(text)))
 
 
 @JinjaEnv.jinja_filter
