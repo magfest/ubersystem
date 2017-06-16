@@ -1703,7 +1703,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             if self.paid_for_a_swag_shirt:
                 shirt = 'a 2nd ' + shirt
             if not self.volunteer_swag_shirt_earned:
-                shirt += ' (tell them they will be reported if they take their shirt then do not work their shifts)'
+                shirt += ' (this volunteer must work at least 6 hours or they will be reported for picking up their shirt)'
             merch.append(shirt)
 
         if self.gets_staff_shirt:

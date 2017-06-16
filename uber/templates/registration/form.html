@@ -329,7 +329,15 @@
     </div>
 </div>
 
-{% if attendee.amount_extra >= c.SHIRT_LEVEL %}
+<div class="form-group">
+    <label class="col-sm-2 control-label">Merch Owed</label>
+    <div class="col-sm-6">
+        <p class="form-control-static">{{ attendee.merch }}</p>
+        {% if attendee.got_merch %} (Merch has been picked up) {% endif %}
+    </div>
+</div>
+
+{% if attendee.gets_any_kind_of_shirt %}
     <div class="form-group">
         <label for="shirt" class="col-sm-2 control-label">Shirt Size</label>
         <div class="col-sm-6">
