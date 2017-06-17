@@ -36,6 +36,7 @@
                 description: 'A single registration; you can register more before paying.',
                 onClick: function () {
                     $('.group_fields').addClass('hide');
+                    $('.non_group_fields').removeClass('hide');
                     if ($.field('badge_type').val() == '{{ c.PSEUDO_GROUP_BADGE }}') {
                         updateBadgeTypeHiddenInput('{{ c.ATTENDEE_BADGE }}');
                     }
@@ -58,6 +59,7 @@
                 onClick: function () {
                     {% if c.BEFORE_GROUP_PREREG_TAKEDOWN %}
                         $('.group_fields').removeClass('hide');
+                        $('.non_group_fields').addClass('hide');
                         updateBadgeTypeHiddenInput('{{ c.PSEUDO_GROUP_BADGE }}');
                         $('#bold-field-message').insertBefore($.field('name').parents('.form-group'));
                         showOrHideBadgeTypes();

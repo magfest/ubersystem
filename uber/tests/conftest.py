@@ -147,7 +147,7 @@ def init_db(request):
             discount_type=PromoCode.FIXED_DISCOUNT))
         session.add(PromoCode(code='ten dollar badge', discount=10,
             discount_type=PromoCode.FIXED_PRICE))
-        session.add(PromoCode(code='free badge', discount=0))
+        session.add(PromoCode(code='free badge', discount=0, uses_allowed=100))
 
         session.commit()
 
