@@ -53,7 +53,8 @@
     </div>
 {% endif %}
 
-<form method="post" action="form" class="form-horizontal" role="form">
+{#- The action is set to "post_form" in order to bypass the NGINX cache. -#}
+<form method="post" action="post_form" class="form-horizontal" role="form">
 
 {% if edit_id %}
     <input type="hidden" name="edit_id" value="{{ edit_id }}" />

@@ -103,7 +103,14 @@ class Root:
 
     @redirect_if_at_con_to_kiosk
     @check_if_can_reg
+    @cherrypy.expose(['post_form'])
     def form(self, session, message='', edit_id=None, **params):
+        """
+        Our production NGINX config caches the page at /preregistration/form.
+        Since it's cached, we CAN'T return a session cookie with the page. We
+        must POST to a different URL in order to bypass the cache and get a
+        valid session cookie. Thus, this page is also exposed as "post_form".
+        """
         params['id'] = 'None'   # security!
 
         if edit_id is not None:
