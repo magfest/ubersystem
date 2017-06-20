@@ -28,8 +28,8 @@ casper.test.begin('Adding a regular registration to the cart is successful', 10,
     casper.start('https://staging.reg.anthrocon.org/anthrocon/preregistration/form', function() {
         //this.echo(this.getCurrentUrl());
         test.assertTitle("Anthrocon - Preregistration", "preregistration title is as expected");
-        test.assertExists('form[action="form"]', "main form is found");
-        this.fill('form[action="form"]', myAttendeeInfo, false);
+        test.assertExists('form[action="post_form"]', "main form is found");
+        this.fill('form[action="post_form"]', myAttendeeInfo, false);
         //these 3 type in the birthdate
         //FIXME: XPath here is fragile, find a better selector to use
         this.sendKeys({type: 'xpath', path: '//*[@id="mainContainer"]/div[3]/form/div[12]/div/span/span[1]/input[1]'},'1');
@@ -37,7 +37,7 @@ casper.test.begin('Adding a regular registration to the cart is successful', 10,
         this.sendKeys({type: 'xpath', path: '//*[@id="mainContainer"]/div[3]/form/div[12]/div/span/span[1]/input[3]'},'1990');
         //FIXME: we don't currently test the autocomplete of addresses
         //casper.evaluate(function() {
-        //  __utils__.echo(JSON.stringify(__utils__.getFormValues('form[action="form"]')), null, 4);
+        //  __utils__.echo(JSON.stringify(__utils__.getFormValues('form[action="post_form"]')), null, 4);
         //});
         this.click('button[value=Preregister]');
     });
