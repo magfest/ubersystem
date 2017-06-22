@@ -35,6 +35,22 @@
         </div>
     </div>
 
+    {% if c.DEV_BOX %}
+        <div class="form-group row">
+            <p class="col-sm-8 col-sm-offset-2">
+                <strong> You are on a development box.
+                    {% if c.BADGES_SOLD >= c.MAX_BADGE_SALES %}
+                        Otherwise, you would be automatically redirected to <a href="../static_views/prereg_soldout.html">the "badges sold out" page</a>.
+                    {% elif c.BEFORE_PREREG_OPEN %}
+                        Otherwise, you would be automatically redirected to <a href="../static_views/prereg_not_yet_open.html">the "prereg not yet open" page</a>.
+                    {% elif c.AFTER_PREREG_TAKEDOWN and not c.AT_THE_CON %}
+                        Otherwise, you would be automatically redirected to <a href="../static_views/prereg_closed.html">the "prereg closed" page</a>.
+                    {% endif %}
+                </strong>
+            </p>
+        </div>
+    {% endif %}
+
     {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.BEFORE_DEALER_REG_SHUTDOWN %}
         <div class="form-group row">
             <p class="col-sm-6 col-sm-offset-2">
