@@ -17,14 +17,7 @@
 
 
 {% macro popup_link(href, text='<sup>?</sup>') -%}
-    <a onClick="window.open('{{ href }}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;" href="{{ href }}">{{ text|safe }}</a>
-    {#-
-    TODO: integrate these changes from upstream, if needed. they may not be needed anymore
-
-    inner_text = "window.open('{self.href}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;".format(self=self)
-    inner_text = inner_text.replace("'", "&quot;")
-    return "<a onClick='{inner_text}' href='{self.href}'>{self.text}</a>".format(inner_text=inner_text, self=self)
-    -#}
+    <a onClick="window.open(&quot;{{ href }}&quot;, &quot;info&quot;, &quot;toolbar=no,height=500,width=375,scrollbars=yes&quot;).focus(); return false;" href="{{ href }}">{{ text|safe }}</a>
 {%- endmacro %}
 
 
