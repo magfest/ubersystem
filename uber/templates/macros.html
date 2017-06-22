@@ -17,7 +17,7 @@
 
 
 {% macro popup_link(href, text='<sup>?</sup>') -%}
-    <a onClick="window.open(&quot;{{ href }}&quot;, &quot;info&quot;, &quot;toolbar=no,height=500,width=375,scrollbars=yes&quot;).focus(); return false;" href="{{ href }}">{{ text|safe }}</a>
+    <a onClick='window.open(&quot;{{ href }}&quot;, &quot;info&quot;, &quot;toolbar=no,height=500,width=375,scrollbars=yes&quot;).focus(); return false;' href='{{ href }}'>{{ text|safe }}</a>
 {%- endmacro %}
 
 
