@@ -342,7 +342,7 @@ class Root:
                 group.attendees.append(attendee)
                 session.add(attendee)
                 if attendee.amount_unpaid:
-                    raise HTTPRedirect('group_extra_payment_form?id={}', attendee.id)
+                    raise HTTPRedirect('attendee_donation_form?id={}', attendee.id)
                 else:
                     raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Badge registered successfully')
         else:
@@ -354,14 +354,6 @@ class Root:
             'group': group,
             'attendee': attendee,
             'affiliates': session.affiliates()
-        }
-
-    def group_extra_payment_form(self, session, id):
-        attendee = session.attendee(id)
-        cherrypy.session['return_to'] = 'confirm?id={}&message=Extra+payment+undone'.format(attendee.id)
-        return {
-            'attendee': attendee,
-            'charge':   Charge(attendee, description='{} kicking in extra'.format(attendee.full_name))
         }
 
     @credit_card
@@ -382,19 +374,6 @@ class Root:
                 except:
                     log.error('unable to send dealer payment confirmation email', exc_info=True)
             raise HTTPRedirect('group_members?id={}&message={}', group.id, 'Your payment has been accepted!')
-
-    @credit_card
-    def process_group_member_payment(self, session, payment_id, stripeToken):
-        charge = Charge.get(payment_id)
-        [attendee] = charge.attendees
-        attendee = session.merge(attendee)
-        message = charge.charge_cc(session, stripeToken)
-        if message:
-            attendee.amount_extra -= attendee.amount_unpaid
-            raise HTTPRedirect('confirm?id={}&message={}', attendee.id, message)
-        else:
-            attendee.amount_paid += charge.dollar_amount
-            raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Extra payment accepted')
 
     @csrf_protected
     def unset_group_member(self, session, id):
@@ -468,7 +447,6 @@ class Root:
                     log.error('unable to send badge change email', exc_info=True)
 
                 if attendee.amount_unpaid:
-                    cherrypy.session['return_to'] = 'confirm?id={}&'.format(attendee.id)
                     raise HTTPRedirect('attendee_donation_form?id={}', attendee.id)
                 else:
                     raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Your registration has been transferred')
@@ -517,7 +495,6 @@ class Root:
 
                 page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
                 if attendee.amount_unpaid:
-                    cherrypy.session['return_to'] = page
                     raise HTTPRedirect('attendee_donation_form?id={}', attendee.id)
                 else:
                     raise HTTPRedirect(page + 'message=' + message)
@@ -558,16 +535,15 @@ class Root:
             raise HTTPRedirect('confirm?id={}&undoing_extra=true&message={}', attendee.id, 'Please revert your registration to the extras you wish to pay for, if any')
         else:
             attendee.amount_extra = max(0, attendee.amount_extra - attendee.amount_unpaid)
-            raise HTTPRedirect(cherrypy.session.pop('return_to', 'confirm?id=' + id))
+            raise HTTPRedirect('confirm?id=' + id)
 
     @credit_card
     def process_attendee_donation(self, session, payment_id, stripeToken):
         charge = Charge.get(payment_id)
         [attendee] = charge.attendees
         message = charge.charge_cc(session, stripeToken)
-        return_to = cherrypy.session.pop('return_to', 'confirm?id=' + attendee.id + '&') + 'message={}'
         if message:
-            raise HTTPRedirect(return_to, message)
+            raise HTTPRedirect('attendee_donation_form?id=' + attendee.id + '&message={}', message)
         else:
             attendee.amount_paid += charge.dollar_amount
             if attendee.paid == c.NOT_PAID and attendee.amount_paid == attendee.total_cost:
