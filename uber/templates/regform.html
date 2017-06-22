@@ -225,7 +225,7 @@
                             tags: true,
                             data: {{ affiliates|jsonize }},
                             width: '100%',
-                        }).val({{ attendee.affiliate|default('')|jsonize }});
+                        }).val({{ attendee.affiliate|default('')|jsonize }}).trigger('change');
                     }
                     $('form').submit(function(){
                         $(':submit').attr('value', 'Uploading Preregistration...').attr('disabled', true);
