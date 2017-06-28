@@ -164,7 +164,7 @@ class Root:
             promo_codes = []
             for code in codes:
                 params['code'] = code
-                promo_codes.append(PromoCode().apply(params))
+                promo_codes.append(PromoCode().apply(params, restricted=False))
 
             message = check_all(promo_codes)
             if message:

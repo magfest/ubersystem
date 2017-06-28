@@ -18,6 +18,43 @@ def monkeypatch_db_column(column, patched_config_value):
     column.property.columns[0].type.choices = dict(patched_config_value)
 
 
+def extract_message_from_html(html):
+    match = re.search(r"var message = '(.*)';", html)
+    return match.group(1) if match else None
+
+
+@pytest.fixture()
+def GET(monkeypatch):
+    monkeypatch.setattr(cherrypy.request, 'method', 'GET')
+
+
+@pytest.fixture()
+def POST(monkeypatch):
+    monkeypatch.setattr(cherrypy.request, 'method', 'POST')
+
+
+@pytest.fixture()
+def csrf_token(monkeypatch):
+    token = '4a2cc6f4-bf9f-49d2-a925-00ff4e22ae4a'
+    monkeypatch.setitem(cherrypy.session, 'csrf_token', token)
+    monkeypatch.setitem(cherrypy.request.headers, 'CSRF-Token', token)
+    yield token
+
+
+@pytest.fixture()
+def admin_attendee():
+    with Session() as session:
+        session.insert_test_admin_account()
+
+    with Session() as session:
+        attendee = session.query(Attendee).filter(
+            Attendee.email == 'magfest@example.com').one()
+        cherrypy.session['account_id'] = attendee.admin_account.id
+        yield attendee
+        cherrypy.session['account_id'] = None
+        session.delete(attendee)
+
+
 @pytest.fixture
 def clear_price_bumps(request, monkeypatch):
     monkeypatch.setattr(c, 'PRICE_BUMPS', {})
