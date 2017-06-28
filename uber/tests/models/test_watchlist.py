@@ -1,5 +1,4 @@
 from uber.tests import *
-import dateparser
 
 
 @pytest.fixture()
