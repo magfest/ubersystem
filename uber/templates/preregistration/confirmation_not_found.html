@@ -2,10 +2,9 @@
 {% block title %}Confirmation Not Found{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
-<div class="masthead">
-</div>
-
+<div class="masthead"></div>
 <div class="panel panel-default">
+  <div class="panel-body">
     <h3>Confirmation Number Not Valid: {{ id }}</h3>
 
     <p>The confirmation number {{ id }} you are trying to access is not valid.<br/>
@@ -21,5 +20,6 @@
 
     <p>If you think you should have a valid badge, don't panic! You are probably just on the wrong page.
         Please contact us at {{ c.REGDESK_EMAIL }} and we're happy to look into it for you.</p>
+  </div>
 </div>
 {% endblock %}

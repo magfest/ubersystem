@@ -22,7 +22,7 @@
 
 
 {% macro checkbox(model, field_name, id=None, label=None, label_class=None) -%}
-    {% if label %}<label {% if label_class %}class="{{ label_class }}"{% endif %}>{% endif %}
+    {% if label %}<label class="checkbox-label{% if label_class %} {{ label_class }}{% endif %}">{% endif %}
     <input type="checkbox" name="{{ field_name }}" id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}" value="1" {% if model[field_name] %}checked{% endif %} />
     {% if label %}{{ label }}</label>{% endif %}
 {%- endmacro %}
@@ -32,11 +32,10 @@
     {%- set defaults = model[field_name] if not no_instance else None -%}
     {%- set defaults = defaults.split(",") if defaults else [] -%}
     {% for num, desc in model.get_field(field_name).type.choices -%}
-        <label style="font-weight: normal;">
+        <label class="checkgroup checkbox-label" style="font-weight: normal;">
             <input type="checkbox" name="{{ field_name }}" value="{{ num }}" {% if num|string in defaults %}checked{% endif %} />
             {{ desc }}
         </label>
-        {% if not loop.last %}&nbsp;&nbsp;{% endif %}
     {% endfor %}
 {%- endmacro %}
 

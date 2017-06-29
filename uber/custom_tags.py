@@ -396,7 +396,7 @@ def price_notice(label, takedown, amount_extra=0, discount=0):
     if not takedown:
         takedown = c.ESCHATON
 
-    if c.PAGE_PATH not in ['/preregistration/form', '/preregistration/register_group_member']:
+    if c.PAGE_PATH not in ['/preregistration/form', '/preregistration/post_form', '/preregistration/register_group_member']:
         return ''  # we only display notices for new attendees
     else:
         badge_price = c.BADGE_PRICE  # optimization.  this call is VERY EXPENSIVE.

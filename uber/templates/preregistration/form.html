@@ -5,10 +5,11 @@
 <div class="masthead"></div>
 
 <div class="panel panel-default">
-{% if attendee.is_dealer %}
-    <span class="text-center"><h2>Dealer Application</h2></span>
-{% else %}
-    <div class="row bs-wizard" style="border-bottom:0;border-top:0;">
+  <div class="panel-body">
+    {% if attendee.is_dealer %}
+      <h2 class="text-center">Dealer Application</h2>
+    {% else %}
+    <div class="row bs-wizard">
         <div class="col-xs-4 bs-wizard-step active">
             <div class="text-center bs-wizard-stepnum">Step 1</div>
             <div class="progress">
@@ -35,9 +36,11 @@
         </div>
     </div>
 
+    <div class="form-horizontal">
+
     {% if c.DEV_BOX %}
         <div class="form-group row">
-            <p class="col-sm-8 col-sm-offset-2">
+            <p class="col-sm-9 col-sm-offset-3">
                 <strong> You are on a development box.
                     {% if c.BADGES_SOLD >= c.MAX_BADGE_SALES %}
                         Otherwise, you would be automatically redirected to <a href="../static_views/prereg_soldout.html">the "badges sold out" page</a>.
@@ -53,7 +56,7 @@
 
     {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.BEFORE_DEALER_REG_SHUTDOWN %}
         <div class="form-group row">
-            <p class="col-sm-6 col-sm-offset-2">
+            <p class="col-sm-9 col-sm-offset-3">
                 <strong>Dealers:</strong>
                 {% if c.BEFORE_DEALER_REG_PUBLIC %}
                     Registrations for dealer memberships begin {{ c.DEALER_REG_START|datetime_local }}.
@@ -64,8 +67,9 @@
         </div>
     {% endif %}
 
-    <div class="form-group" id="reg-types">
-        <label class="col-sm-2 control-label" style="white-space:nowrap">Registration Type</label>
+      <div class="form-group form-group-buttons" id="reg-types">
+          <label class="col-sm-3 control-label">Registration Type</label>
+      </div>
     </div>
 {% endif %}
 
@@ -81,7 +85,7 @@
 {% include "regform.html" %}
 
 <div class="form-group">
-    <div class="col-sm-6 col-sm-offset-2">
+    <div class="col-sm-9 col-sm-offset-3">
         {% if attendee.is_dealer %}
             <button type="submit" class="btn btn-primary" value="Submit Application">Submit Application</button>
         {% elif not edit_id %}
@@ -100,6 +104,7 @@
 
 {% include "preregistration/disclaimers.html" %}
 
+</div>
 </div>
 
 {% endblock %}

@@ -30,32 +30,31 @@
     });
 </script>
 
-<div class="masthead">
-</div>
+<div class="masthead"></div>
 
 <div class="panel panel-default">
-<div class="row bs-wizard" style="border-bottom:0;border-top:0;">
-    <div class="col-xs-4 bs-wizard-step complete">
-        <div class="text-center bs-wizard-stepnum">Step 1</div>
-        <div class="progress"><div class="progress-bar"></div></div>
-        <a class="bs-wizard-dot"></a>
-        <div class="bs-wizard-info text-center">Enter Info</div>
+  <div class="panel-body">
+    <div class="row bs-wizard">
+        <div class="col-xs-4 bs-wizard-step complete">
+            <div class="text-center bs-wizard-stepnum">Step 1</div>
+            <div class="progress"><div class="progress-bar"></div></div>
+            <a class="bs-wizard-dot"></a>
+            <div class="bs-wizard-info text-center">Enter Info</div>
+        </div>
+        <div class="col-xs-4 bs-wizard-step active">
+            <div class="text-center bs-wizard-stepnum">Step 2</div>
+            <div class="progress"><div class="progress-bar"></div></div>
+            <a class="bs-wizard-dot"></a>
+            <div class="bs-wizard-info text-center">Review &amp; Pay</div>
+        </div>
+        <div class="col-xs-4 bs-wizard-step disabled">
+            <div class="text-center bs-wizard-stepnum">Step 3</div>
+            <div class="progress"><div class="progress-bar"></div></div>
+            <a class="bs-wizard-dot"></a>
+            <div class="bs-wizard-info text-center">Done</div>
+        </div>
     </div>
-    <div class="col-xs-4 bs-wizard-step active">
-        <div class="text-center bs-wizard-stepnum">Step 2</div>
-        <div class="progress"><div class="progress-bar"></div></div>
-        <a class="bs-wizard-dot"></a>
-        <div class="bs-wizard-info text-center">Review &amp; Pay</div>
-    </div>
-    <div class="col-xs-4 bs-wizard-step disabled">
-        <div class="text-center bs-wizard-stepnum">Step 3</div>
-        <div class="progress"><div class="progress-bar"></div></div>
-        <a class="bs-wizard-dot"></a>
-        <div class="bs-wizard-info text-center">Done</div>
-    </div>
-</div>
 
-<div class="row">
     <div class="row">
         <div class="col-sm-8 col-sm-offset-2">
             <div class="col-sm-5 text-center">
@@ -73,74 +72,77 @@
             </div>
         </div>
     </div>
-</div>
+  </div>
 
-<table class="charge table table-striped">
-<thead><tr>
-    <th>Preregistration</th>
-    <th data-hide="phone" data-sort-ignore="true">Details</th>
-    <th data-type="numeric">Price</th>
-    <th data-sort-ignore="true"></th>
-</tr></thead>
-{% for attendee in charge.attendees %}
-    <tr>
-        <td>{{ attendee.full_name }}</td>
-        <td>
+  <table class="charge table table-striped">
+    <thead>
+      <tr>
+        <th>Preregistration</th>
+        <th data-hide="phone" data-sort-ignore="true">Details</th>
+        <th data-type="numeric">Price</th>
+        <th data-sort-ignore="true"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for attendee in charge.attendees %}
+        <tr>
+          <td>{{ attendee.full_name }}</td>
+          <td>
             <ul style="padding-left:15px">
-                <li>Membership for {{ c.EVENT_NAME }}</li>
-                {% if not attendee.default_cost and attendee.age_discount and not attendee.promo_code %}
-                    <li>Attendees who are {{ attendee.age_group_conf.desc|lower }} get in for free!</li>
-                {% elif attendee.age_discount %}
-                    <li>${{ attendee.age_group_conf.discount }} discount for attendees who are {{ attendee.age_group_conf.desc|lower }}.</li>
-                {% endif %}
-                {% for swag in attendee.donation_swag|list + attendee.addons|list %}
-                    <li>{{ swag }}</li>
-                {% endfor %}
-                {% if attendee.promo_code %}
-                    <li>{{ attendee.promo_code.discount_str }} with promo code "{{ attendee.promo_code.code }}"</li>
-                {% endif %}
+              <li>Membership for {{ c.EVENT_NAME }}</li>
+              {% if not attendee.default_cost and attendee.age_discount and not attendee.promo_code %}
+                <li>Attendees who are {{ attendee.age_group_conf.desc|lower }} get in for free!</li>
+              {% elif attendee.age_discount %}
+                <li>${{ attendee.age_group_conf.discount }} discount for attendees who are {{ attendee.age_group_conf.desc|lower }}.</li>
+              {% endif %}
+              {% for swag in attendee.donation_swag|list + attendee.addons|list %}
+                <li>{{ swag }}</li>
+              {% endfor %}
+              {% if attendee.promo_code %}
+                <li>{{ attendee.promo_code.discount_str }} with promo code "{{ attendee.promo_code.code }}"</li>
+              {% endif %}
             </ul>
-        </td>
-        <td>${{ attendee.total_cost|round(2) }}</td>
-        <td>
-            <a href="form?edit_id={{ attendee.id }}">Edit</a> /
-            <a href="delete?id={{ attendee.id }}">Delete</a>
-        </td>
-     </tr>
-{% endfor %}
-{% for group in charge.groups %}
-    <tr>
-        <td>{{ group.name }}</td>
-        <td>
+          </td>
+          <td>${{ attendee.total_cost|round(2) }}</td>
+          <td>
+            <a href="form?edit_id={{ attendee.id }}">Edit</a> / <a href="delete?id={{ attendee.id }}">Delete</a>
+          </td>
+        </tr>
+      {% endfor %}
+
+      {% for group in charge.groups %}
+        <tr>
+          <td>{{ group.name }}</td>
+          <td>
             <ul>
-                <li>{{ group.badges }} badges</li>
-                {% for swag in group.attendees.0.donation_swag|list + group.addons|list %}
-                    <li>{{ swag }}</li>
-                {% endfor %}
+              <li>{{ group.badges }} badges</li>
+              {% for swag in group.attendees.0.donation_swag|list + group.addons|list %}
+                <li>{{ swag }}</li>
+              {% endfor %}
             </ul>
-        </td>
-        <td>${{ group.default_cost|round(2) }}</td>
-        <td>
+          </td>
+          <td>${{ group.default_cost|round(2) }}</td>
+          <td>
             <a href="form?edit_id={{ group.id }}">Edit</a> /
             <a href="delete?id={{ group.id }}">Delete</a>
-        </td>
-    </tr>
-{% endfor %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+    {% if charge.targets|length > 1 %}
+      <tfoot>
+        <tr>
+          <th></th>
+          <th style="text-align:right;"><i>Total:</i></th>
+          <th><b>${{ charge.dollar_amount|round(2) }}</b></th>
+          <th></th>
+        </tr>
+      </tfoot>
+    {% endif %}
+  </table>
 
-{% if charge.targets|length > 1 %}
-<tfoot>
-    <tr>
-        <th></th>
-        <th style="text-align:right;"><i>Total:</i></th>
-        <th><b>${{ charge.dollar_amount|round(2) }}</b></th>
-        <th></th>
-    </tr>
-</tfoot>
-
-</table>
-{% endif %}
-
-{% include "preregistration/disclaimers.html" %}
+  <div class="panel-body">
+    {% include "preregistration/disclaimers.html" %}
+  </div>
 </div>
-
 {% endblock %}
