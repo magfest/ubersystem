@@ -388,11 +388,15 @@ class MagModel:
                     value = ','.join(map(str, params[column.name]))
                 elif isinstance(params[column.name], bool):
                     value = params[column.name]
+                elif params[column.name] is None:
+                    value = None
                 else:
                     value = str(params[column.name]).strip()
 
                 try:
-                    if isinstance(column.type, Float):
+                    if value is None:
+                        pass  # Totally fine for value to be None
+                    elif isinstance(column.type, Float):
                         if value == '':
                             value = None
                         else:
