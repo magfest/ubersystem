@@ -37,9 +37,13 @@ class TestIdRequired:
             model = ModelClass()
             session.add(model)
             session.flush()
+            model_id = uuid.UUID(model.id)
             assert _requires_model_id(**{
                 'session': session,
-                'id': model.id})
+                'id': 'None'})  # We explicitly allow the string 'None'
             assert _requires_model_id(**{
                 'session': session,
-                'id': str(model.id)})
+                'id': model_id})  # 'id' as a uuid.UUID() instance
+            assert _requires_model_id(**{
+                'session': session,
+                'id': model_id.hex})  # 'id' as a str instance
