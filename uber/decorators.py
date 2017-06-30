@@ -500,20 +500,14 @@ class alias_to_site_section(object):
         return func
 
 
-def attendee_id_required(func):
-    @wraps(func)
-    def check_id(*args, **params):
-        check_id_for_model(model=sa.Attendee, **params)
-        return func(*args, **params)
-    return check_id
-
-
-def group_id_required(func):
-    @wraps(func)
-    def check_id(*args, **params):
-        check_id_for_model(model=sa.Group, **params)
-        return func(*args, **params)
-    return check_id
+def id_required(model):
+    def model_id_required(func):
+        @wraps(func)
+        def check_id(*args, **params):
+            check_id_for_model(model=model, **params)
+            return func(*args, **params)
+        return check_id
+    return model_id_required
 
 
 def check_id_for_model(model, **params):
@@ -529,7 +523,8 @@ def check_id_for_model(model, **params):
         pass
     else:
         try:
-            uuid.UUID(model_id)
+            if not isinstance(model_id, uuid.UUID):
+                uuid.UUID(model_id)
         except ValueError:
             message = "That ID is not a valid format. Did you enter or edit it manually or paste it incorrectly?"
         else:
@@ -538,4 +533,4 @@ def check_id_for_model(model, **params):
 
     if message:
         log.error("check_id {} error: {}: id={}", model.__name__, message, model_id)
-        raise HTTPRedirect('../preregistration/confirmation_not_found?id={}&message={}', model_id, message)
+        raise HTTPRedirect('../preregistration/not_found?id={}&message={}', model_id, message)

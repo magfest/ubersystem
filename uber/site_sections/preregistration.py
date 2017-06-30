@@ -284,11 +284,11 @@ class Root:
         Charge.unpaid_preregs.pop(id, None)
         raise HTTPRedirect('index?message={}', message)
 
-    @group_id_required
+    @id_required(Group)
     def dealer_confirmation(self, session, id):
         return {'group': session.group(id)}
 
-    @group_id_required
+    @id_required(Group)
     @log_pageview
     def group_members(self, session, id, message='', **params):
         group = session.group(id)
@@ -444,7 +444,7 @@ class Root:
                            render('emails/dealers/payment_notification.txt', {'group': group}), model=group)
             raise HTTPRedirect('group_members?id={}&message={}', group.id, 'You payment has been accepted and the badges have been added to your group')
 
-    @attendee_id_required
+    @id_required(Attendee)
     @log_pageview
     def transfer_badge(self, session, message='', **params):
         old = session.attendee(params['id'])
@@ -488,7 +488,7 @@ class Root:
     def invalid_badge(self, session, id, message=''):
         return {'attendee': session.attendee(id, allow_invalid=True), 'message': message}
 
-    def confirmation_not_found(self, id, message):
+    def not_found(self, id, message):
         return {'id': id, 'message': message}
 
     def invalidate(self, session, id):
@@ -499,7 +499,7 @@ class Root:
     def badge_updated(self, session, id, message=''):
         return {'id': id, 'message': message}
 
-    @attendee_id_required
+    @id_required(Attendee)
     @log_pageview
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
         attendee = session.attendee(params, restricted=True)
@@ -542,7 +542,7 @@ class Root:
             'affiliates':    session.affiliates()
         }
 
-    @attendee_id_required
+    @id_required(Attendee)
     def attendee_donation_form(self, session, id, message=''):
         attendee = session.attendee(id)
         if attendee.amount_unpaid <= 0:
