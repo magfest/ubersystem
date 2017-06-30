@@ -8,13 +8,13 @@
 <div class="panel panel-default">
     <h3>Confirmation Number Not Valid: {{ id }}</h3>
 
-    <p>The confirmation number {{ id }} you are trying to access is not valid.<br/>
-        If your badge was not found in our database, it could be because:
+    <p>The {{ c.EVENT_NAME }}confirmation number {{ id }} you are trying to access is not valid.<br/>
+        If your registration was not found in our database, it could be because:
         <ul>
-            <li>It was a duplicate of another badge and was deleted</li>
+            <li>It was a duplicate of another registration and was deleted</li>
             <li>It was canceled before payment went through</li>
             <li>You asked to no longer receive emails from us and missed a confirmation email</li>
-            <li>This badge was part of a group and the group owner deleted the badge</li>
+            <li>This confirmation# was for a badge that was part of a group and the group owner deleted the badge</li>
             <li>You clicked on a confirmation link for a badge from a different event</li>
         </ul>
     </p>

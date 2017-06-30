@@ -284,9 +284,11 @@ class Root:
         Charge.unpaid_preregs.pop(id, None)
         raise HTTPRedirect('index?message={}', message)
 
+    @group_id_required
     def dealer_confirmation(self, session, id):
         return {'group': session.group(id)}
 
+    @group_id_required
     @log_pageview
     def group_members(self, session, id, message='', **params):
         group = session.group(id)
