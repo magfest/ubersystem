@@ -428,47 +428,48 @@ class Root:
         is_multiyear = c.EPOCH.year != c.ESCHATON.year
         is_multimonth = c.EPOCH.month != c.ESCHATON.month
         query = session.query(Attendee).filter(Attendee.birthdate != None)
-        birthdate_month = extract('month', Attendee.birthdate)
-        birthdate_day = extract('day', Attendee.birthdate)
+        birth_month = extract('month', Attendee.birthdate)
+        birth_day = extract('day', Attendee.birthdate)
         if is_multiyear:
             # The event starts in one year and ends in another
             query = query.filter(or_(
                 or_(
-                    birthdate_month > c.EPOCH.month,
-                    birthdate_month < c.ESCHATON.month),
+                    birth_month > c.EPOCH.month,
+                    birth_month < c.ESCHATON.month),
                 and_(
-                    birthdate_month == c.EPOCH.month,
-                    birthdate_day >= c.EPOCH.day),
+                    birth_month == c.EPOCH.month,
+                    birth_day >= c.EPOCH.day),
                 and_(
-                    birthdate_month == c.ESCHATON.month,
-                    birthdate_day <= c.ESCHATON.day)))
+                    birth_month == c.ESCHATON.month,
+                    birth_day <= c.ESCHATON.day)))
         elif is_multimonth:
             # The event starts in one month and ends in another
             query = query.filter(or_(
                 and_(
-                    birthdate_month > c.EPOCH.month,
-                    birthdate_month < c.ESCHATON.month),
+                    birth_month > c.EPOCH.month,
+                    birth_month < c.ESCHATON.month),
                 and_(
-                    birthdate_month == c.EPOCH.month,
-                    birthdate_day >= c.EPOCH.day),
+                    birth_month == c.EPOCH.month,
+                    birth_day >= c.EPOCH.day),
                 and_(
-                    birthdate_month == c.ESCHATON.month,
-                    birthdate_day <= c.ESCHATON.day)))
+                    birth_month == c.ESCHATON.month,
+                    birth_day <= c.ESCHATON.day)))
         else:
             # The event happens entirely within a single month
             query = query.filter(and_(
-                birthdate_month == c.EPOCH.month,
-                birthdate_day >= c.EPOCH.day,
-                birthdate_day <= c.ESCHATON.day))
+                birth_month == c.EPOCH.month,
+                birth_day >= c.EPOCH.day,
+                birth_day <= c.ESCHATON.day))
 
         for person in query.all():
             subject = "%s's Birthday" % person.full_name
 
             year_of_birthday = c.ESCHATON.year
-            if is_multiyear and \
-                    person.birthdate.timetuple().tm_yday >= \
-                    c.EPOCH.timetuple().tm_yday:
-                year_of_birthday = c.EPOCH.year
+            if is_multiyear:
+                birth_month = person.birthdate.month
+                birth_day = person.birthdate.day
+                if birth_month >= c.EPOCH.month and birth_day >= c.EPOCH.day:
+                    year_of_birthday = c.EPOCH.year
 
             delta_years = year_of_birthday - person.birthdate.year
             start_date = person.birthdate + relativedelta(years=delta_years)
