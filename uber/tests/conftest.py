@@ -14,6 +14,20 @@ deadline_not_reached = localized_now() + timedelta(days=1)
 deadline_has_passed  = localized_now() - timedelta(days=1)
 
 
+@pytest.fixture()
+def admin_attendee():
+    with Session() as session:
+        session.insert_test_admin_account()
+
+    with Session() as session:
+        attendee = session.query(Attendee).filter(
+            Attendee.email == 'magfest@example.com').one()
+        cherrypy.session['account_id'] = attendee.admin_account.id
+        yield attendee
+        cherrypy.session['account_id'] = None
+        session.delete(attendee)
+
+
 def monkeypatch_db_column(column, patched_config_value):
     column.property.columns[0].type.choices = dict(patched_config_value)
 

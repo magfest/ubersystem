@@ -1,3 +1,4 @@
+from dateutil.relativedelta import relativedelta
 from uber.common import *
 
 
@@ -394,13 +395,22 @@ class Root:
         }
 
     @csv_file
-    def attendee_birthday_calendar(self, out, session, year=datetime.now(UTC).year):
-        out.writerow(['Subject', 'Start Date', 'Start Time', 'End Date', 'End Time', 'All Day Event', 'Description',
-                      'Location', 'Private'])
-        for person in session.query(Attendee).filter(Attendee.birthdate != None).all():
+    @site_mappable
+    def attendee_birthday_calendar(
+            self,
+            out,
+            session,
+            year=datetime.now(UTC).year):
+
+        out.writerow([
+            'Subject', 'Start Date', 'Start Time', 'End Date', 'End Time',
+            'All Day Event', 'Description', 'Location', 'Private'])
+
+        query = session.query(Attendee).filter(Attendee.birthdate != None)
+        for person in query.all():
             subject = "%s's Birthday" % person.full_name
-            bday = person.birthdate
-            start_date = bday.replace(year=year)
+            delta_years = year - person.birthdate.year
+            start_date = person.birthdate + relativedelta(years=delta_years)
             end_date = start_date
             all_day = True
             private = False
@@ -409,16 +419,60 @@ class Root:
             ])
 
     @csv_file
+    @site_mappable
     def event_birthday_calendar(self, out, session):
-        out.writerow(['Subject', 'Start Date', 'Start Time', 'End Date', 'End Time', 'All Day Event', 'Description',
-                      'Location', 'Private'])
-        for person in session.query(Attendee).filter(Attendee.birthdate != None).filter(extract('month', Attendee.birthdate) >= c.EPOCH.month,
-                                                     extract('month', Attendee.birthdate) <= c.ESCHATON.month,
-                                                     extract('day', Attendee.birthdate) >= c.EPOCH.day,
-                                                     extract('day', Attendee.birthdate) <= c.ESCHATON.day).all():
+        out.writerow([
+            'Subject', 'Start Date', 'Start Time', 'End Date', 'End Time',
+            'All Day Event', 'Description', 'Location', 'Private'])
+
+        is_multiyear = c.EPOCH.year != c.ESCHATON.year
+        is_multimonth = c.EPOCH.month != c.ESCHATON.month
+        query = session.query(Attendee).filter(Attendee.birthdate != None)
+        birthdate_month = extract('month', Attendee.birthdate)
+        birthdate_day = extract('day', Attendee.birthdate)
+        if is_multiyear:
+            # The event starts in one year and ends in another
+            query = query.filter(or_(
+                or_(
+                    birthdate_month > c.EPOCH.month,
+                    birthdate_month < c.ESCHATON.month),
+                and_(
+                    birthdate_month == c.EPOCH.month,
+                    birthdate_day >= c.EPOCH.day),
+                and_(
+                    birthdate_month == c.ESCHATON.month,
+                    birthdate_day <= c.ESCHATON.day)))
+        elif is_multimonth:
+            # The event starts in one month and ends in another
+            query = query.filter(or_(
+                and_(
+                    birthdate_month > c.EPOCH.month,
+                    birthdate_month < c.ESCHATON.month),
+                and_(
+                    birthdate_month == c.EPOCH.month,
+                    birthdate_day >= c.EPOCH.day),
+                and_(
+                    birthdate_month == c.ESCHATON.month,
+                    birthdate_day <= c.ESCHATON.day)))
+        else:
+            # The event happens entirely within a single month
+            query = query.filter(and_(
+                birthdate_month == c.EPOCH.month,
+                birthdate_day >= c.EPOCH.day,
+                birthdate_day <= c.ESCHATON.day))
+
+        for person in query.all():
             subject = "%s's Birthday" % person.full_name
-            start_date = person.birthdate.replace(year=c.EPOCH.year)
-            end_date = person.birthdate.replace(year=c.EPOCH.year)
+
+            year_of_birthday = c.ESCHATON.year
+            if is_multiyear and \
+                    person.birthdate.timetuple().tm_yday >= \
+                    c.EPOCH.timetuple().tm_yday:
+                year_of_birthday = c.EPOCH.year
+
+            delta_years = year_of_birthday - person.birthdate.year
+            start_date = person.birthdate + relativedelta(years=delta_years)
+            end_date = start_date
             all_day = True
             private = False
             out.writerow([
