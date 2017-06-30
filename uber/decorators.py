@@ -43,7 +43,9 @@ def redirect_if_at_con_to_kiosk(func):
 def check_if_can_reg(func):
     @wraps(func)
     def with_check(*args, **kwargs):
-        if c.BADGES_SOLD >= c.MAX_BADGE_SALES:
+        if c.DEV_BOX:
+            pass  # Don't redirect to any of the pages below.
+        elif c.BADGES_SOLD >= c.MAX_BADGE_SALES:
             return render('static_views/prereg_soldout.html')
         elif c.BEFORE_PREREG_OPEN:
             return render('static_views/prereg_not_yet_open.html')
@@ -498,28 +500,37 @@ class alias_to_site_section(object):
         return func
 
 
-def attendee_id_required(func):
-    @wraps(func)
-    def check_id(*args, **params):
+def id_required(model):
+    def model_id_required(func):
+        @wraps(func)
+        def check_id(*args, **params):
+            check_id_for_model(model=model, **params)
+            return func(*args, **params)
+        return check_id
+    return model_id_required
+
+
+def check_id_for_model(model, **params):
+    message = None
+
+    session = params['session']
+    model_id = params.get('id')
+
+    if not model_id:
         message = "No ID provided. Try using a different link or going back."
-        session = params['session']
+    elif model_id == 'None':
+        # Some pages use the string 'None' is indicate that a new model should be created, so this is a valid ID
+        pass
+    else:
+        try:
+            if not isinstance(model_id, uuid.UUID):
+                uuid.UUID(model_id)
+        except ValueError:
+            message = "That ID is not a valid format. Did you enter or edit it manually or paste it incorrectly?"
+        else:
+            if not session.query(model).filter(model.id == model_id).first():
+                message = "The ID provided was not found in our database."
 
-        attendee_id = params.get('id') or None
-        if attendee_id:
-            # Some pages use the string 'None' is indicate that a new model should be created, so this is a valid ID
-            if attendee_id == 'None':
-                return func(*args, **params)
-
-            try:
-                uuid.UUID(attendee_id)
-            except ValueError:
-                message = "That Attendee ID is not a valid format. Did you enter or edit it manually?"
-            else:
-                if session.query(sa.Attendee).filter(sa.Attendee.id == attendee_id).first():
-                    return func(*args, **params)
-                else:
-                    message = "The Attendee ID provided was not found in our database."
-
-        log.error("check_id error: {}", message)
-        raise HTTPRedirect('../preregistration/confirmation_not_found?id={}&message={}', attendee_id, message)
-    return check_id
+    if message:
+        log.error("check_id {} error: {}: id={}", model.__name__, message, model_id)
+        raise HTTPRedirect('../preregistration/not_found?id={}&message={}', model_id, message)

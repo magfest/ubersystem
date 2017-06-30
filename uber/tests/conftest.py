@@ -18,6 +18,29 @@ def monkeypatch_db_column(column, patched_config_value):
     column.property.columns[0].type.choices = dict(patched_config_value)
 
 
+def extract_message_from_html(html):
+    match = re.search(r"var message = '(.*)';", html)
+    return match.group(1) if match else None
+
+
+@pytest.fixture()
+def GET(monkeypatch):
+    monkeypatch.setattr(cherrypy.request, 'method', 'GET')
+
+
+@pytest.fixture()
+def POST(monkeypatch):
+    monkeypatch.setattr(cherrypy.request, 'method', 'POST')
+
+
+@pytest.fixture()
+def csrf_token(monkeypatch):
+    token = '4a2cc6f4-bf9f-49d2-a925-00ff4e22ae4a'
+    monkeypatch.setitem(cherrypy.session, 'csrf_token', token)
+    monkeypatch.setitem(cherrypy.request.headers, 'CSRF-Token', token)
+    yield token
+
+
 @pytest.fixture()
 def admin_attendee():
     with Session() as session:
@@ -161,7 +184,7 @@ def init_db(request):
             discount_type=PromoCode.FIXED_DISCOUNT))
         session.add(PromoCode(code='ten dollar badge', discount=10,
             discount_type=PromoCode.FIXED_PRICE))
-        session.add(PromoCode(code='free badge', discount=0))
+        session.add(PromoCode(code='free badge', discount=0, uses_allowed=100))
 
         session.commit()
 

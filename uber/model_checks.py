@@ -133,15 +133,16 @@ def promo_code_is_useful(attendee):
 
 @prereg_validation.Attendee
 def promo_code_not_is_expired(attendee):
-    if attendee.promo_code:
-        if attendee.promo_code.is_expired:
-            return 'That promo code is expired.'
+    if attendee.promo_code and attendee.promo_code.is_expired:
+        return 'That promo code is expired.'
 
 
 @prereg_validation.Attendee
 def promo_code_has_uses_remaining(attendee):
-    if attendee.promo_code:
-        if not attendee.promo_code.is_unlimited and attendee.promo_code.uses_remaining <= 0:
+    if attendee.promo_code and not attendee.promo_code.is_unlimited:
+        unpaid_uses_count = Charge.get_unpaid_promo_code_uses_count(
+            attendee.promo_code.id, attendee.id)
+        if (attendee.promo_code.uses_remaining - unpaid_uses_count) < 0:
             return 'That promo code has been used too many times.'
 
 
@@ -448,8 +449,21 @@ def valid_uses_allowed(promo_code):
 
 
 @validation.PromoCode
+def no_unlimited_free_badges(promo_code):
+    if promo_code.is_new \
+            or promo_code.uses_allowed != promo_code.orig_value_of('uses_allowed') \
+            or promo_code.discount != promo_code.orig_value_of('discount') \
+            or promo_code.discount_type != promo_code.orig_value_of('discount_type'):
+        if promo_code.is_unlimited and promo_code.is_free:
+            return 'Unlimited-use, free-badge promo codes are not allowed.'
+
+
+@validation.PromoCode
 def no_dupe_code(promo_code):
-    if promo_code.code != promo_code.orig_value_of('code') and promo_code.code:
-        if session.lookup_promo_code(code):
-            return 'The code you entered already belongs to another promo ' \
-                'code. Note that promo codes are case insensitive.'
+    if promo_code.code and (
+            promo_code.is_new or
+            promo_code.code != promo_code.orig_value_of('code')):
+        with Session() as session:
+            if session.lookup_promo_code(promo_code.code):
+                return 'The code you entered already belongs to another ' \
+                    'promo code. Note that promo codes are not case sensitive.'

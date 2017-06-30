@@ -26,7 +26,7 @@ class AttendeeBehavior(TaskSet):
     @task(1)
     def post_preregistration(self):
         response = self.client.post(
-            '/uber/preregistration/form',
+            '/uber/preregistration/post_form',
             verify=self.verify,
             data={
                 'badge_type': '51352218',

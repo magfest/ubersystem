@@ -149,7 +149,7 @@
 				buttonTag += 'onclick="click_shift(\'' + event.taken;
 				buttonTag += '\',\'' +  event.id;
                                 buttonTag += '\',\'' +  moment(event.start).toISOString();
-                                buttonTag += '\',\'' +  event.title
+                                buttonTag += '\',\'' +  $('<div/>').text(event.title).html();
 				buttonTag += '\')" ';
 				buttonTag += '>';
 				if(event.taken) {

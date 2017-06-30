@@ -126,6 +126,18 @@
     Last Updated by {{ attendee.last_updated.who }} on {{ attendee.last_updated.when|full_datetime_local }}
 {% endif %}
 
+{% if attendee.regdesk_info %}
+    <div class="form-group">
+        <div class="col-sm-2 text-right">
+          <span class="label label-danger">Special Regdesk Instructions:</span>
+        </div>
+        <div class="col-sm-6">
+          {{ attendee.regdesk_info }}
+          <p class="help-block"><em>You can update these instructions below</em></p>
+        </div>
+    </div>
+{% endif %}
+
     <div class="form-group">
         <label for="first_name" class="col-sm-2 control-label">Placeholder</label>
         <div class="checkbox col-sm-6">
@@ -317,7 +329,15 @@
     </div>
 </div>
 
-{% if attendee.amount_extra >= c.SHIRT_LEVEL %}
+<div class="form-group">
+    <label class="col-sm-2 control-label">Merch Owed</label>
+    <div class="col-sm-6">
+        <p class="form-control-static">{{ attendee.merch }}</p>
+        {% if attendee.got_merch %} (Merch has been picked up) {% endif %}
+    </div>
+</div>
+
+{% if attendee.gets_any_kind_of_shirt %}
     <div class="form-group">
         <label for="shirt" class="col-sm-2 control-label">Shirt Size</label>
         <div class="col-sm-6">

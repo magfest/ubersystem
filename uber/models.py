@@ -388,11 +388,15 @@ class MagModel:
                     value = ','.join(map(str, params[column.name]))
                 elif isinstance(params[column.name], bool):
                     value = params[column.name]
+                elif params[column.name] is None:
+                    value = None
                 else:
                     value = str(params[column.name]).strip()
 
                 try:
-                    if isinstance(column.type, Float):
+                    if value is None:
+                        pass  # Totally fine for value to be None
+                    elif isinstance(column.type, Float):
                         if value == '':
                             value = None
                         else:
@@ -593,7 +597,7 @@ class Session(SessionManager):
                     try:
                         birthdate = dateparser.parse(attendee.birthdate).date()
                     except:
-                        pass
+                        log.debug('Error parsing attendee birthdate: {}'.format(attendee.birthdate))
                     else:
                         or_clauses.append(WatchList.birthdate == birthdate)
                 elif isinstance(attendee.birthdate, datetime):
@@ -1014,6 +1018,7 @@ class Session(SessionManager):
                         self.commit()
                         inserted_models.append(model)
                     except IntegrityError:
+                        log.debug('Individual insert failed: {}', error)
                         # Ignore db integrity errors
                         self.rollback()
                 return inserted_models
@@ -1690,7 +1695,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             if self.paid_for_a_swag_shirt:
                 shirt = 'a 2nd ' + shirt
             if not self.volunteer_swag_shirt_earned:
-                shirt += ' (tell them they will be reported if they take their shirt then do not work their shifts)'
+                shirt += ' (this volunteer must work at least 6 hours or they will be reported for picking up their shirt)'
             merch.append(shirt)
 
         if self.gets_staff_shirt:
@@ -1969,6 +1974,15 @@ class PromoCode(MagModel):
         expiration_date (datetime): The date & time upon which this promo code
             expires. An expired promo code may no longer be used to receive
             discounted badges.
+        is_free (bool): True if this promo code will always cause a badge to
+            be free. False if this promo code may not cause a badge to be free.
+
+            Note:
+                It's possible for this value to be False for a promo code that
+                still reduces a badge's price to zero. If there are some other
+                discounts that also reduce a badge price (like an age discount)
+                then the price may be pushed down to zero.
+
         is_expired (bool): True if this promo code is expired, False otherwise.
         is_unlimited (bool): True if this promo code may be used an unlimited
             number of times, False otherwise.
@@ -1978,8 +1992,10 @@ class PromoCode(MagModel):
             database queries. Normalization converts `code` to all lowercase
             and removes dashes ("-").
         used_by (list): List of attendees that have used this promo code.
+
             Note:
                 This property is declared as a backref in the Attendee class.
+
         uses_allowed (int): The total number of times this promo code may be
             used. A value of None means this promo code may be used an
             unlimited number of times.
@@ -2049,9 +2065,18 @@ class PromoCode(MagModel):
     def is_expired(cls):
         return cls.expiration_date < localized_now()
 
+    @property
+    def is_free(self):
+        return not self.discount or (
+                self.discount_type == self.PERCENT_DISCOUNT and
+                self.discount >= 100
+            ) or (
+                self.discount_type == self.FIXED_DISCOUNT and
+                self.discount >= c.BADGE_PRICE)
+
     @hybrid_property
     def is_unlimited(self):
-        return self.uses_allowed is None
+        return not self.uses_allowed
 
     @is_unlimited.expression
     def is_unlimited(cls):
