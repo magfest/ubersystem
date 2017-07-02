@@ -113,6 +113,15 @@
                     errorbox_y: 28
                 });
 
+                $('.jq-dte').each(function(index, element) {
+                    var $dte = $(element),
+                        $input = $dte.find('input.date'),
+                        $fields = $dte.find('.jq-dte-inner input'),
+                        isRequired = $input.prop('required');
+                    $input.prop('required', false);
+                    $fields.prop('required', isRequired);
+                });
+
                 $('.expiration-date:not(.jq-dte .expiration-date)').datetextentry({
                     field_order: 'MDY',
                     show_tooltips: false,

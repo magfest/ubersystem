@@ -5,7 +5,8 @@
 
 <div class="masthead"></div>
 <div class="panel panel-default">
-    <h2> You are already registered </h2>
+  <div class="panel-body">
+    <h2>You are already registered</h2>
 
     We already have a {{ attendee.full_name }} with email address {{ attendee.email }} in our database with a
     {% if attendee.paid == c.PAID_BY_GROUP and attendee.group.status == c.WAITLISTED %}
@@ -53,6 +54,7 @@
         <td><a href="delete?id={% if duplicate.group %}{{ duplicate.group.id }}{% else %}{{ duplicate.id }}{% endif %}&message=Duplicate badge canceled">Well never mind then!</a></td>
     </tr>
     </table>
+  </div>
 </div>
 
 {% endblock %}

@@ -23,3 +23,11 @@
     z-index: 9998;
     background: rgb(249, 249, 249);
 }
+
+.checkgroup {
+    margin-right: 1em;
+}
+
+.checkbox-label {
+    cursor: pointer;
+}

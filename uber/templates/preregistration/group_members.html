@@ -37,19 +37,19 @@
         });
     {% endif %}
 </script>
-<div class="masthead">
-</div>
+
+<div class="masthead"></div>
 <div class="panel panel-default">
-{% if group.is_dealer %}
-    <h2>"{{ group.name }}" Information</h2>
-    <form method="post" action="group_members" class="form-horizontal" role="form">
+  <div class="panel-body">
+    {% if group.is_dealer %}
+      <h2>"{{ group.name }}" Information</h2>
+      <form method="post" action="group_members" class="form-horizontal" role="form">
         <input type="hidden" name="id" value="{{ group.id }}" />
         {% include "groupform.html" %}
         <button type="submit" class="btn btn-primary" value="Update Application">Update Application</button>
-    </form>
-{% endif%}
-</div>
-<div class="panel panel-default">
+      </form>
+    {% endif%}
+
 <h2> Members of "{{ group.name }}" </h2>
 
 {% if group.amount_unpaid and group.status != c.WAITLISTED %}
@@ -136,7 +136,7 @@
         <input type="submit" value="{{ group.is_dealer|yesno("Add Dealer Assistants,Add Group Members") }}">
         </form>
     </div>
-    
+
     <script type="text/javascript">
         {% if group.amount_unpaid %}
             $(function(){
@@ -152,7 +152,7 @@
             });
         {% endif %}
     </script>
-    
+
 {% endif %}
 </div>
 {% endblock %}

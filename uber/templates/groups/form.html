@@ -55,16 +55,16 @@
 <input type="hidden" name="new_dealer" value="{{ new_dealer }}" />
 
 <div class="form-group">
-    <label class="col-sm-2 control-label">Name of Group</label>
+    <label class="col-sm-3 control-label">Name of Group</label>
     <div class="col-sm-6">
-        <input class="focus" type="text" name="name" value="{{ group.name }}" />
+        <input class="focus form-control" type="text" name="name" value="{{ group.name }}" />
     </div>
 </div>
 
 <!-- we need to register a placeholder group leader for new dealers -->
 {% if new_dealer %}
     <div class="form-group">
-        <label class="col-sm-2 control-label">Owner's First and Last Name</label>
+        <label class="col-sm-3 control-label">Owner's First and Last Name</label>
         <div class="col-sm-6">
             <input type="text" name="first_name" value="{{ first_name }}" style="width:10em" />
             <input type="text" name="last_name" value="{{ last_name }}" style="width:15em" />
@@ -72,15 +72,15 @@
     </div>
 
     <div class="form-group">
-        <label class="col-sm-2 control-label">Owner's Email Address</label>
+        <label class="col-sm-3 control-label">Owner's Email Address</label>
         <div class="col-sm-6">
-            <input type="text" name="email" value="{{ email }}" />
+            <input type="text" name="email" value="{{ email }}" class="form-control"/>
         </div>
     </div>
 {% endif %}
 
 <div class="form-group">
-    <label class="col-sm-2 control-label">Tables</label>
+    <label class="col-sm-3 control-label">Tables</label>
     <div class="col-sm-6">
         <select name="tables">
             {{ options(c.ADMIN_TABLE_OPTS,group.tables) }}
@@ -89,7 +89,7 @@
 </div>
 
 <div class="form-group">
-    <label class="col-sm-2 control-label">Badges</label>
+    <label class="col-sm-3 control-label">Badges</label>
     <div class="col-sm-6">
         <select name="badges">
             {{ int_options(0, c.MAX_GROUP_SIZE, group.badges) }}
@@ -101,8 +101,8 @@
 </div>
 
 <div class="form-group">
-    <label class="col-sm-2 control-label">Badge Type</label>
-    <div class="col-sm-6">
+    <label class="col-sm-3 control-label">Badge Type</label>
+    <div class="col-sm-9">
         <select name="badge_type">
             {{ options(c.BADGE_OPTS,group.leader.badge_type) }}
         </select>
@@ -112,8 +112,8 @@
 
 {% if not new_dealer and not group.is_dealer %}
 <div class="form-group">
-    <label class="col-sm-2 control-label">Ribbon Type</label>
-    <div class="col-sm-6">
+    <label class="col-sm-3 control-label">Ribbon Type</label>
+    <div class="col-sm-9">
         <select name="ribbon">
             {{ options(c.RIBBON_OPTS,group.new_ribbon) }}
         </select>
@@ -123,30 +123,30 @@
 {% endif %}
 
 <div class="form-group">
-    <label class="col-sm-2 control-label">Amount Paid</label>
+    <label class="col-sm-3 control-label">Amount Paid</label>
     <div class="col-sm-6">
         $<input type="text" style="width:4em" name="amount_paid" value="{{ group.amount_paid }}" />
     </div>
 </div>
 
 <div class="form-group">
-    <label class="col-sm-2 control-label">Total Group Price</label>
-    <div class="checkbox col-sm-6">
+    <label class="col-sm-3 control-label">Total Group Price</label>
+    <div class="checkbox col-sm-9">
         $<input type="text" style="width:4em" name="cost" value="{{ group.cost }}" />
         {{ macros.checkbox(group, 'auto_recalc', label='Automatically recalculate this number') }}
     </div>
 </div>
 
 <div class="form-group">
-    <label class="col-sm-2 control-label">Amount Refunded</label>
+    <label class="col-sm-3 control-label">Amount Refunded</label>
     <div class="col-sm-6">
         $<input type="text" style="width:4em" name="amount_refunded" value="{{ group.amount_refunded }}" />
     </div>
 </div>
 
     <div class="form-group">
-    <label class="col-sm-2 control-label">Can Add Badges</label>
-    <div class="checkbox col-sm-6">
+    <label class="col-sm-3 control-label">Can Add Badges</label>
+    <div class="checkbox col-sm-9">
         {{ macros.checkbox(group, 'can_add', label='Allow this group to add badges') }}
     </div>
 </div>
@@ -154,7 +154,7 @@
 {% if new_dealer or group.is_dealer %}
     {% if group.leader %}
         <div class="form-group">
-            <label class="col-sm-2 control-label">Phone Number</label>
+            <label class="col-sm-3 control-label">Phone Number</label>
             <div class="col-sm-6">
                 {{ group.leader.cellphone }}
             </div>
@@ -162,7 +162,7 @@
     {% endif %}
 
     <div class="form-group">
-        <label class="col-sm-2 control-label">Status</label>
+        <label class="col-sm-3 control-label">Status</label>
         <div id="status" class="col-sm-6">
             {% if new_dealer %}
                 <select name="status">
@@ -190,37 +190,37 @@
     </div>
 
     <div class="form-group">
-        <label class="col-sm-2 control-label">What do they sell?</label>
+        <label class="col-sm-3 control-label">What do they sell?</label>
         <div class="col-sm-6">
-            <textarea rows="3" cols="30" name="wares">{{ group.wares }}</textarea>
+            <textarea rows="3" name="wares" class="form-control">{{ group.wares }}</textarea>
         </div>
     </div>
 
     <div class="form-group">
-        <label class="col-sm-2 control-label">Website URL</label>
+        <label class="col-sm-3 control-label">Website URL</label>
         <div class="col-sm-6">
-            <input type="text" name="website" value="{{ group.website }}" />
+            <input type="text" name="website" value="{{ group.website }}" class="form-control"/>
         </div>
     </div>
 
     <div class="form-group">
-        <label class="col-sm-2 control-label">Description</label>
+        <label class="col-sm-3 control-label">Description</label>
         <div class="col-sm-6">
-            <textarea rows="3" cols="30" name="description">{{ group.description }}</textarea>
+            <textarea rows="3" name="description" class="form-control">{{ group.description }}</textarea>
         </div>
     </div>
 
     <div class="form-group">
-        <label class="col-sm-2 control-label">Special Requests</label>
+        <label class="col-sm-3 control-label">Special Requests</label>
         <div class="col-sm-6">
-            <textarea rows="3" cols="30" name="special_needs">{{ group.special_needs }}</textarea>
+            <textarea rows="3" name="special_needs" class="form-control">{{ group.special_needs }}</textarea>
         </div>
     </div>
     {% if not c.COLLECT_FULL_ADDRESS %}
     <div class="form-group">
-        <label class="col-sm-2 control-label">Address</label>
+        <label class="col-sm-3 control-label">Address</label>
         <div class="col-sm-6">
-            <textarea rows="3" cols="30" name="address">{{ group.address }}</textarea>
+            <textarea rows="3" name="address" class="form-control">{{ group.address }}</textarea>
         </div>
     </div>
     {% endif %}
@@ -229,14 +229,14 @@
 {% include "groupextra.html" %}
 
 <div class="form-group">
-    <label class="col-sm-2 control-label">Admin Notes</label>
+    <label class="col-sm-3 control-label">Admin Notes</label>
     <div class="col-sm-6">
-        <textarea name="admin_notes" rows="3" style="width:66%">{{ group.admin_notes }}</textarea>
+        <textarea name="admin_notes" rows="3" class="form-control">{{ group.admin_notes }}</textarea>
     </div>
 </div>
 
 <div class="form-group">
-    <div class="col-sm-6 col-sm-offset-2">
+    <div class="col-sm-6 col-sm-offset-3">
         <button type="submit" class="btn btn-primary" value="Upload">Save</button>
     </div>
 </div>
