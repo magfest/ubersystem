@@ -57,10 +57,6 @@ body {
     margin: 0 auto;
 }
 
-#badge-types {
-    margin-bottom: 0px;
-}
-
 .reg-type-selector, .badge-type-selector {
     cursor: pointer;
 }
@@ -93,7 +89,7 @@ body {
 
 /* "Registration Type" Buttons */
 
-.form-horizontal .form-group-buttons {
+#reg-types, #badge-types {
     margin-right: 0;
 }
 
