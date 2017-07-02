@@ -12,8 +12,9 @@
 }
 
 .masthead + .panel {
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
+    /* Uncomment to remove the rounded corners on the top of the main form */
+    /* border-top-left-radius: 0; */
+    /* border-top-right-radius: 0; */
 }
 
 .masthead + .panel hr {
