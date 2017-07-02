@@ -21,6 +21,7 @@
         }
         {% if not attendee.is_dealer %}
             if ($.field('cellphone')) {
+                $.field('cellphone').prop('required', checked);
                 $.field('cellphone').parents('.form-group').find('label:first').css('font-weight', checked ? 'bold' : 'normal');
             }
         {% endif %}
@@ -391,7 +392,7 @@
     {% if c.COLLECT_EXACT_BIRTHDATE %}
         <label for="birthdate" class="col-sm-3 control-label">Date of Birth</label>
         <div class="col-sm-6">
-          <input type='text' class="form-control date" name="birthdate" value="{{ attendee.birthdate|datetime("%Y-%m-%d") }}" required/>
+          <input type='text' class="form-control date" name="birthdate" value="{{ attendee.birthdate|datetime("%Y-%m-%d") }}"/>
           {% if c.PAGE_PATH == '/registration/form' and attendee.birthdate %}
               ({{ attendee.age_group_conf.desc }})
           {% endif %}
@@ -482,7 +483,7 @@
 <div class="form-group">
     <label for="cellphone" class="col-sm-3 control-label">Your Phone Number</label>
     <div class="col-sm-6">
-        <input type="text" name="cellphone" id="cellphone" value="{{ attendee.cellphone }}" class="form-control" required placeholder="A phone number we can use to contact you during the event">
+        <input type="text" name="cellphone" id="cellphone" value="{{ attendee.cellphone }}" class="form-control" {% if attendee.is_dealer %}required{% endif %} placeholder="A phone number we can use to contact you during the event">
     </div>
     {% if not attendee.is_dealer or c.PAGE_PATH == '/registration/form' %}
         <div class="checkbox col-sm-6 col-sm-offset-3">
