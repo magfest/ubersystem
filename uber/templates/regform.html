@@ -318,7 +318,7 @@
     <div class="col-sm-6">
         <input type="text" class="form-control" name="badge_printed_name" maxlength="20" value="{{ attendee.badge_printed_name }}" {% if c.AFTER_PRINTED_BADGE_DEADLINE and attendee.badge_type in c.PREASSIGNED_BADGE_TYPES or c.AFTER_SUPPORTER_DEADLINE %}readonly{% endif %} />
     </div>
-    <p class="help-block col-sm-6">Badge names have a maximum of 20 characters.</p>
+    <p class="help-block col-sm-offset-3 col-sm-9">Badge names have a maximum of 20 characters.</p>
 </div>
 
 {% if c.AFTER_PRINTED_BADGE_DEADLINE and attendee.badge_type in c.PREASSIGNED_BADGE_TYPES or c.AFTER_SUPPORTER_DEADLINE %}
