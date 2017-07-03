@@ -271,6 +271,8 @@
                 {{ macros.checkbox(attendee, 'got_merch', label='Yes') }}
             </div>
         </div>
+    {% else %}
+        <input type="hidden" name="got_merch" value="{{ '1' if attendee.got_merch else '0' }}" />
     {% endif %}
     <div class="form-group">
         <label class="col-sm-3 control-label">Signed Up</label>
