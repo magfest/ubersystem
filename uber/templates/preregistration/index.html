@@ -9,15 +9,15 @@
             var urlToUse = $(this).attr('href');
             event.preventDefault();
             bootbox.confirm({
-                message: "Are you sure you want to delete this badge?",
+                message: "Are you sure you want to delete this preregistration?",
                 buttons: {
                     confirm: {
-                        label: 'Yes',
-                        className: 'btn-success'
+                        label: 'Delete Preregistration',
+                        className: 'btn-danger'
                     },
                     cancel: {
-                        label: 'No',
-                        className: 'btn-danger'
+                        label: 'Nevermind',
+                        className: 'btn-default'
                     }
                 },
                 callback: function (result) {
