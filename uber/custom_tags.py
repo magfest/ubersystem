@@ -432,3 +432,8 @@ def random_hash():
     random = os.urandom(16)
     result = binascii.hexlify(random)
     return result.decode("utf-8")
+
+
+@JinjaEnv.jinja_filter
+def basename(s):
+    return os.path.basename(s) if s else ''

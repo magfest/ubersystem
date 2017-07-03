@@ -189,7 +189,7 @@ class Root:
                 if attendee.banned:
                     raise HTTPRedirect('banned?id={}', group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
 
-                raise HTTPRedirect('index')
+                raise HTTPRedirect('hotel' if c.PREREG_HOTEL_REQUEST_ENABLED else 'index')
         else:
             if edit_id is None:
                 attendee.can_spam = True    # only defaults to true for these forms
@@ -204,6 +204,19 @@ class Root:
             'badges':     params.get('badges'),
             'affiliates': session.affiliates(),
             'cart_not_empty': Charge.unpaid_preregs
+        }
+
+    @redirect_if_at_con_to_kiosk
+    @check_if_can_reg
+    @cherrypy.expose(['post_hotel'])
+    def hotel(self, session, message='', id=None, **params):
+        if not c.PREREG_HOTEL_REQUEST_ENABLED:
+            raise HTTPRedirect('form')
+        if cherrypy.request.method == 'POST':
+            raise HTTPRedirect('index')
+        return {
+            'id': id,
+            'message': message
         }
 
     def duplicate(self, session, id):

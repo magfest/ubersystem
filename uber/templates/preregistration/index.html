@@ -34,26 +34,7 @@
 
 <div class="panel panel-default">
   <div class="panel-body">
-    <div class="row bs-wizard">
-        <div class="col-xs-4 bs-wizard-step complete">
-            <div class="text-center bs-wizard-stepnum">Step 1</div>
-            <div class="progress"><div class="progress-bar"></div></div>
-            <a class="bs-wizard-dot"></a>
-            <div class="bs-wizard-info text-center">Enter Info</div>
-        </div>
-        <div class="col-xs-4 bs-wizard-step active">
-            <div class="text-center bs-wizard-stepnum">Step 2</div>
-            <div class="progress"><div class="progress-bar"></div></div>
-            <a class="bs-wizard-dot"></a>
-            <div class="bs-wizard-info text-center">Review &amp; Pay</div>
-        </div>
-        <div class="col-xs-4 bs-wizard-step disabled">
-            <div class="text-center bs-wizard-stepnum">Step 3</div>
-            <div class="progress"><div class="progress-bar"></div></div>
-            <a class="bs-wizard-dot"></a>
-            <div class="bs-wizard-info text-center">Done</div>
-        </div>
-    </div>
+    {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_HOTEL_REQUEST_ENABLED) }}
 
     <div class="row">
         <div class="col-sm-8 col-sm-offset-2">

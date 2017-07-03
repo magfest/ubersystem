@@ -1,0 +1,41 @@
+{% extends "./preregistration/preregbase.html" %}
+{% block title %}Request Hotel Space{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<div class="masthead"></div>
+<div class="panel panel-default">
+  <div class="panel-body">
+    {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_HOTEL_REQUEST_ENABLED) }}
+
+    <h2>Are you interested in requesting hotel space?</h2>
+    <p>
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod
+      tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam,
+      quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
+      consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse
+      cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non
+      proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+    </p>
+    <form method="post" action="post_hotel" class="form-horizontal" role="form">
+      <input type="hidden" name="id" value="{{ id }}" />
+
+      <div class="form-group">
+        <div class="col-sm-9 col-sm-offset-3">
+          <label for="requested_hotel_space" class="checkbox-label">
+            <input type="checkbox" name="requested_hotel_space" id="requested_hotel_space" value="1" checked>
+            Yes, I want a hotel room for one or more nights
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <div class="col-sm-9 col-sm-offset-3">
+          <button type="submit" class="btn btn-primary" value="Add to Cart">Submit Request</button>
+        </div>
+      </div>
+    </form>
+    {% include "preregistration/disclaimers.html" %}
+  </div>
+</div>
+{% endblock %}
