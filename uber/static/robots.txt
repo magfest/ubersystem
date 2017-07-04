@@ -5,9 +5,7 @@ Disallow: /uber/preregistration/delete
 Disallow: /uber/preregistration/dealer_confirmation
 Disallow: /uber/preregistration/group_members
 Disallow: /uber/preregistration/register_group_member
-Disallow: /uber/preregistration/group_extra_payment_form
 Disallow: /uber/preregistration/process_group_payment
-Disallow: /uber/preregistration/process_group_member_payment
 Disallow: /uber/preregistration/unset_group_member
 Disallow: /uber/preregistration/add_group_members
 Disallow: /uber/preregistration/pay_for_extra_members
