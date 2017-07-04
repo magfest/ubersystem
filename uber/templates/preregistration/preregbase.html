@@ -76,7 +76,7 @@
             row: '#badge-types',
             selector: '.badge-type-selector',
             options: [{
-                title: '{% if c.PAGE_PATH == "/preregistration/form" or c.PAGE_PATH == "/preregistration/dealer_registration" or undoing_extra %}Attending{% elif attendee %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
+                title: '{% if c.PAGE_PATH in ["/preregistration/form", "/preregistration/post_form", "/preregistration/dealer_registration"] or undoing_extra %}Attending{% elif attendee %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
                 description: 'Allows access to the convention for its duration.',
                 extra: 0,
                 price: {{ c.BADGE_PRICE }},
@@ -122,7 +122,7 @@
         });
 
         var togglePrices = function () {
-            var showTotalPrices = {% if c.PAGE_PATH == '/preregistration/form' and not c.PREREG_DONATION_DESCRIPTIONS %}($.val('badge_type') != {{ c.PSEUDO_DEALER_BADGE }}){% else %}false{% endif %};
+            var showTotalPrices = {% if c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form'] and not c.PREREG_DONATION_DESCRIPTIONS %}($.val('badge_type') != {{ c.PSEUDO_DEALER_BADGE }}){% else %}false{% endif %};
             $.each(BADGE_TYPES.options, function (i, type) {
                 var $price = $(BADGE_TYPES.selector).slice(i, i + 1).find('.price').empty();
                 var $price_notice = $(BADGE_TYPES.selector).slice(i, i + 1).find('.price_notice').empty();
@@ -215,7 +215,7 @@
                 $.each([REG_TYPES, BADGE_TYPES], function (i, types) {
                     $.each(types.options, function (index, type) {
                         $(types.row).append(
-                            $('<div class="col-sm-3"></div>').append(
+                            $('<div class="col-btn col-sm-3"></div>').append(
                                 $('<a class="list-group-item"></a>').addClass(types.selector.substring(1)).click(function () {
                                     setBadge(types, index);
                                     setKickinFromBadge(types, index);
@@ -226,7 +226,7 @@
                                 ).append(
                                     $('<p class="list-group-item-text"></p>').html(type.description).append('<span class="price_notice"></span>'))));
                     });
-                    $(types.row).append('<div style="clear:both">&nbsp;</div>');
+                    $(types.row).append('<div class="clearfix"></div>');
                 });
                 if (window.REG_TYPES && $(REG_TYPES.row).size()) {
                     setBadge(REG_TYPES, $.field('name') && $.val('name') ? 1 : 0);  // default to attendee or group

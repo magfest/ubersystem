@@ -3,8 +3,6 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-<div class="masthead"></div>
-
 <script type="text/javascript">
     $(function(){
         {% if attendee.has_personalized_badge %}
@@ -22,64 +20,68 @@
     });
 </script>
 
+<div class="masthead"></div>
 <div class="panel panel-default">
-<form method="post" action="confirm" class="form-horizontal">
-{{ csrf_token() }}
-<input type="hidden" name="id" value="{{ attendee.id }}" />
-<input type="hidden" name="return_to" value="{{ return_to }}" />
-<input type="hidden" name="undoing_extra" value="{{ undoing_extra }}" />
+  <div class="panel-body">
+    <form method="post" action="confirm" class="form-horizontal">
+      {{ csrf_token() }}
+      <input type="hidden" name="id" value="{{ attendee.id }}" />
+      <input type="hidden" name="return_to" value="{{ return_to }}" />
+      <input type="hidden" name="undoing_extra" value="{{ undoing_extra }}" />
 
-{% if attendee.amount_unpaid and c.HTTP_METHOD == 'GET' %}
-    <br/>
-    <div class="form-group">
-        <div class="col-sm-6 col-sm-offset-2 warning">
+      {% if attendee.amount_unpaid and c.HTTP_METHOD == 'GET' %}
+        <br/>
+        <div class="form-group">
+          <div class="col-sm-9 col-sm-offset-3 warning">
             You currently have an outstanding balance of ${{ attendee.amount_unpaid }}{% if attendee.amount_extra %} due to having requested
             registration add-ons and then not completing the payment form{% endif %}.  Please either
             <a href="attendee_donation_form?id={{ attendee.id }}">click here</a> to pay, or alter your registration below to
             eliminate whichever addons you've decided not to select.
+          </div>
         </div>
-    </div>
-{% endif %}
+      {% endif %}
 
-<div class="form-group" id="badge-types">
-    <label class="col-sm-2 control-label">Badge Level</label>
-</div>
+      <div class="form-group" id="badge-types">
+        <label class="col-sm-3 control-label">Badge Level</label>
+      </div>
 
-{% include "regform.html" %}
+      {% include "regform.html" %}
 
-<div class="form-group">
-    <div class="col-sm-6 col-sm-offset-2">
-        <button type="submit" class="btn btn-primary" id="updateButton">
+      <div class="form-group">
+        <div class="col-sm-9 col-sm-offset-3">
+          <button type="submit" class="btn btn-primary" id="updateButton">
             {% if attendee.placeholder %}Register{% else %}Update My Info{% endif %}
-        </button>
-        {% if attendee.is_transferable %}
+          </button>
+          {% if attendee.is_transferable %}
             <button type="button" class="btn btn-primary" onClick='location.href="transfer_badge?id={{ attendee.id }}"'>Transfer my Badge</button>
-        {% endif %}
-        {% if not attendee.amount_paid and not attendee.paid == c.NEED_NOT_PAY %}
+          {% endif %}
+          {% if not attendee.amount_paid and not attendee.paid == c.NEED_NOT_PAY %}
             <button type="submit" form="invalidate" class="btn btn-danger" onClick="return confirm('Are you sure you want to delete your badge? This can\'t be undone!');">I'm not coming</button>
-        {% endif %}
-    </div>
-</div>
-
-{% if not attendee.is_not_ready_to_checkin and c.USE_CHECKIN_BARCODE %}
-    <div class="form-group">
-    <label class="col-sm-2 control-label">Check-in Barcode</label>
-        <div class="col-sm-6">
-        <img src="../registration/qrcode_generator?data={{ attendee.public_id }}" />
+          {% endif %}
         </div>
-    <p class="help-block col-sm-6 col-sm-offset-2">This can be shown at badge pick-up to help check in. <br/>
-        <strong>This barcode <em>does not</em> replace your Photo ID.</strong> <br/>
-        You will receive an email with this code before the event.</p>
-    </div>
-{% endif %}
+      </div>
 
-</form>
+      {% if not attendee.is_not_ready_to_checkin and c.USE_CHECKIN_BARCODE %}
+        <div class="form-group">
+        <label class="col-sm-3 control-label">Check-in Barcode</label>
+          <div class="col-sm-6">
+            <img src="../registration/qrcode_generator?data={{ attendee.public_id }}" />
+          </div>
+          <p class="help-block col-sm-9 col-sm-offset-3">
+            This can be shown at badge pick-up to help check in. <br/>
+            <strong>This barcode <em>does not</em> replace your Photo ID.</strong> <br/>
+            You will receive an email with this code before the event.
+          </p>
+        </div>
+      {% endif %}
+    </form>
 
     {% if not attendee.amount_paid or not attendee.paid == c.NEED_NOT_PAY %}
-    <form method="post" action="invalidate" id="invalidate">
+      <form method="post" action="invalidate" id="invalidate">
         <input type="hidden" name="id" value="{{ attendee.id }}"/>
-    </form>
+      </form>
     {% endif %}
+  </div>
 </div>
 
 {% endblock %}

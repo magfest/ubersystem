@@ -1,12 +1,12 @@
 {% set attendee_or_group = attendee if attendee else group %}
 {% if not attendee_or_group.is_dealer %}
     <div class="form-group" id="badge-types">
-        <label class="col-sm-2 control-label">Badge Level</label>
+        <label class="col-sm-3 control-label">Badge Level</label>
     </div>
 
     <div class="group_fields hide">
         <div class="form-group">
-            <label for="name" class="col-sm-2 control-label">Group Name</label>
+            <label for="name" class="col-sm-3 control-label">Group Name</label>
             <div class="col-sm-6">
                 <input type="text" name="name" class="form-control" value="{{ group.name }}" />
             </div>
@@ -16,13 +16,13 @@
     {% if attendee_or_group.is_new %}
         <div class="group_fields hide">
             <div class="form-group">
-                <label for="name" class="col-sm-2 control-label">Badges</label>
+                <label for="name" class="col-sm-3 control-label">Badges</label>
                 <div class="col-sm-6">
                     <select name="badges" class="form-control">{{ int_options(c.MIN_GROUP_SIZE, c.MAX_GROUP_SIZE, badges) }}</select>
                 </div>
                 (${{ c.GROUP_PRICE }} each)
                 {% if c.MIN_GROUP_ADDITION > 1 %}
-                <p class="help-block col-sm-6 col-sm-offset-2">
+                <p class="help-block col-sm-9 col-sm-offset-3">
                     You may add badges to your group later, but you must add at least {{ c.MIN_GROUP_ADDITION }}
                     badges at a time.
                 </p>
@@ -38,7 +38,7 @@
     </script>
 
     <div class="form-group">
-        <label for="name" class="col-sm-2 control-label">Dealer Table Name</label>
+        <label for="name" class="col-sm-3 control-label">Dealer Table Name</label>
         <div class="col-sm-6">
             <input class="form-control" type="text" class="focus" name="name" value="{{ group.name }}" maxlength="40" />
         </div>
@@ -46,25 +46,25 @@
 
     {% if attendee_or_group.is_new %}
         <div class="form-group">
-            <label for="tables" class="col-sm-2 control-label">Tables</label>
+            <label for="tables" class="col-sm-3 control-label">Tables</label>
             <div class="col-sm-6">
                 <select class="form-control" name="tables">
                     {{ options(c.PREREG_TABLE_OPTS,group.tables) }}
                 </select>
-                <span id="table_prices">({{ table_prices() }})</span>
             </div>
-        </div>
-        <div class="form-group" id="moretables">
-            <p class="help-block col-sm-6 col-sm-offset-2"><i>You may contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a> to request more than {{ c.MAX_TABLES }} tables.</i></p>
+            <div class="col-sm-offset-3 col-sm-9" id="table_prices">{{ table_prices() }}</div>
+            <p class="col-sm-9 col-sm-offset-3 help-block"><i>You may contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a> to request more than {{ c.MAX_TABLES }} tables.</i></p>
         </div>
 
         <div class="form-group">
-            <label for="badges" class="col-sm-2 control-label">Badges</label>
+            <label for="badges" class="col-sm-3 control-label">Badges</label>
             <div class="col-sm-6">
                 <select class="form-control" name="badges">{{ int_options(1,c.MAX_DEALERS,badges) }}</select>
-                <p class="help-block">(${{ c.DEALER_BADGE_PRICE }} per badge) <br/><br/>
-                    The number of people working your table, including yourself.</p>
             </div>
+            <div class="col-sm-offset-3 col-sm-9">${{ c.DEALER_BADGE_PRICE }} per badge</div>
+            <p class="col-sm-offset-3 col-sm-9 help-block">
+              The number of people working your table, including yourself.
+            </p>
         </div>
         <div class="form-group">
 
@@ -72,48 +72,40 @@
     {% endif %}
 
     <div class="form-group">
-        <label for="wares" class="col-sm-2 control-label">What do you sell?</label>
+        <label for="wares" class="col-sm-3 control-label">What do you sell?</label>
         <div class="col-sm-6">
             <textarea class="form-control" name="wares" rows="4">{{ group.wares }}</textarea>
         </div>
-    </div>
-    <div class="form-group">
-        <p class="help-block col-sm-6 col-sm-offset-2">Please be detailed; include a link to view your wares if possible.</p>
+        <p class="help-block col-sm-9 col-sm-offset-3">Please be detailed; include a link to view your wares if possible.</p>
     </div>
 
     <div class="form-group">
-        <label for="description" class="col-sm-2 control-label">Description</label>
+        <label for="description" class="col-sm-3 control-label">Description</label>
         <div class="col-sm-6">
             <textarea class="form-control" name="description" rows="4" maxlength="400">{{ group.description }}</textarea>
         </div>
-    </div>
-    <div class="form-group">
-        <p class="help-block col-sm-6 col-sm-offset-2">Please keep to one sentence.</p>
+        <p class="help-block col-sm-9 col-sm-offset-3">Please keep to one sentence.</p>
     </div>
 
     <div class="form-group">
-        <label for="special_needs" class="col-sm-2 control-label optional-field">Table Requests and Special Requests</label>
+        <label for="special_needs" class="col-sm-3 control-label optional-field">Table Requests and Special Requests</label>
         <div class="col-sm-6">
             <textarea class="form-control" name="special_needs" rows="4" placeholder="E.g., specific table, who you would like to sit near, who you would not like to sit near.">{{ group.special_needs }}</textarea>
         </div>
-    </div>
-    <div class="form-group">
-        <p class="help-block col-sm-6 col-sm-offset-2">No guarantees that we can accommodate any requests.</p>
+        <p class="help-block col-sm-9 col-sm-offset-3">No guarantees that we can accommodate any requests.</p>
     </div>
 
     <div class="form-group">
-        <label for="website" class="col-sm-2 control-label">Website URL</label>
+        <label for="website" class="col-sm-3 control-label">Website URL</label>
         <div class="col-sm-6">
             <input class="form-control" type="text" name="website" value="{{ group.website }}" size="40" />
         </div>
-    </div>
-    <div class="form-group">
-        <p class="help-block col-sm-6 col-sm-offset-2">The one you want us to link on our website, or n/a</p>
+        <p class="help-block col-sm-9 col-sm-offset-3">The one you want us to link on our website, or n/a</p>
     </div>
 
     {% if not c.COLLECT_FULL_ADDRESS %}
     <div class="form-group">
-        <label for="address" class="col-sm-2 control-label">Address and Phone Number</label>
+        <label for="address" class="col-sm-3 control-label">Address and Phone Number</label>
         <div class="col-sm-6">
             <textarea class="form-control" name="address" rows="4" placeholder="Your or your business' full address and phone number for tax purposes.">{{ group.address }}</textarea>
         </div>

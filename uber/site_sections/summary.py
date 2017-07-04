@@ -1,3 +1,4 @@
+from dateutil.relativedelta import relativedelta
 from uber.common import *
 
 
@@ -392,3 +393,89 @@ class Root:
                                                           and a.weighted_hours >= c.HOURS_FOR_REFUND]
             )]
         }
+
+    @csv_file
+    @site_mappable
+    def attendee_birthday_calendar(
+            self,
+            out,
+            session,
+            year=datetime.now(UTC).year):
+
+        out.writerow([
+            'Subject', 'Start Date', 'Start Time', 'End Date', 'End Time',
+            'All Day Event', 'Description', 'Location', 'Private'])
+
+        query = session.query(Attendee).filter(Attendee.birthdate != None)
+        for person in query.all():
+            subject = "%s's Birthday" % person.full_name
+            delta_years = year - person.birthdate.year
+            start_date = person.birthdate + relativedelta(years=delta_years)
+            end_date = start_date
+            all_day = True
+            private = False
+            out.writerow([
+                subject, start_date, '', end_date, '', all_day, '', '', private
+            ])
+
+    @csv_file
+    @site_mappable
+    def event_birthday_calendar(self, out, session):
+        out.writerow([
+            'Subject', 'Start Date', 'Start Time', 'End Date', 'End Time',
+            'All Day Event', 'Description', 'Location', 'Private'])
+
+        is_multiyear = c.EPOCH.year != c.ESCHATON.year
+        is_multimonth = c.EPOCH.month != c.ESCHATON.month
+        query = session.query(Attendee).filter(Attendee.birthdate != None)
+        birth_month = extract('month', Attendee.birthdate)
+        birth_day = extract('day', Attendee.birthdate)
+        if is_multiyear:
+            # The event starts in one year and ends in another
+            query = query.filter(or_(
+                or_(
+                    birth_month > c.EPOCH.month,
+                    birth_month < c.ESCHATON.month),
+                and_(
+                    birth_month == c.EPOCH.month,
+                    birth_day >= c.EPOCH.day),
+                and_(
+                    birth_month == c.ESCHATON.month,
+                    birth_day <= c.ESCHATON.day)))
+        elif is_multimonth:
+            # The event starts in one month and ends in another
+            query = query.filter(or_(
+                and_(
+                    birth_month > c.EPOCH.month,
+                    birth_month < c.ESCHATON.month),
+                and_(
+                    birth_month == c.EPOCH.month,
+                    birth_day >= c.EPOCH.day),
+                and_(
+                    birth_month == c.ESCHATON.month,
+                    birth_day <= c.ESCHATON.day)))
+        else:
+            # The event happens entirely within a single month
+            query = query.filter(and_(
+                birth_month == c.EPOCH.month,
+                birth_day >= c.EPOCH.day,
+                birth_day <= c.ESCHATON.day))
+
+        for person in query.all():
+            subject = "%s's Birthday" % person.full_name
+
+            year_of_birthday = c.ESCHATON.year
+            if is_multiyear:
+                birth_month = person.birthdate.month
+                birth_day = person.birthdate.day
+                if birth_month >= c.EPOCH.month and birth_day >= c.EPOCH.day:
+                    year_of_birthday = c.EPOCH.year
+
+            delta_years = year_of_birthday - person.birthdate.year
+            start_date = person.birthdate + relativedelta(years=delta_years)
+            end_date = start_date
+            all_day = True
+            private = False
+            out.writerow([
+                subject, start_date, '', end_date, '', all_day, '', '', private
+            ])
