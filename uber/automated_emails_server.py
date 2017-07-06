@@ -319,4 +319,3 @@ class DeptChecklistEmail(AutomatedEmail):
                                 when=days_before(7, conf.deadline),
                                 sender=c.STAFF_EMAIL,
                                 extra_data={'conf': conf})
-
