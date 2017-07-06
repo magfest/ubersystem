@@ -78,6 +78,7 @@ from uber.utils import *
 from uber.reports import *
 from uber.decorators import *
 from uber.models import *
+from uber.automated_emails_server import *
 from uber.automated_emails import *
 from uber.badge_funcs import *
 from uber.menu import *
