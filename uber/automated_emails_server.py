@@ -358,7 +358,7 @@ def get_pending_email_data():
     if not categories_results:
         return None
 
-    pending_emails = None
+    pending_emails = dict()
 
     for automated_email in AutomatedEmail.instances.values():
         category_results = categories_results.get(automated_email.ident, None)
@@ -369,9 +369,6 @@ def get_pending_email_data():
 
         if unsent_because_unapproved_count <= 0:
             continue
-
-        if not pending_emails:
-            pending_emails = dict()
 
         pending_emails[automated_email.ident] = {
             'num_unsent': unsent_because_unapproved_count,
