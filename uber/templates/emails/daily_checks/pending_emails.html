@@ -1,0 +1,19 @@
+<html>
+<head></head>
+<body>
+    <h3>{{ c.EVENT_NAME_AND_YEAR }}<br/> Emails that need approval to send:</h3>
+
+    <p>The following email categories are ready to send, but still require manual approval by admins.
+        Please visit the <a href="{{ c.URL_BASE }}/emails/pending">pending email approval page</a>
+        if you would like to approve any of these.</p>
+
+    <ul style="margin-top:0px ; margin-bottom:10px">
+    {% for pending_email_ident, pending_email_category_info in pending_email_categories.items() %}
+        <li>
+            {{ pending_email_category_info.num_unsent }} pending: <b>{{ pending_email_category_info.subject }}</b>
+            [<a href="{{ c.URL_BASE }}/emails/pending_examples?ident={{ pending_email_ident }}">view examples</a>]
+        </li>
+    {% endfor %}
+    </ul>
+</body>
+</html>
