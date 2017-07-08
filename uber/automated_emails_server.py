@@ -319,3 +319,60 @@ class DeptChecklistEmail(AutomatedEmail):
                                 when=days_before(7, conf.deadline),
                                 sender=c.STAFF_EMAIL,
                                 extra_data={'conf': conf})
+
+
+def notify_admins_of_any_pending_emails():
+    """
+    Generate an email a report which alerts admins that there are emails which are ready to send,
+    but won't because they need approval from an admin.
+
+    This is useful so we don't forget to let certain categories of emails send.
+    """
+    if not c.ENABLE_PENDING_EMAILS_REPORT or not c.PRE_CON or not (c.DEV_BOX or c.SEND_EMAILS):
+        return
+
+    pending_email_categories = get_pending_email_data()
+    if not pending_email_categories:
+        return
+
+    subject = c.EVENT_NAME + ' Pending Emails Report for ' + localized_now().strftime('%Y-%m-%d')
+    body = render('emails/daily_checks/pending_emails.html', {'pending_email_categories': pending_email_categories})
+    send_email(c.STAFF_EMAIL, c.STAFF_EMAIL, subject, body, format='html', model='n/a')
+
+
+DaemonTask(notify_admins_of_any_pending_emails, interval=300, name="mail pending notification")
+
+
+def get_pending_email_data():
+    """
+    Generate a list of emails which are ready to send, but need approval.
+
+    Returns: A dict of email idents -> pending counts for any email category with pending emails,
+    or None if none are waiting to send or the email daemon service has not finished any runs yet.
+    """
+    has_email_daemon_run_yet = SendAllAutomatedEmailsJob.last_result.get('completed', False)
+    if not has_email_daemon_run_yet:
+        return None
+
+    categories_results = SendAllAutomatedEmailsJob.last_result.get('categories', None)
+    if not categories_results:
+        return None
+
+    pending_emails = dict()
+
+    for automated_email in AutomatedEmail.instances.values():
+        category_results = categories_results.get(automated_email.ident, None)
+        if not category_results:
+            continue
+
+        unsent_because_unapproved_count = category_results.get('unsent_because_unapproved', 0)
+
+        if unsent_because_unapproved_count <= 0:
+            continue
+
+        pending_emails[automated_email.ident] = {
+            'num_unsent': unsent_because_unapproved_count,
+            'subject': automated_email.subject,
+        }
+
+    return pending_emails
