@@ -9,8 +9,11 @@
 We feed our guests three meals per day during {{ c.EVENT_NAME }}, and our chefs have an easier time planning meals
 when they know what kind of food restrictions everyone has.
 {% else %}
-Thanks for volunteering, welcome to the fold! Please let us know any dietary restrictions or allergies below.
-<br/> Volunteers who have met hour requirements for food will be served 3 meals a day and have access to staff suite 24 hours a day!
+  Thanks for volunteering, welcome to the fold! Please let us know any dietary restrictions or allergies below.
+  {% if c.STAFF_GET_FOOD %}
+    <br/>
+    Volunteers who have met hour requirements for food will be served 3 meals a day and have access to staff suite 24 hours a day!
+  {% endif %}
 {% endif %}
 
 
