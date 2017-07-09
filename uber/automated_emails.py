@@ -158,7 +158,7 @@ StopsEmail('Last chance to sign up for {EVENT_NAME} {EVENT_DATE} shifts', 'shift
 
 StopsEmail('Still want to volunteer at {EVENT_NAME} {EVENT_DATE}?', 'shifts/volunteer_check.txt',
            lambda a: c.SHIFTS_CREATED and a.ribbon == c.VOLUNTEER_RIBBON and a.takes_shifts and a.weighted_hours == 0,
-           when=days_before(28, c.FINAL_EMAIL_DEADLINE),
+           when=days_before(5, c.FINAL_EMAIL_DEADLINE),
            ident='volunteer_still_interested_inquiry')
 
 StopsEmail('Your {EVENT_NAME} {EVENT_DATE} shift schedule', 'shifts/schedule.html',
