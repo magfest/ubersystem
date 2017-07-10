@@ -21,9 +21,33 @@
 {%- endmacro %}
 
 
-{% macro checkbox(model, field_name, id=None, label=None, label_class=None) -%}
-    {% if label %}<label class="checkbox-label{% if label_class %} {{ label_class }}{% endif %}">{% endif %}
-    <input type="checkbox" name="{{ field_name }}" id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}" value="1" {% if model[field_name] %}checked{% endif %} />
+{% macro checkbox(model, field_name, id=None, label=None, label_class=None, readonly=False, title=None) -%}
+    {% if label %}
+      <label
+        class="checkbox-label{% if label_class %} {{ label_class }}{% endif %}"
+        {% if title %}title="{{ title }}"{% endif %}>
+    {% endif %}
+    {% if readonly %}
+      <input
+        type="hidden"
+        name="{{ field_name }}"
+        id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
+        value="{%- if model[field_name] -%}1{%- else -%}0{%- endif -%}" />
+      <input
+        type="checkbox"
+        value="1"
+        disabled
+        {% if not label and title %}title="{{ title }}"{% endif %}
+        {% if model[field_name] %}checked{% endif %} />
+    {% else %}
+      <input
+        type="checkbox"
+        name="{{ field_name }}"
+        id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
+        value="1"
+        {% if not label and title %}title="{{ title }}"{% endif %}
+        {% if model[field_name] %}checked{% endif %} />
+    {% endif %}
     {% if label %}{{ label }}</label>{% endif %}
 {%- endmacro %}
 

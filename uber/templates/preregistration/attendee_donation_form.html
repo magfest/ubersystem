@@ -4,14 +4,15 @@
 {% block content %}
 <div class="masthead"></div>
 <div class="panel panel-default">
-{% if attendee.paid == c.NOT_PAID %}
-    <h2> Badge Payment for {{ attendee.full_name }} </h2>
+  <div class="panel-body">
+    {% if attendee.paid == c.NOT_PAID %}
+      <h2> Badge Payment for {{ attendee.full_name }} </h2>
 
       You've registered for {{ c.EVENT_NAME }} at a {% if attendee.overridden_price %}discounted{% endif %} price of ${{ attendee.overridden_price|default(attendee.badge_cost|round(2)) }}{% if attendee.amount_extra %} and you've also kicked in ${{ attendee.amount_extra|round(2) }}{% endif %}; your total outstanding balance is ${{ attendee.amount_unpaid|round(2) }}.
 
-      <table style="width:auto ; margin-left:auto ; margin-right: auto">
+      <table style="width: auto; margin: 15px auto 0;">
         <tr>
-          <td>{{ stripe_form('process_attendee_donation',charge) }}</td>
+          <td>{{ stripe_form('process_attendee_donation', charge) }}</td>
           {% if attendee.amount_extra %}
             <td style="width:100px ; text-align:center">or</td>
             <td><a href="undo_attendee_donation?id={{ attendee.id }}">{{ macros.stripe_button("Undo Extra Money") }}</a></td>
@@ -30,7 +31,7 @@
 
       <table style="width:auto ; margin-left:auto ; margin-right: auto">
         <tr>
-          <td>{{ stripe_form('process_attendee_donation',charge) }}</td>
+          <td>{{ stripe_form('process_attendee_donation', charge) }}</td>
           <td style="width:100px ; text-align:center">or</td>
           <td><a href="undo_attendee_donation?id={{ attendee.id }}">{{ macros.stripe_button("Nevermind") }}</a></td>
         </tr>
