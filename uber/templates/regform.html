@@ -14,7 +14,7 @@
     $(ageGroupSelected);
 
     var staffingClicked = function () {
-        var $staffingCheckbox = $('label[for="staffing"]').find('input[type="checkbox"]');
+        var $staffingCheckbox = $('label[for="staffing"] input[type="checkbox"]');
         var checked = $staffingCheckbox && $staffingCheckbox.is(':visible:checked');
         setVisible('#departments', checked);
         if ($.field('no_cellphone')) {
@@ -358,7 +358,7 @@
     <label for="staffing" class="col-sm-3 optional-field control-label">Want to Volunteer?</label>
     <div class="checkbox col-sm-6">
         {% set staffing_readonly = not admin_area and attendee.shifts %}
-        <label for="staffing" {% if staffing_readonly %}title="Please {{ 'contact your department head to drop shifts' if c.AT_THE_CON else 'unassign yourself from shifts' }} before changing your volunteer status."{% endif %}>
+        <label for="staffing" {% if staffing_readonly %}title="Please {{ 'see Staffing Operations to change your volunteer status' if c.AT_THE_CON else 'unassign yourself from shifts before changing your volunteer status' }}"{% endif %}>
         {{ macros.checkbox(attendee, 'staffing', readonly=staffing_readonly) }}
         {% if c.PAGE_PATH == '/registration/form' %}
             This attendee is
