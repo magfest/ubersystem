@@ -9,7 +9,7 @@
     {% if attendee.is_dealer %}
       <h2 class="text-center">Dealer Application</h2>
     {% else %}
-      {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_HOTEL_REQUEST_ENABLED) }}
+      {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_REQUEST_HOTEL_INFO_ENABLED) }}
 
       <div class="form-horizontal">
         {% if c.DEV_BOX %}

@@ -63,12 +63,12 @@
 {%- endmacro %}
 
 
-{% macro prereg_wizard(page_path, prereg_hotel_request_enabled) -%}
-  {%- if prereg_hotel_request_enabled -%}
+{% macro prereg_wizard(page_path, prereg_request_hotel_info_enabled) -%}
+  {%- if prereg_request_hotel_info_enabled -%}
     {%-
       set steps = [
           (('form', 'post_form'), 'Enter Info'),
-          (('hotel', 'post_hotel'), 'Request Hotel'),
+          ('hotel', 'Hotel Booking'),
           (('index', 'preregistration', ''), 'Review & Pay'),
           ('paid_preregistrations', 'Done')]
     -%}

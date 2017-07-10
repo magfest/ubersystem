@@ -34,7 +34,7 @@
 
 <div class="panel panel-default">
   <div class="panel-body">
-    {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_HOTEL_REQUEST_ENABLED) }}
+    {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_REQUEST_HOTEL_INFO_ENABLED) }}
 
     <div class="row">
         <div class="col-sm-8 col-sm-offset-2">
@@ -71,6 +71,9 @@
           <td>
             <ul style="padding-left:15px">
               <li>Membership for {{ c.EVENT_NAME }}</li>
+              {% if attendee.requested_hotel_info %}
+                <li>Requested hotel booking info</li>
+              {% endif %}
               {% if not attendee.default_cost and attendee.age_discount and not attendee.promo_code %}
                 <li>Attendees who are {{ attendee.age_group_conf.desc|lower }} get in for free!</li>
               {% elif attendee.age_discount %}

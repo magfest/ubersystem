@@ -189,7 +189,12 @@ class Root:
                 if attendee.banned:
                     raise HTTPRedirect('banned?id={}', group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
 
-                raise HTTPRedirect('hotel' if c.PREREG_HOTEL_REQUEST_ENABLED else 'index')
+                if c.PREREG_REQUEST_HOTEL_INFO_ENABLED:
+                    hotel_url = 'hotel?edit_id={}' if edit_id else 'hotel?id={}'
+                    raise HTTPRedirect(hotel_url, group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
+                else:
+                    raise HTTPRedirect('index')
+
         else:
             if edit_id is None:
                 attendee.can_spam = True    # only defaults to true for these forms
@@ -208,15 +213,23 @@ class Root:
 
     @redirect_if_at_con_to_kiosk
     @check_if_can_reg
-    @cherrypy.expose(['post_hotel'])
-    def hotel(self, session, message='', id=None, **params):
-        if not c.PREREG_HOTEL_REQUEST_ENABLED:
+    def hotel(self, session, message='', id=None, edit_id=None, requested_hotel_info=False):
+        id = edit_id or id
+        if not c.PREREG_REQUEST_HOTEL_INFO_ENABLED or not id:
             raise HTTPRedirect('form')
+        attendee, group = self._get_unsaved(id, if_not_found=HTTPRedirect('form?message={}', 'Could not find given preregistration'))
         if cherrypy.request.method == 'POST':
+            attendee.requested_hotel_info = requested_hotel_info
+            target = group if group.badges else attendee
+            track_type = c.EDITED_PREREG if target.id in Charge.unpaid_preregs else c.UNPAID_PREREG
+            Charge.unpaid_preregs[target.id] = to_sessionized(attendee, group)
             raise HTTPRedirect('index')
         return {
+            'message': message,
             'id': id,
-            'message': message
+            'edit_id': edit_id,
+            'requested_hotel_info': attendee.requested_hotel_info if edit_id else True,
+            'cart_not_empty': Charge.unpaid_preregs
         }
 
     def duplicate(self, session, id):

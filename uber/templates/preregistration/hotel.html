@@ -1,37 +1,43 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}Request Hotel Space{% endblock %}
+{% block title %}Request Hotel Booking Info{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
 
 <div class="masthead"></div>
 <div class="panel panel-default">
   <div class="panel-body">
-    {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_HOTEL_REQUEST_ENABLED) }}
+    {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_REQUEST_HOTEL_INFO_ENABLED) }}
 
-    <h2>Are you interested in requesting hotel space?</h2>
+    <h3>Would you like to be informed when hotel booking is available?</h3>
     <p>
-      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod
-      tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam,
-      quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
-      consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse
-      cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non
-      proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+      In an effort to help hotel availability, we will initially only release
+      hotel booking information to people registered for MAGFest. Checking this
+      box will put you on the list of people to receive this information before
+      it's posted publicly.
     </p>
-    <form method="post" action="post_hotel" class="form-horizontal" role="form">
+    <form method="post" action="hotel" class="form-horizontal" role="form">
       <input type="hidden" name="id" value="{{ id }}" />
 
       <div class="form-group">
         <div class="col-sm-9 col-sm-offset-3">
-          <label for="requested_hotel_space" class="checkbox-label">
-            <input type="checkbox" name="requested_hotel_space" id="requested_hotel_space" value="1" checked>
-            Yes, I want a hotel room for one or more nights
+          <label for="requested_hotel_info" class="checkbox-label">
+            <input type="checkbox" name="requested_hotel_info" id="requested_hotel_info" value="1" {% if requested_hotel_info %}checked{% endif %}>
+            Yes, tell me when hotels begin accepting reservations
           </label>
         </div>
       </div>
 
       <div class="form-group">
         <div class="col-sm-9 col-sm-offset-3">
-          <button type="submit" class="btn btn-primary" value="Add to Cart">Submit Request</button>
+          {% if edit_id %}
+            <button type="submit" class="btn btn-primary" value="Update">Update Request</button>
+          {% else %}
+            <button type="submit" class="btn btn-primary" value="Submit">Submit Request</button>
+          {% endif %}
+
+          {% if cart_not_empty %}
+            <a href="index" class="btn btn-default" value="Cancel">Cancel</a>
+          {% endif %}
         </div>
       </div>
     </form>

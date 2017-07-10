@@ -17,7 +17,7 @@
 
     <table style="width:auto" align="center">
       <tr>
-        {%- set next_page = 'hotel' if c.PREREG_HOTEL_REQUEST_ENABLED else 'index' -%}
+        {%- set next_page = 'hotel' if c.PREREG_REQUEST_HOTEL_INFO_ENABLED else 'index' -%}
         <td><a href="{{ next_page }}">I'm someone else, let me pay!</a></td>
         <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>
         <td><a href="delete?id={{ attendee.id }}">Well never mind then!</a></td>
