@@ -340,7 +340,7 @@ def notify_admins_of_any_pending_emails():
     send_email(c.STAFF_EMAIL, c.STAFF_EMAIL, subject, body, format='html', model='n/a')
 
 
-DaemonTask(notify_admins_of_any_pending_emails, interval=300, name="mail pending notification")
+# DaemonTask(notify_admins_of_any_pending_emails, interval=300, name="mail pending notification")
 
 
 def get_pending_email_data():
