@@ -513,19 +513,53 @@
     </div>
 </div>
 
-{% if c.PAGE_PATH not in ['/preregistration/form', '/preregistration/post_form'] %}
+{#- Setting some variables to keep the size of conditional clauses smaller. -#}
+{%- set is_prereg = c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form'] -%}
+{%- set is_after_deadline = c.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE -%}
+
+{% if admin_area or (not is_prereg and not is_after_deadline) %}
+  {#-
+    In both the admin area and non-preregistration forms, we will display a
+    "Request Hotel Info" label and a checkbox.
+  -#}
   <div class="form-group">
     <label for="requested_hotel_info" class="col-sm-3 control-label optional-field">Request Hotel Info</label>
     <div class="checkbox col-sm-9">
-      <label for="requested_hotel_info" class="checkbox-label">
-        <input type="checkbox" name="requested_hotel_info" id="requested_hotel_info" value="1"
-          {% if attendee.requested_hotel_info or (group and group.requested_hotel_info) %}checked{% endif %}>
+      <label for="requested_hotel_info" class="checkbox-label" {% if is_after_deadline %}title="Can&apos;t be changed after hotel booking window is closed"{% endif %}>
+        {% if is_after_deadline %}
+          {#-
+            The deadline has passed; the checkbox is readonly, and
+            requested_hotel_info retains whatever value the attendee
+            already had.
+          -#}
+          <input type="hidden" name="requested_hotel_info" id="requested_hotel_info" value="{{ '1' if attendee.requested_hotel_info else '0' }}">
+          <input type="checkbox" value="1" disabled {% if attendee.requested_hotel_info %}checked{% endif %}>
+        {% else %}
+          {#-
+            The window is still open; we are very liberal with the checked
+            state of the checkbox. Unless the attendee has explicitly marked
+            requested_hotel_info as False, we check the box for them.
+          -#}
+          <input type="checkbox" name="requested_hotel_info" id="requested_hotel_info" value="1" {% if attendee.requested_hotel_info or attendee.is_placeholder or (group and group.requested_hotel_info) %}checked{% endif %}>
+        {% endif %}
         Yes, tell me when hotels begin accepting reservations
       </label>
     </div>
   </div>
+{% elif is_after_deadline %}
+  {#-
+    The deadline has passed; requested_hotel_info retains whatever value the
+    attendee already had. This will default to False for new and placholder
+    attendees.
+  -#}
+  <input type="hidden" name="requested_hotel_info" id="requested_hotel_info" value="{{ '1' if attendee.requested_hotel_info else '0' }}" />
 {% else %}
-  <input type="hidden" name="requested_hotel_info" value="{{ '1' if (attendee.is_new and not edit_id) or attendee.requested_hotel_info else '0' }}" />
+  {#-
+    The window is still open; requested_hotel_info either retains whatever
+    value the attendee already had, or is set to True for new and placeholder
+    attendees.
+  -#}
+  <input type="hidden" name="requested_hotel_info" id="requested_hotel_info" value="{{ '1' if attendee.requested_hotel_info or attendee.is_placeholder else '0' }}" />
 {% endif %}
 
 <div class="form-group">

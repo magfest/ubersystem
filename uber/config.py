@@ -223,6 +223,25 @@ class Config(_Overridable):
         return dict(self.PREREG_DONATION_OPTS)
 
     @property
+    def PREREG_REQUEST_HOTEL_INFO_DEADLINE(self):
+        """
+        The datetime at which the "Request Hotel Info" checkbox will NO LONGER
+        be shown during preregistration.
+        """
+        duration = timedelta(seconds=self.PREREG_REQUEST_HOTEL_INFO_DURATION)
+        return self.PREREG_OPEN + duration
+
+    @property
+    def PREREG_REQUEST_HOTEL_INFO_ENABLED(self):
+        """
+        Boolean which indicates whether the "Request Hotel Info" checkbox is
+        enabled during preregistration.
+        """
+        if self.PREREG_REQUEST_HOTEL_INFO_DURATION <= 0:
+            return False
+        return not c.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE
+
+    @property
     def AT_THE_DOOR_BADGE_OPTS(self):
         """
         This provides the dropdown on the /registration/register page with its

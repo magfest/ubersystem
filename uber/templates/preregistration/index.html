@@ -71,7 +71,7 @@
           <td>
             <ul style="padding-left:15px">
               <li>Membership for {{ c.EVENT_NAME }}</li>
-              {% if attendee.requested_hotel_info %}
+              {% if c.PREREG_REQUEST_HOTEL_INFO_ENABLED and attendee.requested_hotel_info %}
                 <li>Requested hotel booking info</li>
               {% endif %}
               {% if not attendee.default_cost and attendee.age_discount and not attendee.promo_code %}
@@ -100,7 +100,7 @@
           <td>
             <ul>
               <li>{{ group.badges }} badges</li>
-              {% if group.requested_hotel_info %}
+              {% if c.PREREG_REQUEST_HOTEL_INFO_ENABLED and group.requested_hotel_info %}
                 <li>Requested hotel booking info</li>
               {% endif %}
               {% for swag in group.attendees.0.donation_swag|list + group.addons|list %}

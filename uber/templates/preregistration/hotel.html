@@ -18,9 +18,10 @@
     {% if is_group_leader %}
       <p>
         As a group leader, make sure your group members claim their badges so
-        they also receive the email.
+        they can opt-in to also receive the email.
       </p>
     {% endif %}
+    <p class="help-block"><i>Note: this does not guarantee hotel availability.</i></p>
     <form method="post" action="hotel" class="form-horizontal" role="form">
       <input type="hidden" name="id" value="{{ id }}" />
 
