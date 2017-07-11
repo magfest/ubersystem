@@ -228,7 +228,7 @@ class Config(_Overridable):
         The datetime at which the "Request Hotel Info" checkbox will NO LONGER
         be shown during preregistration.
         """
-        duration = timedelta(seconds=self.PREREG_REQUEST_HOTEL_INFO_DURATION)
+        duration = timedelta(hours=self.PREREG_REQUEST_HOTEL_INFO_DURATION)
         return self.PREREG_OPEN + duration
 
     @property
