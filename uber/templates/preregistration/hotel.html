@@ -15,6 +15,12 @@
       box will put you on the list of people to receive this information before
       it's posted publicly.
     </p>
+    {% if is_group_leader %}
+      <p>
+        As a group leader, make sure your group members claim their badges so
+        they also receive the email.
+      </p>
+    {% endif %}
     <form method="post" action="hotel" class="form-horizontal" role="form">
       <input type="hidden" name="id" value="{{ id }}" />
 
@@ -33,10 +39,6 @@
             <button type="submit" class="btn btn-primary" value="Update">Update Request</button>
           {% else %}
             <button type="submit" class="btn btn-primary" value="Submit">Submit Request</button>
-          {% endif %}
-
-          {% if cart_not_empty %}
-            <a href="index" class="btn btn-default" value="Cancel">Cancel</a>
           {% endif %}
         </div>
       </div>

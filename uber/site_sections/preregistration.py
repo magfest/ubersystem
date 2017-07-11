@@ -190,16 +190,18 @@ class Root:
                     raise HTTPRedirect('banned?id={}', group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
 
                 if c.PREREG_REQUEST_HOTEL_INFO_ENABLED:
-                    hotel_url = 'hotel?edit_id={}' if edit_id else 'hotel?id={}'
-                    raise HTTPRedirect(hotel_url, group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
+                    hotel_page = 'hotel?edit_id={}' if edit_id else 'hotel?id={}'
+                    raise HTTPRedirect(hotel_page, group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
                 else:
                     raise HTTPRedirect('index')
 
         else:
             if edit_id is None:
                 attendee.can_spam = True    # only defaults to true for these forms
-            if attendee.badge_type == c.PSEUDO_DEALER_BADGE and c.AFTER_DEALER_REG_DEADLINE:
-                message = 'Dealer registration is closed, but you can fill out this form to add yourself to our waitlist'
+            if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
+                attendee.requested_hotel_info = True
+                if c.AFTER_DEALER_REG_DEADLINE:
+                    message = 'Dealer registration is closed, but you can fill out this form to add yourself to our waitlist'
 
         return {
             'message':    message,
@@ -215,9 +217,18 @@ class Root:
     @check_if_can_reg
     def hotel(self, session, message='', id=None, edit_id=None, requested_hotel_info=False):
         id = edit_id or id
-        if not c.PREREG_REQUEST_HOTEL_INFO_ENABLED or not id:
+        if not id:
             raise HTTPRedirect('form')
-        attendee, group = self._get_unsaved(id, if_not_found=HTTPRedirect('form?message={}', 'Could not find given preregistration'))
+
+        if not c.PREREG_REQUEST_HOTEL_INFO_ENABLED:
+            if cherrypy.request.method == 'POST':
+                raise HTTPRedirect('index?message={}', 'Requests for hotel booking info have already been closed')
+            else:
+                raise HTTPRedirect('form?edit_id={}', id)
+
+        attendee, group = self._get_unsaved(id, if_not_found=HTTPRedirect('form?message={}', 'Could not find the given preregistration'))
+        is_group_leader = not attendee.is_unassigned and len(group.attendees) > 0
+
         if cherrypy.request.method == 'POST':
             attendee.requested_hotel_info = requested_hotel_info
             target = group if group.badges else attendee
@@ -228,8 +239,8 @@ class Root:
             'message': message,
             'id': id,
             'edit_id': edit_id,
-            'requested_hotel_info': attendee.requested_hotel_info if edit_id else True,
-            'cart_not_empty': Charge.unpaid_preregs
+            'is_group_leader': is_group_leader,
+            'requested_hotel_info': attendee.requested_hotel_info if edit_id else True
         }
 
     def duplicate(self, session, id):

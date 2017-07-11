@@ -100,6 +100,9 @@
           <td>
             <ul>
               <li>{{ group.badges }} badges</li>
+              {% if group.requested_hotel_info %}
+                <li>Requested hotel booking info</li>
+              {% endif %}
               {% for swag in group.attendees.0.donation_swag|list + group.addons|list %}
                 <li>{{ swag }}</li>
               {% endfor %}

@@ -517,7 +517,11 @@
   <div class="form-group">
     <label for="requested_hotel_info" class="col-sm-3 control-label optional-field">Request Hotel Info</label>
     <div class="checkbox col-sm-9">
-      {{ macros.checkbox(attendee, 'requested_hotel_info', label='Yes, tell me when hotels begin accepting reservations') }}
+      <label for="requested_hotel_info" class="checkbox-label">
+        <input type="checkbox" name="requested_hotel_info" id="requested_hotel_info" value="1"
+          {% if attendee.requested_hotel_info or (group and group.requested_hotel_info) %}checked{% endif %}>
+        Yes, tell me when hotels begin accepting reservations
+      </label>
     </div>
   </div>
 {% else %}
