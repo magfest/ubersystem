@@ -1,0 +1,9 @@
+{{ attendee.first_name }},
+
+You've expressed interest in booking a hotel room for {{ c.EVENT_NAME }}!
+
+{{ c.PREREG_HOTEL_INFO_LINK }}
+
+Please let us know if you have any questions.
+
+{{ c.REGDESK_EMAIL_SIGNATURE }}

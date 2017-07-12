@@ -189,7 +189,7 @@ class Root:
                 if attendee.banned:
                     raise HTTPRedirect('banned?id={}', group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
 
-                if c.PREREG_REQUEST_HOTEL_INFO_ENABLED:
+                if c.PREREG_REQUEST_HOTEL_INFO_OPEN:
                     hotel_page = 'hotel?edit_id={}' if edit_id else 'hotel?id={}'
                     raise HTTPRedirect(hotel_page, group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
                 else:
@@ -221,7 +221,7 @@ class Root:
         if not id:
             raise HTTPRedirect('form')
 
-        if not c.PREREG_REQUEST_HOTEL_INFO_ENABLED:
+        if not c.PREREG_REQUEST_HOTEL_INFO_OPEN:
             if cherrypy.request.method == 'POST':
                 raise HTTPRedirect('index?message={}', 'Requests for hotel booking info have already been closed')
             else:

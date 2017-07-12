@@ -87,8 +87,8 @@
 {%- endmacro %}
 
 
-{% macro prereg_wizard(page_path, prereg_request_hotel_info_enabled) -%}
-  {%- if prereg_request_hotel_info_enabled -%}
+{% macro prereg_wizard(page_path, prereg_request_hotel_info_open) -%}
+  {%- if prereg_request_hotel_info_open -%}
     {%-
       set steps = [
           (('form', 'post_form'), 'Enter Info'),
