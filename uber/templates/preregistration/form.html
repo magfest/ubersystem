@@ -9,37 +9,11 @@
     {% if attendee.is_dealer %}
       <h2 class="text-center">Dealer Application</h2>
     {% else %}
-    <div class="row bs-wizard">
-        <div class="col-xs-4 bs-wizard-step active">
-            <div class="text-center bs-wizard-stepnum">Step 1</div>
-            <div class="progress">
-                <div class="progress-bar"></div>
-            </div>
-            <a class="bs-wizard-dot"></a>
-            <div class="bs-wizard-info text-center">Enter Info</div>
-        </div>
-        <div class="col-xs-4 bs-wizard-step disabled">
-            <div class="text-center bs-wizard-stepnum">Step 2</div>
-            <div class="progress">
-                <div class="progress-bar"></div>
-            </div>
-            <a class="bs-wizard-dot"></a>
-            <div class="bs-wizard-info text-center">Review &amp; Pay</div>
-        </div>
-        <div class="col-xs-4 bs-wizard-step disabled">
-            <div class="text-center bs-wizard-stepnum">Step 3</div>
-            <div class="progress">
-                <div class="progress-bar"></div>
-            </div>
-            <a class="bs-wizard-dot"></a>
-            <div class="bs-wizard-info text-center">Done</div>
-        </div>
-    </div>
+      {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_REQUEST_HOTEL_INFO_ENABLED) }}
 
-    <div class="form-horizontal">
-
-    {% if c.DEV_BOX %}
-        <div class="form-group row">
+      <div class="form-horizontal">
+        {% if c.DEV_BOX %}
+          <div class="form-group row">
             <p class="col-sm-9 col-sm-offset-3">
                 <strong> You are on a development box.
                     {% if c.BADGES_SOLD >= c.MAX_BADGE_SALES %}
@@ -51,11 +25,11 @@
                     {% endif %}
                 </strong>
             </p>
-        </div>
-    {% endif %}
+          </div>
+        {% endif %}
 
-    {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.BEFORE_DEALER_REG_SHUTDOWN %}
-        <div class="form-group row">
+        {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.BEFORE_DEALER_REG_SHUTDOWN %}
+          <div class="form-group row">
             <p class="col-sm-9 col-sm-offset-3">
                 <strong>Dealers:</strong>
                 {% if c.BEFORE_DEALER_REG_PUBLIC %}
@@ -64,14 +38,14 @@
                     Please register <a href="dealer_registration">here</a>.
                 {% endif %}
             </p>
-        </div>
-    {% endif %}
+          </div>
+        {% endif %}
 
-      <div class="form-group" id="reg-types">
+        <div class="form-group" id="reg-types">
           <label class="col-sm-3 control-label">Registration Type</label>
+        </div>
       </div>
-    </div>
-{% endif %}
+    {% endif %}
 
 {#- The action is set to "post_form" in order to bypass the NGINX cache. -#}
 <form method="post" action="post_form" class="form-horizontal" role="form">

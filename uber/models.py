@@ -1208,6 +1208,17 @@ class Group(MagModel, TakesPaymentMixin):
         else:
             return c.MIN_GROUP_ADDITION
 
+    @property
+    def requested_hotel_info(self):
+        if self.leader:
+            return self.leader.requested_hotel_info
+        elif self.leader_id:  # unattached groups
+            for attendee in self.attendees:
+                if attendee.id == self.leader_id:
+                    return attendee.requested_hotel_info
+        else:
+            return any(a.requested_hotel_info for a in self.attendees)
+
 
 class Attendee(MagModel, TakesPaymentMixin):
     watchlist_id = Column(UUID, ForeignKey('watch_list.id', ondelete='set null'), nullable=True, default=None)
@@ -1251,6 +1262,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     ec_name       = Column(UnicodeText)
     ec_phone      = Column(UnicodeText)
     cellphone     = Column(UnicodeText)
+
+    # Represents a request for hotel booking info during preregistration
+    requested_hotel_info = Column(Boolean, default=False)
 
     interests   = Column(MultiChoice(c.INTEREST_OPTS))
     found_how   = Column(UnicodeText)
