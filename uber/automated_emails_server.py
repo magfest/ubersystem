@@ -340,7 +340,8 @@ def notify_admins_of_any_pending_emails():
     send_email(c.STAFF_EMAIL, c.STAFF_EMAIL, subject, body, format='html', model='n/a')
 
 
-# DaemonTask(notify_admins_of_any_pending_emails, interval=300, name="mail pending notification")
+# 86400 seconds = 1 day = 24 hours * 60 minutes * 60 seconds
+DaemonTask(notify_admins_of_any_pending_emails, interval=86400, name="mail pending notification")
 
 
 def get_pending_email_data():
