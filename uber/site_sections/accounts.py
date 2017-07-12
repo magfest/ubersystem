@@ -43,7 +43,8 @@ class Root:
             if account.is_new and not c.AT_OR_POST_CON:
                 body = render('emails/accounts/new_account.txt', {
                     'account': account,
-                    'password': password
+                    'password': password,
+                    'creator': AdminAccount.admin_name()
                 })
                 send_email(c.ADMIN_EMAIL, session.attendee(account.attendee_id).email, 'New ' + c.EVENT_NAME + ' Ubersystem Account', body)
 
