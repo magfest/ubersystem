@@ -1,4 +1,11 @@
 {% import 'macros.html' as macros %}
+
+{#- Setting some variables to keep the size of conditional clauses smaller. -#}
+{%- set is_prereg_form = c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form'] -%}
+{%- set is_prereg_dealer = c.PAGE_PATH in ['/preregistration/dealer_registration'] -%}
+{%- set is_prereg_confirm_email_enabled = (is_prereg_form or is_prereg_dealer) and c.PREREG_CONFIRM_EMAIL_ENABLED -%}
+{%- set is_after_hotel_deadline = c.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE -%}
+
 <script src="../static/deps/selectToAutocomplete/jquery.select-to-autocomplete.js"></script>
 <script type="text/javascript">
     var AGE_GROUPS = {{ c.AGE_GROUP_CONFIGS|jsonize }};
@@ -415,9 +422,18 @@
 <div class="form-group">
     <label for="email" class="col-sm-3 control-label">Email Address</label>
     <div class="col-sm-6">
-        <input type="email" type="email" name="email" id="email" value="{{ attendee.email }}" class="form-control" placeholder="Email Address">
+        <input type="email" name="email" id="email" value="{{ attendee.email }}" class="form-control" placeholder="Email Address">
     </div>
 </div>
+
+{% if is_prereg_confirm_email_enabled %}
+  <div class="form-group">
+      <label for="confirm_email" class="col-sm-3 control-label">Confirm Email</label>
+      <div class="col-sm-6">
+          <input type="email" name="confirm_email" id="confirm_email" value="{{ attendee.email }}" class="form-control" placeholder="Confirm your email address">
+      </div>
+  </div>
+{% endif %}
 
 {% if c.COLLECT_FULL_ADDRESS %}
     <div class="form-group address_details">
@@ -511,11 +527,7 @@
     </div>
 </div>
 
-{#- Setting some variables to keep the size of conditional clauses smaller. -#}
-{%- set is_prereg = c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form'] -%}
-{%- set is_after_deadline = c.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE -%}
-
-{% if admin_area or (not is_prereg and not is_after_deadline) %}
+{% if admin_area or (not is_prereg_form and not is_after_hotel_deadline) %}
   {#-
     In both the admin area and non-preregistration forms, we will display a
     "Request Hotel Info" label and a checkbox.
@@ -523,8 +535,8 @@
   <div class="form-group">
     <label for="requested_hotel_info" class="col-sm-3 control-label optional-field">Request Hotel Info</label>
     <div class="checkbox col-sm-9">
-      <label for="requested_hotel_info" class="checkbox-label" {% if is_after_deadline %}title="Can&apos;t be changed after hotel booking window is closed"{% endif %}>
-        {% if is_after_deadline %}
+      <label for="requested_hotel_info" class="checkbox-label" {% if is_after_hotel_deadline %}title="Can&apos;t be changed after hotel booking window is closed"{% endif %}>
+        {% if is_after_hotel_deadline %}
           {#-
             The deadline has passed; the checkbox is readonly, and
             requested_hotel_info retains whatever value the attendee
@@ -544,7 +556,7 @@
       </label>
     </div>
   </div>
-{% elif is_after_deadline %}
+{% elif is_after_hotel_deadline %}
   {#-
     The deadline has passed; requested_hotel_info retains whatever value the
     attendee already had. This will default to False for new and placholder
@@ -610,5 +622,21 @@
                 });
             }
         });
+    {% endif %}
+
+    {% if is_prereg_confirm_email_enabled %}
+      $(function () {
+        $('form[action="post_form"]').validate({
+          rules: {
+            email: 'required',
+            confirm_email: { equalTo: '#email' }
+          },
+          messages: {
+            confirm_email: {
+              equalTo: 'Please make sure the email addresses match.'
+            }
+          }
+        });
+      });
     {% endif %}
 </script>
