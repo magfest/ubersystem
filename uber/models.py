@@ -2631,6 +2631,13 @@ class Email(MagModel):
             return self.fk.full_name
 
     @property
+    def rcpt_current_email(self):
+        if self.model == 'Group':
+            return self.fk.leader.email
+        else:
+            return self.fk.email
+
+    @property
     def is_html(self):
         return '<body' in self.body
 

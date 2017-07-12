@@ -56,7 +56,7 @@ class AutomatedEmail:
         """
         Given a model instance, return an email subject email for that instance.
         By default this just returns the default subject unmodified; this method
-        exists only to be overriden in subclasses.  For example, we might want
+        exists only to be overridden in subclasses.  For example, we might want
         our panel email subjects to contain the name of the panel.
         """
         return self.subject
