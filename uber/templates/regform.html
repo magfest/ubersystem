@@ -256,9 +256,6 @@
                             width: '100%',
                         }).val({{ attendee.affiliate|default('')|jsonize }}).trigger('change');
                     }
-                    $('form').submit(function(){
-                        $(':submit').attr('value', 'Uploading Preregistration...').attr('disabled', true);
-                    });
                 }
             });
         </script>
@@ -624,19 +621,23 @@
         });
     {% endif %}
 
-    {% if is_prereg_confirm_email_enabled %}
-      $(function () {
-        $('form[action="post_form"]').validate({
+    $(function () {
+      $('form').validate({
+        {% if is_prereg_confirm_email_enabled %}
           rules: {
-            email: 'required',
             confirm_email: { equalTo: '#email' }
           },
           messages: {
             confirm_email: {
               equalTo: 'Please make sure the email addresses match.'
             }
-          }
-        });
+          },
+        {% endif %}
+        submitHandler: function(form) {
+          // The form is already validated at this point
+          $('form :submit').attr('disabled', true);
+          form.submit();
+        }
       });
-    {% endif %}
+    });
 </script>
