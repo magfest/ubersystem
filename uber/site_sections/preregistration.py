@@ -197,12 +197,18 @@ class Root:
 
         else:
             if edit_id is None:
-                attendee.can_spam = True    # only defaults to true for these forms
-            if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
-                if not c.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE:
+                attendee.can_spam = True  # Only defaults to True on new forms, not edit forms
+                if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
+                    # All new dealer signups should default to receiving the
+                    # hotel info email, even if the deadline has passed.
+                    # There's a good chance some dealers will apply for a table
+                    # AFTER the hotel booking deadline, but BEFORE the hotel
+                    # booking is sent out. This ensures they'll still receive
+                    # the email, as requested by the Marketplace Department.
                     attendee.requested_hotel_info = True
-                if c.AFTER_DEALER_REG_DEADLINE:
-                    message = 'Dealer registration is closed, but you can fill out this form to add yourself to our waitlist'
+
+            if attendee.badge_type == c.PSEUDO_DEALER_BADGE and c.AFTER_DEALER_REG_DEADLINE:
+                message = 'Dealer registration is closed, but you can fill out this form to add yourself to our waitlist'
 
         return {
             'message':    message,
