@@ -1051,7 +1051,6 @@ class Group(MagModel, TakesPaymentMixin):
     public_id       = Column(UUID, default=lambda: str(uuid4()))
     name            = Column(UnicodeText)
     tables          = Column(Numeric, default=0)
-    address         = Column(UnicodeText)
     zip_code        = Column(UnicodeText)
     address1        = Column(UnicodeText)
     address2        = Column(UnicodeText)

@@ -57,7 +57,7 @@ def dealer_description(group):
 
 @prereg_validation.Group
 def dealer_address(group):
-    if group.tables and not group.address and not c.COLLECT_FULL_ADDRESS:
+    if group.tables and not (group.address1 and group.city and group.region and group.country and group.zip_code):
         "Please provide your full address for tax purposes"
 
 

@@ -169,7 +169,7 @@ class Root:
                     group.name,
                     group.description,
                     group.website,
-                    group.address,
+                    group.address1,
                     group.tables,
                     group.amount_paid,
                     group.cost,
