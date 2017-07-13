@@ -119,109 +119,109 @@
   </div>
 {%- endmacro %}
 
-{% macro address_form(group=False, attendee=False, is_prereg_dealer=False, copy_address=False) -%}
-    {% set name_prefix='group_' if group and attendee else '' %}
+{% macro address_form(group=False, attendee=False, is_prereg_dealer=False, copy_address=False, name_prefix="") -%}
     {% set group_or_attendee=group if group else attendee %}
+    {% set id_prefix=group.id|replace("-","") if group else attendee.id|replace("-","") %}
     {% if not is_prereg_dealer %}
         <script src="../static/deps/selectToAutocomplete/jquery.select-to-autocomplete.js"></script>
         <script type="text/javascript">{% include "region_opts.html" %}</script>
     {% endif %}
     <script type="text/javascript">
-        var {{ name_prefix }}regionChange = function() {
+        var regionChange{{ id_prefix }} = function() {
             {{ 'setInternational();' if not group else '' }}
 
-            var regionopts = $("[name='{{ name_prefix }}region']");
-            var whichCountry = $.field("{{ name_prefix }}country").find(':selected').text();
+            var regionopts = $("#{{ id_prefix }}region");
+            var whichCountry = $("#{{ id_prefix }}country").find(':selected').text();
             switch(whichCountry) {
                 case 'United States':
-                    regionopts.replaceWith('<select name="{{ name_prefix }}region" class="form-control"></select>');
+                    regionopts.replaceWith('<select name="{{ name_prefix }}region" id="{{ id_prefix }}region" class="form-control"></select>');
                     $("[name='{{ name_prefix }}region']").html(regionsforUS);
                     break;
                 case 'Canada':
-                    regionopts.replaceWith('<select name="{{ name_prefix }}region" class="form-control"></select>');
+                    regionopts.replaceWith('<select name="{{ name_prefix }}region" id="{{ id_prefix }}region" class="form-control"></select>');
                     $("[name='{{ name_prefix }}region']").html(regionsforCanada);
                     break;
             }
-            var optionToSelect = $("select[name='{{ name_prefix }}region'] option[value='{{ group_or_attendee.region }}']");
-            if (optionToSelect.length) {
-                optionToSelect.prop('selected', true)
+            var optionToSelect{{ id_prefix }} = $("#{{ id_prefix }}region option[value='{{ group_or_attendee.region }}']");
+            if (optionToSelect{{ id_prefix }}.length) {
+                optionToSelect{{ id_prefix }}.prop('selected', true)
             }
         };
 
         $(function() {
             {{ 'setInternational();' if not group else '' }}
-            $.field("{{ name_prefix }}country").val('{{ group_or_attendee.country }}');
-            $.field("{{ name_prefix }}country").selectToAutocomplete();
-            $.field("{{ name_prefix }}country").change(function() {
-                $("[name='{{ name_prefix }}region']").replaceWith('<input type="text" name="{{ name_prefix }}region" value="{{ group_or_attendee.region }}" class="form-control" placeholder="State/Province">');
-                {{ name_prefix }}regionChange();
+            $("#{{ id_prefix }}country").val('{{ group_or_attendee.country }}');
+            $("#{{ id_prefix }}country").selectToAutocomplete();
+            $("#{{ id_prefix }}country").change(function() {
+                $("#{{ id_prefix }}region").replaceWith('<input type="text" name="{{ name_prefix }}region" id="{{ id_prefix }}region" value="{{ group_or_attendee.region }}" class="form-control" placeholder="State/Province">');
+                regionChange{{ id_prefix }}();
             });
 
-            $.field("{{ name_prefix }}region").val('{{ group_or_attendee.region }}');
-            {{ name_prefix }}regionChange();
+            $("#{{ id_prefix }}region").val('{{ group_or_attendee.region }}');
+            regionChange{{ id_prefix }}();
         });
     </script>
 
     {% if is_prereg_dealer %}
         <script type="text/javascript">
-        var copyAddress = function () {
-            if ($("#copy_address").prop('checked')) {
-                $('.address_details').hide();
-            } else if ($("#copy_address").length) {
-                $('.address_details').show();
+        var copyAddress{{ id_prefix }} = function () {
+            if ($("#{{ id_prefix }}copy_address").prop('checked')) {
+                $('.{{ id_prefix }}address_details').hide();
+            } else if ($("#{{ id_prefix }}copy_address").length) {
+                $('.{{ id_prefix }}address_details').show();
             }
         };
         $(function () {
-            if ($('#copy_address').length) {
-                copyAddress();
-                $('#copy_address').change(copyAddress);
+            if ($('#{{ id_prefix }}copy_address').length) {
+                copyAddress{{ id_prefix }}();
+                $('#{{ id_prefix }}copy_address').change(copyAddress{{ id_prefix }});
             }
         })
         </script>
         <div class="form-group">
             <div class="col-sm-6 col-sm-offset-3">
-                <label for="copy_address" class="checkbox-label">
-                    <input type="checkbox" name="copy_address" id="copy_address" value="1" {% if copy_address %}checked="checked"{% endif %} />
+                <label for="{{ id_prefix }}copy_address" class="checkbox-label">
+                    <input type="checkbox" name="copy_address" id="{{ id_prefix }}copy_address" value="1" {% if copy_address %}checked="checked"{% endif %} />
                     Use my business address for my personal address.
                 </label>
             </div>
         </div>
     {% endif %}
 
-    <div class="form-group {{ name_prefix }}address_details">
-        <label for="{{ name_prefix }}country" class="col-sm-3 control-label">Country</label>
+    <div class="form-group {{ id_prefix }}address_details">
+        <label for="{{ id_prefix }}country" class="col-sm-3 control-label">Country</label>
         <div class="col-sm-6">
-            <select name="{{ name_prefix }}country" class="form-control" placeholder="Country" autofocus="autofocus" autocorrect="off" autocomplete="country">
+            <select name="{{ name_prefix }}country" id="{{ id_prefix }}country" class="form-control" placeholder="Country" autofocus="autofocus" autocorrect="off" autocomplete="country">
                 {% include "country_opts.html" %}
             </select>
         </div>
     </div>
-    <div class="form-group {{ name_prefix }}address_details">
-        <label for="{{ name_prefix }}address1" class="col-sm-3 control-label">Street</label>
+    <div class="form-group {{ id_prefix }}address_details">
+        <label for="{{ id_prefix }}address1" class="col-sm-3 control-label">Street</label>
         <div class="col-sm-6">
             <input type="text" name="{{ name_prefix }}address1" class="form-control" placeholder="Address Line 1" value="{{ group_or_attendee.address1 }}" />
         </div>
     </div>
-    <div class="form-group {{ name_prefix }}address_details">
-        <label for="{{ name_prefix }}address2" class="col-sm-3 control-label"></label>
+    <div class="form-group {{ id_prefix }}address_details">
+        <label for="{{ id_prefix }}address2" class="col-sm-3 control-label"></label>
         <div class="col-sm-6">
             <input type="text" name="{{ name_prefix }}address2" class="form-control" placeholder="Address Line 2" value="{{ group_or_attendee.address2 }}" />
         </div>
     </div>
-    <div class="form-group {{ name_prefix }}address_details">
-        <label for="{{ name_prefix }}city" class="col-sm-3 control-label">City</label>
+    <div class="form-group {{ id_prefix }}address_details">
+        <label for="{{ id_prefix }}city" class="col-sm-3 control-label">City</label>
         <div class="col-sm-6">
             <input type="text" name="{{ name_prefix }}city" class="form-control" placeholder="City" value="{{ group_or_attendee.city }}" />
         </div>
     </div>
-    <div class="form-group {{ name_prefix }}address_details">
-        <label for="{{ name_prefix }}region" class="col-sm-3 control-label">State/Region</label>
+    <div class="form-group {{ id_prefix }}address_details">
+        <label for="{{ id_prefix }}region" class="col-sm-3 control-label">State/Region</label>
         <div class="col-sm-6">
-            <input type="text" name="{{ name_prefix }}region" class="form-control" placeholder="State/Province" value="{{ group_or_attendee.region }}" autocomplete="address-level1" />
+            <input type="text" name="{{ name_prefix }}region" id="{{ id_prefix }}region" class="form-control" placeholder="State/Province" value="{{ group_or_attendee.region }}" autocomplete="address-level1" />
         </div>
     </div>
-    <div class="form-group {{ name_prefix }}address_details">
-        <label for="{{ name_prefix }}zip_code" class="col-sm-3 control-label">ZIP/Postal Code</label>
+    <div class="form-group {{ id_prefix }}address_details">
+        <label for="{{ id_prefix }}zip_code" class="col-sm-3 control-label">ZIP/Postal Code</label>
         <div class="col-sm-6">
             <input type="text" name="{{ name_prefix }}zip_code" class="form-control" value="{{ group_or_attendee.zip_code }}"/>
         </div>

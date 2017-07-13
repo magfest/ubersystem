@@ -397,7 +397,6 @@
 {% endif %}
 
 {% if c.COLLECT_FULL_ADDRESS %}
-    {% set address_form=True %}
     {{ macros.address_form(attendee=attendee, is_prereg_dealer=is_prereg_dealer, copy_address=copy_address) }}
     <div class="checkbox col-sm-6 col-sm-offset-3">
         {{ macros.checkbox(attendee, 'international', label="I'm coming from outside the US.") }}
