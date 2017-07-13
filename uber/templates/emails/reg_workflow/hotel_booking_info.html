@@ -1,0 +1,22 @@
+<html>
+<head></head>
+<body>
+
+<p>{{ attendee.first_name }},</p>
+
+<p>
+You've expressed interest in booking a hotel room for {{ c.EVENT_NAME }} this
+coming {{ event_dates() }}. Follow the link below to book a room before they
+sell out:
+</p>
+
+<p><a href="{{ c.PREREG_HOTEL_INFO_LINK }}">{{ c.PREREG_HOTEL_INFO_LINK }}</a></p>
+
+<p>This email does not guarantee room availability.</p>
+
+<p>Please let us know if you have any questions.</p>
+
+<p>{{ c.REGDESK_EMAIL_SIGNATURE }}</p>
+
+</body>
+</html>
