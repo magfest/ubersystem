@@ -1,2 +1,2 @@
-"{{ group.name }}" has just applied for a Dealer registration{% if c.AFTER_DEALER_REG_DEADLINE %} and was automatically waitlisted{% endif %}:
+"{{ group.name }}" has just applied for a Dealer registration{% if c.DEALER_REG_SOFT_CLOSED %} and was automatically waitlisted{% endif %}:
 {{ c.URL_BASE }}/groups/form?id={{ group.id }}

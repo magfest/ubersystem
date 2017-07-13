@@ -160,7 +160,7 @@ class Root:
                         attendee.badge_type = c.ATTENDEE_BADGE
                         group.tables = 0
                     elif attendee.badge_type == c.PSEUDO_DEALER_BADGE:
-                        group.status = c.WAITLISTED if c.AFTER_DEALER_REG_DEADLINE else c.UNAPPROVED
+                        group.status = c.WAITLISTED if c.DEALER_REG_SOFT_CLOSED else c.UNAPPROVED
                         attendee.ribbon = c.DEALER_RIBBON
                         attendee.badge_type = c.ATTENDEE_BADGE
 
@@ -201,7 +201,7 @@ class Root:
             if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                 if not c.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE:
                     attendee.requested_hotel_info = True
-                if c.AFTER_DEALER_REG_DEADLINE:
+                if c.DEALER_REG_SOFT_CLOSED:
                     message = 'Dealer registration is closed, but you can fill out this form to add yourself to our waitlist'
 
         return {
