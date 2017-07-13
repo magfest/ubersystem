@@ -118,3 +118,76 @@
     {%- endfor %}
   </div>
 {%- endmacro %}
+
+{% macro address_form(group=False, attendee=False, maybe_collision=False) -%}
+    {% set name_prefix='group_' if group and maybe_collision else '' %}
+    <script type="text/javascript">
+
+        var {{ name_prefix }}regionChange = function() {
+            {{ 'setInternational();' if not group else '' }}
+
+            var regionopts = $("[name='{{ name_prefix }}region']");
+            var whichCountry = $.field("{{ name_prefix }}country").find(':selected').text();
+            switch(whichCountry) {
+                case 'United States':
+                    regionopts.replaceWith('<select name="{{ name_prefix }}region" class="form-control"></select>');
+                    $("[name='{{ name_prefix }}region']").html(regionsforUS);
+                    break;
+                case 'Canada':
+                    regionopts.replaceWith('<select name="{{ name_prefix }}region" class="form-control"></select>');
+                    $("[name='{{ name_prefix }}region']").html(regionsforCanada);
+                    break;
+            }
+            var optionToSelect = $("select[name='{{ name_prefix }}region'] option[value='{{ group.region if group else attendee.region }}']");
+            if (optionToSelect.length) {
+                optionToSelect.prop('selected', true)
+            }
+        };
+
+        $(function() {
+            {{ 'setInternational();' if not group else '' }}
+            $.field("{{ name_prefix }}country").val('{{ group.country if group else attendee.country }}');
+            $.field("{{ name_prefix }}country").selectToAutocomplete();
+            $.field("{{ name_prefix }}country").change(function() {
+                $("[name='{{ name_prefix }}region']").replaceWith('<input type="text" name="{{ name_prefix }}region" value="{{ group.region if group else attendee.region }}" class="form-control" placeholder="State/Province">');
+                {{ name_prefix }}regionChange();
+            });
+
+            $.field("{{ name_prefix }}region").val('{{ group.region if group else attendee.region }}');
+            {{ name_prefix }}regionChange();
+        });
+    </script>
+
+    <div class="form-group address_details">
+        <label for="{{ name_prefix }}country" class="col-sm-3 control-label">Country</label>
+        <div class="col-sm-6">
+            <select name="{{ name_prefix }}country" class="form-control" placeholder="Country" autofocus="autofocus" autocorrect="off" autocomplete="country">
+                {% include "country_opts.html" %}
+            </select>
+        </div>
+    </div>
+    <div class="form-group address_details">
+        <label for="{{ name_prefix }}address1" class="col-sm-3 control-label">Street</label>
+        <div class="col-sm-6">
+            <input type="text" name="{{ name_prefix }}address1" class="form-control" placeholder="Address Line 1" value="{{ group.address1 if group else attendee.address1 }}" />
+        </div>
+    </div>
+    <div class="form-group address_details">
+        <label for="{{ name_prefix }}address2" class="col-sm-3 control-label"></label>
+        <div class="col-sm-6">
+            <input type="text" name="{{ name_prefix }}address2" class="form-control" placeholder="Address Line 2" value="{{ group.address2 if group else attendee.address2 }}" />
+        </div>
+    </div>
+    <div class="form-group address_details">
+        <label for="{{ name_prefix }}city" class="col-sm-3 control-label">City</label>
+        <div class="col-sm-6">
+            <input type="text" name="{{ name_prefix }}city" class="form-control" placeholder="City" value="{{ group.city if group else attendee.city }}" />
+        </div>
+    </div>
+    <div class="form-group address_details">
+        <label for="{{ name_prefix }}region" class="col-sm-3 control-label">State/Region</label>
+        <div class="col-sm-6">
+            <input type="text" name="{{ name_prefix }}region" class="form-control" placeholder="State/Province" value="{{ group.region if group else attendee.region }}" autocomplete="address-level1" />
+        </div>
+    </div>
+{%- endmacro %}

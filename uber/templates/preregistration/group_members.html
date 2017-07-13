@@ -42,6 +42,8 @@
 <div class="panel panel-default">
   <div class="panel-body">
     {% if group.is_dealer %}
+        <script type="text/javascript">{% include "region_opts.html" %}</script>
+        <script src="../static/deps/selectToAutocomplete/jquery.select-to-autocomplete.js"></script>
       <h2>"{{ group.name }}" Information</h2>
       <form method="post" action="group_members" class="form-horizontal" role="form">
         <input type="hidden" name="id" value="{{ group.id }}" />
