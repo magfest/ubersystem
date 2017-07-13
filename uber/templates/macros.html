@@ -119,7 +119,7 @@
   </div>
 {%- endmacro %}
 
-{% macro address_form(group=False, attendee=False, is_prereg_dealer=False) -%}
+{% macro address_form(group=False, attendee=False, is_prereg_dealer=False, copy_address=False) -%}
     {% set name_prefix='group_' if group and attendee else '' %}
     {% set group_or_attendee=group if group else attendee %}
     {% if not is_prereg_dealer %}
@@ -162,7 +162,33 @@
         });
     </script>
 
-    <div class="form-group address_details">
+    {% if is_prereg_dealer %}
+        <script type="text/javascript">
+        var copyAddress = function () {
+            if ($("#copy_address").prop('checked')) {
+                $('.address_details').hide();
+            } else if ($("#copy_address").length) {
+                $('.address_details').show();
+            }
+        };
+        $(function () {
+            if ($('#copy_address').length) {
+                copyAddress();
+                $('#copy_address').change(copyAddress);
+            }
+        })
+        </script>
+        <div class="form-group">
+            <div class="col-sm-6 col-sm-offset-3">
+                <label for="copy_address" class="checkbox-label">
+                    <input type="checkbox" name="copy_address" id="copy_address" value="1" {% if copy_address %}checked="checked"{% endif %} />
+                    Use my business address for my personal address.
+                </label>
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="form-group {{ name_prefix }}address_details">
         <label for="{{ name_prefix }}country" class="col-sm-3 control-label">Country</label>
         <div class="col-sm-6">
             <select name="{{ name_prefix }}country" class="form-control" placeholder="Country" autofocus="autofocus" autocorrect="off" autocomplete="country">
@@ -170,28 +196,34 @@
             </select>
         </div>
     </div>
-    <div class="form-group address_details">
+    <div class="form-group {{ name_prefix }}address_details">
         <label for="{{ name_prefix }}address1" class="col-sm-3 control-label">Street</label>
         <div class="col-sm-6">
             <input type="text" name="{{ name_prefix }}address1" class="form-control" placeholder="Address Line 1" value="{{ group_or_attendee.address1 }}" />
         </div>
     </div>
-    <div class="form-group address_details">
+    <div class="form-group {{ name_prefix }}address_details">
         <label for="{{ name_prefix }}address2" class="col-sm-3 control-label"></label>
         <div class="col-sm-6">
             <input type="text" name="{{ name_prefix }}address2" class="form-control" placeholder="Address Line 2" value="{{ group_or_attendee.address2 }}" />
         </div>
     </div>
-    <div class="form-group address_details">
+    <div class="form-group {{ name_prefix }}address_details">
         <label for="{{ name_prefix }}city" class="col-sm-3 control-label">City</label>
         <div class="col-sm-6">
             <input type="text" name="{{ name_prefix }}city" class="form-control" placeholder="City" value="{{ group_or_attendee.city }}" />
         </div>
     </div>
-    <div class="form-group address_details">
+    <div class="form-group {{ name_prefix }}address_details">
         <label for="{{ name_prefix }}region" class="col-sm-3 control-label">State/Region</label>
         <div class="col-sm-6">
             <input type="text" name="{{ name_prefix }}region" class="form-control" placeholder="State/Province" value="{{ group_or_attendee.region }}" autocomplete="address-level1" />
+        </div>
+    </div>
+    <div class="form-group {{ name_prefix }}address_details">
+        <label for="{{ name_prefix }}zip_code" class="col-sm-3 control-label">ZIP/Postal Code</label>
+        <div class="col-sm-6">
+            <input type="text" name="{{ name_prefix }}zip_code" class="form-control" value="{{ group_or_attendee.zip_code }}"/>
         </div>
     </div>
 {%- endmacro %}
