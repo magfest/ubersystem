@@ -1369,8 +1369,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_status == c.NEW_STATUS and self.banned:
             self.badge_status = c.WATCHED_STATUS
             try:
-                send_email(c.SECURITY_EMAIL, [c.REGDESK_EMAIL, c.SECURITY_EMAIL], 'Banned attendee registration',
-                           render('emails/reg_workflow/banned_attendee.txt', {'attendee': self}), model='n/a')
+                send_email(c.SECURITY_EMAIL, [c.REGDESK_EMAIL, c.SECURITY_EMAIL], c.EVENT_NAME + ' WatchList Notification',
+                           render('emails/reg_workflow/attendee_watchlist.txt', {'attendee': self}), model='n/a')
             except:
                 log.error('unable to send banned email about {}', self)
         elif self.badge_status == c.NEW_STATUS and not self.placeholder and self.first_name \
