@@ -398,7 +398,7 @@
 
 {% if c.COLLECT_FULL_ADDRESS %}
     {% set address_form=True %}
-    {{ macros.address_form(attendee=attendee) }}
+    {{ macros.address_form(attendee=attendee, is_prereg_dealer=is_prereg_dealer) }}
 {% endif %}
     <div class="form-group">
         <label for="zip_code" class="col-sm-3 control-label {% if c.AT_OR_POST_CON %}optional-field{% endif %}">ZIP/Postal Code</label>

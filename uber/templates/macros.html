@@ -119,10 +119,10 @@
   </div>
 {%- endmacro %}
 
-{% macro address_form(group=False, attendee=False) -%}
+{% macro address_form(group=False, attendee=False, is_prereg_dealer=False) -%}
     {% set name_prefix='group_' if group and attendee else '' %}
     {% set group_or_attendee=group if group else attendee %}
-    {% if not group or not attendee %}
+    {% if not is_prereg_dealer %}
         <script src="../static/deps/selectToAutocomplete/jquery.select-to-autocomplete.js"></script>
         <script type="text/javascript">{% include "region_opts.html" %}</script>
     {% endif %}
