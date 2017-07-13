@@ -103,7 +103,8 @@
         <p class="help-block col-sm-9 col-sm-offset-3">The one you want us to link on our website, or n/a</p>
     </div>
 
-    {{ macros.address_form(group=group, maybe_collision=c.PAGE_PATH in ['/preregistration/dealer_registration'] or attendee_or_group.badge_type == c.PSEUDO_DEALER_BADGE) }}
+    {% set address_form=True %}
+    {{ macros.address_form(group=group, attendee=attendee) }}
 {% endif %}
 
 {% include "groupextra.html" %}

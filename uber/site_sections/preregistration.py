@@ -126,7 +126,7 @@ class Root:
             # A dealer has submitted an application, which prefixes group address fields with 'group_' to avoid any
             # collisions with the dealer's home address. Let's update the address fields for the group.
             for field_name in ['group_country', 'group_region', 'group_zipcode', 'group_address1', 'group_address2', 'group_city']:
-                model_field_name = field_name.split("_",1)[1]
+                model_field_name = field_name.split("_", 1)[1]
                 setattr(group, model_field_name, cherrypy.request.params.get(field_name))
 
         message = ''

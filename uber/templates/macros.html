@@ -119,10 +119,14 @@
   </div>
 {%- endmacro %}
 
-{% macro address_form(group=False, attendee=False, maybe_collision=False) -%}
-    {% set name_prefix='group_' if group and maybe_collision else '' %}
+{% macro address_form(group=False, attendee=False) -%}
+    {% set name_prefix='group_' if group and attendee else '' %}
+    {% set group_or_attendee=group if group else attendee %}
+    {% if not group or not attendee %}
+        <script src="../static/deps/selectToAutocomplete/jquery.select-to-autocomplete.js"></script>
+        <script type="text/javascript">{% include "region_opts.html" %}</script>
+    {% endif %}
     <script type="text/javascript">
-
         var {{ name_prefix }}regionChange = function() {
             {{ 'setInternational();' if not group else '' }}
 
@@ -138,7 +142,7 @@
                     $("[name='{{ name_prefix }}region']").html(regionsforCanada);
                     break;
             }
-            var optionToSelect = $("select[name='{{ name_prefix }}region'] option[value='{{ group.region if group else attendee.region }}']");
+            var optionToSelect = $("select[name='{{ name_prefix }}region'] option[value='{{ group_or_attendee.region }}']");
             if (optionToSelect.length) {
                 optionToSelect.prop('selected', true)
             }
@@ -146,14 +150,14 @@
 
         $(function() {
             {{ 'setInternational();' if not group else '' }}
-            $.field("{{ name_prefix }}country").val('{{ group.country if group else attendee.country }}');
+            $.field("{{ name_prefix }}country").val('{{ group_or_attendee.country }}');
             $.field("{{ name_prefix }}country").selectToAutocomplete();
             $.field("{{ name_prefix }}country").change(function() {
-                $("[name='{{ name_prefix }}region']").replaceWith('<input type="text" name="{{ name_prefix }}region" value="{{ group.region if group else attendee.region }}" class="form-control" placeholder="State/Province">');
+                $("[name='{{ name_prefix }}region']").replaceWith('<input type="text" name="{{ name_prefix }}region" value="{{ group_or_attendee.region }}" class="form-control" placeholder="State/Province">');
                 {{ name_prefix }}regionChange();
             });
 
-            $.field("{{ name_prefix }}region").val('{{ group.region if group else attendee.region }}');
+            $.field("{{ name_prefix }}region").val('{{ group_or_attendee.region }}');
             {{ name_prefix }}regionChange();
         });
     </script>
@@ -169,25 +173,25 @@
     <div class="form-group address_details">
         <label for="{{ name_prefix }}address1" class="col-sm-3 control-label">Street</label>
         <div class="col-sm-6">
-            <input type="text" name="{{ name_prefix }}address1" class="form-control" placeholder="Address Line 1" value="{{ group.address1 if group else attendee.address1 }}" />
+            <input type="text" name="{{ name_prefix }}address1" class="form-control" placeholder="Address Line 1" value="{{ group_or_attendee.address1 }}" />
         </div>
     </div>
     <div class="form-group address_details">
         <label for="{{ name_prefix }}address2" class="col-sm-3 control-label"></label>
         <div class="col-sm-6">
-            <input type="text" name="{{ name_prefix }}address2" class="form-control" placeholder="Address Line 2" value="{{ group.address2 if group else attendee.address2 }}" />
+            <input type="text" name="{{ name_prefix }}address2" class="form-control" placeholder="Address Line 2" value="{{ group_or_attendee.address2 }}" />
         </div>
     </div>
     <div class="form-group address_details">
         <label for="{{ name_prefix }}city" class="col-sm-3 control-label">City</label>
         <div class="col-sm-6">
-            <input type="text" name="{{ name_prefix }}city" class="form-control" placeholder="City" value="{{ group.city if group else attendee.city }}" />
+            <input type="text" name="{{ name_prefix }}city" class="form-control" placeholder="City" value="{{ group_or_attendee.city }}" />
         </div>
     </div>
     <div class="form-group address_details">
         <label for="{{ name_prefix }}region" class="col-sm-3 control-label">State/Region</label>
         <div class="col-sm-6">
-            <input type="text" name="{{ name_prefix }}region" class="form-control" placeholder="State/Province" value="{{ group.region if group else attendee.region }}" autocomplete="address-level1" />
+            <input type="text" name="{{ name_prefix }}region" class="form-control" placeholder="State/Province" value="{{ group_or_attendee.region }}" autocomplete="address-level1" />
         </div>
     </div>
 {%- endmacro %}

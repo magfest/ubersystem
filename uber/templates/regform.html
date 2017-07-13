@@ -6,7 +6,6 @@
 {%- set is_prereg_confirm_email_enabled = (is_prereg_form or is_prereg_dealer) and c.PREREG_CONFIRM_EMAIL_ENABLED -%}
 {%- set is_after_hotel_deadline = c.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE -%}
 
-<script src="../static/deps/selectToAutocomplete/jquery.select-to-autocomplete.js"></script>
 <script type="text/javascript">
     var AGE_GROUPS = {{ c.AGE_GROUP_CONFIGS|jsonize }};
     var ageGroupSelected = function () {
@@ -33,10 +32,6 @@
             }
         {% endif %}
     };
-
-    {% if c.COLLECT_FULL_ADDRESS or is_prereg_dealer %}
-        {% include "region_opts.html" %}
-    {% endif %}
 
     {% if c.COLLECT_FULL_ADDRESS %}
         var setInternational = function () {
@@ -402,6 +397,7 @@
 {% endif %}
 
 {% if c.COLLECT_FULL_ADDRESS %}
+    {% set address_form=True %}
     {{ macros.address_form(attendee=attendee) }}
 {% endif %}
     <div class="form-group">

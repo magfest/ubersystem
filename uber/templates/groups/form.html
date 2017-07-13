@@ -9,7 +9,6 @@
         "index", "Return to Group List", True
     ) }}
 
-<script src="../static/deps/selectToAutocomplete/jquery.select-to-autocomplete.js"></script>
 <script type="text/javascript">
     var unapprove = function(action, convert) {
         if (!$.val("email")) {
@@ -37,8 +36,6 @@
             $.field("status").find("[value={{ c.UNAPPROVED }}]").text("n/a (not a paid Dealer)");
         {% endif %}
     });
-
-    {% include "region_opts.html" %}
 </script>
     {% include "check_in.html" %}
 
@@ -219,6 +216,7 @@
         </div>
     </div>
 
+    {% set address_form=True %}
     {{ macros.address_form(group=group) }}
 {% endif %}
 
