@@ -128,6 +128,8 @@ class Root:
             for field_name in ['group_country', 'group_region', 'group_zipcode', 'group_address1', 'group_address2', 'group_city']:
                 model_field_name = field_name.split("_", 1)[1]
                 setattr(group, model_field_name, cherrypy.request.params.get(field_name))
+                if 'copy_address' in params:
+                    setattr(attendee, model_field_name, cherrypy.request.params.get(field_name))
 
         message = ''
         if c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
@@ -147,7 +149,8 @@ class Root:
                 'edit_id':    edit_id,
                 'badges':     params.get('badges'),
                 'affiliates': session.affiliates(),
-                'cart_not_empty': Charge.unpaid_preregs
+                'cart_not_empty': Charge.unpaid_preregs,
+                'copy_address': params.get('copy_address')
             }
 
         if attendee.is_dealer and not c.DEALER_REG_OPEN:
@@ -218,7 +221,8 @@ class Root:
             'edit_id':    edit_id,
             'badges':     params.get('badges'),
             'affiliates': session.affiliates(),
-            'cart_not_empty': Charge.unpaid_preregs
+            'cart_not_empty': Charge.unpaid_preregs,
+            'copy_address': params.get('copy_address')
         }
 
     @redirect_if_at_con_to_kiosk
