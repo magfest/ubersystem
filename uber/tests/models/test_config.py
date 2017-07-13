@@ -150,6 +150,7 @@ class TestStaffGetFood:
         monkeypatch.setattr(c, 'JOB_LOCATIONS', job_locations)
         assert not c.STAFF_GET_FOOD
 
+
 class TestDealerConfig:
     def test_dealer_reg_open(self, monkeypatch):
         monkeypatch.setattr(c, 'DEALER_REG_START', localized_now() - timedelta(days=1))
@@ -158,13 +159,13 @@ class TestDealerConfig:
 
     def test_dealer_reg_not_soft_closed(self, monkeypatch):
         monkeypatch.setattr(c, 'DEALER_REG_DEADLINE', localized_now() + timedelta(days=1))
-        monkeypatch.setattr(c, 'DEALER_APPS', 10)
+        monkeypatch.setattr(uber.config.Config, 'DEALER_APPS', 10)
         monkeypatch.setattr(c, 'MAX_DEALER_APPS', 100)
         assert not c.DEALER_REG_SOFT_CLOSED
 
     def test_dealer_reg_not_soft_closed_no_max(self, monkeypatch):
         monkeypatch.setattr(c, 'DEALER_REG_DEADLINE', localized_now() + timedelta(days=1))
-        monkeypatch.setattr(c, 'DEALER_APPS', 10)
+        monkeypatch.setattr(uber.config.Config, 'DEALER_APPS', 10)
         monkeypatch.setattr(c, 'MAX_DEALER_APPS', 0)
         assert not c.DEALER_REG_SOFT_CLOSED
 
@@ -175,27 +176,33 @@ class TestDealerConfig:
 
     def test_dealer_reg_not_soft_closed_optimizations(self, monkeypatch):
         monkeypatch.setattr(c, 'DEALER_REG_DEADLINE', localized_now() + timedelta(days=1))
-        monkeypatch.setattr(c, 'DEALER_APPS', 10)
+        monkeypatch.setattr(uber.config.Config, 'DEALER_APPS', 10)
         monkeypatch.setattr(c, 'MAX_DEALER_APPS', 1)
         monkeypatch.setattr(c, 'HARDCORE_OPTIMIZATIONS_ENABLED', True)
         assert not c.DEALER_REG_SOFT_CLOSED
 
     def test_dealer_reg_soft_closed_over_max(self, monkeypatch):
         monkeypatch.setattr(c, 'DEALER_REG_DEADLINE', localized_now() + timedelta(days=1))
-        monkeypatch.setattr(c, 'DEALER_APPS', 10)
+        monkeypatch.setattr(uber.config.Config, 'DEALER_APPS', 10)
+        monkeypatch.setattr(c, 'MAX_DEALER_APPS', 1)
+        assert c.DEALER_REG_SOFT_CLOSED
+
+    def test_dealer_reg_soft_closed_at_max(self, monkeypatch):
+        monkeypatch.setattr(c, 'DEALER_REG_DEADLINE', localized_now() + timedelta(days=1))
+        monkeypatch.setattr(uber.config.Config, 'DEALER_APPS', 1)
         monkeypatch.setattr(c, 'MAX_DEALER_APPS', 1)
         assert c.DEALER_REG_SOFT_CLOSED
 
     def test_dealer_reg_soft_closed_after_deadline(self, monkeypatch):
         monkeypatch.setattr(c, 'DEALER_REG_DEADLINE', localized_now() - timedelta(days=1))
-        monkeypatch.setattr(c, 'DEALER_APPS', 10)
+        monkeypatch.setattr(uber.config.Config, 'DEALER_APPS', 10)
         monkeypatch.setattr(c, 'MAX_DEALER_APPS', 100)
         assert c.DEALER_REG_SOFT_CLOSED
 
     def test_dealer_app(self):
         session = Session().session
         with request_cached_context():
-            session.add(Group(tables=1, cost=10, approved=c.UNAPPROVED))
+            session.add(Group(tables=1, cost=10, status=c.UNAPPROVED))
             session.commit()
 
         assert c.DEALER_APPS == 1
@@ -203,7 +210,7 @@ class TestDealerConfig:
     def test_waitlisted_dealer_not_app(self):
         session = Session().session
         with request_cached_context():
-            session.add(Group(tables=1, cost=10, approved=c.WAITLISTED))
+            session.add(Group(tables=1, cost=10, status=c.WAITLISTED))
             session.commit()
 
         assert c.DEALER_APPS == 0
@@ -211,7 +218,7 @@ class TestDealerConfig:
     def test_free_dealer_no_app(self):
         session = Session().session
         with request_cached_context():
-            session.add(Group(tables=1, cost=0, approved=c.UNAPPROVED))
+            session.add(Group(tables=1, cost=0, auto_recalc=False, status=c.UNAPPROVED))
             session.commit()
 
         assert c.DEALER_APPS == 0
@@ -219,7 +226,7 @@ class TestDealerConfig:
     def test_not_a_dealer_no_app(self):
         session = Session().session
         with request_cached_context():
-            session.add(Group(tables=0, cost=10, approved=c.UNAPPROVED))
+            session.add(Group(tables=0, cost=10, status=c.UNAPPROVED))
             session.commit()
 
         assert c.DEALER_APPS == 0

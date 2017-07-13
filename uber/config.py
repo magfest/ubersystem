@@ -139,13 +139,13 @@ class Config(_Overridable):
 
     @property
     def DEALER_REG_SOFT_CLOSED(self):
-        return self.AFTER_DEALER_REG_DEADLINE or self.DEALER_APPS > self.MAX_DEALER_APPS \
+        return self.AFTER_DEALER_REG_DEADLINE or self.DEALER_APPS >= self.MAX_DEALER_APPS \
             if self.MAX_DEALER_APPS and not self.HARDCORE_OPTIMIZATIONS_ENABLED else self.AFTER_DEALER_REG_DEADLINE
 
     @request_cached_property
     def DEALER_APPS(self):
         with sa.Session() as session:
-            return session.query(sa.Group).filter(sa.Group.tables > 0, sa.Group.cost > 0, sa.Group.approved == self.UNAPPROVED)
+            return session.query(sa.Group).filter(sa.Group.tables > 0, sa.Group.cost > 0, sa.Group.status == self.UNAPPROVED).count()
 
     @request_cached_property
     def BADGES_SOLD(self):
