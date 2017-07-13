@@ -555,5 +555,23 @@
         });
     {% endif %}
 
-
+$(function () {
+      $('form').validate({
+        {% if is_prereg_confirm_email_enabled %}
+          rules: {
+            confirm_email: { equalTo: '#email' }
+          },
+          messages: {
+            confirm_email: {
+              equalTo: 'Please make sure the email addresses match.'
+            }
+          },
+        {% endif %}
+        submitHandler: function(form) {
+          // The form is already validated at this point
+          $('form :submit').attr('disabled', true);
+          form.submit();
+        }
+      });
+    });
 </script>
