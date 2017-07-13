@@ -621,24 +621,26 @@
         });
     {% endif %}
 
-    $(function () {
-      $('form').validate({
-        {% if is_prereg_confirm_email_enabled %}
-          rules: {
-            confirm_email: { equalTo: '#email' }
-          },
-          messages: {
-            confirm_email: {
-              equalTo: 'Please make sure the email addresses match.'
-            }
-          },
-        {% endif %}
-        onkeyup: false,
-        submitHandler: function(form) {
-          // The form is already validated at this point
-          $('form :submit').attr('disabled', true);
-          form.submit();
-        }
+    {% if not admin_area %}
+      $(function () {
+        $('form').validate({
+          {% if is_prereg_confirm_email_enabled %}
+            rules: {
+              confirm_email: { equalTo: '#email' }
+            },
+            messages: {
+              confirm_email: {
+                equalTo: 'Please make sure the email addresses match.'
+              }
+            },
+          {% endif %}
+          onkeyup: false,
+          submitHandler: function(form, event) {
+            // The form is already validated at this point
+            $('form :submit').attr('disabled', true);
+            event.target.submit();
+          }
+        });
       });
-    });
+    {% endif %}
 </script>
