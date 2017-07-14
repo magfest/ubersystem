@@ -3,7 +3,7 @@ import pytest
 from uber.common import *
 from uber.custom_tags import (jsonize, linebreaksbr, datetime_local_filter,
     datetime_filter, full_datetime_local, hour_day_local, time_day_local,
-    timedelta_filter, timestamp, normalize_newlines, url_to_link)
+    timedelta_filter, timestamp, normalize_newlines, url_to_link, basename)
 
 
 class TestDatetimeFilters(object):
@@ -14,13 +14,15 @@ class TestDatetimeFilters(object):
         full_datetime_local,
         hour_day_local,
         time_day_local,
-        timestamp
+        timestamp,
+        basename
     ])
     @pytest.mark.parametrize('test_input,expected', [
         (None, ''),
         ('', ''),
         ([], ''),
-        ({}, '')
+        ({}, ''),
+        (jinja2.runtime.Undefined(), '')
     ])
     def test_filters_allow_empty_arg(self, filter_function, test_input, expected):
         assert expected == filter_function(test_input)
