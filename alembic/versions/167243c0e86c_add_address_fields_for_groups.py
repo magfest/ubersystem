@@ -31,18 +31,43 @@ else:
 
 
 def upgrade():
-    op.alter_column('group', 'address', new_column_name='address1')
-    op.add_column('group', sa.Column('address2', sa.Unicode(), server_default='', nullable=False))
-    op.add_column('group', sa.Column('city', sa.Unicode(), server_default='', nullable=False))
-    op.add_column('group', sa.Column('country', sa.Unicode(), server_default='', nullable=False))
-    op.add_column('group', sa.Column('region', sa.Unicode(), server_default='', nullable=False))
-    op.add_column('group', sa.Column('zip_code', sa.Unicode(), server_default='', nullable=False))
+    if is_sqlite:
+        def listen_for_reflect(inspector, table, column_info):
+            """Adds parenthesis around SQLite datetime defaults for utcnow."""
+            if column_info['default'] == "datetime('now', 'utc')":
+                column_info['default'] = utcnow_server_default
+
+        with op.batch_alter_table(
+                'group',
+                reflect_kwargs=dict(listeners=[('column_reflect', listen_for_reflect)])) as batch_op:
+            batch_op.alter_column('address', new_column_name='address1')
+            batch_op.add_column(sa.Column('address2', sa.Unicode(), server_default='', nullable=False))
+            batch_op.add_column(sa.Column('city', sa.Unicode(), server_default='', nullable=False))
+            batch_op.add_column(sa.Column('country', sa.Unicode(), server_default='', nullable=False))
+            batch_op.add_column(sa.Column('region', sa.Unicode(), server_default='', nullable=False))
+            batch_op.add_column(sa.Column('zip_code', sa.Unicode(), server_default='', nullable=False))
+    else:
+        op.alter_column('group', 'address', new_column_name='address1')
+        op.add_column('group', sa.Column('address2', sa.Unicode(), server_default='', nullable=False))
+        op.add_column('group', sa.Column('city', sa.Unicode(), server_default='', nullable=False))
+        op.add_column('group', sa.Column('country', sa.Unicode(), server_default='', nullable=False))
+        op.add_column('group', sa.Column('region', sa.Unicode(), server_default='', nullable=False))
+        op.add_column('group', sa.Column('zip_code', sa.Unicode(), server_default='', nullable=False))
 
 
 def downgrade():
-    op.drop_column('group', 'zip_code')
-    op.drop_column('group', 'region')
-    op.drop_column('group', 'country')
-    op.drop_column('group', 'city')
-    op.drop_column('group', 'address2')
-    op.alter_column('group', 'address1', new_column_name='address')
+    if is_sqlite:
+        def listen_for_reflect(inspector, table, column_info):
+            """Adds parenthesis around SQLite datetime defaults for utcnow."""
+            if column_info['default'] == "datetime('now', 'utc')":
+                column_info['default'] = utcnow_server_default
+
+        with op.batch_alter_table(
+                'group',
+                reflect_kwargs=dict(listeners=[('column_reflect', listen_for_reflect)])) as batch_op:
+            batch_op.drop_column('zip_code')
+            batch_op.drop_column('region')
+            batch_op.drop_column('country')
+            batch_op.drop_column('city')
+            batch_op.drop_column('address2')
+            batch_op.alter_column('address1', new_column_name='address')
