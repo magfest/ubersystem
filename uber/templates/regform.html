@@ -2,11 +2,10 @@
 
 {#- Setting some variables to keep the size of conditional clauses smaller. -#}
 {%- set is_prereg_form = c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form'] -%}
-{%- set is_prereg_dealer = c.PAGE_PATH in ['/preregistration/dealer_registration'] -%}
+{%- set is_prereg_dealer = c.PAGE_PATH in ['/preregistration/dealer_registration'] or attendee and attendee.badge_type == c.PSEUDO_DEALER_BADGE -%}
 {%- set is_prereg_confirm_email_enabled = (is_prereg_form or is_prereg_dealer) and c.PREREG_CONFIRM_EMAIL_ENABLED -%}
 {%- set is_after_hotel_deadline = c.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE -%}
 
-<script src="../static/deps/selectToAutocomplete/jquery.select-to-autocomplete.js"></script>
 <script type="text/javascript">
     var AGE_GROUPS = {{ c.AGE_GROUP_CONFIGS|jsonize }};
     var ageGroupSelected = function () {
@@ -36,51 +35,16 @@
 
     {% if c.COLLECT_FULL_ADDRESS %}
         var setInternational = function () {
-            countryName = $.field('country').val();
-            if(countryName == 'United States') {
-                $.field('international').prop('checked', false);
-            } else {
-                $.field('international').prop('checked', true);
-            }
-        };
-
-        {% include "region_opts.html" %}
-
-        var regionChange = function() {
-            setInternational();
-
-            var regionopts = $("[name='region']");
-            var whichCountry = $.field("country").find(':selected').text();
-            switch(whichCountry) {
-                case 'United States':
-                    regionopts.replaceWith('<select name="region" class="form-control"></select>');
-                    $("[name='region']").html(regionsforUS);
-                    break;
-                case 'Canada':
-                    regionopts.replaceWith('<select name="region" class="form-control"></select>');
-                    $("[name='region']").html(regionsforCanada);
-                    break;
-            }
-            var optionToSelect = $("select[name='region'] option[value='{{ attendee.region }}']");
-            if (optionToSelect.length) {
-                optionToSelect.prop('selected', true)
-            }
-        };
-
-        $(function() {
+                countryName = $.field('country').val();
+                if(countryName == 'United States') {
+                    $.field('international').prop('checked', false);
+                } else {
+                    $.field('international').prop('checked', true);
+                }
+            };
+        $(function () {
             $.field('international').parents('.checkbox').hide();
-            setInternational();
-            $.field("country").val('{{ attendee.country }}');
-            $.field("country").selectToAutocomplete();
-            $.field("country").change(function() {
-                $("[name='region']").replaceWith('<input type="text" name="region" value="{{ attendee.region }}" class="form-control" placeholder="State/Province">');
-                regionChange();
-            });
-
-            $.field("region").val('{{ attendee.region }}');
-            regionChange();
         });
-
     {% else %}
         var internationalChecked = function () {
             if ($("#international").prop('checked')) {
@@ -433,39 +397,11 @@
 {% endif %}
 
 {% if c.COLLECT_FULL_ADDRESS %}
-    <div class="form-group address_details">
-        <label for="country" class="col-sm-3 control-label">Country</label>
-        <div class="col-sm-6">
-            <select name="country" class="form-control" placeholder="Country" autofocus="autofocus" autocorrect="off" autocomplete="country">
-                {% include "country_opts.html" %}
-            </select>
-        </div>
+    {{ macros.address_form(attendee=attendee, is_prereg_dealer=is_prereg_dealer, copy_address=copy_address) }}
+    <div class="checkbox col-sm-6 col-sm-offset-3">
+        {{ macros.checkbox(attendee, 'international', label="I'm coming from outside the US.") }}
     </div>
-    <div class="form-group address_details">
-        <label for="address1" class="col-sm-3 control-label">Street</label>
-        <div class="col-sm-6">
-            <input type="text" name="address1" class="form-control" placeholder="Address Line 1" value="{{ attendee.address1 }}" />
-        </div>
-    </div>
-    <div class="form-group address_details">
-        <label for="address2" class="col-sm-3 control-label"></label>
-        <div class="col-sm-6">
-            <input type="text" name="address2" class="form-control" placeholder="Address Line 2" value="{{ attendee.address2 }}" />
-        </div>
-    </div>
-    <div class="form-group address_details">
-        <label for="city" class="col-sm-3 control-label">City</label>
-        <div class="col-sm-6">
-            <input type="text" name="city" class="form-control" placeholder="City" value="{{ attendee.city }}" />
-        </div>
-    </div>
-    <div class="form-group address_details">
-        <label for="region" class="col-sm-3 control-label">State/Region</label>
-        <div class="col-sm-6">
-            <input type="text" name="region" class="form-control" placeholder="State/Province" value="{{ attendee.region }}" autocomplete="address-level1" />
-        </div>
-    </div>
-{% endif %}
+{% else %}
     <div class="form-group">
         <label for="zip_code" class="col-sm-3 control-label {% if c.AT_OR_POST_CON %}optional-field{% endif %}">ZIP/Postal Code</label>
         <div class="col-sm-6">
@@ -475,6 +411,7 @@
             {{ macros.checkbox(attendee, 'international', label="I'm coming from outside the US.") }}
         </div>
     </div>
+{% endif %}
 
 <div class="form-group">
     <label for="ec_name" class="col-sm-3 control-label">Emergency Contact</label>

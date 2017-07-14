@@ -103,14 +103,7 @@
         <p class="help-block col-sm-9 col-sm-offset-3">The one you want us to link on our website, or n/a</p>
     </div>
 
-    {% if not c.COLLECT_FULL_ADDRESS %}
-    <div class="form-group">
-        <label for="address" class="col-sm-3 control-label">Address and Phone Number</label>
-        <div class="col-sm-6">
-            <textarea class="form-control" name="address" rows="4" placeholder="Your or your business' full address and phone number for tax purposes.">{{ group.address }}</textarea>
-        </div>
-    </div>
-    {% endif %}
+    {{ macros.address_form(group=group, attendee=attendee, name_prefix="group_" if attendee else "") }}
 {% endif %}
 
 {% include "groupextra.html" %}

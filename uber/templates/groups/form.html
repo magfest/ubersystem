@@ -9,7 +9,6 @@
         "index", "Return to Group List", True
     ) }}
 
-
 <script type="text/javascript">
     var unapprove = function(action, convert) {
         if (!$.val("email")) {
@@ -219,14 +218,8 @@
             <textarea rows="3" name="special_needs" class="form-control">{{ group.special_needs }}</textarea>
         </div>
     </div>
-    {% if not c.COLLECT_FULL_ADDRESS %}
-    <div class="form-group">
-        <label class="col-sm-3 control-label">Address</label>
-        <div class="col-sm-6">
-            <textarea rows="3" name="address" class="form-control">{{ group.address }}</textarea>
-        </div>
-    </div>
-    {% endif %}
+
+    {{ macros.address_form(group=group) }}
 {% endif %}
 
 {% include "groupextra.html" %}

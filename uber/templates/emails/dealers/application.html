@@ -15,7 +15,8 @@ this coming {{ event_dates() }}. Below is a copy of your application. You may
     <li><strong>Description</strong>: {{ group.description }}</li>
     {% if group.special_needs %}<li><strong>Table Requests and Special Requests</strong>: {{ group.special_needs }}</li>{% endif %}
     <li><strong>Website URL</strong>: {{ group.website }}</li>
-    {% if group.address %}<li><strong>Address and Phone Number</strong>: {{ group.address }}</li>{% endif %}
+    <li><strong>Address</strong>: {{ group.address1 }}{% if group.address2 %}, {{ group.address2 }}{% endif %}
+    <br/> {{ group.city }}, {{ group.region }} {{ group.zip_code }} ({{ group.country }})</li>
 </ul>
 
 {% if c.DEALER_REG_SOFT_CLOSED %}
