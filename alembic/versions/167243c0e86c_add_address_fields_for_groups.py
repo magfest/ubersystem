@@ -71,3 +71,10 @@ def downgrade():
             batch_op.drop_column('city')
             batch_op.drop_column('address2')
             batch_op.alter_column('address1', new_column_name='address')
+    else:
+        op.drop_column('group', 'zip_code')
+        op.drop_column('group', 'region')
+        op.drop_column('group', 'country')
+        op.drop_column('group', 'city')
+        op.drop_column('group', 'address2')
+        op.alter_column('group', 'address1', new_column_name='address')
