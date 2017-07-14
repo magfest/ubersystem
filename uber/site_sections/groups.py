@@ -70,7 +70,7 @@ class Root:
 
         if group.leader:
             emails = session.query(Email)\
-                .filter(or_(Email.dest == group.leader.email, and_(Email.model == 'Attendee', Email.fk_id == id)))\
+                .filter(or_(Email.dest == group.leader.email, Email.fk_id == id))\
                 .order_by(Email.when).all()
         else:
             emails = {}

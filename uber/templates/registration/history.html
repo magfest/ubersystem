@@ -1,43 +1,6 @@
-{% extends "base.html" %}{% set admin_area=True %}
+{% extends "base.html" %}{% set admin_area=True %}{% set resend_email_form=True %}
 {% block title %}Attendee History - {{ attendee.full_name }}{% endblock %}
 {% block content %}
-{% block adminheader %}
-<head>
-<script type="text/javascript">
-    $(function() {
-        $("form[action='resend_email']").each(function(index) {
-            $(this).submit(function (e) {
-                // Prevent form submit.
-                e.preventDefault();
-
-                var data = $(this).serialize();
-                var currentForm = $(this);
-
-                $.ajax({
-                    method: 'POST',
-                    url: '../emails/resend_email',
-                    dataType: 'json',
-                    data: data,
-                    success: function (json) {
-                        toastr.clear();
-                        var message = json.message;
-                        if (json.success) {
-                            toastr.info(message);
-                        } else {
-                            toastr.error(message);
-                        }
-                    },
-                    error: function () {
-                        toastr.error('Unable to connect to server, please try again.');
-                    }
-                });
-            });
-        });
-    });
-</script>
-</head>
-{% endblock %}
-
 {% include "registration/menu.html" %}
 
 <h2>Changelog for {{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
@@ -135,16 +98,19 @@
 {% for email in emails  %}
     {% if loop.first %}<h2> Automated Emails </h2>{% endif %}
     <h3> {{ email.subject }} ({{ email.when|full_datetime_local }}) </h3>
-    <form method="post" action="resend_email">
-    {{ csrf_token() }}
-    <input type="hidden" name="id" value="{{ email.id }}" />
-    <button class="btn btn-primary" type="submit">Resend Email</button>
-    </form>
+    <div style="font-family:courier" class="well">
     {% if email.is_html %}
         (content of HTML email omitted; you can view the full email <a href="../emails/sent?id={{ email.id }}">here</a>)
     {% else %}
-        <div style="font-family:courier">{{ email.html }}</div>
+        {{ email.html }}
     {% endif %}
+    </div>
+    <form method="post" action="resend_email" id="resend_email_{{ email.id }}">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ email.id }}" />
+        <button class="btn btn-primary" type="submit">Resend Email</button>
+    </form>
+    <hr/>
 {% endfor %}
 
 {% endblock %}

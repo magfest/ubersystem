@@ -108,7 +108,7 @@ class Root:
                 body = email.html
 
             try:
-                send_email(sender, email.rcpt_current_email, email.subject, body, model=email.fk, ident=email.ident)
+                send_email(sender, email.rcpt_email, email.subject, body, model=email.fk, ident=email.ident)
             except:
                 return {'success': False, 'message': 'Email not sent: unknown error.'}
             else:

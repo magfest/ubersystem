@@ -38,6 +38,41 @@
                 <script src="{{ js }}" type="text/javascript"></script>
             {% endfor %}
         {% endif %}
+
+        {% if resend_email_form %}
+        <script type="text/javascript">
+            $(function() {
+                $("form[action='resend_email']").each(function(index) {
+                    $(this).submit(function (e) {
+                        // Prevent form submit.
+                        e.preventDefault();
+
+                        var data = $(this).serialize();
+                        var currentForm = $(this);
+
+                        $.ajax({
+                            method: 'POST',
+                            url: '../emails/resend_email',
+                            dataType: 'json',
+                            data: data,
+                            success: function (json) {
+                                toastr.clear();
+                                var message = json.message;
+                                if (json.success) {
+                                    toastr.info(message);
+                                } else {
+                                    toastr.error(message);
+                                }
+                            },
+                            error: function () {
+                                toastr.error('Unable to connect to server, please try again.');
+                            }
+                        });
+                    });
+                });
+            });
+        </script>
+        {% endif %}
     {% endblock %}
 
     <meta charset="utf-8">
