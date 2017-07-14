@@ -380,6 +380,7 @@ class Root:
 
                 attendee.badge_type = badge_being_claimed.badge_type
                 attendee.badge_num = badge_being_claimed.badge_num
+                attendee.base_badge_price = badge_being_claimed.base_badge_price
                 attendee.ribbon = badge_being_claimed.ribbon
                 attendee.paid = badge_being_claimed.paid
                 attendee.overridden_price = badge_being_claimed.overridden_price
