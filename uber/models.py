@@ -1291,6 +1291,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     paid             = Column(Choice(c.PAYMENT_OPTS), default=c.NOT_PAID, admin_only=True)
     overridden_price = Column(Integer, nullable=True, admin_only=True)
+    base_badge_price = Column(Integer, default=0, admin_only=True)
     amount_paid      = Column(Integer, default=0, admin_only=True)
     amount_extra     = Column(Choice(c.DONATION_TIER_OPTS, allow_unspecified=True), default=0)
     payment_method   = Column(Choice(c.PAYMENT_METHOD_OPTS), nullable=True)
@@ -1348,6 +1349,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if self.badge_cost == 0 and self.paid in [c.NOT_PAID, c.PAID_BY_GROUP]:
             self.paid = c.NEED_NOT_PAY
+
+        if not self.base_badge_price:
+            self.base_badge_price = self.new_badge_cost
 
         if c.AT_THE_CON and self.badge_num and not self.checked_in and \
                 self.is_new and self.badge_type not in c.PREASSIGNED_BADGE_TYPES:
@@ -1467,30 +1471,38 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.calculate_badge_cost(use_promo_code=False)
 
     def calculate_badge_cost(self, use_promo_code=True):
-        registered = self.registered_local if self.registered else None
         if self.paid == c.NEED_NOT_PAY:
             return 0
         elif self.overridden_price is not None:
             return self.overridden_price
-        elif self.is_dealer:
-            cost = c.DEALER_BADGE_PRICE
-        elif self.badge_type == c.ONE_DAY_BADGE:
-            cost = c.get_oneday_price(registered)
-        elif self.is_presold_oneday:
-            cost = c.get_presold_oneday_price(self.badge_type)
-        elif self.badge_type in c.BADGE_TYPE_PRICES:
-            cost = int(c.BADGE_TYPE_PRICES[self.badge_type])
-        elif self.age_discount != 0:
-            cost = max(0, c.get_attendee_price(registered) + self.age_discount)
-        elif self.group and self.paid == c.PAID_BY_GROUP:
-            cost = c.get_attendee_price(registered) - c.GROUP_DISCOUNT
+        elif self.base_badge_price:
+            cost = self.base_badge_price
         else:
-            cost = c.get_attendee_price(registered)
+            cost = self.new_badge_cost
 
         if c.BADGE_PROMO_CODES_ENABLED and self.promo_code and use_promo_code:
             return self.promo_code.calculate_discounted_price(cost)
         else:
             return cost
+
+    @property
+    def new_badge_cost(self):
+        # What this badge would cost if it were new, i.e., not taking into account special overrides
+        registered = self.registered_local if self.registered else None
+        if self.is_dealer:
+            return c.DEALER_BADGE_PRICE
+        elif self.badge_type == c.ONE_DAY_BADGE:
+            return c.get_oneday_price(registered)
+        elif self.is_presold_oneday:
+            return c.get_presold_oneday_price(self.badge_type)
+        elif self.badge_type in c.BADGE_TYPE_PRICES:
+            return int(c.BADGE_TYPE_PRICES[self.badge_type])
+        elif self.age_discount != 0:
+            return max(0, c.get_attendee_price(registered) + self.age_discount)
+        elif self.group and self.paid == c.PAID_BY_GROUP:
+            return c.get_attendee_price(registered) - c.GROUP_DISCOUNT
+        else:
+            return c.get_attendee_price(registered)
 
     @property
     def promo_code_code(self):

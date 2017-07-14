@@ -14,6 +14,7 @@ class TestCosts:
         assert 30 == Attendee(overridden_price=30).badge_cost
         assert 0 == Attendee(paid=c.NEED_NOT_PAY).badge_cost
         assert 20 == Attendee(paid=c.PAID_BY_GROUP).badge_cost
+        assert 30 == Attendee(base_badge_price=30).badge_cost
 
     def test_total_cost(self):
         assert 20 == Attendee().total_cost

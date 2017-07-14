@@ -296,10 +296,10 @@
 <div class="form-group">
     <label class="col-sm-3 control-label">Badge Price</label>
     <div class="checkbox col-sm-9">
-        Base Price: $<input type="text" style="width:4em" name="overridden_price" value="{{ attendee.badge_cost|round(2) }}" />
+        $<input type="text" style="width:4em" name="overridden_price" value="{{ attendee.badge_cost|round(2) }}" />
         <label>
           <input type="checkbox" name="no_override" {% if attendee.overridden_price == None %} checked {% endif %}>
-          Automatically recalculate badge price.
+          Let the system determine base badge price. (uncheck to override badge price)
         </label>
     </div>
 </div>
