@@ -1,3 +1,12 @@
+input.error {
+    background-color: #fff0f0;
+    border-color: #d00;
+}
+
+label.error {
+    color: #d00;
+}
+
 .navbar {
     margin-bottom: 0px;
 }

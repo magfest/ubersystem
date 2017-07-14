@@ -32,7 +32,8 @@
     "angular-bootstrap": "0.13.0",
     "datatables": "1.10.8",
     "bootbox": "4.4.0",
-    "jquery-form": "3.46.0"
+    "jquery-form": "3.46.0",
+    "jquery-validation": "1.16.0"
   },
   "resolutions": {
     "jquery": ">= 1.9.0",

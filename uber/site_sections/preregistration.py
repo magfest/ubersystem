@@ -160,7 +160,7 @@ class Root:
                         attendee.badge_type = c.ATTENDEE_BADGE
                         group.tables = 0
                     elif attendee.badge_type == c.PSEUDO_DEALER_BADGE:
-                        group.status = c.WAITLISTED if c.AFTER_DEALER_REG_DEADLINE else c.UNAPPROVED
+                        group.status = c.WAITLISTED if c.DEALER_REG_SOFT_CLOSED else c.UNAPPROVED
                         attendee.ribbon = c.DEALER_RIBBON
                         attendee.badge_type = c.ATTENDEE_BADGE
 
@@ -189,11 +189,25 @@ class Root:
                 if attendee.banned:
                     raise HTTPRedirect('banned?id={}', group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
 
-                raise HTTPRedirect('index')
+                if c.PREREG_REQUEST_HOTEL_INFO_ENABLED:
+                    hotel_page = 'hotel?edit_id={}' if edit_id else 'hotel?id={}'
+                    raise HTTPRedirect(hotel_page, group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
+                else:
+                    raise HTTPRedirect('index')
+
         else:
             if edit_id is None:
-                attendee.can_spam = True    # only defaults to true for these forms
-            if attendee.badge_type == c.PSEUDO_DEALER_BADGE and c.AFTER_DEALER_REG_DEADLINE:
+                attendee.can_spam = True  # Only defaults to True on new forms, not edit forms
+                if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
+                    # All new dealer signups should default to receiving the
+                    # hotel info email, even if the deadline has passed.
+                    # There's a good chance some dealers will apply for a table
+                    # AFTER the hotel booking deadline, but BEFORE the hotel
+                    # booking is sent out. This ensures they'll still receive
+                    # the email, as requested by the Marketplace Department.
+                    attendee.requested_hotel_info = True
+
+            if attendee.badge_type == c.PSEUDO_DEALER_BADGE and c.DEALER_REG_SOFT_CLOSED:
                 message = 'Dealer registration is closed, but you can fill out this form to add yourself to our waitlist'
 
         return {
@@ -204,6 +218,36 @@ class Root:
             'badges':     params.get('badges'),
             'affiliates': session.affiliates(),
             'cart_not_empty': Charge.unpaid_preregs
+        }
+
+    @redirect_if_at_con_to_kiosk
+    @check_if_can_reg
+    def hotel(self, session, message='', id=None, edit_id=None, requested_hotel_info=False):
+        id = edit_id or id
+        if not id:
+            raise HTTPRedirect('form')
+
+        if not c.PREREG_REQUEST_HOTEL_INFO_ENABLED:
+            if cherrypy.request.method == 'POST':
+                raise HTTPRedirect('index?message={}', 'Requests for hotel booking info have already been closed')
+            else:
+                raise HTTPRedirect('form?edit_id={}', id)
+
+        attendee, group = self._get_unsaved(id, if_not_found=HTTPRedirect('form?message={}', 'Could not find the given preregistration'))
+        is_group_leader = not attendee.is_unassigned and len(group.attendees) > 0
+
+        if cherrypy.request.method == 'POST':
+            attendee.requested_hotel_info = requested_hotel_info
+            target = group if group.badges else attendee
+            track_type = c.EDITED_PREREG if target.id in Charge.unpaid_preregs else c.UNPAID_PREREG
+            Charge.unpaid_preregs[target.id] = to_sessionized(attendee, group)
+            raise HTTPRedirect('index')
+        return {
+            'message': message,
+            'id': id,
+            'edit_id': edit_id,
+            'is_group_leader': is_group_leader,
+            'requested_hotel_info': attendee.requested_hotel_info if edit_id else True
         }
 
     def duplicate(self, session, id):
