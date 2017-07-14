@@ -1,7 +1,7 @@
 """Add address fields for groups
 
 Revision ID: 167243c0e86c
-Revises: 71991162a59c
+Revises: b6074f8ea4ab
 Create Date: 2017-07-12 22:34:43.889923
 
 """
