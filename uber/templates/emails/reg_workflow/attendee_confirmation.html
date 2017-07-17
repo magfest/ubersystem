@@ -32,6 +32,13 @@ Badges are not mailed out before the event, so your badge will be available for 
     </ul>
 {% endif %}
 
+{% if attendee.requested_hotel_info and not c.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE %}
+    <br/> <br/>
+    You have requested info on booking a hotel room for {{ c.EVENT_NAME }}.
+    In the coming days, you'll be emailed a link to a page with instructions
+    on booking a room.
+{% endif %}
+
 {% include "emails/reg_workflow/reg_notes.html" %}
 
 {% if attendee.is_transferable %}
