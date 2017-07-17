@@ -238,16 +238,24 @@ class Config(_Overridable):
         The datetime at which the "Request Hotel Info" checkbox will NO LONGER
         be shown during preregistration.
         """
-        duration = timedelta(hours=self.PREREG_REQUEST_HOTEL_INFO_DURATION)
-        return self.PREREG_OPEN + duration
+        return self.PREREG_OPEN + timedelta(
+            hours=max(0, self.PREREG_REQUEST_HOTEL_INFO_DURATION))
 
     @property
     def PREREG_REQUEST_HOTEL_INFO_ENABLED(self):
         """
         Boolean which indicates whether the "Request Hotel Info" checkbox is
-        enabled during preregistration.
+        enabled generally, whether or not the deadline has passed.
         """
-        if self.PREREG_REQUEST_HOTEL_INFO_DURATION <= 0:
+        return self.PREREG_REQUEST_HOTEL_INFO_DURATION > 0
+
+    @property
+    def PREREG_REQUEST_HOTEL_INFO_OPEN(self):
+        """
+        Boolean which indicates whether the "Request Hotel Info" checkbox is
+        enabled and currently open with preregistration.
+        """
+        if not self.PREREG_REQUEST_HOTEL_INFO_ENABLED:
             return False
         return not c.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE
 

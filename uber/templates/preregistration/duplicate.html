@@ -45,7 +45,7 @@
 
     <table style="width:auto" align="center">
     <tr>
-    {%- set next_page = 'hotel' if c.PREREG_REQUEST_HOTEL_INFO_ENABLED else 'index' -%}
+    {%- set next_page = 'hotel' if c.PREREG_REQUEST_HOTEL_INFO_OPEN else 'index' -%}
     {% if attendee.group and attendee.group.is_dealer and attendee.group.status != c.APPROVED %}
         <td><a href="{{ next_page }}">I'm doing this because my Dealer request isn't approved!</a></td>
     {% else %}
