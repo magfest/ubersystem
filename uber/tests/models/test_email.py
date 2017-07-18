@@ -2,18 +2,14 @@ from uber.tests import *
 from uber.tests.conftest import *
 
 
-@pytest.fixture
-def session(request, monkeypatch):
-    session = Session().session
-    request.addfinalizer(session.close)
-    monkeypatch.setattr(session, 'add', Mock())
-    monkeypatch.setattr(session, 'delete', Mock())
-    return session
-
-
 def test_get_fk_from_id():
-    a = Attendee()
-    assert a == Email(fk_id=a.id).fk
+    with Session() as session:
+        a = Attendee(first_name='Regular', last_name='Attendee')
+        e = Email(fk_id=a.id, model='Attendee')
+        session.add(a)
+        session.add(e)
+        session.commit()
+        assert a == e.fk
 
 
 def test_get_fk_no_id():
@@ -24,24 +20,28 @@ def test_get_fk_fake_id():
     assert None == Email(fk_id="blah").fk
 
 
-def test_group_name():
-    assert "Test Leader" == Email(fk_id=Group(leader=Attendee(first_name="Test", last_name="Leader")).id).rcpt_name
+def test_group_name(monkeypatch):
+    monkeypatch.setattr(Email, 'fk', Group(leader=Attendee(first_name="Test", last_name="Leader")))
+    assert "Test Leader" == Email(model='Group').rcpt_name
 
 
-def test_attendee_name():
-    assert "Test Attendee" == Email(fk_id=Attendee(first_name="Test", last_name="Attendee").id).rcpt_name
+def test_attendee_name(monkeypatch):
+    monkeypatch.setattr(Email, 'fk', Attendee(first_name="Test", last_name="Attendee"))
+    assert "Test Attendee" == Email(model='Attendee').rcpt_name
 
 
 def test_no_name():
     assert None == Email().rcpt_name
 
 
-def test_group_email():
-    assert "testleader@example.com" == Email(fk_id=Group(leader=Attendee(email="testleader@example.com")).id).rcpt_email
+def test_group_email(monkeypatch):
+    monkeypatch.setattr(Email, 'fk', Group(leader=Attendee(email="testleader@example.com")))
+    assert "testleader@example.com" == Email(model='Group').rcpt_email
 
 
-def test_attendee_email():
-    assert "testattendee@example.com" == Email(fk_id=Attendee(email="testattendee@example.com").id).rcpt_email
+def test_attendee_email(monkeypatch):
+    monkeypatch.setattr(Email, 'fk', Attendee(email="testattendee@example.com"))
+    assert "testattendee@example.com" == Email(model='Attendee').rcpt_email
 
 
 def test_no_email():
