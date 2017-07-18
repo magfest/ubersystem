@@ -1,14 +1,20 @@
-{% extends "base.html" %}{% set admin_area=True %}
+{% extends "base.html" %}{% set admin_area=True %}{% set resend_email_form=True %}
 {% block title %}Sent Emails{% endblock %}
 {% block content %}
 
 <h2>Emails Sent to {{ emails.0.rcpt_name }} ({{ emails.0.dest }})</h2>
 
-<div style="text-align:center"><a href="index">Go Back</a></div>
+<div><a href="index">Go Back</a></div>
 
 {% for email in emails  %}
-    <h3> {{ email.subject }} ({{ email.when|full_datetime_local }}) </h3>
-    <div style="font-family:courier">{{ email.html }}</div>
+    <h3>{{ email.subject }} ({{ email.when|full_datetime_local }})</h3>
+    <div style="font-family:courier" class="well">{{ email.html }}</div>
+    <form method="post" action="resend_email" id="resend_email_{{ email.id }}">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ email.id }}" />
+        <button class="btn btn-primary" type="submit">Resend Email</button>
+    </form>
+    <hr/>
 {% endfor %}
 
 {% endblock %}

@@ -172,7 +172,7 @@ def email_subsystem_sane_setup(
         remove_approved_idents,
         amazon_send_email_mock):
     """
-    Catch-all test for setting up all email subsytem tests.  This fixture is a catch-all container of all relevant
+    Catch-all test for setting up all email subsystem tests.  This fixture is a catch-all container of all relevant
     email testing fixtures.
 
     We will reset a bunch of global state and fake database data in each test run

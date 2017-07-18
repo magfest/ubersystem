@@ -88,6 +88,33 @@ class Root:
             'message': output_msg,
         }
 
+    @ajax
+    def resend_email(self, session, id):
+        """
+        Resend a particular email to the model's current email address.
+
+        This is useful for if someone had an invalid email address and did not receive an automated email.
+        """
+
+        email = session.email(id)
+        if email:
+            # If this was an automated email, we can send out an updated template with the correct 'from' address
+            if email.ident in AutomatedEmail.instances:
+                email_category = AutomatedEmail.instances[email.ident]
+                sender = email_category.sender
+                body = email_category.render(email.fk)
+            else:
+                sender = c.ADMIN_EMAIL
+                body = email.html
+
+            try:
+                send_email(sender, email.rcpt_email, email.subject, body, model=email.fk, ident=email.ident)
+            except:
+                return {'success': False, 'message': 'Email not sent: unknown error.'}
+            else:
+                return {'success': True, 'message': 'Email resent.'}
+        return {'success': False, 'message': 'Email not sent: no email found with that ID.'}
+
     @csrf_protected
     def approve(self, session, ident):
         session.add(ApprovedEmail(ident=ident))

@@ -2656,10 +2656,14 @@ class Email(MagModel):
 
     @property
     def rcpt_name(self):
-        if self.model == 'Group':
-            return self.fk.leader.full_name
-        else:
-            return self.fk.full_name
+        if self.fk:
+            return self.fk.leader.full_name if self.model == 'Group' else self.fk.full_name
+
+    @property
+    def rcpt_email(self):
+        if self.fk:
+            return self.fk.leader.email if self.model == 'Group' else self.fk.email
+        return self.dest or None
 
     @property
     def is_html(self):

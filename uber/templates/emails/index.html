@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% set admin_area=True %}
+{% extends "base.html" %}{% set admin_area=True %}{% set resend_email_form=True %}
 {% block title %}Recently Sent Automated Emails{% endblock %}
 {% block content %}
 
@@ -9,17 +9,25 @@
 
 {{ pages(page, count) }}
 
-<table class="list">
-<tr class="header">
-    <td>Sent</td>
-    <td>Subject</td>
-    <td>Recipient</td>
-</tr>
+<table class="table-striped table-bordered table-condensed">
+<thead><tr>
+    <th>Sent</th>
+    <th>Subject</th>
+    <th>Recipient</th>
+    <th></th>
+</tr></thead>
 {% for email in emails %}
     <tr>
-        <td>{{ email.when }}</td>
+        <td style="white-space:nowrap">{{ email.when|datetime_local("%x %X") }}</td>
         <td>{{ email.subject }}</td>
         <td><a href="sent?dest={{ email.dest }}">{{ email.dest }}</a></td>
+        <td>
+            <form method="post" action="resend_email" id="resend_email_{{ email.id }}">
+                {{ csrf_token() }}
+                <input type="hidden" name="id" value="{{ email.id }}" />
+                <button class="btn btn-primary" type="submit">Resend Email</button>
+            </form>
+        </td>
     </tr>
 {% endfor %}
 </table>
