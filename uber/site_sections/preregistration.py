@@ -574,7 +574,7 @@ class Root:
             'attendee':      attendee,
             'message':       message,
             'affiliates':    session.affiliates(),
-            'badge_cost':    attendee.badge_cost
+            'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else 0
         }
 
     @id_required(Attendee)
