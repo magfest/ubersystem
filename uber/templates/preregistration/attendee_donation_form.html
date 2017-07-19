@@ -8,7 +8,7 @@
     {% if attendee.paid == c.NOT_PAID %}
       <h2> Badge Payment for {{ attendee.full_name }} </h2>
 
-      You've registered for {{ c.EVENT_NAME }} at a {% if attendee.overridden_price %}discounted{% endif %} price of ${{ attendee.overridden_price|default(attendee.badge_cost|round(2)) }}{% if attendee.amount_extra %} and you've also kicked in ${{ attendee.amount_extra|round(2) }}{% endif %}; your total outstanding balance is ${{ attendee.amount_unpaid|round(2) }}.
+      You've registered for {{ c.EVENT_NAME }} at a {% if attendee.overridden_price %}discounted{% endif %} price of ${{ attendee.badge_cost }}{% if attendee.amount_extra %} and you've also kicked in ${{ attendee.amount_extra|round(2) }}{% endif %}; your total outstanding balance is ${{ attendee.amount_unpaid|round(2) }}.
 
       <table style="width: auto; margin: 15px auto 0;">
         <tr>
