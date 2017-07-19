@@ -110,6 +110,12 @@ class Root:
                     attendee.checked_in = localized_now()
                 session.add(attendee)
 
+                if attendee.is_new and \
+                        session.attendees_with_badges().filter_by(first_name=attendee.first_name,
+                                                                  last_name=attendee.last_name,
+                                                                  email=attendee.email).count():
+                    raise HTTPRedirect('duplicate?id={}&return_to={}', attendee.id, return_to or 'index')
+
                 msg_text = '{} has been saved'.format(attendee.full_name)
                 if params.get('save') == 'save_return_to_search':
                     if return_to:
@@ -247,6 +253,13 @@ class Root:
             'new_watch': watch_entry,
             'watchlist_entries': session.query(WatchList).order_by(WatchList.last_name).all(),
             'message': message
+        }
+
+    def duplicate(self, session, id, return_to='index'):
+        attendee = session.attendee(id)
+        return {
+            'attendee': attendee,
+            'return_to': return_to
         }
 
     @csrf_protected
