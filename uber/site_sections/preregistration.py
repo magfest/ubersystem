@@ -411,7 +411,8 @@ class Root:
             'group_id': group_id,
             'group': group,
             'attendee': attendee,
-            'affiliates': session.affiliates()
+            'affiliates': session.affiliates(),
+            'badge_cost': 0
         }
 
     @credit_card
@@ -572,7 +573,8 @@ class Root:
             'return_to':     return_to,
             'attendee':      attendee,
             'message':       message,
-            'affiliates':    session.affiliates()
+            'affiliates':    session.affiliates(),
+            'badge_cost':    attendee.badge_cost
         }
 
     @id_required(Attendee)
