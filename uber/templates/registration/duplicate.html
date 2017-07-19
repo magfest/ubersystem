@@ -40,10 +40,9 @@
 
     <table style="width:auto" align="center">
     <tr>
-        <td class="btn-group">
-            <a class="btn btn-default" href="form?id={{ attendee.id }}">Let me go back and edit their info!</a>
-            <a class="btn btn-default" href="{{ return_to }}">Take me back to where I was going!</a>
-        </td>
+        <td><a class="btn btn-default" href="{{ return_to }}">Yes, I'm sure this is someone else!</a></td>
+        <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>
+        <td><a class="btn btn-primary" href="form?id={{ attendee.id }}">Wait, let me edit their info!</a></td>
         <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>
         <td>
             <form method="post" action="delete">
