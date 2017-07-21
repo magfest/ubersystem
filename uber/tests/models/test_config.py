@@ -109,6 +109,67 @@ class TestPriceLimits:
     # todo: Test badges that are paid by group
 
 
+class TestBadgePriceEstimate:
+    @pytest.fixture(autouse=True)
+    def add_price_limits(request, monkeypatch):
+        monkeypatch.setattr(c, 'PRICE_LIMITS', {1000: 50, 2500: 55})
+        monkeypatch.setattr(c, 'ORDERED_PRICE_LIMITS', [50, 55])
+        monkeypatch.setattr(c, 'PRICE_BUMPS', {})
+
+    def test_no_limits_estimate_no_max(self, monkeypatch):
+        monkeypatch.setattr(c, 'ORDERED_PRICE_LIMITS', [])
+        monkeypatch.setattr(c, 'MAX_BADGE_SALES', 0)
+        assert 'Limitless' == c.BADGES_LEFT_AT_CURRENT_PRICE
+
+    def test_no_limits_estimate_with_max(self, monkeypatch):
+        monkeypatch.setattr(c, 'ORDERED_PRICE_LIMITS', [])
+        monkeypatch.setattr(c, 'MAX_BADGE_SALES', 100)
+        assert 'Very Low' == c.BADGES_LEFT_AT_CURRENT_PRICE
+
+    def test_last_price_estimate_no_max(self, monkeypatch):
+        monkeypatch.setattr(uber.config.Config, 'BADGE_PRICE', 55)
+        monkeypatch.setattr(c, 'MAX_BADGE_SALES', 0)
+        assert 'Limitless' == c.BADGES_LEFT_AT_CURRENT_PRICE
+
+    def test_last_price_estimate_with_max(self, monkeypatch):
+        monkeypatch.setattr(uber.config.Config, 'BADGE_PRICE', 55)
+        monkeypatch.setattr(c, 'MAX_BADGE_SALES', 100)
+        assert 'Very Low' == c.BADGES_LEFT_AT_CURRENT_PRICE
+
+    def test_hardcore_optimized_estimate(self, monkeypatch):
+        monkeypatch.setattr(c, 'HARDCORE_OPTIMIZATIONS_ENABLED', True)
+        assert 'Unknown' == c.BADGES_LEFT_AT_CURRENT_PRICE
+
+    def test_almost_gone_estimate(self, monkeypatch):
+        monkeypatch.setattr(uber.config.Config, 'BADGES_SOLD', 990)
+        assert 'Almost Gone' == c.BADGES_LEFT_AT_CURRENT_PRICE
+
+    def test_very_low_estimate(self, monkeypatch):
+        monkeypatch.setattr(uber.config.Config, 'BADGES_SOLD', 910)
+        assert 'Very Low' == c.BADGES_LEFT_AT_CURRENT_PRICE
+
+    def test_low_estimate(self, monkeypatch):
+        monkeypatch.setattr(uber.config.Config, 'BADGES_SOLD', 760)
+        assert 'Low' == c.BADGES_LEFT_AT_CURRENT_PRICE
+
+    def test_moderate_estimate(self, monkeypatch):
+        monkeypatch.setattr(uber.config.Config, 'BADGES_SOLD', 600)
+        assert 'Medium' == c.BADGES_LEFT_AT_CURRENT_PRICE
+
+    def test_high_estimate(self, monkeypatch):
+        monkeypatch.setattr(uber.config.Config, 'BADGES_SOLD', 260)
+        assert 'High' == c.BADGES_LEFT_AT_CURRENT_PRICE
+
+    def test_very_high_estimate(self, monkeypatch):
+        monkeypatch.setattr(uber.config.Config, 'BADGES_SOLD', 60)
+        assert 'Very High' == c.BADGES_LEFT_AT_CURRENT_PRICE
+
+    def test_super_high_estimate(self, monkeypatch):
+        monkeypatch.setattr(uber.config.Config, 'BADGES_SOLD', 1010)
+        monkeypatch.setattr(uber.config.Config, 'BADGE_PRICE', 50)
+        assert 'Super High' == c.BADGES_LEFT_AT_CURRENT_PRICE
+
+
 class TestBadgeOpts:
     def test_prereg_badge_opts_with_group(self, monkeypatch):
         monkeypatch.setattr(c, 'GROUP_PREREG_TAKEDOWN', localized_now() + timedelta(days=1))
