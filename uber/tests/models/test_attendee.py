@@ -192,7 +192,7 @@ class TestUnsetVolunteer:
     def test_basic(self):
         a = Attendee(staffing=True, trusted_depts=c.CONSOLE, requested_depts=c.CONSOLE, assigned_depts=c.CONSOLE, ribbon=c.VOLUNTEER_RIBBON, shifts=[Shift()])
         a.unset_volunteering()
-        assert not a.staffing and not a.trusted_somewhere and not a.requested_depts and not a.assigned_depts and not a.shifts and a.ribbon == c.NO_RIBBON
+        assert not a.staffing and not a.trusted_somewhere and not a.requested_depts and not a.assigned_depts and not a.shifts and a.ribbon == ''
 
     def test_different_ribbon(self):
         a = Attendee(ribbon=c.DEALER_RIBBON)
@@ -316,7 +316,7 @@ class TestStaffingAdjustments:
     def test_staffers_need_no_volunteer_ribbon(self):
         a = Attendee(badge_type=c.STAFF_BADGE, ribbon=c.VOLUNTEER_RIBBON)
         a._staffing_adjustments()
-        assert a.ribbon == c.NO_RIBBON
+        assert a.ribbon == ''
 
     def test_staffers_can_have_other_ribbons(self):
         a = Attendee(badge_type=c.STAFF_BADGE, ribbon=c.DEALER_RIBBON)
@@ -342,7 +342,7 @@ class TestStaffingAdjustments:
     def test_yes_to_no_ribbon(self, unset_volunteering, prevent_presave_adjustments):
         with Session() as session:
             a = session.attendee(first_name='Regular', last_name='Volunteer')
-            a.ribbon = c.NO_RIBBON
+            a.ribbon = ''
             a._staffing_adjustments()
             assert unset_volunteering.called
 
@@ -368,7 +368,7 @@ class TestBadgeAdjustments:
     def test_group_to_attendee(self):
         a = Attendee(badge_type=c.PSEUDO_GROUP_BADGE)
         a._badge_adjustments()
-        assert a.badge_type == c.ATTENDEE_BADGE and a.ribbon == c.NO_RIBBON
+        assert a.badge_type == c.ATTENDEE_BADGE and a.ribbon == ''
 
     def test_dealer_to_attendee(self):
         a = Attendee(badge_type=c.PSEUDO_DEALER_BADGE)

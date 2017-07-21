@@ -592,6 +592,15 @@ if c.ONE_DAYS_ENABLED and c.PRESELL_ONE_DAYS:
         c.TRANSFERABLE_BADGE_TYPES.append(_val)
         _day += timedelta(days=1)
 
+"""
+Takes all the ribbon globals and sets them to string versions of themselves.
+This saves us an awful lot of trouble when comparing ribbons -- MultiChoice
+columns are represented as strings, and you can't look for INT in STR.
+"""
+for var_name in c.RIBBON_VARS:
+    setattr(c, var_name, str(getattr(c, var_name)))
+
+
 c.MAX_BADGE = max(xs[1] for xs in c.BADGE_RANGES.values())
 
 c.JOB_LOCATION_OPTS.sort(key=lambda tup: tup[1])

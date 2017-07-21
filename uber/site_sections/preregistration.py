@@ -171,7 +171,7 @@ class Root:
                         group.tables = 0
                     elif attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                         group.status = c.WAITLISTED if c.DEALER_REG_SOFT_CLOSED else c.UNAPPROVED
-                        attendee.ribbon = c.DEALER_RIBBON
+                        attendee.ribbon = add_opt(attendee.ribbon, c.DEALER_RIBBON)
                         attendee.badge_type = c.ATTENDEE_BADGE
 
                 if attendee.is_dealer:

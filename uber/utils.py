@@ -477,6 +477,31 @@ def get_real_badge_type(badge_type):
     return c.ATTENDEE_BADGE if badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE] else badge_type
 
 
+def add_opt(opts, other):
+    """
+    Add an option to a comma-separated string.
+    """
+    other = [other] if isinstance(other, str) else other
+    list = opts.split(',') if opts else []
+    list.extend(other)
+    return ','.join(list)
+
+
+def remove_opt(opts, other):
+    """
+    Remove an option from a comma-separated string.
+    """
+    other = [other] if isinstance(other, str) else other
+    list = opts.split(',')
+    if other == list:
+        return ''
+    elif other not in list:
+        return opts
+
+    list.remove(other)
+    return ','.join(list)
+
+
 _when_dateformat = "%m/%d"
 
 

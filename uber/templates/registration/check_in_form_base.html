@@ -57,8 +57,8 @@
     <tr>
         <td>Badge Type:</td>
         <td>{{ attendee.badge_type_label }}
-            {% if attendee.ribbon != c.NO_RIBBON %}
-                ({{ attendee.ribbon_label }})
+            {% if attendee.ribbon %}
+                ({{ attendee.ribbon_labels|join(", ") }})
             {% endif %}
         </td>
     </tr>

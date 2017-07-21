@@ -88,8 +88,8 @@ def test_min_badges_addable():
 
 
 def test_new_ribbon():
-    assert c.NO_RIBBON == Group().new_ribbon
-    assert c.NO_RIBBON == Group(attendees=[Attendee()]).new_ribbon
+    assert '' == Group().new_ribbon
+    assert '' == Group(attendees=[Attendee()]).new_ribbon
     assert c.DEALER_RIBBON == Group(tables=1).new_ribbon
 
 
