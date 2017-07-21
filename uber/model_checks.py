@@ -56,6 +56,18 @@ def dealer_description(group):
 
 
 @prereg_validation.Group
+def dealer_categories(group):
+    if group.tables and not group.categories:
+        return "Please select at least one category your wares fall under."
+
+
+@prereg_validation.Group
+def dealer_other_category(group):
+    if group.categories and str(c.OTHER) in group.categories and not group.categories_text:
+        return "Please describe what 'other' categories your wares fall under."
+
+
+@prereg_validation.Group
 def dealer_address(group):
     if group.tables and not (group.address1 and group.city and group.region and group.country and group.zip_code):
         "Please provide your full address for tax purposes"
