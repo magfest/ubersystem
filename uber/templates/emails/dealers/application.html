@@ -25,6 +25,11 @@ this coming {{ event_dates() }}. Below is a copy of your application. You may
     We will review your request and provide you with a payment link once your application has been approved.
 {% endif %}
 
+{% if group.requested_hotel_info and c.PREREG_REQUEST_HOTEL_INFO_OPEN -%}
+    <br/> <br/>
+    {% include "preregistration/hotel_disclaimer.html" %}
+{%- endif %}
+
 <br/> <br/> <u>Dealer Rules and Information</u>
 {% include "static_views/dealerRules.html" %}
 
