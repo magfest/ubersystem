@@ -356,7 +356,9 @@ class Root:
             if changes:
                 group.apply(params, restricted=True)
                 message = check(group, prereg=True)
-                if not message:
+                if message:
+                    session.rollback()
+                else:
                     session.commit()
                     if group.is_dealer:
                         send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Application Changed',
