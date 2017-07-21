@@ -219,7 +219,7 @@
         </div>
     </div>
 
-    {{ macros.address_form(group=group, is_dealer=new_dealer or group.is_dealer, collect_full_address=c.COLLECT_FULL_ADDRESS) }}
+    {{ macros.address_form(group=group, is_dealer=new_dealer or group.is_dealer) }}
 {% endif %}
 
 {% include "groupextra.html" %}

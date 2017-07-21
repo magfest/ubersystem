@@ -107,7 +107,7 @@
         </p>
     </div>
 
-    {{ macros.address_form(group=group, attendee=attendee, is_dealer=True, collect_full_address=c.COLLECT_FULL_ADDRESS, name_prefix="group_" if attendee else "") }}
+    {{ macros.address_form(group=group, attendee=attendee, is_dealer=True, name_prefix="group_" if attendee else "") }}
 {% endif %}
 
 {% include "groupextra.html" %}
