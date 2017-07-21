@@ -119,50 +119,51 @@
   </div>
 {%- endmacro %}
 
-{% macro address_form(group=False, attendee=False, is_prereg_dealer=False, copy_address=False, name_prefix="") -%}
+{% macro address_form(group=False, attendee=False, is_dealer=False, collect_full_address=False, copy_address=False, name_prefix="") -%}
     {% set group_or_attendee=group if group else attendee %}
     {% set id_prefix=group.id|replace("-","") if group else attendee.id|replace("-","") %}
-    {% if not is_prereg_dealer %}
+    {% if is_dealer or collect_full_address %}
         <script src="../static/deps/selectToAutocomplete/jquery.select-to-autocomplete.js"></script>
         <script type="text/javascript">{% include "region_opts.html" %}</script>
-    {% endif %}
-    <script type="text/javascript">
-        var regionChange{{ id_prefix }} = function() {
-            {{ 'setInternational();' if not group else '' }}
 
-            var regionopts = $("#{{ id_prefix }}region");
-            var whichCountry = $("#{{ id_prefix }}country").find(':selected').text();
-            switch(whichCountry) {
-                case 'United States':
-                    regionopts.replaceWith('<select name="{{ name_prefix }}region" id="{{ id_prefix }}region" class="form-control"></select>');
-                    $("[name='{{ name_prefix }}region']").html(regionsforUS);
-                    break;
-                case 'Canada':
-                    regionopts.replaceWith('<select name="{{ name_prefix }}region" id="{{ id_prefix }}region" class="form-control"></select>');
-                    $("[name='{{ name_prefix }}region']").html(regionsforCanada);
-                    break;
-            }
-            var optionToSelect{{ id_prefix }} = $("#{{ id_prefix }}region option[value='{{ group_or_attendee.region }}']");
-            if (optionToSelect{{ id_prefix }}.length) {
-                optionToSelect{{ id_prefix }}.prop('selected', true)
-            }
-        };
+        <script type="text/javascript">
+            var regionChange{{ id_prefix }} = function() {
+                {{ 'setInternational();' if not group else '' }}
 
-        $(function() {
-            {{ 'setInternational();' if not group else '' }}
-            $("#{{ id_prefix }}country").val('{{ group_or_attendee.country }}');
-            $("#{{ id_prefix }}country").selectToAutocomplete();
-            $("#{{ id_prefix }}country").change(function() {
-                $("#{{ id_prefix }}region").replaceWith('<input type="text" name="{{ name_prefix }}region" id="{{ id_prefix }}region" value="{{ group_or_attendee.region }}" class="form-control" placeholder="State/Province">');
+                var regionopts = $("#{{ id_prefix }}region");
+                var whichCountry = $("#{{ id_prefix }}country").find(':selected').text();
+                switch(whichCountry) {
+                    case 'United States':
+                        regionopts.replaceWith('<select name="{{ name_prefix }}region" id="{{ id_prefix }}region" class="form-control"></select>');
+                        $("[name='{{ name_prefix }}region']").html(regionsforUS);
+                        break;
+                    case 'Canada':
+                        regionopts.replaceWith('<select name="{{ name_prefix }}region" id="{{ id_prefix }}region" class="form-control"></select>');
+                        $("[name='{{ name_prefix }}region']").html(regionsforCanada);
+                        break;
+                }
+                var optionToSelect{{ id_prefix }} = $("#{{ id_prefix }}region option[value='{{ group_or_attendee.region }}']");
+                if (optionToSelect{{ id_prefix }}.length) {
+                    optionToSelect{{ id_prefix }}.prop('selected', true)
+                }
+            };
+
+            $(function() {
+                {{ 'setInternational();' if not group else '' }}
+                $("#{{ id_prefix }}country").val('{{ group_or_attendee.country }}');
+                $("#{{ id_prefix }}country").selectToAutocomplete();
+                $("#{{ id_prefix }}country").change(function() {
+                    $("#{{ id_prefix }}region").replaceWith('<input type="text" name="{{ name_prefix }}region" id="{{ id_prefix }}region" value="{{ group_or_attendee.region }}" class="form-control" placeholder="State/Province">');
+                    regionChange{{ id_prefix }}();
+                });
+
+                $("#{{ id_prefix }}region").val('{{ group_or_attendee.region }}');
                 regionChange{{ id_prefix }}();
             });
+        </script>
+    {% endif %}
 
-            $("#{{ id_prefix }}region").val('{{ group_or_attendee.region }}');
-            regionChange{{ id_prefix }}();
-        });
-    </script>
-
-    {% if is_prereg_dealer %}
+    {% if is_dealer and collect_full_address and not group %}
         <script type="text/javascript">
         var copyAddress{{ id_prefix }} = function () {
             if ($("#{{ id_prefix }}copy_address").prop('checked')) {
@@ -203,8 +204,7 @@
         </div>
     </div>
     <div class="form-group {{ id_prefix }}address_details">
-        <label for="{{ id_prefix }}address2" class="col-sm-3 control-label"></label>
-        <div class="col-sm-6">
+        <div class="col-sm-6 col-sm-offset-3">
             <input type="text" name="{{ name_prefix }}address2" class="form-control" placeholder="Address Line 2" value="{{ group_or_attendee.address2 }}" />
         </div>
     </div>

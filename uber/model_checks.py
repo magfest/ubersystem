@@ -57,8 +57,25 @@ def dealer_description(group):
 
 @prereg_validation.Group
 def dealer_address(group):
-    if group.tables and not (group.address1 and group.city and group.region and group.country and group.zip_code):
-        "Please provide your full address for tax purposes"
+    if group.tables:
+        missing = []
+        if not group.country:
+            missing.append('country')
+        if not group.address1:
+            missing.append('street address')
+        if not group.city:
+            missing.append('city')
+        if group.country == 'United States':
+            if not group.region:
+                missing.append('state')
+            if not group.zip_code:
+                missing.append('zip code')
+        if group.country == 'Canada' and not group.region:
+            missing.append('province or region')
+
+        if missing:
+            return 'Please provide your full address for tax purposes. ' \
+                'Missing: {}'.format(', '.join(missing))
 
 
 @validation.Group
