@@ -426,7 +426,7 @@ class Root:
             group.amount_paid += charge.dollar_amount
 
             session.merge(group)
-            if group.tables:
+            if group.is_dealer:
                 try:
                     send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Payment Completed',
                                render('emails/dealers/payment_notification.txt', {'group': group}), model=group)
