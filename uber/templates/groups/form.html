@@ -219,7 +219,8 @@
         </div>
     </div>
 
-    {{ macros.address_form(group=group, is_dealer=new_dealer or group.is_dealer) }}
+    <script type="text/javascript">{% include "region_opts.html" %}</script>
+    {{ macros.address_form(group) }}
 {% endif %}
 
 {% include "groupextra.html" %}

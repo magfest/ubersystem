@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block head_javascript %}
     {{ super() }}
+
+    <script type="text/javascript">{% include "region_opts.html" %}</script>
     <script type="text/javascript">
         {#
           Make the PREREG_BADGE_TYPES array available in javascript. Also
