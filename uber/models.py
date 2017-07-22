@@ -784,7 +784,7 @@ class Session(SessionManager):
             assert len(direction) < 2, 'you cannot specify both up and down parameters'
             down = (not direction['up']) if 'up' in direction else direction.get('down', True)
             shift = -1 if down else 1
-            for a in self.query(Attendee).filter(Attendee.badge_num is not None,
+            for a in self.query(Attendee).filter(Attendee.badge_num == None,
                                                  Attendee.badge_num >= badge_num,
                                                  Attendee.badge_num <= until):
                 a.badge_num += shift
