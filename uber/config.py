@@ -145,7 +145,7 @@ class Config(_Overridable):
     @request_cached_property
     def DEALER_APPS(self):
         with sa.Session() as session:
-            return session.query(sa.Group).filter(sa.Group.tables > 0, sa.Group.cost > 0, sa.Group.status == self.UNAPPROVED).count()
+            return session.query(sa.Group).filter(sa.Group.is_dealer, sa.Group.cost > 0, sa.Group.status == self.UNAPPROVED).count()
 
     @request_cached_property
     def BADGES_SOLD(self):
