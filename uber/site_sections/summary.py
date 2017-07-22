@@ -357,10 +357,10 @@ class Root:
     def consecutive_threshold(self, session):
         def exceeds_threshold(start_time, attendee):
             time_slice = [start_time + timedelta(hours=i) for i in range(18)]
-            return len([h for h in attendee.hours if h in time_slice]) > 12
+            return len([h for h in attendee.hours if h in time_slice]) >= 12
         flagged = []
         for attendee in session.staffers():
-            if attendee.staffing and attendee.weighted_hours > 12:
+            if attendee.staffing and attendee.weighted_hours >= 12:
                 for start_time, desc in c.START_TIME_OPTS[::6]:
                     if exceeds_threshold(start_time, attendee):
                         flagged.append(attendee)
