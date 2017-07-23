@@ -39,25 +39,25 @@ Group.required = [('name', 'Group Name')]
 
 @prereg_validation.Group
 def dealer_wares(group):
-    if group.tables and not group.wares:
+    if group.is_dealer and not group.wares:
         return "You must provide a detailed explanation of what you sell for us to evaluate your submission"
 
 
 @prereg_validation.Group
 def dealer_website(group):
-    if group.tables and not group.website:
+    if group.is_dealer and not group.website:
         return "Please enter your business' website address"
 
 
 @prereg_validation.Group
 def dealer_description(group):
-    if group.tables and not group.description:
+    if group.is_dealer and not group.description:
         return "Please provide a brief description of your business"
 
 
 @prereg_validation.Group
 def dealer_address(group):
-    if group.tables:
+    if group.is_dealer:
         missing = []
         if not group.country:
             missing.append('country')

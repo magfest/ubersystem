@@ -384,24 +384,27 @@ class Root:
                 if not group.unassigned:
                     raise HTTPRedirect('register_group_member?group_id={}&message={}', group_id, 'No more unassigned badges exist in this group')
 
-                badge_being_claimed = group.unassigned[0]
+                attrs_to_preserve_from_unassigned_group_member = [
+                    'id',
+                    'group_id',
+                    'badge_type',
+                    'badge_num',
+                    'base_badge_price',
+                    'ribbon',
+                    'paid',
+                    'overridden_price']
 
-                # Free group badges are only considered 'registered' when they are actually claimed.
+                for attr in attrs_to_preserve_from_unassigned_group_member:
+                    if attr in params:
+                        del params[attr]
+
+                attendee = group.unassigned[0]
+                attendee.apply(params, restricted=True)
+
+                # Free group badges are considered registered' when they are actually claimed.
                 if group.cost == 0:
                     attendee.registered = localized_now()
-                else:
-                    attendee.registered = badge_being_claimed.registered
 
-                attendee.badge_type = badge_being_claimed.badge_type
-                attendee.badge_num = badge_being_claimed.badge_num
-                attendee.base_badge_price = badge_being_claimed.base_badge_price
-                attendee.ribbon = badge_being_claimed.ribbon
-                attendee.paid = badge_being_claimed.paid
-                attendee.overridden_price = badge_being_claimed.overridden_price
-
-                session.delete_from_group(badge_being_claimed, group)
-                group.attendees.append(attendee)
-                session.add(attendee)
                 if attendee.amount_unpaid:
                     raise HTTPRedirect('attendee_donation_form?id={}', attendee.id)
                 else:
@@ -429,7 +432,7 @@ class Root:
             group.amount_paid += charge.dollar_amount
 
             session.merge(group)
-            if group.tables:
+            if group.is_dealer:
                 try:
                     send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Payment Completed',
                                render('emails/dealers/payment_notification.txt', {'group': group}), model=group)
