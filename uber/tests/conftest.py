@@ -14,6 +14,10 @@ deadline_not_reached = localized_now() + timedelta(days=1)
 deadline_has_passed  = localized_now() - timedelta(days=1)
 
 
+def assert_unique(x):
+    assert len(x) == len(set(x))
+
+
 def monkeypatch_db_column(column, patched_config_value):
     column.property.columns[0].type.choices = dict(patched_config_value)
 
