@@ -92,16 +92,16 @@
     {%-
       set steps = [
           (('form', 'post_form'), 'Enter Info'),
-          ('hotel', 'Hotel Booking'),
+          (('hotel',), 'Hotel Booking'),
           (('index', 'preregistration', ''), 'Review & Pay'),
-          ('paid_preregistrations', 'Done')]
+          (('paid_preregistrations',), 'Done')]
     -%}
   {% else %}
     {%-
       set steps = [
           (('form', 'post_form'), 'Enter Info'),
           (('index', 'preregistration', ''), 'Review & Pay'),
-          ('paid_preregistrations', 'Done')]
+          (('paid_preregistrations',), 'Done')]
     -%}
   {%- endif -%}
   {%- set step_count = steps|length -%}
