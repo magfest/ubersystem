@@ -401,6 +401,11 @@ class MagModel:
                             value = None
                         else:
                             value = float(value)
+                    elif isinstance(column.type, Numeric):
+                        if value == '':
+                            value = None
+                        elif value.endswith('.0'):
+                            value = int(float(value))
                     elif isinstance(column.type, (Choice, Integer)):
                         if value == '':
                             value = None
@@ -1151,7 +1156,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def is_dealer(self):
-        return bool(self.tables and self.tables != '0' and (not self.registered or self.amount_paid or self.cost))
+        return bool(self.tables and self.tables != '0' and self.tables != '0.0' and (not self.registered or self.amount_paid or self.cost))
 
     @property
     def is_unpaid(self):
@@ -1183,7 +1188,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @cost_property
     def table_cost(self):
-        return sum(c.TABLE_PRICES[i] for i in range(1, 1 + int(self.tables)))
+        return sum(c.TABLE_PRICES[i] for i in range(1, 1 + int(float(self.tables))))
 
     @property
     def new_badge_cost(self):
