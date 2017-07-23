@@ -34,7 +34,7 @@ def dump_schema(sort=True, uniquify=True):
 
 def dump_alembic_schema(sort=True, uniquify=True):
     if Session.engine.dialect.name == 'sqlite' and \
-            sqlite3.sqlite_version_info < (3, 8):
+            sqlite3.sqlite_version_info < (3, 8, 3):
         pytest.skip('requires recent version of sqlite')
     drop_uber_db()
     alembic('upgrade', 'heads')
