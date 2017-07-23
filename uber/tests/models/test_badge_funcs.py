@@ -230,10 +230,6 @@ class TestShiftBadges:
         # This loads badges from the session, which isn't reloaded, so the result is not always what you'd expect
         return sorted(a.badge_num for a in session.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS).filter_by(badge_type=c.STAFF_BADGE).all())
 
-    def test_invalid_parameters(self, session):
-        pytest.raises(AssertionError, session.shift_badges, c.STAFF_BADGE, 1, invalid='param')
-        pytest.raises(AssertionError, session.shift_badges, c.STAFF_BADGE, 1, up=True, down=False)
-
     def test_shift_not_enabled(self, session, monkeypatch, custom_badges_ordered):
         session.shift_badges(c.STAFF_BADGE, 2)
         assert [1, 2, 3, 4, 5] == self.staff_badges(session)
