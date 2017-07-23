@@ -17,9 +17,15 @@ module.exports = function (grunt) {
                             process.cwd() + '/bower_components/bootstrap/js/button.js'
                         ]);
                     } else if (component === 'jquery-ui') {
-                        return mainFiles.concat([process.cwd() + '/bower_components/jquery-ui/themes/ui-lightness/jquery-ui.css']);
+                        // jquery.select-to-autocomplete.js doesn't have a bower.json so we manually add it
+                        // There's already a pull request to add bower support:
+                        // https://github.com/JamieAppleseed/selectToAutocomplete/pull/93
+                        return mainFiles.concat([
+                            process.cwd() + '/bower_components/jquery-ui/themes/ui-lightness/jquery-ui.css',
+                            process.cwd() + '/uber/static/deps/selectToAutocomplete/jquery.select-to-autocomplete.js'
+                        ]);
                     } else if (component === 'jquery') {
-                        // jquery-datetextentry doesn't have a bower.json so we're manually added it to the files we concat
+                        // jquery-datetextentry doesn't have a bower.json so we manually add it
                         // TODO: make a pull request to the jquery-datetextentry to give them bower support
                         return mainFiles.concat([
                             process.cwd() + '/uber/static/deps/jquery-datetextentry/jquery.datetextentry.js',
@@ -36,8 +42,32 @@ module.exports = function (grunt) {
                     }
                 }
             }
+        },
+        uglify: {
+            options: {
+                mangle: false,
+                output: { comments: 'some' },
+                sourceMap: true
+            },
+            target: {
+                files: {
+                    'uber/static/deps/combined.min.js': ['uber/static/deps/combined.js']
+                }
+            }
+        },
+        cssmin: {
+            options: {
+                sourceMap: true
+            },
+            target: {
+                files: {
+                    'uber/static/deps/combined.min.css': ['uber/static/deps/combined.css']
+                }
+            }
         }
     });
     grunt.loadNpmTasks('grunt-bower-concat');
-    grunt.registerTask('default', ['bower_concat']);
+    grunt.loadNpmTasks('grunt-contrib-uglify');
+    grunt.loadNpmTasks('grunt-contrib-cssmin');
+    grunt.registerTask('default', ['bower_concat', 'uglify', 'cssmin']);
 };

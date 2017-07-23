@@ -201,7 +201,7 @@
             <input type="text" name="website" value="{{ group.website }}" class="form-control"/>
         </div>
         <div class="col-sm-9 col-sm-offset-3">
-            <a href="{{ group.website }}">{{ group.website }}</a>
+            <a href="{% if not group.website.startswith('http') %}http://{% endif -%}{{ group.website }}">{{ group.website }}</a>
         </div>
     </div>
 
@@ -219,7 +219,8 @@
         </div>
     </div>
 
-    {{ macros.address_form(group=group) }}
+    <script type="text/javascript">{% include "region_opts.html" %}</script>
+    {{ macros.address_form(group) }}
 {% endif %}
 
 {% include "groupextra.html" %}

@@ -119,111 +119,100 @@
   </div>
 {%- endmacro %}
 
-{% macro address_form(group=False, attendee=False, is_prereg_dealer=False, copy_address=False, name_prefix="") -%}
-    {% set group_or_attendee=group if group else attendee %}
-    {% set id_prefix=group.id|replace("-","") if group else attendee.id|replace("-","") %}
-    {% if not is_prereg_dealer %}
-        <script src="../static/deps/selectToAutocomplete/jquery.select-to-autocomplete.js"></script>
-        <script type="text/javascript">{% include "region_opts.html" %}</script>
-    {% endif %}
-    <script type="text/javascript">
-        var regionChange{{ id_prefix }} = function() {
-            {{ 'setInternational();' if not group else '' }}
+{% macro address_form(model, name_prefix="", update_international=False) -%}
+    {% set suffix=model.id|replace("-", "") %}
 
-            var regionopts = $("#{{ id_prefix }}region");
-            var whichCountry = $("#{{ id_prefix }}country").find(':selected').text();
+    <script type="text/javascript">
+        var regionChange{{ suffix }} = function() {
+            {% if update_international %}setInternational();{% endif %}
+            var regionopts = $('#region{{ suffix }}');
+            var whichCountry = $('#country{{ suffix }}').find(':selected').text();
             switch(whichCountry) {
                 case 'United States':
-                    regionopts.replaceWith('<select name="{{ name_prefix }}region" id="{{ id_prefix }}region" class="form-control"></select>');
-                    $("[name='{{ name_prefix }}region']").html(regionsforUS);
+                    regionopts.replaceWith('<select name="{{ name_prefix }}region" id="region{{ suffix }}" class="form-control"></select>');
+                    $('[name="{{ name_prefix }}region"]').html(regionsforUS);
                     break;
                 case 'Canada':
-                    regionopts.replaceWith('<select name="{{ name_prefix }}region" id="{{ id_prefix }}region" class="form-control"></select>');
-                    $("[name='{{ name_prefix }}region']").html(regionsforCanada);
+                    regionopts.replaceWith('<select name="{{ name_prefix }}region" id="region{{ suffix }}" class="form-control"></select>');
+                    $('[name="{{ name_prefix }}region"]').html(regionsforCanada);
                     break;
             }
-            var optionToSelect{{ id_prefix }} = $("#{{ id_prefix }}region option[value='{{ group_or_attendee.region }}']");
-            if (optionToSelect{{ id_prefix }}.length) {
-                optionToSelect{{ id_prefix }}.prop('selected', true)
+            var optionToSelect{{ suffix }} = $('#region{{ suffix }} option[value="{{ model.region }}"]');
+            if (optionToSelect{{ suffix }}.length) {
+                optionToSelect{{ suffix }}.prop('selected', true)
             }
         };
 
         $(function() {
-            {{ 'setInternational();' if not group else '' }}
-            $("#{{ id_prefix }}country").val('{{ group_or_attendee.country }}');
-            $("#{{ id_prefix }}country").selectToAutocomplete();
-            $("#{{ id_prefix }}country").change(function() {
-                $("#{{ id_prefix }}region").replaceWith('<input type="text" name="{{ name_prefix }}region" id="{{ id_prefix }}region" value="{{ group_or_attendee.region }}" class="form-control" placeholder="State/Province">');
-                regionChange{{ id_prefix }}();
+            {% if update_international %}setInternational();{% endif %}
+            $('#country{{ suffix }}').val('{{ model.country }}');
+            $('#country{{ suffix }}').selectToAutocomplete();
+            $('#country{{ suffix }}').change(function() {
+                $('#region{{ suffix }}').replaceWith('<input type="text" name="{{ name_prefix }}region" id="region{{ suffix }}" value="{{ model.region }}" class="form-control" placeholder="State/Province">');
+                regionChange{{ suffix }}();
             });
 
-            $("#{{ id_prefix }}region").val('{{ group_or_attendee.region }}');
-            regionChange{{ id_prefix }}();
+            $('#region{{ suffix }}').val('{{ model.region }}');
+            regionChange{{ suffix }}();
         });
     </script>
 
-    {% if is_prereg_dealer %}
-        <script type="text/javascript">
-        var copyAddress{{ id_prefix }} = function () {
-            if ($("#{{ id_prefix }}copy_address").prop('checked')) {
-                $('.{{ id_prefix }}address_details').hide();
-            } else if ($("#{{ id_prefix }}copy_address").length) {
-                $('.{{ id_prefix }}address_details').show();
-            }
-        };
-        $(function () {
-            if ($('#{{ id_prefix }}copy_address').length) {
-                copyAddress{{ id_prefix }}();
-                $('#{{ id_prefix }}copy_address').change(copyAddress{{ id_prefix }});
-            }
-        })
-        </script>
-        <div class="form-group">
-            <div class="col-sm-6 col-sm-offset-3">
-                <label for="{{ id_prefix }}copy_address" class="checkbox-label">
-                    <input type="checkbox" name="copy_address" id="{{ id_prefix }}copy_address" value="1" {% if copy_address %}checked="checked"{% endif %} />
-                    Use my business address for my personal address.
-                </label>
-            </div>
-        </div>
-    {% endif %}
-
-    <div class="form-group {{ id_prefix }}address_details">
-        <label for="{{ id_prefix }}country" class="col-sm-3 control-label">Country</label>
+    <div class="form-group address_details{{ suffix }}">
+        <label for="country{{ suffix }}" class="col-sm-3 control-label">Country</label>
         <div class="col-sm-6">
-            <select name="{{ name_prefix }}country" id="{{ id_prefix }}country" class="form-control" placeholder="Country" autofocus="autofocus" autocorrect="off" autocomplete="country">
+            <select name="{{ name_prefix }}country" id="country{{ suffix }}" class="form-control" placeholder="Country" autocorrect="off" autocomplete="country">
                 {% include "country_opts.html" %}
             </select>
         </div>
     </div>
-    <div class="form-group {{ id_prefix }}address_details">
-        <label for="{{ id_prefix }}address1" class="col-sm-3 control-label">Street</label>
+    <div class="form-group address_details{{ suffix }}">
+        <label for="address1{{ suffix }}" class="col-sm-3 control-label">Street</label>
         <div class="col-sm-6">
-            <input type="text" name="{{ name_prefix }}address1" class="form-control" placeholder="Address Line 1" value="{{ group_or_attendee.address1 }}" />
+            <input type="text" name="{{ name_prefix }}address1" class="form-control" placeholder="Address Line 1" value="{{ model.address1 }}" />
         </div>
     </div>
-    <div class="form-group {{ id_prefix }}address_details">
-        <label for="{{ id_prefix }}address2" class="col-sm-3 control-label"></label>
-        <div class="col-sm-6">
-            <input type="text" name="{{ name_prefix }}address2" class="form-control" placeholder="Address Line 2" value="{{ group_or_attendee.address2 }}" />
+    <div class="form-group address_details{{ suffix }}">
+        <div class="col-sm-6 col-sm-offset-3">
+            <input type="text" name="{{ name_prefix }}address2" class="form-control" placeholder="Address Line 2" value="{{ model.address2 }}" />
         </div>
     </div>
-    <div class="form-group {{ id_prefix }}address_details">
-        <label for="{{ id_prefix }}city" class="col-sm-3 control-label">City</label>
+    <div class="form-group address_details{{ suffix }}">
+        <label for="city{{ suffix }}" class="col-sm-3 control-label">City</label>
         <div class="col-sm-6">
-            <input type="text" name="{{ name_prefix }}city" class="form-control" placeholder="City" value="{{ group_or_attendee.city }}" />
+            <input type="text" name="{{ name_prefix }}city" class="form-control" placeholder="City" value="{{ model.city }}" />
         </div>
     </div>
-    <div class="form-group {{ id_prefix }}address_details">
-        <label for="{{ id_prefix }}region" class="col-sm-3 control-label">State/Region</label>
+    <div class="form-group address_details{{ suffix }}">
+        <label for="region{{ suffix }}" class="col-sm-3 control-label">State/Region</label>
         <div class="col-sm-6">
-            <input type="text" name="{{ name_prefix }}region" id="{{ id_prefix }}region" class="form-control" placeholder="State/Province" value="{{ group_or_attendee.region }}" autocomplete="address-level1" />
+            <input type="text" name="{{ name_prefix }}region" id="region{{ suffix }}" class="form-control" placeholder="State/Province" value="{{ model.region }}" autocomplete="address-level1" />
         </div>
     </div>
-    <div class="form-group {{ id_prefix }}address_details">
-        <label for="{{ id_prefix }}zip_code" class="col-sm-3 control-label">ZIP/Postal Code</label>
+    <div class="form-group address_details{{ suffix }}">
+        <label for="zip_code{{ suffix }}" class="col-sm-3 control-label">ZIP/Postal Code</label>
         <div class="col-sm-6">
-            <input type="text" name="{{ name_prefix }}zip_code" class="form-control" value="{{ group_or_attendee.zip_code }}"/>
+            <input type="text" name="{{ name_prefix }}zip_code" class="form-control" value="{{ model.zip_code }}"/>
         </div>
     </div>
+{%- endmacro %}
+
+
+{% macro toggle_checkbox(selector, label, suffix='', name='', value='1', checked=False) -%}
+    <script type="text/javascript">
+        var toggleVisibility{{ suffix }} = function () {
+            if ($('#toggle_visibility{{ suffix }}').prop('checked')) {
+                $('{{ selector }}{{ suffix }}').hide();
+            } else {
+                $('{{ selector }}{{ suffix }}').show();
+            }
+        };
+        $(function () {
+            toggleVisibility{{ suffix }}();
+            $('#toggle_visibility{{ suffix }}').change(toggleVisibility{{ suffix }});
+        })
+    </script>
+    <label for="toggle_visibility{{ suffix }}" class="checkbox-label">
+        <input type="checkbox" name="{{ name }}" id="toggle_visibility{{ suffix }}" value="{{ value }}" {% if checked %}checked="checked"{% endif %} />
+        {{ label }}
+    </label>
 {%- endmacro %}

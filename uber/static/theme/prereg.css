@@ -1,3 +1,7 @@
+html, body {
+    min-height: 100%;
+}
+
 .masthead {
     width: 100%;  /* Always fill the available width */
     padding-top: 24.63%;  /* The height is 24.63% of the width (200px / 812px) */

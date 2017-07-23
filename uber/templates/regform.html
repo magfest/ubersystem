@@ -119,8 +119,9 @@
 
 <div id="group-explanation" class="form-group">
     <p class="col-sm-10 col-sm-offset-1">
+        <br>
         {% if attendee.is_dealer %}
-            Please enter your personal information below.  Information for any additional vendors at your table can be filled out once your application is approved.
+            Please enter your <strong>personal</strong> information below.  Information for any additional vendors at your table can be filled out once your application is approved.
         {% else %}
             Please enter the information for the group leader below (additional group member information will be entered after purchase is complete):
         {% endif %}
@@ -397,7 +398,22 @@
 {% endif %}
 
 {% if c.COLLECT_FULL_ADDRESS %}
-    {{ macros.address_form(attendee=attendee, is_prereg_dealer=is_prereg_dealer, copy_address=copy_address) }}
+
+    {% if is_prereg_dealer %}
+        <div class="form-group">
+            <div class="col-sm-9 col-sm-offset-3">
+                {{ macros.toggle_checkbox(
+                    selector='.address_details',
+                    label='Use my business address for my personal address.',
+                    suffix=attendee.id|replace("-", ""),
+                    name='copy_address',
+                    checked=copy_address) }}
+            </div>
+        </div>
+    {% endif %}
+
+    {{ macros.address_form(attendee, update_international=True) }}
+
     <div class="checkbox col-sm-6 col-sm-offset-3">
         {{ macros.checkbox(attendee, 'international', label="I'm coming from outside the US.") }}
     </div>

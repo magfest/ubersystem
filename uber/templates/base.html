@@ -7,7 +7,7 @@
     <link rel="icon" href="../static/images/favicon.png" type="image/x-icon" />
 
     {% block head_styles %}
-        <link rel="stylesheet" href="../static/deps/combined.css" />
+        <link rel="stylesheet" href="../static/deps/combined.min.css" />
         <link rel="stylesheet" href="../static_views/styles/main.css" />
         {% if admin_area %}
             <link rel="stylesheet" type="text/css" href="../static_views/additional-styles.css" />
@@ -27,7 +27,7 @@
             var message = '{{ message|e }}';
         </script>
 
-        <script src="../static/deps/combined.js" type="text/javascript"></script>
+        <script src="../static/deps/combined.min.js" type="text/javascript"></script>
         <script src="../static/js/common-static.js" type="text/javascript"></script>
         <script type="text/javascript">
             var csrf_token = '{{ c.CSRF_TOKEN }}';

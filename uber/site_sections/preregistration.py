@@ -113,23 +113,26 @@ class Root:
         """
         params['id'] = 'None'   # security!
 
+        # Both the Attendee class and Group class have identically named
+        # address fields. In order to distinguish the two sets of address
+        # fields in the params, the Group fields are prefixed with "group_"
+        # when the form is submitted. To prevent instantiating the Group object
+        # with the Attendee's address fields, we must clone the params and
+        # rename all the "group_" fields.
+        group_params = dict(params)
+        for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city']:
+            group_params[field_name] = params.get('group_{}'.format(field_name), '')
+            if params.get('copy_address'):
+                params[field_name] = group_params[field_name]
+
         if edit_id is not None:
             attendee, group = self._get_unsaved(edit_id, if_not_found=HTTPRedirect('form?message={}', 'That preregistration has already been finalized'))
             attendee.apply(params, restricted=True)
-            group.apply(params, restricted=True)
+            group.apply(group_params, restricted=True)
             params.setdefault('badges', group.badges)
         else:
             attendee = session.attendee(params, ignore_csrf=True, restricted=True)
-            group = session.group(params, ignore_csrf=True, restricted=True)
-
-        if 'group_country' in params:
-            # A dealer has submitted an application, which prefixes group address fields with 'group_' to avoid any
-            # collisions with the dealer's home address. Let's update the address fields for the group.
-            for field_name in ['group_country', 'group_region', 'group_zipcode', 'group_address1', 'group_address2', 'group_city']:
-                model_field_name = field_name.split("_", 1)[1]
-                setattr(group, model_field_name, cherrypy.request.params.get(field_name))
-                if 'copy_address' in params:
-                    setattr(attendee, model_field_name, cherrypy.request.params.get(field_name))
+            group = session.group(group_params, ignore_csrf=True, restricted=True)
 
         message = ''
         if c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
