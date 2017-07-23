@@ -842,7 +842,7 @@ class Root:
         session.delete(shift)
         raise HTTPRedirect('shifts?id={}&message={}', shift.attendee.id, 'Staffer unassigned from shift')
 
-    def feed(self, session, message = '', page='1', who='', what='', action=''):
+    def feed(self, session, message='', page='1', who='', what='', action=''):
         feed = session.query(Tracking).filter(Tracking.action != c.AUTO_BADGE_SHIFT).order_by(Tracking.when.desc())
         what = what.strip()
         if who:
@@ -865,7 +865,7 @@ class Root:
         }
 
     @csrf_protected
-    def undo_delete(self, session, id, message = '', page='1', who='', what='', action=''):
+    def undo_delete(self, session, id, message='', page='1', who='', what='', action=''):
         if cherrypy.request.method == "POST":
             model_class = None
             tracked_delete = session.query(Tracking).get(id)
