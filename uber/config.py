@@ -162,7 +162,7 @@ class Config(_Overridable):
         Returns a string representing a rough estimate of how many badges are left at the current badge price tier.
         """
         if c.HARDCORE_OPTIMIZATIONS_ENABLED:
-            return 'Unknown'
+            return None
 
         current_price_tier = c.ORDERED_PRICE_LIMITS.index(c.BADGE_PRICE) if c.BADGE_PRICE in c.ORDERED_PRICE_LIMITS else -1
         if current_price_tier != -1 and c.ORDERED_PRICE_LIMITS[current_price_tier] == c.ORDERED_PRICE_LIMITS[-1]\
@@ -170,27 +170,12 @@ class Config(_Overridable):
             if c.MAX_BADGE_SALES:
                 difference = c.MAX_BADGE_SALES - c.BADGES_SOLD
             else:
-                return 'Limitless'
+                return -1
         else:
             for key, val in c.PRICE_LIMITS.items():
                 if c.ORDERED_PRICE_LIMITS[current_price_tier+1] == val:
                     difference = key - c.BADGES_SOLD
-        if not difference:
-            return 'Unknown'
-        elif difference <= 50:
-            return 'Almost Gone'
-        elif difference <= 100:
-            return 'Very Low'
-        elif difference <= 250:
-            return 'Low'
-        elif difference <= 500:
-            return 'Medium'
-        elif difference <= 750:
-            return 'High'
-        elif difference <= 1000:
-            return 'Very High'
-        else:
-            return 'Super High'
+        return difference
 
     @property
     def ONEDAY_BADGE_PRICE(self):
