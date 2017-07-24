@@ -276,7 +276,7 @@ class Root:
                     'group', 'registered', 'badge_type', 'badge_num', 'paid', 'amount_paid', 'amount_extra'
                 ]})
                 if replacement_attendee.group and replacement_attendee.group.is_dealer:
-                    replacement_attendee.ribbon == c.DEALER_RIBBON
+                    replacement_attendee.ribbon = add_opt(replacement_attendee.ribbon_ints, c.DEALER_RIBBON)
                 session.add(replacement_attendee)
                 session.delete_from_group(attendee, attendee.group)
                 message = 'Attendee deleted, but this badge is still available to be assigned to someone else in the same group'
