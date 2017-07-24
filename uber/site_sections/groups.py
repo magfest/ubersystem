@@ -103,7 +103,7 @@ class Root:
                     message = 'Group declined and emails sent to attendees'
                     attendee.paid = c.NOT_PAID
                     attendee.badge_status = c.NEW_STATUS
-                    attendee.ribbon = remove_opt(attendee.ribbon, c.DEALER_RIBBON)
+                    attendee.ribbon = remove_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
                     try:
                         send_email(c.REGDESK_EMAIL, attendee.email, 'Do you still want to come to {EVENT_NAME}?',
                                    render('emails/dealers/badge_converted.html', {

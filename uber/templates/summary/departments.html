@@ -30,7 +30,7 @@
             {% for attendee in assigned|sort(attribute="ribbon") %}
             <span {% if c.DEPT_HEAD_RIBBON not in attendee.ribbon %}class="nondepthead"{% endif %}>
             <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a><span class="email">|{{ attendee.email }}</span>
-            {% if c.DEPT_HEAD_RIBBON in attendee.ribbon %}|[Dept Head]{% endif %}
+            {% if c.DEPT_HEAD_RIBBON in attendee.ribbon_ints %}|[Dept Head]{% endif %}
             <br/></span>
             {% endfor %}
         </td>
@@ -40,7 +40,7 @@
             {% for attendee in requested|sort(attribute="ribbon") %}
             <span {% if c.DEPT_HEAD_RIBBON not in attendee.ribbon %}class="nondepthead"{% endif %}>
             <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a><span class="email">|{{ attendee.email }}</span>
-            {% if c.DEPT_HEAD_RIBBON in attendee.ribbon %}|[Dept Head]{% endif %}
+            {% if c.DEPT_HEAD_RIBBON in attendee.ribbon_ints %}|[Dept Head]{% endif %}
             <br/></span>
             {% endfor %}
             </div>

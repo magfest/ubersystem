@@ -261,7 +261,7 @@ class Root:
             for a in session.staffers().all() + session.query(Attendee).filter_by(badge_type=c.GUEST_BADGE).all()
             if not a.is_unassigned
                 and (a.badge_type in (c.STAFF_BADGE, c.GUEST_BADGE)
-                  or c.VOLUNTEER_RIBBON in a.ribbon and a.weighted_hours >= 12)
+                  or c.VOLUNTEER_RIBBON in a.ribbon_ints and a.weighted_hours >= 12)
         }
         return render('summary/food_eligible.xml', {'attendees': eligible})
 
