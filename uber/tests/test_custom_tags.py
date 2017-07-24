@@ -3,7 +3,8 @@ import pytest
 from uber.common import *
 from uber.custom_tags import (jsonize, linebreaksbr, datetime_local_filter,
     datetime_filter, full_datetime_local, hour_day_local, time_day_local,
-    timedelta_filter, timestamp, normalize_newlines, url_to_link, basename)
+    timedelta_filter, timestamp, normalize_newlines, url_to_link, basename,
+    form_link)
 
 
 class TestDatetimeFilters(object):
@@ -56,6 +57,14 @@ class TestDatetimeFilters(object):
         template = env.from_string('{{ dt|timedelta(days=-5)|datetime("%A, %B %-e") }}')
         expected = ''
         assert expected == template.render(dt=None)
+
+
+class TestFormLink(object):
+
+    def test_watch_list(self):
+        watch_list = WatchList(id='c4c29b35-a1cf-4662-a577-041d8be63edf')
+        assert form_link(watch_list) == \
+            "<WatchList id='c4c29b35-a1cf-4662-a577-041d8be63edf'>"
 
 
 class TestJsonize(object):
