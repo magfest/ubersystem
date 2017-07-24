@@ -842,7 +842,7 @@ class Root:
         session.delete(shift)
         raise HTTPRedirect('shifts?id={}&message={}', shift.attendee.id, 'Staffer unassigned from shift')
 
-    def feed(self, session, page='1', who='', what='', action=''):
+    def feed(self, session, message='', page='1', who='', what='', action=''):
         feed = session.query(Tracking).filter(Tracking.action != c.AUTO_BADGE_SHIFT).order_by(Tracking.when.desc())
         what = what.strip()
         if who:
@@ -853,6 +853,7 @@ class Root:
         if action:
             feed = feed.filter_by(action=action)
         return {
+            'message': message,
             'who': who,
             'what': what,
             'page': page,
@@ -862,6 +863,37 @@ class Root:
             'action_opts': [opt for opt in c.TRACKING_OPTS if opt[0] != c.AUTO_BADGE_SHIFT],
             'who_opts': [who for [who] in session.query(Tracking).distinct().order_by(Tracking.who).values(Tracking.who)]
         }
+
+    @csrf_protected
+    def undo_delete(self, session, id, message='', page='1', who='', what='', action=''):
+        if cherrypy.request.method == "POST":
+            model_class = None
+            tracked_delete = session.query(Tracking).get(id)
+            if tracked_delete.action != c.DELETED:
+                message = 'Only a delete can be undone'
+            else:
+                model_class = getattr(sa, tracked_delete.model)
+
+            if model_class:
+                params = json.loads(tracked_delete.snapshot)
+                model_id = params.get('id').strip()
+                if model_id:
+                    existing_model = session.query(model_class).filter(
+                        model_class.id == model_id).first()
+                    if existing_model:
+                        message = '{} has already been undeleted'.format(tracked_delete.which)
+                    else:
+                        model = model_class(id=model_id).apply(params, restricted=False)
+                else:
+                    model = model_class().apply(params, restricted=False)
+
+                if not message:
+                    session.add(model)
+                    message = 'Successfully undeleted {}'.format(tracked_delete.which)
+            else:
+                message = 'Could not resolve {}'.format(tracked_delete.model)
+
+        raise HTTPRedirect('feed?page={}&who={}&what={}&action={}&message={}', page, who, what, action, message)
 
     def staffers(self, session, message='', order='first_name'):
         staffers = session.staffers().all()

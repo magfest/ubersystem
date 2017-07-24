@@ -48,7 +48,20 @@
         <td valign="top" style="white-space:nowrap">{{ tracked.who }}</td>
         <td valign="top" style="white-space:nowrap">{{ tracked.model }}</td>
         <td valign="top" style="white-space:nowrap">{{ tracked.which }}</td>
-        <td valign="top" style="white-space:nowrap">{{ tracked.action_label }}</td>
+        <td valign="top" style="white-space:nowrap">
+          {{ tracked.action_label }}
+          {% if tracked.action == c.DELETED %}
+            <form method="post" action="undo_delete" style="display: inline">
+              {{ csrf_token() }}
+              <input type="hidden" name="page" value="{{ page }}"/>
+              <input type="hidden" name="who" value="{{ who }}"/>
+              <input type="hidden" name="what" value="{{ what }}"/>
+              <input type="hidden" name="action" value="{{ action }}"/>
+              <input type="hidden" name="id" value="{{ tracked.id }}"/>
+              <button type="submit" class="btn btn-default btn-sm">Undo</button>
+            </form>
+          {% endif %}
+        </td>
         <td valign="top">{{ tracked.data }}</td>
     </tr>
 {% endfor %}
