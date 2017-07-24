@@ -166,8 +166,12 @@ def form_link(model):
         return safe_string('<a href="../groups/form?id={}">{}</a>'.format(model.id, jinja2.escape(model.name)))
     elif isinstance(model, uber.models.Job):
         return safe_string('<a href="../jobs/form?id={}">{}</a>'.format(model.id, jinja2.escape(model.name)))
+    elif hasattr(model, 'name'):
+        return model.name
+    elif hasattr(model, 'full_name'):
+        return model.full_name
     else:
-        return model.name or model.full_name
+        return repr(model)
 
 
 @JinjaEnv.jinja_filter
