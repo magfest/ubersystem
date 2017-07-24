@@ -1,11 +1,13 @@
+import sideboard
 from uber.common import *
+from hotel.models import *
+from bands.models import *
 
+
+TEST_DATA_FILE = join(os.path.dirname(__file__), 'test_data.json')
 words = []
 offset_from = c.EPOCH
-
-groups, attendees = {}, {}
-with open(join(c.MODULE_ROOT, 'tests', 'test_data.json')) as f:
-    dump = json.load(f)
+dump, groups, attendees = {}, {}, {}
 
 
 def offset_to_datetime(offset):
@@ -22,7 +24,7 @@ def random_group_name():
 def import_groups(session):
     for g in dump['groups']:
         secret_id = g.pop('secret_id')
-        g['cost'] = g.pop('amount_owed')
+        g['cost'] = int(float(g.pop('amount_owed')))
         g['name'] = random_group_name()
         groups[secret_id] = Group(**g)
         session.add(groups[secret_id])
@@ -37,7 +39,7 @@ def import_attendees(session):
 
     for f in dump['food']:
         f['attendee'] = attendees[f.pop('attendee_id')]
-        f.setdefault('sandwich_pref', PBJ)  # sandwich_pref didn't exist when the dump was taken
+        f.setdefault('sandwich_pref', str(c.PEANUT_BUTTER))  # sandwich_pref didn't exist when the dump was taken
         session.add(FoodRestrictions(**f))
 
     for h in dump['hotel']:
@@ -70,7 +72,12 @@ def import_jobs(session):
 
 
 @entry_point
-def import_uber_test_data():
+def import_uber_test_data(test_data_file):
+    with open(test_data_file) as f:
+        global dump
+        dump = json.load(f)
+
+    Session.initialize_db(initialize=True)
     with Session() as session:
         import_groups(session)
         import_attendees(session)
@@ -78,4 +85,4 @@ def import_uber_test_data():
         import_jobs(session)
 
 if __name__ == '__main__':
-    import_uber_test_data()
+    import_uber_test_data(TEST_DATA_FILE)
