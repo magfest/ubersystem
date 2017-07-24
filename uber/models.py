@@ -405,7 +405,7 @@ class MagModel:
                         if value == '':
                             value = None
                         elif value.endswith('.0'):
-                            value = int(float(value))
+                            value = int(value[:-2])
                     elif isinstance(column.type, (Choice, Integer)):
                         if value == '':
                             value = None
