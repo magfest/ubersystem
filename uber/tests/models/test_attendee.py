@@ -197,7 +197,7 @@ class TestUnsetVolunteer:
     def test_different_ribbon(self):
         a = Attendee(ribbon=c.DEALER_RIBBON)
         a.unset_volunteering()
-        assert a.ribbon == str(c.DEALER_RIBBON)
+        assert c.DEALER_RIBBON in a.ribbon_ints
 
     def test_staff_badge(self, monkeypatch):
         with Session() as session:
@@ -321,7 +321,7 @@ class TestStaffingAdjustments:
     def test_staffers_can_have_other_ribbons(self):
         a = Attendee(badge_type=c.STAFF_BADGE, ribbon=c.DEALER_RIBBON)
         a._staffing_adjustments()
-        assert a.ribbon == str(c.DEALER_RIBBON)
+        assert c.DEALER_RIBBON in a.ribbon_ints
 
     def test_no_to_yes_ribbon(self, unset_volunteering, prevent_presave_adjustments):
         with Session() as session:
