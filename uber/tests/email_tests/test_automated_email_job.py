@@ -1,4 +1,4 @@
-from uber.tests.email.email_fixtures import *
+from uber.tests.email_tests.email_fixtures import *
 
 
 @pytest.fixture
