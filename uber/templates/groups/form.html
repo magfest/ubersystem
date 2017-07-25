@@ -36,6 +36,17 @@
             $.field("status").find("[value={{ c.UNAPPROVED }}]").text("n/a (not a paid Dealer)");
         {% endif %}
     });
+
+    {% if group.is_dealer or new_dealer %}
+    var showOrHideCategoriesText = function() {
+            setVisible('#category-other', $(":checkbox[name=categories][value={{ c.OTHER }}]").prop("checked"));
+        };
+
+        $(function () {
+            showOrHideCategoriesText();
+            $(":checkbox[name=categories]").click(showOrHideCategoriesText);
+        });
+    {% endif %}
 </script>
     {% include "check_in.html" %}
 
@@ -185,6 +196,16 @@
                     </div>
                 {% endif %}
             {% endif %}
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">What kinds of things do they sell?</label>
+        <div class="col-sm-9">
+            {{ macros.checkgroup(group, 'categories') }}
+        </div>
+        <div class="col-sm-6">
+            <input id="category-other" class="form-control" type="text" name="categories_text" value="{{ group.categories_text }}" placeholder="Other (Please Specify)"/>
         </div>
     </div>
 

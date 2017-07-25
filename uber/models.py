@@ -1079,6 +1079,8 @@ class Group(MagModel, TakesPaymentMixin):
     country         = Column(UnicodeText)
     website         = Column(UnicodeText)
     wares           = Column(UnicodeText)
+    categories      = Column(MultiChoice(c.DEALER_WARES_OPTS))
+    categories_text = Column(UnicodeText)
     description     = Column(UnicodeText)
     special_needs   = Column(UnicodeText)
     amount_paid     = Column(Integer, default=0, admin_only=True)
