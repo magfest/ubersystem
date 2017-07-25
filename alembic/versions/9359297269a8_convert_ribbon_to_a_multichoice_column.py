@@ -15,7 +15,7 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-
+from sqlalchemy.sql import table
 
 
 try:
@@ -29,10 +29,36 @@ if is_sqlite:
 else:
     utcnow_server_default = "timezone('utc', current_timestamp)"
 
+# We need this table in order to upgrade/downgrade the ribbon column
+attendee = table(
+    'attendee',
+    sa.Column('ribbon', sa.Unicode())
+)
 
 def upgrade():
     op.alter_column('attendee', 'ribbon', type_=sa.Unicode(), server_default = '', nullable = False)
 
+    op.execute(
+        attendee
+            .update()
+            .where(attendee.c.ribbon == '154973361')
+            .values({'ribbon': ''})
+    )
+
 
 def downgrade():
-    op.alter_column('attendee', 'ribbon', type_=sa.Integer(), server_default=154973361, nullable=False)
+    op.execute(
+        attendee
+            .update()
+            .where(attendee.c.ribbon == '' or attendee.c.ribbon.contains(','))
+            .values({'ribbon': 154973361})
+    )
+
+    op.alter_column('attendee', 'ribbon', server_default=None, nullable=True)
+
+    # Alembic doesn't appear to support "USING" but postgres needs it to cast a
+    # string to an integer, so we have to use raw sql
+    op.execute('ALTER TABLE attendee ALTER COLUMN ribbon TYPE integer'
+               ' USING ribbon::integer')
+
+    op.alter_column('attendee', 'ribbon', server_default='154973361', nullable=False)
