@@ -156,7 +156,7 @@ class Config(_Overridable):
                                                                     sa.Group.amount_paid > 0).count()
             return individuals + group_badges
 
-    @property
+    @request_cached_property
     def BADGES_LEFT_AT_CURRENT_PRICE(self):
         """
         Returns a string representing a rough estimate of how many badges are left at the current badge price tier.
