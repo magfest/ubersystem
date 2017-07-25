@@ -34,7 +34,7 @@ def duplicate_badge_num_preconditions():
             birthdate=date(1964, 12, 30),
             registered=localized_now(),
             paid=c.PAID_BY_GROUP,
-            ribbon=c.NO_RIBBON,
+            ribbon='',
             staffing=True,
             badge_type=c.PSEUDO_GROUP_BADGE)
 
@@ -47,7 +47,7 @@ def duplicate_badge_num_preconditions():
             group,
             15,
             new_badge_type=c.STAFF_BADGE,
-            new_ribbon_type=c.NO_RIBBON,
+            new_ribbon_type='',
             paid=c.NEED_NOT_PAY) is None
         session.flush()
 
