@@ -50,7 +50,14 @@ def downgrade():
     op.execute(
         attendee
             .update()
-            .where(attendee.c.ribbon == '' or attendee.c.ribbon.contains(','))
+            .where(attendee.c.ribbon == '')
+            .values({'ribbon': 154973361})
+    )
+
+    op.execute(
+        attendee
+            .update()
+            .where(attendee.c.ribbon.contains(','))
             .values({'ribbon': 154973361})
     )
 
