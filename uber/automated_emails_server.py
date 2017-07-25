@@ -13,8 +13,11 @@ class AutomatedEmail:
     # a list of queries to run during each automated email sending run to
     # return particular model instances of a given type.
     queries = {
-        Attendee: lambda session: session.all_attendees(),
-        Group: lambda session: session.query(Group).options(subqueryload(Group.attendees))
+        Attendee: lambda session: session.all_attendees().options(
+            subqueryload(Attendee.admin_account)).options(
+            subqueryload(Attendee.dept_checklist_items)),
+        Group: lambda session: session.query(Group).options(
+            subqueryload(Group.attendees))
     }
 
     def __init__(self, model, subject, template, filter, ident, *, when=(),
