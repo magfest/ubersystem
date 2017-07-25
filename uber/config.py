@@ -156,6 +156,27 @@ class Config(_Overridable):
                                                                     sa.Group.amount_paid > 0).count()
             return individuals + group_badges
 
+    @request_cached_property
+    def BADGES_LEFT_AT_CURRENT_PRICE(self):
+        """
+        Returns a string representing a rough estimate of how many badges are left at the current badge price tier.
+        """
+        if c.HARDCORE_OPTIMIZATIONS_ENABLED:
+            return None
+
+        current_price_tier = c.ORDERED_PRICE_LIMITS.index(c.BADGE_PRICE) if c.BADGE_PRICE in c.ORDERED_PRICE_LIMITS else -1
+        if current_price_tier != -1 and c.ORDERED_PRICE_LIMITS[current_price_tier] == c.ORDERED_PRICE_LIMITS[-1]\
+                or not c.ORDERED_PRICE_LIMITS:
+            if c.MAX_BADGE_SALES:
+                difference = c.MAX_BADGE_SALES - c.BADGES_SOLD
+            else:
+                return -1
+        else:
+            for key, val in c.PRICE_LIMITS.items():
+                if c.ORDERED_PRICE_LIMITS[current_price_tier+1] == val:
+                    difference = key - c.BADGES_SOLD
+        return difference
+
     @property
     def ONEDAY_BADGE_PRICE(self):
         return self.get_oneday_price(sa.localized_now())
@@ -486,6 +507,7 @@ for _opt, _val in c.BADGE_PRICES['attendee'].items():
         c.PRICE_LIMITS[int(_opt)] = _val
     else:
         c.PRICE_BUMPS[date] = _val
+c.ORDERED_PRICE_LIMITS = sorted([val for key, val in c.PRICE_LIMITS.items()])
 
 
 def _is_intstr(s):
