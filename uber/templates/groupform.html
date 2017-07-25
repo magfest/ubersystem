@@ -38,7 +38,6 @@
 
         $(function () {
             $('#bold-field-message').insertBefore($.field('name').parents('.form-group'));
-            $(":checkbox[name=categories][value={{ c.OTHER }}]").parents("label").append('<input id="category-other" class="form-control" type="text" name="categories_text" value="{{ group.categories_text }}" />');
             showOrHideCategoriesText();
             $(":checkbox[name=categories]").click(showOrHideCategoriesText);
         });
@@ -80,10 +79,11 @@
 
     <div class="form-group">
         <label for="categories" class="col-sm-3 control-label">What kinds of things do you sell?</label>
+        <div class="col-sm-9">
+            {{ macros.checkgroup(group, 'categories') }}
+        </div>
         <div class="col-sm-6">
-            <div class="col-sm-9">
-                {{ macros.checkgroup(group, 'categories') }}
-            </div>
+            <input id="category-other" class="form-control" type="text" name="categories_text" value="{{ group.categories_text }}" placeholder="Other (Please Specify)"/>
         </div>
     </div>
 
