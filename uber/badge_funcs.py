@@ -84,8 +84,8 @@ def check_placeholders():
     if c.PRE_CON and c.CHECK_PLACEHOLDERS and (c.DEV_BOX or c.SEND_EMAILS):
         emails = [
             ['Staff', c.STAFF_EMAIL, Attendee.staffing == True],
-            ['Panelist', c.PANELS_EMAIL, or_(Attendee.badge_type == c.GUEST_BADGE, Attendee.ribbon == c.PANELIST_RIBBON)],
-            ['Attendee', c.REGDESK_EMAIL, not_(or_(Attendee.staffing == True, Attendee.badge_type == c.GUEST_BADGE, Attendee.ribbon == c.PANELIST_RIBBON))]
+            ['Panelist', c.PANELS_EMAIL, or_(Attendee.badge_type == c.GUEST_BADGE, Attendee.ribbon.contains(c.PANELIST_RIBBON))],
+            ['Attendee', c.REGDESK_EMAIL, not_(or_(Attendee.staffing == True, Attendee.badge_type == c.GUEST_BADGE, Attendee.ribbon.contains(c.PANELIST_RIBBON)))]
         ]
         with Session() as session:
             for badge_type, dest, per_email_filter in emails:

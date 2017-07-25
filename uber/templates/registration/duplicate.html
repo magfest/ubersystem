@@ -18,8 +18,8 @@
         {{ attendee.paid_label }}
     {% endif %}
     {{ attendee.badge_type_label }}
-    {% if attendee.ribbon != c.NO_RIBBON %}
-        ({{ attendee.ribbon_label }})
+    {% if attendee.ribbon %}
+        ({{ attendee.ribbon_labels|join(", ") }})
     {% endif %}
     badge{% if attendee.group %}
         (with the group <a href="./group/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>)

@@ -477,6 +477,42 @@ def get_real_badge_type(badge_type):
     return c.ATTENDEE_BADGE if badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE] else badge_type
 
 
+def add_opt(opts, other):
+    """
+    Add an option to an integer or list of integers, converting it to a comma-separated string.
+    This is for use with our MultiChoice columns.
+
+    Args:
+        opts: An integer or list of integers, such as when using attendee.ribbon_ints
+        other: An integer to add, such as c.VOLUNTEER_RIBBON
+
+    Returns: A comma-separated string representing all options in the list, with the new
+    option added.
+
+    """
+    other = set(listify(other) if other else [])
+    opts.extend(other)
+    return ','.join(map(str, opts))
+
+
+def remove_opt(opts, other):
+    """
+    Remove an option from an _ints property, converting it to a comma-separated string.
+    This is for use with our MultiChoice columns.
+
+    Args:
+        opts: An integer or list of integers, such as when using attendee.ribbon_ints
+        other: An integer to remove, such as c.VOLUNTEER_RIBBON
+
+    Returns: A comma-separated string representing all options in the list, with the option
+    removed.
+
+    """
+    other = listify(other) if other else []
+
+    return ','.join(map(str, set(opts).difference(other)))
+
+
 _when_dateformat = "%m/%d"
 
 

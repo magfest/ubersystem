@@ -37,7 +37,7 @@ class Root:
             message = check(group)
             if not message:
                 session.add(group)
-                ribbon_to_use = None if 'ribbon' not in params else params['ribbon']
+                ribbon_to_use = None if 'ribbon' not in params else str(params['ribbon'])
                 message = session.assign_badges(group, params['badges'], params['badge_type'], ribbon_to_use)
                 if not message and new_dealer and not (first_name and last_name and email and group.badges):
                     message = 'When registering a new Dealer, you must enter the name and email address of the group leader and must allocate at least one badge'
@@ -103,7 +103,7 @@ class Root:
                     message = 'Group declined and emails sent to attendees'
                     attendee.paid = c.NOT_PAID
                     attendee.badge_status = c.NEW_STATUS
-                    attendee.ribbon = c.NO_RIBBON
+                    attendee.ribbon = remove_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
                     try:
                         send_email(c.REGDESK_EMAIL, attendee.email, 'Do you still want to come to {EVENT_NAME}?',
                                    render('emails/dealers/badge_converted.html', {

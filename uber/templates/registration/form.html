@@ -207,15 +207,19 @@
             {% endif %}
         {% endif %}
         &nbsp;&nbsp;
-        <select name="ribbon">
-            {{ options(c.RIBBON_OPTS,attendee.ribbon) }}
-        </select>
         {% if c.AT_THE_CON and not attendee.badge_num and c.NUMBERED_BADGES %}
             <br/> <input type="checkbox" name="omit_badge" value="yes" {% if omit_badge %}checked{% endif %} /> Omit badge number
         {% elif c.AT_THE_CON and not attendee.checked_in and not c.NUMBERED_BADGES %}
             <br/> <input type="checkbox" name="check_in" value="yes" {% if check_in %}checked{% endif %} /> Check in this attendee
         {% endif %}
         &nbsp;&nbsp; [<a href="../preregistration/confirm?id={{ attendee.id }}">Confirm{% if attendee.is_transferable %}/Transfer{% endif %}</a>]
+    </div>
+</div>
+
+<div class="form-group">
+    <label class="col-sm-3 control-label">Ribbons</label>
+    <div class="col-sm-9">
+        {{ macros.checkgroup(attendee, 'ribbon') }}
     </div>
 </div>
 

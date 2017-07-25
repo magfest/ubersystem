@@ -43,7 +43,8 @@ class Root:
         for a in session.query(Attendee).options(joinedload(Attendee.group)):
             counts['paid'][a.paid_label] += 1
             counts['ages'][a.age_group_label] += 1
-            counts['ribbons'][a.ribbon_label] += 1
+            for val in a.ribbon_ints:
+                counts['ribbons'][c.RIBBONS[val]] += 1
             counts['badges'][a.badge_type_label] += 1
             counts['statuses'][a.badge_status_label] += 1
             counts['checked_in']['yes' if a.checked_in else 'no'] += 1
@@ -146,7 +147,7 @@ class Root:
     @csv_file
     def dept_head_contact_info(self, out, session):
         out.writerow(["Full Name", "Email", "Phone", "Department(s)"])
-        for a in session.query(Attendee).filter_by(ribbon=c.DEPT_HEAD_RIBBON).order_by('last_name'):
+        for a in session.query(Attendee).filter(Attendee.ribbon.contains(c.DEPT_HEAD_RIBBON)).order_by('last_name'):
             for label in a.assigned_depts_labels:
                 out.writerow([a.full_name, a.email, a.cellphone, label])
 
@@ -260,7 +261,7 @@ class Root:
             for a in session.staffers().all() + session.query(Attendee).filter_by(badge_type=c.GUEST_BADGE).all()
             if not a.is_unassigned
                 and (a.badge_type in (c.STAFF_BADGE, c.GUEST_BADGE)
-                  or a.ribbon == c.VOLUNTEER_RIBBON and a.weighted_hours >= 12)
+                  or c.VOLUNTEER_RIBBON in a.ribbon_ints and a.weighted_hours >= 12)
         }
         return render('summary/food_eligible.xml', {'attendees': eligible})
 

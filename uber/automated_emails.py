@@ -105,7 +105,7 @@ MarketplaceEmail('{EVENT_NAME} Dealer waitlist has been exhausted', 'dealers/wai
 # creates a "placeholder" registration.
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Panelist Badge Confirmation', 'placeholders/panelist.txt',
-               lambda a: a.placeholder and a.first_name and a.last_name and a.ribbon == c.PANELIST_RIBBON,
+               lambda a: a.placeholder and a.first_name and a.last_name and c.PANELIST_RIBBON in a.ribbon_ints,
                sender=c.PANELS_EMAIL,
                ident='panelist_badge_confirmation')
 
@@ -131,7 +131,7 @@ StopsEmail('{EVENT_NAME} Volunteer Badge Confirmation', 'placeholders/volunteer.
 AutomatedEmail(Attendee, '{EVENT_NAME} Badge Confirmation', 'placeholders/regular.txt',
                lambda a: a.placeholder and a.first_name and a.last_name
                                        and (c.AT_THE_CON or a.badge_type not in [c.GUEST_BADGE, c.STAFF_BADGE]
-                                       and a.ribbon not in [c.DEALER_RIBBON, c.PANELIST_RIBBON, c.VOLUNTEER_RIBBON]),
+                                       and not set([c.DEALER_RIBBON, c.PANELIST_RIBBON, c.VOLUNTEER_RIBBON]).intersection(a.ribbon_ints)),
                allow_during_con=True,
                ident='regular_badge_confirmation')
 
@@ -164,7 +164,7 @@ StopsEmail('Last chance to sign up for {EVENT_NAME} {EVENT_DATE} shifts', 'shift
            ident='volunteer_shift_signup_reminder_last_chance')
 
 StopsEmail('Still want to volunteer at {EVENT_NAME} {EVENT_DATE}?', 'shifts/volunteer_check.txt',
-           lambda a: c.SHIFTS_CREATED and a.ribbon == c.VOLUNTEER_RIBBON and a.takes_shifts and a.weighted_hours == 0,
+           lambda a: c.SHIFTS_CREATED and c.VOLUNTEER_RIBBON in a.ribbon_ints and a.takes_shifts and a.weighted_hours == 0,
            when=days_before(28, c.FINAL_EMAIL_DEADLINE),
            ident='volunteer_still_interested_inquiry')
 

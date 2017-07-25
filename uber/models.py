@@ -130,7 +130,17 @@ class MultiChoice(TypeDecorator):
         TypeDecorator.__init__(self, **kwargs)
 
     def process_bind_param(self, value, dialect):
-        return value if isinstance(value, str) else ','.join(value)
+        """
+        Our MultiChoice options may be in one of three forms: a single string, a
+        single integer, or a list of strings. We want to end up with a single
+        comma-separated string. We also want to make sure an object has only
+        unique values in its MultiChoice columns. Therefore, we listify() the
+        object to make sure it's in list form, we convert it to a set to
+        make all the values unique, and we map the values inside it to strings
+        before joining them with commas because the join function can't handle a
+        list of integers.
+        """
+        return ','.join(map(str, list(set(listify(value))))) if value else ''
 
 
 # Consistent naming conventions are necessary for alembic to be able to
@@ -854,7 +864,7 @@ class Session(SessionManager):
         def single_dept_heads(self, dept=None):
             assigned = {'assigned_depts': str(dept)} if dept else {}
             return (self.query(Attendee)
-                        .filter_by(ribbon=c.DEPT_HEAD_RIBBON, **assigned)
+                        .filter(Attendee.ribbon.contains(c.DEPT_HEAD_RIBBON)).filter_by(**assigned)
                         .order_by(Attendee.full_name).all())
 
         def match_to_group(self, attendee, group):
@@ -1113,7 +1123,7 @@ class Group(MagModel, TakesPaymentMixin):
         if self.status == c.APPROVED and not self.approved:
             self.approved = datetime.now(UTC)
         if self.leader and self.is_dealer:
-            self.leader.ribbon = c.DEALER_RIBBON
+            self.leader.ribbon = add_opt(self.leader.ribbon_ints, c.DEALER_RIBBON)
         if not self.is_unpaid:
             for a in self.attendees:
                 a.presave_adjustments()
@@ -1144,15 +1154,15 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def new_ribbon(self):
-        return c.DEALER_RIBBON if self.is_dealer else c.NO_RIBBON
+        return c.DEALER_RIBBON if self.is_dealer else ''
 
     @property
     def ribbon_and_or_badge(self):
         badge_being_claimed = self.unassigned[0]
-        if badge_being_claimed.ribbon != c.NO_RIBBON and badge_being_claimed.badge_type != c.ATTENDEE_BADGE:
-            return badge_being_claimed.badge_type_label + " / " + self.ribbon_label
+        if badge_being_claimed.ribbon and badge_being_claimed.badge_type != c.ATTENDEE_BADGE:
+            return badge_being_claimed.badge_type_label + " / " + " / ".join(self.ribbon_labels)
         elif badge_being_claimed.ribbon:
-            return badge_being_claimed.ribbon_label
+            return " / ".join(badge_being_claimed.ribbon_labels)
         else:
             return badge_being_claimed.badge_type_label
 
@@ -1303,7 +1313,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     badge_num    = Column(Integer, default=None, nullable=True, admin_only=True)
     badge_type   = Column(Choice(c.BADGE_OPTS), default=c.ATTENDEE_BADGE)
     badge_status = Column(Choice(c.BADGE_STATUS_OPTS), default=c.NEW_STATUS, admin_only=True)
-    ribbon       = Column(Choice(c.RIBBON_OPTS), default=c.NO_RIBBON, admin_only=True)
+    ribbon       = Column(MultiChoice(c.RIBBON_OPTS), admin_only=True)
 
     affiliate    = Column(UnicodeText)
     shirt        = Column(Choice(c.SHIRT_OPTS), default=c.NO_SHIRT)   # attendee shirt size for both swag and staff shirts
@@ -1411,27 +1421,27 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def _staffing_adjustments(self):
-        if self.ribbon == c.DEPT_HEAD_RIBBON:
+        if c.DEPT_HEAD_RIBBON in self.ribbon_ints:
             self.staffing = True
             if c.SHIFT_CUSTOM_BADGES or c.STAFF_BADGE not in c.PREASSIGNED_BADGE_TYPES:
                 self.badge_type = c.STAFF_BADGE
             if self.paid == c.NOT_PAID:
                 self.paid = c.NEED_NOT_PAY
-        elif self.ribbon == c.VOLUNTEER_RIBBON and self.is_new:
+        elif c.VOLUNTEER_RIBBON in self.ribbon_ints and self.is_new:
             self.staffing = True
 
         if not self.is_new:
-            old_ribbon = self.orig_value_of('ribbon')
+            old_ribbon = map(int, listify(self.orig_value_of('ribbon'))) if self.orig_value_of('ribbon') else []
             old_staffing = self.orig_value_of('staffing')
-            if self.staffing and not old_staffing or self.ribbon == c.VOLUNTEER_RIBBON and old_ribbon != c.VOLUNTEER_RIBBON:
+            if self.staffing and not old_staffing or c.VOLUNTEER_RIBBON in self.ribbon_ints and c.VOLUNTEER_RIBBON not in old_ribbon:
                 self.staffing = True
-            elif old_staffing and not self.staffing or self.ribbon not in [c.VOLUNTEER_RIBBON, c.DEPT_HEAD_RIBBON] and old_ribbon == c.VOLUNTEER_RIBBON:
+            elif old_staffing and not self.staffing or not set([c.VOLUNTEER_RIBBON, c.DEPT_HEAD_RIBBON]).intersection(self.ribbon_ints) and c.VOLUNTEER_RIBBON in old_ribbon:
                 self.unset_volunteering()
 
-        if self.badge_type == c.STAFF_BADGE and self.ribbon == c.VOLUNTEER_RIBBON:
-            self.ribbon = c.NO_RIBBON
-        elif self.staffing and self.badge_type != c.STAFF_BADGE and self.ribbon == c.NO_RIBBON:
-            self.ribbon = c.VOLUNTEER_RIBBON
+        if self.badge_type == c.STAFF_BADGE:
+            self.ribbon = remove_opt(self.ribbon_ints, c.VOLUNTEER_RIBBON)
+        elif self.staffing and self.badge_type != c.STAFF_BADGE and c.VOLUNTEER_RIBBON not in self.ribbon_ints:
+            self.ribbon = add_opt(self.ribbon_ints, c.VOLUNTEER_RIBBON)
 
         if self.badge_type == c.STAFF_BADGE:
             self.staffing = True
@@ -1446,7 +1456,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         # _assert_badge_lock()
         from uber.badge_funcs import needs_badge_num
         if self.badge_type == c.PSEUDO_DEALER_BADGE:
-            self.ribbon = c.DEALER_RIBBON
+            self.ribbon = add_opt(self.ribbon_ints, c.DEALER_RIBBON)
 
         self.badge_type = self.badge_type_real
 
@@ -1472,8 +1482,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def unset_volunteering(self):
         self.staffing = False
         self.trusted_depts = self.requested_depts = self.assigned_depts = ''
-        if self.ribbon == c.VOLUNTEER_RIBBON:
-            self.ribbon = c.NO_RIBBON
+        self.ribbon = remove_opt(self.ribbon_ints, c.VOLUNTEER_RIBBON)
         if self.badge_type == c.STAFF_BADGE:
             self.badge_type = c.ATTENDEE_BADGE
             self.badge_num = None
@@ -1481,10 +1490,10 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def ribbon_and_or_badge(self):
-        if self.ribbon != c.NO_RIBBON and self.badge_type != c.ATTENDEE_BADGE:
-            return self.badge_type_label + " / " + self.ribbon_label
-        elif self.ribbon != c.NO_RIBBON:
-            return self.ribbon_label
+        if self.ribbon and self.badge_type != c.ATTENDEE_BADGE:
+            return self.badge_type_label + " / " + " / ".join(self.ribbon_labels)
+        elif self.ribbon:
+            return " / ".join(self.ribbon_labels)
         else:
             return self.badge_type_label
 
@@ -1586,12 +1595,12 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def is_dealer(self):
-        return self.ribbon == c.DEALER_RIBBON or self.badge_type == c.PSEUDO_DEALER_BADGE or \
+        return c.DEALER_RIBBON in self.ribbon_ints or self.badge_type == c.PSEUDO_DEALER_BADGE or \
                (self.group and self.group.is_dealer and self.paid == c.PAID_BY_GROUP)
 
     @property
     def is_dept_head(self):
-        return self.ribbon == c.DEPT_HEAD_RIBBON
+        return c.DEPT_HEAD_RIBBON in self.ribbon_ints
 
     @property
     def is_presold_oneday(self):
@@ -1691,8 +1700,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         else:
             badge = self.badge_type_label
 
-        if self.ribbon != c.NO_RIBBON:
-            badge += ' ({})'.format(self.ribbon_label)
+        if self.ribbon:
+            badge += ' ({})'.format(", ".join(self.ribbon_labels))
 
         return badge
 
@@ -1709,7 +1718,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def volunteer_swag_shirt_eligible(self):
-        return self.badge_type != c.STAFF_BADGE and self.ribbon == c.VOLUNTEER_RIBBON
+        return self.badge_type != c.STAFF_BADGE and c.VOLUNTEER_RIBBON in self.ribbon_ints
 
     @property
     def volunteer_swag_shirt_earned(self):
@@ -1767,7 +1776,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def accoutrements(self):
-        stuff = [] if self.ribbon == c.NO_RIBBON else ['a ' + self.ribbon_label + ' ribbon']
+        stuff = [] if not self.ribbon else ['a ' + self.ribbon_label + ' ribbon']
         if c.WRISTBANDS_ENABLED:
             stuff.append('a {} wristband'.format(c.WRISTBAND_COLORS[self.age_group]))
         if self.regdesk_info:
@@ -1880,7 +1889,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         chairs = defaultdict(list)
         for dept, head in c.DEPT_HEAD_OVERRIDES.items():
             chairs[dept].append(head)
-        for head in self.session.query(Attendee).filter_by(ribbon=c.DEPT_HEAD_RIBBON).order_by('badge_num').all():
+        for head in self.session.query(Attendee).filter(Attendee.ribbon.contains(c.DEPT_HEAD_RIBBON)).order_by('badge_num').all():
             for dept in head.assigned_depts_ints:
                 chairs[dept].append(head.full_name)
 

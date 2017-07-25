@@ -330,7 +330,7 @@ def group_leadership(attendee):
 
 @validation.Attendee
 def banned_volunteer(attendee):
-    if (attendee.ribbon == c.VOLUNTEER_RIBBON or attendee.staffing) and attendee.full_name in c.BANNED_STAFFERS:
+    if (c.VOLUNTEER_RIBBON in attendee.ribbon_ints or attendee.staffing) and attendee.full_name in c.BANNED_STAFFERS:
         return "We've declined to invite {} back as a volunteer, ".format(attendee.full_name) + (
                     'talk to Stops to override if necessary' if c.AT_THE_CON else
                     'Please contact us via {} if you believe this is in error'.format(c.CONTACT_URL))
