@@ -101,11 +101,17 @@ mount_site_sections(c.MODULE_ROOT)
 cherrypy.tree.mount(Root(), c.PATH, c.APPCONF)
 static_overrides(join(c.MODULE_ROOT, 'static'))
 
-DaemonTask(check_unassigned, interval=300,          name="mail unassg")
-DaemonTask(detect_duplicates, interval=300,         name="mail dupes")
-DaemonTask(check_placeholders, interval=300,        name="mail placeh")
 
-DaemonTask(SendAllAutomatedEmailsJob.send_all_emails, interval=300,   name="send emails")
+def reg_checks():
+    sleep(600)  # Delay by 10 minutes to give the system time to start up
+    check_unassigned()
+    detect_duplicates()
+    check_placeholders()
+
+# Registration checks are run every six hours
+DaemonTask(reg_checks, interval=21600, name="mail reg checks")
+
+DaemonTask(SendAllAutomatedEmailsJob.send_all_emails, interval=300, name="send emails")
 
 # TODO: this should be replaced by something a little cleaner, but it can be a useful debugging tool
 # DaemonTask(lambda: log.error(Session.engine.pool.status()), interval=5)

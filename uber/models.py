@@ -803,7 +803,6 @@ class Session(SessionManager):
             if not c.SHIFT_CUSTOM_BADGES or c.AFTER_PRINTED_BADGE_DEADLINE:
                 return False
 
-            # assert_badge_locked()
             from uber.badge_funcs import get_badge_type
             (calculated_badge_type, error) = get_badge_type(badge_num)
             badge_type = calculated_badge_type or badge_type
@@ -868,7 +867,7 @@ class Session(SessionManager):
                         .order_by(Attendee.full_name).all())
 
         def match_to_group(self, attendee, group):
-            with c.BADGE_LOCK:
+            with c.ASSIGN_ATTENDEE_TO_GROUP_LOCK:
                 available = [a for a in group.attendees if a.is_unassigned]
                 matching = [a for a in available if a.badge_type == attendee.badge_type]
                 if not available:
@@ -1093,7 +1092,7 @@ class Group(MagModel, TakesPaymentMixin):
     categories_text = Column(UnicodeText)
     description     = Column(UnicodeText)
     special_needs   = Column(UnicodeText)
-    amount_paid     = Column(Integer, default=0, admin_only=True)
+    amount_paid     = Column(Integer, default=0, index=True, admin_only=True)
     amount_refunded = Column(Integer, default=0, admin_only=True)
     cost            = Column(Integer, default=0, admin_only=True)
     auto_recalc     = Column(Boolean, default=True, admin_only=True)
@@ -1312,7 +1311,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     public_id   = Column(UUID, default=lambda: str(uuid4()))
     badge_num    = Column(Integer, default=None, nullable=True, admin_only=True)
     badge_type   = Column(Choice(c.BADGE_OPTS), default=c.ATTENDEE_BADGE)
-    badge_status = Column(Choice(c.BADGE_STATUS_OPTS), default=c.NEW_STATUS, admin_only=True)
+    badge_status = Column(Choice(c.BADGE_STATUS_OPTS), default=c.NEW_STATUS, index=True, admin_only=True)
     ribbon       = Column(MultiChoice(c.RIBBON_OPTS), admin_only=True)
 
     affiliate    = Column(UnicodeText)
@@ -1326,7 +1325,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     registered = Column(UTCDateTime, server_default=utcnow())
     checked_in = Column(UTCDateTime, nullable=True)
 
-    paid             = Column(Choice(c.PAYMENT_OPTS), default=c.NOT_PAID, admin_only=True)
+    paid             = Column(Choice(c.PAYMENT_OPTS), default=c.NOT_PAID, index=True, admin_only=True)
     overridden_price = Column(Integer, nullable=True, admin_only=True)
     base_badge_price = Column(Integer, default=0, admin_only=True)
     amount_paid      = Column(Integer, default=0, admin_only=True)
@@ -1357,16 +1356,16 @@ class Attendee(MagModel, TakesPaymentMixin):
     old_mpoint_exchanges = relationship('OldMPointExchange', backref='attendee')
     dept_checklist_items = relationship('DeptChecklistItem', backref='attendee')
 
+    _attendee_table_args = [Index('ix_attendee_paid_group_id', paid, group_id)]
     if Session.engine.dialect.name == 'postgresql':
-        __table_args__ = (
-            UniqueConstraint('badge_num', deferrable=True, initially='DEFERRED'),
-        )
+        _attendee_table_args.append(
+            UniqueConstraint('badge_num', deferrable=True, initially='DEFERRED'))
 
+    __table_args__ = tuple(_attendee_table_args)
     _repr_attr_names = ['full_name']
 
     @predelete_adjustment
     def _shift_badges(self):
-        # _assert_badge_lock()
         if self.badge_num:
             self.session.shift_badges(self.badge_type, self.badge_num + 1, down=True)
 
@@ -1453,7 +1452,6 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def _badge_adjustments(self):
-        # _assert_badge_lock()
         from uber.badge_funcs import needs_badge_num
         if self.badge_type == c.PSEUDO_DEALER_BADGE:
             self.ribbon = add_opt(self.ribbon_ints, c.DEALER_RIBBON)
