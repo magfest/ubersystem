@@ -743,7 +743,7 @@ class Session(SessionManager):
             """
             from uber.badge_funcs import needs_badge_num
 
-            if c.SHIFT_CUSTOM_BADGES and c.BEFORE_PRINTED_BADGE_DEADLINE:
+            if c.SHIFT_CUSTOM_BADGES and c.BEFORE_PRINTED_BADGE_DEADLINE and not c.AT_THE_CON:
                 badge_collision = False
                 if attendee.badge_num:
                     badge_collision = self.query(Attendee.badge_num).filter(
@@ -800,7 +800,7 @@ class Session(SessionManager):
                 return c.BADGE_RANGES[badge_type][0]
 
         def shift_badges(self, badge_type, badge_num, *, until=None, up=False, down=False):
-            if not c.SHIFT_CUSTOM_BADGES or c.AFTER_PRINTED_BADGE_DEADLINE:
+            if not c.SHIFT_CUSTOM_BADGES or c.AFTER_PRINTED_BADGE_DEADLINE or c.AT_THE_CON:
                 return False
 
             from uber.badge_funcs import get_badge_type
@@ -875,10 +875,14 @@ class Session(SessionManager):
                 elif not matching:
                     return 'Badge #{} is a {} badge, but {} has no badges of that type'.format(attendee.badge_num, attendee.badge_type_label, group.name)
                 else:
-                    for attr in ['group', 'group_id', 'paid', 'amount_paid', 'ribbon']:
-                        setattr(attendee, attr, getattr(matching[0], attr))
-                    self.delete(matching[0])
-                    self.add(attendee)
+                    # First preserve the attributes we want to copy to the new group member
+                    attrs = matching[0].to_dict(attrs=['group', 'group_id', 'paid', 'amount_paid', 'ribbon'])
+
+                    self.delete(matching[0])  # Then delete the old unassigned group member
+                    self.flush()  # Flush the deletion so the badge shifting code is performed
+
+                    attendee.apply(attrs, restricted=False)  # Copy the attributes we preserved
+                    self.add(attendee)  # Ensure the attendee is added to the session
                     self.commit()
 
         def search(self, text, *filters):
@@ -2766,7 +2770,7 @@ class Tracking(MagModel):
                 return '<bcrypted>'
             elif isinstance(column.type, MultiChoice):
                 opts = dict(column.type.choices)
-                return repr('' if not value else (','.join(opts[int(opt)] for opt in value.split(',') if int(opt or 0) in opts)))
+                return repr('' if not value else (','.join(opts[int(opt)] for opt in str(value).split(',') if int(opt or 0) in opts)))
             elif isinstance(column.type, Choice) and value not in [None, '']:
                 return repr(dict(column.type.choices).get(int(value), '<nonstandard>'))
             else:
