@@ -210,13 +210,13 @@ def cached(func):
 
 
 def cached_page(func):
-    from sideboard.lib import config as sideboard_config
     innermost = get_innermost(func)
-    func.lock = RLock()
+    if hasattr(innermost, 'cached'):
+        from sideboard.lib import config as sideboard_config
+        func.lock = RLock()
 
-    @wraps(func)
-    def with_caching(*args, **kwargs):
-        if hasattr(innermost, 'cached'):
+        @wraps(func)
+        def with_caching(*args, **kwargs):
             fpath = os.path.join(sideboard_config['root'], 'data', func.__module__ + '.' + func.__name__)
             with func.lock:
                 if not os.path.exists(fpath) or datetime.now().timestamp() - os.stat(fpath).st_mtime > 60 * 15:
@@ -229,9 +229,9 @@ def cached_page(func):
                             f.write(bytes(contents, 'UTF-8'))
                 with open(fpath, 'rb') as f:
                     return f.read()
-        else:
-            return func(*args, **kwargs)
-    return with_caching
+        return with_caching
+    else:
+        return func
 
 
 def timed(func):
@@ -254,9 +254,7 @@ def sessionized(func):
         else:
             with sa.Session() as session:
                 try:
-                    retval = func(*args, session=session, **kwargs)
-                    session.expunge_all()
-                    return retval
+                    return func(*args, session=session, **kwargs)
                 except HTTPRedirect:
                     session.commit()
                     raise

@@ -401,7 +401,7 @@ class Root:
             attendee.checked_in = sa.localized_now()
             session.commit()
             increment = True
-            message += '{0.full_name} checked in as {0.badge}{0.accoutrements}'.format(attendee)
+            message += '{} checked in as {}{}'.format(attendee.full_name, attendee.badge, attendee.accoutrements)
 
         return {
             'success':    success,
