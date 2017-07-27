@@ -942,7 +942,7 @@ class Session(SessionManager):
             diff = int(new_badge_count) - group.badges
             sorted_unassigned = sorted(group.floating, key=lambda a: a.registered, reverse=True)
 
-            ribbon_to_use = new_ribbon_type or group.new_ribbon
+            ribbon_to_use = ','.join(str(r) for r in listify(new_ribbon_type)) if new_ribbon_type else group.new_ribbon
 
             if int(new_badge_type) in c.PREASSIGNED_BADGE_TYPES and c.AFTER_PRINTED_BADGE_DEADLINE and diff > 0:
                 return 'Custom badges have already been ordered, so you will need to select a different badge type'
@@ -1434,7 +1434,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             self.staffing = True
 
         if not self.is_new:
-            old_ribbon = map(int, listify(self.orig_value_of('ribbon'))) if self.orig_value_of('ribbon') else []
+            old_ribbon = map(int, self.orig_value_of('ribbon').split(',')) if self.orig_value_of('ribbon') else []
             old_staffing = self.orig_value_of('staffing')
             if self.staffing and not old_staffing or c.VOLUNTEER_RIBBON in self.ribbon_ints and c.VOLUNTEER_RIBBON not in old_ribbon:
                 self.staffing = True

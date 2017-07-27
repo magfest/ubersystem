@@ -124,11 +124,12 @@
 <div class="form-group">
     <label class="col-sm-3 control-label">Ribbon Type</label>
     <div class="col-sm-9">
-        <select name="ribbon">
-            {{ options(c.RIBBON_OPTS,group.new_ribbon) }}
-        </select>
-         Does not change existing badges in this group, only affects newly added badges.
+        {{ macros.checkgroup(Attendee, 'ribbon', defaults=group.new_ribbon, no_instance=True) }}
     </div>
+    <div class="clearfix"></div>
+    <p class="col-sm-9 col-sm-offset-3 help-block">
+        Does not change existing badges in this group, only affects newly added badges.
+    </p>
 </div>
 {% endif %}
 

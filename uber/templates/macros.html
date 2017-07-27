@@ -52,8 +52,8 @@
 {%- endmacro %}
 
 
-{% macro checkgroup(model, field_name, no_instance=False) -%}
-    {%- set defaults = model[field_name] if not no_instance else None -%}
+{% macro checkgroup(model, field_name, defaults=False, no_instance=False) -%}
+    {%- set defaults = model[field_name] if not defaults and not no_instance else None -%}
     {%- set defaults = defaults.split(",") if defaults else [] -%}
     {% for num, desc in model.get_field(field_name).type.choices -%}
         <label class="checkgroup checkbox-label" style="font-weight: normal;">
