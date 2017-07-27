@@ -42,6 +42,7 @@ if c.PREREG_REQUEST_HOTEL_INFO_ENABLED:
         lambda a: a.requested_hotel_info,
         when=days_after(0, c.PREREG_REQUEST_HOTEL_INFO_DEADLINE),
         needs_approval=True,
+        sender=c.PREREG_HOTEL_INFO_EMAIL_SENDER,
         ident='hotel_booking_info')
 
 
