@@ -1766,7 +1766,10 @@ class Attendee(MagModel, TakesPaymentMixin):
             merch.append(shirt)
 
         if self.gets_staff_shirt:
-            merch.append('{} Staff Shirt{}'.format(c.SHIRTS_PER_STAFFER, 's' if c.SHIRTS_PER_STAFFER > 1 else ''))
+            staff_shirts = '{} Staff Shirt{}'.format(c.SHIRTS_PER_STAFFER, 's' if c.SHIRTS_PER_STAFFER > 1 else '')
+            if self.shirt_size_marked:
+                staff_shirts += ' [{}]'.format(c.SHIRTS[self.shirt])
+            merch.append(staff_shirts)
 
         if self.staffing:
             merch.append('Staffer Info Packet')
