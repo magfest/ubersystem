@@ -70,8 +70,8 @@
 </div>
 {% endblock %}
 {% block page_script %}
-    <script src="../static/deps/combined.min.js"></script>
-    <script src="../angular/magfest.js"></script>
+<script src="../static/deps/combined.min.js"></script>
+<script src="../angular/magfest.js"></script>
 
 <script type="text/javascript" src="../static/js/moment.js"></script>
 
@@ -81,102 +81,93 @@
 	var eventList = new Array();
 	var shiftList = new Array();
 
-
-
-        $(document).ready(function() {
-		    {% for job in jobs %}
+    $(document).ready(function() {
+        {% for job in jobs %}
+            {% if job.taken %}
+                shiftList.push({
+                    title : "{{ job.name }} ({{ job.location_label }})",
+                    start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
+                    end : "{{job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
+                    id : "{{job.id}}",
                     {% if job.taken %}
-			shiftList.push({
-                                        title : "{{ job.name }} ({{ job.location_label }})",
-                                        start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
-                                        end : "{{job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
-                                        id : "{{job.id}}",
-                                        {% if job.taken %}
-                                        backgroundColor: "#239875",
-                                        taken: true
-                                        {% else %}
-                                        backgroundColor: "#305fc9",
-                                        taken: false
-                                        {% endif %}
-                                });
-			{% endif %}
-                        eventList.push({
-                                        title : "{{ job.name }} ({{ job.location_label }})",
-                                        start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
-                                        end : "{{job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
-                                        id : "{{job.id}}",
-                                        {% if job.taken %}
-                                        backgroundColor: "#239875",
-                                        taken: true
-                                        {% else %}
-                                        backgroundColor: "#305fc9",
-                                        taken: false
-                                        {% endif %}
-                                });
-
-    		    {% endfor %}
-
-                $('#shift_cal').fullCalendar({
-                        header: {
-                                left: 'prev,next today',
-                                center: 'title',
-                                right: 'agendaDay,listWeek'
-                        },
+                        backgroundColor: "#239875",
+                        taken: true
+                    {% else %}
+                        backgroundColor: "#305fc9",
+                        taken: false
+                    {% endif %}
+                });
+            {% endif %}
+            eventList.push({
+                title : "{{ job.name }} ({{ job.location_label }})",
+                start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
+                end : "{{job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
+                id : "{{job.id}}",
+                {% if job.taken %}
+                    backgroundColor: "#239875",
+                    taken: true
+                {% else %}
+                    backgroundColor: "#305fc9",
+                    taken: false
+                {% endif %}
+            });
+        {% endfor %}
+        $('#shift_cal').fullCalendar({
+            header: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'agendaDay,listWeek'
+            },
 			buttonText : {
-                                today : 'Today',
-                                agendaWeek : 'Week',
-                                agendaDay : 'Day',
-                                listWeek : 'Week'
-                        },
+                today : 'Today',
+                agendaWeek : 'Week',
+                agendaDay : 'Day',
+                listWeek : 'List'
+            },
 			views: {
-                		agendaDay: { buttonText: 'Day' },
-                		listWeek: { buttonText: 'Week' }
-           	 	},
-                        defaultView: 'listWeek',
-                        editable: true,
-			slotDuration: '00:15:00',
-                        allDaySlot: false,
-                        eventLimit: true, // allow "more" link when too many events
-                        slotEventOverlap: false,
-			events: eventList,
-			eventRender:function(event,element) {
-				var buttonTag = '<a class="btn btn-primary shift_button ';
-				if (event.taken) {
-				buttonTag += 'drop';
-				}
-				buttonTag += '" ';
+                agendaDay: { buttonText: 'Day' },
+                listWeek: { buttonText: 'Week' }
+            },
+            defaultView: 'listWeeks',
+            editable: true,
+            slotDuration: '00:15:00',
+            allDaySlot: false,
+            eventLimit: true, // allow "more" link when too many events
+            slotEventOverlap: false,
+            events: eventList,
+            eventRender: function(event,element) {
+                var buttonTag = '<a class="btn btn-primary shift_button ';
+                if (event.taken) {
+                buttonTag += 'drop';
+                }
+                buttonTag += '" ';
 
-				buttonTag += 'onclick="click_shift(\'' + event.taken;
-				buttonTag += '\',\'' +  event.id;
+                buttonTag += 'onclick="click_shift(\'' + event.taken;
+                buttonTag += '\',\'' +  event.id;
                                 buttonTag += '\',\'' +  moment(event.start).toISOString();
                                 buttonTag += '\',\'' +  $('<div/>').text(event.title).html();
-				buttonTag += '\')" ';
-				buttonTag += '>';
-				if(event.taken) {
-					buttonTag += 'Drop';
-				} else {
-					buttonTag += 'Sign-up';
-				}
-				buttonTag += '</a>';
-				element.find('.fc-list-item-title').append(buttonTag);
-				element.find('.fc-title').append('</br>' + buttonTag);
-			},
-                });
-   		{% if 'schedule' in c.QUERY_STRING %}
-
-                        $("#shift_cal").fullCalendar( 'changeView','listWeek');
-
-		{% else %}
-
-                // if opened with tgt_date, go to date in calendar
-
-		{% endif %}
-                var curDate = $.urlParam('tgt_date');
-                if(curDate != null) {
-                        $("#shift_cal").fullCalendar( 'changeView','agendaDay');
-			$("#shift_cal").fullCalendar( 'gotoDate',curDate);
-
+                buttonTag += '\')" ';
+                buttonTag += '>';
+                if(event.taken) {
+                    buttonTag += 'Drop';
                 } else {
+                    buttonTag += 'Sign-up';
+                }
+                buttonTag += '</a>';
+                element.find('.fc-list-item-title').append(buttonTag);
+                element.find('.fc-title').append('</br>' + buttonTag);
+            }
+        });
+        {% if 'schedule' in c.QUERY_STRING %}
+            $("#shift_cal").fullCalendar( 'changeView','listWeek');
+        {% else %}
+            // if opened with tgt_date, go to date in calendar
+        {% endif %}
+        var curDate = $.urlParam('tgt_date');
+        if(curDate != null) {
+            $("#shift_cal").fullCalendar( 'changeView','agendaDay');
+			$("#shift_cal").fullCalendar( 'gotoDate',curDate);
+        } else {
 			$("#shift_cal").fullCalendar('gotoDate', eventList[0].start);
 		}
 		$(".toggle-cal").click(function() {
@@ -191,40 +182,38 @@
 			$("#shift_cal").fullCalendar('refetchEvents');
 			$(".state-text").toggleClass('hidden');
 		});
+    });
 
-        });
-
-function click_shift(state,id,time,title) {
+    function click_shift(state,id,time,title) {
         var postData = {};
         postData['csrf_token'] =  $("div.csrf_token input").attr('value');
         var confirmStr = "Do you want to ";
         if (state=='true') {
         	confirmStr += "drop ";
         } else {
-                confirmStr += "signup ";
+            confirmStr += "signup ";
         }
         confirmStr += title + " at " + time + "?";
         var r = confirm(confirmStr);
         if (r == true) {
         	var tgtShiftURL = "sign_up?job_id="+ id;
-                if(state=='true') {
-                	tgtShiftURL = "drop?job_id=" + id;
-                }
-                $.post( tgtShiftURL,postData,function( data,status ) {
-                        window.location.href = window.location.pathname + "?tgt_date=" + moment(event.start).toISOString();
-                });
+            if(state=='true') {
+                tgtShiftURL = "drop?job_id=" + id;
+            }
+            $.post( tgtShiftURL,postData,function( data,status ) {
+                window.location.href = window.location.pathname + "?tgt_date=" + moment(event.start).toISOString();
+            });
         }
+    }
 
-}
-
-$.urlParam = function(name){
-   var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
-   if (results==null){
-      return null;
-   }
-   else{
-      return results[1] || 0;
-   }
-}
+    $.urlParam = function(name){
+       var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
+       if (results==null){
+          return null;
+       }
+       else{
+          return results[1] || 0;
+       }
+    }
 </script>
 {% endblock %}
