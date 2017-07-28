@@ -30,22 +30,22 @@ class TestCharge:
     def test_charge_one_email(self):
         attendee = Attendee(email='test@example.com')
         charge = Charge(targets=[attendee])
-        assert charge.email == attendee.email
+        assert charge.receipt_email == attendee.email
 
     def test_charge_group_leader_email(self):
         attendee = Attendee(email='test@example.com')
         group = Group(attendees=[attendee])
         charge = Charge(targets=[group])
-        assert charge.email == attendee.email
+        assert charge.receipt_email == attendee.email
 
     def test_charge_first_email(self):
         attendee = Attendee(email='test@example.com')
         charge = Charge(targets=[attendee, Attendee(email='test2@example.com'), Attendee(email='test3@example.com')])
-        assert charge.email == attendee.email
+        assert charge.receipt_email == attendee.email
 
     def test_charge_no_email(self):
         charge = Charge(targets=[Group()])
-        assert charge.email == ''
+        assert charge.receipt_email is None
 
     def test_charge_log_transaction(self):
         attendee = Attendee()
@@ -61,3 +61,10 @@ class TestCharge:
         assert result.who == 'non-admin'
         assert result.fk_id == attendee.id
         assert result.fk_model == attendee.__class__.__name__
+
+    def test_charge_log_transaction_no_model(self):
+        stripe.Charge.create = Mock(return_value=1)
+        Charge.stripe_transaction_from_charge = Mock()
+        charge = Charge(amount=1000, description="Test charge")
+        Charge.charge_cc(charge, Mock(), 1)
+        assert not Charge.stripe_transaction_from_charge.called

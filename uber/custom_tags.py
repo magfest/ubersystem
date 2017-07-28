@@ -342,7 +342,7 @@ def stripe_form(action, charge):
     payment_id = uuid4().hex
     cherrypy.session[payment_id] = charge.to_dict()
 
-    email = ''
+    email = None
     if charge.targets and charge.models[0].email:
         email = charge.models[0].email[:255]
 

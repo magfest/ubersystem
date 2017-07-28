@@ -240,7 +240,7 @@ def _record_email_sent(email):
 
 
 class Charge:
-    def __init__(self, targets=(), amount=None, description=None, email=''):
+    def __init__(self, targets=(), amount=None, description=None, receipt_email=None):
         self.targets = [self.to_sessionized(m) for m in listify(targets)]
 
         # performance optimization
@@ -248,7 +248,7 @@ class Charge:
 
         self.amount = amount or self.total_cost
         self.description = description or self.names
-        self.email = self.models[0].email if self.targets and self.models[0].email else email
+        self.receipt_email = self.models[0].email if self.targets and self.models[0].email else receipt_email
 
     @classproperty
     def paid_preregs(cls):
@@ -332,7 +332,7 @@ class Charge:
             'targets': self.targets,
             'amount': self.amount,
             'description': self.description,
-            'email': self.email
+            'receipt_email': self.receipt_email
         }
 
     @property
@@ -366,16 +366,17 @@ class Charge:
                 currency='usd',
                 amount=self.amount,
                 description=self.description,
-                receipt_email=self.email
+                receipt_email=self.receipt_email
             )
         except stripe.CardError as e:
             return 'Your card was declined with the following error from our processor: ' + str(e)
         except stripe.StripeError as e:
             error_txt = 'Got an error while calling charge_cc(self, token={!r})'.format(token)
             report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
-            return 'An unexpected problem occured while processing your card: ' + str(e)
+            return 'An unexpected problem occurred while processing your card: ' + str(e)
         else:
-            session.add(self.stripe_transaction_from_charge())
+            if self.models:
+                session.add(self.stripe_transaction_from_charge())
 
     def stripe_transaction_from_charge(self, type=c.PAYMENT):
         return sa.StripeTransaction(
