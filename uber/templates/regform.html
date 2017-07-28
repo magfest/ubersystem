@@ -402,10 +402,11 @@
     {% if is_prereg_dealer %}
         <div class="form-group">
             <div class="col-sm-9 col-sm-offset-3">
+                {%- set attendee_address_suffix = attendee.id|replace("-", "") -%}
                 {{ macros.toggle_checkbox(
-                    selector='.address_details',
+                    selector='.address_details' + attendee_address_suffix,
                     label='Use my business address for my personal address.',
-                    suffix=attendee.id|replace("-", ""),
+                    suffix=attendee_address_suffix,
                     name='copy_address',
                     checked=copy_address) }}
             </div>
