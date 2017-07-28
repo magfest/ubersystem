@@ -53,10 +53,14 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     conn = op.get_bind()
-    # Because this column used to be in an event plugin, we check for its existence before making it
-    exists = conn.execute("SELECT COLUMN_NAME FROM information_schema.columns where TABLE_NAME = 'attendee' and COLUMN_NAME = 'extra_donation'").fetchall()
-    if not exists:
-        op.add_column('attendee', sa.Column('extra_donation', sa.Integer(), server_default='0', nullable=False))
+    if is_sqlite:
+        with op.batch_alter_table('attendee', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
+            batch_op.add_column(sa.Column('extra_donation', sa.Integer(), server_default='0', nullable=False))
+    else:
+        # Because this column used to be in an event plugin, we check for its existence before making it
+        exists = conn.execute("SELECT COLUMN_NAME FROM information_schema.columns where TABLE_NAME = 'attendee' and COLUMN_NAME = 'extra_donation'").fetchall()
+        if not exists:
+            op.add_column('attendee', sa.Column('extra_donation', sa.Integer(), server_default='0', nullable=False))
 
 
 def downgrade():
