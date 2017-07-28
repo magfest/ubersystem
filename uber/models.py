@@ -1382,7 +1382,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.birthdate == '':
             self.birthdate = None
 
-        if self.extra_donation == '':
+        if not self.extra_donation:
             self.extra_donation = 0
 
         if not self.gets_any_kind_of_shirt:
