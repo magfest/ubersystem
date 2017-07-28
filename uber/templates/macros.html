@@ -197,14 +197,18 @@
 {%- endmacro %}
 
 
-{% macro toggle_checkbox(selector, label, suffix='', name='', value='1', checked=False) -%}
+{% macro toggle_checkbox(selector, label, suffix='', name='', value='1', required_selector=False, hide_on_checked=True, checked=False) -%}
     <script type="text/javascript">
         var toggleVisibility{{ suffix }} = function () {
-            if ($('#toggle_visibility{{ suffix }}').prop('checked')) {
-                $('{{ selector }}{{ suffix }}').hide();
+            var isChecked = $('#toggle_visibility{{ suffix }}').prop('checked'),
+                hideOnChecked = {%- if hide_on_checked -%}true{%- else -%}false{%- endif -%},
+                isVisible = isChecked != hideOnChecked;
+            if (isVisible) {
+                $('{{ selector }}').show();
             } else {
-                $('{{ selector }}{{ suffix }}').show();
+                $('{{ selector }}').hide();
             }
+            {%- if required_selector -%}$('{{ required_selector }}').prop('required', isVisible);{%- endif -%}
         };
         $(function () {
             toggleVisibility{{ suffix }}();
