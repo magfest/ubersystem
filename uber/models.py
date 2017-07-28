@@ -1334,6 +1334,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     base_badge_price = Column(Integer, default=0, admin_only=True)
     amount_paid      = Column(Integer, default=0, admin_only=True)
     amount_extra     = Column(Choice(c.DONATION_TIER_OPTS, allow_unspecified=True), default=0)
+    extra_donation   = Column(Integer, default=0)
     payment_method   = Column(Choice(c.PAYMENT_METHOD_OPTS), nullable=True)
     amount_refunded  = Column(Integer, default=0, admin_only=True)
 
@@ -1380,6 +1381,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if self.birthdate == '':
             self.birthdate = None
+
+        if self.extra_donation == '':
+            self.extra_donation = 0
 
         if not self.gets_any_kind_of_shirt:
             self.shirt = c.NO_SHIRT
@@ -1579,6 +1583,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     def total_donation(self):
         return self.total_cost - self.badge_cost
 
+    @cost_property
+    def donation_cost(self):
+        return self.extra_donation or 0
+
     @property
     def amount_unpaid(self):
         if self.paid == c.PAID_BY_GROUP:
@@ -1745,7 +1753,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def donation_swag(self):
         extra = self.amount_extra
-        return [desc for amount, desc in sorted(c.DONATION_TIERS.items()) if amount and extra >= amount]
+        return [desc for amount, desc in sorted(c.DONATION_TIERS.items()) if amount and extra >= amount] \
+               + (['Extra donation of ${}'.format(self.extra_donation)] if self.extra_donation else [])
 
     @property
     def merch(self):

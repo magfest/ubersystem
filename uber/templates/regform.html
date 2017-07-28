@@ -321,6 +321,27 @@
 </div>
 {% endif %}
 
+{% if c.PAGE_PATH != '/preregistration/transfer_badge' and c.COLLECT_EXTRA_DONATION %}
+    <div id="extra_donation">
+        <div class="form-group">
+            <label class="col-sm-3 control-label">Extra Donation</label>
+            <div class="col-sm-6">
+                <div class="input-group">
+                    <span class="input-group-addon">$</span>
+                        <input type="text" class="form-control" name="extra_donation" value="{% if attendee.extra_donation %}{{ attendee.extra_donation }}{% endif %}" placeholder="0">
+                    <span class="input-group-addon">.00</span>
+                </div>
+            </div>
+            {% if c.PAGE_PATH != '/registration/form' %}
+                <p class="help-block col-sm-9 col-sm-offset-3">
+                    {{ c.ORGANIZATION_NAME }} is a 501(c)(3) charitable organization, and additional donations may be tax deductible.
+                    Your employer may also have a charitable donation matching program. E-mail contact@magfest.org for details.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+{% endif %}
+
 <div class="form-group staffing">
     <label for="staffing" class="col-sm-3 optional-field control-label">Want to Volunteer?</label>
     <div class="checkbox col-sm-6">
