@@ -21,12 +21,21 @@ Your {{ group.is_dealer|yesno("Dealer registration,group") }} ({{ group.name }})
     {% endif %}
     extra money <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ group.leader_id }}">here</a>.
 
-    
     {% if not group.is_dealer %}
         <br/> <br/>
         You can add badges to your group using the above link, but you must add
         at least {{ c.MIN_GROUP_ADDITION }} badges at a time.
     {% endif %}
+{% endif %}
+
+{% if c.CONSENT_FORM_URL and group.leader.age_group_conf['consent_form'] %}
+    <br/> <br/>
+    Because you are under 18, you must bring a signed and notarized parental permission
+    to be granted admission to {{ c.EVENT_NAME }}.  You may download the consent form
+    <a href="{{ c.CONSENT_FORM_URL }}">by clicking here</a>.
+    <br/> <br/>
+    You may <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">click here</a>
+    to edit your info if you are over 18.
 {% endif %}
 
 <br/> <br/>
