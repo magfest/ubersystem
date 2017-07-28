@@ -1,5 +1,6 @@
 from uber import config
 from uber.tests import *
+from uber.model_checks import extra_donation_valid
 
 
 class TestCosts:
@@ -464,3 +465,15 @@ class TestLookupAttendee:
         with Session() as session:
             assert session.lookup_attendee('Two First', 'Names', 'searchable@example.com', '12345')
             assert session.lookup_attendee('Two', 'Last Names', 'searchable@example.com', '12345')
+
+
+class TestExtraDonationValidations:
+
+    def test_extra_donation_nan(self):
+        assert "What you entered for Extra Donation (blah) isn't even a number" == extra_donation_valid(Attendee(extra_donation="blah"))
+
+    def test_extra_donation_below_zero(self):
+        assert "Extra Donation must be a number that is 0 or higher." == extra_donation_valid(Attendee(extra_donation=-10))
+
+    def test_extra_donation_valid(self):
+        assert None == extra_donation_valid(Attendee(extra_donation=10))
