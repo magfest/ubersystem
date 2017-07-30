@@ -47,7 +47,7 @@ def check_if_can_reg(func):
             pass  # Don't redirect to any of the pages below.
         elif c.BADGES_SOLD >= c.MAX_BADGE_SALES:
             return render('static_views/prereg_soldout.html')
-        elif c.BEFORE_PREREG_OPEN:
+        elif c.BEFORE_PREREG_OPEN and not (c.DEALER_REG_OPEN and c.AFTER_DEALER_REG_START and c.PAGE_PATH == '/preregistration/dealer_registration'):
             return render('static_views/prereg_not_yet_open.html')
         elif c.AFTER_PREREG_TAKEDOWN and not c.AT_THE_CON:
             return render('static_views/prereg_closed.html')
