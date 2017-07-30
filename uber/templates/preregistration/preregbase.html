@@ -39,9 +39,7 @@
                 onClick: function () {
                     $('.group_fields').addClass('hide');
                     $('.non_group_fields').removeClass('hide');
-                    if ($.field('badge_type').val() == '{{ c.PSEUDO_GROUP_BADGE }}') {
-                        updateBadgeTypeHiddenInput('{{ c.ATTENDEE_BADGE }}');
-                    }
+                    updateBadgeTypeHiddenInput('{{ c.ATTENDEE_BADGE }}');
                     if ($.field('first_name')) {
                         $('#bold-field-message').insertBefore($.field('first_name').parents('.form-group'));
                     }
@@ -81,10 +79,7 @@
                 title: '{% if c.PAGE_PATH in ["/preregistration/form", "/preregistration/post_form", "/preregistration/dealer_registration"] or undoing_extra %}Attending{% elif attendee %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
                 description: 'Allows access to the convention for its duration.',
                 extra: 0,
-                price: {{ badge_cost if badge_cost is defined else c.BADGE_PRICE }},
-                onClick: function () {
-                    updateBadgeTypeHiddenInput('{{ c.ATTENDEE_BADGE }}');
-                }
+                price: {{ badge_cost if badge_cost is defined else c.BADGE_PRICE }}
             }]
         };
         {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS and c.SHIRT_AVAILABLE %}
