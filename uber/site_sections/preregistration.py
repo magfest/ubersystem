@@ -272,12 +272,16 @@ class Root:
 
         return {
             'duplicate': attendee,
-            'attendee': orig
+            'attendee': orig,
+            'id': id
         }
 
     def banned(self, id):
         attendee, group = self._get_unsaved(id)
-        return {'attendee': attendee}
+        return {
+            'attendee': attendee,
+            'id': id
+        }
 
     def process_free_prereg(self, session):
         charge = Charge(listify(Charge.unpaid_preregs.values()))

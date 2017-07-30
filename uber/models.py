@@ -127,6 +127,7 @@ class MultiChoice(TypeDecorator):
 
     def __init__(self, choices, **kwargs):
         self.choices = choices
+        self.choices_dict = dict(choices)
         TypeDecorator.__init__(self, **kwargs)
 
     def process_bind_param(self, value, dialect):
@@ -165,9 +166,13 @@ class MagModel:
 
     required = ()
 
-    @property
-    def _class_attrs(self):
-        return {name: getattr(self.__class__, name) for name in dir(self.__class__)}
+    @cached_classproperty
+    def _class_attr_names(cls):
+        return [s for s in dir(cls) if s not in ('_class_attrs', '_class_attr_names') and not s.startswith('_cached_')]
+
+    @cached_classproperty
+    def _class_attrs(cls):
+        return {s: getattr(cls, s) for s in cls._class_attr_names}
 
     def _invoke_adjustment_callbacks(self, label):
         callbacks = []
@@ -206,10 +211,14 @@ class MagModel:
         """
         return []
 
-    @property
-    def cost_property_names(self):
+    @cached_classproperty
+    def cost_property_names(cls):
         """Returns the names of all cost properties on this model."""
-        return [name for name, attr in self._class_attrs.items() if isinstance(attr, cost_property)]
+        return [s for s in cls._class_attr_names if s != 'cost_property_names' and isinstance(getattr(cls, s), cost_property)]
+
+    @cached_classproperty
+    def multichoice_columns(cls):
+        return [c for c in cls.__table__.columns if isinstance(c.type, MultiChoice)]
 
     @property
     def default_cost(self):
@@ -228,7 +237,7 @@ class MagModel:
         """
         return self.session.query(StripeTransaction).filter_by(fk_id=self.id).all()
 
-    @class_property
+    @cached_classproperty
     def unrestricted(cls):
         """
         Returns a set of column names which are allowed to be set by non-admin
@@ -236,22 +245,22 @@ class MagModel:
         """
         return {col.name for col in cls.__table__.columns if not getattr(col, 'admin_only', True)}
 
-    @class_property
+    @cached_classproperty
     def all_bools(cls):
         """Returns the set of Boolean column names for this table."""
         return {col.name for col in cls.__table__.columns if isinstance(col.type, Boolean)}
 
-    @class_property
+    @cached_classproperty
     def all_checkgroups(cls):
         """Returns the set of MultiChoice column names for this table."""
         return {col.name for col in cls.__table__.columns if isinstance(col.type, MultiChoice)}
 
-    @class_property
+    @cached_classproperty
     def regform_bools(cls):
         """Returns the set of non-admin-only Boolean columns for this table."""
         return {colname for colname in cls.all_bools if colname in cls.unrestricted}
 
-    @class_property
+    @cached_classproperty
     def regform_checkgroups(cls):
         """Returns the set of non-admin-only MultiChoice columns for this table."""
         return {colname for colname in cls.all_checkgroups if colname in cls.unrestricted}
@@ -367,13 +376,14 @@ class MagModel:
             return suffixed
 
         try:
-            [multi] = [col for col in self.__table__.columns if isinstance(col.type, MultiChoice)]
             choice = getattr(c, name)
-            assert choice in [val for val, desc in multi.type.choices]
+            if len(self.multichoice_columns) == 1:
+                multi = self.multichoice_columns[0]
+                if choice in multi.type.choices_dict:
+                    return choice in getattr(self, multi.name + '_ints')
         except:
+            # Most likely "name" is not an attribute of "c"
             pass
-        else:
-            return choice in getattr(self, multi.name + '_ints')
 
         if name.startswith('is_'):
             return self.__class__.__name__.lower() == name[3:]
