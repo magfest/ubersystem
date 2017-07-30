@@ -362,7 +362,7 @@ class Config(_Overridable):
 
     @property
     def HTTP_METHOD(self):
-        return cherrypy.request.method
+        return cherrypy.request.method.upper()
 
     def get_kickin_count(self, kickin_level):
         with sa.Session() as session:

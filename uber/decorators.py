@@ -43,11 +43,16 @@ def redirect_if_at_con_to_kiosk(func):
 def check_if_can_reg(func):
     @wraps(func)
     def with_check(*args, **kwargs):
+        is_dealer_referer = os.path.basename(cherrypy.request.headers.get('Referer', '')) in ('dealer_registration', 'post_form')
+        is_dealer_post = c.HTTP_METHOD == 'POST' and c.PAGE_PATH == '/preregistration/post_form' and is_dealer_referer
+        is_dealer_reg = c.DEALER_REG_OPEN and c.AFTER_DEALER_REG_START and (
+            c.PAGE_PATH == '/preregistration/dealer_registration' or is_dealer_post)
+
         if c.DEV_BOX:
             pass  # Don't redirect to any of the pages below.
         elif c.BADGES_SOLD >= c.MAX_BADGE_SALES:
             return render('static_views/prereg_soldout.html')
-        elif c.BEFORE_PREREG_OPEN and not (c.DEALER_REG_OPEN and c.AFTER_DEALER_REG_START and c.PAGE_PATH == '/preregistration/dealer_registration'):
+        elif c.BEFORE_PREREG_OPEN and not is_dealer_reg:
             return render('static_views/prereg_not_yet_open.html')
         elif c.AFTER_PREREG_TAKEDOWN and not c.AT_THE_CON:
             return render('static_views/prereg_closed.html')
