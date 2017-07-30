@@ -340,8 +340,8 @@ class Charge:
         }
 
     @property
-    def is_empty(self):
-        return not self._targets
+    def has_targets(self):
+        return not not self._targets
 
     @cached_property
     def total_cost(self):
