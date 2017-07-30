@@ -98,7 +98,7 @@
         <tr>
           <td>{{ group.name }}</td>
           <td>
-            <ul>
+            <ul style="padding-left:15px">
               <li>{{ group.badges }} badges</li>
               {% if group.requested_hotel_info %}
                 <li>Requested hotel booking info</li>
@@ -116,7 +116,7 @@
         </tr>
       {% endfor %}
     </tbody>
-    {% if charge.targets|length > 1 %}
+    {% if not charge.is_empty %}
       <tfoot>
         <tr>
           <th></th>

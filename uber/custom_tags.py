@@ -343,10 +343,10 @@ def stripe_form(action, charge):
     cherrypy.session[payment_id] = charge.to_dict()
 
     email = None
-    if charge.targets and charge.models[0].email:
+    if charge.models and charge.models[0].email:
         email = charge.models[0].email[:255]
 
-    if not charge.targets:
+    if not charge.models:
         if c.AT_THE_CON:
             regtext = 'On-Site Charge'
         else:
