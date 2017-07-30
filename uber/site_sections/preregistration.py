@@ -101,9 +101,9 @@ class Root:
             'id': id
         }
 
+    @cherrypy.expose(['post_form'])
     @redirect_if_at_con_to_kiosk
     @check_if_can_reg
-    @cherrypy.expose(['post_form'])
     def form(self, session, message='', edit_id=None, **params):
         """
         Our production NGINX config caches the page at /preregistration/form.
@@ -133,6 +133,9 @@ class Root:
         else:
             attendee = session.attendee(params, ignore_csrf=True, restricted=True)
             group = session.group(group_params, ignore_csrf=True, restricted=True)
+
+        if c.BEFORE_PREREG_OPEN and not (c.IS_DEALER_REG_REQUEST and attendee.badge_type == c.PSEUDO_DEALER_BADGE):
+            return render('static_views/prereg_not_yet_open.html')
 
         message = ''
         if c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
