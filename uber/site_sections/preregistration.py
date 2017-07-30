@@ -351,22 +351,27 @@ class Root:
     def group_members(self, session, id, message='', **params):
         group = session.group(id)
         charge = Charge(group)
-        changes = False
         if group.status != c.APPROVED and 'name' in params:
-            for val in params:
-                if params[val] != getattr(group, val):
-                    changes = True
-            if changes:
-                group.apply(params, restricted=True)
-                message = check(group, prereg=True)
-                if message:
-                    session.rollback()
-                else:
-                    session.commit()
-                    if group.is_dealer:
-                        send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Application Changed',
-                                   render('emails/dealers/appchange_notification.html', {'group': group}), 'html', model=group)
-                    message = 'Thank you! Your application has been updated.'
+            # Both the Attendee class and Group class have identically named
+            # address fields. In order to distinguish the two sets of address
+            # fields in the params, the Group fields are prefixed with "group_"
+            # when the form is submitted. To prevent instantiating the Group object
+            # with the Attendee's address fields, we must clone the params and
+            # rename all the "group_" fields.
+            group_params = dict(params)
+            for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city']:
+                group_params[field_name] = params.get('group_{}'.format(field_name), '')
+
+            group.apply(group_params, restricted=True)
+            message = check(group, prereg=True)
+            if message:
+                session.rollback()
+            else:
+                session.commit()
+                if group.is_dealer:
+                    send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Application Changed',
+                               render('emails/dealers/appchange_notification.html', {'group': group}), 'html', model=group)
+                message = 'Thank you! Your application has been updated.'
 
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
         return {
