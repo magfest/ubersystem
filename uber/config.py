@@ -352,6 +352,14 @@ class Config(_Overridable):
     def PAGE(self):
         return cherrypy.request.path_info.split('/')[-1]
 
+    @property
+    def IS_DEALER_REG_REQUEST(self):
+        is_dealer_referer = os.path.basename(cherrypy.request.headers.get('Referer', '')) in ('dealer_registration', 'post_form')
+        is_dealer_post = c.HTTP_METHOD == 'POST' and c.PAGE_PATH == '/preregistration/post_form' and is_dealer_referer
+        is_dealer_reg = c.DEALER_REG_OPEN and c.AFTER_DEALER_REG_START and (
+            c.PAGE_PATH == '/preregistration/dealer_registration' or is_dealer_post)
+        return is_dealer_reg
+
     @request_cached_property
     def CURRENT_ADMIN(self):
         try:
