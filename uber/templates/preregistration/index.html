@@ -116,7 +116,7 @@
         </tr>
       {% endfor %}
     </tbody>
-    {% if not charge.is_empty %}
+    {% if charge.has_targets %}
       <tfoot>
         <tr>
           <th></th>

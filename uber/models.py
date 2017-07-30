@@ -375,15 +375,12 @@ class MagModel:
         if suffixed is not None:
             return suffixed
 
-        try:
-            choice = getattr(c, name)
+        choice = getattr(c, name, None)
+        if choice is not None:
             if len(self.multichoice_columns) == 1:
                 multi = self.multichoice_columns[0]
                 if choice in multi.type.choices_dict:
                     return choice in getattr(self, multi.name + '_ints')
-        except:
-            # Most likely "name" is not an attribute of "c"
-            pass
 
         if name.startswith('is_'):
             return self.__class__.__name__.lower() == name[3:]

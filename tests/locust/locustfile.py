@@ -50,6 +50,7 @@ class AttendeeBehavior(TaskSet):
                 'found_how': fake.catch_phrase(),
                 'comments': fake.paragraph(),
                 'extra_donation': ''})
+        self.client.get('/uber/preregistration/index', verify=self.verify)
 
 
 class AttendeeLocust(HttpLocust):
