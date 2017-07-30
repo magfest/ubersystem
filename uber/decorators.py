@@ -254,7 +254,9 @@ def sessionized(func):
         else:
             with sa.Session() as session:
                 try:
-                    return func(*args, session=session, **kwargs)
+                    retval = func(*args, session=session, **kwargs)
+                    session.expunge_all()
+                    return retval
                 except HTTPRedirect:
                     session.commit()
                     raise
