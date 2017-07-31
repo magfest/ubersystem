@@ -13,7 +13,7 @@
   {%- if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.BEFORE_DEALER_REG_SHUTDOWN -%}
   <p>
     <strong>Dealers:</strong>
-    {% if c.BEFORE_DEALER_REG_PUBLIC %}
+    {% if c.BEFORE_DEALER_REG_START %}
         Registrations for dealer memberships begin {{ c.DEALER_REG_START|datetime_local }}.
     {% else %}
         Please register <a href="../preregistration/dealer_registration">here</a>.
