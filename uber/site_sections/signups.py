@@ -71,14 +71,14 @@ class Root:
     @check_shutdown
     def shifts(self, session, view='', start=''):
         joblist = session.jobs_for_signups()
-        con_days = -(-c.CON_LENGTH // 24) # Equivalent to ceil(c.CON_LENGTH / 24)
+        con_days = -(-c.CON_LENGTH // 24)  # Equivalent to ceil(c.CON_LENGTH / 24)
 
         if session.logged_in_volunteer().can_work_setup and session.logged_in_volunteer().can_work_teardown:
             cal_length = c.CON_TOTAL_LENGTH
         elif session.logged_in_volunteer().can_work_setup:
             cal_length = con_days + c.SETUP_SHIFT_DAYS
         elif session.logged_in_volunteer().can_work_teardown:
-            cal_length = con_days + 2 # There's no specific config for # of shift signup days
+            cal_length = con_days + 2  # There's no specific config for # of shift signup days
         else:
             cal_length = con_days
         return {
