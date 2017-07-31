@@ -602,7 +602,7 @@ class Session(SessionManager):
             }
 
         def jobs_for_signups(self):
-            fields = ['name', 'location_label', 'description', 'weight', 'start_time_local', 'duration', 'weighted_hours', 'restricted', 'extra15', 'taken']
+            fields = ['name', 'location_label', 'description', 'weight', 'start_time_local', 'end_time_local', 'duration', 'weighted_hours', 'restricted', 'extra15', 'taken']
             jobs = self.logged_in_volunteer().possible_and_current
             restricted_hours = set()
             for job in jobs:
