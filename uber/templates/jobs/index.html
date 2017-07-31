@@ -86,7 +86,7 @@ $(document).ready(function() {
     var eventList = new Array();
     {% for job in jobs %}
         eventList.push({
-            title: "{{ job.name }} ({{ job.shifts | length }}/{{ job.slots }})",
+            title: "{{ job.name }} ({{ job.shifts | length }}/{{ job.slots }}) x{{ job.weight }}{{ " +15" if job.extra15 else "" }}",
             start: "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
             end: "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
             url: "form?id={{ job.id }}",
@@ -102,7 +102,20 @@ $(document).ready(function() {
         header: {
             left: 'prev,next today',
             center: 'title',
-            right: 'agendaWeek,agendaDay,listWeek'
+            right: 'agendaDay,agendaConWeek,listConDuration'
+        },
+        views: {
+            agendaDay: { buttonText: 'Day' },
+            agendaConWeek: {
+                type: 'agenda',
+                duration: { days: {{ c.CON_TOTAL_LENGTH }} },
+                buttonText: 'Calendar'
+            },
+            listConDuration: {
+                type: 'list',
+                duration: { days: {{ c.CON_TOTAL_LENGTH }} },
+                buttonText: 'List'
+            }
         },
         buttonText : {
             today : 'Today',
@@ -110,36 +123,18 @@ $(document).ready(function() {
             agendaDay : 'Day',
             listWeek : 'Week'
         },
-        slotDuration: '00:15:00',
+        slotDuration: '00:30:00',
         allDaySlot: false,
-        eventLimit: true, // allow "more" link when too many events
+        defaultView: 'agendaConWeek',
+        defaultDate: '{{ c.SHIFTS_START_DAY }}',
         slotEventOverlap: false,
-        defaultView: 'agendaDay',
-        editable: false,
-        slotEventOverlap:false,
         eventLimit: true, // allow "more" link when too many events
         events: eventList,
         dayClick: function(date) {
             window.location.href = "form?id=None&location={{ location }}&start_time=" + date.format("YYYY-MM-DD HH:mm:ss");
         }
     });
-
-    var curDate = $.urlParam('time');
-    if(curDate != null) {
-        $("#shift_cal").fullCalendar( 'gotoDate',curDate);
-    } else {
-        $("#shift_cal").fullCalendar('gotoDate', eventList[0].start);
-    }
 });
-
-$.urlParam = function(name){
-   var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
-   if (results==null) {
-      return null;
-   } else {
-      return results[1] || 0;
-   }
-}
 
 </script>
 {% endblock %}
