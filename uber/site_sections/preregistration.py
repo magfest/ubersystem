@@ -134,9 +134,6 @@ class Root:
             attendee = session.attendee(params, ignore_csrf=True, restricted=True)
             group = session.group(group_params, ignore_csrf=True, restricted=True)
 
-        if c.BEFORE_PREREG_OPEN and not (c.IS_DEALER_REG_REQUEST and attendee.badge_type == c.PSEUDO_DEALER_BADGE):
-            return render('static_views/prereg_not_yet_open.html')
-
         message = ''
         if c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
             message = session.add_promo_code_to_attendee(

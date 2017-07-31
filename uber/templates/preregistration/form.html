@@ -32,7 +32,7 @@
           <div class="form-group row">
             <p class="col-sm-9 col-sm-offset-3">
                 <strong>Dealers:</strong>
-                {% if c.BEFORE_DEALER_REG_PUBLIC %}
+                {% if c.BEFORE_DEALER_REG_START %}
                     Registrations for dealer memberships begin {{ c.DEALER_REG_START|datetime_local }}.
                 {% else %}
                     Please register <a href="dealer_registration">here</a>.
