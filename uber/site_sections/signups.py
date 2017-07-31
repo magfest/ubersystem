@@ -69,12 +69,26 @@ class Root:
         }
 
     @check_shutdown
-    def shifts(self, session, tgt_date='', state=''):
+    def shifts(self, session, view='', start=''):
         joblist = session.jobs_for_signups()
+        con_days = -(-c.CON_LENGTH // 24) # Equivalent to ceil(c.CON_LENGTH / 24)
+
+        if session.logged_in_volunteer().can_work_setup and session.logged_in_volunteer().can_work_teardown:
+            cal_length = c.CON_TOTAL_LENGTH
+        elif session.logged_in_volunteer().can_work_setup:
+            cal_length = con_days + c.SETUP_SHIFT_DAYS
+        elif session.logged_in_volunteer().can_work_teardown:
+            cal_length = con_days + 2 # There's no specific config for # of shift signup days
+        else:
+            cal_length = con_days
         return {
             'jobs': joblist,
             'name': session.logged_in_volunteer().full_name,
-            'hours': session.logged_in_volunteer().weighted_hours
+            'hours': session.logged_in_volunteer().weighted_hours,
+            'view': view,
+            'start': start,
+            'start_day': c.EPOCH - timedelta(days=c.SETUP_SHIFT_DAYS) if session.logged_in_volunteer().can_work_setup else c.EPOCH,
+            'cal_length': cal_length
         }
 
     @check_shutdown

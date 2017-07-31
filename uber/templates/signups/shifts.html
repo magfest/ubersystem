@@ -87,22 +87,17 @@
                 shiftList.push({
                     title : "{{ job.name }} ({{ job.location_label }})",
                     start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
-                    end : "{{job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
-                    id : "{{job.id}}",
-                    {% if job.taken %}
-                        backgroundColor: "#239875",
-                        taken: true
-                    {% else %}
-                        backgroundColor: "#305fc9",
-                        taken: false
-                    {% endif %}
+                    end : "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
+                    id : "{{ job.id }}",
+                    backgroundColor: "#239875",
+                    taken: true
                 });
             {% endif %}
             eventList.push({
                 title : "{{ job.name }} ({{ job.location_label }})",
                 start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
-                end : "{{job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
-                id : "{{job.id}}",
+                end : "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
+                id : "{{ job.id }}",
                 {% if job.taken %}
                     backgroundColor: "#239875",
                     taken: true
@@ -116,21 +111,24 @@
             header: {
                 left: 'prev,next today',
                 center: 'title',
-                right: 'agendaDay,listWeek'
-            },
-			buttonText : {
-                today : 'Today',
-                agendaWeek : 'Week',
-                agendaDay : 'Day',
-                listWeek : 'List'
+                right: 'agendaDay,agendaConWeek,listConDuration'
             },
 			views: {
                 agendaDay: { buttonText: 'Day' },
-                listWeek: { buttonText: 'Week' }
+                agendaConWeek: {
+                    type: 'agenda',
+                    duration: { days: {{ cal_length }} },
+                    buttonText: 'Calendar'
+                },
+                listConDuration: {
+                    type: 'list',
+                    duration: { days: {{ cal_length }} },
+                    buttonText: 'List'
+                }
             },
-            defaultView: 'listWeeks',
-            editable: true,
-            slotDuration: '00:15:00',
+            defaultView: 'listConDuration',
+            defaultDate: '{{ start_day.strftime('%Y-%m-%d') }}',
+            slotDuration: '00:30:00',
             allDaySlot: false,
             eventLimit: true, // allow "more" link when too many events
             slotEventOverlap: false,
@@ -144,8 +142,9 @@
 
                 buttonTag += 'onclick="click_shift(\'' + event.taken;
                 buttonTag += '\',\'' +  event.id;
-                                buttonTag += '\',\'' +  moment(event.start).toISOString();
-                                buttonTag += '\',\'' +  $('<div/>').text(event.title).html();
+                                buttonTag += '\',\'' + moment(event.start).format("h:mma");
+                                buttonTag += '\',\'' + moment(event.start).format("dddd, MMM Do");
+                                buttonTag += '\',\'' + $('<div/>').text(event.title).html();
                 buttonTag += '\')" ';
                 buttonTag += '>';
                 if(event.taken) {
@@ -158,18 +157,13 @@
                 element.find('.fc-title').append('</br>' + buttonTag);
             }
         });
-        {% if 'schedule' in c.QUERY_STRING %}
-            $("#shift_cal").fullCalendar( 'changeView','listWeek');
-        {% else %}
-            // if opened with tgt_date, go to date in calendar
+        {% if view %}
+            // Keep the view they were on when they added or dropped a shift
+            $('#shift_cal').fullCalendar('changeView', '{{ view }}');
+            {% if start %}
+                $('#shift_cal').fullCalendar('gotoDate', '{{ start }}');
+            {% endif %}
         {% endif %}
-        var curDate = $.urlParam('tgt_date');
-        if(curDate != null) {
-            $("#shift_cal").fullCalendar( 'changeView','agendaDay');
-			$("#shift_cal").fullCalendar( 'gotoDate',curDate);
-        } else {
-			$("#shift_cal").fullCalendar('gotoDate', eventList[0].start);
-		}
 		$(".toggle-cal").click(function() {
 			$("#shift_cal").fullCalendar('removeEventSources');
 			if($(this).attr('state')=='all') {
@@ -184,7 +178,7 @@
 		});
     });
 
-    function click_shift(state,id,time,title) {
+    function click_shift(state,id,time,date,title) {
         var postData = {};
         postData['csrf_token'] =  $("div.csrf_token input").attr('value');
         var confirmStr = "Do you want to ";
@@ -193,7 +187,7 @@
         } else {
             confirmStr += "signup ";
         }
-        confirmStr += title + " at " + time + "?";
+        confirmStr += title + " at " + time + " on " + date + "?";
         var r = confirm(confirmStr);
         if (r == true) {
         	var tgtShiftURL = "sign_up?job_id="+ id;
@@ -201,19 +195,10 @@
                 tgtShiftURL = "drop?job_id=" + id;
             }
             $.post( tgtShiftURL,postData,function( data,status ) {
-                window.location.href = window.location.pathname + "?tgt_date=" + moment(event.start).toISOString();
+                var view = $('#shift_cal').fullCalendar('getView');
+                window.location.href = window.location.pathname + "?view=" + view.name + "&start=" + view.start.toISOString();
             });
         }
-    }
-
-    $.urlParam = function(name){
-       var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
-       if (results==null){
-          return null;
-       }
-       else{
-          return results[1] || 0;
-       }
     }
 </script>
 {% endblock %}
