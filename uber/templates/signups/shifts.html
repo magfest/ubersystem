@@ -22,13 +22,6 @@
 	color:white;
 	float:right;
 }
-.shift_button {
-	background-color:#3276b1;
-
-}
-
-.shift_button.drop {
-	background-color:#239875;
 
 }
 </style> {% endblock %} {% block main_content %} <div class="hidden csrf_token"> {{ csrf_token() }} </div>
@@ -85,19 +78,23 @@
         {% for job in jobs %}
             {% if job.taken %}
                 shiftList.push({
-                    title : "{{ job.name }} ({{ job.location_label }})",
+                    title : "{{ job.name }} ({{ job.location_label }}) x{{ job.weight }}",
                     start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                     end : "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                     id : "{{ job.id }}",
+                    description: "{{ job.description }}",
+                    extra15: "{{ job.extra15 }}",
                     backgroundColor: "#239875",
                     taken: true
                 });
             {% endif %}
             eventList.push({
-                title : "{{ job.name }} ({{ job.location_label }})",
+                title : "{{ job.name }} ({{ job.location_label }}) x{{ job.weight }}",
                 start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                 end : "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                 id : "{{ job.id }}",
+                description: "{{ job.description }}",
+                extra15: "{{ job.extra15 }}",
                 {% if job.taken %}
                     backgroundColor: "#239875",
                     taken: true
@@ -107,6 +104,7 @@
                 {% endif %}
             });
         {% endfor %}
+
         $('#shift_cal').fullCalendar({
             header: {
                 left: 'prev,next today',
@@ -133,28 +131,36 @@
             eventLimit: true, // allow "more" link when too many events
             slotEventOverlap: false,
             events: eventList,
-            eventRender: function(event,element) {
-                var buttonTag = '<a class="btn btn-primary shift_button ';
-                if (event.taken) {
-                buttonTag += 'drop';
+            eventRender: function(event, element, view) {
+                var eventDesc = "";
+                if (event.description) {
+                    eventDesc += "<br/>" + event.description;
                 }
-                buttonTag += '" ';
+                if (event.extra15) {
+                    eventDesc += " + 15 minute end-time."
+                }
+                var buttonTag = '<a class="btn shift_button ';
+                if (view.name !== 'listConDuration') {
+                    buttonTag += 'btn-xs ';
+                }
+                if (event.taken) {
+                    buttonTag += 'btn-warning"';
+                } else {
+                    buttonTag += 'btn-primary"';
+                }
 
-                buttonTag += 'onclick="click_shift(\'' + event.taken;
-                buttonTag += '\',\'' +  event.id;
-                                buttonTag += '\',\'' + moment(event.start).format("h:mma");
-                                buttonTag += '\',\'' + moment(event.start).format("dddd, MMM Do");
-                                buttonTag += '\',\'' + $('<div/>').text(event.title).html();
-                buttonTag += '\')" ';
+                buttonTag += "onclick=\"click_shift('" + event.taken + "','" + event.id + "','" +
+                moment(event.start).toISOString() + "','" + $('<div/>').text(event.title).html() + "')\"";
+
                 buttonTag += '>';
                 if(event.taken) {
                     buttonTag += 'Drop';
                 } else {
-                    buttonTag += 'Sign-up';
+                    buttonTag += 'Sign up';
                 }
                 buttonTag += '</a>';
-                element.find('.fc-list-item-title').append(buttonTag);
-                element.find('.fc-title').append('</br>' + buttonTag);
+                element.find('.fc-list-item-title').append(eventDesc + buttonTag);
+                element.find('.fc-title').append(" " + buttonTag + '<br/>' + eventDesc);
             }
         });
         {% if view %}
@@ -178,20 +184,22 @@
 		});
     });
 
-    function click_shift(state,id,time,date,title) {
+    function click_shift(taken,id,start,title) {
         var postData = {};
+        var time = moment(start).format("h:mma");
+        var date = moment(start).format("dddd, MMM Do");
         postData['csrf_token'] =  $("div.csrf_token input").attr('value');
         var confirmStr = "Do you want to ";
-        if (state=='true') {
+        if (taken=='true') {
         	confirmStr += "drop ";
         } else {
-            confirmStr += "signup ";
+            confirmStr += "sign up for ";
         }
         confirmStr += title + " at " + time + " on " + date + "?";
         var r = confirm(confirmStr);
         if (r == true) {
         	var tgtShiftURL = "sign_up?job_id="+ id;
-            if(state=='true') {
+            if(taken=='true') {
                 tgtShiftURL = "drop?job_id=" + id;
             }
             $.post( tgtShiftURL,postData,function( data,status ) {

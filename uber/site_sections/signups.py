@@ -87,7 +87,7 @@ class Root:
             'hours': session.logged_in_volunteer().weighted_hours,
             'view': view,
             'start': start,
-            'start_day': c.EPOCH - timedelta(days=c.SETUP_SHIFT_DAYS) if session.logged_in_volunteer().can_work_setup else c.EPOCH,
+            'start_day': c.SHIFTS_START_DAY if session.logged_in_volunteer().can_work_setup else c.EPOCH,
             'cal_length': cal_length
         }
 

@@ -597,6 +597,7 @@ c.EVENT_YEAR = c.EPOCH.strftime('%Y')
 c.EVENT_MONTH = c.EPOCH.strftime('%B')
 c.EVENT_START_DAY = int(c.EPOCH.strftime('%d')) % 100
 c.EVENT_END_DAY = int(c.ESCHATON.strftime('%d')) % 100
+c.SHIFTS_START_DAY = c.EPOCH - timedelta(days=c.SETUP_SHIFT_DAYS)
 
 c.DAYS = sorted({(dt.strftime('%Y-%m-%d'), dt.strftime('%a')) for dt, desc in c.START_TIME_OPTS})
 c.HOURS = ['{:02}'.format(i) for i in range(24)]
