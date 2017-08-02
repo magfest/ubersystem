@@ -2705,7 +2705,7 @@ class Email(MagModel):
     @cached_property
     def fk(self):
         try:
-            return getattr(self.session, globals()[self.model].__tablename__)(self.fk_id)
+            return self.session.query(Session.resolve_model(self.model)).filter_by(id=self.fk_id).first()
         except:
             return None
 
