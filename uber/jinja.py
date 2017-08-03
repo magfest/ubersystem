@@ -5,6 +5,7 @@ class JinjaEnv:
     _env = None
     _exportable_functions = {}
     _filter_functions = {}
+    _test_functions = {}
     _template_dirs = []
 
     @classmethod
@@ -35,6 +36,9 @@ class JinjaEnv:
         for name, func in cls._filter_functions.items():
             env.filters[name] = func
 
+        for name, func in cls._test_functions.items():
+            env.tests[name] = func
+
         return env
 
     @classmethod
@@ -61,6 +65,23 @@ class JinjaEnv:
                 cls._env.filters[_name if _name else func.__name__] = func
             else:
                 cls._filter_functions[_name if _name else func.__name__] = func
+
+        if isinstance(name, FunctionType):
+            _register(name)
+            return name
+        else:
+            def registrar(func):
+                _register(func, name)
+                return func
+            return registrar
+
+    @classmethod
+    def jinja_test(cls, name=None):
+        def _register(func, _name=None):
+            if cls._env:
+                cls._env.tests[_name if _name else func.__name__] = func
+            else:
+                cls._test_functions[_name if _name else func.__name__] = func
 
         if isinstance(name, FunctionType):
             _register(name)

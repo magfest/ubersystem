@@ -21,46 +21,205 @@
 {%- endmacro %}
 
 
-{% macro checkbox(model, field_name, id=None, label=None, label_class=None, readonly=False, title=None) -%}
+{% macro checkbox(model, field_name, id=None, label=None, label_class=None, is_readonly=False, title=None) -%}
     {% if label %}
       <label
-        class="checkbox-label{% if label_class %} {{ label_class }}{% endif %}"
-        {% if title %}title="{{ title }}"{% endif %}>
+          class="checkbox-label{% if label_class %} {{ label_class }}{% endif %}{% if is_readonly %} disabled{% endif %}"
+          {% if title %}title="{{ title }}"{% endif %}>
     {% endif %}
-    {% if readonly %}
+    {% if is_readonly %}
       <input
-        type="hidden"
-        name="{{ field_name }}"
-        id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
-        value="{%- if model[field_name] -%}1{%- else -%}0{%- endif -%}" />
+          type="hidden"
+          name="{{ field_name }}"
+          id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
+          value="{%- if model[field_name] -%}1{%- else -%}0{%- endif -%}" />
       <input
-        type="checkbox"
-        value="1"
-        disabled
-        {% if not label and title %}title="{{ title }}"{% endif %}
-        {% if model[field_name] %}checked{% endif %} />
+          type="checkbox"
+          value="1"
+          disabled
+          {% if not label and title %}title="{{ title }}"{% endif %}
+          {% if model[field_name] %}checked{% endif %} />
     {% else %}
       <input
-        type="checkbox"
-        name="{{ field_name }}"
-        id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
-        value="1"
-        {% if not label and title %}title="{{ title }}"{% endif %}
-        {% if model[field_name] %}checked{% endif %} />
+          type="checkbox"
+          name="{{ field_name }}"
+          id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
+          value="1"
+          {% if not label and title %}title="{{ title }}"{% endif %}
+          {% if model[field_name] %}checked{% endif %} />
     {% endif %}
     {% if label %}{{ label }}</label>{% endif %}
 {%- endmacro %}
 
 
-{% macro checkgroup(model, field_name, defaults=False, no_instance=False) -%}
-    {%- set defaults = model[field_name] if not defaults and not no_instance else None -%}
-    {%- set defaults = defaults.split(",") if defaults else [] -%}
+{% macro checkgroup(model, field_name, suffix='', defaults=False, is_readonly=False) -%}
+  {%- set is_class = model is class -%}
+  {%- set defaults = model[field_name] if not defaults and not is_class else '' -%}
+  {%- set defaults = defaults.split(",") if defaults else [] -%}
+  <div class="checkgroup">
     {% for num, desc in model.get_field(field_name).type.choices -%}
-        <label class="checkgroup checkbox-label" style="font-weight: normal;">
-            <input type="checkbox" name="{{ field_name }}" value="{{ num }}" {% if num|string in defaults %}checked{% endif %} />
+      {%- set has_value = num|string in defaults -%}
+      {%- if not is_readonly or has_value -%}
+        <label
+            class="checkbox-label{% if is_readonly %} disabled{% endif %}"
+            style="font-weight: normal;">
+          {% if is_readonly %}
+            {% if has_value %}
+              <input type="hidden" name="{{ field_name }}{{ suffix }}" value="{{ num }}"/>
+              <input type="checkbox" disabled checked/>
+              {{ desc }}
+            {% endif %}
+          {% else %}
+            <input
+                type="checkbox"
+                name="{{ field_name }}{{ suffix }}"
+                value="{{ num }}"
+                {% if has_value %}checked{% endif %}/>
             {{ desc }}
+          {% endif %}
         </label>
+      {% endif %}
     {% endfor %}
+  </div>
+{%- endmacro %}
+
+
+{% macro form_group(
+    model,
+    field,
+    url_field=False,
+    suffix='',
+    type='text',
+    id=False,
+    label=False,
+    placeholder='',
+    help=False,
+    is_required=False,
+    is_readonly=False,
+    is_admin=False) -%}
+
+  {%- set is_class = model is class -%}
+  {%- set has_value = not is_class and model[field] -%}
+  {%- set is_url = url_field or type == 'url' -%}
+  {%- set url_field = url_field if url_field else field -%}
+  {% if not is_readonly or has_value %}
+    <div class="form-group">
+      <label class="col-sm-3 control-label{% if not is_required %} optional-field{% endif %}">
+        {{ label if label else field|unfieldify }}
+      </label>
+      <div class="col-sm-6">
+        {%- if is_readonly -%}
+          <div class="form-control-static">
+            {%- if type == 'email' -%}
+              {{ model[field]|email_to_link }}
+            {%- elif is_url -%}
+              {{ model[url_field]|url_to_link(text=model[field], is_relative=False) }}
+            {%- else -%}
+              {{ '' if is_class else model[field] }}
+            {%- endif -%}
+          </div>
+        {%- else -%}
+          {%- if type == 'textarea' -%}
+            <textarea
+                class="form-control"
+                name="{{ field }}{{ suffix }}"
+                rows="4"
+                placeholder="{{ placeholder }}">{{ '' if is_class else model[field] }}</textarea>
+          {%- else -%}
+            <input
+                class="form-control"
+                type="{{ type }}"
+                name="{{ field }}{{ suffix }}"
+                {% if id %}id="{{ id }}"{% endif %}
+                value="{{ '' if is_class else model[field] }}"
+                placeholder="{{ placeholder }}"
+                {% if is_required %}required="required"{% endif %}/>
+          {%- endif -%}
+          {%- if is_admin and has_value -%}
+            {%- if type == 'email' -%}
+              {{ model[field]|email_to_link }}
+            {%- elif is_url -%}
+              {{ model[url_field]|url_to_link(text=model[field], is_relative=False) }}
+            {%- endif -%}
+          {%- endif -%}
+        {%- endif -%}
+      </div>
+      {%- if not is_readonly and help -%}
+        <div class="clearfix"></div>
+        <p class="col-sm-9 col-sm-offset-3 help-block">
+          {{ help }}
+        </p>
+      {%- endif -%}
+    </div>
+  {% endif %}
+{%- endmacro %}
+
+
+{% macro form_checkgroup(
+    model,
+    field,
+    other_field=False,
+    other_placeholder=False,
+    suffix='',
+    label=False,
+    help=False,
+    desc=False,
+    is_required=False,
+    is_readonly=False,
+    is_admin=False) -%}
+
+  {%- set is_class = model is class -%}
+  {%- set has_value = not is_class and model[field] -%}
+  {%- set has_other_value = not is_class and other_field and model[other_field] -%}
+  {%- set is_other_value_visible = not is_readonly or has_other_value -%}
+  <div class="form-group">
+    <label class="col-sm-3 control-label{% if not is_required %} optional-field{% endif %}">
+      {{ label if label else field|unfieldify }}
+    </label>
+    <div class="col-sm-9">
+      {%- set is_wrapped = not is_readonly or has_value or desc -%}
+      {% if is_wrapped %}<div class="form-control-static">{% endif %}
+
+        {%- if desc and not is_admin -%}<p>{{ desc }}</p>{%- endif -%}
+
+        {% if not is_readonly or has_value %}
+          {{ checkgroup(model, field, suffix=suffix, is_readonly=is_readonly) }}
+          <div class="clearfix"></div>
+        {% endif %}
+
+        {% if is_other_value_visible %}
+          <div class="form-group" style="margin-bottom: 0;">
+            {% if is_readonly %}
+              <div class="col-sm-8">
+                {% if not is_wrapped %}<div class="form-control-static">{% endif %}
+                {{ '' if is_class else model[other_field] }}
+                {% if not is_wrapped %}</div>{% endif %}
+              </div>
+            {% else %}
+              <div class="col-sm-1">
+                <div class="form-control-static">Other:</div>
+              </div>
+              <div class="col-sm-7">
+                <input
+                    class="form-control"
+                    type="text"
+                    name="{{ other_field }}{{ suffix }}"
+                    value="{{ '' if is_class else model[other_field] }}"
+                    placeholder="{{ other_placeholder }}"/>
+              </div>
+            {% endif %}
+          </div>
+        {% endif %}
+
+      {% if is_wrapped %}</div>{% endif %}
+    </div>
+    {%- if not is_readonly and help -%}
+      <div class="clearfix"></div>
+      <p class="col-sm-9 col-sm-offset-3 help-block">
+        {{ help }}
+      </p>
+    {%- endif -%}
+  </div>
 {%- endmacro %}
 
 
@@ -118,6 +277,7 @@
     {%- endfor %}
   </div>
 {%- endmacro %}
+
 
 {% macro address_form(model, name_prefix="", update_international=False) -%}
     {% set suffix=model.id|replace("-", "") %}

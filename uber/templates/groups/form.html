@@ -124,7 +124,7 @@
 <div class="form-group">
     <label class="col-sm-3 control-label">Ribbon Type</label>
     <div class="col-sm-9">
-        {{ macros.checkgroup(Attendee, 'ribbon', defaults=group.new_ribbon, no_instance=True) }}
+        {{ macros.checkgroup(Attendee, 'ribbon', defaults=group.new_ribbon) }}
     </div>
     <div class="clearfix"></div>
     <p class="col-sm-9 col-sm-offset-3 help-block">
@@ -224,7 +224,7 @@
             <input type="text" name="website" value="{{ group.website }}" class="form-control"/>
         </div>
         <div class="col-sm-9 col-sm-offset-3">
-            <a href="{% if not group.website.startswith('http') %}http://{% endif -%}{{ group.website }}">{{ group.website }}</a>
+            {{ group.website|url_to_link(is_relative=False) }}
         </div>
     </div>
 

@@ -84,7 +84,7 @@
                 <a href="confirm?id={{ attendee.id }}">{{ attendee.full_name }}</a>
             </td>
             <td style="padding-right: 10px">
-                <a href="mailto:{{ attendee.email }}">{{ attendee.email }}</a>
+                {{ attendee.email|email_to_link }}
             </td>
             <td style="padding-right: 10px">
                 {{ attendee.badge }}
