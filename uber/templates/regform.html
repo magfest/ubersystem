@@ -135,7 +135,7 @@
     </div>
     {% if attendee.legal_name %}
         <div class="form-group">
-            <label for="legal_name" class="col-sm-3 control-label">Name as appears on Current Legal ID</label>
+            <label for="legal_name" class="col-sm-3 control-label">Name as appears on Legal Photo ID</label>
             <div class="col-sm-6 form-control-static">{{ attendee.legal_name }}</div>
         </div>
     {% endif %}
@@ -158,17 +158,17 @@
         <div class="col-sm-9 col-sm-offset-3">
           <label for="same_legal_name" class="checkbox-label">
             <input type="checkbox" name="same_legal_name" id="same_legal_name" value="1" {% if attendee.first_name != '' and attendee.legal_name == '' %}checked="checked"{% endif %} />
-            The above name is exactly what appears on my Current Legal ID
+            The above name is exactly what appears on my Legal Photo ID
           </label>
         </div>
     </div>
 
     <div class="form-group">
-        <label for="legal_name" class="col-sm-3 control-label">Name as appears on Current Legal ID</label>
+        <label for="legal_name" class="col-sm-3 control-label">Name as appears on Legal Photo ID</label>
         <div class="col-sm-6">
-            <input type="text" name="legal_name" value="{{ attendee.legal_name }}" class="form-control" placeholder="Your name exactly as it appears on your Photo ID" autocomplete="name" />
+            <input type="text" name="legal_name" value="{{ attendee.legal_name }}" class="form-control" placeholder="Name exactly as it appears on Photo ID" autocomplete="name" />
             <p class="help-block">
-              <span class="popup">{{ macros.popup_link("../static_views/legal_name.html", 'What does "Current Legal ID" mean?') }}</span>
+              <span class="popup">{{ macros.popup_link("../static_views/legal_name.html", 'What does "Legal Photo ID" mean?') }}</span>
             </p>
         </div>
     </div>
