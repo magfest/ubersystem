@@ -293,7 +293,7 @@ def email_only(email):
 @JinjaEnv.jinja_export
 def humanize_timedelta(*args, granularity='seconds', **kwargs):
     if args and isinstance(args[0], timedelta):
-        delta = relativedelta(seconds = args[0].total_seconds()).normalized()
+        delta = relativedelta(seconds=args[0].total_seconds()).normalized()
     else:
         delta = relativedelta(**kwargs).normalized()
     units = ['years', 'months', 'days', 'hours', 'minutes', 'seconds']
