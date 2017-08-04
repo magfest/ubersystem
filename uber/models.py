@@ -1848,7 +1848,18 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def volunteer_swag_shirt_eligible(self):
-        return self.badge_type != c.STAFF_BADGE and c.VOLUNTEER_RIBBON in self.ribbon_ints
+        """
+        Returns: True if this attendee is eligble for a swag shirt
+        *due to their status as a volunteer or staff*.  (they may,
+        in addition, be eligible for a swag shirt for other reasons too)
+        """
+
+        # some events want to exclude staff badges from getting swag shirts
+        # (typically because they are going to get staff uniform shirts instead)
+        if self.badge_type == c.STAFF_BADGE:
+            return c.STAFF_ELIGIBLE_FOR_SWAG_SHIRT
+        else:
+            return c.VOLUNTEER_RIBBON in self.ribbon_ints
 
     @property
     def volunteer_swag_shirt_earned(self):
