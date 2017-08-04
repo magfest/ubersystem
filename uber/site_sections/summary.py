@@ -295,11 +295,14 @@ class Root:
 
             counts['swag'][label(shirt_label)] += attendee.num_swag_shirts_owed
 
+        categories = []
+        if c.SHIRTS_PER_STAFFER > 0:
+            categories.append(('Staff Uniform Shirts', sort(counts['staff'])))
+
+        categories.append(('Swag Shirts', sort(counts['swag'])))
+
         return {
-            'categories': [
-                ('Staff Uniform Shirts', sort(counts['staff'])),
-                ('Swag Shirts', sort(counts['swag'])),
-            ]
+            'categories': categories,
         }
 
     def shirt_counts(self, session):
@@ -322,14 +325,19 @@ class Root:
                 counts['staff_shirts'][label(shirt_label)][status(attendee.got_merch)] += c.SHIRTS_PER_STAFFER
         for week in range(48, -1, -1):
             sales_by_week[week] += sales_by_week[week + 1]
+
+        categories = [
+            ('Free Swag Shirts', sort(counts['free_swag_shirts'])),
+            ('Paid Swag Shirts', sort(counts['paid_swag_shirts'])),
+            ('All Swag Shirts', sort(counts['all_swag_shirts'])),
+        ]
+
+        if c.SHIRTS_PER_STAFFER > 0:
+            categories.append(('Staff Shirts', sort(counts['staff_shirts'])))
+
         return {
             'sales_by_week': sales_by_week,
-            'categories': [
-                ('Free Swag Shirts', sort(counts['free_swag_shirts'])),
-                ('Paid Swag Shirts', sort(counts['paid_swag_shirts'])),
-                ('All Swag Shirts', sort(counts['all_swag_shirts'])),
-                ('Staff Shirts', sort(counts['staff_shirts']))
-            ]
+            'categories': categories,
         }
 
     def extra_merch(self, session):

@@ -347,7 +347,7 @@
     <div class="checkbox col-sm-6">
         {% set staffing_readonly = not admin_area and attendee.shifts %}
         <label for="staffing" {% if staffing_readonly %}title="Please {{ 'see Staffing Operations to change your volunteer status' if c.AT_THE_CON else 'unassign yourself from shifts before changing your volunteer status' }}"{% endif %}>
-        {{ macros.checkbox(attendee, 'staffing', readonly=staffing_readonly) }}
+        {{ macros.checkbox(attendee, 'staffing', is_readonly=staffing_readonly) }}
         {% if c.PAGE_PATH == '/registration/form' %}
             This attendee is
             {% if attendee.is_new or not attendee.staffing %}
@@ -507,7 +507,7 @@
   <div class="form-group">
     <label for="requested_hotel_info" class="col-sm-3 control-label optional-field">Request Hotel Info</label>
     <div class="checkbox col-sm-9">
-      <label for="requested_hotel_info" class="checkbox-label" {% if is_after_hotel_deadline %}title="Can&apos;t be changed after hotel booking window is closed"{% endif %}>
+      <label for="requested_hotel_info" class="checkbox-label{% if is_after_hotel_deadline %} disabled" title="Can&apos;t be changed after hotel booking window is closed{% endif %}">
         {% if is_after_hotel_deadline %}
           {#-
             The deadline has passed; the checkbox is readonly, and

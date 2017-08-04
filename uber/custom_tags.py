@@ -6,6 +6,8 @@ https://github.com/django/django/blob/4696078832f486ba63f0783a0795294b3d80d862/L
 """
 
 from uber.common import *
+from sideboard.lib.sa import _camelcase_to_underscore as uncamel, \
+    _underscore_to_camelcase as camel
 
 
 def safe_string(text):
@@ -13,6 +15,26 @@ def safe_string(text):
         return text
     else:
         return Markup(text)
+
+
+@JinjaEnv.jinja_filter
+def basename(s):
+    return os.path.basename(s) if s else ''
+
+
+@JinjaEnv.jinja_test(name='class')
+def is_class(value):
+    return inspect.isclass(value)
+
+
+@JinjaEnv.jinja_filter
+def fieldify(s):
+    return re.sub(r'[\W_]+', '_', uncamel(s)).strip('_')
+
+
+@JinjaEnv.jinja_filter
+def unfieldify(s):
+    return (' '.join([s for s in s.strip('_ ').split('_') if s])).title()
 
 
 @JinjaEnv.jinja_filter(name='datetime')
@@ -129,18 +151,34 @@ def urlencode(s):
 
 
 @JinjaEnv.jinja_filter
-def url_to_link(url=None, text=None, target=None):
-    # Jinja2 has a 'urlize' filter but it depends on links having `.com` or `http` in the name
-    # This works with relative links and allows you to also define link text
+def url_to_link(url=None, text=None, target=None, is_relative=True):
+    # Jinja2 has a 'urlize' filter but it depends on links having `.com` or
+    # `http` in the name. This works with relative links and allows you to
+    # also define link text.
     if not url:
         return ''
 
     if not text:
         text = url
 
-    return safe_string('<a href="{}"{}>{}</a>'.format(jinja2.escape(url),
-                                                       ' target="{}"'.format(jinja2.escape(target)) if target else '',
-                                                       jinja2.escape(text)))
+    if not is_relative and not url.startswith('http'):
+        url = 'http://' + url
+
+    return safe_string('<a href="{}"{}>{}</a>'.format(
+        jinja2.escape(url),
+        ' target="{}"'.format(jinja2.escape(target)) if target else '',
+        jinja2.escape(text)))
+
+
+@JinjaEnv.jinja_filter
+def email_to_link(email=None):
+    """
+    Creates an <a href="mailto:email@example.com">email@example.com</a> link.
+    """
+    if not email:
+        return ''
+
+    return safe_string('<a href="mailto:{0}">{0}</a>'.format(jinja2.escape(email)))
 
 
 @JinjaEnv.jinja_filter
@@ -436,8 +474,3 @@ def random_hash():
     random = os.urandom(16)
     result = binascii.hexlify(random)
     return result.decode("utf-8")
-
-
-@JinjaEnv.jinja_filter
-def basename(s):
-    return os.path.basename(s) if s else ''

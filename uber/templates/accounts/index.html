@@ -39,7 +39,7 @@ table form {
                {% if not c.AT_OR_POST_CON %}disabled{% endif %}>
       </div>
       <div class="form-group">
-        {{ macros.checkgroup(AdminAccount, 'access', no_instance=True) }}
+        {{ macros.checkgroup(AdminAccount, 'access') }}
       </div>
       <button type="submit" class="btn btn-default">Create Account</button>
     </form>
@@ -65,7 +65,7 @@ table form {
       {% for account in accounts %}
         <tr id="{{ account.email|idize }}">
           <td data-order="{{ account.attendee.last_first }}" data-search="{{ account.attendee.last_first }}"> <nobr><a href="../registration/form?id={{ account.attendee.id }}">{{ account.attendee.last_first }}</a></nobr> </td>
-          <td> <a href="mailto:{{ account.attendee.email }}">{{ account.attendee.email }}</a> </td>
+          <td> {{ account.attendee.email|email_to_link }} </td>
           <td>
             <form class="form update-form" method="post" action="update">
               <input type="hidden" name="id" value="{{ account.id }}" />
