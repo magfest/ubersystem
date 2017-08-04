@@ -4,8 +4,10 @@ from itertools import zip_longest
 from sqlalchemy import func, select, CheckConstraint
 from sqlalchemy.orm import column_property
 from uber.common import *
-from uber.custom_tags import safe_string
-from sideboard.lib.sa import check_constraint_naming_convention
+from uber.custom_tags import fieldify, safe_string
+from sideboard.lib.sa import JSON, check_constraint_naming_convention, \
+    _camelcase_to_underscore as uncamel, \
+    _underscore_to_camelcase as camel
 
 
 SQLAlchemyColumn = Column
@@ -158,6 +160,110 @@ if not c.SQLALCHEMY_URL.startswith('sqlite'):
     default_naming_convention['ck'] = 'ck_%(table_name)s_%(unnamed_ck)s',
 
 default_metadata = MetaData(naming_convention=immutabledict(default_naming_convention))
+
+
+def JSONColumnMixin(column_name, fields, admin_only=False):
+    """
+    Creates a new mixin class with a JSON column named column_name.
+
+    The newly created mixin class will have a SQLAlchemy JSON Column, named
+    `column_name`, along with two other attributes column_name_fields and
+    column_name_qualified_fields which describe the fields that the JSON
+    Column is expected to hold.
+
+    For example::
+
+        >>> SocialMediaMixin = JSONColumnMixin('social_media', ['Twitter', 'LinkedIn'])
+        >>> SocialMediaMixin.social_media
+        Column('social_media', JSON(), table=None, nullable=False, default=ColumnDefault({}), server_default=DefaultClause('{}', for_update=False))
+        >>> SocialMediaMixin.social_media_fields
+        OrderedDict([('twitter', 'Twitter'), ('linked_in', 'LinkedIn')])
+        >>> SocialMediaMixin.social_media_qualified_fields
+        OrderedDict([('social_media__twitter', 'twitter'), ('social_media__linked_in', 'linked_in')])
+
+    Instances of the newly created mixin class have convenience accessors for
+    the attributes defined by `fields`, both directly and using their fully
+    qualified forms::
+
+        >>> sm = SocialMediaMixin()
+        >>> sm.twitter = 'https://twitter.com/MAGFest'  # Get and set "twitter" directly
+        >>> sm.twitter
+        'https://twitter.com/MAGFest'
+        >>> sm.social_media__twitter  # Get and set qualified "social_media__twitter"
+        'https://twitter.com/MAGFest'
+        >>> sm.social_media__twitter = '@MAGFest'
+        >>> sm.social_media__twitter
+        '@MAGFest'
+        >>> sm.social_media  # Actual column updated appropriately
+        {'linked_in': '', 'twitter': '@MAGFest'}
+
+
+    Args:
+        column_name (str): The name of the column.
+        fields (list): A list of field names you expect the column to hold.
+            This can be:
+              - A single string, if you're only expecting the column to hold a
+                single field.
+              - A list of strings, which will be treated as the column labels,
+                and converted from CamelCase to under_score for the fields.
+              - A map of {string: string}, which will be treated as a mapping
+                of field names to field labels.
+
+    Returns:
+        type: A new mixin class with a JSON column named column_name.
+    """
+    fields_name = column_name + '_fields'
+    qualified_fields_name = column_name + '_qualified_fields'
+    if isinstance(fields, collections.Mapping):
+        fields = OrderedDict([(fieldify(k), v) for k, v in fields.items()])
+    else:
+        fields = OrderedDict([(fieldify(s), s) for s in listify(fields)])
+    qualified_fields = OrderedDict([(column_name + '__' + s, s) for s in fields.keys()])
+    column = Column(column_name, JSON, default={}, server_default='{}')
+    attrs = {
+        column_name: column,
+        fields_name: fields,
+        qualified_fields_name: qualified_fields
+    }
+
+    _Mixin = type(camel(column_name) + 'Mixin', (object,), attrs)
+
+    def _Mixin__init__(self, *args, **kwargs):
+        setattr(self, column_name, {})
+        for attr in getattr(self.__class__, fields_name).keys():
+            setattr(self, attr, kwargs.pop(attr, ''))
+        super(_Mixin, self).__init__(*args, **kwargs)
+    _Mixin.__init__ = _Mixin__init__
+
+    def _Mixin__declare_last__(cls):
+        setattr(getattr(cls, column_name), 'admin_only', admin_only)
+        setattr(cls.__table__.columns.get(column_name), 'admin_only', admin_only)
+    _Mixin.__declare_last__ = classmethod(_Mixin__declare_last__)
+
+    def _Mixin__unqualify(cls, name):
+        if name in getattr(cls, qualified_fields_name):
+            return getattr(cls, qualified_fields_name)[name]
+        else:
+            return name
+    _Mixin.unqualify = classmethod(_Mixin__unqualify)
+
+    def _Mixin__getattr__(self, name):
+        name = self.unqualify(name)
+        if name in getattr(self.__class__, fields_name):
+            return getattr(self, column_name).get(name, '')
+        else:
+            return super(_Mixin, self).__getattr__(name)
+    _Mixin.__getattr__ = _Mixin__getattr__
+
+    def _Mixin__setattr__(self, name, value):
+        name = self.unqualify(name)
+        if name in getattr(self.__class__, fields_name):
+            getattr(self, column_name)[name] = value
+        else:
+            super(_Mixin, self).__setattr__(name, value)
+    _Mixin.__setattr__ = _Mixin__setattr__
+
+    return _Mixin
 
 
 @declarative_base(metadata=default_metadata)
@@ -446,6 +552,13 @@ class MagModel:
                         self.__tablename__, column.name, error)
 
                 setattr(self, column.name, value)
+
+        for column in self.__table__.columns:
+            if (not restricted or column.name in self.unrestricted) and (column.type is JSON or isinstance(column.type, JSON)):
+                fields = getattr(self, column.name + '_fields', {})
+                for field in fields.keys():
+                    if field in params:
+                        setattr(self, field, params[field])
 
         if cherrypy.request.method.upper() == 'POST':
             for column in self.__table__.columns:
