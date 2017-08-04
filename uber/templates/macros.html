@@ -64,11 +64,9 @@
             class="checkbox-label{% if is_readonly %} disabled{% endif %}"
             style="font-weight: normal;">
           {% if is_readonly %}
-            {% if has_value %}
-              <input type="hidden" name="{{ field_name }}{{ suffix }}" value="{{ num }}"/>
-              <input type="checkbox" disabled checked/>
-              {{ desc }}
-            {% endif %}
+            <input type="hidden" name="{{ field_name }}{{ suffix }}" value="{{ num }}"/>
+            <input type="checkbox" disabled checked/>
+            {{ desc }}
           {% else %}
             <input
                 type="checkbox"
