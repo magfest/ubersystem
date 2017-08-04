@@ -515,9 +515,9 @@ def add_opt(opts, other):
     option added.
 
     """
-    other = set(listify(other) if other else [])
+    other = listify(other) if other else []
     opts.extend(other)
-    return ','.join(map(str, opts))
+    return ','.join(set(map(str, opts)))
 
 
 def remove_opt(opts, other):

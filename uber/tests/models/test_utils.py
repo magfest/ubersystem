@@ -1,4 +1,5 @@
 from uber.tests import *
+from uber.utils import add_opt, remove_opt
 
 
 @pytest.fixture
@@ -24,6 +25,30 @@ def test_absolute_url_error(base_url):
 
     with pytest.raises(ValueError) as e_info:
         convert_to_absolute_url('////')
+
+
+class TestAddRemoveOpts:
+    def test_add_opt_empty(self):
+        assert str(c.DEALER_RIBBON) == add_opt(Attendee().ribbon_ints, c.DEALER_RIBBON)
+
+    def test_add_opt_duplicate(self):
+        assert str(c.DEALER_RIBBON) == add_opt(Attendee(ribbon=c.DEALER_RIBBON).ribbon_ints, c.DEALER_RIBBON)
+
+    def test_add_opt_second(self):
+        # add_opt doesn't preserve order and isn't meant to, so convert both values to sets
+        # otherwise this unit test fails randomly
+        assert set([str(c.VOLUNTEER_RIBBON), str(c.DEALER_RIBBON)]) == \
+               set(add_opt(Attendee(ribbon=c.VOLUNTEER_RIBBON).ribbon_ints, c.DEALER_RIBBON).split(','))
+
+    def test_remove_opt_empty(self):
+        assert '' == remove_opt(Attendee().ribbon_ints, c.DEALER_RIBBON)
+
+    def test_remove_opt_only(self):
+        assert '' == remove_opt(Attendee(ribbon=c.DEALER_RIBBON).ribbon_ints, c.DEALER_RIBBON)
+
+    def test_remove_opt_second(self):
+        assert str(c.DEALER_RIBBON) == \
+               remove_opt(Attendee(ribbon=','.join([str(c.VOLUNTEER_RIBBON), str(c.DEALER_RIBBON)])).ribbon_ints, c.VOLUNTEER_RIBBON)
 
 
 class TestCharge:
