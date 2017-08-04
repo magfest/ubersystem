@@ -5,6 +5,7 @@ Licensed under BSD license, see full license for details:
 https://github.com/django/django/blob/4696078832f486ba63f0783a0795294b3d80d862/LICENSE
 """
 
+from dateutil.relativedelta import relativedelta
 from uber.common import *
 from sideboard.lib.sa import _camelcase_to_underscore as uncamel, \
     _underscore_to_camelcase as camel
@@ -287,6 +288,24 @@ def email_only(email):
     can be in either format and spits out just the email address portion.
     """
     return re.search(c.EMAIL_RE.lstrip('^').rstrip('$'), email).group()
+
+
+@JinjaEnv.jinja_export
+def humanize_timedelta(*args, granularity='seconds', **kwargs):
+    if args and isinstance(args[0], timedelta):
+        delta = relativedelta(seconds = args[0].total_seconds()).normalized()
+    else:
+        delta = relativedelta(**kwargs).normalized()
+    units = ['years', 'months', 'days', 'hours', 'minutes', 'seconds']
+    time_units = []
+    for unit in units:
+        time = abs(int(getattr(delta, unit)))
+        if time:
+            plural = pluralize(time)
+            time_units.append('{} {}{}'.format(time, unit[:-1], plural))
+        if unit == granularity:
+            break
+    return join_and(time_units)
 
 
 @JinjaEnv.jinja_export

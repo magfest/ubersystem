@@ -13,6 +13,7 @@ html, body {
 
 #mainContainer {
     max-width: 840px;
+    padding-bottom: 30px;
 }
 
 .masthead + .panel {

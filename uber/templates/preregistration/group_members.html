@@ -124,27 +124,45 @@
 
 {% if c.PRE_CON and group.min_badges_addable %}
     <div id="add" style="display:none">
-        <form method="get" action="add_group_members">
+      <form class="form-inline" method="get" action="add_group_members">
         <input type="hidden" name="id" value="{{ group.id }}" />
-        Enter a number of {{ group.is_dealer|yesno("Dealer Assistants,group members") }} to add{% if group.min_badges_addable > 1 %} (you cannot add fewer than {{ group.min_badges_addable }} badges to an existing group){% endif %}: <br/>
-        {% if group.is_dealer %}
-            <select name="count">{{ int_options(group.min_badges_addable, group.dealer_badges_remaining) }}</select>
-        {% else %}
-            <select name="count">{{ int_options(group.min_badges_addable, 10) }}</select>
-        {% endif %}
-        <input type="submit" value="{{ group.is_dealer|yesno("Add Dealer Assistants,Add Group Members") }}">
-        </form>
+        <p>
+          {%- set min_badges = group.min_badges_addable -%}
+          {%- set members = group.is_dealer|yesno("Dealer Assistants,group members") -%}
+          Enter the number of {{ members }} to add.
+          {% if group.min_badges_addable > 1 -%}
+            {%- set hours_remaining = group.hours_remaining_in_grace_period -%}
+            {%- if hours_remaining > 0 -%}
+              {%- set min_badges = 1 -%}
+              You have {{ humanize_timedelta(hours=hours_remaining, granularity='minutes') }}
+              remaining to add individual {{ members }}. After that you'll have to add at
+              least {{ group.min_badges_addable }} badges at a time.
+            {%- else -%}
+              You can't add fewer than {{ group.min_badges_addable }} badges to an existing group.
+            {%- endif -%}
+          {%- endif -%}
+        </p>
+        <select class="form-control" name="count">
+          {%- if group.is_dealer -%}
+            {{ int_options(min_badges, group.dealer_badges_remaining) }}
+          {%- else -%}
+            {{ int_options(min_badges, 10) }}
+          {%- endif -%}
+        </select>
+        <input class="btn btn-primary" type="submit" value="{{ group.is_dealer|yesno("Add Dealer Assistants,Add Group Members") }}">
+      </form>
     </div>
 
     <script type="text/javascript">
         {% if group.amount_unpaid %}
             $(function(){
-                $('<button disabled title="Group must be paid for before new members can be added." style="cursor:pointer; background-color:#7F7F7F; border-style:none;">Click here to add more {{ group.is_dealer|yesno("Dealer Assistants,group members") }}.</button>')
-                    .insertAfter($("#add"));
+                $('<div class="disabled" title="Group must be paid for before new members can be added">' +
+                    '<button disabled class="btn btn-primary">Click here to add more {{ group.is_dealer|yesno("Dealer Assistants,group members") }}</button>' +
+                  '</div>').insertAfter($("#add"));
             });
         {% else %}
             $(function(){
-                $('<button style="cursor:pointer">Click here to add more {{ group.is_dealer|yesno("Dealer Assistants,group members") }}.</button>').click(function(e){
+                $('<button class="btn btn-primary">Click here to add more {{ group.is_dealer|yesno("Dealer Assistants,group members") }}</button>').click(function(e){
                         $(e.target).hide();
                         $("#add").show();
                     }).insertAfter($("#add"));
