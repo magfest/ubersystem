@@ -555,7 +555,7 @@ class MagModel:
 
         for column in self.__table__.columns:
             if (not restricted or column.name in self.unrestricted) and (column.type is JSON or isinstance(column.type, JSON)):
-                fields = getattr(self, column.name + '_fields', OrderedDict)
+                fields = getattr(self, column.name + '_fields', {})
                 for field in fields.keys():
                     if field in params:
                         setattr(self, field, params[field])
