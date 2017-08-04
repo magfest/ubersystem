@@ -17,7 +17,9 @@ def donation_tier_fixture(monkeypatch):
     # [integer_enums]
     monkeypatch.setattr(c, 'SHIRT_LEVEL', shirt_level)
     monkeypatch.setattr(c, 'SUPPORTER_LEVEL', supporter_level)
+
     monkeypatch.setattr(c, 'SHIRTS_PER_STAFFER', 3)
+    monkeypatch.setattr(c, 'STAFF_ELIGIBLE_FOR_SWAG_SHIRT', False)
 
 
 class TestMerchAttrs:
@@ -29,7 +31,13 @@ class TestMerchAttrs:
     def test_volunteer_swag_shirt_eligible(self):
         assert not Attendee().volunteer_swag_shirt_eligible
         assert Attendee(ribbon=c.VOLUNTEER_RIBBON).volunteer_swag_shirt_eligible
+        assert not Attendee(badge_type=c.STAFF_BADGE).volunteer_swag_shirt_eligible
         assert not Attendee(ribbon=c.VOLUNTEER_RIBBON, badge_type=c.STAFF_BADGE).volunteer_swag_shirt_eligible
+
+    def test_staff_swag_shirt_eligible(self, monkeypatch):
+        monkeypatch.setattr(c, 'STAFF_ELIGIBLE_FOR_SWAG_SHIRT', True)
+        assert Attendee(badge_type=c.STAFF_BADGE).volunteer_swag_shirt_eligible
+        assert Attendee(badge_type=c.STAFF_BADGE, ribbon=c.VOLUNTEER_RIBBON).volunteer_swag_shirt_eligible
 
     def test_volunteer_swag_shirt_earned(self, monkeypatch):
         for (eligible, takes_shifts, worked_hours), expected in {
