@@ -28,6 +28,11 @@ Your {{ group.is_dealer|yesno("Dealer registration,group") }} ({{ group.name }})
     {% endif %}
 {% endif %}
 
+{% if attendee.requested_hotel_info and c.PREREG_REQUEST_HOTEL_INFO_OPEN %}
+    <br/> <br/>
+    {% include "preregistration/hotel_disclaimer.html" %}
+{% endif %}
+
 {% if c.CONSENT_FORM_URL and group.leader.age_group_conf['consent_form'] %}
     <br/> <br/>
     Because you are under 18, you must bring a signed and notarized parental permission
