@@ -292,6 +292,34 @@ def email_only(email):
 
 @JinjaEnv.jinja_export
 def humanize_timedelta(*args, granularity='seconds', **kwargs):
+    """
+    Converts a time interval into a nicely formatted human readable string.
+
+    Accepts either a single `datetime.timedelta` instance, or a series of
+    keyword arguments specifying time units:
+
+      - years
+      - months
+      - days
+      - hours
+      - minutes
+      - seconds
+
+    Args:
+        delta (datetime.timedelta): The timedelta to format
+        granularity (str): The smallest unit of time that should be included.
+            Defaults to "seconds".
+        years (int, float): A number of years.
+        months (int, float): A number of months.
+        days (int, float): A number of days.
+        hours (int, float): A number of hours.
+        minutes (int, float): A number of minutes.
+        seconds (int, float): A number of seconds.
+
+    Returns:
+        str: A human readable string, like "2 hours and 45 minutes", or
+            "right now" if the timedelta is equal to zero.
+    """
     if args and isinstance(args[0], timedelta):
         delta = relativedelta(seconds=args[0].total_seconds()).normalized()
     else:
@@ -305,7 +333,10 @@ def humanize_timedelta(*args, granularity='seconds', **kwargs):
             time_units.append('{} {}{}'.format(time, unit[:-1], plural))
         if unit == granularity:
             break
-    return join_and(time_units)
+    if time_units:
+        return join_and(time_units)
+    else:
+        return 'right now'
 
 
 @JinjaEnv.jinja_export

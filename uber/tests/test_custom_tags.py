@@ -4,7 +4,7 @@ from uber.common import *
 from uber.custom_tags import (jsonize, linebreaksbr, datetime_local_filter,
     datetime_filter, full_datetime_local, hour_day_local, time_day_local,
     timedelta_filter, timestamp, normalize_newlines, url_to_link, basename,
-    form_link)
+    form_link, humanize_timedelta)
 
 
 class TestDatetimeFilters(object):
@@ -65,6 +65,43 @@ class TestFormLink(object):
         watch_list = WatchList(id='c4c29b35-a1cf-4662-a577-041d8be63edf')
         assert form_link(watch_list) == \
             "<WatchList id='c4c29b35-a1cf-4662-a577-041d8be63edf'>"
+
+
+class TestHumanizeTimedelta(object):
+
+    @pytest.mark.parametrize('test_args,test_kwargs,expected', [
+        ([], {}, 'right now'),
+        ([None], {}, 'right now'),
+        ([0], {}, 'right now'),
+        ([''], {}, 'right now'),
+        ([jinja2.runtime.Undefined()], {}, 'right now'),
+        ([timedelta()], {}, 'right now'),
+        ([], {'years': 0}, 'right now'),
+        ([], {'months': 0}, 'right now'),
+        ([], {'days': 0}, 'right now'),
+        ([], {'hours': 0}, 'right now'),
+        ([], {'minutes': 0}, 'right now'),
+        ([], {'seconds': 0}, 'right now'),
+        ([], {'years': 1}, '1 year'),
+        ([], {'months': 1}, '1 month'),
+        ([], {'days': 1}, '1 day'),
+        ([], {'hours': 1}, '1 hour'),
+        ([], {'minutes': 1}, '1 minute'),
+        ([], {'seconds': 1}, '1 second'),
+        ([], {'years': 2}, '2 years'),
+        ([], {'months': 2}, '2 months'),
+        ([], {'days': 2}, '2 days'),
+        ([], {'hours': 2}, '2 hours'),
+        ([], {'minutes': 2}, '2 minutes'),
+        ([], {'seconds': 2}, '2 seconds'),
+        ([], {'months': 23}, '1 year and 11 months'),
+        ([], {'hours': 28}, '1 day and 4 hours'),
+        ([], {'minutes': 69}, '1 hour and 9 minutes'),
+        ([], {'seconds': 4163}, '1 hour, 9 minutes, and 23 seconds'),
+        ([], {'seconds': 4163, 'granularity': 'minutes'}, '1 hour and 9 minutes'),
+    ])
+    def test_humanize_timedelta(self, test_args, test_kwargs, expected):
+        assert expected == humanize_timedelta(*test_args, **test_kwargs)
 
 
 class TestJsonize(object):
