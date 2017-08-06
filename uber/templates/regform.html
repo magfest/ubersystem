@@ -95,7 +95,7 @@
 
     var sameLegalNameChecked = function () {
         if ($("#same_legal_name").prop('checked')) {
-            $.field('legal_name').prop('readonly', true).val('').prop('required', false);
+            $.field('legal_name').prop('readonly', true).val('').prop('required', false).valid();
             $("label[for='legal_name']").addClass('optional-field');
         } else if ($("#same_legal_name").length) {
             $.field('legal_name').prop('readonly', false).prop('required', true);
