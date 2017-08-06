@@ -23,7 +23,7 @@ AutomatedEmail(Attendee, '{EVENT_NAME} payment received', 'reg_workflow/attendee
          ident='attendee_payment_received')
 
 AutomatedEmail(Attendee, '{EVENT_NAME} registration confirmed', 'reg_workflow/attendee_confirmation.html',
-                lambda a: a.paid == c.NEED_NOT_PAY and not a.placeholder,
+                lambda a: a.paid == c.NEED_NOT_PAY and a.confirmed,
                 needs_approval=False, allow_during_con=True,
                 ident='attendee_badge_confirmed')
 

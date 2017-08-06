@@ -565,6 +565,7 @@ class Root:
             message = check(attendee, prereg=True)
             if not message:
                 if placeholder:
+                    attendee.confirmed = localized_now()
                     message = 'Your registration has been confirmed'
                 else:
                     message = 'Your information has been updated'
