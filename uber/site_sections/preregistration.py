@@ -466,7 +466,7 @@ class Root:
 
     def add_group_members(self, session, id, count):
         group = session.group(id)
-        if int(count) < group.min_badges_addable:
+        if int(count) < group.min_badges_addable and not group.is_in_grace_period:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, 'This group cannot add fewer than {} badges'.format(group.min_badges_addable))
 
         charge = Charge(group, amount=100 * int(count) * group.new_badge_cost, description='{} extra badges for {}'.format(count, group.name))
@@ -565,6 +565,7 @@ class Root:
             message = check(attendee, prereg=True)
             if not message:
                 if placeholder:
+                    attendee.confirmed = localized_now()
                     message = 'Your registration has been confirmed'
                 else:
                     message = 'Your information has been updated'

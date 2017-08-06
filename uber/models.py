@@ -1360,6 +1360,21 @@ class Group(MagModel, TakesPaymentMixin):
         return self.dealer_max_badges - self.badges
 
     @property
+    def hours_since_registered(self):
+        if not self.registered:
+            return 0
+        delta = datetime.now(UTC) - self.registered
+        return max(0, delta.total_seconds()) / 60.0 / 60.0
+
+    @property
+    def hours_remaining_in_grace_period(self):
+        return max(0, c.GROUP_UPDATE_GRACE_PERIOD - self.hours_since_registered)
+
+    @property
+    def is_in_grace_period(self):
+        return self.hours_remaining_in_grace_period > 0
+
+    @property
     def min_badges_addable(self):
         if self.can_add:
             return 1
@@ -1432,7 +1447,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     for_review  = Column(UnicodeText, admin_only=True)
     admin_notes = Column(UnicodeText, admin_only=True)
 
-    public_id   = Column(UUID, default=lambda: str(uuid4()))
+    public_id    = Column(UUID, default=lambda: str(uuid4()))
     badge_num    = Column(Integer, default=None, nullable=True, admin_only=True)
     badge_type   = Column(Choice(c.BADGE_OPTS), default=c.ATTENDEE_BADGE)
     badge_status = Column(Choice(c.BADGE_STATUS_OPTS), default=c.NEW_STATUS, index=True, admin_only=True)
@@ -1446,8 +1461,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     got_merch    = Column(Boolean, default=False, admin_only=True)
 
     reg_station   = Column(Integer, nullable=True, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow())
-    checked_in = Column(UTCDateTime, nullable=True)
+    registered    = Column(UTCDateTime, server_default=utcnow())
+    confirmed     = Column(UTCDateTime, nullable=True, default=None)
+    checked_in    = Column(UTCDateTime, nullable=True)
 
     paid             = Column(Choice(c.PAYMENT_OPTS), default=c.NOT_PAID, index=True, admin_only=True)
     overridden_price = Column(Integer, nullable=True, admin_only=True)

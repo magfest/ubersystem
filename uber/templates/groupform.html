@@ -22,10 +22,16 @@
                 </div>
                 (${{ c.GROUP_PRICE }} each)
                 {% if c.MIN_GROUP_ADDITION > 1 %}
-                <p class="help-block col-sm-9 col-sm-offset-3">
-                    You may add badges to your group later, but you must add at least {{ c.MIN_GROUP_ADDITION }}
-                    badges at a time.
-                </p>
+                  <p class="help-block col-sm-9 col-sm-offset-3">
+                    {% if c.GROUP_UPDATE_GRACE_PERIOD > 0 %}
+                      You have {{ c.GROUP_UPDATE_GRACE_PERIOD }} hour{{ c.GROUP_UPDATE_GRACE_PERIOD|pluralize }}
+                      after paying to add badges your group. You may continue to add badges to your group after
+                      that, but you'll have to add at least {{ c.MIN_GROUP_ADDITION }} badges at a time.
+                    {% else %}
+                      You may add badges to your group later, but you must add at least
+                      {{ c.MIN_GROUP_ADDITION }} badges at a time.
+                    {% endif %}
+                  </p>
                 {% endif %}
             </div>
         </div>
