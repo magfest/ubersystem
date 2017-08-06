@@ -1360,6 +1360,21 @@ class Group(MagModel, TakesPaymentMixin):
         return self.dealer_max_badges - self.badges
 
     @property
+    def hours_since_registered(self):
+        if not self.registered:
+            return 0
+        delta = datetime.now(UTC) - self.registered
+        return max(0, delta.total_seconds()) / 60.0 / 60.0
+
+    @property
+    def hours_remaining_in_grace_period(self):
+        return max(0, c.GROUP_UPDATE_GRACE_PERIOD - self.hours_since_registered)
+
+    @property
+    def is_in_grace_period(self):
+        return self.hours_remaining_in_grace_period > 0
+
+    @property
     def min_badges_addable(self):
         if self.can_add:
             return 1

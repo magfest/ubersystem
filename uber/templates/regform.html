@@ -164,7 +164,7 @@
     </div>
 
     <div class="form-group">
-        <label for="legal_name" class="col-sm-3 control-label">Name as appears on Legal Photo ID</label>
+        <label for="legal_name" class="col-sm-3 control-label">Name as appears on <span class="text-nowrap">Legal Photo ID</span></label>
         <div class="col-sm-6">
             <input type="text" name="legal_name" value="{{ attendee.legal_name }}" class="form-control" placeholder="Name exactly as it appears on Photo ID" autocomplete="name" />
             <p class="help-block">
@@ -471,7 +471,7 @@
     </div>
     {% if not attendee.is_dealer or c.PAGE_PATH == '/registration/form' %}
         <div class="checkbox col-sm-6 col-sm-offset-3">
-            {{ macros.checkbox(attendee, 'no_cellphone', label="I don't own a cellphone.", label_class='cellphone-excuse') }}
+            {{ macros.checkbox(attendee, 'no_cellphone', label="I won't have a phone with me during the event.", label_class='cellphone-excuse') }}
         </div>
     {% endif %}
 </div>
