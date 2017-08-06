@@ -15,7 +15,8 @@ class AutomatedEmail:
     queries = {
         Attendee: lambda session: session.all_attendees().options(
             subqueryload(Attendee.admin_account)).options(
-            subqueryload(Attendee.dept_checklist_items)),
+            subqueryload(Attendee.dept_checklist_items)).options(
+            subqueryload(Attendee.group)),
         Group: lambda session: session.query(Group).options(
             subqueryload(Group.attendees))
     }

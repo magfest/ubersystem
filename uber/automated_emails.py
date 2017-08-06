@@ -28,12 +28,12 @@ AutomatedEmail(Attendee, '{EVENT_NAME} registration confirmed', 'reg_workflow/at
                 ident='attendee_badge_confirmed')
 
 AutomatedEmail(Group, '{EVENT_NAME} group payment received', 'reg_workflow/group_confirmation.html',
-         lambda g: g.amount_paid == g.cost and g.cost != 0,
+         lambda g: g.amount_paid == g.cost and g.cost != 0 and g.leader_id,
          needs_approval=False,
          ident='group_payment_received')
 
 AutomatedEmail(Attendee, '{EVENT_NAME} group registration confirmed', 'reg_workflow/attendee_confirmation.html',
-         lambda a: a.group and (a != a.group.leader or a.group.cost == 0) and not a.placeholder,
+         lambda a: a.group and (a.id != a.group.leader_id or a.group.cost == 0) and not a.placeholder,
          needs_approval=False, allow_during_con=True,
          ident='attendee_group_reg_confirmation')
 
