@@ -114,20 +114,23 @@ class Root:
             self,
             session,
             message='',
-            is_single_promo_code=0,
+            is_single_promo_code=1,
             count=1,
             use_words=False,
+            length=9,
+            segment_length=3,
+            code='',
+            expiration_date=c.ESCHATON,
+            discount_type=0,
+            discount=10,
+            uses_allowed=1,
             **params):
 
         words = PromoCodeWord.group_by_parts_of_speech(
             session.query(PromoCodeWord).order_by(
                 PromoCodeWord.normalized_word).all())
 
-        result = {
-            'message': message,
-            'promo_codes': [],
-            'words': [(i, s) for (i, s) in words.items()]
-        }
+        code = code.strip() if code else ''
 
         try:
             count = int(count)
@@ -139,44 +142,89 @@ class Root:
         except:
             is_single_promo_code = 0
 
+        result = {
+            'message': message,
+            'promo_codes': [],
+            'words': [(i, s) for (i, s) in words.items()],
+            'is_single_promo_code': is_single_promo_code,
+            'code': code,
+            'count': count,
+            'use_words': use_words,
+            'length': length,
+            'segment_length': segment_length,
+            'expiration_date': expiration_date,
+            'discount_type': discount_type,
+            'discount': discount,
+            'uses_allowed': uses_allowed
+        }
+
         if cherrypy.request.method == 'POST':
             codes = None
             if is_single_promo_code:
-                if params.get('code', '').strip():
-                    codes = [params['code']]
-                else:
-                    count = 1
+                count = 1
+                if code:
+                    codes = [code]
 
             if use_words and not codes and \
                     not any(s for (_, s) in words.items()):
-                raise HTTPRedirect('generate_promo_codes?message='
-                    'Please add some promo code words!')
+                result['message'] = 'Please add some promo code words!'
+                return result
 
             if not codes:
                 if use_words:
                     codes = PromoCode.generate_word_code(count)
                 else:
-                    length = int(params.get('length', 12))
-                    segment_length = int(params.get('segment_length', 3))
+                    try:
+                        length = int(length)
+                    except:
+                        length = 9
+                    try:
+                        segment_length = int(segment_length)
+                    except:
+                        segment_length = 3
                     codes = PromoCode.generate_random_code(
                         count, length, segment_length)
 
             promo_codes = []
             for code in codes:
-                params['code'] = code
-                promo_codes.append(PromoCode().apply(params, restricted=False))
+                promo_codes.append(PromoCode().apply({
+                        'code': code,
+                        'expiration_date': expiration_date,
+                        'discount_type': discount_type,
+                        'discount': discount,
+                        'uses_allowed': uses_allowed,
+                    }, restricted=False))
 
             message = check_all(promo_codes)
             if message:
-                raise HTTPRedirect('generate_promo_codes?message={}', message)
+                result['message'] = message
+                return result
 
             result['promo_codes'] = session.bulk_insert(promo_codes)
-            if len(result['promo_codes']) != count:
+            generated_count = len(result['promo_codes'])
+            if generated_count <= 0:
+                result['message'] = "Could not generate any of the " \
+                    "requested promo codes. Perhaps they've all been taken " \
+                    "already?"
+                return result
+
+            if generated_count != count:
                 result['message'] = 'Some of the requested promo codes ' \
                     'could not be generated'
 
         if 'export' in params:
             return self.export_promo_codes(codes=result['promo_codes'])
+
+        result['is_single_promo_code'] = 1
+        result['count'] = 1
+        result['use_words'] = False
+        result['length'] = 9
+        result['segment_length'] = 3
+        result['code'] = ''
+        result['expiration_date'] = c.ESCHATON
+        result['discount_type'] = 0
+        result['discount'] = 10
+        result['uses_allowed'] = 1
         return result
 
     def update_promo_code(self, session, message='', **params):
