@@ -295,7 +295,7 @@ def emergency_contact_not_cellphone(attendee):
 
 @validation.Attendee
 def printed_badge_change(attendee):
-    if attendee.badge_printed_name != attendee.orig_value_of('badge_printed_name') and \
+    if attendee.badge_printed_name != attendee.orig_value_of('badge_printed_name') and not AdminAccount.admin_name() and \
                     localized_now() > c.get_printed_badge_deadline_by_type(attendee.badge_type):
             return '{} badges have already been ordered, so you cannot change the badge printed name.'\
                 .format(attendee.badge_type_label if attendee.badge_type != c.ATTENDEE_BADGE else "Supporter")
