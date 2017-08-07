@@ -294,30 +294,11 @@ def emergency_contact_not_cellphone(attendee):
 
 
 @validation.Attendee
-def printed_badge_deadline(attendee):
-    if attendee.is_new and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
-        return 'Custom badges have already been ordered so you cannot create new {} badges'.format(attendee.badge_type_label)
-
-
-@validation.Attendee
 def printed_badge_change(attendee):
-    badge_name_changes_allowed = True
-
-    # this is getting kinda messy and we probably need to rework the entire concept of "printed badge deadline".
-    # right now we want to:
-    # 1) allow supporters to change their badge names until c.SUPPORTER_DEADLINE
-    # 2) allow staff to change their badge names until c.PRINTED_BADGE_DEADLINE
-    #
-    # this implies that we actually have two different printed badge deadlines: 1 for staff, 1 for supporters.
-    # we might just want to make that explicit.
-    if attendee.badge_type == c.STAFF_BADGE and c.AFTER_PRINTED_BADGE_DEADLINE:
-        badge_name_changes_allowed = False
-    elif attendee.amount_extra >= c.SUPPORTER_LEVEL and c.AFTER_SUPPORTER_DEADLINE:
-        badge_name_changes_allowed = False
-
-    if not badge_name_changes_allowed:
-        if attendee.badge_printed_name != attendee.orig_value_of('badge_printed_name'):
-            return 'Custom badges have already been ordered, so you cannot change the printed name of this Attendee'
+    if attendee.badge_printed_name != attendee.orig_value_of('badge_printed_name') and \
+                    localized_now() > c.get_printed_badge_deadline_by_type(attendee.badge_type):
+            return '{} badges have already been ordered, so you cannot change the badge printed name.'\
+                .format(attendee.badge_type_label if attendee.badge_type != c.ATTENDEE_BADGE else "Supporter")
 
 
 @validation.Attendee
@@ -403,7 +384,7 @@ def invalid_badge_num(attendee):
 def no_more_custom_badges(attendee):
     if (attendee.badge_type != attendee.orig_value_of('badge_type') or attendee.is_new)\
             and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
-        return 'Custom badges have already been ordered'
+        return 'Custom badges have already been ordered so you cannot use this badge type'
 
 
 @validation.Attendee
@@ -418,7 +399,7 @@ def out_of_badge_type(attendee):
 
 @validation.Attendee
 def invalid_badge_name(attendee):
-    if attendee.badge_printed_name and c.BEFORE_PRINTED_BADGE_DEADLINE \
+    if attendee.badge_printed_name and localized_now() <= c.get_printed_badge_deadline_by_type(attendee.badge_type) \
             and re.search(c.INVALID_BADGE_PRINTED_CHARS, attendee.badge_printed_name):
         return 'Your printed badge name has invalid characters. Please use only printable ASCII characters.'
 
