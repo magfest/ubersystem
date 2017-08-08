@@ -367,8 +367,9 @@ def options(options, default='""'):
 @JinjaEnv.jinja_export
 def int_options(minval, maxval, default=1):
     results = []
+    default = str(default)
     for i in range(minval, maxval+1):
-        selected = 'selected="selected"' if str(i) == str(default) else ''
+        selected = 'selected="selected"' if str(i) == default else ''
         results.append('<option value="{val}" {selected}>{val}</option>'.format(val=i, selected=selected))
     return safe_string('\n'.join(results))
 
