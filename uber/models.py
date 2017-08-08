@@ -1337,7 +1337,7 @@ class Group(MagModel, TakesPaymentMixin):
                 total += attendee.badge_cost
         return total
 
-    @cost_property
+    @property
     def amount_extra(self):
         if self.is_new:
             return sum(a.total_cost - a.badge_cost for a in self.attendees if a.paid == c.PAID_BY_GROUP)
@@ -1345,11 +1345,15 @@ class Group(MagModel, TakesPaymentMixin):
             return 0
 
     @property
+    def total_cost(self):
+        return self.default_cost + self.amount_extra
+
+    @property
     def amount_unpaid(self):
         if self.registered:
             return max(0, self.cost - self.amount_paid)
         else:
-            return self.default_cost
+            return self.total_cost
 
     @property
     def dealer_max_badges(self):

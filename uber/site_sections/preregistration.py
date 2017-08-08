@@ -318,7 +318,7 @@ class Root:
             session.add(attendee)
 
         for group in charge.groups:
-            group.amount_paid = group.default_cost - group.amount_extra
+            group.amount_paid = group.default_cost
             for attendee in group.attendees:
                 attendee.amount_paid = attendee.total_cost - attendee.badge_cost
             session.add(group)
