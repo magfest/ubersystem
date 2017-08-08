@@ -368,7 +368,7 @@ def options(options, default='""'):
 def int_options(minval, maxval, default=1):
     results = []
     for i in range(minval, maxval+1):
-        selected = 'selected="selected"' if i == default else ''
+        selected = 'selected="selected"' if str(i) == str(default) else ''
         results.append('<option value="{val}" {selected}>{val}</option>'.format(val=i, selected=selected))
     return safe_string('\n'.join(results))
 
