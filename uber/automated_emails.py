@@ -45,7 +45,7 @@ AutomatedEmail(Attendee, '{EVENT_NAME} extra payment received', 'reg_workflow/gr
 if c.PREREG_REQUEST_HOTEL_INFO_ENABLED:
     AutomatedEmail(Attendee, '{EVENT_NAME} hotel booking info', 'reg_workflow/hotel_booking_info.html',
         lambda a: a.requested_hotel_info,
-        when=days_after(0, c.PREREG_REQUEST_HOTEL_INFO_DEADLINE),
+        when=days_after(0, c.PREREG_HOTEL_INFO_EMAIL_DATE),
         needs_approval=True,
         sender=c.PREREG_HOTEL_INFO_EMAIL_SENDER,
         ident='hotel_booking_info')

@@ -278,7 +278,15 @@ class Config(_Overridable):
         """
         if not self.PREREG_REQUEST_HOTEL_INFO_ENABLED:
             return False
-        return not c.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE
+        return not self.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE
+
+    @property
+    def PREREG_HOTEL_INFO_EMAIL_DATE(self):
+        """
+        Date at which the hotel booking link email becomes available to send.
+        """
+        return self.PREREG_REQUEST_HOTEL_INFO_DEADLINE + \
+            timedelta(hours=max(0, self.PREREG_HOTEL_INFO_EMAIL_WAIT_DURATION))
 
     @property
     def AT_THE_DOOR_BADGE_OPTS(self):
