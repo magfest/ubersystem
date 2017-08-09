@@ -300,7 +300,7 @@ class Root:
             raise HTTPRedirect('index?message={}', message)
 
     @credit_card
-    def prereg_payment(self, session, payment_id, stripeToken):
+    def prereg_payment(self, session, payment_id=None, stripeToken=None):
         if not payment_id or not stripeToken:
             message = 'The payment was interrupted. Please check below to ensure you received your badge.'
             raise HTTPRedirect('paid_preregistrations?message={}', message)
