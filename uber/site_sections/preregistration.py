@@ -301,6 +301,10 @@ class Root:
 
     @credit_card
     def prereg_payment(self, session, payment_id, stripeToken):
+        if not payment_id or not stripeToken:
+            message = 'The payment was interrupted. Please check below to ensure you received your badge.'
+            raise HTTPRedirect('paid_preregistrations?message={}', message)
+
         charge = Charge.get(payment_id)
         if not charge.total_cost:
             message = 'Your total cost was $0. Your credit card has not been charged.'
@@ -327,7 +331,7 @@ class Root:
         Charge.paid_preregs.extend(charge.targets)
         raise HTTPRedirect('paid_preregistrations?payment_received={}', charge.dollar_amount)
 
-    def paid_preregistrations(self, session, payment_received=None):
+    def paid_preregistrations(self, session, payment_received=None, message=''):
         if not Charge.paid_preregs:
             raise HTTPRedirect('index')
         else:
@@ -339,7 +343,8 @@ class Root:
                     pass  # this badge must have subsequently been transferred or deleted
             return {
                 'preregs': preregs,
-                'total_cost': payment_received
+                'total_cost': payment_received,
+                'message': message
             }
 
     def delete(self, id, message='Preregistration deleted'):
