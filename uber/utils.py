@@ -397,7 +397,7 @@ class Charge:
             )
 
             log.info('PAYMENT: !!! SUCCESS: charged stripeToken {} ${} for {}, responseID={}',
-                     token, self.amount, self.description, self.response.id or None)
+                     token, self.amount, self.description, getattr(self.response, 'id', None))
 
         except stripe.CardError as e:
             msg = 'Your card was declined with the following error from our processor: ' + str(e)
