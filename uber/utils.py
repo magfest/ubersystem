@@ -385,6 +385,9 @@ class Charge:
 
     def charge_cc(self, session, token):
         try:
+            log.debug('PAYMENT: !!! attempting to charge stripeToken {} ${} for {}',
+                      token, self.amount, self.description)
+
             self.response = stripe.Charge.create(
                 card=token,
                 currency='usd',
@@ -392,8 +395,14 @@ class Charge:
                 description=self.description,
                 receipt_email=self.receipt_email
             )
+
+            log.info('PAYMENT: !!! SUCCESS: charged stripeToken {} ${} for {}, responseID={}',
+                     token, self.amount, self.description, self.response.id or None)
+
         except stripe.CardError as e:
-            return 'Your card was declined with the following error from our processor: ' + str(e)
+            msg = 'Your card was declined with the following error from our processor: ' + str(e)
+            log.error('PAYMENT: !!! FAIL: {}', msg)
+            return msg
         except stripe.StripeError as e:
             error_txt = 'Got an error while calling charge_cc(self, token={!r})'.format(token)
             report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')

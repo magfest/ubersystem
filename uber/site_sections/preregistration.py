@@ -300,7 +300,11 @@ class Root:
             raise HTTPRedirect('index?message={}', message)
 
     @credit_card
-    def prereg_payment(self, session, payment_id, stripeToken):
+    def prereg_payment(self, session, payment_id=None, stripeToken=None):
+        if not payment_id or not stripeToken or c.HTTP_METHOD != 'POST':
+            message = 'The payment was interrupted. Please check below to ensure you received your badge.'
+            raise HTTPRedirect('paid_preregistrations?message={}', message)
+
         charge = Charge.get(payment_id)
         if not charge.total_cost:
             message = 'Your total cost was $0. Your credit card has not been charged.'
@@ -312,22 +316,36 @@ class Root:
         if message:
             raise HTTPRedirect('index?message={}', message)
 
+        # from this point on, the credit card has actually been charged but we haven't marked anything as charged yet.
+        # be ultra-careful until the attendees/groups are marked paid and written to the DB or we could end up in a
+        # situation where we took the payment, but didn't mark the cards charged
+
         for attendee in charge.attendees:
             attendee.paid = c.HAS_PAID
             attendee.amount_paid = attendee.total_cost
+            attendee_name = 'PLACEHOLDER' if attendee.is_unassigned else attendee.full_name
+            log.info("PAYMENT: marked attendee id={} ({}) as paid", attendee.id, attendee_name)
             session.add(attendee)
 
         for group in charge.groups:
             group.amount_paid = group.default_cost
+            log.info("PAYMENT: marked group id={} ({}) as paid", group.id, group.name)
+
             for attendee in group.attendees:
                 attendee.amount_paid = attendee.total_cost - attendee.badge_cost
+                attendee_name = 'UNASSIGNED PLACEHOLDER' if attendee.is_unassigned else attendee.full_name
+                log.info("PAYMENT: marked group member id={} ({}) as paid", attendee.id, attendee_name)
             session.add(group)
+
+        session.commit()  # paranoia: really make sure we lock in marking taking payments in the database
 
         Charge.unpaid_preregs.clear()
         Charge.paid_preregs.extend(charge.targets)
+
+        log.debug('PAYMENT: prereg payment actual charging process FINISHED for stripeToken={}', stripeToken)
         raise HTTPRedirect('paid_preregistrations?payment_received={}', charge.dollar_amount)
 
-    def paid_preregistrations(self, session, payment_received=None):
+    def paid_preregistrations(self, session, payment_received=None, message=''):
         if not Charge.paid_preregs:
             raise HTTPRedirect('index')
         else:
@@ -339,7 +357,8 @@ class Root:
                     pass  # this badge must have subsequently been transferred or deleted
             return {
                 'preregs': preregs,
-                'total_cost': payment_received
+                'total_cost': payment_received,
+                'message': message
             }
 
     def delete(self, id, message='Preregistration deleted'):
