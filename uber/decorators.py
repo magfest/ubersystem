@@ -191,7 +191,7 @@ def check_shutdown(func):
 
 def credit_card(func):
     @wraps(func)
-    def charge(self, session, payment_id, stripeToken, stripeEmail='ignored', **ignored):
+    def charge(self, session, payment_id=None, stripeToken=None, stripeEmail='ignored', **ignored):
         log.debug('PAYMENT: payment_id={}, stripeToken={}', payment_id or 'NONE', stripeToken or 'NONE')
 
         if ignored:

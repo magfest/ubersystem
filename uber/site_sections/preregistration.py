@@ -323,7 +323,8 @@ class Root:
         for attendee in charge.attendees:
             attendee.paid = c.HAS_PAID
             attendee.amount_paid = attendee.total_cost
-            log.info("PAYMENT: marked attendee id={} ({},{}) as paid", attendee.id, attendee.first_name, attendee.last_name)
+            attendee_name = 'PLACEHOLDER' if attendee.is_unassigned else attendee.full_name
+            log.info("PAYMENT: marked attendee id={} ({}) as paid", attendee.id, attendee_name)
             session.add(attendee)
 
         for group in charge.groups:
@@ -332,14 +333,14 @@ class Root:
 
             for attendee in group.attendees:
                 attendee.amount_paid = attendee.total_cost - attendee.badge_cost
-                log.info("PAYMENT: marked group member id={} ({},{}) as paid", attendee.id, attendee.first_name,
-                         attendee.last_name)
+                attendee_name = 'UNASSIGNED PLACEHOLDER' if attendee.is_unassigned else attendee.full_name
+                log.info("PAYMENT: marked group member id={} ({}) as paid", attendee.id, attendee_name)
             session.add(group)
+
+        session.commit()  # paranoia: really make sure we lock in marking taking payments in the database
 
         Charge.unpaid_preregs.clear()
         Charge.paid_preregs.extend(charge.targets)
-
-        session.flush()  # paranoia: really make sure we lock in marking taking payments in the database
 
         log.debug('PAYMENT: prereg payment actual charging process FINISHED for stripeToken={}', stripeToken)
         raise HTTPRedirect('paid_preregistrations?payment_received={}', charge.dollar_amount)
