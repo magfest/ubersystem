@@ -137,7 +137,6 @@ class Root:
         except:
             params['is_single_promo_code'] = 0
 
-
         words = PromoCodeWord.group_by_parts_of_speech(
             session.query(PromoCodeWord).order_by(
                 PromoCodeWord.normalized_word).all())
@@ -146,7 +145,6 @@ class Root:
             message=message,
             promo_codes=[],
             words=[(i, s) for (i, s) in words.items()])
-
 
         if cherrypy.request.method == 'POST':
             codes = None
