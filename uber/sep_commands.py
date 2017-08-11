@@ -148,6 +148,7 @@ def resave_all_staffers():
 
 @entry_point
 def insert_admin():
+    Session.initialize_db(initialize=True)
     with Session() as session:
         if session.insert_test_admin_account():
             print("Test admin account created successfully")
