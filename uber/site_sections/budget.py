@@ -110,10 +110,8 @@ class Root:
 
     @site_mappable
     @log_pageview
-    def generate_promo_codes(
-            self,
-            session,
-            message='',
+    def generate_promo_codes(self, session, message='', **params):
+        defaults = dict(
             is_single_promo_code=1,
             count=1,
             use_words=False,
@@ -123,77 +121,64 @@ class Root:
             expiration_date=c.ESCHATON,
             discount_type=0,
             discount=10,
-            uses_allowed=1,
-            **params):
+            uses_allowed=1)
+        params = dict(defaults,
+            **{k: v for k, v in params.items() if k in defaults})
+
+        params['code'] = params['code'].strip()
+
+        try:
+            params['count'] = int(params['count'])
+        except:
+            params['count'] = 1
+
+        try:
+            params['is_single_promo_code'] = int(params['is_single_promo_code'])
+        except:
+            params['is_single_promo_code'] = 0
+
 
         words = PromoCodeWord.group_by_parts_of_speech(
             session.query(PromoCodeWord).order_by(
                 PromoCodeWord.normalized_word).all())
 
-        code = code.strip() if code else ''
+        result = dict(params,
+            message=message,
+            promo_codes=[],
+            words=[(i, s) for (i, s) in words.items()])
 
-        try:
-            count = int(count)
-        except:
-            count = 1
-
-        try:
-            is_single_promo_code = int(is_single_promo_code)
-        except:
-            is_single_promo_code = 0
-
-        result = {
-            'message': message,
-            'promo_codes': [],
-            'words': [(i, s) for (i, s) in words.items()],
-            'is_single_promo_code': is_single_promo_code,
-            'code': code,
-            'count': count,
-            'use_words': use_words,
-            'length': length,
-            'segment_length': segment_length,
-            'expiration_date': expiration_date,
-            'discount_type': discount_type,
-            'discount': discount,
-            'uses_allowed': uses_allowed
-        }
 
         if cherrypy.request.method == 'POST':
             codes = None
-            if is_single_promo_code:
-                count = 1
-                if code:
-                    codes = [code]
+            if params['is_single_promo_code']:
+                params['count'] = 1
+                if params['code']:
+                    codes = [params['code']]
 
-            if use_words and not codes and \
+            if params['use_words'] and not codes and \
                     not any(s for (_, s) in words.items()):
                 result['message'] = 'Please add some promo code words!'
                 return result
 
             if not codes:
-                if use_words:
-                    codes = PromoCode.generate_word_code(count)
+                if params['use_words']:
+                    codes = PromoCode.generate_word_code(params['count'])
                 else:
                     try:
-                        length = int(length)
+                        length = int(params['length'])
                     except:
                         length = 9
                     try:
-                        segment_length = int(segment_length)
+                        segment_length = int(params['segment_length'])
                     except:
                         segment_length = 3
                     codes = PromoCode.generate_random_code(
-                        count, length, segment_length)
+                        params['count'], length, segment_length)
 
             promo_codes = []
             for code in codes:
-                promo_codes.append(PromoCode().apply({
-                        'code': code,
-                        'expiration_date': expiration_date,
-                        'discount_type': discount_type,
-                        'discount': discount,
-                        'uses_allowed': uses_allowed,
-                    }, restricted=False))
+                params['code'] = code
+                promo_codes.append(PromoCode().apply(params, restricted=False))
 
             message = check_all(promo_codes)
             if message:
@@ -208,23 +193,14 @@ class Root:
                     "already?"
                 return result
 
-            if generated_count != count:
+            if generated_count != params['count']:
                 result['message'] = 'Some of the requested promo codes ' \
                     'could not be generated'
 
         if 'export' in params:
             return self.export_promo_codes(codes=result['promo_codes'])
 
-        result['is_single_promo_code'] = 1
-        result['count'] = 1
-        result['use_words'] = False
-        result['length'] = 9
-        result['segment_length'] = 3
-        result['code'] = ''
-        result['expiration_date'] = c.ESCHATON
-        result['discount_type'] = 0
-        result['discount'] = 10
-        result['uses_allowed'] = 1
+        result.update(defaults)
         return result
 
     def update_promo_code(self, session, message='', **params):
