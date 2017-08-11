@@ -192,8 +192,11 @@ def check_shutdown(func):
 def credit_card(func):
     @wraps(func)
     def charge(self, session, payment_id, stripeToken, stripeEmail='ignored', **ignored):
+        log.debug('PAYMENT: payment_id={}, stripeToken={}', payment_id or 'NONE', stripeToken or 'NONE')
+
         if ignored:
-            log.error('received unexpected stripe parameters: {}', ignored)
+            log.debug('PAYMENT: received unexpected stripe parameters: {}', ignored)
+
         try:
             return func(self, session=session, payment_id=payment_id, stripeToken=stripeToken)
         except HTTPRedirect:
@@ -203,7 +206,7 @@ def credit_card(func):
                 'Got an error while calling charge' \
                 '(self, payment_id={!r}, stripeToken={!r}, ignored={}):\n{}\n' \
                 '\n IMPORTANT: This could have resulted in an attendee paying and not being' \
-                'marked as paid in the database. Definitely double check.'\
+                'marked as paid in the database. Definitely double check this.'\
                 .format(payment_id, stripeToken, ignored, traceback.format_exc())
 
             report_critical_exception(msg=error_text, subject='ERROR: MAGFest Stripe error (Automated Message)')
