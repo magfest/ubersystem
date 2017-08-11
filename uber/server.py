@@ -109,6 +109,7 @@ class Root:
 
 mount_site_sections(c.MODULE_ROOT)
 
+
 def error_page_404(status, message, traceback, version):
     return "Sorry, page not found!<br/><br/>{}<br/>{}".format(status, message)
 
