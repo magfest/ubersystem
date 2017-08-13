@@ -173,6 +173,18 @@ var onUseWordsChanged = function() {
     }
 };
 
+var onIsSinglePromoCodeClicked = function(isSinglePromoCode) {
+    if (isSinglePromoCode) {
+        $('#is_single').addClass('active');
+        $('#is_multi').removeClass('active');
+        $.field('is_single_promo_code').val(1);
+    } else {
+        $('#is_single').removeClass('active');
+        $('#is_multi').addClass('active');
+        $.field('is_single_promo_code').val(0);
+    }
+};
+
 $(document).ready(function() {
     $('#word-list').on('click', '.label a', function(event) {
         event.preventDefault();
@@ -204,6 +216,16 @@ $(document).ready(function() {
             }
         });
     });
+
+    $('#promo-code-tabs a').click(function (e) {
+        e.preventDefault();
+        $('#promo-code-tabs a').removeClass('active');
+        $(this).addClass('active').tab('show');
+        $.field('is_single_promo_code').val($(this).data('is_single_promo_code'));
+    });
+
+    onDiscountTypeChanged();
+    onUseWordsChanged();
 });
 </script>
 
@@ -219,15 +241,24 @@ $(document).ready(function() {
     <div class="form-group">
       <label for="is_single_promo_code" class="col-sm-3 control-label">How many?</label>
       <div class="col-sm-9">
-        <div class="btn-group" data-toggle="buttons">
-          <a href="#promo-code-single" aria-controls="promo-code-single" role="tab" data-toggle="tab" class="btn btn-default active">
-            <input type="radio" name="is_single_promo_code" id="promo_code_single" value="1" checked
-              aria-controls="promo-code-single" role="tab" data-toggle="tab">
+        <input type="hidden" name="is_single_promo_code" value="{{ is_single_promo_code }}">
+        <div id="promo-code-tabs" class="btn-group" role="tablist">
+          <a
+              href="#promo-code-single"
+              aria-controls="promo-code-single"
+              role="tab"
+              data-toggle="tab"
+              data-is_single_promo_code="1"
+              class="btn btn-default {% if is_single_promo_code %}active{% endif %}">
             Just one promo code
           </a>
-          <a href="#promo-code-multi" aria-controls="promo-code-multi" role="tab" data-toggle="tab" class="btn btn-default">
-            <input type="radio" name="is_single_promo_code" id="promo_code_multi" value="0"
-              aria-controls="promo-code-multi" role="tab" data-toggle="tab">
+          <a
+              href="#promo-code-multi"
+              aria-controls="promo-code-multi"
+              role="tab"
+              data-toggle="tab"
+              data-is_single_promo_code="0"
+              class="btn btn-default {% if not is_single_promo_code %}active{% endif %}">
             A bunch of promo codes
           </a>
         </div>
@@ -235,20 +266,20 @@ $(document).ready(function() {
     </div>
 
     <div class="tab-content">
-      <div id="promo-code-single" role="tabpanel" class="tab-pane active">
+      <div id="promo-code-single" role="tabpanel" class="tab-pane {% if is_single_promo_code %}active{% endif %}">
         <div class="form-group">
           <label for="code" class="col-sm-3 control-label">Promo code</label>
-          <div class="col-sm-8  col--5">
-            <input type="text" name="code" class="form-control" placeholder="Enter a custom code, or leave blank to generate a random one" />
+          <div class="col-sm-8">
+            <input type="text" name="code" value="{{ code }}" class="form-control" placeholder="Enter a custom code, or leave blank to generate a random one" />
           </div>
         </div>
       </div>
 
-      <div id="promo-code-multi" role="tabpanel" class="tab-pane">
+      <div id="promo-code-multi" role="tabpanel" class="tab-pane {% if not is_single_promo_code %}active{% endif %}">
         <div class="form-group">
           <label for="count" class="col-sm-3 control-label">Number of codes</label>
           <div class="col-sm-8">
-            <input type="number" name="count" class="form-control" min="1" max="1000" value="1" />
+            <input type="number" name="count" value="{{ count }}" class="form-control" min="1" max="1000"/>
           </div>
         </div>
       </div>
@@ -257,7 +288,7 @@ $(document).ready(function() {
     <div class="form-group">
       <div class="checkbox col-sm-9 col-sm-offset-3">
         <label>
-          <input type="checkbox" name="use_words" value="1" checked onchange="onUseWordsChanged()"/>
+          <input type="checkbox" name="use_words" value="1"{% if use_words %} checked{% endif %} onchange="onUseWordsChanged()"/>
           Use word list to generate promo codes
         </label>
       </div>
@@ -267,11 +298,11 @@ $(document).ready(function() {
       <div class="form-group">
         <label for="length" class="col-sm-3 control-label">Number of characters</label>
         <div class="col-sm-3">
-          <input type="number" name="length" class="form-control" min="1" value="9"/>
+          <input type="number" name="length" value="{{ length }}" class="form-control" min="1"/>
         </div>
         <label for="segment_length" class="col-sm-2 control-label text-nowrap" style="padding-top: 7px;">per segment</label>
         <div class="col-sm-3">
-          <input type="number" name="segment_length" class="form-control" min="1" value="3"/>
+          <input type="number" name="segment_length" value="{{ segment_length }}" class="form-control" min="1"/>
         </div>
       </div>
     </div>
@@ -279,7 +310,7 @@ $(document).ready(function() {
     <div class="form-group">
       <label for="expiration_date" class="col-sm-3 control-label">Expiration date</label>
       <div class="col-sm-8">
-        <input type="text" name="expiration_date" class="form-control expiration-date" />
+        <input type="text" name="expiration_date" value="{{ expiration_date }}" class="form-control expiration-date" />
       </div>
       <div class="col-sm-9 col-sm-offset-3 help-block">
         Promo codes will expire on 11:59pm of this date in the event's timezone
@@ -289,7 +320,7 @@ $(document).ready(function() {
     <div id="discount-group" class="form-group">
       <label class="col-sm-3 control-label">
         <select class="form-control width-auto" name="discount_type" onchange="onDiscountTypeChanged()">
-          {{ options(c.PROMO_CODE_DISCOUNT_TYPE_OPTS) }}
+          {{ options(c.PROMO_CODE_DISCOUNT_TYPE_OPTS, discount_type) }}
         </select>
         <div class="help-block discount-type-desc">
           Reduces the badge price by a fixed dollar amount
@@ -298,7 +329,7 @@ $(document).ready(function() {
       <div class="col-sm-8">
         <div class="input-group">
           <span class="input-group-addon">$</span>
-          <input type="text" class="form-control" name="discount" value="10" placeholder="Free badge"/>
+          <input type="text" class="form-control" name="discount" value="{{ discount }}" placeholder="Free badge"/>
         </div>
       </div>
       <div class="col-sm-9 help-block">
@@ -309,7 +340,7 @@ $(document).ready(function() {
     <div class="form-group">
       <label for="uses_allowed" class="col-sm-3 control-label">Number of uses</label>
       <div class="col-sm-8">
-        <input type="number" name="uses_allowed" class="form-control" min="0" value="1" placeholder="Unlimited use"/>
+        <input type="number" name="uses_allowed" value="{{ uses_allowed }}" class="form-control" min="0" placeholder="Unlimited use"/>
       </div>
       <div class="col-sm-9 col-sm-offset-3 help-block">
         Leave blank for unlimited use codes
