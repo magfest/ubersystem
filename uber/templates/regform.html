@@ -4,7 +4,8 @@
 {%- set is_prereg_form = c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form'] -%}
 {%- set is_prereg_dealer = c.PAGE_PATH in ['/preregistration/dealer_registration'] or attendee and attendee.badge_type == c.PSEUDO_DEALER_BADGE -%}
 {%- set is_prereg_confirm_email_enabled = (is_prereg_form or is_prereg_dealer) and c.PREREG_CONFIRM_EMAIL_ENABLED -%}
-{%- set is_after_hotel_deadline = c.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE -%}
+{%- set is_after_request_hotel = c.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE -%}
+{%- set is_after_hotel_email = c.AFTER_PREREG_HOTEL_INFO_EMAIL_DATE -%}
 
 <script type="text/javascript">
     var AGE_GROUPS = {{ c.AGE_GROUP_CONFIGS|jsonize }};
@@ -499,7 +500,7 @@
     </div>
 </div>
 
-{% if admin_area or (not is_prereg_form and not is_after_hotel_deadline) %}
+{% if admin_area or (not is_prereg_form and not is_after_request_hotel) %}
   {#-
     In both the admin area and non-preregistration forms, we will display a
     "Request Hotel Info" label and a checkbox.
@@ -507,8 +508,8 @@
   <div class="form-group">
     <label for="requested_hotel_info" class="col-sm-3 control-label optional-field">Request Hotel Info</label>
     <div class="checkbox col-sm-9">
-      <label for="requested_hotel_info" class="checkbox-label{% if is_after_hotel_deadline %} disabled" title="Can&apos;t be changed after hotel booking window is closed{% endif %}">
-        {% if is_after_hotel_deadline %}
+      <label for="requested_hotel_info" class="checkbox-label{% if is_after_hotel_email %} disabled" title="Can&apos;t be changed after hotel email is ready to send{% endif %}">
+        {% if is_after_hotel_email %}
           {#-
             The deadline has passed; the checkbox is readonly, and
             requested_hotel_info retains whatever value the attendee
@@ -528,7 +529,7 @@
       </label>
     </div>
   </div>
-{% elif is_after_hotel_deadline %}
+{% elif is_after_request_hotel %}
   {#-
     The deadline has passed; requested_hotel_info retains whatever value the
     attendee already had. This will default to False for new and placholder
