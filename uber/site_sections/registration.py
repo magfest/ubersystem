@@ -872,7 +872,7 @@ class Root:
             if tracked_delete.action != c.DELETED:
                 message = 'Only a delete can be undone'
             else:
-                model_class = getattr(sa, tracked_delete.model)
+                model_class = Session.resolve_model(tracked_delete.model)
 
             if model_class:
                 params = json.loads(tracked_delete.snapshot)
