@@ -12,7 +12,8 @@
     <b>Attendees with free badges who didn't show up:</b> {{ counts.noshows.free }} <br/>
     <b>Attendees who paid and didn't show up:</b> {{ counts.noshows.paid }} <br/>
 {% endif %}
-<b>Number of remaining badges for sale (before event is sold out):</b> {{ c.REMAINING_BADGES }}
+<b>Number of remaining badges for sale (before event is sold out):</b> {{ c.REMAINING_BADGES }} <br/>
+<b>Number of attendees who've donated at least ${{ c.SUPPORTER_LEVEL }}:</b> {{ counts.supporter_level }}
 
 <h4>Badge Types</h4>
 <ul>

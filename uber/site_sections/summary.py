@@ -11,14 +11,14 @@ def generate_staff_badges(start_badge, end_badge, out, session):
     uber.reports.PrintedBadgeReport(
         badge_type=c.STAFF_BADGE,
         range=badge_range,
-        badge_type_name='Staff') \
-        .run(out, session)
+        badge_type_name='Staff').run(out, session)
 
 
 @all_renderable(c.STATS)
 class Root:
     def index(self, session):
         counts = defaultdict(OrderedDict)
+        counts['supporter_level'] = 0
         counts.update({
             'groups': {'paid': 0, 'free': 0},
             'noshows': {'paid': 0, 'free': 0},
@@ -52,6 +52,8 @@ class Root:
                 counts['interests'][c.INTERESTS[val]] += 1
             if a.paid == c.PAID_BY_GROUP and a.group:
                 counts['groups']['paid' if a.group.amount_paid else 'free'] += 1
+            if a.total_donation >= c.SUPPORTER_LEVEL:
+                counts['supporter_level'] += 1
             if not a.checked_in:
                 key = 'paid' if a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid else 'free'
                 counts['noshows'][key] += 1
