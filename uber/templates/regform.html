@@ -220,7 +220,7 @@
                             tags: true,
                             data: {{ affiliates|jsonize }},
                             width: '100%',
-                        }).val({{ attendee.affiliate|default('')|jsonize }}).trigger('change');
+                        }).val({{ attendee.affiliate|default('', boolean=True)|jsonize }}).trigger('change');
                     }
                 }
             });
@@ -579,7 +579,7 @@
             while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].extra < {{ attendee.amount_extra }}) {
                 BADGE_TYPES.options.splice(0, 1);
             }
-            while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].price && BADGE_TYPES.options[0].price < {{ c.BADGE_TYPE_PRICES[attendee.badge_type]|default(c.BADGE_PRICE) }}) {
+            while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].price && BADGE_TYPES.options[0].price < {{ c.BADGE_TYPE_PRICES[attendee.badge_type]|default(c.BADGE_PRICE, boolean=True) }}) {
                 BADGE_TYPES.options.splice(0, 1);
             }
         }
