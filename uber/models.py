@@ -1941,7 +1941,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def accoutrements(self):
-        stuff = [] if not self.ribbon else ['a ' + self.ribbon_label + ' ribbon']
+        stuff = [] if not self.ribbon else ['a ' + self.ribbon_labels + ' ribbon']
         if c.WRISTBANDS_ENABLED:
             stuff.append('a {} wristband'.format(c.WRISTBAND_COLORS[self.age_group]))
         if self.regdesk_info:
