@@ -193,7 +193,10 @@ class Root:
 
     @csv_file
     def printed_badges_minor(self, out, session):
-        uber.reports.PrintedBadgeReport(badge_type=c.CHILD_BADGE, badge_type_name='Minor').run(out, session)
+        try:
+            uber.reports.PrintedBadgeReport(badge_type=c.CHILD_BADGE, badge_type_name='Minor').run(out, session)
+        except AttributeError:
+            pass
 
     @csv_file
     def printed_badges_staff(self, out, session):
@@ -230,7 +233,7 @@ class Root:
             badge_type_override='supporter')
 
     """
-    Enumerate individual CSVs here that will be intergrated into the .zip which will contain all the
+    Enumerate individual CSVs here that will be integrated into the .zip which will contain all the
     badge types.  Downstream plugins can override which items are in this list.
     """
     badge_zipfile_contents = [
