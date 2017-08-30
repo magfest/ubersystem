@@ -414,7 +414,7 @@ def linebreaksbr(text):
 
 def normalize_newlines(text):
     if text:
-        return re.sub(r'\r\n|\r|\n', '\n', text)
+        return re.sub(r'\r\n|\r|\n', '\n', str(text))
     else:
         return ''
 
