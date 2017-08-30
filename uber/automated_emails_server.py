@@ -323,7 +323,7 @@ class DeptChecklistEmail(AutomatedEmail):
                                 when=days_before(7, conf.deadline),
                                 sender=c.STAFF_EMAIL,
                                 extra_data={'conf': conf},
-                                post_con = conf.email_post_con or False)
+                                post_con=conf.email_post_con or False)
 
 
 def notify_admins_of_any_pending_emails():
