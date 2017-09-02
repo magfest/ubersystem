@@ -13,7 +13,9 @@
     <b>Attendees who paid and didn't show up:</b> {{ counts.noshows.paid }} <br/>
 {% endif %}
 <b>Number of remaining badges for sale (before event is sold out):</b> {{ c.REMAINING_BADGES }} <br/>
-<b>Number of attendees who've donated at least ${{ c.SUPPORTER_LEVEL }}:</b> {{ counts.supporter_level }}
+{% for amount, count in counts.donation_tiers.items() %}
+  <b>Number of attendees who've donated at least ${{ amount }}:</b> {{ count }} <br>
+{% endfor %}
 
 <h4>Badge Types</h4>
 <ul>

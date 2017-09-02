@@ -18,7 +18,8 @@ def generate_staff_badges(start_badge, end_badge, out, session):
 class Root:
     def index(self, session):
         counts = defaultdict(OrderedDict)
-        counts['supporter_level'] = 0
+        counts['donation_tiers'] = OrderedDict([(k, 0) for k in sorted(c.DONATION_TIERS.keys()) if k > 0])
+
         counts.update({
             'groups': {'paid': 0, 'free': 0},
             'noshows': {'paid': 0, 'free': 0},
@@ -52,8 +53,12 @@ class Root:
                 counts['interests'][c.INTERESTS[val]] += 1
             if a.paid == c.PAID_BY_GROUP and a.group:
                 counts['groups']['paid' if a.group.amount_paid else 'free'] += 1
-            if a.total_donation >= c.SUPPORTER_LEVEL:
-                counts['supporter_level'] += 1
+
+            donation_amounts = list(counts['donation_tiers'].keys())
+            for index, amount in enumerate(donation_amounts):
+                next_amount = donation_amounts[index + 1] if index + 1 < len(donation_amounts) else six.MAXSIZE
+                if a.total_donation >= amount and a.total_donation < next_amount:
+                    counts['donation_tiers'][amount] = counts['donation_tiers'][amount] + 1
             if not a.checked_in:
                 key = 'paid' if a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid else 'free'
                 counts['noshows'][key] += 1
