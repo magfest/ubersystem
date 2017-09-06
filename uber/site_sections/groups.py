@@ -12,7 +12,7 @@ class Root:
         # TODO: think about using a SQLAlchemy column property for .badges and then just use .order()
         groups = sorted(session.query(Group).filter(*which).options(joinedload('attendees')).all(),
                         reverse=order.startswith('-'),
-                        key=lambda g: [getattr(g, order.lstrip('-')), g.tables])
+                        key=lambda g: [getattr(g, order.lstrip('-')).lower(), g.tables])
         return {
             'show':              show,
             'groups':            groups,
