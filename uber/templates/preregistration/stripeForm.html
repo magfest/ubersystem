@@ -5,6 +5,7 @@
         src="https://checkout.stripe.com/v2/checkout.js" class="stripe-button"
         data-key="{{ c.STRIPE_PUBLIC_KEY }}"
         {% if email %}data-email="{{ email }}"{% endif %}
+        {% if c.DEV_BOX %}data-bitcoin="true" {% endif %}
         data-zip-code="true"
         data-allow-remember-me="false"
         data-amount="{{ charge.amount }}"
