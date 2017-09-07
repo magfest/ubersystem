@@ -569,7 +569,7 @@ class Root:
 
         # if attendee is part of a group, we must delete attendee and remove from the group
         if attendee.group:
-            if attendee.group.leader_id != attendee.id:
+            if attendee.group.leader != attendee:
                 # remove this attendee from the group and delete the attendee
                 session.assign_badges(attendee.group, attendee.group.badges + 1, new_badge_type=attendee.badge_type, new_ribbon_type=attendee.ribbon, registered=attendee.registered, paid=attendee.paid)
                 session.delete_from_group(attendee, attendee.group)
@@ -627,7 +627,7 @@ class Root:
             'message':       message,
             'affiliates':    session.affiliates(),
             'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else 0,
-            'can_abandon':   not attendee.amount_paid and not attendee.paid == c.NEED_NOT_PAY and not (attendee.group and attendee.group.leader_id == attendee.id)
+            'can_abandon':   not attendee.amount_paid and not attendee.paid == c.NEED_NOT_PAY and not (attendee.group and attendee.group.leader == attendee)
         }
 
     @id_required(Attendee)
