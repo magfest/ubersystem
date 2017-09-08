@@ -562,10 +562,24 @@ class Root:
     def not_found(self, id, message):
         return {'id': id, 'message': message}
 
-    def invalidate(self, session, id):
+    def abandon_badge(self, session, id):
         attendee = session.attendee(id)
-        attendee.badge_status = c.INVALID_STATUS
-        raise HTTPRedirect('invalid_badge?id={}&message={}', attendee.id, 'Sorry you can\'t make it! We hope to see you next year!')
+        success_message = "Sorry you can't make it! We hope to see you next year!"
+        failure_message = "You cannot abandon your badge because you are the leader of a group."
+
+        # a group leader may not abandon their badge
+        if attendee.is_group_leader:
+            raise HTTPRedirect('confirm?id={}&message={}', id, failure_message)
+
+        # if attendee is part of a group, we must delete attendee and remove them from the group
+        if attendee.group:
+            session.assign_badges(attendee.group, attendee.group.badges + 1, new_badge_type=attendee.badge_type, new_ribbon_type=attendee.ribbon, registered=attendee.registered, paid=attendee.paid)
+            session.delete_from_group(attendee, attendee.group)
+            raise HTTPRedirect('not_found?id={}&message={}', attendee.id, success_message)
+        # otherwise, we will mark attendee as invalid
+        else:
+            attendee.badge_status = c.INVALID_STATUS
+            raise HTTPRedirect('invalid_badge?id={}&message={}', attendee.id, success_message)
 
     def badge_updated(self, session, id, message=''):
         return {'id': id, 'message': message}
@@ -611,7 +625,8 @@ class Root:
             'attendee':      attendee,
             'message':       message,
             'affiliates':    session.affiliates(),
-            'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else 0
+            'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else 0,
+            'can_abandon':   not attendee.amount_paid and not attendee.paid == c.NEED_NOT_PAY and not attendee.is_group_leader
         }
 
     @id_required(Attendee)
