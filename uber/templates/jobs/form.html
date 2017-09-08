@@ -24,6 +24,7 @@
         $("[name=restricted],[name=extra15]").attr("checked", false);
     }
     $().ready(function() {
+        {% if not job.is_new %}
         $("form[action='delete']").submit(function(event){
             var formToSubmit = this;
             event.preventDefault();
@@ -46,6 +47,7 @@
                 }
             });
         })
+        {% endif %}
     });
 // -->
 </script>
