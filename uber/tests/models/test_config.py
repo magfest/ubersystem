@@ -2,6 +2,27 @@ from uber import config
 from uber.tests import *
 
 
+class TestBadgeDeadlines:
+    def test_staff_badge_deadline(self):
+        assert c.PRINTED_BADGE_DEADLINE == c.get_printed_badge_deadline_by_type(c.STAFF_BADGE)
+
+    def test_supporter_badge_deadline_earlier(self, monkeypatch):
+        monkeypatch.setattr(c, 'SUPPORTER_BADGE_DEADLINE', (c.PRINTED_BADGE_DEADLINE - timedelta(days=1)))
+        assert c.PRINTED_BADGE_DEADLINE == c.get_printed_badge_deadline_by_type(c.ATTENDEE_BADGE)
+
+    def test_supporter_badge_deadline_later(self, monkeypatch):
+        monkeypatch.setattr(c, 'SUPPORTER_BADGE_DEADLINE', (c.PRINTED_BADGE_DEADLINE + timedelta(days=1)))
+        assert c.SUPPORTER_BADGE_DEADLINE == c.get_printed_badge_deadline_by_type(c.ATTENDEE_BADGE)
+
+    def test_group_leader_supporter_deadline(self, monkeypatch):
+        monkeypatch.setattr(c, 'SUPPORTER_BADGE_DEADLINE', (c.PRINTED_BADGE_DEADLINE + timedelta(days=1)))
+        assert c.SUPPORTER_BADGE_DEADLINE == c.get_printed_badge_deadline_by_type(c.PSEUDO_GROUP_BADGE)
+
+    def test_new_dealer_supporter_deadline(self, monkeypatch):
+        monkeypatch.setattr(c, 'SUPPORTER_BADGE_DEADLINE', (c.PRINTED_BADGE_DEADLINE + timedelta(days=1)))
+        assert c.SUPPORTER_BADGE_DEADLINE == c.get_printed_badge_deadline_by_type(c.PSEUDO_DEALER_BADGE)
+
+
 class TestPrices:
     def test_initial_attendee(self, clear_price_bumps):
         assert 40 == c.get_attendee_price(datetime.now(UTC))

@@ -133,6 +133,14 @@ class Config(_Overridable):
         with sa.Session() as session:
             return session.query(sa.Attendee).filter_by(badge_type=badge_type, badge_status=c.COMPLETED_STATUS).count()
 
+    def get_printed_badge_deadline_by_type(self, badge_type):
+        """
+        Returns either PRINTED_BADGE_DEADLINE for custom badge types or the latter of PRINTED_BADGE_DEADLINE and
+        SUPPORTER_BADGE_DEADLINE if the badge type is not preassigned (and only has a badge name if they're a supporter)
+        """
+        return c.PRINTED_BADGE_DEADLINE if badge_type in c.PREASSIGNED_BADGE_TYPES \
+            else max(c.PRINTED_BADGE_DEADLINE, c.SUPPORTER_BADGE_DEADLINE)
+
     @property
     def DEALER_REG_OPEN(self):
         return self.AFTER_DEALER_REG_START and self.BEFORE_DEALER_REG_SHUTDOWN
