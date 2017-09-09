@@ -23,6 +23,32 @@
         });
         $("[name=restricted],[name=extra15]").attr("checked", false);
     }
+    {% if not job.is_new %}
+    $().ready(function() {
+        $("form[action='delete']").submit(function(event){
+            var formToSubmit = this;
+            event.preventDefault();
+            bootbox.confirm({
+                message: "This will permanently delete this shift. Are you sure?",
+                buttons: {
+                    confirm: {
+                        label: 'Delete Shift',
+                        className: 'btn-danger'
+                    },
+                    cancel: {
+                        label: 'Nevermind',
+                        className: 'btn-default'
+                    }
+                },
+                callback: function (result) {
+                    if(result) {
+                        formToSubmit.submit();
+                    }
+                }
+            });
+        });
+    });
+    {% endif %}
 // -->
 </script>
 
