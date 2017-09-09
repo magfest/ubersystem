@@ -220,6 +220,16 @@
                             tags: true,
                             data: {{ affiliates|jsonize }},
                             width: '100%',
+                            createTag: function(params) {
+                                var term = $.trim(params.term);
+
+                                if (params.term === '') return null;
+
+                                return {
+                                    id: params.term,
+                                    text: params.term + ' (Add new)'
+                                }
+                            }
                         }).val({{ attendee.affiliate|default('', boolean=True)|jsonize }}).trigger('change');
                     }
                 }
