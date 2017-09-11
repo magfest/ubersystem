@@ -275,10 +275,8 @@ def emergency_contact(attendee):
 @ignore_unassigned_and_placeholders
 def cellphone(attendee):
     if attendee.cellphone and _invalid_phone_number(attendee.cellphone):
-        if c.COLLECT_FULL_ADDRESS:
-            return 'Enter a 10-digit US phone number or include a country code (e.g. +44) for your phone number.'
-        else:
-            return 'Your phone number was not a valid 10-digit phone number'
+        # phone number was inputted incorrectly
+        return 'Your phone number was not a valid 10-digit US phone number. Please include a country code (e.g. +44) for international numbers.'
 
     if not attendee.no_cellphone and attendee.staffing and not attendee.cellphone:
         return "Phone number is required for volunteers (unless you don't own a cellphone)"
