@@ -13,6 +13,7 @@ on success and a string error message on validation failure.
 """
 from uber.common import *
 from email_validator import validate_email, EmailNotValidError
+import phonenumbers
 
 
 AdminAccount.required = [('attendee', 'Attendee'), ('hashed', 'Password')]
@@ -118,8 +119,11 @@ def group_money(group):
 
 
 def _invalid_phone_number(s):
-    if not s.startswith('+'):
-        return len(re.findall(r'\d', s)) != 10 or re.search(c.SAME_NUMBER_REPEATED, re.sub(r'[^0-9]', '', s))
+    try:
+        parsed = phonenumbers.parse(s, 'US')
+    except phonenumbers.phonenumberutil.NumberParseException:
+        return True
+    return not phonenumbers.is_possible_number(parsed)
 
 
 def _invalid_zip_code(s):
