@@ -13,6 +13,7 @@ on success and a string error message on validation failure.
 """
 from uber.common import *
 from email_validator import validate_email, EmailNotValidError
+import phonenumbers
 
 
 AdminAccount.required = [('attendee', 'Attendee'), ('hashed', 'Password')]
@@ -118,8 +119,22 @@ def group_money(group):
 
 
 def _invalid_phone_number(s):
-    if not s.startswith('+'):
-        return len(re.findall(r'\d', s)) != 10 or re.search(c.SAME_NUMBER_REPEATED, re.sub(r'[^0-9]', '', s))
+    try:
+        # parse input as a US number, unless a leading + is provided,
+        # in which case the input will be validated according to the country code
+        parsed = phonenumbers.parse(s, 'US')
+    except phonenumbers.phonenumberutil.NumberParseException:
+        # could not be parsed due to unexpected characters
+        return True
+
+    if not phonenumbers.is_possible_number(parsed):
+        # could not be a phone number due to length, invalid characters, etc
+        return True
+    elif parsed.country_code == 1 and phonenumbers.length_of_national_destination_code(parsed) == 0:
+        # US number does not contain area code
+        return True
+
+    return False
 
 
 def _invalid_zip_code(s):
@@ -271,10 +286,8 @@ def emergency_contact(attendee):
 @ignore_unassigned_and_placeholders
 def cellphone(attendee):
     if attendee.cellphone and _invalid_phone_number(attendee.cellphone):
-        if c.COLLECT_FULL_ADDRESS:
-            return 'Enter a 10-digit US phone number or include a country code (e.g. +44) for your phone number.'
-        else:
-            return 'Your phone number was not a valid 10-digit phone number'
+        # phone number was inputted incorrectly
+        return 'Your phone number was not a valid 10-digit US phone number. Please include a country code (e.g. +44) for international numbers.'
 
     if not attendee.no_cellphone and attendee.staffing and not attendee.cellphone:
         return "Phone number is required for volunteers (unless you don't own a cellphone)"
