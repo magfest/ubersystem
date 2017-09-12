@@ -1,6 +1,6 @@
 from uber import config
 from uber.tests import *
-from uber.model_checks import extra_donation_valid
+from uber.model_checks import extra_donation_valid, _invalid_phone_number
 
 
 class TestCosts:
@@ -477,3 +477,69 @@ class TestExtraDonationValidations:
 
     def test_extra_donation_valid(self):
         assert None == extra_donation_valid(Attendee(extra_donation=10))
+
+
+class TestPhoneNumberValidations:
+
+    valid_us_numbers = [
+        '7031234567',
+        '703 123 4567',
+        '(641) 123 4567',
+        '803-123-4567',
+        '(210)123-4567',
+        '12071234567',
+        '(202)fox-trot',
+        '+1 (202) 123-4567',
+    ]
+
+    invalid_us_numbers = [
+        # missing digits
+        '304123456',
+        '(864) 123 456',
+        '228-12-4567',
+        # too many digits
+        '405 123 45678',
+        '701 1234 4567',
+        # invalid characters
+        'f',
+        '404\\404 4040',
+        # normally a valid US number, but we want the area code
+        '123-4567',
+    ]
+
+    # all international numbers must have a leading +
+    valid_international_numbers = [
+        '+44 20 7946 0974',
+        '+442079460974',
+        '+44 7700 900927',
+        '+61 491 570 156',
+        '+36 55 889 752',
+        '+353 20 914 9510',
+        '+49 033933-88213'
+    ]
+
+    invalid_international_numbers = [
+        '+1234567890',
+        '+41458d98e5',
+        '+44,4930222'
+    ]
+
+    def test_phone_numbers(self):
+        # valid us numbers should pass
+        self.list_is_valid(self.valid_us_numbers)
+        # valid international numbers should pass
+        self.list_is_valid(self.valid_international_numbers)
+
+        # invalid us numbers should fail
+        self.list_is_invalid(self.invalid_us_numbers)
+        # invalid international numbers should fail
+        self.list_is_invalid(self.invalid_international_numbers)
+
+    # utility functions for testing in this class
+    def list_is_valid(self, test_list):
+        for number in test_list:
+            assert False == _invalid_phone_number(number)
+
+    def list_is_invalid(self, test_list):
+        for number in test_list:
+            assert True == _invalid_phone_number(number)
