@@ -1708,7 +1708,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def age_group_conf(self):
         if self.birthdate:
             day = c.EPOCH.date() if date.today() <= c.EPOCH.date() else sa.localized_now().date()
-            attendee_age = (day - self.birthdate).days // 365.2425
+            attendee_age = get_age_from_birthday(self.birthdate, day)
             for val, age_group in c.AGE_GROUP_CONFIGS.items():
                 if val != c.AGE_UNKNOWN and age_group['min_age'] <= attendee_age <= age_group['max_age']:
                     return age_group

@@ -1,5 +1,5 @@
 from uber.tests import *
-from uber.utils import add_opt, remove_opt
+from uber.utils import add_opt, remove_opt, get_age_from_birthday
 
 
 @pytest.fixture
@@ -93,3 +93,38 @@ class TestCharge:
         charge = Charge(amount=1000, description="Test charge")
         Charge.charge_cc(charge, Mock(), 1)
         assert not Charge.stripe_transaction_from_charge.called
+
+
+class TestAgeCalculations:
+
+    @pytest.mark.parametrize('birthdate,today,expected', [
+        # general
+        (date(2000, 1,  1), date(2010, 1,  1), 10),
+        (date(2000, 1,  1), date(2010, 6,  1), 10),
+        (date(2000, 1,  1), date(2009, 6,  1),  9),
+        (date(2000, 7, 31), date(2010, 7, 30),  9),
+        (date(2000, 7, 31), date(2010, 7, 31), 10),
+        (date(2000, 7, 31), date(2010, 8,  1), 10),
+        # feb 29 birthday
+        (date(2000, 2, 29), date(2010, 2, 28),  9),
+        (date(2000, 2, 29), date(2010, 3,  1), 10),
+        # feb 29 birthday + feb 29 today
+        (date(2000, 2, 29), date(2008, 2, 28),  7),
+        (date(2000, 2, 29), date(2008, 2, 29),  8),
+        (date(2000, 2, 29), date(2008, 3,  1),  8),
+        # feb 29 today
+        (date(2000, 3,  1), date(2008, 2, 28),  7),
+        (date(2000, 3,  1), date(2008, 2, 29),  7),
+        (date(2000, 3,  1), date(2008, 3,  1),  8),
+        # turning 18
+        (date(2000, 1,  4), date(2018, 1,  3), 17),
+        (date(2000, 1,  4), date(2018, 1,  4), 18),
+        (date(2000, 1,  5), date(2018, 1,  4), 17),
+        # turning 21
+        (date(1997, 1,  4), date(2018, 1,  3), 20),
+        (date(1997, 1,  4), date(2018, 1,  4), 21),
+        (date(1997, 1,  5), date(2018, 1,  4), 20)
+
+    ])
+    def test_age_calculation(self, birthdate, today, expected):
+        assert expected == get_age_from_birthday(birthdate, today)
