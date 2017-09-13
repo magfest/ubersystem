@@ -548,6 +548,28 @@ def remove_opt(opts, other):
     return ','.join(map(str, set(opts).difference(other)))
 
 
+def get_age_from_birthday(birthdate, today=None):
+    """
+    Determines a person's age in the US. DO NOT use this to find other timespans, like the duration of an event.
+    This function does not calculate a fully accurate timespan between two datetimes.
+    This function assumes that a person's age begins at zero, and increments when `today.day == birthdate.day`.
+    This will not be accurate for cultures which calculate age differently than the US, such as Korea.
+
+    Args:
+        birthdate: A date, should be earlier than the second parameter
+        today:  Optional, age will be found as of this date
+
+    Returns: An integer indicating the age.
+
+    """
+
+    if today == None:
+        today = date.today()
+
+    # Hint: int(True) == 1 and int(False) == 0
+    return today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
+
+
 _when_dateformat = "%m/%d"
 
 
