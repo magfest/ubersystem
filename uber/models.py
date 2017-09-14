@@ -176,9 +176,9 @@ def JSONColumnMixin(column_name, fields, admin_only=False):
         >>> SocialMediaMixin = JSONColumnMixin('social_media', ['Twitter', 'LinkedIn'])
         >>> SocialMediaMixin.social_media
         Column('social_media', JSON(), table=None, nullable=False, default=ColumnDefault({}), server_default=DefaultClause('{}', for_update=False))
-        >>> SocialMediaMixin.social_media_fields
+        >>> SocialMediaMixin._social_media_fields
         OrderedDict([('twitter', 'Twitter'), ('linked_in', 'LinkedIn')])
-        >>> SocialMediaMixin.social_media_qualified_fields
+        >>> SocialMediaMixin._social_media_qualified_fields
         OrderedDict([('social_media__twitter', 'twitter'), ('social_media__linked_in', 'linked_in')])
 
     Instances of the newly created mixin class have convenience accessors for
@@ -212,8 +212,8 @@ def JSONColumnMixin(column_name, fields, admin_only=False):
     Returns:
         type: A new mixin class with a JSON column named column_name.
     """
-    fields_name = column_name + '_fields'
-    qualified_fields_name = column_name + '_qualified_fields'
+    fields_name = '_{}_fields'.format(column_name)
+    qualified_fields_name = '_{}_qualified_fields'.format(column_name)
     if isinstance(fields, collections.Mapping):
         fields = OrderedDict([(fieldify(k), v) for k, v in fields.items()])
     else:
@@ -258,7 +258,10 @@ def JSONColumnMixin(column_name, fields, admin_only=False):
     def _Mixin__setattr__(self, name, value):
         name = self.unqualify(name)
         if name in getattr(self.__class__, fields_name):
-            getattr(self, column_name)[name] = value
+            fields = getattr(self, column_name)
+            if fields.get(name) != value:
+                fields[name] = value
+                super(_Mixin, self).__setattr__(column_name, dict(fields))
         else:
             super(_Mixin, self).__setattr__(name, value)
     _Mixin.__setattr__ = _Mixin__setattr__
@@ -555,7 +558,7 @@ class MagModel:
 
         for column in self.__table__.columns:
             if (not restricted or column.name in self.unrestricted) and (column.type is JSON or isinstance(column.type, JSON)):
-                fields = getattr(self, column.name + '_fields', {})
+                fields = getattr(self, '_{}_fields'.format(column.name), {})
                 for field in fields.keys():
                     if field in params:
                         setattr(self, field, params[field])
