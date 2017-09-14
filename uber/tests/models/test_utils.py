@@ -139,7 +139,5 @@ class TestAgeCalculations:
         (timedelta(days=1500), 4),
     ])
     def test_default_today(self, birthdate_delta, expected):
-        now = localized_now()
         birthdate = localized_now() - birthdate_delta
-
         assert expected == get_age_from_birthday(birthdate)
