@@ -481,7 +481,8 @@ class TestExtraDonationValidations:
 
 class TestPhoneNumberValidations:
 
-    valid_us_numbers = [
+    @pytest.mark.parametrize('number', [
+        # valid US numbers
         '7031234567',
         '703 123 4567',
         '(641) 123 4567',
@@ -490,9 +491,22 @@ class TestPhoneNumberValidations:
         '12071234567',
         '(202)fox-trot',
         '+1 (202) 123-4567',
-    ]
 
-    invalid_us_numbers = [
+        # valid international numbers
+        # all international numbers must have a leading +
+        '+44 20 7946 0974',
+        '+442079460974',
+        '+44 7700 900927',
+        '+61 491 570 156',
+        '+36 55 889 752',
+        '+353 20 914 9510',
+        '+49 033933-88213'
+    ])
+    def test_valid_number(self, number):
+        assert False == _invalid_phone_number(number)
+
+    @pytest.mark.parametrize('number', [
+        # invalid US numbers
         # missing digits
         '304123456',
         '(864) 123 456',
@@ -505,41 +519,11 @@ class TestPhoneNumberValidations:
         '404\\404 4040',
         # normally a valid US number, but we want the area code
         '123-4567',
-    ]
 
-    # all international numbers must have a leading +
-    valid_international_numbers = [
-        '+44 20 7946 0974',
-        '+442079460974',
-        '+44 7700 900927',
-        '+61 491 570 156',
-        '+36 55 889 752',
-        '+353 20 914 9510',
-        '+49 033933-88213'
-    ]
-
-    invalid_international_numbers = [
+        # invalid international numbers
         '+1234567890',
         '+41458d98e5',
         '+44,4930222'
-    ]
-
-    def test_phone_numbers(self):
-        # valid us numbers should pass
-        self.list_is_valid(self.valid_us_numbers)
-        # valid international numbers should pass
-        self.list_is_valid(self.valid_international_numbers)
-
-        # invalid us numbers should fail
-        self.list_is_invalid(self.invalid_us_numbers)
-        # invalid international numbers should fail
-        self.list_is_invalid(self.invalid_international_numbers)
-
-    # utility functions for testing in this class
-    def list_is_valid(self, test_list):
-        for number in test_list:
-            assert False == _invalid_phone_number(number)
-
-    def list_is_invalid(self, test_list):
-        for number in test_list:
-            assert True == _invalid_phone_number(number)
+    ])
+    def test_invalid_number(selfself, number):
+        assert True == _invalid_phone_number(number)
