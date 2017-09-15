@@ -783,9 +783,9 @@ class Root:
             params['endhour'] = localized_now().strftime('%H')
             params['endminute'] = localized_now().strftime('%M')
         # list all reg stations associated with attendees and sales
-        stations_attendees = session.query(Attendee.reg_station).filter(Attendee.reg_station is not None, Attendee.reg_station > 0)
-        stations_sales = session.query(Sale.reg_station).filter(Sale.reg_station is not None, Sale.reg_station > 0)
-        stations = sorted([r for (r,) in stations_attendees.union(stations_sales).distinct()])
+        stations_attendees = session.query(Attendee.reg_station).filter(Attendee.reg_station != None, Attendee.reg_station > 0)
+        stations_sales = session.query(Sale.reg_station).filter(Sale.reg_station != None, Sale.reg_station > 0)
+        stations = [r for (r,) in stations_attendees.union(stations_sales).distinct().order_by(Attendee.reg_station)]
         params['reg_stations'] = stations
         params.setdefault('reg_station', stations[0] if stations else 0)
         return params
