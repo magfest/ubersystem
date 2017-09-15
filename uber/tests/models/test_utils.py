@@ -105,6 +105,8 @@ class TestAgeCalculations:
         (date(2000, 7, 31), date(2010, 7, 30),  9),
         (date(2000, 7, 31), date(2010, 7, 31), 10),
         (date(2000, 7, 31), date(2010, 8,  1), 10),
+        (date(2000, 10, 4), date(2017, 10, 3), 16),
+        (date(2000, 10, 4), date(2017, 10, 4), 17),
         # feb 29 birthday
         (date(2000, 2, 29), date(2010, 2, 28),  9),
         (date(2000, 2, 29), date(2010, 3,  1), 10),
@@ -128,3 +130,14 @@ class TestAgeCalculations:
     ])
     def test_age_calculation(self, birthdate, today, expected):
         assert expected == get_age_from_birthday(birthdate, today)
+
+    @pytest.mark.parametrize('birthdate_delta,expected', [
+        (timedelta(days=200), 0),
+        (timedelta(days=400), 1),
+        (timedelta(days=800), 2),
+        (timedelta(days=1200), 3),
+        (timedelta(days=1500), 4),
+    ])
+    def test_default_today(self, birthdate_delta, expected):
+        birthdate = localized_now() - birthdate_delta
+        assert expected == get_age_from_birthday(birthdate)
