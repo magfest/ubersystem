@@ -774,16 +774,18 @@ class Root:
                                                        Attendee.registered > start, Attendee.registered <= end).all()
             params['sales'] = sales
             params['attendees'] = attendees
-            params['total_cash'] = sum(a.amount_paid for a in attendees if a.payment_method == CASH) \
-                                 + sum(s.cash for s in sales if s.payment_method == CASH)
+            params['total_cash'] = sum(a.amount_paid for a in attendees if a.payment_method == c.CASH) \
+                                 + sum(s.cash for s in sales if s.payment_method == c.CASH)
             params['total_credit'] = sum(a.amount_paid for a in attendees if a.payment_method in [c.STRIPE, c.SQUARE, c.MANUAL]) \
                                    + sum(s.cash for s in sales if s.payment_method == c.CREDIT)
         else:
             params['endday'] = localized_now().strftime('%Y-%m-%d')
             params['endhour'] = localized_now().strftime('%H')
             params['endminute'] = localized_now().strftime('%M')
-
-        stations = sorted(filter(bool, Attendee.objects.values_list('reg_station', flat=True).distinct()))
+        # list all reg stations associated with attendees and sales
+        stations_attendees = session.query(Attendee.reg_station).filter(Attendee.reg_station is not None, Attendee.reg_station > 0)
+        stations_sales = session.query(Sale.reg_station).filter(Sale.reg_station is not None, Sale.reg_station > 0)
+        stations = sorted([r for (r,) in stations_attendees.union(stations_sales).distinct()])
         params['reg_stations'] = stations
         params.setdefault('reg_station', stations[0] if stations else 0)
         return params
