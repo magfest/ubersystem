@@ -129,3 +129,52 @@ span.jq-dte {
     padding-left: 0;
     padding-right: 0;
 }
+
+/* imported from styles.css */
+
+table.navmenu {
+    border-spacing: 5px;
+    border-collapse: collapse;
+    text-align:      center;
+    margin-top:      10px;
+    margin-bottom:   10px;
+    width:          100%;
+
+}
+table.navmenu td {
+    border: 2px solid gray;
+    padding: 5px;
+}
+
+table.list {
+    width:           100%;
+    text-align:      center;
+    border-collapse: collapse;
+}
+table.list td {
+    border:  1px solid black;
+    padding: 5px;
+}
+table.list tr.header {
+    background:     #99CCFF;
+    font-weight:    bold;
+    vertical-align: bottom;
+}
+table.list tr.header a,
+table.list tr.header a:hover,
+table.list tr.header a:visited {
+    color:           black;
+    text-decoration: none;
+}
+table.list table td {
+    border:  0;
+    padding: 0;
+}
+
+.pad-top-10 li {
+    padding-top: 10px;
+}
+
+.center {
+    text-align: center;
+}
