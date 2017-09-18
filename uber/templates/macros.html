@@ -230,7 +230,7 @@
 
 {% macro nav_menu(model, current_page_path) -%}
   {% if not model.is_new -%}
-    <table class="menu"><tr>
+    <table class="navmenu"><tr>
       {% for href, label, display in varargs|batch(3, False) if display %}
         {% set href = href.format(**model.__dict__) %}
         <td width="{{ 100 // loop.length }}%">
