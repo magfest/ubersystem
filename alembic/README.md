@@ -71,7 +71,7 @@ themselves:
        |
        +-(panels)-+->[panels@head]
        |          |
-       |          +-(bands)->[bands@head]
+       |          +-(guests)->[guests@head]
        |          |
        |          +-(tabletop)->[tabletop@head]
        |
