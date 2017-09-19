@@ -1,7 +1,7 @@
 import sideboard
 from uber.common import *
 from hotel.models import *
-from bands.models import *
+from guests.models import *
 
 
 TEST_DATA_FILE = join(os.path.dirname(__file__), 'test_data.json')
