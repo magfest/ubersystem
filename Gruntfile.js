@@ -57,17 +57,29 @@ module.exports = function (grunt) {
         },
         cssmin: {
             options: {
-                sourceMap: true
+                sourceMap: true,
+                rebaseTo: 'uber/static/deps'
             },
             target: {
                 files: {
                     'uber/static/deps/combined.min.css': ['uber/static/deps/combined.css']
                 }
             }
+        },
+        replace: {
+            correct_sourcemap: {
+                src: ['uber/static/deps/combined.min.css.map'],
+                overwrite: true,
+                replacements: [{
+                  from: '"uber/static/deps/combined.css"',
+                  to: '"/uber/static/deps/combined.css"'
+                }]
+            }
         }
     });
     grunt.loadNpmTasks('grunt-bower-concat');
     grunt.loadNpmTasks('grunt-contrib-uglify');
     grunt.loadNpmTasks('grunt-contrib-cssmin');
-    grunt.registerTask('default', ['bower_concat', 'uglify', 'cssmin']);
+    grunt.loadNpmTasks('grunt-text-replace');
+    grunt.registerTask('default', ['bower_concat', 'uglify', 'cssmin', 'replace']);
 };
