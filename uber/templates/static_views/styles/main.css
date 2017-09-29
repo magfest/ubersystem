@@ -11,6 +11,11 @@ label.error {
     margin-bottom: 0px;
 }
 
+#mainContainer > .navbar {
+    margin-left: -15px;
+    margin-right: -15px;
+}
+
 #mainContainer {
     padding-bottom: 30px;
 }
