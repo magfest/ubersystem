@@ -84,11 +84,5 @@ c.MENU = MenuItem(name='Root', submenu=[
         MenuItem(name='Feed of Database Changes', href='../registration/feed'),
     ]),
 
-    MenuItem(name='Schedule', access=c.STUFF, submenu=[
-        MenuItem(name='View Schedule', href='../schedule/'),
-        MenuItem(name='View Schedule (Internal Only)', href='../schedule/internal'),
-        MenuItem(name='Edit Schedule', href='../schedule/edit'),
-    ]),
-
     MenuItem(name='Statistics', access=c.STATS, href='../summary/'),
 ])
