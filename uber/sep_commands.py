@@ -75,15 +75,20 @@ def alembic(*args):
             # name as the branch label.
             options.branch_label = plugin_name
 
-    if 'head' in kwarg_names and not options.head and \
-            options.branch_label != plugin_name:
-        # If the command supports the "--head" option and it was not specified
-        # and the we're not creating a new branch for the plugin, then make
-        # this revision on top of the plugin's branch head.
-        revision = get_plugin_head_revision(plugin_name)
-        options.head = revision.revision
-        if revision.is_branch_point:
-            options.splice = True
+    if 'head' in kwarg_names and not options.head:
+        # If the command supports the "--head" option and it was not specified:
+        # -> if we're not creating a new branch for the plugin, then make this
+        #    this revision on top of the plugin's branch head
+        # -> if we're creating the initial migration for a plugin, automatically
+        #    set the head to the uber branch head revision
+        if options.branch_label != plugin_name:
+            revision = get_plugin_head_revision(plugin_name)
+            options.head = revision.revision
+            if revision.is_branch_point:
+                options.splice = True
+        elif not glob(join(options.version_path, '*.py')):
+            revision = get_plugin_head_revision('uber')
+            options.head = revision.revision
 
     commandline.run_cmd(create_alembic_config(cmd_opts=options), options)
 
