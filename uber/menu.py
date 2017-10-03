@@ -7,7 +7,7 @@ class MenuItem:
     submenu = None  # submenu to show
     name = None     # name of Menu item to show
 
-    def __init__(self, href=None, access=None, submenu=None, name=None):
+    def __init__(self, href=None, access=None, submenu=None, name=None, priority=None):
         assert submenu or href, "menu items must contain ONE nonempty: href or submenu"
         assert not submenu or not href, "menu items must not contain both a href and submenu"
 
@@ -15,6 +15,11 @@ class MenuItem:
             self.submenu = listify(submenu)
         else:
             self.href = href
+            
+        if priority:
+            self.priority = priority
+        else:
+            self.priority = 0
 
         self.name = name
         self.access = access
@@ -57,7 +62,7 @@ class MenuItem:
         out['name'] = self.name
         if self.submenu:
             out['submenu'] = []
-            for menu_item in self.submenu:
+            for menu_item in sorted(sorted(self.submenu, key=lambda x: x.name), key=lambda x: x.priority):
                 filtered_menu_items = menu_item.render_items_filtered_by_current_access()
                 if filtered_menu_items:
                     out['submenu'].append(filtered_menu_items)
