@@ -559,7 +559,7 @@ class Root:
     def invalid_badge(self, session, id, message=''):
         return {'attendee': session.attendee(id, allow_invalid=True), 'message': message}
 
-    def not_found(self, id, message):
+    def not_found(self, id, message=''):
         return {'id': id, 'message': message}
 
     def abandon_badge(self, session, id):
