@@ -15,7 +15,7 @@ class MenuItem:
             self.submenu = listify(submenu)
         else:
             self.href = href
-            
+
         if priority:
             self.priority = priority
         else:
