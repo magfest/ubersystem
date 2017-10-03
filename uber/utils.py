@@ -77,16 +77,26 @@ def localize_datetime(dt):
     return dt.replace(tzinfo=UTC).astimezone(c.EVENT_TIMEZONE)
 
 
-def comma_and(xs):
+@JinjaEnv.jinja_filter
+def comma_and(xs, conjunction='and'):
     """
     Accepts a list of strings and separates them with commas as grammatically
-    appropriate with an "and" before the final entry.  For example:
-        ['foo']               => 'foo'
-        ['foo', 'bar']        => 'foo and bar'
-        ['foo', 'bar', 'baz'] => 'foo, bar, and baz'
+    appropriate with a conjunction before the final entry. For example::
+
+        >>> comma_and(['foo'])
+        'foo'
+        >>> comma_and(['foo', 'bar'])
+        'foo and bar'
+        >>> comma_and(['foo', 'bar', 'baz'])
+        'foo, bar, and baz'
+        >>> comma_and(['foo', 'bar', 'baz'], 'or')
+        'foo, bar, or baz'
+        >>> comma_and(['foo', 'bar', 'baz'], 'but never')
+        'foo, bar, but never baz'
     """
     if len(xs) > 1:
-        xs[-1] = 'and ' + xs[-1]
+        xs = list(xs)
+        xs[-1] = conjunction + ' ' + xs[-1]
     return (', ' if len(xs) > 2 else ' ').join(xs)
 
 
