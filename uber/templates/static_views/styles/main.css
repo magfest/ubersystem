@@ -184,8 +184,6 @@ table.list table td {
     text-align: center;
 }
 
-ul.ui-autocomplete {
-    max-height: 250px;
-    overflow-x: hidden;
-    overflow-y: auto;
+ul.select2-results {
+    max-height: 300px;
 }
