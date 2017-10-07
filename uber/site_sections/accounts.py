@@ -18,11 +18,7 @@ class Root:
             'message':  message,
             'accounts': session.query(AdminAccount).join(Attendee)
                                .order_by(Attendee.last_first).all(),
-            'all_attendees': sorted([
-                (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
-                for id, name, badge_type, badge_num in session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num)
-                                    .filter(Attendee.first_name != '').filter(Attendee.badge_status not in [c.INVALID_STATUS, c.WATCHED_STATUS]).all()
-            ], key=lambda tup: tup[1])
+            'all_attendees': session.all_attendee_opts()
         }
 
     def update(self, session, password='', message='', **params):

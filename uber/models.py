@@ -764,6 +764,18 @@ class Session(SessionManager):
                     .options(subqueryload(Attendee.group), subqueryload(Attendee.shifts).subqueryload(Shift.job))
                     .order_by(Attendee.full_name))
 
+        def all_attendees_opts(self):
+            """
+            Returns a sorted list of valid attendees formatted for the {{ options }} custom st.
+            """
+            return sorted([(
+                id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
+                for id, name, badge_type, badge_num in
+                self.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num)
+                    .filter(Attendee.first_name != '')
+                    .filter(Attendee.badge_status not in [c.INVALID_STATUS, c.WATCHED_STATUS]).all()],
+                key=lambda tup: tup[1])
+
         def staffers(self):
             return self.all_attendees(only_staffing=True)
 
