@@ -5,7 +5,7 @@ from jinja2.loaders import split_template_path
 from jinja2.utils import open_if_exists
 
 
-class PluginEnvironment(jinja2.Environment):
+class MultiPathEnvironment(jinja2.Environment):
 
     def _find_requesting_templates(self):
         """
@@ -35,7 +35,7 @@ class PluginEnvironment(jinja2.Environment):
         return template
 
 
-class PluginLoader(jinja2.FileSystemLoader):
+class MultiPathLoader(jinja2.FileSystemLoader):
 
     def get_source(self, environment, template, requesting_templates=set()):
         """
@@ -128,9 +128,9 @@ class JinjaEnv:
 
     @classmethod
     def _init_env(cls):
-        env = PluginEnvironment(
+        env = MultiPathEnvironment(
             autoescape=True,
-            loader=PluginLoader(cls._template_dirs))
+            loader=MultiPathLoader(cls._template_dirs))
 
         for name, func in cls._exportable_functions.items():
             env.globals[name] = func
