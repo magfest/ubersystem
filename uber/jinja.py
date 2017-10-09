@@ -23,7 +23,7 @@ class MultiPathEnvironment(jinja2.Environment):
 
         requesting_templates = self._find_requesting_templates()
 
-        cache_key = (weakref.ref(self.loader), name, ','.join(requesting_templates))
+        cache_key = (weakref.ref(self.loader), name, ','.join(sorted(requesting_templates)))
         if self.cache is not None:
             template = self.cache.get(cache_key)
             if template is not None and (not self.auto_reload or
