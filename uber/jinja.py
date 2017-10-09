@@ -3,6 +3,7 @@ import traceback
 import weakref
 from jinja2.loaders import split_template_path
 from jinja2.utils import open_if_exists
+from jinja2.exceptions import TemplateNotFound
 
 
 class MultiPathEnvironment(jinja2.Environment):
