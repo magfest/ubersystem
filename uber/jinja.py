@@ -8,29 +8,29 @@ from jinja2.exceptions import TemplateNotFound
 
 class MultiPathEnvironment(jinja2.Environment):
 
-    def _find_requesting_templates(self):
-        """
-        Returns the set of all files in the call stack ending in ".html".
-        """
-        stack = map(lambda s: s[0], traceback.extract_stack())
-        return set(filter(lambda s: s.endswith('.html'), stack))
+    @request_cached_property
+    def _templates_loaded_for_current_request(self):
+        return set()
 
     def _load_template(self, name, globals):
         """
-        Overridden to take into consideration the templates in the call stack.
+        Overridden to consider templates already loaded during the current request.
         """
         if self.loader is None:
             raise TypeError('no loader for this environment specified')
 
-        requesting_templates = self._find_requesting_templates()
-
-        cache_key = (weakref.ref(self.loader), name, ','.join(sorted(requesting_templates)))
+        loaded_templates = self._templates_loaded_for_current_request
+        cache_key = (weakref.ref(self.loader), name, ','.join(sorted(loaded_templates)))
         if self.cache is not None:
             template = self.cache.get(cache_key)
             if template is not None and (not self.auto_reload or
                                          template.is_up_to_date):
+                self._templates_loaded_for_current_request.add(template.filename)
                 return template
-        template = self.loader.load(self, name, globals, requesting_templates)
+
+        template = self.loader.load(self, name, globals)
+        self._templates_loaded_for_current_request.add(template.filename)
+
         if self.cache is not None:
             self.cache[cache_key] = template
         return template
@@ -38,70 +38,53 @@ class MultiPathEnvironment(jinja2.Environment):
 
 class MultiPathLoader(jinja2.FileSystemLoader):
 
-    def get_source(self, environment, template, requesting_templates=set()):
+    def _get_source_if_exists(self, filename):
+        f = open_if_exists(filename)
+        if f is None:
+            return None
+        try:
+            contents = f.read().decode(self.encoding)
+        finally:
+            f.close()
+
+        mtime = os.path.getmtime(filename)
+
+        def uptodate():
+            try:
+                return os.path.getmtime(filename) == mtime
+            except OSError:
+                return False
+        return contents, filename, uptodate
+
+    def get_source(self, environment, template):
         """
-        Overridden to accept the requesting_templates parameter: a set of every
-        template that has already been loaded during the current request.
+        Overridden to take into account the set of templates that have already
+        been loaded during the current request.
         """
+        loaded_templates = environment._templates_loaded_for_current_request
         pieces = split_template_path(template)
+        ignored_filename = None
         for searchpath in self.searchpath:
             filename = os.path.join(searchpath, *pieces)
-            if filename in requesting_templates:
-                # If the file is already in the call stack, ignore it
+            if filename in loaded_templates:
+                # If the file is already in the call stack, ignore it for now
+                ignored_filename = filename
                 continue
 
-            f = open_if_exists(filename)
-            if f is None:
-                continue
-            try:
-                contents = f.read().decode(self.encoding)
-            finally:
-                f.close()
+            source = self._get_source_if_exists(filename)
+            if source:
+                return source
 
-            mtime = os.path.getmtime(filename)
-
-            def uptodate():
-                try:
-                    return os.path.getmtime(filename) == mtime
-                except OSError:
-                    return False
-            return contents, filename, uptodate
+        if ignored_filename:
+            # We actually did find the template, but we ignored it because
+            # it's already been loaded at least once this request. We are
+            # searching for templates that _haven't_ been loaded yet, but
+            # once we've loaded all the templates with a given name, we can
+            # fall back to a template we've already loaded
+            source = self._get_source_if_exists(ignored_filename)
+            if source:
+                return source
         raise TemplateNotFound(template)
-
-    def load(self, environment, name, globals=None, requesting_templates=set()):
-        """
-        Overridden to accept the requesting_templates parameter, a set of every
-        template that has already been loaded during the current request.
-        """
-        code = None
-        if globals is None:
-            globals = {}
-
-        # first we try to get the source for this template together
-        # with the filename and the uptodate function.
-        source, filename, uptodate = self.get_source(environment, name, requesting_templates)
-
-        # try to load the code from the bytecode cache if there is a
-        # bytecode cache configured.
-        bcc = environment.bytecode_cache
-        if bcc is not None:
-            bucket = bcc.get_bucket(environment, name, filename, source)
-            code = bucket.code
-
-        # if we don't have code so far (not cached, no longer up to
-        # date) etc. we compile the template
-        if code is None:
-            code = environment.compile(source, name, filename)
-
-        # if the bytecode cache is available and the bucket doesn't
-        # have a code so far, we give the bucket the new code and put
-        # it back to the bytecode cache.
-        if bcc is not None and bucket.code is None:
-            bucket.code = code
-            bcc.set_bucket(bucket)
-
-        return environment.template_class.from_code(environment, code,
-                                                    globals, uptodate)
 
 
 class JinjaEnv:
