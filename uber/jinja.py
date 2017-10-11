@@ -1,6 +1,7 @@
 from uber.common import *
 import traceback
 import weakref
+from functools import lru_cache
 from jinja2.loaders import split_template_path
 from jinja2.utils import open_if_exists
 from jinja2.exceptions import TemplateNotFound
@@ -12,6 +13,16 @@ class MultiPathEnvironment(jinja2.Environment):
     def _templates_loaded_for_current_request(self):
         return set()
 
+    @lru_cache()
+    def _get_matching_filenames(self, template):
+        pieces = split_template_path(template)
+        matching_filenames = []
+        for searchpath in self.loader.searchpath:
+            filename = os.path.join(searchpath, *pieces)
+            if os.path.exists(filename):
+                matching_filenames.append(filename)
+        return matching_filenames
+
     def _load_template(self, name, globals):
         """
         Overridden to consider templates already loaded during the current request.
@@ -20,15 +31,20 @@ class MultiPathEnvironment(jinja2.Environment):
             raise TypeError('no loader for this environment specified')
 
         loaded_templates = self._templates_loaded_for_current_request
-        cache_key = (weakref.ref(self.loader), name, ','.join(sorted(loaded_templates)))
+        matching_filenames = self._get_matching_filenames(name)
+        if not matching_filenames:
+            raise TemplateNotFound(name)
+        unused_filenames = [s for s in matching_filenames if s not in loaded_templates]
+        filename = unused_filenames[0] if unused_filenames else matching_filenames[-1]
+
+        cache_key = filename
         if self.cache is not None:
             template = self.cache.get(cache_key)
-            if template is not None and (not self.auto_reload or
-                                         template.is_up_to_date):
+            if template is not None and (not self.auto_reload or template.is_up_to_date):
                 self._templates_loaded_for_current_request.add(template.filename)
                 return template
 
-        template = self.loader.load(self, name, globals)
+        template = self.loader.load(self, filename, globals)
         self._templates_loaded_for_current_request.add(template.filename)
 
         if self.cache is not None:
@@ -36,55 +52,35 @@ class MultiPathEnvironment(jinja2.Environment):
         return template
 
 
-class MultiPathLoader(jinja2.FileSystemLoader):
+class AbsolutePathLoader(jinja2.FileSystemLoader):
 
-    def _get_source_if_exists(self, filename):
-        f = open_if_exists(filename)
+    def get_source(self, environment, template):
+        """
+        Overridden to also accept absolute paths.
+        """
+        if not os.path.isabs(template):
+            return super(AbsolutePathLoader, self).get_source(environment, template)
+
+        # Security check, ensure the abs path is part of a valid search path
+        if not any(template.startswith(s) for s in self.searchpath):
+            raise TemplateNotFound(template)
+
+        f = open_if_exists(template)
         if f is None:
-            return None
+            raise TemplateNotFound(template)
         try:
             contents = f.read().decode(self.encoding)
         finally:
             f.close()
 
-        mtime = os.path.getmtime(filename)
+        mtime = os.path.getmtime(template)
 
         def uptodate():
             try:
-                return os.path.getmtime(filename) == mtime
+                return os.path.getmtime(template) == mtime
             except OSError:
                 return False
-        return contents, filename, uptodate
-
-    def get_source(self, environment, template):
-        """
-        Overridden to take into account the set of templates that have already
-        been loaded during the current request.
-        """
-        loaded_templates = environment._templates_loaded_for_current_request
-        pieces = split_template_path(template)
-        ignored_filename = None
-        for searchpath in self.searchpath:
-            filename = os.path.join(searchpath, *pieces)
-            if filename in loaded_templates:
-                # If the file is already in the call stack, ignore it for now
-                ignored_filename = filename
-                continue
-
-            source = self._get_source_if_exists(filename)
-            if source:
-                return source
-
-        if ignored_filename:
-            # We actually did find the template, but we ignored it because
-            # it's already been loaded at least once this request. We are
-            # searching for templates that _haven't_ been loaded yet, but
-            # once we've loaded all the templates with a given name, we can
-            # fall back to a template we've already loaded
-            source = self._get_source_if_exists(ignored_filename)
-            if source:
-                return source
-        raise TemplateNotFound(template)
+        return contents, template, uptodate
 
 
 class JinjaEnv:
@@ -114,7 +110,7 @@ class JinjaEnv:
     def _init_env(cls):
         env = MultiPathEnvironment(
             autoescape=True,
-            loader=MultiPathLoader(cls._template_dirs))
+            loader=AbsolutePathLoader(cls._template_dirs))
 
         for name, func in cls._exportable_functions.items():
             env.globals[name] = func
