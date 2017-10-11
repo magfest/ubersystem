@@ -1,6 +1,4 @@
 from uber.common import *
-import traceback
-import weakref
 from functools import lru_cache
 from jinja2.loaders import split_template_path
 from jinja2.utils import open_if_exists
