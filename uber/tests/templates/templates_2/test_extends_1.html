@@ -1,0 +1,6 @@
+{%- import 'test_import_macros.html' as macros -%}
+{%- extends 'test_extends_1.html' -%}
+{%- block main -%}
+{{ super() }}
+templates_2.test_extends_1
+{%- endblock -%}
