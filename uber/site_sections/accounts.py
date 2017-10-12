@@ -18,7 +18,7 @@ class Root:
             'message':  message,
             'accounts': session.query(AdminAccount).join(Attendee)
                                .order_by(Attendee.last_first).all(),
-            'all_attendees': session.all_attendee_opts()
+            'all_attendees': session.all_attendees_opts()
         }
 
     def update(self, session, password='', message='', **params):
