@@ -406,6 +406,7 @@ class Root:
     def register_group_member(self, session, group_id, message='', **params):
         group = session.group(group_id)
         attendee = session.attendee(params, restricted=True)
+
         if 'first_name' in params:
             message = check(attendee, prereg=True)
             if not message and not params['first_name']:
@@ -422,13 +423,13 @@ class Root:
                     'base_badge_price',
                     'ribbon',
                     'paid',
-                    'overridden_price']
-
-                for attr in attrs_to_preserve_from_unassigned_group_member:
-                    if attr in params:
-                        del params[attr]
+                    'overridden_price',
+                    'requested_hotel_info']
 
                 attendee = group.unassigned[0]
+                for attr in attrs_to_preserve_from_unassigned_group_member:
+                    params[attr] = getattr(attendee, attr)
+
                 attendee.apply(params, restricted=True)
 
                 # Free group badges are considered registered' when they are actually claimed.
