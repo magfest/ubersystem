@@ -13,7 +13,7 @@ from sqlalchemy.types import Integer
 from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.core import Attendee
+from uber.models.attendee import Attendee
 from uber.models.types import DefaultColumn as Column, Choice
 from uber.utils import localized_now
 

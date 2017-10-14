@@ -2,6 +2,7 @@ import re
 import uuid
 from collections import defaultdict
 from datetime import date, datetime, timedelta
+from functools import wraps
 from itertools import chain
 from uuid import uuid4
 
@@ -26,7 +27,8 @@ from uber.config import c
 from uber.decorators import cached_classproperty, cost_property, \
     suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
-from uber.utils import check_csrf, get_real_badge_type, DeptChecklistConf
+from uber.utils import check_csrf, get_real_badge_type, DeptChecklistConf, \
+    HTTPRedirect
 
 
 # Consistent naming conventions are necessary for alembic to be able to
@@ -425,19 +427,21 @@ class MagModel:
 
 
 # Make all of our model classes available from uber.models
-from uber.models.email import *  # noqa: F401,E402,F403
-from uber.models.core import *  # noqa: F401,E402,F403
-from uber.models.commerce import *  # noqa: F401,E402,F403
-from uber.models.promo_code import *  # noqa: F401,E402,F403
 from uber.models.admin import *  # noqa: F401,E402,F403
+from uber.models.attendee import *  # noqa: F401,E402,F403
+from uber.models.commerce import *  # noqa: F401,E402,F403
+from uber.models.email import *  # noqa: F401,E402,F403
+from uber.models.group import *  # noqa: F401,E402,F403
+from uber.models.promo_code import *  # noqa: F401,E402,F403
 from uber.models.tracking import *  # noqa: F401,E402,F403
 from uber.models.types import *  # noqa: F401,E402,F403
 
-# Exlplicitly import models used by the Session class to quiet flake8
-from uber.models.email import Email  # noqa: E402
-from uber.models.core import Attendee, Group  # noqa: E402
+# Explicitly import models used by the Session class to quiet flake8
 from uber.models.admin import AdminAccount, Job, Shift, WatchList  # noqa: E402
-from uber.models.tracking import track_changes_after_flush  # noqa: E402
+from uber.models.attendee import Attendee  # noqa: E402
+from uber.models.email import Email  # noqa: E402
+from uber.models.group import Group  # noqa: E402
+from uber.models.tracking import Tracking  # noqa: E402
 
 
 class Session(SessionManager):
@@ -1288,6 +1292,24 @@ def initialize_db(modify_tables=False):
             break
 
 
+@on_startup
+def _attendee_validity_check():
+    from uber.models import Session
+    orig_getter = Session.SessionMixin.attendee
+
+    @wraps(orig_getter)
+    def with_validity_check(self, *args, **kwargs):
+        allow_invalid = kwargs.pop('allow_invalid', False)
+        attendee = orig_getter(self, *args, **kwargs)
+        if not allow_invalid and not attendee.is_new and \
+                attendee.badge_status == c.INVALID_STATUS:
+            raise HTTPRedirect(
+                '../preregistration/invalid_badge?id={}', attendee.id)
+        else:
+            return attendee
+    Session.SessionMixin.attendee = with_validity_check
+
+
 def _presave_adjustments(session, context, instances='deprecated'):
     for model in chain(session.dirty, session.new):
         model.presave_adjustments()
@@ -1295,12 +1317,24 @@ def _presave_adjustments(session, context, instances='deprecated'):
         model.predelete_adjustments()
 
 
+def _track_changes(session, context, instances='deprecated'):
+    states = [
+        (c.CREATED, session.new),
+        (c.UPDATED, session.dirty),
+        (c.DELETED, session.deleted)]
+
+    for action, instances in states:
+        for instance in instances:
+            if instance.__class__ not in Tracking.UNTRACKED:
+                Tracking.track(action, instance)
+
+
 def register_session_listeners():
     """
     The order in which we register these listeners matters.
     """
     listen(Session.session_factory, 'before_flush', _presave_adjustments)
-    listen(Session.session_factory, 'after_flush', track_changes_after_flush)
+    listen(Session.session_factory, 'after_flush', _track_changes)
 
 
 register_session_listeners()

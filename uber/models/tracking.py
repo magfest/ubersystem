@@ -16,19 +16,7 @@ from uber.models.email import Email
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
 
 
-__all__ = ['track_changes_after_flush', 'PageViewTracking', 'Tracking']
-
-
-def track_changes_after_flush(session, context, instances='deprecated'):
-    states = [
-        (c.CREATED, session.new),
-        (c.UPDATED, session.dirty),
-        (c.DELETED, session.deleted)]
-
-    for action, instances in states:
-        for instance in instances:
-            if instance.__class__ not in Tracking.UNTRACKED:
-                Tracking.track(action, instance)
+__all__ = ['PageViewTracking', 'Tracking']
 
 
 class PageViewTracking(MagModel):

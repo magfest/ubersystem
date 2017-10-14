@@ -7,12 +7,23 @@ from sqlalchemy.types import Integer
 
 from uber.config import c
 from uber.models import MagModel
-from uber.models.types import Choice, DefaultColumn as Column
+from uber.models.attendee import Attendee
+from uber.models.types import default_relationship as relationship, Choice, \
+    DefaultColumn as Column
 
 
 __all__ = [
-    'MerchDiscount', 'MPointsForCash', 'OldMPointExchange', 'Sale',
-    'ArbitraryCharge', 'StripeTransaction']
+    'ArbitraryCharge', 'MerchDiscount', 'MerchPickup', 'MPointsForCash',
+    'NoShirt', 'OldMPointExchange', 'Sale', 'StripeTransaction']
+
+
+class ArbitraryCharge(MagModel):
+    amount = Column(Integer)
+    what = Column(UnicodeText)
+    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    reg_station = Column(Integer, nullable=True)
+
+    _repr_attr_names = ['what']
 
 
 class MerchDiscount(MagModel):
@@ -21,10 +32,31 @@ class MerchDiscount(MagModel):
     uses = Column(Integer)
 
 
+class MerchPickup(MagModel):
+    picked_up_by_id = Column(UUID, ForeignKey('attendee.id'))
+    picked_up_for_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
+    picked_up_by = relationship(
+        Attendee,
+        primaryjoin='MerchPickup.picked_up_by_id == Attendee.id',
+        cascade='save-update,merge,refresh-expire,expunge')
+    picked_up_for = relationship(
+        Attendee,
+        primaryjoin='MerchPickup.picked_up_for_id == Attendee.id',
+        cascade='save-update,merge,refresh-expire,expunge')
+
+
 class MPointsForCash(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
     amount = Column(Integer)
     when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+
+
+class NoShirt(MagModel):
+    """
+    Used to track when someone tried to pick up a shirt they were owed when we
+    were out of stock, so that we can contact them later.
+    """
+    attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
 
 
 class OldMPointExchange(MagModel):
@@ -42,15 +74,6 @@ class Sale(MagModel):
     when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     reg_station = Column(Integer, nullable=True)
     payment_method = Column(Choice(c.SALE_OPTS), default=c.MERCH)
-
-
-class ArbitraryCharge(MagModel):
-    amount = Column(Integer)
-    what = Column(UnicodeText)
-    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
-    reg_station = Column(Integer, nullable=True)
-
-    _repr_attr_names = ['what']
 
 
 class StripeTransaction(MagModel):

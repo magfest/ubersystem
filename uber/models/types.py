@@ -1,4 +1,5 @@
 from collections import Mapping, OrderedDict
+from datetime import datetime, time, timedelta
 
 from sideboard.lib import listify
 from sideboard.lib.sa import _underscore_to_camelcase as camel, JSON, \
@@ -9,12 +10,13 @@ from sqlalchemy.schema import Column
 from sqlalchemy.sql.expression import FunctionElement
 from sqlalchemy.types import Integer, TypeDecorator
 
+from uber.config import c
 from uber.custom_tags import fieldify
 
 
 __all__ = [
     'default_relationship', 'relationship', 'utcnow', 'Choice', 'Column',
-    'DefaultColumn', 'JSONColumnMixin', 'MultiChoice']
+    'DefaultColumn', 'JSONColumnMixin', 'MultiChoice', 'TakesPaymentMixin']
 
 
 def DefaultColumn(*args, admin_only=False, **kwargs):
@@ -266,3 +268,12 @@ def JSONColumnMixin(column_name, fields, admin_only=False):
     _Mixin.__setattr__ = _Mixin__setattr__
 
     return _Mixin
+
+
+class TakesPaymentMixin(object):
+    @property
+    def payment_deadline(self):
+        return min(
+            c.UBER_TAKEDOWN - timedelta(days=2),
+            datetime.combine(
+                (self.registered + timedelta(days=14)).date(), time(23, 59)))

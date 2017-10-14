@@ -11,7 +11,7 @@ from sqlalchemy.types import Boolean, Date, Float, Integer
 from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.core import Attendee
+from uber.models.attendee import Attendee
 from uber.models.types import default_relationship as relationship, utcnow, \
     Choice, DefaultColumn as Column, MultiChoice
 
