@@ -232,44 +232,13 @@ class Charge:
         return cherrypy.session.setdefault('unpaid_preregs', OrderedDict())
 
     @classmethod
-    def get_unpaid_promo_code_uses_count(cls, id, already_counted_attendee_ids=None):
-        attendees_with_promo_code = set()
-        if already_counted_attendee_ids:
-            attendees_with_promo_code.update(listify(already_counted_attendee_ids))
-
-        promo_code_count = 0
-
-        targets = [t for t in cls.unpaid_preregs.values() if '_model' in t]
-        for target in targets:
-            if target['_model'] == 'Attendee':
-                if target.get('id') not in attendees_with_promo_code \
-                        and target.get('promo_code') \
-                        and target['promo_code'].get('id') == id:
-                    attendees_with_promo_code.add(target.get('id'))
-                    promo_code_count += 1
-
-            elif target['_model'] == 'Group':
-                for attendee in target.get('attendees', []):
-                    if attendee.get('id') not in attendees_with_promo_code \
-                            and attendee.get('promo_code') \
-                            and attendee['promo_code'].get('id') == id:
-                        attendees_with_promo_code.add(attendee.get('id'))
-                        promo_code_count += 1
-
-            elif target['_model'] == 'PromoCode' and target.get('id') == id:
-                # Should never get here
-                promo_code_count += 1
-
-        return promo_code_count
-
-    @classmethod
     def to_sessionized(cls, m):
         if is_listy(m):
             return [cls.to_sessionized(t) for t in m]
         elif isinstance(m, dict):
             return m
         elif isinstance(m, sa.Attendee):
-            return m.to_dict(sa.Attendee.to_dict_default_attrs + ['promo_code'])
+            return m.to_dict(sa.Attendee.to_dict_default_attrs)
         elif isinstance(m, sa.Group):
             return m.to_dict(sa.Group.to_dict_default_attrs + ['attendees'])
         else:
@@ -295,8 +264,6 @@ class Charge:
 
     @classmethod
     def from_sessionized_attendee(cls, d):
-        if d.get('promo_code'):
-            d = dict(d, promo_code=sa.PromoCode(**d['promo_code']))
         return sa.Attendee(**d)
 
     @classmethod
