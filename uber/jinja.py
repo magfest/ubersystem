@@ -1,4 +1,87 @@
 from uber.common import *
+from functools import lru_cache
+from jinja2.loaders import split_template_path
+from jinja2.utils import open_if_exists
+from jinja2.exceptions import TemplateNotFound
+
+
+class MultiPathEnvironment(jinja2.Environment):
+
+    @request_cached_property
+    def _templates_loaded_for_current_request(self):
+        return set()
+
+    @lru_cache()
+    def _get_matching_filenames(self, template):
+        pieces = split_template_path(template)
+        matching_filenames = []
+        for searchpath in self.loader.searchpath:
+            filename = os.path.join(searchpath, *pieces)
+            if os.path.exists(filename):
+                matching_filenames.append(filename)
+        return matching_filenames
+
+    def _load_template(self, name, globals):
+        """
+        Overridden to consider templates already loaded by the current request.
+        """
+        if self.loader is None:
+            raise TypeError('no loader for this environment specified')
+
+        matching_files = self._get_matching_filenames(name)
+        if not matching_files:
+            raise TemplateNotFound(name)
+
+        loaded_templates = self._templates_loaded_for_current_request
+        unused_files = [s for s in matching_files if s not in loaded_templates]
+        filename = unused_files[0] if unused_files else matching_files[-1]
+
+        cache_key = filename
+        if self.cache is not None:
+            template = self.cache.get(cache_key)
+            if template and (not self.auto_reload or template.is_up_to_date):
+                self._templates_loaded_for_current_request.add(
+                    template.filename)
+                return template
+
+        template = self.loader.load(self, filename, globals)
+        self._templates_loaded_for_current_request.add(template.filename)
+
+        if self.cache is not None:
+            self.cache[cache_key] = template
+        return template
+
+
+class AbsolutePathLoader(jinja2.FileSystemLoader):
+
+    def get_source(self, environment, template):
+        """
+        Overridden to also accept absolute paths.
+        """
+        if not os.path.isabs(template):
+            return super(AbsolutePathLoader, self).get_source(
+                environment, template)
+
+        # Security check, ensure the abs path is part of a valid search path
+        if not any(template.startswith(s) for s in self.searchpath):
+            raise TemplateNotFound(template)
+
+        f = open_if_exists(template)
+        if f is None:
+            raise TemplateNotFound(template)
+        try:
+            contents = f.read().decode(self.encoding)
+        finally:
+            f.close()
+
+        mtime = os.path.getmtime(template)
+
+        def uptodate():
+            try:
+                return os.path.getmtime(template) == mtime
+            except OSError:
+                return False
+        return contents, template, uptodate
 
 
 class JinjaEnv:
@@ -26,9 +109,9 @@ class JinjaEnv:
 
     @classmethod
     def _init_env(cls):
-        env = jinja2.Environment(
+        env = MultiPathEnvironment(
             autoescape=True,
-            loader=jinja2.FileSystemLoader(cls._template_dirs))
+            loader=AbsolutePathLoader(cls._template_dirs))
 
         for name, func in cls._exportable_functions.items():
             env.globals[name] = func
