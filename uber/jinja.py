@@ -23,23 +23,25 @@ class MultiPathEnvironment(jinja2.Environment):
 
     def _load_template(self, name, globals):
         """
-        Overridden to consider templates already loaded during the current request.
+        Overridden to consider templates already loaded by the current request.
         """
         if self.loader is None:
             raise TypeError('no loader for this environment specified')
 
-        loaded_templates = self._templates_loaded_for_current_request
-        matching_filenames = self._get_matching_filenames(name)
-        if not matching_filenames:
+        matching_files = self._get_matching_filenames(name)
+        if not matching_files:
             raise TemplateNotFound(name)
-        unused_filenames = [s for s in matching_filenames if s not in loaded_templates]
-        filename = unused_filenames[0] if unused_filenames else matching_filenames[-1]
+
+        loaded_templates = self._templates_loaded_for_current_request
+        unused_files = [s for s in matching_files if s not in loaded_templates]
+        filename = unused_files[0] if unused_files else matching_files[-1]
 
         cache_key = filename
         if self.cache is not None:
             template = self.cache.get(cache_key)
-            if template is not None and (not self.auto_reload or template.is_up_to_date):
-                self._templates_loaded_for_current_request.add(template.filename)
+            if template and (not self.auto_reload or template.is_up_to_date):
+                self._templates_loaded_for_current_request.add(
+                    template.filename)
                 return template
 
         template = self.loader.load(self, filename, globals)
@@ -57,7 +59,8 @@ class AbsolutePathLoader(jinja2.FileSystemLoader):
         Overridden to also accept absolute paths.
         """
         if not os.path.isabs(template):
-            return super(AbsolutePathLoader, self).get_source(environment, template)
+            return super(AbsolutePathLoader, self).get_source(
+                environment, template)
 
         # Security check, ensure the abs path is part of a valid search path
         if not any(template.startswith(s) for s in self.searchpath):

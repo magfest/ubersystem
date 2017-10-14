@@ -1,3 +1,5 @@
+import textwrap
+
 import pytest
 from jinja2.exceptions import TemplateNotFound
 
@@ -92,15 +94,47 @@ class TestMultiPathEnvironment(object):
             assert abs_path == template.filename
 
     @pytest.mark.parametrize('name,content', [
-        ('test_extends_1.html', 'templates_1.test_extends_1\ntemplates_2.test_extends_1\ntemplates_3.test_extends_1'),
+        ('test_extends_1.html', textwrap.dedent("""\
+            templates_1.test_extends_1.header
+            templates_2.test_extends_1.header
+            templates_1.test_extends_1.header
+            templates_3.test_extends_1.header
+            templates_1.test_extends_1.header
+            templates_2.test_extends_1.header
+            templates_1.test_extends_1.header
+            templates_1.test_extends_1.main
+            templates_2.test_extends_1.main
+            templates_1.test_extends_1.main
+            templates_3.test_extends_1.main
+            templates_1.test_extends_1.main
+            templates_2.test_extends_1.main
+            templates_1.test_extends_1.main
+            templates_1.test_extends_1.footer
+            templates_2.test_extends_1.footer
+            templates_1.test_extends_1.footer
+            templates_3.test_extends_1.footer
+            templates_1.test_extends_1.footer
+            templates_2.test_extends_1.footer
+            templates_1.test_extends_1.footer""")),
         ('test_import_macros.html', '\n'),
         ('test_include_1.html', 'test_include_1'),
         ('test_standalone_1.html', 'templates_1.test_standalone_1'),
-        ('test_extends_2.html', 'templates_2.test_extends_2\ntemplates_3.test_extends_2'),
-        ('test_include_2.html', 'test_include_2\ntest_include_1'),
+        ('test_extends_2.html', textwrap.dedent("""\
+            templates_2.test_extends_2
+            templates_3.test_extends_2""")),
+        ('test_include_2.html', textwrap.dedent("""\
+            test_include_2
+            test_include_1""")),
         ('test_standalone_2.html', 'templates_2.test_standalone_2'),
-        ('test_include_3.html', 'test_include_3\ntest_include_2\ntest_include_1'),
-        ('test_standalone_3.html', 'templates_3.test_standalone_3\ntest_include_3\ntest_include_2\ntest_include_1'),
+        ('test_include_3.html', textwrap.dedent("""\
+            test_include_3
+            test_include_2
+            test_include_1""")),
+        ('test_standalone_3.html', textwrap.dedent("""\
+            templates_3.test_standalone_3
+            test_include_3
+            test_include_2
+            test_include_1""")),
     ])
     def test_render_template(self, environment, name, content):
         template = environment.get_template(name)
