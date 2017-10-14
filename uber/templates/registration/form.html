@@ -189,6 +189,7 @@
         {% endif %}
     {% endif %}
 
+
 <div class="form-group">
     <label class="col-sm-3 control-label">Badge</label>
     <div class="col-sm-6">
@@ -246,7 +247,11 @@
     </div>
 {% endif %}
 
+{% block pre_regform %}{% endblock %}
+
 {% include "regform.html" %}
+
+{% block post_regform %}{% endblock %}
 
 <div class="form-group staffing staffing-checked">
     <label class="col-sm-3 control-label">Assigned Depts</label>
