@@ -180,7 +180,6 @@ class MagModel:
         Returns the session object which this model instance is attached to,
         or None if this instance is not attached to a session.
         """
-        from uber.models import Session
         return Session.session_factory.object_session(self)
 
     @classmethod
@@ -1294,7 +1293,6 @@ def initialize_db(modify_tables=False):
 
 @on_startup
 def _attendee_validity_check():
-    from uber.models import Session
     orig_getter = Session.SessionMixin.attendee
 
     @wraps(orig_getter)

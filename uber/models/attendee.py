@@ -26,7 +26,7 @@ from uber.utils import add_opt, comma_and, get_age_from_birthday, \
     send_email
 
 
-__all__ = ['Attendee']
+__all__ = ['Attendee', 'FoodRestrictions']
 
 
 class Attendee(MagModel, TakesPaymentMixin):
