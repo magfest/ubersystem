@@ -12,7 +12,7 @@ def swallow_exceptions(func):
     def swallow_exception(*args, **kwargs):
         try:
             return func(*args, **kwargs)
-        except Exception:
+        except:
             log.error("Exception raised, but we're going to ignore it and continue.", exc_info=True)
     return swallow_exception
 

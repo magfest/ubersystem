@@ -63,8 +63,3 @@ class Root:
 @register_diagnostics_status_function
 def database_pool_information():
     return Session.engine.pool.status()
-
-
-@register_diagnostics_status_function
-def global_badge_lock():
-    return 'c.BADGE_LOCK = ' + repr(c.BADGE_LOCK)
