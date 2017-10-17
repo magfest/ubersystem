@@ -472,6 +472,22 @@ class class_property(object):
         return self.func(owner)
 
 
+class cached_classproperty(property):
+    """
+    Like @cached_property except it works on classes instead of instances.
+    """
+    def __init__(self, fget, *arg, **kw):
+        super(cached_classproperty, self).__init__(fget, *arg, **kw)
+        self.__doc__ = fget.__doc__
+        self.__fget_name__ = fget.__name__
+
+    def __get__(desc, self, cls):
+        cache_attr = '_cached_{}_{}'.format(desc.__fget_name__, cls.__name__)
+        if not hasattr(cls, cache_attr):
+            setattr(cls, cache_attr, desc.fget(cls))
+        return getattr(cls, cache_attr)
+
+
 def create_redirect(url, access=[c.PEOPLE]):
     """
     Return a function which redirects to the given url when called.

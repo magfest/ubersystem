@@ -145,7 +145,7 @@
     {% block head_additional %}{% endblock %}
 </head>
 <body>
-    {% if c.PRE_CON %}
+    {% if c.PRE_CON and c.SLOW_LOAD_CHECK %}
         <div class="loader"><a class="loader_link" href="../static_views/slow_load.html" target="_blank"></a></div>
     {% endif %}
     {% block top_of_body_additional %}
