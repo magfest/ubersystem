@@ -608,13 +608,13 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def donation_swag(self):
-        amount_extra = self.amount_extra
         donation_items = [
             desc for amount, desc in sorted(c.DONATION_TIERS.items())
-            if amount and amount_extra >= amount]
+            if amount and self.amount_extra >= amount]
 
-        extra = self.extra_donation
-        extra_donations = ['Extra donation of ${}'.format()] if extra else []
+        extra_donations = \
+            ['Extra donation of ${}'.format(self.extra_donation)] \
+            if self.extra_donation else []
 
         return donation_items + extra_donations
 
