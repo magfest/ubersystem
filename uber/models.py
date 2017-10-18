@@ -1435,6 +1435,9 @@ class Attendee(MagModel, TakesPaymentMixin):
             if self.badge_type_label != localized_now().strftime('%A'):
                 return "Wrong day"
 
+        if self.age_group == c.AGE_UNKNOWN:
+            return "Unknown age group"
+
         return None
 
     @property
