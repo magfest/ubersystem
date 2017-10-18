@@ -149,8 +149,13 @@ def allowed_to_register(attendee):
 def email(attendee):
     if len(attendee.email) > 255:
         return 'Email addresses cannot be longer than 255 characters.'
+    elif not attendee.email and not c.AT_OR_POST_CON:
+        return 'Please enter an email address.'
 
-    if (c.AT_OR_POST_CON and attendee.email) or not c.AT_OR_POST_CON:
+
+@validation.Attendee
+def email_valid(attendee):
+    if attendee.email:
         try:
             validate_email(attendee.email)
         except EmailNotValidError as e:
