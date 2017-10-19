@@ -42,15 +42,6 @@ AutomatedEmail(Attendee, '{EVENT_NAME} extra payment received', 'reg_workflow/gr
          needs_approval=False,
          ident='group_extra_payment_received')
 
-if c.PREREG_REQUEST_HOTEL_INFO_ENABLED:
-    AutomatedEmail(Attendee, '{EVENT_NAME} hotel booking info', 'reg_workflow/hotel_booking_info.html',
-        lambda a: a.requested_hotel_info,
-        when=days_after(0, c.PREREG_HOTEL_INFO_EMAIL_DATE),
-        needs_approval=True,
-        sender=c.PREREG_HOTEL_INFO_EMAIL_SENDER,
-        ident='hotel_booking_info')
-
-
 # Reminder emails for groups to allocated their unassigned badges.  These emails are safe to be turned on for
 # all events, because they will only be sent for groups with unregistered badges, so if group preregistration
 # has been turned off, they'll just never be sent.
