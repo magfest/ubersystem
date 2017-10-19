@@ -11,7 +11,7 @@ from sqlalchemy import case, func, or_
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import joinedload, backref
 from sqlalchemy.schema import ForeignKey, Index, UniqueConstraint
-from sqlalchemy.types import Boolean, Integer, Date
+from sqlalchemy.types import Boolean, Date, Integer
 
 from uber.config import c
 from uber.custom_tags import safe_string
@@ -125,9 +125,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     badge_printed_name = Column(UnicodeText)
 
     staffing = Column(Boolean, default=False)
-    requested_depts = Column(MultiChoice(c.JOB_INTEREST_OPTS))
-    assigned_depts = Column(MultiChoice(c.JOB_LOCATION_OPTS), admin_only=True)
-    trusted_depts = Column(MultiChoice(c.JOB_LOCATION_OPTS), admin_only=True)
     nonshift_hours = Column(Integer, default=0, admin_only=True)
     past_years = Column(UnicodeText, admin_only=True)
     can_work_setup = Column(Boolean, default=False, admin_only=True)
@@ -271,11 +268,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             if not self.overridden_price and \
                     self.paid in [c.NOT_PAID, c.PAID_BY_GROUP]:
                 self.paid = c.NEED_NOT_PAY
-
-        # remove trusted status from any dept we are not assigned to
-        self.trusted_depts = ','.join(
-            str(td) for td in self.trusted_depts_ints
-            if td in self.assigned_depts_ints)
 
     @presave_adjustment
     def _badge_adjustments(self):

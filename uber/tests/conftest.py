@@ -85,22 +85,25 @@ def init_db(request):
             last_name='Attendee'
         ))
 
-        d_arcade = str(c.ARCADE)
-        d_console = str(c.CONSOLE)
-        d_arcade_and_console = '{},{}'.format(c.ARCADE, c.CONSOLE)
+        d_arcade = Department(name='Arcade', description='Arcade')
+        session.add(d_arcade)
+
+        d_console = Department(name='Console', description='Console')
+        session.add(d_console)
+
         assigned_depts = {
-            'One': d_arcade,
-            'Two': d_console,
-            'Three': d_arcade_and_console,
-            'Four': d_arcade_and_console,
-            'Five': ''
+            'One': [d_arcade],
+            'Two': [d_console],
+            'Three': [d_arcade, d_console],
+            'Four': [d_arcade, d_console],
+            'Five': []
         }
         trusted_depts = {
-            'One': '',
-            'Two': '',
-            'Three': '',
-            'Four': d_arcade_and_console,
-            'Five': ''
+            'One': [],
+            'Two': [],
+            'Three': [],
+            'Four': [d_arcade, d_console],
+            'Five': []
         }
 
         for name in ['One', 'Two', 'Three', 'Four', 'Five']:
@@ -136,7 +139,7 @@ def init_db(request):
             slots=1,
             weight=1,
             duration=2,
-            location=c.ARCADE,
+            department=d_arcade,
             extra15=True
         ))
         session.add(Job(
@@ -145,7 +148,7 @@ def init_db(request):
             slots=1,
             weight=1,
             duration=2,
-            location=c.ARCADE
+            department=d_arcade
         ))
         session.add(Job(
             name='Job Three',
@@ -153,7 +156,7 @@ def init_db(request):
             slots=1,
             weight=1,
             duration=2,
-            location=c.ARCADE
+            department=d_arcade
         ))
         session.add(Job(
             name='Job Four',
@@ -161,7 +164,7 @@ def init_db(request):
             slots=2,
             weight=1,
             duration=2,
-            location=c.CONSOLE,
+            department=d_console,
             extra15=True
         ))
         session.add(Job(
@@ -170,7 +173,7 @@ def init_db(request):
             slots=1,
             weight=1,
             duration=2,
-            location=c.CONSOLE
+            department=d_console
         ))
         session.add(Job(
             name='Job Six',
@@ -178,7 +181,7 @@ def init_db(request):
             slots=1,
             weight=1,
             duration=2,
-            location=c.CONSOLE,
+            department=d_console,
             restricted=True
         ))
 

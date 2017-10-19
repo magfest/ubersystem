@@ -73,6 +73,10 @@ class MagModel:
         for function in callbacks:
             function()
 
+    @staticmethod
+    def dump(instances):
+        return {instance.id: instance.to_dict() for instance in instances}
+
     def presave_adjustments(self):
         self._invoke_adjustment_callbacks('presave_adjustment')
 
@@ -429,6 +433,7 @@ class MagModel:
 from uber.models.admin import *  # noqa: F401,E402,F403
 from uber.models.attendee import *  # noqa: F401,E402,F403
 from uber.models.commerce import *  # noqa: F401,E402,F403
+from uber.models.department import *  # noqa: F401,E402,F403
 from uber.models.email import *  # noqa: F401,E402,F403
 from uber.models.group import *  # noqa: F401,E402,F403
 from uber.models.promo_code import *  # noqa: F401,E402,F403
@@ -436,8 +441,9 @@ from uber.models.tracking import *  # noqa: F401,E402,F403
 from uber.models.types import *  # noqa: F401,E402,F403
 
 # Explicitly import models used by the Session class to quiet flake8
-from uber.models.admin import AdminAccount, Job, Shift, WatchList  # noqa: E402
+from uber.models.admin import AdminAccount, WatchList  # noqa: E402
 from uber.models.attendee import Attendee  # noqa: E402
+from uber.models.department import Job, Shift  # noqa: E402
 from uber.models.email import Email  # noqa: E402
 from uber.models.group import Group  # noqa: E402
 from uber.models.tracking import Tracking  # noqa: E402
