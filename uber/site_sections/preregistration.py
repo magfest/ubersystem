@@ -522,7 +522,7 @@ class Root:
     def transfer_badge(self, session, message='', **params):
         old = session.attendee(params['id'])
 
-        assert old.is_transferable, 'This badge is not transferrable'
+        assert old.is_transferable, 'This badge is not transferrable at this time. We hope to re-enable this feature by October 31st, 2017. Thank you for your patience.'
         session.expunge(old)
         attendee = session.attendee(params, restricted=True)
 
