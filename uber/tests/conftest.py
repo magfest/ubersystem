@@ -85,11 +85,12 @@ def init_db(request):
             last_name='Attendee'
         ))
 
-        d_arcade = Department(name='Arcade', description='Arcade')
-        session.add(d_arcade)
+        d_arcade_trusted_job_role = JobRole(name='Trusted', description='Trusted in Arcade')
+        d_arcade = Department(name='Arcade', description='Arcade', job_roles=[d_arcade_trusted_job_role])
 
-        d_console = Department(name='Console', description='Console')
-        session.add(d_console)
+        d_console_trusted_job_role = JobRole(name='Trusted', description='Trusted in Console')
+        d_console = Department(name='Console', description='Console', job_roles=[d_console_trusted_job_role])
+        session.add_all([d_arcade, d_arcade_trusted_job_role, d_console, d_console_trusted_job_role])
 
         assigned_depts = {
             'One': [d_arcade],
@@ -107,15 +108,24 @@ def init_db(request):
         }
 
         for name in ['One', 'Two', 'Three', 'Four', 'Five']:
+            department_memberships = []
+            for dept in assigned_depts[name]:
+                is_trusted = dept in trusted_depts[name]
+                department_memberships.append(DepartmentMembership(
+                    department_id=dept.id,
+                    job_roles=(dept.job_roles if is_trusted else [])
+                ))
+            session.add_all(department_memberships)
+
             session.add(Attendee(
                 placeholder=True,
                 first_name=name,
                 last_name=name,
                 paid=c.NEED_NOT_PAY,
                 badge_type=c.STAFF_BADGE,
-                assigned_depts=assigned_depts[name],
-                trusted_depts=trusted_depts[name]
+                department_memberships=department_memberships
             ))
+
             session.add(Attendee(
                 placeholder=True,
                 first_name=name,
@@ -182,7 +192,7 @@ def init_db(request):
             weight=1,
             duration=2,
             department=d_console,
-            restricted=True
+            required_roles=[d_console_trusted_job_role]
         ))
 
         session.add(PromoCode(code='ten percent off', discount=10,

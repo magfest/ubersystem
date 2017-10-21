@@ -265,7 +265,7 @@ class MagModel:
             return []
 
         choices = dict(self.get_field(name).type.choices)
-        return [int(i) for i in str(val).split(',') if int(i) in choices]
+        return [int(i) for i in str(val).split(',') if i and int(i) in choices]
 
     @suffix_property
     def _label(self, name, val):

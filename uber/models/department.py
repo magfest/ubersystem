@@ -4,7 +4,7 @@ from sideboard.lib import cached_property
 from sideboard.lib.sa import CoerceUTF8 as UnicodeText, \
     UTCDateTime, UUID
 from sqlalchemy import select
-from sqlalchemy.orm import column_property
+from sqlalchemy.orm import backref, column_property
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint
 from sqlalchemy.types import Boolean, Float, Integer
 
@@ -17,10 +17,12 @@ from uber.models.types import default_relationship as relationship, \
 
 __all__ = [
     'department_membership_job_role', 'department_membership_request',
-    'job_required_job_role', 'Department', 'DepartmentMembership', 'Job',
+    'job_required_role', 'Department', 'DepartmentMembership', 'Job',
     'JobRole', 'Shift']
 
 
+# Many to many association table to represent the JobRoles fulfilled
+# by a DepartmentMembership
 department_membership_job_role = Table(
     'department_membership_job_role',
     MagModel.metadata,
@@ -29,6 +31,8 @@ department_membership_job_role = Table(
     Column('job_role_id', UUID, ForeignKey('job_role.id')))
 
 
+# Many to many association table to represent a membership request from
+# an Attendee to a Department
 department_membership_request = Table(
     'department_membership_request',
     MagModel.metadata,
@@ -37,37 +41,28 @@ department_membership_request = Table(
     UniqueConstraint('attendee_id', 'department_id'))
 
 
-job_required_job_role = Table(
-    'job_required_job_role',
+# Many to many association table to represent the JobRoles required
+# to fulfill a Job
+job_required_role = Table(
+    'job_required_role',
     MagModel.metadata,
     Column('job_id', UUID, ForeignKey('job.id')),
     Column('job_role_id', UUID, ForeignKey('job_role.id')))
 
 
 class DepartmentMembership(MagModel):
-
-    DEPARTMENT_HEAD = 100
-    TRUSTED = 200
-    REGULAR = 300
-    BANNED = 500
-
-    STATUS_OPTS = [
-        (DEPARTMENT_HEAD, 'Department Head'),
-        (TRUSTED, 'Trusted'),
-        (REGULAR, 'Regular'),
-        (BANNED, 'Banned')]
-    STATUSES = dict(STATUS_OPTS)
-
-    status = Column(Choice(STATUS_OPTS), default=REGULAR)
+    is_dept_head = Column(Boolean, default=False)
+    gets_checklist = Column(Boolean, default=False)
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
     department_id = Column(UUID, ForeignKey('department.id'))
 
     job_roles = relationship(
         'JobRole',
         backref='department_memberships',
-        secondary='department_membership_job_role',
-        cascade=False)
+        cascade='save-update,merge,refresh-expire,expunge',
+        secondary='department_membership_job_role')
 
+    __mapper_args__ = {'confirm_deleted_rows': False}
     __table_args__ = (UniqueConstraint('attendee_id', 'department_id'),)
 
 
@@ -75,47 +70,38 @@ class Department(MagModel):
     name = Column(UnicodeText)
     description = Column(UnicodeText)
     accepts_volunteers = Column(Boolean, default=True)
+    is_shiftless = Column(Boolean, default=False)
     parent_id = Column(UUID, ForeignKey('department.id'), nullable=True)
 
     jobs = relationship('Job', backref='department')
     job_roles = relationship('JobRole', backref='department')
-    department_heads = relationship(
+    dept_heads = relationship(
         'Attendee',
         backref='headed_depts',
+        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_('
                     'Department.id==DepartmentMembership.department_id, '
-                    'DepartmentMembership.status=={})'.format(
-                        DepartmentMembership.DEPARTMENT_HEAD),
+                    'DepartmentMembership.is_dept_head==True)',
         secondaryjoin='DepartmentMembership.attendee_id==Attendee.id',
         secondary='department_membership',
-        viewonly=True,
-        cascade=False)
+        viewonly=True)
     members = relationship(
         'Attendee',
         backref='assigned_depts',
-        secondary='department_membership',
-        cascade=False)
+        cascade='save-update,merge,refresh-expire,expunge',
+        secondary='department_membership')
+    memberships = relationship('DepartmentMembership', backref='department')
     membership_requests = relationship(
         'Attendee',
         backref='requested_depts',
-        secondary='department_membership_request',
-        cascade=False)
-    sub_departments = relationship(
+        cascade='save-update,merge,refresh-expire,expunge',
+        secondary='department_membership_request')
+    parent = relationship(
         'Department',
-        backref='parent',
+        backref=backref('sub_depts', cascade='all,delete-orphan'),
+        cascade='save-update,merge,refresh-expire,expunge',
         remote_side='Department.id',
         single_parent=True)
-    trusted_members = relationship(
-        'Attendee',
-        backref='trusted_depts',
-        primaryjoin='and_('
-                    'Department.id==DepartmentMembership.department_id, '
-                    'DepartmentMembership.status<={})'.format(
-                        DepartmentMembership.TRUSTED),
-        secondaryjoin='DepartmentMembership.attendee_id==Attendee.id',
-        secondary='department_membership',
-        viewonly=True,
-        cascade=False)
 
     # all_jobs
     # all_roles
@@ -137,18 +123,17 @@ class Job(MagModel):
     duration = Column(Integer)
     weight = Column(Float, default=1)
     slots = Column(Integer)
-    restricted = Column(Boolean, default=False)
     extra15 = Column(Boolean, default=False)
     department_id = Column(UUID, ForeignKey('department.id'))
 
     location = column_property(
         select([Department.name]).where(Department.id == department_id))
 
-    required_job_roles = relationship(
+    required_roles = relationship(
         'JobRole',
         backref='jobs',
-        secondary='job_required_job_role',
-        cascade=False)
+        cascade='save-update,merge,refresh-expire,expunge',
+        secondary='job_required_role')
     shifts = relationship('Shift', backref='job')
 
     _repr_attr_names = ['name']

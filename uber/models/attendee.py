@@ -124,6 +124,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     badge_printed_name = Column(UnicodeText)
 
+    department_memberships = relationship(
+        'DepartmentMembership', backref='attendee')
+
     staffing = Column(Boolean, default=False)
     nonshift_hours = Column(Integer, default=0, admin_only=True)
     past_years = Column(UnicodeText, admin_only=True)
