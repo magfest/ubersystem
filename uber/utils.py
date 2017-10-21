@@ -285,11 +285,11 @@ class Charge:
     def is_empty(self):
         return not self._targets
 
-    @cached_property
+    @property
     def total_cost(self):
         return 100 * sum(m.amount_unpaid for m in self.models)
 
-    @cached_property
+    @property
     def dollar_amount(self):
         return self.amount // 100
 
@@ -297,31 +297,31 @@ class Charge:
     def amount(self):
         return self._amount or self.total_cost or 0
 
-    @cached_property
+    @property
     def description(self):
         return self._description or self.names
 
-    @cached_property
+    @property
     def receipt_email(self):
         return self.models[0].email if self.models and self.models[0].email else self._receipt_email
 
-    @cached_property
+    @property
     def names(self):
         return ', '.join(getattr(m, 'name', getattr(m, 'full_name', None)) for m in self.models)
 
-    @cached_property
+    @property
     def targets(self):
         return self.to_sessionized(self._targets)
 
-    @cached_property
+    @property
     def models(self):
         return self.from_sessionized(self._targets)
 
-    @cached_property
+    @property
     def attendees(self):
         return [m for m in self.models if isinstance(m, sa.Attendee)]
 
-    @cached_property
+    @property
     def groups(self):
         return [m for m in self.models if isinstance(m, sa.Group)]
 
