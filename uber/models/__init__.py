@@ -1095,9 +1095,10 @@ class Session(SessionManager):
             job = self.job(job_id)
             attendee = self.attendee(attendee_id)
 
-            if job.restricted and not attendee.trusted_in(job.location):
-                return 'You cannot assign an attendee who is not trusted ' \
-                    'in this department to a restricted shift'
+            if not attendee.has_required_roles(job):
+                return 'You cannot assign an attendee to this shift who ' \
+                    'does not have the required roles: ' \
+                    '{}'.format(job.required_roles_labels)
 
             if job.slots <= len(job.shifts):
                 return 'All slots for this job have already been filled'

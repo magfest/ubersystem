@@ -29,8 +29,10 @@ def session(request):
     session = Session().session
     for num in ['One', 'Two', 'Three', 'Four', 'Five', 'Six']:
         setattr(session, 'job_' + num.lower(), session.job(name='Job ' + num))
-    for number in ['One', 'Two', 'Three', 'Four', 'Five']:
-        setattr(session, 'staff_{}'.format(number).lower(), session.attendee(badge_type=c.STAFF_BADGE, first_name=number))
+    for num in ['One', 'Two', 'Three', 'Four', 'Five']:
+        setattr(session, 'staff_{}'.format(num).lower(), session.attendee(badge_type=c.STAFF_BADGE, first_name=num))
+    for name in ['Arcade', 'Console']:
+        setattr(session, 'dept_' + name.lower(), session.department(name=name))
     request.addfinalizer(session.close)
     return session
 
@@ -57,8 +59,10 @@ class TestAssign:
         assert error
 
     def test_restricted_in_correct_trusted_dept(self, session):
-        session.staff_two.assigned_depts = '{},{}'.format(str(c.ARCADE), str(c.CONSOLE))
-        session.staff_two.trusted_depts = '{},{}'.format(str(c.ARCADE), str(c.CONSOLE))
+        session.staff_two.dept_memberships = [
+            DeptMembership(
+                department=session.dept_arcade,
+                dept_roles=session.job_six.required_roles)]
         session.commit()
         error = session.assign(session.staff_two.id, session.job_six.id)
         assert not error

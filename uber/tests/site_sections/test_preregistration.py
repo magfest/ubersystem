@@ -55,17 +55,19 @@ def duplicate_badge_num_preconditions():
         leader_id = leader.id
 
     with Session() as session:
+        console = Department(name='DEPT_01', description='DEPT_01')
         leader = session.query(Attendee).get(leader_id)
         leader.paid = c.NEED_NOT_PAY
         leader.badge_printed_name = 'Fearmore'
         leader.badge_type = c.STAFF_BADGE
-        leader.assigned_depts = str(c.CONSOLE)
+        leader.assigned_depts = [console]
 
         group = session.query(Group).get(group_id)
         group.auto_recalc = False
 
     for i in range(10):
         with Session() as session:
+            console = session.query(Department).filter_by(name='DEPT_01').one()
             group = session.query(Group).get(group_id)
 
             is_staff = (i < 9)
@@ -81,8 +83,8 @@ def duplicate_badge_num_preconditions():
                 'registered': localized_now(),
                 'staffing': is_staff,
                 'badge_status': str(c.COMPLETED_STATUS),
-                'badge_printed_name': 'Fearsome{}'.format(i) if is_staff else '',
-                'assigned_depts': str(c.CONSOLE) if is_staff else ''}
+                'badge_printed_name': 'Fears{}'.format(i) if is_staff else '',
+                'assigned_depts': [console] if is_staff else ''}
 
             attendee = group.unassigned[0]
             attendee.apply(params, restricted=False)

@@ -124,8 +124,13 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     badge_printed_name = Column(UnicodeText)
 
-    department_memberships = relationship(
-        'DepartmentMembership', backref='attendee')
+    dept_memberships = relationship('DeptMembership', backref='attendee')
+    dept_roles = relationship(
+        'DeptRole',
+        backref='attendees',
+        cascade='save-update,merge,refresh-expire,expunge',
+        secondary='join(DeptMembership, dept_membership_dept_role)',
+        viewonly=True)
 
     staffing = Column(Boolean, default=False)
     nonshift_hours = Column(Integer, default=0, admin_only=True)
@@ -233,7 +238,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def _staffing_adjustments(self):
-        if c.DEPT_HEAD_RIBBON in self.ribbon_ints:
+        if self.is_dept_head:
             self.staffing = True
             if c.SHIFT_CUSTOM_BADGES or \
                     c.STAFF_BADGE not in c.PREASSIGNED_BADGE_TYPES:
@@ -253,10 +258,10 @@ class Attendee(MagModel, TakesPaymentMixin):
                     c.VOLUNTEER_RIBBON not in old_ribbon:
                 self.staffing = True
 
-            elif old_staffing and not self.staffing or \
-                    not set([c.VOLUNTEER_RIBBON, c.DEPT_HEAD_RIBBON]) \
-                    .intersection(self.ribbon_ints) and \
-                    c.VOLUNTEER_RIBBON in old_ribbon:
+            elif old_staffing and not self.staffing \
+                    or c.VOLUNTEER_RIBBON not in self.ribbon_ints \
+                    and c.VOLUNTEER_RIBBON in old_ribbon \
+                    and not self.is_dept_head:
                 self.unset_volunteering()
 
         if self.badge_type == c.STAFF_BADGE:
@@ -268,8 +273,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if self.badge_type == c.STAFF_BADGE:
             self.staffing = True
-            if not self.overridden_price and \
-                    self.paid in [c.NOT_PAID, c.PAID_BY_GROUP]:
+            if not self.overridden_price \
+                    and self.paid in [c.NOT_PAID, c.PAID_BY_GROUP]:
                 self.paid = c.NEED_NOT_PAY
 
     @presave_adjustment
@@ -302,7 +307,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     def unset_volunteering(self):
         self.staffing = False
-        self.trusted_depts = self.requested_depts = self.assigned_depts = ''
+        self.requested_depts = []
+        self.assigned_depts = []
         self.ribbon = remove_opt(self.ribbon_ints, c.VOLUNTEER_RIBBON)
         if self.badge_type == c.STAFF_BADGE:
             self.badge_type = c.ATTENDEE_BADGE
@@ -434,7 +440,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def is_dept_head(self):
-        return c.DEPT_HEAD_RIBBON in self.ribbon_ints
+        return any(m.is_dept_head for m in self.dept_memberships)
 
     @property
     def is_presold_oneday(self):
@@ -553,7 +559,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def is_transferable(self):
         return not self.is_new and \
-            not self.trusted_somewhere and \
+            not self.has_role_somewhere and \
             not self.checked_in and \
             self.paid in [c.HAS_PAID, c.PAID_BY_GROUP] and \
             self.badge_type in c.TRANSFERABLE_BADGE_TYPES and \
@@ -677,7 +683,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def takes_shifts(self):
         return bool(
             self.staffing and
-            set(self.assigned_depts_ints) - set(c.SHIFTLESS_DEPTS))
+            any(not d.is_shiftless for d in self.assigned_depts))
 
     @property
     def hours(self):
@@ -712,11 +718,11 @@ class Attendee(MagModel, TakesPaymentMixin):
 
             return [
                 job for job in job_query
-                if job.slots > len(job.shifts) and
-                job.no_overlap(self) and
-                (job.type != c.SETUP or self.can_work_setup) and
-                (job.type != c.TEARDOWN or self.can_work_teardown) and
-                (not job.restricted or self.trusted_in(job.location))]
+                if job.slots > len(job.shifts)
+                and job.no_overlap(self)
+                and (job.type != c.SETUP or self.can_work_setup)
+                and (job.type != c.TEARDOWN or self.can_work_teardown)
+                and self.has_required_roles(job)]
 
     @property
     def possible_opts(self):
@@ -750,20 +756,34 @@ class Attendee(MagModel, TakesPaymentMixin):
         return weighted_hours + self.nonshift_hours
 
     def requested(self, department):
-        return department in self.requested_depts_ints
+        return department in self.requested_depts
 
     def assigned_to(self, department):
-        return int(department or 0) in self.assigned_depts_ints
+        return department in self.assigned_depts
 
-    def trusted_in(self, department):
-        return int(department or 0) in self.trusted_depts_ints
+    def has_role_in(self, department):
+        for membership in self.dept_memberships:
+            if membership.is_dept_head or membership.dept_roles:
+                return True
+        return False
+
+    def has_required_roles(self, job):
+        if not job.required_roles:
+            return True
+        role_ids = set(r.id for r in job.required_roles)
+        for role in self.dept_roles:
+            if role.id in role_ids:
+                role_ids.remove(role.id)
+                if not role_ids:
+                    return True
+        return False
 
     @property
-    def trusted_somewhere(self):
+    def has_role_somewhere(self):
         """
         :return: True if this Attendee is trusted in at least 1 department
         """
-        return len(self.trusted_depts_ints) > 0
+        return not not self.dept_roles
 
     def has_shifts_in(self, department):
         return any(shift.job.location == department for shift in self.shifts)

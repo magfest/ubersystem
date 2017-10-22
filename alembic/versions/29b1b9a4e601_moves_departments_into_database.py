@@ -61,6 +61,15 @@ from uber.config import c
 DEPT_HEAD_RIBBON_STR = str(c.DEPT_HEAD_RIBBON)
 DEPARTMENT_NAMESPACE = uuid.UUID('fe0f168e-47fe-4ec9-ba66-6917613da7fd')
 
+
+def _trusted_dept_role_id(department_id):
+    return str(uuid.uuid5(DEPARTMENT_NAMESPACE, department_id))
+
+
+def _dept_membership_id(department_id, attendee_id):
+    return str(uuid.uuid5(DEPARTMENT_NAMESPACE, department_id + attendee_id))
+
+
 job_location_to_department_id = {i: str(uuid.uuid5(DEPARTMENT_NAMESPACE, str(i))) for i in c.JOB_LOCATIONS.keys()}
 job_interests_to_department_id = {i: job_location_to_department_id[i] for i in c.JOB_INTERESTS.keys() if i in job_location_to_department_id}
 department_id_to_job_location = {d: i for i, d in job_location_to_department_id.items()}
@@ -75,8 +84,8 @@ job_table = table(
 )
 
 
-job_role_table = table(
-    'job_role',
+dept_role_table = table(
+    'dept_role',
     sa.Column('id', sideboard.lib.sa.UUID()),
     sa.Column('name', sa.UnicodeText()),
     sa.Column('description', sa.UnicodeText()),
@@ -87,7 +96,7 @@ job_role_table = table(
 job_required_role_table = table(
     'job_required_role',
     sa.Column('job_id', sideboard.lib.sa.UUID(), ForeignKey('job.id')),
-    sa.Column('job_role_id', sideboard.lib.sa.UUID(), ForeignKey('job_role.id')),
+    sa.Column('dept_role_id', sideboard.lib.sa.UUID(), ForeignKey('dept_role.id')),
 )
 
 
@@ -113,8 +122,8 @@ department_table = table(
 )
 
 
-department_membership_table = table(
-    'department_membership',
+dept_membership_table = table(
+    'dept_membership',
     sa.Column('id', sideboard.lib.sa.UUID()),
     sa.Column('is_dept_head', sa.Boolean()),
     sa.Column('gets_checklist', sa.Boolean()),
@@ -123,25 +132,17 @@ department_membership_table = table(
 )
 
 
-department_membership_request_table = table(
-    'department_membership_request',
+dept_membership_request_table = table(
+    'dept_membership_request',
     sa.Column('attendee_id', sideboard.lib.sa.UUID(), ForeignKey('attendee.id')),
     sa.Column('department_id', sideboard.lib.sa.UUID(), ForeignKey('department.id')),
 )
 
 
-department_membership_job_role_table = table(
-    'department_membership_job_role',
-    sa.Column('department_membership_id', sideboard.lib.sa.UUID, ForeignKey('department_membership.id')),
-    sa.Column('job_role_id', sideboard.lib.sa.UUID, ForeignKey('job_role.id')))
-
-
-def _trusted_job_role_id(department_id):
-    return str(uuid.uuid5(DEPARTMENT_NAMESPACE, department_id))
-
-
-def _department_membership_id(department_id, attendee_id):
-    return str(uuid.uuid5(DEPARTMENT_NAMESPACE, department_id + attendee_id))
+dept_membership_dept_role_table = table(
+    'dept_membership_dept_role',
+    sa.Column('dept_membership_id', sideboard.lib.sa.UUID, ForeignKey('dept_membership.id')),
+    sa.Column('dept_role_id', sideboard.lib.sa.UUID, ForeignKey('dept_role.id')))
 
 
 def _upgrade_job_department_id():
@@ -168,10 +169,10 @@ def _upgrade_job_department_id():
             })
         )
 
-        trusted_job_role_id = _trusted_job_role_id(department_id)
+        trusted_dept_role_id = _trusted_dept_role_id(department_id)
         op.execute(
-            job_role_table.insert().values({
-                'id': trusted_job_role_id,
+            dept_role_table.insert().values({
+                'id': trusted_dept_role_id,
                 'name': 'Trusted',
                 'description': 'Staffers with a proven track record in "{}" are considered "Trusted"'.format(name),
                 'department_id': department_id
@@ -188,7 +189,7 @@ def _upgrade_job_department_id():
             op.execute(
                 job_required_role_table.insert().values({
                     'job_id': restricted_job.id,
-                    'job_role_id': trusted_job_role_id
+                    'dept_role_id': trusted_dept_role_id
                 })
             )
 
@@ -197,11 +198,11 @@ def _downgrade_job_department_id():
     connection = op.get_bind()
     jobs = connection.execute(job_table.select())
     for job in jobs:
-        trusted_job_role_id = _trusted_job_role_id(job.department_id)
+        trusted_dept_role_id = _trusted_dept_role_id(job.department_id)
         is_restricted = not not connection.execute(
             job_required_role_table.select().where(and_(
                 job_required_role_table.c.job_id == job.id,
-                job_required_role_table.c.job_role_id == trusted_job_role_id
+                job_required_role_table.c.dept_role_id == trusted_dept_role_id
             ))
         )
         op.execute(
@@ -236,10 +237,10 @@ def _upgrade_attendee_departments():
         for value in assigned_depts:
             department_id = job_location_to_department_id[value]
             attendee_id = str(attendee.id)
-            department_membership_id = _department_membership_id(department_id, attendee_id)
+            dept_membership_id = _dept_membership_id(department_id, attendee_id)
             op.execute(
-                department_membership_table.insert().values({
-                    'id': department_membership_id,
+                dept_membership_table.insert().values({
+                    'id': dept_membership_id,
                     'is_dept_head': is_dept_head,
                     'gets_checklist': is_dept_head,
                     'department_id': department_id,
@@ -249,9 +250,9 @@ def _upgrade_attendee_departments():
 
             if value in trusted_depts:
                 op.execute(
-                    department_membership_job_role_table.insert().values({
-                        'department_membership_id': department_membership_id,
-                        'job_role_id': _trusted_job_role_id(department_id)
+                    dept_membership_dept_role_table.insert().values({
+                        'dept_membership_id': dept_membership_id,
+                        'dept_role_id': _trusted_dept_role_id(department_id)
                     })
                 )
 
@@ -263,7 +264,7 @@ def _upgrade_attendee_departments():
             department_id = None if value in [c.ANYTHING, c.OTHER] else job_location_to_department_id[value]
             attendee_id = str(attendee.id)
             op.execute(
-                department_membership_request_table.insert().values({
+                dept_membership_request_table.insert().values({
                     'department_id': department_id,
                     'attendee_id': attendee_id
                 })
@@ -289,31 +290,31 @@ def _downgrade_attendee_departments():
     attendee_requested_depts = defaultdict(set)
     attendee_is_dept_head = defaultdict(lambda: False)
 
-    department_memberships = connection.execute(department_membership_table.select())
-    for department_membership in department_memberships:
-        attendee_id = department_membership.attendee_id
+    dept_memberships = connection.execute(dept_membership_table.select())
+    for dept_membership in dept_memberships:
+        attendee_id = dept_membership.attendee_id
         attendee_ids.add(attendee_id)
-        location = department_id_to_job_location[department_membership.department_id]
+        location = department_id_to_job_location[dept_membership.department_id]
 
-        if department_membership.is_dept_head:
+        if dept_membership.is_dept_head:
             attendee_is_dept_head[attendee_id] = True
 
         trusted_roles = op.execute(
-            department_membership_job_role_table.select().where(and_(
-                department_membership_job_role_table.c.department_membership_id == department_membership.id,
-                department_membership_job_role_table.c.job_role_id == _trusted_job_role_id(department_membership.department_id)
+            dept_membership_dept_role_table.select().where(and_(
+                dept_membership_dept_role_table.c.dept_membership_id == dept_membership.id,
+                dept_membership_dept_role_table.c.dept_role_id == _trusted_dept_role_id(dept_membership.department_id)
             ))
         )
-        if trusted_roles or department_membership.is_dept_head:
+        if trusted_roles or dept_membership.is_dept_head:
             attendee_trusted_depts[attendee_id].add(location)
 
         attendee_assigned_depts[attendee_id].add(location)
 
-    department_membership_requests = connection.execute(department_membership_request_table.select())
-    for department_membership_request in department_membership_requests:
-        attendee_id = department_membership.attendee_id
+    dept_membership_requests = connection.execute(dept_membership_request_table.select())
+    for dept_membership_request in dept_membership_requests:
+        attendee_id = dept_membership.attendee_id
         attendee_ids.add(attendee_id)
-        location = department_id_to_job_location[department_membership.department_id]
+        location = department_id_to_job_location[dept_membership.department_id]
         attendee_requested_depts[attendee_id].add(location)
 
     for attendee_id in attendee_ids:
@@ -344,43 +345,43 @@ def upgrade():
     sa.ForeignKeyConstraint(['parent_id'], ['department.id'], name=op.f('fk_department_parent_id_department')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_department'))
     )
-    op.create_table('job_role',
+    op.create_table('dept_role',
     sa.Column('id', sideboard.lib.sa.UUID(), nullable=False),
     sa.Column('name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('description', sa.Unicode(), server_default='', nullable=False),
     sa.Column('department_id', sideboard.lib.sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['department_id'], ['department.id'], name=op.f('fk_job_role_department_id_department')),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_job_role'))
+    sa.ForeignKeyConstraint(['department_id'], ['department.id'], name=op.f('fk_dept_role_department_id_department')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_dept_role'))
     )
-    op.create_table('department_membership',
+    op.create_table('dept_membership',
     sa.Column('id', sideboard.lib.sa.UUID(), nullable=False),
     sa.Column('is_dept_head', sa.Boolean(), server_default='False', nullable=False),
     sa.Column('gets_checklist', sa.Boolean(), server_default='False', nullable=False),
     sa.Column('attendee_id', sideboard.lib.sa.UUID(), nullable=False),
     sa.Column('department_id', sideboard.lib.sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_department_membership_attendee_id_attendee')),
-    sa.ForeignKeyConstraint(['department_id'], ['department.id'], name=op.f('fk_department_membership_department_id_department')),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_department_membership')),
-    sa.UniqueConstraint('attendee_id', 'department_id', name=op.f('uq_department_membership_attendee_id'))
+    sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_dept_membership_attendee_id_attendee')),
+    sa.ForeignKeyConstraint(['department_id'], ['department.id'], name=op.f('fk_dept_membership_department_id_department')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_dept_membership')),
+    sa.UniqueConstraint('attendee_id', 'department_id', name=op.f('uq_dept_membership_attendee_id'))
     )
     op.create_table('job_required_role',
     sa.Column('job_id', sideboard.lib.sa.UUID(), nullable=False),
-    sa.Column('job_role_id', sideboard.lib.sa.UUID(), nullable=False),
+    sa.Column('dept_role_id', sideboard.lib.sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['job_id'], ['job.id'], name=op.f('fk_job_required_role_job_id_job')),
-    sa.ForeignKeyConstraint(['job_role_id'], ['job_role.id'], name=op.f('fk_job_required_role_job_role_id_job_role'))
+    sa.ForeignKeyConstraint(['dept_role_id'], ['dept_role.id'], name=op.f('fk_job_required_role_dept_role_id_dept_role'))
     )
-    op.create_table('department_membership_request',
+    op.create_table('dept_membership_request',
     sa.Column('attendee_id', sideboard.lib.sa.UUID(), nullable=False),
     sa.Column('department_id', sideboard.lib.sa.UUID(), nullable=True),
-    sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_department_membership_request_attendee_id_attendee')),
-    sa.ForeignKeyConstraint(['department_id'], ['department.id'], name=op.f('fk_department_membership_request_department_id_department')),
-    sa.UniqueConstraint('attendee_id', 'department_id', name=op.f('uq_department_membership_request_attendee_id'))
+    sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_dept_membership_request_attendee_id_attendee')),
+    sa.ForeignKeyConstraint(['department_id'], ['department.id'], name=op.f('fk_dept_membership_request_department_id_department')),
+    sa.UniqueConstraint('attendee_id', 'department_id', name=op.f('uq_dept_membership_request_attendee_id'))
     )
-    op.create_table('department_membership_job_role',
-    sa.Column('department_membership_id', sideboard.lib.sa.UUID(), nullable=False),
-    sa.Column('job_role_id', sideboard.lib.sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['department_membership_id'], ['department_membership.id'], name=op.f('fk_department_membership_job_role_department_membership_id_department_membership')),
-    sa.ForeignKeyConstraint(['job_role_id'], ['job_role.id'], name=op.f('fk_department_membership_job_role_job_role_id_job_role'))
+    op.create_table('dept_membership_dept_role',
+    sa.Column('dept_membership_id', sideboard.lib.sa.UUID(), nullable=False),
+    sa.Column('dept_role_id', sideboard.lib.sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['dept_membership_id'], ['dept_membership.id'], name=op.f('fk_dept_membership_dept_role_dept_membership_id_dept_membership')),
+    sa.ForeignKeyConstraint(['dept_role_id'], ['dept_role.id'], name=op.f('fk_dept_membership_dept_role_dept_role_id_dept_role'))
     )
 
     if is_sqlite:
@@ -449,9 +450,9 @@ def downgrade():
         op.alter_column('job', 'location', nullable=False)
         op.drop_column('job', 'department_id')
 
-    op.drop_table('department_membership_job_role')
-    op.drop_table('department_membership_request')
+    op.drop_table('dept_membership_dept_role')
+    op.drop_table('dept_membership_request')
     op.drop_table('job_required_role')
-    op.drop_table('department_membership')
-    op.drop_table('job_role')
+    op.drop_table('dept_membership')
+    op.drop_table('dept_role')
     op.drop_table('department')
