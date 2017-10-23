@@ -320,7 +320,7 @@ class DeptChecklistEmail(AutomatedEmail):
                                 template='shifts/dept_checklist.txt',
                                 filter=lambda a: a.is_single_dept_head and a.admin_account and not conf.completed(a),
                                 ident='department_checklist_{}'.format(conf.name),
-                                when=days_before(7, conf.deadline),
+                                when=days_before(10, conf.deadline),
                                 sender=c.STAFF_EMAIL,
                                 extra_data={'conf': conf},
                                 post_con=conf.email_post_con or False)
