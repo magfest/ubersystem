@@ -1338,8 +1338,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             return 0
         elif self.overridden_price is not None:
             return self.overridden_price
-        elif self.is_dealer:
-            return c.DEALER_BADGE_PRICE
         elif self.badge_type == c.ONE_DAY_BADGE:
             return c.get_oneday_price(registered)
         elif self.is_presold_oneday:
@@ -1348,8 +1346,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             return int(c.BADGE_TYPE_PRICES[self.badge_type])
         elif self.age_discount != 0:
             return max(0, c.get_attendee_price(registered) + self.age_discount)
-        elif self.group and self.paid == c.PAID_BY_GROUP:
-            return c.get_attendee_price(registered) - c.GROUP_DISCOUNT
         else:
             return c.get_attendee_price(registered)
 
