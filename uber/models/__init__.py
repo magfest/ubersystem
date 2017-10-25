@@ -569,7 +569,7 @@ class Session(SessionManager):
         def logged_in_volunteer(self):
             return self.attendee(cherrypy.session['staffer_id'])
 
-        def checklist_status(self, slug, department):
+        def checklist_status(self, slug, department_id):
             attendee = self.admin_attendee()
             conf = DeptChecklistConf.instances.get(slug)
             if not conf:
@@ -577,8 +577,7 @@ class Session(SessionManager):
                     "Can't access dept checklist INI settings for section "
                     "'{}', check your INI file".format(slug))
 
-            is_relevant = attendee.is_single_dept_head and \
-                attendee.assigned_depts_ints == [int(department or 0)]
+            is_relevant = attendee.is_dept_head_of(department_id)
             return {
                 'conf': conf,
                 'relevant': is_relevant,
@@ -587,19 +586,19 @@ class Session(SessionManager):
 
         def jobs_for_signups(self):
             fields = [
-                'name', 'location_label', 'description', 'weight',
+                'name', 'department_name', 'description', 'weight',
                 'start_time_local', 'end_time_local', 'duration',
                 'weighted_hours', 'restricted', 'extra15', 'taken']
             jobs = self.logged_in_volunteer().possible_and_current
             restricted_hours = set()
             for job in jobs:
-                if job.restricted:
+                if job.required_roles:
                     restricted_hours.add(frozenset(job.hours))
             return [
                 job.to_dict(fields)
                 for job in jobs
-                if (job.restricted or
-                    frozenset(job.hours) not in restricted_hours)]
+                if (job.required_roles
+                    or frozenset(job.hours) not in restricted_hours)]
 
         def guess_attendee_watchentry(self, attendee):
             or_clauses = [
@@ -916,9 +915,12 @@ class Session(SessionManager):
         def staffers(self):
             return self.all_attendees(only_staffing=True)
 
-        def jobs(self, location=None):
+        def jobs(self, department_id=None):
+            job_filter = {
+                'department_id': department_id} if department_id else {}
+
             return self.query(Job) \
-                .filter_by(**{'location': location} if location else {}) \
+                .filter_by(**job_filter) \
                 .options(
                     subqueryload(Job.shifts)
                     .subqueryload(Shift.attendee)

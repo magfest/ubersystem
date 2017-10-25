@@ -1,5 +1,4 @@
 import json
-from collections import defaultdict
 from datetime import date, datetime
 from uuid import uuid4
 
@@ -125,11 +124,50 @@ class Attendee(MagModel, TakesPaymentMixin):
     badge_printed_name = Column(UnicodeText)
 
     dept_memberships = relationship('DeptMembership', backref='attendee')
+    dept_membership_requests = relationship(
+        'DeptMembershipRequest', backref='attendee')
     dept_roles = relationship(
         'DeptRole',
         backref='attendees',
         cascade='save-update,merge,refresh-expire,expunge',
         secondary='join(DeptMembership, dept_membership_dept_role)',
+        order_by='DeptRole.name',
+        viewonly=True)
+    shifts = relationship('Shift', backref='attendee')
+    depts_where_working = relationship(
+        'Department',
+        backref='attendees_working_shifts',
+        cascade='save-update,merge,refresh-expire,expunge',
+        secondary='join(Shift, Job)',
+        order_by='Department.name',
+        viewonly=True)
+    dept_memberships_with_role = relationship(
+        'DeptMembership',
+        primaryjoin='and_('
+                    'Attendee.id == DeptMembership.attendee_id, '
+                    'DeptMembership.has_role == True)',
+        viewonly=True)
+    pocs_for_depts_where_working = relationship(
+        'Attendee',
+        cascade='save-update,merge,refresh-expire,expunge',
+        primaryjoin='Attendee.id == Shift.attendee_id',
+        secondaryjoin='and_('
+                      'DeptMembership.attendee_id == Attendee.id, '
+                      'DeptMembership.is_poc == True)',
+        secondary='join(Shift, Job).join(DeptMembership, '
+                  'DeptMembership.department_id == Job.department_id)',
+        order_by='Attendee.full_name',
+        viewonly=True)
+    dept_heads_for_depts_where_working = relationship(
+        'Attendee',
+        cascade='save-update,merge,refresh-expire,expunge',
+        primaryjoin='Attendee.id == Shift.attendee_id',
+        secondaryjoin='and_('
+                      'DeptMembership.attendee_id == Attendee.id, '
+                      'DeptMembership.is_dept_head == True)',
+        secondary='join(Shift, Job).join(DeptMembership, '
+                  'DeptMembership.department_id == Job.department_id)',
+        order_by='Attendee.full_name',
         viewonly=True)
 
     staffing = Column(Boolean, default=False)
@@ -151,7 +189,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         'FoodRestrictions', backref=backref('attendee', load_on_pending=True),
         uselist=False)
 
-    shifts = relationship('Shift', backref='attendee')
     sales = relationship(
         'Sale', backref='attendee',
         cascade='save-update,merge,refresh-expire,expunge')
@@ -711,7 +748,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         else:
             from uber.models.admin import Job
             job_filters = [] if c.AT_THE_CON \
-                else [Job.location.in_(self.assigned_depts_ints)]
+                else [Job.department.in_(self.assigned_depts)]
 
             job_query = self.session.query(Job).filter(*job_filters).options(
                 joinedload(Job.shifts)).order_by(Job.start_time)
@@ -728,7 +765,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     def possible_opts(self):
         return [
             (job.id, '({}) [{}] {}'.format(
-                hour_day_format(job.start_time), job.location_label, job.name))
+                hour_day_format(job.start_time),
+                job.department.name,
+                job.name))
             for job in self.possible
             if localized_now() < job.start_time]
 
@@ -761,32 +800,37 @@ class Attendee(MagModel, TakesPaymentMixin):
     def assigned_to(self, department):
         return department in self.assigned_depts
 
+    def is_dept_head_of(self, department_id):
+        return bool(self.session.query(Attendee.id).filter(
+                Attendee.dept_memberships.any(
+                    is_dept_head=True,
+                    department_id=department_id,
+                    attendee_id=self.id)).first())
+
     def has_role_in(self, department):
-        for membership in self.dept_memberships:
-            if membership.is_dept_head or membership.dept_roles:
-                return True
-        return False
+        return any(
+            membership.department_id == department.id
+            for membership in self.dept_memberships_with_role)
 
     def has_required_roles(self, job):
         if not job.required_roles:
             return True
         role_ids = set(r.id for r in job.required_roles)
-        for role in self.dept_roles:
-            if role.id in role_ids:
-                role_ids.remove(role.id)
-                if not role_ids:
-                    return True
-        return False
+        return role_ids.issubset(set(r.id for r in self.dept_roles))
 
     @property
     def has_role_somewhere(self):
         """
         :return: True if this Attendee is trusted in at least 1 department
         """
-        return not not self.dept_roles
+        # Check for implicit roles first to avoid additional SQL queries
+        for membership in self.dept_memberships:
+            if membership.has_implicit_role:
+                return True
+        return bool(self.dept_roles)
 
     def has_shifts_in(self, department):
-        return any(shift.job.location == department for shift in self.shifts)
+        return department in self.depts_where_working
 
     @property
     def food_restrictions_filled_out(self):
@@ -803,24 +847,11 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def must_contact(self):
-        chairs = defaultdict(list)
-        for dept, head in c.DEPT_HEAD_OVERRIDES.items():
-            chairs[dept].append(head)
-
-        for head in self.session.query(Attendee).filter(
-                Attendee.ribbon.contains(c.DEPT_HEAD_RIBBON)).order_by(
-                'badge_num'):
-
-            for dept in head.assigned_depts_ints:
-                chairs[dept].append(head.full_name)
-
-        locations = [s.job.location for s in self.shifts]
-        dept_names = dict(c.JOB_LOCATION_OPTS)
-
-        dept_chairs = {
-            '({}) {}'.format(dept_names[dept], ' / '.join(chairs[dept]))
-            for dept in locations}
-
+        dept_chairs = []
+        for dept in self.depts_where_working:
+            poc_names = ' / '.join(
+                sorted(poc.full_name for poc in dept.pocs))
+            dept_chairs.append('({}) {}'.format(dept.name, poc_names))
         return safe_string('<br/>'.join(sorted(dept_chairs)))
 
 

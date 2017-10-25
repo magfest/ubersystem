@@ -9,7 +9,7 @@ def job_dict(job, shifts=None):
         'weight': job.weight,
         'restricted': job.restricted,
         'timespan': job.timespan(),
-        'location_label': job.location_label,
+        'department_name': job.department.name,
         'shifts': [{
             'id': shift.id,
             'rating': shift.rating,
@@ -37,27 +37,28 @@ def update_counts(job, counts):
 @all_renderable(c.PEOPLE)
 class Root:
 
-    def index(self, session, location=None, message='', time=None):
-        if not location:
+    def index(self, session, department_id=None, message='', time=None):
+        if not department_id:
             if c.AT_THE_CON:
                 raise HTTPRedirect('signups')
             else:
-                location = c.JOB_LOCATION_OPTS[0][0]
+                department_id = session.query(Department.id).order_by(
+                    Department.name).first()[0]
 
-        location = None if location == 'All' else location
-        jobs = session.jobs(location).all()
+        department_id = None if department_id == 'All' else department_id
+        jobs = session.jobs(department_id).all()
         by_start = defaultdict(list)
         for job in jobs:
             if job.type == c.REGULAR:
                 by_start[job.start_time_local].append(job)
         times = [c.EPOCH + timedelta(hours=i) for i in range(c.CON_LENGTH)]
         return {
-            'location':  location,
-            'setup':     [j for j in jobs if j.type == c.SETUP],
-            'teardown':  [j for j in jobs if j.type == c.TEARDOWN],
+            'department_id': department_id,
+            'setup': [j for j in jobs if j.type == c.SETUP],
+            'teardown': [j for j in jobs if j.type == c.TEARDOWN],
             'normal': [j for j in jobs if j.type != c.SETUP and j.type != c.TEARDOWN],
-            'checklist': location and session.checklist_status('creating_shifts', location),
-            'times':     [(t, t + timedelta(hours=1), by_start[t]) for i, t in enumerate(times)],
+            'checklist': department_id and session.checklist_status('creating_shifts', department_id),
+            'times': [(t, t + timedelta(hours=1), by_start[t]) for i, t in enumerate(times)],
             'jobs': jobs
         }
 

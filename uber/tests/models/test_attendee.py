@@ -165,7 +165,6 @@ def test_is_not_transferable_trusted(monkeypatch, dept, trusted_role):
         session.add_all([attendee, dept, trusted_role, dept_membership])
         session.flush()
         assert not attendee.is_transferable
-        session.rollback()
 
 
 def test_has_role_somewhere(dept, trusted_role):
@@ -184,7 +183,85 @@ def test_has_role_somewhere(dept, trusted_role):
         session.refresh(attendee)
         assert not attendee.has_role_somewhere
 
-        session.rollback()
+
+def test_requested_all_depts():
+    dept1 = Department(name='Dept1', description='Dept1')
+    dept2 = Department(name='Dept2', description='Dept2')
+    volunteer = Attendee(paid=c.HAS_PAID, first_name='V', last_name='One')
+    volunteer.dept_membership_requests = [
+        DeptMembershipRequest(attendee=volunteer)]
+
+    with Session() as session:
+        session.add_all([dept1, dept2, volunteer])
+        session.commit()
+        session.refresh(volunteer)
+        all_depts = session.query(Department).order_by(Department.name).all()
+        assert all_depts == volunteer.requested_depts
+
+
+def test_must_contact():
+    dept1 = Department(name='Dept1', description='Dept1')
+    dept2 = Department(name='Dept2', description='Dept2')
+
+    poc_dept1 = Attendee(
+        paid=c.NEED_NOT_PAY, first_name='Poc', last_name='Dept1')
+    poc_dept2 = Attendee(
+        paid=c.NEED_NOT_PAY, first_name='Poc', last_name='Dept2')
+    poc_both = Attendee(
+        paid=c.NEED_NOT_PAY, first_name='Poc', last_name='Both')
+
+    poc_dept1.dept_memberships = [DeptMembership(
+        attendee=poc_dept1,
+        department=dept1,
+        is_poc=True)]
+
+    poc_dept2.dept_memberships = [DeptMembership(
+        attendee=poc_dept2,
+        department=dept2,
+        is_poc=True)]
+
+    poc_both.dept_memberships = [
+        DeptMembership(
+            attendee=poc_dept1,
+            department=dept1,
+            is_poc=True),
+        DeptMembership(
+            attendee=poc_dept2,
+            department=dept2,
+            is_poc=True)]
+
+    start_time = datetime.now(tz=pytz.UTC)
+
+    job1 = Job(
+        name='Job1',
+        description='Job1',
+        start_time=start_time,
+        duration=1,
+        weight=1,
+        slots=1,
+        department=dept1)
+
+    job2 = Job(
+        name='Job2',
+        description='Job2',
+        start_time=start_time,
+        duration=1,
+        weight=1,
+        slots=1,
+        department=dept2)
+
+    volunteer = Attendee(paid=c.HAS_PAID, first_name='V', last_name='One')
+
+    job1.shifts = [Shift(attendee=volunteer, job=job1)]
+    job2.shifts = [Shift(attendee=volunteer, job=job2)]
+
+    with Session() as session:
+        session.add_all([
+            dept1, dept2, poc_dept1, poc_dept2, poc_both, job1, job2,
+            volunteer])
+        session.commit()
+        assert volunteer.must_contact == \
+            '(Dept1) Poc Both / Poc Dept1<br/>(Dept2) Poc Both / Poc Dept2'
 
 
 def test_has_personalized_badge():
@@ -355,14 +432,18 @@ class TestStaffingAdjustments:
         dept_memberships = [
             DeptMembership(
                 attendee=a,
+                attendee_id=a.id,
                 department=dept,
+                department_id=dept.id,
                 is_dept_head=True),
             DeptMembership(
                 attendee=a,
+                attendee_id=a.id,
                 department=shiftless_dept,
+                department_id=shiftless_dept.id,
                 dept_roles=[DeptRole()])]
         a.assigned_depts = [dept, shiftless_dept]
-        a.dept_memberships = dept_memberships
+        a.dept_memberships_with_role = dept_memberships
         a._staffing_adjustments()
         assert a.assigned_to(dept) and a.has_role_in(dept)
         assert a.assigned_to(shiftless_dept) and a.has_role_in(shiftless_dept)

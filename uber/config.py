@@ -376,6 +376,13 @@ class Config(_Overridable):
         except:
             return {}
 
+    @request_cached_property
+    def DEPARTMENT_OPTS(self):
+        with sa.Session() as session:
+            return [
+                (d.id, d.name)
+                for d in session.query(Department).order_by(Department.name)]
+
     @property
     def HTTP_METHOD(self):
         return cherrypy.request.method.upper()

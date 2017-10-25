@@ -3,7 +3,8 @@ from datetime import timedelta
 from sideboard.lib import cached_property
 from sideboard.lib.sa import CoerceUTF8 as UnicodeText, \
     UTCDateTime, UUID
-from sqlalchemy import and_
+from sqlalchemy import and_, or_, exists
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint
 from sqlalchemy.types import Boolean, Float, Integer
@@ -17,9 +18,8 @@ from uber.utils import comma_and
 
 
 __all__ = [
-    'dept_membership_dept_role', 'dept_membership_request',
-    'job_required_role', 'Department', 'DeptMembership', 'Job',
-    'DeptRole', 'Shift']
+    'dept_membership_dept_role', 'job_required_role', 'Department',
+    'DeptMembership', 'DeptMembershipRequest', 'DeptRole', 'Job', 'Shift']
 
 
 # Many to many association table to represent the DeptRoles fulfilled
@@ -29,16 +29,6 @@ dept_membership_dept_role = Table(
     MagModel.metadata,
     Column('dept_membership_id', UUID, ForeignKey('dept_membership.id')),
     Column('dept_role_id', UUID, ForeignKey('dept_role.id')))
-
-
-# Many to many association table to represent a membership request from
-# an Attendee to a Department
-dept_membership_request = Table(
-    'dept_membership_request',
-    MagModel.metadata,
-    Column('attendee_id', UUID, ForeignKey('attendee.id')),
-    Column('department_id', UUID, ForeignKey('department.id'), nullable=True),
-    UniqueConstraint('attendee_id', 'department_id'))
 
 
 # Many to many association table to represent the DeptRoles required
@@ -58,6 +48,7 @@ class DeptRole(MagModel):
 
 class DeptMembership(MagModel):
     is_dept_head = Column(Boolean, default=False)
+    is_poc = Column(Boolean, default=False)
     gets_checklist = Column(Boolean, default=False)
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
     department_id = Column(UUID, ForeignKey('department.id'))
@@ -71,11 +62,61 @@ class DeptMembership(MagModel):
     __mapper_args__ = {'confirm_deleted_rows': False}
     __table_args__ = (UniqueConstraint('attendee_id', 'department_id'),)
 
+    @hybrid_property
+    def has_role(self):
+        return self.has_implicit_role or self.has_dept_role
+
+    @has_role.expression
+    def has_role(cls):
+        return or_(cls.has_implicit_role, cls.has_dept_role)
+
+    @hybrid_property
+    def has_implicit_role(self):
+        return self.is_dept_head or self.is_poc or self.gets_checklist
+
+    @has_implicit_role.expression
+    def has_implicit_role(cls):
+        return or_(
+            cls.is_dept_head == True,
+            cls.is_poc == True,
+            cls.gets_checklist == True)  # noqa: E712
+
+    @hybrid_property
+    def has_dept_role(self):
+        return bool(self.dept_roles)
+
+    @has_dept_role.expression
+    def has_dept_role(cls):
+        return exists().select_from(dept_membership_dept_role) \
+            .where(cls.id == dept_membership_dept_role.c.dept_membership_id)
+
+
+class DeptMembershipRequest(MagModel):
+    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+
+    # A NULL value for the department_id indicates the attendee is willing
+    # to volunteer for any department (they checked "Anything" for
+    # "Where do you want to help?").
+    department_id = Column(UUID, ForeignKey('department.id'), nullable=True)
+
+    department = relationship(
+        'Department',
+        backref='membership_requests',
+        cascade='save-update,merge,refresh-expire,expunge',
+        primaryjoin='or_('
+                    'DeptMembershipRequest.department_id == Department.id, '
+                    'DeptMembershipRequest.department_id == None)',
+        order_by='Department.name',
+        uselist=True)
+
+    __mapper_args__ = {'confirm_deleted_rows': False}
+    __table_args__ = (UniqueConstraint('attendee_id', 'department_id'),)
+
 
 class Department(MagModel):
     name = Column(UnicodeText)
     description = Column(UnicodeText)
-    accepts_volunteers = Column(Boolean, default=True)
+    solicits_volunteers = Column(Boolean, default=True)
     is_shiftless = Column(Boolean, default=False)
     parent_id = Column(UUID, ForeignKey('department.id'), nullable=True)
 
@@ -86,9 +127,17 @@ class Department(MagModel):
         backref='headed_depts',
         cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_('
-                    'Department.id==DeptMembership.department_id, '
-                    'DeptMembership.is_dept_head==True)',
-        secondaryjoin='DeptMembership.attendee_id==Attendee.id',
+                    'Department.id == DeptMembership.department_id, '
+                    'DeptMembership.is_dept_head == True)',
+        secondary='dept_membership',
+        viewonly=True)
+    pocs = relationship(
+        'Attendee',
+        backref='poc_depts',
+        cascade='save-update,merge,refresh-expire,expunge',
+        primaryjoin='and_('
+                    'Department.id == DeptMembership.department_id, '
+                    'DeptMembership.is_poc == True)',
         secondary='dept_membership',
         viewonly=True)
     members = relationship(
@@ -97,11 +146,15 @@ class Department(MagModel):
         cascade='save-update,merge,refresh-expire,expunge',
         secondary='dept_membership')
     memberships = relationship('DeptMembership', backref='department')
-    membership_requests = relationship(
+    attendees_requesting_membership = relationship(
         'Attendee',
-        backref='requested_depts',
+        backref=backref('requested_depts', order_by='Department.name'),
         cascade='save-update,merge,refresh-expire,expunge',
-        secondary='dept_membership_request')
+        primaryjoin='or_('
+                    'DeptMembershipRequest.department_id == Department.id, '
+                    'DeptMembershipRequest.department_id == None)',
+        secondary='dept_membership_request',
+        order_by='Attendee.full_name')
     parent = relationship(
         'Department',
         backref=backref('sub_depts', cascade='all,delete-orphan'),
@@ -134,6 +187,10 @@ class Job(MagModel):
     shifts = relationship('Shift', backref='job')
 
     _repr_attr_names = ['name']
+
+    @property
+    def department_name(self):
+        return self.department.name
 
     @property
     def required_roles_labels(self):

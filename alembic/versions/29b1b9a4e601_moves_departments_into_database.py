@@ -70,9 +70,18 @@ def _dept_membership_id(department_id, attendee_id):
     return str(uuid.uuid5(DEPARTMENT_NAMESPACE, department_id + attendee_id))
 
 
-job_location_to_department_id = {i: str(uuid.uuid5(DEPARTMENT_NAMESPACE, str(i))) for i in c.JOB_LOCATIONS.keys()}
+def _dept_id_from_location(location):
+    department_id = '{:07x}'.format(location) + str(uuid.uuid4())[7:]
+    return department_id
+
+
+def _location_from_dept_id(department_id):
+    location = int(department_id[:7], 16)
+    return location
+
+
+job_location_to_department_id = {i: _dept_id_from_location(i) for i in c.JOB_LOCATIONS.keys()}
 job_interests_to_department_id = {i: job_location_to_department_id[i] for i in c.JOB_INTERESTS.keys() if i in job_location_to_department_id}
-department_id_to_job_location = {d: i for i, d in job_location_to_department_id.items()}
 
 
 job_table = table(
@@ -117,7 +126,7 @@ department_table = table(
     sa.Column('id', sideboard.lib.sa.UUID()),
     sa.Column('name', sa.Unicode()),
     sa.Column('description', sa.Unicode()),
-    sa.Column('accepts_volunteers', sa.Boolean()),
+    sa.Column('solicits_volunteers', sa.Boolean()),
     sa.Column('is_shiftless', sa.Boolean()),
 )
 
@@ -126,6 +135,7 @@ dept_membership_table = table(
     'dept_membership',
     sa.Column('id', sideboard.lib.sa.UUID()),
     sa.Column('is_dept_head', sa.Boolean()),
+    sa.Column('is_poc', sa.Boolean()),
     sa.Column('gets_checklist', sa.Boolean()),
     sa.Column('attendee_id', sideboard.lib.sa.UUID(), ForeignKey('attendee.id')),
     sa.Column('department_id', sideboard.lib.sa.UUID(), ForeignKey('department.id')),
@@ -134,6 +144,7 @@ dept_membership_table = table(
 
 dept_membership_request_table = table(
     'dept_membership_request',
+    sa.Column('id', sideboard.lib.sa.UUID()),
     sa.Column('attendee_id', sideboard.lib.sa.UUID(), ForeignKey('attendee.id')),
     sa.Column('department_id', sideboard.lib.sa.UUID(), ForeignKey('department.id')),
 )
@@ -154,7 +165,7 @@ def _upgrade_job_department_id():
                 'id': department_id,
                 'name': name,
                 'description': name,
-                'accepts_volunteers': value in job_interests_to_department_id,
+                'solicits_volunteers': value in job_interests_to_department_id,
                 'is_shiftless': value in c.SHIFTLESS_DEPTS
             })
         )
@@ -199,15 +210,15 @@ def _downgrade_job_department_id():
     jobs = connection.execute(job_table.select())
     for job in jobs:
         trusted_dept_role_id = _trusted_dept_role_id(job.department_id)
-        is_restricted = not not connection.execute(
+        is_restricted = bool(connection.execute(
             job_required_role_table.select().where(and_(
                 job_required_role_table.c.job_id == job.id,
                 job_required_role_table.c.dept_role_id == trusted_dept_role_id
             ))
-        )
+        ))
         op.execute(
             job_table.update().where(job_table.c.id == job.id).values({
-                'location': department_id_to_job_location[job.department_id],
+                'location': _location_from_dept_id(job.department_id),
                 'restricted': is_restricted
             })
         )
@@ -242,6 +253,7 @@ def _upgrade_attendee_departments():
                 dept_membership_table.insert().values({
                     'id': dept_membership_id,
                     'is_dept_head': is_dept_head,
+                    'is_poc': is_dept_head,
                     'gets_checklist': is_dept_head,
                     'department_id': department_id,
                     'attendee_id': attendee_id
@@ -265,6 +277,7 @@ def _upgrade_attendee_departments():
             attendee_id = str(attendee.id)
             op.execute(
                 dept_membership_request_table.insert().values({
+                    'id': str(uuid.uuid4()),
                     'department_id': department_id,
                     'attendee_id': attendee_id
                 })
@@ -294,7 +307,7 @@ def _downgrade_attendee_departments():
     for dept_membership in dept_memberships:
         attendee_id = dept_membership.attendee_id
         attendee_ids.add(attendee_id)
-        location = department_id_to_job_location[dept_membership.department_id]
+        location = _location_from_dept_id(dept_membership.department_id)
 
         if dept_membership.is_dept_head:
             attendee_is_dept_head[attendee_id] = True
@@ -314,7 +327,7 @@ def _downgrade_attendee_departments():
     for dept_membership_request in dept_membership_requests:
         attendee_id = dept_membership.attendee_id
         attendee_ids.add(attendee_id)
-        location = department_id_to_job_location[dept_membership.department_id]
+        location = _location_from_dept_id(dept_membership.department_id)
         attendee_requested_depts[attendee_id].add(location)
 
     for attendee_id in attendee_ids:
@@ -339,7 +352,7 @@ def upgrade():
     sa.Column('id', sideboard.lib.sa.UUID(), nullable=False),
     sa.Column('name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('description', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('accepts_volunteers', sa.Boolean(), server_default='True', nullable=False),
+    sa.Column('solicits_volunteers', sa.Boolean(), server_default='True', nullable=False),
     sa.Column('is_shiftless', sa.Boolean(), server_default='False', nullable=False),
     sa.Column('parent_id', sideboard.lib.sa.UUID(), nullable=True),
     sa.ForeignKeyConstraint(['parent_id'], ['department.id'], name=op.f('fk_department_parent_id_department')),
@@ -356,6 +369,7 @@ def upgrade():
     op.create_table('dept_membership',
     sa.Column('id', sideboard.lib.sa.UUID(), nullable=False),
     sa.Column('is_dept_head', sa.Boolean(), server_default='False', nullable=False),
+    sa.Column('is_poc', sa.Boolean(), server_default='False', nullable=False),
     sa.Column('gets_checklist', sa.Boolean(), server_default='False', nullable=False),
     sa.Column('attendee_id', sideboard.lib.sa.UUID(), nullable=False),
     sa.Column('department_id', sideboard.lib.sa.UUID(), nullable=False),
@@ -364,18 +378,20 @@ def upgrade():
     sa.PrimaryKeyConstraint('id', name=op.f('pk_dept_membership')),
     sa.UniqueConstraint('attendee_id', 'department_id', name=op.f('uq_dept_membership_attendee_id'))
     )
+    op.create_table('dept_membership_request',
+    sa.Column('id', sideboard.lib.sa.UUID(), nullable=False),
+    sa.Column('attendee_id', sideboard.lib.sa.UUID(), nullable=False),
+    sa.Column('department_id', sideboard.lib.sa.UUID(), nullable=True),
+    sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_dept_membership_request_attendee_id_attendee')),
+    sa.ForeignKeyConstraint(['department_id'], ['department.id'], name=op.f('fk_dept_membership_request_department_id_department')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_dept_membership_request')),
+    sa.UniqueConstraint('attendee_id', 'department_id', name=op.f('uq_dept_membership_request_attendee_id'))
+    )
     op.create_table('job_required_role',
     sa.Column('job_id', sideboard.lib.sa.UUID(), nullable=False),
     sa.Column('dept_role_id', sideboard.lib.sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['job_id'], ['job.id'], name=op.f('fk_job_required_role_job_id_job')),
     sa.ForeignKeyConstraint(['dept_role_id'], ['dept_role.id'], name=op.f('fk_job_required_role_dept_role_id_dept_role'))
-    )
-    op.create_table('dept_membership_request',
-    sa.Column('attendee_id', sideboard.lib.sa.UUID(), nullable=False),
-    sa.Column('department_id', sideboard.lib.sa.UUID(), nullable=True),
-    sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_dept_membership_request_attendee_id_attendee')),
-    sa.ForeignKeyConstraint(['department_id'], ['department.id'], name=op.f('fk_dept_membership_request_department_id_department')),
-    sa.UniqueConstraint('attendee_id', 'department_id', name=op.f('uq_dept_membership_request_attendee_id'))
     )
     op.create_table('dept_membership_dept_role',
     sa.Column('dept_membership_id', sideboard.lib.sa.UUID(), nullable=False),
