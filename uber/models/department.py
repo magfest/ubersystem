@@ -1,3 +1,4 @@
+import uuid
 from datetime import timedelta
 
 import six
@@ -125,6 +126,8 @@ class DeptMembershipRequest(MagModel):
 
 
 class Department(MagModel):
+    NAMESPACE = uuid.UUID('fe0f168e-47fe-4ec9-ba66-6917613da7fd')
+
     name = Column(UnicodeText)
     description = Column(UnicodeText)
     solicits_volunteers = Column(Boolean, default=True)
@@ -190,7 +193,10 @@ class Department(MagModel):
     @classmethod
     def to_id(cls, department):
         if isinstance(department, int):
-            return '{:07x}'.format(department)
+            # This is the same algorithm used by the migration script to
+            # convert c.JOB_LOCATIONS into department ids in the database.
+            prefix = '{:07x}'.format(department)
+            return prefix + str(uuid.uuid5(cls.NAMESPACE, str(department)))[7:]
         elif isinstance(department, six.string_types):
             return department
         else:
@@ -252,6 +258,15 @@ class Job(MagModel):
             or not self.extra15
             or self.department_id == attendee.hour_map[after].department_id
         )
+
+    @hybrid_property
+    def restricted(self):
+        return bool(self.required_roles)
+
+    @restricted.expression
+    def restricted(cls):
+        return exists().select_from(job_required_role) \
+            .where(cls.id == job_required_role.c.job_id)
 
     @property
     def slots_taken(self):

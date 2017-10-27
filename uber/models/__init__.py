@@ -604,6 +604,9 @@ class Session(SessionManager):
                     "Can't access dept checklist INI settings for section "
                     "'{}', check your INI file".format(slug))
 
+            if not department_id:
+                return {'conf': conf, 'relevant': False, 'completed': None}
+
             department = self.query(Department).get(department_id)
             return {
                 'conf': conf,
