@@ -5,8 +5,8 @@ from uber.common import *
 class Root:
     def index(self, session, message=''):
         attendee = session.admin_attendee()
-        if not attendee.is_single_dept_head:
-            raise HTTPRedirect('overview?message={}', 'The checklist is for department heads with exactly one department')
+        if not attendee.is_dept_head:
+            raise HTTPRedirect('overview?message={}', 'The checklist is for department heads only')
 
         return {
             'message': message,
@@ -44,9 +44,9 @@ class Root:
     def overview(self, session, message=''):
         checklist = list(DeptChecklistConf.instances.values())
         overview = []
-        for dept, dept_name in c.JOB_LOCATION_OPTS:
+        for dept_id, dept_name in c.DEPARTMENT_OPTS:
             dept_heads = []
-            for attendee in session.single_dept_heads(dept):
+            for attendee in session.dept_heads(dept_id):
                 statuses = []
                 for item in checklist:
                     if item.completed(attendee):
@@ -59,7 +59,7 @@ class Root:
                         statuses.append({})
                     statuses[-1]['name'] = item.name
                 dept_heads.append([attendee, statuses])
-            overview.append([dept, dept_name, dept_heads])
+            overview.append([dept_id, dept_name, dept_heads])
 
         return {
             'message': message,
@@ -73,7 +73,7 @@ class Root:
         return {
             'conf': conf,
             'overview': [
-                (dept, dept_name, [(attendee, conf.completed(attendee)) for attendee in session.single_dept_heads(dept)])
-                for dept, dept_name in c.JOB_LOCATION_OPTS
+                (dept_id, dept_name, [(attendee, conf.completed(attendee)) for attendee in session.dept_heads(dept_id)])
+                for dept_id, dept_name in c.DEPARTMENT_OPTS
             ]
         }

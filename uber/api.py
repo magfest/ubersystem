@@ -33,7 +33,7 @@ class AttendeeLookup:
 job_fields = dict({
     'name': True,
     'description': True,
-    'location': True,
+    'department_name': True,
     'start_time': True,
     'end_time': True,
     'duration': True,
@@ -55,10 +55,11 @@ job_fields = dict({
 class JobLookup:
     def lookup(self, location):
         with Session() as session:
-            columns = Job.__table__.columns
-            location_column = columns['location']
-            label_lookup = {val: key for key, val in location_column.type.choices.items()}
-            return [job.to_dict(job_fields) for job in session.query(Job).filter_by(location=label_lookup[location]).all()]
+            jobs = [job.to_dict(job_fields) for job in session.query(Job).filter_by(department_name=location).all()]
+            # Maintain API backward compatibility
+            for job in jobs:
+                job['location'] = job.pop('department_name')
+            return jobs
 
 
 class DepartmentLookup:

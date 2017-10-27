@@ -378,9 +378,9 @@
 
 {% if c.JOB_INTEREST_OPTS %}
 <div class="form-group staffing" id="departments">
-    <label for="requested_depts" class="col-sm-3 control-label">Where do you want to help?</label>
+    <label for="requested_depts_ids" class="col-sm-3 control-label">Where do you want to help?</label>
     <div class="col-sm-9">
-        {{ macros.checkgroup(attendee, 'requested_depts') }}
+        {{ macros.checkgroup_opts('requested_depts_ids', c.PUBLIC_DEPARTMENT_OPTS, defaults=attendee.requested_depts_ids) }}
     </div>
 </div>
 {% endif %}

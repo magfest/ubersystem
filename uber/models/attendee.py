@@ -8,14 +8,14 @@ from sideboard.lib.sa import CoerceUTF8 as UnicodeText, \
     UTCDateTime, UUID
 from sqlalchemy import case, func, or_
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import joinedload, backref
+from sqlalchemy.orm import backref, subqueryload
 from sqlalchemy.schema import ForeignKey, Index, UniqueConstraint
 from sqlalchemy.types import Boolean, Date, Integer
 
 from uber.config import c
 from uber.custom_tags import safe_string
-from uber.decorators import cost_property, predelete_adjustment, \
-    presave_adjustment, render
+from uber.decorators import classproperty, cost_property, \
+    predelete_adjustment, presave_adjustment, render
 from uber.models import MagModel
 from uber.models.group import Group
 from uber.models.types import default_relationship as relationship, utcnow, \
@@ -134,6 +134,14 @@ class Attendee(MagModel, TakesPaymentMixin):
         order_by='DeptRole.name',
         viewonly=True)
     shifts = relationship('Shift', backref='attendee')
+    jobs_in_assigned_depts = relationship(
+        'Job',
+        backref='attendees_in_dept',
+        cascade='save-update,merge,refresh-expire,expunge',
+        secondaryjoin='DeptMembership.department_id == Job.department_id',
+        secondary='dept_membership',
+        order_by='Job.name',
+        viewonly=True)
     depts_where_working = relationship(
         'Department',
         backref='attendees_working_shifts',
@@ -710,11 +718,11 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def is_single_dept_head(self):
-        return self.is_dept_head and len(self.assigned_depts_ints) == 1
+        return self.is_dept_head
 
     @property
     def multiply_assigned(self):
-        return len(self.assigned_depts_ints) > 1
+        return len(self.assigned_depts) > 1
 
     @property
     def takes_shifts(self):
@@ -738,20 +746,48 @@ class Attendee(MagModel, TakesPaymentMixin):
         return all_hours
 
     @cached_property
+    def available_jobs(self):
+        if not self.dept_memberships:
+            return []
+
+        def _get_available_jobs(session, attendee_id):
+            from uber.models.department import DeptMembership, Job, Shift
+            return session.query(Job) \
+                .outerjoin(Job.shifts) \
+                .filter(
+                    Job.department_id == DeptMembership.department_id,
+                    DeptMembership.attendee_id == attendee_id) \
+                .group_by(Job.id) \
+                .having(func.count(Shift.id) < Job.slots) \
+                .order_by(Job.start_time, Job.department_id).all()
+
+        if self.session:
+            jobs = _get_available_jobs(self.session, self.id)
+        else:
+            from uber.models import Session
+            with Session() as session:
+                jobs = _get_available_jobs(session, self.id)
+
+        return [job for job in jobs if self.has_required_roles(job)]
+
+    @cached_property
     def possible(self):
         assert self.session, (
-            '{}.possible property may only be accessed for jobs attached to a '
-            'session'.format(self.__class__.__name__))
+            '{}.possible property may only be accessed for '
+            'objects attached to a session'.format(self.__class__.__name__))
 
-        if not self.assigned_depts and not c.AT_THE_CON:
+        if not self.dept_memberships and not c.AT_THE_CON:
             return []
         else:
-            from uber.models.admin import Job
-            job_filters = [] if c.AT_THE_CON \
-                else [Job.department.in_(self.assigned_depts)]
-
-            job_query = self.session.query(Job).filter(*job_filters).options(
-                joinedload(Job.shifts)).order_by(Job.start_time)
+            from uber.models.department import DeptMembership, Job
+            job_query = self.session.query(Job) \
+                .filter(
+                    Job.department_id == DeptMembership.department_id,
+                    DeptMembership.attendee_id == self.id) \
+                .options(
+                    subqueryload(Job.shifts),
+                    subqueryload(Job.required_roles)) \
+                .order_by(Job.start_time, Job.department_id)
 
             return [
                 job for job in job_query
@@ -779,6 +815,58 @@ class Attendee(MagModel, TakesPaymentMixin):
         jobs.extend(self.possible)
         return sorted(jobs, key=lambda j: j.start_time)
 
+    # ========================================================================
+    # TODO: Refactor all this stuff regarding assigned_depts and
+    #       requested_depts. Maybe a @suffix_property with a setter for the
+    #       *_ids fields? The hardcoded *_labels properties are stop-gaps.
+    # ========================================================================
+
+    @property
+    def assigned_depts_labels(self):
+        return [d.name for d in self.assigned_depts]
+
+    @property
+    def requested_depts_labels(self):
+        return [d.name for d in self.assigned_depts]
+
+    @classproperty
+    def extra_checkgroups(cls):
+        return set(['assigned_depts_ids']).union(cls.extra_regform_checkgroups)
+
+    @classproperty
+    def extra_regform_checkgroups(cls):
+        return set(['requested_depts_ids'])
+
+    def _set_relation(self, cls, field, value):
+        def _do_set_relation(session):
+            setattr(self, field, session.query(cls).filter(
+                cls.id.in_(listify(value))).all())
+
+        if self.session:
+            _do_set_relation(self.session)
+        else:
+            from uber.models import Session
+            with Session() as session:
+                _do_set_relation(session)
+
+    @property
+    def assigned_depts_ids(self):
+        return [d.id for d in self.assigned_depts]
+
+    @assigned_depts_ids.setter
+    def assigned_depts_ids(self, value):
+        from uber.models.department import Department
+        self._set_relation(Department, 'assigned_depts', value)
+
+    @property
+    def requested_depts_ids(self):
+        return [d.id for d in self.requested_depts]
+
+    @requested_depts_ids.setter
+    def requested_depts_ids(self, value):
+        from uber.models.department import Department
+        self._set_relation(Department, 'requested_depts', value)
+
     @property
     def worked_shifts(self):
         return [s for s in self.shifts if s.worked == c.SHIFT_WORKED]
@@ -795,22 +883,61 @@ class Attendee(MagModel, TakesPaymentMixin):
         return weighted_hours + self.nonshift_hours
 
     def requested(self, department):
-        return department in self.requested_depts
+        if not department:
+            return False
+        from uber.models.department import Department
+        dept_id = Department.to_id(department)
+        return any(
+            m.department_id.startswith(dept_id)
+            for m in self.dept_membership_requests)
 
     def assigned_to(self, department):
-        return department in self.assigned_depts
+        if not department:
+            return False
+        from uber.models.department import Department
+        dept_id = Department.to_id(department)
+        return any(
+            m.department_id.startswith(dept_id)
+            for m in self.dept_memberships)
 
-    def is_dept_head_of(self, department_id):
-        return bool(self.session.query(Attendee.id).filter(
-                Attendee.dept_memberships.any(
-                    is_dept_head=True,
-                    department_id=department_id,
-                    attendee_id=self.id)).first())
+    def trusted_in(self, department):
+        return self.has_role_in(department)
+
+    def is_dept_head_of(self, department):
+        if not department:
+            return False
+        from uber.models.department import Department
+        dept_id = Department.to_id(department)
+        return any(
+            m.department_id.startswith(dept_id) and m.is_dept_head
+            for m in self.dept_memberships)
+
+    def is_poc_for(self, department):
+        if not department:
+            return False
+        from uber.models.department import Department
+        dept_id = Department.to_id(department)
+        return any(
+            m.department_id.startswith(dept_id) and m.is_poc
+            for m in self.dept_memberships)
+
+    def gets_checklist_for(self, department):
+        if not department:
+            return False
+        from uber.models.department import Department
+        dept_id = Department.to_id(department)
+        return any(
+            m.department_id.startswith(dept_id) and m.gets_checklist
+            for m in self.dept_memberships)
 
     def has_role_in(self, department):
+        if not department:
+            return False
+        from uber.models.department import Department
+        dept_id = Department.to_id(department)
         return any(
-            membership.department_id == department.id
-            for membership in self.dept_memberships_with_role)
+            m.department_id.startswith(dept_id)
+            for m in self.dept_memberships_with_role)
 
     def has_required_roles(self, job):
         if not job.required_roles:

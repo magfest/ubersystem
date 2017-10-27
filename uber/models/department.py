@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+import six
 from sideboard.lib import cached_property
 from sideboard.lib.sa import CoerceUTF8 as UnicodeText, \
     UTCDateTime, UUID
@@ -19,7 +20,8 @@ from uber.utils import comma_and
 
 __all__ = [
     'dept_membership_dept_role', 'job_required_role', 'Department',
-    'DeptMembership', 'DeptMembershipRequest', 'DeptRole', 'Job', 'Shift']
+    'DeptChecklistItem', 'DeptMembership', 'DeptMembershipRequest',
+    'DeptRole', 'Job', 'Shift']
 
 
 # Many to many association table to represent the DeptRoles fulfilled
@@ -38,6 +40,15 @@ job_required_role = Table(
     MagModel.metadata,
     Column('job_id', UUID, ForeignKey('job.id')),
     Column('dept_role_id', UUID, ForeignKey('dept_role.id')))
+
+
+class DeptChecklistItem(MagModel):
+    department_id = Column(UUID, ForeignKey('department.id'))
+    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    slug = Column(UnicodeText)
+    comments = Column(UnicodeText, default='')
+
+    __table_args__ = (UniqueConstraint('department_id', 'slug'),)
 
 
 class DeptRole(MagModel):
@@ -121,29 +132,35 @@ class Department(MagModel):
     parent_id = Column(UUID, ForeignKey('department.id'), nullable=True)
 
     jobs = relationship('Job', backref='department')
+
+    dept_checklist_items = relationship(
+        'DeptChecklistItem', backref='department')
     dept_roles = relationship('DeptRole', backref='department')
     dept_heads = relationship(
         'Attendee',
-        backref='headed_depts',
+        backref=backref('headed_depts', order_by='Department.name'),
         cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_('
                     'Department.id == DeptMembership.department_id, '
                     'DeptMembership.is_dept_head == True)',
         secondary='dept_membership',
+        order_by='Attendee.full_name',
         viewonly=True)
     pocs = relationship(
         'Attendee',
-        backref='poc_depts',
+        backref=backref('poc_depts', order_by='Department.name'),
         cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_('
                     'Department.id == DeptMembership.department_id, '
                     'DeptMembership.is_poc == True)',
         secondary='dept_membership',
+        order_by='Attendee.full_name',
         viewonly=True)
     members = relationship(
         'Attendee',
-        backref='assigned_depts',
+        backref=backref('assigned_depts', order_by='Department.name'),
         cascade='save-update,merge,refresh-expire,expunge',
+        order_by='Attendee.full_name',
         secondary='dept_membership')
     memberships = relationship('DeptMembership', backref='department')
     attendees_requesting_membership = relationship(
@@ -157,7 +174,10 @@ class Department(MagModel):
         order_by='Attendee.full_name')
     parent = relationship(
         'Department',
-        backref=backref('sub_depts', cascade='all,delete-orphan'),
+        backref=backref(
+            'sub_depts',
+            order_by='Department.name',
+            cascade='all,delete-orphan'),
         cascade='save-update,merge,refresh-expire,expunge',
         remote_side='Department.id',
         single_parent=True)
@@ -166,6 +186,15 @@ class Department(MagModel):
     # all_roles
     # all_members
     # all_sub_departments
+
+    @classmethod
+    def to_id(cls, department):
+        if isinstance(department, int):
+            return '{:07x}'.format(department)
+        elif isinstance(department, six.string_types):
+            return department
+        else:
+            return department.id
 
 
 class Job(MagModel):
@@ -188,9 +217,13 @@ class Job(MagModel):
 
     _repr_attr_names = ['name']
 
-    @property
+    @hybrid_property
     def department_name(self):
         return self.department.name
+
+    @department_name.expression
+    def department_name(cls):
+        return Department.name
 
     @property
     def required_roles_labels(self):

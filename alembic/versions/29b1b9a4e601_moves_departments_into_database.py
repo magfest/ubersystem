@@ -71,7 +71,7 @@ def _dept_membership_id(department_id, attendee_id):
 
 
 def _dept_id_from_location(location):
-    department_id = '{:07x}'.format(location) + str(uuid.uuid4())[7:]
+    department_id = '{:07x}'.format(location) + str(uuid.uuid5(DEPARTMENT_NAMESPACE, str(location)))[7:]
     return department_id
 
 
@@ -131,6 +131,14 @@ department_table = table(
 )
 
 
+dept_checklist_item_table = table(
+    'dept_checklist_item',
+    sa.Column('id', sideboard.lib.sa.UUID()),
+    sa.Column('attendee_id', sideboard.lib.sa.UUID(), ForeignKey('attendee.id')),
+    sa.Column('department_id', sideboard.lib.sa.UUID(), ForeignKey('department.id')),
+)
+
+
 dept_membership_table = table(
     'dept_membership',
     sa.Column('id', sideboard.lib.sa.UUID()),
@@ -156,7 +164,7 @@ dept_membership_dept_role_table = table(
     sa.Column('dept_role_id', sideboard.lib.sa.UUID, ForeignKey('dept_role.id')))
 
 
-def _upgrade_job_department_id():
+def _upgrade_job_departments():
     connection = op.get_bind()
     for value, name in c.JOB_LOCATIONS.items():
         department_id = job_location_to_department_id[value]
@@ -205,7 +213,7 @@ def _upgrade_job_department_id():
             )
 
 
-def _downgrade_job_department_id():
+def _downgrade_job_departments():
     connection = op.get_bind()
     jobs = connection.execute(job_table.select())
     for job in jobs:
@@ -224,6 +232,28 @@ def _downgrade_job_department_id():
         )
 
 
+def _upgrade_dept_checklist_items():
+    connection = op.get_bind()
+    items = connection.execute(dept_checklist_item_table.select())
+    for item in items:
+        attendees = connection.execute(
+            attendee_table.select().where(
+                attendee_table.c.id == item.attendee_id
+            )
+        )
+        [attendee] = attendees
+        location = int(attendee.assigned_depts.split(',')[0])
+        op.execute(
+            dept_checklist_item_table.update().where(dept_checklist_item_table.c.id == item.id).values({
+                'department_id': job_location_to_department_id[location]
+            })
+        )
+
+
+def _downgrade_dept_checklist_items():
+    pass
+
+
 def _upgrade_attendee_departments():
     connection = op.get_bind()
     attendees = connection.execute(attendee_table.select().where(or_(
@@ -239,10 +269,10 @@ def _upgrade_attendee_departments():
     for attendee in attendees:
         is_dept_head = DEPT_HEAD_RIBBON_STR in attendee.ribbon
 
-        trusted_depts = set(map(lambda s: int(s), attendee.trusted_depts.split(','))) \
+        trusted_depts = set(map(int, attendee.trusted_depts.split(','))) \
             if attendee.trusted_depts else set()
 
-        assigned_depts = (set(map(lambda s: int(s), attendee.assigned_depts.split(',')))
+        assigned_depts = (set(map(int, attendee.assigned_depts.split(',')))
             if attendee.assigned_depts else set()).union(trusted_depts)
 
         for value in assigned_depts:
@@ -269,7 +299,7 @@ def _upgrade_attendee_departments():
                 )
 
 
-        requested_depts = set(map(lambda s: int(s), attendee.requested_depts.split(','))) \
+        requested_depts = set(map(int, attendee.requested_depts.split(','))) \
             if attendee.requested_depts else set()
 
         for value in requested_depts:
@@ -403,10 +433,14 @@ def upgrade():
     if is_sqlite:
         with op.batch_alter_table('job', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
             batch_op.add_column(sa.Column('department_id', sideboard.lib.sa.UUID()))
+        with op.batch_alter_table('dept_checklist_item', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
+            batch_op.add_column(sa.Column('department_id', sideboard.lib.sa.UUID()))
     else:
         op.add_column('job', sa.Column('department_id', sideboard.lib.sa.UUID()))
+        op.add_column('dept_checklist_item', sa.Column('department_id', sideboard.lib.sa.UUID()))
 
-    _upgrade_job_department_id()
+    _upgrade_job_departments()
+    _upgrade_dept_checklist_items()
 
     if is_sqlite:
         with op.batch_alter_table('job', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
@@ -414,11 +448,22 @@ def upgrade():
             batch_op.drop_column('location')
             batch_op.drop_column('restricted')
             batch_op.create_foreign_key(op.f('fk_job_department_id_department'), 'department', ['department_id'], ['id'])
+
+        with op.batch_alter_table('dept_checklist_item', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
+            batch_op.alter_column('department_id', nullable=False)
+            batch_op.create_unique_constraint(op.f('uq_dept_checklist_item_department_id'), ['department_id', 'slug'])
+            batch_op.drop_constraint('_dept_checklist_item_uniq', type_='unique')
+            batch_op.create_foreign_key(op.f('fk_dept_checklist_item_department_id_department'), 'department', ['department_id'], ['id'])
     else:
         op.alter_column('job', 'department_id', nullable=False)
         op.drop_column('job', 'location')
         op.drop_column('job', 'restricted')
         op.create_foreign_key(op.f('fk_job_department_id_department'), 'job', 'department', ['department_id'], ['id'])
+
+        op.alter_column('dept_checklist_item', 'department_id', nullable=False)
+        op.create_unique_constraint(op.f('uq_dept_checklist_item_department_id'), 'dept_checklist_item', ['department_id', 'slug'])
+        op.drop_constraint('_dept_checklist_item_uniq', 'dept_checklist_item', type_='unique')
+        op.create_foreign_key(op.f('fk_dept_checklist_item_department_id_department'), 'dept_checklist_item', 'department', ['department_id'], ['id'])
 
     _upgrade_attendee_departments()
 
@@ -451,20 +496,35 @@ def downgrade():
             batch_op.add_column(sa.Column('location', sa.INTEGER(), autoincrement=False))
             batch_op.add_column(sa.Column('restricted', sa.Boolean(), default=False, server_default='False', nullable=False))
             batch_op.drop_constraint(op.f('fk_job_department_id_department'), type_='foreignkey')
+
+        with op.batch_alter_table('dept_checklist_item', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
+            batch_op.drop_constraint(op.f('fk_dept_checklist_item_department_id_department'), type_='foreignkey')
     else:
         op.add_column('job', sa.Column('location', sa.INTEGER(), autoincrement=False))
         op.add_column('job', sa.Column('restricted', sa.Boolean(), default=False, server_default='False', nullable=False))
         op.drop_constraint(op.f('fk_job_department_id_department'), 'job', type_='foreignkey')
 
-    _downgrade_job_department_id()
+        op.drop_constraint(op.f('fk_dept_checklist_item_department_id_department'), 'dept_checklist_item', type_='foreignkey')
+
+    _downgrade_job_departments()
+    _downgrade_dept_checklist_items()
 
     if is_sqlite:
         with op.batch_alter_table('job', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
             batch_op.alter_column('location', nullable=False)
             batch_op.drop_column('department_id')
+
+        with op.batch_alter_table('dept_checklist_item', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
+            batch_op.create_unique_constraint('_dept_checklist_item_uniq', 'dept_checklist_item', ['attendee_id', 'slug'])
+            batch_op.drop_constraint(op.f('uq_dept_checklist_item_department_id'), 'dept_checklist_item', type_='unique')
+            batch_op.drop_column('dept_checklist_item', 'department_id')
     else:
         op.alter_column('job', 'location', nullable=False)
         op.drop_column('job', 'department_id')
+
+        op.create_unique_constraint('_dept_checklist_item_uniq', 'dept_checklist_item', ['attendee_id', 'slug'])
+        op.drop_constraint(op.f('uq_dept_checklist_item_department_id'), 'dept_checklist_item', type_='unique')
+        op.drop_column('dept_checklist_item', 'department_id')
 
     op.drop_table('dept_membership_dept_role')
     op.drop_table('dept_membership_request')

@@ -1,22 +1,21 @@
 <!-- main menu -->
 <script type="text/javascript">
     var mainMenuDropdownChanged = function () {
-        window.location = $("#page").val() + "?location=" + $("#location").val();
+        window.location = $("#page").val() + "?department_id=" + $("#department_id").val();
     };
 </script>
 
 <div class="row">
-	<div class="col-md-6">
-		<!-- font-size:14pt -->
-        	<select id="location" style="font-weight:bold" onChange="mainMenuDropdownChanged()">
-            		<option>All</option>
-           		 {{ options(c.JOB_LOCATION_OPTS,location) }}
-        	</select>
-	</div>
-	<div class="col-md-6">
-        	<select id="page" style="font-weight:bold" onChange="mainMenuDropdownChanged()">
-           	 {{ options(c.JOB_PAGE_OPTS,c.PAGE) }}
-        	</select>
-	</div>
-
+  <div class="col-md-6">
+    <!-- font-size:14pt -->
+    <select id="department_id" style="font-weight:bold" onChange="mainMenuDropdownChanged()">
+      <option>All</option>
+      {{ options(c.DEPARTMENT_OPTS, department_id) }}
+    </select>
+  </div>
+  <div class="col-md-6">
+    <select id="page" style="font-weight:bold" onChange="mainMenuDropdownChanged()">
+      {{ options(c.JOB_PAGE_OPTS, c.PAGE) }}
+    </select>
+  </div>
 </div>

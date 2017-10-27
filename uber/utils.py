@@ -192,11 +192,11 @@ class DeptChecklistConf(Registry):
         self.deadline = c.EVENT_TIMEZONE.localize(datetime.strptime(deadline, '%Y-%m-%d')).replace(hour=23, minute=59)
 
     def path(self, attendee):
-        dept = attendee and attendee.assigned_depts and attendee.assigned_depts_ints[0]
-        return self._path.format(slug=self.slug, department=dept)
+        membership = attendee and attendee.dept_memberships and attendee.dept_memberships[0]
+        return self._path.format(slug=self.slug, department_id=membership.department_id)
 
-    def completed(self, attendee):
-        matches = [item for item in attendee.dept_checklist_items if self.slug == item.slug]
+    def completed(self, department):
+        matches = [item for item in department.dept_checklist_items if self.slug == item.slug]
         return matches[0] if matches else None
 
 

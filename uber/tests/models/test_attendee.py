@@ -445,8 +445,8 @@ class TestStaffingAdjustments:
         a.assigned_depts = [dept, shiftless_dept]
         a.dept_memberships_with_role = dept_memberships
         a._staffing_adjustments()
-        assert a.assigned_to(dept) and a.has_role_in(dept)
-        assert a.assigned_to(shiftless_dept) and a.has_role_in(shiftless_dept)
+        assert a.assigned_to(dept) and a.trusted_in(dept)
+        assert a.assigned_to(shiftless_dept) and a.trusted_in(shiftless_dept)
 
     def test_unpaid_dept_head(self, dept):
         dept_membership = DeptMembership(

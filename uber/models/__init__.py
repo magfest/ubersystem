@@ -24,8 +24,8 @@ from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric
 from sqlalchemy.util import immutabledict
 
 from uber.config import c
-from uber.decorators import cached_classproperty, cost_property, \
-    suffix_property
+from uber.decorators import cached_classproperty, classproperty, \
+    cost_property, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
 from uber.utils import check_csrf, get_real_badge_type, DeptChecklistConf, \
     HTTPRedirect
@@ -177,6 +177,26 @@ class MagModel:
         return {
             colname for colname in cls.all_checkgroups
             if colname in cls.unrestricted}
+
+    @classproperty
+    def extra_checkgroups(cls):
+        """
+        Returns the set of extra checkgroups. These are settable attributes or
+        properties that are not in cls.__table__columns.
+
+        For example, see Attendee.assigned_depts_ids.
+        """
+        return set()
+
+    @classproperty
+    def extra_regform_checkgroups(cls):
+        """
+        Returns the set of extra regform checkgroups. These are settable
+        attributes or properties that are not in cls.__table__columns.
+
+        For example, see Attendee.requested_depts_ids.
+        """
+        return set()
 
     @property
     def session(self):
@@ -390,6 +410,13 @@ class MagModel:
                     if field in params:
                         setattr(self, field, params[field])
 
+        extra_checkgroups = self.extra_regform_checkgroups if restricted \
+            else self.extra_checkgroups
+
+        for attr in extra_checkgroups:
+            if attr in params:
+                setattr(self, attr, params[attr])
+
         if cherrypy.request.method.upper() == 'POST':
             for column in self.__table__.columns:
                 if column.name in bools:
@@ -443,7 +470,7 @@ from uber.models.types import *  # noqa: F401,E402,F403
 # Explicitly import models used by the Session class to quiet flake8
 from uber.models.admin import AdminAccount, WatchList  # noqa: E402
 from uber.models.attendee import Attendee  # noqa: E402
-from uber.models.department import Job, Shift  # noqa: E402
+from uber.models.department import Job, Shift, Department  # noqa: E402
 from uber.models.email import Email  # noqa: E402
 from uber.models.group import Group  # noqa: E402
 from uber.models.tracking import Tracking  # noqa: E402
@@ -577,11 +604,11 @@ class Session(SessionManager):
                     "Can't access dept checklist INI settings for section "
                     "'{}', check your INI file".format(slug))
 
-            is_relevant = attendee.is_dept_head_of(department_id)
+            department = self.query(Department).get(department_id)
             return {
                 'conf': conf,
-                'relevant': is_relevant,
-                'completed': conf.completed(attendee)
+                'relevant': attendee.gets_checklist_for(department_id),
+                'completed': conf.completed(department)
             }
 
         def jobs_for_signups(self):
@@ -935,11 +962,11 @@ class Session(SessionManager):
                 for id, full_name in query.filter_by(staffing=True)
                                           .order_by(Attendee.full_name)]
 
-        def single_dept_heads(self, dept=None):
-            assigned = {'assigned_depts': str(dept)} if dept else {}
+        def dept_heads(self, department_id=None):
+            if department_id:
+                return self.query(Department).get(department_id).dept_heads
             return self.query(Attendee) \
-                .filter(Attendee.ribbon.contains(c.DEPT_HEAD_RIBBON)) \
-                .filter_by(**assigned) \
+                .filter(Attendee.dept_memberships.any(is_dept_head=True)) \
                 .order_by(Attendee.full_name).all()
 
         def match_to_group(self, attendee, group):

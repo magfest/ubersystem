@@ -42,8 +42,7 @@ class Root:
             if c.AT_THE_CON:
                 raise HTTPRedirect('signups')
             else:
-                department_id = session.query(Department.id).order_by(
-                    Department.name).first()[0]
+                department_id = c.DEFAULT_DEPARTMENT_OPT[0]
 
         department_id = None if department_id == 'All' else department_id
         jobs = session.jobs(department_id).all()
@@ -62,18 +61,18 @@ class Root:
             'jobs': jobs
         }
 
-    def signups(self, session, location=None, message=''):
-        if not location:
-            location = cherrypy.session.get('prev_location') or c.JOB_LOCATION_OPTS[0][0]
-        location = None if location == 'All' else location
-        cherrypy.session['prev_location'] = location
+    def signups(self, session, department_id=None, message=''):
+        if not department_id:
+            department_id = cherrypy.session.get('prev_department_id') or c.DEFAULT_DEPARTMENT_OPT[0]
+        department_id = None if department_id == 'All' else department_id
+        cherrypy.session['prev_department_id'] = department_id
 
         return {
-            'message':   message,
-            'location':  location,
+            'message': message,
+            'department_id': department_id,
             'attendees': session.staffers_for_dropdown(),
-            'jobs':      [job_dict(job) for job in session.jobs(location)],
-            'checklist': location and session.checklist_status('postcon_hours', location)
+            'jobs': [job_dict(job) for job in session.jobs(department_id)],
+            'checklist': department_id and session.checklist_status('postcon_hours', department_id)
         }
 
     def everywhere(self, session, message='', show_restricted=''):
@@ -86,23 +85,25 @@ class Root:
                                                      .filter_by(**{} if show_restricted else {'restricted': False})]
         }
 
-    def staffers(self, session, location=None, message=''):
-        location = None if location == 'All' else int(location or c.JOB_LOCATION_OPTS[0][0])
-        attendees = session.staffers().filter(*[Attendee.assigned_depts.contains(str(location))] if location else []).all()
+    def staffers(self, session, department_id=None, message=''):
+        department_id = None if department_id == 'All' else (department_id or c.DEFAULT_DEPARTMENT_OPT[0])
+        dept_filter = [] if not department_id \
+            else [Attendee.dept_memberships.any(department_id=department_id)]
+        attendees = session.staffers().filter(*dept_filter).all()
         for attendee in attendees:
-            attendee.trusted_here = attendee.trusted_in(location) if location else attendee.trusted_somewhere
-            attendee.hours_here = sum(shift.job.weighted_hours for shift in attendee.shifts if shift.job.location == location) if location else attendee.weighted_hours
+            attendee.trusted_here = attendee.trusted_in(department_id) if department_id else attendee.trusted_somewhere
+            attendee.hours_here = sum(shift.job.weighted_hours for shift in attendee.shifts if shift.job.department_id == department_id) if department_id else attendee.weighted_hours
 
         counts = defaultdict(int)
-        for job in session.jobs(location):
+        for job in session.jobs(department_id):
             update_counts(job, counts)
 
         return {
             'counts':    counts,
-            'location':  location,
+            'department_id':  department_id,
             'attendees': attendees,
             'emails':    ','.join(a.email for a in attendees),
-            'checklist': session.checklist_status('assigned_volunteers', location)
+            'checklist': session.checklist_status('assigned_volunteers', department_id)
         }
 
     def form(self, session, message='', **params):
@@ -151,7 +152,7 @@ class Root:
         for shift in job.shifts:
             session.delete(shift)
         session.delete(job)
-        raise HTTPRedirect('index?location={}#{}', job.location, job.start_time)
+        raise HTTPRedirect('index?department_id={}#{}', job.department_id, job.start_time)
 
     @csrf_protected
     def assign_from_job(self, session, job_id, staffer_id):
@@ -216,23 +217,22 @@ class Root:
         return {'locations': sorted(locations.items(), key=lambda loc: loc[1]['regular_signups'] - loc[1]['regular_total'])}
 
     def all_shifts(self, session):
-        jobs = defaultdict(list)
-        for job in session.jobs():
-            jobs[job.location].append(job)
+        departments = session.query(Department).options(
+            subqueryload(Department.jobs)).order_by(Department.name)
         return {
-            'depts': [(name, jobs[loc]) for loc, name in c.JOB_LOCATION_OPTS]
+            'depts': [(d.name, d.jobs) for d in departments]
         }
 
-    def add_volunteers_by_dept(self, session, message='', location=None):
-        location = location or c.JOB_LOCATION_OPTS[0][0]
+    def add_volunteers_by_dept(self, session, message='', department_id=None):
+        department_id = department_id or c.DEFAULT_DEPARTMENT_OPT[0]
         return {
             'message': message,
-            'location': location,
+            'department_id': department_id,
             'not_already_here': [
                 (a.id, a.full_name)
                 for a in session.query(Attendee)
                                 .filter(Attendee.email != '',
-                                         ~Attendee.assigned_depts.contains(str(location)))
+                                         ~Attendee.dept_memberships.any(department_id=department_id))
                                 .order_by(Attendee.full_name).all()
             ]
         }

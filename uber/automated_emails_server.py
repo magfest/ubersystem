@@ -14,8 +14,8 @@ class AutomatedEmail:
     # return particular model instances of a given type.
     queries = {
         Attendee: lambda session: session.all_attendees().options(
-            subqueryload(Attendee.admin_account)).options(
-            subqueryload(Attendee.dept_checklist_items)).options(
+            subqueryload(Attendee.admin_account),
+            subqueryload(Attendee.dept_checklist_items),
             subqueryload(Attendee.group)),
         Group: lambda session: session.query(Group).options(
             subqueryload(Group.attendees))

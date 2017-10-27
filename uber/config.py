@@ -378,10 +378,29 @@ class Config(_Overridable):
 
     @request_cached_property
     def DEPARTMENT_OPTS(self):
+        from uber.models.department import Department
         with sa.Session() as session:
-            return [
-                (d.id, d.name)
-                for d in session.query(Department).order_by(Department.name)]
+            query = session.query(Department).order_by(Department.name)
+            return [(d.id, d.name) for d in query]
+
+    @request_cached_property
+    def DEPARTMENTS(self):
+        return dict(self.DEPARTMENT_OPTS)
+
+    @request_cached_property
+    def PUBLIC_DEPARTMENT_OPTS(self):
+        from uber.models.department import Department
+        with sa.Session() as session:
+            query = session.query(Department).filter_by(
+                solicits_volunteers=True).order_by(Department.name)
+            return [(d.id, d.name) for d in query]
+
+    @request_cached_property
+    def DEFAULT_DEPARTMENT_OPT(self):
+        from uber.models.department import Department
+        with sa.Session() as session:
+            dept = session.query(Department).order_by(Department.name).first()
+            return (dept.id, dept.name)
 
     @property
     def HTTP_METHOD(self):

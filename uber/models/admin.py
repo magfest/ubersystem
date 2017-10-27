@@ -4,7 +4,7 @@ import cherrypy
 from pytz import UTC
 from sideboard.lib.sa import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.orm import backref
-from sqlalchemy.schema import ForeignKey, UniqueConstraint
+from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Date
 
 from uber.config import c
@@ -14,8 +14,7 @@ from uber.models.types import default_relationship as relationship, utcnow, \
     DefaultColumn as Column, MultiChoice
 
 
-__all__ = [
-    'AdminAccount', 'PasswordReset', 'WatchList', 'DeptChecklistItem']
+__all__ = ['AdminAccount', 'PasswordReset', 'WatchList']
 
 
 class AdminAccount(MagModel):
@@ -87,14 +86,3 @@ class WatchList(MagModel):
     def _fix_birthdate(self):
         if self.birthdate == '':
             self.birthdate = None
-
-
-class DeptChecklistItem(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    slug = Column(UnicodeText)
-    comments = Column(UnicodeText, default='')
-
-    __table_args__ = (
-        UniqueConstraint(
-            'attendee_id', 'slug', name='_dept_checklist_item_uniq'),
-    )

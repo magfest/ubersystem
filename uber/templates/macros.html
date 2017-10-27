@@ -52,33 +52,39 @@
 {%- endmacro %}
 
 
-{% macro checkgroup(model, field_name, suffix='', defaults=False, is_readonly=False) -%}
-  {%- set is_class = model is class -%}
-  {%- set defaults = model[field_name] if not defaults and not is_class else '' -%}
-  {%- set defaults = defaults.split(",") if defaults else [] -%}
+{% macro checkgroup_opts(field_name, choices, suffix='', defaults=[], is_readonly=False) -%}
   <div class="checkgroup">
-    {% for num, desc in model.get_field(field_name).type.choices -%}
-      {%- set has_value = num|string in defaults -%}
+    {% for value, label in choices -%}
+      {%- set has_value = value|string in defaults -%}
       {%- if not is_readonly or has_value -%}
         <label
                 class="checkbox-label{% if is_readonly %} disabled{% endif %}"
                 style="font-weight: normal;">
           {% if is_readonly %}
-            <input type="hidden" name="{{ field_name }}{{ suffix }}" value="{{ num }}"/>
+            <input type="hidden" name="{{ field_name }}{{ suffix }}" value="{{ value }}"/>
             <input type="checkbox" disabled checked/>
-            {{ desc }}
+            {{ label }}
           {% else %}
             <input
                     type="checkbox"
                     name="{{ field_name }}{{ suffix }}"
-                    value="{{ num }}"
+                    value="{{ value }}"
                     {% if has_value %}checked{% endif %}/>
-            {{ desc }}
+            {{ label }}
           {% endif %}
         </label>
       {% endif %}
     {% endfor %}
   </div>
+{%- endmacro %}
+
+
+{% macro checkgroup(model, field_name, suffix='', defaults=False, is_readonly=False) -%}
+  {%- set is_class = model is class -%}
+  {%- set defaults = model[field_name] if not defaults and not is_class else '' -%}
+  {%- set defaults = defaults.split(",") if defaults else [] -%}
+  {%- set choices = model.get_field(field_name).type.choices -%}
+  {{ checkgroup_opts(field_name, choices, suffix, defaults, is_readonly) }}
 {%- endmacro %}
 
 
