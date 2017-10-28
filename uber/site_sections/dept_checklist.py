@@ -3,32 +3,48 @@ from uber.common import *
 
 @all_renderable(c.PEOPLE)
 class Root:
-    def index(self, session, message=''):
+    def index(self, session, department_id=None, message=''):
+        if not department_id:
+            raise HTTPRedirect('overview')
+
         attendee = session.admin_attendee()
         if not attendee.is_dept_head:
             raise HTTPRedirect('overview?message={}', 'The checklist is for department heads only')
 
+        department_id = Department.to_id(department_id)
+        department = session.query(Department).options(
+            subqueryload(Department.dept_checklist_items)).get(department_id)
         return {
             'message': message,
             'attendee': attendee,
-            'checklist': [(conf, conf.completed(attendee)) for conf in DeptChecklistConf.instances.values()]
+            'department': department,
+            'checklist': [
+                (conf, department.checklist_item_for_slug(slug))
+                for slug, conf in DeptChecklistConf.instances.items()]
         }
 
     @csrf_protected
-    def mark_item_complete(self, session, slug):
+    def mark_item_complete(self, session, slug, department_id):
         attendee = session.admin_attendee()
+        department_id = Department.to_id(department_id)
+        department = session.query(Department).options(
+            subqueryload(Department.dept_checklist_items)).get(department_id)
         conf = DeptChecklistConf.instances[slug]
-        if not conf.completed(attendee):
-            session.add(DeptChecklistItem(attendee=attendee, slug=slug))
+        if not department.checklist_item_for_slug(slug):
+            session.add(DeptChecklistItem(
+                attendee=attendee, department=department, slug=slug))
         raise HTTPRedirect('index?message={}', 'Checklist item marked as complete')
 
-    def form(self, session, slug, csrf_token=None, comments=None):
+    def form(self, session, slug, department_id, csrf_token=None, comments=None):
         attendee = session.admin_attendee()
+        department_id = Department.to_id(department_id)
+        department = session.query(Department).options(
+            subqueryload(Department.dept_checklist_items)).get(department_id)
         conf = DeptChecklistConf.instances[slug]
-        try:
-            [item] = [item for item in attendee.dept_checklist_items if item.slug == slug]
-        except:
-            item = DeptChecklistItem(slug=slug, attendee=attendee)
+        item = department.checklist_item_for_slug(slug)
+        if not item:
+            item = DeptChecklistItem(
+                attendee=attendee, department=department, slug=slug)
 
         if comments is not None:
             check_csrf(csrf_token)  # since this form doesn't use our normal utility methods, we need to do this manually
@@ -38,42 +54,54 @@ class Root:
 
         return {
             'item': item,
-            'conf': conf
+            'conf': conf,
+            'department': department
         }
 
     def overview(self, session, message=''):
         checklist = list(DeptChecklistConf.instances.values())
         overview = []
-        for dept_id, dept_name in c.DEPARTMENT_OPTS:
-            dept_heads = []
-            for attendee in session.dept_heads(dept_id):
-                statuses = []
-                for item in checklist:
-                    if item.completed(attendee):
-                        statuses.append({'done': True})
-                    elif days_before(7, item.deadline)():
-                        statuses.append({'approaching': True})
-                    elif item.deadline < datetime.now(UTC):
-                        statuses.append({'missed': True})
-                    else:
-                        statuses.append({})
-                    statuses[-1]['name'] = item.name
-                dept_heads.append([attendee, statuses])
-            overview.append([dept_id, dept_name, dept_heads])
+        attendee = session.admin_attendee()
+        departments = session.query(Department) \
+            .options(
+                subqueryload(Department.checklist_admins),
+                subqueryload(Department.dept_checklist_items)) \
+            .order_by(Department.name)
+        for dept in departments:
+            relevant = attendee.is_checklist_admin_for(dept)
+            statuses = []
+            for item in checklist:
+                status = {
+                    'conf': item, 'name': item.name, 'relevant': relevant}
+                if dept.checklist_item_for_slug(item.slug):
+                    status['done'] = True
+                elif days_before(7, item.deadline)():
+                    status['approaching'] = True
+                elif item.deadline < datetime.now(UTC):
+                    status['missed'] = True
+                statuses.append(status)
+            overview.append([dept.id, dept.name, statuses, dept.checklist_admins])
 
         return {
             'message': message,
             'overview': overview,
-            'checklist': checklist,
-            'max_name_length': max(len(conf.name) for conf in checklist)
+            'checklist': checklist
         }
 
     def item(self, session, slug):
         conf = DeptChecklistConf.instances[slug]
+        departments = session.query(Department) \
+            .options(
+                subqueryload(Department.checklist_admins),
+                subqueryload(Department.dept_checklist_items)) \
+            .order_by(Department.name)
         return {
             'conf': conf,
-            'overview': [
-                (dept_id, dept_name, [(attendee, conf.completed(attendee)) for attendee in session.dept_heads(dept_id)])
-                for dept_id, dept_name in c.DEPARTMENT_OPTS
+            'overview': [(
+                dept.id,
+                dept.name,
+                dept.checklist_item_for_slug(conf.slug),
+                dept.checklist_admins)
+                for dept in departments
             ]
         }

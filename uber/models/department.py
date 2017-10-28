@@ -61,7 +61,7 @@ class DeptRole(MagModel):
 class DeptMembership(MagModel):
     is_dept_head = Column(Boolean, default=False)
     is_poc = Column(Boolean, default=False)
-    gets_checklist = Column(Boolean, default=False)
+    is_checklist_admin = Column(Boolean, default=False)
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
     department_id = Column(UUID, ForeignKey('department.id'))
 
@@ -84,14 +84,14 @@ class DeptMembership(MagModel):
 
     @hybrid_property
     def has_implicit_role(self):
-        return self.is_dept_head or self.is_poc or self.gets_checklist
+        return self.is_dept_head or self.is_poc or self.is_checklist_admin
 
     @has_implicit_role.expression
     def has_implicit_role(cls):
         return or_(
             cls.is_dept_head == True,
             cls.is_poc == True,
-            cls.gets_checklist == True)  # noqa: E712
+            cls.is_checklist_admin == True)  # noqa: E712
 
     @hybrid_property
     def has_dept_role(self):
@@ -111,7 +111,7 @@ class DeptMembershipRequest(MagModel):
     # "Where do you want to help?").
     department_id = Column(UUID, ForeignKey('department.id'), nullable=True)
 
-    department = relationship(
+    departments = relationship(
         'Department',
         backref='membership_requests',
         cascade='save-update,merge,refresh-expire,expunge',
@@ -146,6 +146,16 @@ class Department(MagModel):
         primaryjoin='and_('
                     'Department.id == DeptMembership.department_id, '
                     'DeptMembership.is_dept_head == True)',
+        secondary='dept_membership',
+        order_by='Attendee.full_name',
+        viewonly=True)
+    checklist_admins = relationship(
+        'Attendee',
+        backref=backref('checklist_depts', order_by='Department.name'),
+        cascade='save-update,merge,refresh-expire,expunge',
+        primaryjoin='and_('
+                    'Department.id == DeptMembership.department_id, '
+                    'DeptMembership.is_checklist_admin == True)',
         secondary='dept_membership',
         order_by='Attendee.full_name',
         viewonly=True)
@@ -185,22 +195,30 @@ class Department(MagModel):
         remote_side='Department.id',
         single_parent=True)
 
-    # all_jobs
-    # all_roles
-    # all_members
-    # all_sub_departments
-
     @classmethod
     def to_id(cls, department):
+        if not department:
+            return None
+
+        if isinstance(department, six.string_types):
+            try:
+                department = int(department)
+            except ValueError:
+                return department
+
         if isinstance(department, int):
             # This is the same algorithm used by the migration script to
             # convert c.JOB_LOCATIONS into department ids in the database.
             prefix = '{:07x}'.format(department)
             return prefix + str(uuid.uuid5(cls.NAMESPACE, str(department)))[7:]
-        elif isinstance(department, six.string_types):
-            return department
         else:
             return department.id
+
+    def checklist_item_for_slug(self, slug):
+        for item in self.dept_checklist_items:
+            if item.slug == slug:
+                return item
+        return None
 
 
 class Job(MagModel):

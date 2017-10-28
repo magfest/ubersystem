@@ -6,27 +6,40 @@
 
 {{ conf.description }}
 
-<table style="width:auto">
-{% for dept, dept_name, heads in overview %}
-    <tr><td colspan="2"><h3>{{ dept_name }}</h3></td></tr>
-    {% for attendee, item in heads %}
-        <tr>
-            <td valign="top">{{ attendee|form_link }}</td>
-            {% if attendee.admin_account %}
-                <td>
-                {% if item %}
-                    <b>Completed</b>
-                {% else %}
-                    <i>not complete</i>
-                {% endif %}
-                </td>
-                <td>{{ item.comments|linebreaksbr }}</td>
-            {% else %}
-                <td colspan="2"><i>This dept head doesn't have an admin account.</i></td>
-            {% endif %}
-        </tr>
-    {% endfor %}
+{% for dept_id, dept_name, item, checklist_admins in overview %}
+  <div style="margin-bottom: 15px;">
+    <h3>
+      {{ dept_name }}
+      <span style="font-size: 0.75em; padding-left: 5px;">
+        {% if item %}
+          <b class="text-info">Completed!</b>
+        {% else %}
+          <i class="text-danger">Not complete...</i>
+        {% endif %}
+      </span>
+    </h3>
+    <div style="padding-left: 30px;">
+      {% if item.comments %}
+        <h4>Comments</h4>
+        <div style="padding-left: 30px;">{{ item.comments|linebreaksbr }}</div>
+      {% endif %}
+      <h4>Checklist Admins</h4>
+      <div style="padding-left: 30px;">
+        {% if checklist_admins %}
+          {% for attendee in checklist_admins %}
+            <div style="margin-bottom: 5px;">
+              <span title="{{ attendee.email }} &mdash; {{ attendee.cellphone }}" style="margin-right: 5px;">{{ attendee|form_link }}</span>
+              {% if not attendee.admin_account %}
+                <i>This checklist admin doesn't have an admin account</i>
+              {% endif %}
+            </div>
+          {% endfor %}
+        {% else %}
+          <i>This dept doesn't have any checklist admins</i>
+        {% endif %}
+      </div>
+    </div>
+  </div>
 {% endfor %}
-</table>
 
 {% endblock %}

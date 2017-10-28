@@ -2,11 +2,12 @@
 {% block title %}Department Checklist - {{ item.name }}{% endblock %}
 {% block content %}
 
-<h2>{{ conf.name }}</h2>
+<h2>{{ conf.name }} for {{ department.name }}</h2>
 
 <form method="post" action="form" class="center">
 {{ conf.description }}
 <br/> <br/>
+<input type="hidden" name="department_id" value="{{ department.id }}" />
 <input type="hidden" name="slug" value="{{ item.slug }}" />
 {{ csrf_token() }}
 <textarea name="comments" rows="5" cols="80">{{ item.comments|default('', boolean=True) }}</textarea>

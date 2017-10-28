@@ -9,7 +9,7 @@ def job_dict(job, shifts=None):
         'weight': job.weight,
         'restricted': job.restricted,
         'timespan': job.timespan(),
-        'department_name': job.department.name,
+        'department_name': job.department_name,
         'shifts': [{
             'id': shift.id,
             'rating': shift.rating,
@@ -44,7 +44,8 @@ class Root:
             else:
                 department_id = c.DEFAULT_DEPARTMENT_OPT[0]
 
-        department_id = None if department_id == 'All' else department_id
+        department_id = Department.to_id(None if department_id == 'All' else department_id)
+        department = session.query(Department).get(department_id) if department_id else None
         jobs = session.jobs(department_id).all()
         by_start = defaultdict(list)
         for job in jobs:
@@ -52,7 +53,7 @@ class Root:
                 by_start[job.start_time_local].append(job)
         times = [c.EPOCH + timedelta(hours=i) for i in range(c.CON_LENGTH)]
         return {
-            'department_id': department_id,
+            'department': department,
             'setup': [j for j in jobs if j.type == c.SETUP],
             'teardown': [j for j in jobs if j.type == c.TEARDOWN],
             'normal': [j for j in jobs if j.type != c.SETUP and j.type != c.TEARDOWN],
@@ -64,7 +65,7 @@ class Root:
     def signups(self, session, department_id=None, message=''):
         if not department_id:
             department_id = cherrypy.session.get('prev_department_id') or c.DEFAULT_DEPARTMENT_OPT[0]
-        department_id = None if department_id == 'All' else department_id
+        department_id = Department.to_id(None if department_id == 'All' else department_id)
         cherrypy.session['prev_department_id'] = department_id
 
         return {
@@ -86,7 +87,9 @@ class Root:
         }
 
     def staffers(self, session, department_id=None, message=''):
-        department_id = None if department_id == 'All' else (department_id or c.DEFAULT_DEPARTMENT_OPT[0])
+        if not department_id:
+            department_id = cherrypy.session.get('prev_department_id') or c.DEFAULT_DEPARTMENT_OPT[0]
+        department_id = Department.to_id(None if department_id == 'All' else department_id)
         dept_filter = [] if not department_id \
             else [Attendee.dept_memberships.any(department_id=department_id)]
         attendees = session.staffers().filter(*dept_filter).all()
@@ -109,21 +112,21 @@ class Root:
     def form(self, session, message='', **params):
         defaults = {}
         if params.get('id') == 'None' and cherrypy.request.method != 'POST':
-            defaults = cherrypy.session.get('job_defaults', defaultdict(dict))[params['location']]
+            defaults = cherrypy.session.get('job_defaults', defaultdict(dict))[params['department_id']]
             params.update(defaults)
 
         job = session.job(params, bools=['restricted', 'extra15'],
-                                  allowed=['location', 'start_time', 'type'] + list(defaults.keys()))
+                                  allowed=['department_id', 'start_time', 'type'] + list(defaults.keys()))
         if cherrypy.request.method == 'POST':
             message = check(job)
             if not message:
                 session.add(job)
                 if params.get('id') == 'None':
                     defaults = cherrypy.session.get('job_defaults', defaultdict(dict))
-                    defaults[params['location']] = {field: getattr(job, field) for field in c.JOB_DEFAULTS}
+                    defaults[params['department_id']] = {field: getattr(job, field) for field in c.JOB_DEFAULTS}
                     cherrypy.session['job_defaults'] = defaults
                 tgt_start_time = str(job.start_time_local).replace(" ", "T")
-                raise HTTPRedirect('index?location=' + str(job.location) + '&time=' + tgt_start_time)
+                raise HTTPRedirect('index?department_id={}&time={}', job.department_id, tgt_start_time)
 
         if 'start_time' in params and 'type' not in params:
             local_start_time = c.EVENT_TIMEZONE.localize(datetime.strptime(params['start_time'], "%Y-%m-%d %H:%M:%S"))
@@ -209,12 +212,12 @@ class Root:
         return {}
 
     def summary(self, session):
-        locations = defaultdict(lambda: defaultdict(int))
-        for job in session.jobs():
-            update_counts(job, locations[job.location_label])
-            update_counts(job, locations['All Departments Combined'])
+        departments = defaultdict(lambda: defaultdict(int))
+        for job in session.jobs().options(subqueryload(Job.department)):
+            update_counts(job, departments[job.department_name])
+            update_counts(job, departments['All Departments Combined'])
 
-        return {'locations': sorted(locations.items(), key=lambda loc: loc[1]['regular_signups'] - loc[1]['regular_total'])}
+        return {'departments': sorted(departments.items(), key=lambda d: d[1]['regular_signups'] - d[1]['regular_total'])}
 
     def all_shifts(self, session):
         departments = session.query(Department).options(

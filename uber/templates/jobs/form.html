@@ -54,7 +54,7 @@
 
 {% if defaults %}
     <i>Note: To help you enter the same job at multiple times, this form has been filled in
-        using the values of the last shift you created in this location. <br/>
+        using the values of the last shift you created in this department. <br/>
         <a href="#" onClick="blank(); return false;">Click here</a> to undo these defaults and start
         with a blank form.</i>
 {% endif %}
@@ -121,8 +121,8 @@
 <tr>
     <td> <b>Location:</b> </td>
     <td>
-        <select name="location">
-            {{ options(c.JOB_LOCATION_OPTS,job.location) }}
+        <select name="department_id">
+            {{ options(c.DEPARTMENT_OPTS, job.department_id) }}
         </select>
     </td>
 </tr>

@@ -144,7 +144,7 @@ dept_membership_table = table(
     sa.Column('id', sideboard.lib.sa.UUID()),
     sa.Column('is_dept_head', sa.Boolean()),
     sa.Column('is_poc', sa.Boolean()),
-    sa.Column('gets_checklist', sa.Boolean()),
+    sa.Column('is_checklist_admin', sa.Boolean()),
     sa.Column('attendee_id', sideboard.lib.sa.UUID(), ForeignKey('attendee.id')),
     sa.Column('department_id', sideboard.lib.sa.UUID(), ForeignKey('department.id')),
 )
@@ -284,7 +284,7 @@ def _upgrade_attendee_departments():
                     'id': dept_membership_id,
                     'is_dept_head': is_dept_head,
                     'is_poc': is_dept_head,
-                    'gets_checklist': is_dept_head,
+                    'is_checklist_admin': is_dept_head,
                     'department_id': department_id,
                     'attendee_id': attendee_id
                 })
@@ -400,7 +400,7 @@ def upgrade():
     sa.Column('id', sideboard.lib.sa.UUID(), nullable=False),
     sa.Column('is_dept_head', sa.Boolean(), server_default='False', nullable=False),
     sa.Column('is_poc', sa.Boolean(), server_default='False', nullable=False),
-    sa.Column('gets_checklist', sa.Boolean(), server_default='False', nullable=False),
+    sa.Column('is_checklist_admin', sa.Boolean(), server_default='False', nullable=False),
     sa.Column('attendee_id', sideboard.lib.sa.UUID(), nullable=False),
     sa.Column('department_id', sideboard.lib.sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_dept_membership_attendee_id_attendee')),

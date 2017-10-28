@@ -64,11 +64,7 @@ class JobLookup:
 
 class DepartmentLookup:
     def list(self):
-        with Session() as session:
-            output = {}
-            for dept in c.JOB_LOCATION_VARS:
-                output[dept] = dict(c.JOB_LOCATION_OPTS)[getattr(c, dept)]
-            return output
+        return dict(c.DEPARTMENT_OPTS)
 
 config_fields = [
     'EVENT_NAME',

@@ -4,4 +4,4 @@ You're eligible for a personalized Staff badge, but you haven't told us what you
 
 {{ c.STOPS_EMAIL_SIGNATURE }}
 
-{% if c.DEPT_HEAD_RIBBON in attendee.ribbon_ints %}PS: Even though you're a department head, we can't personalize your badge unless you tell us what you want printed on it!  So this email applies to you as well, don't ignore it!{% endif %}
+{% if attendee.is_dept_head %}PS: Even though you're a department head, we can't personalize your badge unless you tell us what you want printed on it!  So this email applies to you as well, don't ignore it!{% endif %}

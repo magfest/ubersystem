@@ -214,8 +214,8 @@ def form_link(model):
 
 
 @JinjaEnv.jinja_filter
-def dept_checklist_path(conf, attendee=None):
-    return safe_string(conf.path(attendee))
+def dept_checklist_path(conf, department=None):
+    return safe_string(conf.path(department))
 
 
 @JinjaEnv.jinja_filter

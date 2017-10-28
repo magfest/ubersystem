@@ -315,15 +315,16 @@ class MarketplaceEmail(AutomatedEmail):
 
 class DeptChecklistEmail(AutomatedEmail):
     def __init__(self, conf):
-        AutomatedEmail.__init__(self, Attendee,
-                                subject='{EVENT_NAME} Department Checklist: ' + conf.name,
-                                template='shifts/dept_checklist.txt',
-                                filter=lambda a: a.is_single_dept_head and a.admin_account and not conf.completed(a),
-                                ident='department_checklist_{}'.format(conf.name),
-                                when=days_before(7, conf.deadline),
-                                sender=c.STAFF_EMAIL,
-                                extra_data={'conf': conf},
-                                post_con=conf.email_post_con or False)
+        AutomatedEmail.__init__(
+            self, Attendee,
+            subject='{EVENT_NAME} Department Checklist: ' + conf.name,
+            template='shifts/dept_checklist.txt',
+            filter=lambda a: a.gets_any_checklist and a.admin_account and not a.completed_every_checklist_for(conf.slug),
+            ident='department_checklist_{}'.format(conf.name),
+            when=days_before(7, conf.deadline),
+            sender=c.STAFF_EMAIL,
+            extra_data={'conf': conf},
+            post_con=conf.email_post_con or False)
 
 
 def notify_admins_of_any_pending_emails():

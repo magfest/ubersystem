@@ -187,17 +187,14 @@ class DeptChecklistConf(Registry):
         assert re.match('^[a-z0-9_]+$', slug), 'Dept Head checklist item sections must have separated_by_underscore names'
         self.slug, self.description = slug, description
         self.name = name or slug.replace('_', ' ').title()
-        self._path = path or '/dept_checklist/form?slug={slug}'
+        self._path = path or '/dept_checklist/form?slug={slug}&department_id={department_id}'
         self.email_post_con = email_post_con
         self.deadline = c.EVENT_TIMEZONE.localize(datetime.strptime(deadline, '%Y-%m-%d')).replace(hour=23, minute=59)
 
-    def path(self, attendee):
-        membership = attendee and attendee.dept_memberships and attendee.dept_memberships[0]
-        return self._path.format(slug=self.slug, department_id=membership.department_id)
-
-    def completed(self, department):
-        matches = [item for item in department.dept_checklist_items if self.slug == item.slug]
-        return matches[0] if matches else None
+    def path(self, department):
+        from uber.models.department import Department
+        department_id = Department.to_id(department)
+        return self._path.format(slug=self.slug, department_id=department_id)
 
 
 for _slug, _conf in sorted(c.DEPT_HEAD_CHECKLIST.items(), key=lambda tup: tup[1]['deadline']):

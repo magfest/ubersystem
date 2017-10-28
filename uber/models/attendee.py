@@ -155,6 +155,24 @@ class Attendee(MagModel, TakesPaymentMixin):
                     'Attendee.id == DeptMembership.attendee_id, '
                     'DeptMembership.has_role == True)',
         viewonly=True)
+    dept_memberships_as_dept_head = relationship(
+        'DeptMembership',
+        primaryjoin='and_('
+                    'Attendee.id == DeptMembership.attendee_id, '
+                    'DeptMembership.is_dept_head == True)',
+        viewonly=True)
+    dept_memberships_as_poc = relationship(
+        'DeptMembership',
+        primaryjoin='and_('
+                    'Attendee.id == DeptMembership.attendee_id, '
+                    'DeptMembership.is_poc == True)',
+        viewonly=True)
+    dept_memberships_as_checklist_admin = relationship(
+        'DeptMembership',
+        primaryjoin='and_('
+                    'Attendee.id == DeptMembership.attendee_id, '
+                    'DeptMembership.is_checklist_admin == True)',
+        viewonly=True)
     pocs_for_depts_where_working = relationship(
         'Attendee',
         cascade='save-update,merge,refresh-expire,expunge',
@@ -722,7 +740,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def multiply_assigned(self):
-        return len(self.assigned_depts) > 1
+        return len(self.dept_memberships) > 1
 
     @property
     def takes_shifts(self):
@@ -830,11 +848,11 @@ class Attendee(MagModel, TakesPaymentMixin):
         return [d.name for d in self.assigned_depts]
 
     @classproperty
-    def extra_checkgroups(cls):
-        return set(['assigned_depts_ids']).union(cls.extra_regform_checkgroups)
+    def extra_apply_attrs(cls):
+        return set(['assigned_depts_ids']).union(cls.extra_apply_attrs_restricted)
 
     @classproperty
-    def extra_regform_checkgroups(cls):
+    def extra_apply_attrs_restricted(cls):
         return set(['requested_depts_ids'])
 
     def _set_relation(self, cls, field, value):
@@ -909,8 +927,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         from uber.models.department import Department
         department_id = Department.to_id(department)
         return any(
-            m.department_id == department_id and m.is_dept_head
-            for m in self.dept_memberships)
+            m.department_id == department_id
+            for m in self.dept_memberships_as_dept_head)
 
     def is_poc_for(self, department):
         if not department:
@@ -918,17 +936,25 @@ class Attendee(MagModel, TakesPaymentMixin):
         from uber.models.department import Department
         department_id = Department.to_id(department)
         return any(
-            m.department_id == department_id and m.is_poc
-            for m in self.dept_memberships)
+            m.department_id == department_id
+            for m in self.dept_memberships_as_poc)
 
-    def gets_checklist_for(self, department):
+    def completed_every_checklist_for(self, slug):
+        return all(
+            d.checklist_item_for_slug(slug) for d in self.checklist_depts)
+
+    @property
+    def gets_any_checklist(self):
+        return bool(self.dept_memberships_as_checklist_admin)
+
+    def is_checklist_admin_for(self, department):
         if not department:
             return False
         from uber.models.department import Department
         department_id = Department.to_id(department)
         return any(
-            m.department_id == department_id and m.gets_checklist
-            for m in self.dept_memberships)
+            m.department_id == department_id
+            for m in self.dept_memberships_as_checklist_admin)
 
     def has_role_in(self, department):
         if not department:
@@ -952,13 +978,14 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def has_role_somewhere(self):
         """
-        :return: True if this Attendee is trusted in at least 1 department
+        Returns True if this Attendee has one of the following in at
+        least one department:
+            - is a department head
+            - is a point of contact
+            - gets a department checklist
+            - has a role within a department
         """
-        # Check for implicit roles first to avoid additional SQL queries
-        for membership in self.dept_memberships:
-            if membership.has_implicit_role:
-                return True
-        return bool(self.dept_roles)
+        return bool(self.dept_memberships_with_role)
 
     def has_shifts_in(self, department):
         return department in self.depts_where_working

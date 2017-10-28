@@ -179,20 +179,20 @@ class MagModel:
             if colname in cls.unrestricted}
 
     @classproperty
-    def extra_checkgroups(cls):
+    def extra_apply_attrs(cls):
         """
-        Returns the set of extra checkgroups. These are settable attributes or
-        properties that are not in cls.__table__columns.
+        Returns a set of extra attrs used by apply(). These are settable
+        attributes or properties that are not in cls.__table__columns.
 
         For example, see Attendee.assigned_depts_ids.
         """
         return set()
 
     @classproperty
-    def extra_regform_checkgroups(cls):
+    def extra_apply_attrs_restricted(cls):
         """
-        Returns the set of extra regform checkgroups. These are settable
-        attributes or properties that are not in cls.__table__columns.
+        Returns a set of extra attrs used by apply(restricted=True). These are
+        settable attributes or properties that are not in cls.__table__columns.
 
         For example, see Attendee.requested_depts_ids.
         """
@@ -410,10 +410,10 @@ class MagModel:
                     if field in params:
                         setattr(self, field, params[field])
 
-        extra_checkgroups = self.extra_regform_checkgroups if restricted \
-            else self.extra_checkgroups
+        extra_apply_attrs = self.extra_apply_attrs_restricted if restricted \
+            else self.extra_apply_attrs
 
-        for attr in extra_checkgroups:
+        for attr in extra_apply_attrs:
             if attr in params:
                 setattr(self, attr, params[attr])
 
@@ -610,8 +610,8 @@ class Session(SessionManager):
             department = self.query(Department).get(department_id)
             return {
                 'conf': conf,
-                'relevant': attendee.gets_checklist_for(department_id),
-                'completed': conf.completed(department)
+                'relevant': attendee.is_checklist_admin_for(department_id),
+                'completed': department.checklist_item_for_slug(conf.slug)
             }
 
         def jobs_for_signups(self):
