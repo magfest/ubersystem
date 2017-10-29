@@ -52,24 +52,31 @@
 {%- endmacro %}
 
 
-{% macro checkgroup_opts(field_name, choices, suffix='', defaults=[], is_readonly=False) -%}
+{% macro checkgroup_opts(field_name, choices, suffix='', defaults=[], is_readonly=False, include_empty_hidden=False) -%}
   <div class="checkgroup">
-    {% for value, label in choices -%}
+    {% for choice in choices -%}
+      {%- set value = choice.0 -%}
+      {%- set label = choice.1 -%}
+      {%- set desc = choice.2 -%}
       {%- set has_value = value|string in defaults -%}
       {%- if not is_readonly or has_value -%}
         <label
-                class="checkbox-label{% if is_readonly %} disabled{% endif %}"
-                style="font-weight: normal;">
+            class="checkbox-label{% if is_readonly %} disabled{% endif %}"
+            style="font-weight: normal;"
+            {% if desc %}title="{{ desc }}"{% endif %}>
           {% if is_readonly %}
             <input type="hidden" name="{{ field_name }}{{ suffix }}" value="{{ value }}"/>
             <input type="checkbox" disabled checked/>
             {{ label }}
           {% else %}
+            {% if include_empty_hidden %}
+              <input type="hidden" name="{{ field_name }}{{ suffix }}" value=""/>
+            {% endif %}
             <input
-                    type="checkbox"
-                    name="{{ field_name }}{{ suffix }}"
-                    value="{{ value }}"
-                    {% if has_value %}checked{% endif %}/>
+                type="checkbox"
+                name="{{ field_name }}{{ suffix }}"
+                value="{{ value }}"
+                {% if has_value %}checked{% endif %}/>
             {{ label }}
           {% endif %}
         </label>

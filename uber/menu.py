@@ -73,16 +73,19 @@ class MenuItem:
 
 
 c.MENU = MenuItem(name='Root', submenu=[
-    MenuItem(name='Accounts', href='../accounts/', access=c.ACCOUNTS),
+    MenuItem(name='Admin', submenu=[
+        MenuItem(name='Admin Accounts', href='../accounts/', access=c.ACCOUNTS),
+        MenuItem(name='Jobs', href='../jobs/', access=c.PEOPLE),
+        MenuItem(name='All Unfilled Shifts', href='../jobs/everywhere', access=c.PEOPLE),
+        MenuItem(name='Department Checklist', href='../dept_checklist/overview', access=c.PEOPLE),
+        MenuItem(name='Feed of Database Changes', href='../registration/feed', access=c.PEOPLE),
+    ]),
 
     MenuItem(name='People', access=[c.PEOPLE, c.REG_AT_CON], submenu=[
         MenuItem(name='Attendees', href='../registration/{}'.format('?invalid=True' if c.AT_THE_CON else '')),
         MenuItem(name='Groups', href='../groups/'),
-        MenuItem(name='All Untaken Shifts', access=c.PEOPLE, href='../jobs/everywhere'),
-        MenuItem(name='Jobs', access=c.PEOPLE, href='../jobs/'),
-        MenuItem(name='Watchlist', access=c.WATCHLIST, href='../registration/watchlist_entries'),
-        MenuItem(name='Feed of Database Changes', href='../registration/feed'),
+        MenuItem(name='Watchlist', href='../registration/watchlist_entries', access=c.WATCHLIST),
     ]),
 
-    MenuItem(name='Statistics', access=c.STATS, href='../summary/'),
+    MenuItem(name='Statistics', href='../summary/', access=c.STATS),
 ])

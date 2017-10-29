@@ -71,8 +71,7 @@ class Root:
             relevant = attendee.is_checklist_admin_for(dept)
             statuses = []
             for item in checklist:
-                status = {
-                    'conf': item, 'name': item.name, 'relevant': relevant}
+                status = {'conf': item, 'name': item.name}
                 if dept.checklist_item_for_slug(item.slug):
                     status['done'] = True
                 elif days_before(7, item.deadline)():
@@ -80,7 +79,7 @@ class Root:
                 elif item.deadline < datetime.now(UTC):
                     status['missed'] = True
                 statuses.append(status)
-            overview.append([dept.id, dept.name, statuses, dept.checklist_admins])
+            overview.append([dept.id, dept.name, relevant, statuses, dept.checklist_admins])
 
         return {
             'message': message,

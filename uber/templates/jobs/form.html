@@ -1,7 +1,25 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Job Form{% endblock %}
-{% block page_styles %}
 
+{% block page_styles %}
+<style type="text/css">
+  .form-save {
+    margin-top: 30px;
+  }
+
+  .form-group input.btn {
+    margin: 5px 0;
+  }
+
+  .form-group .optional-field {
+    font-weight: normal;
+  }
+
+  .form-group { margin-bottom: 5px }
+  @media (max-width: 768px) {
+    .form-group { margin-bottom: 10px }
+  }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -9,7 +27,6 @@
 {% include "jobs/job_menu.html" %}
 
 <script type="text/javascript">
-<!--
     function blank() {
         var defaults = {
             name: "",
@@ -23,146 +40,168 @@
         });
         $("[name=restricted],[name=extra15]").attr("checked", false);
     }
-    {% if not job.is_new %}
-    $().ready(function() {
-        $("form[action='delete']").submit(function(event){
-            var formToSubmit = this;
-            event.preventDefault();
-            bootbox.confirm({
-                message: "This will permanently delete this shift. Are you sure?",
-                buttons: {
-                    confirm: {
-                        label: 'Delete Shift',
-                        className: 'btn-danger'
-                    },
-                    cancel: {
-                        label: 'Nevermind',
-                        className: 'btn-default'
-                    }
-                },
-                callback: function (result) {
-                    if(result) {
-                        formToSubmit.submit();
-                    }
-                }
-            });
-        });
+
+    var onDepartmentChange = function() {
+      var deptRolesSelector = '#dept_roles-' + $.field('department_id').val();
+
+      $('.dept_roles').hide();
+      $('input[name="required_roles_ids"]').prop('disabled', true);
+
+      $(deptRolesSelector + ' input').prop('disabled', false);
+      $(deptRolesSelector).show();
+    };
+
+    $(function() {
+      onDepartmentChange();
+      $.field('department_id').on('change', onDepartmentChange);
     });
+
+    {% if not job.is_new %}
+      $(function() {
+          $("form[action='delete']").submit(function(event){
+              var formToSubmit = this;
+              event.preventDefault();
+              bootbox.confirm({
+                  message: "This will permanently delete this shift. Are you sure?",
+                  buttons: {
+                      confirm: {
+                          label: 'Delete Shift',
+                          className: 'btn-danger'
+                      },
+                      cancel: {
+                          label: 'Nevermind',
+                          className: 'btn-default'
+                      }
+                  },
+                  callback: function (result) {
+                      if(result) {
+                          formToSubmit.submit();
+                      }
+                  }
+              });
+          });
+      });
     {% endif %}
-// -->
 </script>
 
 {% if defaults %}
-    <i>Note: To help you enter the same job at multiple times, this form has been filled in
-        using the values of the last shift you created in this department. <br/>
-        <a href="#" onClick="blank(); return false;">Click here</a> to undo these defaults and start
-        with a blank form.</i>
+  <i>
+    Note: To help you enter the same job at multiple times, this form has
+    been filled in using the values of the last shift you created in this
+    department.<br/>
+    <a href="#" onClick="blank(); return false;">Click here</a> to undo
+    these defaults and start with a blank form.
+  </i>
 {% endif %}
 
-<form method="post" action="form">
-<input type="hidden" name="id" value="{{ job.db_id }}" />
-<input type="hidden" name="type" value="{{ job.type }}" />
-<input type="hidden" name="from_schedule" value="{{ from_schedule }}" />
-{{ csrf_token() }}
-
-
-<table>
-<tr>
-    <td width="25%"> <b>Job Name:</b> </td>
-    <td width="75%"> <input class="focus" type="text" name="name" value="{{ job.name }}" /> </td>
-</tr>
-<tr>
-    <td> Description <i>(Optional)</i>: </td>
-    <td> <input type="text" name="description" value="{{ job.description }}" /> </td>
-</tr>
-<tr>
-    <td> <b>Start Time:</b> </td>
-    <td>
-        <select name="start_time">
-            {% if job.type == c.SETUP %}
-                <!-- SETUP -->
-                {{ options(c.SETUP_TIME_OPTS,job.start_time) }}
-            {% elif job.type == c.TEARDOWN %}
-                <!-- TEARDOWN -->
-                {{ options(c.TEARDOWN_TIME_OPTS,job.start_time) }}
-            {% elif job.type == c.REGULAR %}
-                <!-- REGULAR -->
-                {{ options(c.START_TIME_OPTS,job.start_time) }}
-            {% else %}
-                <!-- ALL -->
-                {{ options(c.ALL_TIME_OPTS,job.start_time) }}
-            {% endif %}
+<form method="post" action="form" class="form-horizontal form-save" style="max-width: 738px;">
+  <input type="hidden" name="id" value="{{ job.db_id }}" />
+  <input type="hidden" name="type" value="{{ job.type }}" />
+  <input type="hidden" name="from_schedule" value="{{ from_schedule }}" />
+  {{ csrf_token() }}
+  {{ macros.form_group(job, 'name', label='Job Name', is_required=True) }}
+  {{ macros.form_group(job, 'description', label='Description (Optional)', is_required=False) }}
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Start Time</label>
+    <div class="col-sm-6">
+      <select name="start_time" class="form-control">
+        {% if job.type == c.SETUP %}
+          <!-- SETUP -->
+          {{ options(c.SETUP_TIME_OPTS, job.start_time) }}
+        {% elif job.type == c.TEARDOWN %}
+          <!-- TEARDOWN -->
+          {{ options(c.TEARDOWN_TIME_OPTS, job.start_time) }}
+        {% elif job.type == c.REGULAR %}
+          <!-- REGULAR -->
+          {{ options(c.START_TIME_OPTS, job.start_time) }}
+        {% else %}
+          <!-- ALL -->
+          {{ options(c.ALL_TIME_OPTS, job.start_time) }}
+        {% endif %}
+      </select>
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">{% if job.type != c.REGULAR %}Expected Approximate {% endif %}Duration</label>
+    <div class="col-sm-6">
+      <select name="duration" class="form-control">
+        {{ options(c.DURATION_OPTS, job.duration) }}
+      </select>
+    </div>
+  </div>
+  {% if job.type == c.REGULAR %}
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Extra 15{{ macros.popup_link("../static_views/extra15.html") }}</label>
+      <div class="col-sm-6">
+        <div class="form-control-static checkbox">
+          {{ macros.checkbox(job, 'extra15', label='Yes') }}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Slots</label>
+    <div class="col-sm-6">
+      <select name="slots" class="form-control">
+        {{ int_options(1, 50, job.slots) }}
+      </select>
+      {% if not job.is_new %}<i>{{ job.shifts|length }} already filled</i>{% endif %}
+    </div>
+  </div>
+  {% if job.type == c.REGULAR %}
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Weight{{ macros.popup_link("../static_views/weightDesc.html") }}</label>
+      <div class="col-sm-6">
+        <select name="weight" class="form-control">
+          {{ options(c.WEIGHT_OPTS, job.weight) }}
         </select>
-    </td>
-</tr>
-<tr>
-    <td><b>{% if job.type != c.REGULAR %}Expected Approximate {% endif %}Duration:</b></td>
-    <td>
-        <select name="duration">
-            {{ options(c.DURATION_OPTS,job.duration) }}
-        </select>
-    </td>
-</tr>
-{% if job.type == c.REGULAR %}
-    <tr>
-        <td> <b>Extra 15{{ macros.popup_link("../static_views/extra15.html") }}</b> </td>
-        <td class="checkbox"> {{ macros.checkbox(job, 'extra15', label='Yes') }} </td>
-    </tr>
-{% endif %}
-<tr>
-    <td> <b>Slots:</b> </td>
-    <td>
-        <select name="slots">
-            {{ int_options(1, 50, job.slots) }}
-        </select>
-        {% if not job.is_new %}({{ job.shifts|length }} filled){% endif %}
-    </td>
-</tr>
-<tr>
-    <td> <b>Location:</b> </td>
-    <td>
-        <select name="department_id">
-            {{ options(c.DEPARTMENT_OPTS, job.department_id) }}
-        </select>
-    </td>
-</tr>
-{% if job.type == c.REGULAR %}
-    <tr>
-        <td> <b>Weight:{{ macros.popup_link("../static_views/weightDesc.html") }}</b> </td>
-        <td>
-            <select name="weight">
-                {{ options(c.WEIGHT_OPTS,job.weight) }}
-            </select>
-        </td>
-    </tr>
-{% endif %}
-<tr>
-    <td> <b>Restricted:{{ macros.popup_link("../static_views/trustDesc.html") }}</b> </td>
-    <td class="checkbox"> {{ macros.checkbox(job, 'restricted', label='Yes') }} </td>
-</tr>
-<tr>
-    <td></td>
-    <td> <input type="submit" value="Upload" />
-</tr>
-</table>
-
+      </div>
+    </div>
+  {% endif %}
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Department</label>
+    <div class="col-sm-6">
+      <select name="department_id" class="form-control">
+        {{ options(c.DEPARTMENT_OPTS, job.department_id) }}
+      </select>
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Required Roles{{ macros.popup_link("../static_views/trustDesc.html") }}</label>
+    <div class="col-sm-9">
+      <div class="form-control-static">
+        {%- for department_id, dept_roles_opts in dept_roles.items() -%}
+          <div id="dept_roles-{{ department_id }}" class="dept_roles">
+            {{ macros.checkgroup_opts(
+                  'required_roles_ids',
+                  dept_roles_opts,
+                  defaults=job.required_roles_ids,
+                  include_empty_hidden=True) }}
+          </div>
+        {%- endfor -%}
+      </div>
+    </div>
+  </div>
+  <div class="form-group">
+    <div class="col-sm-9 col-sm-offset-3">
+      <input type="submit" class="btn btn-primary" value="Save Job" />
+    </div>
+  </div>
 </form>
 
 {% if not job.is_new %}
-    <form method="post" action="delete">
+  <form method="post" action="delete" class="form-horizontal form-delete" style="max-width: 738px;">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ job.id }}" />
-    <table width="100%" cellspacing="5" cellpadding="5">
-    <tr>
-        <td width="25%"></td>
-        <td width="75%"> <input type="submit" value="Delete" /> </td>
-    </tr>
-    </table>
-    </form>
+    <div class="form-group">
+      <div class="col-sm-9 col-sm-offset-3">
+        <input type="submit" class="btn btn-danger" value="Delete Job" />
+      </div>
+    </div>
+  </form>
 {% endif %}
 
 {% endblock %}
-{% block page_scripts %}
 
-{% endblock %}
+{% block page_scripts %}{% endblock %}
 

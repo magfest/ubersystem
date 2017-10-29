@@ -19,6 +19,7 @@ from collections import defaultdict
 import sideboard.lib.sa
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import func
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.sql import and_, or_, table
 
@@ -136,6 +137,7 @@ dept_checklist_item_table = table(
     sa.Column('id', sideboard.lib.sa.UUID()),
     sa.Column('attendee_id', sideboard.lib.sa.UUID(), ForeignKey('attendee.id')),
     sa.Column('department_id', sideboard.lib.sa.UUID(), ForeignKey('department.id')),
+    sa.Column('slug', sa.Unicode()),
 )
 
 
@@ -193,7 +195,7 @@ def _upgrade_job_departments():
             dept_role_table.insert().values({
                 'id': trusted_dept_role_id,
                 'name': 'Trusted',
-                'description': 'Staffers with a proven track record in "{}" are considered "Trusted"'.format(name),
+                'description': 'Staffers with a proven track record in the {} department can be considered "Trusted"'.format(name),
                 'department_id': department_id
             })
         )
@@ -251,7 +253,28 @@ def _upgrade_dept_checklist_items():
 
 
 def _downgrade_dept_checklist_items():
-    pass
+    """
+    This is an unfortunate situation, but if we ever decide to downgrade, we
+    may be forced to delete some completed DeptChecklistItems. Under the old
+    schema, department heads assigned to multiple departments could NOT
+    complete any checklists. Furthermore, there was a unique constraint on
+    dept_checklist_item(attendee_id, slug) which enforced that prohibition
+    at the database level. In order to downgrade the scheme, we must delete
+    any rows that violate that unique constraint.
+    """
+    connection = op.get_bind()
+    duplicates = connection.execute(
+        func.array_agg(dept_checklist_item_table.c.id) \
+        .select() \
+        .group_by(dept_checklist_item_table.c.attendee_id, dept_checklist_item_table.c.slug) \
+        .having(func.count() > 1))
+    for duplicate_ids in duplicates:
+        op.execute(
+            dept_checklist_item_table.delete().where(
+                dept_checklist_item_table.c.id.in_(duplicate_ids[1:])
+            )
+        )
+
 
 
 def _upgrade_attendee_departments():

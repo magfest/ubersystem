@@ -12,7 +12,7 @@
       {{ dept_name }}
       <span style="font-size: 0.75em; padding-left: 5px;">
         {% if item %}
-          <b class="text-info">Completed!</b>
+          <b class="text-success">Completed!</b>
         {% else %}
           <i class="text-danger">Not complete...</i>
         {% endif %}
@@ -35,7 +35,7 @@
             </div>
           {% endfor %}
         {% else %}
-          <i>This dept doesn't have any checklist admins</i>
+          <i>This department doesn't have any checklist admins.</i>
         {% endif %}
       </div>
     </div>

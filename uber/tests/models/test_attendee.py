@@ -94,12 +94,38 @@ def test_is_dealer():
     assert Attendee(group=dealer_group, paid=c.PAID_BY_GROUP).is_dealer
 
 
-def test_is_dept_head(dept):
+def test_is_dept_head():
     assert not Attendee().is_dept_head
-    dept_membership = DeptMembership(
-        department=dept,
-        is_dept_head=True)
+    dept_membership = DeptMembership(is_dept_head=True)
     assert Attendee(dept_memberships=[dept_membership]).is_dept_head
+
+
+def test_dept_head_ribbon_label_from_ribbon_attr():
+    a = Attendee()
+    assert a.ribbon_labels == []
+
+    a.ribbon = '{}'.format(c.DEPT_HEAD_RIBBON)
+    assert a.ribbon_labels == ['Department Head']
+
+    a.ribbon = '{},{}'.format(c.VOLUNTEER_RIBBON, c.DEPT_HEAD_RIBBON)
+    assert a.ribbon_labels == ['Department Head', 'Volunteer']
+
+    a.ribbon = '{}'.format(c.VOLUNTEER_RIBBON)
+    assert a.ribbon_labels == ['Volunteer']
+
+
+def test_dept_head_ribbon_label_from_dept_membership():
+    a = Attendee()
+    assert a.ribbon_labels == []
+
+    a.dept_memberships = [DeptMembership(is_dept_head=True)]
+    assert a.ribbon_labels == ['Department Head']
+
+    a.ribbon = '{}'.format(c.VOLUNTEER_RIBBON)
+    assert a.ribbon_labels == ['Department Head', 'Volunteer']
+
+    a.dept_memberships = [DeptMembership(is_dept_head=False)]
+    assert a.ribbon_labels == ['Volunteer']
 
 
 def test_unassigned_name(monkeypatch):

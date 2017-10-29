@@ -42,7 +42,7 @@ class Root:
             if c.AT_THE_CON:
                 raise HTTPRedirect('signups')
             else:
-                department_id = c.DEFAULT_DEPARTMENT_OPT[0]
+                department_id = c.DEFAULT_DEPARTMENT_ID
 
         department_id = Department.to_id(None if department_id == 'All' else department_id)
         department = session.query(Department).get(department_id) if department_id else None
@@ -53,6 +53,7 @@ class Root:
                 by_start[job.start_time_local].append(job)
         times = [c.EPOCH + timedelta(hours=i) for i in range(c.CON_LENGTH)]
         return {
+            'department_id': department_id,
             'department': department,
             'setup': [j for j in jobs if j.type == c.SETUP],
             'teardown': [j for j in jobs if j.type == c.TEARDOWN],
@@ -64,7 +65,7 @@ class Root:
 
     def signups(self, session, department_id=None, message=''):
         if not department_id:
-            department_id = cherrypy.session.get('prev_department_id') or c.DEFAULT_DEPARTMENT_OPT[0]
+            department_id = cherrypy.session.get('prev_department_id') or c.DEFAULT_DEPARTMENT_ID
         department_id = Department.to_id(None if department_id == 'All' else department_id)
         cherrypy.session['prev_department_id'] = department_id
 
@@ -88,7 +89,7 @@ class Root:
 
     def staffers(self, session, department_id=None, message=''):
         if not department_id:
-            department_id = cherrypy.session.get('prev_department_id') or c.DEFAULT_DEPARTMENT_OPT[0]
+            department_id = cherrypy.session.get('prev_department_id') or c.DEFAULT_DEPARTMENT_ID
         department_id = Department.to_id(None if department_id == 'All' else department_id)
         dept_filter = [] if not department_id \
             else [Attendee.dept_memberships.any(department_id=department_id)]
@@ -102,14 +103,18 @@ class Root:
             update_counts(job, counts)
 
         return {
-            'counts':    counts,
-            'department_id':  department_id,
+            'counts': counts,
+            'department_id': department_id,
             'attendees': attendees,
-            'emails':    ','.join(a.email for a in attendees),
+            'emails': ','.join(a.email for a in attendees),
             'checklist': session.checklist_status('assigned_volunteers', department_id)
         }
 
     def form(self, session, message='', **params):
+        print('\n\n****************************************')
+        for n in sorted(params.keys()):
+            print('{}: {}'.format(n, params[n]))
+        print('****************************************\n\n')
         defaults = {}
         if params.get('id') == 'None' and cherrypy.request.method != 'POST':
             defaults = cherrypy.session.get('job_defaults', defaultdict(dict))[params['department_id']]
@@ -135,9 +140,14 @@ class Root:
             else:
                 job.type = c.SETUP if local_start_time < c.EPOCH else c.TEARDOWN
 
+        dept_roles = defaultdict(list)
+        for d in session.query(DeptRole):
+            dept_roles[d.department_id].append((d.id, d.name, d.description))
+
         return {
-            'job':      job,
-            'message':  message,
+            'job': job,
+            'message': message,
+            'dept_roles': dept_roles,
             'defaults': 'defaults' in locals() and defaults
         }
 
@@ -227,7 +237,7 @@ class Root:
         }
 
     def add_volunteers_by_dept(self, session, message='', department_id=None):
-        department_id = department_id or c.DEFAULT_DEPARTMENT_OPT[0]
+        department_id = department_id or c.DEFAULT_DEPARTMENT_ID
         return {
             'message': message,
             'department_id': department_id,

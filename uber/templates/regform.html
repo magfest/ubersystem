@@ -380,7 +380,13 @@
 <div class="form-group staffing" id="departments">
     <label for="requested_depts_ids" class="col-sm-3 control-label">Where do you want to help?</label>
     <div class="col-sm-9">
-        {{ macros.checkgroup_opts('requested_depts_ids', c.PUBLIC_DEPARTMENT_OPTS, defaults=attendee.requested_depts_ids) }}
+      <div class="form-control-static">
+        {{ macros.checkgroup_opts(
+            'requested_depts_ids',
+            c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC,
+            defaults=attendee.requested_depts_ids,
+            include_empty_hidden=True) }}
+      </div>
     </div>
 </div>
 {% endif %}

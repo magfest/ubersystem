@@ -15,24 +15,24 @@
 <table width="100%">
 <tr>
     <td width="50%">
-        <form method="post" action="assign">
+      <form method="post" action="assign">
         {{ csrf_token() }}
         <input type="hidden" name="staffer_id" value="{{ attendee.id }}" />
         <b>Add a Shift:</b>
-        <select name="job_id">
+        <select name="job_id" {% if not jobs %}disabled="disabled"{% endif %}>
             {{ options(jobs) }}
         </select>
-        <input type="submit" value="Assign" />
-        </form>
+        <input type="submit" value="Assign" {% if not jobs %}disabled="disabled"{% endif %}/>
+      </form>
     </td>
     <td width="50%" align="right">
-        <form method="post" action="update_nonshift">
+      <form method="post" action="update_nonshift">
         {{ csrf_token() }}
         <input type="hidden" name="id" value="{{ attendee.id }}" />
         <b>Non-shift hours:</b>
-        <input type="number" class="focus" name="nonshift_hours" value="{{ attendee.nonshift_hours }}" style="width:3em" />
+        <input type="number" class="focus" name="nonshift_hours" value="{{ attendee.nonshift_hours }}" style="width:3.5em" />
         <input type="submit" value="Update" />
-        </form>
+      </form>
     </td>
 </tr>
 </table>

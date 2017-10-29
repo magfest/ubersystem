@@ -126,10 +126,22 @@ class Attendee(MagModel, TakesPaymentMixin):
     dept_memberships = relationship('DeptMembership', backref='attendee')
     dept_membership_requests = relationship(
         'DeptMembershipRequest', backref='attendee')
+    anywhere_dept_membership_request = relationship(
+        'DeptMembershipRequest',
+        primaryjoin='and_('
+                    'DeptMembershipRequest.attendee_id == Attendee.id, '
+                    'DeptMembershipRequest.department_id == None)',
+        uselist=False,
+        viewonly=True)
     dept_roles = relationship(
         'DeptRole',
         backref='attendees',
         cascade='save-update,merge,refresh-expire,expunge',
+        secondaryjoin=\
+            'and_('
+            'DeptRole.id == dept_membership_dept_role.c.dept_role_id, '
+            'DeptMembership.id == '
+            'dept_membership_dept_role.c.dept_membership_id)',
         secondary='join(DeptMembership, dept_membership_dept_role)',
         order_by='DeptRole.name',
         viewonly=True)
@@ -377,6 +389,14 @@ class Attendee(MagModel, TakesPaymentMixin):
             self.badge_type = c.ATTENDEE_BADGE
             self.badge_num = None
         del self.shifts[:]
+
+    @property
+    def ribbon_labels(self):
+        labels = super(Attendee, self)._labels('ribbon', self.ribbon)
+        if c.DEPT_HEAD_RIBBON in self.ribbon_ints or not self.is_dept_head:
+            return labels
+        labels.append(c.RIBBONS[c.DEPT_HEAD_RIBBON])
+        return sorted(labels)
 
     @property
     def ribbon_and_or_badge(self):
@@ -820,7 +840,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         return [
             (job.id, '({}) [{}] {}'.format(
                 hour_day_format(job.start_time),
-                job.department.name,
+                job.department_name,
                 job.name))
             for job in self.possible
             if localized_now() < job.start_time]
@@ -836,8 +856,17 @@ class Attendee(MagModel, TakesPaymentMixin):
     # ========================================================================
     # TODO: Refactor all this stuff regarding assigned_depts and
     #       requested_depts. Maybe a @suffix_property with a setter for the
-    #       *_ids fields? The hardcoded *_labels properties are stop-gaps.
+    #       *_ids fields? The hardcoded *_labels props are also not great.
     # ========================================================================
+
+    @classproperty
+    def extra_apply_attrs(cls):
+        return set(['assigned_depts_ids']).union(
+            cls.extra_apply_attrs_restricted)
+
+    @classproperty
+    def extra_apply_attrs_restricted(cls):
+        return set(['requested_depts_ids'])
 
     @property
     def assigned_depts_labels(self):
@@ -845,45 +874,42 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def requested_depts_labels(self):
-        return [d.name for d in self.assigned_depts]
-
-    @classproperty
-    def extra_apply_attrs(cls):
-        return set(['assigned_depts_ids']).union(cls.extra_apply_attrs_restricted)
-
-    @classproperty
-    def extra_apply_attrs_restricted(cls):
-        return set(['requested_depts_ids'])
-
-    def _set_relation(self, cls, field, value):
-        def _do_set_relation(session):
-            setattr(self, field, session.query(cls).filter(
-                cls.id.in_(listify(value))).all())
-
-        if self.session:
-            _do_set_relation(self.session)
-        else:
-            from uber.models import Session
-            with Session() as session:
-                _do_set_relation(session)
+        return [d.name for d in self.requested_depts]
 
     @property
     def assigned_depts_ids(self):
-        return [d.id for d in self.assigned_depts]
+        return [str(d.id) for d in self.assigned_depts]
 
     @assigned_depts_ids.setter
     def assigned_depts_ids(self, value):
         from uber.models.department import Department
+        values = set(
+            None if s == 'None' else s for s in listify(value) if s != '')
+        for membership in list(self.dept_memberships):
+            if membership.department_id not in values:
+                # Manually remove dept_memberships to ensure the associated
+                # rows in the dept_membership_dept_role table are deleted.
+                self.dept_memberships.remove(membership)
         self._set_relation(Department, 'assigned_depts', value)
 
     @property
     def requested_depts_ids(self):
-        return [d.id for d in self.requested_depts]
+        return [str(d.department_id) for d in self.dept_membership_requests]
 
     @requested_depts_ids.setter
     def requested_depts_ids(self, value):
-        from uber.models.department import Department
-        self._set_relation(Department, 'requested_depts', value)
+        from uber.models.department import DeptMembershipRequest
+        values = set(
+            None if s == 'None' else s for s in listify(value) if s != '')
+        for membership in list(self.dept_membership_requests):
+            if membership.department_id not in values:
+                self.dept_membership_requests.remove(membership)
+        department_ids = set(
+            str(d.department_id) for d in self.dept_membership_requests)
+        for department_id in values:
+            if department_id not in department_ids:
+                self.dept_membership_requests.append(DeptMembershipRequest(
+                    department_id=department_id, attendee_id=self.id))
 
     @property
     def worked_shifts(self):
@@ -968,8 +994,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     def has_required_roles(self, job):
         if not job.required_roles:
             return True
-        role_ids = set(r.id for r in job.required_roles)
-        return role_ids.issubset(set(r.id for r in self.dept_roles))
+        required_role_ids = set(r.id for r in job.required_roles)
+        role_ids = set(r.id for r in self.dept_roles)
+        return required_role_ids.issubset(role_ids)
 
     @property
     def trusted_somewhere(self):
@@ -978,12 +1005,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def has_role_somewhere(self):
         """
-        Returns True if this Attendee has one of the following in at
-        least one department:
+        Returns True if at least one of the following is true for at least
+        one department:
             - is a department head
             - is a point of contact
-            - gets a department checklist
-            - has a role within a department
+            - is a checklist admin
+            - has a dept role
         """
         return bool(self.dept_memberships_with_role)
 

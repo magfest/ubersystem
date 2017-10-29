@@ -57,7 +57,7 @@ class Root:
             donation_amounts = list(counts['donation_tiers'].keys())
             for index, amount in enumerate(donation_amounts):
                 next_amount = donation_amounts[index + 1] if index + 1 < len(donation_amounts) else six.MAXSIZE
-                if a.total_donation >= amount and a.total_donation < next_amount:
+                if a.amount_extra >= amount and a.amount_extra < next_amount:
                     counts['donation_tiers'][amount] = counts['donation_tiers'][amount] + 1
             if not a.checked_in:
                 key = 'paid' if a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid else 'free'
@@ -371,7 +371,7 @@ class Root:
         for job in session.jobs():
             if job.restricted and job.slots_taken < job.slots:
                 for hour in job.hours:
-                    untaken[job.location][hour].append(job)
+                    untaken[job.department_id][hour].append(job)
         flagged = []
         for attendee in session.staffers():
             if not attendee.is_dept_head:

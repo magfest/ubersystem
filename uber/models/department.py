@@ -5,13 +5,14 @@ import six
 from sideboard.lib import cached_property
 from sideboard.lib.sa import CoerceUTF8 as UnicodeText, \
     UTCDateTime, UUID
-from sqlalchemy import and_, or_, exists
+from sqlalchemy import and_, or_, exists, select
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import backref
+from sqlalchemy.orm import backref, column_property
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint
 from sqlalchemy.types import Boolean, Float, Integer
 
 from uber.config import c
+from uber.decorators import classproperty
 from uber.models import MagModel
 from uber.models.attendee import Attendee
 from uber.models.types import default_relationship as relationship, \
@@ -119,7 +120,8 @@ class DeptMembershipRequest(MagModel):
                     'DeptMembershipRequest.department_id == Department.id, '
                     'DeptMembershipRequest.department_id == None)',
         order_by='Department.name',
-        uselist=True)
+        uselist=True,
+        viewonly=True)
 
     __mapper_args__ = {'confirm_deleted_rows': False}
     __table_args__ = (UniqueConstraint('attendee_id', 'department_id'),)
@@ -176,6 +178,8 @@ class Department(MagModel):
         order_by='Attendee.full_name',
         secondary='dept_membership')
     memberships = relationship('DeptMembership', backref='department')
+    explicit_membership_requests = relationship(
+        'DeptMembershipRequest', backref='department')
     attendees_requesting_membership = relationship(
         'Attendee',
         backref=backref('requested_depts', order_by='Department.name'),
@@ -184,7 +188,8 @@ class Department(MagModel):
                     'DeptMembershipRequest.department_id == Department.id, '
                     'DeptMembershipRequest.department_id == None)',
         secondary='dept_membership_request',
-        order_by='Attendee.full_name')
+        order_by='Attendee.full_name',
+        viewonly=True)
     parent = relationship(
         'Department',
         backref=backref(
@@ -232,6 +237,9 @@ class Job(MagModel):
     extra15 = Column(Boolean, default=False)
     department_id = Column(UUID, ForeignKey('department.id'))
 
+    department_name = column_property(select([Department.name],
+        Department.id == department_id))
+
     required_roles = relationship(
         'DeptRole',
         backref='jobs',
@@ -241,17 +249,22 @@ class Job(MagModel):
 
     _repr_attr_names = ['name']
 
-    @hybrid_property
-    def department_name(self):
-        return self.department.name
-
-    @department_name.expression
-    def department_name(cls):
-        return Department.name
+    @classproperty
+    def extra_apply_attrs(cls):
+        return set(['required_roles_ids']).union(
+            cls.extra_apply_attrs_restricted)
 
     @property
     def required_roles_labels(self):
         return comma_and([r.name for r in self.required_roles])
+
+    @property
+    def required_roles_ids(self):
+        return [str(r.id) for r in self.required_roles]
+
+    @required_roles_ids.setter
+    def required_roles_ids(self, value):
+        self._set_relation(DeptRole, 'required_roles', value)
 
     @property
     def hours(self):
@@ -276,15 +289,6 @@ class Job(MagModel):
             or not self.extra15
             or self.department_id == attendee.hour_map[after].department_id
         )
-
-    @hybrid_property
-    def restricted(self):
-        return bool(self.required_roles)
-
-    @restricted.expression
-    def restricted(cls):
-        return exists().select_from(job_required_role) \
-            .where(cls.id == job_required_role.c.job_id)
 
     @property
     def slots_taken(self):
@@ -367,6 +371,10 @@ class Job(MagModel):
         return [
             s for s in self._potential_volunteers(order_by=Attendee.last_first)
             if self.no_overlap(s)]
+
+
+Job.restricted = column_property(exists().where(
+    Job.id == job_required_role.c.job_id))
 
 
 class Shift(MagModel):

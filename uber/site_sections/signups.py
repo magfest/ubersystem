@@ -54,18 +54,18 @@ class Root:
 
     @check_shutdown
     @unrestricted
-    def volunteer(self, session, id, csrf_token=None, requested_depts='', message='Select which departments interest you as a volunteer.'):
+    def volunteer(self, session, id, csrf_token=None, requested_depts_ids=None, message='Select which departments interest you as a volunteer.'):
         attendee = session.attendee(id)
-        if requested_depts:
+        if requested_depts_ids:
             check_csrf(csrf_token)
             attendee.staffing = True
-            attendee.requested_depts = ','.join(listify(requested_depts))
+            attendee.requested_depts_ids = listify(requested_depts_ids)
             raise HTTPRedirect('login?message={}', "Thanks for signing up as a volunteer; you'll be emailed as soon as you are assigned to one or more departments.")
 
         return {
             'message': message,
             'attendee': attendee,
-            'requested_depts': requested_depts
+            'requested_depts_ids': requested_depts_ids
         }
 
     @check_shutdown

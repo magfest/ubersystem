@@ -334,6 +334,35 @@ class MagModel:
 
         raise AttributeError(self.__class__.__name__ + '.' + name)
 
+    def _set_relation(self, cls, field, value):
+        values = set(s for s in listify(value) if s and s != 'None')
+
+        def _do_set_relation(session):
+            relations = session.query(cls).filter(cls.id.in_(values)).all() \
+                if values else []
+            relation = getattr(self, field)
+            relation[:] = []
+            relation.extend(relations)
+
+        if self.session:
+            _do_set_relation(self.session)
+        else:
+            from uber.models import Session
+            with Session() as session:
+                _do_set_relation(session)
+
+    def _delete_instances(self, instances):
+        def _do_delete_instances(session):
+            for instance in listify(instances):
+                session.delete(instance)
+
+        if self.session:
+            _do_delete_instances(self.session)
+        else:
+            from uber.models import Session
+            with Session() as session:
+                _do_delete_instances(session)
+
     def get_tracking_by_instance(self, instance, action, last_only=True):
         from uber.models.tracking import Tracking
         query = self.session.query(Tracking).filter_by(
@@ -939,7 +968,9 @@ class Session(SessionManager):
                 .filter(badge_filter, *staffing_filter) \
                 .options(
                     subqueryload(Attendee.group),
-                    subqueryload(Attendee.shifts).subqueryload(Shift.job)) \
+                    subqueryload(Attendee.shifts)
+                    .subqueryload(Shift.job)
+                    .subqueryload(Job.department)) \
                 .order_by(Attendee.full_name)
 
         def staffers(self):
@@ -952,6 +983,7 @@ class Session(SessionManager):
             return self.query(Job) \
                 .filter_by(**job_filter) \
                 .options(
+                    subqueryload(Job.department),
                     subqueryload(Job.shifts)
                     .subqueryload(Shift.attendee)
                     .subqueryload(Attendee.group)) \

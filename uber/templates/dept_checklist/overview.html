@@ -28,7 +28,11 @@
 }
 
 .glyphicon-ban-circle {
-  color: #F4128B;
+  color: #f4128b;
+}
+
+.glyphicon-user {
+  color: #2a6496;
 }
 
 .glyphicon-empty:before {
@@ -48,10 +52,19 @@
   background-color: #f8f8f8;
 }
 
-.dept h3 {
-  margin: 0 0 0 10px;
-  font-weight: bold;
+.dept .dept-name {
+  position: relative;
   text-align: left;
+  padding-left: 18px;
+}
+
+.dept .dept-name .glyphicon-user {
+  margin-left: -10px;
+}
+
+.dept .dept-name h3 {
+  display: inline;
+  font-weight: bold;
 }
 
 .table {
@@ -119,7 +132,7 @@ th.checklist-item div {
 
 .table > tbody > tr > td.dept-head {
   text-align: left;
-  padding-left: 15px;
+  padding-left: 18px;
 }
 
 .table > tbody > tr > td.dept-head > div {
@@ -150,7 +163,7 @@ th.checklist-item div {
 <div class="legend">
   <div>
     <span class="glyphicon glyphicon-remove-circle"></span>
-    Checklist admins have missed deadline for this step
+    Checklist admins have missed the deadline for this step
   </div>
   <div>
     <span class="glyphicon glyphicon-warning-sign"></span>
@@ -183,12 +196,15 @@ th.checklist-item div {
     </tr>
   </thead>
   <tbody>
-    {% for dept_id, dept_name, statuses, checklist_admins in overview %}
+    {% for dept_id, dept_name, relevant, statuses, checklist_admins in overview %}
       <tr class="dept">
-        <td><h3>{{ dept_name }}</h3></td>
+        <td class="dept-name">
+          {% if relevant %}<span class="glyphicon glyphicon-user" title="You are a checklist admin for this department"></span>{% endif %}
+          <h3>{{ dept_name }}</h3>
+        </td>
         {% for item in statuses %}
           <td class="checklist-item" title="{{ item.name }}">
-            {% if item.relevant %}<a href="..{{ item.conf|dept_checklist_path(dept_id) }}">{% endif %}
+            {% if relevant %}<a href="..{{ item.conf|dept_checklist_path(dept_id) }}">{% endif %}
               {% if item.done %}
                 <span class="glyphicon glyphicon-check"></span>
               {% elif item.approaching %}
@@ -198,7 +214,7 @@ th.checklist-item div {
               {% else %}
                 <span class="glyphicon glyphicon-unchecked"></span>
               {% endif %}
-            {% if item.relevant %}</a>{% endif %}
+            {% if relevant %}</a>{% endif %}
           </td>
         {% endfor %}
         <td class="spacer"><div>&nbsp;</div></td>
@@ -215,7 +231,7 @@ th.checklist-item div {
               <span title="{{ attendee.email }} &mdash; {{ attendee.cellphone }}">{{ attendee|form_link }}</span>
             </div>
           {% else %}
-            <span><i>This dept doesn't have any checklist admins</i></span>
+            <span><i>This department doesn't have any checklist admins.</i></span>
           {% endfor %}
         </td>
         <td class="spacer"><div>&nbsp;</div></td>
