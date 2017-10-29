@@ -237,8 +237,8 @@ class Job(MagModel):
     extra15 = Column(Boolean, default=False)
     department_id = Column(UUID, ForeignKey('department.id'))
 
-    department_name = column_property(select([Department.name],
-        Department.id == department_id))
+    department_name = column_property(
+        select([Department.name], Department.id == department_id))
 
     required_roles = relationship(
         'DeptRole',

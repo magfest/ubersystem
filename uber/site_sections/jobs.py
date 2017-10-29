@@ -111,10 +111,6 @@ class Root:
         }
 
     def form(self, session, message='', **params):
-        print('\n\n****************************************')
-        for n in sorted(params.keys()):
-            print('{}: {}'.format(n, params[n]))
-        print('****************************************\n\n')
         defaults = {}
         if params.get('id') == 'None' and cherrypy.request.method != 'POST':
             defaults = cherrypy.session.get('job_defaults', defaultdict(dict))[params['department_id']]

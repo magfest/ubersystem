@@ -137,11 +137,11 @@ class Attendee(MagModel, TakesPaymentMixin):
         'DeptRole',
         backref='attendees',
         cascade='save-update,merge,refresh-expire,expunge',
-        secondaryjoin=\
-            'and_('
-            'DeptRole.id == dept_membership_dept_role.c.dept_role_id, '
-            'DeptMembership.id == '
-            'dept_membership_dept_role.c.dept_membership_id)',
+        secondaryjoin='and_('
+                      'DeptRole.id == '
+                      'dept_membership_dept_role.c.dept_role_id, '
+                      'DeptMembership.id == '
+                      'dept_membership_dept_role.c.dept_membership_id)',
         secondary='join(DeptMembership, dept_membership_dept_role)',
         order_by='DeptRole.name',
         viewonly=True)
