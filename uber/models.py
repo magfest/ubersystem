@@ -605,6 +605,12 @@ class Session(SessionManager):
                         and c.BADGE_RANGES[badge_type][0] <= attendee.badge_num <= c.BADGE_RANGES[badge_type][1]:
                     new_badge_num = max(self.auto_badge_num(badge_type), 1 + attendee.badge_num, new_badge_num)
 
+            # If we're dealing with a lot of badges in the session and we started filling a gap,
+            # we could accidentally end up with a badge number that already exists.
+            # If this happened, grab the latest badge number without gaps.
+            if self.query(Attendee).filter(Attendee.badge_num == new_badge_num).first():
+                new_badge_num = self.auto_badge_num(badge_type, False)
+
             assert new_badge_num < c.BADGE_RANGES[badge_type][1], 'There are no more badge numbers available in this range!'
 
             return new_badge_num
@@ -651,7 +657,7 @@ class Session(SessionManager):
 
             return 'Badge updated'
 
-        def auto_badge_num(self, badge_type):
+        def auto_badge_num(self, badge_type, fill_gap=True):
             """
             Gets the next available badge number for a badge type's range.
 
@@ -661,19 +667,27 @@ class Session(SessionManager):
             a specific range.
             :return:
             """
-            in_range = self.query(Attendee.badge_num).filter(Attendee.badge_num >= c.BADGE_RANGES[badge_type][0],
-                                                             Attendee.badge_num <= c.BADGE_RANGES[badge_type][1])
-            if in_range.count():
-                in_range_list = [int(row[0]) for row in in_range.order_by(Attendee.badge_num).all()]
+            in_range = self.query(Attendee.badge_num).filter(
+                Attendee.badge_num != None,  # noqa: E711
+                Attendee.badge_num >= c.BADGE_RANGES[badge_type][0],
+                Attendee.badge_num <= c.BADGE_RANGES[badge_type][1])
 
-                # Searches badge range for a gap in badge numbers; if none found, returns the latest badge number + 1
-                # Doing this lets admins manually set high badge numbers without filling up the badge type's range.
+            in_range_list = [
+                int(row[0]) for row in in_range.order_by(Attendee.badge_num)]
+
+            if len(in_range_list):
                 start, end = c.BADGE_RANGES[badge_type][0], in_range_list[-1]
-                gap_nums = sorted(set(range(start, end + 1)).difference(in_range_list))
-                if not gap_nums:
-                    return in_range.order_by(Attendee.badge_num.desc()).first().badge_num + 1
-                else:
-                    return gap_nums[0]
+                if fill_gap:
+                    # Searches badge range for a gap in badge numbers; if none
+                    # found, returns the latest badge number + 1.
+                    # Doing this lets admins manually set high badge numbers
+                    # without filling up the badge type's range.
+                    gap_nums = sorted(
+                        set(range(start, end + 1)).difference(in_range_list))
+
+                    if gap_nums:
+                        return gap_nums[0]
+                return end + 1
             else:
                 return c.BADGE_RANGES[badge_type][0]
 
@@ -876,7 +890,7 @@ class Session(SessionManager):
                 return 'Custom badges have already been ordered, so you will need to select a different badge type'
             elif diff > 0:
                 for i in range(diff):
-                    group.attendees.append(Attendee(badge_type=new_badge_type, ribbon=ribbon_to_use, paid=paid, **extra_create_args))
+                    group.attendees.append(Attendee(badge_type=new_badge_type, badge_num=None, ribbon=ribbon_to_use, paid=paid, **extra_create_args))
             elif diff < 0:
                 if len(group.floating) < abs(diff):
                     return 'You cannot reduce the number of badges for a group to below the number of assigned badges'
