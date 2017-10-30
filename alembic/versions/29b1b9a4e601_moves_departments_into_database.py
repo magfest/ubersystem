@@ -57,10 +57,10 @@ sqlite_reflect_kwargs = {
 # ===========================================================================
 
 
-from uber.config import c
+from uber.config import c, create_namespace_uuid
 
 DEPT_HEAD_RIBBON_STR = str(c.DEPT_HEAD_RIBBON)
-DEPARTMENT_NAMESPACE = uuid.UUID('fe0f168e-47fe-4ec9-ba66-6917613da7fd')
+DEPARTMENT_NAMESPACE = create_namespace_uuid('Department')
 
 
 def _trusted_dept_role_id(department_id):
@@ -263,15 +263,15 @@ def _downgrade_dept_checklist_items():
     any rows that violate that unique constraint.
     """
     connection = op.get_bind()
-    duplicates = connection.execute(
-        func.array_agg(dept_checklist_item_table.c.id) \
+    duplicates = connection \
+        .execute(func.array_agg(dept_checklist_item_table.c.id) \
         .select() \
         .group_by(dept_checklist_item_table.c.attendee_id, dept_checklist_item_table.c.slug) \
         .having(func.count() > 1))
     for duplicate_ids in duplicates:
         op.execute(
             dept_checklist_item_table.delete().where(
-                dept_checklist_item_table.c.id.in_(duplicate_ids[1:])
+                dept_checklist_item_table.c.id.in_(duplicate_ids[0][1:])
             )
         )
 

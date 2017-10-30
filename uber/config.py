@@ -1,4 +1,9 @@
+import hashlib
 from uber.common import *
+
+
+def create_namespace_uuid(s):
+    return uuid.UUID(hashlib.sha1(s.encode('utf-8')).hexdigest()[:32])
 
 
 class _Overridable:

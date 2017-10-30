@@ -128,8 +128,6 @@ class DeptMembershipRequest(MagModel):
 
 
 class Department(MagModel):
-    NAMESPACE = uuid.UUID('fe0f168e-47fe-4ec9-ba66-6917613da7fd')
-
     name = Column(UnicodeText)
     description = Column(UnicodeText)
     solicits_volunteers = Column(Boolean, default=True)

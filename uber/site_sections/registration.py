@@ -800,11 +800,12 @@ class Root:
 
     def shifts(self, session, id, shift_id='', message=''):
         attendee = session.attendee(id, allow_invalid=True)
+        attrs = Shift.to_dict_default_attrs + ['worked_label']
         return {
             'message': message,
             'shift_id': shift_id,
             'attendee': attendee,
-            'shifts': Shift.dump(attendee.shifts),
+            'shifts': {s.id: s.to_dict(attrs) for s in attendee.shifts},
             'jobs': [
                 (job.id, '({}) [{}] {}'.format(job.timespan(), job.department_name, job.name))
                 for job in attendee.available_jobs

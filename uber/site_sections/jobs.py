@@ -204,7 +204,7 @@ class Root:
         else:
             return job_dict(session.job(shift.job_id))
 
-    @csrf_protected
+    @ajax
     def undo_worked(self, session, id):
         shift = session.shift(id)
         shift.worked = c.SHIFT_UNMARKED

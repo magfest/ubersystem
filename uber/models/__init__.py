@@ -23,7 +23,7 @@ from sqlalchemy.schema import MetaData
 from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric
 from sqlalchemy.util import immutabledict
 
-from uber.config import c
+from uber.config import c, create_namespace_uuid
 from uber.decorators import cached_classproperty, classproperty, \
     cost_property, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
@@ -54,6 +54,10 @@ class MagModel:
     required = ()
 
     @cached_classproperty
+    def NAMESPACE(cls):
+        return create_namespace_uuid(cls.__name__)
+
+    @cached_classproperty
     def _class_attr_names(cls):
         return [
             s for s in dir(cls)
@@ -72,10 +76,6 @@ class MagModel:
         callbacks.sort(key=lambda f: getattr(f, label))
         for function in callbacks:
             function()
-
-    @staticmethod
-    def dump(instances):
-        return {instance.id: instance.to_dict() for instance in instances}
 
     def presave_adjustments(self):
         self._invoke_adjustment_callbacks('presave_adjustment')
