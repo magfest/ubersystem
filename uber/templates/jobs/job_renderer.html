@@ -113,7 +113,7 @@
         }
 
         var jobIsFull = job.slots <= job.shifts.length;
-        if (!window.SHOW_FULL_JOBS && jobIsFull) {
+        if (!window.SHOW_FULL_JOBS && jobIsFull && !$('#job_' + job.id).length) {
             return '';
         }
         return $id('job_' + job.id, '<tbody></tbody>')
