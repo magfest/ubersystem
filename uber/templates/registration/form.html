@@ -182,7 +182,7 @@
                 {{ options(c.BADGE_OPTS,attendee.badge_type) }}
             </select>
             {% if c.AT_THE_CON and c.NUMBERED_BADGES %}
-                #<input class="focus" type="text" style="width:4em" name="badge_num" value='{{ attendee.badge_num|default('') }}' />
+                #<input type="text" style="width:4em" name="badge_num" value='{{ attendee.badge_num if attendee.badge_num else '' }}' />
             {% else %}
                 <span id="badge_message" style="font-style:italic"></span>
             {% endif %}

@@ -665,6 +665,7 @@ class Session(SessionManager):
 
             :param badge_type: Used as a starting point if no badges of the same type exist, and to select badges within
             a specific range.
+            :param fill_gap: Determines whether we try to find a gap in badge numbers to fill
             :return:
             """
             in_range = self.query(Attendee.badge_num).filter(
