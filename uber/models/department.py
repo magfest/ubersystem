@@ -178,13 +178,27 @@ class Department(MagModel):
     memberships = relationship('DeptMembership', backref='department')
     explicit_membership_requests = relationship(
         'DeptMembershipRequest', backref='department')
-    attendees_requesting_membership = relationship(
+    requesting_attendees = relationship(
         'Attendee',
         backref=backref('requested_depts', order_by='Department.name'),
         cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='or_('
                     'DeptMembershipRequest.department_id == Department.id, '
                     'DeptMembershipRequest.department_id == None)',
+        secondary='dept_membership_request',
+        order_by='Attendee.full_name',
+        viewonly=True)
+    unassigend_requesting_attendees = relationship(
+        'Attendee',
+        cascade='save-update,merge,refresh-expire,expunge',
+        primaryjoin='and_(or_('
+                    'DeptMembershipRequest.department_id == Department.id, '
+                    'DeptMembershipRequest.department_id == None), '
+                    'not_(exists().where(and_('
+                    'DeptMembership.id == '
+                    'DeptMembershipRequest.department_id, '
+                    'DeptMembership.attendee_id == '
+                    'DeptMembershipRequest.attendee_id))))',
         secondary='dept_membership_request',
         order_by='Attendee.full_name',
         viewonly=True)
@@ -214,8 +228,8 @@ class Department(MagModel):
             # convert c.JOB_LOCATIONS into department ids in the database.
             prefix = '{:07x}'.format(department)
             return prefix + str(uuid.uuid5(cls.NAMESPACE, str(department)))[7:]
-        else:
-            return department.id
+
+        return department.id
 
     def checklist_item_for_slug(self, slug):
         for item in self.dept_checklist_items:

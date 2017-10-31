@@ -755,10 +755,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         return (' with ' if stuff else '') + comma_and(stuff)
 
     @property
-    def is_single_dept_head(self):
-        return self.is_dept_head
-
-    @property
     def multiply_assigned(self):
         return len(self.dept_memberships) > 1
 
@@ -956,7 +952,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             m.department_id == department_id
             for m in self.dept_memberships_as_dept_head)
 
-    def is_poc_for(self, department):
+    def is_poc_of(self, department):
         if not department:
             return False
         from uber.models.department import Department
@@ -973,7 +969,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def gets_any_checklist(self):
         return bool(self.dept_memberships_as_checklist_admin)
 
-    def is_checklist_admin_for(self, department):
+    def is_checklist_admin_of(self, department):
         if not department:
             return False
         from uber.models.department import Department

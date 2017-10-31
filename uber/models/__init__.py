@@ -639,7 +639,7 @@ class Session(SessionManager):
             department = self.query(Department).get(department_id)
             return {
                 'conf': conf,
-                'relevant': attendee.is_checklist_admin_for(department_id),
+                'relevant': attendee.is_checklist_admin_of(department_id),
                 'completed': department.checklist_item_for_slug(conf.slug)
             }
 

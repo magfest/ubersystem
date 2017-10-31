@@ -31,7 +31,7 @@
   color: #f4128b;
 }
 
-.glyphicon-user {
+.glyphicon-edit {
   color: #2a6496;
 }
 
@@ -58,13 +58,19 @@
   padding-left: 18px;
 }
 
-.dept .dept-name .glyphicon-user {
+.dept .dept-name .glyphicon-edit {
   margin-left: -10px;
+  font-size: 1.675em;
+  vertical-align: text-bottom;
 }
 
 .dept .dept-name h3 {
   display: inline;
   font-weight: bold;
+}
+
+.dept .dept-name span.pull-right {
+  padding: 5px 0;
 }
 
 .table {
@@ -158,7 +164,7 @@ th.checklist-item div {
 
 </style>
 
-<h2>Department Checklist</h2>
+<h2>Department Checklists</h2>
 
 <div class="legend">
   <div>
@@ -196,15 +202,16 @@ th.checklist-item div {
     </tr>
   </thead>
   <tbody>
-    {% for dept_id, dept_name, relevant, statuses, checklist_admins in overview %}
+    {% for dept, relevant, statuses, checklist_admins in overview %}
       <tr class="dept">
         <td class="dept-name">
-          {% if relevant %}<span class="glyphicon glyphicon-user" title="You are a checklist admin for this department"></span>{% endif %}
-          <h3>{{ dept_name }}</h3>
+          {% if relevant %}<span class="glyphicon glyphicon-edit" title="You are a checklist admin for this department"></span>{% endif %}
+          <h3>{{ dept|form_link }}</h3>
+          {% if relevant %}<span class="pull-right"><a href="index?department_id={{ dept.id }}">View Checklist</a></span>{% endif %}
         </td>
         {% for item in statuses %}
           <td class="checklist-item" title="{{ item.name }}">
-            {% if relevant %}<a href="..{{ item.conf|dept_checklist_path(dept_id) }}">{% endif %}
+            {% if relevant %}<a href="..{{ item.conf|dept_checklist_path(dept.id) }}">{% endif %}
               {% if item.done %}
                 <span class="glyphicon glyphicon-check"></span>
               {% elif item.approaching %}

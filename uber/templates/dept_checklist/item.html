@@ -10,11 +10,11 @@
   <div style="margin-bottom: 15px;">
     <h3>
       {{ dept_name }}
-      <span style="font-size: 0.75em; padding-left: 5px;">
+      <span style="font-size: 0.75em; margin-left: 5px;">
         {% if item %}
-          <b class="text-success">Completed!</b>
+          <span class="label label-success">Completed!</span>
         {% else %}
-          <i class="text-danger">Not complete...</i>
+          <span class="label label-default">Not complete</span>
         {% endif %}
       </span>
     </h3>

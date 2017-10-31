@@ -152,16 +152,18 @@ class Root:
         for job in jobs:
             jobs_by_dept[job.department_id].append(job)
 
+        departments = session.query(Department).order_by(Department.name)
+
         return {
             'hour_total': sum(j.weighted_hours * j.slots for j in jobs),
             'shift_total': sum(j.weighted_hours * len(j.shifts) for j in jobs),
             'volunteers': len(attendees),
             'departments': [{
-                'department': dept_name,
-                'assigned': len(attendees_by_dept[dept_id]),
-                'total_hours': sum(j.weighted_hours * j.slots for j in jobs_by_dept[dept_id]),
-                'taken_hours': sum(j.weighted_hours * len(j.shifts) for j in jobs_by_dept[dept_id])
-            } for dept_id, dept_name in c.DEPARTMENT_OPTS]
+                'department': dept,
+                'assigned': len(attendees_by_dept[dept.id]),
+                'total_hours': sum(j.weighted_hours * j.slots for j in jobs_by_dept[dept.id]),
+                'taken_hours': sum(j.weighted_hours * len(j.shifts) for j in jobs_by_dept[dept.id])
+            } for dept in departments]
         }
 
     @csv_file

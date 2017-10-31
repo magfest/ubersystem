@@ -77,7 +77,8 @@ c.MENU = MenuItem(name='Root', submenu=[
         MenuItem(name='Admin Accounts', href='../accounts/', access=c.ACCOUNTS),
         MenuItem(name='Jobs', href='../jobs/', access=c.PEOPLE),
         MenuItem(name='All Unfilled Shifts', href='../jobs/everywhere', access=c.PEOPLE),
-        MenuItem(name='Department Checklist', href='../dept_checklist/overview', access=c.PEOPLE),
+        MenuItem(name='Departments', href='../departments/', access=c.PEOPLE),
+        MenuItem(name='Department Checklists', href='../dept_checklist/overview', access=c.PEOPLE),
         MenuItem(name='Feed of Database Changes', href='../registration/feed', access=c.PEOPLE),
     ]),
 

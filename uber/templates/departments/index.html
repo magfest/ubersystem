@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Departments{% endblock %}
+
+{% block content %}
+  <h1>
+    All Departments
+    <button class="btn btn-primary pull-right">Add Department</button>
+  </h1>
+
+  {%- for department in departments -%}
+    <div>{{ department|form_link }}</div>
+  {%- else -%}
+    <div>No Departments Found!</div>
+  {%- endfor -%}
+
+{% endblock %}
