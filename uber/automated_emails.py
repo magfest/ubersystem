@@ -112,7 +112,7 @@ AutomatedEmail(Attendee, '{EVENT_NAME} Guest Badge Confirmation', 'placeholders/
                ident='guest_badge_confirmation')
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Dealer Information Required', 'placeholders/dealer.txt',
-               lambda a: a.placeholder and is_dealer and a.group.status == c.APPROVED,
+               lambda a: a.placeholder and a.is_dealer and a.group.status == c.APPROVED,
                sender=c.MARKETPLACE_EMAIL,
                ident='dealer_info_required')
 
