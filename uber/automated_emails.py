@@ -112,7 +112,7 @@ AutomatedEmail(Attendee, '{EVENT_NAME} Guest Badge Confirmation', 'placeholders/
                ident='guest_badge_confirmation')
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Dealer Information Required', 'placeholders/dealer.txt',
-               lambda a: a.placeholder and a.group.status == c.APPROVED,
+               lambda a: a.placeholder and is_dealer and a.group.status == c.APPROVED,
                sender=c.MARKETPLACE_EMAIL,
                ident='dealer_info_required')
 
@@ -125,9 +125,8 @@ StopsEmail('{EVENT_NAME} Volunteer Badge Confirmation', 'placeholders/volunteer.
            ident='volunteer_badge_confirmation')
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Badge Confirmation', 'placeholders/regular.txt',
-               lambda a: a.placeholder
-                                       and (c.AT_THE_CON or a.badge_type not in [c.GUEST_BADGE, c.STAFF_BADGE]
-                                       and not set([c.DEALER_RIBBON, c.PANELIST_RIBBON, c.VOLUNTEER_RIBBON]).intersection(a.ribbon_ints)),
+               lambda a: a.placeholder and (c.AT_THE_CON or a.badge_type not in [c.GUEST_BADGE, c.STAFF_BADGE]
+                                            and not set([c.DEALER_RIBBON, c.PANELIST_RIBBON, c.VOLUNTEER_RIBBON]).intersection(a.ribbon_ints)),
                allow_during_con=True,
                ident='regular_badge_confirmation')
 
