@@ -102,17 +102,17 @@ MarketplaceEmail('{EVENT_NAME} Dealer waitlist has been exhausted', 'dealers/wai
 # creates a "placeholder" registration.
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Panelist Badge Confirmation', 'placeholders/panelist.txt',
-               lambda a: a.placeholder and a.first_name and a.last_name and c.PANELIST_RIBBON in a.ribbon_ints,
+               lambda a: a.placeholder and c.PANELIST_RIBBON in a.ribbon_ints,
                sender=c.PANELS_EMAIL,
                ident='panelist_badge_confirmation')
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Guest Badge Confirmation', 'placeholders/guest.txt',
-               lambda a: a.placeholder and a.first_name and a.last_name and a.badge_type == c.GUEST_BADGE,
+               lambda a: a.placeholder and a.badge_type == c.GUEST_BADGE,
                sender=c.GUEST_EMAIL,
                ident='guest_badge_confirmation')
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Dealer Information Required', 'placeholders/dealer.txt',
-               lambda a: a.placeholder and a.is_dealer and a.group.status == c.APPROVED,
+               lambda a: a.placeholder and a.group.status == c.APPROVED,
                sender=c.MARKETPLACE_EMAIL,
                ident='dealer_info_required')
 
@@ -121,23 +121,22 @@ StopsEmail('Want to staff {EVENT_NAME} again?', 'placeholders/imported_volunteer
            ident='volunteer_again_inquiry')
 
 StopsEmail('{EVENT_NAME} Volunteer Badge Confirmation', 'placeholders/volunteer.txt',
-           lambda a: a.placeholder and a.first_name and a.last_name
-                                      and a.registered_local > c.PREREG_OPEN,
+           lambda a: a.placeholder and a.registered_local > c.PREREG_OPEN,
            ident='volunteer_badge_confirmation')
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Badge Confirmation', 'placeholders/regular.txt',
-               lambda a: a.placeholder and a.first_name and a.last_name
+               lambda a: a.placeholder
                                        and (c.AT_THE_CON or a.badge_type not in [c.GUEST_BADGE, c.STAFF_BADGE]
                                        and not set([c.DEALER_RIBBON, c.PANELIST_RIBBON, c.VOLUNTEER_RIBBON]).intersection(a.ribbon_ints)),
                allow_during_con=True,
                ident='regular_badge_confirmation')
 
 AutomatedEmail(Attendee, '{EVENT_NAME} Badge Confirmation Reminder', 'placeholders/reminder.txt',
-               lambda a: days_after(7, a.registered)() and a.placeholder and a.first_name and a.last_name and not a.is_dealer,
+               lambda a: days_after(7, a.registered)() and a.placeholder and not a.is_dealer,
                ident='badge_confirmation_reminder')
 
 AutomatedEmail(Attendee, 'Last Chance to Accept Your {EVENT_NAME} {EVENT_DATE} Badge', 'placeholders/reminder.txt',
-               lambda a: a.placeholder and a.first_name and a.last_name and not a.is_dealer,
+               lambda a: a.placeholder and not a.is_dealer,
                when=days_before(7, c.PLACEHOLDER_DEADLINE),
                ident='badge_confirmation_reminder_last_chance')
 
