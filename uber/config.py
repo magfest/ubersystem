@@ -683,7 +683,7 @@ c.WEIGHT_OPTS = (
     ('2.0', 'x2.0'),
     ('2.5', 'x2.5'),
 )
-c.JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'restricted', 'extra15']
+c.JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'required_roles_ids', 'extra15']
 
 c.PREREG_SHIRT_OPTS = c.SHIRT_OPTS[1:]
 c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + list(c.PREREG_SHIRT_OPTS)

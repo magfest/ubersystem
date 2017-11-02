@@ -4,12 +4,15 @@ from uber.common import *
 @all_renderable(c.PEOPLE)
 class Root:
     def index(self, session, department_id=None, message=''):
-        if not department_id:
-            raise HTTPRedirect('overview?message={}', message)
-
         attendee = session.admin_attendee()
-        if not attendee.is_dept_head:
-            raise HTTPRedirect('overview?message={}', 'The checklist is for department heads only')
+        if not department_id and len(attendee.can_admin_checklist_depts) > 1:
+            if message:
+                raise HTTPRedirect('overview?filtered=1&message={}', message)
+            else:
+                raise HTTPRedirect('overview?filtered=1')
+
+        if not department_id and len(attendee.can_admin_checklist_depts) == 1:
+            department_id = attendee.checklist_depts[0].id
 
         department_id = Department.to_id(department_id)
         department = session.query(Department).options(
@@ -27,6 +30,11 @@ class Root:
     def mark_item_complete(self, session, slug, department_id):
         attendee = session.admin_attendee()
         department_id = Department.to_id(department_id)
+        if not attendee.can_admin_checklist_for(department_id):
+            raise HTTPRedirect(
+                'overview?message={}',
+                'Only checklist admins can complete checklist items')
+
         department = session.query(Department).options(
             subqueryload(Department.dept_checklist_items)).get(department_id)
         conf = DeptChecklistConf.instances[slug]
@@ -67,31 +75,46 @@ class Root:
             'department': department
         }
 
-    def overview(self, session, message=''):
+    def overview(self, session, filtered=False, message=''):
         checklist = list(DeptChecklistConf.instances.values())
-        overview = []
         attendee = session.admin_attendee()
-        departments = session.query(Department) \
+
+        dept_filter = [Department.members_who_can_admin_checklist.any(
+            Attendee.id == attendee.id)] if filtered else []
+
+        departments = session.query(Department).filter(*dept_filter) \
             .options(
-                subqueryload(Department.checklist_admins),
+                subqueryload(Department.members_who_can_admin_checklist),
                 subqueryload(Department.dept_checklist_items)) \
             .order_by(Department.name)
+
+        overview = []
         for dept in departments:
-            relevant = attendee.is_checklist_admin_of(dept)
+            is_checklist_admin = attendee.is_checklist_admin_of(dept)
+            can_admin_checklist = attendee.can_admin_checklist_for(dept)
             statuses = []
             for item in checklist:
                 status = {'conf': item, 'name': item.name}
-                if dept.checklist_item_for_slug(item.slug):
+                checklist_item = dept.checklist_item_for_slug(item.slug)
+                if checklist_item:
                     status['done'] = True
+                    status['completed_by'] = checklist_item.attendee.full_name
                 elif days_before(7, item.deadline)():
                     status['approaching'] = True
                 elif item.deadline < datetime.now(UTC):
                     status['missed'] = True
                 statuses.append(status)
-            overview.append([dept, relevant, statuses, dept.checklist_admins])
+            if not filtered or can_admin_checklist:
+                overview.append([
+                    dept,
+                    is_checklist_admin,
+                    can_admin_checklist,
+                    statuses,
+                    dept.members_who_can_admin_checklist])
 
         return {
             'message': message,
+            'filtered': filtered,
             'overview': overview,
             'checklist': checklist
         }
@@ -106,8 +129,7 @@ class Root:
         return {
             'conf': conf,
             'overview': [(
-                dept.id,
-                dept.name,
+                dept,
                 dept.checklist_item_for_slug(conf.slug),
                 dept.checklist_admins)
                 for dept in departments

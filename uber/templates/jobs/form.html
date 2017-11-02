@@ -26,6 +26,14 @@
 
 {% include "jobs/job_menu.html" %}
 
+<h1>
+  {%- if job.is_new -%}
+    <span class="glyphicon glyphicon-plus"></span> New Job
+  {%- else -%}
+    <span class="glyphicon glyphicon-cog"></span> Edit {{ job.name }}
+  {%- endif -%}
+</h1>
+
 <script type="text/javascript">
     function blank() {
         var defaults = {
@@ -35,10 +43,10 @@
             slots: 1,
             weight: 1.0
         };
-        $.each(defaults, function(name,value){
+        $.each(defaults, function(name, value){
             $("[name=" + name + "]").val(value);
         });
-        $("[name=restricted],[name=extra15]").attr("checked", false);
+        $("input[type=checkbox]").prop("checked", false);
     }
 
     var onDepartmentChange = function() {
@@ -175,7 +183,7 @@
             {{ macros.checkgroup_opts(
                   'required_roles_ids',
                   dept_roles_opts,
-                  defaults=job.required_roles_ids,
+                  defaults=job.required_roles_ids or defaults.required_roles_ids,
                   include_empty_hidden=True) }}
           </div>
         {%- endfor -%}

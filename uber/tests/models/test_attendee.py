@@ -7,8 +7,8 @@ from uber.model_checks import extra_donation_valid, _invalid_phone_number
 def dept():
     yield Department(
         id='97cc0050-11e0-42eb-9a1b-83f27a1acf76',
-        name='Console',
-        description='Console')
+        name='Console Challenges',
+        description='Console Challenges')
 
 
 @pytest.fixture()

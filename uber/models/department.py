@@ -5,14 +5,13 @@ import six
 from sideboard.lib import cached_property
 from sideboard.lib.sa import CoerceUTF8 as UnicodeText, \
     UTCDateTime, UUID
-from sqlalchemy import and_, or_, exists, select
+from sqlalchemy import and_, or_, exists, func, select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, column_property
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint
 from sqlalchemy.types import Boolean, Float, Integer
 
 from uber.config import c
-from uber.decorators import classproperty
 from uber.models import MagModel
 from uber.models.attendee import Attendee
 from uber.models.types import default_relationship as relationship, \
@@ -58,6 +57,26 @@ class DeptRole(MagModel):
     description = Column(UnicodeText)
     department_id = Column(UUID, ForeignKey('department.id'))
 
+    dept_memberships = relationship(
+        'DeptMembership',
+        backref='dept_roles',
+        cascade='save-update,merge,refresh-expire,expunge',
+        secondary='dept_membership_dept_role')
+
+    __table_args__ = (UniqueConstraint('name', 'department_id'),)
+
+    @hybrid_property
+    def dept_membership_count(self):
+        return len(self.dept_memberships)
+
+    @dept_membership_count.expression
+    def dept_membership_count(cls):
+        return func.count(cls.dept_memberships)
+
+    @property
+    def dept_memberships_ids(self):
+        return [str(d.id) for d in self.dept_memberships]
+
 
 class DeptMembership(MagModel):
     is_dept_head = Column(Boolean, default=False)
@@ -65,12 +84,6 @@ class DeptMembership(MagModel):
     is_checklist_admin = Column(Boolean, default=False)
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
     department_id = Column(UUID, ForeignKey('department.id'))
-
-    dept_roles = relationship(
-        'DeptRole',
-        backref='dept_memberships',
-        cascade='save-update,merge,refresh-expire,expunge',
-        secondary='dept_membership_dept_role')
 
     __mapper_args__ = {'confirm_deleted_rows': False}
     __table_args__ = (UniqueConstraint('attendee_id', 'department_id'),)
@@ -128,7 +141,7 @@ class DeptMembershipRequest(MagModel):
 
 
 class Department(MagModel):
-    name = Column(UnicodeText)
+    name = Column(UnicodeText, unique=True)
     description = Column(UnicodeText)
     solicits_volunteers = Column(Boolean, default=True)
     is_shiftless = Column(Boolean, default=False)
@@ -156,6 +169,19 @@ class Department(MagModel):
         primaryjoin='and_('
                     'Department.id == DeptMembership.department_id, '
                     'DeptMembership.is_checklist_admin == True)',
+        secondary='dept_membership',
+        order_by='Attendee.full_name',
+        viewonly=True)
+    members_who_can_admin_checklist = relationship(
+        'Attendee',
+        backref=backref(
+            'can_admin_checklist_depts', order_by='Department.name'),
+        cascade='save-update,merge,refresh-expire,expunge',
+        primaryjoin='and_('
+                    'Department.id == DeptMembership.department_id, '
+                    'or_('
+                    'DeptMembership.is_checklist_admin == True, '
+                    'DeptMembership.is_dept_head == True))',
         secondary='dept_membership',
         order_by='Attendee.full_name',
         viewonly=True)
@@ -195,8 +221,7 @@ class Department(MagModel):
                     'DeptMembershipRequest.department_id == Department.id, '
                     'DeptMembershipRequest.department_id == None), '
                     'not_(exists().where(and_('
-                    'DeptMembership.id == '
-                    'DeptMembershipRequest.department_id, '
+                    'DeptMembership.department_id == Department.id, '
                     'DeptMembership.attendee_id == '
                     'DeptMembershipRequest.attendee_id))))',
         secondary='dept_membership_request',
@@ -211,6 +236,14 @@ class Department(MagModel):
         cascade='save-update,merge,refresh-expire,expunge',
         remote_side='Department.id',
         single_parent=True)
+
+    @hybrid_property
+    def member_count(self):
+        return len(self.memberships)
+
+    @member_count.expression
+    def member_count(cls):
+        return func.count(cls.memberships)
 
     @classmethod
     def to_id(cls, department):
@@ -249,9 +282,6 @@ class Job(MagModel):
     extra15 = Column(Boolean, default=False)
     department_id = Column(UUID, ForeignKey('department.id'))
 
-    department_name = column_property(
-        select([Department.name], Department.id == department_id))
-
     required_roles = relationship(
         'DeptRole',
         backref='jobs',
@@ -261,10 +291,10 @@ class Job(MagModel):
 
     _repr_attr_names = ['name']
 
-    @classproperty
-    def extra_apply_attrs(cls):
-        return set(['required_roles_ids']).union(
-            cls.extra_apply_attrs_restricted)
+    # Using a column_property for department_name *might* be more efficient,
+    # due to our prevelant usage of the department_name property.
+    department_name = column_property(
+        select([Department.name], Department.id == department_id))
 
     @property
     def required_roles_labels(self):
@@ -273,10 +303,6 @@ class Job(MagModel):
     @property
     def required_roles_ids(self):
         return [str(r.id) for r in self.required_roles]
-
-    @required_roles_ids.setter
-    def required_roles_ids(self, value):
-        self._set_relation(DeptRole, 'required_roles', value)
 
     @property
     def hours(self):
@@ -385,8 +411,10 @@ class Job(MagModel):
             if self.no_overlap(s)]
 
 
+# Using a column_property for restricted *might* be more efficient,
+# due to our prevelant usage of the restricted property.
 Job.restricted = column_property(exists().where(
-    Job.id == job_required_role.c.job_id))
+    Job.id == job_required_role.c.job_id).correlate(Job))
 
 
 class Shift(MagModel):

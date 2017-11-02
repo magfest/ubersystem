@@ -81,6 +81,15 @@ def _location_from_dept_id(department_id):
     return location
 
 
+def single_dept_id_from_existing_locations(locations):
+    for location in str(locations).split(','):
+        location = int(location)
+        department_id = job_location_to_department_id.get(location)
+        if department_id:
+            return department_id
+    return None
+
+
 job_location_to_department_id = {i: _dept_id_from_location(i) for i in c.JOB_LOCATIONS.keys()}
 job_interests_to_department_id = {i: job_location_to_department_id[i] for i in c.JOB_INTERESTS.keys() if i in job_location_to_department_id}
 
@@ -244,12 +253,13 @@ def _upgrade_dept_checklist_items():
             )
         )
         [attendee] = attendees
-        location = int(attendee.assigned_depts.split(',')[0])
-        op.execute(
-            dept_checklist_item_table.update().where(dept_checklist_item_table.c.id == item.id).values({
-                'department_id': job_location_to_department_id[location]
-            })
-        )
+        department_id = single_dept_id_from_existing_locations(attendee.assigned_depts)
+        if department_id:
+            op.execute(
+                dept_checklist_item_table.update().where(dept_checklist_item_table.c.id == item.id).values({
+                    'department_id': department_id
+                })
+            )
 
 
 def _downgrade_dept_checklist_items():
@@ -299,42 +309,44 @@ def _upgrade_attendee_departments():
             if attendee.assigned_depts else set()).union(trusted_depts)
 
         for value in assigned_depts:
-            department_id = job_location_to_department_id[value]
-            attendee_id = str(attendee.id)
-            dept_membership_id = _dept_membership_id(department_id, attendee_id)
-            op.execute(
-                dept_membership_table.insert().values({
-                    'id': dept_membership_id,
-                    'is_dept_head': is_dept_head,
-                    'is_poc': is_dept_head,
-                    'is_checklist_admin': is_dept_head,
-                    'department_id': department_id,
-                    'attendee_id': attendee_id
-                })
-            )
-
-            if value in trusted_depts:
+            department_id = single_dept_id_from_existing_locations(value)
+            if department_id:
+                attendee_id = str(attendee.id)
+                dept_membership_id = _dept_membership_id(department_id, attendee_id)
                 op.execute(
-                    dept_membership_dept_role_table.insert().values({
-                        'dept_membership_id': dept_membership_id,
-                        'dept_role_id': _trusted_dept_role_id(department_id)
+                    dept_membership_table.insert().values({
+                        'id': dept_membership_id,
+                        'is_dept_head': is_dept_head,
+                        'is_poc': is_dept_head,
+                        'is_checklist_admin': is_dept_head,
+                        'department_id': department_id,
+                        'attendee_id': attendee_id
                     })
                 )
 
+                if value in trusted_depts:
+                    op.execute(
+                        dept_membership_dept_role_table.insert().values({
+                            'dept_membership_id': dept_membership_id,
+                            'dept_role_id': _trusted_dept_role_id(department_id)
+                        })
+                    )
 
         requested_depts = set(map(int, attendee.requested_depts.split(','))) \
             if attendee.requested_depts else set()
 
         for value in requested_depts:
-            department_id = None if value in [c.ANYTHING, c.OTHER] else job_location_to_department_id[value]
-            attendee_id = str(attendee.id)
-            op.execute(
-                dept_membership_request_table.insert().values({
-                    'id': str(uuid.uuid4()),
-                    'department_id': department_id,
-                    'attendee_id': attendee_id
-                })
-            )
+            department_id = single_dept_id_from_existing_locations(value)
+            if value in [c.ANYTHING, c.OTHER] or department_id:
+                department_id = None if value in [c.ANYTHING, c.OTHER] else department_id
+                attendee_id = str(attendee.id)
+                op.execute(
+                    dept_membership_request_table.insert().values({
+                        'id': str(uuid.uuid4()),
+                        'department_id': department_id,
+                        'attendee_id': attendee_id
+                    })
+                )
 
         if is_dept_head:
             if isinstance(attendee.ribbon, int):
@@ -403,7 +415,7 @@ def _downgrade_attendee_departments():
 def upgrade():
     op.create_table('department',
     sa.Column('id', sideboard.lib.sa.UUID(), nullable=False),
-    sa.Column('name', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('name', sa.Unicode(), server_default='', nullable=False, unique=True),
     sa.Column('description', sa.Unicode(), server_default='', nullable=False),
     sa.Column('solicits_volunteers', sa.Boolean(), server_default='True', nullable=False),
     sa.Column('is_shiftless', sa.Boolean(), server_default='False', nullable=False),
@@ -417,7 +429,8 @@ def upgrade():
     sa.Column('description', sa.Unicode(), server_default='', nullable=False),
     sa.Column('department_id', sideboard.lib.sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['department_id'], ['department.id'], name=op.f('fk_dept_role_department_id_department')),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_dept_role'))
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_dept_role')),
+    sa.UniqueConstraint('name', 'department_id', name=op.f('uq_dept_role_name'))
     )
     op.create_table('dept_membership',
     sa.Column('id', sideboard.lib.sa.UUID(), nullable=False),

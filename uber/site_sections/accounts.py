@@ -60,8 +60,8 @@ class Root:
         attendee_filters = [Attendee.department_memberships.any(department_id=department_id)] if department else []
         attendees = session.staffers().filter(*attendee_filters).all()
         for attendee in attendees:
-            attendee.trusted_here = attendee.trusted_in(department) if department else attendee.trusted_somewhere
-            attendee.hours_here = sum(shift.job.weighted_hours for shift in attendee.shifts if shift.job.department == department) if department else attendee.weighted_hours
+            attendee.trusted_here = attendee.trusted_in(department) if department else attendee.has_role_somewhere
+            attendee.hours_here = attendee.weighted_hours_in(department)
 
         return {
             'department':  department,

@@ -8,6 +8,7 @@ def job_dict(job, shifts=None):
         'slots': job.slots,
         'weight': job.weight,
         'restricted': job.restricted,
+        'required_roles_ids': job.required_roles_ids,
         'timespan': job.timespan(),
         'department_name': job.department_name,
         'shifts': [{
@@ -95,8 +96,8 @@ class Root:
             else [Attendee.dept_memberships.any(department_id=department_id)]
         attendees = session.staffers().filter(*dept_filter).all()
         for attendee in attendees:
-            attendee.trusted_here = attendee.trusted_in(department_id) if department_id else attendee.trusted_somewhere
-            attendee.hours_here = sum(shift.job.weighted_hours for shift in attendee.shifts if shift.job.department_id == department_id) if department_id else attendee.weighted_hours
+            attendee.trusted_here = attendee.trusted_in(department_id) if department_id else attendee.has_role_somewhere
+            attendee.hours_here = attendee.weighted_hours_in(department_id)
 
         counts = defaultdict(int)
         for job in session.jobs(department_id):
@@ -119,6 +120,8 @@ class Root:
         job = session.job(params, bools=['restricted', 'extra15'],
                                   allowed=['department_id', 'start_time', 'type'] + list(defaults.keys()))
         if cherrypy.request.method == 'POST':
+            ids = params.get('required_roles_ids', [])
+            session.set_relation_ids(job, DeptRole, 'required_roles', ids)
             message = check(job)
             if not message:
                 session.add(job)

@@ -452,6 +452,10 @@ def time_conflicts(job):
                 return 'You cannot change this job to this time, because {} is already working a shift then'.format(shift.attendee.full_name)
 
 
+Department.required = [('name', 'Name')]
+DeptRole.required = [('name', 'Name')]
+
+
 @validation.DeptChecklistItem
 def is_checklist_admin(dept_checklist_item):
     # ========================================================================
@@ -461,7 +465,7 @@ def is_checklist_admin(dept_checklist_item):
         attendee = session.admin_attendee()
         department_id = dept_checklist_item.department_id \
             or dept_checklist_item.department.id
-        if not attendee.is_checklist_admin_of(department_id):
+        if not attendee.can_admin_checklist_for(department_id):
             return 'You are not a checklist admin for that department'
 
 

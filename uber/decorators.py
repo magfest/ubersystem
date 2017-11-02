@@ -88,6 +88,34 @@ def _suffix_property_check(inst, name):
 suffix_property.check = _suffix_property_check
 
 
+def requires_dept_admin(func):
+    @wraps(func)
+    def protected(*args, **kwargs):
+        if cherrypy.request.method == 'POST':
+            department_id = kwargs.get('department_id', kwargs.get('id'))
+            from uber.models import Session, AdminAccount, DeptMembership
+            with Session() as session:
+                account_id = cherrypy.session['account_id']
+                admin_account = session.query(AdminAccount).get(account_id)
+                if c.ACCOUNTS not in admin_account.access_ints:
+                    dept_head_filter = [
+                        AdminAccount.id == account_id,
+                        AdminAccount.attendee_id == DeptMembership.attendee_id,
+                        DeptMembership.is_dept_head == True]
+
+                    if department_id:
+                        dept_head_filter.append(
+                            DeptMembership.department_id == department_id)
+
+                    is_dept_head = session.query(AdminAccount).filter(
+                        *dept_head_filter).first()
+
+                    assert is_dept_head, 'You must be a department head to ' \
+                        'complete that action.'
+        return func(*args, **kwargs)
+    return protected
+
+
 def csrf_protected(func):
     @wraps(func)
     def protected(*args, csrf_token, **kwargs):

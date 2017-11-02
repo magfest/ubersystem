@@ -179,6 +179,14 @@ class Attendee(MagModel, TakesPaymentMixin):
                     'Attendee.id == DeptMembership.attendee_id, '
                     'DeptMembership.is_poc == True)',
         viewonly=True)
+    dept_memberships_where_can_admin_checklist = relationship(
+        'DeptMembership',
+        primaryjoin='and_('
+                    'Attendee.id == DeptMembership.attendee_id, '
+                    'or_('
+                    'DeptMembership.is_dept_head == True,'
+                    'DeptMembership.is_checklist_admin == True))',
+        viewonly=True)
     dept_memberships_as_checklist_admin = relationship(
         'DeptMembership',
         primaryjoin='and_('
@@ -234,7 +242,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     old_mpoint_exchanges = relationship(
         'OldMPointExchange', backref='attendee')
     dept_checklist_items = relationship(
-        'DeptChecklistItem', backref='attendee')
+        'DeptChecklistItem', backref=backref('attendee', lazy='subquery'))
 
     _attendee_table_args = [Index('ix_attendee_paid_group_id', paid, group_id)]
     if not c.SQLALCHEMY_URL.startswith('sqlite'):
@@ -880,13 +888,24 @@ class Attendee(MagModel, TakesPaymentMixin):
     def assigned_depts_ids(self, value):
         from uber.models.department import Department
         values = set(
-            None if s == 'None' else s for s in listify(value) if s != '')
+            None if s == 'None' else s
+            for s in listify(value) if s != '')
+
         for membership in list(self.dept_memberships):
             if membership.department_id not in values:
                 # Manually remove dept_memberships to ensure the associated
                 # rows in the dept_membership_dept_role table are deleted.
                 self.dept_memberships.remove(membership)
-        self._set_relation(Department, 'assigned_depts', value)
+
+        # Grabbing the session like this is less than ideal.
+        if self.session:
+            self.session.set_relation_ids(
+                self, Department, 'assigned_depts', value)
+        else:
+            from uber.models import Session
+            with Session() as session:
+                session.set_relation_ids(
+                    self, Department, 'assigned_depts', value)
 
     @property
     def requested_depts_ids(self):
@@ -896,7 +915,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     def requested_depts_ids(self, value):
         from uber.models.department import DeptMembershipRequest
         values = set(
-            None if s == 'None' else s for s in listify(value) if s != '')
+            None if s == 'None' else s
+            for s in listify(value) if s != '')
+
         for membership in list(self.dept_membership_requests):
             if membership.department_id not in values:
                 self.dept_membership_requests.remove(membership)
@@ -916,11 +937,30 @@ class Attendee(MagModel, TakesPaymentMixin):
         weighted_hours = sum(s.job.weighted_hours for s in self.shifts)
         return weighted_hours + self.nonshift_hours
 
+    def weighted_hours_in(self, department):
+        if not department:
+            return self.weighted_hours
+        from uber.models.department import Department
+        department_id = Department.to_id(department)
+        return sum(
+            shift.job.weighted_hours for shift in self.shifts
+            if shift.job.department_id == department_id)
+
     @property
     def worked_hours(self):
         weighted_hours = sum(
             s.job.real_duration * s.job.weight for s in self.worked_shifts)
         return weighted_hours + self.nonshift_hours
+
+    def dept_membership_for(self, department):
+        if not department:
+            return None
+        from uber.models.department import Department
+        department_id = Department.to_id(department)
+        for m in self.dept_memberships:
+            if m.department_id == department_id:
+                return m
+        return None
 
     def requested(self, department):
         if not department:
@@ -943,14 +983,39 @@ class Attendee(MagModel, TakesPaymentMixin):
     def trusted_in(self, department):
         return self.has_role_in(department)
 
+    def can_admin_dept_for(self, department):
+        return (self.admin_account
+                and c.ACCOUNTS in self.admin_account.access_ints) \
+                    or self.is_dept_head_of(department)
+
+    def can_admin_checklist_for(self, department):
+        if not department:
+            return False
+        from uber.models.department import Department
+        department_id = Department.to_id(department)
+        return (self.admin_account
+                and c.ACCOUNTS in self.admin_account.access_ints) \
+            or any(
+                m.department_id == department_id
+                for m in self.dept_memberships_where_can_admin_checklist)
+
+    def is_checklist_admin_of(self, department):
+        if not department:
+            return False
+        from uber.models.department import Department
+        department_id = Department.to_id(department)
+        return any(
+            m.department_id == department_id and m.is_checklist_admin
+            for m in self.dept_memberships)
+
     def is_dept_head_of(self, department):
         if not department:
             return False
         from uber.models.department import Department
         department_id = Department.to_id(department)
         return any(
-            m.department_id == department_id
-            for m in self.dept_memberships_as_dept_head)
+            m.department_id == department_id and m.is_dept_head
+            for m in self.dept_memberships)
 
     def is_poc_of(self, department):
         if not department:
@@ -958,8 +1023,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         from uber.models.department import Department
         department_id = Department.to_id(department)
         return any(
-            m.department_id == department_id
-            for m in self.dept_memberships_as_poc)
+            m.department_id == department_id and m.is_poc
+            for m in self.dept_memberships)
 
     def completed_every_checklist_for(self, slug):
         return all(
@@ -969,14 +1034,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     def gets_any_checklist(self):
         return bool(self.dept_memberships_as_checklist_admin)
 
-    def is_checklist_admin_of(self, department):
-        if not department:
-            return False
-        from uber.models.department import Department
-        department_id = Department.to_id(department)
-        return any(
-            m.department_id == department_id
-            for m in self.dept_memberships_as_checklist_admin)
+    def has_role(self, role):
+        return any(r.id == role.id for r in self.dept_roles)
 
     def has_role_in(self, department):
         if not department:
@@ -993,10 +1052,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         required_role_ids = set(r.id for r in job.required_roles)
         role_ids = set(r.id for r in self.dept_roles)
         return required_role_ids.issubset(role_ids)
-
-    @property
-    def trusted_somewhere(self):
-        return self.has_role_somewhere
 
     @property
     def has_role_somewhere(self):

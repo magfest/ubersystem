@@ -301,9 +301,13 @@ class Charge:
         elif isinstance(m, dict):
             return m
         elif isinstance(m, sa.Attendee):
-            return m.to_dict(sa.Attendee.to_dict_default_attrs + ['promo_code'])
+            return m.to_dict(sa.Attendee.to_dict_default_attrs \
+                + ['promo_code'] \
+                + list(sa.Attendee.extra_apply_attrs_restricted))
         elif isinstance(m, sa.Group):
-            return m.to_dict(sa.Group.to_dict_default_attrs + ['attendees'])
+            return m.to_dict(sa.Group.to_dict_default_attrs \
+                + ['attendees'] \
+                + list(sa.Group.extra_apply_attrs_restricted))
         else:
             raise AssertionError('{} is not an attendee or group'.format(m))
 

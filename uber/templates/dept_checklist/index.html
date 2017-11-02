@@ -4,7 +4,7 @@
 
 <style type="text/css">
 
-  .glyphicon {
+  table .glyphicon {
     font-size: 1.5em;
   }
 
@@ -18,11 +18,11 @@
 
 </style>
 
-{% set is_relevant = attendee.is_checklist_admin_of(department) -%}
+{% set is_relevant = attendee.can_admin_checklist_for(department) -%}
 
 <h2>Department Checklist for {{ department|form_link }}</h2>
 
-<h4>{{ attendee.full_name }}</h4>
+<h4>{{ attendee|form_link }}</h4>
 
 {% if is_relevant %}
   As one of the checklist admins for {{ department|form_link }}, we need
@@ -36,13 +36,17 @@
 
 <br/> <br/>
 <table style="width:auto">
-  {% for item, done in checklist %}
+  {% for item, completed_item in checklist %}
     <tr>
-        <td width="25"><span class="glyphicon glyphicon-{% if done %}check{% else %}unchecked{% endif %}"></span></td>
-        <td><b>{{ item.name }}</b></td>
+        <td width="25">
+          <span class="glyphicon glyphicon-{% if completed_item %}check{% else %}unchecked{% endif %}"></span>
+        </td>
+        <td>
+          <b>{{ item.name }}</b>{% if completed_item %} – Completed by {{ completed_item.attendee|form_link }}{% endif %}
+        </td>
         <td>
           {% if is_relevant %}
-            <a href="..{{ item|dept_checklist_path(department) }}">{% if done %}Edit{% else %}Do This Now{% endif %}</a>
+            <a href="..{{ item|dept_checklist_path(department) }}">{% if completed_item %}Edit{% else %}Do This Now{% endif %}</a>
           {% endif %}
         </td>
         <td><i>Deadline:</i> {{ item.deadline|datetime_local }}</td>

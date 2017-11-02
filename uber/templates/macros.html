@@ -22,33 +22,35 @@
 
 
 {% macro checkbox(model, field_name, id=None, label=None, label_class=None, is_readonly=False, title=None) -%}
+  {%- set is_class = model is class -%}
+  {%- set is_checked = not is_class and model[field_name] -%}
   {% if label %}
     <label
-            class="checkbox-label{% if label_class %} {{ label_class }}{% endif %}{% if is_readonly %} disabled{% endif %}"
-            {% if title %}title="{{ title }}"{% endif %}>
+        class="checkbox-label{% if label_class %} {{ label_class }}{% endif %}{% if is_readonly %} disabled{% endif %}"
+        {% if title %}title="{{ title }}"{% endif %}>
   {% endif %}
-{% if is_readonly %}
-  <input
-          type="hidden"
-          name="{{ field_name }}"
-          id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
-          value="{%- if model[field_name] -%}1{%- else -%}0{%- endif -%}" />
-  <input
-          type="checkbox"
-          value="1"
-          disabled
-          {% if not label and title %}title="{{ title }}"{% endif %}
-          {% if model[field_name] %}checked{% endif %} />
-{% else %}
-  <input
-          type="checkbox"
-          name="{{ field_name }}"
-          id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
-          value="1"
-          {% if not label and title %}title="{{ title }}"{% endif %}
-          {% if model[field_name] %}checked{% endif %} />
-{% endif %}
-{% if label %}{{ label }}</label>{% endif %}
+  {% if is_readonly %}
+    <input
+        type="hidden"
+        name="{{ field_name }}"
+        id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
+        value="{% if is_checked %}1{% else %}0{% endif %}" />
+    <input
+        type="checkbox"
+        value="1"
+        disabled
+        {% if not label and title %}title="{{ title }}"{% endif %}
+        {% if is_checked %}checked{% endif %} />
+  {% else %}
+    <input
+        type="checkbox"
+        name="{{ field_name }}"
+        id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
+        value="1"
+        {% if not label and title %}title="{{ title }}"{% endif %}
+        {% if is_checked %}checked{% endif %} />
+  {% endif %}
+  {% if label %}{{ label }}</label>{% endif %}
 {%- endmacro %}
 
 
@@ -140,7 +142,8 @@
     form_class='',
     is_required=False,
     is_readonly=False,
-    is_admin=False) -%}
+    is_admin=False,
+    is_focused=False) -%}
 
   {%- set is_class = model is class -%}
   {%- set has_value = not is_class and model[field] -%}
@@ -161,10 +164,11 @@
       {%- else -%}
         {%- if type == 'textarea' -%}
           <textarea
-                  class="form-control"
-                  name="{{ field }}{{ suffix }}"
-                  rows="4"
-                  placeholder="{{ placeholder }}">{{ '' if is_class else model[field] }}</textarea>
+              class="form-control"
+              name="{{ field }}{{ suffix }}"
+              rows="4"
+              placeholder="{{ placeholder }}"
+              {% if is_focused %}autofocus{% endif %}>{{ '' if is_class else model[field] }}</textarea>
         {%- else -%}
           <input
                   class="form-control"
@@ -173,7 +177,8 @@
                   {% if id %}id="{{ id }}"{% endif %}
                   value="{{ '' if is_class else model[field] }}"
                   placeholder="{{ placeholder }}"
-                  {% if is_required %}required="required"{% endif %}/>
+                  {% if is_required %}required="required"{% endif %}
+                  {% if is_focused %}autofocus{% endif %}/>
         {%- endif -%}
         {%- if is_admin and has_value -%}
           {%- if type == 'email' -%}

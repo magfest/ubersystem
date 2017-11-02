@@ -2,10 +2,10 @@ from uber.common import *
 
 
 class MenuItem:
-    access = None   # list of permission levels allowed to display this menu
-    href = None     # link to render
-    submenu = None  # submenu to show
-    name = None     # name of Menu item to show
+    access = None        # list of permission levels allowed to display this menu
+    href = None          # link to render
+    submenu = None       # submenu to show
+    name = None          # name of Menu item to show
 
     def __init__(self, href=None, access=None, submenu=None, name=None):
         assert submenu or href, "menu items must contain ONE nonempty: href or submenu"
@@ -17,7 +17,7 @@ class MenuItem:
             self.href = href
 
         self.name = name
-        self.access = access
+        self.access = set(listify(access)) if access else set()
 
     def append_menu_item(self, m):
         """
@@ -51,7 +51,7 @@ class MenuItem:
         """
         out = {}
 
-        if self.access and set(listify(self.access)).isdisjoint(sa.AdminAccount.access_set()):
+        if self.access and self.access.isdisjoint(sa.AdminAccount.access_set()):
             return None
 
         out['name'] = self.name

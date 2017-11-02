@@ -334,35 +334,6 @@ class MagModel:
 
         raise AttributeError(self.__class__.__name__ + '.' + name)
 
-    def _set_relation(self, cls, field, value):
-        values = set(s for s in listify(value) if s and s != 'None')
-
-        def _do_set_relation(session):
-            relations = session.query(cls).filter(cls.id.in_(values)).all() \
-                if values else []
-            relation = getattr(self, field)
-            relation[:] = []
-            relation.extend(relations)
-
-        if self.session:
-            _do_set_relation(self.session)
-        else:
-            from uber.models import Session
-            with Session() as session:
-                _do_set_relation(session)
-
-    def _delete_instances(self, instances):
-        def _do_delete_instances(session):
-            for instance in listify(instances):
-                session.delete(instance)
-
-        if self.session:
-            _do_delete_instances(self.session)
-        else:
-            from uber.models import Session
-            with Session() as session:
-                _do_delete_instances(session)
-
     def get_tracking_by_instance(self, instance, action, last_only=True):
         from uber.models.tracking import Tracking
         query = self.session.query(Tracking).filter_by(
@@ -639,7 +610,7 @@ class Session(SessionManager):
             department = self.query(Department).get(department_id)
             return {
                 'conf': conf,
-                'relevant': attendee.is_checklist_admin_of(department_id),
+                'relevant': attendee.can_admin_checklist_for(department_id),
                 'completed': department.checklist_item_for_slug(conf.slug)
             }
 
@@ -1220,6 +1191,12 @@ class Session(SessionManager):
             ))
 
             return True
+
+        def set_relation_ids(self, instance, cls, field, value):
+            values = set(s for s in listify(value) if s and s != 'None')
+            relations = self.query(cls).filter(cls.id.in_(values)).all() \
+                if values else []
+            setattr(instance, field, relations)
 
         def bulk_insert(self, models):
             """
