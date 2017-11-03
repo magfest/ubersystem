@@ -4,9 +4,19 @@ from uber.common import *
 @all_renderable(c.PEOPLE)
 class Root:
 
-    def index(self, session, message=''):
-        departments = session.query(Department).order_by(Department.name).all()
+    def index(self, session, filtered=False, message=''):
+        if filtered:
+            admin_account_id = cherrypy.session['account_id']
+            admin_account = session.query(AdminAccount).get(admin_account_id)
+            dept_filter = [Department.memberships.any(
+                DeptMembership.attendee_id == admin_account.attendee_id)]
+        else:
+            dept_filter = []
+
+        departments = session.query(Department).filter(*dept_filter) \
+            .order_by(Department.name).all()
         return {
+            'filtered': filtered,
             'message': message,
             'departments': departments
         }
@@ -25,7 +35,10 @@ class Root:
             message = check(department)
             if not message:
                 session.add(department)
-                raise HTTPRedirect('form?id={}', department.id)
+                raise HTTPRedirect(
+                    'form?id={}&message={}',
+                    department.id,
+                    'Department updated successfully')
         else:
             department = session.query(Department).options(
                 subqueryload(Department.dept_roles)
@@ -77,7 +90,9 @@ class Root:
             checkgroups=Department.all_checkgroups)
 
         if cherrypy.request.method == 'POST':
-            message = check(department)
+            message = check_dept_admin(session)
+            if not message:
+                message = check(department)
             if not message:
                 attendee = session.admin_attendee()
                 has_email = bool(attendee.email)
@@ -88,7 +103,6 @@ class Root:
                     is_checklist_admin=has_email)]
                 session.add(department)
                 raise HTTPRedirect('form?id={}', department.id)
-            session.rollback()
 
         return {
             'department': department,
@@ -97,7 +111,9 @@ class Root:
 
     @requires_dept_admin
     @ajax
-    def set_implicit_role(self, session, department_id, attendee_id, role, value=None):
+    def set_implicit_role(
+            self, session, department_id, attendee_id, role, value=None):
+
         assert role in ('dept_head', 'poc', 'checklist_admin'), \
             'Unknown role: "{}"'.format(role)
 
@@ -138,13 +154,15 @@ class Root:
                     .subqueryload(Attendee.dept_roles)).get(department_id)
 
         if cherrypy.request.method == 'POST':
-            is_new = role.is_new
-            if is_new:
-                role.department = department
+            message = check_dept_admin(session)
+            if not message:
+                if role.is_new:
+                    role.department = department
+                ids = params.get('dept_memberships_ids', [])
+                session.set_relation_ids(
+                    role, DeptMembership, 'dept_memberships', ids)
+                message = check(role)
 
-            ids = params.get('dept_memberships_ids', [])
-            session.set_relation_ids(role, DeptMembership, 'dept_memberships', ids)
-            message = check(role)
             if not message:
                 session.add(role)
 
@@ -152,7 +170,7 @@ class Root:
                     'form?id={}&message={}',
                     department_id,
                     'The {} role was successfully {}'.format(
-                        role.name, 'created' if is_new else 'updated'))
+                        role.name, 'created' if role.is_new else 'updated'))
             session.rollback()
 
         return {
@@ -162,17 +180,23 @@ class Root:
         }
 
     @csrf_protected
-    def delete_role(self, session, id, message=''):
+    def delete_role(self, session, id):
         dept_role = session.query(DeptRole).get(id)
         department_id = dept_role.department_id
+        message = ''
         if cherrypy.request.method == 'POST':
-            session.delete(dept_role)
-            raise HTTPRedirect(
-                'form?id={}&message={}',
-                department_id,
-                'The {} role was deleted'.format(dept_role.name))
+            message = check_dept_admin(department_id)
+            if not message:
+                session.delete(dept_role)
+                raise HTTPRedirect(
+                    'form?id={}&message={}',
+                    department_id,
+                    'The {} role was deleted'.format(dept_role.name))
 
-        raise HTTPRedirect('form?id={}', department_id)
+        if not message:
+            raise HTTPRedirect('form?id={}', department_id)
+        else:
+            raise HTTPRedirect('form?id={}&message={}', department_id, message)
 
     @requires_dept_admin
     @csrf_protected

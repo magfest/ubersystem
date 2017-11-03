@@ -76,17 +76,20 @@ def _dept_id_from_location(location):
     return department_id
 
 
-def _location_from_dept_id(department_id):
+def existing_location_from_dept_id(department_id):
     location = int(department_id[:7], 16)
-    return location
+    if job_location_to_department_id.get(location):
+        return location
+    return None
 
 
 def single_dept_id_from_existing_locations(locations):
     for location in str(locations).split(','):
-        location = int(location)
-        department_id = job_location_to_department_id.get(location)
-        if department_id:
-            return department_id
+        if location:
+            location = int(location)
+            department_id = job_location_to_department_id.get(location)
+            if department_id:
+                return department_id
     return None
 
 
@@ -193,11 +196,6 @@ def _upgrade_job_departments():
                 'department_id': department_id
             })
         )
-        op.execute(
-            job_table.update().where(job_table.c.restricted == True).values({
-                'department_id': department_id
-            })
-        )
 
         trusted_dept_role_id = _trusted_dept_role_id(department_id)
         op.execute(
@@ -228,19 +226,21 @@ def _downgrade_job_departments():
     connection = op.get_bind()
     jobs = connection.execute(job_table.select())
     for job in jobs:
-        trusted_dept_role_id = _trusted_dept_role_id(job.department_id)
-        is_restricted = bool(connection.execute(
-            job_required_role_table.select().where(and_(
-                job_required_role_table.c.job_id == job.id,
-                job_required_role_table.c.dept_role_id == trusted_dept_role_id
+        location = existing_location_from_dept_id(job.department_id)
+        if location:
+            trusted_dept_role_id = _trusted_dept_role_id(job.department_id)
+            is_restricted = bool(connection.execute(
+                job_required_role_table.select().where(and_(
+                    job_required_role_table.c.job_id == job.id,
+                    job_required_role_table.c.dept_role_id == trusted_dept_role_id
+                ))
             ))
-        ))
-        op.execute(
-            job_table.update().where(job_table.c.id == job.id).values({
-                'location': _location_from_dept_id(job.department_id),
-                'restricted': is_restricted
-            })
-        )
+            op.execute(
+                job_table.update().where(job_table.c.id == job.id).values({
+                    'location': location,
+                    'restricted': is_restricted
+                })
+            )
 
 
 def _upgrade_dept_checklist_items():
@@ -259,6 +259,13 @@ def _upgrade_dept_checklist_items():
                 dept_checklist_item_table.update().where(dept_checklist_item_table.c.id == item.id).values({
                     'department_id': department_id
                 })
+            )
+        else:
+            # Department doesn't exist, possibly bad location in assigned_depts
+            op.execute(
+                dept_checklist_item_table.delete().where(
+                    dept_checklist_item_table.c.id == item.id
+                )
             )
 
 
@@ -370,30 +377,32 @@ def _downgrade_attendee_departments():
 
     dept_memberships = connection.execute(dept_membership_table.select())
     for dept_membership in dept_memberships:
-        attendee_id = dept_membership.attendee_id
-        attendee_ids.add(attendee_id)
-        location = _location_from_dept_id(dept_membership.department_id)
+        location = existing_location_from_dept_id(dept_membership.department_id)
+        if location:
+            attendee_id = dept_membership.attendee_id
+            attendee_ids.add(attendee_id)
 
-        if dept_membership.is_dept_head:
-            attendee_is_dept_head[attendee_id] = True
+            if dept_membership.is_dept_head:
+                attendee_is_dept_head[attendee_id] = True
 
-        trusted_roles = op.execute(
-            dept_membership_dept_role_table.select().where(and_(
-                dept_membership_dept_role_table.c.dept_membership_id == dept_membership.id,
-                dept_membership_dept_role_table.c.dept_role_id == _trusted_dept_role_id(dept_membership.department_id)
-            ))
-        )
-        if trusted_roles or dept_membership.is_dept_head:
-            attendee_trusted_depts[attendee_id].add(location)
+            trusted_roles = op.execute(
+                dept_membership_dept_role_table.select().where(and_(
+                    dept_membership_dept_role_table.c.dept_membership_id == dept_membership.id,
+                    dept_membership_dept_role_table.c.dept_role_id == _trusted_dept_role_id(dept_membership.department_id)
+                ))
+            )
+            if trusted_roles or dept_membership.is_dept_head:
+                attendee_trusted_depts[attendee_id].add(location)
 
-        attendee_assigned_depts[attendee_id].add(location)
+            attendee_assigned_depts[attendee_id].add(location)
 
     dept_membership_requests = connection.execute(dept_membership_request_table.select())
     for dept_membership_request in dept_membership_requests:
-        attendee_id = dept_membership.attendee_id
-        attendee_ids.add(attendee_id)
-        location = _location_from_dept_id(dept_membership.department_id)
-        attendee_requested_depts[attendee_id].add(location)
+        location = existing_location_from_dept_id(dept_membership.department_id)
+        if location:
+            attendee_id = dept_membership.attendee_id
+            attendee_ids.add(attendee_id)
+            attendee_requested_depts[attendee_id].add(location)
 
     for attendee_id in attendee_ids:
         values = {}

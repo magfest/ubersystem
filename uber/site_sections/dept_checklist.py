@@ -30,21 +30,20 @@ class Root:
     def mark_item_complete(self, session, slug, department_id):
         attendee = session.admin_attendee()
         department_id = Department.to_id(department_id)
-        if not attendee.can_admin_checklist_for(department_id):
-            raise HTTPRedirect(
-                'overview?message={}',
-                'Only checklist admins can complete checklist items')
-
         department = session.query(Department).options(
             subqueryload(Department.dept_checklist_items)).get(department_id)
         conf = DeptChecklistConf.instances[slug]
-        if not department.checklist_item_for_slug(slug):
-            session.add(DeptChecklistItem(
-                attendee=attendee, department=department, slug=slug))
+        if department.checklist_item_for_slug(slug):
+            message = 'Checklist item already marked as complete'
+        else:
+            item = DeptChecklistItem(
+                attendee=attendee, department=department, slug=slug)
+            message = check(item)
+            if not message:
+                session.add(item)
+                message = 'Checklist item marked as complete'
         raise HTTPRedirect(
-            'index?department_id={}&message={}',
-            department_id,
-            'Checklist item marked as complete')
+            'index?department_id={}&message={}', department_id, message)
 
     def form(self, session, slug, department_id, csrf_token=None, comments=None):
         attendee = session.admin_attendee()
@@ -63,11 +62,12 @@ class Root:
             # to check the csrf_token manually
             check_csrf(csrf_token)
             item.comments = comments
-            session.add(item)
+            message = check(item)
+            if not message:
+                session.add(item)
+                message = conf.name + ' checklist data uploaded'
             raise HTTPRedirect(
-                'index?department_id={}&message={}',
-                department_id,
-                conf.name + ' checklist data uploaded')
+                'index?department_id={}&message={}', department_id, message)
 
         return {
             'item': item,

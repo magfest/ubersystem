@@ -10,6 +10,7 @@ def job_dict(job, shifts=None):
         'restricted': job.restricted,
         'required_roles_ids': job.required_roles_ids,
         'timespan': job.timespan(),
+        'department_id': job.department_id,
         'department_name': job.department_name,
         'shifts': [{
             'id': shift.id,
@@ -117,7 +118,7 @@ class Root:
             defaults = cherrypy.session.get('job_defaults', defaultdict(dict))[params['department_id']]
             params.update(defaults)
 
-        job = session.job(params, bools=['restricted', 'extra15'],
+        job = session.job(params, bools=['extra15'],
                                   allowed=['department_id', 'start_time', 'type'] + list(defaults.keys()))
         if cherrypy.request.method == 'POST':
             ids = params.get('required_roles_ids', [])

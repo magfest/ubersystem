@@ -167,16 +167,13 @@ th.checklist-item div {
 <h2>
   Department Checklists
   {% if filtered %}
-    <a class="btn btn-xs btn-default" href="overview">
-      <span class="glyphicon glyphicon-filter"></span>
-      Show all checklists
-    </a>
+    <a class="btn btn-xs btn-plain" href="overview">
   {% else %}
     <a class="btn btn-xs btn-default" href="overview?filtered=1">
+  {% endif %}
       <span class="glyphicon glyphicon-filter"></span>
       Show only my checklists
     </a>
-  {% endif %}
 </h2>
 
 <div class="legend">
@@ -202,6 +199,8 @@ th.checklist-item div {
   </div>
 </div>
 
+
+{% if overview %}
 <table class="table">
   <thead>
     <tr>
@@ -259,4 +258,7 @@ th.checklist-item div {
     {% endfor %}
   </tbody>
 </table>
+{% else %}
+<em>No Department Checklists Found!</em>
+{% endif %}
 {% endblock %}

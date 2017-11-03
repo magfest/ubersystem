@@ -93,7 +93,7 @@
     {%- set is_checklist_admin = attendee.is_checklist_admin_of(department.id) -%}
     <button
         type="button"
-        class="btn btn-xs btn-implicit_role btn-{% if not is_dept_head %}default{% endif %}"
+        class="btn btn-xs btn-implicit_role btn-{% if is_dept_head %}plain{% else %}default{% endif %}"
         data-role="dept_head"
         {% if is_dept_head %}
           title="Remove {{ attendee.full_name }} as a department head of the {{ department.name }} department"
@@ -104,7 +104,7 @@
     </button>{#- strip whitespace -#}
     <button
         type="button"
-        class="btn btn-xs btn-implicit_role btn-{% if not is_poc %}default{% endif %}"
+        class="btn btn-xs btn-implicit_role btn-{% if is_poc %}plain{% else %}default{% endif %}"
         data-role="poc"
         {% if is_poc %}
           title="Remove {{ attendee.full_name }} as a point of contact of the {{ department.name }} department"
@@ -115,7 +115,7 @@
     </button>{#- strip whitespace -#}
     <button
         type="button"
-        class="btn btn-xs btn-implicit_role btn-{% if not is_checklist_admin %}default{% endif %}"
+        class="btn btn-xs btn-implicit_role btn-{% if is_checklist_admin %}plain{% else %}default{% endif %}"
         data-role="checklist_admin"
         {% if is_checklist_admin %}
           title="Remove {{ attendee.full_name }} as a checklist admin of the {{ department.name }} department"

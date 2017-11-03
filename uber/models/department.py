@@ -133,7 +133,6 @@ class DeptMembershipRequest(MagModel):
                     'DeptMembershipRequest.department_id == Department.id, '
                     'DeptMembershipRequest.department_id == None)',
         order_by='Department.name',
-        uselist=True,
         viewonly=True)
 
     __mapper_args__ = {'confirm_deleted_rows': False}

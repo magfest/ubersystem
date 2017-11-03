@@ -3,7 +3,15 @@
 
 {% block content %}
   <h1>
-    All Departments
+    Departments
+    {% if filtered %}
+      <a class="btn btn-xs btn-plain" href="index">
+    {% else %}
+      <a class="btn btn-xs btn-default" href="index?filtered=1">
+    {% endif %}
+        <span class="glyphicon glyphicon-filter"></span>
+        Show only my departments
+      </a>
     <a href="new" class="btn btn-primary pull-right">
       <span class="glyphicon glyphicon-plus"></span>
       Create Department
@@ -39,7 +47,7 @@
       </table>
     </div>
   {%- else -%}
-    <div>No Departments Found!</div>
+    <em>No Departments Found!</em>
   {%- endif %}
 
 {% endblock %}

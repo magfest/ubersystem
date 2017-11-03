@@ -6,21 +6,19 @@
   #jobs-container #volunteers {
     top: 65px;
   }
-
-  .restricted-btn {
-    margin: 15px 0 15px 0;
-  }
 </style>
 
-<h2> All Jobs With Unfilled Shifts </h2>
-
-<div class="restricted-btn">
+<h2>
+  All Unfilled Shifts
   {% if show_restricted %}
-    <a href="everywhere" class="btn btn-sm btn-primary">Show Only Unrestricted Shifts</a>
+    <a href="everywhere" class="btn btn-xs btn-plain">
   {% else %}
-    <a href="everywhere?show_restricted=true" class="btn btn-sm btn-primary">Show Regular and Restricted Shifts</a>
+    <a href="everywhere?show_restricted=true" class="btn btn-xs btn-default">
   {% endif %}
-</div>
+      <span class="glyphicon glyphicon-filter"></span>
+      Show Restricted Shifts
+    </a>
+</h2>
 
 <script>SHOW_FULL_JOBS = false;</script>
 <div id="jobs-container">
