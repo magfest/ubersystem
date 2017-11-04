@@ -3,6 +3,8 @@ from uber.common import *
 
 @all_renderable(c.PEOPLE)
 class Root:
+
+    @department_id_adapter
     def index(self, session, department_id=None, message=''):
         attendee = session.admin_attendee()
         if not department_id and len(attendee.can_admin_checklist_depts) > 1:
@@ -14,7 +16,6 @@ class Root:
         if not department_id and len(attendee.can_admin_checklist_depts) == 1:
             department_id = attendee.checklist_depts[0].id
 
-        department_id = Department.to_id(department_id)
         department = session.query(Department).options(
             subqueryload(Department.dept_checklist_items)).get(department_id)
         return {
@@ -26,10 +27,10 @@ class Root:
                 for slug, conf in DeptChecklistConf.instances.items()]
         }
 
+    @department_id_adapter
     @csrf_protected
     def mark_item_complete(self, session, slug, department_id):
         attendee = session.admin_attendee()
-        department_id = Department.to_id(department_id)
         department = session.query(Department).options(
             subqueryload(Department.dept_checklist_items)).get(department_id)
         conf = DeptChecklistConf.instances[slug]
@@ -45,9 +46,9 @@ class Root:
         raise HTTPRedirect(
             'index?department_id={}&message={}', department_id, message)
 
+    @department_id_adapter
     def form(self, session, slug, department_id, csrf_token=None, comments=None):
         attendee = session.admin_attendee()
-        department_id = Department.to_id(department_id)
         department = session.query(Department).options(
             subqueryload(Department.dept_checklist_items)).get(department_id)
 

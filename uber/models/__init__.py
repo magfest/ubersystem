@@ -25,7 +25,7 @@ from sqlalchemy.util import immutabledict
 
 from uber.config import c, create_namespace_uuid
 from uber.decorators import cached_classproperty, classproperty, \
-    cost_property, suffix_property
+    cost_property, department_id_adapter, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
 from uber.utils import check_csrf, get_real_badge_type, DeptChecklistConf, \
     HTTPRedirect
@@ -947,6 +947,7 @@ class Session(SessionManager):
         def staffers(self):
             return self.all_attendees(only_staffing=True)
 
+        @department_id_adapter
         def jobs(self, department_id=None):
             job_filter = {
                 'department_id': department_id} if department_id else {}
@@ -968,6 +969,7 @@ class Session(SessionManager):
                 for id, full_name in query.filter_by(staffing=True)
                                           .order_by(Attendee.full_name)]
 
+        @department_id_adapter
         def dept_heads(self, department_id=None):
             if department_id:
                 return self.query(Department).get(department_id).dept_heads

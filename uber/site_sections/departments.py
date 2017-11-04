@@ -134,6 +134,7 @@ class Root:
                 'value': value
             }
 
+    @department_id_adapter
     def role(self, session, department_id=None, message='', **params):
         if not department_id or department_id == 'None':
             department_id = None

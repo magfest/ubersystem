@@ -191,9 +191,9 @@ class DeptChecklistConf(Registry):
         self.email_post_con = email_post_con
         self.deadline = c.EVENT_TIMEZONE.localize(datetime.strptime(deadline, '%Y-%m-%d')).replace(hour=23, minute=59)
 
-    def path(self, department):
+    def path(self, department_id):
         from uber.models.department import Department
-        department_id = Department.to_id(department)
+        department_id = Department.to_id(department_id)
         return self._path.format(slug=self.slug, department_id=department_id)
 
 

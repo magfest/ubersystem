@@ -55,6 +55,7 @@ class Root:
         session.delete(session.admin_account(id))
         raise HTTPRedirect('index?message={}', 'Account deleted')
 
+    @department_id_adapter
     def bulk(self, session, department_id=None, **params):
         department = session.query(Department).get(department_id) if department_id else None
         attendee_filters = [Attendee.department_memberships.any(department_id=department_id)] if department else []

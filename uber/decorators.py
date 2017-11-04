@@ -88,6 +88,39 @@ def _suffix_property_check(inst, name):
 suffix_property.check = _suffix_property_check
 
 
+def department_id_adapter(func):
+    argspec = inspect.getfullargspec(get_innermost(func))
+    if 'department_id' not in argspec.args:
+        return func
+    arg_index = argspec.args.index('department_id')
+    possible_args = ('location', 'department', 'department_id')
+
+    @wraps(func)
+    def _adapter(*args, **kwargs):
+        argvalues = inspect.getargvalues(inspect.currentframe())
+        has_kwarg = False
+        department_id = None
+        for arg in possible_args:
+            if arg in kwargs:
+                has_kwarg = True
+                department_id = kwargs[arg]
+                del kwargs[arg]
+
+        if has_kwarg:
+            from uber.models.department import Department
+            department_id = Department.to_id(department_id)
+            return func(*args, department_id=department_id, **kwargs)
+        elif arg_index < len(args):
+            from uber.models.department import Department
+            args = list(args)
+            args[arg_index] = Department.to_id(args[arg_index])
+            return func(*args, **kwargs)
+        return func(*args, **kwargs)
+
+    return _adapter
+
+
+@department_id_adapter
 def check_dept_admin(session, department_id=None):
     from uber.models import AdminAccount, DeptMembership
     account_id = cherrypy.session['account_id']
@@ -287,20 +320,20 @@ def timed(func):
 
 
 def sessionized(func):
+    innermost = get_innermost(func)
+    if 'session' not in inspect.getfullargspec(innermost).args:
+        return func
+
     @wraps(func)
     def with_session(*args, **kwargs):
-        innermost = get_innermost(func)
-        if 'session' not in inspect.getfullargspec(innermost).args:
-            return func(*args, **kwargs)
-        else:
-            with sa.Session() as session:
-                try:
-                    retval = func(*args, session=session, **kwargs)
-                    session.expunge_all()
-                    return retval
-                except HTTPRedirect:
-                    session.commit()
-                    raise
+        with sa.Session() as session:
+            try:
+                retval = func(*args, session=session, **kwargs)
+                session.expunge_all()
+                return retval
+            except HTTPRedirect:
+                session.commit()
+                raise
     return with_session
 
 

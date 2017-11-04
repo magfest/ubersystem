@@ -39,6 +39,7 @@ def update_counts(job, counts):
 @all_renderable(c.PEOPLE)
 class Root:
 
+    @department_id_adapter
     def index(self, session, department_id=None, message='', time=None):
         if not department_id:
             if c.AT_THE_CON:
@@ -46,7 +47,6 @@ class Root:
             else:
                 department_id = c.DEFAULT_DEPARTMENT_ID
 
-        department_id = Department.to_id(None if department_id == 'All' else department_id)
         department = session.query(Department).get(department_id) if department_id else None
         jobs = session.jobs(department_id).all()
         by_start = defaultdict(list)
@@ -65,10 +65,10 @@ class Root:
             'jobs': jobs
         }
 
+    @department_id_adapter
     def signups(self, session, department_id=None, message=''):
         if not department_id:
             department_id = cherrypy.session.get('prev_department_id') or c.DEFAULT_DEPARTMENT_ID
-        department_id = Department.to_id(None if department_id == 'All' else department_id)
         cherrypy.session['prev_department_id'] = department_id
 
         return {
@@ -89,10 +89,10 @@ class Root:
                                                      .filter_by(**{} if show_restricted else {'restricted': False})]
         }
 
+    @department_id_adapter
     def staffers(self, session, department_id=None, message=''):
         if not department_id:
             department_id = cherrypy.session.get('prev_department_id') or c.DEFAULT_DEPARTMENT_ID
-        department_id = Department.to_id(None if department_id == 'All' else department_id)
         dept_filter = [] if not department_id \
             else [Attendee.dept_memberships.any(department_id=department_id)]
         attendees = session.staffers().filter(*dept_filter).all()
@@ -236,6 +236,7 @@ class Root:
             'depts': [(d.name, d.jobs) for d in departments]
         }
 
+    @department_id_adapter
     def add_volunteers_by_dept(self, session, message='', department_id=None):
         department_id = department_id or c.DEFAULT_DEPARTMENT_ID
         return {

@@ -933,6 +933,7 @@ class Root:
 
         return {'message': message}
 
+    @department_id_adapter
     def placeholders(self, session, department_id=None):
         dept_filter = [] if not department_id \
             else [Attendee.dept_memberships.any(department_id=department_id)]
@@ -944,7 +945,7 @@ class Root:
 
         return {
             'department_id': department_id,
-            'dept_name': c.DEPARTMENTS[department_id] if department_id else 'All',
+            'dept_name': session.query(Department).get(department_id).name if department_id else 'All',
             'checklist': session.checklist_status('placeholders', department_id),
             'placeholders': placeholders
         }
