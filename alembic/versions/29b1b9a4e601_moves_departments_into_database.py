@@ -381,7 +381,13 @@ def _upgrade_attendee_departments():
                         'attendee_id': attendee_id
                     })
                 )
-            if value in [c.ANYTHING, c.OTHER]:
+
+            anywhere_values = []
+            if getattr(c, 'ANYTHING', None) is not None:
+                anywhere_values.append(c.ANYTHING)
+            if getattr(c, 'OTHER', None) is not None:
+                anywhere_values.append(c.OTHER)
+            if value in anywhere_values:
                 attendee_values['requested_any_dept'] = True
 
         if is_dept_head and assigned_depts:
@@ -443,17 +449,18 @@ def _downgrade_attendee_departments():
 
         op.execute(attendee_table.update().where(attendee_table.c.id == attendee_id).values(values))
 
-    op.execute(attendee_table.update().where(and_(
-        attendee_table.c.requested_any_dept == True,
-        attendee_table.c.requested_depts != '')).values({
-        'requested_depts': func.concat(attendee_table.c.requested_depts, ',{}'.format(c.ANYTHING))
-    }))
+    if getattr(c, 'ANYTHING', None) is not None:
+        op.execute(attendee_table.update().where(and_(
+            attendee_table.c.requested_any_dept == True,
+            attendee_table.c.requested_depts != '')).values({
+            'requested_depts': func.concat(attendee_table.c.requested_depts, ',{}'.format(c.ANYTHING))
+        }))
 
-    op.execute(attendee_table.update().where(and_(
-        attendee_table.c.requested_any_dept == True,
-        attendee_table.c.requested_depts == '')).values({
-        'requested_depts': str(c.ANYTHING)
-    }))
+        op.execute(attendee_table.update().where(and_(
+            attendee_table.c.requested_any_dept == True,
+            attendee_table.c.requested_depts == '')).values({
+            'requested_depts': str(c.ANYTHING)
+        }))
 
 
 def upgrade():
