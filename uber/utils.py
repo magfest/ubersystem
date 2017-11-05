@@ -194,8 +194,12 @@ class DeptChecklistConf(Registry):
     def path(self, department_id):
         from uber.models.department import Department
         department_id = Department.to_id(department_id)
-        return self._path.format(slug=self.slug, department_id=department_id)
-
+        for arg in ('department_id', 'department', 'location'):
+            try:
+                return self._path.format(slug=self.slug, **{arg: department_id})
+            except KeyError:
+                pass
+        raise KeyError('department_id')
 
 for _slug, _conf in sorted(c.DEPT_HEAD_CHECKLIST.items(), key=lambda tup: tup[1]['deadline']):
     DeptChecklistConf.register(_slug, _conf)
