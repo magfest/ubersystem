@@ -143,7 +143,11 @@ def requires_dept_admin(func):
     @wraps(func)
     def protected(*args, **kwargs):
         if cherrypy.request.method == 'POST':
-            department_id = kwargs.get('department_id', kwargs.get('id'))
+            department_id = kwargs.get('department_id',
+                kwargs.get('department',
+                    kwargs.get('location',
+                        kwargs.get('id'))))
+
             from uber.models import Session
             with Session() as session:
                 message = check_dept_admin(session, department_id)

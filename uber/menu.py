@@ -2,10 +2,10 @@ from uber.common import *
 
 
 class MenuItem:
-    access = None        # list of permission levels allowed to display this menu
-    href = None          # link to render
-    submenu = None       # submenu to show
-    name = None          # name of Menu item to show
+    access = None   # list of permission levels allowed to display this menu
+    href = None     # link to render
+    submenu = None  # submenu to show
+    name = None     # name of Menu item to show
 
     def __init__(self, href=None, access=None, submenu=None, name=None):
         assert submenu or href, "menu items must contain ONE nonempty: href or submenu"
