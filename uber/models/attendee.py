@@ -1015,8 +1015,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         if not department_id:
             return False
         return any(
-            m.department_id == department_id and m.has_role
-            for m in self.dept_memberships)
+            m.department_id == department_id
+            for m in self.dept_memberships_with_role)
 
     def has_required_roles(self, job):
         if not job.required_roles:
