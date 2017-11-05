@@ -241,12 +241,17 @@ def _downgrade_job_departments():
         location = existing_location_from_dept_id(job.department_id)
         if location:
             trusted_dept_role_id = _trusted_dept_role_id(job.department_id)
-            is_restricted = bool(connection.execute(
+            required_roles = connection.execute(
                 job_required_role_table.select().where(and_(
                     job_required_role_table.c.job_id == job.id,
                     job_required_role_table.c.dept_role_id == trusted_dept_role_id
                 ))
-            ))
+            )
+
+            is_restricted = False
+            for required_role in required_roles:
+                is_restricted = True
+
             op.execute(
                 job_table.update().where(job_table.c.id == job.id).values({
                     'location': location,
