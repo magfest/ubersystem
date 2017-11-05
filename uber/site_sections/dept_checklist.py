@@ -7,7 +7,7 @@ class Root:
     @department_id_adapter
     def index(self, session, department_id=None, message=''):
         attendee = session.admin_attendee()
-        if not department_id and len(attendee.can_admin_checklist_depts) > 1:
+        if not department_id and len(attendee.can_admin_checklist_depts) != 1:
             if message:
                 raise HTTPRedirect('overview?filtered=1&message={}', message)
             else:
