@@ -1,10 +1,11 @@
 from uber.common import *
+from uber.custom_tags import pluralize
 
 
 @all_renderable(c.PEOPLE)
 class Root:
 
-    def index(self, session, filtered=False, message=''):
+    def index(self, session, filtered=False, message='', **params):
         if filtered:
             admin_account_id = cherrypy.session['account_id']
             admin_account = session.query(AdminAccount).get(admin_account_id)
@@ -40,20 +41,22 @@ class Root:
                     department.id,
                     'Department updated successfully')
         else:
-            department = session.query(Department).options(
-                subqueryload(Department.dept_roles)
-                    .subqueryload(DeptRole.dept_memberships),
-                subqueryload(Department.members)
-                    .subqueryload(Attendee.shifts)
-                        .subqueryload(Shift.job),
-                subqueryload(Department.unassigend_requesting_attendees),
-                subqueryload(Department.dept_heads)
-                    .subqueryload(Attendee.dept_memberships),
-                subqueryload(Department.pocs)
-                    .subqueryload(Attendee.dept_memberships),
-                subqueryload(Department.checklist_admins)
-                    .subqueryload(Attendee.dept_memberships)
-                ).get(department_id)
+            department = session.query(Department) \
+                .filter_by(id=department_id) \
+                .order_by(Department.id) \
+                .options(
+                    subqueryload(Department.dept_roles)
+                        .subqueryload(DeptRole.dept_memberships),
+                    subqueryload(Department.members)
+                        .subqueryload(Attendee.shifts)
+                            .subqueryload(Shift.job),
+                    subqueryload(Department.dept_heads)
+                        .subqueryload(Attendee.dept_memberships),
+                    subqueryload(Department.pocs)
+                        .subqueryload(Attendee.dept_memberships),
+                    subqueryload(Department.checklist_admins)
+                        .subqueryload(Attendee.dept_memberships)) \
+                .one()
 
         return {
             'admin': session.admin_attendee(),
@@ -111,7 +114,7 @@ class Root:
 
     @requires_dept_admin
     @ajax
-    def set_implicit_role(
+    def set_inherent_role(
             self, session, department_id, attendee_id, role, value=None):
 
         assert role in ('dept_head', 'poc', 'checklist_admin'), \
@@ -135,6 +138,34 @@ class Root:
             }
 
     @department_id_adapter
+    def requests(self, session, department_id=None, message='', **params):
+        if not department_id:
+            raise HTTPRedirect('index')
+
+        department = session.query(Department).get(department_id)
+        if cherrypy.request.method == 'POST':
+            attendee_ids = [s for s in params.get('attendee_ids', []) if s]
+            if attendee_ids:
+                attendee_count = len(attendee_ids)
+                for attendee_id in attendee_ids:
+                    session.add(DeptMembership(
+                        department_id=department_id, attendee_id=attendee_id))
+                raise HTTPRedirect(
+                    'form?id={}&message={}',
+                    department_id,
+                    '{} volunteer{}!'.format(attendee_count, pluralize(
+                        attendee_count,
+                        ' added as a new member',
+                        's added as new members')))
+
+            raise HTTPRedirect('form?id={}', department_id)
+
+        return {
+            'department': department,
+            'message': message
+        }
+
+    @department_id_adapter
     def role(self, session, department_id=None, message='', **params):
         if not department_id or department_id == 'None':
             department_id = None
@@ -149,19 +180,18 @@ class Root:
             checkgroups=DeptRole.all_checkgroups)
 
         department_id = role.department_id or department_id
-        department = session.query(Department).options(
-            subqueryload(Department.memberships)
+        department = session.query(Department).filter_by(id=department_id) \
+            .order_by(Department.id) \
+            .options(subqueryload(Department.memberships)
                 .subqueryload(DeptMembership.attendee)
-                    .subqueryload(Attendee.dept_roles)).get(department_id)
+                    .subqueryload(Attendee.dept_roles)) \
+            .one()
 
         if cherrypy.request.method == 'POST':
             message = check_dept_admin(session)
             if not message:
                 if role.is_new:
                     role.department = department
-                ids = params.get('dept_memberships_ids', [])
-                session.set_relation_ids(
-                    role, DeptMembership, 'dept_memberships', ids)
                 message = check(role)
 
             if not message:
@@ -206,7 +236,9 @@ class Root:
             membership = session.query(DeptMembership) \
                 .filter_by(
                     department_id=department_id, attendee_id=attendee_id) \
-                .options(subqueryload(DeptMembership.attendee)).first()
+                .order_by(DeptMembership.id) \
+                .options(subqueryload(DeptMembership.attendee)) \
+                .first()
 
             if membership:
                 session.delete(membership)
@@ -226,7 +258,9 @@ class Root:
             membership = session.query(DeptMembership) \
                 .filter_by(
                     department_id=department_id, attendee_id=attendee_id) \
-                .options(subqueryload(DeptMembership.attendee)).first()
+                .order_by(DeptMembership.id) \
+                .options(subqueryload(DeptMembership.attendee)) \
+                .first()
 
             if membership:
                 message = '{} is already a member of this ' \

@@ -26,13 +26,13 @@
 
 {% include "jobs/job_menu.html" %}
 
-<h1>
+<h2>
   {%- if job.is_new -%}
     <span class="glyphicon glyphicon-plus"></span> New Job
   {%- else -%}
     <span class="glyphicon glyphicon-cog"></span> Edit {{ job.name }}
   {%- endif -%}
-</h1>
+</h2>
 
 <script type="text/javascript">
     function blank() {

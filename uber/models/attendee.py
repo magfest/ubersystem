@@ -123,25 +123,18 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     badge_printed_name = Column(UnicodeText)
 
+    requested_any_dept = Column(Boolean, default=False)
+
     dept_memberships = relationship('DeptMembership', backref='attendee')
-    dept_membership_requests = relationship(
-        'DeptMembershipRequest', backref='attendee')
-    anywhere_dept_membership_request = relationship(
-        'DeptMembershipRequest',
-        primaryjoin='and_('
-                    'DeptMembershipRequest.attendee_id == Attendee.id, '
-                    'DeptMembershipRequest.department_id == None)',
-        uselist=False,
-        viewonly=True)
     dept_roles = relationship(
         'DeptRole',
         backref='attendees',
         cascade='save-update,merge,refresh-expire,expunge',
         secondaryjoin='and_('
-                      'DeptRole.id == '
-                      'dept_membership_dept_role.c.dept_role_id, '
-                      'DeptMembership.id == '
-                      'dept_membership_dept_role.c.dept_membership_id)',
+                      'dept_membership_dept_role.c.dept_role_id '
+                      '== DeptRole.id, '
+                      'dept_membership_dept_role.c.dept_membership_id '
+                      '== DeptMembership.id)',
         secondary='join(DeptMembership, dept_membership_dept_role)',
         order_by='DeptRole.name',
         viewonly=True)
@@ -390,6 +383,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     def unset_volunteering(self):
         self.staffing = False
+        self.requested_any_dept = False
         self.requested_depts = []
         self.assigned_depts = []
         self.ribbon = remove_opt(self.ribbon_ints, c.VOLUNTEER_RIBBON)
@@ -530,6 +524,10 @@ class Attendee(MagModel, TakesPaymentMixin):
                 self.paid == c.PAID_BY_GROUP)
 
     @property
+    def is_checklist_admin(self):
+        return any(m.is_checklist_admin for m in self.dept_memberships)
+
+    @property
     def is_dept_head(self):
         return any(m.is_dept_head for m in self.dept_memberships)
 
@@ -650,11 +648,11 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def is_transferable(self):
         return not self.is_new and \
-            not self.has_role_somewhere and \
             not self.checked_in and \
             self.paid in [c.HAS_PAID, c.PAID_BY_GROUP] and \
             self.badge_type in c.TRANSFERABLE_BADGE_TYPES and \
-            not self.admin_account
+            not self.admin_account and \
+            not self.has_role_somewhere
 
     @property
     def paid_for_a_swag_shirt(self):
@@ -861,6 +859,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     # TODO: Refactor all this stuff regarding assigned_depts and
     #       requested_depts. Maybe a @suffix_property with a setter for the
     #       *_ids fields? The hardcoded *_labels props are also not great.
+    #       There's a bigger feature here that I haven't wrapped my head
+    #       around yet. A generic way to lazily set relations using ids.
     # ========================================================================
 
     @classproperty
@@ -882,51 +882,35 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def assigned_depts_ids(self):
-        return [str(d.id) for d in self.assigned_depts]
+        _, ids = self._get_relation_ids('assigned_depts')
+        return [str(d.id) for d in self.assigned_depts] if ids is None else ids
 
     @assigned_depts_ids.setter
     def assigned_depts_ids(self, value):
-        from uber.models.department import Department
-        values = set(
-            None if s == 'None' else s
-            for s in listify(value) if s != '')
-
+        values = set(s for s in listify(value) if s)
         for membership in list(self.dept_memberships):
             if membership.department_id not in values:
                 # Manually remove dept_memberships to ensure the associated
                 # rows in the dept_membership_dept_role table are deleted.
                 self.dept_memberships.remove(membership)
-
-        # Grabbing the session like this is less than ideal.
-        if self.session:
-            self.session.set_relation_ids(
-                self, Department, 'assigned_depts', value)
-        else:
-            from uber.models import Session
-            with Session() as session:
-                session.set_relation_ids(
-                    self, Department, 'assigned_depts', value)
+        from uber.models.department import Department
+        self._set_relation_ids('assigned_depts', Department, list(values))
 
     @property
     def requested_depts_ids(self):
-        return [str(d.department_id) for d in self.dept_membership_requests]
+        any_dept = ['All'] if self.requested_any_dept else []
+        _, ids = self._get_relation_ids('requested_depts')
+        return any_dept + (
+            [str(d.id) for d in self.requested_depts] if ids is None else ids)
 
     @requested_depts_ids.setter
     def requested_depts_ids(self, value):
-        from uber.models.department import DeptMembershipRequest
-        values = set(
-            None if s == 'None' else s
-            for s in listify(value) if s != '')
-
-        for membership in list(self.dept_membership_requests):
-            if membership.department_id not in values:
-                self.dept_membership_requests.remove(membership)
-        department_ids = set(
-            str(d.department_id) for d in self.dept_membership_requests)
-        for department_id in values:
-            if department_id not in department_ids:
-                self.dept_membership_requests.append(DeptMembershipRequest(
-                    department_id=department_id, attendee_id=self.id))
+        values = set(s for s in listify(value) if s)
+        self.requested_any_dept = 'All' in values
+        if self.requested_any_dept:
+            values.remove('All')
+        from uber.models.department import Department
+        self._set_relation_ids('requested_depts', Department, list(values))
 
     @property
     def worked_shifts(self):
@@ -962,11 +946,11 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @department_id_adapter
     def requested(self, department_id):
+        if self.requested_any_dept:
+            return True
         if not department_id:
             return False
-        return any(
-            m.department_id == department_id
-            for m in self.dept_membership_requests)
+        return any(d.id == department_id for d in self.requested_depts)
 
     @department_id_adapter
     def assigned_to(self, department_id):
@@ -1026,12 +1010,13 @@ class Attendee(MagModel, TakesPaymentMixin):
     def has_role(self, role):
         return any(r.id == role.id for r in self.dept_roles)
 
+    @department_id_adapter
     def has_role_in(self, department_id):
         if not department_id:
             return False
         return any(
-            m.department_id == department_id
-            for m in self.dept_memberships_with_role)
+            m.department_id == department_id and m.has_role
+            for m in self.dept_memberships)
 
     def has_required_roles(self, job):
         if not job.required_roles:

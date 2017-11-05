@@ -210,19 +210,19 @@ def test_has_role_somewhere(dept, trusted_role):
         assert not attendee.has_role_somewhere
 
 
-def test_requested_all_depts():
+def test_requested_any_dept():
     dept1 = Department(name='Dept1', description='Dept1')
     dept2 = Department(name='Dept2', description='Dept2')
     volunteer = Attendee(paid=c.HAS_PAID, first_name='V', last_name='One')
-    volunteer.dept_membership_requests = [
-        DeptMembershipRequest(attendee=volunteer)]
+    volunteer.requested_any_dept = True
 
     with Session() as session:
         session.add_all([dept1, dept2, volunteer])
         session.commit()
-        session.refresh(volunteer)
-        all_depts = session.query(Department).order_by(Department.name).all()
-        assert all_depts == volunteer.requested_depts
+        session.refresh(dept1)
+        session.refresh(dept2)
+        assert dept1.all_requesting_attendees == [volunteer]
+        assert dept2.all_requesting_attendees == [volunteer]
 
 
 def test_must_contact():

@@ -5,13 +5,14 @@ import six
 from sideboard.lib import cached_property
 from sideboard.lib.sa import CoerceUTF8 as UnicodeText, \
     UTCDateTime, UUID
-from sqlalchemy import and_, or_, exists, func, select
+from sqlalchemy import and_, exists, func, not_, null, or_, select
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import backref, column_property
+from sqlalchemy.orm import backref, column_property, foreign, remote
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint
 from sqlalchemy.types import Boolean, Float, Integer
 
 from uber.config import c
+from uber.decorators import classproperty
 from uber.models import MagModel
 from uber.models.attendee import Attendee
 from uber.models.types import default_relationship as relationship, \
@@ -20,8 +21,8 @@ from uber.utils import comma_and
 
 
 __all__ = [
-    'dept_membership_dept_role', 'job_required_role', 'Department',
-    'DeptChecklistItem', 'DeptMembership', 'DeptMembershipRequest',
+    'dept_membership_dept_role', 'dept_membership_request',
+    'job_required_role', 'Department', 'DeptChecklistItem', 'DeptMembership',
     'DeptRole', 'Job', 'Shift']
 
 
@@ -31,7 +32,18 @@ dept_membership_dept_role = Table(
     'dept_membership_dept_role',
     MagModel.metadata,
     Column('dept_membership_id', UUID, ForeignKey('dept_membership.id')),
-    Column('dept_role_id', UUID, ForeignKey('dept_role.id')))
+    Column('dept_role_id', UUID, ForeignKey('dept_role.id')),
+    UniqueConstraint('dept_membership_id', 'dept_role_id'))
+
+
+# Many to many association table to represent the Departments where an
+# Attendee has explicitly requested to volunteer.
+dept_membership_request = Table(
+    'dept_membership_request',
+    MagModel.metadata,
+    Column('attendee_id', UUID, ForeignKey('attendee.id')),
+    Column('department_id', UUID, ForeignKey('department.id')),
+    UniqueConstraint('attendee_id', 'department_id'))
 
 
 # Many to many association table to represent the DeptRoles required
@@ -39,8 +51,9 @@ dept_membership_dept_role = Table(
 job_required_role = Table(
     'job_required_role',
     MagModel.metadata,
+    Column('dept_role_id', UUID, ForeignKey('dept_role.id')),
     Column('job_id', UUID, ForeignKey('job.id')),
-    Column('dept_role_id', UUID, ForeignKey('dept_role.id')))
+    UniqueConstraint('dept_role_id', 'job_id'))
 
 
 class DeptChecklistItem(MagModel):
@@ -49,7 +62,47 @@ class DeptChecklistItem(MagModel):
     slug = Column(UnicodeText)
     comments = Column(UnicodeText, default='')
 
-    __table_args__ = (UniqueConstraint('department_id', 'slug'),)
+    __table_args__ = (
+        UniqueConstraint('department_id', 'attendee_id', 'slug'),)
+
+
+class DeptMembership(MagModel):
+    is_dept_head = Column(Boolean, default=False)
+    is_poc = Column(Boolean, default=False)
+    is_checklist_admin = Column(Boolean, default=False)
+    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    department_id = Column(UUID, ForeignKey('department.id'))
+
+    __mapper_args__ = {'confirm_deleted_rows': False}
+    __table_args__ = (UniqueConstraint('attendee_id', 'department_id'),)
+
+    @hybrid_property
+    def has_role(self):
+        return self.has_inherent_role or self.has_dept_role
+
+    @has_role.expression
+    def has_role(cls):
+        return or_(cls.has_inherent_role, cls.has_dept_role)
+
+    @hybrid_property
+    def has_inherent_role(self):
+        return self.is_dept_head or self.is_poc or self.is_checklist_admin
+
+    @has_inherent_role.expression
+    def has_inherent_role(cls):
+        return or_(
+            cls.is_dept_head == True,
+            cls.is_poc == True,
+            cls.is_checklist_admin == True)  # noqa: E712
+
+    @hybrid_property
+    def has_dept_role(self):
+        return bool(self.dept_roles)
+
+    @has_dept_role.expression
+    def has_dept_role(cls):
+        return exists().select_from(dept_membership_dept_role) \
+            .where(cls.id == dept_membership_dept_role.c.dept_membership_id)
 
 
 class DeptRole(MagModel):
@@ -73,70 +126,20 @@ class DeptRole(MagModel):
     def dept_membership_count(cls):
         return func.count(cls.dept_memberships)
 
+    @classproperty
+    def extra_apply_attrs(cls):
+        return set(['dept_memberships_ids']).union(
+            cls.extra_apply_attrs_restricted)
+
     @property
     def dept_memberships_ids(self):
-        return [str(d.id) for d in self.dept_memberships]
+        _, ids = self._get_relation_ids('dept_memberships')
+        return [str(d.id) for d in self.dept_memberships] \
+            if ids is None else ids
 
-
-class DeptMembership(MagModel):
-    is_dept_head = Column(Boolean, default=False)
-    is_poc = Column(Boolean, default=False)
-    is_checklist_admin = Column(Boolean, default=False)
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    department_id = Column(UUID, ForeignKey('department.id'))
-
-    __mapper_args__ = {'confirm_deleted_rows': False}
-    __table_args__ = (UniqueConstraint('attendee_id', 'department_id'),)
-
-    @hybrid_property
-    def has_role(self):
-        return self.has_implicit_role or self.has_dept_role
-
-    @has_role.expression
-    def has_role(cls):
-        return or_(cls.has_implicit_role, cls.has_dept_role)
-
-    @hybrid_property
-    def has_implicit_role(self):
-        return self.is_dept_head or self.is_poc or self.is_checklist_admin
-
-    @has_implicit_role.expression
-    def has_implicit_role(cls):
-        return or_(
-            cls.is_dept_head == True,
-            cls.is_poc == True,
-            cls.is_checklist_admin == True)  # noqa: E712
-
-    @hybrid_property
-    def has_dept_role(self):
-        return bool(self.dept_roles)
-
-    @has_dept_role.expression
-    def has_dept_role(cls):
-        return exists().select_from(dept_membership_dept_role) \
-            .where(cls.id == dept_membership_dept_role.c.dept_membership_id)
-
-
-class DeptMembershipRequest(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
-
-    # A NULL value for the department_id indicates the attendee is willing
-    # to volunteer for any department (they checked "Anything" for
-    # "Where do you want to help?").
-    department_id = Column(UUID, ForeignKey('department.id'), nullable=True)
-
-    departments = relationship(
-        'Department',
-        backref='membership_requests',
-        cascade='save-update,merge,refresh-expire,expunge',
-        primaryjoin='or_('
-                    'DeptMembershipRequest.department_id == Department.id, '
-                    'DeptMembershipRequest.department_id == None)',
-        order_by='Department.name',
-        viewonly=True)
-
-    __mapper_args__ = {'confirm_deleted_rows': False}
-    __table_args__ = (UniqueConstraint('attendee_id', 'department_id'),)
+    @dept_memberships_ids.setter
+    def dept_memberships_ids(self, value):
+        self._set_relation_ids('dept_memberships', DeptMembership, value)
 
 
 class Department(MagModel):
@@ -163,7 +166,7 @@ class Department(MagModel):
         viewonly=True)
     checklist_admins = relationship(
         'Attendee',
-        backref=backref('checklist_depts', order_by='Department.name'),
+        backref=backref('checklist_admin_depts', order_by='Department.name'),
         cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_('
                     'Department.id == DeptMembership.department_id, '
@@ -201,31 +204,12 @@ class Department(MagModel):
         order_by='Attendee.full_name',
         secondary='dept_membership')
     memberships = relationship('DeptMembership', backref='department')
-    explicit_membership_requests = relationship(
-        'DeptMembershipRequest', backref='department')
-    requesting_attendees = relationship(
+    explicitly_requesting_attendees = relationship(
         'Attendee',
         backref=backref('requested_depts', order_by='Department.name'),
         cascade='save-update,merge,refresh-expire,expunge',
-        primaryjoin='or_('
-                    'DeptMembershipRequest.department_id == Department.id, '
-                    'DeptMembershipRequest.department_id == None)',
         secondary='dept_membership_request',
-        order_by='Attendee.full_name',
-        viewonly=True)
-    unassigend_requesting_attendees = relationship(
-        'Attendee',
-        cascade='save-update,merge,refresh-expire,expunge',
-        primaryjoin='and_(or_('
-                    'DeptMembershipRequest.department_id == Department.id, '
-                    'DeptMembershipRequest.department_id == None), '
-                    'not_(exists().where(and_('
-                    'DeptMembership.department_id == Department.id, '
-                    'DeptMembership.attendee_id == '
-                    'DeptMembershipRequest.attendee_id))))',
-        secondary='dept_membership_request',
-        order_by='Attendee.full_name',
-        viewonly=True)
+        order_by='Attendee.full_name')
     parent = relationship(
         'Department',
         backref=backref(
@@ -295,13 +279,23 @@ class Job(MagModel):
     department_name = column_property(
         select([Department.name], Department.id == department_id))
 
+    @classproperty
+    def extra_apply_attrs(cls):
+        return set(['required_roles_ids']).union(
+            cls.extra_apply_attrs_restricted)
+
     @property
     def required_roles_labels(self):
         return comma_and([r.name for r in self.required_roles])
 
     @property
     def required_roles_ids(self):
-        return [str(r.id) for r in self.required_roles]
+        _, ids = self._get_relation_ids('required_roles')
+        return [str(d.id) for d in self.required_roles] if ids is None else ids
+
+    @required_roles_ids.setter
+    def required_roles_ids(self, value):
+        self._set_relation_ids('required_roles', DeptRole, value)
 
     @property
     def hours(self):
@@ -426,3 +420,59 @@ class Shift(MagModel):
     @property
     def name(self):
         return "{}'s {!r} shift".format(self.attendee.full_name, self.job.name)
+
+
+q_requesting_attendees = select([
+    Attendee.id.label('attendee_id'),
+    null().label('department_id')]) \
+    .where(Attendee.requested_any_dept == True) \
+    .union(select([
+        Attendee.id.label('attendee_id'),
+        Department.id.label('department_id')])
+        .where(and_(
+            Department.id == dept_membership_request.c.department_id,
+            Attendee.id == dept_membership_request.c.attendee_id))) \
+    .alias()  # noqa: E712
+
+
+# ============================================================================
+# NOTE: Department.all_requesting_attendees cannot be used in a
+#       subqueryload() or joinedload() expression.
+# ============================================================================
+Department.all_requesting_attendees = relationship(
+    'Attendee',
+    cascade='save-update,merge,refresh-expire,expunge',
+    primaryjoin=or_(
+        foreign(q_requesting_attendees.c.department_id) == None,  # noqa: E711
+        Department.id == foreign(q_requesting_attendees.c.department_id)),
+    secondaryjoin=remote(Attendee.id)
+        == foreign(q_requesting_attendees.c.attendee_id),
+    secondary=q_requesting_attendees,
+    order_by='Attendee.full_name',
+    viewonly=True)
+
+
+# ============================================================================
+# NOTE: Department.unassigned_requesting_attendees cannot be used in a
+#       subqueryload() or joinedload() expression.
+# ============================================================================
+Department.unassigned_requesting_attendees = relationship(
+    Attendee,
+    cascade='save-update,merge,refresh-expire,expunge',
+    primaryjoin=and_(
+        or_(
+            foreign(q_requesting_attendees.c.department_id)
+                == None,  # noqa: E711
+            Department.id
+                == foreign(q_requesting_attendees.c.department_id)
+        ),
+        not_(exists().where(and_(
+            Department.id == DeptMembership.department_id,
+            foreign(q_requesting_attendees.c.attendee_id)
+                == DeptMembership.attendee_id
+        )))),
+    secondaryjoin=remote(Attendee.id)
+        == foreign(q_requesting_attendees.c.attendee_id),
+    secondary=q_requesting_attendees,
+    order_by=Attendee.full_name,
+    viewonly=True)

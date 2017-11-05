@@ -121,8 +121,6 @@ class Root:
         job = session.job(params, bools=['extra15'],
                                   allowed=['department_id', 'start_time', 'type'] + list(defaults.keys()))
         if cherrypy.request.method == 'POST':
-            ids = params.get('required_roles_ids', [])
-            session.set_relation_ids(job, DeptRole, 'required_roles', ids)
             message = check(job)
             if not message:
                 session.add(job)

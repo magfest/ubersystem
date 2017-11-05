@@ -93,6 +93,17 @@ def single_dept_id_from_existing_locations(locations):
     return None
 
 
+def all_dept_ids_from_existing_locations(locations):
+    dept_ids = []
+    for location in str(locations).split(','):
+        if location:
+            location = int(location)
+            department_id = job_location_to_department_id.get(location)
+            if department_id:
+                dept_ids.append(department_id)
+    return dept_ids
+
+
 job_location_to_department_id = {i: _dept_id_from_location(i) for i in c.JOB_LOCATIONS.keys()}
 job_interests_to_department_id = {i: job_location_to_department_id[i] for i in c.JOB_INTERESTS.keys() if i in job_location_to_department_id}
 
@@ -130,6 +141,7 @@ attendee_table = table(
     sa.Column('assigned_depts', sa.Unicode()),
     sa.Column('trusted_depts', sa.Unicode()),
     sa.Column('requested_depts', sa.Unicode()),
+    sa.Column('requested_any_dept', sa.Boolean()),
     sa.Column('ribbon', sa.Unicode())
 )
 
@@ -150,6 +162,7 @@ dept_checklist_item_table = table(
     sa.Column('attendee_id', sideboard.lib.sa.UUID(), ForeignKey('attendee.id')),
     sa.Column('department_id', sideboard.lib.sa.UUID(), ForeignKey('department.id')),
     sa.Column('slug', sa.Unicode()),
+    sa.Column('comments', sa.Unicode()),
 )
 
 
@@ -166,7 +179,6 @@ dept_membership_table = table(
 
 dept_membership_request_table = table(
     'dept_membership_request',
-    sa.Column('id', sideboard.lib.sa.UUID()),
     sa.Column('attendee_id', sideboard.lib.sa.UUID(), ForeignKey('attendee.id')),
     sa.Column('department_id', sideboard.lib.sa.UUID(), ForeignKey('department.id')),
 )
@@ -246,27 +258,42 @@ def _downgrade_job_departments():
 def _upgrade_dept_checklist_items():
     connection = op.get_bind()
     items = connection.execute(dept_checklist_item_table.select())
+    attendee_items = defaultdict(list)
     for item in items:
-        attendees = connection.execute(
+        attendee_items[item.attendee_id].append(item)
+    for attendee_id, items in attendee_items.items():
+        [attendee] = connection.execute(
             attendee_table.select().where(
-                attendee_table.c.id == item.attendee_id
+                attendee_table.c.id == attendee_id
             )
         )
-        [attendee] = attendees
-        department_id = single_dept_id_from_existing_locations(attendee.assigned_depts)
-        if department_id:
-            op.execute(
-                dept_checklist_item_table.update().where(dept_checklist_item_table.c.id == item.id).values({
-                    'department_id': department_id
-                })
-            )
-        else:
-            # Department doesn't exist, possibly bad location in assigned_depts
-            op.execute(
-                dept_checklist_item_table.delete().where(
-                    dept_checklist_item_table.c.id == item.id
+        dept_ids = all_dept_ids_from_existing_locations(attendee.assigned_depts)
+
+        for item in items:
+            if dept_ids:
+                department_id = dept_ids[0]
+                op.execute(
+                    dept_checklist_item_table.update().where(dept_checklist_item_table.c.id == item.id).values({
+                        'department_id': department_id
+                    })
                 )
-            )
+                for department_id in dept_ids[1:]:
+                    op.execute(
+                        dept_checklist_item_table.insert().values({
+                            'id': str(uuid.uuid4()),
+                            'attendee_id': attendee_id,
+                            'department_id': department_id,
+                            'slug': item.slug,
+                            'comments': item.comments,
+                        })
+                    )
+            else:
+                # Department doesn't exist, possibly bad location in assigned_depts
+                op.execute(
+                    dept_checklist_item_table.delete().where(
+                        dept_checklist_item_table.c.id == item.id
+                    )
+                )
 
 
 def _downgrade_dept_checklist_items():
@@ -342,27 +369,27 @@ def _upgrade_attendee_departments():
         requested_depts = set(map(int, attendee.requested_depts.split(','))) \
             if attendee.requested_depts else set()
 
+        attendee_values = {}
+
+        attendee_id = str(attendee.id)
         for value in requested_depts:
             department_id = single_dept_id_from_existing_locations(value)
-            if value in [c.ANYTHING, c.OTHER] or department_id:
-                department_id = None if value in [c.ANYTHING, c.OTHER] else department_id
-                attendee_id = str(attendee.id)
+            if department_id:
                 op.execute(
                     dept_membership_request_table.insert().values({
-                        'id': str(uuid.uuid4()),
                         'department_id': department_id,
                         'attendee_id': attendee_id
                     })
                 )
+            if value in [c.ANYTHING, c.OTHER]:
+                attendee_values['requested_any_dept'] = True
 
-        if is_dept_head:
-            if isinstance(attendee.ribbon, int):
-                values = {'ribbon': c.DEPT_HEAD_RIBBON}
-            else:
-                values = {'ribbon': ','.join(filter(lambda s: s != DEPT_HEAD_RIBBON_STR, attendee.ribbon.split(',')))}
+        if is_dept_head and assigned_depts:
+            attendee_values['ribbon'] = ','.join(filter(lambda s: s != DEPT_HEAD_RIBBON_STR, attendee.ribbon.split(',')))
 
+        if attendee_values:
             op.execute(
-                attendee_table.update().where(attendee_table.c.id == attendee.id).values(values)
+                attendee_table.update().where(attendee_table.c.id == attendee.id).values(attendee_values)
             )
 
 
@@ -398,27 +425,35 @@ def _downgrade_attendee_departments():
 
     dept_membership_requests = connection.execute(dept_membership_request_table.select())
     for dept_membership_request in dept_membership_requests:
-        location = existing_location_from_dept_id(dept_membership.department_id)
+        location = existing_location_from_dept_id(dept_membership_request.department_id)
         if location:
-            attendee_id = dept_membership.attendee_id
+            attendee_id = dept_membership_request.attendee_id
             attendee_ids.add(attendee_id)
             attendee_requested_depts[attendee_id].add(location)
 
     for attendee_id in attendee_ids:
         values = {}
         if attendee_is_dept_head[attendee_id]:
-            attendees = connection.execute(attendee_table.select().where(attendee_table.c.id == attendee_id))
-            for attendee in attendees:
-                if isinstance(attendee.ribbon, int):
-                    values['ribbon'] = c.DEPT_HEAD_RIBBON
-                else:
-                    values['ribbon'] = ','.join(str(attendee.ribbon).split(',') + [DEPT_HEAD_RIBBON_STR])
+            [attendee] = connection.execute(attendee_table.select().where(attendee_table.c.id == attendee_id))
+            values['ribbon'] = ','.join(str(attendee.ribbon).split(',') + [DEPT_HEAD_RIBBON_STR])
 
         values['trusted_depts'] = ','.join(map(str, attendee_trusted_depts[attendee_id]))
         values['assigned_depts'] = ','.join(map(str, attendee_assigned_depts[attendee_id]))
         values['requested_depts'] = ','.join(map(str, attendee_requested_depts[attendee_id]))
 
         op.execute(attendee_table.update().where(attendee_table.c.id == attendee_id).values(values))
+
+    op.execute(attendee_table.update().where(and_(
+        attendee_table.c.requested_any_dept == True,
+        attendee_table.c.requested_depts != '')).values({
+        'requested_depts': func.concat(attendee_table.c.requested_depts, ',{}'.format(c.ANYTHING))
+    }))
+
+    op.execute(attendee_table.update().where(and_(
+        attendee_table.c.requested_any_dept == True,
+        attendee_table.c.requested_depts == '')).values({
+        'requested_depts': str(c.ANYTHING)
+    }))
 
 
 def upgrade():
@@ -454,25 +489,25 @@ def upgrade():
     sa.UniqueConstraint('attendee_id', 'department_id', name=op.f('uq_dept_membership_attendee_id'))
     )
     op.create_table('dept_membership_request',
-    sa.Column('id', sideboard.lib.sa.UUID(), nullable=False),
     sa.Column('attendee_id', sideboard.lib.sa.UUID(), nullable=False),
-    sa.Column('department_id', sideboard.lib.sa.UUID(), nullable=True),
+    sa.Column('department_id', sideboard.lib.sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_dept_membership_request_attendee_id_attendee')),
     sa.ForeignKeyConstraint(['department_id'], ['department.id'], name=op.f('fk_dept_membership_request_department_id_department')),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_dept_membership_request')),
     sa.UniqueConstraint('attendee_id', 'department_id', name=op.f('uq_dept_membership_request_attendee_id'))
     )
     op.create_table('job_required_role',
     sa.Column('job_id', sideboard.lib.sa.UUID(), nullable=False),
     sa.Column('dept_role_id', sideboard.lib.sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['dept_role_id'], ['dept_role.id'], name=op.f('fk_job_required_role_dept_role_id_dept_role')),
     sa.ForeignKeyConstraint(['job_id'], ['job.id'], name=op.f('fk_job_required_role_job_id_job')),
-    sa.ForeignKeyConstraint(['dept_role_id'], ['dept_role.id'], name=op.f('fk_job_required_role_dept_role_id_dept_role'))
+    sa.UniqueConstraint('dept_role_id', 'job_id', name=op.f('uq_job_required_role_dept_role_id'))
     )
     op.create_table('dept_membership_dept_role',
     sa.Column('dept_membership_id', sideboard.lib.sa.UUID(), nullable=False),
     sa.Column('dept_role_id', sideboard.lib.sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['dept_membership_id'], ['dept_membership.id'], name=op.f('fk_dept_membership_dept_role_dept_membership_id_dept_membership')),
-    sa.ForeignKeyConstraint(['dept_role_id'], ['dept_role.id'], name=op.f('fk_dept_membership_dept_role_dept_role_id_dept_role'))
+    sa.ForeignKeyConstraint(['dept_role_id'], ['dept_role.id'], name=op.f('fk_dept_membership_dept_role_dept_role_id_dept_role')),
+    sa.UniqueConstraint('dept_membership_id', 'dept_role_id', name=op.f('uq_dept_membership_dept_role_dept_membership_id'))
     )
 
     if is_sqlite:
@@ -480,9 +515,14 @@ def upgrade():
             batch_op.add_column(sa.Column('department_id', sideboard.lib.sa.UUID()))
         with op.batch_alter_table('dept_checklist_item', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
             batch_op.add_column(sa.Column('department_id', sideboard.lib.sa.UUID()))
+            batch_op.drop_constraint('_dept_checklist_item_uniq', type_='unique')
+        with op.batch_alter_table('attendee', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
+            batch_op.add_column(sa.Column('requested_any_dept', sa.Boolean(), default=False, server_default='False', nullable=False))
     else:
         op.add_column('job', sa.Column('department_id', sideboard.lib.sa.UUID()))
         op.add_column('dept_checklist_item', sa.Column('department_id', sideboard.lib.sa.UUID()))
+        op.drop_constraint('_dept_checklist_item_uniq', 'dept_checklist_item', type_='unique')
+        op.add_column('attendee', sa.Column('requested_any_dept', sa.Boolean(), default=False, server_default='False', nullable=False))
 
     _upgrade_job_departments()
     _upgrade_dept_checklist_items()
@@ -496,8 +536,7 @@ def upgrade():
 
         with op.batch_alter_table('dept_checklist_item', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
             batch_op.alter_column('department_id', nullable=False)
-            batch_op.create_unique_constraint(op.f('uq_dept_checklist_item_department_id'), ['department_id', 'slug'])
-            batch_op.drop_constraint('_dept_checklist_item_uniq', type_='unique')
+            batch_op.create_unique_constraint(op.f('uq_dept_checklist_item_department_id'), ['department_id', 'attendee_id', 'slug'])
             batch_op.create_foreign_key(op.f('fk_dept_checklist_item_department_id_department'), 'department', ['department_id'], ['id'])
     else:
         op.alter_column('job', 'department_id', nullable=False)
@@ -506,8 +545,7 @@ def upgrade():
         op.create_foreign_key(op.f('fk_job_department_id_department'), 'job', 'department', ['department_id'], ['id'])
 
         op.alter_column('dept_checklist_item', 'department_id', nullable=False)
-        op.create_unique_constraint(op.f('uq_dept_checklist_item_department_id'), 'dept_checklist_item', ['department_id', 'slug'])
-        op.drop_constraint('_dept_checklist_item_uniq', 'dept_checklist_item', type_='unique')
+        op.create_unique_constraint(op.f('uq_dept_checklist_item_department_id'), 'dept_checklist_item', ['department_id', 'attendee_id', 'slug'])
         op.create_foreign_key(op.f('fk_dept_checklist_item_department_id_department'), 'dept_checklist_item', 'department', ['department_id'], ['id'])
 
     _upgrade_attendee_departments()
@@ -562,7 +600,10 @@ def downgrade():
         with op.batch_alter_table('dept_checklist_item', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
             batch_op.create_unique_constraint('_dept_checklist_item_uniq', 'dept_checklist_item', ['attendee_id', 'slug'])
             batch_op.drop_constraint(op.f('uq_dept_checklist_item_department_id'), 'dept_checklist_item', type_='unique')
-            batch_op.drop_column('dept_checklist_item', 'department_id')
+            batch_op.drop_column('department_id')
+
+        with op.batch_alter_table('attendee', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
+            batch_op.drop_column('requested_any_dept')
     else:
         op.alter_column('job', 'location', nullable=False)
         op.drop_column('job', 'department_id')
@@ -570,6 +611,8 @@ def downgrade():
         op.create_unique_constraint('_dept_checklist_item_uniq', 'dept_checklist_item', ['attendee_id', 'slug'])
         op.drop_constraint(op.f('uq_dept_checklist_item_department_id'), 'dept_checklist_item', type_='unique')
         op.drop_column('dept_checklist_item', 'department_id')
+
+        op.drop_column('attendee', 'requested_any_dept')
 
     op.drop_table('dept_membership_dept_role')
     op.drop_table('dept_membership_request')

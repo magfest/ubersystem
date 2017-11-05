@@ -25,7 +25,7 @@ from sqlalchemy.util import immutabledict
 
 from uber.config import c, create_namespace_uuid
 from uber.decorators import cached_classproperty, classproperty, \
-    cost_property, department_id_adapter, suffix_property
+    cost_property, department_id_adapter, presave_adjustment, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
 from uber.utils import check_csrf, get_real_badge_type, DeptChecklistConf, \
     HTTPRedirect
@@ -183,8 +183,6 @@ class MagModel:
         """
         Returns a set of extra attrs used by apply(). These are settable
         attributes or properties that are not in cls.__table__columns.
-
-        For example, see Attendee.assigned_depts_ids.
         """
         return set()
 
@@ -193,10 +191,23 @@ class MagModel:
         """
         Returns a set of extra attrs used by apply(restricted=True). These are
         settable attributes or properties that are not in cls.__table__columns.
-
-        For example, see Attendee.requested_depts_ids.
         """
         return set()
+
+    def _get_relation_ids(self, relation):
+        return getattr(self, '_relation_ids', {}).get(relation, (None, None))
+
+    def _set_relation_ids(self, relation, ModelClass, ids):
+        _relation_ids = getattr(self, '_relation_ids', {})
+        _relation_ids[relation] = (ModelClass, ids)
+        setattr(self, '_relation_ids', _relation_ids)
+
+    @presave_adjustment
+    def _convert_relation_ids_to_instances(self):
+        _relation_ids = getattr(self, '_relation_ids', {})
+        for relation, (ModelClass, ids) in _relation_ids.items():
+            self.session.set_relation_ids(self, relation, ModelClass, ids)
+        setattr(self, '_relation_ids', {})
 
     @property
     def session(self):
@@ -410,13 +421,6 @@ class MagModel:
                     if field in params:
                         setattr(self, field, params[field])
 
-        extra_apply_attrs = self.extra_apply_attrs_restricted if restricted \
-            else self.extra_apply_attrs
-
-        for attr in extra_apply_attrs:
-            if attr in params:
-                setattr(self, attr, params[attr])
-
         if cherrypy.request.method.upper() == 'POST':
             for column in self.__table__.columns:
                 if column.name in bools:
@@ -429,6 +433,13 @@ class MagModel:
 
             if not ignore_csrf:
                 check_csrf(params.get('csrf_token'))
+
+        extra_apply_attrs = self.extra_apply_attrs_restricted \
+            if restricted else self.extra_apply_attrs
+
+        for attr in extra_apply_attrs:
+            if attr in params:
+                setattr(self, attr, params[attr])
 
         return self
 
@@ -458,19 +469,19 @@ class MagModel:
 
 # Make all of our model classes available from uber.models
 from uber.models.admin import *  # noqa: F401,E402,F403
+from uber.models.promo_code import *  # noqa: F401,E402,F403
 from uber.models.attendee import *  # noqa: F401,E402,F403
 from uber.models.commerce import *  # noqa: F401,E402,F403
 from uber.models.department import *  # noqa: F401,E402,F403
 from uber.models.email import *  # noqa: F401,E402,F403
 from uber.models.group import *  # noqa: F401,E402,F403
-from uber.models.promo_code import *  # noqa: F401,E402,F403
 from uber.models.tracking import *  # noqa: F401,E402,F403
 from uber.models.types import *  # noqa: F401,E402,F403
 
 # Explicitly import models used by the Session class to quiet flake8
 from uber.models.admin import AdminAccount, WatchList  # noqa: E402
-from uber.models.attendee import Attendee  # noqa: E402
 from uber.models.department import Job, Shift, Department  # noqa: E402
+from uber.models.attendee import Attendee  # noqa: E402
 from uber.models.email import Email  # noqa: E402
 from uber.models.group import Group  # noqa: E402
 from uber.models.tracking import Tracking  # noqa: E402
@@ -942,7 +953,7 @@ class Session(SessionManager):
                     subqueryload(Attendee.shifts)
                     .subqueryload(Shift.job)
                     .subqueryload(Job.department)) \
-                .order_by(Attendee.full_name)
+                .order_by(Attendee.full_name, Attendee.id)
 
         def staffers(self):
             return self.all_attendees(only_staffing=True)
@@ -1194,7 +1205,7 @@ class Session(SessionManager):
 
             return True
 
-        def set_relation_ids(self, instance, cls, field, value):
+        def set_relation_ids(self, instance, field, cls, value):
             values = set(s for s in listify(value) if s and s != 'None')
             relations = self.query(cls).filter(cls.id.in_(values)).all() \
                 if values else []

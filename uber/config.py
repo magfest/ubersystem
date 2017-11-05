@@ -405,7 +405,7 @@ class Config(_Overridable):
         with sa.Session() as session:
             query = session.query(Department).filter_by(
                 solicits_volunteers=True).order_by(Department.name)
-            return [('None', 'Anywhere', 'I want to help anywhere I can!')] + \
+            return [('All', 'Anywhere', 'I want to help anywhere I can!')] + \
                 [(d.id, d.name, d.description) for d in query]
 
     @request_cached_property
