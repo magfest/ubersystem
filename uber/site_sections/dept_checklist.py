@@ -14,7 +14,7 @@ class Root:
                 raise HTTPRedirect('overview?filtered=1')
 
         if not department_id and len(attendee.can_admin_checklist_depts) == 1:
-            department_id = attendee.checklist_depts[0].id
+            department_id = attendee.can_admin_checklist_depts[0].id
 
         department = session.query(Department).options(
             subqueryload(Department.dept_checklist_items)).get(department_id)
