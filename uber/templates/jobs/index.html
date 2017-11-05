@@ -6,14 +6,17 @@
 <link rel="stylesheet" href="../static/styles/fullcalendar.print.css" media="print"/>
 
 <style>
-.button_row div a.setup_button, .button_row div a.teardown_button {
- background-color: #239875;
+  .button_row {
+    margin-bottom: 20px;
+  }
 
+  .button_row div a.setup_button, .button_row div a.teardown_button {
+    background-color: #239875;
     background-image: -webkit-linear-gradient(top, #239875 0%, #209572 100%);
     background-image: -o-linear-gradient(top, #239875 0%, #209572 100%);
     background-image: -webkit-gradient(linear, left top, left bottom, from(#239875), to(#209572));
     background-image: linear-gradient(to bottom, #239875 0%, #209572 100%);
-}
+  }
 </style>
 {% endblock %}
 
@@ -26,7 +29,7 @@
     {% if checklist.completed %}
         You've already indicated that what's here and/or whatever shifts STOPS creates are fine.  Let us know if that's in error.
     {% else %}
-        {% if location in c.SHIFTLESS_DEPTS %}
+        {% if department.is_shiftless %}
             This department is on record as not needing any shifts.  Please click the following link to confirm this so we know we don't need to make any shifts.  If this is in error and you'd like shifts for your people, please let us know and we'll fix that.
         {% else %}
             STOPS usually makes shifts for each department based on last year's shifts.  You can create shifts yourself or let us do it for you.  If you want to make shifts yourself, please do so and then click the link below.  If you want us to make shifts for you, just click that link now and submit the form to confirm that.
@@ -34,6 +37,7 @@
         <br/> <a href="#" onClick="$('#checkoff').show(); return false;">I Don't Need To Do Anything Else Here</a>
         <form id="checkoff" style="display:none" method="post" action="../dept_checklist/mark_item_complete">
         {{ csrf_token() }}
+        <input type="hidden" name="department_id" value="{{ department.id }}" />
         <input type="hidden" name="slug" value="{{ checklist.conf.slug }}" />
         <input type="submit" value="I Confirm I Don't Need To Do Anything Else Here" />
         </form>
@@ -41,30 +45,20 @@
 {% endif %}
 </div>
 
-<div class="row text-center">
+<div class="row text-center button_row">
     <div class="col-md-4">
         <h3>Setup Shifts ({{ setup|length }})</h3>
+        <a class="btn btn-primary setup_button" href="form?id=None&department_id={{ department.id }}&type={{ c.SETUP }}">Add Setup Shift</a>
     </div>
     <div class="col-md-4">
         <h3>Teardown Shifts ({{teardown|length}})</h3>
+        <a class="btn btn-primary teardown_button" href="form?id=None&department_id={{ department.id }}&type={{ c.TEARDOWN }}">Add Teardown Shift</a>
     </div>
     <div class="col-md-4">
         <h3>Regular Shifts ({{normal|length}})</h3>
+        <a class="btn btn-primary" href="form?id=None&department_id={{ department.id }}&type={{ c.REGULAR }}">Add Shift</a>
     </div>
 </div>
-
-<div class="row text-center button_row">
-    <div class="col-md-4">
-        <a class="btn btn-primary setup_button" href="form?id=None&location={{ location }}&type={{ c.SETUP }}">Add Setup Shift</a>
-    </div>
-    <div class="col-md-4">
-        <a class="btn btn-primary teardown_button" href="form?id=None&location={{ location }}&type={{ c.TEARDOWN }}">Add Teardown Shift</a>
-    </div>
-    <div class="col-md-4">
-        <a class="btn btn-primary" href="form?id=None&location={{ location }}&type={{ c.REGULAR }}">Add Shift</a>
-    </div>
-</div>
-
 
 <!-- Starting with calendar implementation -->
 <div class="row">
@@ -131,7 +125,7 @@ $(document).ready(function() {
         eventLimit: true, // allow "more" link when too many events
         events: eventList,
         dayClick: function(date) {
-            window.location.href = "form?id=None&location={{ location }}&start_time=" + date.format("YYYY-MM-DD HH:mm:ss");
+            window.location.href = "form?id=None&department_id={{ department.id }}&start_time=" + date.format("YYYY-MM-DD HH:mm:ss");
         }
     });
 });

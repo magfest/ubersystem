@@ -1,4 +1,9 @@
+import hashlib
 from uber.common import *
+
+
+def create_namespace_uuid(s):
+    return uuid.UUID(hashlib.sha1(s.encode('utf-8')).hexdigest()[:32])
 
 
 class _Overridable:
@@ -376,6 +381,40 @@ class Config(_Overridable):
         except:
             return {}
 
+    @request_cached_property
+    def DEPARTMENTS(self):
+        return dict(self.DEPARTMENT_OPTS)
+
+    @request_cached_property
+    def DEPARTMENT_OPTS(self):
+        from uber.models.department import Department
+        with sa.Session() as session:
+            query = session.query(Department).order_by(Department.name)
+            return [(d.id, d.name) for d in query]
+
+    @request_cached_property
+    def DEPARTMENT_OPTS_WITH_DESC(self):
+        from uber.models.department import Department
+        with sa.Session() as session:
+            query = session.query(Department).order_by(Department.name)
+            return [(d.id, d.name, d.description) for d in query]
+
+    @request_cached_property
+    def PUBLIC_DEPARTMENT_OPTS_WITH_DESC(self):
+        from uber.models.department import Department
+        with sa.Session() as session:
+            query = session.query(Department).filter_by(
+                solicits_volunteers=True).order_by(Department.name)
+            return [('All', 'Anywhere', 'I want to help anywhere I can!')] + \
+                [(d.id, d.name, d.description) for d in query]
+
+    @request_cached_property
+    def DEFAULT_DEPARTMENT_ID(self):
+        from uber.models.department import Department
+        with sa.Session() as session:
+            dept = session.query(Department).order_by(Department.name).first()
+            return dept.id
+
     @property
     def HTTP_METHOD(self):
         return cherrypy.request.method.upper()
@@ -644,7 +683,7 @@ c.WEIGHT_OPTS = (
     ('2.0', 'x2.0'),
     ('2.5', 'x2.5'),
 )
-c.JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'restricted', 'extra15']
+c.JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'required_roles_ids', 'extra15']
 
 c.PREREG_SHIRT_OPTS = c.SHIRT_OPTS[1:]
 c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + list(c.PREREG_SHIRT_OPTS)

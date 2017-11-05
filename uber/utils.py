@@ -187,17 +187,14 @@ class DeptChecklistConf(Registry):
         assert re.match('^[a-z0-9_]+$', slug), 'Dept Head checklist item sections must have separated_by_underscore names'
         self.slug, self.description = slug, description
         self.name = name or slug.replace('_', ' ').title()
-        self._path = path or '/dept_checklist/form?slug={slug}'
+        self._path = path or '/dept_checklist/form?slug={slug}&department_id={department_id}'
         self.email_post_con = email_post_con
         self.deadline = c.EVENT_TIMEZONE.localize(datetime.strptime(deadline, '%Y-%m-%d')).replace(hour=23, minute=59)
 
-    def path(self, attendee):
-        dept = attendee and attendee.assigned_depts and attendee.assigned_depts_ints[0]
-        return self._path.format(slug=self.slug, department=dept)
-
-    def completed(self, attendee):
-        matches = [item for item in attendee.dept_checklist_items if self.slug == item.slug]
-        return matches[0] if matches else None
+    def path(self, department_id):
+        from uber.models.department import Department
+        department_id = Department.to_id(department_id)
+        return self._path.format(slug=self.slug, department_id=department_id)
 
 
 for _slug, _conf in sorted(c.DEPT_HEAD_CHECKLIST.items(), key=lambda tup: tup[1]['deadline']):
@@ -304,9 +301,13 @@ class Charge:
         elif isinstance(m, dict):
             return m
         elif isinstance(m, sa.Attendee):
-            return m.to_dict(sa.Attendee.to_dict_default_attrs + ['promo_code'])
+            return m.to_dict(sa.Attendee.to_dict_default_attrs
+                + ['promo_code']
+                + list(sa.Attendee.extra_apply_attrs_restricted))
         elif isinstance(m, sa.Group):
-            return m.to_dict(sa.Group.to_dict_default_attrs + ['attendees'])
+            return m.to_dict(sa.Group.to_dict_default_attrs
+                + ['attendees']
+                + list(sa.Group.extra_apply_attrs_restricted))
         else:
             raise AssertionError('{} is not an attendee or group'.format(m))
 

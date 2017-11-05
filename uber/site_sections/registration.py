@@ -800,20 +800,16 @@ class Root:
 
     def shifts(self, session, id, shift_id='', message=''):
         attendee = session.attendee(id, allow_invalid=True)
+        attrs = Shift.to_dict_default_attrs + ['worked_label']
         return {
-            'message':  message,
+            'message': message,
             'shift_id': shift_id,
             'attendee': attendee,
-            'shifts':   Shift.dump(attendee.shifts),
-            'jobs':     [(job.id, '({}) [{}] {}'.format(job.timespan(), job.location_label, job.name))
-                         for job in session.query(Job)
-                                           .outerjoin(Job.shifts)
-                                           .filter(Job.location.in_(attendee.assigned_depts_ints),
-                                                   or_(Job.restricted == False, Job.location.in_(attendee.trusted_depts_ints)))
-                                           .group_by(Job.id)
-                                           .having(func.count(Shift.id) < Job.slots)
-                                           .order_by(Job.start_time, Job.location)
-                         if job.start_time + timedelta(hours=job.duration + 2) > localized_now()]
+            'shifts': {s.id: s.to_dict(attrs) for s in attendee.shifts},
+            'jobs': [
+                (job.id, '({}) [{}] {}'.format(job.timespan(), job.department_name, job.name))
+                for job in attendee.available_jobs
+                if job.start_time + timedelta(hours=job.duration + 2) > localized_now()]
         }
 
     @csrf_protected
@@ -937,17 +933,21 @@ class Root:
 
         return {'message': message}
 
-    def placeholders(self, session, department=''):
+    @department_id_adapter
+    def placeholders(self, session, department_id=None):
+        dept_filter = [] if not department_id \
+            else [Attendee.dept_memberships.any(department_id=department_id)]
+        placeholders = session.query(Attendee).filter(
+            Attendee.placeholder == True,
+            Attendee.staffing == True,
+            Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
+            *dept_filter).order_by(Attendee.full_name).all()
+
         return {
-            'department': department,
-            'dept_name': c.JOB_LOCATIONS[int(department)] if department else 'All',
-            'checklist': session.checklist_status('placeholders', department),
-            'placeholders': [a for a in session.query(Attendee)
-                                               .filter(Attendee.placeholder == True,
-                                                       Attendee.staffing == True,
-                                                       Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
-                                                       Attendee.assigned_depts.contains(department))
-                                               .order_by(Attendee.full_name).all()]
+            'department_id': department_id,
+            'dept_name': session.query(Department).get(department_id).name if department_id else 'All',
+            'checklist': session.checklist_status('placeholders', department_id),
+            'placeholders': placeholders
         }
 
     def inactive(self, session):

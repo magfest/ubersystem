@@ -28,9 +28,9 @@
         <td valign="top" width="50%">
             <h4> Assigned </h4><br/>
             {% for attendee in assigned|sort(attribute="ribbon") %}
-            <span {% if c.DEPT_HEAD_RIBBON not in attendee.ribbon_ints %}class="nondepthead"{% endif %}>
+            <span {% if not attendee.is_dept_head %}class="nondepthead"{% endif %}>
             <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a><span class="email">|{{ attendee.email }}</span>
-            {% if c.DEPT_HEAD_RIBBON in attendee.ribbon_ints %}|[Dept Head]{% endif %}
+            {% if attendee.is_dept_head %}|[Dept Head]{% endif %}
             <br/></span>
             {% endfor %}
         </td>
@@ -38,9 +38,9 @@
             <div class="requested">
             <h4> Requested </h4><br/>
             {% for attendee in requested|sort(attribute="ribbon") %}
-            <span {% if c.DEPT_HEAD_RIBBON not in attendee.ribbon_ints %}class="nondepthead"{% endif %}>
+            <span {% if not attendee.is_dept_head %}class="nondepthead"{% endif %}>
             <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a><span class="email">|{{ attendee.email }}</span>
-            {% if c.DEPT_HEAD_RIBBON in attendee.ribbon_ints %}|[Dept Head]{% endif %}
+            {% if attendee.is_dept_head %}|[Dept Head]{% endif %}
             <br/></span>
             {% endfor %}
             </div>

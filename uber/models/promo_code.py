@@ -13,7 +13,6 @@ from sqlalchemy.types import Integer
 from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.attendee import Attendee
 from uber.models.types import DefaultColumn as Column, Choice
 from uber.utils import localized_now
 
@@ -304,6 +303,7 @@ class PromoCode(MagModel):
 
     @uses_count.expression
     def uses_count(cls):
+        from uber.models.attendee import Attendee
         return select([func.count(Attendee.id)]).where(
             Attendee.promo_code_id == cls.id).label('uses_count')
 

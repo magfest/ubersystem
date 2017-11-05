@@ -1,25 +1,32 @@
-<!DOCTYPE HTML>
-<html>
-<head>
-    <title>All Open Shifts</title>
-    <link rel="stylesheet" type="text/css" href="../static/styles/styles.css" />
-    <script type="text/javascript" src="../static/deps/combined.min.js"></script>
-    <script type="text/javascript" src="../static_views/ratings.js"></script>
-</head>
-<body>
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}All Shifts{% endblock %}
+{% block content %}
 
-<h2> All Jobs With Unfilled Shifts </h2>
+<style type="text/css">
+  h2 {
+    margin-bottom: 40px;
+  }
 
-<div style="text-align:center">
-    {% if show_restricted %}
-        <a href="everywhere">Show Only Unrestricted Shifts</a>
-    {% else %}
-        <a href="everywhere?show_restricted=true">Show Regular and Restricted Shifts</a>
-    {% endif %}
-</div>
+  #jobs-container #volunteers {
+    top: 65px;
+  }
+</style>
+
+<h2>
+  All Unfilled Shifts
+  {% if show_restricted %}
+    <a href="everywhere" class="btn btn-xs btn-plain">
+  {% else %}
+    <a href="everywhere?show_restricted=true" class="btn btn-xs btn-default">
+  {% endif %}
+      <span class="glyphicon glyphicon-filter"></span>
+      Show Restricted Shifts
+    </a>
+</h2>
 
 <script>SHOW_FULL_JOBS = false;</script>
+<div id="jobs-container">
 {% include "jobs/job_renderer.html" %}
+</div>
 
-</body>
-</html>
+{% endblock %}

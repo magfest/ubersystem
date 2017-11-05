@@ -1,7 +1,7 @@
 """Convert ribbon to a multichoice column.
 
 Revision ID: 9359297269a8
-Revises: 167243c0e86c
+Revises: 063eeaf98c57
 Create Date: 2017-07-21 09:18:38.444238
 
 """
