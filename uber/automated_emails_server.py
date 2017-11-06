@@ -19,7 +19,7 @@ class AutomatedEmail:
             subqueryload(Attendee.shifts)
                 .subqueryload(Shift.job),
             subqueryload(Attendee.assigned_depts),
-            subqueryload(Attendee.requested_depts),
+            subqueryload(Attendee.dept_membership_requests),
             subqueryload(Attendee.checklist_admin_depts)
                 .subqueryload(Department.dept_checklist_items),
             subqueryload(Attendee.dept_memberships),

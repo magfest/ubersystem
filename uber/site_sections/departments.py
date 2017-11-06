@@ -138,7 +138,7 @@ class Root:
             }
 
     @department_id_adapter
-    def requests(self, session, department_id=None, message='', **params):
+    def requests(self, session, department_id=None, requested_any=False, message='', **params):
         if not department_id:
             raise HTTPRedirect('index')
 
@@ -162,7 +162,8 @@ class Root:
 
         return {
             'department': department,
-            'message': message
+            'message': message,
+            'requested_any': requested_any
         }
 
     @department_id_adapter
