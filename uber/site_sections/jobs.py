@@ -47,6 +47,7 @@ class Root:
             else:
                 department_id = c.DEFAULT_DEPARTMENT_ID
 
+        department_id = None if department_id == 'All' else department_id
         department = session.query(Department).get(department_id) if department_id else None
         jobs = session.jobs(department_id).all()
         by_start = defaultdict(list)
@@ -69,6 +70,7 @@ class Root:
     def signups(self, session, department_id=None, message=''):
         if not department_id:
             department_id = cherrypy.session.get('prev_department_id') or c.DEFAULT_DEPARTMENT_ID
+        department_id = None if department_id == 'All' else department_id
         cherrypy.session['prev_department_id'] = department_id
 
         return {
@@ -93,6 +95,7 @@ class Root:
     def staffers(self, session, department_id=None, message=''):
         if not department_id:
             department_id = cherrypy.session.get('prev_department_id') or c.DEFAULT_DEPARTMENT_ID
+        department_id = None if department_id == 'All' else department_id
         dept_filter = [] if not department_id \
             else [Attendee.dept_memberships.any(department_id=department_id)]
         attendees = session.staffers().filter(*dept_filter).all()

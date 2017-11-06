@@ -230,7 +230,7 @@ class Department(MagModel):
 
     @classmethod
     def to_id(cls, department):
-        if not department or department == 'All':
+        if not department:
             return None
 
         if isinstance(department, six.string_types):

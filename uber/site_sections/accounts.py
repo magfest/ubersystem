@@ -57,15 +57,15 @@ class Root:
 
     @department_id_adapter
     def bulk(self, session, department_id=None, **params):
-        department = session.query(Department).get(department_id) if department_id else None
-        attendee_filters = [Attendee.department_memberships.any(department_id=department_id)] if department else []
+        department_id = None if department_id == 'All' else department_id
+        attendee_filters = [Attendee.dept_memberships.any(department_id=department_id)] if department_id else []
         attendees = session.staffers().filter(*attendee_filters).all()
         for attendee in attendees:
-            attendee.trusted_here = attendee.trusted_in(department) if department else attendee.has_role_somewhere
-            attendee.hours_here = attendee.weighted_hours_in(department)
+            attendee.trusted_here = attendee.trusted_in(department_id) if department_id else attendee.has_role_somewhere
+            attendee.hours_here = attendee.weighted_hours_in(department_id)
 
         return {
-            'department':  department,
+            'department_id':  department_id,
             'attendees': attendees
         }
 
