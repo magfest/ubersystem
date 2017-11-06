@@ -380,7 +380,7 @@ class Root:
                 overlapping = defaultdict(set)
                 for shift in attendee.shifts:
                     if not shift.job.restricted:
-                        for dept in attendee.assigned_depts_ints:
+                        for dept in attendee.assigned_depts:
                             for hour in shift.job.hours:
                                 if attendee.trusted_in(dept) and hour in untaken[dept]:
                                     overlapping[shift.job].update(untaken[dept][hour])
