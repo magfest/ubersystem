@@ -949,6 +949,7 @@ class Session(SessionManager):
             return self.query(Attendee) \
                 .filter(badge_filter, *staffing_filter) \
                 .options(
+                    subqueryload(Attendee.dept_memberships),
                     subqueryload(Attendee.group),
                     subqueryload(Attendee.shifts)
                     .subqueryload(Shift.job)
