@@ -401,7 +401,7 @@ class Charge:
 
     def charge_cc(self, session, token):
         try:
-            log.debug('PAYMENT: !!! attempting to charge stripeToken {} ${} for {}',
+            log.debug('PAYMENT: !!! attempting to charge stripeToken {} {} cents for {}',
                       token, self.amount, self.description)
 
             self.response = stripe.Charge.create(
@@ -412,7 +412,7 @@ class Charge:
                 receipt_email=self.receipt_email
             )
 
-            log.info('PAYMENT: !!! SUCCESS: charged stripeToken {} ${} for {}, responseID={}',
+            log.info('PAYMENT: !!! SUCCESS: charged stripeToken {} {} cents for {}, responseID={}',
                      token, self.amount, self.description, getattr(self.response, 'id', None))
 
         except stripe.CardError as e:

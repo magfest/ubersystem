@@ -462,7 +462,7 @@ class Root:
         else:
             group.amount_paid += charge.dollar_amount
 
-            session.merge(group)
+            session.add(group)
             if group.is_dealer:
                 try:
                     send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Payment Completed',
@@ -511,7 +511,7 @@ class Root:
         else:
             session.assign_badges(group, group.badges + badges_to_add)
             group.amount_paid += charge.dollar_amount
-            session.merge(group)
+            session.add(group)
             if group.is_dealer:
                 send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Paid for Extra Members',
                            render('emails/dealers/payment_notification.txt', {'group': group}), model=group)
@@ -662,6 +662,7 @@ class Root:
             attendee.amount_paid += charge.dollar_amount
             if attendee.paid == c.NOT_PAID and attendee.amount_paid == attendee.total_cost:
                 attendee.paid = c.HAS_PAID
+            session.add(attendee)
             raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Your payment has been accepted')
 
     def credit_card_retry(self):
