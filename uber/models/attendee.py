@@ -254,7 +254,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @predelete_adjustment
     def _shift_badges(self):
-        if self.badge_num:
+        is_skipped = getattr(self, '_skip_badge_shift_on_delete', False)
+        if self.badge_num and not is_skipped:
             self.session.shift_badges(
                 self.badge_type, self.badge_num + 1, down=True)
 
