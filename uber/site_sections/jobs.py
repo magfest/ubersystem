@@ -100,6 +100,7 @@ class Root:
             else [Attendee.dept_memberships.any(department_id=department_id)]
         attendees = session.staffers().filter(*dept_filter).all()
         for attendee in attendees:
+            attendee.is_dept_head_here = attendee.is_dept_head_of(department_id) if department_id else attendee.is_dept_head
             attendee.trusted_here = attendee.trusted_in(department_id) if department_id else attendee.has_role_somewhere
             attendee.hours_here = attendee.weighted_hours_in(department_id)
 
