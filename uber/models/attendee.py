@@ -123,9 +123,16 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     badge_printed_name = Column(UnicodeText)
 
-    requested_any_dept = Column(Boolean, default=False)
-
     dept_memberships = relationship('DeptMembership', backref='attendee')
+    dept_membership_requests = relationship(
+        'DeptMembershipRequest', backref='attendee')
+    anywhere_dept_membership_request = relationship(
+        'DeptMembershipRequest',
+        primaryjoin='and_('
+                    'DeptMembershipRequest.attendee_id == Attendee.id, '
+                    'DeptMembershipRequest.department_id == None)',
+        uselist=False,
+        viewonly=True)
     dept_roles = relationship(
         'DeptRole',
         backref='attendees',
@@ -383,7 +390,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     def unset_volunteering(self):
         self.staffing = False
-        self.requested_any_dept = False
+        self.dept_membership_requests = []
         self.requested_depts = []
         self.assigned_depts = []
         self.ribbon = remove_opt(self.ribbon_ints, c.VOLUNTEER_RIBBON)
@@ -898,19 +905,25 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def requested_depts_ids(self):
-        any_dept = ['All'] if self.requested_any_dept else []
-        _, ids = self._get_relation_ids('requested_depts')
-        return any_dept + (
-            [str(d.id) for d in self.requested_depts] if ids is None else ids)
+        return [d.department_id or 'All'
+                for d in self.dept_membership_requests]
 
     @requested_depts_ids.setter
     def requested_depts_ids(self, value):
-        values = set(s for s in listify(value) if s)
-        self.requested_any_dept = 'All' in values
-        if self.requested_any_dept:
-            values.remove('All')
-        from uber.models.department import Department
-        self._set_relation_ids('requested_depts', Department, list(values))
+        from uber.models.department import DeptMembershipRequest
+        values = set(
+            None if s in ('None', 'All') else s
+            for s in listify(value) if s != '')
+
+        for membership in list(self.dept_membership_requests):
+            if membership.department_id not in values:
+                self.dept_membership_requests.remove(membership)
+        department_ids = set(
+            str(d.department_id) for d in self.dept_membership_requests)
+        for department_id in values:
+            if department_id not in department_ids:
+                self.dept_membership_requests.append(DeptMembershipRequest(
+                    department_id=department_id, attendee_id=self.id))
 
     @property
     def worked_shifts(self):
@@ -946,11 +959,11 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @department_id_adapter
     def requested(self, department_id):
-        if self.requested_any_dept:
-            return True
-        if not department_id:
-            return False
-        return any(d.id == department_id for d in self.requested_depts)
+        if not department_id or department_id == 'All':
+            department_id = None
+        return any(
+            m.department_id == department_id
+            for m in self.dept_membership_requests)
 
     @department_id_adapter
     def assigned_to(self, department_id):

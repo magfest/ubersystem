@@ -5,9 +5,9 @@ import six
 from sideboard.lib import cached_property
 from sideboard.lib.sa import CoerceUTF8 as UnicodeText, \
     UTCDateTime, UUID
-from sqlalchemy import and_, exists, func, not_, null, or_, select
+from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import backref, column_property, foreign, remote
+from sqlalchemy.orm import backref, column_property
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint
 from sqlalchemy.types import Boolean, Float, Integer
 
@@ -21,8 +21,8 @@ from uber.utils import comma_and
 
 
 __all__ = [
-    'dept_membership_dept_role', 'dept_membership_request',
-    'job_required_role', 'Department', 'DeptChecklistItem', 'DeptMembership',
+    'dept_membership_dept_role', 'job_required_role', 'Department',
+    'DeptChecklistItem', 'DeptMembership', 'DeptMembershipRequest',
     'DeptRole', 'Job', 'Shift']
 
 
@@ -34,16 +34,6 @@ dept_membership_dept_role = Table(
     Column('dept_membership_id', UUID, ForeignKey('dept_membership.id')),
     Column('dept_role_id', UUID, ForeignKey('dept_role.id')),
     UniqueConstraint('dept_membership_id', 'dept_role_id'))
-
-
-# Many to many association table to represent the Departments where an
-# Attendee has explicitly requested to volunteer.
-dept_membership_request = Table(
-    'dept_membership_request',
-    MagModel.metadata,
-    Column('attendee_id', UUID, ForeignKey('attendee.id')),
-    Column('department_id', UUID, ForeignKey('department.id')),
-    UniqueConstraint('attendee_id', 'department_id'))
 
 
 # Many to many association table to represent the DeptRoles required
@@ -103,6 +93,18 @@ class DeptMembership(MagModel):
     def has_dept_role(cls):
         return exists().select_from(dept_membership_dept_role) \
             .where(cls.id == dept_membership_dept_role.c.dept_membership_id)
+
+
+class DeptMembershipRequest(MagModel):
+    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+
+    # A NULL value for the department_id indicates the attendee is willing
+    # to volunteer for any department (they checked "Anything" for
+    # "Where do you want to help?").
+    department_id = Column(UUID, ForeignKey('department.id'), nullable=True)
+
+    __mapper_args__ = {'confirm_deleted_rows': False}
+    __table_args__ = (UniqueConstraint('attendee_id', 'department_id'),)
 
 
 class DeptRole(MagModel):
@@ -206,10 +208,46 @@ class Department(MagModel):
     memberships = relationship('DeptMembership', backref='department')
     explicitly_requesting_attendees = relationship(
         'Attendee',
-        backref=backref('requested_depts', order_by='Department.name'),
+        backref=backref(
+            'explicitly_requested_depts', order_by='Department.name'),
         cascade='save-update,merge,refresh-expire,expunge',
         secondary='dept_membership_request',
         order_by='Attendee.full_name')
+    requesting_attendees = relationship(
+        'Attendee',
+        backref=backref('requested_depts', order_by='Department.name'),
+        cascade='save-update,merge,refresh-expire,expunge',
+        primaryjoin='or_('
+                    'DeptMembershipRequest.department_id == Department.id, '
+                    'DeptMembershipRequest.department_id == None)',
+        secondary='dept_membership_request',
+        order_by='Attendee.full_name',
+        viewonly=True)
+    unassigned_requesting_attendees = relationship(
+        'Attendee',
+        cascade='save-update,merge,refresh-expire,expunge',
+        primaryjoin='and_(or_('
+                    'DeptMembershipRequest.department_id == Department.id, '
+                    'DeptMembershipRequest.department_id == None), '
+                    'not_(exists().where(and_('
+                    'DeptMembership.department_id == Department.id, '
+                    'DeptMembership.attendee_id == '
+                    'DeptMembershipRequest.attendee_id))))',
+        secondary='dept_membership_request',
+        order_by='Attendee.full_name',
+        viewonly=True)
+    unassigned_explicitly_requesting_attendees = relationship(
+        'Attendee',
+        cascade='save-update,merge,refresh-expire,expunge',
+        primaryjoin='and_('
+                    'DeptMembershipRequest.department_id == Department.id, '
+                    'not_(exists().where(and_('
+                    'DeptMembership.department_id == Department.id, '
+                    'DeptMembership.attendee_id == '
+                    'DeptMembershipRequest.attendee_id))))',
+        secondary='dept_membership_request',
+        order_by='Attendee.full_name',
+        viewonly=True)
     parent = relationship(
         'Department',
         backref=backref(
@@ -420,59 +458,3 @@ class Shift(MagModel):
     @property
     def name(self):
         return "{}'s {!r} shift".format(self.attendee.full_name, self.job.name)
-
-
-q_requesting_attendees = select([
-    Attendee.id.label('attendee_id'),
-    null().label('department_id')]) \
-    .where(Attendee.requested_any_dept == True) \
-    .union(select([
-        Attendee.id.label('attendee_id'),
-        Department.id.label('department_id')])
-        .where(and_(
-            Department.id == dept_membership_request.c.department_id,
-            Attendee.id == dept_membership_request.c.attendee_id))) \
-    .alias()  # noqa: E712
-
-
-# ============================================================================
-# NOTE: Department.all_requesting_attendees cannot be used in a
-#       subqueryload() or joinedload() expression.
-# ============================================================================
-Department.all_requesting_attendees = relationship(
-    'Attendee',
-    cascade='save-update,merge,refresh-expire,expunge',
-    primaryjoin=or_(
-        foreign(q_requesting_attendees.c.department_id) == None,  # noqa: E711
-        Department.id == foreign(q_requesting_attendees.c.department_id)),
-    secondaryjoin=remote(Attendee.id)
-        == foreign(q_requesting_attendees.c.attendee_id),
-    secondary=q_requesting_attendees,
-    order_by='Attendee.full_name',
-    viewonly=True)
-
-
-# ============================================================================
-# NOTE: Department.unassigned_requesting_attendees cannot be used in a
-#       subqueryload() or joinedload() expression.
-# ============================================================================
-Department.unassigned_requesting_attendees = relationship(
-    Attendee,
-    cascade='save-update,merge,refresh-expire,expunge',
-    primaryjoin=and_(
-        or_(
-            foreign(q_requesting_attendees.c.department_id)
-                == None,  # noqa: E711
-            Department.id
-                == foreign(q_requesting_attendees.c.department_id)
-        ),
-        not_(exists().where(and_(
-            Department.id == DeptMembership.department_id,
-            foreign(q_requesting_attendees.c.attendee_id)
-                == DeptMembership.attendee_id
-        )))),
-    secondaryjoin=remote(Attendee.id)
-        == foreign(q_requesting_attendees.c.attendee_id),
-    secondary=q_requesting_attendees,
-    order_by=Attendee.full_name,
-    viewonly=True)

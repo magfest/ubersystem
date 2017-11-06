@@ -214,15 +214,15 @@ def test_requested_any_dept():
     dept1 = Department(name='Dept1', description='Dept1')
     dept2 = Department(name='Dept2', description='Dept2')
     volunteer = Attendee(paid=c.HAS_PAID, first_name='V', last_name='One')
-    volunteer.requested_any_dept = True
+    volunteer.dept_membership_requests = [
+        DeptMembershipRequest(attendee=volunteer)]
 
     with Session() as session:
         session.add_all([dept1, dept2, volunteer])
         session.commit()
-        session.refresh(dept1)
-        session.refresh(dept2)
-        assert dept1.all_requesting_attendees == [volunteer]
-        assert dept2.all_requesting_attendees == [volunteer]
+        session.refresh(volunteer)
+        all_depts = session.query(Department).order_by(Department.name).all()
+        assert all_depts == volunteer.requested_depts
 
 
 def test_must_contact():
@@ -356,12 +356,12 @@ class TestUnsetVolunteer:
             dept_roles=[trusted_role])
         a.assigned_depts = [dept]
         a.unset_volunteering()
-        assert not a.staffing \
-            and not a.has_role_somewhere \
-            and not a.requested_depts \
-            and not a.assigned_depts \
-            and not a.shifts \
-            and a.ribbon == ''
+        assert not a.staffing
+        assert not a.has_role_somewhere
+        assert not a.requested_depts
+        assert not a.assigned_depts
+        assert not a.shifts
+        assert a.ribbon == ''
 
     def test_different_ribbon(self):
         a = Attendee(ribbon=c.DEALER_RIBBON)

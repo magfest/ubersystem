@@ -41,9 +41,20 @@
 <h2>
   <span class="glyphicon glyphicon-cog"></span>
   Membership Requests for {{ department|form_link }}
+  {% if requested_any %}
+    <a class="btn btn-xs btn-plain" href="requests?department_id={{ department.id }}">
+  {% else %}
+    <a class="btn btn-xs btn-default" href="requests?department_id={{ department.id }}&requested_any=1">
+  {% endif %}
+      <span class="glyphicon glyphicon-filter"></span>
+      Include volunteers willing to help Anywhere
+    </a>
 </h2>
 
-{% if department.unassigned_requesting_attendees %}
+{%- set requesting_attendees = department.unassigned_requesting_attendees
+    if requested_any else department.unassigned_explicitly_requesting_attendees -%}
+
+{% if requesting_attendees %}
   <form method="post" action="requests" class="form-horizontal" role="form">
     {{ csrf_token() }}
     <input type="hidden" name="department_id" value="{{ department.id }}" />
@@ -61,7 +72,7 @@
               </tr>
             </thead>
             <tbody>
-              {% for attendee in department.unassigned_requesting_attendees %}
+              {% for attendee in requesting_attendees %}
                 <tr>
                   <td>
                     <input type="checkbox" name="attendee_ids" value="{{ attendee.id }}">
