@@ -632,13 +632,14 @@ c.DEPT_HEAD_CHECKLIST = _config['dept_head_checklist']
 c.CON_LENGTH = int((c.ESCHATON - c.EPOCH).total_seconds() // 3600)
 c.START_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (c.EPOCH + timedelta(hours=i) for i in range(c.CON_LENGTH))]
 c.DURATION_OPTS = [(i, '%i hour%s' % (i, ('s' if i > 1 else ''))) for i in range(1, 9)]
-c.SETUP_TIME_OPTS = [(dt, dt.strftime('%I %p %a'))
-                     for dt in (c.EPOCH - timedelta(days=day) + timedelta(hours=hour)
-                                for day in range(c.SETUP_SHIFT_DAYS, 0, -1)
-                                for hour in range(24))]
-c.TEARDOWN_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (c.ESCHATON + timedelta(hours=i) for i in range(6))] \
-                     + [(dt, dt.strftime('%I %p %a'))
-                        for dt in ((c.ESCHATON + timedelta(days=1)).replace(hour=10) + timedelta(hours=i) for i in range(12))]
+c.SETUP_TIME_OPTS = [
+    (dt, dt.strftime('%I %p %a')) for dt in (c.EPOCH - timedelta(days=day) + timedelta(hours=hour)
+        for day in range(c.SETUP_SHIFT_DAYS, 0, -1)
+            for hour in range(24))]
+c.TEARDOWN_TIME_OPTS = [
+    (dt, dt.strftime('%I %p %a')) for dt in (c.ESCHATON + timedelta(days=day) + timedelta(hours=hour)
+        for day in range(0, 2, 1)  # Allow two full days for teardown shifts
+            for hour in range(24))]
 
 # code for all time slots
 c.CON_TOTAL_LENGTH = int((c.TEARDOWN_TIME_OPTS[-1][0] - c.SETUP_TIME_OPTS[0][0]).seconds / 3600)
