@@ -104,6 +104,16 @@
             z-index: 9998;
             background: rgb(249,249,249);
         }
+
+        #toast-container {
+          right: 5%;
+          max-width: 90%;
+        }
+
+        #toast-container > div {
+          min-width: 300px;
+          width: auto;
+        }
     </style>
     <script>
         var DISABLE_STRIPE_BUTTONS_ON_CLICK = true;
@@ -135,20 +145,24 @@
                 showMethod: "fadeIn",
                 hideMethod: "fadeOut",
                 onShown: function() {
-                  // Remove the message parameter from the URL, if it exists
-                  if (history.replaceState) {
-                    var queryString = window.location.search.substring(1);
-                    if (queryString) {
-                      var params = parseQueryString(queryString);
-                      if (_.has(params, 'message')) {
-                        delete params['message'];
-                        queryString = $.param(params);
-                        if (queryString) {
-                          queryString = '?' + queryString;
+                  try {
+                    // Remove the message parameter from the URL, if it exists
+                    if (history.replaceState) {
+                      var queryString = window.location.search.substring(1);
+                      if (queryString) {
+                        var params = parseQueryString(queryString);
+                        if (_.has(params, 'message')) {
+                          delete params['message'];
+                          queryString = $.param(params);
+                          if (queryString) {
+                            queryString = '?' + queryString;
+                          }
+                          history.replaceState({}, '', window.location.pathname + queryString);
                         }
-                        history.replaceState({}, '', window.location.pathname + queryString);
                       }
                     }
+                  } catch(ex) {
+                    // Don't let any errors here disrupt the rest of the app!
                   }
                 }
             };
