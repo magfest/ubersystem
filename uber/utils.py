@@ -454,7 +454,7 @@ def report_critical_exception(msg, subject="Critical Error"):
 
     # also attempt to email the admins
     # TODO: Don't hardcode emails here.
-    send_email(c.ADMIN_EMAIL, [c.ADMIN_EMAIL, 'dom@magfest.org'], subject, msg + '\n{}'.format(traceback.format_exc()))
+    send_email(c.ADMIN_EMAIL, [c.ADMIN_EMAIL], subject, msg + '\n{}'.format(traceback.format_exc()))
 
 
 def get_page(page, queryset):
