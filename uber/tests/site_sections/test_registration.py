@@ -130,7 +130,7 @@ class TestRegisterGroupMember(object):
         attendee_id = None
         with Session() as session:
             group = session.query(Group).get(duplicate_badge_num_preconditions)
-            for attendee in sorted(group.attendees, key=lambda a: a.badge_num or six.MAXSIZE):
+            for attendee in sorted([a for a in group.attendees if not a.is_unassigned], key=lambda a: a.badge_num or six.MAXSIZE):
                 if attendee.id != group.leader.id:
                     attendee_id = attendee.id
                     break

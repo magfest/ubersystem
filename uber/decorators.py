@@ -266,7 +266,17 @@ def credit_card(func):
             log.debug('PAYMENT: received unexpected stripe parameters: {}', ignored)
 
         try:
-            return func(self, session=session, payment_id=payment_id, stripeToken=stripeToken)
+            try:
+                return func(self, session=session, payment_id=payment_id, stripeToken=stripeToken)
+            except HTTPRedirect:
+                # Paranoia: we want to try commiting while we're INSIDE of the
+                # @credit_card decorator to ensure that we catch any database
+                # errors (like unique constraint violations). We have to wrap
+                # this try-except inside another try-except because we want
+                # to re-raise the HTTPRedirect, and also have unexpected DB
+                # exceptions caught by the outermost exception handler.
+                session.commit()
+                raise
         except HTTPRedirect:
             raise
         except:

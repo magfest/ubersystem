@@ -658,6 +658,10 @@ class Root:
         if message:
             raise HTTPRedirect('attendee_donation_form?id=' + attendee.id + '&message={}', message)
         else:
+            # It's safe to assume the attendee exists in the database already.
+            # The only path to reach this method requires the attendee to have
+            # already paid for their registration, thus the attendee has been
+            # saved to the database.
             attendee = session.query(Attendee).get(attendee.id)
             attendee.amount_paid += charge.dollar_amount
             if attendee.paid == c.NOT_PAID and attendee.amount_paid == attendee.total_cost:
