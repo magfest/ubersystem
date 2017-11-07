@@ -123,6 +123,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     badge_printed_name = Column(UnicodeText)
 
+    dept_checklist_items = relationship(
+        'DeptChecklistItem', backref='attendee')
     dept_memberships = relationship('DeptMembership', backref='attendee')
     dept_membership_requests = relationship(
         'DeptMembershipRequest', backref='attendee')
@@ -982,6 +984,12 @@ class Attendee(MagModel, TakesPaymentMixin):
                 and c.ACCOUNTS in self.admin_account.access_ints) \
                     or self.is_dept_head_of(department)
 
+    @property
+    def can_admin_checklist(self):
+        return (self.admin_account
+                and c.ACCOUNTS in self.admin_account.access_ints) \
+            or bool(self.dept_memberships_where_can_admin_checklist)
+
     @department_id_adapter
     def can_admin_checklist_for(self, department_id):
         if not department_id:
@@ -1012,6 +1020,12 @@ class Attendee(MagModel, TakesPaymentMixin):
         return any(
             m.department_id == department_id and m.is_poc
             for m in self.dept_memberships)
+
+    def checklist_item_for_slug(self, slug):
+        for item in self.dept_checklist_items:
+            if item.slug == slug:
+                return item
+        return None
 
     def completed_every_checklist_for(self, slug):
         return all(
