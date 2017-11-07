@@ -163,6 +163,12 @@ class Attendee(MagModel, TakesPaymentMixin):
         secondary='join(Shift, Job)',
         order_by='Department.name',
         viewonly=True)
+    dept_memberships_with_inherent_role = relationship(
+        'DeptMembership',
+        primaryjoin='and_('
+                    'Attendee.id == DeptMembership.attendee_id, '
+                    'DeptMembership.has_inherent_role == True)',
+        viewonly=True)
     dept_memberships_with_role = relationship(
         'DeptMembership',
         primaryjoin='and_('
@@ -982,7 +988,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def can_admin_dept_for(self, department):
         return (self.admin_account
                 and c.ACCOUNTS in self.admin_account.access_ints) \
-                    or self.is_dept_head_of(department)
+                    or self.has_inherent_role_in(department)
 
     @property
     def can_admin_checklist(self):
@@ -1037,6 +1043,14 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     def has_role(self, role):
         return any(r.id == role.id for r in self.dept_roles)
+
+    @department_id_adapter
+    def has_inherent_role_in(self, department_id):
+        if not department_id:
+            return False
+        return any(
+            m.department_id == department_id
+            for m in self.dept_memberships_with_inherent_role)
 
     @department_id_adapter
     def has_role_in(self, department_id):
