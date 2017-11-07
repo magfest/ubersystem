@@ -462,7 +462,7 @@ class Root:
         else:
             group.amount_paid += charge.dollar_amount
 
-            session.add(group)
+            session.merge(group)
             if group.is_dealer:
                 try:
                     send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Payment Completed',
@@ -511,7 +511,7 @@ class Root:
         else:
             session.assign_badges(group, group.badges + badges_to_add)
             group.amount_paid += charge.dollar_amount
-            session.add(group)
+            session.merge(group)
             if group.is_dealer:
                 send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Paid for Extra Members',
                            render('emails/dealers/payment_notification.txt', {'group': group}), model=group)
