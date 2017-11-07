@@ -96,6 +96,12 @@ class Root:
         if not department_id:
             department_id = cherrypy.session.get('prev_department_id') or c.DEFAULT_DEPARTMENT_ID
         department_id = None if department_id == 'All' else department_id
+
+        if department_id:
+            department = session.query(Department).filter_by(id=department_id).first()
+            if not department:
+                department_id = None
+
         dept_filter = [] if not department_id \
             else [Attendee.dept_memberships.any(department_id=department_id)]
         attendees = session.staffers().filter(*dept_filter).all()

@@ -619,11 +619,18 @@ class Session(SessionManager):
                 return {'conf': conf, 'relevant': False, 'completed': None}
 
             department = self.query(Department).get(department_id)
-            return {
-                'conf': conf,
-                'relevant': attendee.can_admin_checklist_for(department_id),
-                'completed': department.checklist_item_for_slug(conf.slug)
-            }
+            if department:
+                return {
+                    'conf': conf,
+                    'relevant': attendee.can_admin_checklist_for(department_id),
+                    'completed': department.checklist_item_for_slug(conf.slug)
+                }
+            else:
+                return {
+                    'conf': conf,
+                    'relevant': attendee.can_admin_checklist,
+                    'completed': attendee.checklist_item_for_slug(conf.slug)
+                }
 
         def jobs_for_signups(self):
             fields = [
