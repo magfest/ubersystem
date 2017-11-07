@@ -14,11 +14,19 @@ class AutomatedEmail:
     # return particular model instances of a given type.
     queries = {
         Attendee: lambda session: session.all_attendees().options(
-            subqueryload(Attendee.admin_account)).options(
-            subqueryload(Attendee.dept_checklist_items)).options(
-            subqueryload(Attendee.group)),
+            subqueryload(Attendee.admin_account),
+            subqueryload(Attendee.group),
+            subqueryload(Attendee.shifts)
+                .subqueryload(Shift.job),
+            subqueryload(Attendee.assigned_depts),
+            subqueryload(Attendee.dept_membership_requests),
+            subqueryload(Attendee.checklist_admin_depts)
+                .subqueryload(Department.dept_checklist_items),
+            subqueryload(Attendee.dept_memberships),
+            subqueryload(Attendee.dept_memberships_with_role),
+            subqueryload(Attendee.depts_where_working)),
         Group: lambda session: session.query(Group).options(
-            subqueryload(Group.attendees))
+            subqueryload(Group.attendees)).order_by(Group.id)
     }
 
     def __init__(self, model, subject, template, filter, ident, *, when=(),
@@ -318,7 +326,9 @@ class DeptChecklistEmail(AutomatedEmail):
         AutomatedEmail.__init__(self, Attendee,
                                 subject='{EVENT_NAME} Department Checklist: ' + conf.name,
                                 template='shifts/dept_checklist.txt',
-                                filter=lambda a: a.is_single_dept_head and a.admin_account and not conf.completed(a),
+                                filter=lambda a: a.admin_account and any(
+                                    not d.checklist_item_for_slug(conf.slug)
+                                    for d in a.checklist_admin_depts),
                                 ident='department_checklist_{}'.format(conf.name),
                                 when=days_before(10, conf.deadline),
                                 sender=c.STAFF_EMAIL,

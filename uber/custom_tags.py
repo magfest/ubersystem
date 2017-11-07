@@ -205,6 +205,8 @@ def form_link(model):
         return safe_string('<a href="../groups/form?id={}">{}</a>'.format(model.id, jinja2.escape(model.name)))
     elif isinstance(model, uber.models.Job):
         return safe_string('<a href="../jobs/form?id={}">{}</a>'.format(model.id, jinja2.escape(model.name)))
+    elif isinstance(model, uber.models.Department):
+        return safe_string('<a href="../departments/form?id={}">{}</a>'.format(model.id, jinja2.escape(model.name)))
     elif hasattr(model, 'name'):
         return model.name
     elif hasattr(model, 'full_name'):
@@ -214,8 +216,8 @@ def form_link(model):
 
 
 @JinjaEnv.jinja_filter
-def dept_checklist_path(conf, attendee=None):
-    return safe_string(conf.path(attendee))
+def dept_checklist_path(conf, department=None):
+    return safe_string(conf.path(department))
 
 
 @JinjaEnv.jinja_filter

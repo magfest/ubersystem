@@ -55,15 +55,17 @@ class Root:
         session.delete(session.admin_account(id))
         raise HTTPRedirect('index?message={}', 'Account deleted')
 
-    def bulk(self, session, location=None, **params):
-        location = None if location == 'All' else int(location or c.JOB_LOCATION_OPTS[0][0])
-        attendees = session.staffers().filter(*[Attendee.assigned_depts.contains(str(location))] if location else []).all()
+    @department_id_adapter
+    def bulk(self, session, department_id=None, **params):
+        department_id = None if department_id == 'All' else department_id
+        attendee_filters = [Attendee.dept_memberships.any(department_id=department_id)] if department_id else []
+        attendees = session.staffers().filter(*attendee_filters).all()
         for attendee in attendees:
-            attendee.trusted_here = attendee.trusted_in(location) if location else attendee.trusted_somewhere
-            attendee.hours_here = sum(shift.job.weighted_hours for shift in attendee.shifts if shift.job.location == location) if location else attendee.weighted_hours
+            attendee.trusted_here = attendee.trusted_in(department_id) if department_id else attendee.has_role_somewhere
+            attendee.hours_here = attendee.weighted_hours_in(department_id)
 
         return {
-            'location':  location,
+            'department_id':  department_id,
             'attendees': attendees
         }
 

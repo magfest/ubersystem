@@ -17,6 +17,7 @@ def match_to_group_preconditions():
     group_id = None
     leader_id = None
     with Session() as session:
+        console = Department(name='Console_01', description='Console_01')
         leader = Attendee(
             first_name='Fearless',
             last_name='Leader',
@@ -32,7 +33,7 @@ def match_to_group_preconditions():
             badge_printed_name='Fearmore',
             ribbon='',
             staffing=True,
-            assigned_depts=str(c.CONSOLE))
+            assigned_depts=[console])
 
         group = Group(name='Too Many Badges!')
         group.auto_recalc = False
@@ -60,6 +61,7 @@ def match_to_group_preconditions():
 
 def test_match_to_group(match_to_group_preconditions):
     with Session() as session:
+        console = session.query(Department).filter_by(name='Console_01').one()
         late_comer = Attendee(
             first_name='Late',
             last_name='Comer',
@@ -76,7 +78,7 @@ def test_match_to_group(match_to_group_preconditions):
             badge_printed_name='Lateness',
             ribbon='',
             staffing=True,
-            assigned_depts=str(c.CONSOLE))
+            assigned_depts=[console])
 
         group = session.query(Group).get(match_to_group_preconditions)
 

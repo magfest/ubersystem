@@ -57,7 +57,7 @@ class Root:
             donation_amounts = list(counts['donation_tiers'].keys())
             for index, amount in enumerate(donation_amounts):
                 next_amount = donation_amounts[index + 1] if index + 1 < len(donation_amounts) else six.MAXSIZE
-                if a.total_donation >= amount and a.total_donation < next_amount:
+                if a.amount_extra >= amount and a.amount_extra < next_amount:
                     counts['donation_tiers'][amount] = counts['donation_tiers'][amount] + 1
             if not a.checked_in:
                 key = 'paid' if a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid else 'free'
@@ -99,10 +99,14 @@ class Root:
     def departments(self, session):
         attendees = session.staffers().all()
         everything = []
-        for department, name in c.JOB_LOCATION_OPTS:
-            assigned = [a for a in attendees if department in a.assigned_depts_ints]
-            unassigned = [a for a in attendees if department in a.requested_depts_ints and a not in assigned]
-            everything.append([name, assigned, unassigned])
+        departments = session.query(Department).options(
+            subqueryload(Department.members),
+            subqueryload(Department.membership_requests)).order_by(Department.name)
+        for department in departments:
+            membership_request_attendee_ids = set(m.attendee_id for m in department.membership_requests)
+            assigned = department.members
+            unassigned = [a for a in attendees if a.id in membership_request_attendee_ids and a not in assigned]
+            everything.append([department.name, assigned, unassigned])
         return {'everything': everything}
 
     def found_how(self, session):
@@ -137,24 +141,35 @@ class Root:
         }
 
     def staffing_overview(self, session):
-        attendees = session.staffers().all()
+        attendees = session.staffers().options(subqueryload(Attendee.dept_memberships)).all()
+        attendees_by_dept = defaultdict(list)
+        for attendee in attendees:
+            for dept_membership in attendee.dept_memberships:
+                attendees_by_dept[dept_membership.department_id].append(attendee)
+
         jobs = session.jobs().all()
+        jobs_by_dept = defaultdict(list)
+        for job in jobs:
+            jobs_by_dept[job.department_id].append(job)
+
+        departments = session.query(Department).order_by(Department.name)
+
         return {
             'hour_total': sum(j.weighted_hours * j.slots for j in jobs),
             'shift_total': sum(j.weighted_hours * len(j.shifts) for j in jobs),
             'volunteers': len(attendees),
             'departments': [{
-                'department': desc,
-                'assigned': len([a for a in attendees if dept in a.assigned_depts_ints]),
-                'total_hours': sum(j.weighted_hours * j.slots for j in jobs if j.location == dept),
-                'taken_hours': sum(j.weighted_hours * len(j.shifts) for j in jobs if j.location == dept)
-            } for dept, desc in c.JOB_LOCATION_OPTS]
+                'department': dept,
+                'assigned': len(attendees_by_dept[dept.id]),
+                'total_hours': sum(j.weighted_hours * j.slots for j in jobs_by_dept[dept.id]),
+                'taken_hours': sum(j.weighted_hours * len(j.shifts) for j in jobs_by_dept[dept.id])
+            } for dept in departments]
         }
 
     @csv_file
     def dept_head_contact_info(self, out, session):
         out.writerow(["Full Name", "Email", "Phone", "Department(s)"])
-        for a in session.query(Attendee).filter(Attendee.ribbon.contains(c.DEPT_HEAD_RIBBON)).order_by('last_name'):
+        for a in session.query(Attendee).filter(Attendee.dept_memberships_as_dept_head.any()).order_by('last_name'):
             for label in a.assigned_depts_labels:
                 out.writerow([a.full_name, a.email, a.cellphone, label])
 
@@ -358,14 +373,14 @@ class Root:
         for job in session.jobs():
             if job.restricted and job.slots_taken < job.slots:
                 for hour in job.hours:
-                    untaken[job.location][hour].append(job)
+                    untaken[job.department_id][hour].append(job)
         flagged = []
         for attendee in session.staffers():
             if not attendee.is_dept_head:
                 overlapping = defaultdict(set)
                 for shift in attendee.shifts:
                     if not shift.job.restricted:
-                        for dept in attendee.assigned_depts_ints:
+                        for dept in attendee.assigned_depts:
                             for hour in shift.job.hours:
                                 if attendee.trusted_in(dept) and hour in untaken[dept]:
                                     overlapping[shift.job].update(untaken[dept][hour])

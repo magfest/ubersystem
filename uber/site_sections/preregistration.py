@@ -658,10 +658,10 @@ class Root:
         if message:
             raise HTTPRedirect('attendee_donation_form?id=' + attendee.id + '&message={}', message)
         else:
+            attendee = session.query(Attendee).get(attendee.id)
             attendee.amount_paid += charge.dollar_amount
             if attendee.paid == c.NOT_PAID and attendee.amount_paid == attendee.total_cost:
                 attendee.paid = c.HAS_PAID
-            session.merge(attendee)
             raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Your payment has been accepted')
 
     def credit_card_retry(self):

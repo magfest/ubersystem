@@ -88,6 +88,74 @@ def _suffix_property_check(inst, name):
 suffix_property.check = _suffix_property_check
 
 
+def department_id_adapter(func):
+    argspec = inspect.getfullargspec(get_innermost(func))
+    if 'department_id' not in argspec.args:
+        return func
+    arg_index = argspec.args.index('department_id')
+    possible_args = ('location', 'department', 'department_id')
+
+    @wraps(func)
+    def _adapter(*args, **kwargs):
+        argvalues = inspect.getargvalues(inspect.currentframe())
+        has_kwarg = False
+        department_id = None
+        for arg in possible_args:
+            if arg in kwargs:
+                has_kwarg = True
+                department_id = kwargs[arg]
+                del kwargs[arg]
+
+        if has_kwarg:
+            from uber.models.department import Department
+            department_id = Department.to_id(department_id)
+            return func(*args, department_id=department_id, **kwargs)
+        elif arg_index < len(args):
+            from uber.models.department import Department
+            args = list(args)
+            args[arg_index] = Department.to_id(args[arg_index])
+            return func(*args, **kwargs)
+        return func(*args, **kwargs)
+
+    return _adapter
+
+
+@department_id_adapter
+def check_dept_admin(session, department_id=None):
+    from uber.models import AdminAccount, DeptMembership
+    account_id = cherrypy.session['account_id']
+    admin_account = session.query(AdminAccount).get(account_id)
+    if c.ACCOUNTS not in admin_account.access_ints:
+        dh_filter = [
+            AdminAccount.id == account_id,
+            AdminAccount.attendee_id == DeptMembership.attendee_id,
+            DeptMembership.is_dept_head == True]
+
+        if department_id:
+            dh_filter.append(DeptMembership.department_id == department_id)
+
+        is_dept_head = session.query(AdminAccount).filter(*dh_filter).first()
+        if not is_dept_head:
+            return 'You must be a department head to complete that action.'
+
+
+def requires_dept_admin(func):
+    @wraps(func)
+    def protected(*args, **kwargs):
+        if cherrypy.request.method == 'POST':
+            department_id = kwargs.get('department_id',
+                kwargs.get('department',
+                    kwargs.get('location',
+                        kwargs.get('id'))))
+
+            from uber.models import Session
+            with Session() as session:
+                message = check_dept_admin(session, department_id)
+                assert not message, message
+        return func(*args, **kwargs)
+    return protected
+
+
 def csrf_protected(func):
     @wraps(func)
     def protected(*args, csrf_token, **kwargs):
@@ -256,20 +324,20 @@ def timed(func):
 
 
 def sessionized(func):
+    innermost = get_innermost(func)
+    if 'session' not in inspect.getfullargspec(innermost).args:
+        return func
+
     @wraps(func)
     def with_session(*args, **kwargs):
-        innermost = get_innermost(func)
-        if 'session' not in inspect.getfullargspec(innermost).args:
-            return func(*args, **kwargs)
-        else:
-            with sa.Session() as session:
-                try:
-                    retval = func(*args, session=session, **kwargs)
-                    session.expunge_all()
-                    return retval
-                except HTTPRedirect:
-                    session.commit()
-                    raise
+        with sa.Session() as session:
+            try:
+                retval = func(*args, session=session, **kwargs)
+                session.expunge_all()
+                return retval
+            except HTTPRedirect:
+                session.commit()
+                raise
     return with_session
 
 

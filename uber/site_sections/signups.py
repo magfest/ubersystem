@@ -54,18 +54,18 @@ class Root:
 
     @check_shutdown
     @unrestricted
-    def volunteer(self, session, id, csrf_token=None, requested_depts='', message='Select which departments interest you as a volunteer.'):
+    def volunteer(self, session, id, csrf_token=None, requested_depts_ids=None, message=''):
         attendee = session.attendee(id)
-        if requested_depts:
+        if requested_depts_ids:
             check_csrf(csrf_token)
             attendee.staffing = True
-            attendee.requested_depts = ','.join(listify(requested_depts))
+            attendee.requested_depts_ids = requested_depts_ids
             raise HTTPRedirect('login?message={}', "Thanks for signing up as a volunteer; you'll be emailed as soon as you are assigned to one or more departments.")
 
         return {
             'message': message,
             'attendee': attendee,
-            'requested_depts': requested_depts
+            'requested_depts_ids': requested_depts_ids
         }
 
     @check_shutdown
@@ -125,9 +125,9 @@ class Root:
                 attendee = session.lookup_attendee(first_name.strip(), last_name.strip(), email, zip_code)
                 if not attendee.staffing:
                     message = safe_string('You are not signed up as a volunteer.  <a href="volunteer?id={}">Click Here</a> to sign up.'.format(attendee.id))
-                elif not attendee.assigned_depts_ints and not c.AT_THE_CON:
+                elif not attendee.dept_memberships and not c.AT_THE_CON:
                     message = 'You have not been assigned to any departments; an admin must assign you to a department before you can log in'
-            except:
+            except Exception as ex:
                 message = 'No attendee matches that name and email address and zip code'
 
             if not message:

@@ -1,0 +1,53 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Departments{% endblock %}
+
+{% block content %}
+  <h1>
+    Departments
+    {% if filtered %}
+      <a class="btn btn-xs btn-plain" href="index">
+    {% else %}
+      <a class="btn btn-xs btn-default" href="index?filtered=1">
+    {% endif %}
+        <span class="glyphicon glyphicon-filter"></span>
+        Show only my departments
+      </a>
+    <a href="new" class="btn btn-primary pull-right">
+      <span class="glyphicon glyphicon-plus"></span>
+      Create Department
+    </a>
+  </h1>
+
+  {% if departments -%}
+    <div class="table-responsive">
+      <table
+          class="table table-hover datatable"
+          data-paging="false"
+          data-info="false">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Shiftless</th>
+            <th>Solicits Volunteers</th>
+            <th>Members</th>
+          </tr>
+        </thead>
+        <tbody>
+          {%- for department in departments -%}
+            <tr>
+              <td>{{ department|form_link }}</td>
+              <td>{{ department.description }}</td>
+              <td>{{ department.is_shiftless|yesno("Yes,No") }}</td>
+              <td>{{ department.solicits_volunteers|yesno("Yes,No") }}</td>
+              <td>{{ department.member_count }}</td>
+            </tr>
+          {%- endfor -%}
+        </tbody>
+      </table>
+    </div>
+  {%- else -%}
+    <em>No Departments Found!</em>
+  {%- endif %}
+
+{% endblock %}

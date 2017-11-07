@@ -3,11 +3,13 @@ from datetime import datetime
 
 import cherrypy
 import pytest
+import six
 from uber.common import *
-from uber.site_sections import preregistration
+from uber.site_sections import registration
 from uber.tests.conftest import admin_attendee, assert_unique, \
     extract_message_from_html, GET, POST
 from uber.utils import CSRFException
+from uber.models import _attendee_validity_check
 
 
 next_week = datetime.utcnow().replace(tzinfo=pytz.UTC) + timedelta(days=7)
@@ -106,48 +108,34 @@ def duplicate_badge_num_preconditions():
 
 class TestRegisterGroupMember(object):
 
-    def _register_group_member_response(self, **params):
+    def _delete_response(self, **params):
+        _attendee_validity_check()
         with pytest.raises(HTTPRedirect) as excinfo:
-            preregistration.Root().register_group_member(**params)
+            registration.Root().delete(**params)
 
         redirect = excinfo.value
         assert isinstance(redirect, HTTPRedirect)
         assert 303 == redirect.status
-        assert 'message=Badge%20registered%20successfully' in redirect.urls[0]
+        assert 'message=Attendee%20deleted' in redirect.urls[0]
 
         return redirect
 
-    def test_register_group_member_duplicate_badge_num(
+    def test_delete_duplicate_badge_num(
             self,
             POST,
             csrf_token,
             admin_attendee,
             duplicate_badge_num_preconditions):
 
-        response = self._register_group_member_response(
-            group_id=duplicate_badge_num_preconditions,
-            first_name='Duplicate',
-            last_name='Follower',
-            legal_name='Duplicate Follower',
-            ec_name='Nana Fearless',
-            ec_phone='555-555-1234',
-            requested_hotel_info='0',
-            can_spam='1',
-            badge_type=str(c.ATTENDEE_BADGE),
-            shirt='0',
-            zip_code='21211',
-            affiliate='',
-            requested_depts=['80341158', '224685583'],
-            amount_extra='0',
-            email='duplicate@example.com',
-            found_how='Followed my fearless leader',
-            cellphone='555-555-4321',
-            staffing='1',
-            birthdate='1964-12-30',
-            comments='What is even happening?',
-            interests=[str(c.ARCADE), str(c.CONSOLE)],
-            badge_printed_name='',
-            id='None')
+        attendee_id = None
+        with Session() as session:
+            group = session.query(Group).get(duplicate_badge_num_preconditions)
+            for attendee in sorted(group.attendees, key=lambda a: a.badge_num or six.MAXSIZE):
+                if attendee.id != group.leader.id:
+                    attendee_id = attendee.id
+                    break
+
+        response = self._delete_response(id=attendee_id, csrf_token=csrf_token)
 
         with Session() as session:
             group = session.query(Group).get(duplicate_badge_num_preconditions)

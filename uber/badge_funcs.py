@@ -107,7 +107,9 @@ def check_placeholders():
 def check_unassigned():
     if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS):
         with Session() as session:
-            unassigned = session.query(Attendee).filter_by(staffing=True, assigned_depts='').order_by(Attendee.full_name).all()
+            unassigned = session.query(Attendee).filter(
+                Attendee.staffing == True,
+                not_(Attendee.dept_memberships.any())).order_by(Attendee.full_name).all()
             subject = c.EVENT_NAME + ' Unassigned Volunteer Report for ' + localized_now().strftime('%Y-%m-%d')
             if unassigned and session.no_email(subject):
                 body = render('emails/daily_checks/unassigned.html', {'unassigned': unassigned})

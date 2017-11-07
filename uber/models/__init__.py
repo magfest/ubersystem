@@ -23,9 +23,9 @@ from sqlalchemy.schema import MetaData
 from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric
 from sqlalchemy.util import immutabledict
 
-from uber.config import c
-from uber.decorators import cached_classproperty, cost_property, \
-    suffix_property
+from uber.config import c, create_namespace_uuid
+from uber.decorators import cached_classproperty, classproperty, \
+    cost_property, department_id_adapter, presave_adjustment, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
 from uber.utils import check_csrf, get_real_badge_type, DeptChecklistConf, \
     HTTPRedirect
@@ -52,6 +52,10 @@ class MagModel:
     id = Column(UUID, primary_key=True, default=lambda: str(uuid4()))
 
     required = ()
+
+    @cached_classproperty
+    def NAMESPACE(cls):
+        return create_namespace_uuid(cls.__name__)
 
     @cached_classproperty
     def _class_attr_names(cls):
@@ -173,6 +177,37 @@ class MagModel:
         return {
             colname for colname in cls.all_checkgroups
             if colname in cls.unrestricted}
+
+    @classproperty
+    def extra_apply_attrs(cls):
+        """
+        Returns a set of extra attrs used by apply(). These are settable
+        attributes or properties that are not in cls.__table__columns.
+        """
+        return set()
+
+    @classproperty
+    def extra_apply_attrs_restricted(cls):
+        """
+        Returns a set of extra attrs used by apply(restricted=True). These are
+        settable attributes or properties that are not in cls.__table__columns.
+        """
+        return set()
+
+    def _get_relation_ids(self, relation):
+        return getattr(self, '_relation_ids', {}).get(relation, (None, None))
+
+    def _set_relation_ids(self, relation, ModelClass, ids):
+        _relation_ids = getattr(self, '_relation_ids', {})
+        _relation_ids[relation] = (ModelClass, ids)
+        setattr(self, '_relation_ids', _relation_ids)
+
+    @presave_adjustment
+    def _convert_relation_ids_to_instances(self):
+        _relation_ids = getattr(self, '_relation_ids', {})
+        for relation, (ModelClass, ids) in _relation_ids.items():
+            self.session.set_relation_ids(self, relation, ModelClass, ids)
+        setattr(self, '_relation_ids', {})
 
     @property
     def session(self):
@@ -399,6 +434,13 @@ class MagModel:
             if not ignore_csrf:
                 check_csrf(params.get('csrf_token'))
 
+        extra_apply_attrs = self.extra_apply_attrs_restricted \
+            if restricted else self.extra_apply_attrs
+
+        for attr in extra_apply_attrs:
+            if attr in params:
+                setattr(self, attr, params[attr])
+
         return self
 
     def timespan(self, minute_increment=60):
@@ -427,16 +469,18 @@ class MagModel:
 
 # Make all of our model classes available from uber.models
 from uber.models.admin import *  # noqa: F401,E402,F403
+from uber.models.promo_code import *  # noqa: F401,E402,F403
 from uber.models.attendee import *  # noqa: F401,E402,F403
 from uber.models.commerce import *  # noqa: F401,E402,F403
+from uber.models.department import *  # noqa: F401,E402,F403
 from uber.models.email import *  # noqa: F401,E402,F403
 from uber.models.group import *  # noqa: F401,E402,F403
-from uber.models.promo_code import *  # noqa: F401,E402,F403
 from uber.models.tracking import *  # noqa: F401,E402,F403
 from uber.models.types import *  # noqa: F401,E402,F403
 
 # Explicitly import models used by the Session class to quiet flake8
-from uber.models.admin import AdminAccount, Job, Shift, WatchList  # noqa: E402
+from uber.models.admin import AdminAccount, WatchList  # noqa: E402
+from uber.models.department import Job, Shift, Department  # noqa: E402
 from uber.models.attendee import Attendee  # noqa: E402
 from uber.models.email import Email  # noqa: E402
 from uber.models.group import Group  # noqa: E402
@@ -563,7 +607,7 @@ class Session(SessionManager):
         def logged_in_volunteer(self):
             return self.attendee(cherrypy.session['staffer_id'])
 
-        def checklist_status(self, slug, department):
+        def checklist_status(self, slug, department_id):
             attendee = self.admin_attendee()
             conf = DeptChecklistConf.instances.get(slug)
             if not conf:
@@ -571,29 +615,38 @@ class Session(SessionManager):
                     "Can't access dept checklist INI settings for section "
                     "'{}', check your INI file".format(slug))
 
-            is_relevant = attendee.is_single_dept_head and \
-                attendee.assigned_depts_ints == [int(department or 0)]
-            return {
-                'conf': conf,
-                'relevant': is_relevant,
-                'completed': conf.completed(attendee)
-            }
+            if not department_id:
+                return {'conf': conf, 'relevant': False, 'completed': None}
+
+            department = self.query(Department).get(department_id)
+            if department:
+                return {
+                    'conf': conf,
+                    'relevant': attendee.can_admin_checklist_for(department_id),
+                    'completed': department.checklist_item_for_slug(conf.slug)
+                }
+            else:
+                return {
+                    'conf': conf,
+                    'relevant': attendee.can_admin_checklist,
+                    'completed': attendee.checklist_item_for_slug(conf.slug)
+                }
 
         def jobs_for_signups(self):
             fields = [
-                'name', 'location_label', 'description', 'weight',
+                'name', 'department_name', 'description', 'weight',
                 'start_time_local', 'end_time_local', 'duration',
                 'weighted_hours', 'restricted', 'extra15', 'taken']
             jobs = self.logged_in_volunteer().possible_and_current
             restricted_hours = set()
             for job in jobs:
-                if job.restricted:
+                if job.required_roles:
                     restricted_hours.add(frozenset(job.hours))
             return [
                 job.to_dict(fields)
                 for job in jobs
-                if (job.restricted or
-                    frozenset(job.hours) not in restricted_hours)]
+                if (job.required_roles
+                    or frozenset(job.hours) not in restricted_hours)]
 
         def guess_attendee_watchentry(self, attendee):
             or_clauses = [
@@ -903,17 +956,25 @@ class Session(SessionManager):
             return self.query(Attendee) \
                 .filter(badge_filter, *staffing_filter) \
                 .options(
+                    subqueryload(Attendee.dept_memberships),
                     subqueryload(Attendee.group),
-                    subqueryload(Attendee.shifts).subqueryload(Shift.job)) \
-                .order_by(Attendee.full_name)
+                    subqueryload(Attendee.shifts)
+                    .subqueryload(Shift.job)
+                    .subqueryload(Job.department)) \
+                .order_by(Attendee.full_name, Attendee.id)
 
         def staffers(self):
             return self.all_attendees(only_staffing=True)
 
-        def jobs(self, location=None):
+        @department_id_adapter
+        def jobs(self, department_id=None):
+            job_filter = {
+                'department_id': department_id} if department_id else {}
+
             return self.query(Job) \
-                .filter_by(**{'location': location} if location else {}) \
+                .filter_by(**job_filter) \
                 .options(
+                    subqueryload(Job.department),
                     subqueryload(Job.shifts)
                     .subqueryload(Shift.attendee)
                     .subqueryload(Attendee.group)) \
@@ -927,11 +988,12 @@ class Session(SessionManager):
                 for id, full_name in query.filter_by(staffing=True)
                                           .order_by(Attendee.full_name)]
 
-        def single_dept_heads(self, dept=None):
-            assigned = {'assigned_depts': str(dept)} if dept else {}
+        @department_id_adapter
+        def dept_heads(self, department_id=None):
+            if department_id:
+                return self.query(Department).get(department_id).dept_heads
             return self.query(Attendee) \
-                .filter(Attendee.ribbon.contains(c.DEPT_HEAD_RIBBON)) \
-                .filter_by(**assigned) \
+                .filter(Attendee.dept_memberships.any(is_dept_head=True)) \
                 .order_by(Attendee.full_name).all()
 
         def match_to_group(self, attendee, group):
@@ -1089,9 +1151,10 @@ class Session(SessionManager):
             job = self.job(job_id)
             attendee = self.attendee(attendee_id)
 
-            if job.restricted and not attendee.trusted_in(job.location):
-                return 'You cannot assign an attendee who is not trusted ' \
-                    'in this department to a restricted shift'
+            if not attendee.has_required_roles(job):
+                return 'You cannot assign an attendee to this shift who ' \
+                    'does not have the required roles: ' \
+                    '{}'.format(job.required_roles_labels)
 
             if job.slots <= len(job.shifts):
                 return 'All slots for this job have already been filled'
@@ -1149,6 +1212,12 @@ class Session(SessionManager):
             ))
 
             return True
+
+        def set_relation_ids(self, instance, field, cls, value):
+            values = set(s for s in listify(value) if s and s != 'None')
+            relations = self.query(cls).filter(cls.id.in_(values)).all() \
+                if values else []
+            setattr(instance, field, relations)
 
         def bulk_insert(self, models):
             """

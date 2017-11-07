@@ -22,33 +22,69 @@
 
 
 {% macro checkbox(model, field_name, id=None, label=None, label_class=None, is_readonly=False, title=None) -%}
+  {%- set is_class = model is class -%}
+  {%- set is_checked = not is_class and model[field_name] -%}
   {% if label %}
     <label
-            class="checkbox-label{% if label_class %} {{ label_class }}{% endif %}{% if is_readonly %} disabled{% endif %}"
-            {% if title %}title="{{ title }}"{% endif %}>
+        class="checkbox-label{% if label_class %} {{ label_class }}{% endif %}{% if is_readonly %} disabled{% endif %}"
+        {% if title %}title="{{ title }}"{% endif %}>
   {% endif %}
-{% if is_readonly %}
-  <input
-          type="hidden"
-          name="{{ field_name }}"
-          id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
-          value="{%- if model[field_name] -%}1{%- else -%}0{%- endif -%}" />
-  <input
-          type="checkbox"
-          value="1"
-          disabled
-          {% if not label and title %}title="{{ title }}"{% endif %}
-          {% if model[field_name] %}checked{% endif %} />
-{% else %}
-  <input
-          type="checkbox"
-          name="{{ field_name }}"
-          id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
-          value="1"
-          {% if not label and title %}title="{{ title }}"{% endif %}
-          {% if model[field_name] %}checked{% endif %} />
-{% endif %}
-{% if label %}{{ label }}</label>{% endif %}
+  {% if is_readonly %}
+    <input
+        type="hidden"
+        name="{{ field_name }}"
+        id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
+        value="{% if is_checked %}1{% else %}0{% endif %}" />
+    <input
+        type="checkbox"
+        value="1"
+        disabled
+        {% if not label and title %}title="{{ title }}"{% endif %}
+        {% if is_checked %}checked{% endif %} />
+  {% else %}
+    <input
+        type="checkbox"
+        name="{{ field_name }}"
+        id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
+        value="1"
+        {% if not label and title %}title="{{ title }}"{% endif %}
+        {% if is_checked %}checked{% endif %} />
+  {% endif %}
+  {% if label %}{{ label }}</label>{% endif %}
+{%- endmacro %}
+
+
+{% macro checkgroup_opts(field_name, choices, suffix='', defaults=[], is_readonly=False, include_empty_hidden=False) -%}
+  <div class="checkgroup">
+    {% for choice in choices -%}
+      {%- set value = choice.0 -%}
+      {%- set label = choice.1 -%}
+      {%- set desc = choice.2 -%}
+      {%- set has_value = value|string in defaults -%}
+      {%- if not is_readonly or has_value -%}
+        <label
+            class="checkbox-label{% if is_readonly %} disabled{% endif %}"
+            style="font-weight: normal;"
+            {% if desc %}title="{{ desc }}"{% endif %}>
+          {% if is_readonly %}
+            <input type="hidden" name="{{ field_name }}{{ suffix }}" value="{{ value }}"/>
+            <input type="checkbox" disabled checked/>
+            {{ label }}
+          {% else %}
+            {% if include_empty_hidden %}
+              <input type="hidden" name="{{ field_name }}{{ suffix }}" value=""/>
+            {% endif %}
+            <input
+                type="checkbox"
+                name="{{ field_name }}{{ suffix }}"
+                value="{{ value }}"
+                {% if has_value %}checked{% endif %}/>
+            {{ label }}
+          {% endif %}
+        </label>
+      {% endif %}
+    {% endfor %}
+  </div>
 {%- endmacro %}
 
 
@@ -56,29 +92,8 @@
   {%- set is_class = model is class -%}
   {%- set defaults = model[field_name] if not defaults and not is_class else '' -%}
   {%- set defaults = defaults.split(",") if defaults else [] -%}
-  <div class="checkgroup">
-    {% for num, desc in model.get_field(field_name).type.choices -%}
-      {%- set has_value = num|string in defaults -%}
-      {%- if not is_readonly or has_value -%}
-        <label
-                class="checkbox-label{% if is_readonly %} disabled{% endif %}"
-                style="font-weight: normal;">
-          {% if is_readonly %}
-            <input type="hidden" name="{{ field_name }}{{ suffix }}" value="{{ num }}"/>
-            <input type="checkbox" disabled checked/>
-            {{ desc }}
-          {% else %}
-            <input
-                    type="checkbox"
-                    name="{{ field_name }}{{ suffix }}"
-                    value="{{ num }}"
-                    {% if has_value %}checked{% endif %}/>
-            {{ desc }}
-          {% endif %}
-        </label>
-      {% endif %}
-    {% endfor %}
-  </div>
+  {%- set choices = model.get_field(field_name).type.choices -%}
+  {{ checkgroup_opts(field_name, choices, suffix, defaults, is_readonly) }}
 {%- endmacro %}
 
 
@@ -127,7 +142,8 @@
     form_class='',
     is_required=False,
     is_readonly=False,
-    is_admin=False) -%}
+    is_admin=False,
+    is_focused=False) -%}
 
   {%- set is_class = model is class -%}
   {%- set has_value = not is_class and model[field] -%}
@@ -148,10 +164,11 @@
       {%- else -%}
         {%- if type == 'textarea' -%}
           <textarea
-                  class="form-control"
-                  name="{{ field }}{{ suffix }}"
-                  rows="4"
-                  placeholder="{{ placeholder }}">{{ '' if is_class else model[field] }}</textarea>
+              class="form-control"
+              name="{{ field }}{{ suffix }}"
+              rows="4"
+              placeholder="{{ placeholder }}"
+              {% if is_focused %}autofocus{% endif %}>{{ '' if is_class else model[field] }}</textarea>
         {%- else -%}
           <input
                   class="form-control"
@@ -160,7 +177,8 @@
                   {% if id %}id="{{ id }}"{% endif %}
                   value="{{ '' if is_class else model[field] }}"
                   placeholder="{{ placeholder }}"
-                  {% if is_required %}required="required"{% endif %}/>
+                  {% if is_required %}required="required"{% endif %}
+                  {% if is_focused %}autofocus{% endif %}/>
         {%- endif -%}
         {%- if is_admin and has_value -%}
           {%- if type == 'email' -%}

@@ -46,31 +46,31 @@ def test_unassign_all_interests(attendee, post):
     assert attendee.interests == ''
 
 
-def test_unassign_all_assigned_depts(attendee, post):
-    assert attendee.assigned_depts == ''
+def test_unassign_all_ribbons(attendee, post):
+    assert attendee.ribbon == ''
 
-    # set this up by assigning arcade as an assigned dept
-    attendee.apply({'assigned_depts': c.ARCADE}, restricted=False, checkgroups={'assigned_depts'})
-    assert attendee.assigned_depts == str(c.ARCADE)
+    # set this up by assigning shopkeep as an ribbon
+    attendee.apply({'ribbon': c.DEALER_RIBBON}, restricted=False, checkgroups={'ribbon'})
+    assert attendee.ribbon == str(c.DEALER_RIBBON)
 
     # make sure if we remove all assigned_depts by leaving params blank that it sticks
     # note: this only works when submitting data via POST
-    attendee.apply({}, restricted=False, checkgroups={'assigned_depts'})
-    assert attendee.assigned_depts == ''
+    attendee.apply({}, restricted=False, checkgroups={'ribbon'})
+    assert attendee.ribbon == ''
 
 
-def test_dont_let_restricted_unassign_all_assigned_depts(attendee, post):
-    assert attendee.assigned_depts == ''
+def test_dont_let_restricted_unassign_all_ribbons(attendee, post):
+    assert attendee.ribbon == ''
 
     # set this up by trying to assign arcade as an assigned dept, which should fail
-    attendee.apply({'assigned_depts': c.ARCADE}, restricted=True, checkgroups={'assigned_depts'})
-    assert attendee.assigned_depts == ''
+    attendee.apply({'ribbon': c.DEALER_RIBBON}, restricted=True, checkgroups={'ribbon'})
+    assert attendee.ribbon == ''
 
-    attendee.assigned_depts = str(c.ARCADE)
+    attendee.ribbon = str(c.DEALER_RIBBON)
 
-    # make sure if we attempt to remove all assigned_depts by leaving params blank that it doens't let us
-    attendee.apply({}, restricted=True, checkgroups={'assigned_depts'})
-    assert attendee.assigned_depts == str(c.ARCADE)
+    # make sure if we attempt to remove all ribbon by leaving params blank that it doens't let us
+    attendee.apply({}, restricted=True, checkgroups={'ribbon'})
+    assert attendee.ribbon == str(c.DEALER_RIBBON)
 
 
 def test_id(attendee):
@@ -80,10 +80,35 @@ def test_id(attendee):
 
 
 def test_multilist(attendee):
-    assert attendee.requested_depts == attendee.interests == ''
-    attendee.apply({'requested_depts': [c.ARCADE, c.CONSOLE], 'interests': [c.ARCADE]})
+    assert attendee.ribbon == attendee.interests == ''
+    attendee.apply({'ribbon': [c.DEALER_RIBBON, c.PANELIST_RIBBON], 'interests': [c.ARCADE]}, restricted=True)
     assert attendee.interests == str(c.ARCADE)
-    assert attendee.requested_depts == str(c.ARCADE) + ',' + str(c.CONSOLE)
+    assert attendee.ribbon == ''
+
+
+def test_multilist_post(attendee, post):
+    ribbons = [c.DEALER_RIBBON, c.PANELIST_RIBBON]
+    ribbons_str = ','.join(map(str, ribbons))
+
+    assert attendee.ribbon == attendee.interests == ''
+
+    attendee.apply({'ribbon': ribbons, 'interests': [c.ARCADE]}, restricted=True)
+    assert attendee.interests == str(c.ARCADE)
+    assert attendee.ribbon == ''
+
+    attendee.apply({}, restricted=True, checkgroups={'ribbon', 'interests'})
+    assert attendee.ribbon == attendee.interests == ''
+
+    attendee.apply({'ribbon': ribbons, 'interests': [c.ARCADE]}, restricted=False)
+    assert attendee.interests == str(c.ARCADE)
+    assert attendee.ribbon == ribbons_str
+
+    attendee.apply({}, restricted=True, checkgroups={'ribbon', 'interests'})
+    assert attendee.ribbon == ribbons_str
+    assert attendee.interests == ''
+
+    attendee.apply({}, restricted=False, checkgroups={'ribbon', 'interests'})
+    assert attendee.ribbon == attendee.interests == ''
 
 
 def test_bool(attendee):

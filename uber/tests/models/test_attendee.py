@@ -3,6 +3,32 @@ from uber.tests import *
 from uber.model_checks import extra_donation_valid, _invalid_phone_number
 
 
+@pytest.fixture()
+def dept():
+    yield Department(
+        id='97cc0050-11e0-42eb-9a1b-83f27a1acf76',
+        name='Console Challenges',
+        description='Console Challenges')
+
+
+@pytest.fixture()
+def shiftless_dept():
+    yield Department(
+        id='27152595-2ea8-43ee-8edb-a68cefb2b2ac',
+        name='Con Ops',
+        description='Con Ops',
+        is_shiftless=True)
+
+
+@pytest.fixture()
+def trusted_role(dept):
+    yield DeptRole(
+        id='45c3fd2a-df1d-46bd-a10c-7289bbfd1167',
+        name='Trusted',
+        description='Trusted',
+        department=dept)
+
+
 class TestCosts:
     @pytest.fixture(autouse=True)
     def mocked_prices(self, monkeypatch):
@@ -70,7 +96,36 @@ def test_is_dealer():
 
 def test_is_dept_head():
     assert not Attendee().is_dept_head
-    assert Attendee(ribbon=c.DEPT_HEAD_RIBBON).is_dept_head
+    dept_membership = DeptMembership(is_dept_head=True)
+    assert Attendee(dept_memberships=[dept_membership]).is_dept_head
+
+
+def test_dept_head_ribbon_label_from_ribbon_attr():
+    a = Attendee()
+    assert a.ribbon_labels == []
+
+    a.ribbon = '{}'.format(c.DEPT_HEAD_RIBBON)
+    assert a.ribbon_labels == ['Department Head']
+
+    a.ribbon = '{},{}'.format(c.VOLUNTEER_RIBBON, c.DEPT_HEAD_RIBBON)
+    assert a.ribbon_labels == ['Department Head', 'Volunteer']
+
+    a.ribbon = '{}'.format(c.VOLUNTEER_RIBBON)
+    assert a.ribbon_labels == ['Volunteer']
+
+
+def test_dept_head_ribbon_label_from_dept_membership():
+    a = Attendee()
+    assert a.ribbon_labels == []
+
+    a.dept_memberships = [DeptMembership(is_dept_head=True)]
+    assert a.ribbon_labels == ['Department Head']
+
+    a.ribbon = '{}'.format(c.VOLUNTEER_RIBBON)
+    assert a.ribbon_labels == ['Department Head', 'Volunteer']
+
+    a.dept_memberships = [DeptMembership(is_dept_head=False)]
+    assert a.ribbon_labels == ['Volunteer']
 
 
 def test_unassigned_name(monkeypatch):
@@ -125,15 +180,114 @@ def test_is_transferable(monkeypatch):
     assert not Attendee(paid=c.HAS_PAID, badge_type=c.GUEST_BADGE).is_transferable
 
 
-def test_is_not_transferable_trusted(monkeypatch):
+def test_is_not_transferable_trusted(monkeypatch, dept, trusted_role):
     monkeypatch.setattr(Attendee, 'is_new', False)
-    assert not Attendee(paid=c.HAS_PAID, trusted_depts=c.CONSOLE).is_transferable
+    with Session() as session:
+        attendee = Attendee(paid=c.HAS_PAID)
+        dept_membership = DeptMembership(
+            attendee=attendee,
+            department=dept,
+            dept_roles=[trusted_role])
+        session.add_all([attendee, dept, trusted_role, dept_membership])
+        session.flush()
+        assert not attendee.is_transferable
 
 
-def test_trusted_somewhere():
-    assert Attendee(trusted_depts='{},{}'.format(c.ARCADE, c.CONSOLE)).trusted_somewhere
-    assert Attendee(trusted_depts=str(c.CONSOLE)).trusted_somewhere
-    assert not Attendee(trusted_depts='').trusted_somewhere
+def test_has_role_somewhere(dept, trusted_role):
+    with Session() as session:
+        attendee = Attendee(paid=c.HAS_PAID)
+        dept_membership = DeptMembership(
+            attendee=attendee,
+            department=dept,
+            dept_roles=[trusted_role])
+        session.add_all([attendee, dept, trusted_role, dept_membership])
+        session.flush()
+        assert attendee.has_role_somewhere
+
+        dept_membership.dept_roles = []
+        session.flush()
+        session.refresh(attendee)
+        assert not attendee.has_role_somewhere
+
+
+def test_requested_any_dept():
+    dept1 = Department(name='Dept1', description='Dept1')
+    dept2 = Department(name='Dept2', description='Dept2')
+    volunteer = Attendee(paid=c.HAS_PAID, first_name='V', last_name='One')
+    volunteer.dept_membership_requests = [
+        DeptMembershipRequest(attendee=volunteer)]
+
+    with Session() as session:
+        session.add_all([dept1, dept2, volunteer])
+        session.commit()
+        session.refresh(volunteer)
+        all_depts = session.query(Department).order_by(Department.name).all()
+        assert all_depts == volunteer.requested_depts
+
+
+def test_must_contact():
+    dept1 = Department(name='Dept1', description='Dept1')
+    dept2 = Department(name='Dept2', description='Dept2')
+
+    poc_dept1 = Attendee(
+        paid=c.NEED_NOT_PAY, first_name='Poc', last_name='Dept1')
+    poc_dept2 = Attendee(
+        paid=c.NEED_NOT_PAY, first_name='Poc', last_name='Dept2')
+    poc_both = Attendee(
+        paid=c.NEED_NOT_PAY, first_name='Poc', last_name='Both')
+
+    poc_dept1.dept_memberships = [DeptMembership(
+        attendee=poc_dept1,
+        department=dept1,
+        is_poc=True)]
+
+    poc_dept2.dept_memberships = [DeptMembership(
+        attendee=poc_dept2,
+        department=dept2,
+        is_poc=True)]
+
+    poc_both.dept_memberships = [
+        DeptMembership(
+            attendee=poc_dept1,
+            department=dept1,
+            is_poc=True),
+        DeptMembership(
+            attendee=poc_dept2,
+            department=dept2,
+            is_poc=True)]
+
+    start_time = datetime.now(tz=pytz.UTC)
+
+    job1 = Job(
+        name='Job1',
+        description='Job1',
+        start_time=start_time,
+        duration=1,
+        weight=1,
+        slots=1,
+        department=dept1)
+
+    job2 = Job(
+        name='Job2',
+        description='Job2',
+        start_time=start_time,
+        duration=1,
+        weight=1,
+        slots=1,
+        department=dept2)
+
+    volunteer = Attendee(paid=c.HAS_PAID, first_name='V', last_name='One')
+
+    job1.shifts = [Shift(attendee=volunteer, job=job1)]
+    job2.shifts = [Shift(attendee=volunteer, job=job2)]
+
+    with Session() as session:
+        session.add_all([
+            dept1, dept2, poc_dept1, poc_dept2, poc_both, job1, job2,
+            volunteer])
+        session.commit()
+        assert volunteer.must_contact == \
+            '(Dept1) Poc Both / Poc Dept1<br/>(Dept2) Poc Both / Poc Dept2'
 
 
 def test_has_personalized_badge():
@@ -144,12 +298,12 @@ def test_has_personalized_badge():
         assert not Attendee(badge_type=badge_type).has_personalized_badge
 
 
-def test_takes_shifts():
+def test_takes_shifts(dept, shiftless_dept):
     assert not Attendee().takes_shifts
     assert not Attendee(staffing=True).takes_shifts
-    assert Attendee(staffing=True, assigned_depts=c.CONSOLE).takes_shifts
-    assert not Attendee(staffing=True, assigned_depts=c.CON_OPS).takes_shifts
-    assert Attendee(staffing=True, assigned_depts=','.join(map(str, [c.CONSOLE, c.CON_OPS]))).takes_shifts
+    assert Attendee(staffing=True, assigned_depts=[dept]).takes_shifts
+    assert not Attendee(staffing=True, assigned_depts=[shiftless_dept]).takes_shifts
+    assert Attendee(staffing=True, assigned_depts=[dept, shiftless_dept]).takes_shifts
 
 
 class TestAttendeeFoodRestrictionsFilledOut:
@@ -190,10 +344,24 @@ class TestAttendeeFoodRestrictionsFilledOut:
 
 
 class TestUnsetVolunteer:
-    def test_basic(self):
-        a = Attendee(staffing=True, trusted_depts=c.CONSOLE, requested_depts=c.CONSOLE, assigned_depts=c.CONSOLE, ribbon=c.VOLUNTEER_RIBBON, shifts=[Shift()])
+    def test_basic(self, dept, trusted_role):
+        a = Attendee(
+            staffing=True,
+            requested_depts=[dept],
+            ribbon=c.VOLUNTEER_RIBBON,
+            shifts=[Shift()])
+        dept_membership = DeptMembership(
+            attendee=a,
+            department=dept,
+            dept_roles=[trusted_role])
+        a.assigned_depts = [dept]
         a.unset_volunteering()
-        assert not a.staffing and not a.trusted_somewhere and not a.requested_depts and not a.assigned_depts and not a.shifts and a.ribbon == ''
+        assert not a.staffing
+        assert not a.has_role_somewhere
+        assert not a.requested_depts
+        assert not a.assigned_depts
+        assert not a.shifts
+        assert a.ribbon == ''
 
     def test_different_ribbon(self):
         a = Attendee(ribbon=c.DEALER_RIBBON)
@@ -272,40 +440,45 @@ class TestStaffingAdjustments:
         monkeypatch.setattr(Attendee, 'presave_adjustments', Mock())
         return Attendee.presave_adjustments
 
-    def test_dept_head_invariants(self):
-        a = Attendee(ribbon=c.DEPT_HEAD_RIBBON, assigned_depts=c.CONSOLE)
+    def test_dept_head_invariants(self, dept):
+        dept_membership = DeptMembership(
+            department=dept,
+            is_dept_head=True)
+        a = Attendee(dept_memberships=[dept_membership])
         a._staffing_adjustments()
         assert a.staffing
         assert a.badge_type == c.STAFF_BADGE
 
-    def test_staffing_still_trusted_assigned(self):
+    def test_staffing_still_trusted_assigned(self, dept, shiftless_dept):
         """
         After applying staffing adjustements:
         Any depts you are both trusted and assigned to should remain unchanged
         """
-        a = Attendee(staffing=True,
-                     assigned_depts='{},{}'.format(c.CONSOLE, c.CON_OPS),
-                     trusted_depts='{},{}'.format(c.CONSOLE, c.CON_OPS))
+        a = Attendee(staffing=True)
+        dept_memberships = [
+            DeptMembership(
+                attendee=a,
+                attendee_id=a.id,
+                department=dept,
+                department_id=dept.id,
+                is_dept_head=True),
+            DeptMembership(
+                attendee=a,
+                attendee_id=a.id,
+                department=shiftless_dept,
+                department_id=shiftless_dept.id,
+                dept_roles=[DeptRole()])]
+        a.assigned_depts = [dept, shiftless_dept]
+        a.dept_memberships_with_role = dept_memberships
         a._staffing_adjustments()
-        assert a.assigned_to(c.CONSOLE) and a.trusted_in(c.CONSOLE)
-        assert a.assigned_to(c.CON_OPS) and a.trusted_in(c.CON_OPS)
+        assert a.assigned_to(dept) and a.trusted_in(dept)
+        assert a.assigned_to(shiftless_dept) and a.trusted_in(shiftless_dept)
 
-    def test_staffing_no_longer_trusted_unassigned(self):
-        """
-        After applying staffing adjustements:
-        1) Any depts you are trusted in but not assigned to, you should not longer remain trusted in
-        2) Any depts you are assigned to but not trusted in, you should remain untrusted in
-        """
-        a = Attendee(staffing=True,
-                     assigned_depts='{},{}'.format(c.CONSOLE, c.CON_OPS),
-                     trusted_depts='{},{}'.format(c.ARCADE, c.CON_OPS))
-        a._staffing_adjustments()
-        assert a.assigned_to(c.CONSOLE) and not a.trusted_in(c.CONSOLE)
-        assert not a.assigned_to(c.ARCADE) and not a.trusted_in(c.ARCADE)
-        assert a.assigned_to(c.CON_OPS) and a.trusted_in(c.CON_OPS)
-
-    def test_unpaid_dept_head(self):
-        a = Attendee(ribbon=c.DEPT_HEAD_RIBBON)
+    def test_unpaid_dept_head(self, dept):
+        dept_membership = DeptMembership(
+            department=dept,
+            is_dept_head=True)
+        a = Attendee(dept_memberships=[dept_membership])
         a._staffing_adjustments()
         assert a.paid == c.NEED_NOT_PAY
 

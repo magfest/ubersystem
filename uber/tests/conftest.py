@@ -85,34 +85,47 @@ def init_db(request):
             last_name='Attendee'
         ))
 
-        d_arcade = str(c.ARCADE)
-        d_console = str(c.CONSOLE)
-        d_arcade_and_console = '{},{}'.format(c.ARCADE, c.CONSOLE)
+        d_arcade_trusted_dept_role = DeptRole(name='Trusted', description='Trusted in Arcade')
+        d_arcade = Department(name='Arcade', description='Arcade', dept_roles=[d_arcade_trusted_dept_role])
+
+        d_console_trusted_dept_role = DeptRole(name='Trusted', description='Trusted in Console')
+        d_console = Department(name='Console', description='Console', dept_roles=[d_console_trusted_dept_role])
+        session.add_all([d_arcade, d_arcade_trusted_dept_role, d_console, d_console_trusted_dept_role])
+
         assigned_depts = {
-            'One': d_arcade,
-            'Two': d_console,
-            'Three': d_arcade_and_console,
-            'Four': d_arcade_and_console,
-            'Five': ''
+            'One': [d_arcade],
+            'Two': [d_console],
+            'Three': [d_arcade, d_console],
+            'Four': [d_arcade, d_console],
+            'Five': []
         }
         trusted_depts = {
-            'One': '',
-            'Two': '',
-            'Three': '',
-            'Four': d_arcade_and_console,
-            'Five': ''
+            'One': [],
+            'Two': [],
+            'Three': [],
+            'Four': [d_arcade, d_console],
+            'Five': []
         }
 
         for name in ['One', 'Two', 'Three', 'Four', 'Five']:
+            dept_memberships = []
+            for dept in assigned_depts[name]:
+                is_trusted = dept in trusted_depts[name]
+                dept_memberships.append(DeptMembership(
+                    department_id=dept.id,
+                    dept_roles=(dept.dept_roles if is_trusted else [])
+                ))
+            session.add_all(dept_memberships)
+
             session.add(Attendee(
                 placeholder=True,
                 first_name=name,
                 last_name=name,
                 paid=c.NEED_NOT_PAY,
                 badge_type=c.STAFF_BADGE,
-                assigned_depts=assigned_depts[name],
-                trusted_depts=trusted_depts[name]
+                dept_memberships=dept_memberships
             ))
+
             session.add(Attendee(
                 placeholder=True,
                 first_name=name,
@@ -136,7 +149,7 @@ def init_db(request):
             slots=1,
             weight=1,
             duration=2,
-            location=c.ARCADE,
+            department=d_arcade,
             extra15=True
         ))
         session.add(Job(
@@ -145,7 +158,7 @@ def init_db(request):
             slots=1,
             weight=1,
             duration=2,
-            location=c.ARCADE
+            department=d_arcade
         ))
         session.add(Job(
             name='Job Three',
@@ -153,7 +166,7 @@ def init_db(request):
             slots=1,
             weight=1,
             duration=2,
-            location=c.ARCADE
+            department=d_arcade
         ))
         session.add(Job(
             name='Job Four',
@@ -161,7 +174,7 @@ def init_db(request):
             slots=2,
             weight=1,
             duration=2,
-            location=c.CONSOLE,
+            department=d_console,
             extra15=True
         ))
         session.add(Job(
@@ -170,7 +183,7 @@ def init_db(request):
             slots=1,
             weight=1,
             duration=2,
-            location=c.CONSOLE
+            department=d_console
         ))
         session.add(Job(
             name='Job Six',
@@ -178,8 +191,8 @@ def init_db(request):
             slots=1,
             weight=1,
             duration=2,
-            location=c.CONSOLE,
-            restricted=True
+            department=d_console,
+            required_roles=[d_console_trusted_dept_role]
         ))
 
         session.add(PromoCode(code='ten percent off', discount=10,
