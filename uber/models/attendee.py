@@ -1006,6 +1006,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 m.department_id == department_id
                 for m in self.dept_memberships_where_can_admin_checklist)
 
+    @department_id_adapter
     def is_checklist_admin_of(self, department_id):
         if not department_id:
             return False
@@ -1013,6 +1014,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             m.department_id == department_id and m.is_checklist_admin
             for m in self.dept_memberships)
 
+    @department_id_adapter
     def is_dept_head_of(self, department_id):
         if not department_id:
             return False
@@ -1020,6 +1022,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             m.department_id == department_id and m.is_dept_head
             for m in self.dept_memberships)
 
+    @department_id_adapter
     def is_poc_of(self, department_id):
         if not department_id:
             return False

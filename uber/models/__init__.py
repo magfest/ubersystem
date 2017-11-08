@@ -622,7 +622,7 @@ class Session(SessionManager):
             if department:
                 return {
                     'conf': conf,
-                    'relevant': attendee.can_admin_checklist_for(department_id),
+                    'relevant': attendee.can_admin_checklist_for(department),
                     'completed': department.checklist_item_for_slug(conf.slug)
                 }
             else:
