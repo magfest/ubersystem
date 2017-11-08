@@ -97,16 +97,14 @@ class Root:
         }
 
     def departments(self, session):
-        attendees = session.staffers().all()
         everything = []
         departments = session.query(Department).options(
-            subqueryload(Department.members),
-            subqueryload(Department.membership_requests)).order_by(Department.name)
+            subqueryload(Department.members).subqueryload(Attendee.dept_memberships),
+            subqueryload(Department.unassigned_explicitly_requesting_attendees)).order_by(Department.name)
         for department in departments:
-            membership_request_attendee_ids = set(m.attendee_id for m in department.membership_requests)
             assigned = department.members
-            unassigned = [a for a in attendees if a.id in membership_request_attendee_ids and a not in assigned]
-            everything.append([department.name, assigned, unassigned])
+            unassigned = department.unassigned_explicitly_requesting_attendees
+            everything.append([department, assigned, unassigned])
         return {'everything': everything}
 
     def found_how(self, session):
