@@ -146,6 +146,9 @@ class Config(_Overridable):
         return c.PRINTED_BADGE_DEADLINE if badge_type in c.PREASSIGNED_BADGE_TYPES \
             else max(c.PRINTED_BADGE_DEADLINE, c.SUPPORTER_BADGE_DEADLINE)
 
+    def after_printed_badge_deadline_by_type(self, badge_type):
+        return sa.localized_now() > self.get_printed_badge_deadline_by_type(badge_type)
+
     @property
     def DEALER_REG_OPEN(self):
         return self.AFTER_DEALER_REG_START and self.BEFORE_DEALER_REG_SHUTDOWN
