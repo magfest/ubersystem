@@ -803,18 +803,22 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @cached_property
     def available_jobs(self):
-        if not self.dept_memberships:
+        if not self.dept_memberships and not c.AT_THE_CON:
             return []
 
         def _get_available_jobs(session, attendee_id):
             from uber.models.department import DeptMembership, Job, Shift
+            job_filters = [] if c.AT_THE_CON else [
+                Job.department_id == DeptMembership.department_id,
+                DeptMembership.attendee_id == self.id]
             return session.query(Job) \
                 .outerjoin(Job.shifts) \
-                .filter(
-                    Job.department_id == DeptMembership.department_id,
-                    DeptMembership.attendee_id == attendee_id) \
+                .filter(*job_filters) \
                 .group_by(Job.id) \
                 .having(func.count(Shift.id) < Job.slots) \
+                .options(
+                    subqueryload(Job.shifts),
+                    subqueryload(Job.required_roles)) \
                 .order_by(Job.start_time, Job.department_id).all()
 
         if self.session:
@@ -836,10 +840,12 @@ class Attendee(MagModel, TakesPaymentMixin):
             return []
         else:
             from uber.models.department import DeptMembership, Job
+            job_filters = [] if c.AT_THE_CON else [
+                Job.department_id == DeptMembership.department_id,
+                DeptMembership.attendee_id == self.id]
+
             job_query = self.session.query(Job) \
-                .filter(
-                    Job.department_id == DeptMembership.department_id,
-                    DeptMembership.attendee_id == self.id) \
+                .filter(*job_filters) \
                 .options(
                     subqueryload(Job.shifts),
                     subqueryload(Job.required_roles)) \
@@ -851,7 +857,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 and job.no_overlap(self)
                 and (job.type != c.SETUP or self.can_work_setup)
                 and (job.type != c.TEARDOWN or self.can_work_teardown)
-                and self.has_required_roles(job)]
+                and (not job.required_roles or self.has_required_roles(job))]
 
     @property
     def possible_opts(self):
@@ -989,6 +995,11 @@ class Attendee(MagModel, TakesPaymentMixin):
         return (self.admin_account
                 and c.ACCOUNTS in self.admin_account.access_ints) \
                     or self.has_inherent_role_in(department)
+
+    def can_dept_head_for(self, department):
+        return (self.admin_account
+                and c.ACCOUNTS in self.admin_account.access_ints) \
+                    or self.is_dept_head_of(department)
 
     @property
     def can_admin_checklist(self):

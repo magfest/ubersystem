@@ -1,3 +1,7 @@
+import functools
+
+import six
+
 from sideboard.lib import profile
 from uber.common import *
 
@@ -121,39 +125,50 @@ def department_id_adapter(func):
 
 
 @department_id_adapter
-def check_dept_admin(session, department_id=None):
+def check_dept_admin(session, department_id=None, inherent_role=None):
     from uber.models import AdminAccount, DeptMembership
     account_id = cherrypy.session['account_id']
     admin_account = session.query(AdminAccount).get(account_id)
     if c.ACCOUNTS not in admin_account.access_ints:
         dh_filter = [
             AdminAccount.id == account_id,
-            AdminAccount.attendee_id == DeptMembership.attendee_id,
-            DeptMembership.is_dept_head == True]
+            AdminAccount.attendee_id == DeptMembership.attendee_id]
+        if inherent_role in ('dept_head', 'poc', 'checklist_admin'):
+            role_attr = 'is_{}'.format(inherent_role)
+            dh_filter.append(getattr(DeptMembership, role_attr) == True)
+        else:
+            dh_filter.append(DeptMembership.has_inherent_role)
 
         if department_id:
             dh_filter.append(DeptMembership.department_id == department_id)
 
-        is_dept_head = session.query(AdminAccount).filter(*dh_filter).first()
-        if not is_dept_head:
-            return 'You must be a department head to complete that action.'
+        is_dept_admin = session.query(AdminAccount).filter(*dh_filter).first()
+        if not is_dept_admin:
+            return 'You must be a department admin to complete that action.'
 
 
-def requires_dept_admin(func):
-    @wraps(func)
-    def protected(*args, **kwargs):
-        if cherrypy.request.method == 'POST':
-            department_id = kwargs.get('department_id',
-                kwargs.get('department',
-                    kwargs.get('location',
-                        kwargs.get('id'))))
+def requires_dept_admin(func=None, inherent_role=None):
+    def _decorator(func, inherent_role=None):
+        @wraps(func)
+        def _protected(*args, **kwargs):
+            if cherrypy.request.method == 'POST':
+                department_id = kwargs.get('department_id',
+                    kwargs.get('department',
+                        kwargs.get('location',
+                            kwargs.get('id'))))
 
-            from uber.models import Session
-            with Session() as session:
-                message = check_dept_admin(session, department_id)
-                assert not message, message
-        return func(*args, **kwargs)
-    return protected
+                from uber.models import Session
+                with Session() as session:
+                    message = check_dept_admin(
+                        session, department_id, inherent_role)
+                    assert not message, message
+            return func(*args, **kwargs)
+        return _protected
+
+    if func is None or isinstance(func, six.string_types):
+        return functools.partial(_decorator, inherent_role=func)
+    else:
+        return _decorator(func)
 
 
 def csrf_protected(func):
