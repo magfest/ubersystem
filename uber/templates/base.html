@@ -147,7 +147,7 @@
                 onShown: function() {
                   try {
                     // Remove the message parameter from the URL, if it exists
-                    if (history.replaceState) {
+                    if (history && history.replaceState) {
                       var queryString = window.location.search.substring(1);
                       if (queryString) {
                         var params = parseQueryString(queryString);
