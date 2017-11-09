@@ -401,7 +401,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         self.staffing = False
         self.dept_membership_requests = []
         self.requested_depts = []
-        self.assigned_depts = []
+        self.dept_memberships = []
         self.ribbon = remove_opt(self.ribbon_ints, c.VOLUNTEER_RIBBON)
         if self.badge_type == c.STAFF_BADGE:
             self.badge_type = c.ATTENDEE_BADGE
