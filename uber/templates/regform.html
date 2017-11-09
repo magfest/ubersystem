@@ -297,10 +297,7 @@
         {% endif %}
     {% endif %}
 
-{%- set readonly_badge_name =
-    (c.AFTER_PRINTED_BADGE_DEADLINE and attendee.badge_type in c.PREASSIGNED_BADGE_TYPES)
-    or (c.AFTER_SUPPORTER_DEADLINE and attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES) -%}
-
+{%- set readonly_badge_name = c.after_printed_badge_deadline_by_type(attendee.badge_type) -%}
 <div class="badge-row extra-row form-group" style="display:none">
     <label for="badge_printed_name" class="col-sm-3 control-label optional-field">Name Printed on Badge</label>
     <div class="col-sm-6">
