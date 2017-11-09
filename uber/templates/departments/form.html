@@ -80,6 +80,7 @@
 </script>
 
 {%- set can_admin_dept = admin.can_admin_dept_for(department.id) -%}
+{%- set is_admin_dept_head = admin.can_dept_head_for(department.id) -%}
 {%- set is_admin_checklist_admin = admin.is_checklist_admin_of(department.id) -%}
 {%- set is_admin_dept_member = admin.assigned_to(department.id) -%}
 
@@ -91,6 +92,7 @@
     {%- set is_dept_head = attendee.is_dept_head_of(department.id) -%}
     {%- set is_poc = attendee.is_poc_of(department.id) -%}
     {%- set is_checklist_admin = attendee.is_checklist_admin_of(department.id) -%}
+    {%- if is_admin_dept_head -%}
     <button
         type="button"
         class="btn btn-xs btn-inherent_role btn-{% if is_dept_head %}plain{% else %}default{% endif %}"
@@ -101,7 +103,7 @@
           title="Make {{ attendee.full_name }} a department head of the {{ department.name }} department"
         {% endif %}>
       <span class="glyphicon glyphicon-user"></span>
-    </button>{#- strip whitespace -#}
+    </button>{%- endif -%}{#- strip whitespace -#}
     <button
         type="button"
         class="btn btn-xs btn-inherent_role btn-{% if is_poc %}plain{% else %}default{% endif %}"
@@ -214,7 +216,7 @@
 
 <h1>
   {{ department.name }} Department
-  {% if can_admin_dept -%}
+  {% if is_admin_dept_head -%}
     <button type="button" class="btn btn-xs btn-primary" data-toggle="modal" data-target="#edit_department">
       <span class="glyphicon glyphicon-cog"></span>
     </button>

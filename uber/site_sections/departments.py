@@ -64,7 +64,7 @@ class Root:
             'department': department
         }
 
-    @requires_dept_admin
+    @requires_dept_admin('dept_head')
     @csrf_protected
     def delete(self, session, id, message=''):
         if cherrypy.request.method == 'POST':
@@ -112,13 +112,17 @@ class Root:
             'message': message
         }
 
-    @requires_dept_admin
     @ajax
     def set_inherent_role(
             self, session, department_id, attendee_id, role, value=None):
 
         assert role in ('dept_head', 'poc', 'checklist_admin'), \
             'Unknown role: "{}"'.format(role)
+
+        admin_role = 'dept_head' if role == 'dept_head' else None
+        message = check_dept_admin(session, department_id, admin_role)
+        if message:
+            return {'error': message}
 
         try:
             value = str(value).lower() not in ('false', 'none', '', '0')
