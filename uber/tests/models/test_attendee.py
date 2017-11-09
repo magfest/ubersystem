@@ -359,7 +359,7 @@ class TestUnsetVolunteer:
         assert not a.staffing
         assert not a.has_role_somewhere
         assert not a.requested_depts
-        assert not a.assigned_depts
+        assert not a.dept_memberships
         assert not a.shifts
         assert a.ribbon == ''
 
