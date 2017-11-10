@@ -127,7 +127,16 @@ class MagModel:
         Because things like discounts exist, we ensure default_cost will never
         return a negative value.
         """
-        return max(0, sum(getattr(self, s) for s in self.cost_property_names))
+        values = []
+        for name in self.cost_property_names:
+            try:
+                value = getattr(self, name, 'ATTRIBUTE NOT FOUND')
+                values.append(int(value))
+            except Exception as ex:
+                log.error('Error calculating cost property {}: "{}"'.format(
+                    name, value))
+                log.exception(ex)
+        return max(0, sum(values))
 
     @property
     def stripe_transactions(self):
