@@ -203,6 +203,20 @@
                 </div>
               </div>
             </div>
+            <div class="form-group">
+              <label class="col-sm-3 control-label">Setup/Teardown Exempt?</label>
+              <div class="col-sm-9">
+                <div class="form-control-static checkbox">
+                  {{ macros.checkbox(department, 'is_exempt_setup', label='Setup exempt') }}
+                  &nbsp;
+                  {{ macros.checkbox(department, 'is_exempt_teardown', label='Teardown exempt') }}
+                </div>
+                <div class="help-block">
+                  Members of this department are exempt from requiring approval for setup/teardown.
+                  Exemption only applies to setup/teardown shifts for this department.
+                </div>
+              </div>
+            </div>
           </div>
           <div class="modal-footer">
             <button type="submit" class="btn btn-primary">Save</button>
@@ -244,6 +258,13 @@
   <p>This department is <b>shiftless</b>; it does not track staff hours using shifts.</p>
 {%- endif %}
 <p>This department {% if department.solicits_volunteers %}solicits{% else %}<b>does not</b> solicit{% endif %} volunteers.</p>
+{% if department.is_exempt_setup or department.is_exempt_teardown %}
+  <p>
+    Members of this department <b>do not need approval</b> to work
+    {%- if department.is_exempt_setup %} setup{%- endif -%}
+    {%- if department.is_exempt_teardown %}{% if department.is_exempt_setup %} or{% endif %} teardown{% endif %} shifts.
+  </p>
+{% endif %}
 {% if is_admin_checklist_admin or can_admin_dept -%}
   <p>
     <a href="../dept_checklist/index?department_id={{ department.id }}">

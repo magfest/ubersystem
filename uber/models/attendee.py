@@ -317,7 +317,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                     render('emails/reg_workflow/attendee_watchlist.txt', {
                         'attendee': self}),
                     model='n/a')
-            except:
+            except Exception as ex:
                 log.error('unable to send banned email about {}', self)
 
         elif self.badge_status == c.NEW_STATUS and not self.placeholder and \
@@ -848,6 +848,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 .filter(*job_filters) \
                 .options(
                     subqueryload(Job.shifts),
+                    subqueryload(Job.department),
                     subqueryload(Job.required_roles)) \
                 .order_by(Job.start_time, Job.department_id)
 
@@ -855,8 +856,14 @@ class Attendee(MagModel, TakesPaymentMixin):
                 job for job in job_query
                 if job.slots > len(job.shifts)
                 and job.no_overlap(self)
-                and (job.type != c.SETUP or self.can_work_setup)
-                and (job.type != c.TEARDOWN or self.can_work_teardown)
+                and (
+                    job.type != c.SETUP or
+                    self.can_work_setup or
+                    job.department.is_exempt_setup)
+                and (
+                    job.type != c.TEARDOWN or
+                    self.can_work_teardown or
+                    job.department.is_exempt_teardown)
                 and (not job.required_roles or self.has_required_roles(job))]
 
     @property
