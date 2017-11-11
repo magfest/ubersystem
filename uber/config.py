@@ -362,6 +362,7 @@ class Config(_Overridable):
 
     @property
     def CSRF_TOKEN(self):
+        uber.utils.ensure_csrf_token_exists()
         return cherrypy.session['csrf_token'] if 'csrf_token' in cherrypy.session else ''
 
     @property

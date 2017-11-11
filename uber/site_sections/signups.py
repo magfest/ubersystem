@@ -131,7 +131,7 @@ class Root:
                 message = 'No attendee matches that name and email address and zip code'
 
             if not message:
-                cherrypy.session['csrf_token'] = uuid4().hex
+                ensure_csrf_token_exists()
                 cherrypy.session['staffer_id'] = attendee.id
                 raise HTTPRedirect(original_location)
 
