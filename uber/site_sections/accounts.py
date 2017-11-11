@@ -17,6 +17,7 @@ class Root:
         return {
             'message':  message,
             'accounts': session.query(AdminAccount).join(Attendee)
+                               .options(subqueryload(AdminAccount.attendee))
                                .order_by(Attendee.last_first).all(),
             'all_attendees': sorted([
                 (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
@@ -47,6 +48,8 @@ class Root:
                     'creator': AdminAccount.admin_name()
                 })
                 send_email(c.ADMIN_EMAIL, session.attendee(account.attendee_id).email, 'New ' + c.EVENT_NAME + ' Ubersystem Account', body)
+        else:
+            session.rollback()
 
         raise HTTPRedirect('index?message={}', message)
 

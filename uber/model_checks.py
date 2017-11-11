@@ -35,6 +35,21 @@ def has_email_address(account):
                 return "Attendee doesn't have a valid email set"
 
 
+@validation.AdminAccount
+def admin_has_access(account):
+    ADMIN_STR = str(c.ADMIN)
+    API_STR = str(c.API)
+    orig_access = account.orig_value_of('access')
+    admin_changed = (ADMIN_STR in account.access) != (ADMIN_STR in orig_access)
+    api_changed = (API_STR in account.access) != (API_STR in orig_access)
+    if admin_changed or api_changed:
+        with Session() as session:
+            account_id = cherrypy.session['account_id']
+            admin_account = session.query(AdminAccount).get(account_id)
+            if c.ADMIN not in admin_account.access_ints:
+                return 'You do not have permission to change that access setting'
+
+
 Group.required = [('name', 'Group Name')]
 
 
