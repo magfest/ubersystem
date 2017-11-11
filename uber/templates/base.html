@@ -108,11 +108,20 @@
         #toast-container {
           right: 5%;
           max-width: 90%;
-        }
-
-        #toast-container > div {
           min-width: 300px;
           width: auto;
+        }
+
+        #toast-container .toast {
+          width: auto;
+        }
+
+        @media screen and (max-width: 334px) {
+          #toast-container {
+            max-width: 90%;
+            min-width: 90%;
+            width: 90%;
+          }
         }
     </style>
     <script>
