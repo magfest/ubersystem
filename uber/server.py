@@ -11,12 +11,14 @@ def _add_email():
 cherrypy.tools.add_email_to_error_page = cherrypy.Tool('after_error_response', _add_email)
 
 
-def log_exception_with_verbose_context(debug=False, msg=''):
+def get_verbose_request_context():
     """
-    Write the request headers, session params, page location, and the last error's traceback to the cherrypy error log.
-    Do this all one line so all the information can be collected by external log collectors and easily displayed.
-    """
+    Return a string with lots of information about the current cherrypy request such as
+    request headers, session params, and page location.
 
+    Returns:
+
+    """
     page_location = 'Request: ' + cherrypy.request.request_line
 
     admin_name = AdminAccount.admin_name()
@@ -32,8 +34,22 @@ def log_exception_with_verbose_context(debug=False, msg=''):
     h = ["  %s: %s" % (k, v) for k, v in cherrypy.request.header_list]
     headers_txt = 'Request Headers:\n' + '\n'.join(h)
 
-    full_msg = '\n'.join([msg, 'Exception encountered', page_location, admin_txt, post_txt, session_txt, headers_txt])
-    log.error(full_msg, exc_info=True)
+    return '\n'.join([page_location, admin_txt, post_txt, session_txt, headers_txt])
+
+
+def log_with_verbose_context(msg, exc_info=False):
+    full_msg = '\n'.join([msg, get_verbose_request_context()])
+    log.error(full_msg, exc_info=exc_info)
+
+
+def log_exception_with_verbose_context(debug=False, msg=''):
+    """
+    Write the request headers, session params, page location, and the last error's traceback to the cherrypy error log.
+    Do this all one line so all the information can be collected by external log collectors and easily displayed.
+    """
+    log_with_verbose_context('\n'.join([msg, 'Exception encountered']), exc_info=True)
+
+
 cherrypy.tools.custom_verbose_logger = cherrypy.Tool('before_error_response', log_exception_with_verbose_context)
 
 
