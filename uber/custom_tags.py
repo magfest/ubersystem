@@ -423,8 +423,7 @@ def normalize_newlines(text):
 
 @JinjaEnv.jinja_export
 def csrf_token():
-    if not cherrypy.session.get('csrf_token'):
-        cherrypy.session['csrf_token'] = uuid4().hex
+    ensure_csrf_token_exists()
     return safe_string('<input type="hidden" name="csrf_token" value="{}" />'.format(cherrypy.session["csrf_token"]))
 
 
