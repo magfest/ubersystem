@@ -377,6 +377,15 @@ class Config(_Overridable):
         return cherrypy.request.path_info.split('/')[-1]
 
     @request_cached_property
+    def ALLOWED_ACCESS_OPTS(self):
+        with sa.Session() as session:
+            return session.current_admin_account().allowed_access_opts
+
+    @request_cached_property
+    def DISALLOWED_ACCESS_OPTS(self):
+        return set(self.ACCESS_OPTS).difference(set(self.ALLOWED_ACCESS_OPTS))
+
+    @request_cached_property
     def CURRENT_ADMIN(self):
         try:
             with sa.Session() as session:
@@ -586,6 +595,9 @@ if not c.GROUPS_ENABLED:
     c.create_enum_val('group')
 
 c.make_enums(_config['enums'])
+
+c.REQUIRED_ACCESS = {a: [getattr(c, s.upper()) for s in p] for a, p in c.REQUIRED_ACCESS.items()}
+c.REQUIRED_ACCESS_OPTS = [(a, [getattr(c, s.upper()) for s in p]) for a, p in c.REQUIRED_ACCESS_OPTS]
 
 for _name, _val in _config['integer_enums'].items():
     if isinstance(_val, int):

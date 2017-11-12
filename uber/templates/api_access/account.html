@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}API Access for {{ admin_account.attendee.full_name }}{% endblock %}
+
+{% block content %}
+  <h1>API Access for {{ admin_account.attendee|form_link }}</h1>
+{% endblock %}

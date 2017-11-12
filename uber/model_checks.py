@@ -36,18 +36,19 @@ def has_email_address(account):
 
 
 @validation.AdminAccount
-def admin_has_access(account):
-    ADMIN_STR = str(c.ADMIN)
-    API_STR = str(c.API)
-    orig_access = account.orig_value_of('access')
-    admin_changed = (ADMIN_STR in account.access) != (ADMIN_STR in orig_access)
-    api_changed = (API_STR in account.access) != (API_STR in orig_access)
-    if admin_changed or api_changed:
+def admin_has_required_access(account):
+    new_access = set(int(s) for s in account.access.split(',') if s)
+    old_access = set(int(s) for s in account.orig_value_of('access').split(',') if s)
+    access_changes = new_access.symmetric_difference(old_access)
+    if any(c.REQUIRED_ACCESS.get(a) for a in access_changes):
         with Session() as session:
             account_id = cherrypy.session['account_id']
             admin_account = session.query(AdminAccount).get(account_id)
-            if c.ADMIN not in admin_account.access_ints:
-                return 'You do not have permission to change that access setting'
+            admin_access = set(admin_account.access_ints)
+            for access_change in access_changes:
+                required_access = c.REQUIRED_ACCESS.get(access_change, [])
+                if all(a not in admin_access for a in required_access):
+                    return 'You do not have permission to change that access setting'
 
 
 Group.required = [('name', 'Group Name')]
