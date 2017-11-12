@@ -223,17 +223,54 @@ def multifile_zipfile(func):
     return zipfile_out
 
 
-def _set_csv_base_filename(base_filename):
+def _set_response_filename(base_filename):
     """
     Set the correct headers when outputting CSV files to specify the filename the browser should use
     """
-    cherrypy.response.headers['Content-Disposition'] = 'attachment; filename=' + base_filename + '.csv'
+    cherrypy.response.headers['Content-Disposition'] = 'attachment; filename=' + base_filename
+
+
+def xlsx_file(func):
+    parameters = inspect.getargspec(func)
+    if len(parameters[0]) == 3:
+        func.site_mappable = True
+
+    func.output_file_extension = 'xlsx'
+
+    @wraps(func)
+    def xlsx_out(self, session, set_headers=True, **kwargs):
+        rawoutput = BytesIO()
+
+        # Even though the final file will be in memory the module uses temp
+        # files during assembly for efficiency. To avoid this on servers that
+        # don't allow temp files, for example the Google APP Engine, set the
+        # 'in_memory' constructor option to True:
+        with xlsxwriter.Workbook(rawoutput, {'in_memory': False}) as workbook:
+            worksheet = workbook.add_worksheet()
+
+            writer = ExcelWorksheetStreamWriter(worksheet)
+
+            # right now we just pass in the first worksheet.
+            # in the future, could pass in the workbook too
+            func(self, writer, session, **kwargs)
+
+        output = rawoutput.getvalue()
+
+        # set headers last in case there were errors, so end user still see error page
+        if set_headers:
+            cherrypy.response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            _set_response_filename(func.__name__ + '.xlsx')
+
+        return output
+    return xlsx_out
 
 
 def csv_file(func):
     parameters = inspect.getargspec(func)
     if len(parameters[0]) == 3:
         func.site_mappable = True
+
+    func.output_file_extension = 'csv'
 
     @wraps(func)
     def csvout(self, session, set_headers=True, **kwargs):
@@ -244,7 +281,7 @@ def csv_file(func):
         # set headers last in case there were errors, so end user still see error page
         if set_headers:
             cherrypy.response.headers['Content-Type'] = 'application/csv'
-            _set_csv_base_filename(func.__name__)
+            _set_response_filename(func.__name__ + '.csv')
 
         return output
     return csvout
@@ -257,7 +294,7 @@ def set_csv_filename(func):
     @wraps(func)
     def change_filename(self, override_filename=None, *args, **kwargs):
         out = func(self, *args, **kwargs)
-        _set_csv_base_filename(override_filename or func.__name__)
+        _set_response_filename((override_filename or func.__name__) + '.csv')
         return out
     return change_filename
 
