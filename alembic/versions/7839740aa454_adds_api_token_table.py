@@ -1,7 +1,7 @@
 """Adds api_token table
 
 Revision ID: 7839740aa454
-Revises: 4947b38a18b1
+Revises: d3da548acd2e
 Create Date: 2017-11-11 22:10:28.973153
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-11-11 22:10:28.973153
 
 # revision identifiers, used by Alembic.
 revision = '7839740aa454'
-down_revision = '4947b38a18b1'
+down_revision = 'd3da548acd2e'
 branch_labels = None
 depends_on = None
 
@@ -55,6 +55,9 @@ def upgrade():
     op.create_table('api_token',
     sa.Column('id', sideboard.lib.sa.UUID(), nullable=False),
     sa.Column('admin_account_id', sideboard.lib.sa.UUID(), nullable=False),
+    sa.Column('access', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('name', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('description', sa.Unicode(), server_default='', nullable=False),
     sa.Column('issued_time', sideboard.lib.sa.UTCDateTime(), nullable=False),
     sa.Column('revoked_time', sideboard.lib.sa.UTCDateTime(), nullable=True),
     sa.ForeignKeyConstraint(['admin_account_id'], ['admin_account.id'], name=op.f('fk_api_token_admin_account_id_admin_account')),

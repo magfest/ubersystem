@@ -2,6 +2,40 @@ from uber.common import *
 
 __version__ = 'v0.1'
 
+
+def token_auth(*required_access):
+    def _decorator(func):
+        if getattr(func, 'required_access', None):
+            return func
+        func.required_access = set(required_access)
+
+        @wraps(func)
+        def _with_token_auth(*args, **kwargs):
+            token = cherrypy.request.headers.get('X-API-Token', None)
+            if not token:
+                return {'error': 'Missing API Token'}
+            with Session() as session:
+                api_token = session.query(ApiToken).filter_by(id=token, revoked_time=None).first()
+                if not api_token:
+                    return {'error': 'Invalid API Token: {}'.format(token)}
+                if not func.required_access.issubset(set(api_token.access_ints)):
+                    return {'error': 'Insufficient Access: {}'.format(token)}
+                return func(*args, **kwargs)
+        return _with_token_auth
+    return _decorator
+
+
+class all_token_auth:
+    def __init__(self, *required_access):
+        self.required_access = required_access
+
+    def __call__(self, cls):
+        for name, func in cls.__dict__.items():
+            if hasattr(func, '__call__'):
+                setattr(cls, name, token_auth(*self.required_access)(func))
+        return cls
+
+
 attendee_fields = [
     'full_name', 'first_name', 'last_name', 'email', 'zip_code', 'cellphone',
     'ec_name', 'ec_phone', 'badge_status_label', 'checked_in',
@@ -24,6 +58,7 @@ fields = dict({
 }, **{field: True for field in attendee_fields})
 
 
+@all_token_auth(c.API_READ)
 class AttendeeLookup:
     def lookup(self, badge_num):
         with Session() as session:
@@ -54,7 +89,7 @@ job_fields = dict({
     }
 })
 
-
+@all_token_auth(c.API_READ)
 class JobLookup:
     def lookup(self, location):
         with Session() as session:
@@ -63,6 +98,7 @@ class JobLookup:
             return [job.to_dict(job_fields) for job in query]
 
 
+@all_token_auth(c.API_READ)
 class DepartmentLookup:
     def list(self):
         return dict(c.DEPARTMENT_OPTS)
@@ -82,6 +118,7 @@ config_fields = [
 ]
 
 
+@all_token_auth(c.API_READ)
 class ConfigLookup:
     def info(self):
         output = {

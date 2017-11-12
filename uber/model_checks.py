@@ -42,13 +42,29 @@ def admin_has_required_access(account):
     access_changes = new_access.symmetric_difference(old_access)
     if any(c.REQUIRED_ACCESS.get(a) for a in access_changes):
         with Session() as session:
-            account_id = cherrypy.session['account_id']
-            admin_account = session.query(AdminAccount).get(account_id)
+            admin_account = session.current_admin_account()
             admin_access = set(admin_account.access_ints)
             for access_change in access_changes:
                 required_access = c.REQUIRED_ACCESS.get(access_change, [])
                 if all(a not in admin_access for a in required_access):
                     return 'You do not have permission to change that access setting'
+
+
+ApiToken.required = [('access', 'API Access')]
+
+
+@validation.ApiToken
+def admin_has_required_api_access(api_token):
+    admin_account_id = cherrypy.session['account_id']
+    if api_token.is_new and admin_account_id != api_token.admin_account_id:
+            return 'You may not create an API token for another user'
+
+    with Session() as session:
+        admin_account = session.current_admin_account()
+        token_access = set(api_token.access_ints)
+        admin_access = set(admin_account.access_ints)
+        if not token_access.issubset(admin_access):
+            return 'You do not have permission to create a token with that access'
 
 
 Group.required = [('name', 'Group Name')]

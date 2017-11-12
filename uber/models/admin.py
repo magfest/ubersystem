@@ -26,6 +26,11 @@ class AdminAccount(MagModel):
         'PasswordReset', backref='admin_account', uselist=False)
 
     api_tokens = relationship('ApiToken', backref='admin_account')
+    active_api_tokens = relationship(
+        'ApiToken',
+        primaryjoin='and_('
+                    'AdminAccount.id == ApiToken.admin_account_id, '
+                    'ApiToken.revoked_time == None)')
 
     def __repr__(self):
         return '<{}>'.format(self.attendee.full_name)
@@ -62,26 +67,40 @@ class AdminAccount(MagModel):
         except:
             return set()
 
-    @property
-    def allowed_access_opts(self):
+    def _allowed_opts(self, opts, required_access):
         access_opts = []
         admin_access = set(self.access_ints)
-        for access, label in c.ACCESS_OPTS:
-            required = set(c.REQUIRED_ACCESS.get(access, []))
+        for access, label in opts:
+            required = set(required_access.get(access, []))
             if not required or any(a in required for a in admin_access):
                 access_opts.append((access, label))
         return access_opts
+
+    @property
+    def allowed_access_opts(self):
+        return self._allowed_opts(c.ACCESS_OPTS, c.REQUIRED_ACCESS)
+
+    @property
+    def allowed_api_access_opts(self):
+        required_access = {a: [a] for a in c.API_ACCESS.keys()}
+        return self._allowed_opts(c.API_ACCESS_OPTS, required_access)
+
+    @property
+    def is_admin(self):
+        return c.ADMIN in self.access_ints
 
     @presave_adjustment
     def _disable_api_access(self):
         new_access = set(int(s) for s in self.access.split(',') if s)
         old_access = set(
             int(s) for s in self.orig_value_of('access').split(',') if s)
-        removed_access = old_access.difference(new_access)
-        if c.API in removed_access:
+        removed = old_access.difference(new_access)
+        removed_api = set(a for a in c.API_ACCESS.keys() if a in removed)
+        if removed_api:
             revoked_time = datetime.utcnow()
-            for api_token in self.api_tokens:
-                api_token.revoked_time = revoked_time
+            for api_token in self.active_api_tokens:
+                if removed_api.intersection(api_token.access_ints):
+                    api_token.revoked_time = revoked_time
 
 
 class PasswordReset(MagModel):
