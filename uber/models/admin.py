@@ -79,8 +79,9 @@ class AdminAccount(MagModel):
             int(s) for s in self.orig_value_of('access').split(',') if s)
         removed_access = old_access.difference(new_access)
         if c.API in removed_access:
-            for token in self.api_tokens:
-                token.is_revoked = True
+            revoked_time = datetime.utcnow()
+            for api_token in self.api_tokens:
+                api_token.revoked_time = revoked_time
 
 
 class PasswordReset(MagModel):
