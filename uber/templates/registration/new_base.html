@@ -48,18 +48,12 @@
                 } else {
                     $('#badge_num').val('');
                     toastr.info(json.message);
-                    //var undo_button = ' &nbsp; <a href="#" onClick="undoSale(\'' + json.id + '\') ; return false">Undo</a>';
                     window.location.replace('arbitrary_charge_form?amount=' + $('#store_cash').val() +
-                        '&description=' + json.message);
+                        '&description=' + json.message + '&sale_id=' + json.id);
                 }
             }, 'json');
     };
-    var undoSale = function(id) {
-        $.post('undo_sale', {id: id, csrf_token: csrf_token}, function(message) {
-            toastr.remove();
-            toastr.info(message);
-        });
-    };
+
     var showOrHideWhatText = function(page_loading) {
         $('#store_mpoints').val('0');
         if( $('#what_select').val() == '' ) {
