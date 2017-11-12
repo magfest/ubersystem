@@ -132,7 +132,7 @@
         <th>Cost</th>
         <th>Paid</th>
         {% if c.NUMBERED_BADGES %}
-            <th>Badge</th>
+            <th>Badge Num</th>
         {% endif %}
         <th></th>
         {% endblock tableheadings %}
@@ -184,8 +184,12 @@
             <form method="post" id="new_checkin_{{ attendee.id }}" action="new_checkin">
             {% if c.NUMBERED_BADGES %}
                 <td>
+                {% if attendee.badge_num %}
+                    #{{ attendee.badge_num }}
+                {% else %}
                     &nbsp;&nbsp;&nbsp;&nbsp;
                     <input type="number" name="badge_num" size="5" style="width:5em" {% if attendee.paid == c.NOT_PAID %}disabled{% endif %} />
+                {% endif %}
                 </td>
             {% endif %}
             <td>
