@@ -31,6 +31,11 @@
             $('#bold-field-message').detach().prependTo('.form-horizontal');
             $.field('badge_type').on('change', maybeWarn);
             maybeWarn();
+            {% for type in c.PRESOLD_ONEDAY_BADGE_TYPES %}
+                if ("{{ c.PRESOLD_ONEDAY_BADGE_TYPES[type] }}" !== moment().format('dddd')) {
+                    $.field('badge_type').find("option[value='{{ type }}']").remove();
+                }
+            {% endfor %}
         {% else %}
             $('.panel').empty().append('<h1>All badges are sold out!</h1>');
         {% endif %}
