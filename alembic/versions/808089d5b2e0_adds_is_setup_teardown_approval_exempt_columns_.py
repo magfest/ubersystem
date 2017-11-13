@@ -1,4 +1,4 @@
-"""Adds needs_setup/teardown_approval columns to department
+"""Adds is_setup/teardown_approval_exempt columns to department
 
 Revision ID: 808089d5b2e0
 Revises: d3da548acd2e
@@ -56,19 +56,19 @@ def upgrade():
         connection = op.get_bind()
         connection.execute('PRAGMA foreign_keys = OFF;')
         with op.batch_alter_table('department', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
-            batch_op.add_column(sa.Column('needs_setup_approval', sa.Boolean(), server_default='True', default=True, nullable=False))
-            batch_op.add_column(sa.Column('needs_teardown_approval', sa.Boolean(), server_default='True', default=True, nullable=False))
+            batch_op.add_column(sa.Column('is_setup_approval_exempt', sa.Boolean(), server_default='False', default=False, nullable=False))
+            batch_op.add_column(sa.Column('is_teardown_approval_exempt', sa.Boolean(), server_default='False', default=False, nullable=False))
     else:
-        op.add_column('department', sa.Column('needs_setup_approval', sa.Boolean(), server_default='True', default=True, nullable=False))
-        op.add_column('department', sa.Column('needs_teardown_approval', sa.Boolean(), server_default='True', default=True, nullable=False))
+        op.add_column('department', sa.Column('is_setup_approval_exempt', sa.Boolean(), server_default='False', default=False, nullable=False))
+        op.add_column('department', sa.Column('is_teardown_approval_exempt', sa.Boolean(), server_default='False', default=False, nullable=False))
 
 
 
 def downgrade():
     if is_sqlite:
         with op.batch_alter_table('department', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
-            batch_op.drop_column('needs_teardown_approval')
-            batch_op.drop_column('needs_setup_approval')
+            batch_op.drop_column('is_teardown_approval_exempt')
+            batch_op.drop_column('is_setup_approval_exempt')
     else:
-        op.drop_column('department', 'needs_teardown_approval')
-        op.drop_column('department', 'needs_setup_approval')
+        op.drop_column('department', 'is_teardown_approval_exempt')
+        op.drop_column('department', 'is_setup_approval_exempt')

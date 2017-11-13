@@ -859,11 +859,11 @@ class Attendee(MagModel, TakesPaymentMixin):
                 and (
                     job.type != c.SETUP
                     or self.can_work_setup
-                    or not job.department.needs_setup_approval)
+                    or job.department.is_setup_approval_exempt)
                 and (
                     job.type != c.TEARDOWN
                     or self.can_work_teardown
-                    or not job.department.needs_teardown_approval)
+                    or job.department.is_teardown_approval_exempt)
                 and (not job.required_roles or self.has_required_roles(job))]
 
     @property
