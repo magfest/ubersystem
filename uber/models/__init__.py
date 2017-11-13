@@ -673,7 +673,7 @@ class Session(SessionManager):
                 if isinstance(attendee.birthdate, six.string_types):
                     try:
                         birthdate = dateparser.parse(attendee.birthdate).date()
-                    except:
+                    except Exception as ex:
                         log.debug(
                             'Error parsing attendee birthdate: '
                             '{}'.format(attendee.birthdate))
@@ -774,7 +774,7 @@ class Session(SessionManager):
             # PromoCode.id to the filter clause
             try:
                 promo_code_id = uuid.UUID(normalized_code).hex
-            except:
+            except Exception as ex:
                 pass
             else:
                 clause = clause.or_(PromoCode.id == promo_code_id)
@@ -1359,7 +1359,7 @@ def initialize_db(modify_tables=False):
         except KeyboardInterrupt:
             log.critical(
                 'DB initialize: Someone hit Ctrl+C while we were starting up')
-        except:
+        except Exception as ex:
             num_tries_remaining -= 1
             if num_tries_remaining == 0:
                 log.error(

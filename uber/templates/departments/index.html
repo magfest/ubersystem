@@ -30,6 +30,8 @@
             <th>Description</th>
             <th>Shiftless</th>
             <th>Solicits Volunteers</th>
+            <th>Setup Approval Exempt</th>
+            <th>Teardown Approval Exempt</th>
             <th>Members</th>
           </tr>
         </thead>
@@ -40,6 +42,8 @@
               <td>{{ department.description }}</td>
               <td>{{ department.is_shiftless|yesno("Yes,No") }}</td>
               <td>{{ department.solicits_volunteers|yesno("Yes,No") }}</td>
+              <td>{{ department.is_setup_approval_exempt|yesno("Yes,No") }}</td>
+              <td>{{ department.is_teardown_approval_exempt|yesno("Yes,No") }}</td>
               <td>{{ department.member_count }}</td>
             </tr>
           {%- endfor -%}

@@ -21,6 +21,7 @@ import mimetypes
 import shlex
 import threading
 import traceback
+import xlsxwriter
 from glob import glob
 from uuid import uuid4
 from pprint import pprint

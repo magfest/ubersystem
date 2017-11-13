@@ -45,7 +45,7 @@ class AdminAccount(MagModel):
             from uber.models import Session
             with Session() as session:
                 return session.admin_attendee().full_name
-        except:
+        except Exception as ex:
             return None
 
     @staticmethod
@@ -54,7 +54,7 @@ class AdminAccount(MagModel):
             from uber.models import Session
             with Session() as session:
                 return session.admin_attendee().email
-        except:
+        except Exception as ex:
             return None
 
     @staticmethod
@@ -64,7 +64,7 @@ class AdminAccount(MagModel):
             with Session() as session:
                 id = id or cherrypy.session['account_id']
                 return set(session.admin_account(id).access_ints)
-        except:
+        except Exception as ex:
             return set()
 
     def _allowed_opts(self, opts, required_access):

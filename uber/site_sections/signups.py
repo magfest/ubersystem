@@ -73,11 +73,14 @@ class Root:
         joblist = session.jobs_for_signups()
         con_days = -(-c.CON_LENGTH // 24)  # Equivalent to ceil(c.CON_LENGTH / 24)
 
-        if session.logged_in_volunteer().can_work_setup and session.logged_in_volunteer().can_work_teardown:
+        volunteer = session.logged_in_volunteer()
+        has_setup = volunteer.can_work_setup or any(d.is_setup_approval_exempt for d in volunteer.assigned_depts)
+        has_teardown = volunteer.can_work_teardown or any(d.is_teardown_approval_exempt for d in volunteer.assigned_depts)
+        if has_setup and has_teardown:
             cal_length = c.CON_TOTAL_LENGTH
-        elif session.logged_in_volunteer().can_work_setup:
+        elif has_setup:
             cal_length = con_days + c.SETUP_SHIFT_DAYS
-        elif session.logged_in_volunteer().can_work_teardown:
+        elif has_teardown:
             cal_length = con_days + 2  # There's no specific config for # of shift signup days
         else:
             cal_length = con_days
@@ -87,7 +90,7 @@ class Root:
             'hours': session.logged_in_volunteer().weighted_hours,
             'view': view,
             'start': start,
-            'start_day': c.SHIFTS_START_DAY if session.logged_in_volunteer().can_work_setup else c.EPOCH,
+            'start_day': c.SHIFTS_START_DAY if has_setup else c.EPOCH,
             'cal_length': cal_length
         }
 
@@ -131,7 +134,7 @@ class Root:
                 message = 'No attendee matches that name and email address and zip code'
 
             if not message:
-                cherrypy.session['csrf_token'] = uuid4().hex
+                ensure_csrf_token_exists()
                 cherrypy.session['staffer_id'] = attendee.id
                 raise HTTPRedirect(original_location)
 

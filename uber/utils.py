@@ -108,13 +108,23 @@ def check_csrf(csrf_token):
     """
     if csrf_token is None:
         csrf_token = cherrypy.request.headers.get('CSRF-Token')
+
     if not csrf_token:
         raise CSRFException("CSRF token missing")
+
     if csrf_token != cherrypy.session['csrf_token']:
-        log.error("csrf tokens don't match: {!r} != {!r}", csrf_token, cherrypy.session['csrf_token'])
-        raise CSRFException('CSRF check failed')
+        raise CSRFException("CSRF check failed: csrf tokens don't match: {!r} != {!r}"
+                            .format(csrf_token, cherrypy.session['csrf_token']))
     else:
         cherrypy.request.headers['CSRF-Token'] = csrf_token
+
+
+def ensure_csrf_token_exists():
+    """
+    Generate a new CSRF token if none exists in our session already.
+    """
+    if not cherrypy.session.get('csrf_token'):
+        cherrypy.session['csrf_token'] = uuid4().hex
 
 
 def check(model, *, prereg=False):
@@ -716,3 +726,39 @@ class request_cached_context:
     @staticmethod
     def _clear_cache():
         threadlocal.clear()
+
+
+class ExcelWorksheetStreamWriter:
+    """
+    Wrapper for xlsxwriter which treats it more like a stream where we append rows to it
+
+    xlswriter only supports addressing rows/columns using absolute indices, but sometimes we
+    only care about appending a new row of data to the end of the excel file.
+
+    This track internally keeps track of the indices and increments appropriately
+
+    NOTE: This class doesn't allow formulas in cells.
+    Any cell starting with an '=' will be treated as a string, NOT a formula
+    """
+
+    def __init__(self, worksheet):
+        self.worksheet = worksheet
+        self.next_row = 0
+
+    def writerow(self, row_items):
+        assert self.worksheet
+
+        col = 0
+        for item in row_items:
+            # work around our excel library thinking anything starting with an equal sign is a formula.
+            # pick the right function to call to avoid this special case.
+            if item and isinstance(item, str) and len(item) > 0 and item[0] == '=':
+                write_row = getattr(self.worksheet.__class__, 'write_string')
+            else:
+                write_row = getattr(self.worksheet.__class__, 'write')
+
+            write_row(self.worksheet, self.next_row, col, item)
+
+            col += 1
+
+        self.next_row += 1

@@ -197,26 +197,26 @@ class Root:
                     group.badges
                 ])
 
-    @csv_file
+    @xlsx_file
     def printed_badges_attendee(self, out, session):
         uber.reports.PrintedBadgeReport(badge_type=c.ATTENDEE_BADGE, badge_type_name='Attendee').run(out, session)
 
-    @csv_file
+    @xlsx_file
     def printed_badges_guest(self, out, session):
         uber.reports.PrintedBadgeReport(badge_type=c.GUEST_BADGE, badge_type_name='Guest').run(out, session)
 
-    @csv_file
+    @xlsx_file
     def printed_badges_one_day(self, out, session):
         uber.reports.PrintedBadgeReport(badge_type=c.ONE_DAY_BADGE, badge_type_name='OneDay').run(out, session)
 
-    @csv_file
+    @xlsx_file
     def printed_badges_minor(self, out, session):
         try:
             uber.reports.PrintedBadgeReport(badge_type=c.CHILD_BADGE, badge_type_name='Minor').run(out, session)
         except AttributeError:
             pass
 
-    @csv_file
+    @xlsx_file
     def printed_badges_staff(self, out, session):
 
         # part 1, include only staff badges that have an assigned name
@@ -234,7 +234,7 @@ class Root:
 
         generate_staff_badges(start_badge, end_badge, out, session)
 
-    @csv_file
+    @xlsx_file
     def printed_badges_staff__expert_mode_only(self, out, session, start_badge, end_badge):
         """
         Generate a CSV of staff badges. Note: This is not normally what you would call to do the badge export.
@@ -243,7 +243,7 @@ class Root:
 
         generate_staff_badges(int(start_badge), int(end_badge), out, session)
 
-    @csv_file
+    @xlsx_file
     def badge_hangars_supporters(self, out, session):
         uber.reports.PersonalizedBadgeReport(include_badge_nums=False).run(out, session,
             sa.Attendee.amount_extra >= c.SUPPORTER_LEVEL,
@@ -266,16 +266,21 @@ class Root:
     @multifile_zipfile
     def personalized_badges_zip(self, zip_file, session):
         """
-        Put all printed badge CSV files in one convenient zipfile.  The idea
+        Put all printed badge report files in one convenient zipfile.  The idea
         is that this ZIP file, unmodified, should be completely ready to send to
         the badge printers.
 
         Plugins can override badge_zipfile_contents to do something different/event-specific.
         """
-        for badge_csv_fn in self.badge_zipfile_contents:
-            csv_filename = '{}.csv'.format(badge_csv_fn.__name__)
-            output = badge_csv_fn(self, session, set_headers=False)
-            zip_file.writestr(csv_filename, output)
+        for badge_report_fn in self.badge_zipfile_contents:
+            # run the report function, but don't output headers because
+            # 1) we'll do it with the zipfile
+            # 2) we don't set headers until the very end when everything is 100% good
+            #    so that exceptions are displayed to the end user properly
+            output = badge_report_fn(self, session, set_headers=False)
+
+            filename = '{}.{}'.format(badge_report_fn.__name__, badge_report_fn.output_file_extension or '')
+            zip_file.writestr(filename, output)
 
     def food_eligible(self, session):
         cherrypy.response.headers['Content-Type'] = 'application/xml'

@@ -86,7 +86,7 @@ class Root:
 
             if not message:
                 cherrypy.session['account_id'] = account.id
-                cherrypy.session['csrf_token'] = uuid4().hex
+                ensure_csrf_token_exists()
                 raise HTTPRedirect(original_location)
 
         return {
