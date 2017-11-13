@@ -136,3 +136,25 @@ class Root:
                 for dept in departments
             ]
         }
+
+    @department_id_adapter
+    def hotel_setup(self, session, department_id=None, submitted=None, csrf_token=None):
+        if not department_id:
+            raise HTTPRedirect('../dept_checklist/index')
+        attendee = session.admin_attendee()
+        department = session.query(Department).options(
+            subqueryload(Department.dept_checklist_items)).get(department_id)
+        if submitted:
+            slug = 'hotel_setup'
+            item = department.checklist_item_for_slug(slug)
+            if not item:
+                item = DeptChecklistItem(
+                    attendee=attendee, department=department, slug=slug)
+            check_csrf(csrf_token)  # since this form doesn't use our normal utility methods, we need to do this manually
+            session.add(item)
+            raise HTTPRedirect(
+                '../dept_checklist/index?department_id={}&message={}',
+                department_id,
+                'Thanks for completing the hotel setup form!')
+
+        return {'department': department}
