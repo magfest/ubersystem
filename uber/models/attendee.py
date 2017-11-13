@@ -857,13 +857,13 @@ class Attendee(MagModel, TakesPaymentMixin):
                 if job.slots > len(job.shifts)
                 and job.no_overlap(self)
                 and (
-                    job.type != c.SETUP or
-                    self.can_work_setup or
-                    job.department.is_exempt_setup)
+                    job.type != c.SETUP
+                    or self.can_work_setup
+                    or not job.department.needs_setup_approval)
                 and (
-                    job.type != c.TEARDOWN or
-                    self.can_work_teardown or
-                    job.department.is_exempt_teardown)
+                    job.type != c.TEARDOWN
+                    or self.can_work_teardown
+                    or not job.department.needs_teardown_approval)
                 and (not job.required_roles or self.has_required_roles(job))]
 
     @property

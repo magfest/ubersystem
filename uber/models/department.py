@@ -150,8 +150,8 @@ class Department(MagModel):
     solicits_volunteers = Column(Boolean, default=True)
     is_shiftless = Column(Boolean, default=False)
     parent_id = Column(UUID, ForeignKey('department.id'), nullable=True)
-    is_exempt_setup = Column(Boolean, default=False)
-    is_exempt_teardown = Column(Boolean, default=False)
+    needs_setup_approval = Column(Boolean, default=True)
+    needs_teardown_approval = Column(Boolean, default=True)
 
     jobs = relationship('Job', backref='department')
 

@@ -74,8 +74,8 @@ class Root:
         con_days = -(-c.CON_LENGTH // 24)  # Equivalent to ceil(c.CON_LENGTH / 24)
 
         volunteer = session.logged_in_volunteer()
-        has_setup = volunteer.can_work_setup or any(d.is_exempt_setup for d in volunteer.assigned_depts)
-        has_teardown = volunteer.can_work_teardown or any(d.is_exempt_teardown for d in volunteer.assigned_depts)
+        has_setup = volunteer.can_work_setup or any(not d.needs_setup_approval for d in volunteer.assigned_depts)
+        has_teardown = volunteer.can_work_teardown or any(not d.needs_teardown_approval for d in volunteer.assigned_depts)
         if has_setup and has_teardown:
             cal_length = c.CON_TOTAL_LENGTH
         elif has_setup:

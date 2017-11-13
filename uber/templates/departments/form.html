@@ -204,16 +204,20 @@
               </div>
             </div>
             <div class="form-group">
-              <label class="col-sm-3 control-label">Setup/Teardown Exempt?</label>
+              <label class="col-sm-3 control-label">Setup/Teardown Approval?</label>
               <div class="col-sm-9">
                 <div class="form-control-static checkbox">
-                  {{ macros.checkbox(department, 'is_exempt_setup', label='Setup exempt') }}
+                  {{ macros.checkbox(department, 'needs_setup_approval', label='Needs setup approval') }}
                   &nbsp;
-                  {{ macros.checkbox(department, 'is_exempt_teardown', label='Teardown exempt') }}
+                  {{ macros.checkbox(department, 'needs_teardown_approval', label='Needs teardown approval') }}
                 </div>
                 <div class="help-block">
-                  Members of this department are exempt from requiring approval for setup/teardown.
-                  Exemption only applies to setup/teardown shifts for this department.
+                  These settings determine whether members of this department require
+                  approval to work setup/teardown shifts for this department.
+                  <br><br>
+                  Unless most of the department's work is done during setup/teardown,
+                  these should remain checked – members of the department should probably
+                  require approval to work setup/teardown.
                 </div>
               </div>
             </div>
@@ -258,11 +262,11 @@
   <p>This department is <b>shiftless</b>; it does not track staff hours using shifts.</p>
 {%- endif %}
 <p>This department {% if department.solicits_volunteers %}solicits{% else %}<b>does not</b> solicit{% endif %} volunteers.</p>
-{% if department.is_exempt_setup or department.is_exempt_teardown %}
+{% if not department.needs_setup_approval or not department.needs_teardown_approval %}
   <p>
     Members of this department <b>do not need approval</b> to work
-    {%- if department.is_exempt_setup %} setup{%- endif -%}
-    {%- if department.is_exempt_teardown %}{% if department.is_exempt_setup %} or{% endif %} teardown{% endif %} shifts.
+    {%- if not department.needs_setup_approval %} setup{%- endif -%}
+    {%- if not department.needs_teardown_approval %}{% if not department.needs_setup_approval %} or{% endif %} teardown{% endif %} shifts.
   </p>
 {% endif %}
 {% if is_admin_checklist_admin or can_admin_dept -%}
