@@ -1,7 +1,7 @@
 """Adds api_token table
 
 Revision ID: 7839740aa454
-Revises: d3da548acd2e
+Revises: 808089d5b2e0
 Create Date: 2017-11-11 22:10:28.973153
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-11-11 22:10:28.973153
 
 # revision identifiers, used by Alembic.
 revision = '7839740aa454'
-down_revision = 'd3da548acd2e'
+down_revision = '808089d5b2e0'
 branch_labels = None
 depends_on = None
 
