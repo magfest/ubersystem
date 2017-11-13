@@ -37,7 +37,7 @@ class Email(MagModel):
             model_class = Session.resolve_model(self.model)
             query = self.session.query(model_class)
             return query.filter_by(id=self.fk_id).first()
-        except:
+        except Exception as ex:
             return None
 
     @property
