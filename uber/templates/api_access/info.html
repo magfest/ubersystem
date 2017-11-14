@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}API Access Info{% endblock %}
+
+{% block content %}
+  {% for name, methods in services %}
+    <h1>{{ name }}</h1>
+    <ul>
+      {% for method, args in methods %}
+        <li>{{ method }}({{ ', '.join(args) }})</li>
+      {% endfor %}
+    </ul>
+  {% endfor %}
+{% endblock %}

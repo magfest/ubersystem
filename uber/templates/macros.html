@@ -185,6 +185,7 @@
               name="{{ field }}{{ suffix }}"
               rows="4"
               placeholder="{{ placeholder }}"
+              {% if is_required %}required="required"{% endif %}
               {% if is_focused %}autofocus{% endif %}>{{ '' if is_class else model[field] }}</textarea>
         {%- else -%}
           <input

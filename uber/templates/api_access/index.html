@@ -3,6 +3,42 @@
 
 {% block content %}
 
+  <style type="text/css">
+    .info {
+      font-size: 1.25em;
+    }
+
+    #btn_show_revoked {
+      margin-top: 10px;
+    }
+  </style>
+
+  <script type="text/javascript">
+    $(function() {
+      var $lengthContainer = $('#DataTables_Table_0_wrapper > .row:first-child > .col-sm-6:first-child');
+      $lengthContainer.append(
+        $('<div id="DataTables_Table_0_length" class="dataTables_length"></div>').append(
+          $('#btn_show_revoked')
+        )
+      );
+
+      var $createApiTokenForm = $('#create_api_token'),
+          $btn = $createApiTokenForm.find('button[type=submit]');
+      $createApiTokenForm.on('submit', function(event) {
+        event.preventDefault();
+        $btn.prop('disabled', true);
+        $.post('create_api_token', $createApiTokenForm.serialize(), function(result) {
+          $btn.prop('disabled', false);
+          if (result.error) {
+            toastr.error(result.error);
+          } else {
+            window.location = 'index?message=Successfully created API token'
+          }
+        });
+      });
+    });
+  </script>
+
   <div
       id="new_token"
       class="modal fade"
@@ -19,15 +55,16 @@
             New API Token
           </h4>
         </div>
-        <form method="post" action="index" class="form-horizontal" role="form">
+        <form id="create_api_token" method="post" action="create_api_token" class="form-horizontal" role="form">
           <div class="modal-body">
             {{ csrf_token() }}
             <input type="hidden" name="id" value="None" />
-            {{ macros.form_group(ApiToken, 'name') }}
+            {{ macros.form_group(ApiToken, 'name', is_required=True) }}
             {{ macros.form_group(
                 ApiToken,
                 'description',
                 type='textarea',
+                is_required=True,
                 label='Intended Usage',
                 help='Please describe how you intend to use your API access.') }}
             <div class="form-group">
@@ -51,26 +88,41 @@
 
   <h1>
     API Access{% if not admin_account.is_admin %} for {{ admin_account.attendee|form_link }}{% endif %}
-    {% if show_revoked %}
-      <a href="index" class="btn btn-xs btn-plain">
-    {% else %}
-      <a href="index?show_revoked=true" class="btn btn-xs btn-default">
-    {% endif %}
-        <span class="glyphicon glyphicon-filter"></span>
-        Show Revoked Tokens
-      </a>
     <button type="button" class="btn btn-sm btn-primary pull-right" data-toggle="modal" data-target="#new_token">
       <span class="glyphicon glyphicon-plus"></span>
       New API Token
     </button>
   </h1>
 
+  <p class="info">
+    <a href="info">
+      <span class="glyphicon glyphicon-question-sign"></span>
+      Need help with the API?
+    </a>
+  </p>
+
+  <h3>
+    {% if admin_account.is_admin %}All{% else %}Your{% endif %} Tokens
+  </h3>
+  {% if show_revoked %}
+    <a id="btn_show_revoked" href="index" class="btn btn-xs btn-plain">
+  {% else %}
+    <a id="btn_show_revoked" href="index?show_revoked=true" class="btn btn-xs btn-default">
+  {% endif %}
+      <span class="glyphicon glyphicon-filter"></span>
+      Show Revoked Tokens
+    </a>
+
   {% if api_tokens %}
     <div class="responsive-table">
-      <table class="table table-striped table-hover datatable">
+      <table
+          class="table table-striped table-hover datatable"
+          data-page-length="-1"
+          data-paging="false"
+          data-info="false">
         <thead>
           <tr>
-            <th>Owner</th>
+            {% if admin_account.is_admin %}<th>Owner</th>{% endif %}
             <th>Name</th>
             <th>Description</th>
             <th>Access</th>
@@ -82,11 +134,13 @@
         <tbody>
           {% for token in api_tokens %}
             <tr>
-              <td
-                  data-order="{{ token.admin_account.attendee.full_name }}"
-                  data-search="{{ token.admin_account.attendee.full_name }}">
-                {{ token.admin_account.attendee|form_link }}
-              </td>
+              {% if admin_account.is_admin %}
+                <td
+                    data-order="{{ token.admin_account.attendee.full_name }}"
+                    data-search="{{ token.admin_account.attendee.full_name }}">
+                  {{ token.admin_account.attendee|form_link }}
+                </td>
+              {% endif %}
               <td>{{ token.name }}</td>
               <td>{{ token.description }}</td>
               <td>{{ token.access_labels|join(', ') }}</td>

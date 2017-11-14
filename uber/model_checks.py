@@ -50,7 +50,7 @@ def admin_has_required_access(account):
                     return 'You do not have permission to change that access setting'
 
 
-ApiToken.required = [('access', 'API Access')]
+ApiToken.required = [('name', 'Name'), ('description', 'Intended Usage'), ('access', 'Access Controls')]
 
 
 @validation.ApiToken
