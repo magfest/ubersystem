@@ -26,7 +26,7 @@ def get_verbose_request_context():
 
     max_reporting_length = 1000   # truncate to reasonably large size in case they uploaded attachments
 
-    p = ["  %s: %s" % (k, v[:max_reporting_length]) for k, v in cherrypy.request.params.items()]
+    p = ["  %s: %s" % (k, str(v)[:max_reporting_length]) for k, v in cherrypy.request.params.items()]
     post_txt = 'Request Params:\n' + '\n'.join(p)
 
     session_txt = 'Session Params:\n' + pformat(cherrypy.session.items(), width=40)
