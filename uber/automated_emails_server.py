@@ -87,8 +87,8 @@ class AutomatedEmail:
 
         Do any error handling in the client functions we call
         """
-        if self._should_send(model_inst):
-            self.really_send(model_inst)
+        if self._should_send(model_inst, raise_errors=raise_errors):
+            self.really_send(model_inst, raise_errors=raise_errors)
 
     def _should_send(self, model_inst, raise_errors=False):
         """
