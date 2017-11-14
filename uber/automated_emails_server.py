@@ -84,16 +84,13 @@ class AutomatedEmail:
     def send_if_should(self, model_inst, raise_errors=False):
         """
         If it's OK to send an email of our category to this model instance (i.e. a particular Attendee) then send it.
-        """
-        try:
-            if self._should_send(model_inst):
-                self.really_send(model_inst)
-        except:
-            log.error('error sending {!r} email to {}', self.subject, model_inst.email, exc_info=True)
-            if raise_errors:
-                raise
 
-    def _should_send(self, model_inst):
+        Do any error handling in the client functions we call
+        """
+        if self._should_send(model_inst):
+            self.really_send(model_inst)
+
+    def _should_send(self, model_inst, raise_errors=False):
         """
         If True, we should generate an actual email created from our email category
         and send it to a particular model instance.
@@ -118,14 +115,20 @@ class AutomatedEmail:
         :return: True if we should send this email to this model instance, False if not.
         """
 
-        return all(condition() for condition in [
-            lambda: not c.AT_THE_CON or self.allow_during_con,
-            lambda: isinstance(model_inst, self.model),
-            lambda: getattr(model_inst, 'email', None),
-            lambda: not self._already_sent(model_inst),
-            lambda: self.filters_run(model_inst),
-            lambda: self.approved,
-        ])
+        try:
+            return all(condition() for condition in [
+                lambda: not c.AT_THE_CON or self.allow_during_con,
+                lambda: isinstance(model_inst, self.model),
+                lambda: getattr(model_inst, 'email', None),
+                lambda: not self._already_sent(model_inst),
+                lambda: self.filters_run(model_inst),
+                lambda: self.approved,
+            ])
+        except:
+            log.error('error determining whether to send {!r} email to {}', self.subject, model_inst.email, exc_info=True)
+            if raise_errors:
+                raise
+            return False
 
     @property
     def approved(self):
@@ -151,7 +154,7 @@ class AutomatedEmail:
         model = getattr(model_instance, 'email_model_name', model_instance.__class__.__name__.lower())
         return render('emails/' + self.template, dict({model: model_instance}, **self.extra_data))
 
-    def really_send(self, model_instance):
+    def really_send(self, model_instance, raise_errors=False):
         """
         Actually send an email to a particular model instance (i.e. a particular attendee).
 
@@ -169,7 +172,8 @@ class AutomatedEmail:
                        model=model_instance, cc=self.cc, ident=self.ident)
         except:
             log.error('error sending {!r} email to {}', self.subject, model_instance.email, exc_info=True)
-            raise
+            if raise_errors:
+                raise
 
     @property
     def when_txt(self):
