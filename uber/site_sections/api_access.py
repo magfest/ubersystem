@@ -27,8 +27,8 @@ class Root:
         from uber.decorators import get_innermost
         from uber.server import jsonrpc_services as jsonrpc
         services = []
-        for service_name in sorted(jsonrpc.keys()):
-            service = jsonrpc[service_name]
+        for name in sorted(jsonrpc.keys()):
+            service = jsonrpc[name]
             methods = []
             for method_name, method in getmembers(service, ismethod):
                 if not method_name.startswith('_'):
@@ -36,7 +36,7 @@ class Root:
                     if 'self' in args:
                         args.remove('self')
                     methods.append((method_name, args))
-            services.append((service_name, methods))
+            services.append((name, methods))
 
         return {'services': services}
 
