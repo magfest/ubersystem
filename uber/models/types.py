@@ -19,7 +19,7 @@ __all__ = [
     'DefaultColumn', 'JSONColumnMixin', 'MultiChoice', 'TakesPaymentMixin']
 
 
-def DefaultColumn(*args, admin_only=False, **kwargs):
+def DefaultColumn(*args, admin_only=False, private=False, **kwargs):
     """
     Returns a SQLAlchemy Column with the given parameters, except that instead
     of the regular defaults, we've overridden the following defaults if no
@@ -45,6 +45,7 @@ def DefaultColumn(*args, admin_only=False, **kwargs):
         kwargs.setdefault('server_default', str(default))
     col = SQLAlchemy_Column(*args, **kwargs)
     col.admin_only = admin_only or type_ in (UUID, UTCDateTime)
+    col.private = private
     return col
 
 

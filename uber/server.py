@@ -139,6 +139,7 @@ static_overrides(join(c.MODULE_ROOT, 'static'))
 
 jsonrpc_services = {}
 
+
 def register_jsonrpc(service, name=None):
     name = name or service.__name__
     assert name not in jsonrpc_services, '{} has already been registered'.format(name)

@@ -45,7 +45,7 @@ def admin_has_required_access(account):
             admin_account = session.current_admin_account()
             admin_access = set(admin_account.access_ints)
             for access_change in access_changes:
-                required_access = c.REQUIRED_ACCESS.get(access_change, [])
+                required_access = c.REQUIRED_ACCESS.get(access_change, [access_change])
                 if all(a not in admin_access for a in required_access):
                     return 'You do not have permission to change that access setting'
 

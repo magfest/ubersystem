@@ -55,6 +55,7 @@ def upgrade():
     op.create_table('api_token',
     sa.Column('id', sideboard.lib.sa.UUID(), nullable=False),
     sa.Column('admin_account_id', sideboard.lib.sa.UUID(), nullable=False),
+    sa.Column('token', sideboard.lib.sa.UUID(), nullable=False),
     sa.Column('access', sa.Unicode(), server_default='', nullable=False),
     sa.Column('name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('description', sa.Unicode(), server_default='', nullable=False),
@@ -63,7 +64,6 @@ def upgrade():
     sa.ForeignKeyConstraint(['admin_account_id'], ['admin_account.id'], name=op.f('fk_api_token_admin_account_id_admin_account')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_api_token'))
     )
-    op.create_index('ix_api_token_id_revoked_time', 'api_token', ['id', 'revoked_time'], unique=False)
 
 
 def downgrade():

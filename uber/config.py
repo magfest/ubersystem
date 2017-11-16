@@ -6,6 +6,15 @@ def create_namespace_uuid(s):
     return uuid.UUID(hashlib.sha1(s.encode('utf-8')).hexdigest()[:32])
 
 
+class keydefaultdict(defaultdict):
+    def __missing__(self, key):
+        if self.default_factory is None:
+            raise KeyError(key)
+        else:
+            ret = self[key] = self.default_factory(key)
+            return ret
+
+
 class _Overridable:
     "Base class we extend below to allow plugins to add/override config options."
     @classmethod
@@ -597,8 +606,12 @@ if not c.GROUPS_ENABLED:
 
 c.make_enums(_config['enums'])
 
-c.REQUIRED_ACCESS = {a: [getattr(c, s.upper()) for s in p] for a, p in c.REQUIRED_ACCESS.items()}
-c.REQUIRED_ACCESS_OPTS = [(a, [getattr(c, s.upper()) for s in p]) for a, p in c.REQUIRED_ACCESS_OPTS]
+_default_access = [getattr(c, s.upper()) for s in c.REQUIRED_ACCESS[c.__DEFAULT__]]
+del c.REQUIRED_ACCESS[c.__DEFAULT__]
+c.REQUIRED_ACCESS_VARS.remove('__DEFAULT__')
+c.REQUIRED_ACCESS = keydefaultdict(lambda a: set([a] + _default_access),
+    {a: set([getattr(c, s.upper()) for s in p]) for a, p in c.REQUIRED_ACCESS.items()})
+c.REQUIRED_ACCESS_OPTS = [(a, c.REQUIRED_ACCESS[a]) for a, _ in c.REQUIRED_ACCESS_OPTS if a != c.__DEFAULT__]
 
 for _name, _val in _config['integer_enums'].items():
     if isinstance(_val, int):

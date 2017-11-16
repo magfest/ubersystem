@@ -4,7 +4,7 @@
 {% block content %}
 
   <style type="text/css">
-    .info {
+    .reference {
       font-size: 1.25em;
     }
 
@@ -94,8 +94,8 @@
     </button>
   </h1>
 
-  <p class="info">
-    <a href="info">
+  <p class="reference">
+    <a href="reference">
       <span class="glyphicon glyphicon-question-sign"></span>
       Need help with the API?
     </a>
@@ -144,7 +144,7 @@
               <td>{{ token.name }}</td>
               <td>{{ token.description }}</td>
               <td>{{ token.access_labels|join(', ') }}</td>
-              <td class="text-nowrap">{{ token.id }}</td>
+              <td class="text-nowrap">{{ token.token }}</td>
               <td data-order="{{ token.issued_time }}">
                 {{ token.issued_time|datetime_local('%B %-e, %Y, %-I:%M%p') }}
               </td>

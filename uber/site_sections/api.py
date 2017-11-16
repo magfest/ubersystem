@@ -23,22 +23,34 @@ class Root:
             'show_revoked': show_revoked,
         }
 
-    def info(self, session):
-        from uber.decorators import get_innermost
+    def reference(self, session):
         from uber.server import jsonrpc_services as jsonrpc
+        admin_account = session.current_admin_account()
         services = []
         for name in sorted(jsonrpc.keys()):
             service = jsonrpc[name]
             methods = []
             for method_name, method in getmembers(service, ismethod):
                 if not method_name.startswith('_'):
-                    args = getargspec(get_innermost(method)).args
+                    method = get_innermost(method)
+                    args = getargspec(method).args
                     if 'self' in args:
                         args.remove('self')
-                    methods.append((method_name, args))
-            services.append((name, methods))
+                    methods.append({
+                        'name': method_name,
+                        'doc': method.__doc__,
+                        'args': args
+                    })
+            services.append({
+                'name': name,
+                'doc': service.__doc__,
+                'methods': methods
+            })
 
-        return {'services': services}
+        return {
+            'services': services,
+            'admin_account': admin_account
+        }
 
     @ajax
     def create_api_token(self, session, **params):

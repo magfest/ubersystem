@@ -19,7 +19,7 @@ __all__ = ['AdminAccount', 'PasswordReset', 'WatchList']
 
 class AdminAccount(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
-    hashed = Column(UnicodeText)
+    hashed = Column(UnicodeText, private=True)
     access = Column(MultiChoice(c.ACCESS_OPTS))
 
     password_reset = relationship(
@@ -106,7 +106,7 @@ class AdminAccount(MagModel):
 class PasswordReset(MagModel):
     account_id = Column(UUID, ForeignKey('admin_account.id'), unique=True)
     generated = Column(UTCDateTime, server_default=utcnow())
-    hashed = Column(UnicodeText)
+    hashed = Column(UnicodeText, private=True)
 
     @property
     def is_expired(self):

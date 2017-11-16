@@ -74,6 +74,8 @@ class Tracking(MagModel):
         try:
             if column.name == 'hashed':
                 return '<bcrypted>'
+            elif getattr(column, 'private', None):
+                return '<private>'
             elif isinstance(column.type, MultiChoice):
                 if not value:
                     return ''
