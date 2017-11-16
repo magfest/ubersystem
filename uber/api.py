@@ -130,7 +130,7 @@ class AttendeeLookup:
         attendee search box. Takes the search query as a single parameter.
         """
         with Session() as session:
-            return [a.to_dict(self.fields) for a in session.search(query).all()]
+            return [a.to_dict(self.fields) for a in session.search(query).limit(500)]
 
 
 @all_api_auth(c.API_READ)

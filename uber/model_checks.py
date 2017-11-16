@@ -38,9 +38,10 @@ def has_email_address(account):
 @validation.AdminAccount
 def admin_has_required_access(account):
     new_access = set(int(s) for s in account.access.split(',') if s)
-    old_access = set(int(s) for s in account.orig_value_of('access').split(',') if s)
+    old_access = set() if account.is_new else \
+        set(int(s) for s in account.orig_value_of('access').split(',') if s)
     access_changes = new_access.symmetric_difference(old_access)
-    if any(c.REQUIRED_ACCESS.get(a) for a in access_changes):
+    if any(c.REQUIRED_ACCESS[a] for a in access_changes):
         with Session() as session:
             admin_account = session.current_admin_account()
             admin_access = set(admin_account.access_ints)
