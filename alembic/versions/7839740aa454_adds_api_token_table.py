@@ -67,5 +67,4 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_index('ix_api_token_id_revoked_time', table_name='api_token')
     op.drop_table('api_token')
