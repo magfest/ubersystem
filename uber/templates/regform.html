@@ -581,7 +581,7 @@
     </div>
 </div>
 
-{% if c.PAGE_PATH != '/registration/form' or not attendee.is_new %}
+{% if '/registration/' not in c.PAGE_PATH or not attendee.is_new %}
     <input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
 {% endif %}
 

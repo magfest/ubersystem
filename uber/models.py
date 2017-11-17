@@ -1242,6 +1242,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.paid != c.REFUNDED:
             self.amount_refunded = 0
 
+        if self.paid == c.NOT_PAID and self.amount_paid > 0:
+            self.paid = c.HAS_PAID
+
         if self.badge_cost == 0 and self.paid in [c.NOT_PAID, c.PAID_BY_GROUP]:
             self.paid = c.NEED_NOT_PAY
 
