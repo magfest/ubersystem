@@ -175,7 +175,7 @@ class TestAuthByToken(object):
     @pytest.mark.parametrize('token,expected', [
         (None, 'Missing X-Auth-Token header'),
         ('XXXX', 'Invalid auth token,'),
-        ('b6531a2b-eddf-4d08-9afe-0ced6376078c', 'Invalid auth token:'),
+        ('b6531a2b-eddf-4d08-9afe-0ced6376078c', 'Auth token not found:'),
     ])
     def test_failure(self, monkeypatch, token, expected):
         monkeypatch.setitem(cherrypy.request.headers, 'X-Auth-Token', token)

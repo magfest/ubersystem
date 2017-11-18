@@ -7,6 +7,10 @@ def create_namespace_uuid(s):
 
 
 class keydefaultdict(defaultdict):
+    """
+    Like a defaultdict except that the factory function used to generate values
+    for missing keys takes the key as a parameter.
+    """
     def __missing__(self, key):
         if self.default_factory is None:
             raise KeyError(key)

@@ -18,7 +18,7 @@ def auth_by_token(required_access):
     with Session() as session:
         api_token = session.query(ApiToken).filter_by(token=token).first()
         if not api_token:
-            return {'error': 'Invalid auth token: {}'.format(token)}
+            return {'error': 'Auth token not found: {}'.format(token)}
         if api_token.revoked_time:
             return {'error': 'Revoked auth token: {}'.format(token)}
         if not required_access.issubset(set(api_token.access_ints)):
@@ -130,7 +130,7 @@ class AttendeeLookup:
         attendee search box. Takes the search query as a single parameter.
         """
         with Session() as session:
-            return [a.to_dict(self.fields) for a in session.search(query).limit(500)]
+            return [a.to_dict(self.fields) for a in session.search(query).limit(100)]
 
 
 @all_api_auth(c.API_READ)
@@ -186,6 +186,7 @@ class ConfigLookup:
         'ORGANIZATION_NAME',
         'YEAR',
         'EPOCH',
+        'ESCHATON',
         'EVENT_VENUE',
         'EVENT_VENUE_ADDRESS',
         'AT_THE_CON',
