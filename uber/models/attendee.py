@@ -847,6 +847,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             job_query = self.session.query(Job) \
                 .filter(*job_filters) \
                 .options(
+                    subqueryload(Job.department),
                     subqueryload(Job.shifts),
                     subqueryload(Job.department),
                     subqueryload(Job.required_roles)) \

@@ -1,4 +1,4 @@
-{% import 'macros.html' as macros %}
+{% import 'macros.html' as macros with context %}
 
 {#- Setting some variables to keep the size of conditional clauses smaller. -#}
 {%- set is_prereg_form = c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form'] -%}

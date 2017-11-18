@@ -1,3 +1,5 @@
+from sideboard.jsonrpc import _make_jsonrpc_handler
+from sideboard.server import jsonrpc_reset
 from uber.common import *
 
 mimetypes.init()
@@ -133,6 +135,18 @@ c.APPCONF['/']['error_page.404'] = error_page_404
 
 cherrypy.tree.mount(Root(), c.PATH, c.APPCONF)
 static_overrides(join(c.MODULE_ROOT, 'static'))
+
+
+jsonrpc_services = {}
+
+
+def register_jsonrpc(service, name=None):
+    name = name or service.__name__
+    assert name not in jsonrpc_services, '{} has already been registered'.format(name)
+    jsonrpc_services[name] = service
+
+jsonrpc_handler = _make_jsonrpc_handler(jsonrpc_services, precall=jsonrpc_reset)
+cherrypy.tree.mount(jsonrpc_handler, join(c.PATH, 'jsonrpc'), c.APPCONF)
 
 
 def reg_checks():

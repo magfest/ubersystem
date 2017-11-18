@@ -6,6 +6,19 @@ def create_namespace_uuid(s):
     return uuid.UUID(hashlib.sha1(s.encode('utf-8')).hexdigest()[:32])
 
 
+class keydefaultdict(defaultdict):
+    """
+    Like a defaultdict except that the factory function used to generate values
+    for missing keys takes the key as a parameter.
+    """
+    def __missing__(self, key):
+        if self.default_factory is None:
+            raise KeyError(key)
+        else:
+            ret = self[key] = self.default_factory(key)
+            return ret
+
+
 class _Overridable:
     "Base class we extend below to allow plugins to add/override config options."
     @classmethod
@@ -378,6 +391,15 @@ class Config(_Overridable):
         return cherrypy.request.path_info.split('/')[-1]
 
     @request_cached_property
+    def ALLOWED_ACCESS_OPTS(self):
+        with sa.Session() as session:
+            return session.current_admin_account().allowed_access_opts
+
+    @request_cached_property
+    def DISALLOWED_ACCESS_OPTS(self):
+        return set(self.ACCESS_OPTS).difference(set(self.ALLOWED_ACCESS_OPTS))
+
+    @request_cached_property
     def CURRENT_ADMIN(self):
         try:
             with sa.Session() as session:
@@ -587,6 +609,13 @@ if not c.GROUPS_ENABLED:
     c.create_enum_val('group')
 
 c.make_enums(_config['enums'])
+
+_default_access = [getattr(c, s.upper()) for s in c.REQUIRED_ACCESS[c.__DEFAULT__]]
+del c.REQUIRED_ACCESS[c.__DEFAULT__]
+c.REQUIRED_ACCESS_VARS.remove('__DEFAULT__')
+c.REQUIRED_ACCESS = keydefaultdict(lambda a: set([a] + _default_access),
+    {a: set([getattr(c, s.upper()) for s in p]) for a, p in c.REQUIRED_ACCESS.items()})
+c.REQUIRED_ACCESS_OPTS = [(a, c.REQUIRED_ACCESS[a]) for a, _ in c.REQUIRED_ACCESS_OPTS if a != c.__DEFAULT__]
 
 for _name, _val in _config['integer_enums'].items():
     if isinstance(_val, int):

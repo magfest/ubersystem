@@ -2,6 +2,7 @@ env
 .env-success
 .vagrant
 __pycache__
+*.py[cod]
 sessions/session-*
 *.egg-info
 *.log

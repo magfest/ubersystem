@@ -35,6 +35,39 @@ def has_email_address(account):
                 return "Attendee doesn't have a valid email set"
 
 
+@validation.AdminAccount
+def admin_has_required_access(account):
+    new_access = set(int(s) for s in account.access.split(',') if s)
+    old_access = set() if account.is_new else \
+        set(int(s) for s in account.orig_value_of('access').split(',') if s)
+    access_changes = new_access.symmetric_difference(old_access)
+    if any(c.REQUIRED_ACCESS[a] for a in access_changes):
+        with Session() as session:
+            admin_account = session.current_admin_account()
+            admin_access = set(admin_account.access_ints)
+            for access_change in access_changes:
+                required_access = c.REQUIRED_ACCESS[access_change]
+                if all(a not in admin_access for a in required_access):
+                    return 'You do not have permission to change that access setting'
+
+
+ApiToken.required = [('name', 'Name'), ('description', 'Intended Usage'), ('access', 'Access Controls')]
+
+
+@validation.ApiToken
+def admin_has_required_api_access(api_token):
+    admin_account_id = cherrypy.session['account_id']
+    if api_token.is_new and admin_account_id != api_token.admin_account_id:
+            return 'You may not create an API token for another user'
+
+    with Session() as session:
+        admin_account = session.current_admin_account()
+        token_access = set(api_token.access_ints)
+        admin_access = set(admin_account.access_ints)
+        if not token_access.issubset(admin_access):
+            return 'You do not have permission to create a token with that access'
+
+
 Group.required = [('name', 'Group Name')]
 
 

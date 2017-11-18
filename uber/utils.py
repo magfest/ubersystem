@@ -100,7 +100,7 @@ def comma_and(xs, conjunction='and'):
     return (', ' if len(xs) > 2 else ' ').join(xs)
 
 
-def check_csrf(csrf_token):
+def check_csrf(csrf_token=None):
     """
     Accepts a csrf token (and checks the request headers if None is provided)
     and compares it to the token stored in the session.  An exception is raised

@@ -34,7 +34,7 @@ table form {
                {% if not c.AT_OR_POST_CON %}disabled{% endif %}>
       </div>
       <div class="form-group">
-        {{ macros.checkgroup(AdminAccount, 'access') }}
+        {{ macros.access_checkgroup(AdminAccount) }}
       </div>
       <button type="submit" class="btn btn-default">Create Account</button>
     </form>
@@ -65,7 +65,7 @@ table form {
             <form class="form update-form" method="post" action="update">
               <input type="hidden" name="id" value="{{ account.id }}" />
               {{ csrf_token() }}
-              <div class="form-group">{{ macros.checkgroup(account, 'access') }}</div>
+              <div class="form-group">{{ macros.access_checkgroup(account) }}</div>
             </form>
           </td>
           <td>
