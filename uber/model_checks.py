@@ -430,7 +430,9 @@ def invalid_badge_num(attendee):
 def no_more_custom_badges(attendee):
     if (attendee.badge_type != attendee.orig_value_of('badge_type') or attendee.is_new)\
             and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
-        return 'Custom badges have already been ordered so you cannot use this badge type'
+        with Session() as session:
+            if not session.admin_attendee().is_dept_head:
+                return 'Custom badges have already been ordered so you cannot use this badge type'
 
 
 @validation.Attendee

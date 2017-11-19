@@ -446,11 +446,18 @@ class TestBadgeValidations:
         session.staff_one.badge_num = 'Junk Badge Number'
         assert '{!r} is not a valid badge number'.format(session.staff_one.badge_num) == check(session.staff_one)
 
-    def test_no_more_custom_badges(self, session, monkeypatch, after_printed_badge_deadline):
+    def test_no_more_custom_badges(self, admin_attendee, session, monkeypatch, after_printed_badge_deadline):
         session.regular_attendee.badge_type = session.regular_attendee.badge_type
         session.regular_attendee.badge_type = c.STAFF_BADGE
         session.regular_attendee.badge_num = None
         assert 'Custom badges have already been ordered so you cannot use this badge type' == check(session.regular_attendee)
+
+    def test_more_custom_badges_for_dept_head(self, admin_attendee, session, monkeypatch, after_printed_badge_deadline):
+        monkeypatch.setattr(Attendee, 'is_dept_head', lambda s: True)
+        session.regular_attendee.badge_type = session.regular_attendee.badge_type
+        session.regular_attendee.badge_type = c.STAFF_BADGE
+        session.regular_attendee.badge_num = None
+        assert not check(session.regular_attendee)
 
     def test_out_of_badge_type(self, session, monkeypatch, before_printed_badge_deadline):
         monkeypatch.setitem(c.BADGE_RANGES, c.STAFF_BADGE, [1, 5])
