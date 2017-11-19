@@ -431,7 +431,7 @@ def no_more_custom_badges(attendee):
     if (attendee.badge_type != attendee.orig_value_of('badge_type') or attendee.is_new)\
             and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
         with Session() as session:
-            if not session.admin_attendee().is_dept_head:
+            if all(not session.admin_attendee().is_dept_head_of(d) for d in [c.REGDESK, c.STOPS]):
                 return 'Custom badges have already been ordered so you cannot use this badge type'
 
 
