@@ -407,7 +407,7 @@ class Config(_Overridable):
                     ['admin_account', 'assigned_depts']
                 admin_account = session.query(sa.AdminAccount) \
                     .filter_by(id=cherrypy.session['account_id']).options(
-                        subqueryload(sa.AdminAccount.attendee) \
+                        subqueryload(sa.AdminAccount.attendee)
                             .subqueryload(sa.Attendee.assigned_depts)).one()
                 return admin_account.attendee.to_dict(attrs)
         except Exception:
