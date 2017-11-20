@@ -50,6 +50,8 @@ class Root:
                     subqueryload(Department.members)
                         .subqueryload(Attendee.shifts)
                             .subqueryload(Shift.job),
+                    subqueryload(Department.members)
+                        .subqueryload(Attendee.admin_account),
                     subqueryload(Department.dept_heads)
                         .subqueryload(Attendee.dept_memberships),
                     subqueryload(Department.pocs)
