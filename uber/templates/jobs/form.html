@@ -156,16 +156,14 @@
       {% if not job.is_new %}<i>{{ job.shifts|length }} already filled</i>{% endif %}
     </div>
   </div>
-  {% if job.type == c.REGULAR %}
-    <div class="form-group">
-      <label class="col-sm-3 control-label">Weight{{ macros.popup_link("../static_views/weightDesc.html") }}</label>
-      <div class="col-sm-6">
-        <select name="weight" class="form-control">
-          {{ options(c.WEIGHT_OPTS, job.weight) }}
-        </select>
-      </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Weight{{ macros.popup_link("../static_views/weightDesc.html") }}</label>
+    <div class="col-sm-6">
+      <select name="weight" class="form-control">
+        {{ options(c.WEIGHT_OPTS, job.weight) }}
+      </select>
     </div>
-  {% endif %}
+  </div>
   <div class="form-group">
     <label class="col-sm-3 control-label">Department</label>
     <div class="col-sm-6">
