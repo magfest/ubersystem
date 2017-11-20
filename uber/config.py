@@ -403,8 +403,14 @@ class Config(_Overridable):
     def CURRENT_ADMIN(self):
         try:
             with sa.Session() as session:
-                return session.admin_attendee().to_dict()
-        except:
+                attrs = sa.Attendee.to_dict_default_attrs + \
+                    ['admin_account', 'assigned_depts']
+                admin_account = session.query(sa.AdminAccount) \
+                    .filter_by(id=cherrypy.session['account_id']).options(
+                        subqueryload(sa.AdminAccount.attendee)
+                            .subqueryload(sa.Attendee.assigned_depts)).one()
+                return admin_account.attendee.to_dict(attrs)
+        except Exception:
             return {}
 
     @request_cached_property

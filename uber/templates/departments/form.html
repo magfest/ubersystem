@@ -17,6 +17,10 @@
     vertical-align: text-top;
   }
 
+  .glyphicon-ban-circle {
+    color: #f4128b;
+  }
+
   .empty-message {
     font-style: italic;
   }
@@ -84,7 +88,7 @@
 {%- set is_admin_checklist_admin = admin.is_checklist_admin_of(department.id) -%}
 {%- set is_admin_dept_member = admin.assigned_to(department.id) -%}
 
-{% macro controls(attendee) -%}
+{% macro controls(attendee, require_admin_account=True) -%}
   <div
       class="btn-group"
       role="group"
@@ -92,40 +96,47 @@
     {%- set is_dept_head = attendee.is_dept_head_of(department.id) -%}
     {%- set is_poc = attendee.is_poc_of(department.id) -%}
     {%- set is_checklist_admin = attendee.is_checklist_admin_of(department.id) -%}
-    {%- if is_admin_dept_head -%}
-    <button
-        type="button"
-        class="btn btn-xs btn-inherent_role btn-{% if is_dept_head %}plain{% else %}default{% endif %}"
-        data-role="dept_head"
-        {% if is_dept_head %}
-          title="Remove {{ attendee.full_name }} as a department head of the {{ department.name }} department"
-        {% else %}
-          title="Make {{ attendee.full_name }} a department head of the {{ department.name }} department"
-        {% endif %}>
-      <span class="glyphicon glyphicon-user"></span>
-    </button>{%- endif -%}{#- strip whitespace -#}
-    <button
-        type="button"
-        class="btn btn-xs btn-inherent_role btn-{% if is_poc %}plain{% else %}default{% endif %}"
-        data-role="poc"
-        {% if is_poc %}
-          title="Remove {{ attendee.full_name }} as a point of contact of the {{ department.name }} department"
-        {% else %}
-          title="Make {{ attendee.full_name }} a point of contact of the {{ department.name }} department"
-        {% endif %}>
-      <span class="glyphicon glyphicon-envelope"></span>
-    </button>{#- strip whitespace -#}
-    <button
-        type="button"
-        class="btn btn-xs btn-inherent_role btn-{% if is_checklist_admin %}plain{% else %}default{% endif %}"
-        data-role="checklist_admin"
-        {% if is_checklist_admin %}
-          title="Remove {{ attendee.full_name }} as a checklist admin of the {{ department.name }} department"
-        {% else %}
-          title="Make {{ attendee.full_name }} a checklist admin of the {{ department.name }} department"
-        {% endif %}>
-      <span class="glyphicon glyphicon-edit"></span>
-    </button>
+    {%- if not require_admin_account or attendee.admin_account -%}
+      {%- if is_admin_dept_head -%}
+      <button
+          type="button"
+          class="btn btn-xs btn-inherent_role btn-{% if is_dept_head %}plain{% else %}default{% endif %}"
+          data-role="dept_head"
+          {% if is_dept_head %}
+            title="Remove {{ attendee.full_name }} as a department head of the {{ department.name }} department"
+          {% else %}
+            title="Make {{ attendee.full_name }} a department head of the {{ department.name }} department"
+          {% endif %}>
+        <span class="glyphicon glyphicon-user"></span>
+      </button>{%- endif -%}
+      <button
+          type="button"
+          class="btn btn-xs btn-inherent_role btn-{% if is_poc %}plain{% else %}default{% endif %}"
+          data-role="poc"
+          {% if is_poc %}
+            title="Remove {{ attendee.full_name }} as a point of contact of the {{ department.name }} department"
+          {% else %}
+            title="Make {{ attendee.full_name }} a point of contact of the {{ department.name }} department"
+          {% endif %}>
+        <span class="glyphicon glyphicon-envelope"></span>
+      </button>{#- strip whitespace -#}
+      <button
+          type="button"
+          class="btn btn-xs btn-inherent_role btn-{% if is_checklist_admin %}plain{% else %}default{% endif %}"
+          data-role="checklist_admin"
+          {% if is_checklist_admin %}
+            title="Remove {{ attendee.full_name }} as a checklist admin of the {{ department.name }} department"
+          {% else %}
+            title="Make {{ attendee.full_name }} a checklist admin of the {{ department.name }} department"
+          {% endif %}>
+        <span class="glyphicon glyphicon-edit"></span>
+      </button>
+    {%- else -%}
+      <small title="This member doesn't have an admin account">
+        <span class="glyphicon glyphicon-ban-circle"></span>
+        <i>No admin</i>
+      </small>
+    {%- endif -%}
   </div>
 {%- endmacro %}
 
@@ -141,9 +152,14 @@
         <tbody>
           {% for attendee in department[role] %}
             <tr>
-              <td>{{ attendee|form_link }}</td>
+              <td>
+                {%- if not attendee.admin_account  -%}
+                  <span class="glyphicon glyphicon-ban-circle" title="This member doesn't have an admin account"></span>
+                {%- endif %}
+                {{ attendee|form_link }}
+              </td>
               {% if can_admin_dept -%}
-                <td class="controls">{{ controls(attendee) }}</td>
+                <td class="controls">{{ controls(attendee, require_admin_account=False) }}</td>
               {%- endif %}
             </tr>
           {% else %}
