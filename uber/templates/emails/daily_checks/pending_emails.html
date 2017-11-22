@@ -1,17 +1,28 @@
 <html>
 <head></head>
 <body>
-    <h3>{{ c.EVENT_NAME_AND_YEAR }}<br/> Emails that need approval to send:</h3>
+    <h3>{{ c.EVENT_NAME_AND_YEAR }}<br/> Emails that need approval to send on behalf of {{ primary_sender }}:</h3>
 
-    <p>The following email categories are ready to send, but still require manual approval by admins.
-        Please visit the <a href="{{ c.URL_BASE }}/emails/pending">pending email approval page</a>
-        if you would like to approve any of these.</p>
+    <p>
+        The following email categories are ready to send, but still require manual approval of their content by admins.
+        Please visit the <a href="{{ c.URL_BASE }}/emails/pending">pending email approval page</a> to approve these
+        as soon as possible.  The purpose of the approval process is to make sure departments have control over the
+        text content and the timing of emails.
+    </p>
 
     <ul style="margin-top:0px ; margin-bottom:10px">
-    {% for pending_email_ident, pending_email_category_info in pending_email_categories.items() %}
-        <li>
-            {{ pending_email_category_info.num_unsent }} pending: <b>{{ pending_email_category_info.subject }}</b>
-            [<a href="{{ c.URL_BASE }}/emails/pending_examples?ident={{ pending_email_ident }}">view examples</a>]
+    {% for sender, categories in pending_email_categories.items() %}
+        <li><b>From {{ sender }}</b>:
+        <ul style="margin-top:0px ; margin-bottom:10px">
+
+            {% for ident, category in categories.items() %}
+                <li>
+                    {{ category.num_unsent }} pending: <b>{{ category.subject }}</b>
+                    [<a href="{{ c.URL_BASE }}/emails/pending_examples?ident={{ ident }}">view examples</a>]
+                </li>
+            {% endfor %}
+
+        </ul>
         </li>
     {% endfor %}
     </ul>
