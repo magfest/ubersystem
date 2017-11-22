@@ -700,15 +700,23 @@ class Session(SessionManager):
             return not self.query(Email).filter_by(subject=subject).all()
 
         def lookup_attendee(self, first_name, last_name, email, zip_code):
-            attendee = self.query(Attendee).iexact(
+            attendees = self.query(Attendee).iexact(
                 first_name=first_name,
                 last_name=last_name,
                 email=email,
                 zip_code=zip_code).filter(
-                    Attendee.badge_status != c.INVALID_STATUS).first()
+                    Attendee.badge_status != c.INVALID_STATUS).limit(10).all()
 
-            if attendee:
-                return attendee
+            if attendees:
+                statuses = defaultdict(lambda: six.MAXSIZE, {
+                    c.COMPLETED_STATUS: 0,
+                    c.NEW_STATUS: 1,
+                    c.REFUNDED_STATUS: 2,
+                    c.DEFERRED_STATUS: 3})
+
+                attendees = sorted(
+                    attendees, key=lambda a: statuses[a.badge_status])
+                return attendees[0]
 
             raise ValueError('Attendee not found')
 
