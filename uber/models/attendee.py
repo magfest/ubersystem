@@ -706,9 +706,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         into this, we deduct 1 staff shirt from the staff shirt count and add 1
         to the event shirt count.
         """
-        has_replacement = self.gets_staff_shirt \
-            and self.second_shirt in [c.UNKNOWN, c.STAFF_AND_EVENT_SHIRT]
-        return 1 if has_replacement else 0
+        is_replaced = self.second_shirt in [c.UNKNOWN, c.STAFF_AND_EVENT_SHIRT]
+        return 1 if self.gets_staff_shirt and is_replaced else 0
 
     @property
     def num_event_shirts_owed(self):
