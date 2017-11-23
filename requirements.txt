@@ -8,3 +8,4 @@ treepoem==1.0.1
 email_validator==1.0.2
 phonenumbers==8.8.1
 XlsxWriter==1.0.2
+schedule==0.5.0

@@ -1,6 +1,7 @@
 from sideboard.jsonrpc import _make_jsonrpc_handler
 from sideboard.server import jsonrpc_reset
 from uber.common import *
+import uber.scheduler
 
 mimetypes.init()
 
@@ -149,16 +150,10 @@ jsonrpc_handler = _make_jsonrpc_handler(jsonrpc_services, precall=jsonrpc_reset)
 cherrypy.tree.mount(jsonrpc_handler, join(c.PATH, 'jsonrpc'), c.APPCONF)
 
 
-def reg_checks():
-    sleep(600)  # Delay by 10 minutes to give the system time to start up
-    check_unassigned()
-    detect_duplicates()
-    check_placeholders()
+uber.scheduler.schedule.every(6).hours.do(check_unassigned)
+uber.scheduler.schedule.every(6).hours.do(detect_duplicates)
+uber.scheduler.schedule.every(6).hours.do(check_placeholders)
+uber.scheduler.schedule.every(5).minutes.do(SendAllAutomatedEmailsJob.send_all_emails)
 
-# Registration checks are run every six hours
-DaemonTask(reg_checks, interval=21600, name="mail reg checks")
-
-DaemonTask(SendAllAutomatedEmailsJob.send_all_emails, interval=300, name="send emails")
-
-# TODO: this should be replaced by something a little cleaner, but it can be a useful debugging tool
-# DaemonTask(lambda: log.error(Session.engine.pool.status()), interval=5)
+# enable debug logging if you need it for desperate situations
+# uber.scheduler.schedule.every(5).minutes.do(lambda: log.error(Session.engine.pool.status()))
