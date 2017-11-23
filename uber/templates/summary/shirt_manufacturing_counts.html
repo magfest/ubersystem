@@ -12,7 +12,9 @@
     We recommend adding in a few extra shirts for safety margins to these numbers.
     {% if c.SHIRTS_PER_STAFFER > 1 %}
         <br/> <br/>
-        <b>NOTE:</b> The "Staff Shirts" report shows the result of each staffer receiving {{ c.SHIRTS_PER_STAFFER }} shirts.
+        <b>NOTE:</b> These numbers show the result of each staffer receiving {{ c.SHIRTS_PER_STAFFER }}
+        shirt{{ c.SHIRTS_PER_STAFFER|pluralize }}{% if c.SHIRTS_PER_STAFFER > 1 %},
+        and each staffer was able to indicate whether they wanted to substitute 1 event shirt for a staff shirt{% endif %}.
     {% endif %}
 </p>
 
