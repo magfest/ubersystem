@@ -99,6 +99,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     # attendee shirt size for both swag and staff shirts
     shirt = Column(Choice(c.SHIRT_OPTS), default=c.NO_SHIRT)
+    second_shirt = Column(Choice(c.SECOND_SHIRT_OPTS), default=c.UNKNOWN)
     can_spam = Column(Boolean, default=False)
     regdesk_info = Column(UnicodeText, admin_only=True)
     extra_merch = Column(UnicodeText, admin_only=True)
@@ -583,9 +584,13 @@ class Attendee(MagModel, TakesPaymentMixin):
         return None
 
     @property
-    # should be OK
     def shirt_size_marked(self):
         return self.shirt not in [c.NO_SHIRT, c.SIZE_UNKNOWN]
+
+    @property
+    def shirt_info_marked(self):
+        return self.shirt_size_marked and (
+            not self.gets_staff_shirt or self.second_shirt != c.UNKNOWN)
 
     @property
     def is_group_leader(self):
@@ -671,18 +676,17 @@ class Attendee(MagModel, TakesPaymentMixin):
             not self.has_role_somewhere
 
     @property
-    def paid_for_a_swag_shirt(self):
+    def paid_for_a_shirt(self):
         return self.amount_extra >= c.SHIRT_LEVEL
 
     @property
-    def volunteer_swag_shirt_eligible(self):
+    def volunteer_event_shirt_eligible(self):
         """
-        Returns: True if this attendee is eligible for a swag shirt *due to
-            their status as a volunteer or staff*. They may additionally be
-            eligible for a swag shirt for other reasons too.
+        Returns a truthy value if this attendee either automatically gets a
+        complementary event shirt for being staff OR if they've eligible for a
+        complementary event shirt if they end up working enough volunteer hours
         """
-
-        # Some events want to exclude staff badges from getting swag shirts
+        # Some events want to exclude staff badges from getting event shirts
         # (typically because they are getting staff uniform shirts instead).
         if self.badge_type == c.STAFF_BADGE:
             return c.STAFF_ELIGIBLE_FOR_SWAG_SHIRT
@@ -690,23 +694,42 @@ class Attendee(MagModel, TakesPaymentMixin):
             return c.VOLUNTEER_RIBBON in self.ribbon_ints
 
     @property
-    def volunteer_swag_shirt_earned(self):
-        return self.volunteer_swag_shirt_eligible and (
+    def volunteer_event_shirt_earned(self):
+        return self.volunteer_event_shirt_eligible and (
             not self.takes_shifts or self.worked_hours >= 6)
 
     @property
-    def num_swag_shirts_owed(self):
-        swag_shirts = int(self.paid_for_a_swag_shirt)
-        volunteer_shirts = int(self.volunteer_swag_shirt_eligible)
-        return swag_shirts + volunteer_shirts
+    def replacement_staff_shirts(self):
+        """
+        Staffers can choose whether or not they want to swap out one of their
+        staff shirts for an event shirt.  By default and if the staffer opts
+        into this, we deduct 1 staff shirt from the staff shirt count and add 1
+        to the event shirt count.
+        """
+        has_replacement = self.gets_staff_shirt \
+            and self.second_shirt in [c.UNKNOWN, c.STAFF_AND_EVENT_SHIRT]
+        return 1 if has_replacement else 0
+
+    @property
+    def num_event_shirts_owed(self):
+        return sum([
+            int(self.paid_for_a_shirt),
+            int(self.volunteer_event_shirt_eligible),
+            self.replacement_staff_shirts
+        ])
 
     @property
     def gets_staff_shirt(self):
         return self.badge_type == c.STAFF_BADGE
 
     @property
+    def num_staff_shirts_owed(self):
+        return 0 if not self.gets_staff_shirt else (
+            c.SHIRTS_PER_STAFFER - self.replacement_staff_shirts)
+
+    @property
     def gets_any_kind_of_shirt(self):
-        return self.gets_staff_shirt or self.num_swag_shirts_owed > 0
+        return self.gets_staff_shirt or self.num_event_shirts_owed > 0
 
     @property
     def has_personalized_badge(self):
@@ -728,21 +751,18 @@ class Attendee(MagModel, TakesPaymentMixin):
     def merch(self):
         """
         Here is the business logic surrounding shirts:
-
-            - People who kick in enough to get a shirt get a shirt.
-            - People with staff badges get a configurable number of staff
-              shirts.
-            - Volunteers who meet the requirements get a complementary swag
-              shirt (NOT a staff shirt).
-
+        - People who kick in enough to get a shirt get an event shirt.
+        - People with staff badges get a configurable number of staff shirts.
+        - Volunteers who meet the requirements get a complementary event shirt
+            (NOT a staff shirt).
         """
         merch = self.donation_swag
 
-        if self.volunteer_swag_shirt_eligible:
+        if self.volunteer_event_shirt_eligible:
             shirt = c.DONATION_TIERS[c.SHIRT_LEVEL]
-            if self.paid_for_a_swag_shirt:
+            if self.paid_for_a_shirt:
                 shirt = 'a 2nd ' + shirt
-            if not self.volunteer_swag_shirt_earned:
+            if not self.volunteer_event_shirt_earned:
                 shirt += (
                     ' (this volunteer must work at least 6 hours or '
                     'they will be reported for picking up their shirt)')
@@ -1111,7 +1131,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def shift_prereqs_complete(self):
         return not self.placeholder and \
-            self.food_restrictions_filled_out and self.shirt_size_marked
+            self.food_restrictions_filled_out and self.shirt_info_marked
 
     @property
     def past_years_json(self):

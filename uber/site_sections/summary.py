@@ -302,11 +302,12 @@ class Root:
 
     def shirt_manufacturing_counts(self, session):
         """
-        This report should be the definitive report about the count and sizes of shirts needed to be ordered.
+        This report should be the definitive report about the count and sizes of
+        shirts needed to be ordered.
 
-        There are 2 types of shirts:
-        - "staff shirts" - staff uniforms, each staff gets TWO currently
-        - "swag shirts" - pre-ordered shirts, which the following groups receive:
+        There are two types of shirts:
+        - "staff shirts" - staff uniforms, each staff gets c.SHIRTS_PER_STAFFER
+        - "event shirts" - pre-ordered swag shirts, which are received by:
             - volunteers (non-staff who get one for free)
             - attendees (who can pre-order them)
         """
@@ -317,17 +318,14 @@ class Root:
 
         for attendee in session.all_attendees():
             shirt_label = attendee.shirt_label or 'size unknown'
-
-            if attendee.gets_staff_shirt:
-                counts['staff'][label(shirt_label)] += c.SHIRTS_PER_STAFFER
-
-            counts['swag'][label(shirt_label)] += attendee.num_swag_shirts_owed
+            counts['staff'][label(shirt_label)] += attendee.num_staff_shirts_owed
+            counts['event'][label(shirt_label)] += attendee.num_event_shirts_owed
 
         categories = []
         if c.SHIRTS_PER_STAFFER > 0:
             categories.append(('Staff Uniform Shirts', sort(counts['staff'])))
 
-        categories.append(('Swag Shirts', sort(counts['swag'])))
+        categories.append(('Event Shirts', sort(counts['event'])))
 
         return {
             'categories': categories,
@@ -340,28 +338,27 @@ class Root:
         label = lambda s: 'size unknown' if s == c.SHIRTS[c.NO_SHIRT] else s
         status = lambda got_merch: 'picked_up' if got_merch else 'outstanding'
         sales_by_week = OrderedDict([(i, 0) for i in range(50)])
+
         for attendee in session.all_attendees():
             shirt_label = attendee.shirt_label or 'size unknown'
-            if attendee.volunteer_swag_shirt_eligible:
-                counts['free_swag_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
-                counts['all_swag_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
-            if attendee.paid_for_a_swag_shirt:
-                counts['paid_swag_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
-                counts['all_swag_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
+            counts['all_staff_shirts'][label(shirt_label)][status(attendee.got_merch)] += attendee.num_staff_shirts_owed
+            counts['all_event_shirts'][label(shirt_label)][status(attendee.got_merch)] += attendee.num_event_shirts_owed
+            if attendee.volunteer_event_shirt_eligible or attendee.replacement_staff_shirts:
+                counts['free_event_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
+            if attendee.paid_for_a_shirt:
+                counts['paid_event_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
                 sales_by_week[(min(datetime.now(UTC), c.ESCHATON) - attendee.registered).days // 7] += 1
-            if attendee.gets_staff_shirt:
-                counts['staff_shirts'][label(shirt_label)][status(attendee.got_merch)] += c.SHIRTS_PER_STAFFER
+
         for week in range(48, -1, -1):
             sales_by_week[week] += sales_by_week[week + 1]
 
         categories = [
-            ('Free Swag Shirts', sort(counts['free_swag_shirts'])),
-            ('Paid Swag Shirts', sort(counts['paid_swag_shirts'])),
-            ('All Swag Shirts', sort(counts['all_swag_shirts'])),
+            ('Free Event Shirts', sort(counts['free_event_shirts'])),
+            ('Paid Event Shirts', sort(counts['paid_event_shirts'])),
+            ('All Event Shirts', sort(counts['all_event_shirts'])),
         ]
-
         if c.SHIRTS_PER_STAFFER > 0:
-            categories.append(('Staff Shirts', sort(counts['staff_shirts'])))
+            categories.append(('Staff Shirts', sort(counts['all_staff_shirts'])))
 
         return {
             'sales_by_week': sales_by_week,
