@@ -1,7 +1,7 @@
 """Added second_shirt column to the Attendee table
 
 Revision ID: 06b9ad98e471
-Revises: 4947b38a18b1
+Revises: 7839740aa454
 Create Date: 2017-11-22 22:06:03.196604
 """
 
