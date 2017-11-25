@@ -1,21 +1,40 @@
-from sideboard.lib import DaemonTask, on_startup
+from sideboard.lib import DaemonTask, on_startup, log
 from uber.decorators import timed, swallow_exceptions
 from datetime import datetime
 import time
 import schedule
 from collections import defaultdict
+from functools import wraps
+import threading
 
 # don't start the email sending in the main thread. everything else is cool.
 # NOTE: only applies to cherrypy process ONLY, doesn't apply when started via 'sep' or other processes.
 # uncomment this if you want to do email sending in its own process
-# _default_cherrypy_exclude_categories = ["automated_email_sending"]
-_default_cherrypy_exclude_categories = None
+_default_cherrypy_exclude_categories = ["automated_email_sending"]
+
+
+def run_threaded(func, thread_name):
+    """
+    Decorate a function to run asynchronously in a new thread and return immediately
+    NOTE: Caller is responsible for all thread safety, this is very lightweight.
+    """
+    @wraps(func)
+    def with_threading(*args, **kwargs):
+        job_thread = threading.Thread(target=func, *args, **kwargs)
+        if thread_name:
+            job_thread.name = '{}'.format(thread_name)
+        job_thread.start()
+        log.debug('Started background thread for task: {}'.format(thread_name))
+    return with_threading
 
 
 class UberSchedulerJob(schedule.Job):
-    def do(self, job_func, *args, **kwargs):
-        # our scheduler needs to not let individual tasks throw exceptions, so wrap it here
-        wrapped_fn = timed(swallow_exceptions(job_func))
+    def do(self, job_func, run_in_own_thread=False, thread_name=None, *args, **kwargs):
+        # our scheduler needs to not let individual tasks throw exceptions, so wrap it here, and time it
+        wrapped_fn = timed(swallow_exceptions(job_func), prepend_txt='TASK DONE')
+
+        if run_in_own_thread:
+            wrapped_fn = run_threaded(wrapped_fn, thread_name or job_func.__name__)
 
         return super().do(wrapped_fn, *args, **kwargs)
 
@@ -57,7 +76,7 @@ def schedule_N_times_per_day(times_per_day, fn, *args, **kwargs):
     assert hourly_interval[1] == 0, "times_per_day must be evenly divisble by 24 hours"
     hourly_interval = hourly_interval[0]
 
-    for hour in range(0,24,int(24/times_per_day)):
+    for hour in range(0, 24 ,int(24/times_per_day)):
         assert 0 <= hour < 24
         _time = "{:02d}:00".format(hour)
         schedule.every().day.at(_time).do(fn, *args, **kwargs)
@@ -77,6 +96,7 @@ def run_pending_tasks():
 _task_registrations = defaultdict(list)
 _scheduler_daemon = None
 _started_from_cherrypy = False
+
 
 @on_startup
 def scheduler_on_cherrypy_startup():
@@ -122,5 +142,4 @@ def _start_scheduler(include_categories=None, exclude_categories=None):
     _scheduler_daemon = DaemonTask(run_pending_tasks, interval=1, name="scheduled tasks")
     _scheduler_daemon.start()  # not needed if called after cherrypy startup event. needed if called before that.
 
-
-
+    log.debug('Started background task scheduler')
