@@ -416,7 +416,8 @@ def get_pending_email_data():
                 'sender': automated_email.sender,
             }
 
-        return pending_emails_by_sender
+
+    return pending_emails_by_sender
 
 
 uber.scheduler.register_task(
