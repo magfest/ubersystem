@@ -33,7 +33,8 @@ class Root:
 
             if categories_results:
                 category_results = next((result for result in categories_results if result.ident == ident), None)
-                unsent_because_unapproved = category_results.unsent_because_unapproved
+                if category_results:
+                    unsent_because_unapproved = category_results.unsent_because_unapproved
 
             automated_emails.append({
                 'automated_email': automated_email,

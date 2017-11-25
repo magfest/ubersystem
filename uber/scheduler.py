@@ -14,7 +14,7 @@ _default_cherrypy_exclude_categories = ["automated_email_sending"]
 class UberSchedulerJob(schedule.Job):
     def do(self, job_func, *args, **kwargs):
         # our scheduler needs to not let individual tasks throw exceptions, so wrap it here
-        wrapped_fn = timed(swallow_exceptions(job_func))
+        wrapped_fn = timed(swallow_exceptions(job_func), prepend_txt='TASK DONE')
 
         return super().do(wrapped_fn, *args, **kwargs)
 

@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from pytz import UTC
 from sideboard.lib import cached_property
@@ -83,7 +83,7 @@ class EmailDaemonStatus(MagModel):
         if not last_run:
             return None
 
-        return last_run if last_run.last_run_finished > datetime.now(UTC) - datetime.timedelta(days=1) else None
+        return last_run if last_run.last_run_finished > datetime.now(UTC) - timedelta(days=1) else None
 
 
 class EmailDaemonCategoryResult(MagModel):

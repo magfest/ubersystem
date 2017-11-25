@@ -374,14 +374,17 @@ def cached_page(func):
         return func
 
 
-def timed(func):
+def timed(func, prepend_txt=''):
     @wraps(func)
     def with_timing(*args, **kwargs):
         before = datetime.now()
         try:
             return func(*args, **kwargs)
         finally:
-            log.debug('{}.{} loaded in {} seconds'.format(func.__module__, func.__name__, (datetime.now() - before).total_seconds()))
+            prepend = prepend_txt
+            if prepend:
+                prepend += ': '
+            log.debug('{}{}.{} loaded in {} seconds'.format(prepend, func.__module__, func.__name__, (datetime.now() - before).total_seconds()))
     return with_timing
 
 

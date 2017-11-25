@@ -195,7 +195,6 @@ class SendAllAutomatedEmailsJob:
         """ Helper method to start a run of our automated email processing """
         cls().run(raise_errors)
 
-    @timed
     def run(self, raise_errors=False):
         """
         Do one run of our automated email service.  Call this periodically to send any emails that should go out
@@ -241,7 +240,7 @@ class SendAllAutomatedEmailsJob:
         self.session.query(EmailDaemonCategoryResult).delete()
 
         self.session.add(EmailDaemonStatus())  # updates the completion time
-        self.session.add_all(self.results.items())
+        self.session.add_all(self.results.values())
 
         self.session.commit()
 
@@ -418,3 +417,15 @@ def get_pending_email_data():
             }
 
         return pending_emails_by_sender
+
+
+uber.scheduler.register_task(
+    lambda: uber.scheduler.schedule.every(30).seconds.do(SendAllAutomatedEmailsJob.send_all_emails),
+    category="automated_email_sending",
+)
+
+
+@entry_point
+def start_email_sending_daemon():
+    initialize_db()
+    uber.scheduler.start_scheduler_and_block(include_categories="automated_email_sending")
