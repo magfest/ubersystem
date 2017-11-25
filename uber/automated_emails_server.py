@@ -1,4 +1,6 @@
 from uber.common import *
+from uber.models.email import EmailDaemonStatus, EmailDaemonCategoryResult
+import uber.scheduler
 
 
 class AutomatedEmail:
@@ -186,10 +188,6 @@ class AutomatedEmail:
 
 class SendAllAutomatedEmailsJob:
 
-    # save information about the last time the daemon ran so that we can display stats on things like
-    # unapproved emails/etc
-    last_result = dict()
-
     run_lock = threading.Lock()
 
     @classmethod
@@ -231,21 +229,21 @@ class SendAllAutomatedEmailsJob:
     def _init(self, session, raise_errors):
         self.session = session
         self.raise_errors = raise_errors
-        self.results = {
-            'running': True,
-            'completed': False,
-            'categories': defaultdict(lambda: defaultdict(int))
-        }
+        self.results = defaultdict(EmailDaemonCategoryResult)
 
         # note: this will get cleared after request_cached_context object is released.
         assert not threadlocal.get('currently_running_email_daemon')
         threadlocal.set('currently_running_email_daemon', self)
 
     def _on_finished_run(self):
-        self.results['running'] = False
-        self.results['completed'] = True
+        # save the results of the last run for future use
+        self.session.query(EmailDaemonStatus).delete()
+        self.session.query(EmailDaemonCategoryResult).delete()
 
-        SendAllAutomatedEmailsJob.last_result = self.results
+        self.session.add(EmailDaemonStatus())  # updates the completion time
+        self.session.add_all(self.results.items())
+
+        self.session.commit()
 
     def _send_all_emails(self):
         """
@@ -302,7 +300,9 @@ class SendAllAutomatedEmailsJob:
         :param automated_email_category: The category that wanted to send but needed approval
         """
 
-        self.results['categories'][automated_email_category.ident]['unsent_because_unapproved'] += 1
+        category = self.results[automated_email_category.ident]
+        category.unsent_because_unapproved += 1
+        category.ident = automated_email_category.ident
 
 
 class StopsEmail(AutomatedEmail):
@@ -376,8 +376,10 @@ def send_pending_email_report(pending_email_categories, sender):
     send_email(c.STAFF_EMAIL, sender, subject, body, format='html', model='n/a')
 
 
-# 86400 seconds = 1 day = 24 hours * 60 minutes * 60 seconds
-DaemonTask(notify_admins_of_any_pending_emails, interval=86400, name="mail pending notification")
+uber.scheduler.register_task(
+    fn=lambda: uber.scheduler.schedule.every().day.at("06:00").do(notify_admins_of_any_pending_emails),
+    category="reports"
+)
 
 
 def get_pending_email_data():
@@ -387,32 +389,32 @@ def get_pending_email_data():
     Returns: A dict of senders -> email idents -> pending counts for any email category with pending emails,
     or None if none are waiting to send or the email daemon service has not finished any runs yet.
     """
-    has_email_daemon_run_yet = SendAllAutomatedEmailsJob.last_result.get('completed', False)
-    if not has_email_daemon_run_yet:
-        return None
 
-    categories_results = SendAllAutomatedEmailsJob.last_result.get('categories', None)
-    if not categories_results:
-        return None
+    with Session() as session:
+        if not EmailDaemonStatus.last_result_looks_valid(session):
+            return None
 
-    pending_emails_by_sender = defaultdict(dict)
+        categories_results = session.query(EmailDaemonCategoryResult).all()
+        if len(categories_results) <= 0:
+            return None
 
-    for automated_email in AutomatedEmail.instances.values():
-        sender = automated_email.sender
-        ident = automated_email.ident
+        pending_emails_by_sender = defaultdict(dict)
 
-        category_results = categories_results.get(ident, None)
-        if not category_results:
-            continue
+        for automated_email in AutomatedEmail.instances.values():
+            sender = automated_email.sender
+            ident = automated_email.ident
 
-        unsent_because_unapproved_count = category_results.get('unsent_because_unapproved', 0)
-        if unsent_because_unapproved_count <= 0:
-            continue
+            category_results = next((result for result in categories_results if result.ident == ident), None)
+            if not category_results:
+                continue
 
-        pending_emails_by_sender[sender][ident] = {
-            'num_unsent': unsent_because_unapproved_count,
-            'subject': automated_email.subject,
-            'sender': automated_email.sender,
-        }
+            if category_results.unsent_because_unapproved <= 0:
+                continue
 
-    return pending_emails_by_sender
+            pending_emails_by_sender[sender][ident] = {
+                'num_unsent': category_results.unsent_because_unapproved,
+                'subject': automated_email.subject,
+                'sender': automated_email.sender,
+            }
+
+        return pending_emails_by_sender

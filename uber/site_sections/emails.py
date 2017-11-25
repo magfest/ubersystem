@@ -21,26 +21,30 @@ class Root:
 
     def pending(self, session, message=''):
         automated_emails = []
-        last_job_completed = SendAllAutomatedEmailsJob.last_result.get('completed', False)
-        categories_results = SendAllAutomatedEmailsJob.last_result.get('categories', None)
+        last_run = EmailDaemonStatus.last_result_looks_valid(session)
+        categories_results = session.query(EmailDaemonCategoryResult).all()
 
         count_query = session.query(Email.ident, func.count(Email.ident)).group_by(Email.ident)
         sent_email_counts = {c[0]: c[1] for c in count_query.all()}
 
         for automated_email in AutomatedEmail.instances.values():
-            category_results = categories_results.get(automated_email.ident, None) if categories_results else None
-            unsent_because_unapproved = category_results.get('unsent_because_unapproved', 0) if category_results else 0
+            ident = automated_email.ident
+            unsent_because_unapproved = 0
+
+            if categories_results:
+                category_results = next((result for result in categories_results if result.ident == ident), None)
+                unsent_because_unapproved = category_results.unsent_because_unapproved
 
             automated_emails.append({
                 'automated_email': automated_email,
-                'num_sent': sent_email_counts.get(automated_email.ident, 0),
-                'unsent_because_unapproved': unsent_because_unapproved if last_job_completed else '_'
+                'num_sent': sent_email_counts.get(ident, 0),
+                'unsent_because_unapproved': unsent_because_unapproved if last_run else '_'
             })
 
         return {
             'message': message,
             'automated_emails': automated_emails,
-            'last_job_completed': last_job_completed
+            'last_job_completed': last_run is not None,
         }
 
     def pending_examples(self, session, ident):

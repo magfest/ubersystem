@@ -7,7 +7,8 @@ from sideboard.lib.sa import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 
 from uber.custom_tags import safe_string
 from uber.models import MagModel
-from uber.models.types import DefaultColumn as Column
+from uber.models.types import DefaultColumn as Column, utcnow
+from sqlalchemy.types import Integer
 
 
 __all__ = ['ApprovedEmail', 'Email']
@@ -64,3 +65,27 @@ class Email(MagModel):
             return safe_string(body)
         else:
             return safe_string(self.body.replace('\n', '<br/>'))
+
+
+class EmailDaemonStatus(MagModel):
+    last_run_finished = Column(UTCDateTime, server_default=utcnow())
+
+    @staticmethod
+    def last_result(session):
+        status = session.query(EmailDaemonStatus).all()
+        assert len(status) <= 1, "there should only ever be at most 1 row in this table"
+        return status[0] if len(status) == 1 else None
+
+    @staticmethod
+    def last_result_looks_valid(session):
+        # return the result if the email server has completed a run in the past day
+        last_run = EmailDaemonStatus.last_result(session)
+        if not last_run:
+            return None
+
+        return last_run if last_run.last_run_finished > datetime.now(UTC) - datetime.timedelta(days=1) else None
+
+
+class EmailDaemonCategoryResult(MagModel):
+    ident = Column(UnicodeText)
+    unsent_because_unapproved = Column(Integer, default=0)

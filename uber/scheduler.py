@@ -8,8 +8,7 @@ from collections import defaultdict
 # don't start the email sending in the main thread. everything else is cool.
 # NOTE: only applies to cherrypy process ONLY, doesn't apply when started via 'sep' or other processes.
 # uncomment this if you want to do email sending in its own process
-# _default_cherrypy_exclude_categories = ["automated_email_sending"]
-_default_cherrypy_exclude_categories = None
+_default_cherrypy_exclude_categories = ["automated_email_sending"]
 
 
 class UberSchedulerJob(schedule.Job):
