@@ -416,7 +416,6 @@ def get_pending_email_data():
                 'sender': automated_email.sender,
             }
 
-
     return pending_emails_by_sender
 
 

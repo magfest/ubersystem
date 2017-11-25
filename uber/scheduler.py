@@ -76,7 +76,7 @@ def schedule_N_times_per_day(times_per_day, fn, *args, **kwargs):
     assert hourly_interval[1] == 0, "times_per_day must be evenly divisble by 24 hours"
     hourly_interval = hourly_interval[0]
 
-    for hour in range(0,24,int(24/times_per_day)):
+    for hour in range(0, 24 ,int(24/times_per_day)):
         assert 0 <= hour < 24
         _time = "{:02d}:00".format(hour)
         schedule.every().day.at(_time).do(fn, *args, **kwargs)
@@ -96,6 +96,7 @@ def run_pending_tasks():
 _task_registrations = defaultdict(list)
 _scheduler_daemon = None
 _started_from_cherrypy = False
+
 
 @on_startup
 def scheduler_on_cherrypy_startup():
@@ -142,7 +143,3 @@ def _start_scheduler(include_categories=None, exclude_categories=None):
     _scheduler_daemon.start()  # not needed if called after cherrypy startup event. needed if called before that.
 
     log.debug('Started background task scheduler')
-
-
-
-
