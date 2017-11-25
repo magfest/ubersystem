@@ -1,5 +1,4 @@
 from uber.common import *
-import uber.scheduler
 
 
 class AutomatedEmail:
@@ -198,6 +197,7 @@ class SendAllAutomatedEmailsJob:
         """ Helper method to start a run of our automated email processing """
         cls().run(raise_errors)
 
+    @timed
     def run(self, raise_errors=False):
         """
         Do one run of our automated email service.  Call this periodically to send any emails that should go out
@@ -354,22 +354,37 @@ def notify_admins_of_any_pending_emails():
     if not pending_email_categories:
         return
 
+    for sender, email_categories in pending_email_categories.items():
+        include_all_categories = sender == c.STAFF_EMAIL
+        included_categories = pending_email_categories
+
+        if not include_all_categories:
+            included_categories = {
+                c_sender: categories for c_sender, categories in pending_email_categories.items() if c_sender == sender
+            }
+
+        send_pending_email_report(included_categories, sender)
+
+
+def send_pending_email_report(pending_email_categories, sender):
+    rendering_data = {
+        'pending_email_categories': pending_email_categories,
+        'primary_sender': sender,
+    }
     subject = c.EVENT_NAME + ' Pending Emails Report for ' + localized_now().strftime('%Y-%m-%d')
-    body = render('emails/daily_checks/pending_emails.html', {'pending_email_categories': pending_email_categories})
-    send_email(c.STAFF_EMAIL, c.STAFF_EMAIL, subject, body, format='html', model='n/a')
+    body = render('emails/daily_checks/pending_emails.html', rendering_data)
+    send_email(c.STAFF_EMAIL, sender, subject, body, format='html', model='n/a')
 
 
-uber.scheduler.register_task(
-    fn=lambda: uber.scheduler.schedule.every().day.at("06:00").do(notify_admins_of_any_pending_emails),
-    category="reports"
-)
+# 86400 seconds = 1 day = 24 hours * 60 minutes * 60 seconds
+DaemonTask(notify_admins_of_any_pending_emails, interval=86400, name="mail pending notification")
 
 
 def get_pending_email_data():
     """
     Generate a list of emails which are ready to send, but need approval.
 
-    Returns: A dict of email idents -> pending counts for any email category with pending emails,
+    Returns: A dict of senders -> email idents -> pending counts for any email category with pending emails,
     or None if none are waiting to send or the email daemon service has not finished any runs yet.
     """
     has_email_daemon_run_yet = SendAllAutomatedEmailsJob.last_result.get('completed', False)
@@ -380,32 +395,24 @@ def get_pending_email_data():
     if not categories_results:
         return None
 
-    pending_emails = dict()
+    pending_emails_by_sender = defaultdict(dict)
 
     for automated_email in AutomatedEmail.instances.values():
-        category_results = categories_results.get(automated_email.ident, None)
+        sender = automated_email.sender
+        ident = automated_email.ident
+
+        category_results = categories_results.get(ident, None)
         if not category_results:
             continue
 
         unsent_because_unapproved_count = category_results.get('unsent_because_unapproved', 0)
-
         if unsent_because_unapproved_count <= 0:
             continue
 
-        pending_emails[automated_email.ident] = {
+        pending_emails_by_sender[sender][ident] = {
             'num_unsent': unsent_because_unapproved_count,
             'subject': automated_email.subject,
+            'sender': automated_email.sender,
         }
 
-    return pending_emails
-
-
-uber.scheduler.register_task(
-    lambda: uber.scheduler.schedule.every(5).minutes.do(SendAllAutomatedEmailsJob.send_all_emails),
-    category="automated_email_sending",
-)
-
-
-@entry_point
-def start_email_sending_daemon():
-    uber.scheduler.start_scheduler_and_block(include_categories="automated_email_sending")
+    return pending_emails_by_sender
