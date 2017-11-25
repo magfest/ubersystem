@@ -618,6 +618,25 @@ class TestLookupAttendee:
                 email='searchable@example.com',
                 zip_code='12345'
             ))
+
+            for status in [c.NEW_STATUS, c.INVALID_STATUS, c.REFUNDED_STATUS]:
+                session.add(Attendee(
+                    placeholder=True,
+                    first_name='Duplicate',
+                    last_name=c.BADGE_STATUS[status],
+                    email='duplicate@example.com',
+                    zip_code='12345',
+                    badge_status=status
+                ))
+                session.add(Attendee(
+                    placeholder=True,
+                    first_name='Duplicate',
+                    last_name=c.BADGE_STATUS[status],
+                    email='duplicate@example.com',
+                    zip_code='12345',
+                    badge_status=c.COMPLETED_STATUS
+                ))
+
             return attendee.id
 
     def test_search_not_found(self):
@@ -638,6 +657,11 @@ class TestLookupAttendee:
         with Session() as session:
             assert session.lookup_attendee('Two First', 'Names', 'searchable@example.com', '12345')
             assert session.lookup_attendee('Two', 'Last Names', 'searchable@example.com', '12345')
+
+    def test_search_ordered_by_badge_status(self):
+        with Session() as session:
+            for status in [c.NEW_STATUS, c.INVALID_STATUS, c.REFUNDED_STATUS]:
+                assert session.lookup_attendee('Duplicate', c.BADGE_STATUS[status], 'duplicate@example.com', '12345').badge_status == c.COMPLETED_STATUS
 
 
 class TestExtraDonationValidations:

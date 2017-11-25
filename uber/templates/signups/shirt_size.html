@@ -3,18 +3,56 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-<h2> Tell Us Your Shirt Size </h2>
-
-One of the perks of volunteering is a tshirt for anyone who takes at least 6 weighted hours worth of shifts.
-
-<br/> <br/>
-
 <form method="post" action="shirt_size">
 {{ csrf_token() }}
-<select name="shirt">
-    {{ options(opts,attendee.shirt) }}
-</select>
-<input type="submit" value="Submit Size" />
+
+<h2> Tell Us Your Shirt Size </h2>
+
+<p>One of the perks of volunteering is a tshirt for anyone who takes at least 6 weighted hours worth of shifts.</p>
+
+{% if attendee.gets_staff_shirt and c.SHIRTS_PER_STAFFER > 1 %}
+    <h3>Staff Shirt Policy</h3>
+    <p>
+        Event staff are given a themed staff t-shirt that serves as a uniform for the event, and is theirs to keep forever.
+        We ask that all staff wear their staff shirt whenever they are on shift so that they are easily identifiable at a
+        distance by attendees, security, and fellow staff. While wearing the staff shirt, people may be more likely to ask
+        you for assistance, but don't panic! We'll provide a map and schedule for you to carry, which should answer most
+        questions, and we recommend downloading the event Guidebook app as well. When in doubt, the only two things you
+        really need to know are the location of the info desk and the location of security, so that you can direct the
+        person to someone who can provide more assistance.
+    </p>
+    <p><b>When you are off-shift, please do not wear the staff shirt unless you are prepared to provide assistance.</b></p>
+    <p><i>
+        PRO-TIP: Wearing a long sleeve thermal shirt beneath the staff shirt can help keep you warm, keep the staff
+        shirt fresh through the event, and make it easier to take off the staff shirt at the end of your shift.
+    </i></p>
+    <p>
+        Staff shirts help make the event a more safe and welcome place to be, and while we strongly prefer you to wear
+        a staff shirt while on shift, you are not required to do so. We understand that you may not be comfortable with
+        people approaching you, or that your shift may have a level of sensitivity which requires that you not be obviously
+        identifiable as staff. If you strongly dislike t-shirts, check with your department head to see if they can provide
+        you with a visibility vest while on shift. 
+    </p>
+    <p>
+        To prevent confusion, please do not wear a previous year's staff shirt at this event, whether or not you are on shift.
+        <b>If you are wearing an old staff shirt, you may be asked to change.</b>
+    </p>
+    <p>
+        As staff, you receive two complimentary shirts, and since you'll be potentially wearing the staff shirt a substantial
+        portion of the event, we give you the option for both of them to be the staff shirt design.
+        {% if c.AFTER_SHIRT_DEADLINE %}
+            <b>Because we are past the deadline, your choice has been locked in.</b>
+        {% endif %}
+        <br/> <input type="radio" name="second_shirt" value="{{ c.TWO_STAFF_SHIRTS }}" {% if attendee.second_shirt == c.TWO_STAFF_SHIRTS %}checked{% endif %} {% if c.AFTER_SHIRT_DEADLINE %}disabled{% endif %} /> I'd like {{ c.SHIRTS_PER_STAFFER }} staff shirts, to help keep them fresh through the event.
+        <br/> <input type="radio" name="second_shirt" value="{{ c.STAFF_AND_EVENT_SHIRT }}" {% if attendee.second_shirt != c.TWO_STAFF_SHIRTS %}checked{% endif %} {% if c.AFTER_SHIRT_DEADLINE %}disabled{% endif %} /> I'd like {{ c.SHIRTS_PER_STAFFER - 1 }} staff shirt{{ (c.SHIRTS_PER_STAFFER - 1)|pluralize }}, and 1 standard event-themed swag shirt. <i>I can keep a staff shirt fresh through the event.</i>
+    </p>
+{% endif %}
+<p>
+    <select name="shirt">
+        {{ options(opts, attendee.shirt) }}
+    </select>
+    <input type="submit" value="Save" />
+</p>
 </form>
 
 {% endblock %}
