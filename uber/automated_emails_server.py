@@ -208,7 +208,7 @@ class SendAllAutomatedEmailsJob:
             return
 
         if not SendAllAutomatedEmailsJob.run_lock.acquire(blocking=False):
-            log.warn("can't acquire lock for email daemon (already running?), skipping this run.")
+            log.warn("Email sending is already ongoing, so not starting a new run.")
             return
 
         try:
@@ -421,7 +421,10 @@ def get_pending_email_data():
 
 
 uber.scheduler.register_task(
-    lambda: uber.scheduler.schedule.every(30).seconds.do(SendAllAutomatedEmailsJob.send_all_emails),
+    lambda: uber.scheduler.schedule.every(5).seconds.do(
+        SendAllAutomatedEmailsJob.send_all_emails,
+        run_in_own_thread=True
+    ),
     category="automated_email_sending",
 )
 
