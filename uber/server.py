@@ -146,14 +146,25 @@ def register_jsonrpc(service, name=None):
     assert name not in jsonrpc_services, '{} has already been registered'.format(name)
     jsonrpc_services[name] = service
 
+
 jsonrpc_handler = _make_jsonrpc_handler(jsonrpc_services, precall=jsonrpc_reset)
 cherrypy.tree.mount(jsonrpc_handler, join(c.PATH, 'jsonrpc'), c.APPCONF)
 
-
-uber.scheduler.schedule.every(6).hours.do(check_unassigned)
-uber.scheduler.schedule.every(6).hours.do(detect_duplicates)
-uber.scheduler.schedule.every(6).hours.do(check_placeholders)
-uber.scheduler.schedule.every(5).minutes.do(SendAllAutomatedEmailsJob.send_all_emails)
+uber.scheduler.register_task(
+    lambda: uber.scheduler.schedule_N_times_per_day(4, check_unassigned),
+    category="reports"
+)
+uber.scheduler.register_task(
+    lambda: uber.scheduler.schedule_N_times_per_day(4, detect_duplicates),
+    category="reports"
+)
+uber.scheduler.register_task(
+    lambda: uber.scheduler.schedule_N_times_per_day(4, check_placeholders),
+    category="reports"
+)
 
 # enable debug logging if you need it for desperate situations
-# uber.scheduler.schedule.every(5).minutes.do(lambda: log.error(Session.engine.pool.status()))
+# uber.scheduler.register_task(
+#     lambda: uber.scheduler.schedule.every(5).minutes.do(lambda: log.error(Session.engine.pool.status())),
+#     category="debug",
+# )

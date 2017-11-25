@@ -359,7 +359,10 @@ def notify_admins_of_any_pending_emails():
     send_email(c.STAFF_EMAIL, c.STAFF_EMAIL, subject, body, format='html', model='n/a')
 
 
-uber.scheduler.schedule.every().day.at("06:00").do(notify_admins_of_any_pending_emails)
+uber.scheduler.register_task(
+    fn=lambda: uber.scheduler.schedule.every().day.at("06:00").do(notify_admins_of_any_pending_emails),
+    category="reports"
+)
 
 
 def get_pending_email_data():
@@ -395,3 +398,14 @@ def get_pending_email_data():
         }
 
     return pending_emails
+
+
+uber.scheduler.register_task(
+    lambda: uber.scheduler.schedule.every(5).minutes.do(SendAllAutomatedEmailsJob.send_all_emails),
+    category="automated_email_sending",
+)
+
+
+@entry_point
+def start_email_sending_daemon():
+    uber.scheduler.start_scheduler_and_block(include_categories="automated_email_sending")
