@@ -111,7 +111,10 @@ class JinjaEnv:
     def _init_env(cls):
         env = MultiPathEnvironment(
             autoescape=True,
-            loader=AbsolutePathLoader(cls._template_dirs))
+            loader=AbsolutePathLoader(cls._template_dirs),
+            lstrip_blocks=True,
+            trim_blocks=True,
+        )
 
         for name, func in cls._exportable_functions.items():
             env.globals[name] = func
