@@ -25,8 +25,7 @@ def test_verify_jinja_autoescape_template():
 <html>
 <body>
 &lt;img src=&#34;#&#34;&gt;
-<b>bold</b>
-</body>
+<b>bold</b></body>
 </html>'''
 
     assert result == expected
