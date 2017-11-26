@@ -31,7 +31,9 @@ def get_verbose_request_context():
     p = ["  %s: %s" % (k, str(v)[:max_reporting_length]) for k, v in cherrypy.request.params.items()]
     post_txt = 'Request Params:\n' + '\n'.join(p)
 
-    session_txt = 'Session Params:\n' + pformat(cherrypy.session.items(), width=40)
+    session_txt = ''
+    if hasattr(cherrypy, 'session'):
+        session_txt = 'Session Params:\n' + pformat(cherrypy.session.items(), width=40)
 
     h = ["  %s: %s" % (k, v) for k, v in cherrypy.request.header_list]
     headers_txt = 'Request Headers:\n' + '\n'.join(h)
@@ -48,6 +50,8 @@ def log_exception_with_verbose_context(debug=False, msg=''):
     """
     Write the request headers, session params, page location, and the last error's traceback to the cherrypy error log.
     Do this all one line so all the information can be collected by external log collectors and easily displayed.
+
+    Debug param is there to play nice with the cherrypy logger
     """
     log_with_verbose_context('\n'.join([msg, 'Exception encountered']), exc_info=True)
 
