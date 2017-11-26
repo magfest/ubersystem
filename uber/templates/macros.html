@@ -27,7 +27,7 @@
   {% if label %}
     <label
         class="checkbox-label{% if label_class %} {{ label_class }}{% endif %}{% if is_readonly %} disabled{% endif %}"
-        {% if title %}title="{{ title }}"{% endif %}>
+        {% if title %} title="{{ title }}"{% endif %}>
   {% endif %}
   {% if is_readonly %}
     <input
@@ -39,18 +39,18 @@
         type="checkbox"
         value="1"
         disabled
-        {% if not label and title %}title="{{ title }}"{% endif %}
-        {% if is_checked %}checked{% endif %} />
+        {% if not label and title %} title="{{ title }}"{% endif %}
+        {% if is_checked %} checked{% endif %} />
   {% else %}
     <input
         type="checkbox"
         name="{{ field_name }}"
         id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
         value="1"
-        {% if not label and title %}title="{{ title }}"{% endif %}
-        {% if is_checked %}checked{% endif %} />
+        {% if not label and title %} title="{{ title }}"{% endif %}
+        {% if is_checked %} checked{% endif %} />
   {% endif %}
-  {% if label %}{{ label }}</label>{% endif %}
+  {% if label %} {{ label }}</label>{% endif %}
 {%- endmacro %}
 
 
@@ -185,18 +185,18 @@
               name="{{ field }}{{ suffix }}"
               rows="4"
               placeholder="{{ placeholder }}"
-              {% if is_required %}required="required"{% endif %}
-              {% if is_focused %}autofocus{% endif %}>{{ '' if is_class else model[field] }}</textarea>
+              {% if is_required %} required="required"{% endif %}
+              {% if is_focused %} autofocus{% endif %}>{{ '' if is_class else model[field] }}</textarea>
         {%- else -%}
           <input
                   class="form-control"
                   type="{{ type }}"
                   name="{{ field }}{{ suffix }}"
-                  {% if id %}id="{{ id }}"{% endif %}
+                  {% if id %} id="{{ id }}"{% endif %}
                   value="{{ '' if is_class else model[field] }}"
                   placeholder="{{ placeholder }}"
-                  {% if is_required %}required="required"{% endif %}
-                  {% if is_focused %}autofocus{% endif %}/>
+                  {% if is_required %} required="required"{% endif %}
+                  {% if is_focused %} autofocus{% endif %}/>
         {%- endif -%}
         {%- if is_admin and has_value -%}
           {%- if type == 'email' -%}
