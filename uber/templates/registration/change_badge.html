@@ -3,7 +3,7 @@
 {% block title %}Badge Change{% endblock %}
 {% block content %}
 
-<script type="text/javascript">
+<script>
     function badgeTypeChanged() {
         {% if not c.AT_THE_CON %}
             var badge_type = parseInt($("[name=badge_type]").val());

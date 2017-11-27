@@ -7,7 +7,7 @@
 {%- set is_after_request_hotel = c.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE -%}
 {%- set is_after_hotel_email = c.AFTER_PREREG_HOTEL_INFO_EMAIL_DATE -%}
 
-<script type="text/javascript">
+<script>
     var AGE_GROUPS = {{ c.AGE_GROUP_CONFIGS|jsonize }};
     var ageGroupSelected = function () {
         {% if not c.COLLECT_EXACT_BIRTHDATE %}
@@ -177,7 +177,7 @@
 
 {% if c.DONATIONS_ENABLED and c.PAGE_PATH != '/registration/form' %}
     {% if c.PREREG_DONATION_OPTS and c.PREREG_DONATION_OPTS|length > 1 or attendee.amount_extra or attendee.gets_any_kind_of_shirt %}
-        <script type="text/javascript">
+        <script>
             var donationChanged = function () {
                 setVisible('.affiliate-row', $.val('amount_extra') > 0);
                 {% if attendee.gets_any_kind_of_shirt %}
@@ -589,7 +589,7 @@
 
 {% include "regextra.html" %}
 
-<script type="text/javascript">
+<script>
     {% if not attendee.is_new and not attendee.amount_unpaid %}
         // This removes any badge levels lower than the attendee has purchased already
         if (window.BADGE_TYPES) {

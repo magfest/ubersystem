@@ -2,8 +2,8 @@
 {% block head_javascript %}
     {{ super() }}
 
-    <script type="text/javascript">{% include "region_opts.html" %}</script>
-    <script type="text/javascript">
+    <script>{% include "region_opts.html" %}</script>
+    <script>
         {#
           Make the PREREG_BADGE_TYPES array available in javascript. Also
           converts the integer values to strings, because that is what we'll

@@ -27,20 +27,20 @@
             var message = '{{ message|e }}';
         </script>
 
-        <script src="../static/deps/combined.min.js" type="text/javascript"></script>
-        <script src="../static/js/common-static.js" type="text/javascript"></script>
-        <script type="text/javascript">
+        <script src="../static/deps/combined.min.js"></script>
+        <script src="../static/js/common-static.js"></script>
+        <script>
             var csrf_token = '{{ c.CSRF_TOKEN }}';
         </script>
 
         {% if 'preregistration' not in c.PAGE_PATH %}
             {% for js in c.JAVASCRIPT_INCLUDES %}
-                <script src="{{ js }}" type="text/javascript"></script>
+                <script src="{{ js }}"></script>
             {% endfor %}
         {% endif %}
 
         {% if resend_email_form %}
-        <script type="text/javascript">
+        <script>
             $(function() {
                 $("form[action='resend_email']").each(function(index) {
                     $(this).submit(function (e) {

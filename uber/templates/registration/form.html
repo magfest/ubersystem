@@ -5,10 +5,10 @@
 {% include "registration/menu.html" %}
 
 {% if c.COLLECT_FULL_ADDRESS %}
-    <script type="text/javascript">{% include "region_opts.html" %}</script>
+    <script>{% include "region_opts.html" %}</script>
 {% endif %}
 
-<script type="text/javascript">
+<script>
     var isPreassignedBadgeType = function (badge_type) {
         return $.inArray(parseInt(badge_type), [{{ c.PREASSIGNED_BADGE_TYPES }}]) >= 0;
     };

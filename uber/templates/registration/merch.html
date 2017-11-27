@@ -2,7 +2,7 @@
 {% block title %}Merch Booth{% endblock %}
 {% block content %}
 
-<script type="text/javascript">
+<script>
     var $shirtOpts = $('<select/>').attr('id', 'shirt');
     $.each({{ c.MERCH_SHIRT_OPTS|jsonize }}, function(i,size) {
         $shirtOpts.append($('<option/>').val(size[0]).text(size[1]));

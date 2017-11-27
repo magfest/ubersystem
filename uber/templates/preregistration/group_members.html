@@ -6,7 +6,7 @@
     {% endif %}
 {% endblock %}
 {% block content %}
-<script type="text/javascript">
+<script>
     $().ready(function() {
         $("form[action='unset_group_member']").submit(function(event){
             var formToSubmit = this;
@@ -153,7 +153,7 @@
       </form>
     </div>
 
-    <script type="text/javascript">
+    <script>
         {% if group.amount_unpaid %}
             $(function(){
                 $('<div class="disabled" title="Group must be paid for before new members can be added">' +

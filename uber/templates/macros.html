@@ -347,7 +347,7 @@
   {%- set region_attr = model_prefix ~ 'region' -%}
   {%- set country_attr = model_prefix ~ 'country' -%}
 
-  <script type="text/javascript">
+  <script>
       var regionChange{{ suffix }} = function() {
           {% if update_international %}setInternational();{% endif %}
           var regionopts = $('#region{{ suffix }}');
@@ -423,7 +423,7 @@
 
 
 {% macro toggle_checkbox(selector, label, suffix='', name='', value='1', required_selector=False, hide_on_checked=True, mode='visibility', checked=False) -%}
-  <script type="text/javascript">
+  <script>
       var toggleVisibility{{ suffix }} = function () {
           var isChecked = $('#toggle_visibility{{ suffix }}').prop('checked'),
               hideOnChecked = {%- if hide_on_checked -%}true{%- else -%}false{%- endif -%},
