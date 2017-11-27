@@ -223,7 +223,7 @@ class Root:
         department_id = dept_role.department_id
         message = ''
         if cherrypy.request.method == 'POST':
-            message = check_dept_admin(department_id)
+            message = check_dept_admin(session, department_id)
             if not message:
                 session.delete(dept_role)
                 raise HTTPRedirect(
