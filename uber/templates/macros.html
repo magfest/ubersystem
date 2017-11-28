@@ -1,14 +1,3 @@
-{% macro ie7_compatibility_check() -%}
-  <!--[if lte IE 7]>
-        <script>
-            if (!document.documentMode) { //if documentMode exists, this is a later IE in compatibility mode
-                alert("This website requires IE 8 or later.");
-            }
-        </script>
-    <![endif]-->
-{%- endmacro %}
-
-
 {% macro stripe_button(label) -%}
   <button class="btn btn-primary stripe-button-el">
     <span class="display: block; min-height: 30px;">{{label}}</span>
