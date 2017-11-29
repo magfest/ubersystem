@@ -1,0 +1,82 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Attraction Event{% endblock %}
+
+{% block content %}
+<style type="text/css">
+  form {
+    max-width: 738px;
+  }
+
+  h2 {
+    margin-bottom: 30px;
+  }
+</style>
+
+<h2>
+  {%- if event.is_new -%}
+    <span class="glyphicon glyphicon-plus"></span> New event for the {{ attraction|form_link }} attraction
+  {%- else -%}
+    <span class="glyphicon glyphicon-cog"></span> Edit the {{ event.feature.name }} event for the {{ attraction|form_link }} attraction
+  {%- endif -%}
+</h2>
+
+<form method="post" action="event" class="form-horizontal" role="form">
+  {{ csrf_token() }}
+  <input type="hidden" name="id" value="{{ 'None' if event.is_new else event.id }}" />
+  <input type="hidden" name="attraction_id" value="{{ attraction.id }}">
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Feature</label>
+    <div class="col-sm-6">
+      <select name="attraction_feature_id" class="form-control">
+        {{ options(attraction.feature_opts, event.attraction_feature_id) }}
+      </select>
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Location</label>
+    <div class="col-sm-6">
+      <select name="location" class="form-control">
+        {% set used_location_opts = attraction.used_location_opts %}
+        {% if used_location_opts %}
+          {{ options(used_location_opts, event.location) }}
+          <option disabled="disabled">––––––––––</option>
+        {% endif %}
+        {{ options(attraction.unused_location_opts, event.location) }}
+      </select>
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Start Time</label>
+    <div class="col-sm-6">
+      <select name="start_time" class="form-control">
+        {% for day, opts in attraction.start_time_opts_by_day.items() %}
+          <optgroup label="{{ day }}">
+            {{ options(opts, event.start_time) }}
+          </optgroup>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Duration</label>
+    <div class="col-sm-6">
+      <select name="duration" class="form-control">
+        {{ options(attraction.duration_opts, event.duration) }}
+      </select>
+    </div>
+  </div>
+  {{ macros.form_group(
+      event,
+      'slots',
+      type='number',
+      is_required=True,
+      help='How many attendees can participate in this event at the same time?') }}
+  <div class="form-group">
+    <div class="col-sm-9 col-sm-offset-3">
+      <input type="submit" name="save" class="btn btn-primary" value="Save">
+      <input type="submit" name="save_another" class="btn btn-primary" value="Save & Add Another">
+      <a href="form?id={{ attraction.id }}" type="button" class="btn btn-default">Cancel</a>
+    </div>
+  </div>
+</form>
+{% endblock %}

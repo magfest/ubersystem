@@ -1,0 +1,51 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Attendee Attractions{% endblock %}
+
+{% block content %}
+  <h1>
+    Attractions
+    {% if filtered %}
+      <a class="btn btn-xs btn-plain" href="index">
+    {% else %}
+      <a class="btn btn-xs btn-default" href="index?filtered=1">
+    {% endif %}
+        <span class="glyphicon glyphicon-filter"></span>
+        Show only my attractions
+      </a>
+    <a href="new" class="btn btn-primary pull-right">
+      <span class="glyphicon glyphicon-plus"></span>
+      Create Attraction
+    </a>
+  </h1>
+
+  {% if attractions -%}
+    <div class="table-responsive">
+      <table
+          class="table table-hover datatable"
+          data-paging="false"
+          data-info="false">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Department</th>
+            <th>Owner</th>
+          </tr>
+        </thead>
+        <tbody>
+          {%- for attraction in attractions -%}
+            <tr>
+              <td>{{ attraction|form_link }}</td>
+              <td>{{ attraction.description|linebreaksbr }}</td>
+              <td>{{ attraction.department|form_link }}</td>
+              <td>{{ attraction.owner.attendee|form_link }}</td>
+            </tr>
+          {%- endfor -%}
+        </tbody>
+      </table>
+    </div>
+  {%- else -%}
+    <em>No Attractions Found!</em>
+  {%- endif %}
+
+{% endblock %}

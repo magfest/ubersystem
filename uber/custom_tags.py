@@ -199,20 +199,23 @@ def remove_newlines(string):
 
 @JinjaEnv.jinja_filter
 def form_link(model):
-    if isinstance(model, uber.models.Attendee):
-        return safe_string('<a href="../registration/form?id={}">{}</a>'.format(model.id, jinja2.escape(model.full_name)))
-    elif isinstance(model, uber.models.Group):
-        return safe_string('<a href="../groups/form?id={}">{}</a>'.format(model.id, jinja2.escape(model.name)))
-    elif isinstance(model, uber.models.Job):
-        return safe_string('<a href="../jobs/form?id={}">{}</a>'.format(model.id, jinja2.escape(model.name)))
-    elif isinstance(model, uber.models.Department):
-        return safe_string('<a href="../departments/form?id={}">{}</a>'.format(model.id, jinja2.escape(model.name)))
-    elif hasattr(model, 'name'):
-        return model.name
-    elif hasattr(model, 'full_name'):
-        return model.full_name
-    else:
-        return repr(model)
+    if not model:
+        return ''
+
+    site_sections = {
+        uber.models.Attendee: 'registration',
+        uber.models.Attraction: 'attractions_admin',
+        uber.models.Group: 'groups',
+        uber.models.Job: 'jobs',
+        uber.models.Department: 'departments'}
+
+    site_section = site_sections.get(model.__class__)
+    name = getattr(model, 'name', getattr(model, 'full_name', repr(model)))
+
+    if site_section:
+        return safe_string('<a href="../{}/form?id={}">{}</a>'.format(
+            site_section, model.id, jinja2.escape(name)))
+    return name
 
 
 @JinjaEnv.jinja_filter
@@ -293,7 +296,13 @@ def email_only(email):
 
 
 @JinjaEnv.jinja_export
-def humanize_timedelta(*args, granularity='seconds', **kwargs):
+def humanize_timedelta(
+        *args,
+        granularity='seconds',
+        separator=None,
+        now='right now',
+        suffix='',
+        **kwargs):
     """
     Converts a time interval into a nicely formatted human readable string.
 
@@ -332,13 +341,15 @@ def humanize_timedelta(*args, granularity='seconds', **kwargs):
         time = abs(int(getattr(delta, unit)))
         if time:
             plural = pluralize(time)
-            time_units.append('{} {}{}'.format(time, unit[:-1], plural))
+            time_units.append(
+                '{} {}{}{}'.format(time, unit[:-1], plural, suffix))
         if unit == granularity:
             break
     if time_units:
+        if separator is not None:
+            return separator.join(time_units)
         return join_and(time_units)
-    else:
-        return 'right now'
+    return now
 
 
 @JinjaEnv.jinja_export
@@ -374,6 +385,16 @@ def int_options(minval, maxval, default=1):
         selected = 'selected="selected"' if str(i) == default else ''
         results.append('<option value="{val}" {selected}>{val}</option>'.format(val=i, selected=selected))
     return safe_string('\n'.join(results))
+
+
+@JinjaEnv.jinja_export
+def format_location(location, separator='<br>', spacer='above'):
+    parts = re.split(r'(\(.*?\))', c.EVENT_LOCATIONS[location])
+    parts = [jinja2.escape(s.strip()) for s in parts if s.strip()]
+    if spacer and len(parts) < 2:
+        parts.insert(0 if spacer == 'above' else 1, '&nbsp;')
+    return safe_string(separator.join(
+        ['<span class="text-nowrap">{}</span>'.format(s) for s in parts]))
 
 
 @JinjaEnv.jinja_export

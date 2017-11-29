@@ -375,7 +375,9 @@ class MagModel:
             if (not restricted or column.name in self.unrestricted) and \
                     column.name in params and column.name != 'id':
 
-                if isinstance(params[column.name], list):
+                if column.type is JSON or isinstance(column.type, JSON):
+                    value = params[column.name]
+                elif isinstance(params[column.name], list):
                     value = ','.join(map(str, params[column.name]))
                 elif isinstance(params[column.name], bool):
                     value = params[column.name]
@@ -487,6 +489,7 @@ from uber.models.group import *  # noqa: F401,E402,F403
 from uber.models.tracking import *  # noqa: F401,E402,F403
 from uber.models.types import *  # noqa: F401,E402,F403
 from uber.models.api import *  # noqa: F401,E402,F403
+from uber.models.attraction import *  # noqa: F401,E402,F403
 
 # Explicitly import models used by the Session class to quiet flake8
 from uber.models.admin import AdminAccount, WatchList  # noqa: E402

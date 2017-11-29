@@ -562,3 +562,13 @@ def no_dupe_code(promo_code):
             if session.lookup_promo_code(promo_code.code):
                 return 'The code you entered already belongs to another ' \
                     'promo code. Note that promo codes are not case sensitive.'
+
+
+Attraction.required = [('name', 'Name'), ('description', 'Description')]
+AttractionFeature.required = [('name', 'Name'), ('description', 'Description')]
+
+
+@validation.AttractionEvent
+def at_least_one_slot(event):
+    if event.slots < 1:
+        return 'Events must have at least one slot.'

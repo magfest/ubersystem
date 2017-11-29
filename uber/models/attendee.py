@@ -410,6 +410,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         del self.shifts[:]
 
     @property
+    def assigned_depts_opts(self):
+        return [(d.id, d.name) for d in self.assigned_depts]
+
+    @property
     def ribbon_labels(self):
         labels = super(Attendee, self)._labels('ribbon', self.ribbon)
         if c.DEPT_HEAD_RIBBON in self.ribbon_ints or not self.is_dept_head:
@@ -1017,6 +1021,12 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     def trusted_in(self, department):
         return self.has_role_in(department)
+
+    def can_admin_attraction(self, attraction):
+        if not self.admin_account:
+            return False
+        return self.admin_account.id == attraction.owner_id \
+            or self.can_admin_dept_for(attraction.department_id)
 
     def can_admin_dept_for(self, department):
         return (self.admin_account

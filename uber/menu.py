@@ -89,5 +89,9 @@ c.MENU = MenuItem(name='Root', submenu=[
         MenuItem(name='Watchlist', href='../registration/watchlist_entries', access=c.WATCHLIST),
     ]),
 
+    MenuItem(name='Schedule', submenu=[
+        MenuItem(name='Attractions', href='../attractions_admin/'),
+    ]),
+
     MenuItem(name='Statistics', href='../summary/', access=c.STATS),
 ])

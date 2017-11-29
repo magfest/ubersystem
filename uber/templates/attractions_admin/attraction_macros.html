@@ -1,0 +1,110 @@
+{% import 'macros.html' as macros %}
+
+{% macro attraction_form(attraction) %}
+  {{ csrf_token() }}
+  <input type="hidden" name="id" value="{{ 'None' if attraction is class else attraction.id }}">
+  {{ macros.form_group(attraction, 'name', is_focused=True, is_required=True) }}
+  {{ macros.form_group(
+      attraction,
+      'description',
+      type='textarea',
+      is_required=True,
+      help="This description will be displayed to attendees when they're signing up.") }}
+  {% if admin_account.attendee.assigned_depts %}
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Belongs to a Department?</label>
+      <div class="col-sm-6">
+        <select name="department_id" class="form-control">
+          <option value="">This attraction doesn't belong to any department</option>
+          {{ options(admin_account.attendee.assigned_depts_opts, attraction.department_id) }}
+        </select>
+      </div>
+    </div>
+  {% endif %}
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Notifications</label>
+    <div class="col-sm-9">
+      <div class="form-control-static notifications">
+        <div>
+          Attendees who have <b>not</b> checked in for an event will be notified:
+        </div>
+        <div class="form-inline notification">
+          <select name="notifications" class="form-control" style="width: auto; display: inline-block;">
+            <option value="">Never</option>
+            <option value="0">When the event starts</option>
+            <option value="300">5 minutes before</option>
+            <option value="900">15 minutes before</option>
+            <option value="1800">30 minutes before</option>
+            <option value="3600">1 hour before</option>
+            <option value="7200">2 hours before</option>
+            <option value="86400">1 day before</option>
+          </select>
+          <span class="glyphicon glyphicon-plus-sign"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .notification {
+      margin-top: 8px;
+    }
+
+    .notifications .glyphicon-plus-sign,
+    .notifications .glyphicon-minus-sign {
+      font-size: 28px;
+      vertical-align: middle;
+    }
+
+    .notifications .glyphicon-plus-sign:hover,
+    .notifications .glyphicon-minus-sign:hover {
+      opacity: 0.8;
+      cursor: pointer;
+    }
+
+    .notifications .glyphicon-plus-sign { color: #60b060; }
+    .notifications .glyphicon-minus-sign { color: #e06060; }
+  </style>
+
+  <script>
+    $(function() {
+      var $notifications = $('.notifications'),
+          $notification = $notifications.children('.notification'),
+          $select = $notification.children('select'),
+          $button = $('.notifications .glyphicon-plus-sign'),
+          template = $notification[0].outerHTML;
+
+      var insertNotification = function(value) {
+        $newNotification = $(template);
+        $newNotification.insertBefore($notification);
+        $newNotification.find('.glyphicon-plus-sign')
+          .removeClass('glyphicon-plus-sign').addClass('glyphicon-minus-sign');
+        $newSelect = $newNotification.children('select');
+        $newSelect.val(value);
+      };
+
+      $notifications.on('click', '.glyphicon-minus-sign', function(event) {
+        event.preventDefault();
+        var $notification = $(this).closest('.notification');
+        $notification.remove();
+      });
+
+      $button.on('click', function(event) {
+        event.preventDefault();
+        currentVal = $select.val();
+        insertNotification(currentVal);
+        $select.val($select.children('option[value="' + currentVal + '"]').next().prop('value'));
+      });
+
+      var ns = {{ '[900]' if attraction is class else attraction.notifications }},
+          nsLength = ns.length;
+
+      if(nsLength > 0) {
+        for(var i = 0; i < nsLength - 1; i++) {
+          insertNotification(ns[i]);
+        }
+        $select.val(ns[nsLength - 1]);
+      }
+    });
+  </script>
+{% endmacro %}

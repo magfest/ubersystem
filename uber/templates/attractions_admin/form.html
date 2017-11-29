@@ -1,0 +1,503 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}{{ attraction.name }}{% endblock %}
+
+{% import 'attractions_admin/attraction_macros.html' as attraction_macros with context %}
+
+{% block content %}
+
+<style>
+  h1 form.pull-right {
+    margin: 0;
+    display: inline;
+  }
+
+  h3 .pull-right {
+    margin: 8px 0;
+  }
+
+  .info-block {
+    border-left: 4px solid #6080c0;
+    border-radius: 4px;
+    padding: 5px 0 5px 10px;
+    margin-bottom: 10px;
+  }
+
+  .info-block *:last-child {
+    margin-bottom: 0;
+  }
+
+  .glyphicon {
+    vertical-align: text-top;
+  }
+
+  .glyphicon-ban-circle {
+    color: #f4128b;
+  }
+
+  .table > tbody > tr > td {
+    border-top: 0 transparent none;
+    padding: 4px 10px;
+  }
+
+  .controls {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .controls form,
+  .controls .btn {
+    display: inline-block;
+    float: none;
+  }
+
+  .room-col {
+    border: 1px solid #d0d0d0;
+    border-radius: 3px;
+    box-shadow: 0 4px 6px 4px rgba(0, 0, 0, 0.05);
+    margin: 15px 0;
+    padding: 0 5px;
+    width: 100%;
+  }
+
+  .room-col > select {
+    margin: 5px 0;
+  }
+
+  .event {
+    border: 1px solid #f0f0f0;
+    border-radius: 3px;
+    margin-bottom: 5px;
+    padding: 5px;
+  }
+
+  .event:hover {
+    background-color: #f8f8f8;
+  }
+
+  .event .btn-primary,
+  .event .btn-danger {
+    background-color: transparent;
+    background-image: none;
+    border-color: transparent;
+    color: #333;
+    -webkit-box-shadow: none;
+    box-shadow: none;
+    transition: all .2s ease-in-out;
+  }
+
+  .event .btn-primary:hover {
+    background-color: #2d6ca2;
+    border-color: #2b669a;
+    color: #fff;
+  }
+
+  .event .btn-danger:hover {
+    background-color: #d9534f;
+    border-color: #b92c28;
+    color: #fff;
+  }
+
+  .event-title {
+    font-size: 1em;
+    margin: 0 0 10px;
+  }
+
+  .event-spacer {
+    margin-top: -5px;
+    padding: 5px 0;
+  }
+
+  .event-overlap {
+    font-weight: bold;
+    background-color: #fff8f8;
+    border-radius: 3px;
+  }
+</style>
+
+<script>
+  $(function() {
+    var locations = {{ attraction.locations|jsonize }};
+    var allLocations = {{ c.EVENT_LOCATIONS|jsonize }};
+
+    var deleteEvent = function(eventId, callback) {
+      callback = callback || function() {}
+      $.ajax({
+        method: 'POST',
+        url: 'delete_event',
+        data: {
+          id: eventId,
+          csrf_token: csrf_token
+        },
+        success: function(response, status) {
+          if (response && response['error']) {
+            callback('There was an error deleting the event: ' + response['error']);
+          } else {
+            callback();
+          }
+        },
+        error: function(response, status, statusText) {
+          callback('There was an error updating the room: ' + statusText);
+        }
+      });
+    };
+
+    $('.room-col').on('click', '.btn-danger', function(event) {
+      event.preventDefault();
+      var $button = $(this);
+          eventId = $button.data('eventId'),
+          eventLabel = $button.data('eventLabel');
+
+      var callback = function(error) {
+        if(error) {
+          toastr.error(error);
+        } else {
+          var $event = $button.closest('.event');
+          $event.css({'height': $event.height(), 'min-height': ''});
+          $event.animate({'height': 0, 'opacity': 0}, 'fast', function() {
+            $(this).remove();
+          });
+        }
+      };
+
+      bootbox.confirm({
+        backdrop: true,
+        message: '<p>Are you sure you want to delete ' + eventLabel + '?</p>' +
+          '<p>This cannot be undone.</p>',
+        buttons: {
+          confirm: { label: 'Delete Event', className: 'btn-danger' },
+          cancel: { label: 'Nevermind', className: 'btn-default' }
+        },
+        callback: function (result) {
+          if (result) {
+            deleteEvent(eventId, callback);
+          }
+        }
+      });
+    });
+
+    var updateLocations = function(oldValue, newValue, callback) {
+      callback = callback || function() {}
+      $.ajax({
+        method: 'POST',
+        url: 'update_locations',
+        data: {
+          id: '{{ attraction.id }}',
+          old_location: oldValue,
+          new_location: newValue,
+          csrf_token: csrf_token
+        },
+        success: function(response, status) {
+          if (response && response['error']) {
+            callback('There was an error updating the room: ' + response['error']);
+          } else {
+            callback();
+          }
+        },
+        error: function(response, status, statusText) {
+          callback('There was an error updating the room: ' + statusText);
+        }
+      });
+    };
+
+    $('.room-col > select').on('change', function(event) {
+      var $select = $(this);
+      try {
+        var oldValue = parseInt($select.data('initialValue')),
+            newValue = parseInt($select.val());
+
+        if(oldValue && newValue && newValue != oldValue) {
+          if(locations[newValue]) {
+            bootbox.confirm({
+              backdrop: true,
+              message: 'Are you sure you want to merge the following rooms:<ul>' +
+                  '<li>' + locations[oldValue] + '</li>' +
+                  '<li>' + locations[newValue] + '</li>' +
+                '</ul>' +
+                '<p>This cannot be undone.</p>',
+              buttons: {
+                confirm: { label: 'Merge Rooms', className: 'btn-danger' },
+                cancel: { label: 'Nevermind', className: 'btn-default' }
+              },
+              callback: function(result) {
+                if (result) {
+                  updateLocations(oldValue, newValue, function(error) {
+                    if(error) {
+                      toastr.error(error);
+                      $select.val(oldValue);
+                    } else {
+                      window.location = window.location + '&message=Successfully merged rooms!';
+                    }
+                  });
+                } else {
+                  $select.val(oldValue);
+                }
+              }
+            });
+          } else {
+            updateLocations(oldValue, newValue, function(error) {
+              if(error) {
+                toastr.error(error);
+                $select.val(oldValue);
+              } else {
+                $select.data('initialValue', newValue);
+                delete locations[oldValue];
+                locations[newValue] = allLocations[newValue];
+              }
+            });
+          }
+        }
+      } catch(ex) {
+        $select.val($select.data('initialValue'));
+      }
+    });
+  });
+</script>
+
+{%- set can_admin_attraction = admin_account.attendee.can_admin_attraction(attraction) -%}
+
+<div
+    id="edit_attraction"
+    class="modal fade"
+    tabindex="-1"
+    role="dialog"
+    aria-labelledby="edit_attraction_title"
+    style="display: none">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="edit_attraction_title">
+          <span class="glyphicon glyphicon-cog"></span>
+          Edit {{ attraction.name }}
+        </h4>
+      </div>
+      <form method="post" action="form" class="form-horizontal" role="form">
+        <div class="modal-body">
+          {{ attraction_macros.attraction_form(attraction) }}
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<h1>
+  {{ attraction.name }} Attraction
+  {% if can_admin_attraction -%}
+    <button type="button" class="btn btn-xs btn-primary" data-toggle="modal" data-target="#edit_attraction">
+      <span class="glyphicon glyphicon-cog"></span>
+    </button>
+    <form
+        method="post"
+        action="delete"
+        class="pull-right"
+        role="form"
+        onsubmit="return confirm('Are you sure you want to delete this attraction?');"
+        {% if attraction.features %}title="You cannot delete an attraction that has any features"{% endif %}>
+      {{ csrf_token() }}
+      <input type="hidden" name="id" value="{{ attraction.id }}">
+      <input
+          type="submit"
+          value="Delete Attraction"
+          class="btn btn-xs btn-danger"
+          {% if attraction.features %}disabled="disabled"{% endif %}>
+    </form>
+  {%- endif %}
+</h1>
+
+<div class="info-block">
+  <p>{{ attraction.description|linebreaksbr }}</p>
+
+  {% if attraction.notifications %}
+    {% if attraction.notifications|length == 1 %}
+      <p>Attendees will be notified about {{ attraction.name }} events
+      {{ humanize_timedelta(seconds=attraction.notifications|first, now='when the event starts', suffix=' before') }}.</p>
+    {% else %}
+      Attendees will be notified about {{ attraction.name }} events:
+      <ul>
+        {% for notification in attraction.notifications %}
+          <li>{{ humanize_timedelta(seconds=notification, now='when the event starts', suffix=' before') }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% else %}
+    <p>Attendees will <b>NOT</b> be notified before the start of an {{ attraction.name }} event.</p>
+  {% endif %}
+  {% if attraction.department_id -%}
+    <p class="help-block">
+      <em>The {{ attraction.name }} attraction belongs to the {{ attraction.department|form_link }} department.</em>
+    </p>
+  {%- endif %}
+</div>
+
+<h3>
+  Who or what does {{ attraction.name }} feature?
+  {% if can_admin_attraction -%}
+    <a
+        class="btn btn-xs btn-primary"
+        title="Create a new feature"
+        href="feature?attraction_id={{ attraction.id }}">
+      <span class="glyphicon glyphicon-plus"></span>
+    </a>
+  {%- endif %}
+</h3>
+<p class="help-block">
+  <em>Attractions can feature people, activities, performances, or
+  anything else attendees might need to wait in line for.</em>
+</p>
+{% if attraction.features %}
+  <div class="table-responsive">
+    <table
+        class="table table-hover datatable"
+        data-page-length="25"
+        data-searching="false"
+        data-paging="false"
+        data-info="false">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Description</th>
+          {% if can_admin_attraction -%}
+            <th class="controls" data-orderable="false"></th>
+          {%- endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for feature in attraction.features %}
+          <tr>
+            <td>{{ feature.name }}</td>
+            <td>{{ feature.description|linebreaksbr }}</td>
+            {% if can_admin_attraction -%}
+              <td class="controls">
+                <a
+                    class="btn btn-xs btn-primary"
+                    title="Edit the {{ feature.name }} attraction feature"
+                    href="feature?id={{ feature.id }}">
+                  <span class="glyphicon glyphicon-cog"></span>
+                </a>
+                <form
+                    method="post"
+                    action="delete_feature"
+                    role="form"
+                    onsubmit="return confirm('Are you sure you want to delete this feature? This will also delete any associated events.');"
+                    title="Delete the {{ feature.name }} feature">
+                  {{ csrf_token() }}
+                  <input type="hidden" name="id" value="{{ feature.id }}">
+                  <button type="submit" class="btn btn-xs btn-danger">
+                    <span class="glyphicon glyphicon-remove"></span>
+                  </button>
+                </form>
+              </td>
+            {%- endif %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="empty-message">
+    {% if can_admin_attraction -%}
+      Click the <a
+          class="btn btn-xs btn-primary"
+          title="Create a new feature"
+          href="feature?attraction_id={{ attraction.id }}">
+        <span class="glyphicon glyphicon-plus"></span>
+      </a> button to create a new {{ attraction.name }} feature!
+    {% else %}
+      No features have been created for the {{ attraction.name }} attraction yet.
+    {%- endif %}
+  </div>
+{% endif %}
+{% if attraction.features %}
+  <h3>
+    When and where is {{ attraction.name }} happening?
+    {% if can_admin_attraction -%}
+      <a
+          class="btn btn-xs btn-primary"
+          title="Create a new attraction event"
+          href="event?attraction_id={{ attraction.id }}">
+        <span class="glyphicon glyphicon-plus"></span>
+      </a>
+    {%- endif %}
+  </h3>
+  {% set used_location_opts = attraction.used_location_opts %}
+  {% set unused_location_opts = attraction.unused_location_opts %}
+  {% set events_by_location = attraction.events_by_location %}
+  {% set col_count = 3 %}
+  {% set col_width = 12 // col_count %}
+  {% if events_by_location %}
+    {% for location in events_by_location.keys() %}
+      {% if (loop.index0 % col_count) == 0 %}<div class="row">{% endif %}
+      {% set events = events_by_location[location] %}
+      <div class="col-sm-{{ col_width }}">
+        <div class="room-col">
+          {% if can_admin_attraction -%}
+            <select class="form-control" data-initial-value="{{ location }}">
+              {% if used_location_opts %}
+                {{ options(used_location_opts, location) }}
+                <option disabled="disabled">––––––––––</option>
+              {% endif %}
+              {{ options(unused_location_opts, location) }}
+            </select>
+          {% else %}
+            <h5 class="room-title text-center">{{ format_location(location, separator=' ', spacer=False) }}</h5>
+          {%- endif %}
+          {% for event in events %}
+            <div class="event" style="min-height: {{ event.duration // 90 }}px">
+              <h6 class="event-title">
+                {% if can_admin_attraction -%}
+                  <div class="controls pull-right">
+                    <a
+                        class="btn btn-xs btn-primary"
+                        title="Edit this event"
+                        href="event?id={{ event.id }}">
+                      <span class="glyphicon glyphicon-cog"></span>
+                    </a>
+                    <button type="submit" class="btn btn-xs btn-danger" data-event-id="{{ event.id }}" data-event-label="{{ event.label }}">
+                      <span class="glyphicon glyphicon-remove"></span>
+                    </button>
+                  </div>
+                {%- endif %}
+                {{ event.feature.name }}
+              </h6>
+              <div class="clearfix"></div>
+              <div class="event-body">
+                <div>{{ event.time_span_label }}</div>
+                <div>{{ event.duration_label }} ({{ event.attendees|length }} / {{ event.slots }} slots taken)</div>
+              </div>
+            </div>
+            {% set overlap = event.overlap(events[loop.index]) %}
+            {% if overlap > 0 %}
+              <div class="event-spacer event-overlap text-center text-danger">
+                {{ humanize_timedelta(seconds=overlap, separator=' ') }} overlap
+              </div>
+            {% elif overlap < 0 %}
+              <div class="event-spacer text-center text-info">
+                {{ humanize_timedelta(seconds=overlap, separator=' ') }} available
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      {% if loop.last or (loop.index0 % col_count) == (col_count - 1) %}</div>{% endif %}
+    {% endfor %}
+  {% else %}
+    <div class="empty-message">
+      {% if can_admin_attraction -%}
+        Click the <a
+            class="btn btn-xs btn-primary"
+            title="Create a new attraction event"
+            href="event?attraction_id={{ attraction.id }}">
+          <span class="glyphicon glyphicon-plus"></span>
+        </a> button to schedule a new {{ attraction.name }} event!
+      {% else %}
+        No features have been created for the {{ attraction.name }} attraction yet.
+      {%- endif %}
+    </div>
+  {% endif %}
+{% endif %}
+
+{% endblock %}
