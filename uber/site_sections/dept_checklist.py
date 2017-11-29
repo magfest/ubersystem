@@ -148,8 +148,15 @@ class Root:
                 subqueryload(Department.checklist_admins),
                 subqueryload(Department.dept_checklist_items)) \
             .order_by(Department.name)
+
+        emails = []
+        for dept in departments:
+            if not dept.checklist_item_for_slug(conf.slug):
+                emails.extend([dh.email for dh in dept.dept_heads if dh.email])
+
         return {
             'conf': conf,
+            'delinquent_emails': emails,
             'overview': [(
                 dept,
                 dept.checklist_item_for_slug(conf.slug),
