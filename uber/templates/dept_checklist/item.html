@@ -8,7 +8,7 @@
 
 {% if delinquent_emails %}
   <p style="margin: 10px 0">
-    <a href="mailto:?bcc={{ delinquent_emails|join(',') }}&subject=Dept Checklist: {{ conf.name }}">
+    <a href="mailto:?bcc={{ delinquent_emails|join(',')|urlencode }}&subject=Dept Checklist: {{ conf.name }}">
       <span class="glyphicon glyphicon-envelope"></span>
       Email Delinquent Department Heads
     </a>
