@@ -15,14 +15,12 @@
     margin: 8px 0;
   }
 
-  .info-block {
-    border-left: 4px solid #6080c0;
-    border-radius: 4px;
+  .attraction-info {
     padding: 5px 0 5px 10px;
     margin-bottom: 10px;
   }
 
-  .info-block *:last-child {
+  .attraction-info *:last-child {
     margin-bottom: 0;
   }
 
@@ -55,7 +53,8 @@
     border-radius: 3px;
     box-shadow: 0 4px 6px 4px rgba(0, 0, 0, 0.05);
     margin: 15px 0;
-    padding: 0 5px;
+    max-height: 100%;
+    padding-bottom: 10px;
     width: 100%;
   }
 
@@ -63,11 +62,27 @@
     margin: 5px 0;
   }
 
+  .room-body {
+    max-height: 640px;
+    overflow: auto;
+  }
+
+  .room-title {
+    padding: 5px;
+    background-color: #f0f0f0;
+    border-bottom: 1px solid #d0d0d0;
+    border-radius: 3px 3px 0 0;
+  }
+
   .event {
     border: 1px solid #f0f0f0;
     border-radius: 3px;
-    margin-bottom: 5px;
-    padding: 5px;
+    margin: 6px 10px 0 10px;
+    padding: 5px 5px 5px 9px;
+  }
+
+  .event:first-child {
+    margin-top: 10px;
   }
 
   .event:hover {
@@ -103,7 +118,7 @@
   }
 
   .event-spacer {
-    margin-top: -5px;
+    margin: 0 13px -6px 14px;
     padding: 5px 0;
   }
 
@@ -111,6 +126,11 @@
     font-weight: bold;
     background-color: #fff8f8;
     border-radius: 3px;
+  }
+
+  .info-block {
+    border-left: 4px solid #6080c0;
+    border-radius: 4px;
   }
 </style>
 
@@ -199,7 +219,7 @@
       });
     };
 
-    $('.room-col > select').on('change', function(event) {
+    $('.room-title > select').on('change', function(event) {
       var $select = $(this);
       try {
         var oldValue = parseInt($select.data('initialValue')),
@@ -209,11 +229,12 @@
           if(locations[newValue]) {
             bootbox.confirm({
               backdrop: true,
-              message: 'Are you sure you want to merge the following rooms:<ul>' +
-                  '<li>' + locations[oldValue] + '</li>' +
-                  '<li>' + locations[newValue] + '</li>' +
-                '</ul>' +
-                '<p>This cannot be undone.</p>',
+              message: '<p>Are you sure you want to move all of the events?</p>' +
+                '<p>'+
+                  '<label style="width: 64px; text-align: right;">from</label> ' + locations[oldValue] + '<br>' +
+                  '<label style="width: 64px; text-align: right;">to</label> ' + locations[newValue] +
+                '</p>' +
+                '<p>This could cause scheduling conflicts.</p>',
               buttons: {
                 confirm: { label: 'Merge Rooms', className: 'btn-danger' },
                 cancel: { label: 'Nevermind', className: 'btn-default' }
@@ -248,6 +269,7 @@
         }
       } catch(ex) {
         $select.val($select.data('initialValue'));
+        console.log(ex);
       }
     });
   });
@@ -308,7 +330,7 @@
   {%- endif %}
 </h1>
 
-<div class="info-block">
+<div class="attraction-info info-block">
   <p>{{ attraction.description|linebreaksbr }}</p>
 
   {% if attraction.notifications %}
@@ -434,52 +456,56 @@
       {% set events = events_by_location[location] %}
       <div class="col-sm-{{ col_width }}">
         <div class="room-col">
-          {% if can_admin_attraction -%}
-            <select class="form-control" data-initial-value="{{ location }}">
-              {% if used_location_opts %}
-                {{ options(used_location_opts, location) }}
-                <option disabled="disabled">––––––––––</option>
+          <div class="room-title">
+            {% if can_admin_attraction -%}
+              <select class="form-control" data-initial-value="{{ location }}">
+                {% if used_location_opts %}
+                  {{ options(used_location_opts, location) }}
+                  <option disabled="disabled">––––––––––</option>
+                {% endif %}
+                {{ options(unused_location_opts, location) }}
+              </select>
+            {% else %}
+              <h5 class="text-center">{{ format_location(location, separator=' ', spacer=False) }}</h5>
+            {%- endif %}
+          </div>
+          <div class="room-body">
+            {% for event in events %}
+              <div class="event info-block" style="min-height: {{ event.duration // 90 }}px">
+                <h6 class="event-title">
+                  {% if can_admin_attraction -%}
+                    <div class="controls pull-right">
+                      <a
+                          class="btn btn-xs btn-primary"
+                          title="Edit this event"
+                          href="event?id={{ event.id }}">
+                        <span class="glyphicon glyphicon-cog"></span>
+                      </a>
+                      <button type="submit" class="btn btn-xs btn-danger" data-event-id="{{ event.id }}" data-event-label="{{ event.label }}">
+                        <span class="glyphicon glyphicon-remove"></span>
+                      </button>
+                    </div>
+                  {%- endif %}
+                  {{ event.feature.name }}
+                </h6>
+                <div class="clearfix"></div>
+                <div class="event-body">
+                  <div>{{ event.time_span_label }}</div>
+                  <div>{{ event.duration_label }} ({{ event.attendees|length }} / {{ event.slots }} slots taken)</div>
+                </div>
+              </div>
+              {% set overlap = event.overlap(events[loop.index]) %}
+              {% if overlap > 0 %}
+                <div class="event-spacer event-overlap text-center text-danger">
+                  {{ humanize_timedelta(seconds=overlap, separator=' ') }} overlap
+                </div>
+              {% elif overlap < 0 %}
+                <div class="event-spacer text-center text-info">
+                  {{ humanize_timedelta(seconds=overlap, separator=' ') }} available
+                </div>
               {% endif %}
-              {{ options(unused_location_opts, location) }}
-            </select>
-          {% else %}
-            <h5 class="room-title text-center">{{ format_location(location, separator=' ', spacer=False) }}</h5>
-          {%- endif %}
-          {% for event in events %}
-            <div class="event" style="min-height: {{ event.duration // 90 }}px">
-              <h6 class="event-title">
-                {% if can_admin_attraction -%}
-                  <div class="controls pull-right">
-                    <a
-                        class="btn btn-xs btn-primary"
-                        title="Edit this event"
-                        href="event?id={{ event.id }}">
-                      <span class="glyphicon glyphicon-cog"></span>
-                    </a>
-                    <button type="submit" class="btn btn-xs btn-danger" data-event-id="{{ event.id }}" data-event-label="{{ event.label }}">
-                      <span class="glyphicon glyphicon-remove"></span>
-                    </button>
-                  </div>
-                {%- endif %}
-                {{ event.feature.name }}
-              </h6>
-              <div class="clearfix"></div>
-              <div class="event-body">
-                <div>{{ event.time_span_label }}</div>
-                <div>{{ event.duration_label }} ({{ event.attendees|length }} / {{ event.slots }} slots taken)</div>
-              </div>
-            </div>
-            {% set overlap = event.overlap(events[loop.index]) %}
-            {% if overlap > 0 %}
-              <div class="event-spacer event-overlap text-center text-danger">
-                {{ humanize_timedelta(seconds=overlap, separator=' ') }} overlap
-              </div>
-            {% elif overlap < 0 %}
-              <div class="event-spacer text-center text-info">
-                {{ humanize_timedelta(seconds=overlap, separator=' ') }} available
-              </div>
-            {% endif %}
-          {% endfor %}
+            {% endfor %}
+          </div>
         </div>
       </div>
       {% if loop.last or (loop.index0 % col_count) == (col_count - 1) %}</div>{% endif %}
