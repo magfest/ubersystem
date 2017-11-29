@@ -2,7 +2,11 @@
 <!DOCTYPE HTML>
 <html>
 <head>
-    <title>{{ c.EVENT_NAME }} - {% block title %}{% endblock %}</title>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+   
+   <title>{{ c.EVENT_NAME }} - {% block title %}{% endblock %}</title>
     <link rel="icon" href="../static/images/favicon.png" type="image/x-icon" />
 
     {% block head_styles %}
@@ -72,9 +76,6 @@
         {% endif %}
     {% endblock %}
 
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
     {% block sectionStyle %}{% endblock %}
 
     <style>
