@@ -156,7 +156,7 @@ class Root:
 
         return {
             'conf': conf,
-            'delinquent_emails': emails,
+            'delinquent_emails': sorted(set(emails)),
             'overview': [(
                 dept,
                 dept.checklist_item_for_slug(conf.slug),
