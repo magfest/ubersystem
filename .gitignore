@@ -24,3 +24,4 @@ node_modules/
 .cache
 .eggs/
 .coverage
+uber/static/jspm_packages/

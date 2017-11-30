@@ -5,12 +5,14 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-   
-   <title>{{ c.EVENT_NAME }} - {% block title %}{% endblock %}</title>
+    <title>{{ c.EVENT_NAME }} - {% block title %}{% endblock %}</title>
     <link rel="icon" href="../static/images/favicon.png" type="image/x-icon" />
 
+    <script src="../static/jspm_packages/system.js"></script>    
+    <script src="../static/config.js"></script>
+
     {% block head_styles %}
-        <link rel="stylesheet" href="../static/deps/combined.min.css" />
+        <link rel="stylesheet" href="../static/styles/bootstrap.min.css" />
         <link rel="stylesheet" href="../static_views/styles/main.css" />
         {% if admin_area %}
             <link rel="stylesheet" type="text/css" href="../static_views/additional-styles.css" />
@@ -31,9 +33,6 @@
             var csrf_token = '{{ c.CSRF_TOKEN }}';
         </script>
 
-        <script src="../static/deps/combined.min.js"></script>
-        <script src="../static/js/common-static.js"></script>
-
         {% if 'preregistration' not in c.PAGE_PATH %}
             {% for js in c.JAVASCRIPT_INCLUDES %}
                 <script src="{{ js }}"></script>
@@ -42,7 +41,8 @@
 
         {% if resend_email_form %}
         <script>
-            $(function() {
+            System.import('jquery').then(function($) {
+                $(function() {
                 $("form[action='resend_email']").each(function(index) {
                     $(this).submit(function (e) {
                         // Prevent form submit.
@@ -71,6 +71,7 @@
                         });
                     });
                 });
+            });
             });
         </script>
         {% endif %}
@@ -112,9 +113,53 @@
                 params[temp[0]] = temp[1];
             }
             return params;
+                };
+
+    System.import('jquery').then(function($) {
+    Promise.all([
+        System.import('jquery-datetextentry'),
+        System.import('toastr'),
+        System.import('datatables'),
+        System.import('jqueryui'),
+        System.import('bootstrap')
+    ]).then(function(modules) {
+                toastr = modules[1];
+        var setVisible = function (selector, visible) {
+            $(selector)[visible ? 'show' : 'hide']();
+        }
+
+        $.field = function (field) {
+            var $field = $('[name=' + field + ']');
+            return $field.length ? $field : null;
         };
 
-        $(function() {
+        $.val = function (field) {
+            var val = $.field(field).val();
+            if ($.field(field).is(':radio')) {
+                val = $.field(field).filter(':checked').val();
+            }
+            return val.match(/^\W*\d+\W*$/) ? parseInt(val) : val;
+        };
+
+        $.focus = function (field) {
+            $.field(field).focus();
+        };
+
+        $(document).ready(function() {
+            $(".dropdown-toggle").dropdown();
+        });
+
+        $(function () {
+            $('.datepicker').datepicker({
+                changeMonth: true,
+                changeYear: true,
+                yearRange: '-100:+0',
+                defaultDate: '-20y',
+                dateFormat: 'yy-mm-dd'
+            });
+        });
+
+
             toastr.options = {
                 closeButton: true,
                 debug: false,
@@ -148,8 +193,8 @@
                   } catch(ex) {
                     // Don't let any errors here disrupt the rest of the app!
                   }
-                }
-            };
+            }
+        }
             var message = '{{ message }}';
             if (message.length) {
                 toastr.info(message);
@@ -191,10 +236,6 @@
             });
             createDateTextEntries();
 
-            $('.geolocator').geocomplete({
-                details: '.address_details',
-                detailsAttribute: 'data-geo'
-            });
             $('.focus:first').focus();
             if (window.DISABLE_STRIPE_BUTTONS_ON_CLICK) {
                 // we can't intercept the Javascript form submit, so once someone has clicked the Stripe
@@ -207,7 +248,7 @@
             }
             // prevent people from paying after prereg closes
             {% if c.PRE_CON %}
-                if ($('form.stripe').size()) {
+                if ($('form.stripe').length) {
                     var prevHour = new Date().getHours();
                     var checkHour = function() {
                         var currHour = new Date().getHours();
@@ -222,6 +263,7 @@
                 }
             {% endif %}
         });
+      });
     </script>
     {% block head_additional %}{% endblock %}
 </head>

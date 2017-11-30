@@ -593,17 +593,17 @@
     {% if not attendee.is_new and not attendee.amount_unpaid %}
         // This removes any badge levels lower than the attendee has purchased already
         if (window.BADGE_TYPES) {
-            while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].extra < {{ attendee.amount_extra }}) {
+            while (_(BADGE_TYPES.options).length && BADGE_TYPES.options[0].extra < {{ attendee.amount_extra }}) {
                 BADGE_TYPES.options.splice(0, 1);
             }
-            while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].price && BADGE_TYPES.options[0].price < {{ c.BADGE_TYPE_PRICES[attendee.badge_type]|default(c.BADGE_PRICE, boolean=True) }}) {
+            while (_(BADGE_TYPES.options).length && BADGE_TYPES.options[0].price && BADGE_TYPES.options[0].price < {{ c.BADGE_TYPE_PRICES[attendee.badge_type]|default(c.BADGE_PRICE, boolean=True) }}) {
                 BADGE_TYPES.options.splice(0, 1);
             }
         }
 
         // This is the same idea, except it disables the kick-in buttons and then hides them
         $(function () {
-            if($('input:radio[name=amount_extra]').size()) {
+            if($('input:radio[name=amount_extra]').length {
                 $('input:radio[name=amount_extra]').each( function() {
                     if (!isNaN($(this).val()) && Number($(this).val()) < {{ attendee.amount_extra }}) {
                         $(this).prop('disabled', true);
