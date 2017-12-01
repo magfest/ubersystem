@@ -57,6 +57,7 @@ def upgrade():
     sa.Column('name', sa.Unicode(), server_default='', nullable=False, unique=True),
     sa.Column('description', sa.Unicode(), server_default='', nullable=False),
     sa.Column('notifications', sideboard.lib.sa.JSON(), server_default='[]', nullable=False),
+    sa.Column('restriction', sa.Integer(), server_default='0', nullable=False),
     sa.Column('department_id', sideboard.lib.sa.UUID(), nullable=True),
     sa.Column('owner_id', sideboard.lib.sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['department_id'], ['department.id'], name=op.f('fk_attraction_department_id_department')),

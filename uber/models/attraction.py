@@ -5,7 +5,7 @@ from sideboard.lib.sa import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, UniqueConstraint
-from sqlalchemy.sql import func, text
+from sqlalchemy.sql import text
 from sqlalchemy.types import Integer
 
 from uber.config import c
@@ -29,9 +29,30 @@ class Attraction(MagModel):
     TIME_SLOT_COUNT = int(
         (END_TIME_SLOT - START_TIME_SLOT).total_seconds() // SLOT_DURATION)
 
+    NONE = 0
+    PER_FEATURE = 1
+    PER_ATTRACTION = 2
+    RESTRICTION_OPTS = [(
+        NONE,
+        'None – '
+        'Attendees can attend as many events as they wish '
+        '(least restrictive)'
+    ), (
+        PER_FEATURE,
+        'Once Per Feature – '
+        'Attendees can only attend each feature once'
+    ), (
+        PER_ATTRACTION,
+        'Once Per Atraction – '
+        'Attendees can only attend this attraction once '
+        '(most restrictive)'
+    )]
+    RESTRICTIONS = dict(RESTRICTION_OPTS)
+
     name = Column(UnicodeText, unique=True)
     description = Column(UnicodeText)
     notifications = Column(JSON, default=[], server_default='[]')
+    restriction = Column(Choice(RESTRICTION_OPTS), default=NONE)
     department_id = Column(UUID, ForeignKey('department.id'), nullable=True)
     owner_id = Column(UUID, ForeignKey('admin_account.id'))
 
