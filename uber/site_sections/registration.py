@@ -669,14 +669,15 @@ class Root:
         attendee.reg_station = cherrypy.session['reg_station']
         raise HTTPRedirect('new?message={}', 'Attendee marked as paid')
 
-    def manual_reg_charge_form(self, session, id):
+    def manual_reg_charge_form(self, session, id, message=''):
         attendee = session.attendee(id)
         if attendee.paid != c.NOT_PAID:
             raise HTTPRedirect('new?message={}{}', attendee.full_name, ' is already marked as paid')
 
         return {
             'attendee': attendee,
-            'charge': Charge(attendee)
+            'charge': Charge(attendee),
+            'message': message,
         }
 
     @credit_card
@@ -685,7 +686,7 @@ class Root:
         [attendee] = charge.attendees
         message = charge.charge_cc(session, stripeToken)
         if message:
-            raise HTTPRedirect('new_credit_form?id={}&message={}', attendee.id, message)
+            raise HTTPRedirect('manual_reg_charge_form?id={}&message={}', attendee.id, message)
         else:
             attendee.paid = c.HAS_PAID
             attendee.amount_paid = attendee.total_cost
