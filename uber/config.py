@@ -234,9 +234,15 @@ class Config(_Overridable):
         opts = []
         if self.ATTENDEE_BADGE_AVAILABLE:
             opts.append((self.ATTENDEE_BADGE, 'Standard (${})'.format(self.BADGE_PRICE)))
-        for badge_type in sorted(self.BADGE_TYPE_PRICES):
-            if badge_type not in opts:
-                opts.append((badge_type, '{} (${})'.format(self.BADGES[badge_type], self.BADGE_TYPE_PRICES[badge_type])))
+        if self.SHINY_BADGE_AVAILABLE and c.SHINY_BADGE not in opts:
+            opts.append(
+                (c.SHINY_BADGE, '{} (${})'.format(self.BADGES[c.SHINY_BADGE], self.BADGE_TYPE_PRICES[c.SHINY_BADGE])))
+        if self.SPONSOR_BADGE_AVAILABLE and c.SPONSOR_BADGE not in opts:
+            opts.append((c.SPONSOR_BADGE,
+                         '{} (${})'.format(self.BADGES[c.SPONSOR_BADGE], self.BADGE_TYPE_PRICES[c.SPONSOR_BADGE])))
+        """for badge_type in self.BADGE_TYPE_PRICES:
+            if badge_type not in opts and getattr(self, badge_type.upper() + '_AVAILABLE', None):
+                opts.append((badge_type, '{} (${})'.format(self.BADGES[badge_type], self.BADGE_TYPE_PRICES[badge_type])))"""
         if self.ONE_DAYS_ENABLED:
             if self.PRESELL_ONE_DAYS:
                 day = max(sa.localized_now(), self.EPOCH)
