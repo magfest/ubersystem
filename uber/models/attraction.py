@@ -2,8 +2,10 @@ from collections import OrderedDict
 from datetime import timedelta
 
 from sideboard.lib.sa import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, UniqueConstraint
+from sqlalchemy.sql import func, text
 from sqlalchemy.types import Integer
 
 from uber.config import c
@@ -51,18 +53,22 @@ class Attraction(MagModel):
         order_by='Department.name')
     features = relationship(
         'AttractionFeature',
-        backref='queue',
+        backref='attraction',
         order_by='[AttractionFeature.name, AttractionFeature.id]')
     events = relationship(
         'AttractionEvent',
         cascade='save-update,merge',
         secondary='attraction_feature',
         viewonly=True,
-        order_by='AttractionEvent.start_time')
+        order_by='[AttractionEvent.start_time, AttractionEvent.id]')
 
     @property
     def feature_opts(self):
         return [(f.id, f.name) for f in self.features]
+
+    @property
+    def feature_names_by_id(self):
+        return OrderedDict(self.feature_opts)
 
     @property
     def used_location_opts(self):
@@ -113,15 +119,18 @@ class Attraction(MagModel):
         return OrderedDict(self.location_opts)
 
     @property
-    def events_by_location(self):
-        events = sorted(
-            self.events, key=lambda e: c.EVENT_LOCATIONS[e.location])
-        events_by_location = OrderedDict()
-        for event in events:
-            if event.location not in events_by_location:
-                events_by_location[event.location] = []
-            events_by_location[event.location].append(event)
-        return events_by_location
+    def locations_by_feature_id(self):
+        locations_by_feature_id = OrderedDict()
+        for feature in self.features:
+            locations_by_feature_id[feature.id] = feature.locations
+        return locations_by_feature_id
+
+    @property
+    def events_by_feature(self):
+        events_by_feature = OrderedDict()
+        for feature in self.features:
+            events_by_feature[feature] = feature.events_by_location
+        return events_by_feature
 
 
 class AttractionFeature(MagModel):
@@ -129,9 +138,34 @@ class AttractionFeature(MagModel):
     description = Column(UnicodeText)
     attraction_id = Column(UUID, ForeignKey('attraction.id'))
 
-    events = relationship('AttractionEvent', backref='feature')
+    events = relationship(
+        'AttractionEvent',
+        backref='feature',
+        order_by='[AttractionEvent.start_time, AttractionEvent.id]')
 
     __table_args__ = (UniqueConstraint('name', 'attraction_id'),)
+
+    @property
+    def location_opts(self):
+        locations = map(
+            lambda e: (e.location, c.EVENT_LOCATIONS[e.location]), self.events)
+        return [(l, s) for l, s in sorted(locations, key=lambda l: l[1])]
+
+    @property
+    def locations(self):
+        return OrderedDict(self.location_opts)
+
+    @property
+    def events_by_location(self):
+        events = sorted(
+            self.events,
+            key=lambda e: (c.EVENT_LOCATIONS[e.location], e.start_time))
+        events_by_location = OrderedDict()
+        for event in events:
+            if event.location not in events_by_location:
+                events_by_location[event.location] = []
+            events_by_location[event.location].append(event)
+        return events_by_location
 
 
 # =====================================================================
@@ -155,9 +189,13 @@ class AttractionEvent(MagModel):
         cascade='save-update,merge,refresh-expire,expunge',
         secondary='attraction_signup')
 
-    @property
+    @hybrid_property
     def end_time(self):
         return self.start_time + timedelta(seconds=self.duration)
+
+    @end_time.expression
+    def end_time(cls):
+        return cls.start_time + (cls.duration * text("interval '1 second'"))
 
     @property
     def start_time_label(self):
@@ -204,6 +242,12 @@ class AttractionEvent(MagModel):
         earliest_end = min(self.end_time, event.end_time)
         if earliest_end < latest_start:
             return -int((latest_start - earliest_end).total_seconds())
+        elif self.start_time < event.start_time \
+                and self.end_time > event.end_time:
+            return int((self.end_time - event.start_time).total_seconds())
+        elif self.start_time > event.start_time \
+                and self.end_time < event.end_time:
+            return int((event.end_time - self.start_time).total_seconds())
         else:
             return int((earliest_end - latest_start).total_seconds())
 

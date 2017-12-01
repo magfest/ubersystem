@@ -15,6 +15,14 @@
     margin: 8px 0;
   }
 
+  h3 .btn {
+    vertical-align: text-bottom;
+  }
+
+  .btn.pull-right {
+    margin-bottom: 15px;
+  }
+
   .attraction-info {
     padding: 5px 0 5px 10px;
     margin-bottom: 10px;
@@ -37,9 +45,33 @@
     padding: 4px 10px;
   }
 
+  .panel {
+    -webkit-box-shadow: 0 4px 6px 4px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 6px 4px rgba(0, 0, 0, 0.05);
+    margin-bottom: 30px;
+  }
+
+  .panel-heading {
+    padding: 10px;
+  }
+
+  .panel-title {
+    font-size: 1.5em;
+  }
+
+  .panel-title .btn {
+    color: #fff;
+  }
+
+  .panel-body {
+    height: 85vh;
+    overflow: auto;
+  }
+
   .controls {
     text-align: right;
     white-space: nowrap;
+    float: right;
   }
 
   .controls form,
@@ -49,13 +81,15 @@
   }
 
   .room-col {
+    background-color: #f0f0f0;
+    background-image: none;
     border: 1px solid #d0d0d0;
-    border-radius: 3px;
-    box-shadow: 0 4px 6px 4px rgba(0, 0, 0, 0.05);
-    margin: 15px 0;
-    max-height: 100%;
     padding-bottom: 10px;
     width: 100%;
+  }
+
+  .room-col:last-child {
+    margin-bottom: 0;
   }
 
   .room-col > select {
@@ -63,21 +97,34 @@
   }
 
   .room-body {
-    max-height: 640px;
-    overflow: auto;
   }
 
   .room-title {
-    padding: 5px;
-    background-color: #f0f0f0;
-    border-bottom: 1px solid #d0d0d0;
+    background-color: #94afe5;
     border-radius: 3px 3px 0 0;
+    border: 1px solid #6080c0;
+    color: #fff;
+    margin: -10px -10px 0 -10px;
+    padding: 5px;
+  }
+
+  .room-title select {
+    border: 1px solid #6080c0;
+  }
+
+  .room-title label {
+    font-size: 1.5em;
+  }
+
+  .room-title h5 {
+    font-size: 1.25em;
+    margin: 5px 0;
   }
 
   .event {
-    border: 1px solid #f0f0f0;
+    background-color: #fff;
     border-radius: 3px;
-    margin: 6px 10px 0 10px;
+    margin: 6px 0 0 0;
     padding: 5px 5px 5px 9px;
   }
 
@@ -86,11 +133,25 @@
   }
 
   .event:hover {
-    background-color: #f8f8f8;
+    -webkit-box-shadow: inset 0 0 0 1px #6080c0;
+    box-shadow: inset 0 0 0 1px #6080c0;
   }
 
-  .event .btn-primary,
-  .event .btn-danger {
+  .event-spacer {
+    margin: 0 4px -6px 4px;
+    padding: 5px 0;
+  }
+
+  .event-overlap {
+    font-weight: bold;
+    background-color: #fff8f8;
+  }
+
+  .empty-message {
+    padding-bottom: 15px;
+  }
+
+  .btn-fade {
     background-color: transparent;
     background-image: none;
     border-color: transparent;
@@ -100,32 +161,18 @@
     transition: all .2s ease-in-out;
   }
 
-  .event .btn-primary:hover {
+  .btn-fade:hover {
+    color: #fff;
+  }
+
+  .btn-fade.btn-primary:hover {
     background-color: #2d6ca2;
     border-color: #2b669a;
-    color: #fff;
   }
 
-  .event .btn-danger:hover {
+  .btn-fade.btn-danger:hover {
     background-color: #d9534f;
     border-color: #b92c28;
-    color: #fff;
-  }
-
-  .event-title {
-    font-size: 1em;
-    margin: 0 0 10px;
-  }
-
-  .event-spacer {
-    margin: 0 13px -6px 14px;
-    padding: 5px 0;
-  }
-
-  .event-overlap {
-    font-weight: bold;
-    background-color: #fff8f8;
-    border-radius: 3px;
   }
 
   .info-block {
@@ -136,7 +183,8 @@
 
 <script>
   $(function() {
-    var locations = {{ attraction.locations|jsonize }};
+    var features = {{ attraction.feature_names_by_id|jsonize }};
+    var locations = {{ attraction.locations_by_feature_id|jsonize }};
     var allLocations = {{ c.EVENT_LOCATIONS|jsonize }};
 
     var deleteEvent = function(eventId, callback) {
@@ -195,13 +243,13 @@
       });
     });
 
-    var updateLocations = function(oldValue, newValue, callback) {
+    var updateLocations = function(featureId, oldValue, newValue, callback) {
       callback = callback || function() {}
       $.ajax({
         method: 'POST',
         url: 'update_locations',
         data: {
-          id: '{{ attraction.id }}',
+          feature_id: featureId,
           old_location: oldValue,
           new_location: newValue,
           csrf_token: csrf_token
@@ -222,17 +270,18 @@
     $('.room-title > select').on('change', function(event) {
       var $select = $(this);
       try {
-        var oldValue = parseInt($select.data('initialValue')),
+        var featureId = $select.data('featureId'),
+            oldValue = parseInt($select.data('initialValue')),
             newValue = parseInt($select.val());
 
-        if(oldValue && newValue && newValue != oldValue) {
-          if(locations[newValue]) {
+        if(featureId && oldValue && newValue && newValue != oldValue) {
+          if(locations[featureId][newValue]) {
             bootbox.confirm({
               backdrop: true,
-              message: '<p>Are you sure you want to move all of the events?</p>' +
+              message: '<p>Are you sure you want to move the <b>' + features[featureId] + '</b> events?</p>' +
                 '<p>'+
-                  '<label style="width: 64px; text-align: right;">from</label> ' + locations[oldValue] + '<br>' +
-                  '<label style="width: 64px; text-align: right;">to</label> ' + locations[newValue] +
+                  '<label style="width: 64px; text-align: right;">From</label> ' + locations[featureId][oldValue] + '<br>' +
+                  '<label style="width: 64px; text-align: right;">To</label> ' + locations[featureId][newValue] +
                 '</p>' +
                 '<p>This could cause scheduling conflicts.</p>',
               buttons: {
@@ -241,7 +290,7 @@
               },
               callback: function(result) {
                 if (result) {
-                  updateLocations(oldValue, newValue, function(error) {
+                  updateLocations(featureId, oldValue, newValue, function(error) {
                     if(error) {
                       toastr.error(error);
                       $select.val(oldValue);
@@ -255,14 +304,14 @@
               }
             });
           } else {
-            updateLocations(oldValue, newValue, function(error) {
+            updateLocations(featureId, oldValue, newValue, function(error) {
               if(error) {
                 toastr.error(error);
                 $select.val(oldValue);
               } else {
                 $select.data('initialValue', newValue);
-                delete locations[oldValue];
-                locations[newValue] = allLocations[newValue];
+                delete locations[featureId][oldValue];
+                locations[featureId][newValue] = allLocations[newValue];
               }
             });
           }
@@ -276,7 +325,6 @@
 </script>
 
 {%- set can_admin_attraction = admin_account.attendee.can_admin_attraction(attraction) -%}
-
 <div
     id="edit_attraction"
     class="modal fade"
@@ -307,11 +355,7 @@
 </div>
 
 <h1>
-  {{ attraction.name }} Attraction
   {% if can_admin_attraction -%}
-    <button type="button" class="btn btn-xs btn-primary" data-toggle="modal" data-target="#edit_attraction">
-      <span class="glyphicon glyphicon-cog"></span>
-    </button>
     <form
         method="post"
         action="delete"
@@ -327,6 +371,17 @@
           class="btn btn-xs btn-danger"
           {% if attraction.features %}disabled="disabled"{% endif %}>
     </form>
+  {%- endif %}
+  {{ attraction.name }} Attraction
+  {% if can_admin_attraction -%}
+    <button
+        type="button"
+        class="btn btn-xs btn-primary"
+        data-toggle="modal"
+        data-target="#edit_attraction"
+        title="Edit the {{ attraction.name }} Attraction">
+      <span class="glyphicon glyphicon-cog"></span>
+    </button>
   {%- endif %}
 </h1>
 
@@ -356,47 +411,35 @@
 </div>
 
 <h3>
-  Who or what does {{ attraction.name }} feature?
+  Who or what is featured by {{ attraction.name }}?
   {% if can_admin_attraction -%}
     <a
         class="btn btn-xs btn-primary"
-        title="Create a new feature"
+        title="Add a new feature"
         href="feature?attraction_id={{ attraction.id }}">
-      <span class="glyphicon glyphicon-plus"></span>
+      Add Feature
     </a>
   {%- endif %}
 </h3>
 <p class="help-block">
-  <em>Attractions can feature people, activities, performances, or
-  anything else attendees might need to wait in line for.</em>
+  <em>Features can be people, activities, performances, or anything else attendees might need to wait in line for.</em>
 </p>
 {% if attraction.features %}
-  <div class="table-responsive">
-    <table
-        class="table table-hover datatable"
-        data-page-length="25"
-        data-searching="false"
-        data-paging="false"
-        data-info="false">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Description</th>
-          {% if can_admin_attraction -%}
-            <th class="controls" data-orderable="false"></th>
-          {%- endif %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for feature in attraction.features %}
-          <tr>
-            <td>{{ feature.name }}</td>
-            <td>{{ feature.description|linebreaksbr }}</td>
+  {% set used_location_opts = attraction.used_location_opts %}
+  {% set unused_location_opts = attraction.unused_location_opts %}
+  {% set events_by_feature = attraction.events_by_feature %}
+  {% if events_by_feature %}
+    {% set col_count = [events_by_feature|length, 2]|sort|first %}
+    {% set col_width = 12 // (col_count if col_count > 0 else 1) %}
+    {% for feature, events_by_location in events_by_feature.items() %}
+      {% if (loop.index0 % col_count) == 0 %}<div class="row">{% endif %}
+      <div class="col-sm-{{ col_width }}">
+        <div class="panel panel-default">
+          <div class="panel-heading">
             {% if can_admin_attraction -%}
-              <td class="controls">
-                <a
-                    class="btn btn-xs btn-primary"
-                    title="Edit the {{ feature.name }} attraction feature"
+              <div class="controls">
+                <a class="btn btn-xs btn-primary btn-fade"
+                    title="Edit the {{ feature.name }} feature"
                     href="feature?id={{ feature.id }}">
                   <span class="glyphicon glyphicon-cog"></span>
                 </a>
@@ -408,122 +451,91 @@
                     title="Delete the {{ feature.name }} feature">
                   {{ csrf_token() }}
                   <input type="hidden" name="id" value="{{ feature.id }}">
-                  <button type="submit" class="btn btn-xs btn-danger">
+                  <button type="submit" class="btn btn-xs btn-danger btn-fade">
                     <span class="glyphicon glyphicon-remove"></span>
                   </button>
                 </form>
-              </td>
-            {%- endif %}
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-{% else %}
-  <div class="empty-message">
-    {% if can_admin_attraction -%}
-      Click the <a
-          class="btn btn-xs btn-primary"
-          title="Create a new feature"
-          href="feature?attraction_id={{ attraction.id }}">
-        <span class="glyphicon glyphicon-plus"></span>
-      </a> button to create a new {{ attraction.name }} feature!
-    {% else %}
-      No features have been created for the {{ attraction.name }} attraction yet.
-    {%- endif %}
-  </div>
-{% endif %}
-{% if attraction.features %}
-  <h3>
-    When and where is {{ attraction.name }} happening?
-    {% if can_admin_attraction -%}
-      <a
-          class="btn btn-xs btn-primary"
-          title="Create a new attraction event"
-          href="event?attraction_id={{ attraction.id }}">
-        <span class="glyphicon glyphicon-plus"></span>
-      </a>
-    {%- endif %}
-  </h3>
-  {% set used_location_opts = attraction.used_location_opts %}
-  {% set unused_location_opts = attraction.unused_location_opts %}
-  {% set events_by_location = attraction.events_by_location %}
-  {% set col_count = 3 %}
-  {% set col_width = 12 // col_count %}
-  {% if events_by_location %}
-    {% for location in events_by_location.keys() %}
-      {% if (loop.index0 % col_count) == 0 %}<div class="row">{% endif %}
-      {% set events = events_by_location[location] %}
-      <div class="col-sm-{{ col_width }}">
-        <div class="room-col">
-          <div class="room-title">
-            {% if can_admin_attraction -%}
-              <select class="form-control" data-initial-value="{{ location }}">
-                {% if used_location_opts %}
-                  {{ options(used_location_opts, location) }}
-                  <option disabled="disabled">––––––––––</option>
-                {% endif %}
-                {{ options(unused_location_opts, location) }}
-              </select>
-            {% else %}
-              <h5 class="text-center">{{ format_location(location, separator=' ', spacer=False) }}</h5>
-            {%- endif %}
-          </div>
-          <div class="room-body">
-            {% for event in events %}
-              <div class="event info-block" style="min-height: {{ event.duration // 90 }}px">
-                <h6 class="event-title">
-                  {% if can_admin_attraction -%}
-                    <div class="controls pull-right">
-                      <a
-                          class="btn btn-xs btn-primary"
-                          title="Edit this event"
-                          href="event?id={{ event.id }}">
-                        <span class="glyphicon glyphicon-cog"></span>
-                      </a>
-                      <button type="submit" class="btn btn-xs btn-danger" data-event-id="{{ event.id }}" data-event-label="{{ event.label }}">
-                        <span class="glyphicon glyphicon-remove"></span>
-                      </button>
-                    </div>
-                  {%- endif %}
-                  {{ event.feature.name }}
-                </h6>
-                <div class="clearfix"></div>
-                <div class="event-body">
-                  <div>{{ event.time_span_label }}</div>
-                  <div>{{ event.duration_label }} ({{ event.attendees|length }} / {{ event.slots }} slots taken)</div>
-                </div>
               </div>
-              {% set overlap = event.overlap(events[loop.index]) %}
-              {% if overlap > 0 %}
-                <div class="event-spacer event-overlap text-center text-danger">
-                  {{ humanize_timedelta(seconds=overlap, separator=' ') }} overlap
+            {%- endif %}
+            {% if can_admin_attraction -%}
+              <a class="btn btn-xs btn-primary pull-left"
+                  title="Add a new {{ feature.name }} event"
+                  href="event?feature_id={{ feature.id }}">
+                Add Event
+              </a>
+            {%- endif %}
+            <h3 class="panel-title text-center">{{ feature.name }}</h3>
+          </div>
+          <div class="panel-body">
+            <p>{{ feature.description|linebreaksbr }}</p>
+            <div class="clearfix"></div>
+            {% if events_by_location %}
+              {% for location, events in events_by_location.items() %}
+                <div class="room-col well well-sm">
+                  <div class="room-title">
+                    {% if can_admin_attraction -%}
+                      <select class="form-control" data-feature-id="{{ feature.id }}" data-initial-value="{{ location }}">
+                        {% if used_location_opts %}
+                          {{ options(used_location_opts, location) }}
+                          <option disabled="disabled">––––––––––</option>
+                        {% endif %}
+                        {{ options(unused_location_opts, location) }}
+                      </select>
+                    {% else %}
+                      <h5 class="text-center">{{ format_location(location, separator=' ', spacer=False) }}</h5>
+                    {%- endif %}
+                  </div>
+                  <div class="room-body">
+                    {% for event in events %}
+                      <div class="event info-block" style="min-height: {{ (event.duration // 90) - 6 }}px">
+                        {% if can_admin_attraction -%}
+                          <div class="controls pull-right">
+                            <a class="btn btn-xs btn-primary btn-fade"
+                                title="Edit this event"
+                                href="event?id={{ event.id }}">
+                              <span class="glyphicon glyphicon-cog"></span>
+                            </a>
+                            <button type="submit" class="btn btn-xs btn-danger btn-fade" data-event-id="{{ event.id }}" data-event-label="{{ event.label }}">
+                              <span class="glyphicon glyphicon-remove"></span>
+                            </button>
+                          </div>
+                        {%- endif %}
+                        <div class="event-body">
+                          <div>{{ event.time_span_label }}</div>
+                          <div>{{ event.duration_label }} ({{ event.attendees|length }} / {{ event.slots }} slots taken)</div>
+                        </div>
+                      </div>
+                      {% set overlap = event.overlap(events[loop.index]) %}
+                      {% if overlap > 0 %}
+                        <div class="event-spacer event-overlap text-center text-danger">
+                          {{ humanize_timedelta(seconds=overlap, separator=' ') }} overlap
+                        </div>
+                      {% elif overlap < 0 %}
+                        <div class="event-spacer text-center text-info" style="line-height: {{ [[(overlap // -180) + 6, 16]|sort|last, 100]|sort|first }}px">
+                          {{ humanize_timedelta(seconds=overlap, separator=' ') }} available
+                        </div>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
                 </div>
-              {% elif overlap < 0 %}
-                <div class="event-spacer text-center text-info">
-                  {{ humanize_timedelta(seconds=overlap, separator=' ') }} available
-                </div>
-              {% endif %}
-            {% endfor %}
+              {% endfor %}
+            {% else %}
+              <hr>
+              <div class="empty-message">
+                No events have been scheduled for the <b>{{ feature.name }}</b> feature yet.
+              </div>
+            {% endif %}
           </div>
         </div>
       </div>
       {% if loop.last or (loop.index0 % col_count) == (col_count - 1) %}</div>{% endif %}
     {% endfor %}
-  {% else %}
-    <div class="empty-message">
-      {% if can_admin_attraction -%}
-        Click the <a
-            class="btn btn-xs btn-primary"
-            title="Create a new attraction event"
-            href="event?attraction_id={{ attraction.id }}">
-          <span class="glyphicon glyphicon-plus"></span>
-        </a> button to schedule a new {{ attraction.name }} event!
-      {% else %}
-        No features have been created for the {{ attraction.name }} attraction yet.
-      {%- endif %}
-    </div>
   {% endif %}
+{% else %}
+  <hr>
+  <div class="empty-message">
+    No features have been created for the <b>{{ attraction.name }}</b> attraction yet.
+  </div>
 {% endif %}
 
 {% endblock %}

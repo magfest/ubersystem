@@ -164,12 +164,23 @@ class Root:
         else:
             raise HTTPRedirect('form?id={}&message={}', attraction_id, message)
 
-    def event(self, session, attraction_id=None, message='', **params):
+    def event(
+            self,
+            session,
+            attraction_id=None,
+            feature_id=None,
+            previous_id=None,
+            message='',
+            **params):
+
         if not attraction_id or attraction_id == 'None':
             attraction_id = None
+        if not feature_id or feature_id == 'None':
+            feature_id = None
+        if not previous_id or previous_id == 'None':
+            previous_id = None
 
-        previous_id = params.pop('previous_id', None)
-        if not attraction_id and not previous_id \
+        if not attraction_id and not feature_id and not previous_id \
                 and (not params.get('id') or params.get('id') == 'None'):
             raise HTTPRedirect('index')
 
@@ -178,8 +189,14 @@ class Root:
             bools=AttractionEvent.all_bools,
             checkgroups=AttractionEvent.all_checkgroups)
 
-        attraction_id = (
-            event.feature and event.feature.attraction_id) or attraction_id
+        if not event.is_new:
+            attraction_id = event.feature.attraction_id
+
+        previous = None
+        feature = None
+        if feature_id:
+            feature = session.query(AttractionFeature).get(feature_id)
+            attraction_id = feature.attraction_id
 
         if cherrypy.request.method == 'POST':
             message = check(event)
@@ -200,30 +217,32 @@ class Root:
         elif previous_id:
             previous = session.query(AttractionEvent).get(previous_id)
             attraction_id = previous.feature.attraction_id
+            event.feature = previous.feature
             event.attraction_feature_id = previous.attraction_feature_id
             event.location = previous.location
             event.start_time = previous.end_time
             event.duration = previous.duration
             event.slots = previous.slots
 
-        attraction = session.query(Attraction).filter_by(id=attraction_id) \
-            .order_by(Attraction.id).one()
+        attraction = session.query(Attraction).get(attraction_id)
 
         return {
             'attraction': attraction,
+            'feature': feature or event.feature,
+            'previous': previous,
             'event': event,
             'message': message
         }
 
     @ajax
-    def update_locations(self, session, id, old_location, new_location):
+    def update_locations(self, session, feature_id, old_location, new_location):
         message = ''
         if cherrypy.request.method == 'POST':
-            attraction = session.query(Attraction).get(id)
-            if not session.admin_attendee().can_admin_attraction(attraction):
+            feature = session.query(AttractionFeature).get(feature_id)
+            if not session.admin_attendee().can_admin_attraction(feature.attraction):
                 message = "You cannot update rooms for an attraction you don't own"
             else:
-                for event in attraction.events:
+                for event in feature.events:
                     if event.location == int(old_location):
                         event.location = int(new_location)
                 session.commit()

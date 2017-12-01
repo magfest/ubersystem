@@ -20,6 +20,16 @@
   {%- endif -%}
 </h2>
 
+{%- set use_previous_event = previous or (event.is_new and feature and feature.events) -%}
+
+{%- if previous -%}
+  {%- set previous_event = previous -%}
+{%- elif use_previous_event -%}
+  {%- set feature_events = feature.events_by_location -%}
+  {%- set previous_event = feature_events[(feature_events|last)][-1] -%}
+{%- else -%}
+  {%- set previous_event = event -%}
+{%- endif -%}
 <form method="post" action="event" class="form-horizontal" role="form">
   {{ csrf_token() }}
   <input type="hidden" name="id" value="{{ 'None' if event.is_new else event.id }}" />
@@ -27,9 +37,14 @@
   <div class="form-group">
     <label class="col-sm-3 control-label">Feature</label>
     <div class="col-sm-6">
-      <select name="attraction_feature_id" class="form-control">
-        {{ options(attraction.feature_opts, event.attraction_feature_id) }}
-      </select>
+      {% if feature %}
+        <div class="form-control-static">{{ feature.name }}</div>
+        <input type="hidden" name="attraction_feature_id" value="{{ feature.id }}">
+      {% else %}
+        <select name="attraction_feature_id" class="form-control">
+          {{ options(attraction.feature_opts, event.attraction_feature_id) }}
+        </select>
+      {% endif %}
     </div>
   </div>
   <div class="form-group">
@@ -38,10 +53,10 @@
       <select name="location" class="form-control">
         {% set used_location_opts = attraction.used_location_opts %}
         {% if used_location_opts %}
-          {{ options(used_location_opts, event.location) }}
+          {{ options(used_location_opts, previous_event.location) }}
           <option disabled="disabled">––––––––––</option>
         {% endif %}
-        {{ options(attraction.unused_location_opts, event.location) }}
+        {{ options(attraction.unused_location_opts, previous_event.location) }}
       </select>
     </div>
   </div>
@@ -49,9 +64,10 @@
     <label class="col-sm-3 control-label">Start Time</label>
     <div class="col-sm-6">
       <select name="start_time" class="form-control">
+        {%- set start_time = previous_event.end_time if use_previous_event else event.start_time -%}
         {% for day, opts in attraction.start_time_opts_by_day.items() %}
           <optgroup label="{{ day }}">
-            {{ options(opts, event.start_time) }}
+            {{ options(opts, start_time) }}
           </optgroup>
         {% endfor %}
       </select>
@@ -61,16 +77,20 @@
     <label class="col-sm-3 control-label">Duration</label>
     <div class="col-sm-6">
       <select name="duration" class="form-control">
-        {{ options(attraction.duration_opts, event.duration) }}
+        {{ options(attraction.duration_opts, previous_event.duration) }}
       </select>
     </div>
   </div>
-  {{ macros.form_group(
-      event,
-      'slots',
-      type='number',
-      is_required=True,
-      help='How many attendees can participate in this event at the same time?') }}
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Slots</label>
+    <div class="col-sm-6">
+      <input name="slots" value="{{ previous_event.slots }}" class="form-control" type="number" required="required" min="1">
+    </div>
+    <div class="clearfix"></div>
+    <div class="col-sm-offset-3 col-sm-9 help-block">
+      How many attendees can participate in this event at the same time?
+    </div>
+  </div>
   <div class="form-group">
     <div class="col-sm-9 col-sm-offset-3">
       <input type="submit" name="save" class="btn btn-primary" value="Save">
