@@ -10,7 +10,8 @@ System.config({
   },
   paths: {
     "github:*": "jspm_packages/github/*",
-    "npm:*": "jspm_packages/npm/*"
+    "npm:*": "jspm_packages/npm/*",
+    "bower:*": "jspm_packages/bower/*"
   },
 
   map: {
@@ -22,8 +23,8 @@ System.config({
     "bootbox": "npm:bootbox@4.4.0",
     "bootstrap": "github:twbs/bootstrap@3.3.7",
     "core-js": "npm:core-js@1.2.7",
+    "css": "github:systemjs/plugin-css@0.1.36",
     "datatables": "github:DataTables/DataTables@1.10.16",
-    "grantm/jquery-datetextentry": "github:grantm/jquery-datetextentry@2.0.11",
     "jquery": "npm:jquery@3.2.1",
     "jquery-confirm": "npm:jquery-confirm@3.3.2",
     "jquery-datetextentry": "github:grantm/jquery-datetextentry@2.0.11",
@@ -33,8 +34,83 @@ System.config({
     "jqueryui": "npm:jqueryui@1.11.1",
     "lodash": "npm:lodash@4.17.4",
     "moment": "npm:moment@2.19.2",
+    "patternfly": "bower:patternfly@3.30.2",
     "select2": "github:select2/select2@4.0.5",
     "toastr": "github:CodeSeven/toastr@2.1.3",
+    "bower:bootstrap-datepicker@1.6.4": {
+      "css": "github:systemjs/plugin-css@0.1.36",
+      "jquery": "bower:jquery@3.2.1"
+    },
+    "bower:bootstrap-select@1.12.4": {
+      "css": "github:systemjs/plugin-css@0.1.36",
+      "jquery": "bower:jquery@3.2.1"
+    },
+    "bower:bootstrap-switch@3.3.3": {
+      "bootstrap": "bower:bootstrap@3.3.7",
+      "css": "github:systemjs/plugin-css@0.1.36",
+      "jquery": "bower:jquery@3.2.1"
+    },
+    "bower:bootstrap-touchspin@3.1.2": {
+      "bootstrap": "bower:bootstrap@3.3.7",
+      "css": "github:systemjs/plugin-css@0.1.36",
+      "jquery": "bower:jquery@3.2.1"
+    },
+    "bower:bootstrap@3.3.7": {
+      "jquery": "bower:jquery@3.2.1"
+    },
+    "bower:c3@0.4.18": {
+      "css": "github:systemjs/plugin-css@0.1.36",
+      "d3": "bower:d3@3.5.17"
+    },
+    "bower:datatables-colreorder@1.3.3": {
+      "datatables": "bower:datatables@1.10.16",
+      "jquery": "bower:jquery@3.2.1"
+    },
+    "bower:datatables-colvis@1.1.2": {
+      "css": "github:systemjs/plugin-css@0.1.36",
+      "datatables": "bower:datatables@1.10.16",
+      "jquery": "bower:jquery@3.2.1"
+    },
+    "bower:datatables@1.10.16": {
+      "css": "github:systemjs/plugin-css@0.1.36",
+      "jquery": "bower:jquery@3.2.1"
+    },
+    "bower:eonasdan-bootstrap-datetimepicker@4.17.47": {
+      "css": "github:systemjs/plugin-css@0.1.36",
+      "jquery": "bower:jquery@3.2.1",
+      "moment": "bower:moment@2.18.1"
+    },
+    "bower:google-code-prettify@1.0.5": {
+      "css": "github:systemjs/plugin-css@0.1.36"
+    },
+    "bower:patternfly-bootstrap-combobox@1.1.7": {
+      "css": "github:systemjs/plugin-css@0.1.36"
+    },
+    "bower:patternfly-bootstrap-treeview@2.1.5": {
+      "bootstrap": "bower:bootstrap@3.3.7",
+      "jquery": "bower:jquery@3.2.1"
+    },
+    "bower:patternfly@3.30.2": {
+      "bootstrap": "bower:bootstrap@3.3.7",
+      "bootstrap-datepicker": "bower:bootstrap-datepicker@1.6.4",
+      "bootstrap-select": "bower:bootstrap-select@1.12.4",
+      "bootstrap-switch": "bower:bootstrap-switch@3.3.3",
+      "bootstrap-touchspin": "bower:bootstrap-touchspin@3.1.2",
+      "c3": "bower:c3@0.4.18",
+      "css": "github:systemjs/plugin-css@0.1.36",
+      "d3": "bower:d3@3.5.17",
+      "datatables": "bower:datatables@1.10.16",
+      "datatables-colreorder": "bower:datatables-colreorder@1.3.3",
+      "datatables-colvis": "bower:datatables-colvis@1.1.2",
+      "eonasdan-bootstrap-datetimepicker": "bower:eonasdan-bootstrap-datetimepicker@4.17.47",
+      "font-awesome": "bower:font-awesome@4.7.0",
+      "google-code-prettify": "bower:google-code-prettify@1.0.5",
+      "jquery": "bower:jquery@3.2.1",
+      "matchHeight": "bower:matchHeight@0.7.2",
+      "moment": "bower:moment@2.18.1",
+      "patternfly-bootstrap-combobox": "bower:patternfly-bootstrap-combobox@1.1.7",
+      "patternfly-bootstrap-treeview": "bower:patternfly-bootstrap-treeview@2.1.5"
+    },
     "github:CodeSeven/toastr@2.1.3": {
       "css": "github:systemjs/plugin-css@0.1.36",
       "jquery": "npm:jquery@3.2.1"

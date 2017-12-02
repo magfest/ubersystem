@@ -12,7 +12,10 @@
     <script src="../static/config.js"></script>
 
     {% block head_styles %}
-        <link rel="stylesheet" href="../static/styles/bootstrap.min.css" />
+        <script>
+            System.import('patternfly/dist/css/patternfly.css!');
+        </script>
+        <link rel="stylesheet" xhref="../static/styles/bootstrap.min.css" />
         <link rel="stylesheet" href="../static_views/styles/main.css" />
         {% if admin_area %}
             <link rel="stylesheet" type="text/css" href="../static_views/additional-styles.css" />
