@@ -88,10 +88,9 @@
 {%- endmacro %}
 
 
-{% macro checkgroup(model, field_name, suffix='', defaults=False, is_readonly=False) -%}
+{% macro checkgroup(model, field_name, suffix='', defaults='', is_readonly=False) -%}
   {%- set is_class = model is class -%}
-  {%- set defaults = model[field_name] if not defaults and not is_class else '' -%}
-  {%- set defaults = defaults.split(",") if defaults else [] -%}
+  {%- set defaults = (model[field_name] if not defaults and not is_class else defaults).split(',') -%}
   {%- set choices = model.get_field(field_name).type.choices -%}
   {{ checkgroup_opts(field_name, choices, suffix, defaults, is_readonly) }}
 {%- endmacro %}
