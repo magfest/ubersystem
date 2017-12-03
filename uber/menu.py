@@ -80,7 +80,7 @@ c.MENU = MenuItem(name='Root', submenu=[
         MenuItem(name='All Unfilled Shifts', href='../jobs/everywhere', access=c.PEOPLE),
         MenuItem(name='Departments', href='../departments/', access=c.PEOPLE),
         MenuItem(name='Department Checklists', href='../dept_checklist/overview', access=c.PEOPLE),
-        MenuItem(name='Feed of Database Changes', href='../registration/feed', access=c.ACCOUNTS),
+        MenuItem(name='Feed of Database Changes', href='../registration/feed', access=c.PEOPLE),
     ]),
 
     MenuItem(name='People', access=[c.PEOPLE, c.REG_AT_CON], submenu=[

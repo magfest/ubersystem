@@ -529,27 +529,13 @@ def set_renderable(func, access):
     return new_func
 
 
-def only_renderable(*needs_access):
-    """
-    Like all_renderable, but works on a single method.
-
-    Overrides access settings on a class also decorated with all_renderable.
-    """
-    def _decorator(func):
-        if getattr(func, 'exposed', False):
-            return func
-        else:
-            return set_renderable(func, needs_access)
-    return _decorator
-
-
 class all_renderable:
     def __init__(self, *needs_access):
         self.needs_access = needs_access
 
     def __call__(self, klass):
         for name, func in klass.__dict__.items():
-            if hasattr(func, '__call__') and not getattr(func, 'exposed', False):
+            if hasattr(func, '__call__'):
                 new_func = set_renderable(func, self.needs_access)
                 setattr(klass, name, new_func)
         return klass
