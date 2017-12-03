@@ -1022,12 +1022,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     def trusted_in(self, department):
         return self.has_role_in(department)
 
-    def can_admin_attraction(self, attraction):
-        if not self.admin_account:
-            return False
-        return self.admin_account.id == attraction.owner_id \
-            or self.can_admin_dept_for(attraction.department_id)
-
     def can_admin_dept_for(self, department):
         return (self.admin_account
                 and c.ACCOUNTS in self.admin_account.access_ints) \

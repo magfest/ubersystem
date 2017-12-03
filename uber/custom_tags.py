@@ -197,6 +197,9 @@ def remove_newlines(string):
     return string.replace('\n', ' ')
 
 
+form_link_site_sections = {}
+
+
 @JinjaEnv.jinja_filter
 def form_link(model):
     if not model:
@@ -204,12 +207,12 @@ def form_link(model):
 
     site_sections = {
         uber.models.Attendee: 'registration',
-        uber.models.Attraction: 'attractions_admin',
         uber.models.Group: 'groups',
         uber.models.Job: 'jobs',
         uber.models.Department: 'departments'}
 
-    site_section = site_sections.get(model.__class__)
+    cls = model.__class__
+    site_section = site_sections.get(cls, form_link_site_sections.get(cls))
     name = getattr(model, 'name', getattr(model, 'full_name', repr(model)))
 
     if site_section:
