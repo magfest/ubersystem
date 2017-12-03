@@ -170,6 +170,7 @@ class Root:
             attraction_id=None,
             feature_id=None,
             previous_id=None,
+            delay=0,
             message='',
             **params):
 
@@ -198,6 +199,11 @@ class Root:
             feature = session.query(AttractionFeature).get(feature_id)
             attraction_id = feature.attraction_id
 
+        try:
+            delay = int(delay)
+        except ValueError:
+            delay = 0
+
         if cherrypy.request.method == 'POST':
             message = check(event)
             if not message:
@@ -207,12 +213,13 @@ class Root:
                 message = 'The event for {} was successfully {}'.format(
                     event.label, 'created' if event.is_new else 'updated')
 
-                if 'save_another' in params:
-                    raise HTTPRedirect(
-                        'event?previous_id={}&message={}', event.id, message)
-                else:
-                    raise HTTPRedirect(
-                        'form?id={}&message={}', attraction_id, message)
+                for delay in [0, 900, 1800, 2700, 3600, 5400]:
+                    if 'save_another_{}'.format(delay) in params:
+                        raise HTTPRedirect(
+                            'event?previous_id={}&delay={}&message={}',
+                            event.id, delay, message)
+                raise HTTPRedirect(
+                    'form?id={}&message={}', attraction_id, message)
             session.rollback()
         elif previous_id:
             previous = session.query(AttractionEvent).get(previous_id)
@@ -220,16 +227,23 @@ class Root:
             event.feature = previous.feature
             event.attraction_feature_id = previous.attraction_feature_id
             event.location = previous.location
-            event.start_time = previous.end_time
+            event.start_time = previous.end_time + timedelta(seconds=delay)
             event.duration = previous.duration
             event.slots = previous.slots
+        elif event.is_new and feature and feature.events:
+            events_by_location = feature.events_by_location
+            location = next(reversed(events_by_location))
+            recent = events_by_location[location][-1]
+            event.location = recent.location
+            event.start_time = recent.end_time + timedelta(seconds=delay)
+            event.duration = recent.duration
+            event.slots = recent.slots
 
         attraction = session.query(Attraction).get(attraction_id)
 
         return {
             'attraction': attraction,
             'feature': feature or event.feature,
-            'previous': previous,
             'event': event,
             'message': message
         }

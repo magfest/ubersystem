@@ -5,10 +5,23 @@
 <style type="text/css">
   form {
     max-width: 738px;
+    margin-bottom: 120px;
   }
 
   h2 {
     margin-bottom: 30px;
+  }
+
+  .dropdown-menu > li > a {
+    padding: 0;
+  }
+
+  .dropdown-menu > li > a > input {
+    background-color: transparent;
+    border: 0 none transparent;
+    color: #333;
+    margin: 0;
+    padding: 3px 20px;
   }
 </style>
 
@@ -20,16 +33,6 @@
   {%- endif -%}
 </h2>
 
-{%- set use_previous_event = previous or (event.is_new and feature and feature.events) -%}
-
-{%- if previous -%}
-  {%- set previous_event = previous -%}
-{%- elif use_previous_event -%}
-  {%- set feature_events = feature.events_by_location -%}
-  {%- set previous_event = feature_events[(feature_events|last)][-1] -%}
-{%- else -%}
-  {%- set previous_event = event -%}
-{%- endif -%}
 <form method="post" action="event" class="form-horizontal" role="form">
   {{ csrf_token() }}
   <input type="hidden" name="id" value="{{ 'None' if event.is_new else event.id }}" />
@@ -53,10 +56,10 @@
       <select name="location" class="form-control">
         {% set used_location_opts = attraction.used_location_opts %}
         {% if used_location_opts %}
-          {{ options(used_location_opts, previous_event.location) }}
+          {{ options(used_location_opts, event.location) }}
           <option disabled="disabled">––––––––––</option>
         {% endif %}
-        {{ options(attraction.unused_location_opts, previous_event.location) }}
+        {{ options(attraction.unused_location_opts, event.location) }}
       </select>
     </div>
   </div>
@@ -64,10 +67,9 @@
     <label class="col-sm-3 control-label">Start Time</label>
     <div class="col-sm-6">
       <select name="start_time" class="form-control">
-        {%- set start_time = previous_event.end_time if use_previous_event else event.start_time -%}
         {% for day, opts in attraction.start_time_opts_by_day.items() %}
           <optgroup label="{{ day }}">
-            {{ options(opts, start_time) }}
+            {{ options(opts, event.start_time) }}
           </optgroup>
         {% endfor %}
       </select>
@@ -77,14 +79,14 @@
     <label class="col-sm-3 control-label">Duration</label>
     <div class="col-sm-6">
       <select name="duration" class="form-control">
-        {{ options(attraction.duration_opts, previous_event.duration) }}
+        {{ options(attraction.duration_opts, event.duration) }}
       </select>
     </div>
   </div>
   <div class="form-group">
     <label class="col-sm-3 control-label">Slots</label>
     <div class="col-sm-6">
-      <input name="slots" value="{{ previous_event.slots }}" class="form-control" type="number" required="required" min="1">
+      <input name="slots" value="{{ event.slots }}" class="form-control" type="number" required="required" min="1">
     </div>
     <div class="clearfix"></div>
     <div class="col-sm-offset-3 col-sm-9 help-block">
@@ -94,7 +96,19 @@
   <div class="form-group">
     <div class="col-sm-9 col-sm-offset-3">
       <input type="submit" name="save" class="btn btn-primary" value="Save">
-      <input type="submit" name="save_another" class="btn btn-primary" value="Save & Add Another">
+      <div class="btn-group">
+        <button type="submit" name="save_another_0" class="btn btn-primary">Save & Add Another</button>
+        <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          <span class="caret"></span>
+          <span class="sr-only">Toggle Dropdown</span>
+        </button>
+        <ul class="dropdown-menu">
+          <li><a href="#"><input type="submit" name="save_another_900" value="After 15 minute break"></a></li>
+          <li><a href="#"><input type="submit" name="save_another_1800" value="After 30 minute break"></a></li>
+          <li><a href="#"><input type="submit" name="save_another_2700" value="After 45 minute break"></a></li>
+          <li><a href="#"><input type="submit" name="save_another_3600" value="After 1 hour break"></a></li>
+        </ul>
+      </div>
       <a href="form?id={{ attraction.id }}" type="button" class="btn btn-default">Cancel</a>
     </div>
   </div>

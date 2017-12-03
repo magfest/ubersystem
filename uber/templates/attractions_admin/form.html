@@ -6,17 +6,13 @@
 {% block content %}
 
 <style>
-  h1 form.pull-right {
-    margin: 0;
-    display: inline;
+  h1 .btn, h2 .btn, h3 .btn, h4 .btn {
+    vertical-align: 33%;
   }
 
-  h3 .pull-right {
-    margin: 8px 0;
-  }
-
-  h3 .btn {
-    vertical-align: text-bottom;
+  h1 > span, h2 > span, h3 > span, h4 > span {
+    display: inline-block;
+    margin-bottom: 10px;
   }
 
   .btn.pull-right {
@@ -45,33 +41,56 @@
     padding: 4px 10px;
   }
 
-  .panel {
-    -webkit-box-shadow: 0 4px 6px 4px rgba(0, 0, 0, 0.05);
-    box-shadow: 0 4px 6px 4px rgba(0, 0, 0, 0.05);
+  .feature-help-block {
     margin-bottom: 30px;
   }
 
-  .panel-heading {
-    padding: 10px;
+  .feature-container {
+
   }
 
-  .panel-title {
-    font-size: 1.5em;
+  .feature-container .nav-pills h3 {
+    font-size: 1em;
+    margin: 0;
+    overflow: hidden;
+    padding: 5px 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .panel-title .btn {
-    color: #fff;
+  .features {
   }
 
-  .panel-body {
-    height: 85vh;
-    overflow: auto;
+  .features hr {
+    border-top: 1px solid #ddd;
+  }
+
+  .feature-description {
+    margin: 10px 0 20px 0;
+  }
+
+  .feature {
+
+  }
+
+  .feature-title {
+    margin-top: 0;
+  }
+
+  .feature-body {
+
+  }
+
+  .event-container {
+    border-top: 1px solid #e0e0e0;
+    border-right: 1px solid #e0e0e0;
+    border-bottom: 1px solid #e0e0e0;
+    border-radius: 0 3px 3px 0;
   }
 
   .controls {
     text-align: right;
     white-space: nowrap;
-    float: right;
   }
 
   .controls form,
@@ -81,35 +100,29 @@
   }
 
   .room-col {
-    background-color: #f0f0f0;
-    background-image: none;
-    border: 1px solid #d0d0d0;
-    padding-bottom: 10px;
     width: 100%;
+    margin-bottom: 20px;
   }
 
   .room-col:last-child {
-    margin-bottom: 0;
-  }
 
-  .room-col > select {
-    margin: 5px 0;
   }
 
   .room-body {
+    background-color: #f0f0f0;
+    border-radius: 0 0 3px 3px;
+    padding: 10px;
   }
 
   .room-title {
-    background-color: #94afe5;
+    background-color: #428bca;
     border-radius: 3px 3px 0 0;
-    border: 1px solid #6080c0;
     color: #fff;
-    margin: -10px -10px 0 -10px;
     padding: 5px;
   }
 
   .room-title select {
-    border: 1px solid #6080c0;
+    border: 1px solid #428bca;
   }
 
   .room-title label {
@@ -129,12 +142,12 @@
   }
 
   .event:first-child {
-    margin-top: 10px;
+    margin-top: 0;
   }
 
   .event:hover {
-    -webkit-box-shadow: inset 0 0 0 1px #6080c0;
-    box-shadow: inset 0 0 0 1px #6080c0;
+    -webkit-box-shadow: inset 0 0 0 1px #428bca;
+    box-shadow: inset 0 0 0 1px #428bca;
   }
 
   .event-spacer {
@@ -176,8 +189,67 @@
   }
 
   .info-block {
-    border-left: 4px solid #6080c0;
+    border-left: 4px solid #428bca;
     border-radius: 4px;
+  }
+
+  .row-stacked {
+    position: relative;
+  }
+
+  .col-sm-stacked {
+    width: 100%;
+    padding-right: 15px;
+    padding-left: 15px;
+  }
+
+  .col-sm-stacked-content {
+    position: initial;
+    width: 100%;
+    padding-right: 15px;
+    padding-left: 15px;
+  }
+
+  .nav-sm-stacked {
+    white-space: nowrap;
+    overflow: auto;
+    padding-bottom: 15px;
+  }
+
+  .nav-sm-stacked > li {
+    max-width: 250px;
+    display: inline-block;
+    float: none;
+  }
+
+  @media(min-width: 768px) {
+    .col-sm-stacked {
+      width: 280px;
+    }
+
+    .col-sm-stacked-content {
+      position: absolute;
+      left: 280px;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      padding-left: 0;
+      width: initial;
+    }
+
+    .nav-sm-stacked {
+      white-space: normal;
+    }
+
+    .nav-sm-stacked > li {
+      display: block;
+      float: none;
+    }
+
+    .nav-sm-stacked > li + li {
+      margin-top: 2px;
+      margin-left: 0;
+    }
   }
 </style>
 
@@ -365,11 +437,13 @@
         {% if attraction.features %}title="You cannot delete an attraction that has any features"{% endif %}>
       {{ csrf_token() }}
       <input type="hidden" name="id" value="{{ attraction.id }}">
-      <input
+      <button
           type="submit"
-          value="Delete Attraction"
           class="btn btn-xs btn-danger"
           {% if attraction.features %}disabled="disabled"{% endif %}>
+        <span class="glyphicon glyphicon-remove"></span>
+        Delete Attraction
+      </button>
     </form>
   {%- endif %}
   {{ attraction.name }} Attraction
@@ -414,132 +488,147 @@
   {%- endif %}
 </div>
 
-<h3>
-  Who or what is featured by {{ attraction.name }}?
+<h2>
+  {{ attraction.name }} Features
   {% if can_admin_attraction -%}
-    <a
-        class="btn btn-xs btn-primary"
+    <a class="btn btn-xs btn-primary"
         title="Add a new feature"
         href="feature?attraction_id={{ attraction.id }}">
+      <span class="glyphicon glyphicon-plus"></span>
       Add Feature
     </a>
   {%- endif %}
-</h3>
-<p class="help-block">
+</h2>
+<p class="help-block feature-help-block">
   <em>Features can be people, activities, performances, or anything else attendees might need to wait in line for.</em>
 </p>
 {% if attraction.features %}
   {% set used_location_opts = attraction.used_location_opts %}
   {% set unused_location_opts = attraction.unused_location_opts %}
   {% set events_by_feature = attraction.events_by_feature %}
-  {% if events_by_feature %}
-    {% set col_count = [events_by_feature|length, 2]|sort|first %}
-    {% set col_width = 12 // (col_count if col_count > 0 else 1) %}
-    {% for feature, events_by_location in events_by_feature.items() %}
-      {% if (loop.index0 % col_count) == 0 %}<div class="row">{% endif %}
-      <div class="col-sm-{{ col_width }}">
-        <div class="panel panel-default">
-          <div class="panel-heading">
-            {% if can_admin_attraction -%}
-              <div class="controls">
-                <a class="btn btn-xs btn-primary btn-fade"
-                    title="Edit the {{ feature.name }} feature"
-                    href="feature?id={{ feature.id }}">
-                  <span class="glyphicon glyphicon-cog"></span>
-                </a>
-                <form
-                    method="post"
-                    action="delete_feature"
-                    role="form"
-                    onsubmit="return confirm('Are you sure you want to delete this feature? This will also delete any associated events.');"
-                    title="Delete the {{ feature.name }} feature">
-                  {{ csrf_token() }}
-                  <input type="hidden" name="id" value="{{ feature.id }}">
-                  <button type="submit" class="btn btn-xs btn-danger btn-fade">
-                    <span class="glyphicon glyphicon-remove"></span>
-                  </button>
-                </form>
-              </div>
-            {%- endif %}
-            {% if can_admin_attraction -%}
-              <a class="btn btn-xs btn-primary pull-left"
-                  title="Add a new {{ feature.name }} event"
-                  href="event?feature_id={{ feature.id }}">
-                Add Event
+  <div class="row row-stacked feature-container">
+    <div class="col-sm-stacked">
+      <ul class="nav nav-pills nav-sm-stacked">
+        {% if events_by_feature %}
+          {% for feature, events_by_location in events_by_feature.items() %}
+            <li role="presentation" class="{% if loop.index0 == 0 %}active{% endif %}">
+              <a href="#feature_{{ feature.id }}" data-toggle="pill">
+                <h3>{{ feature.name }}</h3>
               </a>
-            {%- endif %}
-            <h3 class="panel-title text-center">{{ feature.name }}</h3>
-          </div>
-          <div class="panel-body">
-            <p>{{ feature.description|linebreaksbr }}</p>
-            <div class="clearfix"></div>
-            {% if events_by_location %}
-              {% for location, events in events_by_location.items() %}
-                <div class="room-col well well-sm">
-                  <div class="room-title">
-                    {% if can_admin_attraction -%}
-                      <select class="form-control" data-feature-id="{{ feature.id }}" data-initial-value="{{ location }}">
-                        {% if used_location_opts %}
-                          {{ options(used_location_opts, location) }}
-                          <option disabled="disabled">––––––––––</option>
-                        {% endif %}
-                        {{ options(unused_location_opts, location) }}
-                      </select>
-                    {% else %}
-                      <h5 class="text-center">{{ format_location(location, separator=' ', spacer=False) }}</h5>
-                    {%- endif %}
-                  </div>
-                  <div class="room-body">
-                    {% for event in events %}
-                      <div class="event info-block" style="min-height: {{ (event.duration // 90) - 6 }}px">
-                        {% if can_admin_attraction -%}
-                          <div class="controls pull-right">
-                            <a class="btn btn-xs btn-primary btn-fade"
-                                title="Edit this event"
-                                href="event?id={{ event.id }}">
-                              <span class="glyphicon glyphicon-cog"></span>
-                            </a>
-                            <button type="submit" class="btn btn-xs btn-danger btn-fade" data-event-id="{{ event.id }}" data-event-label="{{ event.label }}">
-                              <span class="glyphicon glyphicon-remove"></span>
-                            </button>
-                          </div>
-                        {%- endif %}
-                        <div class="event-body">
-                          <div>{{ event.time_span_label }}</div>
-                          <div>{{ event.duration_label }} ({{ event.attendees|length }} / {{ event.slots }} slots taken)</div>
+            </li>
+          {% endfor %}
+        {% endif %}
+      </ul>
+    </div>
+    <div class="col-sm-stacked-content">
+      <div class="features tab-content">
+        {% if events_by_feature %}
+          {% for feature, events_by_location in events_by_feature.items() %}
+            <div role="tabpanel" class="tab-pane feature {% if loop.index0 == 0 %}active{% endif %}" id="feature_{{ feature.id }}">
+              <div class="feature-heading">
+                <h3 class="feature-title">
+                  {% if can_admin_attraction -%}
+                    <div class="controls pull-right">
+                      <a class="btn btn-xs btn-primary btn-fade"
+                          title="Edit the {{ feature.name }} feature"
+                          href="feature?id={{ feature.id }}">
+                        <span class="glyphicon glyphicon-cog"></span>
+                      </a>
+                      <form
+                          method="post"
+                          action="delete_feature"
+                          role="form"
+                          onsubmit="return confirm('Are you sure you want to delete this feature? This will also delete any associated events.');"
+                          title="Delete the {{ feature.name }} feature">
+                        {{ csrf_token() }}
+                        <input type="hidden" name="id" value="{{ feature.id }}">
+                        <button type="submit" class="btn btn-xs btn-danger btn-fade">
+                          <span class="glyphicon glyphicon-remove"></span>
+                        </button>
+                      </form>
+                    </div>
+                  {%- endif %}
+                  <span>{{ feature.name }}</span>
+                  {% if can_admin_attraction -%}
+                    <a class="btn btn-xs btn-primary"
+                        title="Schedule a new {{ feature.name }} event"
+                        href="event?feature_id={{ feature.id }}">
+                      <span class="glyphicon glyphicon-time"></span>
+                      Schedule Event
+                    </a>
+                  {%- endif %}
+                </h3>
+              </div>
+              <div class="feature-body">
+                <div class="feature-description">{{ feature.description|linebreaksbr }}</div>
+                {% if events_by_location %}
+                  {% set col_count = [events_by_location|length, 2]|sort|first %}
+                  {% set col_width = 12 // (col_count if col_count > 0 else 1) %}
+                  {% for location, events in events_by_location.items() %}
+                    {% if (loop.index0 % col_count) == 0 %}<div class="row">{% endif %}
+                    <div class="col-md-{{ col_width }}">
+                      <div class="room-col">
+                        <div class="room-title">
+                          {% if can_admin_attraction -%}
+                            <select class="form-control" data-feature-id="{{ feature.id }}" data-initial-value="{{ location }}">
+                              {% if used_location_opts %}
+                                {{ options(used_location_opts, location) }}
+                                <option disabled="disabled">––––––––––</option>
+                              {% endif %}
+                              {{ options(unused_location_opts, location) }}
+                            </select>
+                          {% else %}
+                            <h5 class="text-center">{{ format_location(location, separator=' ', spacer=False) }}</h5>
+                          {%- endif %}
+                        </div>
+                        <div class="room-body">
+                          {% for event in events %}
+                            <div class="event info-block" style="min-height: {{ (event.duration // 90) - 6 }}px">
+                              {% if can_admin_attraction -%}
+                                <div class="controls pull-right">
+                                  <a class="btn btn-xs btn-primary btn-fade"
+                                      title="Edit this event"
+                                      href="event?id={{ event.id }}">
+                                    <span class="glyphicon glyphicon-cog"></span>
+                                  </a>
+                                  <button type="submit" class="btn btn-xs btn-danger btn-fade" data-event-id="{{ event.id }}" data-event-label="{{ event.label }}">
+                                    <span class="glyphicon glyphicon-remove"></span>
+                                  </button>
+                                </div>
+                              {%- endif %}
+                              <div class="event-body">
+                                <div>{{ event.time_span_label }}</div>
+                                <div>{{ event.duration_label }} ({{ event.attendees|length }} / {{ event.slots }} slots taken)</div>
+                              </div>
+                            </div>
+                            {% set overlap = event.overlap(events[loop.index]) %}
+                            {% if overlap > 0 %}
+                              <div class="event-spacer event-overlap text-center text-danger">
+                                {{ humanize_timedelta(seconds=overlap, separator=' ') }} overlap
+                              </div>
+                            {% elif overlap < 0 %}
+                              <div class="event-spacer text-center text-info" style="line-height: {{ [[(overlap // -180) + 6, 16]|sort|last, 100]|sort|first }}px">
+                                {{ humanize_timedelta(seconds=overlap, separator=' ') }} available
+                              </div>
+                            {% endif %}
+                          {% endfor %}
                         </div>
                       </div>
-                      {% set overlap = event.overlap(events[loop.index]) %}
-                      {% if overlap > 0 %}
-                        <div class="event-spacer event-overlap text-center text-danger">
-                          {{ humanize_timedelta(seconds=overlap, separator=' ') }} overlap
-                        </div>
-                      {% elif overlap < 0 %}
-                        <div class="event-spacer text-center text-info" style="line-height: {{ [[(overlap // -180) + 6, 16]|sort|last, 100]|sort|first }}px">
-                          {{ humanize_timedelta(seconds=overlap, separator=' ') }} available
-                        </div>
-                      {% endif %}
-                    {% endfor %}
+                    </div>
+                    {% if loop.last or (loop.index0 % col_count) == (col_count - 1) %}</div>{% endif %}
+                  {% endfor %}
+                {% else %}
+                  <hr>
+                  <div class="empty-message">
+                    No events have been scheduled for the <b>{{ feature.name }}</b> feature yet.
                   </div>
-                </div>
-              {% endfor %}
-            {% else %}
-              <hr>
-              <div class="empty-message">
-                No events have been scheduled for the <b>{{ feature.name }}</b> feature yet.
+                {% endif %}
               </div>
-            {% endif %}
-          </div>
-        </div>
+            </div>
+          {% endfor %}
+        {% endif %}
       </div>
-      {% if loop.last or (loop.index0 % col_count) == (col_count - 1) %}</div>{% endif %}
-    {% endfor %}
-  {% endif %}
-{% else %}
-  <hr>
-  <div class="empty-message">
-    No features have been created for the <b>{{ attraction.name }}</b> attraction yet.
+    </div>
   </div>
 {% endif %}
-
 {% endblock %}
