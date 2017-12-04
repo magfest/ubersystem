@@ -1,5 +1,7 @@
 import pytest
 
+from cherrypy import HTTPError
+
 from uber.common import *
 from uber.tests.conftest import csrf_token, cp_session
 from uber.api import auth_by_token, auth_by_session, api_auth, all_api_auth
@@ -166,37 +168,35 @@ class TestCheckAdminAccount(object):
 
 
 class TestAuthByToken(object):
-    ACCESS_ERR = 'Insufficient access for auth token'
+    ACCESS_ERR = 'Insufficient access for auth token: {}'.format(VALID_API_TOKEN)
 
     def test_success(self, monkeypatch, api_token):
         monkeypatch.setitem(cherrypy.request.headers, 'X-Auth-Token', api_token.token)
         assert None == auth_by_token(set())
 
     @pytest.mark.parametrize('token,expected', [
-        (None, 'Missing X-Auth-Token header'),
-        ('XXXX', 'Invalid auth token,'),
-        ('b6531a2b-eddf-4d08-9afe-0ced6376078c', 'Auth token not found:'),
+        (None, (401, 'Missing X-Auth-Token header')),
+        ('XXXX', (403, 'Invalid auth token, badly formed hexadecimal UUID string: XXXX')),
+        ('b6531a2b-eddf-4d08-9afe-0ced6376078c', (403, 'Auth token not recognized: b6531a2b-eddf-4d08-9afe-0ced6376078c')),
     ])
     def test_failure(self, monkeypatch, token, expected):
         monkeypatch.setitem(cherrypy.request.headers, 'X-Auth-Token', token)
-        result = auth_by_token(set())
-        assert result['error'].startswith(expected)
+        assert auth_by_token(set()) == expected
 
     def test_revoked(self, monkeypatch, session, api_token):
         api_token.revoked_time = datetime.utcnow().replace(tzinfo=pytz.UTC)
         session.commit()
         session.refresh(api_token)
         monkeypatch.setitem(cherrypy.request.headers, 'X-Auth-Token', api_token.token)
-        result = auth_by_token(set())
-        assert result['error'].startswith('Revoked auth token:')
+        assert auth_by_token(set()) == (403, 'Revoked auth token: {}'.format(api_token.token))
 
     @pytest.mark.parametrize('token_access,required_access,expected', [
         ([], [], None),
-        ([], [c.API_READ], ACCESS_ERR),
-        ([], [c.API_READ, c.API_UPDATE], ACCESS_ERR),
+        ([], [c.API_READ], (403, ACCESS_ERR)),
+        ([], [c.API_READ, c.API_UPDATE], (403, ACCESS_ERR)),
         ([c.API_READ], [], None),
         ([c.API_READ], [c.API_READ], None),
-        ([c.API_READ], [c.API_READ, c.API_UPDATE], ACCESS_ERR),
+        ([c.API_READ], [c.API_READ, c.API_UPDATE], (403, ACCESS_ERR)),
         ([c.API_READ, c.API_UPDATE], [c.API_READ, c.API_UPDATE], None),
     ])
     def test_insufficient_access(self, monkeypatch, session, api_token, token_access, required_access, expected):
@@ -204,11 +204,7 @@ class TestAuthByToken(object):
         session.commit()
         session.refresh(api_token)
         monkeypatch.setitem(cherrypy.request.headers, 'X-Auth-Token', api_token.token)
-        result = auth_by_token(set(required_access))
-        if expected:
-            assert result['error'].startswith(expected)
-        else:
-            assert result is None
+        assert auth_by_token(set(required_access)) == expected
 
 
 class TestAuthBySession(object):
@@ -218,8 +214,7 @@ class TestAuthBySession(object):
         assert None == auth_by_session(set())
 
     def test_check_csrf_missing_from_headers(self):
-        result = auth_by_session(set())
-        assert result['error'].startswith('CSRF token missing')
+        assert auth_by_session(set()) == (403, 'Your CSRF token is invalid. Please go back and try again.')
 
     def test_check_csrf_missing_from_session(self, monkeypatch):
         monkeypatch.setitem(cherrypy.request.headers, 'CSRF-Token', 'XXXX')
@@ -229,29 +224,26 @@ class TestAuthBySession(object):
     def test_check_csrf_invalid(self, monkeypatch):
         monkeypatch.setitem(cherrypy.session, 'csrf_token', '74c18d5c-1a92-40f0-b5f3-924d46efafe4')
         monkeypatch.setitem(cherrypy.request.headers, 'CSRF-Token', 'XXXX')
-        result = auth_by_session(set())
-        assert result['error'].startswith("CSRF check failed: csrf tokens don't match")
+        assert auth_by_session(set()) == (403, 'Your CSRF token is invalid. Please go back and try again.')
 
     def test_missing_admin_account(self, monkeypatch):
         monkeypatch.setitem(cherrypy.session, 'csrf_token', '74c18d5c-1a92-40f0-b5f3-924d46efafe4')
         monkeypatch.setitem(cherrypy.request.headers, 'CSRF-Token', '74c18d5c-1a92-40f0-b5f3-924d46efafe4')
-        result = auth_by_session(set())
-        assert result['error'].startswith('Missing admin account in session')
+        assert auth_by_session(set()) == (403, 'Missing admin account in session')
 
     def test_invalid_admin_account(self, monkeypatch):
         monkeypatch.setitem(cherrypy.session, 'account_id', '4abd6dd4-8da3-44dc-8074-b2fc1b73185f')
         monkeypatch.setitem(cherrypy.session, 'csrf_token', '74c18d5c-1a92-40f0-b5f3-924d46efafe4')
         monkeypatch.setitem(cherrypy.request.headers, 'CSRF-Token', '74c18d5c-1a92-40f0-b5f3-924d46efafe4')
-        result = auth_by_session(set())
-        assert result['error'].startswith('Invalid admin account in session')
+        assert auth_by_session(set()) == (403, 'Invalid admin account in session')
 
     @pytest.mark.parametrize('admin_access,required_access,expected', [
         ([], [], None),
-        ([], [c.API_READ], ACCESS_ERR),
-        ([], [c.API_READ, c.API_UPDATE], ACCESS_ERR),
+        ([], [c.API_READ], (403, ACCESS_ERR)),
+        ([], [c.API_READ, c.API_UPDATE], (403, ACCESS_ERR)),
         ([c.API_READ], [], None),
         ([c.API_READ], [c.API_READ], None),
-        ([c.API_READ], [c.API_READ, c.API_UPDATE], ACCESS_ERR),
+        ([c.API_READ], [c.API_READ, c.API_UPDATE], (403, ACCESS_ERR)),
         ([c.API_READ, c.API_UPDATE], [c.API_READ, c.API_UPDATE], None),
     ])
     def test_insufficient_access(self, monkeypatch, session, admin_account, admin_access, required_access, expected):
@@ -261,11 +253,7 @@ class TestAuthBySession(object):
         monkeypatch.setitem(cherrypy.session, 'account_id', admin_account.id)
         monkeypatch.setitem(cherrypy.session, 'csrf_token', '74c18d5c-1a92-40f0-b5f3-924d46efafe4')
         monkeypatch.setitem(cherrypy.request.headers, 'CSRF-Token', '74c18d5c-1a92-40f0-b5f3-924d46efafe4')
-        result = auth_by_session(set(required_access))
-        if expected:
-            assert result['error'].startswith(expected)
-        else:
-            assert result is None
+        assert auth_by_session(set(required_access)) == expected
 
 
 class TestApiAuth(object):
@@ -295,11 +283,14 @@ class TestApiAuth(object):
         monkeypatch.setitem(cherrypy.session, 'account_id', admin_account.id)
         monkeypatch.setitem(cherrypy.session, 'csrf_token', '74c18d5c-1a92-40f0-b5f3-924d46efafe4')
         monkeypatch.setitem(cherrypy.request.headers, 'CSRF-Token', '74c18d5c-1a92-40f0-b5f3-924d46efafe4')
-        result = _func()
         if expected:
-            assert result['error'].startswith(self.AUTH_BY_SESSION_ERR)
+            with pytest.raises(HTTPError) as error:
+                _func()
+            assert error.type is HTTPError
+            assert error.value.code == 401
+            assert error.value._message.startswith(self.AUTH_BY_SESSION_ERR)
         else:
-            assert 'SUCCESS' == result
+            assert 'SUCCESS' == _func()
 
     @pytest.mark.parametrize('token_access,required_access,expected', TEST_REQUIRED_ACCESS)
     def test_api_auth_by_token(self, monkeypatch, session, api_token, token_access, required_access, expected):
@@ -312,11 +303,14 @@ class TestApiAuth(object):
         session.commit()
         session.refresh(api_token)
         monkeypatch.setitem(cherrypy.request.headers, 'X-Auth-Token', api_token.token)
-        result = _func()
         if expected:
-            assert result['error'].startswith(self.AUTH_BY_TOKEN_ERR)
+            with pytest.raises(HTTPError) as error:
+                _func()
+            assert error.type is HTTPError
+            assert error.value.code == 403
+            assert error.value._message.startswith(self.AUTH_BY_TOKEN_ERR)
         else:
-            assert 'SUCCESS' == result
+            assert 'SUCCESS' == _func()
 
 
 class TestAllApiAuth(object):
@@ -353,17 +347,23 @@ class TestAllApiAuth(object):
         monkeypatch.setitem(cherrypy.session, 'csrf_token', '74c18d5c-1a92-40f0-b5f3-924d46efafe4')
         monkeypatch.setitem(cherrypy.request.headers, 'CSRF-Token', '74c18d5c-1a92-40f0-b5f3-924d46efafe4')
 
-        result = service.func_1()
         if expected:
-            assert result['error'].startswith(self.AUTH_BY_SESSION_ERR)
+            with pytest.raises(HTTPError) as error:
+                service.func_1()
+            assert error.type is HTTPError
+            assert error.value.code == 401
+            assert error.value._message.startswith(self.AUTH_BY_SESSION_ERR)
         else:
-            assert 'SUCCESS1' == result
+            assert 'SUCCESS1' == service.func_1()
 
-        result = service.func_2()
         if expected:
-            assert result['error'].startswith(self.AUTH_BY_SESSION_ERR)
+            with pytest.raises(HTTPError) as error:
+                service.func_2()
+            assert error.type is HTTPError
+            assert error.value.code == 401
+            assert error.value._message.startswith(self.AUTH_BY_SESSION_ERR)
         else:
-            assert 'SUCCESS2' == result
+            assert 'SUCCESS2' == service.func_2()
 
     @pytest.mark.parametrize('token_access,required_access,expected', TEST_REQUIRED_ACCESS)
     def test_all_api_auth_by_token(self, monkeypatch, session, api_token, token_access, required_access, expected):
@@ -383,14 +383,20 @@ class TestAllApiAuth(object):
         session.refresh(api_token)
         monkeypatch.setitem(cherrypy.request.headers, 'X-Auth-Token', api_token.token)
 
-        result = service.func_1()
         if expected:
-            assert result['error'].startswith(self.AUTH_BY_TOKEN_ERR)
+            with pytest.raises(HTTPError) as error:
+                service.func_1()
+            assert error.type is HTTPError
+            assert error.value.code == 403
+            assert error.value._message.startswith(self.AUTH_BY_TOKEN_ERR)
         else:
-            assert 'SUCCESS1' == result
+            assert 'SUCCESS1' == service.func_1()
 
-        result = service.func_2()
         if expected:
-            assert result['error'].startswith(self.AUTH_BY_TOKEN_ERR)
+            with pytest.raises(HTTPError) as error:
+                service.func_2()
+            assert error.type is HTTPError
+            assert error.value.code == 403
+            assert error.value._message.startswith(self.AUTH_BY_TOKEN_ERR)
         else:
-            assert 'SUCCESS2' == result
+            assert 'SUCCESS2' == service.func_2()
