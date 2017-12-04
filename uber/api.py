@@ -1,3 +1,4 @@
+from cherrypy import HTTPError
 from uber.common import *
 from uber.server import register_jsonrpc
 
@@ -8,21 +9,21 @@ __version__ = '0.1'
 def auth_by_token(required_access):
     token = cherrypy.request.headers.get('X-Auth-Token', None)
     if not token:
-        return {'error': 'Missing X-Auth-Token header'}
+        return (401, 'Missing X-Auth-Token header')
 
     try:
         token = uuid.UUID(token)
     except ValueError as ex:
-        return {'error': 'Invalid auth token, {}: {}'.format(ex, token)}
+        return (403, 'Invalid auth token, {}: {}'.format(ex, token))
 
     with Session() as session:
         api_token = session.query(ApiToken).filter_by(token=token).first()
         if not api_token:
-            return {'error': 'Auth token not found: {}'.format(token)}
+            return (403, 'Auth token not recognized: {}'.format(token))
         if api_token.revoked_time:
-            return {'error': 'Revoked auth token: {}'.format(token)}
+            return (403, 'Revoked auth token: {}'.format(token))
         if not required_access.issubset(set(api_token.access_ints)):
-            return {'error': 'Insufficient access for auth token: {}'.format(token)}
+            return (403, 'Insufficient access for auth token: {}'.format(token))
         cherrypy.session['account_id'] = api_token.admin_account_id
     return None
 
@@ -31,16 +32,16 @@ def auth_by_session(required_access):
     try:
         check_csrf()
     except CSRFException as ex:
-        return {'error': str(ex)}
+        return (403, 'Your CSRF token is invalid. Please go back and try again.')
     admin_account_id = cherrypy.session.get('account_id', None)
     if not admin_account_id:
-        return {'error': 'Missing admin account in session'}
+        return (403, 'Missing admin account in session')
     with Session() as session:
         admin_account = session.query(AdminAccount).filter_by(id=admin_account_id).first()
         if not admin_account:
-            return {'error': 'Invalid admin account in session'}
+            return (403, 'Invalid admin account in session')
         if not required_access.issubset(set(admin_account.access_ints)):
-            return {'error': 'Insufficient access for admin account'}
+            return (403, 'Insufficient access for admin account')
     return None
 
 
@@ -60,7 +61,7 @@ def api_auth(*required_access):
                 error = error or result
                 if not result:
                     return func(*args, **kwargs)
-            return error
+            raise HTTPError(*error)
         return _with_api_auth
     return _decorator
 
