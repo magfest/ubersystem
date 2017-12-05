@@ -299,11 +299,21 @@ def email_only(email):
 
 
 @JinjaEnv.jinja_export
+def timedelta_component(*args, units='days', **kwargs):
+    if args and isinstance(args[0], timedelta):
+        delta = relativedelta(seconds=args[0].total_seconds()).normalized()
+    else:
+        delta = relativedelta(**kwargs).normalized()
+    return abs(int(getattr(delta, units)))
+
+
+@JinjaEnv.jinja_export
 def humanize_timedelta(
         *args,
         granularity='seconds',
         separator=None,
         now='right now',
+        prefix='',
         suffix='',
         **kwargs):
     """
@@ -344,14 +354,15 @@ def humanize_timedelta(
         time = abs(int(getattr(delta, unit)))
         if time:
             plural = pluralize(time)
-            time_units.append(
-                '{} {}{}{}'.format(time, unit[:-1], plural, suffix))
+            time_units.append('{} {}{}'.format(time, unit[:-1], plural))
         if unit == granularity:
             break
     if time_units:
-        if separator is not None:
-            return separator.join(time_units)
-        return join_and(time_units)
+        if separator is None:
+            humanized = join_and(time_units)
+        else:
+            humanized = separator.join(time_units)
+        return '{}{}{}'.format(prefix, humanized, suffix)
     return now
 
 
