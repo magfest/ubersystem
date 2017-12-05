@@ -1,5 +1,5 @@
-{% extends "base.html" %}{% set admin_area=True %}{% set resend_email_form=True %}
-{% block title %}Group History - {{ group.name }}{% endblock %}
+{% if not XHR %}{% extends 'base.html' %}{% set admin_area=True %}{% endif -%}{% set resend_email_form=True %}
+{% import 'macros.html' as macros with context %} {{ macros.title('Group History - {{ group.name }}') }}
 {% block content %}
 
 {{ macros.nav_menu(

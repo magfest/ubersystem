@@ -1,5 +1,5 @@
-{% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Email addresses by interest{% endblock %}
+{% if not XHR %}{% extends 'base.html' %}{% set admin_area=True %}{% endif -%}
+{% import 'macros.html' as macros with context %} {{ macros.title('Email addresses by interest') }}
 {% block content %}
 
     <h1>Emails by Interest</h1>

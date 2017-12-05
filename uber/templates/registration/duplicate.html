@@ -1,5 +1,5 @@
-{% extends "base.html" %}{% set admin_area=True %}
-{% block title %}That attendee already has a badge{% endblock %}
+{% if not XHR %}{% extends 'base.html' %}{% set admin_area=True %}{% endif -%}
+{% import 'macros.html' as macros with context %} {{ macros.title('That attendee already has a badge') }}
 {% block content %}
 <div class="panel panel-default">
     <div class="panel-body">

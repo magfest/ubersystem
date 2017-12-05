@@ -1,5 +1,5 @@
-{% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Recent At-the-Door Registrations{% endblock %}
+{% if not XHR %}{% extends 'base.html' %}{% set admin_area=True %}{% endif -%}
+{% import 'macros.html' as macros with context %} {{ macros.title('Recent At-the-Door Registrations') }}
 {% block content %}
 {% block adminheader %}
 <link rel="stylesheet" type="text/css" href="../static/styles/styles.css" />

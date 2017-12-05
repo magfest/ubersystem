@@ -1,5 +1,5 @@
-{% extends "base.html" %}{% set admin_area=True %}
-{% block title %}{{ department.name }} Membership Requests{% endblock %}
+{% if not XHR %}{% extends 'base.html' %}{% set admin_area=True %}{% endif -%}
+{% import 'macros.html' as macros with context %} {{ macros.title('{{ department.name }} Membership Requests') }}
 
 {% block content %}
 <style type="text/css">

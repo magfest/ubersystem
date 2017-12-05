@@ -1,5 +1,5 @@
-{% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Inactive Attendees{% endblock %}}
+{% if not XHR %}{% extends 'base.html' %}{% set admin_area=True %}{% endif -%}
+{% import 'macros.html' as macros with context %} {{ macros.title('Inactive Attendees') }}}
 {% block content %}
 
 <h2>Invalidated Attendee Registrations</h2>

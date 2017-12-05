@@ -1,6 +1,6 @@
 {% extends "./preregistration/preregbase.html" %}
 {% block backlink %}{% endblock %}
-{% block title %}Transfer Your {{ c.EVENT_NAME }} Registration{% endblock %}
+{% import 'macros.html' as macros with context %} {{ macros.title('Transfer Your {{ c.EVENT_NAME }} Registration') }}
 {% block content %}
 
 <div class="masthead"></div>

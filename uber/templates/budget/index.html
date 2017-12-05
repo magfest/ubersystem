@@ -1,6 +1,6 @@
 {% set admin_area=True %}
-{% extends "base.html" %}
-{% block title %}Budget{% endblock %}
+{% if not XHR %}{% extends 'base.html' %}{% endif -%}
+{% import 'macros.html' as macros with context %} {{ macros.title('Budget') }}
 {% block content %}
 
 <style type="text/css">

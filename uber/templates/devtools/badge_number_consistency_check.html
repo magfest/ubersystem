@@ -1,5 +1,5 @@
-{% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Developer Utility - Badge consistency check{% endblock %}
+{% if not XHR %}{% extends 'base.html' %}{% set admin_area=True %}{% endif -%}
+{% import 'macros.html' as macros with context %} {{ macros.title('Developer Utility - Badge consistency check') }}
 {% block content %}
 
     <h1>Badge numbering consistency utility</h1>

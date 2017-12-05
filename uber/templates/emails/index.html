@@ -1,5 +1,5 @@
-{% extends "base.html" %}{% set admin_area=True %}{% set resend_email_form=True %}
-{% block title %}Recently Sent Automated Emails{% endblock %}
+{% if not XHR %}{% extends 'base.html' %}{% set admin_area=True %}{% endif -%}{% set resend_email_form=True %}
+{% import 'macros.html' as macros with context %} {{ macros.title('Recently Sent Automated Emails') }}
 {% block content %}
 
 <form action="index">

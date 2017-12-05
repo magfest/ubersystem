@@ -1,5 +1,5 @@
-{% extends "base.html" %}{% set admin_area=True %}{% set resend_email_form=True %}
-{% block title %}Sent Emails{% endblock %}
+{% if not XHR %}{% extends 'base.html' %}{% set admin_area=True %}{% endif -%}{% set resend_email_form=True %}
+{% import 'macros.html' as macros with context %} {{ macros.title('Sent Emails') }}
 {% block content %}
 
 <h2>Emails Sent to {{ emails.0.rcpt_name }} ({{ emails.0.dest }})</h2>

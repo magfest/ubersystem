@@ -1,5 +1,5 @@
-{% extends "base.html" %}{% set admin_area=True %}
-{% block title %}API Access{% if not admin_account.is_admin %} for {{ admin_account.attendee.full_name }}{% endif %}{% endblock %}
+{% if not XHR %}{% extends 'base.html' %}{% set admin_area=True %}{% endif -%}
+{% import 'macros.html' as macros with context %} {{ macros.title('API Access{% if not admin_account.is_admin %} for {{ admin_account.attendee.full_name }}{% endif %}') }}
 
 {% block content %}
 

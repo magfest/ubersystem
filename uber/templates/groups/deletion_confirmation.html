@@ -1,5 +1,5 @@
-{% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Group Deletion Confirmation{% endblock %}
+{% if not XHR %}{% extends 'base.html' %}{% set admin_area=True %}{% endif -%}
+{% import 'macros.html' as macros with context %} {{ macros.title('Group Deletion Confirmation') }}
 {% block content %}
 
 <h2> Confirm Deletion of {{ group.name }} </h2>

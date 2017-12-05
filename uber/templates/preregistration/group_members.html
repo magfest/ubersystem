@@ -1,5 +1,5 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}Group Members{% endblock %}
+{% import 'macros.html' as macros with context %} {{ macros.title('Group Members') }}
 {% block backlink %}
     {% if c.HAS_PEOPLE_ACCESS %}
         <a href="../groups/form?id={{ group.id }}" style="float:right">Return to Group Admin Form</a>

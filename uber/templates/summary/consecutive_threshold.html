@@ -1,5 +1,5 @@
-{% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Volunteers With Alarming Hours{% endblock %}
+{% if not XHR %}{% extends 'base.html' %}{% set admin_area=True %}{% endif -%}
+{% import 'macros.html' as macros with context %} {{ macros.title('Volunteers With Alarming Hours') }}
 {% block content %}
 
 <h2>Volunteers With Alarming Hours</h2>

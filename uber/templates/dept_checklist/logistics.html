@@ -1,5 +1,5 @@
-{% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Department Checklist - Logistics Needs{% endblock %}
+{% if not XHR %}{% extends 'base.html' %}{% set admin_area=True %}{% endif -%}
+{% import 'macros.html' as macros with context %} {{ macros.title('Department Checklist - Logistics Needs') }}
 {% block content %}
 
 <h2>Logistics needs for {{ department.name }}</h2>

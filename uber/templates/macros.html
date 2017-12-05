@@ -1,6 +1,10 @@
+{% macro title(title) -%}
+<script>document.title='{{title}}'</script>
+{%- endmacro %}
+
 {% macro stripe_button(label) -%}
   <button class="btn btn-primary stripe-button-el">
-    <span class="display: block; min-height: 30px;">{{label}}</span>
+    <span c}}lass="display: block; min-height: 30px;">{{label}}</span>
   </button>
 {%- endmacro %}
 

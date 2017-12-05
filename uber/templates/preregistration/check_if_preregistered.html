@@ -1,5 +1,5 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}Check Registration for {{ c.EVENT_NAME }}{% endblock %}
+{% import 'macros.html' as macros with context %} {{ macros.title('Check Registration for {{ c.EVENT_NAME }}') }}
 {% block content %}
 
 <div class="masthead"></div>

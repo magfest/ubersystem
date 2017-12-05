@@ -1,7 +1,8 @@
-{% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Homepage{% endblock %}
-{% block content %}
+{% import 'macros.html' as macros with context %}
+{% import 'macros.html' as macros with context %} {{ macros.title("Homepage") }}
+{% if not XHR %}{% extends 'base.html' %}{% set admin_area=True %}{% endif -%}
 
+{% block content %}
 <div class="row">
 <div class="col-sm-6 col-sm-offset-3">
   <div class="well">

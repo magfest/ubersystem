@@ -1,5 +1,5 @@
-{% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Dietary Restrictions{% endblock %}
+{% if not XHR %}{% extends 'base.html' %}{% set admin_area=True %}{% endif -%}
+{% import 'macros.html' as macros with context %} {{ macros.title('Dietary Restrictions') }}
 {% block content %}
 
 <h2> Dietary Restrictions for {{ c.EVENT_NAME }} Volunteers </h2>

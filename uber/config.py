@@ -389,6 +389,10 @@ class Config(_Overridable):
     @property
     def PAGE(self):
         return cherrypy.request.path_info.split('/')[-1]
+    
+    @property
+    def XHR(self):
+        return 'X-Requested-With' in cherrypy.request.headers
 
     @request_cached_property
     def ALLOWED_ACCESS_OPTS(self):

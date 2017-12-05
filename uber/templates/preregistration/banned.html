@@ -1,5 +1,5 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}You may be banned from {{ c.EVENT_NAME }}!{% endblock %}
+{% import 'macros.html' as macros with context %} {{ macros.title('You may be banned from {{ c.EVENT_NAME }}!') }}
 {% block backlink %}{% endblock %}
 {% block content %}
 

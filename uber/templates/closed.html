@@ -1,5 +1,5 @@
-{% extends "base.html" %}{% set admin_area=True %}
-{% block title %}{{ c.EVENT_NAME }} server is being moved{% endblock %}
+{% if not XHR %}{% extends 'base.html' %}{% set admin_area=True %}{% endif -%}
+{% import 'macros.html' as macros with context %} {{ macros.title('{{ c.EVENT_NAME }} server is being moved') }}
 {% block backlink %}{% endblock %}
 {% block content %}
 

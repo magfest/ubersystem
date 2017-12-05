@@ -1,5 +1,5 @@
-{% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Developer Utility - System Diagnostics{% endblock %}
+{% if not XHR %}{% extends 'base.html' %}{% set admin_area=True %}{% endif -%}
+{% import 'macros.html' as macros with context %} {{ macros.title('Developer Utility - System Diagnostics') }}
 {% block content %}
 
 <h1>System Diagnostics</h1>

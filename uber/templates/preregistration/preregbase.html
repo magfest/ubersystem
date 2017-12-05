@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% if not XHR %}{% extends 'base.html' %}{% endif -%}
 {% block head_javascript %}
     {{ super() }}
 
