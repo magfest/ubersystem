@@ -198,7 +198,7 @@ class Root:
                     group.name,
                     group.description,
                     group.website,
-                    group.leader.full_name,
+                    group.leader.legal_name or group.leader.full_name,
                     group.leader.email,
                     group.leader.cellphone,
                     group.address1,
@@ -212,6 +212,32 @@ class Root:
                     group.cost,
                     group.badges
                 ])
+
+    @xlsx_file
+    def vendor_comptroller_info(self, out, session):
+        dealer_groups = session.query(Group).filter(Group.tables > 0).all()
+        rows = []
+        for group in dealer_groups:
+            if group.approved and group.is_dealer:
+                rows.append([
+                    group.name,
+                    group.leader.email,
+                    group.leader.legal_name or group.leader.full_name,
+                    group.leader.cellphone,
+                    group.physical_address
+                ])
+
+        header_row = [
+            'Vendor Name',
+            'Contact Email',
+            'Primary Contact',
+            'Contact Phone #',
+            'Physical Address']
+        out.set_column_widths([header_row] + rows)
+        bold = out.workbook.add_format({'bold': True})
+        out.writerow(header_row, bold)
+        for row in rows:
+            out.writerow(row)
 
     @xlsx_file
     def printed_badges_attendee(self, out, session):

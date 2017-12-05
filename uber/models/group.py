@@ -235,3 +235,23 @@ class Group(MagModel, TakesPaymentMixin):
                     return attendee.requested_hotel_info
         else:
             return any(a.requested_hotel_info for a in self.attendees)
+
+    @property
+    def physical_address(self):
+        address1 = self.address1.strip()
+        address2 = self.address2.strip()
+        city = self.city.strip()
+        region = self.region.strip()
+        zip_code = self.zip_code.strip()
+        country = self.country.strip()
+
+        country = '' if country == 'United States' else country.strip()
+
+        if city and region:
+            city_region = '{}, {}'.format(city, region)
+        else:
+            city_region = city or region
+        city_region_zip = '{} {}'.format(city_region, zip_code).strip()
+
+        physical_address = [address1, address2, city_region_zip, country]
+        return '\n'.join([s for s in physical_address if s])
