@@ -226,18 +226,13 @@ class Root:
                     group.leader.cellphone,
                     group.physical_address
                 ])
-
         header_row = [
             'Vendor Name',
             'Contact Email',
             'Primary Contact',
             'Contact Phone #',
             'Physical Address']
-        out.set_column_widths([header_row] + rows)
-        bold = out.workbook.add_format({'bold': True})
-        out.writerow(header_row, bold)
-        for row in rows:
-            out.writerow(row)
+        out.writerows(header_row, rows)
 
     @xlsx_file
     def printed_badges_attendee(self, out, session):
