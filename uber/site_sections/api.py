@@ -25,6 +25,7 @@ class Root:
 
     def reference(self, session):
         from uber.server import jsonrpc_services as jsonrpc
+        newlines = re.compile(r'(^|[^\n])\n([^\n]|$)')
         admin_account = session.current_admin_account()
         services = []
         for name in sorted(jsonrpc.keys()):
@@ -33,17 +34,19 @@ class Root:
             for method_name, method in getmembers(service, ismethod):
                 if not method_name.startswith('_'):
                     method = get_innermost(method)
+                    doc = method.__doc__ or ''
                     args = getargspec(method).args
                     if 'self' in args:
                         args.remove('self')
                     methods.append({
                         'name': method_name,
-                        'doc': method.__doc__,
+                        'doc': newlines.sub(r'\1 \2', doc).strip(),
                         'args': args
                     })
+            doc = service.__doc__ or ''
             services.append({
                 'name': name,
-                'doc': service.__doc__,
+                'doc': newlines.sub(r'\1 \2', doc).strip(),
                 'methods': methods
             })
 

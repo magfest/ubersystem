@@ -83,6 +83,23 @@ class AttendeeLookup:
         'full_name': True,
         'first_name': True,
         'last_name': True,
+        'legal_name': True,
+        'email': True,
+        'zip_code': True,
+        'cellphone': True,
+        'ec_name': True,
+        'ec_phone': True,
+        'checked_in': True,
+        'badge_status_label': True,
+        'badge_type_label': True,
+        'badge_num': True,
+    }
+
+    fields_full = {
+        'full_name': True,
+        'first_name': True,
+        'last_name': True,
+        'legal_name': True,
         'email': True,
         'zip_code': True,
         'cellphone': True,
@@ -112,26 +129,39 @@ class AttendeeLookup:
         }
     }
 
-    def lookup(self, badge_num):
+    def lookup(self, badge_num, full=False):
         """
-        Returns a single attendee by badge number. Takes the badge number as
-        a single parameter.
+        Returns a single attendee by badge number.
+
+        Takes the badge number as the first parameter.
+
+        Optionally, "full" may be passed as the second parameter to return the
+        complete attendee record, including departments, shifts, and food
+        restrictions.
         """
         with Session() as session:
             attendee = session.query(Attendee).filter_by(badge_num=badge_num).first()
             if attendee:
-                return attendee.to_dict(self.fields)
+                return attendee.to_dict(self.fields_full if full else self.fields)
             else:
                 return {'error': 'No attendee found with Badge #{}'.format(badge_num)}
 
-    def search(self, query):
+    def search(self, query, full=False):
         """
         Searches for attendees using a freeform text query. Returns all
         matching attendees using the same search algorithm as the main
-        attendee search box. Takes the search query as a single parameter.
+        attendee search box.
+
+        Takes the search query as the first parameter.
+
+        Optionally, "full" may be passed as the second parameter to return the
+        complete attendee record, including departments, shifts, and food
+        restrictions.
         """
         with Session() as session:
-            return [a.to_dict(self.fields) for a in session.search(query).limit(100)]
+            return [
+                a.to_dict(self.fields_full if full else self.fields)
+                for a in session.search(query).limit(100)]
 
 
 @all_api_auth(c.API_READ)
