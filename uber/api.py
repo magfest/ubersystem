@@ -1,3 +1,4 @@
+from cherrypy import HTTPError
 from uber.common import *
 from uber.server import register_jsonrpc
 
@@ -5,24 +6,39 @@ from uber.server import register_jsonrpc
 __version__ = '0.1'
 
 
+def _attendee_fields_and_query(full, query):
+    if full:
+        fields = AttendeeLookup.fields_full
+        query = query.options(
+            subqueryload(Attendee.dept_memberships),
+            subqueryload(Attendee.assigned_depts),
+            subqueryload(Attendee.food_restrictions),
+            subqueryload(Attendee.shifts)
+                .subqueryload(Shift.job))
+    else:
+        fields = AttendeeLookup.fields
+        query = query.options(subqueryload(Attendee.dept_memberships))
+    return (fields, query)
+
+
 def auth_by_token(required_access):
     token = cherrypy.request.headers.get('X-Auth-Token', None)
     if not token:
-        return {'error': 'Missing X-Auth-Token header'}
+        return (401, 'Missing X-Auth-Token header')
 
     try:
         token = uuid.UUID(token)
     except ValueError as ex:
-        return {'error': 'Invalid auth token, {}: {}'.format(ex, token)}
+        return (403, 'Invalid auth token, {}: {}'.format(ex, token))
 
     with Session() as session:
         api_token = session.query(ApiToken).filter_by(token=token).first()
         if not api_token:
-            return {'error': 'Auth token not found: {}'.format(token)}
+            return (403, 'Auth token not recognized: {}'.format(token))
         if api_token.revoked_time:
-            return {'error': 'Revoked auth token: {}'.format(token)}
+            return (403, 'Revoked auth token: {}'.format(token))
         if not required_access.issubset(set(api_token.access_ints)):
-            return {'error': 'Insufficient access for auth token: {}'.format(token)}
+            return (403, 'Insufficient access for auth token: {}'.format(token))
         cherrypy.session['account_id'] = api_token.admin_account_id
     return None
 
@@ -31,16 +47,16 @@ def auth_by_session(required_access):
     try:
         check_csrf()
     except CSRFException as ex:
-        return {'error': str(ex)}
+        return (403, 'Your CSRF token is invalid. Please go back and try again.')
     admin_account_id = cherrypy.session.get('account_id', None)
     if not admin_account_id:
-        return {'error': 'Missing admin account in session'}
+        return (403, 'Missing admin account in session')
     with Session() as session:
         admin_account = session.query(AdminAccount).filter_by(id=admin_account_id).first()
         if not admin_account:
-            return {'error': 'Invalid admin account in session'}
+            return (403, 'Invalid admin account in session')
         if not required_access.issubset(set(admin_account.access_ints)):
-            return {'error': 'Insufficient access for admin account'}
+            return (403, 'Insufficient access for admin account')
     return None
 
 
@@ -60,7 +76,7 @@ def api_auth(*required_access):
                 error = error or result
                 if not result:
                     return func(*args, **kwargs)
-            return error
+            raise HTTPError(*error)
         return _with_api_auth
     return _decorator
 
@@ -82,21 +98,26 @@ class AttendeeLookup:
         'full_name': True,
         'first_name': True,
         'last_name': True,
+        'legal_name': True,
         'email': True,
         'zip_code': True,
         'cellphone': True,
         'ec_name': True,
         'ec_phone': True,
-        'badge_status_label': True,
         'checked_in': True,
+        'badge_num': True,
+        'badge_printed_name': True,
+        'badge_status_label': True,
         'badge_type_label': True,
-        'ribbon_labels': True,
         'staffing': True,
         'is_dept_head': True,
+        'ribbon_labels': True,
+    }
+
+    fields_full = dict(fields, **{
         'assigned_depts_labels': True,
         'weighted_hours': True,
         'worked_hours': True,
-        'badge_num': True,
         'food_restrictions': {
             'sandwich_pref_labels': True,
             'standard_labels': True,
@@ -109,28 +130,43 @@ class AttendeeLookup:
                 'start_time', 'end_time', 'extra15'
             ]
         }
-    }
+    })
 
-    def lookup(self, badge_num):
+    def lookup(self, badge_num, full=False):
         """
-        Returns a single attendee by badge number. Takes the badge number as
-        a single parameter.
+        Returns a single attendee by badge number.
+
+        Takes the badge number as the first parameter.
+
+        Optionally, "full" may be passed as the second parameter to return the
+        complete attendee record, including departments, shifts, and food
+        restrictions.
         """
         with Session() as session:
-            attendee = session.query(Attendee).filter_by(badge_num=badge_num).first()
+            attendee_query = session.query(Attendee).filter_by(badge_num=badge_num)
+            fields, attendee_query = _attendee_fields_and_query(full, attendee_query)
+            attendee = attendee_query.first()
             if attendee:
-                return attendee.to_dict(self.fields)
+                return attendee.to_dict(fields)
             else:
                 return {'error': 'No attendee found with Badge #{}'.format(badge_num)}
 
-    def search(self, query):
+    def search(self, query, full=False):
         """
         Searches for attendees using a freeform text query. Returns all
         matching attendees using the same search algorithm as the main
-        attendee search box. Takes the search query as a single parameter.
+        attendee search box.
+
+        Takes the search query as the first parameter.
+
+        Optionally, "full" may be passed as the second parameter to return the
+        complete attendee record, including departments, shifts, and food
+        restrictions.
         """
         with Session() as session:
-            return [a.to_dict(self.fields) for a in session.search(query).limit(100)]
+            attendee_query = session.search(query)
+            fields, attendee_query = _attendee_fields_and_query(full, attendee_query)
+            return [a.to_dict(fields) for a in attendee_query.limit(100)]
 
 
 @all_api_auth(c.API_READ)

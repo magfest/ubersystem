@@ -755,11 +755,36 @@ class ExcelWorksheetStreamWriter:
     Any cell starting with an '=' will be treated as a string, NOT a formula
     """
 
-    def __init__(self, worksheet):
+    def __init__(self, workbook, worksheet):
+        self.workbook = workbook
         self.worksheet = worksheet
         self.next_row = 0
 
-    def writerow(self, row_items):
+    def calculate_column_widths(self, rows):
+        column_widths = defaultdict(int)
+        for row in rows:
+            for index, col in enumerate(row):
+                length = len(max(col.split('\n'), key=len))
+                column_widths[index] = max(column_widths[index], length)
+        return [column_widths[i] + 2 for i in sorted(column_widths.keys())]
+
+    def set_column_widths(self, rows):
+        column_widths = self.calculate_column_widths(rows)
+        for i, width in enumerate(column_widths):
+            self.worksheet.set_column(i, i, width)
+
+    def writerows(self, header_row, rows, header_format={'bold': True}):
+        if header_row:
+            self.set_column_widths([header_row] + rows)
+            if header_format:
+                header_format = self.workbook.add_format(header_format)
+            self.writerow(header_row, header_format)
+        else:
+            self.set_column_widths(rows)
+        for row in rows:
+            self.writerow(row)
+
+    def writerow(self, row_items, row_format=None):
         assert self.worksheet
 
         col = 0
@@ -771,7 +796,7 @@ class ExcelWorksheetStreamWriter:
             else:
                 write_row = getattr(self.worksheet.__class__, 'write')
 
-            write_row(self.worksheet, self.next_row, col, item)
+            write_row(self.worksheet, self.next_row, col, item, *[row_format])
 
             col += 1
 

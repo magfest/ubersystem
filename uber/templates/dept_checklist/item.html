@@ -6,6 +6,15 @@
 
 {{ conf.description }}
 
+{% if delinquent_emails %}
+  <p style="margin: 10px 0">
+    <a href="mailto:?bcc={{ delinquent_emails|join(',')|urlencode }}&subject=Dept Checklist: {{ conf.name }}">
+      <span class="glyphicon glyphicon-envelope"></span>
+      Email Delinquent Department Heads
+    </a>
+  </p>
+{% endif %}
+
 {% for department, item, checklist_admins in overview %}
   <div style="margin-bottom: 15px;">
     <h3 style="display: inline-block;">

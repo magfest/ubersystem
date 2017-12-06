@@ -594,7 +594,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def shirt_info_marked(self):
         return self.shirt_size_marked and (
-            not self.gets_staff_shirt or self.second_shirt != c.UNKNOWN)
+            not self.gets_staff_shirt
+            or self.second_shirt != c.UNKNOWN
+            or c.AFTER_SHIRT_DEADLINE)
 
     @property
     def is_group_leader(self):

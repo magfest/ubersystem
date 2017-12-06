@@ -248,7 +248,7 @@ def xlsx_file(func):
         with xlsxwriter.Workbook(rawoutput, {'in_memory': False}) as workbook:
             worksheet = workbook.add_worksheet()
 
-            writer = ExcelWorksheetStreamWriter(worksheet)
+            writer = ExcelWorksheetStreamWriter(workbook, worksheet)
 
             # right now we just pass in the first worksheet.
             # in the future, could pass in the workbook too

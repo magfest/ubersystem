@@ -9,7 +9,7 @@
     <li>
         <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a> <br/>
         {{ attendee.for_review|linebreaksbr }} <br/>
-        {% block extra %}{% endblock %}<br/>
+        {% block extra scoped %}{% endblock %}<br/>
         <br/>
     </li>
 {% endfor %}

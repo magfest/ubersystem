@@ -252,6 +252,11 @@
         "X-Auth-Token" header to each HTTP POST. You can find your auth tokens,
         or generate a new token, on the <a href="../api">API Access</a> page.
       </p>
+      <p>
+        Requests without an "X-Auth-Token" header will return
+        <em>401 Unauthorized</em>. Requests with an invalid "X-Auth-Token"
+        header will return <em>403 Forbidden</em>.
+      </p>
     </div>
     <div class="col-sm-6 code-column">
       <div class="example">
@@ -299,7 +304,7 @@
     </div>
     <div class="row">
       <div class="col-sm-6 col-sm-push-6 code-column">
-        {% if service.doc %}<p class="doc">{{ service.doc }}</p>{% endif %}
+        {% if service.doc %}<p class="doc">{{ service.doc|linebreaksbr }}</p>{% endif %}
         <h4>Available Methods</h4>
         {% for method in service.methods %}
           {% set comma = joiner(', ') %}
@@ -308,7 +313,7 @@
               {{ service.name }}.{{ method.name }}({% for arg in method.args %}{{ comma() }}{{ arg }}{%endfor%})
             </div>
             <div class="method-body">
-              {% if method.doc %}<p class="doc">{{ method.doc }}</p>{% endif %}
+              {% if method.doc %}<p class="doc">{{ method.doc|linebreaksbr }}</p>{% endif %}
               {% set comma = joiner(', ') %}
               <label>Example Request Body</label>
               <pre>{"method": "{{ service.name }}.{{ method.name }}"{% if method.args %}, "params": [{% for arg in method.args %}{{ comma() }}"{{ arg }}"{%endfor%}]{% endif %}}</pre>
