@@ -6,6 +6,21 @@ from uber.server import register_jsonrpc
 __version__ = '0.1'
 
 
+def _attendee_fields_and_query(full, query):
+    if full:
+        fields = AttendeeLookup.fields_full
+        query = query.options(
+            subqueryload(Attendee.dept_memberships),
+            subqueryload(Attendee.assigned_depts),
+            subqueryload(Attendee.food_restrictions),
+            subqueryload(Attendee.shifts)
+                .subqueryload(Shift.job))
+    else:
+        fields = AttendeeLookup.fields
+        query = query.options(subqueryload(Attendee.dept_memberships))
+    return (fields, query)
+
+
 def auth_by_token(required_access):
     token = cherrypy.request.headers.get('X-Auth-Token', None)
     if not token:
@@ -90,31 +105,19 @@ class AttendeeLookup:
         'ec_name': True,
         'ec_phone': True,
         'checked_in': True,
-        'badge_status_label': True,
-        'badge_type_label': True,
         'badge_num': True,
-    }
-
-    fields_full = {
-        'full_name': True,
-        'first_name': True,
-        'last_name': True,
-        'legal_name': True,
-        'email': True,
-        'zip_code': True,
-        'cellphone': True,
-        'ec_name': True,
-        'ec_phone': True,
+        'badge_printed_name': True,
         'badge_status_label': True,
-        'checked_in': True,
         'badge_type_label': True,
-        'ribbon_labels': True,
         'staffing': True,
         'is_dept_head': True,
+        'ribbon_labels': True,
+    }
+
+    fields_full = dict(fields, **{
         'assigned_depts_labels': True,
         'weighted_hours': True,
         'worked_hours': True,
-        'badge_num': True,
         'food_restrictions': {
             'sandwich_pref_labels': True,
             'standard_labels': True,
@@ -127,7 +130,7 @@ class AttendeeLookup:
                 'start_time', 'end_time', 'extra15'
             ]
         }
-    }
+    })
 
     def lookup(self, badge_num, full=False):
         """
@@ -140,9 +143,11 @@ class AttendeeLookup:
         restrictions.
         """
         with Session() as session:
-            attendee = session.query(Attendee).filter_by(badge_num=badge_num).first()
+            attendee_query = session.query(Attendee).filter_by(badge_num=badge_num)
+            fields, attendee_query = _attendee_fields_and_query(full, attendee_query)
+            attendee = attendee_query.first()
             if attendee:
-                return attendee.to_dict(self.fields_full if full else self.fields)
+                return attendee.to_dict(fields)
             else:
                 return {'error': 'No attendee found with Badge #{}'.format(badge_num)}
 
@@ -159,9 +164,9 @@ class AttendeeLookup:
         restrictions.
         """
         with Session() as session:
-            return [
-                a.to_dict(self.fields_full if full else self.fields)
-                for a in session.search(query).limit(100)]
+            attendee_query = session.search(query)
+            fields, attendee_query = _attendee_fields_and_query(full, attendee_query)
+            return [a.to_dict(fields) for a in attendee_query.limit(100)]
 
 
 @all_api_auth(c.API_READ)
