@@ -91,6 +91,16 @@ def floor_datetime(dt, delta):
     return dt
 
 
+def noon_datetime(dt):
+    """Only works in Python 3"""
+    return floor_datetime(dt, timedelta(days=1)) + timedelta(hours=12)
+
+
+def evening_datetime(dt):
+    """Only works in Python 3"""
+    return floor_datetime(dt, timedelta(days=1)) + timedelta(hours=17)
+
+
 @JinjaEnv.jinja_filter
 def comma_and(xs, conjunction='and'):
     """
