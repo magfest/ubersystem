@@ -2,6 +2,11 @@ import hashlib
 from uber.common import *
 
 
+def dynamic(func):
+    setattr(func, '_dynamic', True)
+    return func
+
+
 def create_namespace_uuid(s):
     return uuid.UUID(hashlib.sha1(s.encode('utf-8')).hexdigest()[:32])
 
@@ -167,16 +172,19 @@ class Config(_Overridable):
         return self.AFTER_DEALER_REG_START and self.BEFORE_DEALER_REG_SHUTDOWN
 
     @property
+    @dynamic
     def DEALER_REG_SOFT_CLOSED(self):
         return self.AFTER_DEALER_REG_DEADLINE or self.DEALER_APPS >= self.MAX_DEALER_APPS \
             if self.MAX_DEALER_APPS and not self.HARDCORE_OPTIMIZATIONS_ENABLED else self.AFTER_DEALER_REG_DEADLINE
 
     @request_cached_property
+    @dynamic
     def DEALER_APPS(self):
         with sa.Session() as session:
             return session.query(sa.Group).filter(sa.Group.tables > 0, sa.Group.cost > 0, sa.Group.status == self.UNAPPROVED).count()
 
     @request_cached_property
+    @dynamic
     def BADGES_SOLD(self):
         with sa.Session() as session:
             attendees = session.query(sa.Attendee)
@@ -186,6 +194,7 @@ class Config(_Overridable):
             return individuals + group_badges
 
     @request_cached_property
+    @dynamic
     def BADGES_LEFT_AT_CURRENT_PRICE(self):
         """
         Returns a string representing a rough estimate of how many badges are left at the current badge price tier.
@@ -207,14 +216,17 @@ class Config(_Overridable):
         return difference
 
     @property
+    @dynamic
     def ONEDAY_BADGE_PRICE(self):
         return self.get_oneday_price(sa.localized_now())
 
     @property
+    @dynamic
     def BADGE_PRICE(self):
         return self.get_attendee_price()
 
     @property
+    @dynamic
     def GROUP_PRICE(self):
         return self.get_group_price()
 
@@ -230,6 +242,7 @@ class Config(_Overridable):
         return types
 
     @property
+    @dynamic
     def PRESOLD_ONEDAY_BADGE_TYPES(self):
         return {
             badge_type: self.BADGES[badge_type]
@@ -318,6 +331,7 @@ class Config(_Overridable):
             timedelta(hours=max(0, self.PREREG_HOTEL_INFO_EMAIL_WAIT_DURATION))
 
     @property
+    @dynamic
     def AT_THE_DOOR_BADGE_OPTS(self):
         """
         This provides the dropdown on the /registration/register page with its
@@ -391,15 +405,18 @@ class Config(_Overridable):
         return cherrypy.request.path_info.split('/')[-1]
 
     @request_cached_property
+    @dynamic
     def ALLOWED_ACCESS_OPTS(self):
         with sa.Session() as session:
             return session.current_admin_account().allowed_access_opts
 
     @request_cached_property
+    @dynamic
     def DISALLOWED_ACCESS_OPTS(self):
         return set(self.ACCESS_OPTS).difference(set(self.ALLOWED_ACCESS_OPTS))
 
     @request_cached_property
+    @dynamic
     def CURRENT_ADMIN(self):
         try:
             with sa.Session() as session:
@@ -414,10 +431,12 @@ class Config(_Overridable):
             return {}
 
     @request_cached_property
+    @dynamic
     def DEPARTMENTS(self):
         return dict(self.DEPARTMENT_OPTS)
 
     @request_cached_property
+    @dynamic
     def DEPARTMENT_OPTS(self):
         from uber.models.department import Department
         with sa.Session() as session:
@@ -425,6 +444,7 @@ class Config(_Overridable):
             return [(d.id, d.name) for d in query]
 
     @request_cached_property
+    @dynamic
     def DEPARTMENT_OPTS_WITH_DESC(self):
         from uber.models.department import Department
         with sa.Session() as session:
@@ -432,6 +452,7 @@ class Config(_Overridable):
             return [(d.id, d.name, d.description) for d in query]
 
     @request_cached_property
+    @dynamic
     def PUBLIC_DEPARTMENT_OPTS_WITH_DESC(self):
         from uber.models.department import Department
         with sa.Session() as session:
@@ -441,6 +462,7 @@ class Config(_Overridable):
                 [(d.id, d.name, d.description) for d in query]
 
     @request_cached_property
+    @dynamic
     def DEFAULT_DEPARTMENT_ID(self):
         from uber.models.department import Department
         with sa.Session() as session:
@@ -462,31 +484,38 @@ class Config(_Overridable):
             return individual_supporters + group_supporters
 
     @request_cached_property
+    @dynamic
     def SUPPORTER_COUNT(self):
         return self.get_kickin_count(self.SUPPORTER_LEVEL)
 
     @request_cached_property
+    @dynamic
     def SHIRT_COUNT(self):
         return self.get_kickin_count(self.SHIRT_LEVEL)
 
     @property
+    @dynamic
     def REMAINING_BADGES(self):
         return max(0, self.MAX_BADGE_SALES - self.BADGES_SOLD)
 
     @request_cached_property
+    @dynamic
     def MENU_FILTERED_BY_ACCESS_LEVELS(self):
         return c.MENU.render_items_filtered_by_current_access()
 
     @request_cached_property
+    @dynamic
     def ADMIN_ACCESS_SET(self):
         return sa.AdminAccount.access_set()
 
     @request_cached_property
+    @dynamic
     def EMAIL_APPROVED_IDENTS(self):
         with sa.Session() as session:
             return {ae.ident for ae in session.query(sa.ApprovedEmail)}
 
     @request_cached_property
+    @dynamic
     def PREVIOUSLY_SENT_EMAILS(self):
         with sa.Session() as session:
             return set(session.query(sa.Email.model, sa.Email.fk_id, sa.Email.ident))
