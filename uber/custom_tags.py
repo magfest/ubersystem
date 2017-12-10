@@ -402,13 +402,13 @@ def int_options(minval, maxval, default=1):
 
 
 @JinjaEnv.jinja_export
-def format_location(location, separator='<br>', spacer='above'):
+def format_location(location, separator='<br>', spacer='above', text_class='text-nowrap'):
     parts = re.split(r'(\(.*?\))', c.EVENT_LOCATIONS[location])
     parts = [jinja2.escape(s.strip()) for s in parts if s.strip()]
     if spacer and len(parts) < 2:
         parts.insert(0 if spacer == 'above' else 1, '&nbsp;')
     return safe_string(separator.join(
-        ['<span class="text-nowrap">{}</span>'.format(s) for s in parts]))
+        ['<span class="{}">{}</span>'.format(text_class, s) for s in parts]))
 
 
 @JinjaEnv.jinja_export
