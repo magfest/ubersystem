@@ -130,10 +130,62 @@
         var parseQueryString = function(queryString) {
             var params = {}, temp, i, len, queries = queryString.split('&');
             for (i = 0, len = queries.length; i < len; i++) {
+              if(queries[i]) {
                 temp = queries[i].split('=');
                 params[temp[0]] = temp[1];
+              }
             }
             return params;
+        };
+
+        var replaceQueryParam = function(queryParam, value) {
+            var queryString = window.location.search.substring(1);
+            var params = parseQueryString(queryString);
+            if (_.has(params, queryParam) || value) {
+                if (value) {
+                    params[queryParam] = value;
+                } else {
+                    delete params[queryParam];
+                }
+                queryString = $.param(params);
+            }
+            if (queryString) {
+                queryString = '?' + queryString;
+            }
+            return queryString;
+        };
+
+        var replaceQueryParamInUrl = function(queryParam, value) {
+          try {
+              // Replace the query parameter in the web browser's address bar
+              if (history && history.replaceState) {
+                  var queryString = replaceQueryParam(queryParam, value);
+                  history.replaceState({}, document.title, window.location.pathname + queryString);
+                  return true;
+              }
+          } catch(ex) {
+              // Don't let any errors here disrupt the rest of the app!
+              try { console.log(ex); } catch(ex) {}
+          }
+          return false;
+        };
+
+        var removeHashFromUrl = function() {
+            try {
+                if (history && history.replaceState) {
+                    var url = window.location.toString();
+                    if (url.indexOf('#') > 0) {
+                        history.replaceState({}, document.title, url.substring(0, url.indexOf('#')));
+                    }
+                } else {
+                    window.location.hash = '';
+                }
+                return true;
+            } catch(ex) {
+                // Don't let any errors here disrupt the rest of the app!
+                try { console.log(ex); } catch(ex) {}
+            }
+            return false;
         };
 
         $(function() {
@@ -154,25 +206,7 @@
                 showMethod: "fadeIn",
                 hideMethod: "fadeOut",
                 onShown: function() {
-                  try {
-                    // Remove the message parameter from the URL, if it exists
-                    if (history && history.replaceState) {
-                      var queryString = window.location.search.substring(1);
-                      if (queryString) {
-                        var params = parseQueryString(queryString);
-                        if (_.has(params, 'message')) {
-                          delete params['message'];
-                          queryString = $.param(params);
-                          if (queryString) {
-                            queryString = '?' + queryString;
-                          }
-                          history.replaceState({}, '', window.location.pathname + queryString);
-                        }
-                      }
-                    }
-                  } catch(ex) {
-                    // Don't let any errors here disrupt the rest of the app!
-                  }
+                  replaceQueryParamInUrl('message');
                 }
             };
             var message = '{{ message }}';
@@ -290,7 +324,7 @@
                             </a>
                             <ul class="dropdown-menu" role="menu">
                                 <li><a href="../registration/form?id={{ c.CURRENT_ADMIN.id }}">My Registration</a></li>
-                                {% if c.CURRENT_ADMIN.assigned_depts %}
+                                {% if c.PEOPLE|string in c.CURRENT_ADMIN.admin_account.access and c.CURRENT_ADMIN.assigned_depts %}
                                   <li><a href="../departments/?filtered=1">My Departments</a></li>
                                   {% for dept in c.CURRENT_ADMIN.assigned_depts %}
                                     <li><a href="../departments/form?id={{ dept.id }}">&nbsp;&#8226;&nbsp;{{ dept.name }}</a></li>

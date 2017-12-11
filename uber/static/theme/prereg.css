@@ -109,6 +109,22 @@ body {
     }
 }
 
+.bling-icon {
+  position: relative;
+  top: 1px;
+  display: inline-block;
+  font-family: 'Glyphicons Halflings';
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.bling-icon:before {
+  content: "\2605";
+}
+
 /* "Want to kick in extra?" Buttons */
 
 .btn-group-inline {

@@ -410,6 +410,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         del self.shifts[:]
 
     @property
+    def assigned_depts_opts(self):
+        return [(d.id, d.name) for d in self.assigned_depts]
+
+    @property
     def ribbon_labels(self):
         labels = super(Attendee, self)._labels('ribbon', self.ribbon)
         if c.DEPT_HEAD_RIBBON in self.ribbon_ints or not self.is_dept_head:

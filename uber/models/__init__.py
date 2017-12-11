@@ -375,7 +375,9 @@ class MagModel:
             if (not restricted or column.name in self.unrestricted) and \
                     column.name in params and column.name != 'id':
 
-                if isinstance(params[column.name], list):
+                if column.type is JSON or isinstance(column.type, JSON):
+                    value = params[column.name]
+                elif isinstance(params[column.name], list):
                     value = ','.join(map(str, params[column.name]))
                 elif isinstance(params[column.name], bool):
                     value = params[column.name]

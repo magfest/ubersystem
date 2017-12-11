@@ -77,6 +77,30 @@ def localize_datetime(dt):
     return dt.replace(tzinfo=UTC).astimezone(c.EVENT_TIMEZONE)
 
 
+def ceil_datetime(dt, delta):
+    """Only works in Python 3"""
+    dt_min = datetime.min.replace(tzinfo=dt.tzinfo)
+    dt += (dt_min - dt) % delta
+    return dt
+
+
+def floor_datetime(dt, delta):
+    """Only works in Python 3"""
+    dt_min = datetime.min.replace(tzinfo=dt.tzinfo)
+    dt -= (dt - dt_min) % delta
+    return dt
+
+
+def noon_datetime(dt):
+    """Only works in Python 3"""
+    return floor_datetime(dt, timedelta(days=1)) + timedelta(hours=12)
+
+
+def evening_datetime(dt):
+    """Only works in Python 3"""
+    return floor_datetime(dt, timedelta(days=1)) + timedelta(hours=17)
+
+
 @JinjaEnv.jinja_filter
 def comma_and(xs, conjunction='and'):
     """

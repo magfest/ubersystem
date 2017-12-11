@@ -3,8 +3,10 @@ module.exports = function (grunt) {
         pkg: grunt.file.readJSON('package.json'),
         bower_concat: {
             all: {
-                dest: 'uber/static/deps/combined.js',
-                cssDest: 'uber/static/deps/combined.css',
+                dest: {
+                  'js': 'uber/static/deps/combined.js',
+                  'css': 'uber/static/deps/combined.css'
+                },
                 callback: function (mainFiles, component) {
                     if (component === 'select2') {
                         // the default select2 file doesn't contain full functionality and we want the full thing
