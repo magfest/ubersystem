@@ -1,5 +1,5 @@
 {% import 'macros.html' as macros with context %}
-{% import 'macros.html' as macros with context %} {{ macros.title("Homepage") }}
+{{ macros.title("Homepage") }}
 {% if not XHR %}{% extends 'base.html' %}{% set admin_area=True %}{% endif -%}
 
 {% block content %}

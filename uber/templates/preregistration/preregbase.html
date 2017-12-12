@@ -158,7 +158,7 @@
             // We use 'pseudo' badge types to create dealers and groups, which is antithetical to using attending-facing
             // badge types for upgrades. We thus want to hide any badge buttons with a unique badge type if the attendee
             // is a dealer or group leader.
-            if ($(BADGE_TYPES.row).length {
+            if ($(BADGE_TYPES.row).length) {
                 $.each(BADGE_TYPES.options, function (i, badgeType) {
                     if (badgeType.badge_type && badgeType.badge_type != {{ c.ATTENDEE_BADGE }}) {
                         var current_button = $(BADGE_TYPES.selector).slice(i, 1+i);
@@ -191,7 +191,7 @@
             }
         };
         var makeBadgeMatchExtra = function () {
-            if (_(BADGE_TYPES.options).length {
+            if (_(BADGE_TYPES.options).length) {
                 var target = 0;
                 $.each(BADGE_TYPES.options, function (i, badgeType) {
                     if (badgeType.extra && $.field('amount_extra') && badgeType.extra == $.val('amount_extra')) {
@@ -205,9 +205,10 @@
                 }
             }
         };
-        $(function () {
+        System.import('jquery').then(function($) {
+            $(function () {
             showOrHideBadgeTypes();
-            if ($(BADGE_TYPES.row).length {
+            if ($(BADGE_TYPES.row).length) {
                 $.each([REG_TYPES, BADGE_TYPES], function (i, types) {
                     $.each(types.options, function (index, type) {
                         $(types.row).append(
@@ -224,7 +225,7 @@
                     });
                     $(types.row).append('<div class="clearfix"></div>');
                 });
-                if (window.REG_TYPES && $(REG_TYPES.row).length {
+                if (window.REG_TYPES && $(REG_TYPES.row).length) {
                     setBadge(REG_TYPES, $.field('name') && $.val('name') ? 1 : 0);  // default to attendee or group
                 }
                 makeBadgeMatchExtra();
@@ -237,6 +238,7 @@
                 }
             }
             togglePrices();
+        });
         });
     </script>
 {% endblock head_javascript %}
