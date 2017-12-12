@@ -50,13 +50,58 @@
 <div class="nav-pf-vertical 
             nav-pf-vertical-with-sub-menus
             nav-pf-persistent-secondary
-            nav-pf-vertical-collapsible-menus
-            hidden-icons-pf">
+            nav-pf-vertical-collapsible-menus">
   <ul class="list-group">
+
+
+{# start mainmenu #}
+{% for menu_item in c.MENU_FILTERED_BY_ACCESS_LEVELS.submenu -%}
+  {% if menu_item.href -%}
+    <li class="list-group-item">
+      <a href="{{ menu_item.href }}">
+        <span class="{{ menu_item.icon }}" data-toggle="tooltip" title="{{ menu_item.name }}"></span>
+        <span class="list-group-item-value">{{ menu_item.name }}</span>
+      </a>
+    </li>
+  {% elif menu_item.submenu -%}
+    <li class="list-group-item secondary-nav-item-pf" data-target="#{{ menu_item }}-mainmenu-secondary">
+      <a>
+        <span class="{{ menu_item.icon }}" data-toggle="tooltip" title="{{ menu_item.name }}"></span>
+        <span class="list-group-item-value">{{ menu_item.icon }} - {{ menu_item.name }}</span>
+      </a>  
+<div id="{{ menu_item }}-mainmenu-secondary" class="nav-pf-secondary-nav">
+        <div class="nav-item-pf-header">
+          <a class="secondary-collapse-toggle-pf" data-toggle="collapse-secondary-nav"></a>
+          <span>{{ menu_item.name }}</span>
+        </div>
+    <ul class="list-group">
+    {% for submenu_item in menu_item.submenu -%}
+      <li>
+          {% if submenu_item.href -%}
+              <li class="list-group-item">
+                <a href="..{{ submenu_item.href }}">
+                    <span class="list-group-item-value">{{ submenu_item.name }}</span>
+                </a>
+              </li>
+          {% else -%}
+              <li class="list-group-item">
+                <a href="..{{ submenu_item.href }}">
+                    <span class="list-group-item-value">XXXXX {{ submenu_item.name }}</span>
+                </a>
+              </li>
+          {% endif -%}
+      </li>
+    {% endfor -%}
+  </ul>
+  </div>
+  </li>
+    {% endif -%}
+{% endfor %}
+{# end mainmenu #}
 
 <li class="list-group-item secondary-nav-item-pf" data-target="#sitemap-secondary">
       <a>
-        <span class="fa fa-space-shuttle" data-toggle="tooltip" title="Ipsum"></span>
+        <span class="fa fa-sitemap" data-toggle="tooltip" title="Sitemap"></span>
         <span class="list-group-item-value">Sitemap</span>
       </a>
 <div id="sitemap-secondary" class="nav-pf-secondary-nav">
@@ -94,8 +139,8 @@
   </li>
 {# end sitemap #}
 
-    <li class="list-group-item secondary-nav-item-pf xmobile-nav-item-pf xvisible-xs-block">
-      <a href="#0">
+    <li class="list-group-item secondary-nav-item-pf mobile-nav-item-pf visible-xs-block">
+      <a>
         <span class="pficon pficon-user" data-toggle="tooltip" title="" data-original-title="User"></span>
         <span class="list-group-item-value"><span title="Username" class="fa pficon-user"></span>
           {{ c.CURRENT_ADMIN.first_name }} {{ c.CURRENT_ADMIN.last_name }}</span>
@@ -103,7 +148,6 @@
       <div id="user-secondary" class="nav-pf-secondary-nav">
         <div class="nav-item-pf-header">
           <a href="#0" class="secondary-collapse-toggle-pf" data-toggle="collapse-secondary-nav"></a>
-          <span><span title="Username" class="fa pficon-user"></span>
           {{ c.CURRENT_ADMIN.first_name }} {{ c.CURRENT_ADMIN.last_name }} <span class="caret"></span>
         </div>
 

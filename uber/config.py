@@ -479,7 +479,7 @@ class Config(_Overridable):
 
     @request_cached_property
     def MENU_FILTERED_BY_ACCESS_LEVELS(self):
-        return c.MENU.render_items_filtered_by_current_access()
+        return c.MENU.render_items_filtered_by_current_access(sa.AdminAccount.access_set())
 
     @request_cached_property
     def ADMIN_ACCESS_SET(self):

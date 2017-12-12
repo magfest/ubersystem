@@ -6,8 +6,9 @@ class MenuItem:
     href = None     # link to render
     submenu = None  # submenu to show
     name = None     # name of Menu item to show
+    icon = None     # icon for item - this class will be prepended as a span
 
-    def __init__(self, href=None, access=None, submenu=None, name=None):
+    def __init__(self, href=None, access=None, submenu=None, name=None, icon=None):
         assert submenu or href, "menu items must contain ONE nonempty: href or submenu"
         assert not submenu or not href, "menu items must not contain both a href and submenu"
 
@@ -17,6 +18,7 @@ class MenuItem:
             self.href = href
 
         self.name = name
+        self.icon = icon
         self.access = set(listify(access)) if access else set()
 
     def append_menu_item(self, m):
@@ -45,20 +47,20 @@ class MenuItem:
 
         self.submenu.append(m)
 
-    def render_items_filtered_by_current_access(self):
+    def render_items_filtered_by_current_access(self, access_set):
         """
         Returns: dict of menu items which are allowed to be seen by the logged in user's access levels
         """
         out = {}
 
-        if self.access and self.access.isdisjoint(sa.AdminAccount.access_set()):
+        if self.access and self.access.isdisjoint(access_set):
             return None
 
         out['name'] = self.name
         if self.submenu:
             out['submenu'] = []
             for menu_item in self.submenu:
-                filtered_menu_items = menu_item.render_items_filtered_by_current_access()
+                filtered_menu_items = menu_item.render_items_filtered_by_current_access(access_set)
                 if filtered_menu_items:
                     out['submenu'].append(filtered_menu_items)
         else:
@@ -73,7 +75,7 @@ class MenuItem:
 
 
 c.MENU = MenuItem(name='Root', submenu=[
-    MenuItem(name='Admin', submenu=[
+    MenuItem(name='Admin', icon='fa fa-wrench', submenu=[
         MenuItem(name='Admin Accounts', href='../accounts/', access=c.ACCOUNTS),
         MenuItem(name='API Access', href='../api/', access=list(c.API_ACCESS.keys())),
         MenuItem(name='Jobs', href='../jobs/', access=c.PEOPLE),
@@ -83,11 +85,11 @@ c.MENU = MenuItem(name='Root', submenu=[
         MenuItem(name='Feed of Database Changes', href='../registration/feed', access=c.PEOPLE),
     ]),
 
-    MenuItem(name='People', access=[c.PEOPLE, c.REG_AT_CON], submenu=[
+    MenuItem(name='People', icon='fa fa-users', access=[c.PEOPLE, c.REG_AT_CON], submenu=[
         MenuItem(name='Attendees', href='../registration/{}'.format('?invalid=True' if c.AT_THE_CON else '')),
         MenuItem(name='Groups', href='../groups/'),
         MenuItem(name='Watchlist', href='../registration/watchlist_entries', access=c.WATCHLIST),
     ]),
 
-    MenuItem(name='Statistics', href='../summary/', access=c.STATS),
+    MenuItem(name='Statistics', icon='fa fa-line-chart', href='../summary/', access=c.STATS),
 ])
