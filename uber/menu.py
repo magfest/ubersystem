@@ -45,20 +45,20 @@ class MenuItem:
 
         self.submenu.append(m)
 
-    def render_items_filtered_by_current_access(self):
+    def render_items_filtered_by_current_access(self, access_set):
         """
         Returns: dict of menu items which are allowed to be seen by the logged in user's access levels
         """
         out = {}
 
-        if self.access and self.access.isdisjoint(sa.AdminAccount.access_set()):
+        if self.access and self.access.isdisjoint(access_set):
             return None
 
         out['name'] = self.name
         if self.submenu:
             out['submenu'] = []
             for menu_item in self.submenu:
-                filtered_menu_items = menu_item.render_items_filtered_by_current_access()
+                filtered_menu_items = menu_item.render_items_filtered_by_current_access(access_set)
                 if filtered_menu_items:
                     out['submenu'].append(filtered_menu_items)
         else:
