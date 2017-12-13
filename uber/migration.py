@@ -60,7 +60,7 @@ def get_plugin_head_revision(plugin_name):
             for next_revision_text in revision.nextrev:
                 next_revision = script.get_revision(next_revision_text)
                 if set(next_revision.branch_labels).isdisjoint(other_plugins):
-                    return get_plugin_head_revision(next_revision.revision)
+                    return _get_plugin_head_revision(next_revision.revision)
             return revision
 
     return _get_plugin_head_revision(plugin_name)
