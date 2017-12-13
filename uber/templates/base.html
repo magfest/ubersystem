@@ -279,7 +279,7 @@ System.import('jquery').then(function($) {
     <div id="masthead"></div>
     {% if c.DEV_BOX %}{% include "devbox_notice.html" %}{% endif %}
     <div id="mainContainer" class="container">
-     }   {% block backlink %}{% endblock %}
+        {% block backlink %}{% endblock %}
         {% block header %}{% endblock %}
         {% block content %}{% endblock %}
         <div id="bottomAnchor"></div>
