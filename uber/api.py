@@ -1,9 +1,29 @@
 from cherrypy import HTTPError
+from dateutil import parser as dateparser
 from uber.common import *
 from uber.server import register_jsonrpc
 
 
 __version__ = '0.1'
+
+
+def docstring_format(*args, **kwargs):
+    def _decorator(obj):
+        obj.__doc__ = obj.__doc__.format(*args, **kwargs)
+        return obj
+    return _decorator
+
+
+def _format_opts(opts):
+    html = ['<table class="opts"><tbody>']
+    for value, label in opts:
+        html.append(
+            '<tr class="opt">'
+            '<td class="opt-value">{}</td>'
+            '<td class="opt-label">{}</td>'
+            '</tr>'.format(value, label))
+    html.append('</tbody></table>')
+    return ''.join(html)
 
 
 def _attendee_fields_and_query(full, query):
@@ -19,6 +39,18 @@ def _attendee_fields_and_query(full, query):
         fields = AttendeeLookup.fields
         query = query.options(subqueryload(Attendee.dept_memberships))
     return (fields, query)
+
+
+def _parse_datetime(d):
+    if isinstance(d, six.string_types) and d.strip().lower() == 'now':
+        d = datetime.utcnow().replace(tzinfo=pytz.UTC)
+    else:
+        d = dateparser.parse(d)
+    try:
+        d = d.astimezone(pytz.UTC) # aware object can be in any timezone
+    except ValueError:
+        d = c.EVENT_TIMEZONE.localize(d) # naive assumed to be event timezone
+    return d
 
 
 def auth_by_token(required_access):
@@ -65,7 +97,9 @@ def api_auth(*required_access):
 
     def _decorator(func):
         inner_func = get_innermost(func)
-        if not getattr(inner_func, 'required_access', None):
+        if getattr(inner_func, 'required_access', None):
+            return func
+        else:
             inner_func.required_access = required_access
 
         @wraps(func)
@@ -169,7 +203,7 @@ class AttendeeLookup:
             return [a.to_dict(fields) for a in attendee_query.limit(100)]
 
 
-@all_api_auth(c.API_READ)
+@all_api_auth(c.API_UPDATE)
 class JobLookup:
     fields = {
         'name': True,
@@ -192,18 +226,101 @@ class JobLookup:
     }
 
     @department_id_adapter
-    def lookup(self, department_id):
+    @api_auth(c.API_READ)
+    def lookup(self, department_id, start_time=None, end_time=None):
         """
-        Returns a list of all shifts for the given department. Takes the
-        department id as a single parameter. For a list of all department
-        ids call the "dept.list" method.
+        Returns a list of all shifts for the given department.
+
+        Takes the department id as the first parameter. For a list of all
+        department ids call the "dept.list" method.
+
+        Optionally, takes a "start_time" and "end_time" to constrain the
+        results to a given date range. Dates may be given in any format
+        supported by the
+        <a href="http://dateutil.readthedocs.io/en/stable/parser.html">
+        dateutil parser</a>, plus the string "now".
+
+        Unless otherwise specified, "start_time" and "end_time" are assumed
+        to be in the local timezone of the event.
         """
         with Session() as session:
-            query = session.query(Job).filter_by(department_id=department_id) \
-                .options(
+            query = session.query(Job).filter_by(department_id=department_id)
+            if start_time:
+                start_time = _parse_datetime(start_time)
+                query = query.filter(Job.start_time >= start_time)
+            if end_time:
+                end_time = _parse_datetime(end_time)
+                query = query.filter(Job.start_time <= end_time)
+            query = query.options(
                     subqueryload(Job.department),
                     subqueryload(Job.shifts).subqueryload(Shift.attendee))
             return [job.to_dict(self.fields) for job in query]
+
+    def assign(self, job_id, attendee_id):
+        with Session() as session:
+            message = session.assign(attendee_id, job_id)
+            if message:
+                return {'error': message}
+            else:
+                session.commit()
+                return session.job(job_id).to_dict(self.fields)
+
+    def unassign(self, shift_id):
+        with Session() as session:
+            try:
+                shift = session.shift(shift_id)
+                session.delete(shift)
+                session.commit()
+            except:
+                return {'error': 'Shift was already deleted'}
+            else:
+                return session.job(shift.job_id).to_dict(self.fields)
+
+    @docstring_format(
+        _format_opts(c.WORKED_STATUS_OPTS),
+        _format_opts(c.RATING_OPTS))
+    def set_worked(self, shift_id, status=c.SHIFT_WORKED, rating=c.UNRATED, comment=''):
+        """
+        Returns a list of all shifts for the given department.
+
+        Takes the department id as the first parameter. For a list of all
+        department ids call the "dept.list" method.
+
+        <h6>Valid status values</h6>
+        {}
+
+        <h6>Valid rating values</h6>
+        {}
+
+        comment
+        """
+        try:
+            status = int(status)
+            _ = c.WORKED_STATUS[status]
+        except:
+            return {'error': 'Invalid status: {}'.format(status)}
+
+        try:
+            rating = int(rating)
+            _ = c.RATINGS[rating]
+        except:
+            return {'error': 'Invalid rating: {}'.format(rating)}
+
+        if rating in (c.RATED_BAD, c.RATED_GREAT) and not comment:
+            return {'error': 'You must leave a comment explaining why the ' \
+                    'staffer was rated as: {}'.format(c.RATINGS[rating])}
+
+        with Session() as session:
+            try:
+                shift = session.shift(shift_id)
+                shift.worked = status
+                shift.rating = rating
+                shift.comment = comment
+                session.commit()
+            except:
+                return {'error': 'Unexpected error setting status'}
+            else:
+                return session.job(shift.job_id).to_dict(self.fields)
 
 
 @all_api_auth(c.API_READ)
