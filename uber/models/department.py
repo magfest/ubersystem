@@ -7,7 +7,7 @@ from sideboard.lib.sa import CoerceUTF8 as UnicodeText, \
     UTCDateTime, UUID
 from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import backref, column_property
+from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.types import Boolean, Float, Integer
 

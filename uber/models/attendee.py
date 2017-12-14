@@ -850,7 +850,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         member_dept_ids = set(d.department_id for d in self.dept_memberships)
         requested_dept_ids = set(
             d.department_id for d in self.dept_membership_requests) \
-                .difference(member_dept_ids)
+            .difference(member_dept_ids)
 
         member_filter = Job.department_id.in_(member_dept_ids) \
             if member_dept_ids else None

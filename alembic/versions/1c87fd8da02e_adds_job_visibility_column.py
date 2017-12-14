@@ -65,30 +65,30 @@ def upgrade():
     if is_sqlite:
         with op.batch_alter_table('job', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
             batch_op.add_column(sa.Column('visibility', sa.Integer(), server_default='0', nullable=False))
-            batch_op.create_index('ix_job_department_id', 'job', ['department_id'], unique=False)
+            batch_op.create_index('ix_job_department_id', ['department_id'], unique=False)
 
         with op.batch_alter_table('dept_membership', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
-            batch_op.create_index('ix_dept_membership_attendee_id', 'dept_membership', ['attendee_id'], unique=False)
-            batch_op.create_index('ix_dept_membership_department_id', 'dept_membership', ['department_id'], unique=False)
+            batch_op.create_index('ix_dept_membership_attendee_id', ['attendee_id'], unique=False)
+            batch_op.create_index('ix_dept_membership_department_id', ['department_id'], unique=False)
 
         with op.batch_alter_table('dept_membership_dept_role', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
-            batch_op.create_index('ix_dept_membership_dept_role_dept_membership_id', 'dept_membership_dept_role', ['dept_membership_id'], unique=False)
-            batch_op.create_index('ix_dept_membership_dept_role_dept_role_id', 'dept_membership_dept_role', ['dept_role_id'], unique=False)
+            batch_op.create_index('ix_dept_membership_dept_role_dept_membership_id', ['dept_membership_id'], unique=False)
+            batch_op.create_index('ix_dept_membership_dept_role_dept_role_id', ['dept_role_id'], unique=False)
 
         with op.batch_alter_table('dept_membership_request', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
-            batch_op.create_index('ix_dept_membership_request_attendee_id', 'dept_membership_request', ['attendee_id'], unique=False)
-            batch_op.create_index('ix_dept_membership_request_department_id', 'dept_membership_request', ['department_id'], unique=False)
+            batch_op.create_index('ix_dept_membership_request_attendee_id', ['attendee_id'], unique=False)
+            batch_op.create_index('ix_dept_membership_request_department_id', ['department_id'], unique=False)
 
         with op.batch_alter_table('dept_role', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
-            batch_op.create_index('ix_dept_role_department_id', 'dept_role', ['department_id'], unique=False)
+            batch_op.create_index('ix_dept_role_department_id', ['department_id'], unique=False)
 
         with op.batch_alter_table('job_required_role', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
-            batch_op.create_index('ix_job_required_role_dept_role_id', 'job_required_role', ['dept_role_id'], unique=False)
-            batch_op.create_index('ix_job_required_role_job_id', 'job_required_role', ['job_id'], unique=False)
+            batch_op.create_index('ix_job_required_role_dept_role_id', ['dept_role_id'], unique=False)
+            batch_op.create_index('ix_job_required_role_job_id', ['job_id'], unique=False)
 
         with op.batch_alter_table('shift', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
-            batch_op.create_index('ix_shift_attendee_id', 'shift', ['attendee_id'], unique=False)
-            batch_op.create_index('ix_shift_job_id', 'shift', ['job_id'], unique=False)
+            batch_op.create_index('ix_shift_attendee_id', ['attendee_id'], unique=False)
+            batch_op.create_index('ix_shift_job_id', ['job_id'], unique=False)
     else:
         op.add_column('job', sa.Column('visibility', sa.Integer(), server_default='0', nullable=False))
 
