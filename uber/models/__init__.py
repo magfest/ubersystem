@@ -982,8 +982,8 @@ class Session(SessionManager):
                     subqueryload(Attendee.dept_memberships),
                     subqueryload(Attendee.group),
                     subqueryload(Attendee.shifts)
-                    .subqueryload(Shift.job)
-                    .subqueryload(Job.department)) \
+                        .subqueryload(Shift.job)
+                            .subqueryload(Job.department)) \
                 .order_by(Attendee.full_name, Attendee.id)
 
         def staffers(self):
@@ -998,9 +998,10 @@ class Session(SessionManager):
                 .filter_by(**job_filter) \
                 .options(
                     subqueryload(Job.department),
+                    subqueryload(Job.required_roles),
                     subqueryload(Job.shifts)
-                    .subqueryload(Shift.attendee)
-                    .subqueryload(Attendee.group)) \
+                        .subqueryload(Shift.attendee)
+                            .subqueryload(Attendee.group)) \
                 .order_by(Job.start_time, Job.name)
 
         def staffers_for_dropdown(self):
