@@ -430,7 +430,7 @@ class Root:
                 for attr in attrs_to_preserve_from_unassigned_group_member:
                     params[attr] = getattr(attendee, attr)
 
-                attendee.apply(params, restricted=True)
+                attendee.apply(params, restricted=False)
 
                 # Free group badges are considered registered' when they are actually claimed.
                 if group.cost == 0:
