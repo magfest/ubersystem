@@ -2,17 +2,17 @@
 {% block title %}Placeholder Attendees{% endblock %}}
 {% block content %}
 
-<h2>{{ dept_name }} Unconfirmed Volunteers - #{{ placeholders|length }}</h2>
+<h2>{{ dept_name }} Unconfirmed Volunteers: {{ placeholders|length }}</h2>
 
 <div class="center">
     <script>
         var deptChanged = function () {
-            window.location = 'placeholders?department=' + $('#dept').val();
+            window.location = 'placeholders?department_id=' + $('#dept').val();
         };
     </script>
     <select id="dept" onChange="deptChanged()">
         <option value="">All Departments</option>
-        {{ options(c.JOB_LOCATION_OPTS,department) }}
+        {{ options(c.DEPARTMENT_OPTS, department_id) }}
     </select>
 </div>
 {% if checklist.relevant %}
@@ -23,6 +23,7 @@
         <a href="#" onClick="$('#checkoff').show(); return false;">This all looks good to me.</a>
         <form id="checkoff" style="display:none" method="post" action="../dept_checklist/mark_item_complete">
         {{ csrf_token() }}
+        <input type="hidden" name="department_id" value="{{ department_id }}" />
         <input type="hidden" name="slug" value="{{ checklist.conf.slug }}" />
         Volunteers with unclaimed placeholder registrations will NOT be coming to MAGFest if they don't claim their badges by the deadline.  So by clicking the button below, you're telling us:
         <ul>

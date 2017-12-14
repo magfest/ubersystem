@@ -1,44 +1,123 @@
+<style type="text/css">
+  #volunteers {
+    position: fixed;
+    right: 15px;
+    top: 15px;
+    text-align: right;
+    box-shadow: 0 0 5px 5px rgba(0, 0, 0, 0.075);
+    z-index: 1001;
+  }
 
-<div style="position:fixed ; top:25% ; right: 2% ; text-align:right">
-    <b>Assign someone to any of these positions:</b> <br/>
+  #jobs {
+    max-width: 1024px;
+    width: 100%;
+  }
+
+  #jobs > tbody > tr:first-child {
+    background-color: #f0f0f0;
+  }
+
+  #jobs td {
+    padding: 5px;
+  }
+
+  #jobs td:first-child {
+    padding-left: 10px;
+  }
+
+  #jobs td:last-child {
+    padding-right: 10px;
+  }
+
+  #jobs tr.shifts-row > td {
+    padding: 5px 0 15px 0;
+  }
+
+  #jobs .shifts-table td.attendee-name {
+    padding-left: 15px;
+  }
+
+  #jobs .shifts-table td.attendee-name:before {
+    content: '\25cf';
+    display: inline-block;
+    margin-right: 10px;
+  }
+
+  #jobs .shifts-table .rating img {
+    cursor: pointer;
+    margin: 0 5px;
+  }
+</style>
+
+<script type="text/javascript" src="../static_views/ratings.js"></script>
+
+<div id="volunteers" class="panel panel-default">
+  <div class="panel-body">
+    <b>Assign someone to any of these positions</b> <br/>
     <select id="attendee">
         <option value="">Select a volunteer</option>
         {% for attendee in attendees %}
             <option value="{{ attendee.id }}">{{ attendee.full_name }}</option>
         {% endfor %}
     </select>
+  </div>
 </div>
 
-<table id="jobs" style="width:66%"></table>
+<div class="table-responsive">
+  <table id="jobs"></table>
+</div>
 
 <script>
-    $(setupRatingClickHandler);
+    $(setupShiftRatingClickHandler);
 
-    var renderWorked = function (shiftId) {
-        return $('<select></select>').change(function (event) {
-            $.post('set_worked', {
-                id: shiftId,
-                status: $(event.target).val(),
-                csrf_token: csrf_token
-            }, renderJob, 'json');
-        }).append($.map({{ c.WORKED_STATUS_OPTS|jsonize }}, function (opt) {
-            return $('<option></option>').val(opt[0]).text(opt[1]);
-        }));
+    var renderShift = function(shift) {
+        return $id('shift_' + shift.id, '<tr></tr>')
+            .empty()
+            .append(
+                $('<td class="attendee-name"></td>').append(
+                    $('<a href="../registration/shifts?id=' + shift.attendee_id + '"></a>').text(
+                        shift.attendee_name  + ' (#' + (shift.attendee_badge || 'TBD') + ')'
+                    )
+                ))
+            .append(
+                $('<td class="text-right"></td>').append(
+                    $('<button class="btn btn-xs btn-warning">Unassign</button>').click(function() {
+                        $.post('unassign', {
+                            csrf_token: csrf_token,
+                            id: shift.id
+                        }, renderJob, 'json');
+                    }))
+                )
+            .append($('<td></td>').append(renderShiftStatus(shift, renderShifts)))
+            .append($('<td></td>').append(renderShiftRating(shift)));
     };
 
-    var renderJob = function (job, $tbody) {
+    var renderShifts = function(job) {
         if (job.error) {
             alert(job.error);
             return;
         }
-        $tbody = $tbody && $tbody.jquery ? $tbody : $('#job_' + job.id);
-        var jobIsFull = job.slots <= job.shifts.length;
-        if (!window.SHOW_FULL_JOBS && jobIsFull) {
-            return $tbody.empty();
-        }
-        return $tbody
+
+        var shifts = job.shifts.sort(function(s1, s2) {
+            return s1.attendee_name > s2.attendee_name;
+        });
+        return $id('shifts_' + job.id, '<table class="shifts-table"></table>')
             .empty()
-            .attr('id', 'job_' + job.id)
+            .append($.map(shifts, renderShift));
+    };
+
+    var renderJob = function(job) {
+        if (job.error) {
+            alert(job.error);
+            return;
+        }
+
+        var jobIsFull = job.slots <= job.shifts.length;
+        if (!window.SHOW_FULL_JOBS && jobIsFull && !$('#job_' + job.id).length) {
+            return '';
+        }
+        return $id('job_' + job.id, '<tbody></tbody>')
+            .empty()
             .append(
                 $('<tr></tr>')
                     .append('<td><b>' + job.timespan + ':</b> [x' + job.weight + '] </td>')
@@ -46,12 +125,16 @@
                         '<td>' +
                             (job.restricted ? '[R] ' : '') +
                             '<a href="form?id=' + job.id + '"><b>' + job.name + '</b></a>' +
-                            ' (' + job.location_label + ')' +
+                            ' (' +
+                            (job.department_id ? '<a href="../departments/form?id=' + job.department_id + '">' : '') +
+                            job.department_name +
+                            (job.department_id ? '</a>' : '') +
+                            ')' +
                         '</td>')
-                    .append('<td> <nobr>(' + job.shifts.length + '/' + job.slots + ' slots filled)</nobr> </td>')
+                    .append('<td><span class="text-nowrap">(' + job.shifts.length + '/' + job.slots + ' slots filled)</span></td>')
                     .append(
-                        $('<td></td>').append(
-                            jobIsFull ? '' : $('<button>Assign</button>').click(function () {
+                        $('<td class="text-right"></td>').append(
+                            jobIsFull ? '' : $('<button class="btn btn-xs btn-success">Assign</button>').click(function() {
                                 var attendee = $('#attendee').val();
                                 if (attendee) {
                                     $.post('assign', {
@@ -64,34 +147,21 @@
                                 }
                             }))))
             .append(
-                $('<tr></tr>')
-                    .append(
-                        $('<td colspan="4"></td>')
-                            .append('<table style="width:auto"></table>')
-                            .append($.map(job.shifts, function (shift) {
-                                return $('<tr></tr>')
-                                    .attr('id', 'shift_' + shift.id)
-                                    .append('<td> <ul><li></li></ul> </td>')
-                                    .append('<td> <a href="../registration/shifts?id=' + shift.attendee_id + '">' + shift.attendee_name  + ' (#' + shift.attendee_badge + ')</a>&nbsp;&nbsp; </td>')
-                                    .append(
-                                        $('<button>Unassign</button>').click(function () {
-                                            $.post('unassign', {
-                                                csrf_token: csrf_token,
-                                                id: shift.id
-                                            }, renderJob, 'json');
-                                        }))
-                                    .append(
-                                        $('<td></td>').append(
-                                            shift.worked === {{ c.SHIFT_UNMARKED }} ? renderWorked(shift.id) : ('<i>' + shift.worked_label + '</i>')))
-                                    .append(shift.worked !== {{ c.SHIFT_WORKED }} ? '' : renderRating(shift, $('<td></td>')));
-                            }))));
+                $('<tr class="shifts-row"></tr>').append(
+                    $('<td colspan="4"></td>').append(renderShifts(job))
+                ));
     };
 
-    var renderAll = function () {
-        var $jobs = $('#jobs');
-        $.each({{ jobs|jsonize }}, function (i, job) {
-            $jobs.append(renderJob(job, $('<tbody></tbody>')));
-        });
+    var renderAll = function() {
+        var $jobs = $('#jobs'),
+            jobList = {{ jobs|jsonize }};
+        if (jobList && jobList.length) {
+            $.each(jobList, function(i, job) {
+                $jobs.append(renderJob(job));
+            });
+        } else {
+            $jobs.append($('<tbody><tr><td><i>There are no jobs available here.</i></td></tr></tbody>'));
+        }
     };
     $(renderAll);
 </script>

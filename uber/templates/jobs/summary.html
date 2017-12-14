@@ -4,8 +4,8 @@
 
 <h2>Shifts Taken By Department</h2>
 
-{% for location, stats in locations %}
-    <h3>{{ location }}</h3>
+{% for department, stats in departments %}
+    <h3>{{ department }}</h3>
     <ul>
         <li> {{ stats.regular_signups|percent(stats.regular_total) }} hours of regular shifts taken </li>
         <li> {{ stats.restricted_signups|percent(stats.restricted_total) }} hours of restricted shifts taken </li>

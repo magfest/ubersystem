@@ -4,118 +4,261 @@
 
 <style type="text/css">
 
+.legend .glyphicon,
+.table .glyphicon {
+  font-size: 2em;
+  vertical-align: -25%;
+  display: inline-block;
+}
 
-   .table-header-rotated {
+.glyphicon-remove-circle {
+  color: #c00;
+}
+
+.glyphicon-warning-sign {
+  color: #da0;
+}
+
+.glyphicon-check {
+  color: #0c0;
+}
+
+.glyphicon-unchecked {
+  color: #808080;
+}
+
+.glyphicon-ban-circle {
+  color: #f4128b;
+}
+
+.glyphicon-edit {
+  color: #2a6496;
+}
+
+.glyphicon-empty:before {
+  content: " ";
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+}
+
+.table .glyphicon-empty,
+.table .glyphicon-ban-circle {
+  font-size: 1.5em;
+  margin-right: 5px;
+}
+
+.dept {
+  background-color: #f8f8f8;
+}
+
+.dept .dept-name {
+  position: relative;
+  text-align: left;
+  padding-left: 18px;
+}
+
+.dept .dept-name .glyphicon-edit {
+  margin-left: -10px;
+  font-size: 1.675em;
+  vertical-align: text-bottom;
+}
+
+.dept .dept-name h3 {
+  display: inline;
+  font-weight: bold;
+}
+
+.dept .dept-name span.pull-right {
+  padding: 5px 0;
+}
+
+.table {
   border-collapse: collapse;
 }
-   .csstransforms & td {
-    width: 30px;
-  }
-  .no-csstransforms & th {
-    padding: 5px 10px;
-  }
-  td {
-    text-align: center;
-    padding: 10px 5px;
-    border: 1px solid #ccc;
-  }
-  .csstransforms & th.rotate {
-    height: 140px;
-    white-space: nowrap;
-    // Firefox needs the extra DIV for some reason, otherwise the text disappears if you rotate
-    > div {
-      transform:
-        // Magic Numbers
-        translate(25px, 51px)
-        // 45 is really 360-45
-        rotate(315deg);
-      width: 30px;
-    }
-    > div > span {
-      border-bottom: 1px solid #ccc;
-      padding: 5px 10px;
-    }
-  }
-  th.row-header {
-    padding: 0 10px;
-    border-bottom: 1px solid #ccc;
-  }
-    img {
-        height: 24px;
-        width: 24px;
-    }
-    .dept-head {
-        padding-right: 25px;
-    }
-    .dept {
-        text-align: center;
-        padding-top: 25px;
-        font-weight: bold;
-        font-style: italic;
-        text-decoration: underline;
-    }
-   .table-header{
-        white-space: nowrap;
-        filter: flipv fliph;
-        writing-mode: tb-rl;
-        -webkit-transform: rotate(-45deg);
-        -moz-transform: rotate(-45deg);
-        -ms-transform: rotate(-45deg);
-        -o-transform: rotate(-45deg);
-        transform: rotate(-45deg);
-       transform-origin: 20px 40px;
-    }
+
+th.checklist-item {
+  position: relative;
+}
+
+th.checklist-item div {
+  width: 19em;
+  text-indent: -1.5em;
+  padding-left: 1.5em;
+  position: absolute;
+  top: 0;
+  left: 0;
+  -webkit-transform: rotate(-45deg);
+  -moz-transform: rotate(-45deg);
+  -ms-transform: rotate(-45deg);
+  -o-transform: rotate(-45deg);
+  transform: rotate(-45deg);
+  transform-origin: 1em -2em;
+}
+
+.table > tbody > tr.dept {
+  border-top: 1px solid #ccc;
+  border-left: 1px solid #ccc;
+  border-right: 1px solid #ccc;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.table > tbody > tr {
+  border: 1px solid #ccc;
+}
+
+.table > thead > tr > th {
+  line-height: 1.2em;
+  text-align: left;
+}
+
+.table > thead > tr > th * {
+  text-shadow: 0 0 8px #fff, 0 0 8px #fff, 0 0 8px #fff, 0 0 8px #fff;
+}
+
+.table > thead > tr > th,
+.table > tbody > tr > td {
+  border-top: 0 none transparent;
+}
+
+.table > tbody > tr > td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.table > tbody > tr > td.checklist-item > a {
+  display: block;
+  transition: all .2s ease-in-out;
+}
+
+.table > tbody > tr > td.checklist-item > a:hover {
+  transform: scale(1.2);
+  text-shadow: 0 3px 0 #00000020;
+}
+
+.table > tbody > tr > td.dept-head {
+  text-align: left;
+  padding-left: 18px;
+}
+
+.table > tbody > tr > td.dept-head > div {
+  margin-bottom: 5px;
+}
+
+.table > tbody > tr > td.spacer > div {
+  padding-left: 7em;
+}
+
+.legend {
+  min-height: 12em;
+  margin: 10px 0 10px 5px;
+}
+
+.legend div {
+  margin-bottom: 5px;
+}
+
+.legend .glyphicon {
+  margin-right: 5px;
+}
+
 </style>
 
-<h2>Department Checklist</h2>
+<h2>
+  Department Checklists
+  {% if filtered %}
+    <a class="btn btn-xs btn-plain" href="overview">
+  {% else %}
+    <a class="btn btn-xs btn-default" href="overview?filtered=1">
+  {% endif %}
+      <span class="glyphicon glyphicon-filter"></span>
+      Show only my checklists
+    </a>
+</h2>
 
-<br/> <img src="../static/images/x.png" /> Department head has missed deadline for this step
-<br/> <img src="../static/images/warn.jpg" /> Deadline is approaching and step isn't yet complete
-<br/> <img src="../static/images/checkbox_checked.png" /> Department head has marked this step as complete
-<br/> <img src="../static/images/checkbox_unchecked.png" /> Department head hasn't yet completed this step, but the deadline isn't close
-<div style="height:4ex">&nbsp;</div>
+<div class="legend">
+  <div>
+    <span class="glyphicon glyphicon-remove-circle"></span>
+    Checklist admins have missed the deadline for this step
+  </div>
+  <div>
+    <span class="glyphicon glyphicon-warning-sign"></span>
+    Deadline is approaching and step isn't yet complete
+  </div>
+  <div>
+    <span class="glyphicon glyphicon-check"></span>
+    Checklist admins have marked this step as complete
+  </div>
+  <div>
+    <span class="glyphicon glyphicon-unchecked"></span>
+    Checklist admins haven't completed this step, but the deadline isn't close
+  </div>
+  <div>
+    <span class="glyphicon glyphicon-ban-circle"></span>
+    Checklist admin doesn't have an admin account
+  </div>
+</div>
 
-<table class="table table-header-rotated">
-<thead>
-<tr>
-    <th style="max-width: 24px; text-align: center"><div><span>Department Head</span></div></th>
 
-    {% for conf in checklist %}
-         <!-- add .table-header to class to rotate -->
-        <th class="rotate" style="max-width: 30px; text-align: center"><div><span><a href="item?slug={{ conf.slug }}">{{ conf.name }}</a></span></div></th>
+{% if overview %}
+<table class="table">
+  <thead>
+    <tr>
+      <th></th>
+      {% for conf in checklist %}
+        <th class="checklist-item text-left">
+          <div><a href="item?slug={{ conf.slug }}">{{ conf.name }}</a></div>
+        </th>
+      {% endfor %}
+      <th class="spacer"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for dept, is_checklist_admin, can_admin_checklist, statuses, checklist_admins in overview %}
+      <tr class="dept">
+        <td class="dept-name">
+          {% if is_checklist_admin %}<span class="glyphicon glyphicon-edit" title="You are a checklist admin for this department"></span>{% endif %}
+          <h3>{{ dept|form_link }}</h3>
+          {% if can_admin_checklist %}<span class="pull-right"><a href="index?department_id={{ dept.id }}">View Checklist</a></span>{% endif %}
+        </td>
+        {% for item in statuses %}
+          <td class="checklist-item" title="{{ item.name }}{% if item.done %} – Completed by {{ item.completed_by }}{% endif %}">
+            {% if can_admin_checklist %}<a href="..{{ item.conf|dept_checklist_path(dept.id) }}">{% endif %}
+              {% if item.done %}
+                <span class="glyphicon glyphicon-check"></span>
+              {% elif item.approaching %}
+                <span class="glyphicon glyphicon-warning-sign"></span>
+              {% elif item.missed %}
+                <span class="glyphicon glyphicon-remove-circle"></span>
+              {% else %}
+                <span class="glyphicon glyphicon-unchecked"></span>
+              {% endif %}
+            {% if can_admin_checklist %}</a>{% endif %}
+          </td>
+        {% endfor %}
+        <td class="spacer"><div>&nbsp;</div></td>
+      </tr>
+      <tr>
+        <td class="dept-head" colspan="{{ checklist|length + 1 }}">
+          {% for attendee in checklist_admins %}
+            <div>
+              {% if attendee.admin_account %}
+                <span class="glyphicon glyphicon-empty"></span>
+              {% else %}
+                <span class="glyphicon glyphicon-ban-circle" title="This checklist admin doesn't have an admin account"></span>
+              {% endif %}
+              <span title="{{ attendee.email }} &mdash; {{ attendee.cellphone }}">{{ attendee|form_link }}</span>
+            </div>
+          {% else %}
+            <span><i>This department doesn't have any checklist admins.</i></span>
+          {% endfor %}
+        </td>
+        <td class="spacer"><div>&nbsp;</div></td>
+      </tr>
     {% endfor %}
-</tr>
-
-</thead>
-<tbody>
-
-
-{% for dept, dept_name, heads in overview %}
-    <tr><td {# **even though this breaks the table, it still looks better** colspan="{{ checklist|length + 1 }}" #} class="dept">{{ dept_name }}</td></tr>
-    {% for attendee, items in heads %}
-        <tr>
-            <td class="dept-head" title="{{ attendee.email }} / {{ attendee.cellphone }}">{{ attendee|form_link }}</td>
-            {% if attendee.admin_account %}
-                {% for item in items %}
-                    <td>
-                        {% if item.done %}
-                            <img title="{{ item.name }}" src="../static/images/checkbox_checked.png" />
-                        {% elif item.approaching %}
-                            <img title="{{ item.name }}" src="../static/images/warn.jpg" />
-                        {% elif item.missed %}
-                            <img title="{{ item.name }}" src="../static/images/x.png" />
-                        {% else %}
-                            <img title="{{ item.name }}" src="../static/images/checkbox_unchecked.png" />
-                        {% endif %}
-                    </td>
-                {% endfor %}
-            {% else %}
-                <td colspan="{{ checklist.length }}"><i>This dept head doesn't have an admin account.</i></td>
-            {% endif %}
-        </tr>
-    {% endfor %}
-{% endfor %}
-
+  </tbody>
 </table>
-
+{% else %}
+<em>No Department Checklists Found!</em>
+{% endif %}
 {% endblock %}

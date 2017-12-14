@@ -1,3 +1,4 @@
+from uber.config import c
 from uber.tests import *
 from uber.badge_funcs import needs_badge_num, reset_badge_if_unchanged
 
@@ -203,15 +204,25 @@ class TestAutoBadgeNum:
     def test_dupe_nums(self, session, monkeypatch):
         session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), first_name="3002", paid=c.HAS_PAID, badge_num=3001))
         session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), first_name="3000", paid=c.HAS_PAID, badge_num=3001))
+
         # Skip the badge adjustments here, which prevent us from setting duplicate numbers
-        monkeypatch.setattr(Attendee, '_badge_adjustments', 0)
+        @presave_adjustment
+        def _empty_adjustment(self):
+            pass
+
+        monkeypatch.setattr(Attendee, '_badge_adjustments', _empty_adjustment)
         session.commit()
         assert 3002 == session.auto_badge_num(c.ATTENDEE_BADGE)
 
     def test_diff_type_with_num_in_range(self, session, monkeypatch):
         session.add(Attendee(badge_type=c.SUPPORTER_BADGE, badge_num=6))
+
         # We want to force the badge number we set even though it's incorrect
-        monkeypatch.setattr(Attendee, '_badge_adjustments', 0)
+        @presave_adjustment
+        def _empty_adjustment(self):
+            pass
+
+        monkeypatch.setattr(Attendee, '_badge_adjustments', _empty_adjustment)
         session.commit()
         assert 7 == session.auto_badge_num(c.STAFF_BADGE)
 
@@ -436,11 +447,23 @@ class TestBadgeValidations:
         session.staff_one.badge_num = 'Junk Badge Number'
         assert '{!r} is not a valid badge number'.format(session.staff_one.badge_num) == check(session.staff_one)
 
-    def test_no_more_custom_badges(self, session, monkeypatch, after_printed_badge_deadline):
+    def test_no_more_custom_badges(self, admin_attendee, session, monkeypatch, after_printed_badge_deadline):
         session.regular_attendee.badge_type = session.regular_attendee.badge_type
         session.regular_attendee.badge_type = c.STAFF_BADGE
         session.regular_attendee.badge_num = None
         assert 'Custom badges have already been ordered so you cannot use this badge type' == check(session.regular_attendee)
+
+    @pytest.mark.parametrize('department,expected', [
+        (c.STOPS, None),
+        (c.REGDESK, None),
+        (c.CONSOLE, 'Custom badges have already been ordered so you cannot use this badge type'),
+    ])
+    def test_more_custom_badges_for_dept_head(self, admin_attendee, session, monkeypatch, after_printed_badge_deadline, department, expected):
+        monkeypatch.setattr(Attendee, 'is_dept_head_of', lambda s, d: d == department)
+        session.regular_attendee.badge_type = session.regular_attendee.badge_type
+        session.regular_attendee.badge_type = c.STAFF_BADGE
+        session.regular_attendee.badge_num = None
+        assert expected == check(session.regular_attendee)
 
     def test_out_of_badge_type(self, session, monkeypatch, before_printed_badge_deadline):
         monkeypatch.setitem(c.BADGE_RANGES, c.STAFF_BADGE, [1, 5])

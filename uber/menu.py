@@ -21,7 +21,7 @@ class MenuItem:
             self.priority = priority
 
         self.name = name
-        self.access = access
+        self.access = set(listify(access)) if access else set()
 
     def append_menu_item(self, m):
         """
@@ -49,20 +49,20 @@ class MenuItem:
 
         self.submenu.append(m)
 
-    def render_items_filtered_by_current_access(self):
+    def render_items_filtered_by_current_access(self, access_set):
         """
         Returns: dict of menu items which are allowed to be seen by the logged in user's access levels
         """
         out = {}
 
-        if self.access and set(listify(self.access)).isdisjoint(sa.AdminAccount.access_set()):
+        if self.access and self.access.isdisjoint(access_set):
             return None
 
         out['name'] = self.name
         if self.submenu:
             out['submenu'] = []
             for menu_item in sorted(sorted(self.submenu, key=lambda x: x.name), key=lambda x: x.priority):
-                filtered_menu_items = menu_item.render_items_filtered_by_current_access()
+                filtered_menu_items = menu_item.render_items_filtered_by_current_access(access_set)
                 if filtered_menu_items:
                     out['submenu'].append(filtered_menu_items)
         else:
@@ -77,16 +77,21 @@ class MenuItem:
 
 
 c.MENU = MenuItem(name='Root', submenu=[
-    MenuItem(name='Accounts', href='../accounts/', access=c.ACCOUNTS),
+    MenuItem(name='Admin', submenu=[
+        MenuItem(name='Admin Accounts', href='../accounts/', access=c.ACCOUNTS),
+        MenuItem(name='API Access', href='../api/', access=list(c.API_ACCESS.keys())),
+        MenuItem(name='Jobs', href='../jobs/', access=c.PEOPLE),
+        MenuItem(name='All Unfilled Shifts', href='../jobs/everywhere', access=c.PEOPLE),
+        MenuItem(name='Departments', href='../departments/', access=c.PEOPLE),
+        MenuItem(name='Department Checklists', href='../dept_checklist/overview', access=c.PEOPLE),
+        MenuItem(name='Feed of Database Changes', href='../registration/feed', access=c.PEOPLE),
+    ]),
 
     MenuItem(name='People', access=[c.PEOPLE, c.REG_AT_CON], submenu=[
         MenuItem(name='Attendees', href='../registration/{}'.format('?invalid=True' if c.AT_THE_CON else '')),
         MenuItem(name='Groups', href='../groups/'),
-        MenuItem(name='All Untaken Shifts', access=c.PEOPLE, href='../jobs/everywhere'),
-        MenuItem(name='Jobs', access=c.PEOPLE, href='../jobs/'),
-        MenuItem(name='Watchlist', access=c.WATCHLIST, href='../registration/watchlist_entries'),
-        MenuItem(name='Feed of Database Changes', href='../registration/feed'),
+        MenuItem(name='Watchlist', href='../registration/watchlist_entries', access=c.WATCHLIST),
     ]),
 
-    MenuItem(name='Statistics', access=c.STATS, href='../summary/'),
+    MenuItem(name='Statistics', href='../summary/', access=c.STATS),
 ])

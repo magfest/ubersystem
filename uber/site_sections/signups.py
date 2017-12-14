@@ -36,7 +36,7 @@ class Root:
         }
 
     @check_shutdown
-    def shirt_size(self, session, message='', shirt=None, csrf_token=None):
+    def shirt_size(self, session, message='', shirt=None, second_shirt=None, csrf_token=None):
         attendee = session.logged_in_volunteer()
         if shirt is not None:
             check_csrf(csrf_token)
@@ -44,7 +44,9 @@ class Root:
                 message = 'You must select a shirt size'
             else:
                 attendee.shirt = int(shirt)
-                raise HTTPRedirect('index?message={}', 'Shirt size uploaded')
+                if attendee.gets_staff_shirt and c.BEFORE_SHIRT_DEADLINE:
+                    attendee.second_shirt = int(second_shirt)
+                raise HTTPRedirect('index?message={}', 'Shirt info uploaded')
 
         return {
             'message': message,
@@ -54,18 +56,18 @@ class Root:
 
     @check_shutdown
     @unrestricted
-    def volunteer(self, session, id, csrf_token=None, requested_depts='', message='Select which departments interest you as a volunteer.'):
+    def volunteer(self, session, id, csrf_token=None, requested_depts_ids=None, message=''):
         attendee = session.attendee(id)
-        if requested_depts:
+        if requested_depts_ids:
             check_csrf(csrf_token)
             attendee.staffing = True
-            attendee.requested_depts = ','.join(listify(requested_depts))
+            attendee.requested_depts_ids = requested_depts_ids
             raise HTTPRedirect('login?message={}', "Thanks for signing up as a volunteer; you'll be emailed as soon as you are assigned to one or more departments.")
 
         return {
             'message': message,
             'attendee': attendee,
-            'requested_depts': requested_depts
+            'requested_depts_ids': requested_depts_ids
         }
 
     @check_shutdown
@@ -73,11 +75,14 @@ class Root:
         joblist = session.jobs_for_signups()
         con_days = -(-c.CON_LENGTH // 24)  # Equivalent to ceil(c.CON_LENGTH / 24)
 
-        if session.logged_in_volunteer().can_work_setup and session.logged_in_volunteer().can_work_teardown:
+        volunteer = session.logged_in_volunteer()
+        has_setup = volunteer.can_work_setup or any(d.is_setup_approval_exempt for d in volunteer.assigned_depts)
+        has_teardown = volunteer.can_work_teardown or any(d.is_teardown_approval_exempt for d in volunteer.assigned_depts)
+        if has_setup and has_teardown:
             cal_length = c.CON_TOTAL_LENGTH
-        elif session.logged_in_volunteer().can_work_setup:
+        elif has_setup:
             cal_length = con_days + c.SETUP_SHIFT_DAYS
-        elif session.logged_in_volunteer().can_work_teardown:
+        elif has_teardown:
             cal_length = con_days + 2  # There's no specific config for # of shift signup days
         else:
             cal_length = con_days
@@ -87,7 +92,7 @@ class Root:
             'hours': session.logged_in_volunteer().weighted_hours,
             'view': view,
             'start': start,
-            'start_day': c.SHIFTS_START_DAY if session.logged_in_volunteer().can_work_setup else c.EPOCH,
+            'start_day': c.SHIFTS_START_DAY if has_setup else c.EPOCH,
             'cal_length': cal_length
         }
 
@@ -125,13 +130,13 @@ class Root:
                 attendee = session.lookup_attendee(first_name.strip(), last_name.strip(), email, zip_code)
                 if not attendee.staffing:
                     message = safe_string('You are not signed up as a volunteer.  <a href="volunteer?id={}">Click Here</a> to sign up.'.format(attendee.id))
-                elif not attendee.assigned_depts_ints and not c.AT_THE_CON:
+                elif not attendee.dept_memberships and not c.AT_THE_CON:
                     message = 'You have not been assigned to any departments; an admin must assign you to a department before you can log in'
-            except:
+            except Exception as ex:
                 message = 'No attendee matches that name and email address and zip code'
 
             if not message:
-                cherrypy.session['csrf_token'] = uuid4().hex
+                ensure_csrf_token_exists()
                 cherrypy.session['staffer_id'] = attendee.id
                 raise HTTPRedirect(original_location)
 

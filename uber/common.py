@@ -21,6 +21,7 @@ import mimetypes
 import shlex
 import threading
 import traceback
+import xlsxwriter
 from glob import glob
 from uuid import uuid4
 from pprint import pprint
@@ -79,6 +80,8 @@ from uber.utils import *
 from uber.reports import *
 from uber.decorators import *
 from uber.models import *
+from uber.models.types import *
+from uber.models.promo_code import *
 from uber.automated_emails_server import *
 from uber.automated_emails import *
 from uber.badge_funcs import *

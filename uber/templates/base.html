@@ -1,4 +1,4 @@
-{% import 'macros.html' as macros %}
+{% import 'macros.html' as macros with context %}
 <!DOCTYPE HTML>
 <html>
 <head>
@@ -104,9 +104,90 @@
             z-index: 9998;
             background: rgb(249,249,249);
         }
+
+        #toast-container {
+          right: 5%;
+          max-width: 90%;
+          min-width: 300px;
+          width: auto;
+        }
+
+        #toast-container .toast {
+          width: auto;
+        }
+
+        @media screen and (max-width: 334px) {
+          #toast-container {
+            max-width: 90%;
+            min-width: 90%;
+            width: 90%;
+          }
+        }
     </style>
     <script>
         var DISABLE_STRIPE_BUTTONS_ON_CLICK = true;
+
+        var parseQueryString = function(queryString) {
+            var params = {}, temp, i, len, queries = queryString.split('&');
+            for (i = 0, len = queries.length; i < len; i++) {
+              if(queries[i]) {
+                temp = queries[i].split('=');
+                params[temp[0]] = temp[1];
+              }
+            }
+            return params;
+        };
+
+        var replaceQueryParam = function(queryParam, value) {
+            var queryString = window.location.search.substring(1);
+            var params = parseQueryString(queryString);
+            if (_.has(params, queryParam) || value) {
+                if (value) {
+                    params[queryParam] = value;
+                } else {
+                    delete params[queryParam];
+                }
+                queryString = $.param(params);
+            }
+            if (queryString) {
+                queryString = '?' + queryString;
+            }
+            return queryString;
+        };
+
+        var replaceQueryParamInUrl = function(queryParam, value) {
+          try {
+              // Replace the query parameter in the web browser's address bar
+              if (history && history.replaceState) {
+                  var queryString = replaceQueryParam(queryParam, value);
+                  history.replaceState({}, document.title, window.location.pathname + queryString);
+                  return true;
+              }
+          } catch(ex) {
+              // Don't let any errors here disrupt the rest of the app!
+              try { console.log(ex); } catch(ex) {}
+          }
+          return false;
+        };
+
+        var removeHashFromUrl = function() {
+            try {
+                if (history && history.replaceState) {
+                    var url = window.location.toString();
+                    if (url.indexOf('#') > 0) {
+                        history.replaceState({}, document.title, url.substring(0, url.indexOf('#')));
+                    }
+                } else {
+                    window.location.hash = '';
+                }
+                return true;
+            } catch(ex) {
+                // Don't let any errors here disrupt the rest of the app!
+                try { console.log(ex); } catch(ex) {}
+            }
+            return false;
+        };
+
         $(function() {
             $(window).load(function() {
                 $(".loader").fadeOut("fast");
@@ -114,7 +195,7 @@
             toastr.options = {
                 closeButton: true,
                 debug: false,
-                positionClass: "toast-top-full-width",
+                positionClass: "toast-top-right",
                 onclick: null,
                 showDuration: "300",
                 hideDuration: "1000",
@@ -123,7 +204,10 @@
                 showEasing: "swing",
                 hideEasing: "linear",
                 showMethod: "fadeIn",
-                hideMethod: "fadeOut"
+                hideMethod: "fadeOut",
+                onShown: function() {
+                  replaceQueryParamInUrl('message');
+                }
             };
             var message = '{{ message }}';
             if (message.length) {
@@ -239,6 +323,16 @@
                                 <span>Logged in as: {{ c.CURRENT_ADMIN.first_name }} {{ c.CURRENT_ADMIN.last_name }}</span> <span title="Account Settings" class="glyphicon glyphicon-cog"></span><span class="caret"></span>
                             </a>
                             <ul class="dropdown-menu" role="menu">
+                                {% if 'admin_account' in c.CURRENT_ADMIN %}
+                                  <li><a href="../registration/form?id={{ c.CURRENT_ADMIN.id }}">My Registration</a></li>
+                                  {% if c.PEOPLE|string in c.CURRENT_ADMIN.admin_account.access and c.CURRENT_ADMIN.assigned_depts %}
+                                    <li><a href="../departments/?filtered=1">My Departments</a></li>
+                                    {% for dept in c.CURRENT_ADMIN.assigned_depts %}
+                                      <li><a href="../departments/form?id={{ dept.id }}">&nbsp;&#8226;&nbsp;{{ dept.name }}</a></li>
+                                    {% endfor %}
+                                  {% endif %}
+                                  <li role="separator" class="divider"></li>
+                                {% endif %}
                                 <li><a href="../accounts/change_password">Change Password</a></li>
                                 <li><a href="../accounts/logout">Logout</a></li>
                             </ul>
@@ -247,11 +341,10 @@
                     {% block mainmenu %}
                     <ul class="nav navbar-nav" id="main-menu">
                         {% block mainmenu_items %}
-                        {% for menu_item in c.MENU_FILTERED_BY_ACCESS_LEVELS.submenu %}
-                            {% if menu_item.href %}
+                        {% for menu_item in c.MENU_FILTERED_BY_ACCESS_LEVELS.submenu -%}
+                            {% if menu_item.href -%}
                                 <li><a href="{{ menu_item.href }}">{{ menu_item.name }}</a></li>
-                            {% elif menu_item.submenu %}
-
+                            {% elif menu_item.submenu -%}
                                 <li class="dropdown">
                                     <a href="#" class="dropdown-toggle" data-toggle="dropdown">
                                         {{ menu_item.name }}
@@ -259,21 +352,21 @@
                                     </a>
 
                                     <ul class="dropdown-menu" role="menu">
-                                    {% for submenu_item in menu_item.submenu %}
+                                    {% for submenu_item in menu_item.submenu -%}
                                         <li>
-                                            {% if submenu_item.href %}
+                                            {% if submenu_item.href -%}
                                                 <a href="{{ submenu_item.href }}">
-                                            {% else %}
+                                            {% else -%}
                                                 <a class="disabled">
-                                            {% endif %}
+                                            {% endif -%}
                                             {{ submenu_item.name }}</a>
                                         </li>
-                                    {% endfor %}
+                                    {% endfor -%}
                                     </ul>
                                 </li>
 
-                            {% endif %}
-                        {% endfor %}
+                            {% endif -%}
+                        {% endfor -%}
                         {% endblock mainmenu_items %}
                     </ul>
                     {% endblock mainmenu %}
@@ -283,7 +376,7 @@
         {% endblock %}
         {% block header %}{% endblock %}
         {% block content %}{% endblock %}
-        <div id="bottomAnchor" /></div>
+        <div id="bottomAnchor"></div>
     </div>
     {% block scripts %}
         <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->

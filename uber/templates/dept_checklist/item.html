@@ -6,27 +6,49 @@
 
 {{ conf.description }}
 
-<table style="width:auto">
-{% for dept, dept_name, heads in overview %}
-    <tr><td colspan="2"><h3>{{ dept_name }}</h3></td></tr>
-    {% for attendee, item in heads %}
-        <tr>
-            <td valign="top">{{ attendee|form_link }}</td>
-            {% if attendee.admin_account %}
-                <td>
-                {% if item %}
-                    <b>Completed</b>
-                {% else %}
-                    <i>not complete</i>
-                {% endif %}
-                </td>
-                <td>{{ item.comments|linebreaksbr }}</td>
-            {% else %}
-                <td colspan="2"><i>This dept head doesn't have an admin account.</i></td>
-            {% endif %}
-        </tr>
-    {% endfor %}
+{% if delinquent_emails %}
+  <p style="margin: 10px 0">
+    <a href="mailto:?bcc={{ delinquent_emails|join(',')|urlencode }}&subject=Dept Checklist: {{ conf.name }}">
+      <span class="glyphicon glyphicon-envelope"></span>
+      Email Delinquent Department Heads
+    </a>
+  </p>
+{% endif %}
+
+{% for department, item, checklist_admins in overview %}
+  <div style="margin-bottom: 15px;">
+    <h3 style="display: inline-block;">
+      {{ department|form_link }} <small>(<a href="index?department_id={{ department.id }}">View Checklist</a>)</small>
+    </h3>
+    <span style="display: inline-block; margin-left: 5px; vertical-align: text-bottom;">
+      {% if item %}
+        <span class="label label-success">Completed</span> by {{ item.attendee|form_link }}
+      {% else %}
+        <span class="label label-default">Not complete</span>
+      {% endif %}
+    </span>
+    <div style="padding-left: 30px;">
+      {% if item.comments %}
+        <h4>Comments</h4>
+        <div style="padding-left: 30px;">{{ item.comments|linebreaksbr }}</div>
+      {% endif %}
+      <h4>Checklist Admins</h4>
+      <div style="padding-left: 30px;">
+        {% if checklist_admins %}
+          {% for attendee in checklist_admins %}
+            <div style="margin-bottom: 5px;">
+              <span title="{{ attendee.email }} &mdash; {{ attendee.cellphone }}" style="margin-right: 5px;">{{ attendee|form_link }}</span>
+              {% if not attendee.admin_account %}
+                <i>This checklist admin doesn't have an admin account</i>
+              {% endif %}
+            </div>
+          {% endfor %}
+        {% else %}
+          <i>This department doesn't have any checklist admins.</i>
+        {% endif %}
+      </div>
+    </div>
+  </div>
 {% endfor %}
-</table>
 
 {% endblock %}

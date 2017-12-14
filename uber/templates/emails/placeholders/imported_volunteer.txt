@@ -1,6 +1,6 @@
-{{ attendee.first_name }},
+{% if attendee.first_name %}{{ attendee.first_name }},
 
-{% if c.DEPT_HEAD_RIBBON in attendee.ribbon_ints %}NOTE: This is an automated email, but even though you are a Department Head you should still pay attention to it, since you DO need to fill out the form linked below.
+{% endif %}{% if attendee.is_dept_head %}NOTE: This is an automated email, but even though you are a Department Head you should still pay attention to it, since you DO need to fill out the form linked below.
 
 {% endif %}Thanks so much for helping run {{ c.EVENT_NAME }} last year, we couldn't have pulled it off without so much help from our wonderful volunteers.  As thanks for your help, you're eligible for a complementary Staff badge for the next {{ c.EVENT_NAME }}, which will be {{ c.EPOCH|datetime_local("%b %e") }} - {{ c.ESCHATON|datetime_local("%e") }}.  You can accept your badge by visiting {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}
 

@@ -5,11 +5,11 @@
 <!-- Here's the department we've selected.  We can change to the page for a different department just by changing the value in this dropdown. -->
 <script>
     var deptChanged = function () {
-        window.location = 'add_volunteers_by_dept?location=' + $('#dept').val();
+        window.location = 'add_volunteers_by_dept?department_id=' + $('#dept').val();
     };
 </script>
 <select id="dept" onChange="deptChanged()">
-    {{ options(c.JOB_LOCATION_OPTS,location) }}
+    {{ options(c.DEPARTMENT_OPTS, department_id) }}
 </select>
 
 <br/><br/>

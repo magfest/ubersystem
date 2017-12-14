@@ -1,0 +1,171 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}API Access{% if not admin_account.is_admin %} for {{ admin_account.attendee.full_name }}{% endif %}{% endblock %}
+
+{% block content %}
+
+  <style type="text/css">
+    .reference {
+      font-size: 1.25em;
+    }
+
+    #btn_show_revoked {
+      margin-top: 10px;
+    }
+  </style>
+
+  <script type="text/javascript">
+    $(function() {
+      var $lengthContainer = $('#DataTables_Table_0_wrapper > .row:first-child > .col-sm-6:first-child');
+      $lengthContainer.append(
+        $('<div id="DataTables_Table_0_length" class="dataTables_length"></div>').append(
+          $('#btn_show_revoked')
+        )
+      );
+
+      var $createApiTokenForm = $('#create_api_token'),
+          $btn = $createApiTokenForm.find('button[type=submit]');
+      $createApiTokenForm.on('submit', function(event) {
+        event.preventDefault();
+        $btn.prop('disabled', true);
+        $.post('create_api_token', $createApiTokenForm.serialize(), function(result) {
+          $btn.prop('disabled', false);
+          if (result.error) {
+            toastr.error(result.error);
+          } else {
+            window.location = 'index?message=Successfully created API token'
+          }
+        });
+      });
+    });
+  </script>
+
+  <div
+      id="new_token"
+      class="modal fade"
+      tabindex="-1"
+      role="dialog"
+      aria-labelledby="new_token_title"
+      style="display: none">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <h4 class="modal-title" id="new_token_title">
+            <span class="glyphicon glyphicon-plus"></span>
+            New API Token
+          </h4>
+        </div>
+        <form id="create_api_token" method="post" action="create_api_token" class="form-horizontal" role="form">
+          <div class="modal-body">
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="None" />
+            {{ macros.form_group(ApiToken, 'name', is_required=True) }}
+            {{ macros.form_group(
+                ApiToken,
+                'description',
+                type='textarea',
+                is_required=True,
+                label='Intended Usage',
+                help='Please describe how you intend to use your API access.') }}
+            <div class="form-group">
+              <label class="col-sm-3 control-label">Access Controls</label>
+              <div class="col-sm-9">
+                <div class="form-control-static checkbox">
+                  {%- set opts = admin_account.allowed_api_access_opts -%}
+                  {{ macros.checkgroup_opts('access', opts, defaults=[c.API_READ|string]) }}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Save</button>
+            <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <h1>
+    API Access{% if not admin_account.is_admin %} for {{ admin_account.attendee|form_link }}{% endif %}
+    <button type="button" class="btn btn-sm btn-primary pull-right" data-toggle="modal" data-target="#new_token">
+      <span class="glyphicon glyphicon-plus"></span>
+      New API Token
+    </button>
+  </h1>
+
+  <p class="reference">
+    <a href="reference">
+      <span class="glyphicon glyphicon-question-sign"></span>
+      Need help with the API?
+    </a>
+  </p>
+
+  <h3>
+    {% if admin_account.is_admin %}All{% else %}Your{% endif %} Tokens
+  </h3>
+  {% if show_revoked %}
+    <a id="btn_show_revoked" href="index" class="btn btn-xs btn-plain">
+  {% else %}
+    <a id="btn_show_revoked" href="index?show_revoked=true" class="btn btn-xs btn-default">
+  {% endif %}
+      <span class="glyphicon glyphicon-filter"></span>
+      Show Revoked Tokens
+    </a>
+
+  {% if api_tokens %}
+    <div class="responsive-table">
+      <table
+          class="table table-striped table-hover datatable"
+          data-page-length="-1"
+          data-paging="false"
+          data-info="false">
+        <thead>
+          <tr>
+            {% if admin_account.is_admin %}<th>Owner</th>{% endif %}
+            <th>Name</th>
+            <th>Description</th>
+            <th>Access</th>
+            <th>Token</th>
+            <th>Issued</th>
+            <th>Revoked</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for token in api_tokens %}
+            <tr>
+              {% if admin_account.is_admin %}
+                <td
+                    data-order="{{ token.admin_account.attendee.full_name }}"
+                    data-search="{{ token.admin_account.attendee.full_name }}">
+                  {{ token.admin_account.attendee|form_link }}
+                </td>
+              {% endif %}
+              <td>{{ token.name }}</td>
+              <td>{{ token.description }}</td>
+              <td>{{ token.access_labels|join(', ') }}</td>
+              <td class="text-nowrap">{{ token.token }}</td>
+              <td data-order="{{ token.issued_time }}">
+                {{ token.issued_time|datetime_local('%B %-e, %Y, %-I:%M%p') }}
+              </td>
+              <td data-order="{{ token.revoked_time }}">
+                {% if token.revoked_time %}
+                  {{ token.revoked_time|datetime_local('%B %-e, %Y, %-I:%M%p') }}
+                {% else %}
+                  <form method="post" action="revoke_api_token" role="form">
+                    <input type="hidden" name="id" value="{{ token.id }}"/>
+                    <button class="btn btn-xs btn-danger" type="submit">Revoke</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div>
+      No API tokens have been created yet.
+    </div>
+  {% endif %}
+{% endblock %}

@@ -14,11 +14,19 @@ class AutomatedEmail:
     # return particular model instances of a given type.
     queries = {
         Attendee: lambda session: session.all_attendees().options(
-            subqueryload(Attendee.admin_account)).options(
-            subqueryload(Attendee.dept_checklist_items)).options(
-            subqueryload(Attendee.group)),
+            subqueryload(Attendee.admin_account),
+            subqueryload(Attendee.group),
+            subqueryload(Attendee.shifts)
+                .subqueryload(Shift.job),
+            subqueryload(Attendee.assigned_depts),
+            subqueryload(Attendee.dept_membership_requests),
+            subqueryload(Attendee.checklist_admin_depts)
+                .subqueryload(Department.dept_checklist_items),
+            subqueryload(Attendee.dept_memberships),
+            subqueryload(Attendee.dept_memberships_with_role),
+            subqueryload(Attendee.depts_where_working)),
         Group: lambda session: session.query(Group).options(
-            subqueryload(Group.attendees))
+            subqueryload(Group.attendees)).order_by(Group.id)
     }
 
     def __init__(self, model, subject, template, filter, ident, *, when=(),
@@ -76,16 +84,13 @@ class AutomatedEmail:
     def send_if_should(self, model_inst, raise_errors=False):
         """
         If it's OK to send an email of our category to this model instance (i.e. a particular Attendee) then send it.
-        """
-        try:
-            if self._should_send(model_inst):
-                self.really_send(model_inst)
-        except:
-            log.error('error sending {!r} email to {}', self.subject, model_inst.email, exc_info=True)
-            if raise_errors:
-                raise
 
-    def _should_send(self, model_inst):
+        Do any error handling in the client functions we call
+        """
+        if self._should_send(model_inst, raise_errors=raise_errors):
+            self.really_send(model_inst, raise_errors=raise_errors)
+
+    def _should_send(self, model_inst, raise_errors=False):
         """
         If True, we should generate an actual email created from our email category
         and send it to a particular model instance.
@@ -110,14 +115,20 @@ class AutomatedEmail:
         :return: True if we should send this email to this model instance, False if not.
         """
 
-        return all(condition() for condition in [
-            lambda: not c.AT_THE_CON or self.allow_during_con,
-            lambda: isinstance(model_inst, self.model),
-            lambda: getattr(model_inst, 'email', None),
-            lambda: not self._already_sent(model_inst),
-            lambda: self.filters_run(model_inst),
-            lambda: self.approved,
-        ])
+        try:
+            return all(condition() for condition in [
+                lambda: not c.AT_THE_CON or self.allow_during_con,
+                lambda: isinstance(model_inst, self.model),
+                lambda: getattr(model_inst, 'email', None),
+                lambda: not self._already_sent(model_inst),
+                lambda: self.filters_run(model_inst),
+                lambda: self.approved,
+            ])
+        except:
+            log.error('error determining whether to send {!r} email to {}', self.subject, model_inst.email, exc_info=True)
+            if raise_errors:
+                raise
+            return False
 
     @property
     def approved(self):
@@ -143,7 +154,7 @@ class AutomatedEmail:
         model = getattr(model_instance, 'email_model_name', model_instance.__class__.__name__.lower())
         return render('emails/' + self.template, dict({model: model_instance}, **self.extra_data))
 
-    def really_send(self, model_instance):
+    def really_send(self, model_instance, raise_errors=False):
         """
         Actually send an email to a particular model instance (i.e. a particular attendee).
 
@@ -161,7 +172,8 @@ class AutomatedEmail:
                        model=model_instance, cc=self.cc, ident=self.ident)
         except:
             log.error('error sending {!r} email to {}', self.subject, model_instance.email, exc_info=True)
-            raise
+            if raise_errors:
+                raise
 
     @property
     def when_txt(self):
@@ -318,9 +330,11 @@ class DeptChecklistEmail(AutomatedEmail):
         AutomatedEmail.__init__(self, Attendee,
                                 subject='{EVENT_NAME} Department Checklist: ' + conf.name,
                                 template='shifts/dept_checklist.txt',
-                                filter=lambda a: a.is_single_dept_head and a.admin_account and not conf.completed(a),
+                                filter=lambda a: a.admin_account and any(
+                                    not d.checklist_item_for_slug(conf.slug)
+                                    for d in a.checklist_admin_depts),
                                 ident='department_checklist_{}'.format(conf.name),
-                                when=days_before(7, conf.deadline),
+                                when=days_before(10, conf.deadline),
                                 sender=c.STAFF_EMAIL,
                                 extra_data={'conf': conf},
                                 post_con=conf.email_post_con or False)
@@ -340,9 +354,26 @@ def notify_admins_of_any_pending_emails():
     if not pending_email_categories:
         return
 
+    for sender, email_categories in pending_email_categories.items():
+        include_all_categories = sender == c.STAFF_EMAIL
+        included_categories = pending_email_categories
+
+        if not include_all_categories:
+            included_categories = {
+                c_sender: categories for c_sender, categories in pending_email_categories.items() if c_sender == sender
+            }
+
+        send_pending_email_report(included_categories, sender)
+
+
+def send_pending_email_report(pending_email_categories, sender):
+    rendering_data = {
+        'pending_email_categories': pending_email_categories,
+        'primary_sender': sender,
+    }
     subject = c.EVENT_NAME + ' Pending Emails Report for ' + localized_now().strftime('%Y-%m-%d')
-    body = render('emails/daily_checks/pending_emails.html', {'pending_email_categories': pending_email_categories})
-    send_email(c.STAFF_EMAIL, c.STAFF_EMAIL, subject, body, format='html', model='n/a')
+    body = render('emails/daily_checks/pending_emails.html', rendering_data)
+    send_email(c.STAFF_EMAIL, sender, subject, body, format='html', model='n/a')
 
 
 # 86400 seconds = 1 day = 24 hours * 60 minutes * 60 seconds
@@ -353,7 +384,7 @@ def get_pending_email_data():
     """
     Generate a list of emails which are ready to send, but need approval.
 
-    Returns: A dict of email idents -> pending counts for any email category with pending emails,
+    Returns: A dict of senders -> email idents -> pending counts for any email category with pending emails,
     or None if none are waiting to send or the email daemon service has not finished any runs yet.
     """
     has_email_daemon_run_yet = SendAllAutomatedEmailsJob.last_result.get('completed', False)
@@ -364,21 +395,24 @@ def get_pending_email_data():
     if not categories_results:
         return None
 
-    pending_emails = dict()
+    pending_emails_by_sender = defaultdict(dict)
 
     for automated_email in AutomatedEmail.instances.values():
-        category_results = categories_results.get(automated_email.ident, None)
+        sender = automated_email.sender
+        ident = automated_email.ident
+
+        category_results = categories_results.get(ident, None)
         if not category_results:
             continue
 
         unsent_because_unapproved_count = category_results.get('unsent_because_unapproved', 0)
-
         if unsent_because_unapproved_count <= 0:
             continue
 
-        pending_emails[automated_email.ident] = {
+        pending_emails_by_sender[sender][ident] = {
             'num_unsent': unsent_because_unapproved_count,
             'subject': automated_email.subject,
+            'sender': automated_email.sender,
         }
 
-    return pending_emails
+    return pending_emails_by_sender

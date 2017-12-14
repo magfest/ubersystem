@@ -57,7 +57,7 @@ class Root:
             donation_amounts = list(counts['donation_tiers'].keys())
             for index, amount in enumerate(donation_amounts):
                 next_amount = donation_amounts[index + 1] if index + 1 < len(donation_amounts) else six.MAXSIZE
-                if a.total_donation >= amount and a.total_donation < next_amount:
+                if a.amount_extra >= amount and a.amount_extra < next_amount:
                     counts['donation_tiers'][amount] = counts['donation_tiers'][amount] + 1
             if not a.checked_in:
                 key = 'paid' if a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid else 'free'
@@ -97,12 +97,14 @@ class Root:
         }
 
     def departments(self, session):
-        attendees = session.staffers().all()
         everything = []
-        for department, name in c.JOB_LOCATION_OPTS:
-            assigned = [a for a in attendees if department in a.assigned_depts_ints]
-            unassigned = [a for a in attendees if department in a.requested_depts_ints and a not in assigned]
-            everything.append([name, assigned, unassigned])
+        departments = session.query(Department).options(
+            subqueryload(Department.members).subqueryload(Attendee.dept_memberships),
+            subqueryload(Department.unassigned_explicitly_requesting_attendees)).order_by(Department.name)
+        for department in departments:
+            assigned = department.members
+            unassigned = department.unassigned_explicitly_requesting_attendees
+            everything.append([department, assigned, unassigned])
         return {'everything': everything}
 
     def found_how(self, session):
@@ -137,34 +139,53 @@ class Root:
         }
 
     def staffing_overview(self, session):
-        attendees = session.staffers().all()
+        attendees = session.staffers().options(subqueryload(Attendee.dept_memberships)).all()
+        attendees_by_dept = defaultdict(list)
+        for attendee in attendees:
+            for dept_membership in attendee.dept_memberships:
+                attendees_by_dept[dept_membership.department_id].append(attendee)
+
         jobs = session.jobs().all()
+        jobs_by_dept = defaultdict(list)
+        for job in jobs:
+            jobs_by_dept[job.department_id].append(job)
+
+        departments = session.query(Department).order_by(Department.name)
+
         return {
             'hour_total': sum(j.weighted_hours * j.slots for j in jobs),
             'shift_total': sum(j.weighted_hours * len(j.shifts) for j in jobs),
             'volunteers': len(attendees),
             'departments': [{
-                'department': desc,
-                'assigned': len([a for a in attendees if dept in a.assigned_depts_ints]),
-                'total_hours': sum(j.weighted_hours * j.slots for j in jobs if j.location == dept),
-                'taken_hours': sum(j.weighted_hours * len(j.shifts) for j in jobs if j.location == dept)
-            } for dept, desc in c.JOB_LOCATION_OPTS]
+                'department': dept,
+                'assigned': len(attendees_by_dept[dept.id]),
+                'total_hours': sum(j.weighted_hours * j.slots for j in jobs_by_dept[dept.id]),
+                'taken_hours': sum(j.weighted_hours * len(j.shifts) for j in jobs_by_dept[dept.id])
+            } for dept in departments]
         }
 
     @csv_file
     def dept_head_contact_info(self, out, session):
         out.writerow(["Full Name", "Email", "Phone", "Department(s)"])
-        for a in session.query(Attendee).filter(Attendee.ribbon.contains(c.DEPT_HEAD_RIBBON)).order_by('last_name'):
+        for a in session.query(Attendee).filter(Attendee.dept_memberships_as_dept_head.any()).order_by('last_name'):
             for label in a.assigned_depts_labels:
                 out.writerow([a.full_name, a.email, a.cellphone, label])
 
     @csv_file
     def dealer_table_info(self, out, session):
         out.writerow([
-            'Name',
+            'Business Name',
             'Description',
             'URL',
-            'Address',
+            'Point of Contact',
+            'Email',
+            'Phone Number',
+            'Address1',
+            'Address2',
+            'City',
+            'State/Region',
+            'Zip Code',
+            'Country',
             'Tables',
             'Amount Paid',
             'Cost',
@@ -177,33 +198,62 @@ class Root:
                     group.name,
                     group.description,
                     group.website,
+                    group.leader.legal_name or group.leader.full_name,
+                    group.leader.email,
+                    group.leader.cellphone,
                     group.address1,
+                    group.address2,
+                    group.city,
+                    group.region,
+                    group.zip_code,
+                    group.country,
                     group.tables,
                     group.amount_paid,
                     group.cost,
                     group.badges
                 ])
 
-    @csv_file
+    @xlsx_file
+    def vendor_comptroller_info(self, out, session):
+        dealer_groups = session.query(Group).filter(Group.tables > 0).all()
+        rows = []
+        for group in dealer_groups:
+            if group.approved and group.is_dealer:
+                rows.append([
+                    group.name,
+                    group.leader.email,
+                    group.leader.legal_name or group.leader.full_name,
+                    group.leader.cellphone,
+                    group.physical_address
+                ])
+        header_row = [
+            'Vendor Name',
+            'Contact Email',
+            'Primary Contact',
+            'Contact Phone #',
+            'Physical Address']
+        out.writerows(header_row, rows)
+
+    @xlsx_file
     def printed_badges_attendee(self, out, session):
         uber.reports.PrintedBadgeReport(badge_type=c.ATTENDEE_BADGE, badge_type_name='Attendee').run(out, session)
 
-    @csv_file
+    @xlsx_file
     def printed_badges_guest(self, out, session):
         uber.reports.PrintedBadgeReport(badge_type=c.GUEST_BADGE, badge_type_name='Guest').run(out, session)
 
-    @csv_file
+    @xlsx_file
     def printed_badges_one_day(self, out, session):
         uber.reports.PrintedBadgeReport(badge_type=c.ONE_DAY_BADGE, badge_type_name='OneDay').run(out, session)
 
-    @csv_file
+    @xlsx_file
     def printed_badges_minor(self, out, session):
         try:
             uber.reports.PrintedBadgeReport(badge_type=c.CHILD_BADGE, badge_type_name='Minor').run(out, session)
         except AttributeError:
             pass
 
-    @csv_file
+    @xlsx_file
     def printed_badges_staff(self, out, session):
 
         # part 1, include only staff badges that have an assigned name
@@ -221,7 +271,7 @@ class Root:
 
         generate_staff_badges(start_badge, end_badge, out, session)
 
-    @csv_file
+    @xlsx_file
     def printed_badges_staff__expert_mode_only(self, out, session, start_badge, end_badge):
         """
         Generate a CSV of staff badges. Note: This is not normally what you would call to do the badge export.
@@ -230,7 +280,7 @@ class Root:
 
         generate_staff_badges(int(start_badge), int(end_badge), out, session)
 
-    @csv_file
+    @xlsx_file
     def badge_hangars_supporters(self, out, session):
         uber.reports.PersonalizedBadgeReport(include_badge_nums=False).run(out, session,
             sa.Attendee.amount_extra >= c.SUPPORTER_LEVEL,
@@ -253,16 +303,21 @@ class Root:
     @multifile_zipfile
     def personalized_badges_zip(self, zip_file, session):
         """
-        Put all printed badge CSV files in one convenient zipfile.  The idea
+        Put all printed badge report files in one convenient zipfile.  The idea
         is that this ZIP file, unmodified, should be completely ready to send to
         the badge printers.
 
         Plugins can override badge_zipfile_contents to do something different/event-specific.
         """
-        for badge_csv_fn in self.badge_zipfile_contents:
-            csv_filename = '{}.csv'.format(badge_csv_fn.__name__)
-            output = badge_csv_fn(self, session, set_headers=False)
-            zip_file.writestr(csv_filename, output)
+        for badge_report_fn in self.badge_zipfile_contents:
+            # run the report function, but don't output headers because
+            # 1) we'll do it with the zipfile
+            # 2) we don't set headers until the very end when everything is 100% good
+            #    so that exceptions are displayed to the end user properly
+            output = badge_report_fn(self, session, set_headers=False)
+
+            filename = '{}.{}'.format(badge_report_fn.__name__, badge_report_fn.output_file_extension or '')
+            zip_file.writestr(filename, output)
 
     def food_eligible(self, session):
         cherrypy.response.headers['Content-Type'] = 'application/xml'
@@ -284,11 +339,12 @@ class Root:
 
     def shirt_manufacturing_counts(self, session):
         """
-        This report should be the definitive report about the count and sizes of shirts needed to be ordered.
+        This report should be the definitive report about the count and sizes of
+        shirts needed to be ordered.
 
-        There are 2 types of shirts:
-        - "staff shirts" - staff uniforms, each staff gets TWO currently
-        - "swag shirts" - pre-ordered shirts, which the following groups receive:
+        There are two types of shirts:
+        - "staff shirts" - staff uniforms, each staff gets c.SHIRTS_PER_STAFFER
+        - "event shirts" - pre-ordered swag shirts, which are received by:
             - volunteers (non-staff who get one for free)
             - attendees (who can pre-order them)
         """
@@ -299,17 +355,14 @@ class Root:
 
         for attendee in session.all_attendees():
             shirt_label = attendee.shirt_label or 'size unknown'
-
-            if attendee.gets_staff_shirt:
-                counts['staff'][label(shirt_label)] += c.SHIRTS_PER_STAFFER
-
-            counts['swag'][label(shirt_label)] += attendee.num_swag_shirts_owed
+            counts['staff'][label(shirt_label)] += attendee.num_staff_shirts_owed
+            counts['event'][label(shirt_label)] += attendee.num_event_shirts_owed
 
         categories = []
         if c.SHIRTS_PER_STAFFER > 0:
             categories.append(('Staff Uniform Shirts', sort(counts['staff'])))
 
-        categories.append(('Swag Shirts', sort(counts['swag'])))
+        categories.append(('Event Shirts', sort(counts['event'])))
 
         return {
             'categories': categories,
@@ -322,28 +375,27 @@ class Root:
         label = lambda s: 'size unknown' if s == c.SHIRTS[c.NO_SHIRT] else s
         status = lambda got_merch: 'picked_up' if got_merch else 'outstanding'
         sales_by_week = OrderedDict([(i, 0) for i in range(50)])
+
         for attendee in session.all_attendees():
             shirt_label = attendee.shirt_label or 'size unknown'
-            if attendee.volunteer_swag_shirt_eligible:
-                counts['free_swag_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
-                counts['all_swag_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
-            if attendee.paid_for_a_swag_shirt:
-                counts['paid_swag_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
-                counts['all_swag_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
+            counts['all_staff_shirts'][label(shirt_label)][status(attendee.got_merch)] += attendee.num_staff_shirts_owed
+            counts['all_event_shirts'][label(shirt_label)][status(attendee.got_merch)] += attendee.num_event_shirts_owed
+            if attendee.volunteer_event_shirt_eligible or attendee.replacement_staff_shirts:
+                counts['free_event_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
+            if attendee.paid_for_a_shirt:
+                counts['paid_event_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
                 sales_by_week[(min(datetime.now(UTC), c.ESCHATON) - attendee.registered).days // 7] += 1
-            if attendee.gets_staff_shirt:
-                counts['staff_shirts'][label(shirt_label)][status(attendee.got_merch)] += c.SHIRTS_PER_STAFFER
+
         for week in range(48, -1, -1):
             sales_by_week[week] += sales_by_week[week + 1]
 
         categories = [
-            ('Free Swag Shirts', sort(counts['free_swag_shirts'])),
-            ('Paid Swag Shirts', sort(counts['paid_swag_shirts'])),
-            ('All Swag Shirts', sort(counts['all_swag_shirts'])),
+            ('Free Event Shirts', sort(counts['free_event_shirts'])),
+            ('Paid Event Shirts', sort(counts['paid_event_shirts'])),
+            ('All Event Shirts', sort(counts['all_event_shirts'])),
         ]
-
         if c.SHIRTS_PER_STAFFER > 0:
-            categories.append(('Staff Shirts', sort(counts['staff_shirts'])))
+            categories.append(('Staff Shirts', sort(counts['all_staff_shirts'])))
 
         return {
             'sales_by_week': sales_by_week,
@@ -358,14 +410,14 @@ class Root:
         for job in session.jobs():
             if job.restricted and job.slots_taken < job.slots:
                 for hour in job.hours:
-                    untaken[job.location][hour].append(job)
+                    untaken[job.department_id][hour].append(job)
         flagged = []
         for attendee in session.staffers():
             if not attendee.is_dept_head:
                 overlapping = defaultdict(set)
                 for shift in attendee.shifts:
                     if not shift.job.restricted:
-                        for dept in attendee.assigned_depts_ints:
+                        for dept in attendee.assigned_depts:
                             for hour in shift.job.hours:
                                 if attendee.trusted_in(dept) and hour in untaken[dept]:
                                     overlapping[shift.job].update(untaken[dept][hour])

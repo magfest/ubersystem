@@ -77,20 +77,54 @@ def localize_datetime(dt):
     return dt.replace(tzinfo=UTC).astimezone(c.EVENT_TIMEZONE)
 
 
-def comma_and(xs):
+def ceil_datetime(dt, delta):
+    """Only works in Python 3"""
+    dt_min = datetime.min.replace(tzinfo=dt.tzinfo)
+    dt += (dt_min - dt) % delta
+    return dt
+
+
+def floor_datetime(dt, delta):
+    """Only works in Python 3"""
+    dt_min = datetime.min.replace(tzinfo=dt.tzinfo)
+    dt -= (dt - dt_min) % delta
+    return dt
+
+
+def noon_datetime(dt):
+    """Only works in Python 3"""
+    return floor_datetime(dt, timedelta(days=1)) + timedelta(hours=12)
+
+
+def evening_datetime(dt):
+    """Only works in Python 3"""
+    return floor_datetime(dt, timedelta(days=1)) + timedelta(hours=17)
+
+
+@JinjaEnv.jinja_filter
+def comma_and(xs, conjunction='and'):
     """
     Accepts a list of strings and separates them with commas as grammatically
-    appropriate with an "and" before the final entry.  For example:
-        ['foo']               => 'foo'
-        ['foo', 'bar']        => 'foo and bar'
-        ['foo', 'bar', 'baz'] => 'foo, bar, and baz'
+    appropriate with a conjunction before the final entry. For example::
+
+        >>> comma_and(['foo'])
+        'foo'
+        >>> comma_and(['foo', 'bar'])
+        'foo and bar'
+        >>> comma_and(['foo', 'bar', 'baz'])
+        'foo, bar, and baz'
+        >>> comma_and(['foo', 'bar', 'baz'], 'or')
+        'foo, bar, or baz'
+        >>> comma_and(['foo', 'bar', 'baz'], 'but never')
+        'foo, bar, but never baz'
     """
     if len(xs) > 1:
-        xs[-1] = 'and ' + xs[-1]
+        xs = list(xs)
+        xs[-1] = conjunction + ' ' + xs[-1]
     return (', ' if len(xs) > 2 else ' ').join(xs)
 
 
-def check_csrf(csrf_token):
+def check_csrf(csrf_token=None):
     """
     Accepts a csrf token (and checks the request headers if None is provided)
     and compares it to the token stored in the session.  An exception is raised
@@ -98,13 +132,23 @@ def check_csrf(csrf_token):
     """
     if csrf_token is None:
         csrf_token = cherrypy.request.headers.get('CSRF-Token')
+
     if not csrf_token:
         raise CSRFException("CSRF token missing")
+
     if csrf_token != cherrypy.session['csrf_token']:
-        log.error("csrf tokens don't match: {!r} != {!r}", csrf_token, cherrypy.session['csrf_token'])
-        raise CSRFException('CSRF check failed')
+        raise CSRFException("CSRF check failed: csrf tokens don't match: {!r} != {!r}"
+                            .format(csrf_token, cherrypy.session['csrf_token']))
     else:
         cherrypy.request.headers['CSRF-Token'] = csrf_token
+
+
+def ensure_csrf_token_exists():
+    """
+    Generate a new CSRF token if none exists in our session already.
+    """
+    if not cherrypy.session.get('csrf_token'):
+        cherrypy.session['csrf_token'] = uuid4().hex
 
 
 def check(model, *, prereg=False):
@@ -177,18 +221,19 @@ class DeptChecklistConf(Registry):
         assert re.match('^[a-z0-9_]+$', slug), 'Dept Head checklist item sections must have separated_by_underscore names'
         self.slug, self.description = slug, description
         self.name = name or slug.replace('_', ' ').title()
-        self._path = path or '/dept_checklist/form?slug={slug}'
+        self._path = path or '/dept_checklist/form?slug={slug}&department_id={department_id}'
         self.email_post_con = email_post_con
         self.deadline = c.EVENT_TIMEZONE.localize(datetime.strptime(deadline, '%Y-%m-%d')).replace(hour=23, minute=59)
 
-    def path(self, attendee):
-        dept = attendee and attendee.assigned_depts and attendee.assigned_depts_ints[0]
-        return self._path.format(slug=self.slug, department=dept)
-
-    def completed(self, attendee):
-        matches = [item for item in attendee.dept_checklist_items if self.slug == item.slug]
-        return matches[0] if matches else None
-
+    def path(self, department_id):
+        from uber.models.department import Department
+        department_id = Department.to_id(department_id)
+        for arg in ('department_id', 'department', 'location'):
+            try:
+                return self._path.format(slug=self.slug, **{arg: department_id})
+            except KeyError:
+                pass
+        raise KeyError('department_id')
 
 for _slug, _conf in sorted(c.DEPT_HEAD_CHECKLIST.items(), key=lambda tup: tup[1]['deadline']):
     DeptChecklistConf.register(_slug, _conf)
@@ -294,9 +339,13 @@ class Charge:
         elif isinstance(m, dict):
             return m
         elif isinstance(m, sa.Attendee):
-            return m.to_dict(sa.Attendee.to_dict_default_attrs + ['promo_code'])
+            return m.to_dict(sa.Attendee.to_dict_default_attrs
+                + ['promo_code']
+                + list(sa.Attendee.extra_apply_attrs_restricted))
         elif isinstance(m, sa.Group):
-            return m.to_dict(sa.Group.to_dict_default_attrs + ['attendees'])
+            return m.to_dict(sa.Group.to_dict_default_attrs
+                + ['attendees']
+                + list(sa.Group.extra_apply_attrs_restricted))
         else:
             raise AssertionError('{} is not an attendee or group'.format(m))
 
@@ -320,6 +369,10 @@ class Charge:
 
     @classmethod
     def from_sessionized_attendee(cls, d):
+        # Fix for attendees that were sessionized while the "requested_any_dept" column existed
+        if 'requested_any_dept' in d:
+            del d['requested_any_dept']
+
         if d.get('promo_code'):
             d = dict(d, promo_code=sa.PromoCode(**d['promo_code']))
         return sa.Attendee(**d)
@@ -386,7 +439,7 @@ class Charge:
 
     def charge_cc(self, session, token):
         try:
-            log.debug('PAYMENT: !!! attempting to charge stripeToken {} ${} for {}',
+            log.debug('PAYMENT: !!! attempting to charge stripeToken {} {} cents for {}',
                       token, self.amount, self.description)
 
             self.response = stripe.Charge.create(
@@ -397,7 +450,7 @@ class Charge:
                 receipt_email=self.receipt_email
             )
 
-            log.info('PAYMENT: !!! SUCCESS: charged stripeToken {} ${} for {}, responseID={}',
+            log.info('PAYMENT: !!! SUCCESS: charged stripeToken {} {} cents for {}, responseID={}',
                      token, self.amount, self.description, getattr(self.response, 'id', None))
 
         except stripe.CardError as e:
@@ -439,7 +492,7 @@ def report_critical_exception(msg, subject="Critical Error"):
 
     # also attempt to email the admins
     # TODO: Don't hardcode emails here.
-    send_email(c.ADMIN_EMAIL, [c.ADMIN_EMAIL, 'dom@magfest.org'], subject, msg + '\n{}'.format(traceback.format_exc()))
+    send_email(c.ADMIN_EMAIL, [c.ADMIN_EMAIL], subject, msg + '\n{}'.format(traceback.format_exc()))
 
 
 def get_page(page, queryset):
@@ -697,3 +750,64 @@ class request_cached_context:
     @staticmethod
     def _clear_cache():
         threadlocal.clear()
+
+
+class ExcelWorksheetStreamWriter:
+    """
+    Wrapper for xlsxwriter which treats it more like a stream where we append rows to it
+
+    xlswriter only supports addressing rows/columns using absolute indices, but sometimes we
+    only care about appending a new row of data to the end of the excel file.
+
+    This track internally keeps track of the indices and increments appropriately
+
+    NOTE: This class doesn't allow formulas in cells.
+    Any cell starting with an '=' will be treated as a string, NOT a formula
+    """
+
+    def __init__(self, workbook, worksheet):
+        self.workbook = workbook
+        self.worksheet = worksheet
+        self.next_row = 0
+
+    def calculate_column_widths(self, rows):
+        column_widths = defaultdict(int)
+        for row in rows:
+            for index, col in enumerate(row):
+                length = len(max(col.split('\n'), key=len))
+                column_widths[index] = max(column_widths[index], length)
+        return [column_widths[i] + 2 for i in sorted(column_widths.keys())]
+
+    def set_column_widths(self, rows):
+        column_widths = self.calculate_column_widths(rows)
+        for i, width in enumerate(column_widths):
+            self.worksheet.set_column(i, i, width)
+
+    def writerows(self, header_row, rows, header_format={'bold': True}):
+        if header_row:
+            self.set_column_widths([header_row] + rows)
+            if header_format:
+                header_format = self.workbook.add_format(header_format)
+            self.writerow(header_row, header_format)
+        else:
+            self.set_column_widths(rows)
+        for row in rows:
+            self.writerow(row)
+
+    def writerow(self, row_items, row_format=None):
+        assert self.worksheet
+
+        col = 0
+        for item in row_items:
+            # work around our excel library thinking anything starting with an equal sign is a formula.
+            # pick the right function to call to avoid this special case.
+            if item and isinstance(item, str) and len(item) > 0 and item[0] == '=':
+                write_row = getattr(self.worksheet.__class__, 'write_string')
+            else:
+                write_row = getattr(self.worksheet.__class__, 'write')
+
+            write_row(self.worksheet, self.next_row, col, item, *[row_format])
+
+            col += 1
+
+        self.next_row += 1

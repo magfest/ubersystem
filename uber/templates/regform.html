@@ -1,4 +1,4 @@
-{% import 'macros.html' as macros %}
+{% import 'macros.html' as macros with context %}
 
 {#- Setting some variables to keep the size of conditional clauses smaller. -#}
 {%- set is_prereg_form = c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form'] -%}
@@ -297,15 +297,16 @@
         {% endif %}
     {% endif %}
 
+{%- set readonly_badge_name = c.after_printed_badge_deadline_by_type(attendee.badge_type) -%}
 <div class="badge-row extra-row form-group" style="display:none">
     <label for="badge_printed_name" class="col-sm-3 control-label optional-field">Name Printed on Badge</label>
     <div class="col-sm-6">
-        <input type="text" class="form-control" name="badge_printed_name" maxlength="20" value="{{ attendee.badge_printed_name }}" {% if c.AFTER_PRINTED_BADGE_DEADLINE and attendee.badge_type in c.PREASSIGNED_BADGE_TYPES or c.AFTER_SUPPORTER_DEADLINE %}readonly{% endif %} />
+        <input type="text" class="form-control" name="badge_printed_name" maxlength="20" value="{{ attendee.badge_printed_name }}" {% if readonly_badge_name %}readonly{% endif %} />
     </div>
     <p class="help-block col-sm-offset-3 col-sm-9">Badge names have a maximum of 20 characters.</p>
 </div>
 
-{% if c.AFTER_PRINTED_BADGE_DEADLINE and attendee.badge_type in c.PREASSIGNED_BADGE_TYPES or c.AFTER_SUPPORTER_DEADLINE %}
+{% if readonly_badge_name %}
     <div class="badge-row extra-row form-group" style="display:none">
         <p class="help-block col-sm-6 col-sm-offset-3">(custom badges have already been ordered, so you can no longer set this)</p>
     </div>
@@ -378,9 +379,15 @@
 
 {% if c.JOB_INTEREST_OPTS %}
 <div class="form-group staffing" id="departments">
-    <label for="requested_depts" class="col-sm-3 control-label">Where do you want to help?</label>
+    <label for="requested_depts_ids" class="col-sm-3 control-label">Where do you want to help?</label>
     <div class="col-sm-9">
-        {{ macros.checkgroup(attendee, 'requested_depts') }}
+      <div class="form-control-static">
+        {{ macros.checkgroup_opts(
+            'requested_depts_ids',
+            c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC,
+            defaults=attendee.requested_depts_ids,
+            include_empty_hidden=True) }}
+      </div>
     </div>
 </div>
 {% endif %}

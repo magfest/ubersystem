@@ -1,3 +1,7 @@
+import functools
+
+import six
+
 from sideboard.lib import profile
 from uber.common import *
 
@@ -12,7 +16,7 @@ def swallow_exceptions(func):
     def swallow_exception(*args, **kwargs):
         try:
             return func(*args, **kwargs)
-        except Exception:
+        except:
             log.error("Exception raised, but we're going to ignore it and continue.", exc_info=True)
     return swallow_exception
 
@@ -88,6 +92,85 @@ def _suffix_property_check(inst, name):
 suffix_property.check = _suffix_property_check
 
 
+def department_id_adapter(func):
+    argspec = inspect.getfullargspec(get_innermost(func))
+    if 'department_id' not in argspec.args:
+        return func
+    arg_index = argspec.args.index('department_id')
+    possible_args = ('location', 'department', 'department_id')
+
+    @wraps(func)
+    def _adapter(*args, **kwargs):
+        argvalues = inspect.getargvalues(inspect.currentframe())
+        has_kwarg = False
+        department_id = None
+        for arg in possible_args:
+            if arg in kwargs:
+                has_kwarg = True
+                department_id = kwargs[arg]
+                del kwargs[arg]
+
+        if has_kwarg:
+            from uber.models.department import Department
+            department_id = Department.to_id(department_id)
+            return func(*args, department_id=department_id, **kwargs)
+        elif arg_index < len(args):
+            from uber.models.department import Department
+            args = list(args)
+            args[arg_index] = Department.to_id(args[arg_index])
+            return func(*args, **kwargs)
+        return func(*args, **kwargs)
+
+    return _adapter
+
+
+@department_id_adapter
+def check_dept_admin(session, department_id=None, inherent_role=None):
+    from uber.models import AdminAccount, DeptMembership
+    account_id = cherrypy.session['account_id']
+    admin_account = session.query(AdminAccount).get(account_id)
+    if c.ACCOUNTS not in admin_account.access_ints:
+        dh_filter = [
+            AdminAccount.id == account_id,
+            AdminAccount.attendee_id == DeptMembership.attendee_id]
+        if inherent_role in ('dept_head', 'poc', 'checklist_admin'):
+            role_attr = 'is_{}'.format(inherent_role)
+            dh_filter.append(getattr(DeptMembership, role_attr) == True)
+        else:
+            dh_filter.append(DeptMembership.has_inherent_role)
+
+        if department_id:
+            dh_filter.append(DeptMembership.department_id == department_id)
+
+        is_dept_admin = session.query(AdminAccount).filter(*dh_filter).first()
+        if not is_dept_admin:
+            return 'You must be a department admin to complete that action.'
+
+
+def requires_dept_admin(func=None, inherent_role=None):
+    def _decorator(func, inherent_role=None):
+        @wraps(func)
+        def _protected(*args, **kwargs):
+            if cherrypy.request.method == 'POST':
+                department_id = kwargs.get('department_id',
+                    kwargs.get('department',
+                        kwargs.get('location',
+                            kwargs.get('id'))))
+
+                from uber.models import Session
+                with Session() as session:
+                    message = check_dept_admin(
+                        session, department_id, inherent_role)
+                    assert not message, message
+            return func(*args, **kwargs)
+        return _protected
+
+    if func is None or isinstance(func, six.string_types):
+        return functools.partial(_decorator, inherent_role=func)
+    else:
+        return _decorator(func)
+
+
 def csrf_protected(func):
     @wraps(func)
     def protected(*args, csrf_token, **kwargs):
@@ -140,17 +223,54 @@ def multifile_zipfile(func):
     return zipfile_out
 
 
-def _set_csv_base_filename(base_filename):
+def _set_response_filename(base_filename):
     """
     Set the correct headers when outputting CSV files to specify the filename the browser should use
     """
-    cherrypy.response.headers['Content-Disposition'] = 'attachment; filename=' + base_filename + '.csv'
+    cherrypy.response.headers['Content-Disposition'] = 'attachment; filename=' + base_filename
+
+
+def xlsx_file(func):
+    parameters = inspect.getargspec(func)
+    if len(parameters[0]) == 3:
+        func.site_mappable = True
+
+    func.output_file_extension = 'xlsx'
+
+    @wraps(func)
+    def xlsx_out(self, session, set_headers=True, **kwargs):
+        rawoutput = BytesIO()
+
+        # Even though the final file will be in memory the module uses temp
+        # files during assembly for efficiency. To avoid this on servers that
+        # don't allow temp files, for example the Google APP Engine, set the
+        # 'in_memory' constructor option to True:
+        with xlsxwriter.Workbook(rawoutput, {'in_memory': False}) as workbook:
+            worksheet = workbook.add_worksheet()
+
+            writer = ExcelWorksheetStreamWriter(workbook, worksheet)
+
+            # right now we just pass in the first worksheet.
+            # in the future, could pass in the workbook too
+            func(self, writer, session, **kwargs)
+
+        output = rawoutput.getvalue()
+
+        # set headers last in case there were errors, so end user still see error page
+        if set_headers:
+            cherrypy.response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            _set_response_filename(func.__name__ + '.xlsx')
+
+        return output
+    return xlsx_out
 
 
 def csv_file(func):
     parameters = inspect.getargspec(func)
     if len(parameters[0]) == 3:
         func.site_mappable = True
+
+    func.output_file_extension = 'csv'
 
     @wraps(func)
     def csvout(self, session, set_headers=True, **kwargs):
@@ -161,7 +281,7 @@ def csv_file(func):
         # set headers last in case there were errors, so end user still see error page
         if set_headers:
             cherrypy.response.headers['Content-Type'] = 'application/csv'
-            _set_csv_base_filename(func.__name__)
+            _set_response_filename(func.__name__ + '.csv')
 
         return output
     return csvout
@@ -174,7 +294,7 @@ def set_csv_filename(func):
     @wraps(func)
     def change_filename(self, override_filename=None, *args, **kwargs):
         out = func(self, *args, **kwargs)
-        _set_csv_base_filename(override_filename or func.__name__)
+        _set_response_filename((override_filename or func.__name__) + '.csv')
         return out
     return change_filename
 
@@ -198,7 +318,17 @@ def credit_card(func):
             log.debug('PAYMENT: received unexpected stripe parameters: {}', ignored)
 
         try:
-            return func(self, session=session, payment_id=payment_id, stripeToken=stripeToken)
+            try:
+                return func(self, session=session, payment_id=payment_id, stripeToken=stripeToken)
+            except HTTPRedirect:
+                # Paranoia: we want to try commiting while we're INSIDE of the
+                # @credit_card decorator to ensure that we catch any database
+                # errors (like unique constraint violations). We have to wrap
+                # this try-except inside another try-except because we want
+                # to re-raise the HTTPRedirect, and also have unexpected DB
+                # exceptions caught by the outermost exception handler.
+                session.commit()
+                raise
         except HTTPRedirect:
             raise
         except:
@@ -256,20 +386,20 @@ def timed(func):
 
 
 def sessionized(func):
+    innermost = get_innermost(func)
+    if 'session' not in inspect.getfullargspec(innermost).args:
+        return func
+
     @wraps(func)
     def with_session(*args, **kwargs):
-        innermost = get_innermost(func)
-        if 'session' not in inspect.getfullargspec(innermost).args:
-            return func(*args, **kwargs)
-        else:
-            with sa.Session() as session:
-                try:
-                    retval = func(*args, session=session, **kwargs)
-                    session.expunge_all()
-                    return retval
-                except HTTPRedirect:
-                    session.commit()
-                    raise
+        with sa.Session() as session:
+            try:
+                retval = func(*args, session=session, **kwargs)
+                session.expunge_all()
+                return retval
+            except HTTPRedirect:
+                session.commit()
+                raise
     return with_session
 
 

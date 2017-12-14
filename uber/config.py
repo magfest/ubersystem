@@ -1,4 +1,27 @@
+import hashlib
 from uber.common import *
+
+
+def dynamic(func):
+    setattr(func, '_dynamic', True)
+    return func
+
+
+def create_namespace_uuid(s):
+    return uuid.UUID(hashlib.sha1(s.encode('utf-8')).hexdigest()[:32])
+
+
+class keydefaultdict(defaultdict):
+    """
+    Like a defaultdict except that the factory function used to generate values
+    for missing keys takes the key as a parameter.
+    """
+    def __missing__(self, key):
+        if self.default_factory is None:
+            raise KeyError(key)
+        else:
+            ret = self[key] = self.default_factory(key)
+            return ret
 
 
 class _Overridable:
@@ -141,21 +164,27 @@ class Config(_Overridable):
         return c.PRINTED_BADGE_DEADLINE if badge_type in c.PREASSIGNED_BADGE_TYPES \
             else max(c.PRINTED_BADGE_DEADLINE, c.SUPPORTER_BADGE_DEADLINE)
 
+    def after_printed_badge_deadline_by_type(self, badge_type):
+        return sa.localized_now() > self.get_printed_badge_deadline_by_type(badge_type)
+
     @property
     def DEALER_REG_OPEN(self):
         return self.AFTER_DEALER_REG_START and self.BEFORE_DEALER_REG_SHUTDOWN
 
     @property
+    @dynamic
     def DEALER_REG_SOFT_CLOSED(self):
         return self.AFTER_DEALER_REG_DEADLINE or self.DEALER_APPS >= self.MAX_DEALER_APPS \
             if self.MAX_DEALER_APPS and not self.HARDCORE_OPTIMIZATIONS_ENABLED else self.AFTER_DEALER_REG_DEADLINE
 
     @request_cached_property
+    @dynamic
     def DEALER_APPS(self):
         with sa.Session() as session:
             return session.query(sa.Group).filter(sa.Group.tables > 0, sa.Group.cost > 0, sa.Group.status == self.UNAPPROVED).count()
 
     @request_cached_property
+    @dynamic
     def BADGES_SOLD(self):
         with sa.Session() as session:
             attendees = session.query(sa.Attendee)
@@ -165,6 +194,7 @@ class Config(_Overridable):
             return individuals + group_badges
 
     @request_cached_property
+    @dynamic
     def BADGES_LEFT_AT_CURRENT_PRICE(self):
         """
         Returns a string representing a rough estimate of how many badges are left at the current badge price tier.
@@ -186,14 +216,17 @@ class Config(_Overridable):
         return difference
 
     @property
+    @dynamic
     def ONEDAY_BADGE_PRICE(self):
         return self.get_oneday_price(sa.localized_now())
 
     @property
+    @dynamic
     def BADGE_PRICE(self):
         return self.get_attendee_price()
 
     @property
+    @dynamic
     def GROUP_PRICE(self):
         return self.get_group_price()
 
@@ -209,6 +242,7 @@ class Config(_Overridable):
         return types
 
     @property
+    @dynamic
     def PRESOLD_ONEDAY_BADGE_TYPES(self):
         return {
             badge_type: self.BADGES[badge_type]
@@ -297,6 +331,7 @@ class Config(_Overridable):
             timedelta(hours=max(0, self.PREREG_HOTEL_INFO_EMAIL_WAIT_DURATION))
 
     @property
+    @dynamic
     def AT_THE_DOOR_BADGE_OPTS(self):
         """
         This provides the dropdown on the /registration/register page with its
@@ -354,6 +389,7 @@ class Config(_Overridable):
 
     @property
     def CSRF_TOKEN(self):
+        uber.utils.ensure_csrf_token_exists()
         return cherrypy.session['csrf_token'] if 'csrf_token' in cherrypy.session else ''
 
     @property
@@ -369,12 +405,69 @@ class Config(_Overridable):
         return cherrypy.request.path_info.split('/')[-1]
 
     @request_cached_property
+    @dynamic
+    def ALLOWED_ACCESS_OPTS(self):
+        with sa.Session() as session:
+            return session.current_admin_account().allowed_access_opts
+
+    @request_cached_property
+    @dynamic
+    def DISALLOWED_ACCESS_OPTS(self):
+        return set(self.ACCESS_OPTS).difference(set(self.ALLOWED_ACCESS_OPTS))
+
+    @request_cached_property
+    @dynamic
     def CURRENT_ADMIN(self):
         try:
             with sa.Session() as session:
-                return session.admin_attendee().to_dict()
-        except:
+                attrs = sa.Attendee.to_dict_default_attrs + \
+                    ['admin_account', 'assigned_depts']
+                admin_account = session.query(sa.AdminAccount) \
+                    .filter_by(id=cherrypy.session['account_id']).options(
+                        subqueryload(sa.AdminAccount.attendee)
+                            .subqueryload(sa.Attendee.assigned_depts)).one()
+                return admin_account.attendee.to_dict(attrs)
+        except Exception:
             return {}
+
+    @request_cached_property
+    @dynamic
+    def DEPARTMENTS(self):
+        return dict(self.DEPARTMENT_OPTS)
+
+    @request_cached_property
+    @dynamic
+    def DEPARTMENT_OPTS(self):
+        from uber.models.department import Department
+        with sa.Session() as session:
+            query = session.query(Department).order_by(Department.name)
+            return [(d.id, d.name) for d in query]
+
+    @request_cached_property
+    @dynamic
+    def DEPARTMENT_OPTS_WITH_DESC(self):
+        from uber.models.department import Department
+        with sa.Session() as session:
+            query = session.query(Department).order_by(Department.name)
+            return [(d.id, d.name, d.description) for d in query]
+
+    @request_cached_property
+    @dynamic
+    def PUBLIC_DEPARTMENT_OPTS_WITH_DESC(self):
+        from uber.models.department import Department
+        with sa.Session() as session:
+            query = session.query(Department).filter_by(
+                solicits_volunteers=True).order_by(Department.name)
+            return [('All', 'Anywhere', 'I want to help anywhere I can!')] + \
+                [(d.id, d.name, d.description) for d in query]
+
+    @request_cached_property
+    @dynamic
+    def DEFAULT_DEPARTMENT_ID(self):
+        from uber.models.department import Department
+        with sa.Session() as session:
+            dept = session.query(Department).order_by(Department.name).first()
+            return dept.id
 
     @property
     def HTTP_METHOD(self):
@@ -391,31 +484,38 @@ class Config(_Overridable):
             return individual_supporters + group_supporters
 
     @request_cached_property
+    @dynamic
     def SUPPORTER_COUNT(self):
         return self.get_kickin_count(self.SUPPORTER_LEVEL)
 
     @request_cached_property
+    @dynamic
     def SHIRT_COUNT(self):
         return self.get_kickin_count(self.SHIRT_LEVEL)
 
     @property
+    @dynamic
     def REMAINING_BADGES(self):
         return max(0, self.MAX_BADGE_SALES - self.BADGES_SOLD)
 
     @request_cached_property
+    @dynamic
     def MENU_FILTERED_BY_ACCESS_LEVELS(self):
-        return c.MENU.render_items_filtered_by_current_access()
+        return c.MENU.render_items_filtered_by_current_access(sa.AdminAccount.access_set())
 
     @request_cached_property
+    @dynamic
     def ADMIN_ACCESS_SET(self):
         return sa.AdminAccount.access_set()
 
     @request_cached_property
+    @dynamic
     def EMAIL_APPROVED_IDENTS(self):
         with sa.Session() as session:
             return {ae.ident for ae in session.query(sa.ApprovedEmail)}
 
     @request_cached_property
+    @dynamic
     def PREVIOUSLY_SENT_EMAILS(self):
         with sa.Session() as session:
             return set(session.query(sa.Email.model, sa.Email.fk_id, sa.Email.ident))
@@ -545,6 +645,13 @@ if not c.GROUPS_ENABLED:
 
 c.make_enums(_config['enums'])
 
+_default_access = [getattr(c, s.upper()) for s in c.REQUIRED_ACCESS[c.__DEFAULT__]]
+del c.REQUIRED_ACCESS[c.__DEFAULT__]
+c.REQUIRED_ACCESS_VARS.remove('__DEFAULT__')
+c.REQUIRED_ACCESS = keydefaultdict(lambda a: set([a] + _default_access),
+    {a: set([getattr(c, s.upper()) for s in p]) for a, p in c.REQUIRED_ACCESS.items()})
+c.REQUIRED_ACCESS_OPTS = [(a, c.REQUIRED_ACCESS[a]) for a, _ in c.REQUIRED_ACCESS_OPTS if a != c.__DEFAULT__]
+
 for _name, _val in _config['integer_enums'].items():
     if isinstance(_val, int):
         setattr(c, _name.upper(), _val)
@@ -590,19 +697,17 @@ c.TRANSFERABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c
 
 c.DEPT_HEAD_CHECKLIST = _config['dept_head_checklist']
 
-c.BADGE_LOCK = RLock()
-c.ASSIGN_ATTENDEE_TO_GROUP_LOCK = RLock()
-
 c.CON_LENGTH = int((c.ESCHATON - c.EPOCH).total_seconds() // 3600)
 c.START_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (c.EPOCH + timedelta(hours=i) for i in range(c.CON_LENGTH))]
 c.DURATION_OPTS = [(i, '%i hour%s' % (i, ('s' if i > 1 else ''))) for i in range(1, 9)]
-c.SETUP_TIME_OPTS = [(dt, dt.strftime('%I %p %a'))
-                     for dt in (c.EPOCH - timedelta(days=day) + timedelta(hours=hour)
-                                for day in range(c.SETUP_SHIFT_DAYS, 0, -1)
-                                for hour in range(24))]
-c.TEARDOWN_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (c.ESCHATON + timedelta(hours=i) for i in range(6))] \
-                     + [(dt, dt.strftime('%I %p %a'))
-                        for dt in ((c.ESCHATON + timedelta(days=1)).replace(hour=10) + timedelta(hours=i) for i in range(12))]
+c.SETUP_TIME_OPTS = [
+    (dt, dt.strftime('%I %p %a')) for dt in (c.EPOCH - timedelta(days=day) + timedelta(hours=hour)
+        for day in range(c.SETUP_SHIFT_DAYS, 0, -1)
+            for hour in range(24))]
+c.TEARDOWN_TIME_OPTS = [
+    (dt, dt.strftime('%I %p %a')) for dt in (c.ESCHATON + timedelta(days=day) + timedelta(hours=hour)
+        for day in range(0, 2, 1)  # Allow two full days for teardown shifts
+            for hour in range(24))]
 
 # code for all time slots
 c.CON_TOTAL_LENGTH = int((c.TEARDOWN_TIME_OPTS[-1][0] - c.SETUP_TIME_OPTS[0][0]).seconds / 3600)
@@ -647,7 +752,7 @@ c.WEIGHT_OPTS = (
     ('2.0', 'x2.0'),
     ('2.5', 'x2.5'),
 )
-c.JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'restricted', 'extra15']
+c.JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'required_roles_ids', 'extra15']
 
 c.PREREG_SHIRT_OPTS = c.SHIRT_OPTS[1:]
 c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + list(c.PREREG_SHIRT_OPTS)

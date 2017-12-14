@@ -406,6 +406,7 @@ class Root:
     def register_group_member(self, session, group_id, message='', **params):
         group = session.group(group_id)
         attendee = session.attendee(params, restricted=True)
+
         if 'first_name' in params:
             message = check(attendee, prereg=True)
             if not message and not params['first_name']:
@@ -422,13 +423,13 @@ class Root:
                     'base_badge_price',
                     'ribbon',
                     'paid',
-                    'overridden_price']
-
-                for attr in attrs_to_preserve_from_unassigned_group_member:
-                    if attr in params:
-                        del params[attr]
+                    'overridden_price',
+                    'requested_hotel_info']
 
                 attendee = group.unassigned[0]
+                for attr in attrs_to_preserve_from_unassigned_group_member:
+                    params[attr] = getattr(attendee, attr)
+
                 attendee.apply(params, restricted=True)
 
                 # Free group badges are considered registered' when they are actually claimed.
@@ -521,7 +522,7 @@ class Root:
     def transfer_badge(self, session, message='', **params):
         old = session.attendee(params['id'])
 
-        assert old.is_transferable, 'This badge is not transferrable'
+        assert old.is_transferable, 'This badge is not transferrable.'
         session.expunge(old)
         attendee = session.attendee(params, restricted=True)
 
@@ -559,7 +560,7 @@ class Root:
     def invalid_badge(self, session, id, message=''):
         return {'attendee': session.attendee(id, allow_invalid=True), 'message': message}
 
-    def not_found(self, id, message):
+    def not_found(self, id, message=''):
         return {'id': id, 'message': message}
 
     def abandon_badge(self, session, id):
@@ -630,6 +631,13 @@ class Root:
         }
 
     @id_required(Attendee)
+    def guest_food(self, session, id):
+        attendee = session.attendee(id)
+        assert attendee.badge_type == c.GUEST_BADGE, 'This form is for guests only'
+        cherrypy.session['staffer_id'] = attendee.id
+        raise HTTPRedirect('../signups/food_restrictions')
+
+    @id_required(Attendee)
     def attendee_donation_form(self, session, id, message=''):
         attendee = session.attendee(id)
         if attendee.amount_unpaid <= 0:
@@ -657,10 +665,14 @@ class Root:
         if message:
             raise HTTPRedirect('attendee_donation_form?id=' + attendee.id + '&message={}', message)
         else:
+            # It's safe to assume the attendee exists in the database already.
+            # The only path to reach this method requires the attendee to have
+            # already paid for their registration, thus the attendee has been
+            # saved to the database.
+            attendee = session.query(Attendee).get(attendee.id)
             attendee.amount_paid += charge.dollar_amount
             if attendee.paid == c.NOT_PAID and attendee.amount_paid == attendee.total_cost:
                 attendee.paid = c.HAS_PAID
-            session.merge(attendee)
             raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Your payment has been accepted')
 
     def credit_card_retry(self):

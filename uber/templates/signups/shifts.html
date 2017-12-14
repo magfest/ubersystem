@@ -78,23 +78,23 @@
         {% for job in jobs %}
             {% if job.taken %}
                 shiftList.push({
-                    title : "{{ job.name }} ({{ job.location_label }}) x{{ job.weight }}",
+                    title : "{{ job.name }} ({{ job.department_name }}) x{{ job.weight }}",
                     start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                     end : "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                     id : "{{ job.id }}",
                     description: "{{ job.description }}",
-                    extra15: "{{ job.extra15 }}",
+                    extra15: {{ job.extra15|string|lower }},
                     backgroundColor: "#239875",
                     taken: true
                 });
             {% endif %}
             eventList.push({
-                title : "{{ job.name }} ({{ job.location_label }}) x{{ job.weight }}",
+                title : "{{ job.name }} ({{ job.department_name }}) x{{ job.weight }}",
                 start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                 end : "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                 id : "{{ job.id }}",
                 description: "{{ job.description }}",
-                extra15: "{{ job.extra15 }}",
+                extra15: {{ job.extra15|string|lower }},
                 {% if job.taken %}
                     backgroundColor: "#239875",
                     taken: true

@@ -17,6 +17,7 @@ class Root:
         return {
             'message':  message,
             'accounts': session.query(AdminAccount).join(Attendee)
+                               .options(subqueryload(AdminAccount.attendee))
                                .order_by(Attendee.last_first).all(),
             'all_attendees': sorted([
                 (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
@@ -47,6 +48,8 @@ class Root:
                     'creator': AdminAccount.admin_name()
                 })
                 send_email(c.ADMIN_EMAIL, session.attendee(account.attendee_id).email, 'New ' + c.EVENT_NAME + ' Ubersystem Account', body)
+        else:
+            session.rollback()
 
         raise HTTPRedirect('index?message={}', message)
 
@@ -55,15 +58,17 @@ class Root:
         session.delete(session.admin_account(id))
         raise HTTPRedirect('index?message={}', 'Account deleted')
 
-    def bulk(self, session, location=None, **params):
-        location = None if location == 'All' else int(location or c.JOB_LOCATION_OPTS[0][0])
-        attendees = session.staffers().filter(*[Attendee.assigned_depts.contains(str(location))] if location else []).all()
+    @department_id_adapter
+    def bulk(self, session, department_id=None, **params):
+        department_id = None if department_id == 'All' else department_id
+        attendee_filters = [Attendee.dept_memberships.any(department_id=department_id)] if department_id else []
+        attendees = session.staffers().filter(*attendee_filters).all()
         for attendee in attendees:
-            attendee.trusted_here = attendee.trusted_in(location) if location else attendee.trusted_somewhere
-            attendee.hours_here = sum(shift.job.weighted_hours for shift in attendee.shifts if shift.job.location == location) if location else attendee.weighted_hours
+            attendee.trusted_here = attendee.trusted_in(department_id) if department_id else attendee.has_role_somewhere
+            attendee.hours_here = attendee.weighted_hours_in(department_id)
 
         return {
-            'location':  location,
+            'department_id':  department_id,
             'attendees': attendees
         }
 
@@ -81,7 +86,7 @@ class Root:
 
             if not message:
                 cherrypy.session['account_id'] = account.id
-                cherrypy.session['csrf_token'] = uuid4().hex
+                ensure_csrf_token_exists()
                 raise HTTPRedirect(original_location)
 
         return {
@@ -198,12 +203,13 @@ class Root:
         site_sections = cherrypy.tree.apps[c.PATH].root
         modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}
         pages = defaultdict(list)
+        access_set = AdminAccount.access_set()
         for module_name, module_root in modules.items():
             for name in dir(module_root):
                 method = getattr(module_root, name)
                 if getattr(method, 'exposed', False):
                     spec = inspect.getfullargspec(get_innermost(method))
-                    if set(getattr(method, 'restricted', []) or []).intersection(AdminAccount.access_set()) \
+                    if set(getattr(method, 'restricted', []) or []).intersection(access_set) \
                             and not getattr(method, 'ajax', False) \
                             and (getattr(method, 'site_mappable', False)
                               or len([arg for arg in spec.args[1:] if arg != 'session']) == len(spec.defaults or []) and not spec.varkw):

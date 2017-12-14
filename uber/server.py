@@ -1,3 +1,5 @@
+from sideboard.jsonrpc import _make_jsonrpc_handler
+from sideboard.server import jsonrpc_reset
 from uber.common import *
 
 mimetypes.init()
@@ -11,12 +13,14 @@ def _add_email():
 cherrypy.tools.add_email_to_error_page = cherrypy.Tool('after_error_response', _add_email)
 
 
-def log_exception_with_verbose_context(debug=False, msg=''):
+def get_verbose_request_context():
     """
-    Write the request headers, session params, page location, and the last error's traceback to the cherrypy error log.
-    Do this all one line so all the information can be collected by external log collectors and easily displayed.
-    """
+    Return a string with lots of information about the current cherrypy request such as
+    request headers, session params, and page location.
 
+    Returns:
+
+    """
     page_location = 'Request: ' + cherrypy.request.request_line
 
     admin_name = AdminAccount.admin_name()
@@ -24,7 +28,7 @@ def log_exception_with_verbose_context(debug=False, msg=''):
 
     max_reporting_length = 1000   # truncate to reasonably large size in case they uploaded attachments
 
-    p = ["  %s: %s" % (k, v[:max_reporting_length]) for k, v in cherrypy.request.params.items()]
+    p = ["  %s: %s" % (k, str(v)[:max_reporting_length]) for k, v in cherrypy.request.params.items()]
     post_txt = 'Request Params:\n' + '\n'.join(p)
 
     session_txt = 'Session Params:\n' + pformat(cherrypy.session.items(), width=40)
@@ -32,8 +36,22 @@ def log_exception_with_verbose_context(debug=False, msg=''):
     h = ["  %s: %s" % (k, v) for k, v in cherrypy.request.header_list]
     headers_txt = 'Request Headers:\n' + '\n'.join(h)
 
-    full_msg = '\n'.join([msg, 'Exception encountered', page_location, admin_txt, post_txt, session_txt, headers_txt])
-    log.error(full_msg, exc_info=True)
+    return '\n'.join([page_location, admin_txt, post_txt, session_txt, headers_txt])
+
+
+def log_with_verbose_context(msg, exc_info=False):
+    full_msg = '\n'.join([msg, get_verbose_request_context()])
+    log.error(full_msg, exc_info=exc_info)
+
+
+def log_exception_with_verbose_context(debug=False, msg=''):
+    """
+    Write the request headers, session params, page location, and the last error's traceback to the cherrypy error log.
+    Do this all one line so all the information can be collected by external log collectors and easily displayed.
+    """
+    log_with_verbose_context('\n'.join([msg, 'Exception encountered']), exc_info=True)
+
+
 cherrypy.tools.custom_verbose_logger = cherrypy.Tool('before_error_response', log_exception_with_verbose_context)
 
 
@@ -98,6 +116,39 @@ class AngularJavascript:
             '});'
         ])
 
+    @cherrypy.expose
+    def static_magfest_js(self):
+        """
+        We have several Angular apps which need to be able to access our constants like c.ATTENDEE_BADGE and such.
+        We also need those apps to be able to make HTTP requests with CSRF tokens, so we set that default.
+
+        The static_magfest_js() version of magfest_js() omits any config
+        properties that generate database queries.
+        """
+        cherrypy.response.headers['Content-Type'] = 'text/javascript'
+
+        consts = {}
+        for attr in dir(c):
+            try:
+                prop = getattr(Config, attr, None)
+                if prop:
+                    fget = getattr(prop, 'fget', None)
+                    if fget and getattr(fget, '_dynamic', None):
+                        continue
+                consts[attr] = getattr(c, attr, None)
+            except Exception:
+                pass
+
+        js_consts = json.dumps({k: v for k, v in consts.items() if isinstance(v, (bool, int, str))}, indent=4)
+        return '\n'.join([
+            'angular.module("magfest", [])',
+            '.constant("c", {})'.format(js_consts),
+            '.constant("magconsts", {})'.format(js_consts),
+            '.run(function ($http) {',
+            '   $http.defaults.headers.common["CSRF-Token"] = "{}";'.format(c.CSRF_TOKEN),
+            '});'
+        ])
+
 
 @all_renderable()
 class Root:
@@ -117,6 +168,18 @@ c.APPCONF['/']['error_page.404'] = error_page_404
 
 cherrypy.tree.mount(Root(), c.PATH, c.APPCONF)
 static_overrides(join(c.MODULE_ROOT, 'static'))
+
+
+jsonrpc_services = {}
+
+
+def register_jsonrpc(service, name=None):
+    name = name or service.__name__
+    assert name not in jsonrpc_services, '{} has already been registered'.format(name)
+    jsonrpc_services[name] = service
+
+jsonrpc_handler = _make_jsonrpc_handler(jsonrpc_services, precall=jsonrpc_reset)
+cherrypy.tree.mount(jsonrpc_handler, join(c.PATH, 'jsonrpc'), c.APPCONF)
 
 
 def reg_checks():
