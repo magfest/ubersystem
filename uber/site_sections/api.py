@@ -38,10 +38,13 @@ class Root:
                     args = getargspec(method).args
                     if 'self' in args:
                         args.remove('self')
+                    access = getattr(method, 'required_access', set())
+                    required_access = sorted(c.API_ACCESS[i] for i in access)
                     methods.append({
                         'name': method_name,
                         'doc': newlines.sub(r'\1 \2', doc).strip(),
-                        'args': args
+                        'args': args,
+                        'required_access': required_access
                     })
             doc = service.__doc__ or ''
             services.append({

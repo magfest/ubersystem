@@ -101,6 +101,20 @@
       padding-bottom: 10px;
     }
 
+    .method-body .required_access .access {
+      font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+      color: #faa;
+    }
+
+    .opts td {
+      padding: 0 10px;
+    }
+
+    .opts .opt-value {
+      font-weight: bold;
+      color: #eeb;
+    }
+
     .output {
       height: 240px;
       overflow: auto;
@@ -292,7 +306,7 @@
       'barcode': '{"method": "barcode.lookup_attendee_from_barcode", "params": ["~v22pcw"]}',
       'config': '{"method": "config.info"}',
       'dept': '{"method": "dept.list"}',
-      'shifts': '{"method": "shifts.lookup", "params": ["' ~ c.DEFAULT_DEPARTMENT_ID ~ '"]}'
+      'shifts': '{"method": "shifts.lookup", "params": {"department_id": "' ~ c.DEFAULT_DEPARTMENT_ID ~ '", "start_time": "now"}}'
     }
   -%}
   {% for service in services %}
@@ -304,7 +318,7 @@
     </div>
     <div class="row">
       <div class="col-sm-6 col-sm-push-6 code-column">
-        {% if service.doc %}<p class="doc">{{ service.doc|linebreaksbr }}</p>{% endif %}
+        {% if service.doc %}<p class="doc">{{ service.doc|safe|linebreaksbr }}</p>{% endif %}
         <h4>Available Methods</h4>
         {% for method in service.methods %}
           {% set comma = joiner(', ') %}
@@ -313,10 +327,18 @@
               {{ service.name }}.{{ method.name }}({% for arg in method.args %}{{ comma() }}{{ arg }}{%endfor%})
             </div>
             <div class="method-body">
-              {% if method.doc %}<p class="doc">{{ method.doc|linebreaksbr }}</p>{% endif %}
+              {% if method.doc %}<div class="doc">{{ method.doc|safe|linebreaksbr }}</div>{% endif %}
+              {% if method.required_access %}
+                <div class="required_access">
+                  <label>Required Access</label>
+                  <span class="access">{{ method.required_access|join(' / ') }}</span>
+                </div>
+              {% endif %}
               {% set comma = joiner(', ') %}
-              <label>Example Request Body</label>
-              <pre>{"method": "{{ service.name }}.{{ method.name }}"{% if method.args %}, "params": [{% for arg in method.args %}{{ comma() }}"{{ arg }}"{%endfor%}]{% endif %}}</pre>
+              <div class="example">
+                <label>Example Request Body</label>
+                <pre>{"method": "{{ service.name }}.{{ method.name }}"{% if method.args %}, "params": [{% for arg in method.args %}{{ comma() }}"{{ arg }}"{%endfor%}]{% endif %}}</pre>
+              </div>
             </div>
           </div>
         {% endfor %}
