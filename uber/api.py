@@ -47,9 +47,9 @@ def _parse_datetime(d):
     else:
         d = dateparser.parse(d)
     try:
-        d = d.astimezone(pytz.UTC) # aware object can be in any timezone
+        d = d.astimezone(pytz.UTC)  # aware object can be in any timezone
     except ValueError:
-        d = c.EVENT_TIMEZONE.localize(d) # naive assumed to be event timezone
+        d = c.EVENT_TIMEZONE.localize(d)  # naive assumed to be event timezone
     return d
 
 
@@ -316,7 +316,7 @@ class JobLookup:
             return {'error': 'Invalid rating: {}'.format(rating)}
 
         if rating in (c.RATED_BAD, c.RATED_GREAT) and not comment:
-            return {'error': 'You must leave a comment explaining why the ' \
+            return {'error': 'You must leave a comment explaining why the '
                     'staffer was rated as: {}'.format(c.RATINGS[rating])}
 
         with Session() as session:
