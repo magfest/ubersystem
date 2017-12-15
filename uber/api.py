@@ -257,6 +257,11 @@ class JobLookup:
             return [job.to_dict(self.fields) for job in query]
 
     def assign(self, job_id, attendee_id):
+        """
+        Assigns a shift for the given job to the given attendee.
+
+        Takes the job id and attendee id as parameters.
+        """
         with Session() as session:
             message = session.assign(attendee_id, job_id)
             if message:
@@ -266,6 +271,11 @@ class JobLookup:
                 return session.job(job_id).to_dict(self.fields)
 
     def unassign(self, shift_id):
+        """
+        Unassigns whomever is working the given shift.
+
+        Takes the shift id as the only parameter.
+        """
         with Session() as session:
             try:
                 shift = session.shift(shift_id)
@@ -283,16 +293,15 @@ class JobLookup:
         """
         Returns a list of all shifts for the given department.
 
-        Takes the department id as the first parameter. For a list of all
-        department ids call the "dept.list" method.
+        Takes the shift id as the first parameter.
+
+        Optionally takes the shift status, rating, and a comment required to
+        explain either poor or excellent performance.
 
         <h6>Valid status values</h6>
         {}
-
         <h6>Valid rating values</h6>
         {}
-
-        comment
         """
         try:
             status = int(status)
