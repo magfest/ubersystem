@@ -315,13 +315,11 @@ class Department(MagModel):
 
 class Job(MagModel):
     ONLY_MEMBERS = 0
-    ALL_STAFF = 1
     ALL_VOLUNTEERS = 2
     VISIBILITY_OPTS = [
         (ONLY_MEMBERS, 'Members of this department'),
-        (ALL_STAFF, 'Staff who\'ve requested this dept or "Anywhere"'),
         (ALL_VOLUNTEERS,
-            'Staff & volunteers who\'ve requested this dept or "Anywhere"')]
+            'Volunteers who\'ve requested this dept or "Anywhere"')]
 
     type = Column(Choice(c.JOB_TYPE_OPTS), default=c.REGULAR)
     name = Column(UnicodeText)

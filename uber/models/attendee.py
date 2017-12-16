@@ -833,12 +833,6 @@ class Attendee(MagModel, TakesPaymentMixin):
                 all_hours[hour] = shift.job
         return all_hours
 
-    @property
-    def job_visibility(self):
-        from uber.models.department import Job
-        return Job.ALL_STAFF if self.badge_type == c.STAFF_BADGE \
-            else Job.ALL_VOLUNTEERS
-
     @cached_property
     def available_job_filters(self):
         from uber.models.department import Job
@@ -867,10 +861,10 @@ class Attendee(MagModel, TakesPaymentMixin):
 
             requested_any_dept = None in requested_dept_ids
             if requested_any_dept:
-                requested_filter = Job.visibility >= self.job_visibility
+                requested_filter = Job.visibility > Job.ONLY_MEMBERS
             elif requested_dept_ids:
                 requested_filter = and_(
-                    Job.visibility >= self.job_visibility,
+                    Job.visibility > Job.ONLY_MEMBERS,
                     Job.department_id.in_(requested_dept_ids))
 
         if member_filter is not None and requested_filter is not None:
@@ -894,8 +888,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             return []
 
         from uber.models.department import Job
-        job_filters = self.available_job_filters
-        jobs = self.session.query(Job).filter(*job_filters) \
+        jobs = self.session.query(Job).filter(*self.available_job_filters) \
             .options(
                 subqueryload(Job.shifts),
                 subqueryload(Job.department),
