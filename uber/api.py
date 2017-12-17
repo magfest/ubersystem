@@ -158,6 +158,7 @@ class AttendeeLookup:
             'freeform': True
         },
         'shifts': {
+            'worked': True,
             'worked_label': True,
             'job': [
                 'type_label', 'department_name', 'name', 'description',
@@ -213,6 +214,8 @@ class JobLookup:
         'end_time': True,
         'duration': True,
         'shifts': {
+            'worked': True,
+            'worked_label': True,
             'attendee': {
                 'badge_num': True,
                 'full_name': True,
