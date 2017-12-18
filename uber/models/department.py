@@ -415,6 +415,14 @@ class Job(MagModel):
             Shift.job_id == cls.id).label('slots_taken')
 
     @hybrid_property
+    def is_public(self):
+        return self.visibility > Job.ONLY_MEMBERS
+
+    @is_public.expression
+    def is_public(cls):
+        return cls.visibility > Job.ONLY_MEMBERS
+
+    @hybrid_property
     def is_unfilled(self):
         return self.slots_taken < self.slots
 

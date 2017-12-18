@@ -651,7 +651,8 @@ class Session(SessionManager):
             fields = [
                 'name', 'department_name', 'description', 'weight',
                 'start_time_local', 'end_time_local', 'duration',
-                'weighted_hours', 'restricted', 'extra15', 'taken']
+                'weighted_hours', 'restricted', 'extra15', 'taken',
+                'visibility', 'is_public']
             jobs = self.logged_in_volunteer().possible_and_current
             restricted_hours = set()
             for job in jobs:

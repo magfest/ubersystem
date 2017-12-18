@@ -88,6 +88,7 @@ class Root:
             cal_length = con_days
         return {
             'jobs': joblist,
+            'has_public_jobs': any(j['is_public'] for j in joblist),
             'name': session.logged_in_volunteer().full_name,
             'hours': session.logged_in_volunteer().weighted_hours,
             'assigned_depts_labels': volunteer.assigned_depts_labels,
