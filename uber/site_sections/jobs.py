@@ -8,6 +8,8 @@ def job_dict(job, shifts=None):
         'slots': job.slots,
         'weight': job.weight,
         'restricted': job.restricted,
+        'visibility': job.visibility,
+        'is_public': job.is_public,
         'required_roles_ids': job.required_roles_ids,
         'timespan': job.timespan(),
         'department_id': job.department_id,

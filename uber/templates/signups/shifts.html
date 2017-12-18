@@ -22,7 +22,8 @@
 	color:white;
 	float:right;
 }
-
+.text-public {
+  color: #40c000;
 }
 </style> {% endblock %} {% block main_content %} <div class="hidden csrf_token"> {{ csrf_token() }} </div>
 
@@ -46,7 +47,19 @@
    </tr>
    </tbody></table>
    <br>
-   You are assigned to the following departments: {{ assigned_depts_labels|join(' / ') }}.
+   You are assigned to the following department{{ assigned_depts_labels|length|pluralize }}: {{ assigned_depts_labels|join(' / ') }}.
+   {% if has_public_jobs %}
+     <br><br>
+     Some of the listed jobs are for departments you are not assigned to
+     (marked like this<sup class="text-public"> public</sup>).
+     <br>
+     {% if c.MAX_DEPTS_WHERE_WORKING > 0 %}
+       You may sign up any of the listed jobs, but you'll be prevented from
+       working in more than {{ c.MAX_DEPTS_WHERE_WORKING }}
+       department{{ c.MAX_DEPTS_WHERE_WORKING|pluralize }}.
+       <br>
+     {% endif %}
+   {% endif %}
    <br>
         <a href="#" class="toggle-cal" state="all">Click Here</a>
 	<span class="all-state-text state-text"> to see the {{hours}} weighted hours worth of shifts you are signed up for</span>
@@ -84,6 +97,8 @@
                     start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                     end : "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                     id : "{{ job.id }}",
+                    is_public: {{ job.is_public|string|lower }},
+                    is_public_to_volunteer: {{ job.is_public_to_volunteer|string|lower }},
                     description: "{{ job.description }}",
                     extra15: {{ job.extra15|string|lower }},
                     backgroundColor: "#239875",
@@ -95,6 +110,8 @@
                 start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                 end : "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                 id : "{{ job.id }}",
+                is_public: {{ job.is_public|string|lower }},
+                is_public_to_volunteer: {{ job.is_public_to_volunteer|string|lower }},
                 description: "{{ job.description }}",
                 extra15: {{ job.extra15|string|lower }},
                 {% if job.taken %}
@@ -113,7 +130,7 @@
                 center: 'title',
                 right: 'agendaDay,agendaConWeek,listConDuration'
             },
-			views: {
+            views: {
                 agendaDay: { buttonText: 'Day' },
                 agendaConWeek: {
                     type: 'agenda',
@@ -161,6 +178,11 @@
                     buttonTag += 'Sign up';
                 }
                 buttonTag += '</a>';
+
+                if(event.is_public_to_volunteer) {
+                  element.find('.fc-list-item-title').append($('<sup class="text-public"> public</sup>'));
+                  element.find('.fc-title').append($('<sup class="text-public"> public</sup>'));
+                }
                 element.find('.fc-list-item-title').append(eventDesc + buttonTag);
                 element.find('.fc-title').append(" " + buttonTag + '<br/>' + eventDesc);
             }
