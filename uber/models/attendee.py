@@ -340,6 +340,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def _staffing_adjustments(self):
         if self.is_dept_head:
             self.staffing = True
+            self.ribbon = add_opt(self.ribbon_ints, c.DEPT_HEAD_RIBBON)
             if c.SHIFT_CUSTOM_BADGES or \
                     c.STAFF_BADGE not in c.PREASSIGNED_BADGE_TYPES:
                 self.badge_type = c.STAFF_BADGE
