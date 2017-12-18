@@ -22,7 +22,8 @@
 	color:white;
 	float:right;
 }
-
+.text-public {
+  color: #40c000;
 }
 </style> {% endblock %} {% block main_content %} <div class="hidden csrf_token"> {{ csrf_token() }} </div>
 
@@ -50,7 +51,7 @@
    {% if has_public_jobs %}
      <br><br>
      Some of the listed jobs are for departments you are not assigned to
-     (marked like this<sup class="text-success"> public</sup>).
+     (marked like this<sup class="text-public"> public</sup>).
      <br>
      You may sign up any of the listed jobs, but you'll be prevented from
      working in more than {{ c.MAX_DEPTS_WHERE_WORKING }}
@@ -177,7 +178,8 @@
                 buttonTag += '</a>';
 
                 if(event.is_public_to_volunteer) {
-                  element.find('.fc-list-item-title').append($('<sup class="text-success"> public</sup>'));
+                  element.find('.fc-list-item-title').append($('<sup class="text-public"> public</sup>'));
+                  element.find('.fc-title').append($('<sup class="text-public"> public</sup>'));
                 }
                 element.find('.fc-list-item-title').append(eventDesc + buttonTag);
                 element.find('.fc-title').append(" " + buttonTag + '<br/>' + eventDesc);
