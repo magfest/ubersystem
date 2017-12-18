@@ -34,7 +34,8 @@
     "bootbox": "4.4.0",
     "jquery-form": "3.46.0",
     "jquery-validation": "1.16.0",
-    "eonasdan-bootstrap-datetimepicker": "4.17.47"
+    "eonasdan-bootstrap-datetimepicker": "4.17.47",
+    "jQuery-Scanner-Detection": "git://github.com/escaleno-ltda/jQuery-Scanner-Detection.git#v1.2.1"
   },
   "resolutions": {
     "jquery": ">= 1.9.0",
