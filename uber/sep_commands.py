@@ -113,7 +113,7 @@ def resave_all_attendees_and_groups():
     SAFETY: This -should- be safe to run at any time, but, for safety sake, recommend turning off
     any running sideboard servers before running this command.
     """
-    Session.initialize_db(modify_tables=False, drop=False)
+    Session.initialize_db(modify_tables=False, drop=False, initialize=True)
     with Session() as session:
         print("Re-saving all attendees....")
         [a.presave_adjustments() for a in session.query(Attendee).all()]
@@ -131,7 +131,7 @@ def resave_all_staffers():
     SAFETY: This -should- be safe to run at any time, but, for safety sake, recommend turning off
     any running sideboard servers before running this command.
     """
-    Session.initialize_db(modify_tables=False, drop=False)
+    Session.initialize_db(modify_tables=False, drop=False, initialize=True)
     with Session() as session:
         staffers = session.query(Attendee).filter_by(badge_type=c.STAFF_BADGE).all()
 
