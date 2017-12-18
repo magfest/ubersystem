@@ -47,16 +47,18 @@
    </tr>
    </tbody></table>
    <br>
-   You are assigned to the following departments: {{ assigned_depts_labels|join(' / ') }}.
+   You are assigned to the following department{{ assigned_depts_labels|length|pluralize }}: {{ assigned_depts_labels|join(' / ') }}.
    {% if has_public_jobs %}
      <br><br>
      Some of the listed jobs are for departments you are not assigned to
      (marked like this<sup class="text-public"> public</sup>).
      <br>
-     You may sign up any of the listed jobs, but you'll be prevented from
-     working in more than {{ c.MAX_DEPTS_WHERE_WORKING }}
-     department{{ c.MAX_DEPTS_WHERE_WORKING|pluralize }}.
-     <br>
+     {% if c.MAX_DEPTS_WHERE_WORKING > 0 %}
+       You may sign up any of the listed jobs, but you'll be prevented from
+       working in more than {{ c.MAX_DEPTS_WHERE_WORKING }}
+       department{{ c.MAX_DEPTS_WHERE_WORKING|pluralize }}.
+       <br>
+     {% endif %}
    {% endif %}
    <br>
         <a href="#" class="toggle-cal" state="all">Click Here</a>
