@@ -95,6 +95,7 @@
                     end : "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                     id : "{{ job.id }}",
                     is_public: {{ job.is_public|string|lower }},
+                    is_public_to_volunteer: {{ job.is_public_to_volunteer|string|lower }},
                     description: "{{ job.description }}",
                     extra15: {{ job.extra15|string|lower }},
                     backgroundColor: "#239875",
@@ -107,6 +108,7 @@
                 end : "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                 id : "{{ job.id }}",
                 is_public: {{ job.is_public|string|lower }},
+                is_public_to_volunteer: {{ job.is_public_to_volunteer|string|lower }},
                 description: "{{ job.description }}",
                 extra15: {{ job.extra15|string|lower }},
                 {% if job.taken %}
@@ -174,7 +176,7 @@
                 }
                 buttonTag += '</a>';
 
-                if(event.is_public) {
+                if(event.is_public_to_volunteer) {
                   element.find('.fc-list-item-title').append($('<sup class="text-success"> public</sup>'));
                 }
                 element.find('.fc-list-item-title').append(eventDesc + buttonTag);

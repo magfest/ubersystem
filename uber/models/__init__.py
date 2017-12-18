@@ -649,8 +649,8 @@ class Session(SessionManager):
 
         def jobs_for_signups(self):
             fields = [
-                'name', 'department_name', 'description', 'weight',
-                'start_time_local', 'end_time_local', 'duration',
+                'name', 'department_id', 'department_name', 'description',
+                'weight', 'start_time_local', 'end_time_local', 'duration',
                 'weighted_hours', 'restricted', 'extra15', 'taken',
                 'visibility', 'is_public']
             jobs = self.logged_in_volunteer().possible_and_current
