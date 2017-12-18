@@ -220,7 +220,8 @@
 <div class="form-group">
     <label class="col-sm-3 control-label">Ribbons</label>
     <div class="col-sm-9">
-        {{ macros.checkgroup(attendee, 'ribbon') }}
+        {%- set defaults = attendee.ribbon ~ (',' ~ c.DEPT_HEAD_RIBBON if attendee.is_dept_head else '') -%}
+        {{ macros.checkgroup(attendee, 'ribbon', defaults=defaults) }}
     </div>
 </div>
 
