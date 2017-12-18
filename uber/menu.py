@@ -42,7 +42,9 @@ class MenuItem:
                 )
         """
         if not self.submenu and self.href:
-            self.submenu = [MenuItem(name=self.name, href=self.href)]
+            self.submenu = [MenuItem(name=self.name, 
+                                     href=self.href,
+                                     icon=self.icon)]
             self.href = None
 
         self.submenu.append(m)
@@ -57,6 +59,7 @@ class MenuItem:
             return None
 
         out['name'] = self.name
+        out['icon'] = self.icon
         if self.submenu:
             out['submenu'] = []
             for menu_item in self.submenu:

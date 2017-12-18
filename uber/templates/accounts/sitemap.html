@@ -9,8 +9,8 @@
       <span class="icon-bar"></span>
     </button>
     <a href="../accounts/homepage" class="navbar-brand">
-      <img class="navbar-brand-icon" src="/assets/img/logo-alt.svg" alt=""/>
-      {{ c.EVENT_NAME }}
+      <img class="navbar-brand-icon" style="max-height: 35px;" src="../static/theme/logo.svg" alt="{{ c.EVENT_NAME }}"/>
+    {{ c.EVENT_NAME }}
     </a>
   </div>
   <nav class="collapse navbar-collapse">
@@ -67,7 +67,7 @@
     <li class="list-group-item secondary-nav-item-pf" data-target="#{{ menu_item }}-mainmenu-secondary">
       <a>
         <span class="{{ menu_item.icon }}" data-toggle="tooltip" title="{{ menu_item.name }}"></span>
-        <span class="list-group-item-value">{{ menu_item.icon }} - {{ menu_item.name }}</span>
+        <span class="list-group-item-value">{{ menu_item.name }}</span>
       </a>  
 <div id="{{ menu_item }}-mainmenu-secondary" class="nav-pf-secondary-nav">
         <div class="nav-item-pf-header">
@@ -79,13 +79,13 @@
       <li>
           {% if submenu_item.href -%}
               <li class="list-group-item">
-                <a href="..{{ submenu_item.href }}">
+                <a href="{{ submenu_item.href }}">
                     <span class="list-group-item-value">{{ submenu_item.name }}</span>
                 </a>
               </li>
           {% else -%}
               <li class="list-group-item">
-                <a href="..{{ submenu_item.href }}">
+                <a href="{{ submenu_item.href }}">
                     <span class="list-group-item-value">XXXXX {{ submenu_item.name }}</span>
                 </a>
               </li>
@@ -125,7 +125,7 @@
     <ul class="list-group">
     {% for page in pagelist %}
       <li class="list-group-item">
-        <a href="..{{ page.path }}">
+        <a href="{{ page.path }}">
             <span class="list-group-item-value">{{ page.name }}</span>
         </a>
       </li>

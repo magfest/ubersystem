@@ -277,9 +277,21 @@ System.import('jquery').then(function($) {
     {% block top_of_body_additional %}
     {% endblock %}
     <div id="masthead"></div>
-    {% if c.DEV_BOX %}{% include "devbox_notice.html" %}{% endif %}
+    {% if c.DEV_BOX %}
+    <div id="devboxNotice" class="experimental-pf-bar" 
+      style="background: repeating-linear-gradient(
+                45deg,
+                #f9d67a,
+                #f9d67a 10px,
+                #f0ab00 10px,
+                #f0ab00 20px);">
+    <span class="experimental-pf-text" style="font-weight: bold;">
+      This is not a production environment.
+    </span>
+  </div>
+    {% endif %}
     <div id="mainContainer" class="container">
-     }   {% block backlink %}{% endblock %}
+        {% block backlink %}{% endblock %}
         {% block header %}{% endblock %}
         {% block content %}{% endblock %}
         <div id="bottomAnchor"></div>
