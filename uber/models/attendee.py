@@ -422,14 +422,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         return [(d.id, d.name) for d in self.assigned_depts]
 
     @property
-    def ribbon_labels(self):
-        labels = super(Attendee, self)._labels('ribbon', self.ribbon)
-        if c.DEPT_HEAD_RIBBON in self.ribbon_ints or not self.is_dept_head:
-            return labels
-        labels.append(c.RIBBONS[c.DEPT_HEAD_RIBBON])
-        return sorted(labels)
-
-    @property
     def ribbon_and_or_badge(self):
         if self.ribbon and self.badge_type != c.ATTENDEE_BADGE:
             return ' / '.join([self.badge_type_label] + self.ribbon_labels)
