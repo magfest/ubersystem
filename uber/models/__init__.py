@@ -998,6 +998,7 @@ class Session(SessionManager):
                 .filter_by(**job_filter) \
                 .options(
                     subqueryload(Job.department),
+                    subqueryload(Job.required_roles),
                     subqueryload(Job.shifts)
                     .subqueryload(Shift.attendee)
                     .subqueryload(Attendee.group)) \

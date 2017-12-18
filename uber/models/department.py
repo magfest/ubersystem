@@ -7,8 +7,8 @@ from sideboard.lib.sa import CoerceUTF8 as UnicodeText, \
     UTCDateTime, UUID
 from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import backref, column_property
-from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint
+from sqlalchemy.orm import backref
+from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.types import Boolean, Float, Integer
 
 from uber.config import c
@@ -33,7 +33,11 @@ dept_membership_dept_role = Table(
     MagModel.metadata,
     Column('dept_membership_id', UUID, ForeignKey('dept_membership.id')),
     Column('dept_role_id', UUID, ForeignKey('dept_role.id')),
-    UniqueConstraint('dept_membership_id', 'dept_role_id'))
+    UniqueConstraint('dept_membership_id', 'dept_role_id'),
+    Index('ix_dept_membership_dept_role_dept_role_id', 'dept_role_id'),
+    Index('ix_dept_membership_dept_role_dept_membership_id',
+          'dept_membership_id'),
+)
 
 
 # Many to many association table to represent the DeptRoles required
@@ -43,7 +47,10 @@ job_required_role = Table(
     MagModel.metadata,
     Column('dept_role_id', UUID, ForeignKey('dept_role.id')),
     Column('job_id', UUID, ForeignKey('job.id')),
-    UniqueConstraint('dept_role_id', 'job_id'))
+    UniqueConstraint('dept_role_id', 'job_id'),
+    Index('ix_job_required_role_dept_role_id', 'dept_role_id'),
+    Index('ix_job_required_role_job_id', 'job_id'),
+)
 
 
 class DeptChecklistItem(MagModel):
@@ -53,7 +60,8 @@ class DeptChecklistItem(MagModel):
     comments = Column(UnicodeText, default='')
 
     __table_args__ = (
-        UniqueConstraint('department_id', 'attendee_id', 'slug'),)
+        UniqueConstraint('department_id', 'attendee_id', 'slug'),
+    )
 
 
 class DeptMembership(MagModel):
@@ -64,7 +72,11 @@ class DeptMembership(MagModel):
     department_id = Column(UUID, ForeignKey('department.id'))
 
     __mapper_args__ = {'confirm_deleted_rows': False}
-    __table_args__ = (UniqueConstraint('attendee_id', 'department_id'),)
+    __table_args__ = (
+        UniqueConstraint('attendee_id', 'department_id'),
+        Index('ix_dept_membership_attendee_id', 'attendee_id'),
+        Index('ix_dept_membership_department_id', 'department_id'),
+    )
 
     @hybrid_property
     def has_role(self):
@@ -104,7 +116,11 @@ class DeptMembershipRequest(MagModel):
     department_id = Column(UUID, ForeignKey('department.id'), nullable=True)
 
     __mapper_args__ = {'confirm_deleted_rows': False}
-    __table_args__ = (UniqueConstraint('attendee_id', 'department_id'),)
+    __table_args__ = (
+        UniqueConstraint('attendee_id', 'department_id'),
+        Index('ix_dept_membership_request_attendee_id', 'attendee_id'),
+        Index('ix_dept_membership_request_department_id', 'department_id'),
+    )
 
 
 class DeptRole(MagModel):
@@ -118,7 +134,10 @@ class DeptRole(MagModel):
         cascade='save-update,merge,refresh-expire,expunge',
         secondary='dept_membership_dept_role')
 
-    __table_args__ = (UniqueConstraint('name', 'department_id'),)
+    __table_args__ = (
+        UniqueConstraint('name', 'department_id'),
+        Index('ix_dept_role_department_id', 'department_id'),
+    )
 
     @hybrid_property
     def dept_membership_count(self):
@@ -295,6 +314,13 @@ class Department(MagModel):
 
 
 class Job(MagModel):
+    ONLY_MEMBERS = 0
+    ALL_VOLUNTEERS = 2
+    VISIBILITY_OPTS = [
+        (ONLY_MEMBERS, 'Members of this department'),
+        (ALL_VOLUNTEERS,
+            'Volunteers who\'ve requested this dept or "Anywhere"')]
+
     type = Column(Choice(c.JOB_TYPE_OPTS), default=c.REGULAR)
     name = Column(UnicodeText)
     description = Column(UnicodeText)
@@ -304,6 +330,7 @@ class Job(MagModel):
     slots = Column(Integer)
     extra15 = Column(Boolean, default=False)
     department_id = Column(UUID, ForeignKey('department.id'))
+    visibility = Column(Choice(VISIBILITY_OPTS), default=ONLY_MEMBERS)
 
     required_roles = relationship(
         'DeptRole',
@@ -312,17 +339,34 @@ class Job(MagModel):
         secondary='job_required_role')
     shifts = relationship('Shift', backref='job')
 
-    _repr_attr_names = ['name']
+    __table_args__ = (
+        Index('ix_job_department_id', department_id),
+    )
 
-    # Using a column_property for department_name *might* be more efficient,
-    # due to our prevelant usage of the department_name property.
-    department_name = column_property(
-        select([Department.name], Department.id == department_id))
+    _repr_attr_names = ['name']
 
     @classproperty
     def extra_apply_attrs(cls):
         return set(['required_roles_ids']).union(
             cls.extra_apply_attrs_restricted)
+
+    @hybrid_property
+    def department_name(self):
+        return self.department.name
+
+    @department_name.expression
+    def department_name(cls):
+        return select([Department.name]).where(
+            Department.id == cls.department_id).label('department_name')
+
+    @hybrid_property
+    def restricted(self):
+        return bool(self.required_roles)
+
+    @restricted.expression
+    def restricted(cls):
+        return exists([job_required_role.c.dept_role_id]).where(
+            job_required_role.c.job_id == cls.id).label('restricted')
 
     @property
     def required_roles_labels(self):
@@ -361,9 +405,22 @@ class Job(MagModel):
             or self.department_id == attendee.hour_map[after].department_id
         )
 
-    @property
+    @hybrid_property
     def slots_taken(self):
         return len(self.shifts)
+
+    @slots_taken.expression
+    def slots_taken(cls):
+        return select([func.count(Shift.id)]).where(
+            Shift.job_id == cls.id).label('slots_taken')
+
+    @hybrid_property
+    def is_unfilled(self):
+        return self.slots_taken < self.slots
+
+    @is_unfilled.expression
+    def is_unfilled(cls):
+        return cls.slots_taken < cls.slots
 
     @property
     def slots_untaken(self):
@@ -444,18 +501,17 @@ class Job(MagModel):
             if self.no_overlap(s)]
 
 
-# Using a column_property for restricted *might* be more efficient,
-# due to our prevelant usage of the restricted property.
-Job.restricted = column_property(exists().where(
-    Job.id == job_required_role.c.job_id).correlate(Job))
-
-
 class Shift(MagModel):
     job_id = Column(UUID, ForeignKey('job.id', ondelete='cascade'))
     attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='cascade'))
     worked = Column(Choice(c.WORKED_STATUS_OPTS), default=c.SHIFT_UNMARKED)
     rating = Column(Choice(c.RATING_OPTS), default=c.UNRATED)
     comment = Column(UnicodeText)
+
+    __table_args__ = (
+        Index('ix_shift_job_id', job_id),
+        Index('ix_shift_attendee_id', attendee_id),
+    )
 
     @property
     def name(self):

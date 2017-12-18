@@ -6,7 +6,7 @@ from pytz import UTC
 from sideboard.lib import cached_property, listify, log
 from sideboard.lib.sa import CoerceUTF8 as UnicodeText, \
     UTCDateTime, UUID
-from sqlalchemy import case, func, or_
+from sqlalchemy import and_, case, func, or_
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, subqueryload
 from sqlalchemy.schema import ForeignKey, Index, UniqueConstraint
@@ -149,6 +149,13 @@ class Attendee(MagModel, TakesPaymentMixin):
         order_by='DeptRole.name',
         viewonly=True)
     shifts = relationship('Shift', backref='attendee')
+    jobs = relationship(
+        'Job',
+        backref='attendees_working_shifts',
+        cascade='save-update,merge,refresh-expire,expunge',
+        secondary='shift',
+        order_by='Job.name',
+        viewonly=True)
     jobs_in_assigned_depts = relationship(
         'Job',
         backref='attendees_in_dept',
@@ -827,32 +834,66 @@ class Attendee(MagModel, TakesPaymentMixin):
         return all_hours
 
     @cached_property
+    def available_job_filters(self):
+        from uber.models.department import Job
+
+        job_filters = [Job.is_unfilled]
+        if c.AT_THE_CON:
+            return job_filters
+
+        member_dept_ids = set(d.department_id for d in self.dept_memberships)
+        requested_dept_ids = set(
+            d.department_id for d in self.dept_membership_requests) \
+            .difference(member_dept_ids)
+
+        member_filter = Job.department_id.in_(member_dept_ids) \
+            if member_dept_ids else None
+
+        max_depts = c.MAX_DEPTS_WHERE_WORKING
+        no_max = max_depts < 1
+
+        requested_filter = None
+        if requested_dept_ids and (len(member_dept_ids) < max_depts or no_max):
+            depts_where_working = set(j.department_id for j in self.jobs)
+            if len(depts_where_working) >= max_depts and not no_max:
+                requested_dept_ids = depts_where_working \
+                    .difference(member_dept_ids)
+
+            requested_any_dept = None in requested_dept_ids
+            if requested_any_dept:
+                requested_filter = Job.visibility > Job.ONLY_MEMBERS
+            elif requested_dept_ids:
+                requested_filter = and_(
+                    Job.visibility > Job.ONLY_MEMBERS,
+                    Job.department_id.in_(requested_dept_ids))
+
+        if member_filter is not None and requested_filter is not None:
+            job_filters += [or_(member_filter, requested_filter)]
+        elif member_filter is not None:
+            job_filters += [member_filter]
+        elif requested_filter is not None:
+            job_filters += [requested_filter]
+        return job_filters
+
+    @cached_property
     def available_jobs(self):
-        if not self.dept_memberships and not c.AT_THE_CON:
+        assert self.session, (
+            '{}.available_jobs property may only be accessed for '
+            'objects attached to a session'.format(self.__class__.__name__))
+
+        if not self.staffing or (
+                not c.AT_THE_CON and
+                not self.dept_memberships and
+                not self.dept_membership_requests):
             return []
 
-        def _get_available_jobs(session, attendee_id):
-            from uber.models.department import DeptMembership, Job, Shift
-            job_filters = [] if c.AT_THE_CON else [
-                Job.department_id == DeptMembership.department_id,
-                DeptMembership.attendee_id == self.id]
-            return session.query(Job) \
-                .outerjoin(Job.shifts) \
-                .filter(*job_filters) \
-                .group_by(Job.id) \
-                .having(func.count(Shift.id) < Job.slots) \
-                .options(
-                    subqueryload(Job.shifts),
-                    subqueryload(Job.required_roles)) \
-                .order_by(Job.start_time, Job.department_id).all()
-
-        if self.session:
-            jobs = _get_available_jobs(self.session, self.id)
-        else:
-            from uber.models import Session
-            with Session() as session:
-                jobs = _get_available_jobs(session, self.id)
-
+        from uber.models.department import Job
+        jobs = self.session.query(Job).filter(*self.available_job_filters) \
+            .options(
+                subqueryload(Job.shifts),
+                subqueryload(Job.department),
+                subqueryload(Job.required_roles)) \
+            .order_by(Job.start_time, Job.department_id).all()
         return [job for job in jobs if self.has_required_roles(job)]
 
     @cached_property
@@ -861,36 +902,17 @@ class Attendee(MagModel, TakesPaymentMixin):
             '{}.possible property may only be accessed for '
             'objects attached to a session'.format(self.__class__.__name__))
 
-        if not self.dept_memberships and not c.AT_THE_CON:
-            return []
-        else:
-            from uber.models.department import DeptMembership, Job
-            job_filters = [] if c.AT_THE_CON else [
-                Job.department_id == DeptMembership.department_id,
-                DeptMembership.attendee_id == self.id]
-
-            job_query = self.session.query(Job) \
-                .filter(*job_filters) \
-                .options(
-                    subqueryload(Job.department),
-                    subqueryload(Job.shifts),
-                    subqueryload(Job.department),
-                    subqueryload(Job.required_roles)) \
-                .order_by(Job.start_time, Job.department_id)
-
-            return [
-                job for job in job_query
-                if job.slots > len(job.shifts)
-                and job.no_overlap(self)
-                and (
-                    job.type != c.SETUP
-                    or self.can_work_setup
-                    or job.department.is_setup_approval_exempt)
-                and (
-                    job.type != c.TEARDOWN
-                    or self.can_work_teardown
-                    or job.department.is_teardown_approval_exempt)
-                and (not job.required_roles or self.has_required_roles(job))]
+        return [
+            job for job in self.available_jobs
+            if job.no_overlap(self)
+            and (
+                job.type != c.SETUP
+                or self.can_work_setup
+                or job.department.is_setup_approval_exempt)
+            and (
+                job.type != c.TEARDOWN
+                or self.can_work_teardown
+                or job.department.is_teardown_approval_exempt)]
 
     @property
     def possible_opts(self):
@@ -969,7 +991,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         department_ids = set(
             str(d.department_id) for d in self.dept_membership_requests)
         for department_id in values:
-            if department_id not in department_ids:
+            if str(department_id) not in department_ids:
                 self.dept_membership_requests.append(DeptMembershipRequest(
                     department_id=department_id, attendee_id=self.id))
 
