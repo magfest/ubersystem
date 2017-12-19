@@ -1,4 +1,5 @@
 from uber.common import *
+import uber.scheduler
 
 
 class AutomatedEmail:
@@ -197,7 +198,6 @@ class SendAllAutomatedEmailsJob:
         """ Helper method to start a run of our automated email processing """
         cls().run(raise_errors)
 
-    @timed
     def run(self, raise_errors=False):
         """
         Do one run of our automated email service.  Call this periodically to send any emails that should go out
@@ -376,8 +376,10 @@ def send_pending_email_report(pending_email_categories, sender):
     send_email(c.STAFF_EMAIL, sender, subject, body, format='html', model='n/a')
 
 
-# 86400 seconds = 1 day = 24 hours * 60 minutes * 60 seconds
-DaemonTask(notify_admins_of_any_pending_emails, interval=86400, name="mail pending notification")
+uber.scheduler.register_task(
+    fn=lambda: uber.scheduler.schedule.every().day.at("06:00").do(notify_admins_of_any_pending_emails),
+    category="reports"
+)
 
 
 def get_pending_email_data():
@@ -416,3 +418,14 @@ def get_pending_email_data():
         }
 
     return pending_emails_by_sender
+
+
+uber.scheduler.register_task(
+    lambda: uber.scheduler.schedule.every(5).minutes.do(SendAllAutomatedEmailsJob.send_all_emails),
+    category="automated_email_sending",
+)
+
+
+@entry_point
+def start_email_sending_daemon():
+    uber.scheduler.start_scheduler_and_block(include_categories="automated_email_sending")

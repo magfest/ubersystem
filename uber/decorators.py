@@ -17,7 +17,7 @@ def swallow_exceptions(func):
         try:
             return func(*args, **kwargs)
         except:
-            log.error("Exception raised, but we're going to ignore it and continue.", exc_info=True)
+            log.error("unexpected error", exc_info=True)
     return swallow_exception
 
 

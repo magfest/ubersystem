@@ -1,6 +1,7 @@
 from sideboard.jsonrpc import _make_jsonrpc_handler
 from sideboard.server import jsonrpc_reset
 from uber.common import *
+import uber.scheduler
 
 mimetypes.init()
 
@@ -178,20 +179,25 @@ def register_jsonrpc(service, name=None):
     assert name not in jsonrpc_services, '{} has already been registered'.format(name)
     jsonrpc_services[name] = service
 
+
 jsonrpc_handler = _make_jsonrpc_handler(jsonrpc_services, precall=jsonrpc_reset)
 cherrypy.tree.mount(jsonrpc_handler, join(c.PATH, 'jsonrpc'), c.APPCONF)
 
+uber.scheduler.register_task(
+    lambda: uber.scheduler.schedule_N_times_per_day(4, check_unassigned),
+    category="reports"
+)
+uber.scheduler.register_task(
+    lambda: uber.scheduler.schedule_N_times_per_day(4, detect_duplicates),
+    category="reports"
+)
+uber.scheduler.register_task(
+    lambda: uber.scheduler.schedule_N_times_per_day(4, check_placeholders),
+    category="reports"
+)
 
-def reg_checks():
-    sleep(600)  # Delay by 10 minutes to give the system time to start up
-    check_unassigned()
-    detect_duplicates()
-    check_placeholders()
-
-# Registration checks are run every six hours
-DaemonTask(reg_checks, interval=21600, name="mail reg checks")
-
-DaemonTask(SendAllAutomatedEmailsJob.send_all_emails, interval=300, name="send emails")
-
-# TODO: this should be replaced by something a little cleaner, but it can be a useful debugging tool
-# DaemonTask(lambda: log.error(Session.engine.pool.status()), interval=5)
+# enable debug logging if you need it for desperate situations
+# uber.scheduler.register_task(
+#     lambda: uber.scheduler.schedule.every(5).minutes.do(lambda: log.error(Session.engine.pool.status())),
+#     category="debug",
+# )
