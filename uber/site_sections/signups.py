@@ -98,6 +98,7 @@ class Root:
             'has_public_jobs': has_public_jobs,
             'name': session.logged_in_volunteer().full_name,
             'hours': session.logged_in_volunteer().weighted_hours,
+            'assigned_depts_labels': volunteer.assigned_depts_labels,
             'view': view,
             'start': start,
             'start_day': c.SHIFTS_START_DAY if has_setup else c.EPOCH,

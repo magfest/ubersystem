@@ -428,7 +428,8 @@ class Root:
 
                 attendee = group.unassigned[0]
                 for attr in attrs_to_preserve_from_unassigned_group_member:
-                    params[attr] = getattr(attendee, attr)
+                    if attr in params:
+                        del params[attr]
 
                 attendee.apply(params, restricted=True)
 
