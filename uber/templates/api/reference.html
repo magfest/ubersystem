@@ -313,11 +313,7 @@
     </div>
     <div class="row">
       <div class="col-sm-6 col-sm-push-6 code-column">
-<<<<<<< HEAD
-        {% if service.doc %}<p class="doc">{{ service.doc }}</p>{% endif %}
-=======
         {% if service.doc %}<p class="doc">{{ service.doc|safe|linebreaksbr }}</p>{% endif %}
->>>>>>> 0d4586c... Adds new methods to shifts service. Needs more docs (#3025)
         <h4>Available Methods</h4>
         {% for method in service.methods %}
           {% set comma = joiner(', ') %}
@@ -326,9 +322,6 @@
               {{ service.name }}.{{ method.name }}({% for arg in method.args %}{{ comma() }}{{ arg }}{%endfor%})
             </div>
             <div class="method-body">
-<<<<<<< HEAD
-              {% if method.doc %}<p class="doc">{{ method.doc }}</p>{% endif %}
-=======
               {% if method.doc %}<div class="doc">{{ method.doc|safe|linebreaksbr }}</div>{% endif %}
               {% if method.required_access %}
                 <div class="required_access">
@@ -336,7 +329,6 @@
                   <span class="access">{{ method.required_access|join(' / ') }}</span>
                 </div>
               {% endif %}
->>>>>>> 0d4586c... Adds new methods to shifts service. Needs more docs (#3025)
               {% set comma = joiner(', ') %}
               <div class="example">
                 <label>Example Request Body</label>

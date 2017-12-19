@@ -40,14 +40,9 @@ class Root:
                     required_access = sorted(c.API_ACCESS[i] for i in access)
                     methods.append({
                         'name': method_name,
-<<<<<<< HEAD
-                        'doc': method.__doc__,
-                        'args': args
-=======
                         'doc': newlines.sub(r'\1 \2', doc).strip(),
                         'args': args,
                         'required_access': required_access
->>>>>>> 0d4586c... Adds new methods to shifts service. Needs more docs (#3025)
                     })
             services.append({
                 'name': name,

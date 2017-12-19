@@ -1,48 +1,7 @@
-<!DOCTYPE html>
-<html lang="en-us" class="login-pf">
-  <head>
-    <title>Login - {{ c.EVENT_NAME }}</title>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=Edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="../static/images/favicon.png" type="image/x-icon" />
-    <script src="../static/jspm_packages/system.js"></script>    
-    <script src="../static/config.js"></script>
-
-    <script>
-      Promise.all([
-        System.import('jquery'),
-        System.import('patternfly/dist/css/patternfly.css!'),
-        System.import('patternfly/dist/css/patternfly-additions.css!'),
-        System.import('patternfly')
-      ]).then(function(modules) {
-        // after styles loaded
-        $ = modules[0];
-        //var message = '{{ message|e }}';
-        //var csrf_token = '{{ c.CSRF_TOKEN }}';
-      });
-    </script>
-
-    <style>
-      #loginBody {
-        //background-color:#030303;
-        background-image: none;
-      }
-    </style>
-
-</head>
-
-<body id="loginBody">
-    <span id="badge">
-        <img src="../static/theme/logo.svg" style="max-height:35px;" alt="{{ c.EVENT_NAME }}" />
-      </span>
-    <div class="container">
-      <div class="row">
-        <div class="col-sm-12">
-          <div id="brand">
-            <img src="..//img/brand.svg" alt="PatternFly Enterprise Application">
-          </div><!--/#brand-->
-        </div><!--/.col-*-->
+{% if not XHR %}{% extends 'base_login.html' %}{% endif -%}
+{# % import 'macros.html' as macros with context % #} 
+{# { macros.title('Login - {{ c.EVENT_NAME }}') } #}
+{% block content %}
         <div class="col-sm-7 col-md-6 col-lg-5 login">
           <form class="form-horizontal" role="form">
             <div class="form-group">
@@ -80,7 +39,4 @@
             Note: This login is for administrators only.  If you are a staffer wanting to sign
             up for shifts, you may <a href="../signups/login">log in here</a>.</p>
         </div><!--/.col-*-->
-      </div><!--/.row-->
-    </div><!--/.container-->
-      </body>
-    </html>
+{% endblock %}

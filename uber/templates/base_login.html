@@ -1,306 +1,53 @@
-<!DOCTYPE HTML>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+<!DOCTYPE html>
+<html lang="en-us" class="login-pf">
+  <head>
     <title>{{ c.EVENT_NAME }}</title>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="../static/images/favicon.png" type="image/x-icon" />
-
     <script src="../static/jspm_packages/system.js"></script>    
     <script src="../static/config.js"></script>
 
-    {% block head_styles %}
-        <script>
-            System.import('patternfly/dist/css/patternfly.css!');
-            System.import('patternfly/dist/css/patternfly-additions.css!');
-        </script>
-        {% if admin_area %}
-        {% else %}
-            <link rel="stylesheet" href="../static/theme/prereg.css">
-            <link rel="stylesheet" href="../static/theme/prereg_extra.css">
-        {% endif %}
-
-         <!-- additional styles -->
-        {% block additional_styles %}
-            {% block page_styles %}{% endblock %}
-        {% endblock %}
-    {% endblock %}
-
-    {% block head_javascript %}
-        <script>
-            var message = '{{ message|e }}';
-            var csrf_token = '{{ c.CSRF_TOKEN }}';
-        </script>
-
-        {% if 'preregistration' not in c.PAGE_PATH %}
-            {% for js in c.JAVASCRIPT_INCLUDES %}
-                <script src="{{ js }}"></script>
-            {% endfor %}
-        {% endif %}
-
-        {% if resend_email_form %}
-        <script>
-            System.import('jquery').then(function($) {
-                $(function() {
-                $("form[action='resend_email']").each(function(index) {
-                    $(this).submit(function (e) {
-                        // Prevent form submit.
-                        e.preventDefault();
-
-                        var data = $(this).serialize();
-                        var currentForm = $(this);
-
-                        $.ajax({
-                            method: 'POST',
-                            url: '../emails/resend_email',
-                            dataType: 'json',
-                            data: data,
-                            success: function (json) {
-                                toastr.clear();
-                                var message = json.message;
-                                if (json.success) {
-                                    toastr.info(message);
-                                } else {
-                                    toastr.error(message);
-                                }
-                            },
-                            error: function () {
-                                toastr.error('Unable to connect to server, please try again.');
-                            }
-                        });
-                    });
-                });
-            });
-            });
-        </script>
-        {% endif %}
-    {% endblock %}
-
-    {% block sectionStyle %}{% endblock %}
-
     <script>
-        var DISABLE_STRIPE_BUTTONS_ON_CLICK = true;
-
-        var parseQueryString = function(queryString) {
-            var params = {}, temp, i, len, queries = queryString.split('&');
-            for (i = 0, len = queries.length; i < len; i++) {
-                temp = queries[i].split('=');
-                params[temp[0]] = temp[1];
-            }
-            return params;
-                };
-
-    System.import('jquery').then(function($) {
-    Promise.all([
-        System.import('jquery-datetextentry'),
-        System.import('toastr'),
-        System.import('datatables'),
-        System.import('jqueryui'),
-        System.import('bootstrap')
-    ]).then(function(modules) {
-                toastr = modules[1];
-        var setVisible = function (selector, visible) {
-            $(selector)[visible ? 'show' : 'hide']();
-        }
-
-        $.field = function (field) {
-            var $field = $('[name=' + field + ']');
-            return $field.length ? $field : null;
-        };
-
-        $.val = function (field) {
-            var val = $.field(field).val();
-            if ($.field(field).is(':radio')) {
-                val = $.field(field).filter(':checked').val();
-            }
-            return val.match(/^\W*\d+\W*$/) ? parseInt(val) : val;
-        };
-
-        $.focus = function (field) {
-            $.field(field).focus();
-        };
-
-        $(document).ready(function() {
-            $(".dropdown-toggle").dropdown();
-        });
-
-        {% if admin_area %}
-        $(document).ready(function() {
-            // FIXME: This should be renamed and cleaned up
-            $("#masthead").load("../accounts/sitemap");
-        });
-        {% endif %}
-
-        $(function () {
-            $('.datepicker').datepicker({
-                changeMonth: true,
-                changeYear: true,
-                yearRange: '-100:+0',
-                defaultDate: '-20y',
-                dateFormat: 'yy-mm-dd'
-            });
-        });
-
-
-            toastr.options = {
-                closeButton: true,
-                debug: false,
-                positionClass: "toast-top-right",
-                onclick: null,
-                showDuration: "300",
-                hideDuration: "1000",
-                timeOut: "0",
-                extendedTimeOut: "0",
-                showEasing: "swing",
-                hideEasing: "linear",
-                showMethod: "fadeIn",
-                hideMethod: "fadeOut",
-                onShown: function() {
-                  try {
-                    // Remove the message parameter from the URL, if it exists
-                    if (history && history.replaceState) {
-                      var queryString = window.location.search.substring(1);
-                      if (queryString) {
-                        var params = parseQueryString(queryString);
-                        if (_.has(params, 'message')) {
-                          delete params['message'];
-                          queryString = $.param(params);
-                          if (queryString) {
-                            queryString = '?' + queryString;
-                          }
-                          history.replaceState({}, '', window.location.pathname + queryString);
-                        }
-                      }
-                    }
-                  } catch(ex) {
-                    // Don't let any errors here disrupt the rest of the app!
-                  }
-            }
-        }
-            var message = '{{ message }}';
-            if (message.length) {
-                toastr.info(message);
-            }
-
-            {#
-              If datetextentries are contained inside of a multi-page
-              datatable, the datetextentries that aren't on the first page
-              won't be rendered. To overcome this, we attempt to instantiate
-              datetextentries every time the datatable finishes drawing.
-            -#}
-            var createDateTextEntries = function() {
-                {# Only create datetextentry if it wasn't already created. -#}
-                $('.date:not(.jq-dte .date)').datetextentry({
-                    field_order: 'MDY',
-                    min_year: '1890',
-                    max_date: function() { return this.get_today(); },
-                    max_date_message: 'You cannot be born in the future.',
-                    show_tooltips: false,
-                    errorbox_x: -135,
-                    errorbox_y: 28
-                });
-
-                $('.expiration-date:not(.jq-dte .expiration-date)').datetextentry({
-                    field_order: 'MDY',
-                    show_tooltips: false,
-                    errorbox_x: -135,
-                    errorbox_y: 28
-                });
-            };
-
-            $('.datatable').dataTable({
-                aLengthMenu: [
-                    [25, 50, 100, 200, -1],
-                    [25, 50, 100, 200, 'All']
-                ],
-                stateSave: true,
-                drawCallback: createDateTextEntries
-            });
-            createDateTextEntries();
-
-            $('.focus:first').focus();
-            if (window.DISABLE_STRIPE_BUTTONS_ON_CLICK) {
-                // we can't intercept the Javascript form submit, so once someone has clicked the Stripe
-                // submit button, listen for us leaving the page and disable the buttons then
-                $(document).on('click', 'form > .stripe-button-el', function () {
-                    $(window).on('beforeunload', function () {
-                        $('a > .stripe-button-el').unwrap().prop('disabled', true).unwrap();
-                    });
-                });
-            }
-            // prevent people from paying after prereg closes
-            {% if c.PRE_CON %}
-                if ($('form.stripe').length) {
-                    var prevHour = new Date().getHours();
-                    var checkHour = function() {
-                        var currHour = new Date().getHours();
-                        if (currHour != prevHour) {
-                            location.reload();
-                        } else {
-                            prevHour = currHour;
-                            setTimeout(checkHour, 1000);
-                        }
-                    };
-                    checkHour();
-                }
-            {% endif %}
-        });
+      Promise.all([
+        System.import('jquery'),
+        System.import('patternfly/dist/css/patternfly.css!'),
+        System.import('patternfly/dist/css/patternfly-additions.css!'),
+        System.import('patternfly')
+      ]).then(function(modules) {
+        // after styles loaded
+        $ = modules[0];
+        //var message = '{{ message|e }}';
+        //var csrf_token = '{{ c.CSRF_TOKEN }}';
       });
-
-// attach our ajax click handler
-// TODO: make this work with form posts
-// TODO: make the page init JS run on these pages
-// TODO: handle popState
-// TODO: better handling of links that aren't links
-//       * navbar categories
-//       * help popups / static_views stuff
-// TODO: handle when someone gets logged out / logs back in
-System.import('jquery').then(function($) {
-    $(document).ready(function() {
-    $('a').click(function(event) {
-    dest = $(this).attr('href');
-    if (dest == '#') dest = null; //TODO: hacky, do this right
-    if (dest) {
-        history.pushState(location.pathname,'',dest);
-        $("#mainContainer").load(dest);
-        event.preventDefault();
-    };
-});
-});
-});
-
     </script>
-    {% block head_additional %}{% endblock %}
+
+    <style>
+      #loginBody {
+        //background-color:#030303;
+        background-image: none;
+      }
+    </style>
+
 </head>
-<body>
-    {% block top_of_body_additional %}
-    {% endblock %}
-    <div id="masthead"></div>
-    {% if c.DEV_BOX %}
-    <div id="devboxNotice" class="experimental-pf-bar" 
-      style="background: repeating-linear-gradient(
-                45deg,
-                #f9d67a,
-                #f9d67a 10px,
-                #f0ab00 10px,
-                #f0ab00 20px);">
-    <span class="experimental-pf-text" style="font-weight: bold;">
-      This is not a production environment.
-    </span>
-  </div>
-    {% endif %}
-    <div id="mainContainer" class="container">
-        {% block backlink %}{% endblock %}
-        {% block header %}{% endblock %}
-        {% block content %}{% endblock %}
-        <div id="bottomAnchor"></div>
-    </div>
-    {% block scripts %}
-        {% include "baseextra.html" %}
-    {% endblock %}
-    {% block additional_scripts %}
-        {% block page_scripts %} {% endblock %}
-    {% endblock %}
-</body>
+
+<body id="loginBody">
+    <span id="badge" style="color: #f3f3f3">
+        <img src="../static/theme/logo.svg" style="max-height:64px;" alt="{{ c.EVENT_NAME }}" />
+        <br>{{ c.EVENT_NAME }}
+      </span>
+    <div class="container">
+            {% if c.DEV_BOX %}{% include "devbox_notice.html" %}{% endif %}
+      <div class="row">
+        <div class="col-sm-12">
+          <div id="brand">
+            <img src="../static/theme/brand.svg" alt="REGGIE EVENT MANAGEMENT SYSTEM">
+          </div><!--/#brand-->
+        </div><!--/.col-*-->        
+{% block content%}
+{% endblock %}
+</div><!--/.row-->
+</div><!--/.container-->
+  </body>
 </html>

@@ -1,8 +1,5 @@
-<<<<<<< HEAD
-=======
 from cherrypy import HTTPError
 from dateutil import parser as dateparser
->>>>>>> 0d4586c... Adds new methods to shifts service. Needs more docs (#3025)
 from uber.common import *
 from uber.server import register_jsonrpc
 
@@ -10,8 +7,6 @@ from uber.server import register_jsonrpc
 __version__ = '0.1'
 
 
-<<<<<<< HEAD
-=======
 def docstring_format(*args, **kwargs):
     def _decorator(obj):
         obj.__doc__ = obj.__doc__.format(*args, **kwargs)
@@ -58,7 +53,6 @@ def _parse_datetime(d):
     return d
 
 
->>>>>>> 0d4586c... Adds new methods to shifts service. Needs more docs (#3025)
 def auth_by_token(required_access):
     token = cherrypy.request.headers.get('X-Auth-Token', None)
     if not token:
