@@ -280,7 +280,7 @@ class JobLookup:
         _format_opts(c.RATING_OPTS))
     def set_worked(self, shift_id, status=c.SHIFT_WORKED, rating=c.UNRATED, comment=''):
         """
-        Returns a list of all shifts for the given department.
+        Sets the given shift status as worked or not worked.
 
         Takes the shift id as the first parameter.
 
