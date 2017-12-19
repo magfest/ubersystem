@@ -115,17 +115,34 @@ def test_dept_head_ribbon_label_from_ribbon_attr():
 
 
 def test_dept_head_ribbon_label_from_dept_membership():
-    a = Attendee()
-    assert a.ribbon_labels == []
+    with Session() as session:
+        a = Attendee()
+        session.add(a)
 
-    a.dept_memberships = [DeptMembership(is_dept_head=True)]
-    assert a.ribbon_labels == ['Department Head']
+        a.presave_adjustments()
+        assert a.ribbon_labels == []
 
-    a.ribbon = '{}'.format(c.VOLUNTEER_RIBBON)
-    assert a.ribbon_labels == ['Department Head', 'Volunteer']
+        a.dept_memberships = [DeptMembership(is_dept_head=True)]
+        a.presave_adjustments()
+        assert a.ribbon_labels == ['Department Head']
+        a.presave_adjustments()
+        assert a.ribbon_labels == ['Department Head']
 
-    a.dept_memberships = [DeptMembership(is_dept_head=False)]
-    assert a.ribbon_labels == ['Volunteer']
+        a.badge_type = c.ATTENDEE_BADGE
+        a.staffing = True
+        a.ribbon = '{}'.format(c.DEALER_RIBBON)
+        a.presave_adjustments()
+        assert set(a.ribbon_labels) == set(['Department Head', 'Shopkeep'])
+        a.presave_adjustments()
+        assert set(a.ribbon_labels) == set(['Department Head', 'Shopkeep'])
+
+        a.dept_memberships = [DeptMembership(is_dept_head=False)]
+        a.presave_adjustments()
+        assert a.ribbon_labels == ['Shopkeep']
+        a.presave_adjustments()
+        assert a.ribbon_labels == ['Shopkeep']
+
+        session.expunge_all()
 
 
 def test_unassigned_name(monkeypatch):
