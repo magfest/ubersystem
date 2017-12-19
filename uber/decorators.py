@@ -529,7 +529,7 @@ def set_renderable(func, access):
     return new_func
 
 
-def only_renderable(*needs_access):
+def renderable_override(*needs_access):
     """
     Like all_renderable, but works on a single method.
 
