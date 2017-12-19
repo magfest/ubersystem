@@ -47,9 +47,10 @@ def get_plugin_head_revision(plugin_name):
     """
     alembic_config = create_alembic_config()
     script = ScriptDirectory.from_config(alembic_config)
-    other_plugins = set(plugin_dirs.keys()).difference({plugin_name})
+    branch_labels = script.get_revision(plugin_name).branch_labels
+    other_plugins = set(plugin_dirs.keys()).difference(branch_labels)
 
-    def _get_plugin_head_revision(revision_text):
+    def _recursive_get_head_revision(revision_text):
         revision = script.get_revision(revision_text)
         while not revision.is_branch_point and not revision.is_head:
             revision = script.get_revision(list(revision.nextrev)[0])
@@ -60,10 +61,10 @@ def get_plugin_head_revision(plugin_name):
             for next_revision_text in revision.nextrev:
                 next_revision = script.get_revision(next_revision_text)
                 if set(next_revision.branch_labels).isdisjoint(other_plugins):
-                    return _get_plugin_head_revision(next_revision.revision)
+                    return _recursive_get_head_revision(next_revision.revision)
             return revision
 
-    return _get_plugin_head_revision(plugin_name)
+    return _recursive_get_head_revision(plugin_name)
 
 
 def stamp(version):
