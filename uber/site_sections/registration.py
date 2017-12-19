@@ -841,7 +841,7 @@ class Root:
         session.delete(shift)
         raise HTTPRedirect('shifts?id={}&message={}', shift.attendee.id, 'Staffer unassigned from shift')
 
-    @renderable_override(c.ACCOUNTS, c.REG_MANAGERS)
+    @renderable_override(c.ACCOUNTS, c.STAFF_ROOMS)
     def feed(self, session, message='', page='1', who='', what='', action=''):
         feed = session.query(Tracking).filter(Tracking.action != c.AUTO_BADGE_SHIFT).order_by(Tracking.when.desc())
         what = what.strip()
