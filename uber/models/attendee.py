@@ -338,8 +338,10 @@ class Attendee(MagModel, TakesPaymentMixin):
                 self.badge_type = c.STAFF_BADGE
             if self.paid == c.NOT_PAID:
                 self.paid = c.NEED_NOT_PAY
-        elif c.VOLUNTEER_RIBBON in self.ribbon_ints and self.is_new:
-            self.staffing = True
+        else:
+            self.ribbon = remove_opt(self.ribbon_ints, c.DEPT_HEAD_RIBBON)
+            if c.VOLUNTEER_RIBBON in self.ribbon_ints and self.is_new:
+                self.staffing = True
 
         if not self.is_new:
             old_ribbon = map(int, self.orig_value_of('ribbon').split(',')) \
@@ -410,12 +412,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         del self.shifts[:]
 
     @property
-    def ribbon_labels(self):
-        labels = super(Attendee, self)._labels('ribbon', self.ribbon)
-        if c.DEPT_HEAD_RIBBON in self.ribbon_ints or not self.is_dept_head:
-            return labels
-        labels.append(c.RIBBONS[c.DEPT_HEAD_RIBBON])
-        return sorted(labels)
+    def assigned_depts_opts(self):
+        return [(d.id, d.name) for d in self.assigned_depts]
 
     @property
     def ribbon_and_or_badge(self):
