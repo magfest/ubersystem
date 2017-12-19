@@ -131,6 +131,43 @@
             $("#masthead").load("../accounts/sitemap");
         });
         {% endif %}
+      
+        var getBadgeNumFromBarcode = function(barcode, callback) {
+          // This function requires the barcode plugin
+
+          barcode = ('' + barcode).trim();
+          callback = callback || function() {}
+
+          if($.isNumeric(barcode)) {
+            // This only works because we intentionally use non-numeric barcode data
+            callback({'badge_num': barcode});
+            return;
+          }
+
+          var first = barcode.substr(0, 1),
+              last = barcode.substr(barcode.length - 1);
+          if(first === last && last.match(/\W/g)) {
+            barcode = barcode.substr(1, barcode.length - 2);
+          }
+
+          $.ajax({
+            method: 'POST',
+            url: '../barcode/get_badge_num_from_barcode',
+            data: {
+              barcode: barcode,
+              csrf_token: csrf_token
+            },
+            success: function(response, status) {
+              if(response && response['badge_num'] === -1) {
+                response['error'] = response['message'];
+              }
+              callback(response);
+            },
+            error: function(response, status, statusText) {
+              callback({'error': 'Could not decode barcode: ' + statusText});
+            }
+          });
+        };
 
         $(function () {
             $('.datepicker').datepicker({
@@ -140,9 +177,7 @@
                 defaultDate: '-20y',
                 dateFormat: 'yy-mm-dd'
             });
-        });
-
-
+            
             toastr.options = {
                 closeButton: true,
                 debug: false,
