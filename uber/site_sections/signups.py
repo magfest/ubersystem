@@ -76,6 +76,13 @@ class Root:
         con_days = -(-c.CON_LENGTH // 24)  # Equivalent to ceil(c.CON_LENGTH / 24)
 
         volunteer = session.logged_in_volunteer()
+        assigned_dept_ids = set(volunteer.assigned_depts_ids)
+        has_public_jobs = False
+        for job in joblist:
+            job['is_public_to_volunteer'] = job['is_public'] and job['department_id'] not in assigned_dept_ids
+            if job['is_public_to_volunteer']:
+                has_public_jobs = True
+
         has_setup = volunteer.can_work_setup or any(d.is_setup_approval_exempt for d in volunteer.assigned_depts)
         has_teardown = volunteer.can_work_teardown or any(d.is_teardown_approval_exempt for d in volunteer.assigned_depts)
         if has_setup and has_teardown:
@@ -88,6 +95,7 @@ class Root:
             cal_length = con_days
         return {
             'jobs': joblist,
+            'has_public_jobs': has_public_jobs,
             'name': session.logged_in_volunteer().full_name,
             'hours': session.logged_in_volunteer().weighted_hours,
             'view': view,

@@ -365,6 +365,27 @@ class Job(MagModel):
     def slots_taken(self):
         return len(self.shifts)
 
+    @slots_taken.expression
+    def slots_taken(cls):
+        return select([func.count(Shift.id)]).where(
+            Shift.job_id == cls.id).label('slots_taken')
+
+    @hybrid_property
+    def is_public(self):
+        return self.visibility > Job.ONLY_MEMBERS
+
+    @is_public.expression
+    def is_public(cls):
+        return cls.visibility > Job.ONLY_MEMBERS
+
+    @hybrid_property
+    def is_unfilled(self):
+        return self.slots_taken < self.slots
+
+    @is_unfilled.expression
+    def is_unfilled(cls):
+        return cls.slots_taken < cls.slots
+
     @property
     def slots_untaken(self):
         return max(0, self.slots - self.slots_taken)
