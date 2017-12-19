@@ -97,7 +97,7 @@ def api_auth(*required_access):
 
     def _decorator(func):
         inner_func = get_innermost(func)
-        if getattr(inner_func, 'required_access', None):
+        if getattr(inner_func, 'required_access', None) is not None:
             return func
         else:
             inner_func.required_access = required_access

@@ -529,6 +529,18 @@ def set_renderable(func, access):
     return new_func
 
 
+def renderable_override(*needs_access):
+    """
+    Like all_renderable, but works on a single method.
+
+    Overrides access settings on a class also decorated with all_renderable.
+    """
+    def _decorator(func):
+        func.restricted = needs_access
+        return func
+    return _decorator
+
+
 class all_renderable:
     def __init__(self, *needs_access):
         self.needs_access = needs_access
