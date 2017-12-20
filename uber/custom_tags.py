@@ -403,6 +403,83 @@ def int_options(minval, maxval, default=1):
 
 @JinjaEnv.jinja_export
 def format_location(location, separator='<br>', spacer='above', text_class='text-nowrap'):
+    """
+    Formats a location from the [[event_location]] config section.
+
+    Locations are typically given in the following format::
+
+        EVENT_NAME [(ROOM_NAME)]
+
+    Where EVENT_NAME refers to the activity that is happening in the room,
+    and the optional ROOM_NAME inside parenthesis "()" refers to the name of
+    the physical location in the building. For example::
+
+        Zombie Tag (Magnolia 1)
+
+    Because (ROOM_NAME) is optional, locations can also be given like this::
+
+        POSE Lounge
+
+    The location is used in a lot of different places throughout the
+    application, and we want to format it differently for different uses. In
+    any case the EVENT_NAME and (ROOM_NAME) are each wrapped in a <span> tag::
+
+        <span>Zombie Tag</span><br>
+        <span>(Magnolia 1)</span>
+
+    The separator parameter determines how the EVENT_NAME and (ROOM_NAME) are
+    joined. The default separator is a <br> tag, as shown above. If you don't
+    want the EVENT_NAME and (ROOM_NAME) on different lines, you can pass in a
+    space character ' ' for separator::
+
+        <span>Zombie Tag</span> <span>(Magnolia 1)</span>
+
+    The text_class paramter determines what CSS classes are added to each
+    <span> tag. The default is 'text-nowrap', which prevents word breaks in
+    both EVENT_NAME and (ROOM_NAME)::
+
+        <span class="text-nowrap">Zombie Tag</span><br>
+        <span class="text-nowrap">(Magnolia 1)</span>
+
+    If (ROOM_NAME) is omitted from location, you can optionally add a spacer
+    above or below EVENT_NAME, to force EVENT_NAME to line up with other
+    locations that have a (ROOM_NAME). The default is 'above'::
+
+        &nbsp;<br>
+        <span class="text-nowrap">POSE Lounge</span>
+
+    You may also pass 'below' for spacer::
+
+        <span class="text-nowrap">POSE Lounge</span><br>
+        &nbsp;
+
+    If spacer evaluates to a Falsey value (like an empty string or None), it
+    is omitted entirely::
+
+        <span class="text-nowrap">POSE Lounge</span>
+
+    Arguments:
+        location (str): A location from the [[event_location]] config section.
+        separator (str): Used to join the EVENT_NAME and (ROOM_NAME) portions
+            of `location`. Defaults to '<br>'.
+        spacer (str): Indicates where an &nbsp; spacer should be inserted if
+            (ROOM_NAME) is omitted from `location`. Valid values are:
+
+                * 'above' - Inserts the spacer above EVENT_NAME
+                * 'below' - Inserts the spacer below EVENT_NAME
+                * None - Omits the spacer entirely
+
+        text_class (str): The CSS class that should be applied to the <span>
+            tags wrapping both EVENT_NAME and (ROOM_NAME). Defaults to
+            'text-nowrap'::
+
+                <span class="text-nowrap">Zombie Tag</span><br>
+                <span class="text-nowrap">(Magnolia 1)</span>
+
+    Returns:
+        jinja2.Markup: `location` rendered as a markup safe string.
+
+    """
     parts = re.split(r'(\(.*?\))', c.EVENT_LOCATIONS[location])
     parts = [jinja2.escape(s.strip()) for s in parts if s.strip()]
     if spacer and len(parts) < 2:
