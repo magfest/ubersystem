@@ -430,7 +430,7 @@ def format_location(location, separator='<br>', spacer='above', text_class='text
     The separator parameter determines how the EVENT_NAME and (ROOM_NAME) are
     joined. The default separator is a <br> tag, as shown above. If you don't
     want the EVENT_NAME and (ROOM_NAME) on different lines, you can pass in a
-    space charactoer ' ' for separator::
+    space character ' ' for separator::
 
         <span>Zombie Tag</span> <span>(Magnolia 1)</span>
 
