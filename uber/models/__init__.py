@@ -706,9 +706,11 @@ class Session(SessionManager):
             attendees = self.query(Attendee).iexact(
                 first_name=first_name,
                 last_name=last_name,
-                email=email,
-                zip_code=zip_code).filter(
-                    Attendee.badge_status != c.INVALID_STATUS).limit(10).all()
+                zip_code=zip_code
+            ).filter(
+                Attendee.normalized_email == Attendee.normalize_email(email),
+                Attendee.badge_status != c.INVALID_STATUS
+            ).limit(10).all()
 
             if attendees:
                 statuses = defaultdict(lambda: six.MAXSIZE, {
