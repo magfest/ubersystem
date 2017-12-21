@@ -23,11 +23,15 @@
 <div class="masthead"></div>
 <div class="panel panel-default">
   <div class="panel-body">
+    {% block panel_top %}{% endblock %}
+
     <form method="post" action="confirm" class="form-horizontal">
       {{ csrf_token() }}
       <input type="hidden" name="id" value="{{ attendee.id }}" />
       <input type="hidden" name="return_to" value="{{ return_to }}" />
       <input type="hidden" name="undoing_extra" value="{{ undoing_extra }}" />
+
+      {% block form_top %}{% endblock %}
 
       {% if attendee.amount_unpaid and c.HTTP_METHOD == 'GET' %}
         <br/>

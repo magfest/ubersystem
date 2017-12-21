@@ -43,7 +43,7 @@ def _attendee_fields_and_query(full, query):
 
 def _parse_datetime(d):
     if isinstance(d, six.string_types) and d.strip().lower() == 'now':
-        d = datetime.utcnow().replace(tzinfo=pytz.UTC)
+        d = datetime.now(pytz.UTC)
     else:
         d = dateparser.parse(d)
     try:

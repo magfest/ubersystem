@@ -12,7 +12,7 @@ from uber.utils import CSRFException
 from uber.models import _attendee_validity_check
 
 
-next_week = datetime.utcnow().replace(tzinfo=pytz.UTC) + timedelta(days=7)
+next_week = datetime.now(pytz.UTC) + timedelta(days=7)
 
 
 @pytest.fixture(autouse=True)
