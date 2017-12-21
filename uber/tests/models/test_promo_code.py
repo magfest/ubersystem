@@ -1,7 +1,7 @@
 from uber.tests import *
 
 
-next_week = datetime.utcnow().replace(tzinfo=pytz.UTC) + timedelta(days=7)
+next_week = datetime.now(pytz.UTC) + timedelta(days=7)
 
 
 class TestPromoCodeAdjustments:
@@ -178,7 +178,7 @@ class TestAttendeePromoCodeModelChecks:
             "You may already have other discounts."
 
     def test_promo_code_not_is_expired(self):
-        expire = datetime.utcnow().replace(tzinfo=pytz.UTC) - timedelta(days=9)
+        expire = datetime.now(pytz.UTC) - timedelta(days=9)
         promo_code = PromoCode(discount=1, expiration_date=expire)
         attendee = Attendee(
             promo_code=promo_code,

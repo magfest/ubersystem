@@ -79,6 +79,6 @@ class Root:
             raise HTTPRedirect('index')
 
         api_token = session.api_token(id)
-        api_token.revoked_time = datetime.utcnow().replace(tzinfo=pytz.UTC)
+        api_token.revoked_time = datetime.now(pytz.UTC)
         raise HTTPRedirect(
             'index?message={}', 'Successfully revoked API token')

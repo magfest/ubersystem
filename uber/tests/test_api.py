@@ -184,7 +184,7 @@ class TestAuthByToken(object):
         assert auth_by_token(set()) == expected
 
     def test_revoked(self, monkeypatch, session, api_token):
-        api_token.revoked_time = datetime.utcnow().replace(tzinfo=pytz.UTC)
+        api_token.revoked_time = datetime.now(pytz.UTC)
         session.commit()
         session.refresh(api_token)
         monkeypatch.setitem(cherrypy.request.headers, 'X-Auth-Token', api_token.token)
