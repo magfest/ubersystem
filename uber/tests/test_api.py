@@ -223,8 +223,7 @@ class TestAuthBySession(object):
 
     def test_check_csrf_missing_from_session(self, monkeypatch):
         monkeypatch.setitem(cherrypy.request.headers, 'CSRF-Token', 'XXXX')
-        with pytest.raises(KeyError) as error:
-            auth_by_session(set())
+        assert auth_by_session(set()) == (403, 'Your CSRF token is invalid. Please go back and try again.')
 
     def test_check_csrf_invalid(self, monkeypatch):
         monkeypatch.setitem(cherrypy.session, 'csrf_token', '74c18d5c-1a92-40f0-b5f3-924d46efafe4')

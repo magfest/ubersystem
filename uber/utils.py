@@ -112,9 +112,10 @@ def check_csrf(csrf_token=None):
     if not csrf_token:
         raise CSRFException("CSRF token missing")
 
-    if csrf_token != cherrypy.session['csrf_token']:
+    session_csrf_token = cherrypy.session.get('csrf_token', None)
+    if csrf_token != session_csrf_token:
         raise CSRFException("CSRF check failed: csrf tokens don't match: {!r} != {!r}"
-                            .format(csrf_token, cherrypy.session['csrf_token']))
+                            .format(csrf_token, session_csrf_token))
     else:
         cherrypy.request.headers['CSRF-Token'] = csrf_token
 
