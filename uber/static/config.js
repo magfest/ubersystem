@@ -25,6 +25,7 @@ System.config({
     "core-js": "npm:core-js@1.2.7",
     "css": "github:systemjs/plugin-css@0.1.36",
     "datatables": "github:DataTables/DataTables@1.10.16",
+    "google-code-prettify": "npm:google-code-prettify@1.0.5",
     "jquery": "npm:jquery@3.2.1",
     "jquery-confirm": "npm:jquery-confirm@3.3.2",
     "jquery-datetextentry": "github:grantm/jquery-datetextentry@2.0.11",
@@ -170,6 +171,10 @@ System.config({
       "path": "github:jspm/nodelibs-path@0.1.0",
       "process": "github:jspm/nodelibs-process@0.1.2",
       "systemjs-json": "github:systemjs/plugin-json@0.1.2"
+    },
+    "npm:google-code-prettify@1.0.5": {
+      "buffer": "github:jspm/nodelibs-buffer@0.1.1",
+      "process": "github:jspm/nodelibs-process@0.1.2"
     },
     "npm:inherits@2.0.1": {
       "util": "github:jspm/nodelibs-util@0.1.0"

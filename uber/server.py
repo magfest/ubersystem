@@ -127,11 +127,45 @@ class Root:
 
 mount_site_sections(c.MODULE_ROOT)
 
+def error_page(status, message, traceback, version):
+    statusNum = status[:3]
+    statusTxt = status[3:]
+    
+#    tbCut = splitlines(traceback)
+#    tracebackShort = ''
+#    tbLen = tracebackCut.len
+#
+#    if tracebackCut.len < 6:
+#        tracebackShort = traceback
+#    else:
+#        tracebackShort = tbCut[0..3] + tbCut[(tblen - 3)..tblen]
+
+    blurb = ''
+    if statusNum == '500':
+        if re.match("No row was found for one\(\)", traceback):
+            blurb = "You mistyped something."
+        elif re.match("No row was found for one\(\)", traceback):
+            blurb = "You mistyped something."
+        else:
+            blurb = "Something else broke."
+    elif statusNum == '404':
+            blurb = "Page not found."
+    elif statusNum == '405':
+            blurb = "Ya gotta use POST!"
+    else:
+        blurb = "Well, this is a weird error."
+    return render('error.html', {'status'    : status,
+                                 'message'   : message,
+                                 'traceback' : traceback,
+                                 'statusNum' : statusNum,
+                                 'statusTxt' : statusTxt,
+                                 'blurb'     : blurb,
+    })
 
 def error_page_404(status, message, traceback, version):
     return "Sorry, page not found!<br/><br/>{}<br/>{}".format(status, message)
 
-c.APPCONF['/']['error_page.404'] = error_page_404
+c.APPCONF['/']['error_page.default'] = error_page
 
 cherrypy.tree.mount(Root(), c.PATH, c.APPCONF)
 static_overrides(join(c.MODULE_ROOT, 'static'))

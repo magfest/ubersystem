@@ -10,17 +10,19 @@
     <script src="../static/config.js"></script>
 
     <script>
-      Promise.all([
-        System.import('jquery'),
+        System.import('jquery').then(function($) {
+            Promise.all([
         System.import('patternfly/dist/css/patternfly.css!'),
         System.import('patternfly/dist/css/patternfly-additions.css!'),
-        System.import('patternfly')
+        System.import('patternfly'),
+        System.import('bootstrap')
       ]).then(function(modules) {
         // after styles loaded
-        $ = modules[0];
+
         //var message = '{{ message|e }}';
         //var csrf_token = '{{ c.CSRF_TOKEN }}';
       });
+        });
     </script>
 
     <style>
