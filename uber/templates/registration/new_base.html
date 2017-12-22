@@ -258,8 +258,8 @@
         {% else %}
             {% if c.NUMBERED_BADGES %}
                 <td>
-                    <input type="number" name="badge_num" form="new_checkin_{{ attendee.id }}" size="5"
-                           {% if attendee.paid == c.NOT_PAID %}disabled{% endif %} />
+                  <input type="tet" name="badge_num" form="new_checkin_{{ attendee.id }}" size="10"
+                         {% if attendee.paid == c.NOT_PAID %}disabled{% endif %} />
                 </td>
             {% endif %}
             <td>
