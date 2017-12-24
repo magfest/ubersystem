@@ -1,3 +1,5 @@
+import pytz
+
 from collections import Mapping, OrderedDict
 from datetime import datetime, time, timedelta
 
@@ -15,8 +17,9 @@ from uber.custom_tags import fieldify
 
 
 __all__ = [
-    'default_relationship', 'relationship', 'utcnow', 'Choice', 'Column',
-    'DefaultColumn', 'JSONColumnMixin', 'MultiChoice', 'TakesPaymentMixin']
+    'default_relationship', 'relationship', 'utcmin', 'utcnow', 'Choice',
+    'Column', 'DefaultColumn', 'JSONColumnMixin', 'MultiChoice',
+    'TakesPaymentMixin']
 
 
 def DefaultColumn(*args, admin_only=False, private=False, **kwargs):
@@ -65,6 +68,44 @@ def default_relationship(*args, **kwargs):
 # Alias Column and relationship to maintain backwards compatibility
 SQLAlchemy_Column, Column = Column, DefaultColumn
 SQLAlchemy_relationship, relationship = relationship, default_relationship
+
+
+class utcmin(FunctionElement):
+    """
+    Exactly the same as utcnow(), but uses '0001-01-01 00:00' instead of now.
+
+    Useful for datetime columns that you would like to index. We often need
+    to create datetime columns that are NULL until a particular event happens,
+    like an attendee checks in to an event. For those columns that we'd like
+    to query (either for "IS NULL", or "IS NOT NULL"), an index isn't helpful,
+    because Postgres doesn't index NULL values.
+
+    In those cases where we'd like to query against a NULL datetime column,
+    instead of using NULLable, we can use a NOT NULL datetime column, and make
+    the default value utcmin(). We can consider any value in the column
+    greater than '0001-01-01 00:00' to be NOT NULL.
+
+    Instead of::
+
+        Attendee.checkin_time != None
+
+    We can get the benefits of indexing by doing::
+
+        Attendee.checkin_time > utcmin.datetime
+
+    """
+    datetime = datetime(1, 1, 1, 0, 0, tzinfo=pytz.UTC)
+    type = UTCDateTime()
+
+
+@compiles(utcmin, 'postgresql')
+def pg_utcmin(element, compiler, **kw):
+    return "timezone('utc', '0001-01-01 00:00')"
+
+
+@compiles(utcmin, 'sqlite')
+def sqlite_utcmin(element, compiler, **kw):
+    return "(datetime('0001-01-01 00:00', 'utc'))"
 
 
 class utcnow(FunctionElement):
