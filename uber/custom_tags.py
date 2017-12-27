@@ -293,7 +293,25 @@ def email_only(email):
 
 
 @JinjaEnv.jinja_export
-def humanize_timedelta(*args, granularity='seconds', **kwargs):
+def timedelta_component(*args, units='days', **kwargs):
+    if args and isinstance(args[0], timedelta):
+        delta = relativedelta(seconds=args[0].total_seconds()).normalized()
+    else:
+        delta = relativedelta(**kwargs).normalized()
+    return abs(int(getattr(delta, units)))
+
+
+@JinjaEnv.jinja_export
+def humanize_timedelta(
+        *args,
+        granularity='seconds',
+        separator=None,
+        now='right now',
+        prefix='',
+        suffix='',
+        past_prefix='',
+        past_suffix='',
+        **kwargs):
     """
     Converts a time interval into a nicely formatted human readable string.
 
@@ -327,6 +345,17 @@ def humanize_timedelta(*args, granularity='seconds', **kwargs):
     else:
         delta = relativedelta(**kwargs).normalized()
     units = ['years', 'months', 'days', 'hours', 'minutes', 'seconds']
+
+    if past_prefix or past_suffix:
+        is_past = False
+        for unit in reversed(units):
+            unit = int(getattr(delta, unit))
+            if unit != 0:
+                is_past = unit < 0
+        if is_past:
+            prefix = past_prefix
+            suffix = past_suffix
+
     time_units = []
     for unit in units:
         time = abs(int(getattr(delta, unit)))
@@ -335,6 +364,7 @@ def humanize_timedelta(*args, granularity='seconds', **kwargs):
             time_units.append('{} {}{}'.format(time, unit[:-1], plural))
         if unit == granularity:
             break
+
     if time_units:
         return join_and(time_units)
     else:
@@ -374,6 +404,26 @@ def int_options(minval, maxval, default=1):
         selected = 'selected="selected"' if str(i) == default else ''
         results.append('<option value="{val}" {selected}>{val}</option>'.format(val=i, selected=selected))
     return safe_string('\n'.join(results))
+
+
+RE_LOCATION = re.compile(r'(\(.*?\))')
+
+
+@JinjaEnv.jinja_export
+def location_part(location, index=0):
+    parts = RE_LOCATION.split(c.EVENT_LOCATIONS[location])
+    parts = [jinja2.escape(s.strip(' ()')) for s in parts if s.strip()]
+    return parts[index] if parts else ''
+
+
+@JinjaEnv.jinja_export
+def location_event_name(location):
+    return location_part(location, 0)
+
+
+@JinjaEnv.jinja_export
+def location_room_name(location):
+    return location_part(location, -1)
 
 
 @JinjaEnv.jinja_export
@@ -455,7 +505,7 @@ def format_location(location, separator='<br>', spacer='above', text_class='text
         jinja2.Markup: `location` rendered as a markup safe string.
 
     """
-    parts = re.split(r'(\(.*?\))', c.EVENT_LOCATIONS[location])
+    parts = RE_LOCATION.split(c.EVENT_LOCATIONS[location])
     parts = [jinja2.escape(s.strip()) for s in parts if s.strip()]
     if spacer and len(parts) < 2:
         parts.insert(0 if spacer == 'above' else 1, '&nbsp;')
