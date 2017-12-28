@@ -254,22 +254,18 @@ def test_must_contact():
         paid=c.NEED_NOT_PAY, first_name='Poc', last_name='Both')
 
     poc_dept1.dept_memberships = [DeptMembership(
-        attendee=poc_dept1,
         department=dept1,
         is_poc=True)]
 
     poc_dept2.dept_memberships = [DeptMembership(
-        attendee=poc_dept2,
         department=dept2,
         is_poc=True)]
 
     poc_both.dept_memberships = [
         DeptMembership(
-            attendee=poc_dept1,
             department=dept1,
             is_poc=True),
         DeptMembership(
-            attendee=poc_dept2,
             department=dept2,
             is_poc=True)]
 
