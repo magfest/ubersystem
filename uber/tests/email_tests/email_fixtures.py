@@ -26,6 +26,7 @@ def set_datebase_now_to_sept_15th(monkeypatch):
 @pytest.fixture
 def remove_all_email_categories(monkeypatch):
     monkeypatch.setattr(AutomatedEmail, 'instances', OrderedDict())
+    monkeypatch.setattr(AutomatedEmail, 'instances_by_model', defaultdict(list))
 
 
 @pytest.fixture

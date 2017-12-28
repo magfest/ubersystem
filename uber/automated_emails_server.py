@@ -7,8 +7,11 @@ class AutomatedEmail:
     An example of an email category would be "Your registration has been confirmed".
     """
 
-    # global: all instances of every registered email category in the system
+    # global: all instances of every registered email category, mapped by ident
     instances = OrderedDict()
+
+    # global: all instances of every registered email category, mapped by model class
+    instances_by_model = defaultdict(list)
 
     # a list of queries to run during each automated email sending run to
     # return particular model instances of a given type.
@@ -35,13 +38,15 @@ class AutomatedEmail:
 
         self.subject = subject.format(EVENT_NAME=c.EVENT_NAME, EVENT_DATE=c.EPOCH.strftime("(%b %Y)"))
         self.ident = ident
+        self.model = model
 
         assert self.ident, 'error: automated email ident may not be empty.'
         assert self.ident not in self.instances, 'error: automated email ident "{}" is registered twice.'.format(self.ident)
 
         self.instances[self.ident] = self
+        self.instances_by_model[self.model].append(self)
 
-        self.model, self.template, self.needs_approval, self.allow_during_con = model, template, needs_approval, allow_during_con
+        self.template, self.needs_approval, self.allow_during_con = template, needs_approval, allow_during_con
         self.cc = cc or []
         self.bcc = bcc or []
         self.extra_data = extra_data or {}
@@ -270,9 +275,9 @@ class SendAllAutomatedEmailsJob:
             model_instances = query_fn(self.session)
             for model_instance in model_instances:
                 sleep(0.01)  # throttle CPU usage
-                self._send_any_emails_for(model_instance)
+                self._send_any_emails_for(model_instance, model)
 
-    def _send_any_emails_for(self, model_instance):
+    def _send_any_emails_for(self, model_instance, model=None):
         """
         Go through every email category in the system and ask it if it wants to send any email on behalf of this
         particular model instance.
@@ -281,7 +286,9 @@ class SendAllAutomatedEmailsJob:
           email_category: "You {attendee.name} have registered for our event!"
           model_instance:  Attendee #42
         """
-        for email_category in AutomatedEmail.instances.values():
+        if not model:
+            model = model_instance.__class__
+        for email_category in AutomatedEmail.instances_by_model.get(model, []):
             email_category.send_if_should(model_instance, self.raise_errors)
 
     @classmethod
