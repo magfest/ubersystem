@@ -15,9 +15,9 @@ System.config({
   },
 
   map: {
-    "angular": "github:angular/bower-angular@1.6.7",
+    "angular": "github:angular/bower-angular@1.6.8",
     "angular-bootstrap": "github:angular-ui/bootstrap-bower@2.5.0",
-    "angular-route": "github:angular/bower-angular-route@1.6.7",
+    "angular-route": "github:angular/bower-angular-route@1.6.8",
     "babel": "npm:babel-core@5.8.38",
     "babel-runtime": "npm:babel-runtime@5.8.38",
     "bootbox": "npm:bootbox@4.4.0",
@@ -34,12 +34,16 @@ System.config({
     "jquery-validation/jquery-validation": "github:jquery-validation/jquery-validation@1.17.0",
     "jqueryui": "npm:jqueryui@1.11.1",
     "lodash": "npm:lodash@4.17.4",
-    "moment": "npm:moment@2.19.2",
-    "patternfly": "bower:patternfly@3.30.2",
+    "microlight": "npm:microlight@0.0.7",
+    "moment": "npm:moment@2.20.1",
+    "patternfly": "bower:patternfly@3.32.1",
     "select2": "github:select2/select2@4.0.5",
-    "toastr": "github:CodeSeven/toastr@2.1.3",
+    "toastr": "github:CodeSeven/toastr@2.1.4",
     "bower:bootstrap-datepicker@1.6.4": {
       "css": "github:systemjs/plugin-css@0.1.36",
+      "jquery": "bower:jquery@3.2.1"
+    },
+    "bower:bootstrap-sass@3.3.7": {
       "jquery": "bower:jquery@3.2.1"
     },
     "bower:bootstrap-select@1.12.4": {
@@ -91,9 +95,10 @@ System.config({
       "bootstrap": "bower:bootstrap@3.3.7",
       "jquery": "bower:jquery@3.2.1"
     },
-    "bower:patternfly@3.30.2": {
+    "bower:patternfly@3.32.1": {
       "bootstrap": "bower:bootstrap@3.3.7",
       "bootstrap-datepicker": "bower:bootstrap-datepicker@1.6.4",
+      "bootstrap-sass": "bower:bootstrap-sass@3.3.7",
       "bootstrap-select": "bower:bootstrap-select@1.12.4",
       "bootstrap-switch": "bower:bootstrap-switch@3.3.3",
       "bootstrap-touchspin": "bower:bootstrap-touchspin@3.1.2",
@@ -105,6 +110,7 @@ System.config({
       "datatables-colvis": "bower:datatables-colvis@1.1.2",
       "eonasdan-bootstrap-datetimepicker": "bower:eonasdan-bootstrap-datetimepicker@4.17.47",
       "font-awesome": "bower:font-awesome@4.7.0",
+      "font-awesome-sass": "bower:font-awesome-sass@4.7.0",
       "google-code-prettify": "bower:google-code-prettify@1.0.5",
       "jquery": "bower:jquery@3.2.1",
       "matchHeight": "bower:matchHeight@0.7.2",
@@ -112,7 +118,7 @@ System.config({
       "patternfly-bootstrap-combobox": "bower:patternfly-bootstrap-combobox@1.1.7",
       "patternfly-bootstrap-treeview": "bower:patternfly-bootstrap-treeview@2.1.5"
     },
-    "github:CodeSeven/toastr@2.1.3": {
+    "github:CodeSeven/toastr@2.1.4": {
       "css": "github:systemjs/plugin-css@0.1.36",
       "jquery": "npm:jquery@3.2.1"
     },
@@ -120,8 +126,8 @@ System.config({
       "css": "github:systemjs/plugin-css@0.1.36",
       "jquery": "npm:jquery@3.2.1"
     },
-    "github:angular/bower-angular-route@1.6.7": {
-      "angular": "github:angular/bower-angular@1.6.7"
+    "github:angular/bower-angular-route@1.6.8": {
+      "angular": "github:angular/bower-angular@1.6.8"
     },
     "github:grantm/jquery-datetextentry@2.0.11": {
       "jquery": "npm:jquery@3.2.1"

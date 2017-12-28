@@ -1,6 +1,7 @@
 from sideboard.jsonrpc import _make_jsonrpc_handler
 from sideboard.server import jsonrpc_reset
 from uber.common import *
+import traceback as tback
 
 mimetypes.init()
 
@@ -130,15 +131,12 @@ mount_site_sections(c.MODULE_ROOT)
 def error_page(status, message, traceback, version):
     statusNum = status[:3]
     statusTxt = status[3:]
-    
-#    tbCut = splitlines(traceback)
-#    tracebackShort = ''
-#    tbLen = tracebackCut.len
-#
-#    if tracebackCut.len < 6:
-#        tracebackShort = traceback
-#    else:
-#        tracebackShort = tbCut[0..3] + tbCut[(tblen - 3)..tblen]
+
+    tbObj = sys.exc_info()[2]
+    exception = tback.format_exception_only(sys.exc_info()[0], sys.exc_info()[1])
+    tbExtract = tback.extract_tb(tbObj)
+
+    foo = pformat(tback.format_list(tbExtract))
 
     blurb = ''
     if statusNum == '500':
@@ -156,7 +154,7 @@ def error_page(status, message, traceback, version):
         blurb = "Well, this is a weird error."
     return render('error.html', {'status'    : status,
                                  'message'   : message,
-                                 'traceback' : traceback,
+                                 'traceback' : foo,
                                  'statusNum' : statusNum,
                                  'statusTxt' : statusTxt,
                                  'blurb'     : blurb,
