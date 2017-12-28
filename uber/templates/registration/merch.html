@@ -3,6 +3,7 @@
 {% block content %}
 
 <script type="text/javascript">
+    {% set detect_barcode_scan = True %}
     var $shirtOpts = $('<select/>').attr('id', 'shirt');
     $.each({{ c.MERCH_SHIRT_OPTS|jsonize }}, function(i,size) {
         $shirtOpts.append($('<option/>').val(size[0]).text(size[1]));

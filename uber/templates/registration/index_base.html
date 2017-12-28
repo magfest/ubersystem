@@ -11,6 +11,10 @@
 </script>
     {% include "check_in.html" %}
 
+  {% if c.REG_USES_BARCODES %}
+    {% set detect_barcode_scan = True %}
+  {% endif %}
+
 {% endblock adminheader %}
 {% block admin_controls %}
 <div class="row">
