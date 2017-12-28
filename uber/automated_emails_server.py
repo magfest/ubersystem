@@ -265,12 +265,39 @@ class SendAllAutomatedEmailsJob:
         If that automated email decides the time is right (i.e. it hasn't sent the email already, the attendee has a
         valid email address, email has been approved for sending, and a bunch of other stuff), then it will actually
         send an email for this model instance.
+
+        Note: Because we cache the list of previously sent emails for the duration of the run, we have no
+        protection if we trigger the same email category and the same model.  If the code is setup incorrectly, we
+        could hit this situation and send a duplicate email. (though we're now guarding against this with
+        _assert_same_model_type())
         """
         for model, query_fn in AutomatedEmail.queries.items():
             model_instances = query_fn(self.session)
             for model_instance in model_instances:
+                if not self._assert_same_model_type(expected_model=model, model_to_test=model_instance):
+                    break  # our query is broken, skip and go to next category for safety
+
                 sleep(0.01)  # throttle CPU usage
                 self._send_any_emails_for(model_instance)
+
+    def _assert_same_model_type(self, expected_model, model_to_test):
+        # This function could have just been an assert, but:
+        # We want to have serious logging trigger if we encounter this condition so we can fix it.
+        # Return False if we should stop processing the email category we're in, or True to keep going
+        #
+        # If we allowed this to happen, we could end up in a situation where an unrelated email query
+        # triggers a category to try and resend
+        try:
+            if expected_model == model_to_test.__class__:
+                return True
+            else:
+                raise ValueError("Returned model must match same class as the query. "
+                                 "AutomatedEmail.queries[{}] must contain only type {}, but we found a type of {}"
+                                 .format(expected_model, expected_model, model_to_test.__class__))
+        except ValueError:
+            report_critical_exception("code error: need to fix AutomatedEmail.queries[] somewhere. "
+                                      "Skipping email queries for {}.".format(expected_model))
+            return False
 
     def _send_any_emails_for(self, model_instance):
         """
