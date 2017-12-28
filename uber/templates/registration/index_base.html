@@ -13,13 +13,27 @@
 
   {% if c.REG_USES_BARCODES %}
     {% set detect_barcode_scan = True %}
+    <script type="text/javascript">
+        var setBarcodeField = function () {
+            if ($('input[name=badge_num]').length === 1) {
+                $barcodeField = $('input[name=badge_num]');
+            }
+        };
+
+        var useBarcode = function (barcode) {
+            if ($barcodeField.is('#search_bar')) {
+                $barcodeField.val(barcode);
+                $('#search_form').submit();
+            }
+        }
+    </script>
   {% endif %}
 
 {% endblock adminheader %}
 {% block admin_controls %}
 <div class="row">
     <div class="col-sm-6 col-md-4">
-        <form role="form" method="get" action="index">
+      <form role="form" method="get" action="index" id="search_form">
             <input type="hidden" name="order" value="{{ order }}" />
             <input type="hidden" name="invalid" value="{{ invalid }}" />
             <div class="input-group">
