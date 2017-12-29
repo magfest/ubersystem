@@ -1,6 +1,37 @@
 from uber.common import *
 
 
+def _decline_and_convert_dealer_group(session, group, convert=False):
+    message = 'Group declined'
+    for attendee in group.attendees:
+        if attendee.is_unassigned or not convert:
+            session.delete(attendee)
+        else:
+            message = 'Group declined and emails sent to attendees'
+            attendee.paid = c.NOT_PAID
+            attendee.badge_status = c.NEW_STATUS
+            attendee.ribbon = remove_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
+            attendee.overridden_price = attendee.new_badge_cost
+            attendee.admin_notes = '{}{}Converted attendee badge from waitlisted dealer group "{}".'.format(
+                attendee.admin_notes,
+                '\n\n' if attendee.admin_notes else '',
+                group.name)
+            try:
+                send_email(c.REGDESK_EMAIL,
+                           attendee.email,
+                           'Do you still want to come to {EVENT_NAME}?',
+                           render('emails/dealers/badge_converted.html', {
+                               'attendee': attendee,
+                               'group': group
+                           }), model=attendee)
+            except:
+                message = 'Group declined (but the emails could not be sent)'
+            group.attendees.remove(attendee)
+            group.leader = None
+    session.delete(group)
+    return message
+
+
 @all_renderable(c.PEOPLE, c.REG_AT_CON)
 class Root:
     def index(self, session, message='', order='name', show='all'):
@@ -85,6 +116,20 @@ class Root:
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Group id={}".format(id))
         }
 
+    def waitlisted(self, session, decline_and_convert=False):
+        groups = session.query(Group).filter(
+                Group.tables > 0,
+                Group.status == c.WAITLISTED) \
+            .order_by(Group.name, Group.id).all()
+        if cherrypy.request.method == 'POST':
+            message = ''
+            if decline_and_convert:
+                for group in groups:
+                    _decline_and_convert_dealer_group(session, group, True)
+                message = 'All waitlisted dealers have been declined and converted to regular attendee badges'
+            raise HTTPRedirect('index?order=name&show=tables&message={}', message)
+        return {'groups': groups}
+
     @ajax
     def unapprove(self, session, id, action, email, convert=None, message=''):
         assert action in ['waitlisted', 'declined']
@@ -95,27 +140,7 @@ class Root:
         if action == 'waitlisted':
             group.status = c.WAITLISTED
         else:
-            message = 'Group declined'
-            for attendee in group.attendees:
-                if attendee.is_unassigned or not convert:
-                    session.delete(attendee)
-                else:
-                    message = 'Group declined and emails sent to attendees'
-                    attendee.paid = c.NOT_PAID
-                    attendee.badge_status = c.NEW_STATUS
-                    attendee.ribbon = remove_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
-                    attendee.overridden_price = attendee.new_badge_cost
-                    try:
-                        send_email(c.REGDESK_EMAIL, attendee.email, 'Do you still want to come to {EVENT_NAME}?',
-                                   render('emails/dealers/badge_converted.html', {
-                                       'attendee': attendee,
-                                       'group': group
-                                   }), model=attendee)
-                    except:
-                        message = 'Group declined (but the emails could not be sent)'
-                    group.attendees.remove(attendee)
-                    group.leader = None
-            session.delete(group)
+            message = _decline_and_convert_dealer_group(session, group, convert)
         session.commit()
         return {'success': True,
                 'message': message}
