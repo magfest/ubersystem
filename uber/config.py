@@ -335,14 +335,14 @@ class Config(_Overridable):
     def AT_THE_DOOR_BADGE_OPTS(self):
         """
         This provides the dropdown on the /registration/register page with its
-        list of badges available at-door.  It includes a "Full Weekend Pass"
+        list of badges available at-door.  It includes a "Full Weekend Badge"
         if attendee badges are available.  If one-days are enabled, it includes
-        either a generic "Single Day Pass" or a list of specific day badges,
+        either a generic "Single Day Badge" or a list of specific day badges,
         based on the c.PRESELL_ONE_DAYS setting.
         """
         opts = []
         if self.ATTENDEE_BADGE_AVAILABLE:
-            opts.append((self.ATTENDEE_BADGE, 'Full Weekend Pass (${})'.format(self.BADGE_PRICE)))
+            opts.append((self.ATTENDEE_BADGE, 'Full Weekend Badge (${})'.format(self.BADGE_PRICE)))
         for badge_type in self.BADGE_TYPE_PRICES:
             if badge_type not in opts:
                 opts.append((badge_type, '{} (${})'.format(self.BADGES[badge_type], self.BADGE_TYPE_PRICES[badge_type])))
@@ -354,10 +354,10 @@ class Config(_Overridable):
                     price = self.BADGE_PRICES['single_day'].get(day_name) or self.DEFAULT_SINGLE_DAY
                     badge = getattr(self, day_name.upper())
                     if getattr(self, day_name.upper() + '_AVAILABLE', None):
-                        opts.append((badge, day_name + ' Pass (${})'.format(price)))
+                        opts.append((badge, day_name + ' Badge (${})'.format(price)))
                     day += timedelta(days=1)
             elif self.ONE_DAY_BADGE_AVAILABLE:
-                opts.append((self.ONE_DAY_BADGE,  'Single Day Pass (${})'.format(self.ONEDAY_BADGE_PRICE)))
+                opts.append((self.ONE_DAY_BADGE,  'Single Day Badge (${})'.format(self.ONEDAY_BADGE_PRICE)))
         return opts
 
     @property
