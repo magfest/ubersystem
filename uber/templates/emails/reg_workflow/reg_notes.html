@@ -14,12 +14,17 @@
 
 {% if c.CONSENT_FORM_URL and attendee.age_group_conf['consent_form'] %}
     <br><br>
-    Because you are under 18, you must bring a signed and notarized parental permission
-    to be granted admission to {{ c.EVENT_NAME }}. You may download the consent form
-    <a href="{{ c.CONSENT_FORM_URL }}">by clicking here</a>.
+    Our records indicate that you are under the age of 18, and as such, you
+    will need a signed parental consent form. If a parent/legal guardian will
+    be present at {{ c.EVENT_NAME }}, then they can sign the consent form when
+    you pick up your badge at Registration in Expo Hall E. If a parent/legal
+    guardian will not be at the event, the form may be brought pre-signed,
+    however it MUST be notarized. We will not accept pre-signed forms that are
+    not notarized. You may find the form at <a href="{{ c.CONSENT_FORM_URL }}">by clicking here</a>.
     <br><br>
-    You may <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">click here</a>
-    to edit your info if you are over 18.
+    If you are actually over 18, please update your age in our
+    <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">database here</a>
+    prior to picking up your badge.
 {% endif %}
 
 {% if c.CODE_OF_CONDUCT_URL %}
