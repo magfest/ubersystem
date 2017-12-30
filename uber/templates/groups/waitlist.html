@@ -15,9 +15,9 @@
         backdrop: true,
         title: 'Decline All Waitlisted Dealers?',
         message: '<p>Are you sure you want to decline <b>EVERY</b> waitlisted dealer?</p>' +
-          '<p>This will convert their badges to normal Attendee badges at the price of ' +
-          'registration when they first applied. An email will be sent to each declined ' +
-          'dealer.</p>' +
+          '<p>This will delete the groups and convert the badges to normal Attendee badges ' +
+          'at the price of registration when they first applied. An email will be sent to ' +
+          'each declined dealer.</p>' +
           '<p>This <b>CANNOT</b> be undone.</p>',
         buttons: {
           confirm: { label: '<span class="glyphicon glyphicon-repeat"></span> Decline & Convert', className: 'btn-danger' },
@@ -34,7 +34,7 @@
 </script>
 
 <h2>
-  <form id="form-decline" method="POST" action="waitlisted" class="pull-right">
+  <form id="form-decline" method="POST" action="waitlist" class="pull-right">
     <input type="hidden" name="decline_and_convert" value="1">
     <button type="submit" class="btn btn-danger">
       <span class="glyphicon glyphicon-repeat"></span>
