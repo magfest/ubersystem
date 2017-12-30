@@ -183,15 +183,16 @@ class Root:
         }
 
     def waitlist(self, session, decline_and_convert=False):
+        query = session.query(Group).filter(
+            Group.tables > 0,
+            Group.status == c.WAITLISTED).order_by(Group.name, Group.id)
+
         if cherrypy.request.method == 'POST':
-            groups = session.query(Group).filter(
-                    Group.tables > 0,
-                    Group.status == c.WAITLISTED) \
-                .options(subqueryload(Group.attendees)
-                         .subqueryload(Attendee.admin_account),
-                         subqueryload(Group.attendees)
-                         .subqueryload(Attendee.shifts)) \
-                .order_by(Group.name, Group.id).all()
+            groups = query.options(
+                subqueryload(Group.attendees)
+                    .subqueryload(Attendee.admin_account),
+                subqueryload(Group.attendees)
+                    .subqueryload(Attendee.shifts)).all()
 
             message = ''
             if decline_and_convert:
@@ -200,11 +201,7 @@ class Root:
                 message = 'All waitlisted dealers have been declined and converted to regular attendee badges'
             raise HTTPRedirect('index?order=name&show=tables&message={}', message)
 
-        groups = session.query(Group).filter(
-                Group.tables > 0,
-                Group.status == c.WAITLISTED) \
-            .order_by(Group.name, Group.id).all()
-        return {'groups': groups}
+        return {'groups': query.all()}
 
     @ajax
     def unapprove(self, session, id, action, email, convert=None, message=''):
