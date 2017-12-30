@@ -191,4 +191,6 @@ def decline_and_convert_dealer_groups():
             .order_by(Group.name, Group.id).all()
 
         for group in groups:
-            print(_decline_and_convert_dealer_group(session, group, True))
+            print('{}: {}'.format(
+                group.name,
+                _decline_and_convert_dealer_group(session, group, True)))
