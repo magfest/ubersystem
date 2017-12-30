@@ -47,7 +47,7 @@
         <td style="width=10%" valign="top" style="white-space:nowrap">{{ tracked.when|full_datetime_local }}</td>
         <td style="width=5%" valign="top" style="white-space:nowrap">{{ tracked.who }}</td>
         <td style="width=5%" valign="top" style="white-space:nowrap">{{ tracked.model }}</td>
-        <td style="width=25%" valign="top" style="white-space:nowrap">{{ tracked.which }}</td>
+        <td style="width=25%" valign="top">{{ tracked.which }}</td>
         <td style="width=10%" valign="top" style="white-space:nowrap">
           {{ tracked.action_label }}
           {% if tracked.action == c.DELETED %}
