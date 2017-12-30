@@ -2,12 +2,17 @@ from uber.common import *
 from uber.custom_tags import pluralize
 
 
+_entangled_ribbons = set(
+    getattr(c, r, -1) for r in ['BAND', 'DEPT_HEAD_RIBBON', 'PANELIST_RIBBON'])
+
+
 def _is_attendee_disentangled(attendee):
     """
     Returns True if the attendee has an unpaid badge and does not have any
     other roles in the system.
     """
     return attendee.paid not in [c.HAS_PAID, c.NEED_NOT_PAY] \
+        and _entangled_ribbons.isdisjoint(attendee.ribbon_ints) \
         and not attendee.admin_account \
         and not attendee.shifts
 
