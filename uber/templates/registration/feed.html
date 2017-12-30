@@ -44,11 +44,11 @@
 </tr></thead>
 {% for tracked in feed %}
     <tr>
-        <td valign="top" style="white-space:nowrap;width=10%">{{ tracked.when|full_datetime_local }}</td>
-        <td valign="top" style="white-space:nowrap;width=5%">{{ tracked.who }}</td>
-        <td valign="top" style="white-space:nowrap;width=5%">{{ tracked.model }}</td>
+        <td valign="top" style="white-space:nowrap; width=10%">{{ tracked.when|full_datetime_local }}</td>
+        <td valign="top" style="white-space:nowrap; width=5%">{{ tracked.who }}</td>
+        <td valign="top" style="white-space:nowrap; width=5%">{{ tracked.model }}</td>
         <td valign="top" style="width=25%">{{ tracked.which }}</td>
-        <td valign="top" style="white-space:nowrap;width=10%">
+        <td valign="top" style="white-space:nowrap; width=10%">
           {{ tracked.action_label }}
           {% if tracked.action == c.DELETED %}
             <form method="post" action="undo_delete" style="display: inline">
