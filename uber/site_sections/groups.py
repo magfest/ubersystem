@@ -70,7 +70,8 @@ def _decline_and_convert_dealer_group(session, group, delete_when_able=False):
                                render('emails/dealers/badge_converted.html', {
                                    'attendee': attendee,
                                    'group': group
-                               }), model=attendee)
+                               },
+                               format='html'), model=attendee)
                     emails_sent += 1
                 except:
                     emails_failed += 1
