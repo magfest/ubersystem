@@ -2,22 +2,21 @@ from uber.common import *
 from uber.custom_tags import pluralize
 
 
-_entangled_ribbons = set(
-    getattr(c, r, -1) for r in ['BAND', 'DEPT_HEAD_RIBBON', 'PANELIST_RIBBON'])
-
-
 def _is_attendee_disentangled(attendee):
     """
     Returns True if the attendee has an unpaid badge and does not have any
     other roles in the system.
     """
-    return attendee.paid not in [c.HAS_PAID, c.NEED_NOT_PAY] \
-        and _entangled_ribbons.isdisjoint(attendee.ribbon_ints) \
+    entangled_ribbons = set(
+        getattr(c, r, -1)
+        for r in ['BAND', 'DEPT_HEAD_RIBBON', 'PANELIST_RIBBON'])
+    return attendee.paid not in [c.HAS_PAID, c.NEED_NOT_PAY, c.REFUNDED] \
+        and entangled_ribbons.isdisjoint(attendee.ribbon_ints) \
         and not attendee.admin_account \
         and not attendee.shifts
 
 
-def _is_dealer_convertable(attendee):
+def _is_dealer_convertible(attendee):
     """
     Returns True if a waitlisted dealer can be converted into a new, unpaid
     attendee badge.
@@ -31,7 +30,7 @@ def _is_dealer_convertable(attendee):
         # and c.DEALER_RIBBON in attendee.ribbon_ints
 
 
-def _decline_and_convert_dealer_group(session, group, convert=False):
+def _decline_and_convert_dealer_group(session, group, delete_when_able=False):
     """
     Deletes the waitlisted dealer group and converts all of the group members
     to the appropriate badge type. Unassigned, unpaid badges will be deleted.
@@ -54,13 +53,13 @@ def _decline_and_convert_dealer_group(session, group, convert=False):
 
     group.leader = None
     for attendee in list(group.attendees):
-        if (not convert or attendee.is_unassigned) \
+        if (delete_when_able or attendee.is_unassigned) \
                 and _is_attendee_disentangled(attendee):
             session.delete(attendee)
             badges_deleted += 1
 
         else:
-            if _is_dealer_convertable(attendee):
+            if _is_dealer_convertible(attendee):
                 attendee.badge_status = c.NEW_STATUS
                 attendee.overridden_price = attendee.new_badge_cost
 
@@ -197,7 +196,7 @@ class Root:
             message = ''
             if decline_and_convert:
                 for group in groups:
-                    _decline_and_convert_dealer_group(session, group, True)
+                    _decline_and_convert_dealer_group(session, group, False)
                 message = 'All waitlisted dealers have been declined and converted to regular attendee badges'
             raise HTTPRedirect('index?order=name&show=tables&message={}', message)
 
@@ -213,7 +212,7 @@ class Root:
         if action == 'waitlisted':
             group.status = c.WAITLISTED
         else:
-            message = _decline_and_convert_dealer_group(session, group, convert)
+            message = _decline_and_convert_dealer_group(session, group, not convert)
         session.commit()
         return {'success': True,
                 'message': message}
