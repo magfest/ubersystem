@@ -11,9 +11,9 @@ def _is_attendee_disentangled(attendee):
         getattr(c, r, -1)
         for r in ['BAND', 'DEPT_HEAD_RIBBON', 'PANELIST_RIBBON'])
     return attendee.paid not in [c.HAS_PAID, c.NEED_NOT_PAY, c.REFUNDED] \
-        and entangled_ribbons.isdisjoint(attendee.ribbon_ints) \
-        and not attendee.admin_account \
-        and not attendee.shifts
+           and entangled_ribbons.isdisjoint(attendee.ribbon_ints) \
+           and not attendee.admin_account \
+           and not attendee.shifts
 
 
 def _is_dealer_convertible(attendee):
@@ -22,12 +22,12 @@ def _is_dealer_convertible(attendee):
     attendee badge.
     """
     return attendee.badge_type == c.ATTENDEE_BADGE \
-        and _is_attendee_disentangled(attendee)
-        # It looks like a lot of dealers have helpers that didn't get assigned
-        # a dealer ribbon. We still want to convert those badges, so we can't
-        # trust they'll have a dealer ribbon. I think this is safe because we
-        # won't even get this far if it isn't a dealer group in the first place
-        # and c.DEALER_RIBBON in attendee.ribbon_ints
+           and _is_attendee_disentangled(attendee)
+    # It looks like a lot of dealers have helpers that didn't get assigned
+    # a dealer ribbon. We still want to convert those badges, so we can't
+    # trust they'll have a dealer ribbon. I think this is safe because we
+    # won't even get this far if it isn't a dealer group in the first place
+    # and c.DEALER_RIBBON in attendee.ribbon_ints
 
 
 def _decline_and_convert_dealer_group(session, group, delete_when_able=False):
@@ -89,10 +89,10 @@ def _decline_and_convert_dealer_group(session, group, delete_when_able=False):
     session.delete(group)
 
     for count, template in [
-            (badges_converted, '{} badge{} converted'),
-            (emails_sent, '{} email{} sent'),
-            (emails_failed, '{} email{} failed to send'),
-            (badges_deleted, '{} badge{} deleted')]:
+        (badges_converted, '{} badge{} converted'),
+        (emails_sent, '{} email{} sent'),
+        (emails_failed, '{} email{} failed to send'),
+        (badges_deleted, '{} badge{} deleted')]:
         if count > 0:
             message.append(template.format(count, pluralize(count)))
 
@@ -167,8 +167,8 @@ class Root:
         group = session.group(id)
 
         if group.leader:
-            emails = session.query(Email)\
-                .filter(or_(Email.dest == group.leader.email, Email.fk_id == id))\
+            emails = session.query(Email) \
+                .filter(or_(Email.dest == group.leader.email, Email.fk_id == id)) \
                 .order_by(Email.when).all()
         else:
             emails = {}

@@ -174,7 +174,6 @@ def reset_uber_db():
     insert_admin()
 
 
-
 @entry_point
 def decline_and_convert_dealer_groups():
     from uber.site_sections.groups import _decline_and_convert_dealer_group
