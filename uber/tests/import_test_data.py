@@ -3,6 +3,56 @@ from uber.common import *
 from hotel.models import *
 from guests.models import *
 
+from uber.config import c, create_namespace_uuid
+
+DEPT_HEAD_RIBBON_STR = str(c.DEPT_HEAD_RIBBON)
+DEPARTMENT_NAMESPACE = create_namespace_uuid('Department')
+
+
+def _trusted_dept_role_id(department_id):
+    return str(uuid.uuid5(DEPARTMENT_NAMESPACE, department_id))
+
+
+def _dept_membership_id(department_id, attendee_id):
+    return str(uuid.uuid5(DEPARTMENT_NAMESPACE, department_id + attendee_id))
+
+
+def _dept_id_from_location(location):
+    department_id = '{:07x}'.format(location) + str(uuid.uuid5(DEPARTMENT_NAMESPACE, str(location)))[7:]
+    return department_id
+
+
+def existing_location_from_dept_id(department_id):
+    location = int(department_id[:7], 16)
+    if job_location_to_department_id.get(location):
+        return location
+    return None
+
+
+def single_dept_id_from_existing_locations(locations):
+    for location in str(locations).split(','):
+        if location:
+            location = int(location)
+            department_id = job_location_to_department_id.get(location)
+            if department_id:
+                return department_id
+    return None
+
+
+def all_dept_ids_from_existing_locations(locations):
+    dept_ids = []
+    for location in str(locations).split(','):
+        if location:
+            location = int(location)
+            department_id = job_location_to_department_id.get(location)
+            if department_id:
+                dept_ids.append(department_id)
+    return dept_ids
+
+
+job_location_to_department_id = {i: _dept_id_from_location(i) for i in c.JOB_LOCATIONS.keys()}
+job_interests_to_department_id = {i: job_location_to_department_id[i] for i in c.JOB_INTERESTS.keys() if i in job_location_to_department_id}
+
 
 TEST_DATA_FILE = join(os.path.dirname(__file__), 'test_data.json')
 words = []
@@ -34,6 +84,8 @@ def import_attendees(session):
     for a in dump['attendees']:
         a['group'] = groups.get(a.pop('group_id', None))
         secret_id = a.pop('secret_id')
+        a['assigned_depts_ids'] = all_dept_ids_from_existing_locations(a.pop('assigned_depts', ''))
+        a['requested_depts_ids'] = all_dept_ids_from_existing_locations(a.pop('requested_depts', ''))
         attendees[secret_id] = Attendee(**a)
         session.add(attendees[secret_id])
 
@@ -63,6 +115,8 @@ def import_jobs(session):
     job_locs, _ = zip(*c.JOB_LOCATION_OPTS)
     for j in dump['jobs']:
         if j['location'] in job_locs:
+            j.pop('restricted', '')
+            j['department_id'] = _dept_id_from_location(j.pop('location', ''))
             j['start_time'] = offset_to_datetime(j['start_time'])
             shifts = j.pop('shifts')
             job = Job(**j)

@@ -1168,6 +1168,12 @@ class Attendee(MagModel, TakesPaymentMixin):
             dept_chairs.append('({}) {}'.format(dept.name, poc_names))
         return safe_string('<br/>'.join(sorted(dept_chairs)))
 
+    def append_admin_note(self, note):
+        if self.admin_notes:
+            self.admin_notes = '{}\n\n{}'.format(self.admin_notes, note)
+        else:
+            self.admin_notes = note
+
 
 class FoodRestrictions(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
