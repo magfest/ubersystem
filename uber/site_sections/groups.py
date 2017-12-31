@@ -93,6 +93,7 @@ def _decline_and_convert_dealer_group(session, group, delete_when_able=False):
         (emails_sent, '{} email{} sent'),
         (emails_failed, '{} email{} failed to send'),
         (badges_deleted, '{} badge{} deleted')]:
+
         if count > 0:
             message.append(template.format(count, pluralize(count)))
 
