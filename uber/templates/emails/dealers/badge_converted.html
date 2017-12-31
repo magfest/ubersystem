@@ -8,6 +8,9 @@
 Therefore, we have reserved a badge for you{% if c.PRICE_BUMPS and attendee.badge_cost < c.BADGE_PRICE %} at the price of registration when you first applied{% endif %}.
 Badges went to anyone in your group who had a valid email on the badge, and any unassigned badges were dropped.
 
+<br/><br/>PLease note: You are choosing to accept or decline an ATTENDEE badge at the price it would have been had you bought it instead of applying to be a dealer. 
+  <strong>You were not accepted as a dealer, and will not have space in the Marketplace.</strong>
+
 <br/><br/>Please go ahead and confirm or decline <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">your registration</a>. We hope to see you this year!
 
 {% include "emails/reg_workflow/reg_notes.html" %}
