@@ -745,16 +745,16 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def donation_swag(self):
-        donation_items = []
+        tier_items = []
         for amount, desc in sorted(c.DONATION_TIERS.items()):
             if amount and self.amount_extra >= amount:
-                donation_items.extend(c.DONATION_TIER_ITEMS.get(amount, [desc]))
+                tier_items.extend(c.DONATION_TIER_ITEMS.get(amount, [desc]))
 
         extra_donations = \
             ['Extra donation of ${}'.format(self.extra_donation)] \
             if self.extra_donation else []
 
-        return donation_items + extra_donations
+        return tier_items + extra_donations
 
     @property
     def merch(self):
@@ -792,7 +792,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def staff_merch_items(self):
-        """Used by the merch and staff_merch properties for staff swag items."""
+        """Used by the merch and staff_merch properties for staff swag."""
         merch = []
         if self.gets_staff_shirt:
             staff_shirts = '{} Staff Shirt{}'.format(
