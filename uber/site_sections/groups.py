@@ -23,11 +23,11 @@ def _is_dealer_convertible(attendee):
     """
     return attendee.badge_type == c.ATTENDEE_BADGE \
         and _is_attendee_disentangled(attendee)
-    # It looks like a lot of dealers have helpers that didn't get assigned
-    # a dealer ribbon. We still want to convert those badges, so we can't
-    # trust they'll have a dealer ribbon. I think this is safe because we
-    # won't even get this far if it isn't a dealer group in the first place.
-    #     and c.DEALER_RIBBON in attendee.ribbon_ints
+        # It looks like a lot of dealers have helpers that didn't get assigned
+        # a dealer ribbon. We still want to convert those badges, so we can't
+        # trust they'll have a dealer ribbon. I think this is safe because we
+        # won't even get this far if it isn't a dealer group in the first place
+        # and c.DEALER_RIBBON in attendee.ribbon_ints
 
 
 def _decline_and_convert_dealer_group(session, group, delete_when_able=False):
