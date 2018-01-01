@@ -3,6 +3,13 @@
 {% block content %}
 
 <script type="text/javascript">
+    {% set detect_barcode_scan = True %}
+    var useBarcode = function (barcode) {
+        if ($barcodeField.is(':number')) {
+            $barcodeField.val(barcode);
+        }
+    };
+
     var $shirtOpts = $('<select/>').attr('id', 'shirt');
     $.each({{ c.MERCH_SHIRT_OPTS|jsonize }}, function(i,size) {
         $shirtOpts.append($('<option/>').val(size[0]).text(size[1]));
@@ -22,11 +29,12 @@
             }
         }, 'json');
     }
+    l;
     var undoSale = function (id) {
         $.post('undo_sale', {id: id, csrf_token: csrf_token}, function(message) {
             $('#message').html(message);
         });
-    }
+    };
 
     var showOrHideWhatText = function (pageLoading) {
         $('#store_mpoints').val('0');
@@ -42,8 +50,8 @@
                 $('#store_amount').focus();
             }
         }
-    }
-    
+    };
+
     var recordMPointExchange = function () {
         $.post('record_old_mpoint_exchange', {
             badge_num:  $('#ex_badge_num').val(),
@@ -60,12 +68,12 @@
                     }));
             }
        }, 'json');
-    }
+    };
     var undoMPointExchange = function (id) {
         $.post('undo_mpoint_exchange', {'id': id, csrf_token: csrf_token}, function(s) {
             $('#message').html(s);
         });
-    }
+    };
 
     var giveMerch = function (noShirt, id, shirtSize) {
         $('#give button').attr('disabled', true);
@@ -83,12 +91,12 @@
                          }));
             }
         }, 'json');
-    }
+    };
     var takeBackMerch = function (id) {
         $.post('take_back_merch', {id: id, csrf_token: csrf_token}, function(message) {
             $('#message').html(message);
         });
-    }
+    };
 
     var checkDiscount = function () {
         var $num = $('#dis_badge_num'),
