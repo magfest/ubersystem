@@ -141,6 +141,7 @@ class TestMerchAttrs:
 class TestMerch:
     @pytest.fixture(autouse=True)
     def defaults(self, monkeypatch):
+        monkeypatch.setattr(c, 'SEPARATE_STAFF_MERCH', True)
         for attr in ['volunteer_event_shirt_eligible', 'paid_for_a_shirt', 'volunteer_event_shirt_earned', 'gets_staff_shirt']:
             monkeypatch.setattr(Attendee, attr, False)
 
@@ -172,10 +173,16 @@ class TestMerch:
         assert 'some, stuff, and more' == Attendee(extra_merch='more').merch
 
     def test_info_packet(self):
-        assert 'Staffer Info Packet' == Attendee(staffing=True).merch
+        assert '' == Attendee(staffing=True).merch
+        assert 'Staffer Info Packet' == Attendee(staffing=True).staff_merch
 
     def test_staff_shirts(self, gets_staff_shirt):
-        assert '3 Staff Shirts' == Attendee().merch
+        assert 'RedShirt' in Attendee().merch
+        assert '2 Staff Shirts' in Attendee().staff_merch
+
+        a = Attendee(second_shirt=c.TWO_STAFF_SHIRTS)
+        assert '' == a.merch
+        assert '3 Staff Shirts' in a.staff_merch
 
     def test_volunteer(self, volunteer_event_shirt_eligible):
         assert 'RedShirt' in Attendee().merch and 'will be reported' in Attendee().merch

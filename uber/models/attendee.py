@@ -774,12 +774,13 @@ class Attendee(MagModel, TakesPaymentMixin):
             merch.append(c.DONATION_TIERS[c.SHIRT_LEVEL])
         elif self.num_event_shirts_owed > 1:
             shirt = 'a 2nd ' + c.DONATION_TIERS[c.SHIRT_LEVEL]
-            if self.volunteer_event_shirt_eligible \
-                    and not self.volunteer_event_shirt_earned:
-                shirt += (
-                    ' (this volunteer must work at least 6 hours or '
-                    'they will be reported for picking up their shirt)')
             merch.append(shirt)
+
+        if self.volunteer_event_shirt_eligible \
+                and not self.volunteer_event_shirt_earned:
+            merch[-1] += (
+                ' (this volunteer must work at least 6 hours or '
+                'they will be reported for picking up their shirt)')
 
         if not c.SEPARATE_STAFF_MERCH:
             merch.extend(self.staff_merch_items)
