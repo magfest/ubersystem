@@ -628,7 +628,6 @@ class Root:
             'message':       message,
             'affiliates':    session.affiliates(),
             'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else 0,
-            'can_abandon':   (not attendee.amount_paid and not attendee.paid == c.NEED_NOT_PAY and not attendee.is_group_leader)
         }
 
     @id_required(Attendee)
