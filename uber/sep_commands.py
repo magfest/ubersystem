@@ -126,11 +126,12 @@ def resave_all_attendees_and_groups():
 @entry_point
 def resave_all_staffers():
     """
-    Re-save all staffers in the database, and re-assign all
+    Re-save all staffers in the database, and re-assign all badge numbers.
 
     SAFETY: This -should- be safe to run at any time, but, for safety sake, recommend turning off
     any running sideboard servers before running this command.
     """
+    assert c.BEFORE_PRINTED_BADGE_DEADLINE, 'resave_all_staffers is only available before badge numbers have been sent to the printer'
     Session.initialize_db(modify_tables=False, drop=False, initialize=True)
     with Session() as session:
         staffers = session.query(Attendee).filter_by(badge_type=c.STAFF_BADGE).all()
