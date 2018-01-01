@@ -104,6 +104,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     regdesk_info = Column(UnicodeText, admin_only=True)
     extra_merch = Column(UnicodeText, admin_only=True)
     got_merch = Column(Boolean, default=False, admin_only=True)
+    got_staff_merch = Column(Boolean, default=False, admin_only=True)
 
     reg_station = Column(Integer, nullable=True, admin_only=True)
     registered = Column(UTCDateTime, server_default=utcnow())
@@ -744,9 +745,10 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def donation_swag(self):
-        donation_items = [
-            desc for amount, desc in sorted(c.DONATION_TIERS.items())
-            if amount and self.amount_extra >= amount]
+        donation_items = []
+        for amount, desc in sorted(c.DONATION_TIERS.items()):
+            if amount and self.amount_extra >= amount:
+                donation_items.extend(c.DONATION_TIER_ITEMS.get(amount, [desc]))
 
         extra_donations = \
             ['Extra donation of ${}'.format(self.extra_donation)] \
@@ -762,22 +764,39 @@ class Attendee(MagModel, TakesPaymentMixin):
         - People with staff badges get a configurable number of staff shirts.
         - Volunteers who meet the requirements get a complementary event shirt
             (NOT a staff shirt).
+
+        If the c.SEPARATE_STAFF_SWAG setting is true, then this excludes staff
+        merch; see the staff_merch property.
         """
         merch = self.donation_swag
 
-        if self.volunteer_event_shirt_eligible:
-            shirt = c.DONATION_TIERS[c.SHIRT_LEVEL]
-            if self.paid_for_a_shirt:
-                shirt = 'a 2nd ' + shirt
-            if not self.volunteer_event_shirt_earned:
+        if self.num_event_shirts_owed == 1 and not self.paid_for_a_shirt:
+            merch.append(c.DONATION_TIERS[c.SHIRT_LEVEL])
+        elif self.num_event_shirts_owed > 1:
+            shirt = 'a 2nd ' + c.DONATION_TIERS[c.SHIRT_LEVEL]
+            if self.volunteer_event_shirt_eligible \
+                    and not self.volunteer_event_shirt_earned:
                 shirt += (
                     ' (this volunteer must work at least 6 hours or '
                     'they will be reported for picking up their shirt)')
             merch.append(shirt)
 
+        if not c.SEPARATE_STAFF_MERCH:
+            merch.extend(self.staff_merch_items)
+
+        if self.extra_merch:
+            merch.append(self.extra_merch)
+
+        return comma_and(merch)
+
+    @property
+    def staff_merch_items(self):
+        """Used by the merch and staff_merch properties for staff swag items."""
+        merch = []
         if self.gets_staff_shirt:
             staff_shirts = '{} Staff Shirt{}'.format(
-                c.SHIRTS_PER_STAFFER, 's' if c.SHIRTS_PER_STAFFER > 1 else '')
+                self.num_staff_shirts_owed,
+                's' if self.num_staff_shirts_owed > 1 else '')
             if self.shirt_size_marked:
                 staff_shirts += ' [{}]'.format(c.SHIRTS[self.shirt])
             merch.append(staff_shirts)
@@ -785,10 +804,12 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.staffing:
             merch.append('Staffer Info Packet')
 
-        if self.extra_merch:
-            merch.append(self.extra_merch)
+        return merch
 
-        return comma_and(merch)
+    @property
+    def staff_merch(self):
+        """Used if c.SEPARATE_STAFF_MERCH is true to return the staff swag."""
+        return comma_and(self.staff_merch_items)
 
     @property
     def accoutrements(self):

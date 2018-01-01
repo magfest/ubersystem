@@ -686,6 +686,11 @@ for _name, _section in _config['age_groups'].items():
     _val = getattr(c, _name.upper())
     c.AGE_GROUP_CONFIGS[_val] = dict(_section.dict(), val=_val)
 
+c.DONATION_TIER_ITEMS = {}
+for _key, _items in _config['donation_tier_items'].items():
+    _key = int(_key) if _key.isdigit() else getattr(c, _key.upper())
+    c.DONATION_TIER_ITEMS[_key] = _items
+
 c.TABLE_PRICES = defaultdict(lambda: _config['table_prices']['default_price'],
                              {int(k): v for k, v in _config['table_prices'].items() if k != 'default_price'})
 c.PREREG_TABLE_OPTS = list(range(1, c.MAX_TABLES + 1))
