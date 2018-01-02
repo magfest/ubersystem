@@ -131,19 +131,11 @@
     };
 
     $(function() {
-        var barcodeOptions = {
-          detectBadgeNum: true,
+        $('body').barcodeField({
+          targetField: 'input.badge_num:focus',
           blurOnKeys: ['~', '\\'],
-          refocusAfterBlurOnKeys: true,
-          focusOnComplete: false,
-          focusOnError: false
-        };
-
-        // Initialize these separately or they get confused about focus
-        $('#badge_num').barcodeField(barcodeOptions);
-        barcodeOptions = $.extend({showErrorMessage: false}, barcodeOptions);
-        $('#ex_badge_num').barcodeField(barcodeOptions);
-        $('#dis_badge_num').barcodeField(barcodeOptions);
+          detectBadgeNum: true
+        });
 
         $('#message').ajaxError(function () {
             toastr.error('Oh noes - the web server is down or something!!!!!');
@@ -220,7 +212,7 @@
 <table>
 <tr>
     <td> Last year's MPoints turned in: </td>
-    <td> Badge num: <input type="number" id="ex_badge_num" min="1" max="99999" /> </td>
+    <td> Badge num: <input type="number" id="ex_badge_num" class="badge_num" min="1" max="99999" /> </td>
     <td> exchanged <input type="number" id="ex_mpoints" min="1" max="9999" /> MPoints </td>
     <td> <input type="submit" id="record_mpe" value="Record Exchange" onClick="recordMPointExchange()" /> </td>
 </tr>
@@ -241,7 +233,7 @@
 </tr><tr> <td colspan="4"> ---OR--- </td> </tr>
     <td> Apply a merch discount </td>
     <td>
-        Badge num: <input type="number" id="dis_badge_num" min="1" max="99999" />
+        Badge num: <input type="number" id="dis_badge_num" class="badge_num" min="1" max="99999" />
         <input type="submit" id="discount_check" value="Check Eligibility" onClick="checkDiscount()" />
         &nbsp;
         <span id="discount_confirm"></span>
@@ -252,7 +244,7 @@
     <td> Give Merch </td>
     <td colspan="2">
         <form id="swag">
-        Badge Number: <input type="number" id="badge_num" min="1" max="99999" />
+        Badge Number: <input type="number" id="badge_num" class="badge_num" min="1" max="99999" />
         <input type="submit" id="give_merch" value="Check Merch" />
         </form>
     </td>
