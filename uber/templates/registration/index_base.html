@@ -3,31 +3,36 @@
 {% block content %}
 
 {% block adminheader %}
-<script type="text/javascript">
-    $(function(){
-        document.getElementById('search_bar').select();
-    });
-
-</script>
-    {% include "check_in.html" %}
-
   {% if c.REG_USES_BARCODES %}
-    {% set detect_barcode_scan = True %}
-    <script type="text/javascript">
-        var setBarcodeField = function () {
-            if ($('input[name=badge_num]').length === 1) {
-                $barcodeField = $('input[name=badge_num]');
-            }
-        };
-
-        var useBarcode = function (barcode) {
-            if ($barcodeField.is('#search_bar')) {
-                $barcodeField.val(barcode);
-                $('#search_form').submit();
-            }
-        }
-    </script>
+    {% include 'barcode_client.html' %}
   {% endif %}
+
+  <script>
+    $(function() {
+      $('#search_bar').select();
+
+      {% if c.REG_USES_BARCODES %}
+        $('#search_bar').barcodeField({
+          detectUUID: true,
+          autoSubmitForm: '#search_form',
+          shouldAutoFill: function() {
+            return !$('#checkin-badge').is(':visible');
+          },
+          shouldAutoSubmit: function() {
+            return !$('#checkin-badge').is(':visible');
+          }
+        });
+
+        $('body').barcodeField({
+          targetField: '#checkin-badge',
+          blurOnKeys: ['~', '\\'],
+          detectBadgeNum: true,
+          showErrorMessageWhenHidden: false
+        });
+      {% endif %}
+    });
+  </script>
+  {% include "check_in.html" %}
 
 {% endblock adminheader %}
 {% block admin_controls %}

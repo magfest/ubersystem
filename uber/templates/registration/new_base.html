@@ -17,10 +17,6 @@
         }, 900000);
     {% endif %}
 
-    {% if c.REG_USES_BARCODES %}
-        {% set detect_barcode_scan = True %}
-    {% endif %}
-
     var UNASSIGNED = {{ unassigned|jsonize }};
     var toggleMarkButton = function (dropdown) {
         var $button = $(dropdown).parent().find(':submit');

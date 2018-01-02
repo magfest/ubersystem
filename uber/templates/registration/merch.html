@@ -2,13 +2,9 @@
 {% block title %}Merch Booth{% endblock %}
 {% block content %}
 
+{% include 'barcode_client.html' %}
+
 <script type="text/javascript">
-    {% set detect_barcode_scan = True %}
-    var useBarcode = function (barcode) {
-        if ($barcodeField.is(':number')) {
-            $barcodeField.val(barcode);
-        }
-    };
 
     var $shirtOpts = $('<select/>').attr('id', 'shirt');
     $.each({{ c.MERCH_SHIRT_OPTS|jsonize }}, function(i,size) {
@@ -28,8 +24,8 @@
                 $('#message').append(' &nbsp; <a href="#" onClick="undoSale(\'' + json.id + '\') ; return false">Undo</a>');
             }
         }, 'json');
-    }
-    l;
+    };
+
     var undoSale = function (id) {
         $.post('undo_sale', {id: id, csrf_token: csrf_token}, function(message) {
             $('#message').html(message);
@@ -133,8 +129,22 @@
             }
         });
     };
-    
-    $(function(){
+
+    $(function() {
+        var barcodeOptions = {
+          detectBadgeNum: true,
+          blurOnKeys: ['~', '\\'],
+          refocusAfterBlurOnKeys: true,
+          focusOnComplete: false,
+          focusOnError: false
+        };
+
+        // Initialize these separately or they get confused about focus
+        $('#badge_num').barcodeField(barcodeOptions);
+        barcodeOptions = $.extend({showErrorMessage: false}, barcodeOptions);
+        $('#ex_badge_num').barcodeField(barcodeOptions);
+        $('#dis_badge_num').barcodeField(barcodeOptions);
+
         $('#message').ajaxError(function () {
             toastr.error('Oh noes - the web server is down or something!!!!!');
         });
@@ -146,13 +156,15 @@
 
         showOrHideWhatText(true);
         $('#what_text,#store_amount').keypress(function(e){
-            if( (e.keyCode || e.which) == 13 )  // ENTER
+            if( (e.keyCode || e.which) == 13 ) { // ENTER
                 recordSale();
+            }
         });
 
         $('#ex_badge_num,#ex_mpoints,#cash').keypress(function(e){
-            if( (e.keyCode || e.which) == 13 )  // ENTER
+            if( (e.keyCode || e.which) == 13 ) { // ENTER
                 recordMPointExchange();
+            }
         });
 
         $('#dis_badge_num').keypress(function (e) {
