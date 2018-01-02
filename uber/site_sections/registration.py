@@ -222,7 +222,7 @@ class Root:
                     message = 'Watchlist entry updated'
                 if 'confirm' in params:
                     attendee.watchlist_id = watchlist_id
-            
+
             session.commit()
 
             raise HTTPRedirect('watchlist?attendee_id={}&message={}', attendee.id, message or 'Attendee updated')
