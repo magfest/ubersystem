@@ -3,7 +3,7 @@ from datetime import date, datetime
 from uuid import uuid4
 
 from pytz import UTC
-from sideboard.lib import cached_property, listify, log
+from sideboard.lib import cached_property, listify, is_listy, log
 from sideboard.lib.sa import CoerceUTF8 as UnicodeText, \
     UTCDateTime, UUID
 from sqlalchemy import and_, case, func, or_
@@ -104,6 +104,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     regdesk_info = Column(UnicodeText, admin_only=True)
     extra_merch = Column(UnicodeText, admin_only=True)
     got_merch = Column(Boolean, default=False, admin_only=True)
+    got_staff_merch = Column(Boolean, default=False, admin_only=True)
 
     reg_station = Column(Integer, nullable=True, admin_only=True)
     registered = Column(UTCDateTime, server_default=utcnow())
@@ -758,29 +759,77 @@ class Attendee(MagModel, TakesPaymentMixin):
         return donation_items + extra_donations
 
     @property
-    def merch(self):
+    def merch_items(self):
         """
         Here is the business logic surrounding shirts:
         - People who kick in enough to get a shirt get an event shirt.
         - People with staff badges get a configurable number of staff shirts.
         - Volunteers who meet the requirements get a complementary event shirt
             (NOT a staff shirt).
+
+        If the c.SEPARATE_STAFF_SWAG setting is true, then this excludes staff
+        merch; see the staff_merch property.
+
+        This property returns a list containing strings and sub-lists of each
+        donation tier with multiple sub-items, e.g.
+            [
+                'tshirt',
+                'Supporter Pack',
+                [
+                    'Swag Bag',
+                    'Badge Hpolder'
+                ],
+                'Season Pass Certificate'
+            ]
         """
-        merch = self.donation_swag
+        merch = []
+        for amount, desc in sorted(c.DONATION_TIERS.items()):
+            if amount and self.amount_extra >= amount:
+                merch.append(desc)
+                items = c.DONATION_TIER_ITEMS.get(amount, [])
+                if len(items) == 1:
+                    merch[-1] = items[0]
+                elif len(items) > 1:
+                    merch.append(items)
 
-        if self.volunteer_event_shirt_eligible:
-            shirt = c.DONATION_TIERS[c.SHIRT_LEVEL]
-            if self.paid_for_a_shirt:
-                shirt = 'a 2nd ' + shirt
-            if not self.volunteer_event_shirt_earned:
-                shirt += (
-                    ' (this volunteer must work at least 6 hours or '
-                    'they will be reported for picking up their shirt)')
-            merch.append(shirt)
+        if self.num_event_shirts_owed == 1 and not self.paid_for_a_shirt:
+            merch.append('a tshirt')
+        elif self.num_event_shirts_owed > 1:
+            merch.append('a 2nd tshirt')
 
+        if self.volunteer_event_shirt_eligible \
+                and not self.volunteer_event_shirt_earned:
+            merch[-1] += (
+                ' (this volunteer must work at least 6 hours or '
+                'they will be reported for picking up their shirt)')
+
+        if not c.SEPARATE_STAFF_MERCH:
+            merch.extend(self.staff_merch_items)
+
+        if self.extra_merch:
+            merch.append(self.extra_merch)
+
+        return merch
+
+    @property
+    def merch(self):
+        """
+        Textual version of merch_items, excluding the expanded donation tier
+        item lists.  This is useful for displaying a high-level description,
+        e.g. saying that someone gets a 'Supporter Pack' without listing each
+        individual item in the pack.
+        """
+        return comma_and(
+            [item for item in self.merch_items if not is_listy(item)])
+
+    @property
+    def staff_merch_items(self):
+        """Used by the merch and staff_merch properties for staff swag."""
+        merch = []
         if self.gets_staff_shirt:
             staff_shirts = '{} Staff Shirt{}'.format(
-                c.SHIRTS_PER_STAFFER, 's' if c.SHIRTS_PER_STAFFER > 1 else '')
+                self.num_staff_shirts_owed,
+                's' if self.num_staff_shirts_owed > 1 else '')
             if self.shirt_size_marked:
                 staff_shirts += ' [{}]'.format(c.SHIRTS[self.shirt])
             merch.append(staff_shirts)
@@ -788,10 +837,12 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.staffing:
             merch.append('Staffer Info Packet')
 
-        if self.extra_merch:
-            merch.append(self.extra_merch)
+        return merch
 
-        return comma_and(merch)
+    @property
+    def staff_merch(self):
+        """Used if c.SEPARATE_STAFF_MERCH is true to return the staff swag."""
+        return comma_and(self.staff_merch_items)
 
     @property
     def accoutrements(self):

@@ -479,33 +479,48 @@ class Root:
         raise HTTPRedirect('index?message={}', 'Badge has been recorded as lost.')
 
     @ajax
-    def check_merch(self, session, badge_num):
+    def check_merch(self, session, badge_num, staff_merch=''):
         id = shirt = None
+        merch_items = []
         if not (badge_num.isdigit() and 0 < int(badge_num) < 99999):
             message = 'Invalid badge number'
         else:
-            results = session.query(Attendee).filter_by(badge_num=badge_num)
-            if results.count() != 1:
+            attendee = session.query(Attendee) \
+                              .filter_by(badge_num=badge_num).first()
+            if not attendee:
                 message = 'No attendee has badge number {}'.format(badge_num)
             else:
-                attendee = results.one()
-                if not attendee.merch:
+                if staff_merch:
+                    merch = attendee.staff_merch
+                    got_merch = attendee.got_staff_merch
+                else:
+                    merch, got_merch = attendee.merch, attendee.got_merch
+
+                if not merch:
                     message = '{a.full_name} ({a.badge}) has no merch'.format(a=attendee)
-                elif attendee.got_merch:
-                    message = '{a.full_name} ({a.badge}) already got {a.merch}.' \
-                              ' Their shirt size is {shirt}'.format(a=attendee, shirt=c.SHIRTS[attendee.shirt])
+                elif got_merch:
+                    message = '{a.full_name} ({a.badge}) already got {merch}.' \
+                              ' Their shirt size is {shirt}'.format(a=attendee,
+                                merch=merch, shirt=c.SHIRTS[attendee.shirt])
                 else:
                     id = attendee.id
-                    shirt = (attendee.shirt or c.SIZE_UNKNOWN) if attendee.gets_any_kind_of_shirt else c.NO_SHIRT
-                    message = '{a.full_name} ({a.badge}) has not yet received {a.merch}'.format(a=attendee)
+                    merch_items = attendee.staff_merch_items if staff_merch \
+                        else attendee.merch_items
+                    if (staff_merch and attendee.num_staff_shirts_owed) or \
+                            (not staff_merch and attendee.num_event_shirts_owed):
+                        shirt = attendee.shirt or c.SIZE_UNKNOWN
+                    else:
+                        shirt = c.NO_SHIRT
+                    message = '{a.full_name} ({a.badge}) has not yet received their merch.'.format(a=attendee)
         return {
             'id': id,
             'shirt': shirt,
-            'message': message
+            'message': message,
+            'merch_items': merch_items
         }
 
     @ajax
-    def give_merch(self, session, id, shirt_size, no_shirt):
+    def give_merch(self, session, id, shirt_size, no_shirt, staff_merch):
         try:
             shirt_size = int(shirt_size)
         except:
@@ -513,10 +528,12 @@ class Root:
 
         success = False
         attendee = session.attendee(id, allow_invalid=True)
-        if not attendee.merch:
+        merch = attendee.staff_merch if staff_merch else attendee.merch
+        got = attendee.got_staff_merch if staff_merch else attendee.got_merch
+        if not merch:
             message = '{} has no merch'.format(attendee.full_name)
-        elif attendee.got_merch:
-            message = '{} already got {}'.format(attendee.full_name, attendee.merch)
+        elif got:
+            message = '{} already got {}'.format(attendee.full_name, merch)
         elif shirt_size == c.SIZE_UNKNOWN:
             message = 'You must select a shirt size'
         else:
@@ -524,8 +541,9 @@ class Root:
                 message = '{} is now marked as having received all of the following (EXCEPT FOR THE SHIRT): {}'
             else:
                 message = '{} is now marked as having received {}'
-            message = message.format(attendee.full_name, attendee.merch)
-            attendee.got_merch = True
+            message = message.format(attendee.full_name, merch)
+            setattr(attendee,
+                    'got_staff_merch' if staff_merch else 'got_merch', True)
             if shirt_size:
                 attendee.shirt = shirt_size
             if no_shirt:
