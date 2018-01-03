@@ -824,7 +824,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def staff_merch_items(self):
-        """Used by the merch and staff_merch properties for staff swag items"""
+        """Used by the merch and staff_merch properties for staff swag."""
         merch = []
         if self.gets_staff_shirt:
             staff_shirts = '{} Staff Shirt{}'.format(

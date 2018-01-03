@@ -34,7 +34,11 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('attendee', sa.Column('got_staff_merch', sa.Boolean(), server_default='False', nullable=False))
+    if is_sqlite:
+        with op.batch_alter_table('attendee', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
+            batch_op.add_column(sa.Column('got_staff_merch', sa.Boolean(), server_default='False', nullable=False))
+    else:
+        op.add_column('attendee', sa.Column('got_staff_merch', sa.Boolean(), server_default='False', nullable=False))
 
 
 def downgrade():
