@@ -121,6 +121,7 @@ class Root:
             'department_id': department_id,
             'attendees': attendees,
             'emails': ','.join(a.email for a in attendees),
+            'emails_with_shifts': ','.join([a.email for a in attendees if a.hours_here]),
             'checklist': session.checklist_status('assigned_volunteers', department_id)
         }
 
