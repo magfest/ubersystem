@@ -138,9 +138,9 @@ def test_dept_head_ribbon_label_from_dept_membership():
 
         a.dept_memberships = [DeptMembership(is_dept_head=False)]
         a.presave_adjustments()
-        assert a.ribbon_labels == ['Shopkeep']
+        assert set(a.ribbon_labels) == set(['Department Head', 'Shopkeep'])
         a.presave_adjustments()
-        assert a.ribbon_labels == ['Shopkeep']
+        assert set(a.ribbon_labels) == set(['Department Head', 'Shopkeep'])
 
         session.expunge_all()
 

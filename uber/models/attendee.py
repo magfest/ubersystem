@@ -348,7 +348,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             if self.paid == c.NOT_PAID:
                 self.paid = c.NEED_NOT_PAY
         else:
-            self.ribbon = remove_opt(self.ribbon_ints, c.DEPT_HEAD_RIBBON)
             if c.VOLUNTEER_RIBBON in self.ribbon_ints and self.is_new:
                 self.staffing = True
 
@@ -589,6 +588,10 @@ class Attendee(MagModel, TakesPaymentMixin):
                 return "Wrong day"
 
         return None
+
+    @property
+    def can_abandon_badge(self):
+        return not self.amount_paid and not self.paid == c.NEED_NOT_PAY and not self.is_group_leader
 
     @property
     def shirt_size_marked(self):

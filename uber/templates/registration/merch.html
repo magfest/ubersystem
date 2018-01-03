@@ -2,11 +2,14 @@
 {% block title %}Merch Booth{% endblock %}
 {% block content %}
 
+{% include 'barcode_client.html' %}
+
 <style type="text/css">
     #give .merch-list { color: red; }
 </style>
 
 <script type="text/javascript">
+
     var $shirtOpts = $('<select/>').attr('id', 'shirt');
     $.each({{ c.MERCH_SHIRT_OPTS|jsonize }}, function(i,size) {
         $shirtOpts.append($('<option/>').val(size[0]).text(size[1]));
@@ -25,12 +28,13 @@
                 $('#message').append(' &nbsp; <a href="#" onClick="undoSale(\'' + json.id + '\') ; return false">Undo</a>');
             }
         }, 'json');
-    }
+    };
+
     var undoSale = function (id) {
         $.post('undo_sale', {id: id, csrf_token: csrf_token}, function(message) {
             $('#message').html(message);
         });
-    }
+    };
 
     var showOrHideWhatText = function (pageLoading) {
         $('#store_mpoints').val('0');
@@ -46,8 +50,8 @@
                 $('#store_amount').focus();
             }
         }
-    }
-    
+    };
+
     var recordMPointExchange = function () {
         $.post('record_old_mpoint_exchange', {
             badge_num:  $('#ex_badge_num').val(),
@@ -64,12 +68,12 @@
                     }));
             }
        }, 'json');
-    }
+    };
     var undoMPointExchange = function (id) {
         $.post('undo_mpoint_exchange', {'id': id, csrf_token: csrf_token}, function(s) {
             $('#message').html(s);
         });
-    }
+    };
 
     var giveMerch = function (noShirt, id, staffMerch, shirtSize) {
         $('#give button').attr('disabled', true);
@@ -94,12 +98,12 @@
                          }));
             }
         }, 'json');
-    }
+    };
     var takeBackMerch = function (id) {
         $.post('take_back_merch', {id: id, csrf_token: csrf_token}, function(message) {
             $('#message').html(message);
         });
-    }
+    };
 
     var checkDiscount = function () {
         var $num = $('#dis_badge_num'),
@@ -137,7 +141,13 @@
         });
     };
 
-    $(function(){
+    $(function() {
+        $('body').barcodeField({
+          targetField: 'input.badge_num:focus',
+          blurOnKeys: ['~', '\\'],
+          detectBadgeNum: true
+        });
+
         $('#message').ajaxError(function () {
             toastr.error('Oh noes - the web server is down or something!!!!!');
         });
@@ -149,13 +159,15 @@
 
         showOrHideWhatText(true);
         $('#what_text,#store_amount').keypress(function(e){
-            if( (e.keyCode || e.which) == 13 )  // ENTER
+            if( (e.keyCode || e.which) == 13 ) { // ENTER
                 recordSale();
+            }
         });
 
         $('#ex_badge_num,#ex_mpoints,#cash').keypress(function(e){
-            if( (e.keyCode || e.which) == 13 )  // ENTER
+            if( (e.keyCode || e.which) == 13 ) { // ENTER
                 recordMPointExchange();
+            }
         });
 
         $('#dis_badge_num').keypress(function (e) {
@@ -219,7 +231,7 @@
 <table>
 <tr>
     <td> Last year's MPoints turned in: </td>
-    <td> Badge num: <input type="number" id="ex_badge_num" min="1" max="99999" /> </td>
+    <td> Badge num: <input type="number" id="ex_badge_num" class="badge_num" min="1" max="99999" /> </td>
     <td> exchanged <input type="number" id="ex_mpoints" min="1" max="9999" /> MPoints </td>
     <td> <input type="submit" id="record_mpe" value="Record Exchange" onClick="recordMPointExchange()" /> </td>
 </tr>
@@ -240,7 +252,7 @@
 </tr><tr> <td colspan="4"> ---OR--- </td> </tr>
     <td> Apply a merch discount </td>
     <td>
-        Badge num: <input type="number" id="dis_badge_num" min="1" max="99999" />
+        Badge num: <input type="number" id="dis_badge_num" class="badge_num" min="1" max="99999" />
         <input type="submit" id="discount_check" value="Check Eligibility" onClick="checkDiscount()" />
         &nbsp;
         <span id="discount_confirm"></span>
@@ -250,7 +262,7 @@
 <tr>
     <td> Give Merch </td>
     <td colspan="2">
-        Badge Number: <input type="number" id="badge_num" min="1" max="99999" />
+        Badge Number: <input type="number" id="badge_num"  class="badge_num"min="1" max="99999" />
         <input type="submit" id="check_merch" value="Check Merch" />
         {% if c.SEPARATE_STAFF_MERCH %}
             <input type="submit" id="check_staff_merch" value="Check Staff Merch" />

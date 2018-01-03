@@ -211,21 +211,26 @@ class Root:
     @log_pageview
     def watchlist(self, session, attendee_id, watchlist_id=None, message='', **params):
         attendee = session.attendee(attendee_id, allow_invalid=True)
-        if watchlist_id:
-            watchlist_entry = session.watch_list(watchlist_id)
-
-            if 'active' in params:
-                watchlist_entry.active = not watchlist_entry.active
-            if 'confirm' in params:
-                attendee.watchlist_id = watchlist_id
+        if cherrypy.request.method == 'POST':
             if 'ignore' in params:
                 attendee.badge_status = c.COMPLETED_STATUS
+            elif watchlist_id:
+                watchlist_entry = session.watch_list(watchlist_id)
+
+                if 'active' in params:
+                    watchlist_entry.active = not watchlist_entry.active
+                    message = 'Watchlist entry updated'
+                if 'confirm' in params:
+                    attendee.watchlist_id = watchlist_id
 
             session.commit()
 
-            message = 'Watchlist entry updated'
+            raise HTTPRedirect('watchlist?attendee_id={}&message={}', attendee.id, message or 'Attendee updated')
+
         return {
             'attendee': attendee,
+            'active_entries': session.guess_attendee_watchentry(attendee, active=True),
+            'inactive_entries': session.guess_attendee_watchentry(attendee, active=False),
             'message': message
         }
 

@@ -664,7 +664,7 @@ class Session(SessionManager):
                 if (job.required_roles
                     or frozenset(job.hours) not in restricted_hours)]
 
-        def guess_attendee_watchentry(self, attendee):
+        def guess_attendee_watchentry(self, attendee, active=True):
             or_clauses = [
                 func.lower(WatchList.first_names).contains(
                     attendee.first_name.lower()),
@@ -692,7 +692,7 @@ class Session(SessionManager):
             return self.query(WatchList).filter(and_(
                 or_(*or_clauses),
                 func.lower(WatchList.last_name) == attendee.last_name.lower(),
-                WatchList.active == True)).all()  # noqa: E712
+                WatchList.active == active)).all()  # noqa: E712
 
         def get_account_by_email(self, email):
             return self.query(AdminAccount) \
