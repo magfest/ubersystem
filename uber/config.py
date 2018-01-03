@@ -686,11 +686,6 @@ for _name, _section in _config['age_groups'].items():
     _val = getattr(c, _name.upper())
     c.AGE_GROUP_CONFIGS[_val] = dict(_section.dict(), val=_val)
 
-c.DONATION_TIER_ITEMS = {}
-for _key, _items in _config['donation_tier_items'].items():
-    _key = int(_key) if _key.isdigit() else getattr(c, _key.upper())
-    c.DONATION_TIER_ITEMS[_key] = _items
-
 c.TABLE_PRICES = defaultdict(lambda: _config['table_prices']['default_price'],
                              {int(k): v for k, v in _config['table_prices'].items() if k != 'default_price'})
 c.PREREG_TABLE_OPTS = list(range(1, c.MAX_TABLES + 1))
@@ -763,9 +758,13 @@ c.PREREG_SHIRT_OPTS = c.SHIRT_OPTS[1:]
 c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + list(c.PREREG_SHIRT_OPTS)
 c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt, desc) if amt else desc) for amt, desc in c.DONATION_TIER_OPTS]
 
+c.DONATION_TIER_ITEMS = {}
 c.DONATION_TIER_DESCRIPTIONS = _config.get('donation_tier_descriptions', {})
-for tier in c.DONATION_TIER_DESCRIPTIONS.items():
-    tier[1]['price'] = [amt for amt, name in c.DONATION_TIERS.items() if name == tier[1]['name']][0]
+for _ident, _tier in c.DONATION_TIER_DESCRIPTIONS.items():
+    [price] = [amt for amt, name in c.DONATION_TIERS.items() if name == _tier['name']]
+    _tier['price'] = price
+    if price:  # ignore the $0 kickin level
+        c.DONATION_TIER_ITEMS[price] = _tier['merch_items'] or _tier['description'].split('|')
 
 c.STORE_ITEM_NAMES = [desc for val, desc in c.STORE_PRICE_OPTS]
 c.FEE_ITEM_NAMES = [desc for val, desc in c.FEE_PRICE_OPTS]
