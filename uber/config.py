@@ -639,6 +639,14 @@ if not c.KIOSK_CC_ENABLED:
     del _config['enums']['door_payment_method']['stripe']
     c.create_enum_val('stripe')
 
+if c.ONLY_PREPAY_AT_DOOR:
+    del _config['enums']['door_payment_method']['cash']
+    del _config['enums']['door_payment_method']['manual']
+    del _config['enums']['door_payment_method']['group']
+    c.create_enum_val('cash')
+    c.create_enum_val('manual')
+    c.create_enum_val('group')
+
 if not c.GROUPS_ENABLED:
     del _config['enums']['door_payment_method']['group']
     c.create_enum_val('group')
