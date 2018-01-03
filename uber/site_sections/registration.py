@@ -481,14 +481,15 @@ class Root:
     @ajax
     def check_merch(self, session, badge_num, staff_merch=''):
         id = shirt = None
+        merch_items = []
         if not (badge_num.isdigit() and 0 < int(badge_num) < 99999):
             message = 'Invalid badge number'
         else:
-            results = session.query(Attendee).filter_by(badge_num=badge_num)
-            if results.count() != 1:
+            attendee = session.query(Attendee) \
+                              .filter_by(badge_num=badge_num).first()
+            if not attendee:
                 message = 'No attendee has badge number {}'.format(badge_num)
             else:
-                attendee = results.one()
                 if staff_merch:
                     merch = attendee.staff_merch
                     got_merch = attendee.got_staff_merch
@@ -503,16 +504,19 @@ class Root:
                                 merch=merch, shirt=c.SHIRTS[attendee.shirt])
                 else:
                     id = attendee.id
+                    merch_items = attendee.staff_merch_items if staff_merch \
+                        else attendee.merch_items
                     if (staff_merch and attendee.num_staff_shirts_owed) or \
                             (not staff_merch and attendee.num_event_shirts_owed):
                         shirt = attendee.shirt or c.SIZE_UNKNOWN
                     else:
                         shirt = c.NO_SHIRT
-                    message = '{a.full_name} ({a.badge}) has not yet received {merch}'.format(a=attendee, merch=merch)
+                    message = '{a.full_name} ({a.badge}) has not yet received their merch.'.format(a=attendee)
         return {
             'id': id,
             'shirt': shirt,
-            'message': message
+            'message': message,
+            'merch_items': merch_items
         }
 
     @ajax

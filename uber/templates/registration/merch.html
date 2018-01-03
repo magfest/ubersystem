@@ -15,6 +15,30 @@
         $shirtOpts.append($('<option/>').val(size[0]).text(size[1]));
     });
 
+    /**
+     * Given the list of items returned by Attendee.merch_list, return a nested
+     * list of those items for display when that attendee's merch is checked.
+     */
+    var createMerchList = function (message, merchItems) {
+        var $merchList = $('<ul></ul>');
+        $.each(merchItems, function (i, item) {
+            if ($.isArray(item)) {
+                var $subList = $('<ul></ul>');
+                $.each(item, function (j, subItem) {
+                    $subList.append(
+                        $('<li></li>').text(subItem));
+                });
+                $merchList.append($subList);
+            } else {
+                $merchList.append(
+                    $('<li></li>').text(item));
+            }
+        });
+        return $('<div class="merch-list"></div>')
+            .append(message)
+            .append($merchList);
+    };
+
     var recordSale = function () {
         $.post('record_sale', {
             id:         'None',
@@ -190,11 +214,8 @@
                         $('#message').html(resp.message);
                     } else {
                         $('#give').empty().append(
-                            $('<div class="merch-list"></div>').html(
-                                resp.message.replace(' and ', ',')
-                                            .replace(' received ', ' received<br/>- ')
-                                            .replace(/,/g, '<br/>- ')
-                                            .replace('<br/>- <br/>- ', '<br/>- ')));
+                            createMerchList(resp.message, resp.merch_items)
+                        );
                         if (resp.shirt != {{ c.NO_SHIRT }}) {
                             $('#give').append('Choose a shirt size:').append($shirtOpts);
                             $('#give select').val(resp.shirt);

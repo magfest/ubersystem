@@ -165,19 +165,26 @@ class TestMerch:
         assert 'foo' == Attendee(extra_merch='foo').merch
 
     def test_normal_kickins(self, monkeypatch):
-        monkeypatch.setattr(Attendee, 'donation_swag', ['some', 'stuff'])
+        monkeypatch.setattr(Attendee, 'merch_items', ['some', 'stuff'])
+        assert 'some and stuff' == Attendee().merch
+
+    def test_nested_kickins(self, monkeypatch):
+        monkeypatch.setattr(Attendee, 'merch_items', ['some', ['mildly', 'nested'], 'stuff'])
         assert 'some and stuff' == Attendee().merch
 
     def test_comma_and(self, monkeypatch):
-        monkeypatch.setattr(Attendee, 'donation_swag', ['some', 'stuff'])
-        assert 'some, stuff, and more' == Attendee(extra_merch='more').merch
+        monkeypatch.setattr(Attendee, 'merch_items', ['some', 'stuff', 'more'])
+        assert 'some, stuff, and more' == Attendee().merch
+
+    def test_extra_merch(self):
+        assert 'more' == Attendee(extra_merch='more').merch
 
     def test_info_packet(self):
         assert '' == Attendee(staffing=True).merch
         assert 'Staffer Info Packet' == Attendee(staffing=True).staff_merch
 
     def test_staff_shirts(self, gets_staff_shirt):
-        assert 'RedShirt' in Attendee().merch
+        assert 'tshirt' in Attendee().merch
         assert '2 Staff Shirts' in Attendee().staff_merch
 
         a = Attendee(second_shirt=c.TWO_STAFF_SHIRTS)
@@ -185,10 +192,14 @@ class TestMerch:
         assert '3 Staff Shirts' in a.staff_merch
 
     def test_volunteer(self, volunteer_event_shirt_eligible):
-        assert 'RedShirt' in Attendee().merch and 'will be reported' in Attendee().merch
+        assert 'tshirt' in Attendee().merch and 'will be reported' in Attendee().merch
+
+    def test_paid_volunteer(self, paid_for_a_shirt, volunteer_event_shirt_eligible):
+        assert 'RedShirt' in Attendee(amount_extra=c.SHIRT_LEVEL).merch
+        assert '2nd tshirt' in Attendee(amount_extra=c.SHIRT_LEVEL).merch
 
     def test_volunteer_worked(self, volunteer_event_shirt_eligible, volunteer_event_shirt_earned):
-        assert 'RedShirt' == Attendee().merch
+        assert 'tshirt' in Attendee().merch
 
     def test_two_swag_shirts(self, volunteer_event_shirt_eligible, volunteer_event_shirt_earned, paid_for_a_shirt):
-        assert 'RedShirt and a 2nd RedShirt' == Attendee(amount_extra=c.SHIRT_LEVEL).merch
+        assert 'RedShirt and a 2nd tshirt' == Attendee(amount_extra=c.SHIRT_LEVEL).merch

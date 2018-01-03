@@ -347,6 +347,8 @@
     <div class="col-sm-9">
         <p class="form-control-static">{{ attendee.merch }}</p>
         {% if attendee.got_merch %} (Merch has been picked up) {% endif %}
+        <p class="form-control-static">{{ attendee.staff_merch }}</p>
+        {% if attendee.got_merch %} (Staff merch has been picked up) {% endif %}
     </div>
 </div>
 
