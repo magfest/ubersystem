@@ -20,6 +20,12 @@ def pre_checkin_check(attendee, group):
     if attendee.paid == c.NOT_PAID:
         return 'You cannot check in an attendee that has not paid.'
 
+    min_badge, max_badge = c.BADGE_RANGES[attendee.badge_type]
+    if not (min_badge <= int(attendee.badge_num) <= max_badge):
+        return ('{a.full_name} has a {a.badge_type_label} badge, but '
+                '{a.badge_num} is not a valid number for '
+                '{a.badge_type_label} badges').format(a=attendee)
+
     return check(attendee)
 
 
