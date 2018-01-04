@@ -691,7 +691,7 @@ class Root:
                                          Attendee.first_name != '',
                                          Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
                                          *restrict_to)
-                                 .order_by(Attendee.registered).all(),
+                                 .order_by(Attendee.registered.desc()).all(),
             'Charge': Charge
         }
 
