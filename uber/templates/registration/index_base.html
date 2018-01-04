@@ -14,6 +14,7 @@
       {% if c.REG_USES_BARCODES %}
         $('#search_bar').barcodeField({
           detectUUID: true,
+          detectBadgeNum: true,
           autoSubmitForm: '#search_form',
           shouldAutoFill: function() {
             return !$('#checkin-badge').is(':visible');
