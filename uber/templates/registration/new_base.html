@@ -35,7 +35,6 @@
             toggleMarkButton(dropdown);
         });
     };
-    $(toggleAllMarkButtons);
 
     var recordFee = function() {
         $.post('record_sale', {
@@ -161,6 +160,9 @@
             });
         });
     });
+    // We want to give our ajax functions a chance to load
+    // before the volunteer can interact with those buttons
+    $(document).ready(toggleAllMarkButtons);
 </script>
 {% endblock adminheader %}
 
@@ -260,8 +262,9 @@
                 </select>
                     <button class="btn btn-success" type="submit" disabled="disabled">Mark as Paid</button>
                 </form>
-                OR <br/>
-                {{ stripe_form('manual_reg_charge',Charge(attendee)) }}
+              <!-- this is causing major slowdowns, TODO: fix after the event!
+                 OR <br/>
+                {{ stripe_form('manual_reg_charge',Charge(attendee)) }} -->
             {% endif %}
         </td>
         {% if attendee.paid == c.PAID_BY_GROUP %}
