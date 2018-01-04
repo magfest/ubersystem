@@ -653,9 +653,12 @@ class Root:
         if message:
             raise HTTPRedirect('pay?id={}&message={}', attendee.id, message)
         else:
+            db_attendee = session.query(Attendee).filter_by(id=attendee.id).first()
+            if db_attendee:
+                attendee = db_attendee
             attendee.paid = c.HAS_PAID
             attendee.amount_paid = attendee.total_cost
-            session.merge(attendee)
+            session.add(attendee)
             raise HTTPRedirect('register?message={}', 'Your payment has been accepted, please proceed to the Preregistration desk to pick up your badge')
 
     def comments(self, session, order='last_name'):
