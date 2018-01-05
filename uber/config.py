@@ -149,12 +149,13 @@ class Config(_Overridable):
 
     def get_badge_count_by_type(self, badge_type):
         """
-        Returns the count of all "Complete" badges of the given type; unlike the
-        BADGES_SOLD property, this counts all paid values.  Thus we have counts
-        for badge types that aren't typically sold, e.g. Staff badges.
+        Returns the count of all badges of the given type that we've promised to attendees.
+
         """
         with sa.Session() as session:
-            return session.query(sa.Attendee).filter_by(badge_type=badge_type, badge_status=c.COMPLETED_STATUS).count()
+            return session.query(sa.Attendee).filter(sa.Attendee.badge_type == badge_type,
+                                                     sa.Attendee.badge_status.in_([c.COMPLETED_STATUS, c.NEW_STATUS])) \
+                .count()
 
     def get_printed_badge_deadline_by_type(self, badge_type):
         """
