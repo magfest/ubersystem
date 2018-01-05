@@ -484,9 +484,10 @@ class Root:
         session.commit()
         raise HTTPRedirect('index?message={}', 'Badge has been recorded as lost.')
 
+    # TODO: delete all the swadge code after Super
     @ajax
     def check_merch(self, session, badge_num, staff_merch=''):
-        id = shirt = None
+        id = shirt = gets_swadge = None
         merch_items = []
         if not (badge_num.isdigit() and 0 < int(badge_num) < 99999):
             message = 'Invalid badge number'
@@ -505,28 +506,51 @@ class Root:
                 if not merch:
                     message = '{a.full_name} ({a.badge}) has no merch'.format(a=attendee)
                 elif got_merch:
-                    message = '{a.full_name} ({a.badge}) already got {merch}.' \
-                              ' Their shirt size is {shirt}'.format(a=attendee,
+                    if not (not staff_merch and attendee.gets_swadge
+                            and not attendee.got_swadge):
+                        message = (
+                            '{a.full_name} ({a.badge}) already got {merch}.'
+                            ' Their shirt size is {shirt}').format(a=attendee,
                                 merch=merch, shirt=c.SHIRTS[attendee.shirt])
+                    else:
+                        id = attendee.id
+                        gets_swadge = True
+                        shirt = c.NO_SHIRT
+                        message = (
+                            '{a.full_name} has received all of their merch '
+                            'except for their swadge.  Click the "Give Merch" '
+                            'button below to mark them as receiving that.'
+                        ).format(a=attendee)
                 else:
                     id = attendee.id
-                    merch_items = attendee.staff_merch_items if staff_merch \
-                        else attendee.merch_items
+
+                    if staff_merch:
+                        merch_items = attendee.staff_merch_items
+                    else:
+                        merch_items = attendee.merch_items
+                        gets_swadge = attendee.gets_swadge
+
                     if (staff_merch and attendee.num_staff_shirts_owed) or \
                             (not staff_merch and attendee.num_event_shirts_owed):
                         shirt = attendee.shirt or c.SIZE_UNKNOWN
                     else:
                         shirt = c.NO_SHIRT
+
                     message = '{a.full_name} ({a.badge}) has not yet received their merch.'.format(a=attendee)
+
         return {
             'id': id,
             'shirt': shirt,
             'message': message,
-            'merch_items': merch_items
+            'merch_items': merch_items,
+            'gets_swadge': gets_swadge,
+            'swadges_available': c.SWADGES_AVAILABLE
         }
 
+    # TODO: delete all the swadge code after Super
     @ajax
-    def give_merch(self, session, id, shirt_size, no_shirt, staff_merch):
+    def give_merch(self, session, id, shirt_size, no_shirt,
+                                      staff_merch, give_swadge=None):
         try:
             shirt_size = int(shirt_size)
         except:
@@ -538,6 +562,12 @@ class Root:
         got = attendee.got_staff_merch if staff_merch else attendee.got_merch
         if not merch:
             message = '{} has no merch'.format(attendee.full_name)
+        elif got and give_swadge and not attendee.got_swadge:
+            message = '{a.full_name} marked as receiving their swadge'.format(
+                a=attendee)
+            success = True
+            attendee.got_swadge = True
+            session.commit()
         elif got:
             message = '{} already got {}'.format(attendee.full_name, merch)
         elif shirt_size == c.SIZE_UNKNOWN:
@@ -550,6 +580,8 @@ class Root:
             message = message.format(attendee.full_name, merch)
             setattr(attendee,
                     'got_staff_merch' if staff_merch else 'got_merch', True)
+            if give_swadge:
+                attendee.got_swadge = True
             if shirt_size:
                 attendee.shirt = shirt_size
             if no_shirt:
@@ -563,10 +595,15 @@ class Root:
             'message': message
         }
 
+    # TODO: delete all the swadge code after Super
     @ajax
-    def take_back_merch(self, session, id):
+    def take_back_merch(self, session, id, staff_merch=None):
         attendee = session.attendee(id, allow_invalid=True)
-        attendee.got_merch = False
+        if staff_merch:
+            attendee.got_staff_merch = False
+        else:
+            attendee.got_merch = attendee.got_swadge = False
+            c._swadges_available = False  # force db check next time
         if attendee.no_shirt:
             session.delete(attendee.no_shirt)
         session.commit()
