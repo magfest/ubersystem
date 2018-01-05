@@ -160,9 +160,12 @@
     <div class="form-group">
         <label for="badge_status" class="col-sm-3 control-label">Status</label>
         <div class="col-sm-6">
-            <select name="badge_status">
+          <select name="badge_status"{% if c.AT_THE_CON and not admin_can_change_status %} disabled="true"{% endif %}>
             {{ options(c.BADGE_STATUS_OPTS,attendee.badge_status) }}
             </select>
+          {% if c.AT_THE_CON and not admin_can_change_status %}
+            <input type="hidden" name="badge_status" value="{{ attendee.badge_status }}"/>
+            Altering the badge status is disabled during the event. The system will update it automatically.{% endif %}
         </div>
     </div>
 
