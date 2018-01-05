@@ -285,8 +285,15 @@
                 {{ macros.checkbox(attendee, 'got_merch', label='Yes') }}
             </div>
         </div>
+      <div class="form-group">
+        <label class="col-sm-3 control-label">Received Staff Merch</label>
+        <div class="checkbox col-sm-6">
+          {{ macros.checkbox(attendee, 'got_staff_merch', label='Yes') }}
+        </div>
+      </div>
     {% else %}
         <input type="hidden" name="got_merch" value="{{ '1' if attendee.got_merch else '0' }}" />
+      <input type="hidden" name="got_staff_merch" value="{{ '1' if attendee.got_staff_merch else '0' }}"/>
     {% endif %}
     <div class="form-group">
         <label class="col-sm-3 control-label">Signed Up</label>
@@ -351,7 +358,7 @@
         <p class="form-control-static">{{ attendee.merch }}</p>
         {% if attendee.got_merch %} (Merch has been picked up) {% endif %}
         <p class="form-control-static">{{ attendee.staff_merch }}</p>
-        {% if attendee.got_merch %} (Staff merch has been picked up) {% endif %}
+      {% if attendee.got_staff_merch %} (Staff merch has been picked up) {% endif %}
     </div>
 </div>
 
