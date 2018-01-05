@@ -40,6 +40,7 @@ class Root:
         for var in c.BADGE_VARS:
             badge_type = getattr(c, var)
             counts['stocks'][c.BADGES[badge_type]] = stocks.get(var.lower(), 'no limit set')
+            counts['counts'][c.BADGES[badge_type]] = c.get_badge_count_by_type(badge_type)
 
         for a in session.query(Attendee).options(joinedload(Attendee.group)):
             counts['paid'][a.paid_label] += 1
