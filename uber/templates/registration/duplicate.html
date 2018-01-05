@@ -42,13 +42,13 @@
     <tr>
         <td><a class="btn btn-default" href="{{ return_to }}">Yes, I'm sure this is someone else!</a></td>
         <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>
-        <td><a class="btn btn-primary" href="form?id={{ attendee.id }}">Wait, let me edit their info!</a></td>
+        <td><a class="btn btn-primary" href="form?id={{ attendee.id }}">Maybe, let me see the created badge again!</a></td>
         <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>
         <td>
             <form method="post" action="delete">
             <input type="hidden" name="id" value="{{ attendee.id }}"/>
             {{ csrf_token() }}
-            <button class="btn btn-danger" type="submit">Whoops, undo this badge!</button>
+            <button class="btn btn-danger" type="submit">Whoops, delete the new badge!</button>
             </form>
         </td>
     </tr>
