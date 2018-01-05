@@ -187,7 +187,7 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def ATTENDEE_BADGES_SOLD(self):
-        return c.get_badge_count_by_type(badge_type)
+        return self.get_badge_count_by_type(badge_type)
 
     @request_cached_property
     @dynamic
