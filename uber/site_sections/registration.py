@@ -637,6 +637,7 @@ class Root:
 
     @unrestricted
     @check_atd
+    @check_if_can_reg
     def register(self, session, message='', **params):
         params['id'] = 'None'
         attendee = session.attendee(params, restricted=True, ignore_csrf=True)
