@@ -138,6 +138,7 @@ class Root:
             'check_in':   check_in,
             'return_to':  return_to,
             'omit_badge': omit_badge,
+            'admin_can_change_status': session.admin_attendee().is_dept_head_of(c.REGDESK),
             'group_opts': [(g.id, g.name) for g in session.query(Group).order_by(Group.name).all()],
             'unassigned': {group_id: unassigned
                            for group_id, unassigned in session.query(Attendee.group_id, func.count('*'))
