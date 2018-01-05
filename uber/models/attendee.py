@@ -105,6 +105,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     extra_merch = Column(UnicodeText, admin_only=True)
     got_merch = Column(Boolean, default=False, admin_only=True)
     got_staff_merch = Column(Boolean, default=False, admin_only=True)
+    got_swadge = Column(Boolean, default=False, admin_only=True)
 
     reg_station = Column(Integer, nullable=True, admin_only=True)
     registered = Column(UTCDateTime, server_default=utcnow())
@@ -686,6 +687,11 @@ class Attendee(MagModel, TakesPaymentMixin):
             self.badge_type in c.TRANSFERABLE_BADGE_TYPES and \
             not self.admin_account and \
             not self.has_role_somewhere
+
+    # TODO: delete this after Super MAGFest 2018
+    @property
+    def gets_swadge(self):
+        return self.amount_extra >= c.SUPPORTER_LEVEL
 
     @property
     def paid_for_a_shirt(self):

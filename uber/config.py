@@ -251,6 +251,46 @@ class Config(_Overridable):
         }
 
     @property
+    @dynamic
+    def SWADGES_AVAILABLE(self):
+        """
+        TODO: REMOVE THIS AFTER SUPER MAGFEST 2018.
+
+        This property addresses the fact that our "swag badges" (aka swadges)
+        arrived more than a day late.  Normally this would have been just a
+        normal part of our merch.  However, we now have a bunch of people who
+        have already received our merch without the swadge.  So we basically
+        have three groups of people:
+
+        1) People who have already received their merch are marked as not
+            having received their swadge.
+
+        2) Until the swadges arrive, instead of the "Give Merch" button, we
+            want "Give Merch Without Swadge" and "Give Merch Including Swadge"
+            buttons.
+
+        3) After the "Give Merch With Swadge" button has been pressed for the
+            first time, we want to revert to the single "Give Merch" button,
+            which is assumed to include the Swadge because those have arrived.
+
+        This property controls whether we're in state (2) or (3) above.  We
+        perform a database query to see if there are any attendees who have
+        got_swadge set.  Once we've found that once we cache that result here
+        on the "c" object and no longer perform the query.  The reason why we
+        do this instead of adding a new config option is to allow us to know
+        that the swadges are present without having to restart the server
+        during our busiest time of the weekend.
+        """
+        if getattr(self, '_swadges_available', False):
+            return True
+
+        with sa.Session() as session:
+            got = session.query(sa.Attendee).filter_by(got_swadge=True).first()
+            if got:
+                self._swadges_available = True
+            return bool(got)
+
+    @property
     def PREREG_DONATION_OPTS(self):
         if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
             return self.DONATION_TIER_OPTS

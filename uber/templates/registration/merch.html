@@ -99,14 +99,15 @@
         });
     };
 
-    var giveMerch = function (noShirt, id, staffMerch, shirtSize) {
+    var giveMerch = function (noShirt, id, staffMerch, shirtSize, giveSwadge) {
         $('#give button').attr('disabled', true);
         var params = {
             id: id,
             no_shirt: noShirt,
             csrf_token: csrf_token,
             staff_merch: staffMerch,
-            shirt_size: shirtSize || null
+            shirt_size: shirtSize || null,
+            give_swadge: giveSwadge ? 'true' : ''
         };
         $.post('give_merch', params, function(json) {
             $('#give').html('');
@@ -117,14 +118,19 @@
                     .append(' &nbsp; ')
                     .append(
                         $('<a href="#">Undo</a>').click(function(){
-                            takeBackMerch(id);
+                            takeBackMerch(id, staffMerch);
                             return false;
                          }));
             }
         }, 'json');
     };
-    var takeBackMerch = function (id) {
-        $.post('take_back_merch', {id: id, csrf_token: csrf_token}, function(message) {
+    var takeBackMerch = function (id, staffMerch) {
+        var params = {
+            id: id,
+            csrf_token: csrf_token,
+            staff_merch: staffMerch
+        };
+        $.post('take_back_merch', params, function (message) {
             $('#message').html(message);
         });
     };
@@ -220,17 +226,30 @@
                             $('#give').append('Choose a shirt size:').append($shirtOpts);
                             $('#give select').val(resp.shirt);
                         }
-                        $('#give').append(
-                            $('<button>Give Merch</button>').click(function () {
-                                giveMerch('', resp.id, staffMerch, $("#shirt").val());
-                                return false;
-                            })
-                        );
+
+                        if (resp.swadges_available || !resp.gets_swadge) {
+                            $('#give').append(
+                                $('<button>Give Merch</button>').click(function () {
+                                    giveMerch('', resp.id, staffMerch, $("#shirt").val(), resp.gets_swadge);
+                                })
+                            );
+                        } else {
+                            $('#give').append(
+                                $('<button>Give Merch WITH Swadge</button>').click(function () {
+                                    giveMerch('', resp.id, staffMerch, $("#shirt").val(), true);
+                                })
+                            );
+                            $('#give').append(
+                                $('<button>Give Merch WITHOUT Swadge</button>').click(function () {
+                                    giveMerch('', resp.id, staffMerch, $("#shirt").val(), false);
+                                })
+                            );
+                        }
+
                         {% if c.OUT_OF_SHIRTS %}
                             $("#give").append(
                                 $('<button>Give Merch Without Shirt</button>').click(function () {
                                     giveMerch('no_shirt', resp.id, staffMerch, $('#shirt').val());
-                                    return false;
                                 })
                             );
                         {% endif %}
