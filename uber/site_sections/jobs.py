@@ -1,3 +1,5 @@
+from sqlalchemy import select
+
 from uber.common import *
 
 
@@ -83,14 +85,23 @@ class Root:
             'checklist': department_id and session.checklist_status('postcon_hours', department_id)
         }
 
-    def everywhere(self, session, message='', show_restricted=''):
+    def everywhere(self, session, message='', show_restricted='', show_nonpublic=''):
+        job_filters = [Job.start_time > localized_now() - timedelta(hours=2)]
+        if show_restricted:
+            job_filters.append(Job.restricted == False)
+        if not show_nonpublic:
+            job_filters.append(Job.department_id.in_(
+                select([Department.id]).where(
+                    Department.solicits_volunteers == True)))
+
+        jobs = session.jobs().filter(*job_filters)
+
         return {
             'message': message,
             'show_restricted': show_restricted,
+            'show_nonpublic': show_nonpublic,
             'attendees': session.staffers_for_dropdown(),
-            'jobs': [job_dict(job) for job in session.jobs()
-                                                     .filter(Job.start_time > localized_now() - timedelta(hours=2))
-                                                     .filter_by(**{} if show_restricted else {'restricted': False})]
+            'jobs': [job_dict(job) for job in jobs]
         }
 
     @department_id_adapter
