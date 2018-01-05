@@ -87,7 +87,7 @@ class Root:
 
     def everywhere(self, session, message='', show_restricted='', show_nonpublic=''):
         job_filters = [Job.start_time > localized_now() - timedelta(hours=2)]
-        if show_restricted:
+        if not show_restricted:
             job_filters.append(Job.restricted == False)
         if not show_nonpublic:
             job_filters.append(Job.department_id.in_(
