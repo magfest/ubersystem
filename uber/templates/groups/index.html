@@ -6,6 +6,10 @@
     function toggleDisplay(dropdown) {
         window.location = "index?order={{ order }}&show=" + $(dropdown).val();
     }
+
+    $(document).ready(function () {
+        $('div.dataTables_filter input').focus();
+    });
 </script>
 
 <div class="panel panel-default">
