@@ -827,7 +827,7 @@ class Root:
         attendee.admin_notes = admin_notes
         if for_review is not None:
             attendee.for_review = for_review
-        raise HTTPRedirect('shifts?id={}&message={}', id, 'Admin notes updated')
+        raise HTTPRedirect('shifts?id={}&message={}', id, 'Notes updated')
 
     @csrf_protected
     def assign(self, session, staffer_id, job_id):
