@@ -765,6 +765,21 @@ class Attendee(MagModel, TakesPaymentMixin):
         return donation_items + extra_donations
 
     @property
+    def donation_tier(self):
+        for amount, desc in sorted(c.DONATION_TIERS.items()):
+            if self.amount_extra <= amount:
+                return amount
+        return 0
+
+    @property
+    def donation_tier_label(self):
+        return c.DONATION_TIERS[self.donation_tier]
+
+    @property
+    def donation_tier_paid(self):
+        return self.amount_unpaid <= 0
+
+    @property
     def merch_items(self):
         """
         Here is the business logic surrounding shirts:
