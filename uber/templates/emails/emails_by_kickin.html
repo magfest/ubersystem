@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Email addresses by kick-in{% endblock %}
+{% block content %}
+
+  <h1>Emails by Kick-in Level</h1>
+
+  Use this page to generate a CSV file of emails of people who donated at a certain kick-in level at
+  {{ c.EVENT_NAME }}.<br/><br/>
+
+  <form action="emails_by_kickin_csv">
+    Generate list of emails from attendees with one of the following kick-in levels or more:<br/>
+    <select name="amount_extra">
+      {{ options(c.DONATION_TIER_OPTS) }}
+    </select><br/>
+    <label><input type="checkbox" name="only_can_spam" value="1"/>
+      I want to use these emails for marketing campaigns.</label>
+    <br/><input name="submit" type="submit"/><br/>
+  </form>
+
+{% endblock %}
