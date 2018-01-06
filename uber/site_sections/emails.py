@@ -146,3 +146,28 @@ class Root:
         for a in attendees:
             if set(interests).intersection(a.interests_ints):
                 out.writerow([a.full_name, a.email, a.zip_code])
+
+    def emails_by_kickin(self, message=''):
+        return {
+            'message': message
+        }
+
+    @csv_file
+    def emails_by_kickin_csv(self, out, session, **params):
+        """
+        Generate a list of attendee emails by what kick-in level they've donated at
+        """
+        if 'amount_extra' not in params:
+            raise HTTPRedirect('emails_by_kickin?message={}', 'You must select a kick-in level')
+
+        amount_extra = params['amount_extra']
+
+        status_filter = Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])
+        email_filter = [Attendee.can_spam == True] if 'only_can_spam' in params else []
+
+        attendees = session.query(Attendee).filter(status_filter, *email_filter).all()
+        out.writerow(["fullname", "email", "zipcode"])
+
+        for a in attendees:
+            if amount_extra == a.amount_extra:
+                out.writerow([a.full_name, a.email, a.zip_code])
