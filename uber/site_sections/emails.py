@@ -165,10 +165,13 @@ class Root:
 
         base_filter = Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])
         email_filter = [Attendee.can_spam == True] if 'only_can_spam' in params else []
+        attendee_filter = Attendee.amount_extra >= amount_extra
+        if 'include_staff' in params:
+            attendee_filter = or_(attendee_filter, Attendee.badge_type == c.STAFF_BADGE)
 
-        attendees = session.query(Attendee).filter(base_filter, Attendee.amount_extra >= amount_extra,
-                                                   *email_filter).all()
+        attendees = session.query(Attendee).filter(
+            base_filter, attendee_filter, *email_filter).all()
+
         out.writerow(["fullname", "email", "zipcode"])
-
         for a in attendees:
             out.writerow([a.full_name, a.email, a.zip_code])

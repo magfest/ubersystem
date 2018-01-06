@@ -11,7 +11,11 @@
     Generate list of emails from attendees with one of the following kick-in levels or more:<br/>
     <select name="amount_extra">
       {{ options(c.DONATION_TIER_OPTS) }}
-    </select><br/>
+    </select>
+    <br>
+    <label><input type="checkbox" name="include_staff" value="1"/>
+      Include staffers.</label>
+    <br>
     <label><input type="checkbox" name="only_can_spam" value="1"/>
       I want to use these emails for marketing campaigns.</label>
     <br/><input name="submit" type="submit"/><br/>
