@@ -657,6 +657,12 @@ c.DATE_FORMAT = '%Y-%m-%d'
 c.EVENT_TIMEZONE = pytz.timezone(c.EVENT_TIMEZONE)
 c.make_dates(_config['dates'])
 
+if "sqlite" in _config['secret']['sqlalchemy_url']:
+    # SQLite does not suport pool_size and max_overflow,
+    # so disable them if sqlite is used.
+    c.SQLALCHEMY_POOL_SIZE = -1
+    c.SQLALCHEMY_MAX_OVERFLOW = -1
+
 c.PRICE_BUMPS = {}
 c.PRICE_LIMITS = {}
 for _opt, _val in c.BADGE_PRICES['attendee'].items():
