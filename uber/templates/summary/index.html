@@ -35,6 +35,15 @@
     {% endfor %}
   </ul>
 
+  <h4>Check-ins by Badge Type</h4>
+  Badges that have actually been claimed, by type.
+  <br/>
+  <ul>
+    {% for desc, count in counts.checked_in_by_type.items() %}
+      <li><i>{{ desc }}:</i> {{ count }}</li>
+    {% endfor %}
+  </ul>
+
 <h4>Badge Stocks</h4>
 <ul>
     {% for desc, count in counts.stocks.items() %}
