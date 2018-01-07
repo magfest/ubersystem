@@ -238,7 +238,9 @@ def _set_response_filename(base_filename):
     """
     Set the correct headers when outputting CSV files to specify the filename the browser should use
     """
-    cherrypy.response.headers['Content-Disposition'] = 'attachment; filename=' + base_filename
+    header = cherrypy.response.headers.get('Content-Disposition', '')
+    if not header or 'filename=' not in header:
+        cherrypy.response.headers['Content-Disposition'] = 'attachment; filename=' + base_filename
 
 
 def xlsx_file(func):
