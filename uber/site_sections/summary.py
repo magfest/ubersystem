@@ -31,7 +31,8 @@ class Root:
             'ages': c.AGE_GROUP_OPTS,
             'ribbons': c.RIBBON_OPTS,
             'interests': c.INTEREST_OPTS,
-            'statuses': c.BADGE_STATUS_OPTS
+            'statuses': c.BADGE_STATUS_OPTS,
+            'checked_in_by_type': c.BADGE_OPTS,
         }
         for label, opts in count_labels.items():
             for val, desc in opts:
@@ -50,6 +51,8 @@ class Root:
             counts['badges'][a.badge_type_label] += 1
             counts['statuses'][a.badge_status_label] += 1
             counts['checked_in']['yes' if a.checked_in else 'no'] += 1
+            if a.checked_in:
+                counts['checked_in_by_type'][a.badge_type_label] += 1
             for val in a.interests_ints:
                 counts['interests'][c.INTERESTS[val]] += 1
             if a.paid == c.PAID_BY_GROUP and a.group:
