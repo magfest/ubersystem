@@ -592,7 +592,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def can_abandon_badge(self):
-        return not self.amount_paid and not self.paid == c.NEED_NOT_PAY and not self.is_group_leader
+        return not self.amount_paid \
+            and not self.paid == c.NEED_NOT_PAY \
+            and not self.is_group_leader
 
     @property
     def shirt_size_marked(self):

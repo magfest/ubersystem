@@ -100,6 +100,7 @@ def _suffix_property_check(inst, name):
             field_val = getattr(inst, field_name)
             return prop_func(field_name, field_val)
 
+
 suffix_property.check = _suffix_property_check
 
 
@@ -575,6 +576,7 @@ class Validation:
             self.validations[model_name][func.__name__] = func
             return func
         return wrapper
+
 
 validation, prereg_validation = Validation(), Validation()
 

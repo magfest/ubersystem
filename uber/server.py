@@ -10,6 +10,8 @@ def _add_email():
     body = body.replace(b'<body>', b'''<body>Please contact us via <a href="CONTACT_URL">CONTACT_URL</a> if you're not sure why you're seeing this page.'''.replace(b'CONTACT_URL', c.CONTACT_URL.encode('utf-8')))
     cherrypy.response.headers['Content-Length'] = len(body)
     cherrypy.response.body = [body]
+
+
 cherrypy.tools.add_email_to_error_page = cherrypy.Tool('after_error_response', _add_email)
 
 
@@ -158,11 +160,13 @@ class Root:
     static_views = StaticViews()
     angular = AngularJavascript()
 
+
 mount_site_sections(c.MODULE_ROOT)
 
 
 def error_page_404(status, message, traceback, version):
     return "Sorry, page not found!<br/><br/>{}<br/>{}".format(status, message)
+
 
 c.APPCONF['/']['error_page.404'] = error_page_404
 
@@ -178,6 +182,7 @@ def register_jsonrpc(service, name=None):
     assert name not in jsonrpc_services, '{} has already been registered'.format(name)
     jsonrpc_services[name] = service
 
+
 jsonrpc_handler = _make_jsonrpc_handler(jsonrpc_services, precall=jsonrpc_reset)
 cherrypy.tree.mount(jsonrpc_handler, join(c.PATH, 'jsonrpc'), c.APPCONF)
 
@@ -187,6 +192,7 @@ def reg_checks():
     check_unassigned()
     detect_duplicates()
     check_placeholders()
+
 
 # Registration checks are run every six hours
 DaemonTask(reg_checks, interval=21600, name="mail reg checks")
