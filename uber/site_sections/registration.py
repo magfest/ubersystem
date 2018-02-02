@@ -393,6 +393,7 @@ class Root:
             ] if attendee.paid == c.PAID_BY_GROUP and not attendee.group_id else []
         }
 
+    @check_for_encrypted_badge_num
     @ajax
     def check_in(self, session, message='', group_id='', **params):
         attendee = session.attendee(params, allow_invalid=True)
@@ -779,6 +780,7 @@ class Root:
             session.commit()
             return {'success': True, 'message': 'Payment accepted.', 'id': attendee.id}
 
+    @check_for_encrypted_badge_num
     @csrf_protected
     def new_checkin(self, session, message='', **params):
         attendee = session.attendee(params, allow_invalid=True)

@@ -3,6 +3,7 @@ import functools
 import six
 
 from sideboard.lib import profile
+from uber.barcode.utils import get_badge_num_from_barcode
 from uber.common import *
 
 
@@ -74,6 +75,25 @@ def check_if_can_reg(func):
         elif c.AFTER_PREREG_TAKEDOWN and not c.AT_THE_CON:
             return render('static_views/prereg_closed.html')
         return func(*args, **kwargs)
+    return with_check
+
+
+def check_for_encrypted_badge_num(func):
+    """
+    On some pages, we pass a 'badge_num' parameter that might EITHER be a literal
+    badge number or an encrypted value (i.e., from a barcode scanner). This
+    decorator searches for a 'badge_num' parameter and decrypts it if necessary.
+    """
+
+    @wraps(func)
+    def with_check(*args, **kwargs):
+        if kwargs.get('badge_num', None):
+            try:
+                int(kwargs['badge_num'])
+            except Exception:
+                kwargs['badge_num'] = get_badge_num_from_barcode(barcode_num=kwargs['badge_num'])['badge_num']
+        return func(*args, **kwargs)
+
     return with_check
 
 
