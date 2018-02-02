@@ -236,6 +236,7 @@ class DeptChecklistConf(Registry):
                 pass
         raise KeyError('department_id')
 
+
 for _slug, _conf in sorted(c.DEPT_HEAD_CHECKLIST.items(), key=lambda tup: tup[1]['deadline']):
     DeptChecklistConf.register(_slug, _conf)
 

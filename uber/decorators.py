@@ -3,6 +3,7 @@ import functools
 import six
 
 from sideboard.lib import profile
+from uber.barcode.utils import get_badge_num_from_barcode
 from uber.common import *
 
 
@@ -77,6 +78,25 @@ def check_if_can_reg(func):
     return with_check
 
 
+def check_for_encrypted_badge_num(func):
+    """
+    On some pages, we pass a 'badge_num' parameter that might EITHER be a literal
+    badge number or an encrypted value (i.e., from a barcode scanner). This
+    decorator searches for a 'badge_num' parameter and decrypts it if necessary.
+    """
+
+    @wraps(func)
+    def with_check(*args, **kwargs):
+        if kwargs.get('badge_num', None):
+            try:
+                int(kwargs['badge_num'])
+            except Exception:
+                kwargs['badge_num'] = get_badge_num_from_barcode(barcode_num=kwargs['badge_num'])['badge_num']
+        return func(*args, **kwargs)
+
+    return with_check
+
+
 def get_innermost(func):
     return get_innermost(func.__wrapped__) if hasattr(func, '__wrapped__') else func
 
@@ -99,6 +119,7 @@ def _suffix_property_check(inst, name):
             field_name = name[:-len(suffix)]
             field_val = getattr(inst, field_name)
             return prop_func(field_name, field_val)
+
 
 suffix_property.check = _suffix_property_check
 
@@ -575,6 +596,7 @@ class Validation:
             self.validations[model_name][func.__name__] = func
             return func
         return wrapper
+
 
 validation, prereg_validation = Validation(), Validation()
 

@@ -623,6 +623,7 @@ class SecretConfig(_Overridable):
         else:
             return _config['secret']['sqlalchemy_url']
 
+
 c = Config()
 _secret = SecretConfig()
 
@@ -638,6 +639,7 @@ def _unrepr(d):
             d[opt] = int(val)
         elif isinstance(d[opt], dict):
             _unrepr(d[opt])
+
 
 _unrepr(_config['appconf'])
 c.APPCONF = _config['appconf'].dict()

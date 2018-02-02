@@ -186,5 +186,6 @@ def template_overrides(dirname):
     """
     JinjaEnv.insert_template_dir(dirname)
 
+
 for _directory in c.TEMPLATE_DIRS:
     template_overrides(_directory)

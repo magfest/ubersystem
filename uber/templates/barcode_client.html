@@ -1,0 +1,234 @@
+<script>
+
+  var BADGE_NUM_CHAR = '~';
+  var RE_UUID = /([0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12})/i;
+
+  var getBadgeNumFromBarcode = function(barcode, callback) {
+    callback = callback || function() {};
+
+    // Bypass decryption if it's a number.
+    if ($.isNumeric(barcode)) {
+      callback({barcode: barcode, badge_num: barcode});
+      return;
+    }
+
+    $.ajax({
+      method: 'POST',
+      url: '../barcode/get_badge_num_from_barcode',
+      data: {
+        barcode: barcode,
+        csrf_token: csrf_token
+      },
+      success: function (response, status) {
+        if (response['badge_num'] === -1) {
+          response['error'] = response['message'];
+        }
+        response['barcode'] = barcode;
+        callback(response);
+      },
+      error: function (response, status, statusText) {
+        callback({
+          barcode: barcode,
+          error: 'Could not decode barcode: ' + statusText
+        });
+      }
+    });
+  };
+
+  var scannerDetectionOnCompleteHandlers = [];
+  var scannerDetectionOnErrorHandlers = [];
+  var scannerDetectionOnReceiveHandlers = [];
+
+  $(function () {
+    $(document).scannerDetection({
+      timeBeforeScanTest: 100,
+      avgTimeByChar: 30,
+      endChar: [9, 13, '\\'],
+      startChar: [BADGE_NUM_CHAR, '\\'],
+      preventDefault: false,
+      stopPropagation: false,
+      onComplete: function(barcode, qty) {
+        barcode = ('' + barcode).trim();
+
+        // Remove non-word characters bracketing the barcode.
+        // Some scanners add these but we don't want them.
+        var first = barcode.substr(0, 1),
+            last = barcode.substr(barcode.length - 1);
+        if (first === last && last.match(/\W/g)) {
+          barcode = barcode.substr(1, barcode.length - 2);
+        }
+
+        $.each(scannerDetectionOnCompleteHandlers, function(i, handler) {
+          handler(barcode);
+        });
+      },
+      onError: function (key) {
+        $.each(scannerDetectionOnErrorHandlers, function(i, handler) {
+          handler(key);
+        });
+      },
+      onReceive: function(event) {
+        $.each(scannerDetectionOnReceiveHandlers, function(i, handler) {
+          handler(event);
+        });
+      }
+    });
+  });
+
+  (function($) {
+    $.fn.barcodeField = function(options) {
+      // Default settings, overridden by options
+      var settings = $.extend({
+        // The target field for auto-fill and focus/blur events, if different
+        // from the element used to initialize the barcodeField.
+        targetField: null,
+
+        // Control how the target field is blurred/focused.
+        blurOnKeys: [],
+        refocusAfterBlurOnKeys: true,  // Refocuses if blurred from blurOnKeys
+        focusOnError: true,  // Always focus, regardless of blurOnKeys
+        focusOnComplete: true,  // Always focus, regardless of blurOnKeys
+
+        // Set to false to turn off toastr error messages entirely.
+        showErrorMessage: true,
+
+        // Set to false to turn off toastr error messages, but only when
+        // target field is hidden.
+        showErrorMessageWhenHidden: true,
+
+        // Determine if we do any special data handling.
+        // detectBadgeNum and detectUUID are mututally exclusive.
+        // If both are true, then only detectBadgeNum is used.
+        detectBadgeNum: false,
+        detectUUID: false,
+
+        // Determine if the target field is auto-filled.
+        autoFill: true,
+
+        // Optional function to determine if target field should actually
+        // be auto-filled. Return true to auto-fill.
+        // Ignored if autoFill is falsey.
+        // function() { return true; }
+        shouldAutoFill: null,
+
+        // A jQuery selector used to select an HTML form that should
+        // automatically be submitted after the field is filled.
+        // Ignored if autoFill is false.
+        autoSubmitForm: null,
+
+        // Optional function to determine if autoSubmitForm should actually
+        // be submitted. Return true to auto-submit.
+        // Ignored if autoSubmitForm is falsey.
+        // function() { return true; }
+        shouldAutoSubmit: null,
+
+        // Optional handler called when a barcode is scanned
+        // function(response) {}
+        onComplete: null,
+
+        // Optional handler called on scan error
+        // function(response) {}
+        onError: null
+      }, options);
+
+      var $targetBlurredOnKeys = null;
+
+      this.getTargetField = function() {
+        if ($targetBlurredOnKeys) {
+          return $targetBlurredOnKeys;
+        } else if (settings.targetField) {
+          return $(settings.targetField);
+        }
+        return this;
+      };
+
+      this.getAutoSubmitForm = function() {
+        return settings.autoSubmitForm ? $(settings.autoSubmitForm) : null;
+      };
+
+      this.shouldShowErrorMessage = function() {
+        return settings.showErrorMessage && (
+          settings.showErrorMessageWhenHidden || this.getTargetField().is(':visible'));
+      };
+
+      this.onDetectionComplete = function(response) {
+        if (settings.focusOnComplete || (settings.refocusAfterBlurOnKeys && $targetBlurredOnKeys)) {
+          this.getTargetField().focus();
+        }
+        $targetBlurredOnKeys = null;
+
+        if (settings.autoFill && response['data'] && (!settings.shouldAutoFill || settings.shouldAutoFill())) {
+          this.getTargetField().val(response['data']);
+          var $form = this.getAutoSubmitForm();
+          if ($form && (!settings.shouldAutoSubmit || settings.shouldAutoSubmit())) {
+            $form.submit();
+          }
+        }
+
+        if (settings.onComplete) {
+          settings.onComplete.call(this, response);
+        }
+      };
+
+      this.onDetectionError = function(response) {
+        if (this.shouldShowErrorMessage()) {
+          toastr.warning(response['error'], '', {timeOut: 3000});
+        }
+
+        if (settings.focusOnError) {
+          this.getTargetField().focus();
+        }
+
+        if (settings.onError) {
+          settings.onError.call(this, response);
+        }
+      };
+
+      scannerDetectionOnCompleteHandlers.push($.proxy(function(barcode) {
+        if (settings.detectUUID) {
+          var uuidMatch = barcode.match(RE_UUID);
+          if (uuidMatch) {
+            this.onDetectionComplete({barcode: barcode, data: uuidMatch[1]});
+            return;
+          }
+        }
+
+        if (settings.detectBadgeNum) {
+          getBadgeNumFromBarcode(barcode, $.proxy(function(response) {
+            if (response['error']) {
+              this.onDetectionError(response);
+            } else {
+              response['data'] = response['badge_num'] || response['barcode'];
+              this.onDetectionComplete(response);
+            }
+          }, this));
+          return;
+        }
+
+        this.onDetectionComplete({barcode: barcode, data: barcode});
+      }, this));
+
+      if (settings.blurOnKeys.length > 0) {
+        scannerDetectionOnReceiveHandlers.push($.proxy(function(event) {
+          var $target = this.getTargetField();
+          if ($target.is(':focus') && settings.blurOnKeys.indexOf(event.key) > -1) {
+            $targetBlurredOnKeys = $target;
+            event.preventDefault();
+            $target.blur();
+          }
+        }, this));
+
+        if (settings.refocusAfterBlurOnKeys) {
+          scannerDetectionOnErrorHandlers.push($.proxy(function(key) {
+            if ($targetBlurredOnKeys) {
+              $targetBlurredOnKeys.focus();
+              $targetBlurredOnKeys = null;
+            }
+          }, this));
+        }
+      }
+
+      return this;
+    };
+  }(jQuery));
+</script>

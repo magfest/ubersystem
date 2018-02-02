@@ -1,9 +1,15 @@
+from uber.barcode.utils import generate_barcode_from_badge_num
 from uber.common import *
 
 
 class ReportBase:
     def write_row(self, row, out):
-        """This method exists for plugins to monkeypatch and/or override."""
+        if self._include_badge_nums:
+            # add in the barcodes here
+            badge_num = row[0]
+            barcode = generate_barcode_from_badge_num(badge_num)
+            row.append(barcode)
+
         out.writerow(row)
 
 
