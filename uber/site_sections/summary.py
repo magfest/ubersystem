@@ -554,3 +554,7 @@ class Root:
             out.writerow([
                 subject, start_date, '', end_date, '', all_day, '', '', private
             ])
+
+    def all_attendees(self):
+        raise HTTPRedirect('../export/valid_attendees')
+    all_attendees.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]
