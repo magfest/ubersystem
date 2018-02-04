@@ -1,6 +1,6 @@
 # Running Tests
 
-RAMS plugins require Python 3.4.
+Sideboard plugins require Python 3.4.
 
 
 ## Using tox
