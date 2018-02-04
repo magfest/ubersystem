@@ -27,9 +27,13 @@ class AutomatedEmail:
                 .subqueryload(Department.dept_checklist_items),
             subqueryload(Attendee.dept_memberships),
             subqueryload(Attendee.dept_memberships_with_role),
-            subqueryload(Attendee.depts_where_working)),
+            subqueryload(Attendee.depts_where_working),
+            subqueryload(Attendee.hotel_requests)),
         Group: lambda session: session.query(Group).options(
-            subqueryload(Group.attendees)).order_by(Group.id)
+            subqueryload(Group.attendees)).order_by(Group.id),
+        Room: lambda session: session.query(Room).options(
+            subqueryload(Room.assignments)
+                .subqueryload(RoomAssignment.attendee))
     }
 
     def __init__(self, model, subject, template, filter, ident, *, when=(),
