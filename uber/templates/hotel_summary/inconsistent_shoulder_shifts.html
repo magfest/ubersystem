@@ -1,0 +1,37 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Inconsistent Shoulder Shifts{% endblock %}
+{% block content %}
+
+<h2>Attendees With Inconsistent Shoulder Shifts</h2>
+
+{% for department in departments %}
+  <div style="margin-bottom: 30px">
+    <h3 style="margin-bottom: 10px">{{ department|form_link }}</h3>
+    <a href="mailto:{{ department.dept_head_emails }}" style="margin-left: 10px;">
+      <span class="glyphicon glyphicon-envelope"></span>
+      Email Department Heads
+    </a>
+    <table class="table table-hover" style="margin-top: 10px">
+      <thead>
+        <tr>
+          <th>Attendee</th>
+          <th>Email</th>
+          <th>Depts Where Working</th>
+          <th>Shoulder Nights Without Shifts</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for attendee in department.inconsistent_attendees %}
+          <tr>
+            <td>{{ attendee|form_link }}</td>
+            <td>{{ attendee.email|email_to_link }}</td>
+            <td>{{ attendee.depts_where_working|map(attribute="name")|join(" / ") }}</td>
+            <td>{{ attendee.night_names }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endfor %}
+
+{% endblock %}

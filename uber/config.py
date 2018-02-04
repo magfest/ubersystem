@@ -377,6 +377,11 @@ class Config(_Overridable):
             timedelta(hours=max(0, self.PREREG_HOTEL_INFO_EMAIL_WAIT_DURATION))
 
     @property
+    def ONE_WEEK_OR_TAKEDOWN_OR_EPOCH(self):
+        week_from_now = c.EVENT_TIMEZONE.localize(datetime.combine(date.today() + timedelta(days=7), time(23, 59)))
+        return min(week_from_now, c.UBER_TAKEDOWN, c.EPOCH)
+
+    @property
     @dynamic
     def AT_THE_DOOR_BADGE_OPTS(self):
         """
@@ -836,6 +841,34 @@ c.WRISTBAND_COLORS = defaultdict(lambda: c.WRISTBAND_COLORS[c.DEFAULT_WRISTBAND]
 c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
 c.INVALID_BADGE_PRINTED_CHARS = r'[^a-zA-Z0-9!"#$%&\'()*+,\-\./:;<=>?@\[\\\]^_`\{|\}~ "]'  # Allows 0-9, a-z, A-Z, and a handful of punctuation characters
 c.EVENT_QR_ID = c.EVENT_QR_ID or c.EVENT_NAME_AND_YEAR.replace(' ', '_').lower()
+
+
+# =============================
+# Hotel
+# =============================
+
+c.NIGHT_NAMES = [name.lower() for name in c.NIGHT_VARS]
+c.NIGHT_DISPLAY_ORDER = [getattr(c, night.upper()) for night in c.NIGHT_DISPLAY_ORDER]
+
+c.NIGHT_DATES = {c.ESCHATON.strftime('%A'): c.ESCHATON.date()}
+
+c.CORE_NIGHTS = []
+_day = c.EPOCH
+while _day.date() != c.ESCHATON.date():
+    c.NIGHT_DATES[_day.strftime('%A')] = _day.date()
+    c.CORE_NIGHTS.append(getattr(c, _day.strftime('%A').upper()))
+    _day += timedelta(days=1)
+
+for _before in range(1, 4):
+    _day = c.EPOCH.date() - timedelta(days=_before)
+    c.NIGHT_DATES[_day.strftime('%A')] = _day
+
+c.SETUP_NIGHTS = c.NIGHT_DISPLAY_ORDER[:c.NIGHT_DISPLAY_ORDER.index(c.CORE_NIGHTS[0])]
+c.TEARDOWN_NIGHTS = c.NIGHT_DISPLAY_ORDER[1 + c.NIGHT_DISPLAY_ORDER.index(c.CORE_NIGHTS[-1]):]
+
+for _attr in ['CORE_NIGHT', 'SETUP_NIGHT', 'TEARDOWN_NIGHT']:
+    setattr(c, _attr + '_NAMES', [c.NIGHTS[night] for night in getattr(c, _attr + 'S')])
+
 
 try:
     _items = sorted([int(step), url] for step, url in _config['volunteer_checklist'].items() if url)
