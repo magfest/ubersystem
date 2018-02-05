@@ -72,12 +72,10 @@ themselves:
        +-(panels)-+->[panels@head]
        |          |
        |          +-(guests)->[guests@head]
-       |
-       +-(tabletop)->[tabletop@head]
+       |          |
+       |          +-(tabletop)->[tabletop@head]
        |
        +-(magprime)->[magprime@head]
-       |
-       +-(magstock)->[magstock@head]
        |
        +-(mivs)->[mivs@head]
 ```
