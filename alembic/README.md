@@ -72,12 +72,8 @@ themselves:
        +-(panels)-+->[panels@head]
        |          |
        |          +-(guests)->[guests@head]
-       |          |
-       |          +-(tabletop)->[tabletop@head]
        |
-       +-(attendee_tournaments)->[attendee_tournaments@head]
-       |
-       +-(hotel)->[hotel@head]
+       +-(tabletop)->[tabletop@head]
        |
        +-(magprime)->[magprime@head]
        |
