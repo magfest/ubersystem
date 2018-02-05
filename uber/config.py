@@ -843,8 +843,19 @@ c.INVALID_BADGE_PRINTED_CHARS = r'[^a-zA-Z0-9!"#$%&\'()*+,\-\./:;<=>?@\[\\\]^_`\
 c.EVENT_QR_ID = c.EVENT_QR_ID or c.EVENT_NAME_AND_YEAR.replace(' ', '_').lower()
 
 
+try:
+    _items = sorted([int(step), url] for step, url in _config['volunteer_checklist'].items() if url)
+except ValueError:
+    log.error('[volunteer_checklist] config options must have integer option names')
+    raise
+else:
+    c.VOLUNTEER_CHECKLIST = [url for step, url in _items]
+
+stripe.api_key = c.STRIPE_SECRET_KEY
+
+
 # =============================
-# Hotel
+# hotel
 # =============================
 
 c.NIGHT_NAMES = [name.lower() for name in c.NIGHT_VARS]
@@ -870,15 +881,26 @@ for _attr in ['CORE_NIGHT', 'SETUP_NIGHT', 'TEARDOWN_NIGHT']:
     setattr(c, _attr + '_NAMES', [c.NIGHTS[night] for night in getattr(c, _attr + 'S')])
 
 
-try:
-    _items = sorted([int(step), url] for step, url in _config['volunteer_checklist'].items() if url)
-except ValueError:
-    log.error('[volunteer_checklist] config options must have integer option names')
-    raise
-else:
-    c.VOLUNTEER_CHECKLIST = [url for step, url in _items]
+# =============================
+# attendee_tournaments
+#
+# NO LONGER USED.
+#
+# The attendee_tournaments module is no longer used, but has been
+# included for backward compatibility with legacy servers.
+# =============================
 
-stripe.api_key = c.STRIPE_SECRET_KEY
+c.TOURNAMENT_AVAILABILITY_OPTS = []
+_val = 0
+for _day in range((c.ESCHATON - c.EPOCH).days):
+    for _when in ['Morning (8am-12pm)', 'Afternoon (12pm-6pm)', 'Evening (6pm-10pm)', 'Night (10pm-2am)']:
+        c.TOURNAMENT_AVAILABILITY_OPTS.append([
+            _val,
+            _when + ' of ' + (c.EPOCH + timedelta(days=_day)).strftime('%A %B %d')
+        ])
+        _val += 1
+c.TOURNAMENT_AVAILABILITY_OPTS.append([_val, 'Morning (8am-12pm) of ' + c.ESCHATON.strftime('%A %B %d')])
+
 
 # plugins can use this to append paths which will be included as <script> tags, e.g. if a plugin
 # appends '../static/foo.js' to this list, that adds <script src="../static/foo.js"></script> to
