@@ -664,6 +664,14 @@ class Attendee(MagModel, TakesPaymentMixin):
         return max(0, personal_cost - self.amount_paid)
 
     @property
+    def paid_for_badge(self):
+        return bool(
+            self.paid == c.HAS_PAID
+            or self.group_id
+            and self.group
+            and self.group.amount_paid)
+
+    @property
     def is_unpaid(self):
         return self.paid == c.NOT_PAID
 
