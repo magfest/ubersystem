@@ -1,3 +1,5 @@
+from cherrypy.lib.static import serve_file
+
 from uber.common import *
 
 

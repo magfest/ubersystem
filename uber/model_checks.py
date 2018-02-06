@@ -11,9 +11,12 @@ name that should be displayed in the "XXX is a required field" error message.
 To perform these validations, call the "check" method on the instance you're validating.  That method returns None
 on success and a string error message on validation failure.
 """
-from uber.common import *
-from email_validator import validate_email, EmailNotValidError
+from urllib.request import urlopen
+
 import phonenumbers
+from email_validator import validate_email, EmailNotValidError
+
+from uber.common import *
 
 
 AdminAccount.required = [('attendee', 'Attendee'), ('hashed', 'Password')]
