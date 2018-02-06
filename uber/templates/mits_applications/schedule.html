@@ -1,0 +1,48 @@
+{% extends "mits_base.html" %}
+{% block body %}
+
+<h2>When Can You Present?</h2>
+
+<p>
+    For each timeslot listed below, please indicate whether or not you can present during that time, and whether you
+    will be bringing enough volunteers to run enough games to need multiple tables.
+</p>
+<p>
+    We cannot guarantee that you'll be given every timeslot you request or that you will get multiple tables in each
+    timeslot you request, but we will do our best based on the available space during each timeslot.
+</p>
+<p>
+    As a reminder, {{ c.EVENT_NAME }} runs from {{ c.EPOCH|datetime("%A, %B %-d") }} through {{ c.ESCHATON|datetime("%A, %B %-d") }}.
+</p>
+
+<form method="post" action="schedule" class="form-horizontal" role="form">
+    {{ csrf_token() }}
+    <input type="hidden" name="id" value="{{ times.db_id }}" />
+
+    <table>
+    {% for val, desc, avail_checked, multi_checked in grid %}
+        <tr>
+            <td>{{ desc }}</td>
+            <td>
+                <label class='checkbox-label'>
+                    <input type="checkbox" name="availability" value="{{ val }}" {% if avail_checked %}checked{% endif %} />
+                    Can present
+                </label>
+            </td>
+            <td>
+                <label class='checkbox-label'>
+                    <input type="checkbox" name="multiple_tables" value="{{ val }}" {% if multi_checked %}checked{% endif %} />
+                    Can use multiple tables
+                </label>
+            </td>
+        </tr>
+    {% endfor %}
+    <tr>
+        <td></td>
+        <td><input type="submit" value="Upload Requested Schedule" /></td>
+        <td></td>
+    </tr>
+    </table>
+</form>
+
+{% endblock %}

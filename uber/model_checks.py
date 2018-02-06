@@ -191,8 +191,16 @@ def shirt_size(attendee):
 
 
 @prereg_validation.Attendee
+def group_leader_under_13(attendee):
+    if attendee.badge_type == c.PSEUDO_GROUP_BADGE and attendee.age_group_conf['val'] in [c.UNDER_6, c.UNDER_13]:
+        return "Children under 13 cannot be group leaders."
+
+
+@prereg_validation.Attendee
 def total_cost_over_paid(attendee):
     if attendee.total_cost < attendee.amount_paid:
+        if (not attendee.orig_value_of('birthdate') or attendee.orig_value_of('birthdate') < attendee.birthdate) and attendee.age_group_conf['val'] in [c.UNDER_6, c.UNDER_13]:
+            return 'The date of birth you entered incurs a discount; please email {} to change your badge and receive a refund'.format(c.REGDESK_EMAIL)
         return 'You have already paid ${}, you cannot reduce your extras below that.'.format(attendee.amount_paid)
 
 
@@ -562,3 +570,197 @@ def no_dupe_code(promo_code):
             if session.lookup_promo_code(promo_code.code):
                 return 'The code you entered already belongs to another ' \
                     'promo code. Note that promo codes are not case sensitive.'
+
+
+# =============================
+# mivs
+# =============================
+
+def _is_invalid_url(url):
+    if c.MIVS_SKIP_URL_VALIDATION:
+        return False
+
+    try:
+        log.debug("_is_invalid_url() is fetching '%s' to check if it's reachable." % url)
+        with urlopen(url, timeout=30) as f:
+            f.read()
+    except:
+        return True
+
+
+IndieStudio.required = [
+    ('name', 'Studio Name'),
+    ('website', 'Website')
+]
+
+
+@validation.IndieStudio
+def mivs_new_studio_deadline(studio):
+    if studio.is_new and not c.CAN_SUBMIT_MIVS_ROUND_ONE:
+        return 'Sorry, but the round one deadline has already passed, so no new studios may be registered'
+
+
+@validation.IndieStudio
+def mivs_valid_url(studio):
+    if studio.website and _is_invalid_url(studio.website_href):
+        return 'We cannot contact that website; please enter a valid url or leave the website field blank until your website goes online'
+
+
+@validation.IndieStudio
+def mivs_unique_name(studio):
+    with Session() as session:
+        if session.query(IndieStudio).filter(IndieStudio.name == studio.name, IndieStudio.id != studio.id).count():
+            return "That studio name is already taken; are you sure you shouldn't be logged in with that studio's account?"
+
+
+IndieDeveloper.required = [('first_name', 'First Name'), ('last_name', 'Last Name'), ('email', 'Email')]
+
+
+@validation.IndieDeveloper
+def mivs_dev_email(dev):
+    if not re.match(c.EMAIL_RE, dev.email):
+        return 'Please enter a valid email address'
+
+
+@validation.IndieDeveloper
+def mivs_dev_cellphone(dev):
+    from uber.model_checks import _invalid_phone_number
+    if (dev.primary_contact or dev.cellphone) and _invalid_phone_number(dev.cellphone):
+        return 'Please enter a valid phone number'
+
+
+IndieGame.required = [
+    ('title', 'Game Title'),
+    ('brief_description', 'Brief Description'),
+    ('genres', 'Genres'),
+    ('description', 'Full Description'),
+    ('link_to_video', 'Link to Video')
+]
+
+
+@validation.IndieGame
+def mivs_platforms_or_other(game):
+    if not game.platforms and not game.platforms_text:
+        return 'Please select a platform your game runs on or describe another platform in the box provided.'
+
+
+@validation.IndieGame
+def mivs_new_game_deadline(game):
+    if game.is_new and not c.CAN_SUBMIT_MIVS_ROUND_ONE:
+        return 'Sorry, but the round one deadline has already passed, so no new games may be registered'
+
+
+@validation.IndieGame
+def mivs_instructions(game):
+    if game.code_type in c.MIVS_CODES_REQUIRING_INSTRUCTIONS and not game.code_instructions:
+        return 'You must leave instructions for how the judges are to use the code(s) you provide'
+
+
+@validation.IndieGame
+def mivs_video_link(game):
+    if game.link_to_video and _is_invalid_url(game.video_href):
+        return 'The link you provided for the intro/instructional video does not appear to work'
+
+
+@validation.IndieGame
+def mivs_submitted(game):
+    if (game.submitted and not game.status == c.ACCEPTED) and not c.HAS_INDIE_ADMIN_ACCESS:
+        return 'You cannot edit a game after it has been submitted'
+
+
+@validation.IndieGame
+def mivs_show_info_required_fields(game):
+    if game.confirmed:
+        if len(game.brief_description) > 80:
+            return 'Please make sure your game has a brief description under 80 characters.'
+        if not game.link_to_promo_video:
+            return 'Please include a link to a 30-second promo video.'
+        if game.has_multiplayer and not game.player_count:
+            return 'Please tell us how many players your game supports.'
+        if game.has_multiplayer and not game.multiplayer_game_length:
+            return 'Please enter the average length for a multiplayer game or match.'
+
+
+IndieGameCode.required = [('code', 'Game Code')]
+
+
+@validation.IndieGameImage
+def mivs_description(image):
+    if image.is_screenshot and not image.description:
+        return 'Please enter a description of the screenshot.'
+
+
+@validation.IndieGameImage
+def mivs_valid_type(screenshot):
+    if screenshot.extension not in c.MIVS_ALLOWED_SCREENSHOT_TYPES:
+        return 'Our server did not recognize your upload as a valid image'
+
+
+IndieJudge.required = [('genres', 'Genres')]
+
+
+# =============================
+# mits
+# =============================
+
+MITSTeam.required = [
+    ('name', 'Production Team Name')
+]
+MITSApplicant.required = [
+    ('first_name', 'First Name'),
+    ('last_name', 'Last Name'),
+    ('email', 'Email Address'),
+    ('cellphone', 'Cellphone Number')
+]
+MITSGame.required = [
+    ('name', 'Name'),
+    ('promo_blurb', 'Promo Blurb'),
+    ('description', 'Description'),
+    ('genre', 'Game Genre')
+]
+MITSPicture.required = [
+    ('description', 'Description')
+]
+MITSDocument.required = [
+    ('description', 'Description')
+]
+
+
+@validation.MITSTeam
+@validation.MITSApplicant
+@validation.MITSGame
+@validation.MITSPicture
+@validation.MITSTimes
+def is_saveable(inst):
+    team = inst if isinstance(inst, MITSTeam) else inst.team
+    if not team.can_save:
+        if team.is_new:
+            return 'New applications may not be submitted past the deadline'
+        else:
+            return 'We are now past the deadline and your application may no longer be edited'
+
+
+@validation.MITSTeam
+def address_required_for_sellers(team):
+    if team.want_to_sell and not team.address.strip():
+        return 'You must provide a business address if you wish to sell your merchandise'
+
+
+@validation.MITSApplicant
+def email_valid(applicant):
+    try:
+        validate_email(applicant.email)
+    except EmailNotValidError as e:
+        return 'Enter a valid email address. ' + str(e)
+
+
+@validation.MITSApplicant
+def valid_phone_number(applicant):
+    if _invalid_phone_number(applicant.cellphone):
+        return 'Your cellphone number was not a valid 10-digit US phone number.  Please include a country code (e.g. +44) for international numbers.'
+
+
+@validation.MITSGame
+def consistent_players(game):
+    if game.min_players > game.max_players:
+        return 'Min players must be less than or equal to max players'

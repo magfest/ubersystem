@@ -1,0 +1,170 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Department Checklist - Treasury{% endblock %}
+{% block content %}
+
+<script>
+    var showOrHideForm = function () {
+        setVisible('#formcontent', $.field('needs').prop('checked') && !$.field('defer').prop('checked'));
+    };
+    var showOrHideCash = function () {
+        setVisible('#cash', $.field('needs_cash').prop('checked'));
+    };
+    var showOrHideMPoints = function () {
+        setVisible('#mpoints', $.field('needs_mpoints').prop('checked'));
+    };
+</script>
+<style type="text/css">
+    table.padded td, table.padded th {
+        padding: 5px 10px 5px 10px;
+    }
+    table.previous th, table.previous td.centered {
+        text-align: center;
+    }
+</style>
+
+<h2>Treasury Information for {{ department.name }}</h2>
+
+<form method="post" action="allotments">
+{{ csrf_token() }}
+<input type="hidden" name="department_id" value="{{ department.id }}" />
+<input type="checkbox" name="needs" value="yes" onClick="showOrHideForm()" /> Check this box if your department needs cash and/or MPoints, otherwise just submit this form to let us know you DON'T need any <br/>
+<input type="checkbox" name="defer" value="yes" onClick="showOrHideForm()" /> Check this box if someone else is filling out this form for your department (seriously, don't everyone just check this!) <br/>
+<div id="formcontent" style="display:none">
+    <br/>
+    Please provide the name of the department head who will be making cash decisions: <br/>
+    <input type="text" name="dept_head_name" />
+
+    <br/> <br/>
+    Please provide the email of the department head who will be making cash decisions: <br/>
+    <input type="text" name="dept_head_email" />
+
+    <br/> <br/>
+    When will your department need its cash and/or MPoints in the morning and when will it close at night? (Treasury closes at midnight.)
+    Departments will receive ALL of their daily MPoints in the morning, so if your department needs only MPoints then you can leave the "Department Closes" blank.
+    If your department needs cash, both First Delivery time  and Closes values.
+    <br/>
+    <table class="padded" style="width:auto">
+    <thead>
+        <tr>
+            <th></th>
+            <th>First Delivery Time</th>
+            <th>Department Closes</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Thursday:</td>
+            <td class="centered"><input type="text" size="10" name="thu_start_time" /></td>
+            <td class="centered"><input type="text" size="10" name="thu_close_time" /></td>
+        </tr>
+        <tr>
+            <td>Friday:</td>
+            <td class="centered"><input type="text" size="10" name="fri_start_time" /></td>
+            <td class="centered"><input type="text" size="10" name="fri_clost_time" /></td>
+        </tr>
+        <tr>
+            <td>Saturday:</td>
+            <td class="centered"><input type="text" size="10" name="sat_start_time" /></td>
+            <td class="centered"><input type="text" size="10" name="sat_close_time" /></td>
+        </tr>
+        <tr>
+            <td>Sunday:</td>
+            <td class="centered"><input type="text" size="10" name="sun_start_time" /></td>
+            <td class="centered"><input type="text" size="10" name="sun_close_time" /></td>
+        </tr>
+    </tbody>
+    </table>
+
+    <br/>
+    <input type="checkbox" name="needs_cash" value="yes" onClick="showOrHideCash()"> My department needs cash
+    <div id="cash" style="display:none">
+        <div id="prev-allotments">
+            Below is a list of allotments based on what each department has needed in the past, adjusted for expected growth and changes in on-site fees. If you feel that your department needs a change, email treasury@magfest.org.
+            <table class="previous padded">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th colspan="2">Total Cash</th>
+                </tr>
+                <tr>
+                    <th></th>
+                    <th>$1</th>
+                    <th>$5</th>
+                    <th>$10</th>
+                    <th>$20</th>
+                    <th>Cash Boxes</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Autographs</td>
+                    <td>30</td>
+                    <td>20</td>
+                    <td>20</td>
+                    <td>10</td>
+                    <td class="centered">2</td>
+                </tr>
+                <tr>
+                    <td>Charity</td>
+                    <td>50</td>
+                    <td>20</td>
+                    <td>10</td>
+                    <td>10</td>
+                    <td class="centered">2</td>
+                </tr>
+                <tr>
+                    <td>LAN</td>
+                    <td>0</td>
+                    <td>8</td>
+                    <td>4</td>
+                    <td>0</td>
+                    <td class="centered">1</td>
+                </tr>
+                <tr>
+                    <td>Marketplace</td>
+                    <td>75</td>
+                    <td>75</td>
+                    <td>75</td>
+                    <td>75</td>
+                    <td class="centered">2</td>
+                </tr>
+                <tr>
+                    <td>Regdesk</td>
+                    <td>20</td>
+                    <td>20</td>
+                    <td>20</td>
+                    <td>5</td>
+                    <td class="centered">3</td>
+                </tr>
+                <tr>
+                    <td>Rock Island</td>
+                    <td>30</td>
+                    <td>20</td>
+                    <td>20</td>
+                    <td>10</td>
+                    <td class="centered">2</td>
+                </tr>
+            </tbody>
+            </table>
+        </div>
+    </div>
+
+    <br/> <br/>
+    Any other comments? <br/>
+    <textarea rows="5" cols="80" name="comments"></textarea>
+
+    <br/> <br/>
+    Notes:
+    <ul>
+        <li>
+            Answers here are not firm.  They will be a basis for final determination along with resource availability
+            and overall need.  For example, if there are schedule conflicts, Registration will probably take priority.
+        </li>
+    </ul>
+</div>
+<br/>
+<input type="submit" name="submitted" value="Submit Treasury Needs" />
+</form>
+
+{% endblock %}

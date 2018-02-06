@@ -1,0 +1,13 @@
+{{ studio.primary_contact.first_name }},
+
+If you are reading this, either you or someone who wants to punk you, has set this e-mail address as the Primary Contact for the MAGFest Indie Video Game Showcase (MIVS) of your studio ({{ studio.name }}).  You are receiving this e-mail because you have setup a studio page but have ****NOT**** submitted a video that qualifies for Round 1.  Alas you haven't even submitted a video of cats attempting to play video games!  We have no video from your team at all.
+
+You have until {{ c.MIVS_ROUND_ONE_DEADLINE|datetime_local }} to submit this video link at {{ c.URL_BASE }}/mivs_applications/continue_app?id={{ studio.id }}
+
+Failure to submit a video URL even 1 second after the deadline results in a lame disqualification to be considered for MIVS at MAGFest {{ c.YEAR }}.
+
+Fear not! If your game is not ready for a video capture we will again have at least 2 Quick Play areas where you can showcase your game for a window of time with other indies.  Details about the Quick Play tables will be released about a month before MAGFest.
+
+Either way, we hope to see you at MAGFest {{ c.YEAR }} and wish you luck, and no bugs, in all your game development efforts!
+
+{{ c.MIVS_EMAIL_SIGNATURE }}

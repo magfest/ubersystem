@@ -1,0 +1,11 @@
+{{ judge.attendee.first_name }},
+
+Thanks again for helping judge entries for the MAGFest Indie Video Game Showcase.  You're receiving this email because you're receiving a complementary badge to {{ c.EVENT_NAME }} and we hope you'll stop by the MIVS area and say hi to us and the indies showing their games.
+
+{% if judge.attendee.paid == c.NEED_NOT_PAY %}Your complementary badge will be waiting for you at our registration desk under your name ({{ judge.attendee.full_name }}).  Simply bring a photo ID to pick it up.{% else %}We provide complementary badges to our judges, but if you already paid for a badge, please reply to this email to let us know to issue you a refund.  Due to limitations in our system, we can not transfer badges to other people right now.{% endif %}
+
+If you're not attending {{ c.EVENT_NAME }} this year, everything is taken care of. Thank you for taking time to judge, and we hope you'll be able to make a future {{ c.EVENT_NAME }} event!
+
+Thanks again for giving your time to judge entries for this year's MIVS. It's due to your efforts that we were able to identify and spotlight great quality games for the {{ c.EVENT_NAME }} attendees this year
+
+{{ c.MIVS_EMAIL_SIGNATURE }}

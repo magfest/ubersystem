@@ -1,4 +1,5 @@
 import json
+import math
 import random
 import re
 from datetime import date, datetime
@@ -394,6 +395,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     # The PIN/password used by third party hotel reservervation systems
     hotel_pin = Column(UnicodeText, nullable=True, default=_generate_hotel_pin)
 
+    mits_applicants = relationship('MITSApplicant', backref='attendee')
+
     _attendee_table_args = [Index('ix_attendee_paid_group_id', paid, group_id)]
     if not c.SQLALCHEMY_URL.startswith('sqlite'):
         _attendee_table_args.append(UniqueConstraint(
@@ -625,6 +628,14 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def age_discount(self):
+        # We dynamically calculate the age discount to be half the
+        # current badge price. If for some reason the default discount
+        # (if it exists) is greater than half off, we use that instead.
+        if self.age_group_conf.get('val') == c.UNDER_13:
+            half_off = math.ceil(c.BADGE_PRICE / 2)
+            if not self.age_group_conf['discount'] \
+                    or self.age_group_conf['discount'] < half_off:
+                return -half_off
         return -self.age_group_conf['discount']
 
     @property

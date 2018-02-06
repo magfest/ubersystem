@@ -1,0 +1,56 @@
+{% extends "preregistration/preregbase.html" %}
+{% block title %}MIVS Application{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+<style type="text/css">
+    table { max-width: 100%; }
+    table td, table th { padding: 5px; }
+    table td ul { margin: 0px; }
+
+    .panel-body .dataTables_wrapper {
+      margin-left: -15px;
+      margin-right: -15px;
+    }
+
+    .return-link {
+      display: block;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .game-display {
+      font-family: Courier;
+      padding-top: 7px;
+    }
+
+    table.nobr td {
+      white-space: nowrap;
+    }
+
+    td.issue {
+      font-weight: bold;
+      text-align: center;
+    }
+
+    td.issue a {
+        color: red;
+    }
+</style>
+
+<script>
+  var mivs = {
+    checkAll: function (element) {
+      $(element).parents('table').find(':checkbox').prop('checked', true);
+      return false;
+    }
+  };
+</script>
+
+<div class="masthead"></div>
+<div class="panel panel-default">
+  <div class="panel-body">
+    {% block body %}{% endblock %}
+  </div>
+</div>
+
+{% endblock %}

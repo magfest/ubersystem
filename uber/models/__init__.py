@@ -1,3 +1,4 @@
+import os
 import re
 import uuid
 from collections import defaultdict
@@ -491,6 +492,8 @@ from uber.models.types import *  # noqa: F401,E402,F403
 from uber.models.api import *  # noqa: F401,E402,F403
 from uber.models.hotel import *  # noqa: F401,E402,F403
 from uber.models.attendee_tournaments import *  # noqa: F401,E402,F403
+from uber.models.mivs import *  # noqa: F401,E402,F403
+from uber.models.mits import *  # noqa: F401,E402,F403
 
 # Explicitly import models used by the Session class to quiet flake8
 from uber.models.admin import AdminAccount, WatchList  # noqa: E402
@@ -499,6 +502,8 @@ from uber.models.attendee import Attendee  # noqa: E402
 from uber.models.email import Email  # noqa: E402
 from uber.models.group import Group  # noqa: E402
 from uber.models.tracking import Tracking  # noqa: E402
+from uber.models.mivs import IndieJudge, IndieGame  # noqa: E402
+from uber.models.mits import MITSApplicant, MITSTeam  # noqa: E402
 
 
 class Session(SessionManager):
@@ -1291,6 +1296,124 @@ class Session(SessionManager):
                         self.rollback()
                 return inserted_models
 
+        # ========================
+        # mivs
+        # ========================
+
+        def logged_in_studio(self):
+            try:
+                return self.indie_studio(cherrypy.session['studio_id'])
+            except Exception as ex:
+                raise HTTPRedirect('../mivs_applications/studio')
+
+        def logged_in_judge(self):
+            judge = self.admin_attendee().admin_account.judge
+            if judge:
+                return judge
+            else:
+                raise HTTPRedirect(
+                    '../accounts/homepage?message={}',
+                    'You have been given judge access but not had a judge '
+                    'entry created for you - please contact a MIVS admin to '
+                    'correct this.')
+
+        def code_for(self, game):
+            if game.unlimited_code:
+                return game.unlimited_code
+            else:
+                for code in self.logged_in_judge().codes:
+                    if code.game == game:
+                        return code
+
+        def delete_screenshot(self, screenshot):
+            self.delete(screenshot)
+            try:
+                os.remove(screenshot.filepath)
+            except Exception as ex:
+                pass
+            self.commit()
+
+        def indie_judges(self):
+            return self.query(IndieJudge) \
+                .join(IndieJudge.admin_account) \
+                .join(AdminAccount.attendee) \
+                .order_by(Attendee.full_name).all()
+
+        def indie_games(self):
+            return self.query(IndieGame).options(
+                joinedload(IndieGame.studio),
+                joinedload(IndieGame.reviews)).order_by('name').all()
+
+        # =========================
+        # mits
+        # =========================
+
+        def log_in_as_mits_team(
+                self, team_id, redirect_to='../mits_applications/index'):
+            try:
+                team = self.mits_team(team_id)
+                duplicate_teams = []
+                while team.duplicate_of:
+                    duplicate_teams.append(team.id)
+                    team = self.mits_team(team.duplicate_of)
+                    assert team.id not in duplicate_teams, \
+                        'circular reference in duplicate_of: ' \
+                        '{}'.format(duplicate_teams)
+            except Exception as ex:
+                log.error(
+                    'attempt to log into invalid team {}',
+                    team_id,
+                    exc_info=True)
+
+                raise HTTPRedirect('../mits_applications/login_explanation')
+            else:
+                cherrypy.session['mits_team_id'] = team.id
+                raise HTTPRedirect(redirect_to)
+
+        def logged_in_mits_team(self):
+            try:
+                team = self.mits_team(cherrypy.session['mits_team_id'])
+                assert not team.deleted or team.duplicate_of
+            except Exception as ex:
+                raise HTTPRedirect('../mits_applications/login_explanation')
+            else:
+                if team.duplicate_of:
+                    # The currently-logged-in team was deleted, so log
+                    # back in as the correct team.
+                    self.log_as_as_mits_team(team.id)
+                else:
+                    return team
+
+        def mits_teams(self, include_deleted=False):
+            if include_deleted:
+                deleted_filter = []
+            else:
+                deleted_filter = [MITSTeam.deleted == False]  # noqa: E712
+            return self.query(MITSTeam).filter(*deleted_filter) \
+                .options(
+                    joinedload(MITSTeam.applicants)
+                    .subqueryload(MITSApplicant.attendee),
+                    joinedload(MITSTeam.games),
+                    joinedload(MITSTeam.schedule),
+                    joinedload(MITSTeam.pictures),
+                    joinedload(MITSTeam.documents)) \
+                .order_by(MITSTeam.name)
+
+        def delete_mits_file(self, model):
+            try:
+                os.remove(model.filepath)
+            except Exception as ex:
+                log.error(
+                    'Unexpected error deleting MITS file {}', model.filepath)
+
+            # Regardless of whether removing the file from the
+            # filesystem succeeded, we still want the delete it from the
+            # database. The most likely cause of failure is if the file
+            # was already deleted or is otherwise not present, so it
+            # wouldn't make sense to keep the database record around.
+            self.delete(model)
+            self.commit()
+
     @classmethod
     def model_mixin(cls, model):
         if model.__name__ in ['SessionMixin', 'QuerySubclass']:
@@ -1306,8 +1429,8 @@ class Session(SessionManager):
         for name in dir(model):
             if not name.startswith('_'):
                 attr = getattr(model, name)
-                if hasattr('target', '__table__') and \
-                        name in target.__table__.c:
+                if hasattr('target', '__table__') \
+                        and name in target.__table__.c:
                     attr.key = attr.key or name
                     attr.name = attr.name or name
                     attr.table = target.__table__

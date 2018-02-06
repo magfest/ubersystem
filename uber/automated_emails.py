@@ -202,7 +202,7 @@ for _conf in DeptChecklistConf.instances.values():
 
 
 # =============================
-# Hotel
+# hotel
 # =============================
 
 AutomatedEmail(Attendee, 'Want volunteer hotel room space at {EVENT_NAME}?', 'hotel/hotel_rooms.txt',
@@ -233,3 +233,218 @@ AutomatedEmail(Attendee, 'Final reminder to meet your {EVENT_NAME} hotel room re
 AutomatedEmail(Room, '{EVENT_NAME} Hotel Room Assignment', 'hotel/room_assignment.txt', lambda r: r.locked_in,
                sender=c.ROOM_EMAIL_SENDER,
                ident='hotel_room_assignment')
+
+
+# =============================
+# mivs
+# =============================
+
+class MIVSEmail(AutomatedEmail):
+    def __init__(self, *args, **kwargs):
+        if len(args) < 4 and 'filter' not in kwargs:
+            kwargs['filter'] = lambda x: True
+        AutomatedEmail.__init__(self, *args, sender=c.MIVS_EMAIL, **kwargs)
+
+
+MIVSEmail(IndieStudio, 'Your MIVS Studio Has Been Registered',
+    'mivs/studio_registered.txt',
+    ident='mivs_studio_registered')
+
+MIVSEmail(IndieGame, 'Your MIVS Game Video Has Been Submitted',
+    'mivs/game_video_submitted.txt',
+    lambda game: game.video_submitted,
+    ident='mivs_video_submitted')
+
+MIVSEmail(IndieGame, 'Your MIVS Game Has Been Submitted',
+    'mivs/game_submitted.txt',
+    lambda game: game.submitted,
+    ident='mivs_game_submitted')
+
+MIVSEmail(IndieStudio, 'MIVS - Wat no video?',
+    'mivs/videoless_studio.txt',
+    lambda studio: days_after(2, studio.registered)()
+             and not any(game.video_submitted for game in studio.games),
+    ident='mivs_missing_video_inquiry',
+    when=days_before(7, c.MIVS_ROUND_ONE_DEADLINE))
+
+MIVSEmail(IndieGame, 'MIVS: Your Submitted Video Is Broken',
+    'mivs/video_broken.txt',
+    lambda game: game.video_broken,
+    ident='mivs_video_broken')
+
+MIVSEmail(IndieGame, 'Last chance to submit your game to MIVS',
+    'mivs/round_two_reminder.txt',
+    lambda game: game.status == c.JUDGING and not game.submitted,
+    ident='mivs_game_submission_reminder',
+    when=days_before(7, c.MIVS_ROUND_TWO_DEADLINE))
+
+MIVSEmail(IndieGame, 'Your game has made it into MIVS Round Two',
+    'mivs/video_accepted.txt',
+    lambda game: game.status == c.JUDGING,
+    ident='mivs_game_made_it_to_round_two')
+
+MIVSEmail(IndieGame, 'Your game has been declined from MIVS',
+    'mivs/video_declined.txt',
+    lambda game: game.status == c.VIDEO_DECLINED,
+    ident='mivs_video_declined')
+
+MIVSEmail(IndieGame, 'Your game has been accepted into MIVS',
+    'mivs/game_accepted.txt',
+    lambda game: game.status == c.ACCEPTED and not game.waitlisted,
+    ident='mivs_game_accepted')
+
+MIVSEmail(IndieGame, 'Your game has been accepted into MIVS from our waitlist',
+    'mivs/game_accepted_from_waitlist.txt',
+    lambda game: game.status == c.ACCEPTED and game.waitlisted,
+    ident='mivs_game_accepted_from_waitlist')
+
+MIVSEmail(IndieGame, 'Your game application has been declined from MIVS',
+    'mivs/game_declined.txt',
+    lambda game: game.status == c.GAME_DECLINED,
+    ident='mivs_game_declined')
+
+MIVSEmail(IndieGame, 'Your MIVS application has been waitlisted',
+    'mivs/game_waitlisted.txt',
+    lambda game: game.status == c.WAITLISTED,
+    ident='mivs_game_waitlisted')
+
+MIVSEmail(IndieGame, 'Last chance to accept your MIVS booth',
+    'mivs/game_accept_reminder.txt',
+    lambda game: game.status == c.ACCEPTED and not game.confirmed
+               and (localized_now() - timedelta(days=2)) > game.studio.confirm_deadline,
+    ident='mivs_accept_booth_reminder')
+
+MIVSEmail(IndieGame, 'MIVS December Updates: Hotels and Magfest Versus!',
+    'mivs/december_updates.txt',
+    lambda game: game.confirmed,
+    ident='mivs_december_updates')
+
+MIVSEmail(IndieGame, 'REQUIRED: Pre-flight for MIVS due by midnight, January 2nd',
+    'mivs/game_preflight.txt',
+    lambda game: game.confirmed,
+    ident='mivs_game_preflight_reminder')
+
+MIVSEmail(IndieGame, 'MIVS 2018: Hotel and selling signups',
+    'mivs/2018_hotel_info.txt',
+    lambda game: game.confirmed,
+    ident='2018_hotel_info')
+
+MIVSEmail(IndieGame, 'MIVS 2018: November Updates & info',
+    'mivs/2018_email_blast.txt',
+    lambda game: game.confirmed,
+    ident='2018_email_blast')
+
+MIVSEmail(IndieGame, 'Summary of judging feedback for your game',
+    'mivs/reviews_summary.html',
+    lambda game: game.status in c.FINAL_MIVS_GAME_STATUSES and game.reviews_to_email,
+    ident='mivs_reviews_summary',
+    post_con=True)
+
+MIVSEmail(IndieGame, 'MIVS judging is wrapping up',
+    'mivs/round_two_closing.txt',
+    lambda game: game.submitted, when=days_before(14, c.MIVS_JUDGING_DEADLINE),
+    ident='mivs_round_two_closing')
+
+MIVSEmail(IndieJudge, 'MIVS Judging is about to begin!',
+    'mivs/judge_intro.txt',
+    ident='mivs_judge_intro')
+
+MIVSEmail(IndieJudge, 'MIVS Judging has begun!',
+    'mivs/judging_begun.txt',
+    ident='mivs_judging_has_begun')
+
+MIVSEmail(IndieJudge, 'MIVS Judging is almost over!',
+    'mivs/judging_reminder.txt',
+    when=days_before(7, c.SOFT_MIVS_JUDGING_DEADLINE),
+    ident='mivs_judging_due_reminder')
+
+MIVSEmail(IndieJudge, 'Reminder: MIVS Judging due by {}'.format(c.MIVS_JUDGING_DEADLINE.strftime('%B %-d')),
+    'mivs/final_judging_reminder.txt',
+    lambda judge: not judge.judging_complete,
+    when=days_before(5, c.MIVS_JUDGING_DEADLINE),
+    ident='mivs_judging_due_reminder_last_chance')
+
+MIVSEmail(IndieJudge, 'MIVS Judging and {EVENT_NAME} Staffing',
+    'mivs/judge_staffers.txt',
+    ident='mivs_judge_staffers')
+
+MIVSEmail(IndieJudge, 'MIVS Judge badge information',
+    'mivs/judge_badge_info.txt',
+    ident='mivs_judge_badge_info')
+
+MIVSEmail(IndieJudge, 'MIVS Judging about to begin',
+    'mivs/judge_2016.txt',
+    ident='mivs_selected_to_judge')
+
+MIVSEmail(IndieJudge, 'MIVS Judges: A Request for our MIVSY awards',
+    'mivs/2018_mivsy_request.txt',
+    ident='2018_mivsy_request')
+
+MIVSEmail(IndieGame, 'MIVS: 2018 MIVSY Awards happening on January 6th, 7pm ',
+    'mivs/2018_indie_mivsy_explination.txt',
+    lambda game: game.confirmed,
+    ident='2018_indie_mivsy_explination')
+
+MIVSEmail(IndieGame, 'MIVS: December updates ',
+    'mivs/2018_december_updates.txt',
+    lambda game: game.confirmed,
+    ident='2018_december_updates')
+
+MIVSEmail(IndieGame, 'Thanks for Being part of MIVS 2018 - A Request for Feedback',
+    'mivs/2018_feedback.txt',
+    lambda game: game.confirmed,
+    ident='2018_mivs_post_event_feedback',
+    post_con=True)
+
+
+# =============================
+# mits
+# =============================
+
+class MITSEmail(AutomatedEmail):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault('sender', c.MITS_EMAIL)
+        AutomatedEmail.__init__(self, MITSTeam, *args, **kwargs)
+
+
+# We wait an hour before sending out this email because the most common case
+# of someone registering their team is that they'll immediately fill out the
+# entire application, so there's no reason to send them an email showing their
+# currently completion percentage when that info will probably be out of date
+# by the time they read it.  By waiting an hour, we ensure this doesn't happen.
+MITSEmail('Thanks for showing an interest in MITS!',
+    'mits/mits_registered.txt',
+    lambda team: not team.submitted and team.applied < datetime.now(UTC) - timedelta(hours=1),
+    ident='mits_application_created')
+
+# For similar reasons to the above, we wait at least 6 hours before sending this
+# email because it would seem silly to immediately send someone a "last chance"
+# email the minute they registered their team.  By waiting 6 hours, we wait
+# until they've had a chance to complete the application and even receive the
+# initial reminder email above before being pestered with this warning.
+MITSEmail('Last chance to complete your MITS application!',
+    'mits/mits_reminder.txt',
+    lambda team: not team.submitted and team.applied < datetime.now(UTC) - timedelta(hours=6),
+    when=days_before(3, c.MITS_SUBMISSION_DEADLINE),
+    ident='mits_reminder')
+
+MITSEmail('Thanks for submitting your MITS application!',
+    'mits/mits_submitted.txt',
+    lambda team: team.submitted,
+    ident='mits_application_submitted')
+
+MITSEmail('Please fill out the remainder of your MITS application',
+    'mits/mits_preaccepted.txt',
+    lambda team: team.accepted and team.completion_percentage < 100,
+    ident='mits_preaccepted_incomplete')
+
+MITSEmail('MITS initial panel information',
+    'mits/mits_initial_panel_info.txt',
+    lambda team: team.accepted and team.panel_interest,
+    ident='mits_initial_panel_info')
+
+# TODO: emails we still need to configure include but are not limited to:
+# -> when teams have been accepted
+# -> when teams have been declined
+# -> when accepted teams have added people who have not given their hotel info
+# -> final pre-event informational email

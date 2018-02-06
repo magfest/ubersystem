@@ -1,0 +1,121 @@
+{% extends "mits_base.html" %}
+{% block body %}
+
+<h2 class="btn-toolbar">
+    {{ team.name }}
+    <a href="delete_team?id={{ team.id }}" class="btn btn-danger pull-right">Delete Application</a>
+    <a href="../mits_applications/continue_app?id={{ team.id }}" class="btn btn-primary pull-right">Edit Application</a>
+</h2>
+
+<div class="form-horizontal">
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Status</label>
+        <div class="col-sm-6 info">
+            {{ team.status_label }}
+            {% if team.status == c.PENDING %}
+                (application is {{ team.completion_percentage }}% complete)
+            {% endif %}
+            <br/> <a href="set_status?id={{ team.id }}&return_to=form%3f{{ team.id }}">Change Status</a>
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Interested in a panel</label>
+        <div class="col-sm-6 info">{{ team.panel_interest|yesno }}</div>
+    </div>
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Interested in selling</label>
+        <div class="col-sm-6 info">{{ team.want_to_sell|yesno }}</div>
+    </div>
+    {% if team.want_to_sell %}
+        <div class="form-group">
+            <label class="col-sm-3 control-label">Business Address</label>
+            <div class="col-sm-6 info">{{ team.address|linebreaksbr }}</div>
+        </div>
+    {% endif %}
+
+    <h3>Applicants</h3>
+    <table>
+    {% for a in team.applicants|sort(attribute='full_name') %}
+        <tr>
+            <td><ul><li></li></ul></td>
+            <td>
+                {% if a.attendee_id %}
+                    {{ a.attendee|form_link }}
+                {% else %}
+                    {{ a.full_name }}
+                {% endif %}
+            </td>
+            <td>{{ a.email }}</td>
+            <td>{{ a.cellphone }}</td>
+            <td>
+                {% if a.primary_contact %}
+                    [primary contact] {{ a.contact_method_label }} preferred
+                {% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+    </table>
+
+    {% for game in team.games|sort(attribute='name') %}
+        <h3>Game #{{ loop.index }} of {{ loop.length }}: {{ game.name }}</h3>
+
+        <div class="form-group">
+            <label class="col-sm-3 control-label">Promo Blurb</label>
+            <div class="col-sm-6 info">{{ game.promo_blurb }}</div>
+        </div>
+        <div class="form-group">
+            <label class="col-sm-3 control-label">Description</label>
+            <div class="col-sm-6 info">{{ game.description|linebreaksbr }}</div>
+        </div>
+        <div class="form-group">
+            <label class="col-sm-3 control-label">Genre</label>
+            <div class="col-sm-6 info">{{ game.genre }}</div>
+        </div>
+        <div class="form-group">
+            <label class="col-sm-3 control-label">Phase</label>
+            <div class="col-sm-6 info">{{ game.phase_label }}</div>
+        </div>
+        <div class="form-group">
+            <label class="col-sm-3 control-label">For Ages</label>
+            <div class="col-sm-6 info">{{ game.min_age }} and up</div>
+        </div>
+        <div class="form-group">
+            <label class="col-sm-3 control-label">Number of Players</label>
+            <div class="col-sm-6 info">{{ game.min_players }} - {{ game.max_players }}</div>
+        </div>
+        <div class="form-group">
+            <label class="col-sm-3 control-label">Personally Own</label>
+            <div class="col-sm-6 info">{{ game.personally_own|yesno }}</div>
+        </div>
+        <div class="form-group">
+            <label class="col-sm-3 control-label">Contains Unlicensed Content</label>
+            <div class="col-sm-6 info">{{ game.unlicensed|yesno }}</div>
+        </div>
+        <div class="form-group">
+            <label class="col-sm-3 control-label">Professionally Presented</label>
+            <div class="col-sm-6 info">{{ game.professional|yesno }}</div>
+        </div>
+    {% endfor %}
+
+    <h3>Pictures</h3>
+    <ul>
+    {% for picture in team.pictures|sort(attribute='filename') %}
+        <li><a target="_blank" href="{{ picture.url }}" title="{{ picture.description }}">{{ picture.filename }}</a></li>
+    {% endfor %}
+    </ul>
+
+    {% if team.documents %}
+        <h3>Documents</h3>
+        <ul>
+        {% for doc in team.documents|sort(attribute='filename') %}
+            <li><a href="{{ doc.url }}" title="{{ doc.description }}">{{ doc.filename }}</a></li>
+        {% endfor %}
+        </ul>
+    {% endif %}
+</div>
+
+<div class="text-center">
+    <a href="index">Return to team list</a>
+</div>
+
+{% endblock %}

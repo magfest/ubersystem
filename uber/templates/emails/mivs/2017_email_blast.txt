@@ -1,0 +1,15 @@
+Ahoy {{ game.studio.primary_contact.first_name }},
+
+Since opening round 2, we've encountered two technical problems
+
+1. During the first 24 hours, certain forms such as where to put the download link to your game were not shown properly.  This has been fixed but you should revisit your entry to make sure all your entries are complete.  
+
+2. Emails from us were being sent to other members of the team instead of of the primary contact.  This has been fixed and the primary contact should be reciving emails from us properly.  
+
+Due to the inconvenience, we're pushing back our end date for round 2 submission to October 9th 11:59pm.
+
+For reference, the edit link for your game is {{ c.URL_BASE }}/mivs_applications/continue_app?id={{ game.studio.id }}
+
+If you have further questions, you can reach out to us at mivs@magfest.org
+
+{{ c.MIVS_EMAIL_SIGNATURE }}

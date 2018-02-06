@@ -32,6 +32,8 @@ class AdminAccount(MagModel):
                     'AdminAccount.id == ApiToken.admin_account_id, '
                     'ApiToken.revoked_time == None)')
 
+    judge = relationship('IndieJudge', uselist=False, backref='admin_account')
+
     def __repr__(self):
         return '<{}>'.format(self.attendee.full_name)
 
