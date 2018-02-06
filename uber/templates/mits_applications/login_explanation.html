@@ -1,0 +1,28 @@
+{% extends "mits_base.html" %}
+{% block body %}
+
+<h2>You are not logged in!</h2>
+
+<p>
+    In order to log back into your MAGFest Indie Tabletop Showcase application, you can click on the link that we sent in
+    each of our automated emails.
+</p>
+
+{% if c.AFTER_MITS_EDITING_DEADLINE %}
+    <p>
+        However, we are already <b>past the final deadline</b>, so you will be able to <b>only view and not edit</b>
+        your application.
+    </p>
+{% elif c.BEFORE_MITS_SUBMISSION_DEADLINE %}
+    <p>
+        If you are not yet registered and want to create a new application, you may
+        <a href="team">click here to do so</a>.
+    </p>
+{% else %}
+    <p>
+        If you have not already registered your team, then it is unfortunately too late to do so, since we are past
+        the registration deadline.
+    </p>
+{% endif %}
+
+{% endblock %}

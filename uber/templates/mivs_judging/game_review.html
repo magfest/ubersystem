@@ -1,0 +1,144 @@
+{% extends "mivs_base.html" %}
+{% block body %}
+
+<h2>Your Review of {{ review.game.title }}</h2>
+
+You ({{ review.judge.full_name }}) have been assigned to review {{ review.game.title }}.  Here is the relevant information
+for reviewing the game:
+
+<form method="post" action="game_review" role="form" class="form-horizontal">
+    <input type="hidden" name="id" value="{{ review.id }}" />
+    {{ csrf_token() }}
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Game Title</label>
+        <div class="col-sm-6 game-display">
+            {{ review.game.title }}
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Studio</label>
+        <div class="col-sm-6 game-display">
+            <a href="studio?id={{ review.game.studio.id }}">{{ review.game.studio.name }}</a>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Genres</label>
+        <div class="col-sm-6 game-display">
+            {{ review.game.genres_labels|join(' / ') }}
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Brief Description</label>
+        <div class="col-sm-6 game-display">
+            {{ review.game.brief_description }}
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Full Description</label>
+        <div class="col-sm-6 game-display">
+            {{ review.game.description|linebreaksbr }}
+        </div>
+    </div>
+
+    {% if review.game.shown_events %}
+        <div class="form-group">
+            <label class="col-sm-3 control-label">Shown at Other Events</label>
+            <div class="col-sm-6 game-display">
+                {{ review.game.shown_events|linebreaksbr }}
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Link to Game</label>
+        <div class="col-sm-6 game-display">
+            <a target="_blank" href="{{ review.game.href }}">{{ review.game.link_to_game }}</a>
+        </div>
+    </div>
+
+    {% if review.game.password_to_game %}
+        <div class="form-group">
+            <label class="col-sm-3 control-label">Password</label>
+            <div class="col-sm-6 game-display">
+                {{ review.game.password_to_game }}
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Game Code Requirements</label>
+        <div class="col-sm-6 game-display">
+            {{ review.game.code_type_label }}
+        </div>
+    </div>
+
+    {% if review.game.code_instructions %}
+        <div class="form-group">
+            <label class="col-sm-3 control-label">Code Instructions</label>
+            <div class="col-sm-6 game-display">
+                {{ review.game.code_instructions|linebreaksbr }}
+            </div>
+        </div>
+    {% endif %}
+
+    {% if review.game.code_type != c.NO_CODE %}
+        <div class="form-group">
+            <label class="col-sm-3 control-label">Game Code</label>
+            <div class="col-sm-6 game-display">
+                {{ game_code.code|default("No code available due to an error") }}
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Game Status</label>
+        <div class="col-sm-6">
+            <select name="game_status" class="form-control">
+                {{ options(c.MIVS_GAME_REVIEW_STATUS_OPTS,review.game_status) }}
+            </select>
+            <p class="help-block">
+                Please indicate whether or not you were able to download and play the game using the above link.
+            </p>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Score</label>
+        <div class="col-sm-6">
+            <select name="game_score" class="form-control">
+                <option value="0">Rate this Game</option>
+                {{ int_options(1, 10, review.game_score) }}
+            </select>
+            <p class="help-block">
+                Please score the game on a scale of 1-10 where 1 is the lowest score and 10 is the highest score.
+                If you were not able to play due to some problem, you should leave this unscored
+            </p>
+        </div>
+        <div class="checkbox col-sm-6 col-sm-offset-3">
+            {{ macros.checkbox(review, 'game_content_bad', label="This game contains inappropriate content.") }}
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label optional-field">Notes</label>
+        <div class="col-sm-6">
+            <textarea class="form-control" name="game_review" rows="4">{{ review.game_review }}</textarea>
+            <p class="help-block">
+                This is where you can explain why you left the score you did, what impressed you and what didn't, etc.
+            </p>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <div class="col-sm-6 col-sm-offset-3">
+            <button type="submit" class="btn btn-primary">Review Game</button>
+        </div>
+    </div>
+</form>
+
+{% endblock %}

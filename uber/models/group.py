@@ -50,6 +50,7 @@ class Group(MagModel, TakesPaymentMixin):
         nullable=True)
     leader = relationship(
         'Attendee', foreign_keys=leader_id, post_update=True, cascade='all')
+    studio = relationship('IndieStudio', uselist=False, backref='group')
 
     _repr_attr_names = ['name']
 

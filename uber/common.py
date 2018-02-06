@@ -19,6 +19,7 @@ import treepoem
 import importlib
 import mimetypes
 import shlex
+import shutil
 import threading
 import traceback
 import xlsxwriter

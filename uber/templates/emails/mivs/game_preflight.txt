@@ -1,0 +1,14 @@
+Ahoy {{ game.studio.primary_contact.first_name }},
+
+Are you ready for Super MAGFest 2017?
+
+We are days away and want to be sure you are prepared for showcasing in MIVS.
+We do this by having you fill out the required PRE-FLIGHT form:
+
+PRE-FLIGHT:
+https://goo.gl/forms/5bmS9KmqmDDRKZGH2
+
+This must be completed before Midnight on January 2nd... why not fill it out now?
+
+See you soon,
+-MIVS Staff
