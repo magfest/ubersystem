@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from uber._version import __version__
 from uber.common import *
+from uber.notifications import *
 
 from sideboard import lib
 

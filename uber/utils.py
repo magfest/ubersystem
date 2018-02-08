@@ -46,6 +46,185 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
         return quote(s) if isinstance(s, str) else str(s)
 
 
+RE_SLUG = re.compile(r'[\W_]+')
+
+
+def sluggify(s):
+    return RE_SLUG.sub('-', s).lower().strip('-')
+
+
+def filename_safe(s):
+    """
+    Adapted from https://gist.github.com/seanh/93666
+
+    Take a string and return a valid filename constructed from the string.
+    Uses a whitelist approach: any characters not present in valid_chars are
+    removed. Also spaces are replaced with underscores.
+
+    Note: this method may produce invalid filenames such as ``, `.` or `..`
+    When I use this method I prepend a date string like '2009_01_15_19_46_32_'
+    and append a file extension like '.txt', so I avoid the potential of using
+    an invalid filename.
+
+    """
+    valid_chars = '-_.() {}{}'.format(string.ascii_letters, string.digits)
+    filename = ''.join(c for c in s if c in valid_chars)
+    return filename.replace(' ', '_')
+
+
+def groupify(items, keys, val_key=None):
+    """
+    Groups a list of items into nested OrderedDicts based on the given keys.
+
+    `keys` may be a string, a callable, or a list thereof.
+
+    `val_key` may be `None`, a string, or a callable. Defaults to `None`.
+
+    Examples::
+
+        >>> from json import dumps
+        >>>
+        >>> class Reminder:
+        ...   def __init__(self, when, where, what):
+        ...     self.when = when
+        ...     self.where = where
+        ...     self.what = what
+        ...   def __repr__(self):
+        ...     return 'Reminder({0.when}, {0.where}, {0.what})'.format(self)
+        ...
+        >>> reminders = [
+        ...   Reminder('Fri', 'Home', 'Eat cereal'),
+        ...   Reminder('Fri', 'Work', 'Feed Ivan'),
+        ...   Reminder('Sat', 'Home', 'Sleep in'),
+        ...   Reminder('Sat', 'Home', 'Play Zelda'),
+        ...   Reminder('Sun', 'Home', 'Sleep in'),
+        ...   Reminder('Sun', 'Work', 'Reset database')]
+        >>>
+        >>> print(dumps(groupify(reminders, None), indent=2, default=repr))
+        ... [
+        ...   "Reminder(Fri, Home, Eat cereal)",
+        ...   "Reminder(Fri, Work, Feed Ivan)",
+        ...   "Reminder(Sat, Home, Sleep in)",
+        ...   "Reminder(Sat, Home, Play Zelda)",
+        ...   "Reminder(Sun, Home, Sleep in)",
+        ...   "Reminder(Sun, Work, Reset database)"
+        ... ]
+        >>>
+        >>> print(dumps(groupify(reminders, 'when'), indent=2, default=repr))
+        ... {
+        ...   "Fri": [
+        ...     "Reminder(Fri, Home, Eat cereal)",
+        ...     "Reminder(Fri, Work, Feed Ivan)"
+        ...   ],
+        ...   "Sat": [
+        ...     "Reminder(Sat, Home, Sleep in)",
+        ...     "Reminder(Sat, Home, Play Zelda)"
+        ...   ],
+        ...   "Sun": [
+        ...     "Reminder(Sun, Home, Sleep in)",
+        ...     "Reminder(Sun, Work, Reset database)"
+        ...   ]
+        ... }
+        >>>
+        >>> print(dumps(groupify(reminders, ['when', 'where']),
+        ...             indent=2, default=repr))
+        ... {
+        ...   "Fri": {
+        ...     "Home": [
+        ...       "Reminder(Fri, Home, Eat cereal)"
+        ...     ],
+        ...     "Work": [
+        ...       "Reminder(Fri, Work, Feed Ivan)"
+        ...     ]
+        ...   },
+        ...   "Sat": {
+        ...     "Home": [
+        ...       "Reminder(Sat, Home, Sleep in)",
+        ...       "Reminder(Sat, Home, Play Zelda)"
+        ...     ]
+        ...   },
+        ...   "Sun": {
+        ...     "Home": [
+        ...       "Reminder(Sun, Home, Sleep in)"
+        ...     ],
+        ...     "Work": [
+        ...       "Reminder(Sun, Work, Reset database)"
+        ...     ]
+        ...   }
+        ... }
+        >>>
+        >>> print(dumps(groupify(reminders, ['when', 'where'], 'what'),
+        ...             indent=2))
+        ... {
+        ...   "Fri": {
+        ...     "Home": [
+        ...       "Eat cereal"
+        ...     ],
+        ...     "Work": [
+        ...       "Feed Ivan"
+        ...     ]
+        ...   },
+        ...   "Sat": {
+        ...     "Home": [
+        ...       "Sleep in",
+        ...       "Play Zelda"
+        ...     ]
+        ...   },
+        ...   "Sun": {
+        ...     "Home": [
+        ...       "Sleep in"
+        ...     ],
+        ...     "Work": [
+        ...       "Reset database"
+        ...     ]
+        ...   }
+        ... }
+        >>>
+        >>> print(dumps(groupify(reminders,
+        ...                      lambda r: '{0.when} - {0.where}'.format(r),
+        ...                      'what'), indent=2))
+        ... {
+        ...   "Fri - Home": [
+        ...     "Eat cereal"
+        ...   ],
+        ...   "Fri - Work": [
+        ...     "Feed Ivan"
+        ...   ],
+        ...   "Sat - Home": [
+        ...     "Sleep in",
+        ...     "Play Zelda"
+        ...   ],
+        ...   "Sun - Home": [
+        ...     "Sleep in"
+        ...   ],
+        ...   "Sun - Work": [
+        ...     "Reset database"
+        ...   ]
+        ... }
+        >>>
+
+    """
+    if not keys:
+        return items
+    keys = listify(keys)
+    last_key = keys[-1]
+    call_val_key = callable(val_key)
+    groupified = OrderedDict()
+    for item in items:
+        current = groupified
+        for key in keys:
+            attr = key(item) if callable(key) else getattr(item, key)
+            if attr not in current:
+                current[attr] = [] if key is last_key else OrderedDict()
+            current = current[attr]
+        if val_key:
+            value = val_key(item) if call_val_key else getattr(item, val_key)
+        else:
+            value = item
+        current.append(value)
+    return groupified
+
+
 def create_valid_user_supplied_redirect_url(url, default_url):
     """
     Create a valid redirect from user-supplied data.

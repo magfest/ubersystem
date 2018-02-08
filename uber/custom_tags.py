@@ -209,7 +209,8 @@ def form_link(model):
         uber.models.Attendee: 'registration',
         uber.models.Group: 'groups',
         uber.models.Job: 'jobs',
-        uber.models.Department: 'departments'}
+        uber.models.Department: 'departments',
+        uber.models.Attraction: 'attractions_admin'}
 
     cls = model.__class__
     site_section = site_sections.get(cls, form_link_site_sections.get(cls))

@@ -1,0 +1,46 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Panel Status{% endblock %}}
+{% block content %}
+
+<h2>Marking {{ app.name }} as {{ app.status_label }}</h2>
+
+Submitting this form will mark this application as {{ app.status_label|lower }} and email the main applicant to let them know about this decision.
+{% if app.status == c.ACCEPTED %}
+    {% if group %}
+        Because this application includes more than one panelist not already in our registration database and the submitter isn't already part of an existing group, a group will be created called "Panelists for {{ app.name }}".
+    {% endif %}
+
+    <ul>
+    {% for applicant in app.applicants %}
+        <li>
+            {% if applicant.matching_attendee %}
+                {{ applicant.matching_attendee|form_link }} is already in our registration database.
+                {% if group %}
+                    {% if applicant.matching_attendee.group_id %}
+                        Because they're already in the group "{{ applicant.matching_attendee.group.name }}" they will NOT be added to the group created for this panel.
+                    {% else %}
+                        They will be automatically added to the group created for this panel.
+                    {% endif %}
+                {% endif %}
+                {% if c.PANELIST_RIBBON not in applicant.matching_attendee.ribbon_ints %}
+                    They will be assigned a panelist ribbon.
+                {% endif %}
+            {% else %}
+                {{ applicant.full_name }} will be added with a complementary Attendee badge with a Panelist ribbon{% if group %} to the group for this panel{% endif %}.
+            {% endif %}
+            {% if group and applicant.submitter %}
+                As the submitter of this panel application, this person will be automatically made the group leader.
+            {% endif %}
+        </li>
+    {% endfor %}
+    </ul>
+{% endif %}
+
+<form method="post" action="mark">
+    {{ csrf_token() }}
+    <input type="hidden" name="id" value="{{ app.id }}" />
+    <input type="hidden" name="status" value="{{ app.status }}" />
+    <input type="submit" value="Mark Application as {{ app.status_label }}" />
+</form>
+
+{% endblock %}

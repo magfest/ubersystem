@@ -10,6 +10,7 @@ from sideboard.lib import cached_property, listify, is_listy, log
 from sideboard.lib.sa import CoerceUTF8 as UnicodeText, \
     UTCDateTime, UUID
 from sqlalchemy import and_, case, func, or_
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, subqueryload
 from sqlalchemy.schema import ForeignKey, Index, UniqueConstraint
@@ -24,11 +25,14 @@ from uber.models.group import Group
 from uber.models.types import default_relationship as relationship, utcnow, \
     Choice, DefaultColumn as Column, MultiChoice, TakesPaymentMixin
 from uber.utils import add_opt, comma_and, get_age_from_birthday, \
-    get_real_badge_type, hour_day_format, localized_now, remove_opt, \
-    send_email
+    get_real_badge_type, groupify, hour_day_format, localized_now, \
+    remove_opt, send_email
 
 
 __all__ = ['Attendee', 'FoodRestrictions']
+
+
+RE_NONDIGIT = re.compile(r'\D+')
 
 
 # The order of name_suffixes is important. It should be sorted in descending
@@ -141,6 +145,54 @@ name_suffixes = [
 
 normalized_name_suffixes = [
     re.sub(r'[,\.]', '', s.lower()) for s in name_suffixes]
+
+
+def mask(s, mask_char='*', min_unmask=1, max_unmask=2):
+    """
+    Masks the trailing portion of the given string with asterisks.
+
+    The number of unmasked characters will never be less than `min_unmask` or
+    greater than `max_unmask`. Within those bounds, the number of unmasked
+    characters always be smaller than half the length of `s`.
+
+    Example::
+
+        >>> for i in range(0, 12):
+        ...     mask('A' * i, min_unmask=1, max_unmask=4)
+        ... ''
+        ... 'A'
+        ... 'A*'
+        ... 'A**'
+        ... 'A***'
+        ... 'AA***'
+        ... 'AA****'
+        ... 'AAA****'
+        ... 'AAA*****'
+        ... 'AAAA*****'
+        ... 'AAAA******'
+        ... 'AAAA*******'
+        >>>
+
+    Arguments:
+        s (str): The string to be masked.
+        mask_char (str): The character that should be used as the mask.
+            Defaults to an asterisk "*".
+        min_unmask (int): Defines the minimum number of characters that are
+            allowed to be unmasked. If the length of `s` is less than or equal
+            to `min_unmask`, then `s` is returned unmodified. Defaults to 1.
+        max_unmask (int): Defines the maximum number of characters that are
+            allowed to be unmasked. Defaults to 2.
+
+    Returns:
+        str: A copy of `s` with a portion of the string masked by `mask_char`.
+    """
+    s_len = len(s)
+    if s_len <= min_unmask:
+        return s
+    elif s_len <= (2 * max_unmask):
+        unmask = max(min_unmask, math.ceil(s_len / 2) - 1)
+        return s[:unmask] + (mask_char * (s_len - unmask))
+    return s[:max_unmask] + (mask_char * (s_len - max_unmask))
 
 
 def _generate_hotel_pin():
@@ -395,7 +447,46 @@ class Attendee(MagModel, TakesPaymentMixin):
     # The PIN/password used by third party hotel reservervation systems
     hotel_pin = Column(UnicodeText, nullable=True, default=_generate_hotel_pin)
 
+    # =========================
+    # mits
+    # =========================
     mits_applicants = relationship('MITSApplicant', backref='attendee')
+
+    # =========================
+    # panels
+    # =========================
+    assigned_panelists = relationship('AssignedPanelist', backref='attendee')
+    panel_applicants = relationship('PanelApplicant', backref='attendee')
+    panel_applications = relationship('PanelApplication', backref='poc')
+    panel_feedback = relationship('EventFeedback', backref='attendee')
+
+    # =========================
+    # attractions
+    # =========================
+    NOTIFICATION_EMAIL = 0
+    NOTIFICATION_TEXT = 1
+    NOTIFICATION_NONE = 2
+    NOTIFICATION_PREF_OPTS = [
+        (NOTIFICATION_EMAIL, 'Email'),
+        (NOTIFICATION_TEXT, 'Text'),
+        (NOTIFICATION_NONE, 'None')]
+
+    notification_pref = Column(
+        Choice(NOTIFICATION_PREF_OPTS), default=NOTIFICATION_EMAIL)
+
+    attractions_opt_out = Column(Boolean, default=False)
+
+    attraction_signups = relationship(
+        'AttractionSignup',
+        backref='attendee',
+        order_by='AttractionSignup.signup_time')
+
+    attraction_event_signups = association_proxy('attraction_signups', 'event')
+
+    attraction_notifications = relationship(
+        'AttractionNotification',
+        backref='attendee',
+        order_by='AttractionNotification.sent_time')
 
     _attendee_table_args = [Index('ix_attendee_paid_group_id', paid, group_id)]
     if not c.SQLALCHEMY_URL.startswith('sqlite'):
@@ -1557,6 +1648,59 @@ class Attendee(MagModel, TakesPaymentMixin):
             elif ' ' in legal_name:
                 return legal_name.split(' ', 1)[1]
         return self.last_name
+
+    # =========================
+    # attractions
+    # =========================
+
+    @property
+    def attraction_features(self):
+        return list({e.feature for e in self.attraction_events})
+
+    @property
+    def attractions(self):
+        return list({e.feature.attraction for e in self.attraction_events})
+
+    @property
+    def masked_email(self):
+        name, _, domain = self.email.partition('@')
+        sub_domain, _, tld = domain.rpartition('.')
+        return '{}@{}.{}'.format(mask(name), mask(sub_domain), tld)
+
+    @property
+    def masked_cellphone(self):
+        cellphone = RE_NONDIGIT.sub(' ', self.cellphone).strip()
+        digits = cellphone.replace(' ', '')
+        return '*' * (len(cellphone) - 4) + digits[-4:]
+
+    @property
+    def masked_notification_pref(self):
+        if self.notification_pref == self.NOTIFICATION_EMAIL:
+            return self.masked_email
+        elif self.notification_pref == self.NOTIFICATION_TEXT:
+            return self.masked_cellphone or self.masked_email
+        return ''
+
+    @property
+    def signups_by_attraction_by_feature(self):
+        signups = sorted(self.attraction_signups, key=lambda s: (
+            s.event.feature.attraction.name,
+            s.event.feature.name))
+        return groupify(signups, [
+            lambda s: s.event.feature.attraction,
+            lambda s: s.event.feature])
+
+    def is_signed_up_for_attraction(self, attraction):
+        return attraction in self.attractions
+
+    def is_signed_up_for_attraction_feature(self, feature):
+        return feature in self.attraction_features
+
+    def can_admin_attraction(self, attraction):
+        if not self.admin_account:
+            return False
+        return self.admin_account.id == attraction.owner_id \
+            or self.can_admin_dept_for(attraction.department_id)
 
 
 class FoodRestrictions(MagModel):

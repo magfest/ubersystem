@@ -89,8 +89,25 @@ c.MENU = MenuItem(name='Root', submenu=[
         MenuItem(name='Watchlist', href='../registration/watchlist_entries', access=c.WATCHLIST),
     ]),
 
+    MenuItem(name='Schedule', access=[c.STUFF, c.PEOPLE, c.REG_AT_CON], submenu=[
+        MenuItem(name='Edit Schedule', access=c.STUFF, href='../schedule/edit'),
+        MenuItem(name='Attractions', href='../attractions_admin/')
+    ]),
+
     MenuItem(name='Statistics', access=c.STATS, submenu=[
         MenuItem(name='Summary', href='../summary/'),
         MenuItem(name='Graphs', href='../graphs/'),
     ]),
 ])
+
+if getattr(c, 'ALT_SCHEDULE_URL', ''):
+    try:
+        url = urlparse(c.ALT_SCHEDULE_URL)
+        external_schedule_name = 'View Schedule on {}'.format(url.netloc)
+    except:
+        log.warning('Unable to parse ALT_SCHEDULE_URL: "{}"', c.ALT_SCHEDULE_URL)
+        external_schedule_name = 'View Schedule Externally'
+    c.MENU.submenu[2].submenu.insert(0, MenuItem(name='View Schedule Internally', access=c.STUFF, href='../schedule/internal'))
+    c.MENU.submenu[2].submenu.insert(1, MenuItem(name=external_schedule_name, href='../schedule/'))
+else:
+    c.MENU.submenu[2].submenu.insert(0, MenuItem(name='View Schedule', access=c.STUFF, href='../schedule/internal'))

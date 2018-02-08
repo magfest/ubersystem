@@ -1,0 +1,182 @@
+{% import 'panel_macros.html' as panel_macros %}
+{% extends "preregistration/preregbase.html" %}
+{% block title %}Panel Applications{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+  {% include "panels_common.html" %}
+
+  <script type="text/javascript">
+      var showOrHidePOC = function () {
+          setVisible('#point_of_contact', $.val('other_panelists'));
+      };
+
+      $(function () {
+          $('<br/>').insertBefore('nobr');
+          showOrHidePOC();
+          $.field('other_panelists').on('change', showOrHidePOC);
+      });
+  </script>
+
+  <div class="masthead"></div>
+  <div class="panel panel-default">
+    <div class="panel-body">
+      <h2>{{ c.EVENT_NAME }} Panel Submission Form</h2>
+
+      {% if c.AFTER_PANEL_APP_DEADLINE and not c.HAS_PANEL_APPS_ACCESS %}
+        Unfortunately, the deadline for panel applications has passed and we are no longer accepting panel submissions.
+      {% else %}
+        {% if c.AFTER_PANEL_APP_DEADLINE and c.HAS_PANEL_APPS_ACCESS %}
+          <span style="color:red">
+            Panel applications have closed, but because you are a logged in
+            administrator you can submit a new application using this form.
+          </span>
+          <br/> <br/>
+        {% endif %}
+        We expect many requests being sent in and will be unable to accept them
+        all. To increase your odds of acceptance, fill this form out
+        accurately, keep your schedule open, and contact us if there are any
+        questions pertaining to the form. The contact e-mail is <b>{{ c.PANELS_EMAIL }}</b>.
+        <br/> <br/>
+        Panel requests are due by {{ c.PANEL_APP_DEADLINE|datetime_local }},
+        but this form will close once we have received a certain number of
+        applicants beyond the time slots we have available.
+        <br/> <br/>
+        We will send acceptance e-mails out by {{ c.EXPECTED_RESPONSE }}.
+        <br/> <br/>
+        Good luck!  We're excited to hear what you've got!
+
+        {# The action is set to "post_index" in order to bypass the NGINX cache. -#}
+        <form method="post" action="post_index" class="form-horizontal" role="form">
+          {{ panel_macros.panelist_form(panelist, suffix='_0') }}
+
+          <h3>Panel Information</h3>
+          {% include "panel_app_form.html" %}
+
+          <h3>Additional Information</h3>
+
+          <div class="form-group">
+            <div class="col-sm-9 col-sm-offset-3 checkbox">
+              {{ macros.toggle_checkbox(
+                        '.form-group-past_attendance',
+                        'Have you held this panel before?',
+                        suffix='_past_attendance',
+                        name='held_before',
+                        required_selector='.form-group-past_attendance .form-control',
+                        hide_on_checked=False,
+                        checked=app.past_attendance) }}
+            </div>
+          </div>
+          <div class="form-group form-group-past_attendance">
+            <label class="col-sm-3 control-label">Where and how many people attended?</label>
+            <div class="col-sm-6">
+              <textarea class="form-control" name="past_attendance" rows="4">{{ app.past_attendance }}</textarea>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="col-sm-9 col-sm-offset-3 checkbox">
+              {{ macros.toggle_checkbox(
+                        '.form-group-affiliations',
+                        'Do you have any group or website affiliations?',
+                        suffix='_affiliations',
+                        name='has_affiliations',
+                        required_selector='.form-group-affiliations .form-control',
+                        hide_on_checked=False,
+                        checked=app.affiliations) }}
+            </div>
+          </div>
+          <div class="form-group form-group-affiliations">
+            <label class="col-sm-3 control-label">What are they?</label>
+            <div class="col-sm-6">
+              <textarea class="form-control" name="affiliations" rows="4">{{ app.affiliations }}</textarea>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="col-sm-3 control-label">When are you unavailable?</label>
+            <div class="col-sm-6">
+              <textarea class="form-control" name="unavailable" rows="4" required="required">{{ app.unavailable }}</textarea>
+            </div>
+            <div class="clearfix"></div>
+            <p class="help-block col-sm-9 col-sm-offset-3">
+              Please list all times during the event when you will be UNAVAILABLE to hold your panel.
+              If we book you into a time slot, that is very difficult to change, so please be thorough.
+            </p>
+          </div>
+          <div class="form-group">
+            <div class="col-sm-9 col-sm-offset-3">
+              <label class="checkbox-label" style="font-weight: normal;">
+                <input type="checkbox" name="verify_unavailable" {% if verify_unavailable %}checked{% endif %} />
+                I verify I am available at any time during the event EXCEPT for the times listed above.
+              </label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="col-sm-3 control-label">What else might we need to know?</label>
+            <div class="col-sm-6">
+              <textarea class="form-control" name="extra_info" rows="4">{{ app.extra_info }}</textarea>
+            </div>
+            <div class="clearfix"></div>
+            <p class="help-block col-sm-9 col-sm-offset-3">
+              This can include information not for public consumption, but merely things the event needs to know.
+            </p>
+          </div>
+          <div class="form-group">
+            <div class="col-sm-9 col-sm-offset-3">
+              <label class="checkbox-label" style="font-weight: normal;">
+                <input type="checkbox" name="verify_waiting" {% if verify_waiting %}checked{% endif %} />
+                I understand that I will not hear back until {{ c.EXPECTED_RESPONSE }},
+                <b>and I will not prematurely email {{ c.EVENT_NAME }} to check my panel status.</b>
+              </label>
+            </div>
+          </div>
+
+          <h3>Other Panelists</h3>
+          {% include "other_panelists_form.html" %}
+
+          <div id="point_of_contact" class="form-group" style="display:none">
+            <p class="col-sm-9 col-sm-offset-3">
+              I understand that by submitting this application, I am
+              designating myself as the team leader and primary point of
+              contact for this panel. I further understand that if I need
+              to add or change panelists for this event I may be required
+              to provide justification, and that this will be approved at
+              the sole discretion of {{ c.EVENT_NAME }} Staff.
+            </p>
+            <div class="col-sm-9 col-sm-offset-3">
+              <label class="checkbox-label" style="font-weight: normal;">
+                <input type="checkbox" name="verify_poc" {% if verify_poc %}checked{% endif %} />
+                I have read and agree to the terms above.
+              </label>
+            </div>
+          </div>
+
+          <h3>Panelist Terms of Accommodation</h3>
+          <div class="form-group">
+            <p class="col-sm-9 col-sm-offset-3">
+              "Panelists" at {{ c.EVENT_NAME }} receive free admission and
+              the ability to present an awesome panel for like-minded
+              people.  No travel, hotel, or other accommodations are
+              provided by {{ c.EVENT_NAME }}.  If you have any questions,
+              please contact <b>{{ c.PANELS_EMAIL }}</b>.
+            </p>
+            <div class="col-sm-9 col-sm-offset-3">
+              <label class="checkbox-label" style="font-weight: normal;">
+                <input type="checkbox" name="verify_tos" {% if verify_tos %}checked{% endif %} />
+                I have read and agree to the terms above.
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="col-sm-6 col-sm-offset-3">
+              <button type="submit" class="btn btn-primary">Submit Application</button>
+            </div>
+          </div>
+
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+{% endblock %}

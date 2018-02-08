@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+    <head><title>Panel Email Statuses</title></head>
+    <body>
+        <h3>How do panel emails work?</h3>
+
+        Some actions such as approving a panel application will trigger an automated email.  However, simply performing the action
+        doesn't necessarily cause the email to be sent out - it merely causes it to be queued for sending.  It will remain queued
+        until its category is approved.
+
+        <br/> </br>
+
+        Here's the current status of the panel-related emails:
+        <ul>
+            <li>{{ c.PANEL_DECLINED_EMAIL_APPROVED|yesno("approved,queued") }}: Panel Declined</li>
+            <li>{{ c.PANEL_WAITLISTED_EMAIL_APPROVED|yesno("approved,queued") }}: Panel Waitlisted</li>
+            <li>{{ c.PANEL_ACCEPTED_EMAIL_APPROVED|yesno("approved,queued") }}: Panel Accepted</li>
+            <li>{{ c.PANEL_SCHEDULED_EMAIL_APPROVED|yesno("approved,queued") }}: Panel Scheduled</li>
+        </ul>
+    </body>
+</html>

@@ -250,6 +250,24 @@
     </div>
 {% endif %}
 
+{% if attendee.panel_applicants -%}
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Panels</label>
+    <div class="col-sm-9">
+      <div class="form-control-static">
+        Panel applications this attendee is associated with:
+        <ul>
+          {% for applicant in attendee.panel_applicants -%}
+            <li>
+              <a href="../panel_app_management/app?id={{ applicant.application.id }}">{{ applicant.application.name }}</a>
+            </li>
+          {%- endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+{%- endif %}
+
 {% block pre_regform %}{% endblock %}
 
 {% include "regform.html" %}

@@ -494,6 +494,8 @@ from uber.models.hotel import *  # noqa: F401,E402,F403
 from uber.models.attendee_tournaments import *  # noqa: F401,E402,F403
 from uber.models.mivs import *  # noqa: F401,E402,F403
 from uber.models.mits import *  # noqa: F401,E402,F403
+from uber.models.panels import *  # noqa: F401,E402,F403
+from uber.models.attraction import *  # noqa: F401,E402,F403
 
 # Explicitly import models used by the Session class to quiet flake8
 from uber.models.admin import AdminAccount, WatchList  # noqa: E402
@@ -504,6 +506,7 @@ from uber.models.group import Group  # noqa: E402
 from uber.models.tracking import Tracking  # noqa: E402
 from uber.models.mivs import IndieJudge, IndieGame  # noqa: E402
 from uber.models.mits import MITSApplicant, MITSTeam  # noqa: E402
+from uber.models.panels import PanelApplication, PanelApplicant  # noqa: E402
 
 
 class Session(SessionManager):
@@ -1413,6 +1416,18 @@ class Session(SessionManager):
             # wouldn't make sense to keep the database record around.
             self.delete(model)
             self.commit()
+
+        # =========================
+        # panels
+        # =========================
+
+        def panel_apps(self):
+            return self.query(PanelApplication).order_by('applied').all()
+
+        def panel_applicants(self):
+            return self.query(PanelApplicant) \
+                .options(joinedload(PanelApplicant.application)) \
+                .order_by('first_name', 'last_name')
 
     @classmethod
     def model_mixin(cls, model):
