@@ -1,0 +1,55 @@
+{% extends "preregistration/preregbase.html" %}
+{% block title %}Attractions{% endblock %}
+{% import 'attractions_macros.html' as attractions_macros with context %}
+
+{% block content %}
+{% include 'attractions/attractions_common.html' %}
+
+<script>
+  $(function() {
+    $('#attractions').on('click', '.attraction', clickNextButton);
+  });
+</script>
+
+<div class="masthead"></div>
+<div class="panel panel-default">
+  <div class="panel-body">
+    {% block body %}
+      <h1 class="text-center">Sign up for {{ c.EVENT_NAME }} Attractions</h1>
+      <hr>
+      <div id="attractions">
+        {% for attraction in attractions %}
+          <div class="attraction hover-btn">
+            <a class="btn btn-success btn-next pull-right" href="{{ attraction.slug }}">
+              <span class="glyphicon glyphicon-chevron-right"></span>
+            </a>
+            <div class="hover-btn-title">
+              <h2><span class="bling-icon"></span> {{ attraction.name }}</h2>
+            </div>
+            <div class="hover-btn-body">
+              <p>
+                {{ attraction.description|linebreaksbr }}
+              </p>
+              {% if attraction.public_features %}
+                <ul>
+                  {% for feature in attraction.public_features[:4] %}
+                    <li>
+                      {% if loop.index0 > 2 %}
+                        And more...
+                      {% else %}
+                        {{ feature.name }}
+                      {% endif %}
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+            </div>
+          </div>
+        {% else %}
+          <em class="help-block text-center">There aren't any attractions available yet.</em>
+        {% endfor %}
+      </div>
+    {% endblock %}
+  </div>
+</div>
+{% endblock %}

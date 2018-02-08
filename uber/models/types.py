@@ -1,8 +1,8 @@
-import pytz
-
+import re
 from collections import Mapping, OrderedDict
 from datetime import datetime, time, timedelta
 
+import pytz
 from sideboard.lib import listify
 from sideboard.lib.sa import _underscore_to_camelcase as camel, JSON, \
     CoerceUTF8 as UnicodeText, UTCDateTime, UUID
@@ -12,14 +12,21 @@ from sqlalchemy.schema import Column
 from sqlalchemy.sql.expression import FunctionElement
 from sqlalchemy.types import Integer, TypeDecorator
 
-from uber.config import c
+from uber.config import c, _config as config
 from uber.custom_tags import fieldify
 
 
 __all__ = [
     'default_relationship', 'relationship', 'utcmin', 'utcnow', 'Choice',
     'Column', 'DefaultColumn', 'JSONColumnMixin', 'MultiChoice',
-    'TakesPaymentMixin']
+    'SocialMediaMixin', 'TakesPaymentMixin']
+
+
+def _url_domain(url):
+    url = url.strip().replace('//', '/')
+    url = re.sub(r'^https?:/', '', url)
+    url = re.sub(r'^www\.', '', url)
+    return url.split('/', 1)[0].strip('@#?=. ')
 
 
 def DefaultColumn(*args, admin_only=False, private=False, **kwargs):
@@ -310,6 +317,42 @@ def JSONColumnMixin(column_name, fields, admin_only=False):
     _Mixin.__setattr__ = _Mixin__setattr__
 
     return _Mixin
+
+
+class SocialMediaMixin(JSONColumnMixin('social_media', c.SOCIAL_MEDIA)):
+    _social_media_urls = config.get('social_media_urls', {})
+    _social_media_placeholders = config.get('social_media_placeholders', {})
+
+    @classmethod
+    def get_placeholder(cls, name):
+        name = cls.unqualify(name)
+        return cls._social_media_placeholders.get(name, '')
+
+    @property
+    def has_social_media(self):
+        return any(getattr(self, f) for f in self._social_media_fields.keys())
+
+    def __getattr__(self, name):
+        if name.endswith('_url'):
+            field_name = self.unqualify(name[:-4])
+            if field_name in self._social_media_fields:
+                attr = super(SocialMediaMixin, self).__getattr__(field_name)
+                attr = attr.strip('@#?=. ') if attr else ''
+                if attr:
+                    if attr.startswith('http:') or attr.startswith('https:'):
+                        return attr
+                    else:
+                        url = self._social_media_urls.get(field_name, '{}')
+                        if _url_domain(url.format('')) in _url_domain(attr):
+                            return attr
+                        return url.format(attr)
+                return ''
+            else:
+                return super(SocialMediaMixin, self).__getattr__(name)
+        elif name.endswith('_placeholder'):
+            return self.get_placeholder(name[:-12])
+        else:
+            return super(SocialMediaMixin, self).__getattr__(name)
 
 
 class TakesPaymentMixin(object):

@@ -1,0 +1,43 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}All Panel Feedback{% endblock %}}
+{% block content %}
+
+<h2>Panel Feedback</h2>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Event</th>
+            <th>Reviewer</th>
+            <th>Rating</th>
+            <th>Attendance 5 minutes in</th>
+            <th>Attendance 15 minutes in</th>
+            <th>Comments</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for event, feedback in events %}
+        {% for fb in feedback %}
+            <tr>
+                {% if loop.first %}
+                    <td rowspan="{{ feedback|length }}"><a href="panel_feedback?event_id={{ event.id }}">{{ event.name }}</a></td>
+                {% endif %}
+                <td><a href="assigned_to?id={{ fb.attendee_id }}">{{ fb.attendee.full_name }}</a></td>
+                <td>{{ fb.rating_label }}</td>
+                <td>{{ fb.headcount_starting|default("(unknown)") }}</td>
+                <td>{{ fb.headcount_during|default("(unknown)") }}</td>
+                <td>{{ fb.comments|linebreaksbr }}</td>
+                <td><a href="panel_feedback?event_id={{ fb.event_id }}&id={{ fb.id }}">Edit</a></td>
+            </tr>
+        {% else %}
+            <tr>
+                <td><a href="panel_feedback?event_id={{ event.id }}">{{ event.name }}</a></td>
+                <td colspan="6">Click the event name to leave feedback</td>
+            </tr>
+        {% endfor %}
+    {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

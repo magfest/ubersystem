@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from os.path import abspath, dirname, join
+from os.path import abspath, join
 
 from alembic import command
 from alembic.config import Config as AlembicConfig

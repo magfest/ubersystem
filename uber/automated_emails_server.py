@@ -28,7 +28,8 @@ class AutomatedEmail:
             subqueryload(Attendee.dept_memberships),
             subqueryload(Attendee.dept_memberships_with_role),
             subqueryload(Attendee.depts_where_working),
-            subqueryload(Attendee.hotel_requests)),
+            subqueryload(Attendee.hotel_requests),
+            subqueryload(Attendee.assigned_panelists)),
         Group: lambda session: session.query(Group).options(
             subqueryload(Group.attendees)).order_by(Group.id),
         Room: lambda session: session.query(Room).options(
@@ -43,7 +44,12 @@ class AutomatedEmail:
         IndieJudge: lambda session: session.query(IndieJudge).options(
             joinedload(IndieJudge.admin_account)
                 .joinedload(AdminAccount.attendee)),
-        MITSTeam: lambda session: session.mits_teams()
+        MITSTeam: lambda session: session.mits_teams(),
+        PanelApplication: lambda session: session.query(PanelApplication)
+            .options(
+                subqueryload(PanelApplication.applicants)
+                    .subqueryload(PanelApplicant.attendee))
+            .order_by(PanelApplication.id)
     }
 
     def __init__(self, model, subject, template, filter, ident, *, when=(),

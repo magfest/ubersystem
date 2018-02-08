@@ -1,0 +1,68 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Attendee Attractions{% endblock %}
+
+{% block content %}
+  <h1>
+    Attractions
+    <small><a href="../attractions">View Public Schedule</a></small>
+    {% if c.STUFF in admin_account.access_ints %}
+      <a href="new" class="btn btn-primary pull-right">
+        <span class="glyphicon glyphicon-plus"></span>
+        Create Attraction
+      </a>
+    {% endif %}
+  </h1>
+  {% if filtered %}
+    <a class="btn btn-xs btn-plain" href="index">
+  {% else %}
+    <a class="btn btn-xs btn-default" href="index?filtered=1">
+  {% endif %}
+      <span class="glyphicon glyphicon-filter"></span>
+      Show only my attractions
+    </a>
+
+  {% if attractions -%}
+    <div class="table-responsive">
+      <table class="table table-hover datatable"
+          data-paging="false"
+          data-info="false">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Public</th>
+            <th>Department</th>
+            <th>Owner</th>
+          </tr>
+        </thead>
+        <tbody>
+          {%- for attraction in attractions -%}
+            <tr>
+              <td>
+                {% if c.STUFF in admin_account.access_ints %}
+                  {{ attraction|form_link }}
+                {% else %}
+                  {{ attraction.name }}
+                {% endif %}
+                (<a href="checkin?id={{ attraction.slug }}">Check In Attendees</a>)
+              </td>
+              <td>{{ attraction.description|linebreaksbr }}</td>
+              <td>
+                {% if attraction.is_public %}
+                  <a href="../attractions/{{ attraction.slug }}">Yes</a>
+                {% else %}
+                  No
+                {% endif %}
+              </td>
+              <td>{{ attraction.department|form_link }}</td>
+              <td>{{ attraction.owner.attendee|form_link }}</td>
+            </tr>
+          {%- endfor -%}
+        </tbody>
+      </table>
+    </div>
+  {%- else -%}
+    <em>No Attractions Found!</em>
+  {%- endif %}
+
+{% endblock %}
