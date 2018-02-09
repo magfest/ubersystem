@@ -52,6 +52,8 @@ class Group(MagModel, TakesPaymentMixin):
         'Attendee', foreign_keys=leader_id, post_update=True, cascade='all')
     studio = relationship('IndieStudio', uselist=False, backref='group')
 
+    guest = relationship('GuestGroup', backref='group', uselist=False)
+
     _repr_attr_names = ['name']
 
     @presave_adjustment

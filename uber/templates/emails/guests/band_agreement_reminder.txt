@@ -1,0 +1,7 @@
+{{ guest.group.name }},
+
+Congratulations on being accepted to perform at {{ c.EVENT_NAME }}!  We need you to confirm your acceptance of a performance slot by completing the band agreement at {{ c.URL_BASE }}/guests/agreement?guest_id={{ guest.id }}
+
+Failure to complete the band agreement by {{ c.BAND_INFO_DEADLINE|datetime_local }} may result in your slot being given to a different group.
+
+{{ c.BAND_EMAIL_SIGNATURE }}

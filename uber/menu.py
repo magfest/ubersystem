@@ -86,6 +86,8 @@ c.MENU = MenuItem(name='Root', submenu=[
     MenuItem(name='People', access=[c.PEOPLE, c.REG_AT_CON], submenu=[
         MenuItem(name='Attendees', href='../registration/{}'.format('?invalid=True' if c.AT_THE_CON else '')),
         MenuItem(name='Groups', href='../groups/'),
+        MenuItem(name='Bands', href='../guest_admin/?filter=only-bands', access=c.BANDS),
+        MenuItem(name='Guests', href='../guest_admin/?filter=only-guests', access=c.BANDS),
         MenuItem(name='Watchlist', href='../registration/watchlist_entries', access=c.WATCHLIST),
     ]),
 
@@ -107,7 +109,7 @@ if getattr(c, 'ALT_SCHEDULE_URL', ''):
     except:
         log.warning('Unable to parse ALT_SCHEDULE_URL: "{}"', c.ALT_SCHEDULE_URL)
         external_schedule_name = 'View Schedule Externally'
-    c.MENU.submenu[2].submenu.insert(0, MenuItem(name='View Schedule Internally', access=c.STUFF, href='../schedule/internal'))
-    c.MENU.submenu[2].submenu.insert(1, MenuItem(name=external_schedule_name, href='../schedule/'))
+    c.MENU['Schedule'].submenu.insert(0, MenuItem(name='View Schedule Internally', access=c.STUFF, href='../schedule/internal'))
+    c.MENU['Schedule'].submenu.insert(1, MenuItem(name=external_schedule_name, href='../schedule/'))
 else:
-    c.MENU.submenu[2].submenu.insert(0, MenuItem(name='View Schedule', access=c.STUFF, href='../schedule/internal'))
+    c.MENU['Schedule'].submenu.insert(0, MenuItem(name='View Schedule', access=c.STUFF, href='../schedule/internal'))

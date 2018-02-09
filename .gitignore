@@ -24,5 +24,4 @@ node_modules/
 .cache
 .eggs/
 .coverage
-uploaded_files/mits_game_images/*
-uploaded_files/mivs_game_images/*
+uploaded_files/*
