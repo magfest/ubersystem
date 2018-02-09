@@ -488,6 +488,13 @@ class Attendee(MagModel, TakesPaymentMixin):
         backref='attendee',
         order_by='AttractionNotification.sent_time')
 
+    # =========================
+    # tabletop
+    # =========================
+    games = relationship('TabletopGame', backref='attendee')
+    checkouts = relationship('TabletopCheckout', backref='attendee')
+    entrants = relationship('TabletopEntrant', backref='attendee')
+
     _attendee_table_args = [Index('ix_attendee_paid_group_id', paid, group_id)]
     if not c.SQLALCHEMY_URL.startswith('sqlite'):
         _attendee_table_args.append(UniqueConstraint(

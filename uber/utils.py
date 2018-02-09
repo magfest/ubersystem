@@ -1,3 +1,6 @@
+import phonenumbers
+from phonenumbers import PhoneNumberFormat
+
 from uber.common import *
 
 
@@ -223,6 +226,12 @@ def groupify(items, keys, val_key=None):
             value = item
         current.append(value)
     return groupified
+
+
+def normalize_phone(phone_number, country='US'):
+    return phonenumbers.format_number(
+        phonenumbers.parse(phone_number, country),
+        PhoneNumberFormat.E164)
 
 
 def create_valid_user_supplied_redirect_url(url, default_url):

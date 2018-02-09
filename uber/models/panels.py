@@ -26,6 +26,9 @@ class Event(MagModel):
     applications = relationship('PanelApplication', backref='event')
     panel_feedback = relationship('EventFeedback', backref='event')
 
+    tournaments = relationship(
+        'TabletopTournament', backref='event', uselist=False)
+
     @property
     def half_hours(self):
         half_hours = set()
