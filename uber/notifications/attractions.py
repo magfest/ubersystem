@@ -1,9 +1,7 @@
 from time import sleep
 from datetime import datetime, timedelta
 
-import phonenumbers
 import pytz
-from phonenumbers import PhoneNumberFormat
 from sideboard.lib import log, DaemonTask
 from sqlalchemy.orm import subqueryload
 from twilio.base.exceptions import TwilioRestException
@@ -16,11 +14,11 @@ from uber.models import Session
 from uber.models.attendee import Attendee
 from uber.models.attraction import Attraction, AttractionEvent, \
     AttractionNotification, AttractionNotificationReply, AttractionSignup
-from uber.utils import groupify, send_email
+from uber.utils import groupify, normalize_phone, send_email
 
 
 __all__ = [
-    'attractions_send_notifications', 'attractions_check_notification_replies']
+    'attractions_check_notification_replies', 'attractions_send_notifications']
 
 
 TASK_INTERVAL = 180  # Check every three minutes
@@ -47,16 +45,11 @@ except Exception:
     twilio_client = None
 
 
-def normalize(phone_number):
-    return phonenumbers.format_number(
-        phonenumbers.parse(phone_number, 'US'), PhoneNumberFormat.E164)
-
-
 def send_sms(to, body, from_=c.PANELS_TWILIO_NUMBER):
     message = None
     sid = 'Unable to send sms'
     try:
-        to = normalize(to)
+        to = normalize_phone(to)
         if not twilio_client:
             log.error('no twilio client configured')
         elif c.DEV_BOX and to not in c.TESTING_PHONE_NUMBERS:
@@ -65,7 +58,7 @@ def send_sms(to, body, from_=c.PANELS_TWILIO_NUMBER):
                 body, to)
         else:
             message = twilio_client.messages.create(
-                to=to, from_=normalize(from_), body=body)
+                to=to, from_=normalize_phone(from_), body=body)
 
             # Avoid hitting rate limit.
             # NOTE: the send_email() implementation already does this.
@@ -236,13 +229,14 @@ def check_attraction_notification_replies(session):
     attendees = session.query(Attendee).filter(
         Attendee.cellphone != '',
         Attendee.attraction_notifications.any())
-    attendees_by_phone = groupify(attendees, lambda a: normalize(a.cellphone))
+    attendees_by_phone = groupify(
+        attendees, lambda a: normalize_phone(a.cellphone))
 
     for message in filter(lambda m: m.sid not in existing_sids, messages):
         attraction_event_id = None
         attraction_id = None
         attendee_id = None
-        attendees = attendees_by_phone.get(normalize(message.from_), [])
+        attendees = attendees_by_phone.get(normalize_phone(message.from_), [])
         for attendee in attendees:
             notifications = sorted(filter(
                 lambda s: s.notification_type == Attendee.NOTIFICATION_TEXT,

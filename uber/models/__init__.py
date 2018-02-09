@@ -28,8 +28,8 @@ from uber.config import c, create_namespace_uuid
 from uber.decorators import cached_classproperty, classproperty, \
     cost_property, department_id_adapter, presave_adjustment, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
-from uber.utils import check_csrf, get_real_badge_type, DeptChecklistConf, \
-    HTTPRedirect
+from uber.utils import check_csrf, get_real_badge_type, normalize_phone, \
+    DeptChecklistConf, HTTPRedirect
 
 
 # Consistent naming conventions are necessary for alembic to be able to
@@ -496,6 +496,7 @@ from uber.models.mivs import *  # noqa: F401,E402,F403
 from uber.models.mits import *  # noqa: F401,E402,F403
 from uber.models.panels import *  # noqa: F401,E402,F403
 from uber.models.attraction import *  # noqa: F401,E402,F403
+from uber.models.tabletop import *  # noqa: F401,E402,F403
 
 # Explicitly import models used by the Session class to quiet flake8
 from uber.models.admin import AdminAccount, WatchList  # noqa: E402
@@ -507,6 +508,8 @@ from uber.models.tracking import Tracking  # noqa: E402
 from uber.models.mivs import IndieJudge, IndieGame  # noqa: E402
 from uber.models.mits import MITSApplicant, MITSTeam  # noqa: E402
 from uber.models.panels import PanelApplication, PanelApplicant  # noqa: E402
+from uber.models.tabletop import TabletopEntrant, \
+    TabletopTournament  # noqa: E402
 
 
 class Session(SessionManager):
@@ -1428,6 +1431,24 @@ class Session(SessionManager):
             return self.query(PanelApplicant) \
                 .options(joinedload(PanelApplicant.application)) \
                 .order_by('first_name', 'last_name')
+
+        # =========================
+        # tabletop
+        # =========================
+
+        def entrants(self):
+            return self.query(TabletopEntrant).options(
+                joinedload(TabletopEntrant.reminder),
+                joinedload(TabletopEntrant.attendee),
+                subqueryload(TabletopEntrant.tournament)
+                .subqueryload(TabletopTournament.event))
+
+        def entrants_by_phone(self):
+            entrants = defaultdict(list)
+            for entrant in self.entrants():
+                cellphone = normalize_phone(entrant.attendee.cellphone)
+                entrants[cellphone].append(entrant)
+            return entrants
 
     @classmethod
     def model_mixin(cls, model):

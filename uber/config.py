@@ -911,6 +911,12 @@ else:
 stripe.api_key = c.STRIPE_SECRET_KEY
 
 
+# plugins can use this to append paths which will be included as <script> tags, e.g. if a plugin
+# appends '../static/foo.js' to this list, that adds <script src="../static/foo.js"></script> to
+# all of the pages on the site except for preregistration pages (for performance)
+c.JAVASCRIPT_INCLUDES = []
+
+
 # =============================
 # hotel
 # =============================
@@ -1052,7 +1058,13 @@ c.ACCESS_OPTS.extend(c.PANEL_ACCESS_LEVEL_OPTS)
 c.ACCESS_VARS.extend(c.PANEL_ACCESS_LEVEL_VARS)
 
 
-# plugins can use this to append paths which will be included as <script> tags, e.g. if a plugin
-# appends '../static/foo.js' to this list, that adds <script src="../static/foo.js"></script> to
-# all of the pages on the site except for preregistration pages (for performance)
-c.JAVASCRIPT_INCLUDES = []
+# =============================
+# tabletop
+# =============================
+
+invalid_tabletop_rooms = [room for room in c.TABLETOP_LOCATIONS if not getattr(c, room.upper(), None)]
+for room in invalid_tabletop_rooms:
+    log.warning('tabletop plugin: tabletop_locations config problem: '
+                'Ignoring {!r} because it was not also found in [[event_location]] section.'.format(room.upper()))
+
+c.TABLETOP_LOCATIONS = [getattr(c, room.upper()) for room in c.TABLETOP_LOCATIONS if room not in invalid_tabletop_rooms]
