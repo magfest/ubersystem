@@ -29,6 +29,8 @@ class Event(MagModel):
     tournaments = relationship(
         'TabletopTournament', backref='event', uselist=False)
 
+    guest = relationship('GuestGroup', backref='event')
+
     @property
     def half_hours(self):
         half_hours = set()

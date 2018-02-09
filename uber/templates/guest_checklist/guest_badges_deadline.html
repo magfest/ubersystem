@@ -1,0 +1,14 @@
+{% extends "guest_checklist/badges_deadline.html" %}
+{% block deadline_text %}
+  {% if guest.all_badges_claimed %}
+    You have already assigned all badges which have been assigned to your group, but you may change who your
+    complementary badges are assigned to using the link above anytime until the start of {{ c.EVENT_NAME }}.
+  {% else %}
+    You currently have {{ guest.group.floating|length }} unassigned complementary
+    badge{{ guest.group.floating|length|pluralize }} available to your group.  You may use the link above to
+    assign these badges.
+  {% endif %}
+  <br/><br/>
+  Enter the legal names and contact info for the group members attending with you. Additional badges may be considered
+  upon request.
+{% endblock %}

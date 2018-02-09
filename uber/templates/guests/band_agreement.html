@@ -1,0 +1,191 @@
+{% block band_text_venue %}
+  <h2>
+    Band agreement for <strong>{{ guest.group.name }}</strong> to perform at {{ c.EVENT_NAME_AND_YEAR }}!
+  </h2>
+  <p>
+    {{ c.EVENT_NAME_AND_YEAR }} will be held on <strong>{{ c.EPOCH|datetime_local("%B %-d") }} - {{ c.ESCHATON|datetime_local("%-d, %Y") }}.</strong><br>
+    Venue Address: <strong>{{ c.EVENT_VENUE }}: {{ c.EVENT_VENUE_ADDRESS }}</strong>
+    <br><br>
+    Performers are encouraged to attend the full event and interact with staff, fellow performers, and attendees
+    in a relaxed environment.
+    <br><br>
+    If performers will not be attending the full event, we ask that they inform us in advance so we may better
+    allocate sleeping arrangements.
+  </p>
+{% endblock %}
+
+{% block band_text_performance %}
+  <h3>
+    Performance
+  </h3>
+  <p>
+    {% if not guest.event or not guest.event.start_time %}
+      Performance time and date for {{ guest.group.name }} to be determined, and will be provided prior to the event
+      as an update to this document.
+    {% else %}
+      Performance time and date for {{ guest.group.name }} will be
+      <strong>{{ guest.event.start_time|datetime_local("%A, %B %d at %I:%M %p (%Z)") }}</strong>.
+      Please arrive at the stage, with all band members ready to play and performance equipment present, at least 1 hour before this time.
+    {% endif %}
+    <br><br>
+    Performer will be provided with <strong>{{ guest.estimated_loadin_minutes }} minutes</strong>
+    for setup and line-check, followed by <strong>{{ guest.performance_minutes }} minutes</strong> for performance.
+    <br><br>
+    {% block band_text_timer %}
+      These time-frames will be enforced, via an on-stage timer, to ensure that performances occur in a timely fashion.
+    {% endblock band_text_timer %}
+  </p>
+{% endblock %}
+
+{% block band_text_merch %}
+  <h3>
+    Merch
+  </h3>
+  <p>
+    {% block band_text_merch_inner %}
+      Space will be provided in our marketplace area for merchandise sales; either at a dedicated table or at our
+      <b>Rock Island</b> sales area, where {{ c.EVENT_NAME }} staff will sell performer-provided merchandise throughout the festival.
+      It is recommended, but not required, for performers to use our Rock Island service in this area, as merchandise can be sold
+      more consistently, and for many more hours.  On the night of the performance, table space will also be provided immediately
+      outside the concert hall for merchandise sales and signings.
+    {% endblock band_text_merch_inner %}
+  </p>
+{% endblock %}
+
+{% block band_text_payment %}
+  {% if guest.payment %}
+    <h3>
+      Payment
+    </h3>
+    <p>
+      <strong>${{ guest.payment }}</strong> by check on site after the show.
+    </p>
+  {% endif %}
+{% endblock %}
+
+{% block band_text_accommodations %}
+  {% if guest.num_hotel_rooms > 0 %}
+    <h3>
+      Accommodations
+    </h3>
+    <p>
+      {% block band_text_accommodations_inner %}
+        {{ guest.num_hotel_rooms }} hotel room{{ guest.num_hotel_rooms|pluralize }} with 2 queen beds
+        will be provided, with check in on {{ c.EPOCH|datetime_local("%A, %B %-d") }}
+        and check out on {{ c.ESCHATON|datetime_local("%A, %B %-d") }}, unless
+        otherwise explicitly arranged via email.
+      {% endblock %}
+    </p>
+  {% endif %}
+{% endblock %}
+
+{% block band_text_parking %}
+  <h3>
+    Parking
+  </h3>
+  <p>
+    {% block band_text_parking_inner %}
+      To be included
+      {% if guest.num_hotel_rooms > 0 %}with hotel room{% endif %}
+      for <b>{{ guest.vehicles }} vehicle{{ guest.vehicles|pluralize }}</b>.
+    {% endblock %}
+  </p>
+{% endblock %}
+
+{% block band_text_admission %}
+  <h3>
+    Admission
+  </h3>
+  <p>
+    {% block band_text_admission_inner %}
+      Each performer will receive one badge, and one additional complementary badge for a guest.
+      Additional complimentary badges may be issued upon request.
+    {% endblock %}
+  </p>
+{% endblock %}
+
+{% block band_information_form %}
+  <h3>
+    Your Information
+  </h3>
+  <form method="post" action="agreement" class="form-horizontal" role="form">
+    <input type="hidden" name="guest_id" value="{{ guest.id }}" />
+    <input type="hidden" name="id" value="{{ guest_info.db_id }}" />
+    {{ csrf_token() }}
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Performer Count</label>
+      <div class="col-sm-6">
+        <input class="form-control" type="number" name="performer_count" min="1" value="{{ guest_info.performer_count|default(guest.estimated_performer_count) }}" />
+        <p class="help-text">
+          To ensure that we have assigned the correct number of badges to your band, please confirm the number
+          of performers in your band.
+        </p>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label">PoC Phone Number</label>
+      <div class="col-sm-6">
+        <input class="form-control" type="text" name="poc_phone" value="{{ guest_info.poc_phone|default(guest.group.leader.cellphone) }}" />
+        <p class="help-text">
+          Please enter the cellphone number of your preferred Point of Contact for any issues we may need to
+          contact you about on-site.
+        </p>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Arrival Time</label>
+      <div class="col-sm-6">
+        <input class="form-control" type="text" name="arrival_time" value="{{ guest_info.arrival_time }}" />
+        <p class="help-text">
+          Please be as specific as possible about the day and time you plan on arriving at {{ c.EVENT_NAME }}.
+        </p>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Parking</label>
+      <div class="checkbox col-sm-9">
+        {{ macros.checkbox(guest_info, 'bringing_vehicle', label='We will be parking at ' + c.EVENT_NAME) }}
+      </div>
+    </div>
+
+    <div id="vehicle-info" class="form-group" style="display:none">
+      <label class="col-sm-3 control-label">Vehicle Information</label>
+      <div class="col-sm-6">
+        <input class="form-control" type="text" name="vehicle_info" value="{{ guest_info.vehicle_info }}" />
+        <p class="help-text">
+          If you're parking on-site, then please tell us the vehicle info (car, truck, attached trailer, tour bus, monster truck), so we can ensure parking availability.
+        </p>
+      </div>
+    </div>
+
+    <h3>
+      Performance Agreement
+    </h3>
+    <p>
+      By clicking below and submitting your information, you agree to the terms of this performance agreement.
+    </p>
+
+    <div class="form-group">
+      <div class="col-sm-6 col-sm-offset-3">
+        <button type="submit" class="btn btn-primary">
+          Save Information and Agree
+        </button>
+      </div>
+    </div>
+  </form>
+
+  <script>
+      var showOrHideVehicleInfo = function () {
+          setVisible('#vehicle-info', $.field('bringing_vehicle').prop('checked'));
+      };
+      $(function () {
+          showOrHideVehicleInfo();
+          $.field('bringing_vehicle').on('click', showOrHideVehicleInfo);
+      });
+  </script>
+
+{% endblock band_information_form %}

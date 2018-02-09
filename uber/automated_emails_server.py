@@ -49,7 +49,9 @@ class AutomatedEmail:
             .options(
                 subqueryload(PanelApplication.applicants)
                     .subqueryload(PanelApplicant.attendee))
-            .order_by(PanelApplication.id)
+            .order_by(PanelApplication.id),
+        GuestGroup: lambda session: session.query(GuestGroup)
+            .options(joinedload(GuestGroup.group))
     }
 
     def __init__(self, model, subject, template, filter, ident, *, when=(),

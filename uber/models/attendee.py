@@ -1709,6 +1709,18 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.admin_account.id == attraction.owner_id \
             or self.can_admin_dept_for(attraction.department_id)
 
+    # =========================
+    # guests
+    # =========================
+
+    @property
+    def guest_group(self):
+        """
+        The Guest Group to which this attendee belongs (either as a
+        guest or a +1 comp), or None.
+        """
+        return self.group and self.group.guest
+
 
 class FoodRestrictions(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)

@@ -1046,7 +1046,7 @@ c.ROOM_TRIE = _make_room_trie(c.EVENT_LOCATION_OPTS)
 invalid_rooms = [room for room in (c.PANEL_ROOMS + c.MUSIC_ROOMS) if not getattr(c, room.upper(), None)]
 
 for room in invalid_rooms:
-    log.warning('panels plugin: panels_room config problem: '
+    log.warning('config: panels_room config problem: '
                 'Ignoring {!r} because it was not also found in [[event_location]] section.'.format(room.upper()))
 
 c.PANEL_ROOMS = [getattr(c, room.upper()) for room in c.PANEL_ROOMS if room not in invalid_rooms]
@@ -1064,7 +1064,38 @@ c.ACCESS_VARS.extend(c.PANEL_ACCESS_LEVEL_VARS)
 
 invalid_tabletop_rooms = [room for room in c.TABLETOP_LOCATIONS if not getattr(c, room.upper(), None)]
 for room in invalid_tabletop_rooms:
-    log.warning('tabletop plugin: tabletop_locations config problem: '
+    log.warning('config: tabletop_locations config problem: '
                 'Ignoring {!r} because it was not also found in [[event_location]] section.'.format(room.upper()))
 
 c.TABLETOP_LOCATIONS = [getattr(c, room.upper()) for room in c.TABLETOP_LOCATIONS if room not in invalid_tabletop_rooms]
+
+
+# =============================
+# guests
+# =============================
+
+# Add the access levels we defined to c.ACCESS* (this will go away if/when we implement enum merging)
+c.ACCESS.update(c.GUEST_ACCESS_LEVELS)
+c.ACCESS_OPTS.extend(c.GUEST_ACCESS_LEVEL_OPTS)
+c.ACCESS_VARS.extend(c.GUEST_ACCESS_LEVEL_VARS)
+
+c.ROCK_ISLAND_GROUPS = [getattr(c, group_type.upper()) for group_type in c.ROCK_ISLAND_GROUPS]
+
+# A list of checklist items for display on the guest group admin page
+c.GUEST_CHECKLIST_ITEMS = [
+    {'name': 'panel', 'header': 'Panel'},
+    {'name': 'bio', 'header': 'Bio Provided'},
+    {'name': 'info', 'header': 'Agreement Completed'},
+    {'name': 'taxes', 'header': 'W9 Uploaded', 'is_link': True},
+    {'name': 'merch', 'header': 'Merch'},
+    {'name': 'charity', 'header': 'Charity'},
+    {'name': 'badges', 'header': 'Badges Claimed'},
+    {'name': 'stage_plot', 'header': 'Stage Plans', 'is_link': True},
+    {'name': 'autograph'},
+    {'name': 'interview'},
+    {'name': 'travel_plans'}
+]
+
+# Generate the possible template prefixes per step
+for item in c.GUEST_CHECKLIST_ITEMS:
+    item['deadline_template'] = ['guest_checklist/', item['name'] + '_deadline.html']

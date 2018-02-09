@@ -1,0 +1,64 @@
+{% if snippet %}
+  <tr>
+    <td width="25">{{ macros.checklist_image(guest.charity_status) }}</td>
+    <td><b><a href="charity?guest_id={{ guest.id }}">
+      {% block deadline_headline %}Donating to our Charity Auction{% endblock %}</a></b></td>
+    <td><i>Deadline:</i> {{ guest.deadline_from_model('charity')|datetime_local }}</td>
+  </tr>
+  <tr>
+    <td colspan="3">
+      {% block deadline_text %}
+        {% if guest.charity_status %}
+          You have already indicated your charity preferences, but you may update them using the link above.
+        {% else %}
+          {{ c.EVENT_NAME }} runs a yearly charity auction, and we need you to tell us whether you can contribute any
+          signed merchandise.
+        {% endif %}
+      {% endblock %}
+      <br/></br>
+    </td>
+  </tr>
+{% else %}
+  <h2>{% block form_title %}Charity Donations{% endblock %}</h2>
+
+  {% block form_desc %}
+    MAGFest hosts a yearly charity auction, with 100% of proceeds going to
+    <a target="_blank" href="http://childsplaycharity.org/">Child's Play</a>.  Do you have any cool stuff you can sign that
+    you think would sell at the auction?  Our attendees love it when performers they admire sign stuff!  If you've got
+    anything to donate, please tell us what it is!
+
+    <br/> <br/>
+
+    Our auction starts on {{ c.AUCTION_START|datetime_local("%A at %-H%p") }} and goes until everything is sold (usually around 3 hours).
+  {% endblock %}
+
+  <br/> <br/>
+
+  <form method="post" action="charity">
+    {{ csrf_token() }}
+    <input type="hidden" name="guest_id" value="{{ guest.id }}" />
+    <input type="hidden" name="id" value="{{ guest_charity.db_id }}" />
+    <select name="donating">
+      <option value="">Let us know whether you can donate anything</option>
+      {{ options(c.GUEST_CHARITY_OPTS,guest_charity.donating) }}
+    </select>
+    <br/> <br/>
+    <div id="donating_yes" style="display:none">
+      Please let us know what you've got.  Thanks for helping us help kids! <br/>
+      <textarea name="desc" rows="3" cols="60">{{ guest_charity.desc }}</textarea>
+      <br/> <br/>
+    </div>
+    {% block form_extra %}{% endblock %}
+    <input id="submit" type="submit" class="btn btn-primary" value="Save Donation Preference" />
+  </form>
+
+  <script>
+      var showOrHideDonation = function () {
+          setVisible('#donating_yes', $.val('donating') === {{ c.DONATING }});
+      };
+      $(function () {
+          showOrHideDonation();
+          $.field('donating').on('change', showOrHideDonation);
+      });
+  </script>
+{% endif %}
