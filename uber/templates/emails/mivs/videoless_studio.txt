@@ -8,6 +8,6 @@ Failure to submit a video URL even 1 second after the deadline results in a lame
 
 Fear not! If your game is not ready for a video capture we will again have at least 2 Quick Play areas where you can showcase your game for a window of time with other indies.  Details about the Quick Play tables will be released about a month before MAGFest.
 
-Either way, we hope to see you at MAGFest {{ c.YEAR }} and wish you luck, and no bugs, in all your game development efforts!
+Either way, we hope to see you at MAGFest {{ c.EVENT_YEAR }} and wish you luck, and no bugs, in all your game development efforts!
 
 {{ c.MIVS_EMAIL_SIGNATURE }}
