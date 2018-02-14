@@ -18,7 +18,7 @@ def check_post_con(klass):
                     <h2 style='color:red'>Hope you had a great {event}!</h2>
                     Preregistration for {event} {year} will open in a few months.
                 </body></html>
-                """.format(event=c.EVENT_NAME, year=(1 + int(c.YEAR)) if c.YEAR else '')
+                """.format(event=c.EVENT_NAME, year=(1 + int(c.EVENT_YEAR)) if c.EVENT_YEAR else '')
             else:
                 return func(self, *args, **kwargs)
         return wrapped
