@@ -27,10 +27,11 @@ if c.SEND_SMS:
             twilio_client = TwilioRestClient(twilio_sid, twilio_token)
         else:
             log.debug(
-                'Tabletop twilio SID and/or TOKEN is not in INI, not going to try '
-                'to start twilio for tabletop SMS messaging')
+                'Tabletop twilio SID and/or TOKEN is not in INI, not going to '
+                'try to start twilio for tabletop SMS messaging')
     except Exception:
-        log.error('twilio: unable to initialize twilio REST client', exc_info=True)
+        log.error(
+            'twilio: unable to initialize twilio REST client', exc_info=True)
         twilio_client = None
 else:
     log.info('SMS DISABLED for tabletop')

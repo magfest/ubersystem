@@ -39,10 +39,11 @@ if c.SEND_SMS:
             twilio_client = TwilioRestClient(twilio_sid, twilio_token)
         else:
             log.debug(
-                'Panels twilio SID and/or TOKEN is not in INI, not going to try '
-                'to start twilio for panels SMS notifications')
+                'Panels twilio SID and/or TOKEN is not in INI, not going to '
+                'try to start twilio for panels SMS notifications')
     except Exception:
-        log.error('Twilio: unable to initialize twilio REST client', exc_info=True)
+        log.error(
+            'Twilio: unable to initialize twilio REST client', exc_info=True)
         twilio_client = None
 else:
     log.info('SMS DISABLED for panels')
