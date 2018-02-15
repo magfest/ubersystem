@@ -837,8 +837,8 @@ c.TEARDOWN_TIME_OPTS = [
 c.CON_TOTAL_LENGTH = int((c.TEARDOWN_TIME_OPTS[-1][0] - c.SETUP_TIME_OPTS[0][0]).seconds / 3600)
 c.ALL_TIME_OPTS = [(dt, dt.strftime('%I %p %a %d %b')) for dt in ((c.EPOCH - timedelta(days=c.SETUP_SHIFT_DAYS) + timedelta(hours=i)) for i in range(c.CON_TOTAL_LENGTH))]
 
-c.EVENT_NAME_AND_YEAR = c.EVENT_NAME + (' {}'.format(c.YEAR) if c.YEAR else '')
 c.EVENT_YEAR = c.EPOCH.strftime('%Y')
+c.EVENT_NAME_AND_YEAR = c.EVENT_NAME + (' {}'.format(c.EVENT_YEAR) if c.EVENT_YEAR else '')
 c.EVENT_MONTH = c.EPOCH.strftime('%B')
 c.EVENT_START_DAY = int(c.EPOCH.strftime('%d')) % 100
 c.EVENT_END_DAY = int(c.ESCHATON.strftime('%d')) % 100
