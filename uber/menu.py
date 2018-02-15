@@ -93,7 +93,6 @@ c.MENU = MenuItem(name='Root', submenu=[
 
     MenuItem(name='Schedule', access=[c.STUFF, c.PEOPLE, c.REG_AT_CON], submenu=[
         MenuItem(name='Edit Schedule', access=c.STUFF, href='../schedule/edit'),
-        MenuItem(name='Attractions', href='../attractions_admin/')
     ]),
 
     MenuItem(name='Statistics', access=c.STATS, submenu=[
@@ -109,7 +108,10 @@ if getattr(c, 'ALT_SCHEDULE_URL', ''):
     except:
         log.warning('Unable to parse ALT_SCHEDULE_URL: "{}"', c.ALT_SCHEDULE_URL)
         external_schedule_name = 'View Schedule Externally'
-    c.MENU['Schedule'].submenu.insert(0, MenuItem(name='View Schedule Internally', access=c.STUFF, href='../schedule/internal'))
-    c.MENU['Schedule'].submenu.insert(1, MenuItem(name=external_schedule_name, href='../schedule/'))
+    c.MENU['Schedule'].append_menu_item(MenuItem(name='View Schedule Internally', access=c.STUFF, href='../schedule/internal'))
+    c.MENU['Schedule'].append_menu_item(MenuItem(name=external_schedule_name, href='../schedule/'))
 else:
-    c.MENU['Schedule'].submenu.insert(0, MenuItem(name='View Schedule', access=c.STUFF, href='../schedule/internal'))
+    c.MENU['Schedule'].append_menu_item(MenuItem(name='View Schedule', access=c.STUFF, href='../schedule/internal'))
+
+if c.ATTRACTIONS_ENABLED:
+    c.MENU['Schedule'].append_menu_item(MenuItem(name='Attractions', href='../attractions_admin/'))
