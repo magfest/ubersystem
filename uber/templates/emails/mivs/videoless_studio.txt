@@ -4,7 +4,7 @@ If you are reading this, either you or someone who wants to punk you, has set th
 
 You have until {{ c.MIVS_ROUND_ONE_DEADLINE|datetime_local }} to submit this video link at {{ c.URL_BASE }}/mivs_applications/continue_app?id={{ studio.id }}
 
-Failure to submit a video URL even 1 second after the deadline results in a lame disqualification to be considered for MIVS at MAGFest {{ c.YEAR }}.
+Failure to submit a video URL even 1 second after the deadline results in a lame disqualification to be considered for MIVS at MAGFest {{ c.EVENT_YEAR }}.
 
 Fear not! If your game is not ready for a video capture we will again have at least 2 Quick Play areas where you can showcase your game for a window of time with other indies.  Details about the Quick Play tables will be released about a month before MAGFest.
 
