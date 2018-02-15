@@ -18,19 +18,22 @@ TASK_INTERVAL = 180  # Check every three minutes
 
 
 twilio_client = None
-try:
-    twilio_sid = c.TABLETOP_TWILIO_SID
-    twilio_token = c.TABLETOP_TWILIO_TOKEN
+if c.SEND_SMS:
+    try:
+        twilio_sid = c.TABLETOP_TWILIO_SID
+        twilio_token = c.TABLETOP_TWILIO_TOKEN
 
-    if twilio_sid and twilio_token:
-        twilio_client = TwilioRestClient(twilio_sid, twilio_token)
-    else:
-        log.debug(
-            'Tabletop twilio SID and/or TOKEN is not in INI, not going to try '
-            'to start twilio for tabletop SMS messaging')
-except Exception:
-    log.error('twilio: unable to initialize twilio REST client', exc_info=True)
-    twilio_client = None
+        if twilio_sid and twilio_token:
+            twilio_client = TwilioRestClient(twilio_sid, twilio_token)
+        else:
+            log.debug(
+                'Tabletop twilio SID and/or TOKEN is not in INI, not going to try '
+                'to start twilio for tabletop SMS messaging')
+    except Exception:
+        log.error('twilio: unable to initialize twilio REST client', exc_info=True)
+        twilio_client = None
+else:
+    log.info('SMS DISABLED for tabletop')
 
 
 def send_sms(to, body, from_=c.TABLETOP_TWILIO_NUMBER):
@@ -132,4 +135,3 @@ if c.SEND_SMS:
 else:
     tabletop_check_notification_replies = None
     tabletop_send_notifications = None
-    log.info('SMS DISABLED for tabletop')

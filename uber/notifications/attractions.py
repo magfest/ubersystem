@@ -30,19 +30,22 @@ TEXT_TEMPLATE = (
 
 
 twilio_client = None
-try:
-    twilio_sid = c.PANELS_TWILIO_SID
-    twilio_token = c.PANELS_TWILIO_TOKEN
+if c.SEND_SMS:
+    try:
+        twilio_sid = c.PANELS_TWILIO_SID
+        twilio_token = c.PANELS_TWILIO_TOKEN
 
-    if twilio_sid and twilio_token:
-        twilio_client = TwilioRestClient(twilio_sid, twilio_token)
-    else:
-        log.debug(
-            'Panels twilio SID and/or TOKEN is not in INI, not going to try '
-            'to start twilio for panels SMS notifications')
-except Exception:
-    log.error('Twilio: unable to initialize twilio REST client', exc_info=True)
-    twilio_client = None
+        if twilio_sid and twilio_token:
+            twilio_client = TwilioRestClient(twilio_sid, twilio_token)
+        else:
+            log.debug(
+                'Panels twilio SID and/or TOKEN is not in INI, not going to try '
+                'to start twilio for panels SMS notifications')
+    except Exception:
+        log.error('Twilio: unable to initialize twilio REST client', exc_info=True)
+        twilio_client = None
+else:
+    log.info('SMS DISABLED for panels')
 
 
 def send_sms(to, body, from_=c.PANELS_TWILIO_NUMBER):
@@ -275,7 +278,7 @@ def check_notification_replies():
         check_attraction_notification_replies(session)
 
 
-if c.SEND_SMS:
+if c.ATTRACTIONS_ENABLED:
     attractions_send_notifications = DaemonTask(
         send_notifications,
         interval=TASK_INTERVAL,
@@ -288,4 +291,3 @@ if c.SEND_SMS:
 else:
     attractions_send_notifications = None
     attractions_check_notification_replies = None
-    log.info('SMS DISABLED for panels')
