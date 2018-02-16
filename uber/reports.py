@@ -1,4 +1,4 @@
-from uber.barcode.utils import generate_barcode_from_badge_num
+from uber.barcode import generate_barcode_from_badge_num
 from uber.common import *
 
 

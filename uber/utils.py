@@ -1,5 +1,8 @@
 import phonenumbers
 from phonenumbers import PhoneNumberFormat
+from pockets import cached_property, classproperty, floor_datetime, is_listy, \
+    listify
+from pockets.autolog import log
 
 from uber.common import *
 
@@ -49,13 +52,6 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
         return quote(s) if isinstance(s, str) else str(s)
 
 
-RE_SLUG = re.compile(r'[\W_]+')
-
-
-def sluggify(s):
-    return RE_SLUG.sub('-', s).lower().strip('-')
-
-
 def filename_safe(s):
     """
     Adapted from https://gist.github.com/seanh/93666
@@ -75,157 +71,19 @@ def filename_safe(s):
     return filename.replace(' ', '_')
 
 
-def groupify(items, keys, val_key=None):
-    """
-    Groups a list of items into nested OrderedDicts based on the given keys.
+def filename_extension(filename):
+    return filename.split('.')[-1].lower()
 
-    `keys` may be a string, a callable, or a list thereof.
 
-    `val_key` may be `None`, a string, or a callable. Defaults to `None`.
+def make_url(url):
+    return ('http://' + url) if url and not url.startswith('http') else url
 
-    Examples::
 
-        >>> from json import dumps
-        >>>
-        >>> class Reminder:
-        ...   def __init__(self, when, where, what):
-        ...     self.when = when
-        ...     self.where = where
-        ...     self.what = what
-        ...   def __repr__(self):
-        ...     return 'Reminder({0.when}, {0.where}, {0.what})'.format(self)
-        ...
-        >>> reminders = [
-        ...   Reminder('Fri', 'Home', 'Eat cereal'),
-        ...   Reminder('Fri', 'Work', 'Feed Ivan'),
-        ...   Reminder('Sat', 'Home', 'Sleep in'),
-        ...   Reminder('Sat', 'Home', 'Play Zelda'),
-        ...   Reminder('Sun', 'Home', 'Sleep in'),
-        ...   Reminder('Sun', 'Work', 'Reset database')]
-        >>>
-        >>> print(dumps(groupify(reminders, None), indent=2, default=repr))
-        ... [
-        ...   "Reminder(Fri, Home, Eat cereal)",
-        ...   "Reminder(Fri, Work, Feed Ivan)",
-        ...   "Reminder(Sat, Home, Sleep in)",
-        ...   "Reminder(Sat, Home, Play Zelda)",
-        ...   "Reminder(Sun, Home, Sleep in)",
-        ...   "Reminder(Sun, Work, Reset database)"
-        ... ]
-        >>>
-        >>> print(dumps(groupify(reminders, 'when'), indent=2, default=repr))
-        ... {
-        ...   "Fri": [
-        ...     "Reminder(Fri, Home, Eat cereal)",
-        ...     "Reminder(Fri, Work, Feed Ivan)"
-        ...   ],
-        ...   "Sat": [
-        ...     "Reminder(Sat, Home, Sleep in)",
-        ...     "Reminder(Sat, Home, Play Zelda)"
-        ...   ],
-        ...   "Sun": [
-        ...     "Reminder(Sun, Home, Sleep in)",
-        ...     "Reminder(Sun, Work, Reset database)"
-        ...   ]
-        ... }
-        >>>
-        >>> print(dumps(groupify(reminders, ['when', 'where']),
-        ...             indent=2, default=repr))
-        ... {
-        ...   "Fri": {
-        ...     "Home": [
-        ...       "Reminder(Fri, Home, Eat cereal)"
-        ...     ],
-        ...     "Work": [
-        ...       "Reminder(Fri, Work, Feed Ivan)"
-        ...     ]
-        ...   },
-        ...   "Sat": {
-        ...     "Home": [
-        ...       "Reminder(Sat, Home, Sleep in)",
-        ...       "Reminder(Sat, Home, Play Zelda)"
-        ...     ]
-        ...   },
-        ...   "Sun": {
-        ...     "Home": [
-        ...       "Reminder(Sun, Home, Sleep in)"
-        ...     ],
-        ...     "Work": [
-        ...       "Reminder(Sun, Work, Reset database)"
-        ...     ]
-        ...   }
-        ... }
-        >>>
-        >>> print(dumps(groupify(reminders, ['when', 'where'], 'what'),
-        ...             indent=2))
-        ... {
-        ...   "Fri": {
-        ...     "Home": [
-        ...       "Eat cereal"
-        ...     ],
-        ...     "Work": [
-        ...       "Feed Ivan"
-        ...     ]
-        ...   },
-        ...   "Sat": {
-        ...     "Home": [
-        ...       "Sleep in",
-        ...       "Play Zelda"
-        ...     ]
-        ...   },
-        ...   "Sun": {
-        ...     "Home": [
-        ...       "Sleep in"
-        ...     ],
-        ...     "Work": [
-        ...       "Reset database"
-        ...     ]
-        ...   }
-        ... }
-        >>>
-        >>> print(dumps(groupify(reminders,
-        ...                      lambda r: '{0.when} - {0.where}'.format(r),
-        ...                      'what'), indent=2))
-        ... {
-        ...   "Fri - Home": [
-        ...     "Eat cereal"
-        ...   ],
-        ...   "Fri - Work": [
-        ...     "Feed Ivan"
-        ...   ],
-        ...   "Sat - Home": [
-        ...     "Sleep in",
-        ...     "Play Zelda"
-        ...   ],
-        ...   "Sun - Home": [
-        ...     "Sleep in"
-        ...   ],
-        ...   "Sun - Work": [
-        ...     "Reset database"
-        ...   ]
-        ... }
-        >>>
-
-    """
-    if not keys:
-        return items
-    keys = listify(keys)
-    last_key = keys[-1]
-    call_val_key = callable(val_key)
-    groupified = OrderedDict()
-    for item in items:
-        current = groupified
-        for key in keys:
-            attr = key(item) if callable(key) else getattr(item, key)
-            if attr not in current:
-                current[attr] = [] if key is last_key else OrderedDict()
-            current = current[attr]
-        if val_key:
-            value = val_key(item) if call_val_key else getattr(item, val_key)
-        else:
-            value = item
-        current.append(value)
-    return groupified
+def url_domain(url):
+    url = url.strip().replace('//', '/')
+    url = re.sub(r'^https?:/', '', url)
+    url = re.sub(r'^www\.', '', url)
+    return url.split('/', 1)[0].strip('@#?=. ')
 
 
 def normalize_phone(phone_number, country='US'):
@@ -265,51 +123,68 @@ def localize_datetime(dt):
     return dt.replace(tzinfo=UTC).astimezone(c.EVENT_TIMEZONE)
 
 
-def ceil_datetime(dt, delta):
-    """Only works in Python 3"""
-    dt_min = datetime.min.replace(tzinfo=dt.tzinfo)
-    dt += (dt_min - dt) % delta
-    return dt
-
-
-def floor_datetime(dt, delta):
-    """Only works in Python 3"""
-    dt_min = datetime.min.replace(tzinfo=dt.tzinfo)
-    dt -= (dt - dt_min) % delta
-    return dt
+def hour_day_format(dt):
+    """
+    Accepts a localized datetime object and returns a formatted string showing
+    only the day and hour, e.g "7pm Thu" or "10am Sun".
+    """
+    return dt.astimezone(c.EVENT_TIMEZONE).strftime('%I%p ').strip('0').lower() + dt.astimezone(c.EVENT_TIMEZONE).strftime('%a')
 
 
 def noon_datetime(dt):
-    """Only works in Python 3"""
     return floor_datetime(dt, timedelta(days=1)) + timedelta(hours=12)
 
 
 def evening_datetime(dt):
-    """Only works in Python 3"""
     return floor_datetime(dt, timedelta(days=1)) + timedelta(hours=17)
 
 
-@JinjaEnv.jinja_filter
-def comma_and(xs, conjunction='and'):
+def mask_string(s, mask_char='*', min_unmask=1, max_unmask=2):
     """
-    Accepts a list of strings and separates them with commas as grammatically
-    appropriate with a conjunction before the final entry. For example::
+    Masks the trailing portion of the given string with asterisks.
 
-        >>> comma_and(['foo'])
-        'foo'
-        >>> comma_and(['foo', 'bar'])
-        'foo and bar'
-        >>> comma_and(['foo', 'bar', 'baz'])
-        'foo, bar, and baz'
-        >>> comma_and(['foo', 'bar', 'baz'], 'or')
-        'foo, bar, or baz'
-        >>> comma_and(['foo', 'bar', 'baz'], 'but never')
-        'foo, bar, but never baz'
+    The number of unmasked characters will never be less than `min_unmask` or
+    greater than `max_unmask`. Within those bounds, the number of unmasked
+    characters always be smaller than half the length of `s`.
+
+    Example::
+
+        >>> for i in range(0, 12):
+        ...     mask('A' * i, min_unmask=1, max_unmask=4)
+        ... ''
+        ... 'A'
+        ... 'A*'
+        ... 'A**'
+        ... 'A***'
+        ... 'AA***'
+        ... 'AA****'
+        ... 'AAA****'
+        ... 'AAA*****'
+        ... 'AAAA*****'
+        ... 'AAAA******'
+        ... 'AAAA*******'
+        >>>
+
+    Arguments:
+        s (str): The string to be masked.
+        mask_char (str): The character that should be used as the mask.
+            Defaults to an asterisk "*".
+        min_unmask (int): Defines the minimum number of characters that are
+            allowed to be unmasked. If the length of `s` is less than or equal
+            to `min_unmask`, then `s` is returned unmodified. Defaults to 1.
+        max_unmask (int): Defines the maximum number of characters that are
+            allowed to be unmasked. Defaults to 2.
+
+    Returns:
+        str: A copy of `s` with a portion of the string masked by `mask_char`.
     """
-    if len(xs) > 1:
-        xs = list(xs)
-        xs[-1] = conjunction + ' ' + xs[-1]
-    return (', ' if len(xs) > 2 else ' ').join(xs)
+    s_len = len(s)
+    if s_len <= min_unmask:
+        return s
+    elif s_len <= (2 * max_unmask):
+        unmask = max(min_unmask, math.ceil(s_len / 2) - 1)
+        return s[:unmask] + (mask_char * (s_len - unmask))
+    return s[:max_unmask] + (mask_char * (s_len - max_unmask))
 
 
 def check_csrf(csrf_token=None):
@@ -429,14 +304,6 @@ for _slug, _conf in sorted(c.DEPT_HEAD_CHECKLIST.items(), key=lambda tup: tup[1]
     DeptChecklistConf.register(_slug, _conf)
 
 
-def hour_day_format(dt):
-    """
-    Accepts a localized datetime object and returns a formatted string showing
-    only the day and hour, e.g "7pm Thu" or "10am Sun".
-    """
-    return dt.astimezone(c.EVENT_TIMEZONE).strftime('%I%p ').strip('0').lower() + dt.astimezone(c.EVENT_TIMEZONE).strftime('%a')
-
-
 def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=None, ident=None):
     subject = subject.format(EVENT_NAME=c.EVENT_NAME)
     to, cc, bcc = map(listify, [dest, cc, bcc])
@@ -531,11 +398,11 @@ class Charge:
         elif isinstance(m, sa.Attendee):
             return m.to_dict(sa.Attendee.to_dict_default_attrs
                 + ['promo_code']
-                + list(sa.Attendee.extra_apply_attrs_restricted))
+                + list(sa.Attendee._extra_apply_attrs_restricted))
         elif isinstance(m, sa.Group):
             return m.to_dict(sa.Group.to_dict_default_attrs
                 + ['attendees']
-                + list(sa.Group.extra_apply_attrs_restricted))
+                + list(sa.Group._extra_apply_attrs_restricted))
         else:
             raise AssertionError('{} is not an attendee or group'.format(m))
 

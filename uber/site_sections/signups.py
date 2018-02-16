@@ -1,3 +1,5 @@
+from pockets.autolog import log
+
 from uber.common import *
 from uber.custom_tags import safe_string
 

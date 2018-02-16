@@ -186,7 +186,7 @@
     <div class="col-sm-6">
       <select name="restriction" class="form-control">
         {%- set restriction = 0 if is_class else attraction.restriction -%}
-        {{ options(attraction.RESTRICTION_OPTS, restriction) }}
+        {{ options(attraction._RESTRICTION_OPTS, restriction) }}
       </select>
     </div>
   </div>
@@ -195,7 +195,7 @@
     <div class="col-sm-6">
       <select name="advance_checkin" class="form-control">
         {%- set advance_checkin = 0 if is_class else attraction.advance_checkin -%}
-        {{ options(attraction.ADVANCE_CHECKIN_OPTS, advance_checkin) }}
+        {{ options(attraction._ADVANCE_CHECKIN_OPTS, advance_checkin) }}
       </select>
     </div>
   </div>
@@ -208,7 +208,7 @@
         </div>
         <div class="form-inline notification">
           <select name="advance_notices" class="form-control" style="width: auto; display: inline-block;">
-            {{ options(attraction.ADVANCE_NOTICES_OPTS, attraction.advance_notices) }}
+            {{ options(attraction._ADVANCE_NOTICES_OPTS, attraction.advance_notices) }}
           </select>
           <span class="glyphicon glyphicon-plus-sign"></span>
         </div>

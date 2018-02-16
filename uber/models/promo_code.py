@@ -31,31 +31,31 @@ class PromoCodeWord(MagModel):
         part_of_speech (int): The part of speech that `word` is.
             Valid values are:
 
-            * 0 `ADJECTIVE`: `word` is an adjective
+            * 0 `_ADJECTIVE`: `word` is an adjective
 
-            * 1 `NOUN`: `word` is a noun
+            * 1 `_NOUN`: `word` is a noun
 
-            * 2 `VERB`: `word` is a verb
+            * 2 `_VERB`: `word` is a verb
 
-            * 3 `ADVERB`: `word` is an adverb
+            * 3 `_ADVERB`: `word` is an adverb
 
         part_of_speech_str (str): A human readable description of
             `part_of_speech`.
     """
 
-    ADJECTIVE = 0
-    NOUN = 1
-    VERB = 2
-    ADVERB = 3
-    PART_OF_SPEECH_OPTS = [
-        (ADJECTIVE, 'adjective'),
-        (NOUN, 'noun'),
-        (VERB, 'verb'),
-        (ADVERB, 'adverb')]
-    PARTS_OF_SPEECH = dict(PART_OF_SPEECH_OPTS)
+    _ADJECTIVE = 0
+    _NOUN = 1
+    _VERB = 2
+    _ADVERB = 3
+    _PART_OF_SPEECH_OPTS = [
+        (_ADJECTIVE, 'adjective'),
+        (_NOUN, 'noun'),
+        (_VERB, 'verb'),
+        (_ADVERB, 'adverb')]
+    _PARTS_OF_SPEECH = dict(_PART_OF_SPEECH_OPTS)
 
     word = Column(UnicodeText)
-    part_of_speech = Column(Choice(PART_OF_SPEECH_OPTS), default=ADJECTIVE)
+    part_of_speech = Column(Choice(_PART_OF_SPEECH_OPTS), default=_ADJECTIVE)
 
     __table_args__ = (
         Index(
@@ -76,7 +76,7 @@ class PromoCodeWord(MagModel):
 
     @property
     def part_of_speech_str(self):
-        return self.PARTS_OF_SPEECH[self.part_of_speech].title()
+        return self._PARTS_OF_SPEECH[self.part_of_speech].title()
 
     @presave_adjustment
     def _attribute_adjustments(self):
@@ -103,7 +103,7 @@ class PromoCodeWord(MagModel):
                     ])
         """
         parts_of_speech = OrderedDict(
-            [(i, []) for (i, _) in PromoCodeWord.PART_OF_SPEECH_OPTS])
+            [(i, []) for (i, _) in PromoCodeWord._PART_OF_SPEECH_OPTS])
         for word in words:
             parts_of_speech[word.part_of_speech].append(word.word)
         return parts_of_speech
@@ -123,8 +123,8 @@ class PromoCodeWord(MagModel):
         return re.sub(r'\s+', ' ', word.strip().lower())
 
 
-c.PROMO_CODE_WORD_PART_OF_SPEECH_OPTS = PromoCodeWord.PART_OF_SPEECH_OPTS
-c.PROMO_CODE_WORD_PARTS_OF_SPEECH = PromoCodeWord.PARTS_OF_SPEECH
+c.PROMO_CODE_WORD_PART_OF_SPEECH_OPTS = PromoCodeWord._PART_OF_SPEECH_OPTS
+c.PROMO_CODE_WORD_PARTS_OF_SPEECH = PromoCodeWord._PARTS_OF_SPEECH
 
 
 class PromoCode(MagModel):
@@ -144,16 +144,16 @@ class PromoCode(MagModel):
         discount_type (int): The type of discount this promo code will apply.
             Valid values are:
 
-            * 0 `FIXED_DISCOUNT`: `discount` is interpreted as a fixed
+            * 0 `_FIXED_DISCOUNT`: `discount` is interpreted as a fixed
                 dollar amount by which the badge price should be reduced. If
                 `discount` is 49 and the badge price is normally $100, then
                 the discounted badge price would be $51.
 
-            * 1 `FIXED_PRICE`: `discount` is interpreted as the actual badge
+            * 1 `_FIXED_PRICE`: `discount` is interpreted as the actual badge
                 price. If `discount` is 49, then the discounted badge price
                 would be $49.
 
-            * 2 `PERCENT_DISCOUNT`: `discount` is interpreted as a percentage
+            * 2 `_PERCENT_DISCOUNT`: `discount` is interpreted as a percentage
                 by which the badge price should be reduced. If `discount` is
                 20 and the badge price is normally $50, then the discounted
                 badge price would $40 ($50 reduced by 20%). If `discount` is
@@ -198,15 +198,15 @@ class PromoCode(MagModel):
             uses_remaining.
     """
 
-    FIXED_DISCOUNT = 0
-    FIXED_PRICE = 1
-    PERCENT_DISCOUNT = 2
-    DISCOUNT_TYPE_OPTS = [
-        (FIXED_DISCOUNT, 'Fixed Discount'),
-        (FIXED_PRICE, 'Fixed Price'),
-        (PERCENT_DISCOUNT, 'Percent Discount')]
+    _FIXED_DISCOUNT = 0
+    _FIXED_PRICE = 1
+    _PERCENT_DISCOUNT = 2
+    _DISCOUNT_TYPE_OPTS = [
+        (_FIXED_DISCOUNT, 'Fixed Discount'),
+        (_FIXED_PRICE, 'Fixed Price'),
+        (_PERCENT_DISCOUNT, 'Percent Discount')]
 
-    AMBIGUOUS_CHARS = {
+    _AMBIGUOUS_CHARS = {
         '0': 'OQD',
         '1': 'IL',
         '2': 'Z',
@@ -214,13 +214,14 @@ class PromoCode(MagModel):
         '6': 'G',
         '8': 'B'}
 
-    UNAMBIGUOUS_CHARS = string.digits + string.ascii_uppercase
-    for _, s in AMBIGUOUS_CHARS.items():
-        UNAMBIGUOUS_CHARS = re.sub('[{}]'.format(s), '', UNAMBIGUOUS_CHARS)
+    _UNAMBIGUOUS_CHARS = string.digits + string.ascii_uppercase
+    for _, s in _AMBIGUOUS_CHARS.items():
+        _UNAMBIGUOUS_CHARS = re.sub('[{}]'.format(s), '', _UNAMBIGUOUS_CHARS)
 
     code = Column(UnicodeText)
     discount = Column(Integer, nullable=True, default=None)
-    discount_type = Column(Choice(DISCOUNT_TYPE_OPTS), default=FIXED_DISCOUNT)
+    discount_type = Column(
+        Choice(_DISCOUNT_TYPE_OPTS), default=_FIXED_DISCOUNT)
     expiration_date = Column(UTCDateTime, default=c.ESCHATON)
     uses_allowed = Column(Integer, nullable=True, default=None)
 
@@ -239,9 +240,9 @@ class PromoCode(MagModel):
         if not self.discount:
             return 'Free badge'
 
-        if self.discount_type == self.FIXED_DISCOUNT:
+        if self.discount_type == self._FIXED_DISCOUNT:
             return '${} discount'.format(self.discount)
-        elif self.discount_type == self.FIXED_PRICE:
+        elif self.discount_type == self._FIXED_PRICE:
             return '${} badge'.format(self.discount)
         else:
             return '%{} discount'.format(self.discount)
@@ -257,10 +258,10 @@ class PromoCode(MagModel):
     @property
     def is_free(self):
         return not self.discount or (
-                self.discount_type == self.PERCENT_DISCOUNT and
+                self.discount_type == self._PERCENT_DISCOUNT and
                 self.discount >= 100
             ) or (
-                self.discount_type == self.FIXED_DISCOUNT and
+                self.discount_type == self._FIXED_DISCOUNT and
                 self.discount >= c.BADGE_PRICE)
 
     @hybrid_property
@@ -361,11 +362,11 @@ class PromoCode(MagModel):
             return 0
 
         discounted_price = price
-        if self.discount_type == self.FIXED_DISCOUNT:
+        if self.discount_type == self._FIXED_DISCOUNT:
             discounted_price = price - self.discount
-        elif self.discount_type == self.FIXED_PRICE:
+        elif self.discount_type == self._FIXED_PRICE:
             discounted_price = self.discount
-        elif self.discount_type == self.PERCENT_DISCOUNT:
+        elif self.discount_type == self._PERCENT_DISCOUNT:
             discounted_price = int(price * ((100.0 - self.discount) / 100.0))
 
         return min(max(discounted_price, 0), price)
@@ -436,7 +437,7 @@ class PromoCode(MagModel):
         # The actual generator function, called repeatedly by `_generate_code`
         def _generate_random_code():
             letters = ''.join(
-                random.choice(cls.UNAMBIGUOUS_CHARS) for _ in range(length))
+                random.choice(cls._UNAMBIGUOUS_CHARS) for _ in range(length))
             return '-'.join(textwrap.wrap(letters, segment_length))
 
         return cls._generate_code(_generate_random_code, count=count)
@@ -464,7 +465,7 @@ class PromoCode(MagModel):
         # The actual generator function, called repeatedly by `_generate_code`
         def _generate_word_code():
             code_words = []
-            for part_of_speech, _ in PromoCodeWord.PART_OF_SPEECH_OPTS:
+            for part_of_speech, _ in PromoCodeWord._PART_OF_SPEECH_OPTS:
                 if words[part_of_speech]:
                     code_words.append(random.choice(words[part_of_speech]))
             return ' '.join(code_words)
@@ -486,7 +487,7 @@ class PromoCode(MagModel):
         code = cls.normalize_code(code)
         if not code:
             return ''
-        for unambiguous, ambiguous in cls.AMBIGUOUS_CHARS.items():
+        for unambiguous, ambiguous in cls._AMBIGUOUS_CHARS.items():
             ambiguous_pattern = '[{}]'.format(ambiguous.lower())
             code = re.sub(ambiguous_pattern, unambiguous.lower(), code)
         return code
@@ -508,4 +509,4 @@ class PromoCode(MagModel):
         return re.sub(r'[\s\-]+', '', code.lower())
 
 
-c.PROMO_CODE_DISCOUNT_TYPE_OPTS = PromoCode.DISCOUNT_TYPE_OPTS
+c.PROMO_CODE_DISCOUNT_TYPE_OPTS = PromoCode._DISCOUNT_TYPE_OPTS

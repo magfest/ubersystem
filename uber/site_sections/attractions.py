@@ -1,3 +1,5 @@
+from pockets import sluggify
+
 from uber.common import *
 from uber.models.attraction import *
 from uber.site_sections.preregistration import check_post_con
@@ -178,11 +180,11 @@ class Root:
 
         if event not in attendee.attraction_events:
             attraction = event.feature.attraction
-            if attraction.restriction == Attraction.PER_ATTRACTION:
+            if attraction.restriction == Attraction._PER_ATTRACTION:
                 if attraction in attendee.attractions:
                     return {'error': '{} is already signed up for {}'.format(
                             attendee.first_name, attraction.name)}
-            elif attraction.restriction == Attraction.PER_FEATURE:
+            elif attraction.restriction == Attraction._PER_FEATURE:
                 if event.feature in attendee.attraction_features:
                     return {'error': '{} is already signed up for {}'.format(
                             attendee.first_name, event.feature.name)}

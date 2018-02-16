@@ -1,8 +1,8 @@
 import re
 from datetime import datetime
 
+from pockets import cached_property
 from pytz import UTC
-from sideboard.lib import cached_property
 from sideboard.lib.sa import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 
 from uber.custom_tags import safe_string

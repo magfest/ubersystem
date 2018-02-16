@@ -174,7 +174,7 @@
     <label class="col-sm-3 control-label">Visibility{{ macros.popup_link("../static_views/visibility.html") }}</label>
     <div class="col-sm-6">
       <select name="visibility" class="form-control">
-        {{ options(job.VISIBILITY_OPTS, job.visibility) }}
+        {{ options(job._VISIBILITY_OPTS, job.visibility) }}
       </select>
     </div>
   </div>

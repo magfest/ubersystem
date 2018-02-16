@@ -1,3 +1,5 @@
+from pockets import unwrap
+
 from uber.common import *
 
 
@@ -208,7 +210,7 @@ class Root:
             for name in dir(module_root):
                 method = getattr(module_root, name)
                 if getattr(method, 'exposed', False):
-                    spec = inspect.getfullargspec(get_innermost(method))
+                    spec = inspect.getfullargspec(unwrap(method))
                     if set(getattr(method, 'restricted', []) or []).intersection(access_set) \
                             and not getattr(method, 'ajax', False) \
                             and (getattr(method, 'site_mappable', False)

@@ -189,14 +189,14 @@
       var $notificationPref = $doneModal.find('.notification_pref'),
           attendeeData = $doneModal.data('attendee');
       if (attendeeData && attendeeData.hasOwnProperty('notification_pref')) {
-        if (attendeeData['notification_pref'] === {{ Attendee.NOTIFICATION_NONE }}) {
+        if (attendeeData['notification_pref'] === {{ Attendee._NOTIFICATION_NONE }}) {
           $notificationPref.html(
             'You will <b>not</b> be notified because you have <b>disabled</b> event notifications.');
         } else {
           var icon = '';
-          if (attendeeData['notification_pref'] === {{ Attendee.NOTIFICATION_EMAIL }}) {
+          if (attendeeData['notification_pref'] === {{ Attendee._NOTIFICATION_EMAIL }}) {
             icon = '<span class="glyphicon glyphicon-envelope"></span> ';
-          } else if (attendeeData['notification_pref'] === {{ Attendee.NOTIFICATION_TEXT }}) {
+          } else if (attendeeData['notification_pref'] === {{ Attendee._NOTIFICATION_TEXT }}) {
             icon = '<span class="glyphicon glyphicon-phone"></span> ';
           }
           $notificationPref.html(

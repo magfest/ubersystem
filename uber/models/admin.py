@@ -38,10 +38,6 @@ class AdminAccount(MagModel):
         return '<{}>'.format(self.attendee.full_name)
 
     @staticmethod
-    def is_nick():
-        return AdminAccount.admin_name() in c.JERKS
-
-    @staticmethod
     def admin_name():
         try:
             from uber.models import Session

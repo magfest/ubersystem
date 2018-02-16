@@ -1,5 +1,7 @@
-from uber.common import *
+from pockets.autolog import log
 from sqlalchemy.sql.expression import literal
+
+from uber.common import *
 
 
 class RegistrationDataOneYear:

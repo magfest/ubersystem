@@ -5,8 +5,10 @@ import re
 from datetime import date, datetime
 from uuid import uuid4
 
+from pockets import cached_property, classproperty, groupify, listify, \
+    is_listy, readable_join
+from pockets.autolog import log
 from pytz import UTC
-from sideboard.lib import cached_property, listify, is_listy, log
 from sideboard.lib.sa import CoerceUTF8 as UnicodeText, \
     UTCDateTime, UUID
 from sqlalchemy import and_, case, func, or_
@@ -18,14 +20,14 @@ from sqlalchemy.types import Boolean, Date, Integer
 
 from uber.config import c
 from uber.custom_tags import safe_string
-from uber.decorators import classproperty, cost_property, \
-    department_id_adapter, predelete_adjustment, presave_adjustment, render
+from uber.decorators import cost_property, department_id_adapter, \
+    predelete_adjustment, presave_adjustment, render
 from uber.models import MagModel
 from uber.models.group import Group
 from uber.models.types import default_relationship as relationship, utcnow, \
     Choice, DefaultColumn as Column, MultiChoice, TakesPaymentMixin
-from uber.utils import add_opt, comma_and, get_age_from_birthday, \
-    get_real_badge_type, groupify, hour_day_format, localized_now, \
+from uber.utils import add_opt, get_age_from_birthday, \
+    get_real_badge_type, hour_day_format, localized_now, mask_string, \
     remove_opt, send_email
 
 
@@ -145,54 +147,6 @@ name_suffixes = [
 
 normalized_name_suffixes = [
     re.sub(r'[,\.]', '', s.lower()) for s in name_suffixes]
-
-
-def mask(s, mask_char='*', min_unmask=1, max_unmask=2):
-    """
-    Masks the trailing portion of the given string with asterisks.
-
-    The number of unmasked characters will never be less than `min_unmask` or
-    greater than `max_unmask`. Within those bounds, the number of unmasked
-    characters always be smaller than half the length of `s`.
-
-    Example::
-
-        >>> for i in range(0, 12):
-        ...     mask('A' * i, min_unmask=1, max_unmask=4)
-        ... ''
-        ... 'A'
-        ... 'A*'
-        ... 'A**'
-        ... 'A***'
-        ... 'AA***'
-        ... 'AA****'
-        ... 'AAA****'
-        ... 'AAA*****'
-        ... 'AAAA*****'
-        ... 'AAAA******'
-        ... 'AAAA*******'
-        >>>
-
-    Arguments:
-        s (str): The string to be masked.
-        mask_char (str): The character that should be used as the mask.
-            Defaults to an asterisk "*".
-        min_unmask (int): Defines the minimum number of characters that are
-            allowed to be unmasked. If the length of `s` is less than or equal
-            to `min_unmask`, then `s` is returned unmodified. Defaults to 1.
-        max_unmask (int): Defines the maximum number of characters that are
-            allowed to be unmasked. Defaults to 2.
-
-    Returns:
-        str: A copy of `s` with a portion of the string masked by `mask_char`.
-    """
-    s_len = len(s)
-    if s_len <= min_unmask:
-        return s
-    elif s_len <= (2 * max_unmask):
-        unmask = max(min_unmask, math.ceil(s_len / 2) - 1)
-        return s[:unmask] + (mask_char * (s_len - unmask))
-    return s[:max_unmask] + (mask_char * (s_len - max_unmask))
 
 
 def _generate_hotel_pin():
@@ -463,16 +417,16 @@ class Attendee(MagModel, TakesPaymentMixin):
     # =========================
     # attractions
     # =========================
-    NOTIFICATION_EMAIL = 0
-    NOTIFICATION_TEXT = 1
-    NOTIFICATION_NONE = 2
-    NOTIFICATION_PREF_OPTS = [
-        (NOTIFICATION_EMAIL, 'Email'),
-        (NOTIFICATION_TEXT, 'Text'),
-        (NOTIFICATION_NONE, 'None')]
+    _NOTIFICATION_EMAIL = 0
+    _NOTIFICATION_TEXT = 1
+    _NOTIFICATION_NONE = 2
+    _NOTIFICATION_PREF_OPTS = [
+        (_NOTIFICATION_EMAIL, 'Email'),
+        (_NOTIFICATION_TEXT, 'Text'),
+        (_NOTIFICATION_NONE, 'None')]
 
     notification_pref = Column(
-        Choice(NOTIFICATION_PREF_OPTS), default=NOTIFICATION_EMAIL)
+        Choice(_NOTIFICATION_PREF_OPTS), default=_NOTIFICATION_EMAIL)
 
     attractions_opt_out = Column(Boolean, default=False)
 
@@ -1091,7 +1045,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         e.g. saying that someone gets a 'Supporter Pack' without listing each
         individual item in the pack.
         """
-        return comma_and(
+        return readable_join(
             [item for item in self.merch_items if not is_listy(item)])
 
     @property
@@ -1114,7 +1068,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def staff_merch(self):
         """Used if c.SEPARATE_STAFF_MERCH is true to return the staff swag."""
-        return comma_and(self.staff_merch_items)
+        return readable_join(self.staff_merch_items)
 
     @property
     def accoutrements(self):
@@ -1127,7 +1081,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 c.WRISTBAND_COLORS[self.age_group]))
         if self.regdesk_info:
             stuff.append(self.regdesk_info)
-        return (' with ' if stuff else '') + comma_and(stuff)
+        return (' with ' if stuff else '') + readable_join(stuff)
 
     @property
     def multiply_assigned(self):
@@ -1182,10 +1136,10 @@ class Attendee(MagModel, TakesPaymentMixin):
 
             requested_any_dept = None in requested_dept_ids
             if requested_any_dept:
-                requested_filter = Job.visibility > Job.ONLY_MEMBERS
+                requested_filter = Job.visibility > Job._ONLY_MEMBERS
             elif requested_dept_ids:
                 requested_filter = and_(
-                    Job.visibility > Job.ONLY_MEMBERS,
+                    Job.visibility > Job._ONLY_MEMBERS,
                     Job.department_id.in_(requested_dept_ids))
 
         if member_filter is not None and requested_filter is not None:
@@ -1262,12 +1216,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     # ========================================================================
 
     @classproperty
-    def extra_apply_attrs(cls):
+    def _extra_apply_attrs(cls):
         return set(['assigned_depts_ids']).union(
-            cls.extra_apply_attrs_restricted)
+            cls._extra_apply_attrs_restricted)
 
     @classproperty
-    def extra_apply_attrs_restricted(cls):
+    def _extra_apply_attrs_restricted(cls):
         return set(['requested_depts_ids'])
 
     @property
@@ -1672,7 +1626,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     def masked_email(self):
         name, _, domain = self.email.partition('@')
         sub_domain, _, tld = domain.rpartition('.')
-        return '{}@{}.{}'.format(mask(name), mask(sub_domain), tld)
+        return '{}@{}.{}'.format(
+            mask_string(name), mask_string(sub_domain), tld)
 
     @property
     def masked_cellphone(self):
@@ -1682,9 +1637,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def masked_notification_pref(self):
-        if self.notification_pref == self.NOTIFICATION_EMAIL:
+        if self.notification_pref == self._NOTIFICATION_EMAIL:
             return self.masked_email
-        elif self.notification_pref == self.NOTIFICATION_TEXT:
+        elif self.notification_pref == self._NOTIFICATION_TEXT:
             return self.masked_cellphone or self.masked_email
         return ''
 

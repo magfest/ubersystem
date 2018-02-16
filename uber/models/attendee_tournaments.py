@@ -5,14 +5,11 @@ The attendee_tournaments module is no longer used, but has been
 included for backward compatibility with legacy servers.
 """
 
-import re
-
 from sideboard.lib.sa import CoerceUTF8 as UnicodeText
 from sqlalchemy import func
 from sqlalchemy.types import Boolean
 
 from uber.config import c
-from uber.decorators import validation
 from uber.models import MagModel, Attendee
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
 
@@ -49,29 +46,3 @@ class AttendeeTournament(MagModel):
             Attendee.last_name == self.last_name.title(),
             func.lower(Attendee.email) == self.email.lower()
         ).first()
-
-
-AttendeeTournament.required = [
-    ('first_name', 'First Name'),
-    ('last_name', 'Last Name'),
-    ('email', 'Email Address'),
-    ('game', 'Game Title'),
-    ('availability', 'Your Availability'),
-    ('format', 'Tournament Format'),
-    ('experience', 'Past Experience'),
-    ('needs', 'Your Needs'),
-    ('why', '"Why?"'),
-]
-
-
-@validation.AttendeeTournament
-def email(app):
-    if not re.match(c.EMAIL_RE, app.email):
-        return 'You did not enter a valid email address'
-
-
-@validation.AttendeeTournament
-def cellphone(app):
-    from uber.model_checks import _invalid_phone_number
-    if app.cellphone and _invalid_phone_number(app.cellphone):
-        return 'You did not enter a valid cellphone number'

@@ -1,3 +1,5 @@
+from pockets.autolog import log
+
 from uber.common import *
 
 

@@ -18,7 +18,7 @@ from alembic import op
 import sqlalchemy as sa
 import sideboard.lib.sa
 from sqlalchemy.sql import table
-from uber.utils import sluggify
+from pockets import sluggify
 
 
 try:
