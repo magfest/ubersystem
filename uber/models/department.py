@@ -2,7 +2,7 @@ import uuid
 from datetime import timedelta
 
 import six
-from sideboard.lib import cached_property
+from pockets import cached_property, classproperty, readable_join
 from sideboard.lib.sa import CoerceUTF8 as UnicodeText, \
     UTCDateTime, UUID
 from sqlalchemy import and_, exists, func, or_, select
@@ -12,12 +12,10 @@ from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.types import Boolean, Float, Integer
 
 from uber.config import c
-from uber.decorators import classproperty
 from uber.models import MagModel
 from uber.models.attendee import Attendee
 from uber.models.types import default_relationship as relationship, \
     Choice, DefaultColumn as Column
-from uber.utils import comma_and
 
 
 __all__ = [
@@ -148,9 +146,9 @@ class DeptRole(MagModel):
         return func.count(cls.dept_memberships)
 
     @classproperty
-    def extra_apply_attrs(cls):
+    def _extra_apply_attrs(cls):
         return set(['dept_memberships_ids']).union(
-            cls.extra_apply_attrs_restricted)
+            cls._extra_apply_attrs_restricted)
 
     @property
     def dept_memberships_ids(self):
@@ -314,11 +312,11 @@ class Department(MagModel):
 
 
 class Job(MagModel):
-    ONLY_MEMBERS = 0
-    ALL_VOLUNTEERS = 2
-    VISIBILITY_OPTS = [
-        (ONLY_MEMBERS, 'Members of this department'),
-        (ALL_VOLUNTEERS,
+    _ONLY_MEMBERS = 0
+    _ALL_VOLUNTEERS = 2
+    _VISIBILITY_OPTS = [
+        (_ONLY_MEMBERS, 'Members of this department'),
+        (_ALL_VOLUNTEERS,
             'Volunteers who\'ve requested this dept or "Anywhere"')]
 
     type = Column(Choice(c.JOB_TYPE_OPTS), default=c.REGULAR)
@@ -330,7 +328,7 @@ class Job(MagModel):
     slots = Column(Integer)
     extra15 = Column(Boolean, default=False)
     department_id = Column(UUID, ForeignKey('department.id'))
-    visibility = Column(Choice(VISIBILITY_OPTS), default=ONLY_MEMBERS)
+    visibility = Column(Choice(_VISIBILITY_OPTS), default=_ONLY_MEMBERS)
 
     required_roles = relationship(
         'DeptRole',
@@ -346,9 +344,9 @@ class Job(MagModel):
     _repr_attr_names = ['name']
 
     @classproperty
-    def extra_apply_attrs(cls):
+    def _extra_apply_attrs(cls):
         return set(['required_roles_ids']).union(
-            cls.extra_apply_attrs_restricted)
+            cls._extra_apply_attrs_restricted)
 
     @hybrid_property
     def department_name(self):
@@ -370,7 +368,7 @@ class Job(MagModel):
 
     @property
     def required_roles_labels(self):
-        return comma_and([r.name for r in self.required_roles])
+        return readable_join([r.name for r in self.required_roles])
 
     @property
     def required_roles_ids(self):
@@ -416,11 +414,11 @@ class Job(MagModel):
 
     @hybrid_property
     def is_public(self):
-        return self.visibility > Job.ONLY_MEMBERS
+        return self.visibility > Job._ONLY_MEMBERS
 
     @is_public.expression
     def is_public(cls):
-        return cls.visibility > Job.ONLY_MEMBERS
+        return cls.visibility > Job._ONLY_MEMBERS
 
     @hybrid_property
     def is_unfilled(self):

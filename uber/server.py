@@ -1,6 +1,9 @@
+from pockets.autolog import log
 from sideboard.jsonrpc import _make_jsonrpc_handler
 from sideboard.server import jsonrpc_reset
+
 from uber.common import *
+
 
 mimetypes.init()
 

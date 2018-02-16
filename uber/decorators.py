@@ -1,9 +1,11 @@
 import functools
 
 import six
-
+from pockets import argmod, unwrap
+from pockets.autolog import log
 from sideboard.lib import profile
-from uber.barcode.utils import get_badge_num_from_barcode
+
+from uber.barcode import get_badge_num_from_barcode
 from uber.common import *
 
 
@@ -97,10 +99,6 @@ def check_for_encrypted_badge_num(func):
     return with_check
 
 
-def get_innermost(func):
-    return get_innermost(func.__wrapped__) if hasattr(func, '__wrapped__') else func
-
-
 def site_mappable(func):
     func.site_mappable = True
     return func
@@ -124,36 +122,9 @@ def _suffix_property_check(inst, name):
 suffix_property.check = _suffix_property_check
 
 
-def department_id_adapter(func):
-    argspec = inspect.getfullargspec(get_innermost(func))
-    if 'department_id' not in argspec.args:
-        return func
-    arg_index = argspec.args.index('department_id')
-    possible_args = ('location', 'department', 'department_id')
-
-    @wraps(func)
-    def _adapter(*args, **kwargs):
-        argvalues = inspect.getargvalues(inspect.currentframe())
-        has_kwarg = False
-        department_id = None
-        for arg in possible_args:
-            if arg in kwargs:
-                has_kwarg = True
-                department_id = kwargs[arg]
-                del kwargs[arg]
-
-        if has_kwarg:
-            from uber.models.department import Department
-            department_id = Department.to_id(department_id)
-            return func(*args, department_id=department_id, **kwargs)
-        elif arg_index < len(args):
-            from uber.models.department import Department
-            args = list(args)
-            args[arg_index] = Department.to_id(args[arg_index])
-            return func(*args, **kwargs)
-        return func(*args, **kwargs)
-
-    return _adapter
+department_id_adapter = argmod(
+    ['location', 'department', 'department_id'],
+    lambda d: uber.models.department.Department.to_id(d))
 
 
 @department_id_adapter
@@ -384,7 +355,7 @@ def cached(func):
 
 
 def cached_page(func):
-    innermost = get_innermost(func)
+    innermost = unwrap(func)
     if hasattr(innermost, 'cached'):
         from sideboard.lib import config as sideboard_config
         func.lock = RLock()
@@ -420,7 +391,7 @@ def timed(func):
 
 
 def sessionized(func):
-    innermost = get_innermost(func)
+    innermost = unwrap(func)
     if 'session' not in inspect.getfullargspec(innermost).args:
         return func
 
@@ -450,10 +421,6 @@ def render(template_name_list, data=None):
     env = JinjaEnv.env()
     template = env.get_or_select_template(template_name_list)
     rendered = template.render(data)
-
-    # disabled for performance optimzation.  so sad. IT SHALL RETURN
-    # rendered = screw_you_nick(rendered, template)  # lolz.
-
     return rendered.encode('utf-8')
 
 
@@ -461,16 +428,6 @@ def render_empty(template_name_list):
     env = JinjaEnv.env()
     template = env.get_or_select_template(template_name_list)
     return str(open(template.filename, 'r').read())
-
-
-# this is a Magfest inside joke.
-# Nick gets mad when people call Magfest a "convention".  He always says "It's not a convention, it's a festival"
-# So........ if Nick is logged in.... let's annoy him a bit :)
-def screw_you_nick(rendered, template):
-    if not c.AT_THE_CON and sa.AdminAccount.is_nick() and 'emails' not in template and 'history' not in template and 'form' not in rendered:
-        return rendered.replace('festival', 'convention').replace('Fest', 'Con')  # lolz.
-    else:
-        return rendered
 
 
 def get_module_name(class_or_func):
@@ -639,22 +596,6 @@ class cost_property(property):
             def food_price(self):
                 return c.FOOD_PRICE if self.purchased_food else 0
     """
-
-
-class cached_classproperty(property):
-    """
-    Like @cached_property except it works on classes instead of instances.
-    """
-    def __init__(self, fget, *arg, **kw):
-        super(cached_classproperty, self).__init__(fget, *arg, **kw)
-        self.__doc__ = fget.__doc__
-        self.__fget_name__ = fget.__name__
-
-    def __get__(desc, self, cls):
-        cache_attr = '_cached_{}_{}'.format(desc.__fget_name__, cls.__name__)
-        if not hasattr(cls, cache_attr):
-            setattr(cls, cache_attr, desc.fget(cls))
-        return getattr(cls, cache_attr)
 
 
 def create_redirect(url, access=[c.PEOPLE]):

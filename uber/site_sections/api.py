@@ -1,4 +1,7 @@
 from inspect import getargspec, getmembers, ismethod
+
+from pockets import unwrap
+
 from uber.common import *
 
 
@@ -33,7 +36,7 @@ class Root:
             methods = []
             for method_name, method in getmembers(service, ismethod):
                 if not method_name.startswith('_'):
-                    method = get_innermost(method)
+                    method = unwrap(method)
                     doc = method.__doc__ or ''
                     args = getargspec(method).args
                     if 'self' in args:

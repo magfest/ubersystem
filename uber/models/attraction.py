@@ -2,7 +2,7 @@ from collections import OrderedDict
 from datetime import datetime, timedelta
 
 import pytz
-from sideboard.lib import listify
+from pockets import groupify, listify, sluggify
 from sideboard.lib.sa import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, cast, exists, func, not_
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -20,7 +20,7 @@ from uber.decorators import presave_adjustment
 from uber.models import MagModel, Attendee
 from uber.models.types import default_relationship as relationship, Choice, \
     DefaultColumn as Column, utcmin
-from uber.utils import groupify, evening_datetime, noon_datetime, sluggify
+from uber.utils import evening_datetime, noon_datetime
 
 
 __all__ = [
@@ -29,27 +29,27 @@ __all__ = [
 
 
 class Attraction(MagModel):
-    NONE = 0
-    PER_FEATURE = 1
-    PER_ATTRACTION = 2
-    RESTRICTION_OPTS = [(
-        NONE,
+    _NONE = 0
+    _PER_FEATURE = 1
+    _PER_ATTRACTION = 2
+    _RESTRICTION_OPTS = [(
+        _NONE,
         'None – '
         'Attendees can attend as many events as they wish '
         '(least restrictive)'
     ), (
-        PER_FEATURE,
+        _PER_FEATURE,
         'Once Per Feature – '
         'Attendees can only attend each feature once'
     ), (
-        PER_ATTRACTION,
+        _PER_ATTRACTION,
         'Once Per Attraction – '
         'Attendees can only attend this attraction once '
         '(most restrictive)'
     )]
-    RESTRICTIONS = dict(RESTRICTION_OPTS)
+    _RESTRICTIONS = dict(_RESTRICTION_OPTS)
 
-    ADVANCE_CHECKIN_OPTS = [
+    _ADVANCE_CHECKIN_OPTS = [
         (-1, 'Anytime during event'),
         (0, 'When the event starts'),
         (300, '5 minutes before'),
@@ -60,7 +60,7 @@ class Attraction(MagModel):
         (2700, '45 minutes before'),
         (3600, '1 hour before')]
 
-    ADVANCE_NOTICES_OPTS = [
+    _ADVANCE_NOTICES_OPTS = [
         ('', 'Never'),
         (0, 'When checkin starts'),
         (300, '5 minutes before checkin'),
@@ -76,7 +76,7 @@ class Attraction(MagModel):
     is_public = Column(Boolean, default=False)
     advance_notices = Column(JSON, default=[], server_default='[]')
     advance_checkin = Column(Integer, default=0)  # In seconds
-    restriction = Column(Choice(RESTRICTION_OPTS), default=NONE)
+    restriction = Column(Choice(_RESTRICTION_OPTS), default=_NONE)
     department_id = Column(UUID, ForeignKey('department.id'), nullable=True)
     owner_id = Column(UUID, ForeignKey('admin_account.id'))
 
@@ -568,7 +568,7 @@ class AttractionNotification(MagModel):
     attraction_id = Column(UUID, ForeignKey('attraction.id'))
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
 
-    notification_type = Column(Choice(Attendee.NOTIFICATION_PREF_OPTS))
+    notification_type = Column(Choice(Attendee._NOTIFICATION_PREF_OPTS))
     ident = Column(UnicodeText, index=True)
     sid = Column(UnicodeText)
     sent_time = Column(UTCDateTime, default=lambda: datetime.now(pytz.UTC))
@@ -587,7 +587,7 @@ class AttractionNotificationReply(MagModel):
     attraction_id = Column(UUID, ForeignKey('attraction.id'), nullable=True)
     attendee_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
 
-    notification_type = Column(Choice(Attendee.NOTIFICATION_PREF_OPTS))
+    notification_type = Column(Choice(Attendee._NOTIFICATION_PREF_OPTS))
     from_phonenumber = Column(UnicodeText)
     to_phonenumber = Column(UnicodeText)
     sid = Column(UnicodeText, index=True)

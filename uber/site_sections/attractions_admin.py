@@ -1,3 +1,5 @@
+from pockets import listify, sluggify
+
 from uber.common import *
 from uber.models.attraction import *
 from uber.site_sections.attractions import _attendee_for_badge_num

@@ -1,7 +1,9 @@
 from cherrypy import HTTPError
 from dateutil import parser as dateparser
 
-from uber.barcode.utils import get_badge_num_from_barcode
+from pockets import unwrap
+
+from uber.barcode import get_badge_num_from_barcode
 from uber.common import *
 from uber.server import register_jsonrpc
 
@@ -98,7 +100,7 @@ def api_auth(*required_access):
     required_access = set(required_access)
 
     def _decorator(func):
-        inner_func = get_innermost(func)
+        inner_func = unwrap(func)
         if getattr(inner_func, 'required_access', None) is not None:
             return func
         else:

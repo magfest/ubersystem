@@ -417,8 +417,8 @@
                   <label class="input-group-addon">
                     <input type="radio"
                         name="notification_pref"
-                        value="{{ attendee.NOTIFICATION_EMAIL }}"
-                        {%- if attendee.notification_pref == attendee.NOTIFICATION_EMAIL%} checked="checked"{% endif %}>
+                        value="{{ attendee._NOTIFICATION_EMAIL }}"
+                        {%- if attendee.notification_pref == attendee._NOTIFICATION_EMAIL%} checked="checked"{% endif %}>
                     <span class="glyphicon glyphicon-envelope"></span> Email
                   </label>
                   <div class="form-control form-control-static">{{ attendee.email }}</div>
@@ -431,9 +431,9 @@
                   <label class="input-group-addon">
                     <input type="radio"
                         name="notification_pref"
-                        value="{{ attendee.NOTIFICATION_TEXT }}"
+                        value="{{ attendee._NOTIFICATION_TEXT }}"
                         {%- if not attendee.cellphone %} disabled="disabled"{% endif %}
-                        {%- if attendee.notification_pref == attendee.NOTIFICATION_TEXT %} checked="checked"{% endif %}>
+                        {%- if attendee.notification_pref == attendee._NOTIFICATION_TEXT %} checked="checked"{% endif %}>
                     <span class="glyphicon glyphicon-phone"></span> Text
                   </label>
                   <div class="form-control form-control-static">
@@ -452,8 +452,8 @@
                   <label class="input-group-addon">
                     <input type="radio"
                         name="notification_pref"
-                        value="{{ attendee.NOTIFICATION_NONE }}"
-                        {%- if attendee.notification_pref == attendee.NOTIFICATION_NONE %} checked="checked"{% endif %}>
+                        value="{{ attendee._NOTIFICATION_NONE }}"
+                        {%- if attendee.notification_pref == attendee._NOTIFICATION_NONE %} checked="checked"{% endif %}>
                     <span class="glyphicon glyphicon-ban-circle"></span> None
                   </label>
                   <div class="input-group-addon form-control form-control-static">

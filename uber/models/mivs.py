@@ -16,16 +16,12 @@ from uber.decorators import presave_adjustment
 from uber.models import MagModel, Attendee
 from uber.models.types import default_relationship as relationship, utcnow, \
     Choice, DefaultColumn as Column, MultiChoice
-from uber.utils import localized_now
+from uber.utils import localized_now, make_url
 
 
 __all__ = [
     'IndieJudge', 'IndieStudio', 'IndieDeveloper', 'IndieGame',
     'IndieGameImage', 'IndieGameCode', 'IndieGameReview']
-
-
-def _href(url):
-    return ('http://' + url) if url and not url.startswith('http') else url
 
 
 class ReviewMixin:
@@ -105,7 +101,7 @@ class IndieStudio(MagModel):
 
     @property
     def website_href(self):
-        return _href(self.website)
+        return make_url(self.website)
 
     @property
     def email(self):
@@ -230,11 +226,11 @@ class IndieGame(MagModel, ReviewMixin):
 
     @property
     def video_href(self):
-        return _href(self.link_to_video)
+        return make_url(self.link_to_video)
 
     @property
     def href(self):
-        return _href(self.link_to_game)
+        return make_url(self.link_to_game)
 
     @property
     def screenshots(self):

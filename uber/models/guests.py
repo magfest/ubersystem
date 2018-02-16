@@ -15,16 +15,13 @@ from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, \
     Choice, DefaultColumn as Column, MultiChoice
+from uber.utils import filename_extension
 
 
 __all__ = [
     'GuestGroup', 'GuestInfo', 'GuestBio', 'GuestTaxes', 'GuestStagePlot',
     'GuestPanel', 'GuestMerch', 'GuestCharity', 'GuestAutograph',
     'GuestInterview', 'GuestTravelPlans']
-
-
-def _file_extension(filename):
-    return filename.split('.')[-1].lower()
 
 
 class GuestGroup(MagModel):
@@ -225,7 +222,7 @@ class GuestBio(MagModel):
 
     @property
     def pic_extension(self):
-        return _file_extension(self.pic_filename)
+        return filename_extension(self.pic_filename)
 
     @property
     def download_filename(self):
@@ -254,7 +251,7 @@ class GuestTaxes(MagModel):
 
     @property
     def w9_extension(self):
-        return _file_extension(self.w9_filename)
+        return filename_extension(self.w9_filename)
 
     @property
     def download_filename(self):
@@ -287,7 +284,7 @@ class GuestStagePlot(MagModel):
 
     @property
     def stage_plot_extension(self):
-        return _file_extension(self.filename)
+        return filename_extension(self.filename)
 
     @property
     def download_filename(self):
@@ -454,7 +451,7 @@ class GuestMerch(MagModel):
 
                     extensions = getattr(c, config_name, [])
 
-                    ext = _file_extension(file.filename)
+                    ext = filename_extension(file.filename)
                     if extensions and ext not in extensions:
                         messages.append('{} files must be one of {}'.format(
                             file_type.title(), ', '.join(extensions)))

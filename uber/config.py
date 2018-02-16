@@ -1,4 +1,7 @@
 import hashlib
+from pockets import keydefaultdict, nesteddefaultdict
+from pockets.autolog import log
+
 from uber.common import *
 
 
@@ -9,23 +12,6 @@ def dynamic(func):
 
 def create_namespace_uuid(s):
     return uuid.UUID(hashlib.sha1(s.encode('utf-8')).hexdigest()[:32])
-
-
-class keydefaultdict(defaultdict):
-    """
-    Like a defaultdict except that the factory function used to generate
-    values for missing keys takes the key as a parameter.
-    """
-    def __missing__(self, key):
-        if self.default_factory is None:
-            raise KeyError(key)
-        else:
-            ret = self[key] = self.default_factory(key)
-            return ret
-
-
-# A defaultdict that returns defaultdicts as the default value.
-nesteddict = lambda: defaultdict(nesteddict)
 
 
 def really_past_mivs_deadline(deadline):
@@ -1030,13 +1016,13 @@ c.EVENT_OPEN   = {'colspan': 1}
 
 
 def _make_room_trie(rooms):
-    root = nesteddict()
+    root = nesteddefaultdict()
     for index, (location, description) in enumerate(rooms):
         for word in filter(lambda s: s, re.split(r'\W+', description)):
             current_dict = root
             current_dict['__rooms__'][location] = index
             for letter in word:
-                current_dict = current_dict.setdefault(letter.lower(), nesteddict())
+                current_dict = current_dict.setdefault(letter.lower(), nesteddefaultdict())
                 current_dict['__rooms__'][location] = index
     return root
 

@@ -1,6 +1,7 @@
 from http.client import BadStatusLine
 from pytz import UTC
-from sideboard.lib import log, DaemonTask
+from pockets.autolog import log
+from sideboard.lib import DaemonTask
 from twilio.base.exceptions import TwilioRestException
 from twilio.rest import Client as TwilioRestClient
 

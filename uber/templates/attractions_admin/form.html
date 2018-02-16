@@ -597,8 +597,8 @@
 <div class="attraction-info info-block">
   <p>{{ attraction.description|linebreaksbr }}</p>
 
-  {% if attraction.restriction != attraction.NONE -%}
-    <p>{{ attraction.RESTRICTIONS[attraction.restriction].split('–')|last|trim }}.</p>
+  {% if attraction.restriction != attraction._NONE -%}
+    <p>{{ attraction._RESTRICTIONS[attraction.restriction].split('–')|last|trim }}.</p>
   {%- endif %}
 
   {% if attraction.advance_checkin > -1 -%}

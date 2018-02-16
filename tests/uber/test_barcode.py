@@ -1,6 +1,6 @@
 import pytest
 
-from uber.barcode.utils import generate_barcode_from_badge_num, \
+from uber.barcode import generate_barcode_from_badge_num, \
     get_badge_num_from_barcode, assert_is_valid_rams_barcode
 from uber.config import c
 

@@ -2,7 +2,9 @@ from time import sleep
 from datetime import datetime, timedelta
 
 import pytz
-from sideboard.lib import log, DaemonTask
+from pockets import groupify
+from pockets.autolog import log
+from sideboard.lib import DaemonTask
 from sqlalchemy.orm import subqueryload
 from twilio.base.exceptions import TwilioRestException
 from twilio.rest import Client as TwilioRestClient
@@ -14,7 +16,7 @@ from uber.models import Session
 from uber.models.attendee import Attendee
 from uber.models.attraction import Attraction, AttractionEvent, \
     AttractionNotification, AttractionNotificationReply, AttractionSignup
-from uber.utils import groupify, normalize_phone, send_email
+from uber.utils import normalize_phone, send_email
 
 
 __all__ = [
@@ -81,7 +83,7 @@ def send_sms(to, body, from_=c.PANELS_TWILIO_NUMBER):
     return sid
 
 
-def send_attraction_notifications(session):
+def do_send_notifications(session):
     for attraction in session.query(Attraction):
         now = datetime.now(pytz.UTC)
         from_time = now - timedelta(seconds=300)
@@ -124,12 +126,12 @@ def send_attraction_notifications(session):
             is_first_signup = not(attendee.attraction_notifications)
 
             if not is_first_signup and \
-                    attendee.notification_pref == Attendee.NOTIFICATION_NONE:
+                    attendee.notification_pref == Attendee._NOTIFICATION_NONE:
                 continue
 
             use_text = twilio_client \
                 and attendee.cellphone \
-                and attendee.notification_pref == Attendee.NOTIFICATION_TEXT
+                and attendee.notification_pref == Attendee._NOTIFICATION_TEXT
 
             event = signup.event
 
@@ -153,7 +155,7 @@ def send_attraction_notifications(session):
             ident = AttractionEvent.get_ident(event.id, advance_notice)
             try:
                 if use_text:
-                    type_ = Attendee.NOTIFICATION_TEXT
+                    type_ = Attendee._NOTIFICATION_TEXT
                     type_str = 'TEXT'
                     from_ = c.PANELS_TWILIO_NUMBER
                     to_ = attendee.cellphone
@@ -162,7 +164,7 @@ def send_attraction_notifications(session):
                     sid = send_sms(to_, body, from_)
 
                 if not use_text or is_first_signup:
-                    type_ = Attendee.NOTIFICATION_EMAIL
+                    type_ = Attendee._NOTIFICATION_EMAIL
                     type_str = 'EMAIL'
                     from_ = c.ATTRACTIONS_EMAIL
                     to_ = attendee.email
@@ -219,7 +221,7 @@ def send_attraction_notifications(session):
                 session.commit()
 
 
-def check_attraction_notification_replies(session):
+def do_check_notification_replies(session):
     if not twilio_client:
         return
 
@@ -243,7 +245,7 @@ def check_attraction_notification_replies(session):
         attendees = attendees_by_phone.get(normalize_phone(message.from_), [])
         for attendee in attendees:
             notifications = sorted(filter(
-                lambda s: s.notification_type == Attendee.NOTIFICATION_TEXT,
+                lambda s: s.notification_type == Attendee._NOTIFICATION_TEXT,
                 attendee.attraction_notifications),
                 key=lambda s: s.sent_time)
             if notifications:
@@ -259,7 +261,7 @@ def check_attraction_notification_replies(session):
             attraction_event_id=attraction_event_id,
             attraction_id=attraction_id,
             attendee_id=attendee_id,
-            notification_type=Attendee.NOTIFICATION_TEXT,
+            notification_type=Attendee._NOTIFICATION_TEXT,
             from_phonenumber=message.from_,
             to_phonenumber=message.to,
             sid=message.sid,
@@ -271,12 +273,12 @@ def check_attraction_notification_replies(session):
 
 def send_notifications():
     with Session() as session:
-        send_attraction_notifications(session)
+        do_send_notifications(session)
 
 
 def check_notification_replies():
     with Session() as session:
-        check_attraction_notification_replies(session)
+        do_check_notification_replies(session)
 
 
 if c.ATTRACTIONS_ENABLED:

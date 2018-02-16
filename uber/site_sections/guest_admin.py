@@ -1,3 +1,5 @@
+from pockets import readable_join
+
 from uber.common import *
 
 
@@ -8,7 +10,7 @@ class Root:
         missing = [s for s in fields if not params.get(s, '').strip()]
         if missing:
             return '{} {} required'.format(
-                comma_and([s.replace('_', ' ').title() for s in missing]),
+                readable_join([s.replace('_', ' ').title() for s in missing]),
                 'is' if len(missing) == 1 else 'are')
         return ''
 

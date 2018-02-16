@@ -1,5 +1,5 @@
 from uber.common import *
-from functools import lru_cache
+from functools import lru_cache, wraps
 from jinja2.loaders import split_template_path
 from jinja2.utils import open_if_exists
 from jinja2.exceptions import TemplateNotFound
@@ -139,6 +139,7 @@ class JinjaEnv:
             _register(name)
             return name
         else:
+            @wraps(func)
             def registrar(func):
                 _register(func, name)
                 return func
@@ -156,6 +157,7 @@ class JinjaEnv:
             _register(name)
             return name
         else:
+            @wraps(func)
             def registrar(func):
                 _register(func, name)
                 return func
@@ -173,6 +175,7 @@ class JinjaEnv:
             _register(name)
             return name
         else:
+            @wraps(func)
             def registrar(func):
                 _register(func, name)
                 return func

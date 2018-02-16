@@ -6,9 +6,9 @@ https://github.com/django/django/blob/4696078832f486ba63f0783a0795294b3d80d862/L
 """
 
 from dateutil.relativedelta import relativedelta
+from pockets import fieldify, unfieldify, listify, readable_join
+
 from uber.common import *
-from sideboard.lib.sa import _camelcase_to_underscore as uncamel, \
-    _underscore_to_camelcase as camel
 
 
 def safe_string(text):
@@ -28,14 +28,9 @@ def is_class(value):
     return inspect.isclass(value)
 
 
-@JinjaEnv.jinja_filter
-def fieldify(s):
-    return re.sub(r'[\W_]+', '_', uncamel(s)).strip('_')
-
-
-@JinjaEnv.jinja_filter
-def unfieldify(s):
-    return (' '.join([s for s in s.strip('_ ').split('_') if s])).title()
+fieldify = JinjaEnv.jinja_filter(fieldify)
+unfieldify = JinjaEnv.jinja_filter(unfieldify)
+readable_join = JinjaEnv.jinja_filter(readable_join)
 
 
 @JinjaEnv.jinja_filter(name='datetime')
@@ -280,15 +275,6 @@ def maybe_last_year(day):
 
 
 @JinjaEnv.jinja_filter
-def join_and(xs):
-    if len(xs) in [0, 1, 2]:
-        return ' and '.join(xs)
-    else:
-        xs = xs[:-1] + ['and ' + xs[-1]]
-        return ', '.join(xs)
-
-
-@JinjaEnv.jinja_filter
 def email_only(email):
     """
     Our configured email addresses support either the "email@domain.com" format
@@ -374,7 +360,7 @@ def humanize_timedelta(
 
     if time_units:
         if separator is None:
-            humanized = join_and(time_units)
+            humanized = readable_join(time_units)
         else:
             humanized = separator.join(time_units)
         return '{}{}{}'.format(prefix, humanized, suffix)

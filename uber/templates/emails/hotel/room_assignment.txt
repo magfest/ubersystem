@@ -1,4 +1,4 @@
-{{ room.first_names|join_and }},
+{{ room.first_names|readable_join }},
 
 This email is to confirm your upcoming {{ c.EVENT_NAME }} hotel staff room assignments.  Your roommates are listed below, so please take a moment to look over the information.  We will assume that your room is ok if you don’t reply to this email by {{ c.ONE_WEEK_OR_TAKEDOWN_OR_EPOCH|datetime_local }}.
 

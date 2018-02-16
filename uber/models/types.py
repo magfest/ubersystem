@@ -1,11 +1,9 @@
-import re
 from collections import Mapping, OrderedDict
 from datetime import datetime, time, timedelta
 
 import pytz
-from sideboard.lib import listify
-from sideboard.lib.sa import _underscore_to_camelcase as camel, JSON, \
-    CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from pockets import camel, fieldify, listify
+from sideboard.lib.sa import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import Column
@@ -13,20 +11,13 @@ from sqlalchemy.sql.expression import FunctionElement
 from sqlalchemy.types import Integer, TypeDecorator
 
 from uber.config import c, _config as config
-from uber.custom_tags import fieldify
+from uber.utils import url_domain
 
 
 __all__ = [
     'default_relationship', 'relationship', 'utcmin', 'utcnow', 'Choice',
     'Column', 'DefaultColumn', 'JSONColumnMixin', 'MultiChoice',
     'SocialMediaMixin', 'TakesPaymentMixin']
-
-
-def _url_domain(url):
-    url = url.strip().replace('//', '/')
-    url = re.sub(r'^https?:/', '', url)
-    url = re.sub(r'^www\.', '', url)
-    return url.split('/', 1)[0].strip('@#?=. ')
 
 
 def DefaultColumn(*args, admin_only=False, private=False, **kwargs):
@@ -343,7 +334,7 @@ class SocialMediaMixin(JSONColumnMixin('social_media', c.SOCIAL_MEDIA)):
                         return attr
                     else:
                         url = self._social_media_urls.get(field_name, '{}')
-                        if _url_domain(url.format('')) in _url_domain(attr):
+                        if url_domain(url.format('')) in url_domain(attr):
                             return attr
                         return url.format(attr)
                 return ''

@@ -12,7 +12,9 @@ import cherrypy
 import six
 import sqlalchemy
 from dateutil import parser as dateparser
-from sideboard.lib import listify, log, on_startup, stopped
+from pockets import cached_classproperty, classproperty, listify
+from pockets.autolog import log
+from sideboard.lib import on_startup, stopped
 from sideboard.lib.sa import check_constraint_naming_convention, \
     declarative_base, JSON, SessionManager, UTCDateTime, UUID
 from sqlalchemy import and_, func, or_, not_
@@ -25,8 +27,8 @@ from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric
 from sqlalchemy.util import immutabledict
 
 from uber.config import c, create_namespace_uuid
-from uber.decorators import cached_classproperty, classproperty, \
-    cost_property, department_id_adapter, presave_adjustment, suffix_property
+from uber.decorators import cost_property, department_id_adapter, \
+    presave_adjustment, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
 from uber.utils import check_csrf, get_real_badge_type, normalize_phone, \
     DeptChecklistConf, HTTPRedirect
@@ -189,7 +191,7 @@ class MagModel:
             if colname in cls.unrestricted}
 
     @classproperty
-    def extra_apply_attrs(cls):
+    def _extra_apply_attrs(cls):
         """
         Returns a set of extra attrs used by apply(). These are settable
         attributes or properties that are not in cls.__table__columns.
@@ -197,7 +199,7 @@ class MagModel:
         return set()
 
     @classproperty
-    def extra_apply_attrs_restricted(cls):
+    def _extra_apply_attrs_restricted(cls):
         """
         Returns a set of extra attrs used by apply(restricted=True). These are
         settable attributes or properties that are not in cls.__table__columns.
@@ -446,10 +448,10 @@ class MagModel:
             if not ignore_csrf:
                 check_csrf(params.get('csrf_token'))
 
-        extra_apply_attrs = self.extra_apply_attrs_restricted \
-            if restricted else self.extra_apply_attrs
+        _extra_apply_attrs = self._extra_apply_attrs_restricted \
+            if restricted else self._extra_apply_attrs
 
-        for attr in extra_apply_attrs:
+        for attr in _extra_apply_attrs:
             if attr in params:
                 setattr(self, attr, params[attr])
 
