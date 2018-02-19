@@ -515,6 +515,14 @@ class Config(_Overridable):
             return dept.id
 
     @property
+    def DEFAULT_REGDESK_INT(self):
+        return getattr(self, 'REGDESK', getattr(self, 'REGISTRATION', 177161930))
+
+    @property
+    def DEFAULT_STOPS_INT(self):
+        return getattr(self, 'STOPS', 29995679)
+
+    @property
     def HTTP_METHOD(self):
         return cherrypy.request.method.upper()
 
