@@ -1,4 +1,9 @@
-from uber.common import *
+from sqlalchemy.orm import joinedload, subqueryload
+
+from uber.config import c
+from uber.decorators import ajax, ajax_gettable, all_renderable
+from uber.models import Attendee, TabletopCheckout, TabletopGame
+from uber.utils import localized_now
 
 
 @all_renderable(c.CHECKINS)
@@ -36,7 +41,7 @@ class Root:
         try:
             session.tabletop_game(game_id).checked_out.returned = localized_now()
             session.commit()
-        except:
+        except Exception:
             pass
         return {
             'message': 'Success!',

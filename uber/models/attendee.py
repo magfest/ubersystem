@@ -18,6 +18,7 @@ from sqlalchemy.orm import backref, subqueryload
 from sqlalchemy.schema import ForeignKey, Index, UniqueConstraint
 from sqlalchemy.types import Boolean, Date, Integer
 
+import uber
 from uber.config import c
 from uber.custom_tags import safe_string
 from uber.decorators import cost_property, department_id_adapter, \
@@ -26,9 +27,8 @@ from uber.models import MagModel
 from uber.models.group import Group
 from uber.models.types import default_relationship as relationship, utcnow, \
     Choice, DefaultColumn as Column, MultiChoice, TakesPaymentMixin
-from uber.utils import add_opt, get_age_from_birthday, \
-    get_real_badge_type, hour_day_format, localized_now, mask_string, \
-    remove_opt, send_email
+from uber.utils import add_opt, get_age_from_birthday, hour_day_format, \
+    localized_now, mask_string, remove_opt
 
 
 __all__ = ['Attendee', 'FoodRestrictions']
@@ -508,7 +508,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_status == c.NEW_STATUS and self.banned:
             self.badge_status = c.WATCHED_STATUS
             try:
-                send_email(
+                uber.notifications.send_email(
                     c.SECURITY_EMAIL, [c.REGDESK_EMAIL, c.SECURITY_EMAIL],
                     c.EVENT_NAME + ' WatchList Notification',
                     render('emails/reg_workflow/attendee_watchlist.txt', {
@@ -622,7 +622,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def badge_type_real(self):
-        return get_real_badge_type(self.badge_type)
+        return uber.badge_funcs.get_real_badge_type(self.badge_type)
 
     @cost_property
     def badge_cost(self):

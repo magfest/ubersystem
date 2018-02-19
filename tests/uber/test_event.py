@@ -1,7 +1,7 @@
 import pytest
 from sideboard.tests import patch_session
 
-from uber.common import *
+from uber import *
 
 
 @pytest.fixture(scope='session', autouse=True)

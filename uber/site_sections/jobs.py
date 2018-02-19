@@ -1,6 +1,15 @@
-from sqlalchemy import select
+from collections import defaultdict
+from datetime import datetime, timedelta
 
-from uber.common import *
+import cherrypy
+from sqlalchemy import select
+from sqlalchemy.orm import subqueryload
+
+from uber.config import c
+from uber.decorators import ajax, all_renderable, csrf_protected, department_id_adapter
+from uber.errors import HTTPRedirect
+from uber.models import Attendee, Department, DeptRole, Job
+from uber.utils import check, localized_now
 
 
 def job_dict(job, shifts=None):
@@ -88,11 +97,11 @@ class Root:
     def everywhere(self, session, message='', show_restricted='', show_nonpublic=''):
         job_filters = [Job.start_time > localized_now() - timedelta(hours=2)]
         if not show_restricted:
-            job_filters.append(Job.restricted == False)
+            job_filters.append(Job.restricted == False)  # noqa: E712
         if not show_nonpublic:
             job_filters.append(Job.department_id.in_(
                 select([Department.id]).where(
-                    Department.solicits_volunteers == True)))
+                    Department.solicits_volunteers == True)))  # noqa: E712
 
         jobs = session.jobs().filter(*job_filters)
 
@@ -119,8 +128,10 @@ class Root:
             else [Attendee.dept_memberships.any(department_id=department_id)]
         attendees = session.staffers().filter(*dept_filter).all()
         for attendee in attendees:
-            attendee.is_dept_head_here = attendee.is_dept_head_of(department_id) if department_id else attendee.is_dept_head
-            attendee.trusted_here = attendee.trusted_in(department_id) if department_id else attendee.has_role_somewhere
+            attendee.is_dept_head_here = attendee.is_dept_head_of(department_id) if department_id \
+                else attendee.is_dept_head
+            attendee.trusted_here = attendee.trusted_in(department_id) if department_id \
+                else attendee.has_role_somewhere
             attendee.hours_here = attendee.weighted_hours_in(department_id)
 
         counts = defaultdict(int)
@@ -142,8 +153,11 @@ class Root:
             defaults = cherrypy.session.get('job_defaults', defaultdict(dict))[params['department_id']]
             params.update(defaults)
 
-        job = session.job(params, bools=['extra15'],
-                                  allowed=['department_id', 'start_time', 'type'] + list(defaults.keys()))
+        job = session.job(
+            params,
+            bools=['extra15'],
+            allowed=['department_id', 'start_time', 'type'] + list(defaults.keys()))
+
         if cherrypy.request.method == 'POST':
             message = check(job)
             if not message:
@@ -214,7 +228,7 @@ class Root:
             shift = session.shift(id)
             session.delete(shift)
             session.commit()
-        except:
+        except Exception:
             return {'error': 'Shift was already deleted'}
         else:
             return job_dict(session.job(shift.job_id))
@@ -225,7 +239,7 @@ class Root:
             shift = session.shift(id)
             shift.worked = int(status)
             session.commit()
-        except:
+        except Exception:
             return {'error': 'Unexpected error setting status'}
         else:
             return job_dict(session.job(shift.job_id))
@@ -249,7 +263,8 @@ class Root:
             update_counts(job, departments[job.department_name])
             update_counts(job, departments['All Departments Combined'])
 
-        return {'departments': sorted(departments.items(), key=lambda d: d[1]['regular_signups'] - d[1]['regular_total'])}
+        return {
+            'departments': sorted(departments.items(), key=lambda d: d[1]['regular_signups'] - d[1]['regular_total'])}
 
     def all_shifts(self, session):
         departments = session.query(Department).options(
@@ -267,8 +282,9 @@ class Root:
             'not_already_here': [
                 (a.id, a.full_name)
                 for a in session.query(Attendee)
-                                .filter(Attendee.email != '',
-                                         ~Attendee.dept_memberships.any(department_id=department_id))
+                                .filter(
+                                    Attendee.email != '',
+                                    ~Attendee.dept_memberships.any(department_id=department_id))
                                 .order_by(Attendee.full_name).all()
             ]
         }

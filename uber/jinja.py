@@ -1,8 +1,14 @@
-from uber.common import *
-from functools import lru_cache, wraps
+import os
+from functools import lru_cache
+from types import FunctionType
+
+import jinja2
 from jinja2.loaders import split_template_path
 from jinja2.utils import open_if_exists
 from jinja2.exceptions import TemplateNotFound
+from sideboard.lib import request_cached_property
+
+from uber.config import c
 
 
 class MultiPathEnvironment(jinja2.Environment):
@@ -139,10 +145,10 @@ class JinjaEnv:
             _register(name)
             return name
         else:
-            @wraps(func)
             def registrar(func):
                 _register(func, name)
                 return func
+            registrar.__name__ = name
             return registrar
 
     @classmethod
@@ -157,10 +163,10 @@ class JinjaEnv:
             _register(name)
             return name
         else:
-            @wraps(func)
             def registrar(func):
                 _register(func, name)
                 return func
+            registrar.__name__ = name
             return registrar
 
     @classmethod
@@ -175,10 +181,10 @@ class JinjaEnv:
             _register(name)
             return name
         else:
-            @wraps(func)
             def registrar(func):
                 _register(func, name)
                 return func
+            registrar.__name__ = name
             return registrar
 
 

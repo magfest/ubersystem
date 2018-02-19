@@ -1,7 +1,18 @@
+import threading
+from collections import defaultdict, OrderedDict
+from time import sleep
+
 from pockets import listify
 from pockets.autolog import log
+from sideboard.lib import DaemonTask, threadlocal
+from sqlalchemy.orm import joinedload, subqueryload
 
-from uber.common import *
+from uber.config import c
+from uber.decorators import render, timed
+from uber.models import AdminAccount, Attendee, Department, Group, GuestGroup, IndieGame, IndieJudge, IndieStudio, \
+    MITSTeam, PanelApplicant, PanelApplication, Room, RoomAssignment, Session, Shift
+from uber.notifications import send_email
+from uber.utils import localized_now, request_cached_context
 
 
 class AutomatedEmail:
@@ -22,12 +33,10 @@ class AutomatedEmail:
         Attendee: lambda session: session.all_attendees().options(
             subqueryload(Attendee.admin_account),
             subqueryload(Attendee.group),
-            subqueryload(Attendee.shifts)
-                .subqueryload(Shift.job),
+            subqueryload(Attendee.shifts).subqueryload(Shift.job),
             subqueryload(Attendee.assigned_depts),
             subqueryload(Attendee.dept_membership_requests),
-            subqueryload(Attendee.checklist_admin_depts)
-                .subqueryload(Department.dept_checklist_items),
+            subqueryload(Attendee.checklist_admin_depts).subqueryload(Department.dept_checklist_items),
             subqueryload(Attendee.dept_memberships),
             subqueryload(Attendee.dept_memberships_with_role),
             subqueryload(Attendee.depts_where_working),
@@ -36,25 +45,19 @@ class AutomatedEmail:
         Group: lambda session: session.query(Group).options(
             subqueryload(Group.attendees)).order_by(Group.id),
         Room: lambda session: session.query(Room).options(
-            subqueryload(Room.assignments)
-                .subqueryload(RoomAssignment.attendee)),
+            subqueryload(Room.assignments).subqueryload(RoomAssignment.attendee)),
         IndieStudio: lambda session: session.query(IndieStudio).options(
             subqueryload(IndieStudio.developers),
             subqueryload(IndieStudio.games)),
         IndieGame: lambda session: session.query(IndieGame).options(
-            joinedload(IndieGame.studio)
-                .subqueryload(IndieStudio.developers)),
+            joinedload(IndieGame.studio).subqueryload(IndieStudio.developers)),
         IndieJudge: lambda session: session.query(IndieJudge).options(
-            joinedload(IndieJudge.admin_account)
-                .joinedload(AdminAccount.attendee)),
+            joinedload(IndieJudge.admin_account).joinedload(AdminAccount.attendee)),
         MITSTeam: lambda session: session.mits_teams(),
-        PanelApplication: lambda session: session.query(PanelApplication)
-            .options(
-                subqueryload(PanelApplication.applicants)
-                    .subqueryload(PanelApplicant.attendee))
-            .order_by(PanelApplication.id),
-        GuestGroup: lambda session: session.query(GuestGroup)
-            .options(joinedload(GuestGroup.group))
+        PanelApplication: lambda session: session.query(PanelApplication).options(
+            subqueryload(PanelApplication.applicants).subqueryload(PanelApplicant.attendee)
+            ).order_by(PanelApplication.id),
+        GuestGroup: lambda session: session.query(GuestGroup).options(joinedload(GuestGroup.group))
     }
 
     def __init__(self, model, subject, template, filter, ident, *, when=(),
@@ -66,7 +69,8 @@ class AutomatedEmail:
         self.model = model
 
         assert self.ident, 'error: automated email ident may not be empty.'
-        assert self.ident not in self.instances, 'error: automated email ident "{}" is registered twice.'.format(self.ident)
+        assert self.ident not in self.instances, \
+            'error: automated email ident "{}" is registered twice.'.format(self.ident)
 
         self.instances[self.ident] = self
         self.instances_by_model[self.model].append(self)
@@ -154,8 +158,9 @@ class AutomatedEmail:
                 lambda: self.filters_run(model_inst),
                 lambda: self.approved,
             ])
-        except:
-            log.error('error determining whether to send {!r} email to {}', self.subject, model_inst.email, exc_info=True)
+        except Exception:
+            log.error(
+                'error determining whether to send {!r} email to {}', self.subject, model_inst.email, exc_info=True)
             if raise_errors:
                 raise
             return False
@@ -200,7 +205,7 @@ class AutomatedEmail:
             send_email(self.sender, model_instance.email, subject,
                        self.render(model_instance), format,
                        model=model_instance, cc=self.cc, ident=self.ident)
-        except:
+        except Exception:
             log.error('error sending {!r} email to {}', self.subject, model_instance.email, exc_info=True)
             if raise_errors:
                 raise
@@ -335,41 +340,6 @@ class SendAllAutomatedEmailsJob:
         """
 
         self.results['categories'][automated_email_category.ident]['unsent_because_unapproved'] += 1
-
-
-class StopsEmail(AutomatedEmail):
-    def __init__(self, subject, template, filter, ident, **kwargs):
-        AutomatedEmail.__init__(self, Attendee, subject, template, lambda a: a.staffing and filter(a), ident, sender=c.STAFF_EMAIL, **kwargs)
-
-
-class GuestEmail(AutomatedEmail):
-    def __init__(self, subject, template, ident, filter=lambda a: True, **kwargs):
-        AutomatedEmail.__init__(self, Attendee, subject, template, lambda a: a.badge_type == c.GUEST_BADGE and filter(a), ident=ident, sender=c.GUEST_EMAIL, **kwargs)
-
-
-class GroupEmail(AutomatedEmail):
-    def __init__(self, subject, template, filter, ident, **kwargs):
-        AutomatedEmail.__init__(self, Group, subject, template, lambda g: not g.is_dealer and filter(g), ident, sender=c.REGDESK_EMAIL, **kwargs)
-
-
-class MarketplaceEmail(AutomatedEmail):
-    def __init__(self, subject, template, filter, ident, **kwargs):
-        AutomatedEmail.__init__(self, Group, subject, template, lambda g: g.is_dealer and filter(g), ident, sender=c.MARKETPLACE_EMAIL, **kwargs)
-
-
-class DeptChecklistEmail(AutomatedEmail):
-    def __init__(self, conf):
-        AutomatedEmail.__init__(self, Attendee,
-                                subject='{EVENT_NAME} Department Checklist: ' + conf.name,
-                                template='shifts/dept_checklist.txt',
-                                filter=lambda a: a.admin_account and any(
-                                    not d.checklist_item_for_slug(conf.slug)
-                                    for d in a.checklist_admin_depts),
-                                ident='department_checklist_{}'.format(conf.name),
-                                when=days_before(10, conf.deadline),
-                                sender=c.STAFF_EMAIL,
-                                extra_data={'conf': conf},
-                                post_con=conf.email_post_con or False)
 
 
 def notify_admins_of_any_pending_emails():

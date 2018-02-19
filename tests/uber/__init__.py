@@ -2,10 +2,10 @@ import pytest
 import sqlite3
 from jinja2 import meta
 from mock import Mock
+from pockets import uniquify as remove_duplicates
 from sqlalchemy.schema import CreateTable, MetaData
 
-from sideboard.config import uniquify as remove_duplicates
-from uber.common import *
+from uber import *
 from uber.models import Session
 from uber.sep_commands import alembic, drop_uber_db, reset_uber_db
 

@@ -2,7 +2,7 @@ import pytest
 import pytz
 from sideboard.tests import patch_session
 
-from uber.common import *
+from uber import *
 from uber.site_sections import schedule
 from tests.uber.conftest import *
 

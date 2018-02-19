@@ -3,11 +3,11 @@ from datetime import datetime
 
 import cherrypy
 import pytest
-from uber.common import *
+from uber import *
+from uber.errors import CSRFException, HTTPRedirect
 from uber.site_sections import preregistration
 from tests.uber.conftest import admin_attendee, assert_unique, \
     extract_message_from_html, GET, POST
-from uber.utils import CSRFException
 
 
 next_week = datetime.now(pytz.UTC) + timedelta(days=7)

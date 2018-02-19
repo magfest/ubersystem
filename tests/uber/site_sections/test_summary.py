@@ -3,7 +3,7 @@ from datetime import datetime, date
 
 import cherrypy
 import pytest
-from uber.common import *
+from uber import *
 from uber.site_sections import summary
 from tests.uber.conftest import *
 

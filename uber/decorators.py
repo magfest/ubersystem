@@ -1,12 +1,31 @@
+import csv
 import functools
+import inspect
+import json
+import os
+import traceback
+import uuid
+import zipfile
+from collections import defaultdict, OrderedDict
+from datetime import datetime
+from functools import wraps
+from io import StringIO, BytesIO
+from itertools import count
+from threading import RLock
 
+import cherrypy
 import six
+import xlsxwriter
 from pockets import argmod, unwrap
 from pockets.autolog import log
-from sideboard.lib import profile
+from sideboard.lib import profile, serializer
 
+import uber
 from uber.barcode import get_badge_num_from_barcode
-from uber.common import *
+from uber.config import c
+from uber.errors import CSRFException, HTTPRedirect
+from uber.jinja import JinjaEnv
+from uber.utils import check_csrf, report_critical_exception, ExcelWorksheetStreamWriter
 
 
 def swallow_exceptions(func):
@@ -19,7 +38,7 @@ def swallow_exceptions(func):
     def swallow_exception(*args, **kwargs):
         try:
             return func(*args, **kwargs)
-        except:
+        except Exception:
             log.error("Exception raised, but we're going to ignore it and continue.", exc_info=True)
     return swallow_exception
 
@@ -27,13 +46,13 @@ def swallow_exceptions(func):
 def log_pageview(func):
     @wraps(func)
     def with_check(*args, **kwargs):
-        with sa.Session() as session:
+        with uber.Session() as session:
             try:
-                attendee = session.admin_account(cherrypy.session['account_id'])
-            except:
+                session.admin_account(cherrypy.session['account_id'])
+            except Exception:
                 pass  # we don't care about unrestricted pages for this version
             else:
-                sa.PageViewTracking.track_pageview()
+                uber.PageViewTracking.track_pageview()
         return func(*args, **kwargs)
     return with_check
 
@@ -138,7 +157,7 @@ def check_dept_admin(session, department_id=None, inherent_role=None):
             AdminAccount.attendee_id == DeptMembership.attendee_id]
         if inherent_role in ('dept_head', 'poc', 'checklist_admin'):
             role_attr = 'is_{}'.format(inherent_role)
-            dh_filter.append(getattr(DeptMembership, role_attr) == True)
+            dh_filter.append(getattr(DeptMembership, role_attr) == True)  # noqa: E712
         else:
             dh_filter.append(DeptMembership.has_inherent_role)
 
@@ -155,10 +174,11 @@ def requires_dept_admin(func=None, inherent_role=None):
         @wraps(func)
         def _protected(*args, **kwargs):
             if cherrypy.request.method == 'POST':
-                department_id = kwargs.get('department_id',
-                    kwargs.get('department',
-                        kwargs.get('location',
-                            kwargs.get('id'))))
+                department_id = kwargs.get(
+                    'department_id',
+                    kwargs.get(
+                        'department',
+                        kwargs.get('location', kwargs.get('id'))))
 
                 from uber.models import Session
                 with Session() as session:
@@ -263,7 +283,8 @@ def xlsx_file(func):
 
         # set headers last in case there were errors, so end user still see error page
         if set_headers:
-            cherrypy.response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            cherrypy.response.headers['Content-Type'] = \
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             _set_response_filename(func.__name__ + '.xlsx')
 
         return output
@@ -336,7 +357,7 @@ def credit_card(func):
                 raise
         except HTTPRedirect:
             raise
-        except:
+        except Exception:
             error_text = \
                 'Got an error while calling charge' \
                 '(self, payment_id={!r}, stripeToken={!r}, ignored={}):\n{}\n' \
@@ -370,7 +391,7 @@ def cached_page(func):
                         # Try to write assuming content is a byte first, then try it as a string
                         try:
                             f.write(contents)
-                        except:
+                        except Exception:
                             f.write(bytes(contents, 'UTF-8'))
                 with open(fpath, 'rb') as f:
                     return f.read()
@@ -386,7 +407,8 @@ def timed(func):
         try:
             return func(*args, **kwargs)
         finally:
-            log.debug('{}.{} loaded in {} seconds'.format(func.__module__, func.__name__, (datetime.now() - before).total_seconds()))
+            log.debug('{}.{} loaded in {} seconds'.format(
+                func.__module__, func.__name__, (datetime.now() - before).total_seconds()))
     return with_timing
 
 
@@ -397,7 +419,7 @@ def sessionized(func):
 
     @wraps(func)
     def with_session(*args, **kwargs):
-        with sa.Session() as session:
+        with uber.Session() as session:
             try:
                 retval = func(*args, session=session, **kwargs)
                 session.expunge_all()
@@ -411,7 +433,7 @@ def sessionized(func):
 def renderable_data(data=None):
     data = data or {}
     data['c'] = c
-    data.update({m.__name__: m for m in sa.Session.all_models()})
+    data.update({m.__name__: m for m in uber.Session.all_models()})
     return data
 
 
@@ -457,15 +479,16 @@ def renderable(func):
             raise HTTPRedirect("../common/invalid?message={}", message)
         else:
             try:
-                result['breadcrumb_page_pretty_'] = prettify_breadcrumb(func.__name__) if func.__name__ != 'index' else 'Home'
-                result['breadcrumb_page_'] = func.__name__ if func.__name__ != 'index' else ''
-            except:
+                func_name = func.__name__
+                result['breadcrumb_page_pretty_'] = prettify_breadcrumb(func_name) if func_name != 'index' else 'Home'
+                result['breadcrumb_page_'] = func_name if func_name != 'index' else ''
+            except Exception:
                 pass
 
             try:
                 result['breadcrumb_section_pretty_'] = prettify_breadcrumb(get_module_name(func))
                 result['breadcrumb_section_'] = get_module_name(func)
-            except:
+            except Exception:
                 pass
 
             if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
@@ -495,7 +518,7 @@ def restricted(func):
                 raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
 
             else:
-                access = sa.AdminAccount.access_set()
+                access = uber.AdminAccount.access_set()
                 if not c.AT_THE_CON:
                     access.discard(c.REG_AT_CON)
 
@@ -504,7 +527,7 @@ def restricted(func):
                         return 'You need {} access for this page'.format(dict(c.ACCESS_OPTS)[func.restricted[0]])
                     else:
                         return ('You need at least one of the following access levels to view this page: '
-                            + ', '.join(dict(c.ACCESS_OPTS)[r] for r in func.restricted))
+                                + ', '.join(dict(c.ACCESS_OPTS)[r] for r in func.restricted))
 
         return func(*args, **kwargs)
     return with_restrictions

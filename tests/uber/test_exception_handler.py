@@ -1,4 +1,5 @@
 from uber import config
+from uber import server
 from tests.uber import *
 from cherrypy._cpreqbody import Part
 

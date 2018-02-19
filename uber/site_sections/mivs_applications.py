@@ -1,6 +1,14 @@
+import shutil
+
+import bcrypt
+import cherrypy
 from cherrypy.lib.static import serve_file
 
-from uber.common import *
+from uber.config import c
+from uber.decorators import all_renderable, csrf_protected
+from uber.errors import HTTPRedirect
+from uber.models import Attendee, Group, IndieDeveloper, IndieStudio
+from uber.utils import check, check_csrf
 
 
 @all_renderable()
@@ -28,7 +36,7 @@ class Root:
 
     def login(self, session, message='', studio_name=None, password=None):
         if cherrypy.request.method == 'POST':
-            studio = session.query(IndieGameStudio).filter_by(name=studio_name).first()
+            studio = session.query(IndieStudio).filter_by(name=studio_name).first()
             if not studio:
                 message = 'No studio exists with that name'
             elif not studio.hashed == bcrypt.hashpw(password, studio.hashed):
@@ -79,7 +87,9 @@ class Root:
         if cherrypy.request.method == 'POST':
             message = check(developer)
             if not message:
-                primaries = session.query(IndieDeveloper).filter_by(studio_id=developer.studio_id, primary_contact=True).all()
+                primaries = session.query(IndieDeveloper).filter_by(
+                    studio_id=developer.studio_id, primary_contact=True).all()
+
                 if not developer.primary_contact and len(primaries) == 1 and developer.id == primaries[0].id:
                     message = "Studio requires at least one presenter to receive emails."
                 else:

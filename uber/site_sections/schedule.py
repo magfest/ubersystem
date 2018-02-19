@@ -1,7 +1,18 @@
-from pockets import listify
+import json
+from collections import defaultdict
+from datetime import datetime, time, timedelta
+from time import mktime
 
-from uber.common import *
-from uber.custom_tags import normalize_newlines
+import cherrypy
+from pockets import listify
+from sqlalchemy import or_
+from sqlalchemy.orm import joinedload
+
+from uber.config import c
+from uber.decorators import ajax, all_renderable, cached, csrf_protected, csv_file, render, unrestricted
+from uber.errors import HTTPRedirect
+from uber.models import AdminAccount, AssignedPanelist, Attendee, Event, PanelApplication
+from uber.utils import check, localized_now, normalize_newlines
 
 
 @all_renderable(c.STUFF)
@@ -16,7 +27,8 @@ class Root:
     @cached
     def internal(self, session, message=''):
         if c.HIDE_SCHEDULE and not AdminAccount.access_set() and not cherrypy.session.get('staffer_id'):
-            return "The " + c.EVENT_NAME + " schedule is being developed and will be made public when it's closer to being finalized."
+            return "The {} schedule is being developed and will be made public " \
+                "when it's closer to being finalized.".format(c.EVENT_NAME)
 
         schedule = defaultdict(lambda: defaultdict(list))
         for event in session.query(Event).all():
@@ -49,7 +61,8 @@ class Root:
                 for i in range(max_simul[id] - span_sum):
                     schedule[half_hour][id].append(c.EVENT_OPEN)
 
-            schedule[half_hour] = sorted(schedule[half_hour].items(), key=lambda tup: c.ORDERED_EVENT_LOCS.index(tup[0]))
+            schedule[half_hour] = sorted(
+                schedule[half_hour].items(), key=lambda tup: c.ORDERED_EVENT_LOCS.index(tup[0]))
 
         max_simul = [(id, c.EVENT_LOCATIONS[id], colspan) for id, colspan in max_simul.items()]
         return {
@@ -77,7 +90,9 @@ class Root:
     @unrestricted
     def schedule_tsv(self, session):
         cherrypy.response.headers['Content-Type'] = 'text/tsv'
-        cherrypy.response.headers['Content-Disposition'] = 'attachment;filename=Schedule-{}.tsv'.format(int(localized_now().timestamp()))
+        cherrypy.response.headers['Content-Disposition'] = 'attachment;filename=Schedule-{}.tsv'.format(
+            int(localized_now().timestamp()))
+
         schedule = defaultdict(list)
         for event in session.query(Event).order_by('start_time').all():
             schedule[event.location_label].append(dict(event.to_dict(), **{
@@ -116,12 +131,16 @@ class Root:
         out.writerow(['Panel', 'Time', 'Duration', 'Room', 'Description', 'Panelists'])
         for event in sorted(session.query(Event).all(), key=lambda e: [e.start_time, e.location_label]):
             if 'Panel' in event.location_label or 'Autograph' in event.location_label:
-                out.writerow([event.name,
-                              event.start_time_local.strftime('%I%p %a').lstrip('0'),
-                              '{} minutes'.format(event.minutes),
-                              event.location_label,
-                              event.description,
-                              ' / '.join(ap.attendee.full_name for ap in sorted(event.assigned_panelists, key=lambda ap: ap.attendee.full_name))])
+                panelist_names = ' / '.join(ap.attendee.full_name for ap in sorted(
+                    event.assigned_panelists, key=lambda ap: ap.attendee.full_name))
+
+                out.writerow([
+                    event.name,
+                    event.start_time_local.strftime('%I%p %a').lstrip('0'),
+                    '{} minutes'.format(event.minutes),
+                    event.location_label,
+                    event.description,
+                    panelist_names])
 
     @unrestricted
     def panels_json(self, session):
@@ -157,17 +176,17 @@ class Root:
                 if now in event.half_hours:
                     current.append(event)
 
-            next = session.query(Event) \
-                          .filter(Event.location == loc,
-                                  Event.start_time >= now + timedelta(minutes=30),
-                                  Event.start_time <= now + timedelta(hours=4)) \
-                                .order_by('start_time').all()
-            if next:
-                upcoming.extend(event for event in next if event.start_time == next[0].start_time)
+            next_events = session.query(Event).filter(
+                Event.location == loc,
+                Event.start_time >= now + timedelta(minutes=30),
+                Event.start_time <= now + timedelta(hours=4)).order_by('start_time').all()
+
+            if next_events:
+                upcoming.extend(event for event in next_events if event.start_time == next_events[0].start_time)
 
         return {
-            'now':      now if when else localized_now(),
-            'current':  current,
+            'now': now if when else localized_now(),
+            'current': current,
             'upcoming': upcoming
         }
 
@@ -202,22 +221,26 @@ class Root:
                         session.add(AssignedPanelist(event=event, attendee=attendee))
                 raise HTTPRedirect('edit#{}', event.start_slot and (event.start_slot - 1))
 
+        assigned_panelists = sorted(event.assigned_panelists, reverse=True, key=lambda a: a.attendee.first_name)
+
+        all_panelists = session.query(Attendee).filter(or_(
+            Attendee.ribbon.contains(c.PANELIST_RIBBON),
+            Attendee.badge_type == c.GUEST_BADGE)).order_by(Attendee.full_name).all()
+
+        approved_panel_apps = session.query(PanelApplication).filter(
+            PanelApplication.status == c.ACCEPTED).order_by('applied')
+
         return {
             'message': message,
             'event':   event,
-            'assigned': [ap.attendee_id for ap in sorted(event.assigned_panelists, reverse=True, key=lambda a: a.attendee.first_name)],
-            'panelists': [(a.id, a.full_name)
-                          for a in session.query(Attendee)
-                                          .filter(or_(Attendee.ribbon.contains(c.PANELIST_RIBBON),
-                                                      Attendee.badge_type == c.GUEST_BADGE))
-                                          .order_by(Attendee.full_name).all()],
-            'approved_panel_apps': session.query(PanelApplication).filter(PanelApplication.status == c.ACCEPTED)
-                .order_by('applied')
+            'assigned': [ap.attendee_id for ap in assigned_panelists],
+            'panelists': [(a.id, a.full_name) for a in all_panelists],
+            'approved_panel_apps': approved_panel_apps
         }
 
     @csrf_protected
     def delete(self, session, id):
-        event = session.delete(session.event(id))
+        session.delete(session.event(id))
         raise HTTPRedirect('edit?message={}', 'Event successfully deleted')
 
     @ajax
@@ -234,7 +257,9 @@ class Root:
     def swap(self, session, id1, id2):
         from uber.model_checks import overlapping_events
         e1, e2 = session.event(id1), session.event(id2)
-        (e1.location, e1.start_time), (e2.location, e2.start_time) = (e2.location, e2.start_time), (e1.location, e1.start_time)
+        e1.location, e2.location = e2.location, e1.location
+        e1.start_time, e2.start_time = e2.start_time, e1.start_time
+
         resp = {'error': overlapping_events(e1, e2.id) or overlapping_events(e2, e1.id)}
         if not resp['error']:
             session.commit()
@@ -242,8 +267,10 @@ class Root:
 
     def edit(self, session, message=''):
         panelists = defaultdict(dict)
-        for ap in session.query(AssignedPanelist) \
-                         .options(joinedload(AssignedPanelist.event), joinedload(AssignedPanelist.attendee)).all():
+        assigned_panelists = session.query(AssignedPanelist).options(
+            joinedload(AssignedPanelist.event), joinedload(AssignedPanelist.attendee)).all()
+
+        for ap in assigned_panelists:
             panelists[ap.event.id][ap.attendee.id] = ap.attendee.full_name
 
         events = []
@@ -292,7 +319,10 @@ class Root:
     @csv_file
     def panel_tech_needs(self, out, session):
         panels = defaultdict(dict)
-        for panel in session.query(PanelApplication).filter(PanelApplication.event_id == Event.id, Event.location.in_(c.PANEL_ROOMS)):
+        panel_applications = session.query(PanelApplication).filter(
+            PanelApplication.event_id == Event.id, Event.location.in_(c.PANEL_ROOMS))
+
+        for panel in panel_applications:
             panels[panel.event.start_time][panel.event.location] = panel
 
         curr_time, last_time = min(panels), max(panels)

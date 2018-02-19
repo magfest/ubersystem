@@ -26,12 +26,13 @@ from sqlalchemy.schema import MetaData
 from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric
 from sqlalchemy.util import immutabledict
 
+import uber
 from uber.config import c, create_namespace_uuid
+from uber.errors import HTTPRedirect
 from uber.decorators import cost_property, department_id_adapter, \
     presave_adjustment, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
-from uber.utils import check_csrf, get_real_badge_type, normalize_phone, \
-    DeptChecklistConf, HTTPRedirect
+from uber.utils import check_csrf, normalize_phone, DeptChecklistConf
 
 
 # Consistent naming conventions are necessary for alembic to be able to
@@ -511,8 +512,7 @@ from uber.models.tracking import Tracking  # noqa: E402
 from uber.models.mivs import IndieJudge, IndieGame  # noqa: E402
 from uber.models.mits import MITSApplicant, MITSTeam  # noqa: E402
 from uber.models.panels import PanelApplication, PanelApplicant  # noqa: E402
-from uber.models.tabletop import TabletopEntrant, \
-    TabletopTournament  # noqa: E402
+from uber.models.tabletop import TabletopEntrant, TabletopTournament  # noqa: E402
 
 
 class Session(SessionManager):
@@ -823,7 +823,7 @@ class Session(SessionManager):
                     type's range.
 
             """
-            badge_type = get_real_badge_type(badge_type)
+            badge_type = uber.badge_funcs.get_real_badge_type(badge_type)
 
             new_badge_num = self.auto_badge_num(badge_type)
             lower_bound = c.BADGE_RANGES[badge_type][0]

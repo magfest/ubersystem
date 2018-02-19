@@ -1,8 +1,17 @@
+import re
+from datetime import datetime
 from inspect import getargspec, getmembers, ismethod
 
+import cherrypy
+import pytz
 from pockets import unwrap
+from sqlalchemy.orm import subqueryload
 
-from uber.common import *
+from uber.config import c
+from uber.decorators import ajax, all_renderable
+from uber.errors import HTTPRedirect
+from uber.models import AdminAccount, ApiToken
+from uber.utils import check
 
 
 @all_renderable(*c.API_ACCESS.keys())
@@ -14,7 +23,7 @@ class Root:
         if c.ADMIN not in admin_account.access_ints:
             api_tokens = api_tokens.filter_by(admin_account_id=admin_account.id)
         if not show_revoked:
-            api_tokens = api_tokens.filter(ApiToken.revoked_time == None)
+            api_tokens = api_tokens.filter(ApiToken.revoked_time == None)  # noqa: E711
         api_tokens = api_tokens.options(
             subqueryload(ApiToken.admin_account)
             .subqueryload(AdminAccount.attendee)) \

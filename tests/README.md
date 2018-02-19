@@ -20,17 +20,17 @@ the plugin. E.g.:
     cd sideboard/plugins/my_plugin
     ```
 
-3. Run your tests! To run all tests and pycodestyle validation from the command line:
+3. Run your tests! To run all tests and flake8 validation from the command line:
     ```
     tox
     ```
 
-    1. To run pycodestyle validation only, without running any tests:
+    1. To run flake8 validation only, without running any tests:
         ```
-        tox -e pycodestyle
+        tox -e flake8
         ```
 
-    2. To run the tests only, without pycodestyle:
+    2. To run the tests only, without flake8:
         ```
         tox -e py34
         ```

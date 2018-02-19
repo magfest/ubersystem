@@ -1,4 +1,5 @@
 from tests.uber import *
+from uber.amazon_ses import AmazonSES
 from unittest.mock import patch, Mock
 
 

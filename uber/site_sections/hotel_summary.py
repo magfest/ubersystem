@@ -1,4 +1,11 @@
-from uber.common import *
+from collections import defaultdict
+from datetime import timedelta
+
+from sqlalchemy.orm import joinedload, subqueryload
+
+from uber.config import c
+from uber.decorators import all_renderable, csv_file
+from uber.models import Attendee, HotelRequests, Job, Shift
 from uber.utils import noon_datetime
 
 
@@ -8,7 +15,7 @@ def _inconsistent_shoulder_shifts(session):
             subqueryload(Attendee.depts_where_working),
             subqueryload(Attendee.shifts).subqueryload(Shift.job).subqueryload(Job.department),
             subqueryload(Attendee.hotel_requests)) \
-        .filter(HotelRequests.approved == True)
+        .filter(HotelRequests.approved == True)  # noqa: E712
 
     shoulder_nights_missing_shifts = defaultdict(lambda: defaultdict(list))
 
@@ -16,7 +23,6 @@ def _inconsistent_shoulder_shifts(session):
         if attendee.is_dept_head:
             continue
         approved_nights = set(attendee.hotel_requests.nights_ints)
-        approved_regular_nights = approved_nights.intersection(c.CORE_NIGHTS)
         approved_shoulder_nights = approved_nights.difference(c.CORE_NIGHTS)
         shifts_by_night = defaultdict(list)
         departments = set()
@@ -46,17 +52,24 @@ class Root:
     # TODO: handle people who didn't request setup / teardown but who were assigned to a setup / teardown room
     def setup_teardown(self, session):
         attendees = []
-        for hr in (session.query(HotelRequests)
-                          .filter_by(approved=True)
-                          .options(joinedload(HotelRequests.attendee).subqueryload(Attendee.shifts).joinedload(Shift.job))):
-            if hr.setup_teardown and hr.attendee.takes_shifts and hr.attendee.badge_status in [c.NEW_STATUS, c.COMPLETED_STATUS]:
+        hotel_requests = session.query(HotelRequests).filter_by(approved=True).options(
+            joinedload(HotelRequests.attendee).subqueryload(Attendee.shifts).joinedload(Shift.job))
+
+        for hr in hotel_requests:
+            badge_new_or_complete = hr.attendee.badge_status in [c.NEW_STATUS, c.COMPLETED_STATUS]
+            if hr.setup_teardown and hr.attendee.takes_shifts and badge_new_or_complete:
                 reasons = []
-                if hr.attendee.setup_hotel_approved and not any([shift.job.is_setup for shift in hr.attendee.shifts]):
+                if hr.attendee.setup_hotel_approved \
+                        and not any([shift.job.is_setup for shift in hr.attendee.shifts]):
                     reasons.append('has no setup shifts')
-                if hr.attendee.teardown_hotel_approved and not any([shift.job.is_teardown for shift in hr.attendee.shifts]):
+
+                if hr.attendee.teardown_hotel_approved \
+                        and not any([shift.job.is_teardown for shift in hr.attendee.shifts]):
                     reasons.append('has no teardown shifts')
+
                 if reasons:
                     attendees.append([hr.attendee, reasons])
+
         attendees = sorted(attendees, key=lambda tup: tup[0].full_name)
 
         return {

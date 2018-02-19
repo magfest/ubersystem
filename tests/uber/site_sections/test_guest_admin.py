@@ -3,8 +3,8 @@ import re
 import cherrypy
 import pytest
 
-from uber.common import *
-from uber.utils import CSRFException
+from uber import *
+from uber.errors import CSRFException, HTTPRedirect
 from uber.site_sections import guest_admin
 
 

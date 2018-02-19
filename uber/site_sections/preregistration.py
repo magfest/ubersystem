@@ -1,7 +1,19 @@
+import json
+from datetime import timedelta
+from functools import wraps
+
+import cherrypy
 from pockets import listify
 from pockets.autolog import log
+from sqlalchemy import func
 
-from uber.common import *
+from uber.config import c
+from uber.decorators import all_renderable, check_if_can_reg, credit_card, csrf_protected, id_required, log_pageview, \
+    redirect_if_at_con_to_kiosk, render
+from uber.errors import HTTPRedirect
+from uber.models import Attendee, Email, Group, Tracking
+from uber.notifications import send_email
+from uber.utils import add_opt, check, localized_now, Charge
 
 
 def to_sessionized(attendee, group):
@@ -60,12 +72,15 @@ class Root:
         raise HTTPRedirect(c.KIOSK_REDIRECT_URL)
 
     def check_prereg(self):
-        return json.dumps({'force_refresh': not c.AT_THE_CON and (c.AFTER_PREREG_TAKEDOWN or c.BADGES_SOLD >= c.MAX_BADGE_SALES)})
+        return json.dumps({
+            'force_refresh': not c.AT_THE_CON and (c.AFTER_PREREG_TAKEDOWN or c.BADGES_SOLD >= c.MAX_BADGE_SALES)})
 
     def check_if_preregistered(self, session, message='', **params):
         if 'email' in params:
             attendee = session.query(Attendee).filter(func.lower(Attendee.email) == func.lower(params['email'])).first()
-            message = 'Thank you! You will receive a confirmation email if you are registered for {}.'.format(c.EVENT_NAME_AND_YEAR)
+            message = 'Thank you! You will receive a confirmation email if ' \
+                'you are registered for {}.'.format(c.EVENT_NAME_AND_YEAR)
+
             subject = c.EVENT_NAME_AND_YEAR + ' Registration Confirmation'
 
             if attendee:
@@ -73,9 +88,12 @@ class Root:
                                      .filter_by(dest=attendee.email, subject=subject)
                                      .order_by(Email.when.desc()).first())
                 if not last_email or last_email.when < (localized_now() - timedelta(days=7)):
-                    send_email(c.REGDESK_EMAIL, attendee.email, subject, render('emails/reg_workflow/prereg_check.txt', {
-                        'attendee': attendee
-                    }), model=attendee)
+                    send_email(
+                        c.REGDESK_EMAIL,
+                        attendee.email,
+                        subject,
+                        render('emails/reg_workflow/prereg_check.txt', {'attendee': attendee}),
+                        model=attendee)
 
         return {'message': message}
 
@@ -129,7 +147,10 @@ class Root:
                 params[field_name] = group_params[field_name]
 
         if edit_id is not None:
-            attendee, group = self._get_unsaved(edit_id, if_not_found=HTTPRedirect('form?message={}', 'That preregistration has already been finalized'))
+            attendee, group = self._get_unsaved(
+                edit_id,
+                if_not_found=HTTPRedirect('form?message={}', 'That preregistration has already been finalized'))
+
             attendee.apply(params, restricted=True)
             group.apply(group_params, restricted=True)
             params.setdefault('badges', group.badges)
@@ -160,7 +181,8 @@ class Root:
             }
 
         if attendee.is_dealer and not c.DEALER_REG_OPEN:
-            return render('static_views/dealer_reg_closed.html') if c.AFTER_DEALER_REG_SHUTDOWN else render('static_views/dealer_reg_not_open.html')
+            return render('static_views/dealer_reg_closed.html') if c.AFTER_DEALER_REG_SHUTDOWN \
+                else render('static_views/dealer_reg_not_open.html')
 
         if 'first_name' in params:
             message = check(attendee, prereg=True)
@@ -188,7 +210,7 @@ class Root:
                                    render('emails/dealers/reg_notification.txt', {'group': group}), model=group)
                         send_email(c.MARKETPLACE_EMAIL, attendee.email, 'Dealer Application Received',
                                    render('emails/dealers/application.html', {'group': group}), 'html', model=group)
-                    except:
+                    except Exception:
                         log.error('unable to send marketplace application confirmation email', exc_info=True)
                     raise HTTPRedirect('dealer_confirmation?id={}', group.id)
                 else:
@@ -199,7 +221,9 @@ class Root:
                     if group.badges:
                         Tracking.track(track_type, group)
 
-                if session.attendees_with_badges().filter_by(first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).count():
+                if session.attendees_with_badges().filter_by(
+                        first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).count():
+
                     raise HTTPRedirect('duplicate?id={}', group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
 
                 if attendee.banned:
@@ -224,7 +248,8 @@ class Root:
                     attendee.requested_hotel_info = True
 
             if attendee.badge_type == c.PSEUDO_DEALER_BADGE and c.DEALER_REG_SOFT_CLOSED:
-                message = 'Dealer registration is closed, but you can fill out this form to add yourself to our waitlist'
+                message = 'Dealer registration is closed, but you can ' \
+                    'fill out this form to add yourself to our waitlist'
 
         return {
             'message':    message,
@@ -250,7 +275,9 @@ class Root:
             else:
                 raise HTTPRedirect('form?edit_id={}', id)
 
-        attendee, group = self._get_unsaved(id, if_not_found=HTTPRedirect('form?message={}', 'Could not find the given preregistration'))
+        attendee, group = self._get_unsaved(
+            id, if_not_found=HTTPRedirect('form?message={}', 'Could not find the given preregistration'))
+
         is_group_leader = not attendee.is_unassigned and len(group.attendees) > 0
 
         if cherrypy.request.method == 'POST':
@@ -258,6 +285,9 @@ class Root:
             target = group if group.badges else attendee
             track_type = c.EDITED_PREREG if target.id in Charge.unpaid_preregs else c.UNPAID_PREREG
             Charge.unpaid_preregs[target.id] = to_sessionized(attendee, group)
+            Tracking.track(track_type, attendee)
+            if group.badges:
+                Tracking.track(track_type, group)
             raise HTTPRedirect('index')
         return {
             'message': message,
@@ -269,7 +299,9 @@ class Root:
 
     def duplicate(self, session, id):
         attendee, group = self._get_unsaved(id)
-        orig = session.query(Attendee).filter_by(first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).first()
+        orig = session.query(Attendee).filter_by(
+            first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).first()
+
         if not orig:
             raise HTTPRedirect('index')
 
@@ -312,7 +344,8 @@ class Root:
         if not charge.total_cost:
             message = 'Your total cost was $0. Your credit card has not been charged.'
         elif charge.amount != charge.total_cost:
-            message = 'Our preregistration price has gone up; please fill out the payment form again at the higher price'
+            message = 'Our preregistration price has gone up; ' \
+                'please fill out the payment form again at the higher price'
         else:
             message = charge.charge_cc(session, stripeToken)
 
@@ -356,7 +389,7 @@ class Root:
             for prereg in preregs:
                 try:
                     session.refresh(prereg)
-                except:
+                except Exception:
                     pass  # this badge must have subsequently been transferred or deleted
             return {
                 'preregs': preregs,
@@ -395,8 +428,14 @@ class Root:
             else:
                 session.commit()
                 if group.is_dealer:
-                    send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Application Changed',
-                               render('emails/dealers/appchange_notification.html', {'group': group}), 'html', model=group)
+                    send_email(
+                        c.MARKETPLACE_EMAIL,
+                        c.MARKETPLACE_EMAIL,
+                        'Dealer Application Changed',
+                        render('emails/dealers/appchange_notification.html', {'group': group}),
+                        'html',
+                        model=group)
+
                 message = 'Thank you! Your application has been updated.'
 
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
@@ -416,7 +455,10 @@ class Root:
                 message = 'First and Last Name are required fields'
             if not message:
                 if not group.unassigned:
-                    raise HTTPRedirect('register_group_member?group_id={}&message={}', group_id, 'No more unassigned badges exist in this group')
+                    raise HTTPRedirect(
+                        'register_group_member?group_id={}&message={}',
+                        group_id,
+                        'No more unassigned badges exist in this group')
 
                 attrs_to_preserve_from_unassigned_group_member = [
                     'id',
@@ -471,7 +513,7 @@ class Root:
                 try:
                     send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Payment Completed',
                                render('emails/dealers/payment_notification.txt', {'group': group}), model=group)
-                except:
+                except Exception:
                     log.error('unable to send dealer payment confirmation email', exc_info=True)
             raise HTTPRedirect('group_members?id={}&message={}', group.id, 'Your payment has been accepted!')
 
@@ -481,19 +523,36 @@ class Root:
         try:
             send_email(c.REGDESK_EMAIL, attendee.email, '{EVENT_NAME} group registration dropped',
                        render('emails/reg_workflow/group_member_dropped.txt', {'attendee': attendee}), model=attendee)
-        except:
+        except Exception:
             log.error('unable to send group unset email', exc_info=True)
 
-        session.assign_badges(attendee.group, attendee.group.badges + 1, new_badge_type=attendee.badge_type, new_ribbon_type=attendee.ribbon, registered=attendee.registered, paid=attendee.paid)
+        session.assign_badges(
+            attendee.group,
+            attendee.group.badges + 1,
+            new_badge_type=attendee.badge_type,
+            new_ribbon_type=attendee.ribbon,
+            registered=attendee.registered,
+            paid=attendee.paid)
+
         session.delete_from_group(attendee, attendee.group)
-        raise HTTPRedirect('group_members?id={}&message={}', attendee.group_id, 'Attendee unset; you may now assign their badge to someone else')
+        raise HTTPRedirect(
+            'group_members?id={}&message={}',
+            attendee.group_id,
+            'Attendee unset; you may now assign their badge to someone else')
 
     def add_group_members(self, session, id, count):
         group = session.group(id)
         if int(count) < group.min_badges_addable and not group.is_in_grace_period:
-            raise HTTPRedirect('group_members?id={}&message={}', group.id, 'This group cannot add fewer than {} badges'.format(group.min_badges_addable))
+            raise HTTPRedirect(
+                'group_members?id={}&message={}',
+                group.id,
+                'This group cannot add fewer than {} badges'.format(group.min_badges_addable))
 
-        charge = Charge(group, amount=100 * int(count) * group.new_badge_cost, description='{} extra badges for {}'.format(count, group.name))
+        charge = Charge(
+            group,
+            amount=100 * int(count) * group.new_badge_cost,
+            description='{} extra badges for {}'.format(count, group.name))
+
         return {
             'count': count,
             'group': group,
@@ -519,7 +578,10 @@ class Root:
             if group.is_dealer:
                 send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Paid for Extra Members',
                            render('emails/dealers/payment_notification.txt', {'group': group}), model=group)
-            raise HTTPRedirect('group_members?id={}&message={}', group.id, 'You payment has been accepted and the badges have been added to your group')
+            raise HTTPRedirect(
+                'group_members?id={}&message={}',
+                group.id,
+                'You payment has been accepted and the badges have been added to your group')
 
     @id_required(Attendee)
     @log_pageview
@@ -532,7 +594,8 @@ class Root:
 
         if 'first_name' in params:
             message = check(attendee, prereg=True)
-            if (old.first_name == attendee.first_name and old.last_name == attendee.last_name) or (old.legal_name and old.legal_name == attendee.legal_name):
+            if (old.first_name == attendee.first_name and old.last_name == attendee.last_name) \
+                    or (old.legal_name and old.legal_name == attendee.legal_name):
                 message = 'You cannot transfer your badge to yourself.'
             elif not message and (not params['first_name'] and not params['last_name']):
                 message = check(attendee, prereg=True)
@@ -540,16 +603,24 @@ class Root:
                 message = 'First and Last names are required.'
 
             if not message:
-                subject, body = c.EVENT_NAME + ' Registration Transferred', render('emails/reg_workflow/badge_transfer.txt', {'new': attendee, 'old': old})
+                subject = c.EVENT_NAME + ' Registration Transferred'
+                body = render('emails/reg_workflow/badge_transfer.txt', {'new': attendee, 'old': old})
+
                 try:
-                    send_email(c.REGDESK_EMAIL, [old.email, attendee.email, c.REGDESK_EMAIL], subject, body, model=attendee)
-                except:
+                    send_email(
+                        c.REGDESK_EMAIL,
+                        [old.email, attendee.email, c.REGDESK_EMAIL],
+                        subject,
+                        body,
+                        model=attendee)
+                except Exception:
                     log.error('unable to send badge change email', exc_info=True)
 
                 if attendee.amount_unpaid:
                     raise HTTPRedirect('attendee_donation_form?id={}', attendee.id)
                 else:
-                    raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Your registration has been transferred')
+                    raise HTTPRedirect(
+                        'badge_updated?id={}&message={}', attendee.id, 'Your registration has been transferred')
         else:
             for attr in c.UNTRANSFERABLE_ATTRS:
                 setattr(attendee, attr, getattr(Attendee(), attr))
@@ -578,7 +649,14 @@ class Root:
 
         # if attendee is part of a group, we must delete attendee and remove them from the group
         if attendee.group:
-            session.assign_badges(attendee.group, attendee.group.badges + 1, new_badge_type=attendee.badge_type, new_ribbon_type=attendee.ribbon, registered=attendee.registered, paid=attendee.paid)
+            session.assign_badges(
+                attendee.group,
+                attendee.group.badges + 1,
+                new_badge_type=attendee.badge_type,
+                new_ribbon_type=attendee.ribbon,
+                registered=attendee.registered,
+                paid=attendee.paid)
+
             session.delete_from_group(attendee, attendee.group)
             raise HTTPRedirect('not_found?id={}&message={}', attendee.id, success_message)
         # otherwise, we will mark attendee as invalid
@@ -614,7 +692,8 @@ class Root:
                 else:
                     raise HTTPRedirect(page + 'message=' + message)
 
-        elif attendee.amount_unpaid and attendee.zip_code and not undoing_extra:  # don't skip to payment until the form is filled out
+        elif attendee.amount_unpaid and attendee.zip_code and not undoing_extra:
+            # Don't skip to payment until the form is filled out
             raise HTTPRedirect('attendee_donation_form?id={}&message={}', attendee.id, message)
 
         attendee.placeholder = placeholder
@@ -649,13 +728,18 @@ class Root:
         return {
             'message': message,
             'attendee': attendee,
-            'charge': Charge(attendee, description='{}{}'.format(attendee.full_name, '' if attendee.overridden_price else ' kicking in extra'))
+            'charge': Charge(
+                attendee,
+                description='{}{}'.format(attendee.full_name, '' if attendee.overridden_price else ' kicking in extra'))
         }
 
     def undo_attendee_donation(self, session, id):
         attendee = session.attendee(id)
         if len(attendee.cost_property_names) > 1:  # core Uber only has one cost property
-            raise HTTPRedirect('confirm?id={}&undoing_extra=true&message={}', attendee.id, 'Please revert your registration to the extras you wish to pay for, if any')
+            raise HTTPRedirect(
+                'confirm?id={}&undoing_extra=true&message={}',
+                attendee.id,
+                'Please revert your registration to the extras you wish to pay for, if any')
         else:
             attendee.amount_extra = max(0, attendee.amount_extra - attendee.amount_unpaid)
             raise HTTPRedirect('confirm?id=' + id)

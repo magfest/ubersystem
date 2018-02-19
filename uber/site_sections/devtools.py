@@ -1,8 +1,14 @@
-from uber.common import *
+import os
 import shlex
 import subprocess
 
 from sideboard.debugging import register_diagnostics_status_function, gather_diagnostics_status_information
+
+from uber.badge_funcs import badge_consistency_check
+from uber.config import c
+from uber.decorators import all_renderable
+from uber.models import Session
+
 
 # admin utilities.  should not be used during normal ubersystem operations except by developers / sysadmins
 

@@ -1,4 +1,4 @@
-from uber.common import *
+from uber import *
 from tests.uber import *
 
 

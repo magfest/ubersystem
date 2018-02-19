@@ -1,10 +1,8 @@
 import pytest
 
-from uber.common import *
-from uber.custom_tags import (jsonize, linebreaksbr, datetime_local_filter,
-    datetime_filter, full_datetime_local, hour_day_local, time_day_local,
-    timedelta_filter, timestamp, normalize_newlines, url_to_link, basename,
-    form_link, humanize_timedelta)
+from uber import *
+from uber.custom_tags import jsonize, linebreaksbr, datetime_local_filter, datetime_filter, full_datetime_local, \
+    hour_day_local, time_day_local, timedelta_filter, timestamp, url_to_link, basename, form_link, humanize_timedelta
 
 
 class TestDatetimeFilters(object):
@@ -138,22 +136,6 @@ class TestLinebreaksbr(object):
     ])
     def test_linebreaksbr(self, test_input, expected):
         assert expected == linebreaksbr(test_input)
-
-    @pytest.mark.parametrize('test_input,expected', [
-        (None, ''),
-        ('', ''),
-        ([], ''),
-        ({}, ''),
-        (jinja2.runtime.Undefined(), ''),
-        ('\n', '\n'),
-        ('\r', '\n'),
-        ('\r\n', '\n'),
-        ('asdf\nzxcv', 'asdf\nzxcv'),
-        ('asdf\rzxcv', 'asdf\nzxcv'),
-        ('asdf\r\nzxcv', 'asdf\nzxcv')
-    ])
-    def test_normalize_newlines(self, test_input, expected):
-        assert expected == normalize_newlines(test_input)
 
 
 class TestUrlToLink(object):

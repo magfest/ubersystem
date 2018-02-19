@@ -1,23 +1,34 @@
-from uber.common import *
+from collections import defaultdict
+from datetime import timedelta
+
+from sqlalchemy import not_, or_
+from sqlalchemy.orm import joinedload
+
+from uber.models import Attendee, Session
+from uber.config import c
+from uber.decorators import render
+from uber.notifications import send_email
+from uber.utils import localized_now
 
 
 def check_range(badge_num, badge_type):
     if badge_num is not None:
         try:
             badge_num = int(badge_num)
-        except:
+        except Exception:
             return '"{}" is not a valid badge number (should be an integer)'.format(badge_num)
 
         if badge_num:
             min_num, max_num = c.BADGE_RANGES[int(badge_type)]
             if not min_num <= badge_num <= max_num:
-                return '{} badge numbers must fall within the range {} - {}'.format(dict(c.BADGE_OPTS)[badge_type], min_num, max_num)
+                return '{} badge numbers must fall within the range {} - {}'.format(
+                    dict(c.BADGE_OPTS)[badge_type], min_num, max_num)
 
 
 def is_badge_unchanged(attendee, old_badge_type, old_badge_num):
     old_badge_num = int(old_badge_num or 0) or None
-    return old_badge_type == attendee.badge_type and \
-            (not attendee.badge_num or old_badge_num == attendee.badge_num)
+    return old_badge_type == attendee.badge_type and (
+        not attendee.badge_num or old_badge_num == attendee.badge_num)
 
 
 def reset_badge_if_unchanged(attendee, old_badge_type, old_badge_num):
@@ -42,8 +53,12 @@ def get_badge_type(badge_num):
                 if int(badge_num) in range(lowest, highest + 1):
                     return badge_type, ''
             return None, "{0!r} isn't a valid badge number; it's not in the range of any badge type".format(badge_num)
-        except:
+        except Exception:
             return None, '{0!r} is not a valid integer'.format(badge_num)
+
+
+def get_real_badge_type(badge_type):
+    return c.ATTENDEE_BADGE if badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE] else badge_type
 
 
 def detect_duplicates():
@@ -82,15 +97,29 @@ def detect_duplicates():
 
 def check_placeholders():
     if c.PRE_CON and c.CHECK_PLACEHOLDERS and (c.DEV_BOX or c.SEND_EMAILS):
-        emails = [
-            ['Staff', c.STAFF_EMAIL, Attendee.staffing == True],
-            ['Panelist', c.PANELS_EMAIL, or_(Attendee.badge_type == c.GUEST_BADGE, Attendee.ribbon.contains(c.PANELIST_RIBBON))],
-            ['Attendee', c.REGDESK_EMAIL, not_(or_(Attendee.staffing == True, Attendee.badge_type == c.GUEST_BADGE, Attendee.ribbon.contains(c.PANELIST_RIBBON)))]
-        ]
+        emails = [[
+            'Staff',
+            c.STAFF_EMAIL,
+            Attendee.staffing == True
+        ], [
+            'Panelist',
+            c.PANELS_EMAIL,
+            or_(Attendee.badge_type == c.GUEST_BADGE, Attendee.ribbon.contains(c.PANELIST_RIBBON))
+        ], [
+            'Attendee',
+            c.REGDESK_EMAIL,
+            not_(or_(
+                Attendee.staffing == True,
+                Attendee.badge_type == c.GUEST_BADGE,
+                Attendee.ribbon.contains(c.PANELIST_RIBBON)))
+        ]]  # noqa: E712
+
         with Session() as session:
             for badge_type, dest, per_email_filter in emails:
                 weeks_until = (c.EPOCH - localized_now()).days // 7
-                subject = '{} {} Placeholder Badge Report ({} weeks to go)'.format(c.EVENT_NAME, badge_type, weeks_until)
+                subject = '{} {} Placeholder Badge Report ({} weeks to go)'.format(
+                    c.EVENT_NAME, badge_type, weeks_until)
+
                 if session.no_email(subject):
                     placeholders = (session.query(Attendee)
                                            .filter(Attendee.placeholder == True,
@@ -98,7 +127,7 @@ def check_placeholders():
                                                    Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
                                                    per_email_filter)
                                            .options(joinedload(Attendee.group))
-                                           .order_by(Attendee.registered, Attendee.full_name).all())
+                                           .order_by(Attendee.registered, Attendee.full_name).all())  # noqa: E712
                     if placeholders:
                         body = render('emails/daily_checks/placeholders.html', {'placeholders': placeholders})
                         send_email(c.ADMIN_EMAIL, dest, subject, body, format='html', model='n/a')
@@ -109,7 +138,7 @@ def check_unassigned():
         with Session() as session:
             unassigned = session.query(Attendee).filter(
                 Attendee.staffing == True,
-                not_(Attendee.dept_memberships.any())).order_by(Attendee.full_name).all()
+                not_(Attendee.dept_memberships.any())).order_by(Attendee.full_name).all()  # noqa: E712
             subject = c.EVENT_NAME + ' Unassigned Volunteer Report for ' + localized_now().strftime('%Y-%m-%d')
             if unassigned and session.no_email(subject):
                 body = render('emails/daily_checks/unassigned.html', {'unassigned': unassigned})

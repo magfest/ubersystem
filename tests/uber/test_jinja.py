@@ -3,7 +3,7 @@ import textwrap
 import pytest
 from jinja2.exceptions import TemplateNotFound
 
-from uber.common import *
+from uber import *
 from tests.uber.conftest import *
 from uber.jinja import AbsolutePathLoader, MultiPathEnvironment
 

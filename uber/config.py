@@ -1,8 +1,24 @@
+import ast
+import decimal
 import hashlib
+import os
+import pytz
+import re
+import uuid
+from collections import defaultdict, OrderedDict
+from datetime import datetime, time, timedelta
+from hashlib import sha512
+from itertools import chain
+
+import cherrypy
+import stripe
 from pockets import keydefaultdict, nesteddefaultdict
 from pockets.autolog import log
+from sideboard.lib import parse_config, request_cached_property
+from sqlalchemy import or_
+from sqlalchemy.orm import joinedload, subqueryload
 
-from uber.common import *
+import uber
 
 
 def dynamic(func):
@@ -15,7 +31,7 @@ def create_namespace_uuid(s):
 
 
 def really_past_mivs_deadline(deadline):
-    return sa.localized_now() > (deadline + timedelta(minutes=c.MIVS_SUBMISSION_GRACE_PERIOD))
+    return uber.utils.localized_now() > (deadline + timedelta(minutes=c.MIVS_SUBMISSION_GRACE_PERIOD))
 
 
 class _Overridable:
@@ -124,13 +140,13 @@ class Config(_Overridable):
         if self.PRICE_BUMPS_ENABLED:
 
             for day, bumped_price in sorted(self.PRICE_BUMPS.items()):
-                if (dt or sa.localized_now()) >= day:
+                if (dt or uber.utils.localized_now()) >= day:
                     price = bumped_price
 
             # Only check bucket-based pricing if we're not checking an existing badge AND
             # we don't have hardcore_optimizations_enabled config on AND we're not on-site
             # (because on-site pricing doesn't involve checking badges sold).
-            if not dt and not self.HARDCORE_OPTIMIZATIONS_ENABLED and sa.localized_now() < c.EPOCH:
+            if not dt and not self.HARDCORE_OPTIMIZATIONS_ENABLED and uber.utils.localized_now() < c.EPOCH:
                 badges_sold = self.BADGES_SOLD
 
                 for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
@@ -146,9 +162,10 @@ class Config(_Overridable):
         Returns the count of all badges of the given type that we've promised to attendees.
 
         """
-        with sa.Session() as session:
-            return session.query(sa.Attendee).filter(sa.Attendee.badge_type == badge_type,
-                                                     sa.Attendee.badge_status.in_([c.COMPLETED_STATUS, c.NEW_STATUS])) \
+        with uber.models.Session() as session:
+            return session.query(uber.models.Attendee).filter(
+                uber.models.Attendee.badge_type == badge_type,
+                uber.models.Attendee.badge_status.in_([c.COMPLETED_STATUS, c.NEW_STATUS])) \
                 .count()
 
     def get_printed_badge_deadline_by_type(self, badge_type):
@@ -160,7 +177,7 @@ class Config(_Overridable):
             else max(c.PRINTED_BADGE_DEADLINE, c.SUPPORTER_BADGE_DEADLINE)
 
     def after_printed_badge_deadline_by_type(self, badge_type):
-        return sa.localized_now() > self.get_printed_badge_deadline_by_type(badge_type)
+        return uber.utils.localized_now() > self.get_printed_badge_deadline_by_type(badge_type)
 
     @property
     def DEALER_REG_OPEN(self):
@@ -175,8 +192,11 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def DEALER_APPS(self):
-        with sa.Session() as session:
-            return session.query(sa.Group).filter(sa.Group.tables > 0, sa.Group.cost > 0, sa.Group.status == self.UNAPPROVED).count()
+        with uber.models.Session() as session:
+            return session.query(uber.models.Group).filter(
+                uber.models.Group.tables > 0,
+                uber.models.Group.cost > 0,
+                uber.models.Group.status == self.UNAPPROVED).count()
 
     @request_cached_property
     @dynamic
@@ -186,11 +206,15 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def BADGES_SOLD(self):
-        with sa.Session() as session:
-            attendees = session.query(sa.Attendee)
-            individuals = attendees.filter(or_(sa.Attendee.paid == self.HAS_PAID, sa.Attendee.paid == self.REFUNDED)).filter(sa.Attendee.badge_status == self.COMPLETED_STATUS).count()
-            group_badges = attendees.join(sa.Attendee.group).filter(sa.Attendee.paid == self.PAID_BY_GROUP,
-                                                                    sa.Group.amount_paid > 0).count()
+        with uber.models.Session() as session:
+            attendees = session.query(uber.models.Attendee)
+            individuals = attendees.filter(
+                or_(uber.models.Attendee.paid == self.HAS_PAID, uber.models.Attendee.paid == self.REFUNDED)) \
+                .filter(uber.models.Attendee.badge_status == self.COMPLETED_STATUS).count()
+
+            group_badges = attendees.join(uber.models.Attendee.group) \
+                .filter(uber.models.Attendee.paid == self.PAID_BY_GROUP, uber.models.Group.amount_paid > 0).count()
+
             return individuals + group_badges
 
     @request_cached_property
@@ -202,8 +226,10 @@ class Config(_Overridable):
         if c.HARDCORE_OPTIMIZATIONS_ENABLED:
             return None
 
-        current_price_tier = c.ORDERED_PRICE_LIMITS.index(c.BADGE_PRICE) if c.BADGE_PRICE in c.ORDERED_PRICE_LIMITS else -1
-        if current_price_tier != -1 and c.ORDERED_PRICE_LIMITS[current_price_tier] == c.ORDERED_PRICE_LIMITS[-1]\
+        is_badge_price_ordered = c.BADGE_PRICE in c.ORDERED_PRICE_LIMITS
+        current_price_tier = c.ORDERED_PRICE_LIMITS.index(c.BADGE_PRICE) if is_badge_price_ordered else -1
+
+        if current_price_tier != -1 and c.ORDERED_PRICE_LIMITS[current_price_tier] == c.ORDERED_PRICE_LIMITS[-1] \
                 or not c.ORDERED_PRICE_LIMITS:
             if c.MAX_BADGE_SALES:
                 difference = c.MAX_BADGE_SALES - c.BADGES_SOLD
@@ -218,7 +244,7 @@ class Config(_Overridable):
     @property
     @dynamic
     def ONEDAY_BADGE_PRICE(self):
-        return self.get_oneday_price(sa.localized_now())
+        return self.get_oneday_price(uber.utils.localized_now())
 
     @property
     @dynamic
@@ -284,8 +310,8 @@ class Config(_Overridable):
         if getattr(self, '_swadges_available', False):
             return True
 
-        with sa.Session() as session:
-            got = session.query(sa.Attendee).filter_by(got_swadge=True).first()
+        with uber.models.Session() as session:
+            got = session.query(uber.models.Attendee).filter_by(got_swadge=True).first()
             if got:
                 self._swadges_available = True
             return bool(got)
@@ -390,10 +416,11 @@ class Config(_Overridable):
             opts.append((self.ATTENDEE_BADGE, 'Full Weekend Badge (${})'.format(self.BADGE_PRICE)))
         for badge_type in self.BADGE_TYPE_PRICES:
             if badge_type not in opts:
-                opts.append((badge_type, '{} (${})'.format(self.BADGES[badge_type], self.BADGE_TYPE_PRICES[badge_type])))
+                opts.append(
+                    (badge_type, '{} (${})'.format(self.BADGES[badge_type], self.BADGE_TYPE_PRICES[badge_type])))
         if self.ONE_DAYS_ENABLED:
             if self.PRESELL_ONE_DAYS:
-                day = max(sa.localized_now(), self.EPOCH)
+                day = max(uber.utils.localized_now(), self.EPOCH)
                 while day.date() <= self.ESCHATON.date():
                     day_name = day.strftime('%A')
                     price = self.BADGE_PRICES['single_day'].get(day_name) or self.DEFAULT_SINGLE_DAY
@@ -434,7 +461,7 @@ class Config(_Overridable):
 
     @property
     def CSRF_TOKEN(self):
-        uber.utils.ensure_csrf_token_exists()
+        uber.models.utils.ensure_csrf_token_exists()
         return cherrypy.session['csrf_token'] if 'csrf_token' in cherrypy.session else ''
 
     @property
@@ -452,7 +479,7 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def ALLOWED_ACCESS_OPTS(self):
-        with sa.Session() as session:
+        with uber.models.Session() as session:
             return session.current_admin_account().allowed_access_opts
 
     @request_cached_property
@@ -464,13 +491,15 @@ class Config(_Overridable):
     @dynamic
     def CURRENT_ADMIN(self):
         try:
-            with sa.Session() as session:
-                attrs = sa.Attendee.to_dict_default_attrs + \
-                    ['admin_account', 'assigned_depts']
-                admin_account = session.query(sa.AdminAccount) \
-                    .filter_by(id=cherrypy.session['account_id']).options(
-                        subqueryload(sa.AdminAccount.attendee)
-                            .subqueryload(sa.Attendee.assigned_depts)).one()
+            with uber.models.Session() as session:
+                attrs = uber.models.Attendee.to_dict_default_attrs + ['admin_account', 'assigned_depts']
+                admin_account = session.query(uber.models.AdminAccount) \
+                    .filter_by(id=cherrypy.session['account_id']) \
+                    .options(
+                        subqueryload(uber.models.AdminAccount.attendee)
+                        .subqueryload(uber.models.Attendee.assigned_depts)
+                    ).one()
+
                 return admin_account.attendee.to_dict(attrs)
         except Exception:
             return {}
@@ -484,7 +513,7 @@ class Config(_Overridable):
     @dynamic
     def DEPARTMENT_OPTS(self):
         from uber.models.department import Department
-        with sa.Session() as session:
+        with uber.models.Session() as session:
             query = session.query(Department).order_by(Department.name)
             return [(d.id, d.name) for d in query]
 
@@ -492,7 +521,7 @@ class Config(_Overridable):
     @dynamic
     def DEPARTMENT_OPTS_WITH_DESC(self):
         from uber.models.department import Department
-        with sa.Session() as session:
+        with uber.models.Session() as session:
             query = session.query(Department).order_by(Department.name)
             return [(d.id, d.name, d.description) for d in query]
 
@@ -500,7 +529,7 @@ class Config(_Overridable):
     @dynamic
     def PUBLIC_DEPARTMENT_OPTS_WITH_DESC(self):
         from uber.models.department import Department
-        with sa.Session() as session:
+        with uber.models.Session() as session:
             query = session.query(Department).filter_by(
                 solicits_volunteers=True).order_by(Department.name)
             return [('All', 'Anywhere', 'I want to help anywhere I can!')] + \
@@ -510,7 +539,7 @@ class Config(_Overridable):
     @dynamic
     def DEFAULT_DEPARTMENT_ID(self):
         from uber.models.department import Department
-        with sa.Session() as session:
+        with uber.models.Session() as session:
             dept = session.query(Department).order_by(Department.name).first()
             return dept.id
 
@@ -519,13 +548,13 @@ class Config(_Overridable):
         return cherrypy.request.method.upper()
 
     def get_kickin_count(self, kickin_level):
-        with sa.Session() as session:
-            attendees = session.query(sa.Attendee)
-            individual_supporters = attendees.filter(sa.Attendee.paid.in_([self.HAS_PAID, self.REFUNDED]),
-                                                     sa.Attendee.amount_extra >= kickin_level).count()
-            group_supporters = attendees.filter(sa.Attendee.paid == self.PAID_BY_GROUP,
-                                                sa.Attendee.amount_extra >= kickin_level,
-                                                sa.Attendee.amount_paid >= kickin_level).count()
+        with uber.models.Session() as session:
+            attendees = session.query(uber.models.Attendee)
+            individual_supporters = attendees.filter(uber.models.Attendee.paid.in_([self.HAS_PAID, self.REFUNDED]),
+                                                     uber.models.Attendee.amount_extra >= kickin_level).count()
+            group_supporters = attendees.filter(uber.models.Attendee.paid == self.PAID_BY_GROUP,
+                                                uber.models.Attendee.amount_extra >= kickin_level,
+                                                uber.models.Attendee.amount_paid >= kickin_level).count()
             return individual_supporters + group_supporters
 
     @request_cached_property
@@ -546,24 +575,24 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def MENU_FILTERED_BY_ACCESS_LEVELS(self):
-        return c.MENU.render_items_filtered_by_current_access(sa.AdminAccount.access_set())
+        return c.MENU.render_items_filtered_by_current_access(uber.models.AdminAccount.access_set())
 
     @request_cached_property
     @dynamic
     def ADMIN_ACCESS_SET(self):
-        return sa.AdminAccount.access_set()
+        return uber.models.AdminAccount.access_set()
 
     @request_cached_property
     @dynamic
     def EMAIL_APPROVED_IDENTS(self):
-        with sa.Session() as session:
-            return {ae.ident for ae in session.query(sa.ApprovedEmail)}
+        with uber.models.Session() as session:
+            return {ae.ident for ae in session.query(uber.models.ApprovedEmail)}
 
     @request_cached_property
     @dynamic
     def PREVIOUSLY_SENT_EMAILS(self):
-        with sa.Session() as session:
-            return set(session.query(sa.Email.model, sa.Email.fk_id, sa.Email.ident))
+        with uber.models.Session() as session:
+            return set(session.query(uber.models.Email.model, uber.models.Email.fk_id, uber.models.Email.ident))
 
     # =========================
     # mivs
@@ -586,33 +615,33 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def PANEL_POC_OPTS(self):
-        with Session() as session:
+        with uber.models.Session() as session:
             return sorted([
                 (a.attendee.id, a.attendee.full_name)
-                for a in session.query(AdminAccount)
-                                .options(joinedload(AdminAccount.attendee))
-                                .filter(AdminAccount.access.contains(str(c.PANEL_APPS)))
+                for a in session.query(uber.models.AdminAccount)
+                                .options(joinedload(uber.models.AdminAccount.attendee))
+                                .filter(uber.models.AdminAccount.access.contains(str(c.PANEL_APPS)))
             ], key=lambda tup: tup[1], reverse=False)
 
     @property
     @dynamic
     def PANEL_ACCEPTED_EMAIL_APPROVED(self):
-        return AutomatedEmail.instances['panel_accepted'].approved
+        return uber.models.AutomatedEmail.instances['panel_accepted'].approved
 
     @property
     @dynamic
     def PANEL_DECLINED_EMAIL_APPROVED(self):
-        return AutomatedEmail.instances['panel_declined'].approved
+        return uber.models.AutomatedEmail.instances['panel_declined'].approved
 
     @property
     @dynamic
     def PANEL_WAITLISTED_EMAIL_APPROVED(self):
-        return AutomatedEmail.instances['panel_waitlisted'].approved
+        return uber.models.AutomatedEmail.instances['panel_waitlisted'].approved
 
     @property
     @dynamic
     def PANEL_SCHEDULED_EMAIL_APPROVED(self):
-        return AutomatedEmail.instances['panel_scheduled'].approved
+        return uber.models.AutomatedEmail.instances['panel_scheduled'].approved
 
     def __getattr__(self, name):
         if name.split('_')[0] in ['BEFORE', 'AFTER']:
@@ -620,9 +649,9 @@ class Config(_Overridable):
             if not date_setting:
                 return False
             elif name.startswith('BEFORE_'):
-                return sa.localized_now() < date_setting
+                return uber.utils.localized_now() < date_setting
             else:
-                return sa.localized_now() > date_setting
+                return uber.utils.localized_now() > date_setting
         elif name.startswith('HAS_') and name.endswith('_ACCESS'):
             return getattr(c, '_'.join(name.split('_')[1:-1])) in c.ADMIN_ACCESS_SET
         elif name.endswith('_COUNT'):
@@ -758,8 +787,10 @@ c.make_enums(_config['enums'])
 _default_access = [getattr(c, s.upper()) for s in c.REQUIRED_ACCESS[c.__DEFAULT__]]
 del c.REQUIRED_ACCESS[c.__DEFAULT__]
 c.REQUIRED_ACCESS_VARS.remove('__DEFAULT__')
-c.REQUIRED_ACCESS = keydefaultdict(lambda a: set([a] + _default_access),
+c.REQUIRED_ACCESS = keydefaultdict(
+    lambda a: set([a] + _default_access),
     {a: set([getattr(c, s.upper()) for s in p]) for a, p in c.REQUIRED_ACCESS.items()})
+
 c.REQUIRED_ACCESS_OPTS = [(a, c.REQUIRED_ACCESS[a]) for a, _ in c.REQUIRED_ACCESS_OPTS if a != c.__DEFAULT__]
 
 for _name, _val in _config['integer_enums'].items():
@@ -808,20 +839,31 @@ c.TRANSFERABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c
 c.DEPT_HEAD_CHECKLIST = _config['dept_head_checklist']
 
 c.CON_LENGTH = int((c.ESCHATON - c.EPOCH).total_seconds() // 3600)
-c.START_TIME_OPTS = [(dt, dt.strftime('%I %p %a')) for dt in (c.EPOCH + timedelta(hours=i) for i in range(c.CON_LENGTH))]
+c.START_TIME_OPTS = [
+    (dt, dt.strftime('%I %p %a')) for dt in (c.EPOCH + timedelta(hours=i) for i in range(c.CON_LENGTH))]
+
 c.DURATION_OPTS = [(i, '%i hour%s' % (i, ('s' if i > 1 else ''))) for i in range(1, 9)]
 c.SETUP_TIME_OPTS = [
-    (dt, dt.strftime('%I %p %a')) for dt in (c.EPOCH - timedelta(days=day) + timedelta(hours=hour)
+    (dt, dt.strftime('%I %p %a'))
+    for dt in (
+        c.EPOCH - timedelta(days=day) + timedelta(hours=hour)
         for day in range(c.SETUP_SHIFT_DAYS, 0, -1)
-            for hour in range(24))]
+        for hour in range(24))]
+
 c.TEARDOWN_TIME_OPTS = [
-    (dt, dt.strftime('%I %p %a')) for dt in (c.ESCHATON + timedelta(days=day) + timedelta(hours=hour)
+    (dt, dt.strftime('%I %p %a'))
+    for dt in (
+        c.ESCHATON + timedelta(days=day) + timedelta(hours=hour)
         for day in range(0, 2, 1)  # Allow two full days for teardown shifts
-            for hour in range(24))]
+        for hour in range(24))]
 
 # code for all time slots
 c.CON_TOTAL_LENGTH = int((c.TEARDOWN_TIME_OPTS[-1][0] - c.SETUP_TIME_OPTS[0][0]).seconds / 3600)
-c.ALL_TIME_OPTS = [(dt, dt.strftime('%I %p %a %d %b')) for dt in ((c.EPOCH - timedelta(days=c.SETUP_SHIFT_DAYS) + timedelta(hours=i)) for i in range(c.CON_TOTAL_LENGTH))]
+c.ALL_TIME_OPTS = [
+    (dt, dt.strftime('%I %p %a %d %b'))
+    for dt in (
+        (c.EPOCH - timedelta(days=c.SETUP_SHIFT_DAYS) + timedelta(hours=i))
+        for i in range(c.CON_TOTAL_LENGTH))]
 
 c.EVENT_YEAR = c.EPOCH.strftime('%Y')
 c.EVENT_NAME_AND_YEAR = c.EVENT_NAME + (' {}'.format(c.EVENT_YEAR) if c.EVENT_YEAR else '')
@@ -882,7 +924,9 @@ c.FEE_ITEM_NAMES = [desc for val, desc in c.FEE_PRICE_OPTS]
 c.WRISTBAND_COLORS = defaultdict(lambda: c.WRISTBAND_COLORS[c.DEFAULT_WRISTBAND], c.WRISTBAND_COLORS)
 
 c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
-c.INVALID_BADGE_PRINTED_CHARS = r'[^a-zA-Z0-9!"#$%&\'()*+,\-\./:;<=>?@\[\\\]^_`\{|\}~ "]'  # Allows 0-9, a-z, A-Z, and a handful of punctuation characters
+
+# Allows 0-9, a-z, A-Z, and a handful of punctuation characters
+c.INVALID_BADGE_PRINTED_CHARS = r'[^a-zA-Z0-9!"#$%&\'()*+,\-\./:;<=>?@\[\\\]^_`\{|\}~ "]'
 c.EVENT_QR_ID = c.EVENT_QR_ID or c.EVENT_NAME_AND_YEAR.replace(' ', '_').lower()
 
 
@@ -955,7 +999,8 @@ c.TOURNAMENT_AVAILABILITY_OPTS.append([_val, 'Morning (8am-12pm) of ' + c.ESCHAT
 # mivs
 # =============================
 
-c.MIVS_CODES_REQUIRING_INSTRUCTIONS = [getattr(c, code_type.upper()) for code_type in c.MIVS_CODES_REQUIRING_INSTRUCTIONS]
+c.MIVS_CODES_REQUIRING_INSTRUCTIONS = [
+    getattr(c, code_type.upper()) for code_type in c.MIVS_CODES_REQUIRING_INSTRUCTIONS]
 
 # Add the access levels we defined to c.ACCESS* (this will go away if/when we implement enum merging)
 c.ACCESS.update(c.MIVS_INDIE_ACCESS_LEVELS)
@@ -1012,7 +1057,7 @@ c.EVENT_DURATION_OPTS = [(i, '%.1f hour%s' % (i/2, 's' if i != 2 else '')) for i
 
 c.ORDERED_EVENT_LOCS = [loc for loc, desc in c.EVENT_LOCATION_OPTS]
 c.EVENT_BOOKED = {'colspan': 0}
-c.EVENT_OPEN   = {'colspan': 1}
+c.EVENT_OPEN = {'colspan': 1}
 
 
 def _make_room_trie(rooms):

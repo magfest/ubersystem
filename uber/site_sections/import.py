@@ -1,6 +1,13 @@
-from pockets.autolog import log
+import csv
+from datetime import datetime
 
-from uber.common import *
+from pockets.autolog import log
+from pytz import UTC
+from sqlalchemy.types import Date, Integer
+
+from uber.config import c
+from uber.decorators import all_renderable
+from uber.models import Choice, UTCDateTime, MultiChoice, Session
 
 
 @all_renderable(c.PEOPLE)
@@ -28,7 +35,7 @@ class Root:
                 try:
                     # get the instance if it already exists
                     model_instance = getattr(session, selected_model)(id, allow_invalid=True)
-                except:
+                except Exception:
                     session.rollback()
                     # otherwise, make a new one and add it to the session for when we commit
                     model_instance = model()
@@ -57,7 +64,7 @@ class Root:
                     # export this date in the first place
                     try:
                         val = UTC.localize(datetime.strptime(val, date_format + ' %H:%M:%S'))
-                    except:
+                    except Exception:
                         val = UTC.localize(datetime.strptime(val, date_format))
                 elif isinstance(col.type, Date):
                     val = datetime.strptime(val, date_format).date()
@@ -70,7 +77,7 @@ class Root:
 
             try:
                 session.commit()
-            except:
+            except Exception:
                 log.error('ImportError', exc_info=True)
                 session.rollback()
                 message = 'Import unsuccessful'

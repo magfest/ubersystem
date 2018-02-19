@@ -5,10 +5,29 @@ Licensed under BSD license, see full license for details:
 https://github.com/django/django/blob/4696078832f486ba63f0783a0795294b3d80d862/LICENSE
 """
 
-from dateutil.relativedelta import relativedelta
-from pockets import fieldify, unfieldify, listify, readable_join
+import binascii
+import html
+import inspect
+import json
+import math
+import os
+import re
+from datetime import datetime, timedelta
+from urllib.parse import quote_plus
+from uuid import uuid4
 
-from uber.common import *
+import cherrypy
+import jinja2
+from dateutil.relativedelta import relativedelta
+from markupsafe import text_type, Markup
+from pockets import fieldify, unfieldify, listify, readable_join
+from sideboard.lib import serializer
+
+import uber
+from uber.config import c
+from uber.decorators import render
+from uber.jinja import JinjaEnv
+from uber.utils import ensure_csrf_token_exists, hour_day_format, localized_now, normalize_newlines
 
 
 def safe_string(text):
@@ -173,18 +192,21 @@ def email_to_link(email=None):
     """
     if not email:
         return ''
-
     return safe_string('<a href="mailto:{0}">{0}</a>'.format(jinja2.escape(email)))
 
 
 @JinjaEnv.jinja_filter
 def percent(numerator, denominator):
-    return '0/0' if denominator == 0 else '{} / {} ({}%)'.format(numerator, denominator, int(100 * numerator / denominator))
+    if denominator == 0:
+        return '0 / 0'
+    return '{} / {} ({}%)'.format(numerator, denominator, int(100 * numerator / denominator))
 
 
 @JinjaEnv.jinja_filter
 def percent_of(numerator, denominator):
-    return 'n/a' if denominator == 0 else '{}%'.format(int(100 * numerator / denominator))
+    if denominator == 0:
+        return 'n/a'
+    return '{}%'.format(int(100 * numerator / denominator))
 
 
 @JinjaEnv.jinja_filter
@@ -386,7 +408,7 @@ def options(options, default='""'):
             val = val.strftime(c.TIMESTAMP_FORMAT)
         else:
             selected = 'selected="selected"' if str(val) == str(default) else ''
-        val  = html.escape(str(val), quote=False).replace('"',  '&quot;').replace('\n', '')
+        val = html.escape(str(val), quote=False).replace('"',  '&quot;').replace('\n', '')
         desc = html.escape(str(desc), quote=False).replace('"', '&quot;').replace('\n', '')
         results.append('<option value="{}" {}>{}</option>'.format(val, selected, desc))
     return safe_string('\n'.join(results))
@@ -527,15 +549,6 @@ def pages(page, count):
     return safe_string('<ul class="pagination">' + ' '.join(map(str, pages)) + '</ul>')
 
 
-def extract_fields(what):
-    if isinstance(what, Attendee):
-        return 'a{}'.format(what.id), what.full_name, what.total_cost
-    elif isinstance(what, Group):
-        return 'g{}'.format(what.id), what.name, what.amount_unpaid
-    else:
-        return None, None, None
-
-
 @JinjaEnv.jinja_filter
 def linebreaksbr(text):
     """Convert all newlines ("\n") in a string to HTML line breaks ("<br />")"""
@@ -545,13 +558,6 @@ def linebreaksbr(text):
         text = text_type(jinja2.escape(text))
     text = text.replace('\n', '<br />')
     return safe_string(text)
-
-
-def normalize_newlines(text):
-    if text:
-        return re.sub(r'\r\n|\r|\n', '\n', str(text))
-    else:
-        return ''
 
 
 @JinjaEnv.jinja_export
@@ -623,7 +629,9 @@ def price_notice(label, takedown, amount_extra=0, discount=0):
     if not takedown:
         takedown = c.ESCHATON
 
-    if c.PAGE_PATH not in ['/preregistration/form', '/preregistration/post_form', '/preregistration/register_group_member']:
+    prereg_pages = ['/preregistration/form', '/preregistration/post_form', '/preregistration/register_group_member']
+
+    if c.PAGE_PATH not in prereg_pages:
         return ''  # we only display notices for new attendees
     else:
         badge_price = c.BADGE_PRICE  # optimization.  this call is VERY EXPENSIVE.
@@ -631,11 +639,22 @@ def price_notice(label, takedown, amount_extra=0, discount=0):
 
         for day, price in sorted(c.PRICE_BUMPS.items()):
             if day < takedown and localized_now() < day and price > badge_price:
-                return safe_string('<div class="prereg-price-notice">Price goes up to ${} {} 11:59pm {} on {}</div>'.format(price - int(discount) + int(amount_extra), on_or_by, (day - timedelta(days=1)).strftime('%Z'), (day - timedelta(days=1)).strftime('%A, %b %e')))
+                new_price = price - int(discount) + int(amount_extra)
+                new_price_date = day - timedelta(days=1)
+                return safe_string(
+                    '<div class="prereg-price-notice">Price goes up to ${} {} 11:59pm {} on {}</div>'.format(
+                        new_price, on_or_by, new_price_date.strftime('%Z'), new_price_date.strftime('%A, %b %e')))
             elif localized_now() < day and takedown == c.PREREG_TAKEDOWN and takedown < c.EPOCH and price > badge_price:
-                return safe_string('<div class="prereg-type-closing">{} closes at 11:59pm {} on {}. Price goes up to ${} at-door.</div>'.format(label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'), price + amount_extra, (day - timedelta(days=1)).strftime('%A, %b %e')))
+                new_price = price + amount_extra
+                return safe_string((
+                    '<div class="prereg-type-closing">'
+                    '{} closes at 11:59pm {} on {}. Price goes up to ${} at-door.'
+                    '</div>').format(
+                        label, takedown.strftime('%Z'), takedown.strftime('%A, %b %e'), new_price))
         if takedown < c.EPOCH:
-            return safe_string('<div class="prereg-type-closing">{} closes at 11:59pm {} on {}</div>'.format(jinja2.escape(label), takedown.strftime('%Z'), takedown.strftime('%A, %b %e')))
+            return safe_string(
+                '<div class="prereg-type-closing">{} closes at 11:59pm {} on {}</div>'.format(
+                    jinja2.escape(label), takedown.strftime('%Z'), takedown.strftime('%A, %b %e')))
         else:
             return ''
 

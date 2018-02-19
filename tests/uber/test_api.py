@@ -2,7 +2,7 @@ import pytest
 
 from cherrypy import HTTPError
 
-from uber.common import *
+from uber import *
 from tests.uber.conftest import csrf_token, cp_session
 from uber.api import auth_by_token, auth_by_session, api_auth, all_api_auth
 

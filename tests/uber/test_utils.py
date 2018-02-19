@@ -1,5 +1,5 @@
 from tests.uber import *
-from uber.utils import add_opt, remove_opt, get_age_from_birthday
+from uber.utils import add_opt, remove_opt, get_age_from_birthday, normalize_newlines
 
 
 @pytest.fixture
@@ -25,6 +25,23 @@ def test_absolute_url_error(base_url):
 
     with pytest.raises(ValueError) as e_info:
         convert_to_absolute_url('////')
+
+
+@pytest.mark.parametrize('test_input,expected', [
+    (None, ''),
+    ('', ''),
+    ([], ''),
+    ({}, ''),
+    (jinja2.runtime.Undefined(), ''),
+    ('\n', '\n'),
+    ('\r', '\n'),
+    ('\r\n', '\n'),
+    ('asdf\nzxcv', 'asdf\nzxcv'),
+    ('asdf\rzxcv', 'asdf\nzxcv'),
+    ('asdf\r\nzxcv', 'asdf\nzxcv')
+])
+def test_normalize_newlines(test_input, expected):
+    assert expected == normalize_newlines(test_input)
 
 
 class TestAddRemoveOpts:

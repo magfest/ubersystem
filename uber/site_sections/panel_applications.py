@@ -1,4 +1,10 @@
-from uber.common import *
+import cherrypy
+
+from uber.config import c
+from uber.decorators import all_renderable
+from uber.errors import HTTPRedirect
+from uber.models import PanelApplicant, PanelApplication
+from uber.utils import add_opt, check
 
 
 OTHER_PANELISTS_FIELDS = [
@@ -50,9 +56,15 @@ class Root:
         must POST to a different URL in order to bypass the cache and get a
         valid session cookie. Thus, this page is also exposed as "post_index".
         """
-        app = session.panel_application(params, checkgroups=PanelApplication.all_checkgroups, restricted=True, ignore_csrf=True)
-        panelist_params = {attr: params.get('{}_0'.format(attr)) for attr in PANELISTS_FIELDS if params.get('{}_0'.format(attr))}
-        panelist = session.panel_applicant(panelist_params, checkgroups=PanelApplicant.all_checkgroups, restricted=True, ignore_csrf=True)
+        app = session.panel_application(
+            params, checkgroups=PanelApplication.all_checkgroups, restricted=True, ignore_csrf=True)
+
+        panelist_params = {
+            attr: params.get('{}_0'.format(attr)) for attr in PANELISTS_FIELDS if params.get('{}_0'.format(attr))}
+
+        panelist = session.panel_applicant(
+            panelist_params, checkgroups=PanelApplicant.all_checkgroups, restricted=True, ignore_csrf=True)
+
         panelist.application = app
         panelist.submitter = True
         other_panelists = compile_other_panelists_from_params(app, **params)
@@ -85,7 +97,8 @@ class Root:
         record, both as the submitter and as the Point of Contact.
         """
 
-        app = session.panel_application(params, checkgroups=PanelApplication.all_checkgroups, restricted=True, ignore_csrf=True)
+        app = session.panel_application(
+            params, checkgroups=PanelApplication.all_checkgroups, restricted=True, ignore_csrf=True)
         app.poc_id = poc_id
         attendee = session.attendee(id=poc_id)
         if attendee.badge_type != c.GUEST_BADGE:

@@ -1,6 +1,14 @@
+import os
+import shutil
+
+import cherrypy
 from cherrypy.lib.static import serve_file
 
-from uber.common import *
+from uber.config import c
+from uber.decorators import ajax, all_renderable
+from uber.errors import HTTPRedirect
+from uber.models import GuestMerch
+from uber.utils import check
 
 
 @all_renderable()
@@ -147,8 +155,11 @@ class Root:
         if cherrypy.request.method == 'POST':
             message = check(guest_merch)
             if not message:
-                if c.REQUIRE_DEDICATED_GUEST_TABLE_PRESENCE and guest_merch.selling_merch == c.OWN_TABLE and \
-                                guest.group_type == c.BAND and not all([coverage, warning]):
+                if c.REQUIRE_DEDICATED_GUEST_TABLE_PRESENCE \
+                        and guest_merch.selling_merch == c.OWN_TABLE \
+                        and guest.group_type == c.BAND \
+                        and not all([coverage, warning]):
+
                     message = 'You cannot staff your own table without checking the boxes to agree to our conditions'
                 elif guest.group_type == c.GUEST and guest_merch.selling_merch == c.OWN_TABLE:
                     for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city']:
@@ -156,8 +167,12 @@ class Root:
 
                     if not guest.info and not guest_merch.tax_phone:
                         message = 'You must provide a phone number for tax purposes.'
-                    elif not (params['country'] and params['region'] and params['zip_code'] and params['address1'] and
-                                  params['city']):
+                    elif not (params['country']
+                              and params['region']
+                              and params['zip_code']
+                              and params['address1']
+                              and params['city']):
+
                         message = 'You must provide an address for tax purposes.'
                     else:
                         guest.group.apply(group_params, restricted=True)
@@ -303,12 +318,24 @@ class Root:
 
     def view_bio_pic(self, session, id):
         guest = session.guest_group(id)
-        return serve_file(guest.bio.pic_fpath, disposition="attachment", name=guest.bio.download_filename, content_type=guest.bio.pic_content_type)
+        return serve_file(
+            guest.bio.pic_fpath,
+            disposition="attachment",
+            name=guest.bio.download_filename,
+            content_type=guest.bio.pic_content_type)
 
     def view_w9(self, session, id):
         guest = session.guest_group(id)
-        return serve_file(guest.taxes.w9_fpath, disposition="attachment", name=guest.taxes.download_filename, content_type=guest.taxes.w9_content_type)
+        return serve_file(
+            guest.taxes.w9_fpath,
+            disposition="attachment",
+            name=guest.taxes.download_filename,
+            content_type=guest.taxes.w9_content_type)
 
     def view_stage_plot(self, session, id):
         guest = session.guest_group(id)
-        return serve_file(guest.stage_plot.fpath, disposition="attachment", name=guest.stage_plot.download_filename, content_type=guest.stage_plot.content_type)
+        return serve_file(
+            guest.stage_plot.fpath,
+            disposition="attachment",
+            name=guest.stage_plot.download_filename,
+            content_type=guest.stage_plot.content_type)

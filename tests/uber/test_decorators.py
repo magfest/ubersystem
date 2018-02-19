@@ -1,6 +1,7 @@
 import pytest
 
-from uber.common import *
+from uber import *
+from uber.errors import HTTPRedirect
 from tests.uber.conftest import *
 
 

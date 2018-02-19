@@ -1,5 +1,14 @@
-from uber.common import *
+import cherrypy
+from sqlalchemy import and_, or_
+from sqlalchemy.orm import joinedload, subqueryload
+
+from uber.config import c
 from uber.custom_tags import pluralize
+from uber.decorators import ajax, all_renderable, csrf_protected, log_pageview, render
+from uber.errors import HTTPRedirect
+from uber.models import Attendee, Email, Group, PageViewTracking, Tracking
+from uber.notifications import send_email
+from uber.utils import check, remove_opt, Order
 
 
 def _is_attendee_disentangled(attendee):
@@ -35,8 +44,7 @@ def _decline_and_convert_dealer_group(session, group, delete_when_able=False):
     Deletes the waitlisted dealer group and converts all of the group members
     to the appropriate badge type. Unassigned, unpaid badges will be deleted.
     """
-    admin_note = 'Converted badge from waitlisted dealer group "{}".'.format(
-        group.name)
+    admin_note = 'Converted badge from waitlisted dealer group "{}".'.format(group.name)
 
     if not group.is_unpaid:
         group.tables = 0
@@ -53,8 +61,7 @@ def _decline_and_convert_dealer_group(session, group, delete_when_able=False):
 
     group.leader = None
     for attendee in list(group.attendees):
-        if (delete_when_able or attendee.is_unassigned) \
-                and _is_attendee_disentangled(attendee):
+        if (delete_when_able or attendee.is_unassigned) and _is_attendee_disentangled(attendee):
             session.delete(attendee)
             badges_deleted += 1
 
@@ -64,17 +71,17 @@ def _decline_and_convert_dealer_group(session, group, delete_when_able=False):
                 attendee.overridden_price = attendee.new_badge_cost
 
                 try:
-                    send_email(c.REGDESK_EMAIL,
-                               attendee.email,
-                               'Do you still want to come to {EVENT_NAME}?',
-                               render('emails/dealers/badge_converted.html', {
-                                   'attendee': attendee,
-                                   'group': group
-                               }),
-                               format='html',
-                               model=attendee)
+                    send_email(
+                        c.REGDESK_EMAIL,
+                        attendee.email,
+                        'Do you still want to come to {EVENT_NAME}?',
+                        render('emails/dealers/badge_converted.html', {
+                            'attendee': attendee,
+                            'group': group}),
+                        format='html',
+                        model=attendee)
                     emails_sent += 1
-                except:
+                except Exception:
                     emails_failed += 1
 
             badges_converted += 1
@@ -112,6 +119,7 @@ class Root:
         groups = sorted(session.query(Group).filter(*which).options(joinedload('attendees')).all(),
                         reverse=order.startswith('-'),
                         key=lambda g: [getattr(g, order.lstrip('-')).lower(), g.tables])
+
         return {
             'show':              show,
             'groups':            groups,
@@ -139,7 +147,8 @@ class Root:
                 ribbon_to_use = None if 'ribbon' not in params else params['ribbon']
                 message = session.assign_badges(group, params['badges'], params['badge_type'], ribbon_to_use)
                 if not message and new_dealer and not (first_name and last_name and email and group.badges):
-                    message = 'When registering a new Dealer, you must enter the name and email address of the group leader and must allocate at least one badge'
+                    message = 'When registering a new Dealer, you must enter the name and email address ' \
+                        'of the group leader and must allocate at least one badge'
                 if not message:
                     if new_dealer:
                         session.commit()
@@ -150,9 +159,11 @@ class Root:
                             if group.amount_unpaid:
                                 raise HTTPRedirect('../preregistration/group_members?id={}', group.id)
                             else:
-                                raise HTTPRedirect('index?message={}', group.name + ' has been uploaded, approved, and marked as paid')
+                                raise HTTPRedirect(
+                                    'index?message={}', group.name + ' has been uploaded, approved, and marked as paid')
                         else:
-                            raise HTTPRedirect('index?message={}', group.name + ' is uploaded and ' + group.status_label)
+                            raise HTTPRedirect(
+                                'index?message={}', group.name + ' is uploaded and ' + group.status_label)
                     else:
                         raise HTTPRedirect('form?id={}&message={}', group.id, 'Group info uploaded')
         return {
@@ -168,19 +179,17 @@ class Root:
         group = session.group(id)
 
         if group.leader:
-            emails = session.query(Email) \
-                .filter(or_(Email.dest == group.leader.email, Email.fk_id == id)) \
-                .order_by(Email.when).all()
+            emails = session.query(Email).filter(
+                or_(Email.dest == group.leader.email, Email.fk_id == id)).order_by(Email.when).all()
         else:
             emails = {}
 
         return {
             'group': group,
             'emails': emails,
-            'changes': session.query(Tracking)
-                .filter(or_(Tracking.links.like('%group({})%'.format(id)),
-                            and_(Tracking.model == 'Group', Tracking.fk_id == id)))
-                .order_by(Tracking.when).all(),
+            'changes': session.query(Tracking).filter(or_(
+                Tracking.links.like('%group({})%'.format(id)),
+                and_(Tracking.model == 'Group', Tracking.fk_id == id))).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Group id={}".format(id))
         }
 
@@ -191,10 +200,8 @@ class Root:
 
         if cherrypy.request.method == 'POST':
             groups = query.options(
-                subqueryload(Group.attendees)
-                    .subqueryload(Attendee.admin_account),
-                subqueryload(Group.attendees)
-                    .subqueryload(Attendee.shifts)).all()
+                subqueryload(Group.attendees).subqueryload(Attendee.admin_account),
+                subqueryload(Group.attendees).subqueryload(Attendee.shifts)).all()
 
             message = ''
             if decline_and_convert:

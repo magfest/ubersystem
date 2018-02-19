@@ -4,11 +4,11 @@ from datetime import datetime
 import cherrypy
 import pytest
 import six
-from uber.common import *
+from uber import *
+from uber.errors import CSRFException, HTTPRedirect
 from uber.site_sections import registration
 from tests.uber.conftest import admin_attendee, assert_unique, \
     extract_message_from_html, GET, POST
-from uber.utils import CSRFException
 from uber.models import _attendee_validity_check
 
 

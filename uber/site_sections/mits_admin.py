@@ -1,6 +1,13 @@
+from collections import defaultdict
+
+import cherrypy
 from pockets.autolog import log
 
-from uber.common import *
+from uber.config import c
+from uber.decorators import ajax, all_renderable, csv_file
+from uber.errors import HTTPRedirect
+from uber.models import Attendee
+from uber.utils import check_csrf
 
 
 @all_renderable(c.MITS_ADMIN)
@@ -43,8 +50,8 @@ class Root:
             check_csrf(csrf_token)
             team.deleted = True
             team.duplicate_of = duplicate_of or None
-            raise HTTPRedirect('index?message={}{}{}', team.name, ' marked as deleted',
-                ' and as a duplicate' if duplicate_of else '')
+            raise HTTPRedirect(
+                'index?message={}{}{}', team.name, ' marked as deleted', ' and as a duplicate' if duplicate_of else '')
 
         other = [t for t in session.mits_teams() if t.id != id]
         return {
@@ -75,7 +82,7 @@ class Root:
             applicant = session.mits_applicant(applicant_id)
             applicant.attendee_id = attendee_id
             session.commit()
-        except:
+        except Exception:
             log.error('unexpected error linking applicant to a badge', exc_info=True)
             return {'error': 'Unexpected error: unable to link applicant to badge.'}
         else:
@@ -99,7 +106,7 @@ class Root:
             )
             session.add(applicant.attendee)
             session.commit()
-        except:
+        except Exception:
             log.error('unexpected error adding new applicant', exc_info=True)
             return {'error': 'Unexpected error: unable to add attendee'}
         else:
@@ -135,7 +142,7 @@ class Root:
     @csv_file
     def panel_requests(self, out, session):
         out.writerow(['URL', 'Team', 'Primary Contact Names', 'Primary Contact Emails']
-                   + [desc for val, desc in c.MITS_SCHEDULE_OPTS])
+                     + [desc for val, desc in c.MITS_SCHEDULE_OPTS])
         for team in session.mits_teams().filter_by(status=c.ACCEPTED, panel_interest=True):
             available = getattr(team.schedule, 'availability_ints', [])
             out.writerow([

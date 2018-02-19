@@ -124,16 +124,19 @@ def check_replies():
                     session.commit()
 
 
-if c.SEND_SMS:
-    tabletop_check_notification_replies = DaemonTask(
-        check_replies,
-        interval=TASK_INTERVAL,
-        name='tabletop_check_notification_replies')
+# XXX:
+tabletop_check_notification_replies = None
+tabletop_send_notifications = None
+# if c.SEND_SMS:
+#     tabletop_check_notification_replies = DaemonTask(
+#         check_replies,
+#         interval=TASK_INTERVAL,
+#         name='tabletop_check_notification_replies')
 
-    tabletop_send_notifications = DaemonTask(
-        send_reminder_texts,
-        interval=TASK_INTERVAL,
-        name='tabletop_send_notifications')
-else:
-    tabletop_check_notification_replies = None
-    tabletop_send_notifications = None
+#     tabletop_send_notifications = DaemonTask(
+#         send_reminder_texts,
+#         interval=TASK_INTERVAL,
+#         name='tabletop_send_notifications')
+# else:
+#     tabletop_check_notification_replies = None
+#     tabletop_send_notifications = None

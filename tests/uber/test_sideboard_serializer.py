@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 
-from uber.common import *
+from uber import *
 
 
 @pytest.mark.parametrize('test_input,expected', [

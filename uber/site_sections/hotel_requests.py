@@ -1,4 +1,9 @@
-from uber.common import *
+from datetime import timedelta
+
+from uber.config import c
+from uber.decorators import all_renderable
+from uber.errors import HTTPRedirect
+from uber.models import AdminAccount
 
 
 @all_renderable(c.SIGNUPS)
@@ -15,14 +20,23 @@ class Root:
             session.add(requests)
             if decline or not requests.nights:
                 requests.nights = ''
-                raise HTTPRedirect('../signups/index?message={}', "We've recorded that you've declined hotel room space")
+                raise HTTPRedirect(
+                    '../signups/index?message={}', "We've recorded that you've declined hotel room space")
             else:
                 if requests.setup_teardown:
-                    days = ' / '.join(c.NIGHTS[day] for day in sorted(requests.nights_ints, key=c.NIGHT_DISPLAY_ORDER.index)
-                                                    if day not in c.CORE_NIGHTS)
-                    message = "Your hotel room request has been submitted.  We'll let you know whether your offer to help on {} is accepted, and who your roommates will be, a few weeks after the deadline.".format(days)
+                    days = ' / '.join(
+                        c.NIGHTS[day] for day in sorted(requests.nights_ints, key=c.NIGHT_DISPLAY_ORDER.index)
+                        if day not in c.CORE_NIGHTS)
+
+                    message = "Your hotel room request has been submitted. " \
+                        "We'll let you know whether your offer to help on {} is accepted, " \
+                        "and who your roommates will be, a few weeks after the deadline.".format(days)
+
                 else:
-                    message = "You've accepted hotel room space for {}.  We'll let you know your roommates a few weeks after the deadline.".format(requests.nights_display)
+                    message = "You've accepted hotel room space for {}. " \
+                        "We'll let you know your roommates a few weeks after the " \
+                        "deadline.".format(requests.nights_display)
+
                 raise HTTPRedirect('../signups/index?message={}', message)
         else:
             requests = attendee.hotel_requests or requests

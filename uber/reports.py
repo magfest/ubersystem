@@ -1,5 +1,9 @@
 from uber.barcode import generate_barcode_from_badge_num
-from uber.common import *
+from uber.config import c
+from uber.models.attendee import Attendee
+
+
+__all__ = ['PersonalizedBadgeReport', 'PrintedBadgeReport', 'ReportBase']
 
 
 class ReportBase:
@@ -29,8 +33,8 @@ class PersonalizedBadgeReport(ReportBase):
     def run(self, out, session, *filters, order_by=None, badge_type_override=None):
         badge_nums_seen = []
 
-        for a in (session.query(sa.Attendee)
-                         .filter(sa.Attendee.badge_status != c.INVALID_STATUS, *filters)
+        for a in (session.query(Attendee)
+                         .filter(Attendee.badge_status != c.INVALID_STATUS, *filters)
                          .order_by(order_by).all()):
 
             # sanity check no duplicate badges

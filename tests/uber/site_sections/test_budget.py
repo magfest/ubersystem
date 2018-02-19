@@ -3,11 +3,11 @@ from datetime import datetime
 
 import cherrypy
 import pytest
-from uber.common import *
+from uber import *
 from uber.site_sections import budget
 from tests.uber.conftest import admin_attendee, extract_message_from_html, \
     GET, POST
-from uber.utils import CSRFException
+from uber.errors import CSRFException
 
 
 class TestGeneratePromoCodes(object):

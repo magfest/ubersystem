@@ -16,7 +16,8 @@ from uber.models import Session
 from uber.models.attendee import Attendee
 from uber.models.attraction import Attraction, AttractionEvent, \
     AttractionNotification, AttractionNotificationReply, AttractionSignup
-from uber.utils import normalize_phone, send_email
+from uber.notifications import send_email
+from uber.utils import normalize_phone
 
 
 __all__ = [

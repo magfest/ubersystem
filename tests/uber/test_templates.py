@@ -1,6 +1,6 @@
 import pytest
 
-from uber.common import *
+from uber import *
 from tests.uber import collect_template_paths, is_valid_jinja_template
 
 

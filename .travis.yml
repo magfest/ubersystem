@@ -2,6 +2,8 @@ language: python
 matrix:
   include:
     - python: "3.4"
+      env: TOX_ENV=flake8
+    - python: "3.4"
       env: TOX_ENV=pycodestyle
     - python: "3.4"
       env: TOX_ENV=py34

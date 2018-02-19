@@ -1,4 +1,4 @@
-from uber.common import *
+from uber import *
 import shutil
 import pytest
 from sideboard.tests import patch_session
