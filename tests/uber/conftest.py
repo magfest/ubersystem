@@ -5,6 +5,7 @@ from datetime import date, timedelta
 
 import cherrypy
 import pytest
+import sideboard  # noqa: F401
 from sideboard.lib import threadlocal
 from sideboard.tests import patch_session
 
