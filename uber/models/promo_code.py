@@ -60,9 +60,11 @@ class PromoCodeWord(MagModel):
     __table_args__ = (
         Index(
             'uq_promo_code_word_normalized_word_part_of_speech',
-            func.lower(func.trim(word)), part_of_speech, unique=True),
-        CheckConstraint(
-            func.trim(word) != '', name='ck_promo_code_word_non_empty_word'))
+            func.lower(func.trim(word)),
+            part_of_speech,
+            unique=True),
+        CheckConstraint(func.trim(word) != '', name='ck_promo_code_word_non_empty_word')
+    )
 
     _repr_attr_names = ('word',)
 
@@ -102,8 +104,7 @@ class PromoCodeWord(MagModel):
                         (3, ['adverb1', 'adverb2'])
                     ])
         """
-        parts_of_speech = OrderedDict(
-            [(i, []) for (i, _) in PromoCodeWord._PART_OF_SPEECH_OPTS])
+        parts_of_speech = OrderedDict([(i, []) for (i, _) in PromoCodeWord._PART_OF_SPEECH_OPTS])
         for word in words:
             parts_of_speech[word.part_of_speech].append(word.word)
         return parts_of_speech
@@ -220,8 +221,7 @@ class PromoCode(MagModel):
 
     code = Column(UnicodeText)
     discount = Column(Integer, nullable=True, default=None)
-    discount_type = Column(
-        Choice(_DISCOUNT_TYPE_OPTS), default=_FIXED_DISCOUNT)
+    discount_type = Column(Choice(_DISCOUNT_TYPE_OPTS), default=_FIXED_DISCOUNT)
     expiration_date = Column(UTCDateTime, default=c.ESCHATON)
     uses_allowed = Column(Integer, nullable=True, default=None)
 
@@ -230,8 +230,8 @@ class PromoCode(MagModel):
             'uq_promo_code_normalized_code',
             func.replace(func.replace(func.lower(code), '-', ''), ' ', ''),
             unique=True),
-        CheckConstraint(
-            func.trim(code) != '', name='ck_promo_code_non_empty_code'))
+        CheckConstraint(func.trim(code) != '', name='ck_promo_code_non_empty_code')
+    )
 
     _repr_attr_names = ('code',)
 
@@ -258,11 +258,11 @@ class PromoCode(MagModel):
     @property
     def is_free(self):
         return not self.discount or (
-                self.discount_type == self._PERCENT_DISCOUNT and
-                self.discount >= 100
-            ) or (
-                self.discount_type == self._FIXED_DISCOUNT and
-                self.discount >= c.BADGE_PRICE)
+            self.discount_type == self._PERCENT_DISCOUNT and
+            self.discount >= 100
+        ) or (
+            self.discount_type == self._FIXED_DISCOUNT and
+            self.discount >= c.BADGE_PRICE)
 
     @hybrid_property
     def is_unlimited(self):
@@ -274,14 +274,12 @@ class PromoCode(MagModel):
 
     @hybrid_property
     def is_valid(self):
-        return not self.is_expired and (
-            self.is_unlimited or self.uses_remaining > 0)
+        return not self.is_expired and (self.is_unlimited or self.uses_remaining > 0)
 
     @is_valid.expression
     def is_valid(cls):
-        return (cls.expiration_date >= localized_now()) & (
-            (cls.uses_allowed == None) |  # noqa: E711
-            (cls.uses_remaining > 0))
+        return (cls.expiration_date >= localized_now()) \
+            & ((cls.uses_allowed == None) | (cls.uses_remaining > 0))  # noqa: E711
 
     @hybrid_property
     def normalized_code(self):
@@ -289,14 +287,12 @@ class PromoCode(MagModel):
 
     @normalized_code.expression
     def normalized_code(cls):
-        return func.replace(
-            func.replace(func.lower(cls.code), '-', ''), ' ', '')
+        return func.replace(func.replace(func.lower(cls.code), '-', ''), ' ', '')
 
     @property
     def uses_allowed_str(self):
         uses = self.uses_allowed
-        return 'Unlimited uses' if uses is None \
-            else '{} use{} allowed'.format(uses, '' if uses == 1 else 's')
+        return 'Unlimited uses' if uses is None else '{} use{} allowed'.format(uses, '' if uses == 1 else 's')
 
     @hybrid_property
     def uses_count(self):
@@ -305,8 +301,7 @@ class PromoCode(MagModel):
     @uses_count.expression
     def uses_count(cls):
         from uber.models.attendee import Attendee
-        return select([func.count(Attendee.id)]).where(
-            Attendee.promo_code_id == cls.id).label('uses_count')
+        return select([func.count(Attendee.id)]).where(Attendee.promo_code_id == cls.id).label('uses_count')
 
     @property
     def uses_count_str(self):
@@ -315,8 +310,7 @@ class PromoCode(MagModel):
 
     @hybrid_property
     def uses_remaining(self):
-        return None if self.is_unlimited else \
-            self.uses_allowed - self.uses_count
+        return None if self.is_unlimited else self.uses_allowed - self.uses_count
 
     @uses_remaining.expression
     def uses_remaining(cls):
@@ -325,8 +319,7 @@ class PromoCode(MagModel):
     @property
     def uses_remaining_str(self):
         uses = self.uses_remaining
-        return 'Unlimited uses' if uses is None \
-            else '{} use{} remaining'.format(uses, '' if uses == 1 else 's')
+        return 'Unlimited uses' if uses is None else '{} use{} remaining'.format(uses, '' if uses == 1 else 's')
 
     @presave_adjustment
     def _attribute_adjustments(self):
@@ -436,8 +429,7 @@ class PromoCode(MagModel):
 
         # The actual generator function, called repeatedly by `_generate_code`
         def _generate_random_code():
-            letters = ''.join(
-                random.choice(cls._UNAMBIGUOUS_CHARS) for _ in range(length))
+            letters = ''.join(random.choice(cls._UNAMBIGUOUS_CHARS) for _ in range(length))
             return '-'.join(textwrap.wrap(letters, segment_length))
 
         return cls._generate_code(_generate_random_code, count=count)
@@ -459,8 +451,7 @@ class PromoCode(MagModel):
         from uber.models import Session
         with Session() as session:
             words = PromoCodeWord.group_by_parts_of_speech(
-                session.query(PromoCodeWord).order_by(
-                    PromoCodeWord.normalized_word).all())
+                session.query(PromoCodeWord).order_by(PromoCodeWord.normalized_word).all())
 
         # The actual generator function, called repeatedly by `_generate_code`
         def _generate_word_code():

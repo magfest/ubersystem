@@ -1,5 +1,11 @@
-from uber import *
-from tests.uber import *
+from datetime import date, datetime, timedelta
+
+import pytest
+import pytz
+
+from uber.models import Attendee, Department, Group, Session
+from uber.config import c
+from uber.utils import localized_now
 
 
 next_week = datetime.now(pytz.UTC) + timedelta(days=7)
@@ -15,7 +21,7 @@ def patch_config(monkeypatch):
 @pytest.fixture
 def match_to_group_preconditions():
     group_id = None
-    leader_id = None
+    # leader_id = None
     with Session() as session:
         console = Department(name='Console_01', description='Console_01')
         leader = Attendee(
@@ -50,7 +56,7 @@ def match_to_group_preconditions():
         session.flush()
 
         group_id = group.id
-        leader_id = leader.id
+        # leader_id = leader.id
 
     yield group_id
 

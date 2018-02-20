@@ -1,6 +1,14 @@
-from tests.uber import *
-from uber.amazon_ses import AmazonSES
+from collections import defaultdict, OrderedDict
+from datetime import datetime
 from unittest.mock import patch, Mock
+
+import pytest
+
+from uber.amazon_ses import AmazonSES
+from uber.automated_emails_server import AutomatedEmail, SendAllAutomatedEmailsJob
+from uber.config import c, Config
+from uber.models import Attendee
+from uber.utils import DateBase, localize_datetime
 
 
 class EmailTestsConstants:
@@ -109,7 +117,8 @@ def setup_fake_test_attendees(monkeypatch):
                 id='c8b35ec5-4385-4ad7-b7db-b6f082f74aeb',
             ),
         ],
-        # Group: lambda ignored_param: would need to replace with: session.query(Group).options(subqueryload(Group.attendees))
+        # Group: lambda ignored_param: would need to replace with:
+        # session.query(Group).options(subqueryload(Group.attendees))
     })
 
 

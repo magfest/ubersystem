@@ -23,7 +23,6 @@ from markupsafe import text_type, Markup
 from pockets import fieldify, unfieldify, listify, readable_join
 from sideboard.lib import serializer
 
-import uber
 from uber.config import c
 from uber.decorators import render
 from uber.jinja import JinjaEnv
@@ -222,12 +221,14 @@ def form_link(model):
     if not model:
         return ''
 
+    from uber.models import Attendee, Attraction, Department, Group, Job
+
     site_sections = {
-        uber.models.Attendee: 'registration',
-        uber.models.Group: 'groups',
-        uber.models.Job: 'jobs',
-        uber.models.Department: 'departments',
-        uber.models.Attraction: 'attractions_admin'}
+        Attendee: 'registration',
+        Group: 'groups',
+        Job: 'jobs',
+        Department: 'departments',
+        Attraction: 'attractions_admin'}
 
     cls = model.__class__
     site_section = site_sections.get(cls, form_link_site_sections.get(cls))

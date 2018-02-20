@@ -251,14 +251,15 @@ def JSONColumnMixin(column_name, fields, admin_only=False):
         type: A new mixin class with a JSON column named column_name.
 
     """  # noqa: E501
+
     fields_name = '_{}_fields'.format(column_name)
     qualified_fields_name = '_{}_qualified_fields'.format(column_name)
     if isinstance(fields, Mapping):
         fields = OrderedDict([(fieldify(k), v) for k, v in fields.items()])
     else:
         fields = OrderedDict([(fieldify(s), s) for s in listify(fields)])
-    qualified_fields = OrderedDict(
-        [(column_name + '__' + s, s) for s in fields.keys()])
+
+    qualified_fields = OrderedDict([(column_name + '__' + s, s) for s in fields.keys()])
     column = Column(column_name, JSON, default={}, server_default='{}')
     attrs = {
         column_name: column,
@@ -351,5 +352,4 @@ class TakesPaymentMixin(object):
     def payment_deadline(self):
         return min(
             c.UBER_TAKEDOWN - timedelta(days=2),
-            datetime.combine(
-                (self.registered + timedelta(days=14)).date(), time(23, 59)))
+            datetime.combine((self.registered + timedelta(days=14)).date(), time(23, 59)))

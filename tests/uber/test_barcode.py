@@ -1,7 +1,6 @@
 import pytest
 
-from uber.barcode import generate_barcode_from_badge_num, \
-    get_badge_num_from_barcode, assert_is_valid_rams_barcode
+from uber.barcode import generate_barcode_from_badge_num, get_badge_num_from_barcode, assert_is_valid_rams_barcode
 from uber.config import c
 
 
@@ -31,14 +30,14 @@ def test_encrypt_decrypt(cfg):
 
 def test_fail_too_high_badges(cfg):
     with pytest.raises(ValueError) as ex:
-        encrypted = generate_barcode_from_badge_num(badge_num=0xFFFFFF+1)
+        assert generate_barcode_from_badge_num(badge_num=0xFFFFFF+1)
     assert 'either badge_number or salt is too large' in str(ex.value)
 
 
 def test_fail_key_length(cfg, monkeypatch):
     monkeypatch.setattr(c, 'BARCODE_KEY', 'X')
     with pytest.raises(ValueError) as ex:
-        encrypted = generate_barcode_from_badge_num(badge_num=1)
+        assert generate_barcode_from_badge_num(badge_num=1)
     assert 'key length should be exactly' in str(ex.value)
 
 

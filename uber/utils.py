@@ -374,7 +374,7 @@ class days_after(DateBase):
 
 
 # ======================================================================
-# Validations
+# Security
 # ======================================================================
 
 def check(model, *, prereg=False):
@@ -393,8 +393,9 @@ def check(model, *, prereg=False):
         if not str(getattr(model, field)).strip():
             return name + ' is a required field'
 
-    prereg_validations = ([uber.prereg_validation.validations] if prereg else [])
-    for v in [uber.validation.validations] + prereg_validations:
+    validations = [uber.model_checks.validation.validations]
+    prereg_validations = [uber.model_checks.prereg_validation.validations] if prereg else []
+    for v in validations + prereg_validations:
         for validator in v[model.__class__.__name__].values():
             message = validator(model)
             if message:
@@ -447,6 +448,20 @@ def ensure_csrf_token_exists():
     """
     if not cherrypy.session.get('csrf_token'):
         cherrypy.session['csrf_token'] = uuid4().hex
+
+
+def genpasswd():
+    """
+    Admin accounts have passwords auto-generated; this function tries to combine
+    three random dictionary words but returns a string of 8 random characters if
+    no dictionary is installed.
+    """
+    try:
+        with open('/usr/share/dict/words') as f:
+            words = [s.strip() for s in f.readlines() if "'" not in s and s.islower() and 3 < len(s) < 8]
+            return ' '.join(random.choice(words) for i in range(4))
+    except Exception:
+        return ''.join(chr(randrange(33, 127)) for i in range(8))
 
 
 # ======================================================================
@@ -526,20 +541,6 @@ def report_critical_exception(msg, subject="Critical Error"):
 
 def get_page(page, queryset):
     return queryset[(int(page) - 1) * 100: int(page) * 100]
-
-
-def genpasswd():
-    """
-    Admin accounts have passwords auto-generated; this function tries to combine
-    three random dictionary words but returns a string of 8 random characters if
-    no dictionary is installed.
-    """
-    try:
-        with open('/usr/share/dict/words') as f:
-            words = [s.strip() for s in f.readlines() if "'" not in s and s.islower() and 3 < len(s) < 8]
-            return ' '.join(random.choice(words) for i in range(4))
-    except Exception:
-        return ''.join(chr(randrange(33, 127)) for i in range(8))
 
 
 def static_overrides(dirname):
@@ -744,20 +745,21 @@ class Charge:
 
     @classmethod
     def to_sessionized(cls, m):
+        from uber.models import Attendee, Group
         if is_listy(m):
             return [cls.to_sessionized(t) for t in m]
         elif isinstance(m, dict):
             return m
-        elif isinstance(m, uber.Attendee):
+        elif isinstance(m, Attendee):
             return m.to_dict(
-                uber.Attendee.to_dict_default_attrs
+                Attendee.to_dict_default_attrs
                 + ['promo_code']
-                + list(uber.Attendee._extra_apply_attrs_restricted))
-        elif isinstance(m, uber.Group):
+                + list(Attendee._extra_apply_attrs_restricted))
+        elif isinstance(m, Group):
             return m.to_dict(
-                uber.Group.to_dict_default_attrs
+                Group.to_dict_default_attrs
                 + ['attendees']
-                + list(uber.Group._extra_apply_attrs_restricted))
+                + list(Group._extra_apply_attrs_restricted))
         else:
             raise AssertionError('{} is not an attendee or group'.format(m))
 
@@ -777,7 +779,7 @@ class Charge:
     @classmethod
     def from_sessionized_group(cls, d):
         d = dict(d, attendees=[cls.from_sessionized_attendee(a) for a in d.get('attendees', [])])
-        return uber.Group(**d)
+        return uber.models.Group(**d)
 
     @classmethod
     def from_sessionized_attendee(cls, d):
@@ -786,8 +788,8 @@ class Charge:
             del d['requested_any_dept']
 
         if d.get('promo_code'):
-            d = dict(d, promo_code=uber.PromoCode(**d['promo_code']))
-        return uber.Attendee(**d)
+            d = dict(d, promo_code=uber.models.PromoCode(**d['promo_code']))
+        return uber.models.Attendee(**d)
 
     @classmethod
     def get(cls, payment_id):
@@ -843,11 +845,11 @@ class Charge:
 
     @cached_property
     def attendees(self):
-        return [m for m in self.models if isinstance(m, uber.Attendee)]
+        return [m for m in self.models if isinstance(m, uber.models.Attendee)]
 
     @cached_property
     def groups(self):
-        return [m for m in self.models if isinstance(m, uber.Group)]
+        return [m for m in self.models if isinstance(m, uber.models.Group)]
 
     def charge_cc(self, session, token):
         try:
@@ -878,12 +880,12 @@ class Charge:
                 session.add(self.stripe_transaction_from_charge())
 
     def stripe_transaction_from_charge(self, type=c.PAYMENT):
-        return uber.StripeTransaction(
+        return uber.models.StripeTransaction(
             stripe_id=self.response.id or None,
             amount=self.amount,
             desc=self.description,
             type=type,
-            who=uber.AdminAccount.admin_name() or 'non-admin',
+            who=uber.models.AdminAccount.admin_name() or 'non-admin',
             fk_id=self.models[0].id,
             fk_model=self.models[0].__class__.__name__
         )

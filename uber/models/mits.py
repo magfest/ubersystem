@@ -8,13 +8,10 @@ from sqlalchemy.types import Boolean, Integer
 
 from uber.config import c
 from uber.models import MagModel
-from uber.models.types import default_relationship as relationship, utcnow, \
-    Choice, DefaultColumn as Column, MultiChoice
+from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, MultiChoice
 
 
-__all__ = [
-    'MITSTeam', 'MITSApplicant', 'MITSGame', 'MITSPicture', 'MITSDocument',
-    'MITSTimes']
+__all__ = ['MITSTeam', 'MITSApplicant', 'MITSGame', 'MITSPicture', 'MITSDocument', 'MITSTimes']
 
 
 class MITSTeam(MagModel):
@@ -25,8 +22,7 @@ class MITSTeam(MagModel):
     submitted = Column(UTCDateTime, nullable=True)
 
     applied = Column(UTCDateTime, server_default=utcnow())
-    status = Column(
-        Choice(c.MITS_APP_STATUS), default=c.PENDING, admin_only=True)
+    status = Column(Choice(c.MITS_APP_STATUS), default=c.PENDING, admin_only=True)
 
     applicants = relationship('MITSApplicant', backref='team')
     games = relationship('MITSGame', backref='team')
@@ -59,33 +55,28 @@ class MITSTeam(MagModel):
 
     @property
     def salutation(self):
-        return ' and '.join(
-            applicant.first_name for applicant in self.primary_contacts)
+        return ' and '.join(applicant.first_name for applicant in self.primary_contacts)
 
     @property
     def comped_badge_count(self):
         return len([
             a for a in self.applicants
-            if a.attendee_id
-            and a.attendee.paid in [c.NEED_NOT_PAY, c.REFUNDED]])
+            if a.attendee_id and a.attendee.paid in [c.NEED_NOT_PAY, c.REFUNDED]])
 
     @property
     def can_add_badges(self):
         uncomped_badge_count = len([
             a for a in self.applicants
-            if a.attendee_id
-            and a.attendee.paid not in [c.NEED_NOT_PAY, c.REFUNDED]])
+            if a.attendee_id and a.attendee.paid not in [c.NEED_NOT_PAY, c.REFUNDED]])
         claimed_badges = len(self.applicants) - uncomped_badge_count
         return claimed_badges < c.MITS_BADGES_PER_TEAM
 
     @property
     def can_save(self):
-        return c.HAS_MITS_ADMIN_ACCESS \
-            or self.status in [c.ACCEPTED, c.WAITLISTED] \
-            or (
-                self.is_new
-                and c.BEFORE_MITS_SUBMISSION_DEADLINE
-                or c.BEFORE_MITS_EDITING_DEADLINE)
+        return c.HAS_MITS_ADMIN_ACCESS or self.status in [c.ACCEPTED, c.WAITLISTED] or (
+            self.is_new
+            and c.BEFORE_MITS_SUBMISSION_DEADLINE
+            or c.BEFORE_MITS_EDITING_DEADLINE)
 
     @property
     def completed_hotel_form(self):
@@ -97,9 +88,7 @@ class MITSTeam(MagModel):
         automated email indicating that they need to provide their
         remaining hotel info.
         """
-        return any(
-            a.declined_hotel_space or a.requested_room_nights
-            for a in self.applicants)
+        return any(a.declined_hotel_space or a.requested_room_nights for a in self.applicants)
 
     @property
     def steps_completed(self):
@@ -129,12 +118,10 @@ class MITSApplicant(MagModel):
     last_name = Column(UnicodeText)
     email = Column(UnicodeText)
     cellphone = Column(UnicodeText)
-    contact_method = Column(
-        Choice(c.MITS_CONTACT_OPTS), default=c.TEXTING)
+    contact_method = Column(Choice(c.MITS_CONTACT_OPTS), default=c.TEXTING)
 
     declined_hotel_space = Column(Boolean, default=False)
-    requested_room_nights = Column(
-        MultiChoice(c.MITS_ROOM_NIGHT_OPTS), default='')
+    requested_room_nights = Column(MultiChoice(c.MITS_ROOM_NIGHT_OPTS), default='')
 
     @property
     def full_name(self):
@@ -230,11 +217,5 @@ def add_applicant_restriction():
             return instance
         setattr(Session.SessionMixin, method_name, with_applicant)
 
-    names = [
-        'mits_applicant',
-        'mits_game',
-        'mits_times',
-        'mits_picture',
-        'mits_document']
-    for name in names:
+    for name in ['mits_applicant', 'mits_game', 'mits_times', 'mits_picture', 'mits_document']:
         override_getter(name)

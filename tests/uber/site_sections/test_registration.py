@@ -1,15 +1,20 @@
-import re
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
-import cherrypy
 import pytest
+import pytz
 import six
-from uber import *
-from uber.errors import CSRFException, HTTPRedirect
+
+from tests.uber.conftest import admin_attendee, assert_unique, csrf_token, POST
+from uber.config import c
+from uber.errors import HTTPRedirect
+from uber.models import _attendee_validity_check, Attendee, Department, Group, Session
 from uber.site_sections import registration
-from tests.uber.conftest import admin_attendee, assert_unique, \
-    extract_message_from_html, GET, POST
-from uber.models import _attendee_validity_check
+from uber.utils import localized_now
+
+
+assert admin_attendee
+assert csrf_token
+assert POST
 
 
 next_week = datetime.now(pytz.UTC) + timedelta(days=7)
@@ -130,12 +135,16 @@ class TestRegisterGroupMember(object):
         attendee_id = None
         with Session() as session:
             group = session.query(Group).get(duplicate_badge_num_preconditions)
-            for attendee in sorted([a for a in group.attendees if not a.is_unassigned], key=lambda a: a.badge_num or six.MAXSIZE):
+            attendees = sorted(
+                [a for a in group.attendees if not a.is_unassigned],
+                key=lambda a: a.badge_num or six.MAXSIZE)
+
+            for attendee in attendees:
                 if attendee.id != group.leader.id:
                     attendee_id = attendee.id
                     break
 
-        response = self._delete_response(id=attendee_id, csrf_token=csrf_token)
+        self._delete_response(id=attendee_id, csrf_token=csrf_token)
 
         with Session() as session:
             group = session.query(Group).get(duplicate_badge_num_preconditions)

@@ -1,10 +1,12 @@
+from datetime import datetime, timedelta
+
+import cherrypy
 import pytest
 import pytz
-from sideboard.tests import patch_session
 
-from uber import *
+from uber.config import c
+from uber.models import Attendee, Event, Session
 from uber.site_sections import schedule
-from tests.uber.conftest import *
 
 
 UTCNOW = datetime.now(pytz.UTC)
@@ -50,7 +52,9 @@ def test_csv(create_events, admin_attendee):
 
     lines = response.split('\n')
     assert len(lines) == 41
-    assert lines[0].strip() == 'Session Title,Date,Time Start,Time End,Room/Location,Schedule Track (Optional),Description (Optional),Allow Checkin (Optional),Checkin Begin (Optional),Limit Spaces? (Optional),Allow Waitlist (Optional)'
+    assert lines[0].strip() == 'Session Title,Date,Time Start,Time End,Room/Location,Schedule Track (Optional),' \
+        'Description (Optional),Allow Checkin (Optional),Checkin Begin (Optional),Limit Spaces? (Optional),' \
+        'Allow Waitlist (Optional)'
 
 
 def test_schedule_tsv(create_events):
@@ -60,4 +64,5 @@ def test_schedule_tsv(create_events):
 
     lines = response.split('\n')
     assert len(lines) == 41
-    assert lines[0].strip() == 'Session Title\tDate\tTime Start\tTime End\tRoom/Location\tSchedule Track (Optional)\tDescription (Optional)'
+    assert lines[0].strip() == 'Session Title\tDate\tTime Start\tTime End\tRoom/Location\t' \
+        'Schedule Track (Optional)\tDescription (Optional)'

@@ -14,22 +14,18 @@ from uber.config import c
 from uber.decorators import render
 from uber.models import Session
 from uber.models.attendee import Attendee
-from uber.models.attraction import Attraction, AttractionEvent, \
-    AttractionNotification, AttractionNotificationReply, AttractionSignup
+from uber.models.attraction import Attraction, AttractionEvent, AttractionNotification, \
+    AttractionNotificationReply, AttractionSignup
 from uber.notifications import send_email
 from uber.utils import normalize_phone
 
 
-__all__ = [
-    'attractions_check_notification_replies', 'attractions_send_notifications']
+__all__ = ['attractions_check_notification_replies', 'attractions_send_notifications']
 
 
 TASK_INTERVAL = 180  # Check every three minutes
 
-TEXT_TEMPLATE = (
-    'Checkin for {signup.event.name} {checkin}, '
-    '{signup.event.location_room_name}. '
-    'Reply N to drop out')
+TEXT_TEMPLATE = 'Checkin for {signup.event.name} {checkin}, {signup.event.location_room_name}. Reply N to drop out'
 
 
 twilio_client = None
@@ -45,8 +41,7 @@ if c.SEND_SMS:
                 'Panels twilio SID and/or TOKEN is not in INI, not going to '
                 'try to start twilio for panels SMS notifications')
     except Exception:
-        log.error(
-            'Twilio: unable to initialize twilio REST client', exc_info=True)
+        log.error('Twilio: unable to initialize twilio REST client', exc_info=True)
         twilio_client = None
 else:
     log.info('SMS DISABLED for panels')
@@ -60,12 +55,9 @@ def send_sms(to, body, from_=c.PANELS_TWILIO_NUMBER):
         if not twilio_client:
             log.error('no twilio client configured')
         elif c.DEV_BOX and to not in c.TESTING_PHONE_NUMBERS:
-            log.info(
-                'We are in dev box mode, so we are not sending {!r} to {!r}',
-                body, to)
+            log.info('We are in dev box mode, so we are not sending {!r} to {!r}', body, to)
         else:
-            message = twilio_client.messages.create(
-                to=to, from_=normalize_phone(from_), body=body)
+            message = twilio_client.messages.create(to=to, from_=normalize_phone(from_), body=body)
 
             # Avoid hitting rate limit.
             # NOTE: the send_email() implementation already does this.
@@ -89,22 +81,20 @@ def do_send_notifications(session):
         now = datetime.now(pytz.UTC)
         from_time = now - timedelta(seconds=300)
         to_time = now + timedelta(seconds=300)
-        signups = attraction.signups_requiring_notification(
-            session, from_time, to_time, [
-                subqueryload(
-                    AttractionSignup.attendee).subqueryload(
-                        Attendee.attraction_notifications),
-                subqueryload(
-                    AttractionSignup.event).subqueryload(
-                        AttractionEvent.feature)])
+        signups = attraction.signups_requiring_notification(session, from_time, to_time, [
+            subqueryload(
+                AttractionSignup.attendee).subqueryload(
+                    Attendee.attraction_notifications),
+            subqueryload(
+                AttractionSignup.event).subqueryload(
+                    AttractionEvent.feature)])
 
         for signup, advance_notices in signups.items():
             attendee = signup.attendee
             if not attendee.first_name or not attendee.email:
                 try:
                     log.error(
-                        'ERROR: Unassigned attendee signed up for an '
-                        'attraction, deleting signup:\n'
+                        'ERROR: Unassigned attendee signed up for an attraction, deleting signup:\n'
                         '\tAttendee.id: {}\n'
                         '\tAttraction.id: {}\n'
                         '\tAttractionEvent.id: {}\n'
@@ -113,11 +103,11 @@ def do_send_notifications(session):
                             signup.attraction_id,
                             signup.attraction_event_id,
                             signup.id))
+
                     session.delete(signup)
                     session.commit()
                 except Exception:
-                    log.error('ERROR: Failed to delete signup with '
-                              'unassigned attendee', exc_info=True)
+                    log.error('ERROR: Failed to delete signup with unassigned attendee', exc_info=True)
                 continue
 
             # The first time someone signs up for an attractions, they always
@@ -126,8 +116,7 @@ def do_send_notifications(session):
             # notifications, they'll also get a text message.
             is_first_signup = not(attendee.attraction_notifications)
 
-            if not is_first_signup and \
-                    attendee.notification_pref == Attendee._NOTIFICATION_NONE:
+            if not is_first_signup and attendee.notification_pref == Attendee._NOTIFICATION_NONE:
                 continue
 
             use_text = twilio_client \
@@ -171,26 +160,17 @@ def do_send_notifications(session):
                     to_ = attendee.email
                     if is_first_signup:
                         template = 'emails/attractions_welcome.html'
-                        subject = 'Welcome to {} Attractions'.format(
-                            c.EVENT_NAME)
+                        subject = 'Welcome to {} Attractions'.format(c.EVENT_NAME)
                     else:
                         template = 'emails/attractions_notification.html'
-                        subject = 'Checkin for {} is at {}'.format(
-                            event.name, event.checkin_start_time_label)
+                        subject = 'Checkin for {} is at {}'.format(event.name, event.checkin_start_time_label)
 
                     body = render(template, {
                         'signup': signup,
                         'checkin': checkin,
                         'c': c}).decode('utf-8')
                     sid = ident
-                    send_email(
-                        from_,
-                        to_,
-                        subject=subject,
-                        body=body,
-                        format='html',
-                        model=attendee,
-                        ident=ident)
+                    send_email(from_, to_, subject=subject, body=body, format='html', model=attendee, ident=ident)
             except Exception:
                 log.error(
                     'Error sending notification\n'
@@ -233,11 +213,8 @@ def do_check_notification_replies(session):
             AttractionNotificationReply.sid).filter(
                 AttractionNotificationReply.sid.in_(sids)))
 
-    attendees = session.query(Attendee).filter(
-        Attendee.cellphone != '',
-        Attendee.attraction_notifications.any())
-    attendees_by_phone = groupify(
-        attendees, lambda a: normalize_phone(a.cellphone))
+    attendees = session.query(Attendee).filter(Attendee.cellphone != '', Attendee.attraction_notifications.any())
+    attendees_by_phone = groupify(attendees, lambda a: normalize_phone(a.cellphone))
 
     for message in filter(lambda m: m.sid not in existing_sids, messages):
         attraction_event_id = None

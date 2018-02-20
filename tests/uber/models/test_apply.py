@@ -1,4 +1,11 @@
-from tests.uber import *
+import cherrypy
+import pytest
+from mock import Mock
+
+import uber
+from uber.config import c
+from uber.models import Job, Attendee
+from uber.utils import localized_now
 
 
 @pytest.fixture
@@ -155,7 +162,7 @@ def test_nonposted_bools(attendee):
     assert not attendee.international
     attendee.staffing = attendee.no_cellphone = True
     attendee.apply({'international': '1', 'no_cellphone': '0'}, bools=['international', 'staffing', 'no_cellphone'])
-    assert attendee.international == '1' and attendee.no_cellphone == '0' and attendee.staffing == True
+    assert attendee.international == '1' and attendee.no_cellphone == '0' and attendee.staffing
 
 
 def test_posted_checkgroups(attendee, post):

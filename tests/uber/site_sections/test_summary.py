@@ -1,11 +1,11 @@
-import re
 from datetime import datetime, date
 
-import cherrypy
 import pytest
-from uber import *
+from pytz import UTC
+
+from uber.config import c
+from uber.models import Attendee, Session
 from uber.site_sections import summary
-from tests.uber.conftest import *
 
 
 @pytest.fixture
@@ -62,10 +62,10 @@ class TestBirthdayCalendar(object):
             monkeypatch):
 
         if year:
-            expected = str(year)
+            assert str(year)
             response = summary.Root().attendee_birthday_calendar(year=year)
         else:
-            expected = str(datetime.now(UTC).year)
+            assert str(datetime.now(UTC).year)
             response = summary.Root().attendee_birthday_calendar()
         if isinstance(response, bytes):
             response = response.decode('utf-8')

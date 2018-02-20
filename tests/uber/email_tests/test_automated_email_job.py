@@ -1,10 +1,10 @@
-from tests.uber.email_tests.email_fixtures import *
+from unittest.mock import patch
 
+import pytest
 
-@pytest.fixture
-def send_all_emails_mock():
-    with patch.object(SendAllAutomatedEmailsJob, '_send_all_emails', return_value=None) as mock:
-        yield mock
+from tests.uber.email_tests.email_fixtures import *  # noqa: F401,F403
+from uber.automated_emails_server import SendAllAutomatedEmailsJob
+from uber.config import c
 
 
 @pytest.fixture
@@ -21,21 +21,25 @@ class TestSendAllAutomatedEmailsJob:
         (True, False, 1),
         (False, False, 0),
     ])
-    def test_run_when_config_changed(self, monkeypatch, send_all_emails_mock, c_send_emails, c_dev_box, expected_result):
+    def test_run_when_config_changed(
+            self, monkeypatch, send_all_emails_mock, c_send_emails, c_dev_box, expected_result):
         monkeypatch.setattr(c, 'SEND_EMAILS', c_send_emails)
         monkeypatch.setattr(c, 'DEV_BOX', c_dev_box)
 
         SendAllAutomatedEmailsJob().run()
         assert send_all_emails_mock.call_count == expected_result
 
-    def test_run_succeeds(self, amazon_send_email_mock, set_test_approved_idents, get_test_email_category, render_fake_email):
+    @pytest.mark.usefixtures('render_fake_email')
+    def test_run_succeeds(self, amazon_send_email_mock, set_test_approved_idents, get_test_email_category):
         assert get_test_email_category.approved
 
         SendAllAutomatedEmailsJob().run()
 
         assert not SendAllAutomatedEmailsJob.run_lock.locked()
         assert amazon_send_email_mock.call_count == 2
-        assert SendAllAutomatedEmailsJob.last_result['categories'][get_test_email_category.ident]['unsent_because_unapproved'] == 0
+        assert SendAllAutomatedEmailsJob \
+            .last_result['categories'][get_test_email_category.ident]['unsent_because_unapproved'] == 0
+
         assert not SendAllAutomatedEmailsJob.last_result['running']
         assert SendAllAutomatedEmailsJob.last_result['completed']
 
@@ -46,6 +50,8 @@ class TestSendAllAutomatedEmailsJob:
 
         assert not SendAllAutomatedEmailsJob.run_lock.locked()
         assert amazon_send_email_mock.call_count == 0
-        assert SendAllAutomatedEmailsJob.last_result['categories'][get_test_email_category.ident]['unsent_because_unapproved'] == 2
+        assert SendAllAutomatedEmailsJob \
+            .last_result['categories'][get_test_email_category.ident]['unsent_because_unapproved'] == 2
+
         assert not SendAllAutomatedEmailsJob.last_result['running']
         assert SendAllAutomatedEmailsJob.last_result['completed']

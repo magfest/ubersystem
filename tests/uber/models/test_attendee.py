@@ -1,5 +1,14 @@
+from datetime import datetime
+
+import pytest
+import pytz
+from mock import Mock
+from pytz import UTC
+
 from uber import config
-from tests.uber import *
+from uber.config import c
+from uber.models import Attendee, Department, DeptMembership, DeptMembershipRequest, DeptRole, FoodRestrictions, \
+    Group, Job, Session, Shift
 from uber.model_checks import extra_donation_valid, _invalid_phone_number
 
 
@@ -62,7 +71,8 @@ class TestCosts:
         assert 15 == Attendee(overridden_price=10, amount_extra=5).total_cost
 
     def test_age_free(self, monkeypatch):
-        monkeypatch.setattr(Attendee, 'age_group_conf', {'discount': 999})  # makes badge_cost free unless overridden_price is set
+        # makes badge_cost free unless overridden_price is set
+        monkeypatch.setattr(Attendee, 'age_group_conf', {'discount': 999})
         assert 0 == Attendee().total_cost
         assert 5 == Attendee(amount_extra=5).total_cost
         assert 10 == Attendee(overridden_price=10).total_cost
@@ -320,8 +330,7 @@ def test_must_contact():
             dept1, dept2, poc_dept1, poc_dept2, poc_both, job1, job2,
             volunteer])
         session.commit()
-        assert volunteer.must_contact == \
-            '(Dept1) Poc Both / Poc Dept1<br/>(Dept2) Poc Both / Poc Dept2'
+        assert volunteer.must_contact == '(Dept1) Poc Both / Poc Dept1<br/>(Dept2) Poc Both / Poc Dept2'
 
 
 def test_has_personalized_badge():
@@ -344,12 +353,12 @@ class TestAttendeeFoodRestrictionsFilledOut:
     @pytest.fixture
     def staff_get_food_true(self, monkeypatch):
         monkeypatch.setattr(config.Config, 'STAFF_GET_FOOD', property(lambda x: True))
-        assert c.STAFF_GET_FOOD == True
+        assert c.STAFF_GET_FOOD
 
     @pytest.fixture
     def staff_get_food_false(self, monkeypatch):
         monkeypatch.setattr(config.Config, 'STAFF_GET_FOOD', property(lambda x: False))
-        assert c.STAFF_GET_FOOD == False
+        assert not c.STAFF_GET_FOOD
 
     def test_food_restrictions_filled_out(self, staff_get_food_true):
         assert Attendee(food_restrictions=FoodRestrictions()).food_restrictions_filled_out
@@ -367,8 +376,11 @@ class TestAttendeeFoodRestrictionsFilledOut:
         assert not Attendee(placeholder=True, shirt=1, food_restrictions=FoodRestrictions()).shift_prereqs_complete
 
     def test_shift_prereqs_no_shirt(self, staff_get_food_true):
-        assert not Attendee(placeholder=False, shirt=c.NO_SHIRT, food_restrictions=FoodRestrictions()).shift_prereqs_complete
-        assert not Attendee(placeholder=False, shirt=c.SIZE_UNKNOWN, food_restrictions=FoodRestrictions()).shift_prereqs_complete
+        assert not Attendee(
+            placeholder=False, shirt=c.NO_SHIRT, food_restrictions=FoodRestrictions()).shift_prereqs_complete
+
+        assert not Attendee(
+            placeholder=False, shirt=c.SIZE_UNKNOWN, food_restrictions=FoodRestrictions()).shift_prereqs_complete
 
     def test_shift_prereqs_no_food(self, staff_get_food_true):
         assert not Attendee(placeholder=False, shirt=1).shift_prereqs_complete
@@ -384,10 +396,10 @@ class TestUnsetVolunteer:
             requested_depts=[dept],
             ribbon=c.VOLUNTEER_RIBBON,
             shifts=[Shift()])
-        dept_membership = DeptMembership(
+        a.dept_memberships = [DeptMembership(
             attendee=a,
             department=dept,
-            dept_roles=[trusted_role])
+            dept_roles=[trusted_role])]
         a.assigned_depts = [dept]
         a.unset_volunteering()
         assert not a.staffing
@@ -404,6 +416,7 @@ class TestUnsetVolunteer:
 
     def test_staff_badge(self, monkeypatch):
         with Session() as session:
+            assert session
             monkeypatch.setattr(Attendee, 'session', Mock())
             a = Attendee(badge_type=c.STAFF_BADGE, badge_num=123)
             a.unset_volunteering()
@@ -598,7 +611,14 @@ class TestStatusAdjustments:
     def test_set_group_paid_to_complete(self, monkeypatch):
         monkeypatch.setattr(Group, 'amount_unpaid', 0)
         g = Group()
-        a = Attendee(paid=c.PAID_BY_GROUP, badge_status=c.NEW_STATUS, first_name='Paid', placeholder=False, group=g, group_id=g.id)
+        a = Attendee(
+            paid=c.PAID_BY_GROUP,
+            badge_status=c.NEW_STATUS,
+            first_name='Paid',
+            placeholder=False,
+            group=g,
+            group_id=g.id)
+
         a._status_adjustments()
         assert a.badge_status == c.COMPLETED_STATUS
 
@@ -675,17 +695,20 @@ class TestLookupAttendee:
 
     def test_search_not_found(self):
         with Session() as session:
-            pytest.raises(ValueError, session.lookup_attendee, 'Searchable', 'Attendee', 'searchable@example.com', 'xxxxx')
+            pytest.raises(
+                ValueError, session.lookup_attendee, 'Searchable', 'Attendee', 'searchable@example.com', 'xxxxx')
             pytest.raises(ValueError, session.lookup_attendee, 'XXX', 'XXX', 'searchable@example.com', '12345')
             pytest.raises(ValueError, session.lookup_attendee, 'Searchable', 'Attendee', 'xxx', '12345')
 
     def test_search_basic(self, searchable):
         with Session() as session:
-            assert str(searchable) == session.lookup_attendee('Searchable', 'Attendee', 'searchable@example.com', '12345').id
+            assert str(searchable) == session.lookup_attendee(
+                'Searchable', 'Attendee', 'searchable@example.com', '12345').id
 
     def test_search_case_insensitive(self, searchable):
         with Session() as session:
-            assert str(searchable) == session.lookup_attendee('searchablE', 'attendeE', 'seArchAble@exAmple.com', '12345').id
+            assert str(searchable) == session.lookup_attendee(
+                'searchablE', 'attendeE', 'seArchAble@exAmple.com', '12345').id
 
     def test_search_multi_word_names(self):
         with Session() as session:
@@ -695,19 +718,23 @@ class TestLookupAttendee:
     def test_search_ordered_by_badge_status(self):
         with Session() as session:
             for status in [c.NEW_STATUS, c.INVALID_STATUS, c.REFUNDED_STATUS]:
-                assert session.lookup_attendee('Duplicate', c.BADGE_STATUS[status], 'duplicate@example.com', '12345').badge_status == c.COMPLETED_STATUS
+                attendee = session.lookup_attendee(
+                    'Duplicate', c.BADGE_STATUS[status], 'duplicate@example.com', '12345')
+                assert attendee.badge_status == c.COMPLETED_STATUS
 
 
 class TestExtraDonationValidations:
 
     def test_extra_donation_nan(self):
-        assert "What you entered for Extra Donation (blah) isn't even a number" == extra_donation_valid(Attendee(extra_donation="blah"))
+        assert "What you entered for Extra Donation (blah) isn't even a number" \
+            == extra_donation_valid(Attendee(extra_donation="blah"))
 
     def test_extra_donation_below_zero(self):
-        assert "Extra Donation must be a number that is 0 or higher." == extra_donation_valid(Attendee(extra_donation=-10))
+        assert "Extra Donation must be a number that is 0 or higher." \
+            == extra_donation_valid(Attendee(extra_donation=-10))
 
     def test_extra_donation_valid(self):
-        assert None == extra_donation_valid(Attendee(extra_donation=10))
+        assert None is extra_donation_valid(Attendee(extra_donation=10))
 
 
 class TestPhoneNumberValidations:
@@ -734,7 +761,7 @@ class TestPhoneNumberValidations:
         '+49 033933-88213'
     ])
     def test_valid_number(self, number):
-        assert False == _invalid_phone_number(number)
+        assert not _invalid_phone_number(number)
 
     @pytest.mark.parametrize('number', [
         # invalid US numbers
@@ -757,4 +784,4 @@ class TestPhoneNumberValidations:
         '+44,4930222'
     ])
     def test_invalid_number(selfself, number):
-        assert True == _invalid_phone_number(number)
+        assert _invalid_phone_number(number)

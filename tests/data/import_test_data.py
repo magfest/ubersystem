@@ -1,9 +1,16 @@
-import sideboard
-from uber.common import *
-from hotel.models import *
-from guests.models import *
+import json
+import os
+import random
+import re
+import uuid
+from datetime import timedelta
+from os.path import join
+
+from sideboard.lib import entry_point
 
 from uber.config import c, create_namespace_uuid
+from uber.models import AssignedPanelist, Attendee, Event, FoodRestrictions, Group, HotelRequests, Job, Session, Shift
+
 
 DEPT_HEAD_RIBBON_STR = str(c.DEPT_HEAD_RIBBON)
 DEPARTMENT_NAMESPACE = create_namespace_uuid('Department')
@@ -51,7 +58,8 @@ def all_dept_ids_from_existing_locations(locations):
 
 
 job_location_to_department_id = {i: _dept_id_from_location(i) for i in c.JOB_LOCATIONS.keys()}
-job_interests_to_department_id = {i: job_location_to_department_id[i] for i in c.JOB_INTERESTS.keys() if i in job_location_to_department_id}
+job_interests_to_department_id = {
+    i: job_location_to_department_id[i] for i in c.JOB_INTERESTS.keys() if i in job_location_to_department_id}
 
 
 TEST_DATA_FILE = join(os.path.dirname(__file__), 'test_data.json')

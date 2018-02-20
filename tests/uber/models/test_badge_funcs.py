@@ -1,6 +1,13 @@
-from uber.config import c
-from tests.uber import *
+from datetime import datetime, timedelta
+
+import pytest
+from pytz import UTC
+
 from uber.badge_funcs import needs_badge_num, reset_badge_if_unchanged
+from uber.config import c
+from uber.models import Attendee, Session
+from uber.decorators import presave_adjustment
+from uber.utils import check
 
 
 @pytest.fixture
@@ -11,7 +18,7 @@ def session(request):
     for badge_type, badge_name in [(c.STAFF_BADGE, 'Staff'), (c.SUPPORTER_BADGE, 'Supporter')]:
         for number in ['One', 'Two', 'Three', 'Four', 'Five']:
             setattr(session, '{}_{}'.format(badge_name, number).lower(),
-                             session.attendee(badge_type=badge_type, first_name=number))
+                    session.attendee(badge_type=badge_type, first_name=number))
     setattr(session, 'regular_attendee', session.attendee(first_name='Regular', last_name='Attendee'))
     session.regular_attendee.paid = c.HAS_PAID
     session.regular_attendee.checked_in = datetime.now(UTC)
@@ -196,14 +203,34 @@ class TestAutoBadgeNum:
         assert 3001 == session.auto_badge_num(c.ATTENDEE_BADGE)
 
     def test_non_preassigned_with_gap(self, session):
-        session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), first_name="3002", paid=c.HAS_PAID, badge_num=3003))
-        session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), first_name="3000", paid=c.HAS_PAID, badge_num=3001))
+        session.add(Attendee(
+            badge_type=c.ATTENDEE_BADGE,
+            checked_in=datetime.now(UTC),
+            first_name="3002",
+            paid=c.HAS_PAID,
+            badge_num=3003))
+        session.add(Attendee(
+            badge_type=c.ATTENDEE_BADGE,
+            checked_in=datetime.now(UTC),
+            first_name="3000",
+            paid=c.HAS_PAID,
+            badge_num=3001))
         session.commit()
         assert 3002 == session.auto_badge_num(c.ATTENDEE_BADGE)
 
     def test_dupe_nums(self, session, monkeypatch):
-        session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), first_name="3002", paid=c.HAS_PAID, badge_num=3001))
-        session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), first_name="3000", paid=c.HAS_PAID, badge_num=3001))
+        session.add(Attendee(
+            badge_type=c.ATTENDEE_BADGE,
+            checked_in=datetime.now(UTC),
+            first_name="3002",
+            paid=c.HAS_PAID,
+            badge_num=3001))
+        session.add(Attendee(
+            badge_type=c.ATTENDEE_BADGE,
+            checked_in=datetime.now(UTC),
+            first_name="3000",
+            paid=c.HAS_PAID,
+            badge_num=3001))
 
         # Skip the badge adjustments here, which prevent us from setting duplicate numbers
         @presave_adjustment
@@ -227,7 +254,12 @@ class TestAutoBadgeNum:
         assert 7 == session.auto_badge_num(c.STAFF_BADGE)
 
     def test_beginning_skip(self, session):
-        session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), first_name="3002", paid=c.HAS_PAID, badge_num=3002))
+        session.add(Attendee(
+            badge_type=c.ATTENDEE_BADGE,
+            checked_in=datetime.now(UTC),
+            first_name="3002",
+            paid=c.HAS_PAID,
+            badge_num=3002))
         session.commit()
         assert 3001 == session.auto_badge_num(c.ATTENDEE_BADGE)
 
@@ -239,7 +271,9 @@ class TestShiftBadges:
 
     def staff_badges(self, session):
         # This loads badges from the session, which isn't reloaded, so the result is not always what you'd expect
-        return sorted(a.badge_num for a in session.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS).filter_by(badge_type=c.STAFF_BADGE).all())
+        staffers = session.query(Attendee).filter(
+            Attendee.badge_status != c.INVALID_STATUS, Attendee.badge_type == c.STAFF_BADGE).all()
+        return sorted(a.badge_num for a in staffers)
 
     def test_shift_not_enabled(self, session, monkeypatch, custom_badges_ordered):
         session.shift_badges(c.STAFF_BADGE, 2)
@@ -346,9 +380,12 @@ class TestInternalBadgeChange:
         change_badge(session, session.staff_four, c.STAFF_BADGE, new_num=2)
 
     def test_self_assignment(self, session):
-        assert 'Attendee is already Staff with badge 1' == reset_badge_if_unchanged(session.staff_one, c.STAFF_BADGE, 1)
-        assert 'Attendee is already Staff with badge 3' == reset_badge_if_unchanged(session.staff_three, c.STAFF_BADGE, 3)
-        assert 'Attendee is already Staff with badge 5' == reset_badge_if_unchanged(session.staff_five, c.STAFF_BADGE, 5)
+        assert 'Attendee is already Staff with badge 1' == reset_badge_if_unchanged(
+            session.staff_one, c.STAFF_BADGE, 1)
+        assert 'Attendee is already Staff with badge 3' == reset_badge_if_unchanged(
+            session.staff_three, c.STAFF_BADGE, 3)
+        assert 'Attendee is already Staff with badge 5' == reset_badge_if_unchanged(
+            session.staff_five, c.STAFF_BADGE, 5)
 
 
 class TestBadgeDeletion:
@@ -386,10 +423,13 @@ class TestShiftOnChange:
 
     def staff_badges(self, session):
         # This loads badges from the session, which isn't reloaded, so the result is not always what you'd expect
-        return sorted(a.badge_num for a in session.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS).filter_by(badge_type=c.STAFF_BADGE).all())
+        staffers = session.query(Attendee).filter(
+            Attendee.badge_status != c.INVALID_STATUS, Attendee.badge_type == c.STAFF_BADGE).all()
+        return sorted(a.badge_num for a in staffers)
 
     def test_shift_on_add(self, session):
-        assert 'Badge updated' == session.update_badge(Attendee(first_name='NewStaff', paid=c.NEED_NOT_PAY, badge_type=c.STAFF_BADGE, badge_num=2), None, None)
+        assert 'Badge updated' == session.update_badge(Attendee(
+            first_name='NewStaff', paid=c.NEED_NOT_PAY, badge_type=c.STAFF_BADGE, badge_num=2), None, None)
         assert session.staff_two.badge_num == 3
         assert [1, 3, 4, 5, 6] == self.staff_badges(session)
 
@@ -424,7 +464,8 @@ class TestShiftOnChange:
     def test_dont_shift_if_gap(self, session):
         session.staff_five.badge_num = 10
         session.commit()
-        session.update_badge(Attendee(first_name='NewStaff', paid=c.NEED_NOT_PAY, badge_type=c.STAFF_BADGE, badge_num=5), None, None)
+        session.update_badge(Attendee(
+            first_name='NewStaff', paid=c.NEED_NOT_PAY, badge_type=c.STAFF_BADGE, badge_num=5), None, None)
         session.commit()
         assert [1, 2, 3, 4, 10] == self.staff_badges(session)
 
@@ -441,7 +482,8 @@ class TestBadgeValidations:
         monkeypatch.setattr(c, 'SHIFT_CUSTOM_BADGES', False)
         session.staff_two.badge_num = session.staff_two.badge_num
         session.staff_two.badge_num = 1
-        assert 'That badge number already belongs to {!r}'.format(session.staff_one.full_name) == check(session.staff_two)
+        assert 'That badge number already belongs to {!r}'.format(session.staff_one.full_name) \
+            == check(session.staff_two)
 
     def test_invalid_badge_num(self, session):
         session.staff_one.badge_num = 'Junk Badge Number'
@@ -451,14 +493,17 @@ class TestBadgeValidations:
         session.regular_attendee.badge_type = session.regular_attendee.badge_type
         session.regular_attendee.badge_type = c.STAFF_BADGE
         session.regular_attendee.badge_num = None
-        assert 'Custom badges have already been ordered so you cannot use this badge type' == check(session.regular_attendee)
+        assert 'Custom badges have already been ordered so you cannot use this badge type' \
+            == check(session.regular_attendee)
 
     @pytest.mark.parametrize('department,expected', [
         (c.STOPS, None),
         (c.REGDESK, None),
         (c.CONSOLE, 'Custom badges have already been ordered so you cannot use this badge type'),
     ])
-    def test_more_custom_badges_for_dept_head(self, admin_attendee, session, monkeypatch, after_printed_badge_deadline, department, expected):
+    def test_more_custom_badges_for_dept_head(
+            self, admin_attendee, session, monkeypatch, after_printed_badge_deadline, department, expected):
+
         monkeypatch.setattr(Attendee, 'is_dept_head_of', lambda s, d: d == department)
         session.regular_attendee.badge_type = session.regular_attendee.badge_type
         session.regular_attendee.badge_type = c.STAFF_BADGE

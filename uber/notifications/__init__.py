@@ -33,17 +33,7 @@ def _is_dev_email(email):
     return email.endswith('mailinator.com') or c.DEVELOPER_EMAIL in email
 
 
-def send_email(
-        source,
-        dest,
-        subject,
-        body,
-        format='text',
-        cc=(),
-        bcc=(),
-        model=None,
-        ident=None):
-
+def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=None, ident=None):
     subject = subject.format(EVENT_NAME=c.EVENT_NAME)
     to, cc, bcc = map(listify, [dest, cc, bcc])
     ident = ident or subject

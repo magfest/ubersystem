@@ -162,11 +162,11 @@ class Config(_Overridable):
         Returns the count of all badges of the given type that we've promised to attendees.
 
         """
-        with uber.models.Session() as session:
-            return session.query(uber.models.Attendee).filter(
-                uber.models.Attendee.badge_type == badge_type,
-                uber.models.Attendee.badge_status.in_([c.COMPLETED_STATUS, c.NEW_STATUS])) \
-                .count()
+        from uber.models import Session, Attendee
+        with Session() as session:
+            return session.query(Attendee).filter(
+                Attendee.badge_type == badge_type,
+                Attendee.badge_status.in_([c.COMPLETED_STATUS, c.NEW_STATUS])).count()
 
     def get_printed_badge_deadline_by_type(self, badge_type):
         """
@@ -192,11 +192,12 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def DEALER_APPS(self):
-        with uber.models.Session() as session:
-            return session.query(uber.models.Group).filter(
-                uber.models.Group.tables > 0,
-                uber.models.Group.cost > 0,
-                uber.models.Group.status == self.UNAPPROVED).count()
+        from uber.models import Session, Group
+        with Session() as session:
+            return session.query(Group).filter(
+                Group.tables > 0,
+                Group.cost > 0,
+                Group.status == self.UNAPPROVED).count()
 
     @request_cached_property
     @dynamic
@@ -206,14 +207,17 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def BADGES_SOLD(self):
-        with uber.models.Session() as session:
-            attendees = session.query(uber.models.Attendee)
-            individuals = attendees.filter(
-                or_(uber.models.Attendee.paid == self.HAS_PAID, uber.models.Attendee.paid == self.REFUNDED)) \
-                .filter(uber.models.Attendee.badge_status == self.COMPLETED_STATUS).count()
+        from uber.models import Session, Attendee, Group
+        with Session() as session:
+            attendees = session.query(Attendee)
+            individuals = attendees.filter(or_(
+                Attendee.paid == self.HAS_PAID,
+                Attendee.paid == self.REFUNDED)
+            ).filter(Attendee.badge_status == self.COMPLETED_STATUS).count()
 
-            group_badges = attendees.join(uber.models.Attendee.group) \
-                .filter(uber.models.Attendee.paid == self.PAID_BY_GROUP, uber.models.Group.amount_paid > 0).count()
+            group_badges = attendees.join(Attendee.group).filter(
+                Attendee.paid == self.PAID_BY_GROUP,
+                Group.amount_paid > 0).count()
 
             return individuals + group_badges
 
@@ -461,7 +465,7 @@ class Config(_Overridable):
 
     @property
     def CSRF_TOKEN(self):
-        uber.models.utils.ensure_csrf_token_exists()
+        uber.utils.ensure_csrf_token_exists()
         return cherrypy.session['csrf_token'] if 'csrf_token' in cherrypy.session else ''
 
     @property
@@ -491,14 +495,12 @@ class Config(_Overridable):
     @dynamic
     def CURRENT_ADMIN(self):
         try:
-            with uber.models.Session() as session:
-                attrs = uber.models.Attendee.to_dict_default_attrs + ['admin_account', 'assigned_depts']
-                admin_account = session.query(uber.models.AdminAccount) \
+            from uber.models import Session, AdminAccount, Attendee
+            with Session() as session:
+                attrs = Attendee.to_dict_default_attrs + ['admin_account', 'assigned_depts']
+                admin_account = session.query(AdminAccount) \
                     .filter_by(id=cherrypy.session['account_id']) \
-                    .options(
-                        subqueryload(uber.models.AdminAccount.attendee)
-                        .subqueryload(uber.models.Attendee.assigned_depts)
-                    ).one()
+                    .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.assigned_depts)).one()
 
                 return admin_account.attendee.to_dict(attrs)
         except Exception:
@@ -512,34 +514,34 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def DEPARTMENT_OPTS(self):
-        from uber.models.department import Department
-        with uber.models.Session() as session:
+        from uber.models import Session, Department
+        with Session() as session:
             query = session.query(Department).order_by(Department.name)
             return [(d.id, d.name) for d in query]
 
     @request_cached_property
     @dynamic
     def DEPARTMENT_OPTS_WITH_DESC(self):
-        from uber.models.department import Department
-        with uber.models.Session() as session:
+        from uber.models import Session, Department
+        with Session() as session:
             query = session.query(Department).order_by(Department.name)
             return [(d.id, d.name, d.description) for d in query]
 
     @request_cached_property
     @dynamic
     def PUBLIC_DEPARTMENT_OPTS_WITH_DESC(self):
-        from uber.models.department import Department
-        with uber.models.Session() as session:
+        from uber.models import Session, Department
+        with Session() as session:
             query = session.query(Department).filter_by(
                 solicits_volunteers=True).order_by(Department.name)
-            return [('All', 'Anywhere', 'I want to help anywhere I can!')] + \
-                [(d.id, d.name, d.description) for d in query]
+            return [('All', 'Anywhere', 'I want to help anywhere I can!')] \
+                + [(d.id, d.name, d.description) for d in query]
 
     @request_cached_property
     @dynamic
     def DEFAULT_DEPARTMENT_ID(self):
-        from uber.models.department import Department
-        with uber.models.Session() as session:
+        from uber.models import Session, Department
+        with Session() as session:
             dept = session.query(Department).order_by(Department.name).first()
             return dept.id
 
@@ -548,13 +550,16 @@ class Config(_Overridable):
         return cherrypy.request.method.upper()
 
     def get_kickin_count(self, kickin_level):
-        with uber.models.Session() as session:
-            attendees = session.query(uber.models.Attendee)
-            individual_supporters = attendees.filter(uber.models.Attendee.paid.in_([self.HAS_PAID, self.REFUNDED]),
-                                                     uber.models.Attendee.amount_extra >= kickin_level).count()
-            group_supporters = attendees.filter(uber.models.Attendee.paid == self.PAID_BY_GROUP,
-                                                uber.models.Attendee.amount_extra >= kickin_level,
-                                                uber.models.Attendee.amount_paid >= kickin_level).count()
+        from uber.models import Session, Attendee
+        with Session() as session:
+            attendees = session.query(Attendee)
+            individual_supporters = attendees.filter(
+                Attendee.paid.in_([self.HAS_PAID, self.REFUNDED]),
+                Attendee.amount_extra >= kickin_level).count()
+            group_supporters = attendees.filter(
+                Attendee.paid == self.PAID_BY_GROUP,
+                Attendee.amount_extra >= kickin_level,
+                Attendee.amount_paid >= kickin_level).count()
             return individual_supporters + group_supporters
 
     @request_cached_property
@@ -591,8 +596,9 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def PREVIOUSLY_SENT_EMAILS(self):
-        with uber.models.Session() as session:
-            return set(session.query(uber.models.Email.model, uber.models.Email.fk_id, uber.models.Email.ident))
+        from uber.models import Session, Email
+        with Session() as session:
+            return set(session.query(Email.model, Email.fk_id, Email.ident))
 
     # =========================
     # mivs
@@ -615,12 +621,13 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def PANEL_POC_OPTS(self):
-        with uber.models.Session() as session:
+        from uber.models import Session, AdminAccount
+        with Session() as session:
             return sorted([
                 (a.attendee.id, a.attendee.full_name)
-                for a in session.query(uber.models.AdminAccount)
-                                .options(joinedload(uber.models.AdminAccount.attendee))
-                                .filter(uber.models.AdminAccount.access.contains(str(c.PANEL_APPS)))
+                for a in session.query(AdminAccount)
+                                .options(joinedload(AdminAccount.attendee))
+                                .filter(AdminAccount.access.contains(str(c.PANEL_APPS)))
             ], key=lambda tup: tup[1], reverse=False)
 
     @property

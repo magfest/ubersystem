@@ -1,13 +1,18 @@
-import re
-from datetime import datetime
+from datetime import datetime, date, timedelta
 
-import cherrypy
 import pytest
-from uber import *
-from uber.errors import CSRFException, HTTPRedirect
+import pytz
+
+from tests.uber.conftest import admin_attendee, assert_unique, POST
+from uber.config import c
+from uber.errors import HTTPRedirect
+from uber.models import Attendee, Department, Group, Session
 from uber.site_sections import preregistration
-from tests.uber.conftest import admin_attendee, assert_unique, \
-    extract_message_from_html, GET, POST
+from uber.utils import localized_now
+
+
+assert admin_attendee
+assert POST
 
 
 next_week = datetime.now(pytz.UTC) + timedelta(days=7)
@@ -124,7 +129,7 @@ class TestRegisterGroupMember(object):
             admin_attendee,
             duplicate_badge_num_preconditions):
 
-        response = self._register_group_member_response(
+        self._register_group_member_response(
             group_id=duplicate_badge_num_preconditions,
             first_name='Duplicate',
             last_name='Follower',

@@ -3,8 +3,7 @@ from datetime import timedelta
 
 import six
 from pockets import cached_property, classproperty, readable_join
-from sideboard.lib.sa import CoerceUTF8 as UnicodeText, \
-    UTCDateTime, UUID
+from sideboard.lib.sa import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref
@@ -14,8 +13,7 @@ from sqlalchemy.types import Boolean, Float, Integer
 from uber.config import c
 from uber.models import MagModel
 from uber.models.attendee import Attendee
-from uber.models.types import default_relationship as relationship, \
-    Choice, DefaultColumn as Column
+from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column
 
 
 __all__ = [
@@ -33,8 +31,7 @@ dept_membership_dept_role = Table(
     Column('dept_role_id', UUID, ForeignKey('dept_role.id')),
     UniqueConstraint('dept_membership_id', 'dept_role_id'),
     Index('ix_dept_membership_dept_role_dept_role_id', 'dept_role_id'),
-    Index('ix_dept_membership_dept_role_dept_membership_id',
-          'dept_membership_id'),
+    Index('ix_dept_membership_dept_role_dept_membership_id', 'dept_membership_id'),
 )
 
 
@@ -90,10 +87,7 @@ class DeptMembership(MagModel):
 
     @has_inherent_role.expression
     def has_inherent_role(cls):
-        return or_(
-            cls.is_dept_head == True,
-            cls.is_poc == True,
-            cls.is_checklist_admin == True)  # noqa: E712
+        return or_(cls.is_dept_head == True, cls.is_poc == True, cls.is_checklist_admin == True)  # noqa: E712
 
     @hybrid_property
     def has_dept_role(self):
@@ -147,14 +141,12 @@ class DeptRole(MagModel):
 
     @classproperty
     def _extra_apply_attrs(cls):
-        return set(['dept_memberships_ids']).union(
-            cls._extra_apply_attrs_restricted)
+        return set(['dept_memberships_ids']).union(cls._extra_apply_attrs_restricted)
 
     @property
     def dept_memberships_ids(self):
         _, ids = self._get_relation_ids('dept_memberships')
-        return [str(d.id) for d in self.dept_memberships] \
-            if ids is None else ids
+        return [str(d.id) for d in self.dept_memberships] if ids is None else ids
 
     @dept_memberships_ids.setter
     def dept_memberships_ids(self, value):
@@ -172,8 +164,7 @@ class Department(MagModel):
 
     jobs = relationship('Job', backref='department')
 
-    dept_checklist_items = relationship(
-        'DeptChecklistItem', backref='department')
+    dept_checklist_items = relationship('DeptChecklistItem', backref='department')
     dept_roles = relationship('DeptRole', backref='department')
     dept_heads = relationship(
         'Attendee',
@@ -227,8 +218,7 @@ class Department(MagModel):
     memberships = relationship('DeptMembership', backref='department')
     explicitly_requesting_attendees = relationship(
         'Attendee',
-        backref=backref(
-            'explicitly_requested_depts', order_by='Department.name'),
+        backref=backref('explicitly_requested_depts', order_by='Department.name'),
         cascade='save-update,merge,refresh-expire,expunge',
         secondary='dept_membership_request',
         order_by='Attendee.full_name')
@@ -250,8 +240,7 @@ class Department(MagModel):
                     'DeptMembershipRequest.department_id == None), '
                     'not_(exists().where(and_('
                     'DeptMembership.department_id == Department.id, '
-                    'DeptMembership.attendee_id == '
-                    'DeptMembershipRequest.attendee_id))))',
+                    'DeptMembership.attendee_id == DeptMembershipRequest.attendee_id))))',
         secondary='dept_membership_request',
         order_by='Attendee.full_name',
         viewonly=True)
@@ -262,17 +251,13 @@ class Department(MagModel):
                     'DeptMembershipRequest.department_id == Department.id, '
                     'not_(exists().where(and_('
                     'DeptMembership.department_id == Department.id, '
-                    'DeptMembership.attendee_id == '
-                    'DeptMembershipRequest.attendee_id))))',
+                    'DeptMembership.attendee_id == DeptMembershipRequest.attendee_id))))',
         secondary='dept_membership_request',
         order_by='Attendee.full_name',
         viewonly=True)
     parent = relationship(
         'Department',
-        backref=backref(
-            'sub_depts',
-            order_by='Department.name',
-            cascade='all,delete-orphan'),
+        backref=backref('sub_depts', order_by='Department.name', cascade='all,delete-orphan'),
         cascade='save-update,merge,refresh-expire,expunge',
         remote_side='Department.id',
         single_parent=True)
@@ -316,8 +301,7 @@ class Job(MagModel):
     _ALL_VOLUNTEERS = 2
     _VISIBILITY_OPTS = [
         (_ONLY_MEMBERS, 'Members of this department'),
-        (_ALL_VOLUNTEERS,
-            'Volunteers who\'ve requested this dept or "Anywhere"')]
+        (_ALL_VOLUNTEERS, 'Volunteers who\'ve requested this dept or "Anywhere"')]
 
     type = Column(Choice(c.JOB_TYPE_OPTS), default=c.REGULAR)
     name = Column(UnicodeText)
@@ -331,10 +315,7 @@ class Job(MagModel):
     visibility = Column(Choice(_VISIBILITY_OPTS), default=_ONLY_MEMBERS)
 
     required_roles = relationship(
-        'DeptRole',
-        backref='jobs',
-        cascade='save-update,merge,refresh-expire,expunge',
-        secondary='job_required_role')
+        'DeptRole', backref='jobs', cascade='save-update,merge,refresh-expire,expunge', secondary='job_required_role')
     shifts = relationship('Shift', backref='job')
 
     __table_args__ = (
@@ -345,8 +326,7 @@ class Job(MagModel):
 
     @classproperty
     def _extra_apply_attrs(cls):
-        return set(['required_roles_ids']).union(
-            cls._extra_apply_attrs_restricted)
+        return set(['required_roles_ids']).union(cls._extra_apply_attrs_restricted)
 
     @hybrid_property
     def department_name(self):
@@ -354,8 +334,7 @@ class Job(MagModel):
 
     @department_name.expression
     def department_name(cls):
-        return select([Department.name]).where(
-            Department.id == cls.department_id).label('department_name')
+        return select([Department.name]).where(Department.id == cls.department_id).label('department_name')
 
     @hybrid_property
     def restricted(self):
@@ -363,8 +342,8 @@ class Job(MagModel):
 
     @restricted.expression
     def restricted(cls):
-        return exists([job_required_role.c.dept_role_id]).where(
-            job_required_role.c.job_id == cls.id).label('restricted')
+        return exists([job_required_role.c.dept_role_id]) \
+            .where(job_required_role.c.job_id == cls.id).label('restricted')
 
     @property
     def required_roles_labels(self):
@@ -409,8 +388,7 @@ class Job(MagModel):
 
     @slots_taken.expression
     def slots_taken(cls):
-        return select([func.count(Shift.id)]).where(
-            Shift.job_id == cls.id).label('slots_taken')
+        return select([func.count(Shift.id)]).where(Shift.job_id == cls.id).label('slots_taken')
 
     @hybrid_property
     def is_public(self):
@@ -452,8 +430,7 @@ class Job(MagModel):
     def total_hours(self):
         return self.weighted_hours * self.slots
 
-    def _potential_volunteers(
-            self, staffing_only=False, order_by=Attendee.full_name):
+    def _potential_volunteers(self, staffing_only=False, order_by=Attendee.full_name):
         """
         Return a list of attendees who:
 
@@ -472,8 +449,8 @@ class Job(MagModel):
             query = query.filter(Attendee.staffing == True)  # noqa: E712
 
         if self.required_roles:
-            query = query.join(Attendee.dept_roles, aliased=True).filter(and_(
-                *[DeptRole.id == r.id for r in self.required_roles]))
+            query = query.join(Attendee.dept_roles, aliased=True).filter(
+                and_(*[DeptRole.id == r.id for r in self.required_roles]))
         else:
             query = query.join(Attendee.dept_memberships, aliased=True).filter(
                 DeptMembership.department_id == self.department_id)
@@ -482,7 +459,9 @@ class Job(MagModel):
 
     @property
     def capable_volunteers_opts(self):
-        # format output for use with the {{ options() }} template decorator
+        """
+        Format output for use with the {{ options() }} template decorator .
+        """
         return [(a.id, a.full_name) for a in self.capable_volunteers]
 
     @property
@@ -502,9 +481,7 @@ class Job(MagModel):
         Returns a list of volunteers who are allowed to sign up for
         this Job and have the free time to work it.
         """
-        return [
-            s for s in self._potential_volunteers(order_by=Attendee.last_first)
-            if self.no_overlap(s)]
+        return [s for s in self._potential_volunteers(order_by=Attendee.last_first) if self.no_overlap(s)]
 
 
 class Shift(MagModel):

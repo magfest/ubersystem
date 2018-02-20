@@ -30,7 +30,10 @@ from uber.models import AdminAccount, ApiToken, Attendee, AttendeeTournament, At
 from uber.utils import localized_now, Charge
 
 
-AdminAccount.required = [('attendee', 'Attendee'), ('hashed', 'Password')]
+AdminAccount.required = [
+    ('attendee', 'Attendee'),
+    ('hashed', 'Password')
+]
 
 
 @validation.AdminAccount
@@ -52,8 +55,7 @@ def has_email_address(account):
 @validation.AdminAccount
 def admin_has_required_access(account):
     new_access = set(int(s) for s in account.access.split(',') if s)
-    old_access = set() if account.is_new else \
-        set(int(s) for s in account.orig_value_of('access').split(',') if s)
+    old_access = set() if account.is_new else set(int(s) for s in account.orig_value_of('access').split(',') if s)
     access_changes = new_access.symmetric_difference(old_access)
     if any(c.REQUIRED_ACCESS[a] for a in access_changes):
         with Session() as session:
@@ -82,7 +84,9 @@ def admin_has_required_api_access(api_token):
             return 'You do not have permission to create a token with that access'
 
 
-Group.required = [('name', 'Group Name')]
+Group.required = [
+    ('name', 'Group Name')
+]
 
 
 @prereg_validation.Group
@@ -134,8 +138,7 @@ def dealer_address(group):
             missing.append('province or region')
 
         if missing:
-            return 'Please provide your full address for tax purposes. ' \
-                'Missing: {}'.format(', '.join(missing))
+            return 'Please provide your full address for tax purposes. Missing: {}'.format(', '.join(missing))
 
 
 @validation.Group
@@ -235,8 +238,7 @@ def promo_code_is_useful(attendee):
         elif attendee.overridden_price:
             return "You already have a special badge price, you can't use a promo code on top of that."
         elif attendee.badge_cost >= attendee.badge_cost_without_promo_code:
-            return "That promo code doesn't make your badge any cheaper. " \
-                "You may already have other discounts."
+            return "That promo code doesn't make your badge any cheaper. You may already have other discounts."
 
 
 @prereg_validation.Attendee
@@ -377,8 +379,8 @@ def printed_badge_change(attendee):
             and not AdminAccount.admin_name() \
             and localized_now() > c.get_printed_badge_deadline_by_type(attendee.badge_type):
 
-        return '{} badges have already been ordered, so you cannot change the badge printed name.'\
-            .format(attendee.badge_type_label if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES else "Supporter")
+        return '{} badges have already been ordered, so you cannot change the badge printed name.'.format(
+            attendee.badge_type_label if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES else "Supporter")
 
 
 @validation.Attendee
@@ -441,12 +443,11 @@ def dealer_needs_group(attendee):
 
 @validation.Attendee
 def dupe_badge_num(attendee):
-    if (attendee.badge_num != attendee.orig_value_of('badge_num') or attendee.is_new)\
-            and c.NUMBERED_BADGES and attendee.badge_num and\
-            (not c.SHIFT_CUSTOM_BADGES or c.AFTER_PRINTED_BADGE_DEADLINE or c.AT_THE_CON):
+    if (attendee.badge_num != attendee.orig_value_of('badge_num') or attendee.is_new) \
+            and c.NUMBERED_BADGES and attendee.badge_num \
+            and (not c.SHIFT_CUSTOM_BADGES or c.AFTER_PRINTED_BADGE_DEADLINE or c.AT_THE_CON):
         with Session() as session:
-            existing = session.query(Attendee)\
-                .filter_by(badge_type=attendee.badge_type, badge_num=attendee.badge_num)
+            existing = session.query(Attendee).filter_by(badge_type=attendee.badge_type, badge_num=attendee.badge_num)
             if existing.count():
                 return 'That badge number already belongs to {!r}'.format(existing.first().full_name)
 
@@ -462,7 +463,7 @@ def invalid_badge_num(attendee):
 
 @validation.Attendee
 def no_more_custom_badges(attendee):
-    if (attendee.badge_type != attendee.orig_value_of('badge_type') or attendee.is_new)\
+    if (attendee.badge_type != attendee.orig_value_of('badge_type') or attendee.is_new) \
             and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
         with Session() as session:
             if all(not session.admin_attendee().is_dept_head_of(d) for d in [c.REGDESK, c.STOPS]):
@@ -503,7 +504,9 @@ def money_amount(model):
         return 'Amount must be a positive number'
 
 
-Job.required = [('name', 'Job Name')]
+Job.required = [
+    ('name', 'Job Name')
+]
 
 
 @validation.Job
@@ -518,8 +521,8 @@ def time_conflicts(job):
         original_hours = Job(start_time=job.orig_value_of('start_time'), duration=job.orig_value_of('duration')).hours
         for shift in job.shifts:
             if job.hours.intersection(shift.attendee.hours - original_hours):
-                return 'You cannot change this job to this time, ' \
-                    'because {} is already working a shift then'.format(shift.attendee.full_name)
+                return 'You cannot change this job to this time, because {} is already working a shift then'.format(
+                    shift.attendee.full_name)
 
 
 Department.required = [('name', 'Name'), ('description', 'Description')]
@@ -530,8 +533,7 @@ DeptRole.required = [('name', 'Name')]
 def is_checklist_admin(dept_checklist_item):
     with Session() as session:
         attendee = session.admin_attendee()
-        department_id = dept_checklist_item.department_id \
-            or dept_checklist_item.department.id
+        department_id = dept_checklist_item.department_id or dept_checklist_item.department.id
         if not attendee.can_admin_checklist_for(department_id):
             return 'Only checklist admins can complete checklist items'
 
@@ -542,7 +544,9 @@ def oldmpointexchange_numbers(mpe):
         return 'MPoints must be a positive integer'
 
 
-Sale.required = [('what', "What's being sold")]
+Sale.required = [
+    ('what', "What's being sold")
+]
 
 
 @validation.Sale
@@ -553,7 +557,9 @@ def cash_and_mpoints(sale):
         return 'MPoints must be a positive integer'
 
 
-PromoCode.required = [('expiration_date', 'Expiration date')]
+PromoCode.required = [
+    ('expiration_date', 'Expiration date')
+]
 
 
 @validation.PromoCode
@@ -590,9 +596,7 @@ def no_unlimited_free_badges(promo_code):
 
 @validation.PromoCode
 def no_dupe_code(promo_code):
-    if promo_code.code and (
-            promo_code.is_new or
-            promo_code.code != promo_code.orig_value_of('code')):
+    if promo_code.code and (promo_code.is_new or promo_code.code != promo_code.orig_value_of('code')):
         with Session() as session:
             if session.lookup_promo_code(promo_code.code):
                 return 'The code you entered already belongs to another ' \
@@ -649,6 +653,28 @@ IndieStudio.required = [
     ('website', 'Website')
 ]
 
+IndieDeveloper.required = [
+    ('first_name', 'First Name'),
+    ('last_name', 'Last Name'),
+    ('email', 'Email')
+]
+
+IndieGame.required = [
+    ('title', 'Game Title'),
+    ('brief_description', 'Brief Description'),
+    ('genres', 'Genres'),
+    ('description', 'Full Description'),
+    ('link_to_video', 'Link to Video')
+]
+
+IndieGameCode.required = [
+    ('code', 'Game Code')
+]
+
+IndieJudge.required = [
+    ('genres', 'Genres')
+]
+
 
 @validation.IndieStudio
 def mivs_new_studio_deadline(studio):
@@ -671,9 +697,6 @@ def mivs_unique_name(studio):
                 "are you sure you shouldn't be logged in with that studio's account?"
 
 
-IndieDeveloper.required = [('first_name', 'First Name'), ('last_name', 'Last Name'), ('email', 'Email')]
-
-
 @validation.IndieDeveloper
 def mivs_dev_email(dev):
     if not re.match(c.EMAIL_RE, dev.email):
@@ -684,15 +707,6 @@ def mivs_dev_email(dev):
 def mivs_dev_cellphone(dev):
     if (dev.primary_contact or dev.cellphone) and _invalid_phone_number(dev.cellphone):
         return 'Please enter a valid phone number'
-
-
-IndieGame.required = [
-    ('title', 'Game Title'),
-    ('brief_description', 'Brief Description'),
-    ('genres', 'Genres'),
-    ('description', 'Full Description'),
-    ('link_to_video', 'Link to Video')
-]
 
 
 @validation.IndieGame
@@ -738,9 +752,6 @@ def mivs_show_info_required_fields(game):
             return 'Please enter the average length for a multiplayer game or match.'
 
 
-IndieGameCode.required = [('code', 'Game Code')]
-
-
 @validation.IndieGameImage
 def mivs_description(image):
     if image.is_screenshot and not image.description:
@@ -753,9 +764,6 @@ def mivs_valid_type(screenshot):
         return 'Our server did not recognize your upload as a valid image'
 
 
-IndieJudge.required = [('genres', 'Genres')]
-
-
 # =============================
 # mits
 # =============================
@@ -763,21 +771,25 @@ IndieJudge.required = [('genres', 'Genres')]
 MITSTeam.required = [
     ('name', 'Production Team Name')
 ]
+
 MITSApplicant.required = [
     ('first_name', 'First Name'),
     ('last_name', 'Last Name'),
     ('email', 'Email Address'),
     ('cellphone', 'Cellphone Number')
 ]
+
 MITSGame.required = [
     ('name', 'Name'),
     ('promo_blurb', 'Promo Blurb'),
     ('description', 'Description'),
     ('genre', 'Game Genre')
 ]
+
 MITSPicture.required = [
     ('description', 'Description')
 ]
+
 MITSDocument.required = [
     ('description', 'Description')
 ]
@@ -828,7 +840,9 @@ def consistent_players(game):
 # panels
 # =============================
 
-Event.required = [('name', 'Event Name')]
+Event.required = [
+    ('name', 'Event Name')
+]
 
 
 @validation.Event
@@ -850,6 +864,7 @@ PanelApplication.required = [
     ('description', 'Panel Description'),
     ('length', 'Panel Length')
 ]
+
 PanelApplicant.required = [
     ('first_name', 'First Name'),
     ('last_name', 'Last Name'),
@@ -917,8 +932,15 @@ def specify_cost_details(app):
         return 'Please describe the materials you will provide and how much you will charge attendees for them.'
 
 
-Attraction.required = [('name', 'Name'), ('description', 'Description')]
-AttractionFeature.required = [('name', 'Name'), ('description', 'Description')]
+Attraction.required = [
+    ('name', 'Name'),
+    ('description', 'Description')
+]
+
+AttractionFeature.required = [
+    ('name', 'Name'),
+    ('description', 'Description')
+]
 
 
 @validation.AttractionEvent
@@ -938,16 +960,16 @@ def is_merch_checklist_complete(guest_merch):
 
     elif guest_merch.selling_merch == c.ROCK_ISLAND:
         if not guest_merch.poc_is_group_leader and not (
-                guest_merch.poc_first_name and
-                guest_merch.poc_last_name and
-                guest_merch.poc_phone and
-                guest_merch.poc_email):
+                guest_merch.poc_first_name
+                and guest_merch.poc_last_name
+                and guest_merch.poc_phone
+                and guest_merch.poc_email):
             return 'You must tell us about your merch point of contact'
 
         elif not (
-                guest_merch.poc_zip_code and
-                guest_merch.poc_address1 and
-                guest_merch.poc_city and
-                guest_merch.poc_region and
-                guest_merch.poc_country):
+                guest_merch.poc_zip_code
+                and guest_merch.poc_address1
+                and guest_merch.poc_city
+                and guest_merch.poc_region
+                and guest_merch.poc_country):
             return 'You must tell us your complete mailing address'

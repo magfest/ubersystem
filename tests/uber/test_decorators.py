@@ -1,8 +1,10 @@
+import uuid
+
 import pytest
 
-from uber import *
+from uber.decorators import id_required
 from uber.errors import HTTPRedirect
-from tests.uber.conftest import *
+from uber.models import Attendee, Group, Session
 
 
 class TestIdRequired:

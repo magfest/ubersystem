@@ -4,8 +4,6 @@ matrix:
     - python: "3.4"
       env: TOX_ENV=flake8
     - python: "3.4"
-      env: TOX_ENV=pycodestyle
-    - python: "3.4"
       env: TOX_ENV=py34
 before_install:
   - sudo apt-get -qq update

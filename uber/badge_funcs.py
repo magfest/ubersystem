@@ -156,11 +156,8 @@ def badge_consistency_check(session):
     # check 1, see if anything is out of range, or has a duplicate badge number
     badge_nums_seen = []
 
-    attendees = session.query(Attendee)\
-        .filter(Attendee.first_name != '')\
-        .filter(Attendee.badge_num != 0)\
-        .order_by('badge_num')\
-        .all()
+    attendees = session.query(Attendee).filter(Attendee.first_name != '', Attendee.badge_num != 0) \
+        .order_by('badge_num').all()
 
     for attendee in attendees:
         out_of_range_error = check_range(attendee.badge_num, attendee.badge_type)
@@ -181,11 +178,8 @@ def badge_consistency_check(session):
         prev_attendee_name = ""
 
         attendees = session.query(Attendee) \
-            .filter_by(badge_type=badge_type_val)\
-            .filter(Attendee.first_name != '') \
-            .filter(Attendee.badge_num != 0) \
-            .order_by('badge_num') \
-            .all()
+            .filter(Attendee.badge_type == badge_type_val, Attendee.first_name != '', Attendee.badge_num != 0) \
+            .order_by('badge_num').all()
 
         for attendee in attendees:
             if prev_badge_num == -1:

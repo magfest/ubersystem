@@ -1,7 +1,9 @@
+import os
+
 import pytest
 
-from uber import *
 from tests.uber import collect_template_paths, is_valid_jinja_template
+from uber.jinja import JinjaEnv
 
 
 @pytest.mark.parametrize("template_path", collect_template_paths(__file__))

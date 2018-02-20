@@ -14,12 +14,10 @@ from sqlalchemy.sql.expression import bindparam
 from sqlalchemy.types import Boolean, Integer
 
 from uber.config import c
-from uber.custom_tags import humanize_timedelta, location_event_name, \
-    location_room_name
+from uber.custom_tags import humanize_timedelta, location_event_name, location_room_name
 from uber.decorators import presave_adjustment
 from uber.models import MagModel, Attendee
-from uber.models.types import default_relationship as relationship, Choice, \
-    DefaultColumn as Column, utcmin
+from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column, utcmin
 from uber.utils import evening_datetime, noon_datetime
 
 
@@ -160,8 +158,7 @@ class Attraction(MagModel):
 
     @property
     def location_opts(self):
-        locations = map(
-            lambda e: (e.location, c.EVENT_LOCATIONS[e.location]), self.events)
+        locations = map(lambda e: (e.location, c.EVENT_LOCATIONS[e.location]), self.events)
         return [(l, s) for l, s in sorted(locations, key=lambda l: l[1])]
 
     @property
@@ -172,8 +169,7 @@ class Attraction(MagModel):
     def locations_by_feature_id(self):
         return groupify(self.features, 'id', lambda f: f.locations)
 
-    def signups_requiring_notification(
-            self, session, from_time, to_time, options=None):
+    def signups_requiring_notification(self, session, from_time, to_time, options=None):
         """
         Returns a dict of AttractionSignups that require notification.
 
@@ -188,22 +184,17 @@ class Attraction(MagModel):
         for advance_notice in sorted(set([-1] + self.advance_notices)):
             event_filters = [AttractionEvent.attraction_id == self.id]
             if advance_notice == -1:
-                notice_ident = cast(
-                    AttractionSignup.attraction_event_id, UnicodeText)
-                notice_param = bindparam(
-                    'confirm_notice', advance_notice).label('advance_notice')
+                notice_ident = cast(AttractionSignup.attraction_event_id, UnicodeText)
+                notice_param = bindparam('confirm_notice', advance_notice).label('advance_notice')
             else:
                 advance_notice = max(0, advance_notice) + advance_checkin
                 notice_delta = timedelta(seconds=advance_notice)
                 event_filters += [
                     AttractionEvent.start_time >= from_time + notice_delta,
                     AttractionEvent.start_time < to_time + notice_delta]
-                notice_ident = func.concat(
-                    AttractionSignup.attraction_event_id,
-                    '_{}'.format(advance_notice))
+                notice_ident = func.concat(AttractionSignup.attraction_event_id, '_{}'.format(advance_notice))
                 notice_param = bindparam(
-                    'advance_notice_{}'.format(advance_notice),
-                    advance_notice).label('advance_notice')
+                    'advance_notice_{}'.format(advance_notice), advance_notice).label('advance_notice')
 
             subquery = session.query(AttractionSignup, notice_param).filter(
                 AttractionSignup.is_unchecked_in,
@@ -211,10 +202,8 @@ class Attraction(MagModel):
                     session.query(AttractionEvent.id).filter(*event_filters)),
                 not_(exists().where(and_(
                     AttractionNotification.ident == notice_ident,
-                    AttractionNotification.attraction_event_id
-                    == AttractionSignup.attraction_event_id,
-                    AttractionNotification.attendee_id
-                    == AttractionSignup.attendee_id)))).with_labels()
+                    AttractionNotification.attraction_event_id == AttractionSignup.attraction_event_id,
+                    AttractionNotification.attendee_id == AttractionSignup.attendee_id)))).with_labels()
             subqueries.append(subquery)
 
         query = subqueries[0].union(*subqueries[1:])
@@ -232,9 +221,7 @@ class AttractionFeature(MagModel):
     attraction_id = Column(UUID, ForeignKey('attraction.id'))
 
     events = relationship(
-        'AttractionEvent',
-        backref='feature',
-        order_by='[AttractionEvent.start_time, AttractionEvent.id]')
+        'AttractionEvent', backref='feature', order_by='[AttractionEvent.start_time, AttractionEvent.id]')
 
     __table_args__ = (
         UniqueConstraint('name', 'attraction_id'),
@@ -247,8 +234,7 @@ class AttractionFeature(MagModel):
 
     @property
     def location_opts(self):
-        locations = map(
-            lambda e: (e.location, c.EVENT_LOCATIONS[e.location]), self.events)
+        locations = map(lambda e: (e.location, c.EVENT_LOCATIONS[e.location]), self.events)
         return [(l, s) for l, s in sorted(locations, key=lambda l: l[1])]
 
     @property
@@ -257,22 +243,17 @@ class AttractionFeature(MagModel):
 
     @property
     def events_by_location(self):
-        events = sorted(
-            self.events,
-            key=lambda e: (c.EVENT_LOCATIONS[e.location], e.start_time))
+        events = sorted(self.events, key=lambda e: (c.EVENT_LOCATIONS[e.location], e.start_time))
         return groupify(events, 'location')
 
     @property
     def events_by_location_by_day(self):
-        events = sorted(
-            self.events,
-            key=lambda e: (c.EVENT_LOCATIONS[e.location], e.start_time))
+        events = sorted(self.events, key=lambda e: (c.EVENT_LOCATIONS[e.location], e.start_time))
         return groupify(events, ['location', 'start_day_local'])
 
     @property
     def available_events(self):
-        return [
-            e for e in self.events if not (e.is_started and e.is_checkin_over)]
+        return [e for e in self.events if not (e.is_started and e.is_checkin_over)]
 
     @property
     def available_events_summary(self):
@@ -317,22 +298,14 @@ class AttractionEvent(MagModel):
     duration = Column(Integer, default=900)  # In seconds
     slots = Column(Integer, default=1)
 
-    signups = relationship(
-        'AttractionSignup',
-        backref='event',
-        order_by='AttractionSignup.checkin_time')
+    signups = relationship('AttractionSignup', backref='event', order_by='AttractionSignup.checkin_time')
 
     attendee_signups = association_proxy('signups', 'attendee')
 
-    notifications = relationship(
-        'AttractionNotification',
-        backref='event',
-        order_by='AttractionNotification.sent_time')
+    notifications = relationship('AttractionNotification', backref='event', order_by='AttractionNotification.sent_time')
 
     notification_replies = relationship(
-        'AttractionNotificationReply',
-        backref='event',
-        order_by='AttractionNotificationReply.sid')
+        'AttractionNotificationReply', backref='event', order_by='AttractionNotificationReply.sid')
 
     attendees = relationship(
         'Attendee',
@@ -408,8 +381,7 @@ class AttractionEvent(MagModel):
 
     @property
     def time_remaining_to_checkin_label(self):
-        return humanize_timedelta(self.time_remaining_to_checkin,
-                                  granularity='minutes', separator=' ')
+        return humanize_timedelta(self.time_remaining_to_checkin, granularity='minutes', separator=' ')
 
     @property
     def is_checkin_over(self):
@@ -433,12 +405,8 @@ class AttractionEvent(MagModel):
             end_time = self.end_time.astimezone(c.EVENT_TIMEZONE)
             start_time = self.start_time.astimezone(c.EVENT_TIMEZONE)
             if start_time.date() == end_time.date():
-                return '{} – {}'.format(
-                    start_time.strftime('%-I:%M %p'),
-                    end_time.strftime('%-I:%M %p %A'))
-            return '{} – {}'.format(
-                start_time.strftime('%-I:%M %p %A'),
-                end_time.strftime('%-I:%M %p %A'))
+                return '{} – {}'.format(start_time.strftime('%-I:%M %p'), end_time.strftime('%-I:%M %p %A'))
+            return '{} – {}'.format(start_time.strftime('%-I:%M %p %A'), end_time.strftime('%-I:%M %p %A'))
         return 'unknown time span'
 
     @property
@@ -470,11 +438,9 @@ class AttractionEvent(MagModel):
         earliest_end = min(self.end_time, event.end_time)
         if earliest_end < latest_start:
             return -int((latest_start - earliest_end).total_seconds())
-        elif self.start_time < event.start_time \
-                and self.end_time > event.end_time:
+        elif self.start_time < event.start_time and self.end_time > event.end_time:
             return int((self.end_time - event.start_time).total_seconds())
-        elif self.start_time > event.start_time \
-                and self.end_time < event.end_time:
+        elif self.start_time > event.start_time and self.end_time < event.end_time:
             return int((event.end_time - self.start_time).total_seconds())
         else:
             return int((earliest_end - latest_start).total_seconds())
@@ -486,8 +452,7 @@ class AttractionSignup(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
 
     signup_time = Column(UTCDateTime, default=lambda: datetime.now(pytz.UTC))
-    checkin_time = Column(
-        UTCDateTime, default=lambda: utcmin.datetime, index=True)
+    checkin_time = Column(UTCDateTime, default=lambda: utcmin.datetime, index=True)
 
     notifications = relationship(
         'AttractionNotification',
@@ -498,10 +463,8 @@ class AttractionSignup(MagModel):
             uselist=False,
             viewonly=True),
         primaryjoin='and_('
-                    'AttractionSignup.attendee_id'
-                    ' == foreign(AttractionNotification.attendee_id),'
-                    'AttractionSignup.attraction_event_id'
-                    ' == foreign(AttractionNotification.attraction_event_id))',
+                    'AttractionSignup.attendee_id == foreign(AttractionNotification.attendee_id),'
+                    'AttractionSignup.attraction_event_id == foreign(AttractionNotification.attraction_event_id))',
         order_by='AttractionNotification.sent_time',
         viewonly=True)
 
@@ -582,8 +545,7 @@ class AttractionNotification(MagModel):
 
 
 class AttractionNotificationReply(MagModel):
-    attraction_event_id = Column(
-        UUID, ForeignKey('attraction_event.id'), nullable=True)
+    attraction_event_id = Column(UUID, ForeignKey('attraction_event.id'), nullable=True)
     attraction_id = Column(UUID, ForeignKey('attraction.id'), nullable=True)
     attendee_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
 

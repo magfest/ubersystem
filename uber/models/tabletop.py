@@ -8,8 +8,7 @@ from sqlalchemy.types import Boolean
 from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.types import default_relationship as relationship, \
-    DefaultColumn as Column
+from uber.models.types import default_relationship as relationship, DefaultColumn as Column
 from uber.utils import localized_now, normalize_phone
 
 
@@ -45,8 +44,7 @@ class TabletopCheckout(MagModel):
 class TabletopTournament(MagModel):
     event_id = Column(UUID, ForeignKey('event.id'), unique=True)
 
-    # Separate from the event name for cases where we want a shorter
-    # name in our SMS messages.
+    # Separate from the event name for cases where we want a shorter name in our SMS messages.
     name = Column(UnicodeText)
 
     entrants = relationship('TabletopEntrant', backref='tournament')
@@ -58,16 +56,13 @@ class TabletopEntrant(MagModel):
     signed_up = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     confirmed = Column(Boolean, default=False)
 
-    reminder = relationship(
-        'TabletopSmsReminder', backref='entrant', uselist=False)
+    reminder = relationship('TabletopSmsReminder', backref='entrant', uselist=False)
     replies = relationship('TabletopSmsReply', backref='entrant')
 
     @presave_adjustment
     def _within_cutoff(self):
         if self.is_new:
-            tournament = self.tournament or \
-                self.session.tabletop_tournament(self.tournament_id)
-
+            tournament = self.tournament or self.session.tabletop_tournament(self.tournament_id)
             cutoff = timedelta(minutes=c.TABLETOP_SMS_CUTOFF_MINUTES)
             if self.signed_up > tournament.event.start_time - cutoff:
                 self.confirmed = True
@@ -90,8 +85,7 @@ class TabletopEntrant(MagModel):
             and sent < self.tournament.event.start_time + start_time_slack
 
     __table_args__ = (
-        UniqueConstraint(
-            'tournament_id', 'attendee_id', name='_tournament_entrant_uniq'),
+        UniqueConstraint('tournament_id', 'attendee_id', name='_tournament_entrant_uniq'),
     )
 
 

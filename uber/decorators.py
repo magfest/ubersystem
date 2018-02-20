@@ -46,13 +46,13 @@ def swallow_exceptions(func):
 def log_pageview(func):
     @wraps(func)
     def with_check(*args, **kwargs):
-        with uber.Session() as session:
+        with uber.models.Session() as session:
             try:
                 session.admin_account(cherrypy.session['account_id'])
             except Exception:
                 pass  # we don't care about unrestricted pages for this version
             else:
-                uber.PageViewTracking.track_pageview()
+                uber.models.PageViewTracking.track_pageview()
         return func(*args, **kwargs)
     return with_check
 
@@ -69,8 +69,7 @@ def redirect_if_at_con_to_kiosk(func):
 def check_if_can_reg(func):
     @wraps(func)
     def with_check(*args, **kwargs):
-        is_dealer_get = c.HTTP_METHOD == 'GET' and \
-            c.PAGE_PATH == '/preregistration/dealer_registration'
+        is_dealer_get = c.HTTP_METHOD == 'GET' and c.PAGE_PATH == '/preregistration/dealer_registration'
         is_dealer_post = c.HTTP_METHOD == 'POST' and \
             int(kwargs.get('badge_type', 0)) == c.PSEUDO_DEALER_BADGE and \
             int(kwargs.get('tables', 0)) > 0
@@ -141,9 +140,7 @@ def _suffix_property_check(inst, name):
 suffix_property.check = _suffix_property_check
 
 
-department_id_adapter = argmod(
-    ['location', 'department', 'department_id'],
-    lambda d: uber.models.department.Department.to_id(d))
+department_id_adapter = argmod(['location', 'department', 'department_id'], lambda d: uber.models.Department.to_id(d))
 
 
 @department_id_adapter
@@ -175,15 +172,10 @@ def requires_dept_admin(func=None, inherent_role=None):
         def _protected(*args, **kwargs):
             if cherrypy.request.method == 'POST':
                 department_id = kwargs.get(
-                    'department_id',
-                    kwargs.get(
-                        'department',
-                        kwargs.get('location', kwargs.get('id'))))
+                    'department_id', kwargs.get('department', kwargs.get('location', kwargs.get('id'))))
 
-                from uber.models import Session
-                with Session() as session:
-                    message = check_dept_admin(
-                        session, department_id, inherent_role)
+                with uber.models.Session() as session:
+                    message = check_dept_admin(session, department_id, inherent_role)
                     assert not message, message
             return func(*args, **kwargs)
         return _protected
@@ -419,7 +411,7 @@ def sessionized(func):
 
     @wraps(func)
     def with_session(*args, **kwargs):
-        with uber.Session() as session:
+        with uber.models.Session() as session:
             try:
                 retval = func(*args, session=session, **kwargs)
                 session.expunge_all()
@@ -433,7 +425,7 @@ def sessionized(func):
 def renderable_data(data=None):
     data = data or {}
     data['c'] = c
-    data.update({m.__name__: m for m in uber.Session.all_models()})
+    data.update({m.__name__: m for m in uber.models.Session.all_models()})
     return data
 
 
@@ -518,7 +510,7 @@ def restricted(func):
                 raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
 
             else:
-                access = uber.AdminAccount.access_set()
+                access = uber.models.AdminAccount.access_set()
                 if not c.AT_THE_CON:
                     access.discard(c.REG_AT_CON)
 
@@ -670,7 +662,6 @@ def id_required(model):
 
 def check_id_for_model(model, **params):
     message = None
-
     session = params['session']
     model_id = params.get('id')
 

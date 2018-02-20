@@ -1,11 +1,13 @@
+import os
+from glob import glob
+
 import pytest
 import sqlite3
 from jinja2 import meta
-from mock import Mock
 from pockets import uniquify as remove_duplicates
 from sqlalchemy.schema import CreateTable, MetaData
 
-from uber import *
+from uber.jinja import JinjaEnv
 from uber.models import Session
 from uber.sep_commands import alembic, drop_uber_db, reset_uber_db
 
@@ -33,8 +35,7 @@ def dump_schema(sort=True, uniquify=True):
 
 
 def dump_alembic_schema(sort=True, uniquify=True):
-    if Session.engine.dialect.name == 'sqlite' and \
-            sqlite3.sqlite_version_info < (3, 8, 3):
+    if Session.engine.dialect.name == 'sqlite' and sqlite3.sqlite_version_info < (3, 8, 3):
         pytest.skip('requires recent version of sqlite')
     drop_uber_db()
     alembic('upgrade', 'heads')

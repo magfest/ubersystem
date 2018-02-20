@@ -1,5 +1,12 @@
-from uber import config
-from tests.uber import *
+from datetime import datetime, timedelta
+
+import pytest
+from pytz import UTC
+
+import uber
+from uber.config import c
+from uber.models import Attendee, Group, Session
+from uber.utils import localized_now, request_cached_context
 
 
 class TestBadgeDeadlines:
@@ -159,7 +166,7 @@ class TestBadgePriceEstimate:
 
     def test_hardcore_optimized_estimate(self, monkeypatch):
         monkeypatch.setattr(c, 'HARDCORE_OPTIMIZATIONS_ENABLED', True)
-        assert None == c.BADGES_LEFT_AT_CURRENT_PRICE
+        assert None is c.BADGES_LEFT_AT_CURRENT_PRICE
 
     def test_almost_gone_estimate(self, monkeypatch):
         monkeypatch.setattr(uber.config.Config, 'BADGES_SOLD', 990)

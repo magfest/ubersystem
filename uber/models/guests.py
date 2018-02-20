@@ -13,8 +13,7 @@ from sqlalchemy.types import Boolean, Integer
 from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.types import default_relationship as relationship, \
-    Choice, DefaultColumn as Column, MultiChoice
+from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column, MultiChoice
 from uber.utils import filename_extension
 
 
@@ -31,51 +30,19 @@ class GuestGroup(MagModel):
     num_hotel_rooms = Column(Integer, default=1, admin_only=True)
     payment = Column(Integer, default=0, admin_only=True)
     vehicles = Column(Integer, default=1, admin_only=True)
-    estimated_loadin_minutes = Column(
-        Integer, default=c.DEFAULT_LOADIN_MINUTES, admin_only=True)
-    estimated_performance_minutes = Column(
-        Integer, default=c.DEFAULT_PERFORMANCE_MINUTES, admin_only=True)
+    estimated_loadin_minutes = Column(Integer, default=c.DEFAULT_LOADIN_MINUTES, admin_only=True)
+    estimated_performance_minutes = Column(Integer, default=c.DEFAULT_PERFORMANCE_MINUTES, admin_only=True)
 
-    info = relationship(
-        'GuestInfo',
-        backref=backref('guest', load_on_pending=True),
-        uselist=False)
-    bio = relationship(
-        'GuestBio',
-        backref=backref('guest', load_on_pending=True),
-        uselist=False)
-    taxes = relationship(
-        'GuestTaxes',
-        backref=backref('guest', load_on_pending=True),
-        uselist=False)
-    stage_plot = relationship(
-        'GuestStagePlot',
-        backref=backref('guest', load_on_pending=True),
-        uselist=False)
-    panel = relationship(
-        'GuestPanel',
-        backref=backref('guest', load_on_pending=True),
-        uselist=False)
-    merch = relationship(
-        'GuestMerch',
-        backref=backref('guest', load_on_pending=True),
-        uselist=False)
-    charity = relationship(
-        'GuestCharity',
-        backref=backref('guest', load_on_pending=True),
-        uselist=False)
-    autograph = relationship(
-        'GuestAutograph',
-        backref=backref('guest', load_on_pending=True),
-        uselist=False)
-    interview = relationship(
-        'GuestInterview',
-        backref=backref('guest', load_on_pending=True),
-        uselist=False)
-    travel_plans = relationship(
-        'GuestTravelPlans',
-        backref=backref('guest', load_on_pending=True),
-        uselist=False)
+    info = relationship('GuestInfo', backref=backref('guest', load_on_pending=True), uselist=False)
+    bio = relationship('GuestBio', backref=backref('guest', load_on_pending=True), uselist=False)
+    taxes = relationship('GuestTaxes', backref=backref('guest', load_on_pending=True), uselist=False)
+    stage_plot = relationship('GuestStagePlot', backref=backref('guest', load_on_pending=True), uselist=False)
+    panel = relationship('GuestPanel', backref=backref('guest', load_on_pending=True), uselist=False)
+    merch = relationship('GuestMerch', backref=backref('guest', load_on_pending=True), uselist=False)
+    charity = relationship('GuestCharity', backref=backref('guest', load_on_pending=True), uselist=False)
+    autograph = relationship('GuestAutograph', backref=backref('guest', load_on_pending=True), uselist=False)
+    interview = relationship('GuestInterview', backref=backref('guest', load_on_pending=True), uselist=False)
+    travel_plans = relationship('GuestTravelPlans', backref=backref('guest', load_on_pending=True), uselist=False)
 
     email_model_name = 'guest'
 
@@ -95,9 +62,7 @@ class GuestGroup(MagModel):
             return super(GuestGroup, self).__getattr__(name)
 
     def deadline_from_model(self, model):
-        name = str(self.group_type_label).upper() \
-            + "_" + str(model).upper() + "_DEADLINE"
-
+        name = str(self.group_type_label).upper() + "_" + str(model).upper() + "_DEADLINE"
         return getattr(c, name, None)
 
     @property
@@ -106,8 +71,7 @@ class GuestGroup(MagModel):
 
     @property
     def estimated_performer_count(self):
-        return len(
-            [a for a in self.group.attendees if a.badge_type == c.GUEST_BADGE])
+        return len([a for a in self.group.attendees if a.badge_type == c.GUEST_BADGE])
 
     @property
     def performance_minutes(self):
@@ -359,9 +323,7 @@ class GuestMerch(MagModel):
     @property
     def phone(self):
         if self.poc_is_group_leader:
-            return self.guest.group.leader.cellphone \
-                or self.tax_phone \
-                or self.guest.info.poc_phone
+            return self.guest.group.leader.cellphone or self.tax_phone or self.guest.info.poc_phone
         return self.poc_phone
 
     @property
@@ -381,25 +343,18 @@ class GuestMerch(MagModel):
     @property
     def status(self):
         if self.selling_merch == c.ROCK_ISLAND:
-            return self.selling_merch_label + \
-                ('' if self.inventory else ' (No Merch)')
+            return self.selling_merch_label + ('' if self.inventory else ' (No Merch)')
         return self.selling_merch_label
 
     @presave_adjustment
     def tax_phone_from_poc_phone(self):
-        if self.selling_merch == c.OWN_TABLE \
-                and not self.tax_phone \
-                and self.guest \
-                and self.guest.info:
+        if self.selling_merch == c.OWN_TABLE and not self.tax_phone and self.guest and self.guest.info:
             self.tax_phone = self.guest.info.poc_phone
 
     @classmethod
     def extract_json_params(cls, params, field):
-        multi_param_regex = re.compile(
-            ''.join(['^', field, r'_([\w_\-]+?)_(\d+)$']))
-
-        single_param_regex = re.compile(
-            ''.join(['^', field, r'_([\w_\-]+?)$']))
+        multi_param_regex = re.compile(''.join(['^', field, r'_([\w_\-]+?)_(\d+)$']))
+        single_param_regex = re.compile(''.join(['^', field, r'_([\w_\-]+?)$']))
 
         items = defaultdict(dict)
         single_item = dict()
@@ -446,35 +401,28 @@ class GuestMerch(MagModel):
                 match = cls._inventory_file_regex.match(name)
                 if match and getattr(file, 'filename', None):
                     file_type = match.group(1).upper()
-                    config_name = 'ALLOWED_INVENTORY_{}_EXTENSIONS'.format(
-                        file_type)
-
+                    config_name = 'ALLOWED_INVENTORY_{}_EXTENSIONS'.format(file_type)
                     extensions = getattr(c, config_name, [])
-
                     ext = filename_extension(file.filename)
                     if extensions and ext not in extensions:
-                        messages.append('{} files must be one of {}'.format(
-                            file_type.title(), ', '.join(extensions)))
+                        messages.append('{} files must be one of {}'.format(file_type.title(), ', '.join(extensions)))
 
         return '. '.join(uniquify([s.strip() for s in messages if s.strip()]))
 
-    def _prune_inventory_file(
-            self, item, new_inventory, *, prune_missing=False):
+    def _prune_inventory_file(self, item, new_inventory, *, prune_missing=False):
 
         for name, filename in list(item.items()):
             match = self._inventory_filename_regex.match(name)
             if match and filename:
                 new_item = new_inventory.get(item['id'])
-                if (prune_missing and not new_item) \
-                        or (new_item and new_item.get(name) != filename):
+                if (prune_missing and not new_item) or (new_item and new_item.get(name) != filename):
                     filepath = self.inventory_path(filename)
                     if os.path.exists(filepath):
                         os.remove(filepath)
 
     def _prune_inventory_files(self, new_inventory, *, prune_missing=False):
         for item_id, item in self.inventory.items():
-            self._prune_inventory_file(
-                item, new_inventory, prune_missing=prune_missing)
+            self._prune_inventory_file(item, new_inventory, prune_missing=prune_missing)
 
     def _save_inventory_files(self, inventory):
         for item_id, item in inventory.items():
@@ -570,8 +518,7 @@ class GuestMerch(MagModel):
         return os.path.join(c.GUESTS_INVENTORY_DIR, file)
 
     def inventory_url(self, item_id, name):
-        return '../guests/view_inventory_file?id={}&item_id={}&name={}'.format(
-            self.id, item_id, name)
+        return '../guests/view_inventory_file?id={}&item_id={}&name={}'.format(self.id, item_id, name)
 
     def remove_inventory_item(self, item_id, *, persist_files=True):
         item = None

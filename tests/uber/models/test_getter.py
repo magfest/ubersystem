@@ -1,4 +1,11 @@
-from tests.uber import *
+from uuid import uuid4
+
+import cherrypy
+import pytest
+from mock import Mock
+
+from uber.config import c
+from uber.models import Attendee, Session
 
 
 @pytest.fixture
