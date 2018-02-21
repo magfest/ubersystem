@@ -1,5 +1,13 @@
-from uber.common import *
+import cherrypy
+from sqlalchemy.orm import subqueryload
+
+from uber.config import c
 from uber.custom_tags import pluralize
+from uber.decorators import all_renderable, ajax, check_dept_admin, csrf_protected, department_id_adapter, \
+    requires_dept_admin
+from uber.errors import HTTPRedirect
+from uber.models import AdminAccount, Attendee, Department, DeptMembership, DeptRole, Shift
+from uber.utils import check
 
 
 @all_renderable(c.PEOPLE)
@@ -45,19 +53,12 @@ class Root:
                 .filter_by(id=department_id) \
                 .order_by(Department.id) \
                 .options(
-                    subqueryload(Department.dept_roles)
-                        .subqueryload(DeptRole.dept_memberships),
-                    subqueryload(Department.members)
-                        .subqueryload(Attendee.shifts)
-                            .subqueryload(Shift.job),
-                    subqueryload(Department.members)
-                        .subqueryload(Attendee.admin_account),
-                    subqueryload(Department.dept_heads)
-                        .subqueryload(Attendee.dept_memberships),
-                    subqueryload(Department.pocs)
-                        .subqueryload(Attendee.dept_memberships),
-                    subqueryload(Department.checklist_admins)
-                        .subqueryload(Attendee.dept_memberships)) \
+                    subqueryload(Department.dept_roles).subqueryload(DeptRole.dept_memberships),
+                    subqueryload(Department.members).subqueryload(Attendee.shifts).subqueryload(Shift.job),
+                    subqueryload(Department.members).subqueryload(Attendee.admin_account),
+                    subqueryload(Department.dept_heads).subqueryload(Attendee.dept_memberships),
+                    subqueryload(Department.pocs).subqueryload(Attendee.dept_memberships),
+                    subqueryload(Department.checklist_admins).subqueryload(Attendee.dept_memberships)) \
                 .one()
 
         return {
@@ -71,7 +72,6 @@ class Root:
     def delete(self, session, id, message=''):
         if cherrypy.request.method == 'POST':
             department = session.query(Department).get(id)
-            attendee = session.admin_attendee()
             if department.member_count > 1:
                 raise HTTPRedirect(
                     'form?id={}&message={}',
@@ -132,7 +132,7 @@ class Root:
                 department_id=department_id, attendee_id=attendee_id).one()
             setattr(dept_membership, 'is_' + role, value)
             session.commit()
-        except:
+        except Exception:
             return {'error': 'Unexpected error setting role'}
         else:
             return {
@@ -187,11 +187,11 @@ class Root:
             checkgroups=DeptRole.all_checkgroups)
 
         department_id = role.department_id or department_id
-        department = session.query(Department).filter_by(id=department_id) \
-            .order_by(Department.id) \
-            .options(subqueryload(Department.memberships)
+        department = session.query(Department).filter_by(id=department_id).order_by(Department.id) \
+            .options(
+                subqueryload(Department.memberships)
                 .subqueryload(DeptMembership.attendee)
-                    .subqueryload(Attendee.dept_roles)) \
+                .subqueryload(Attendee.dept_roles)) \
             .one()
 
         if cherrypy.request.method == 'POST':

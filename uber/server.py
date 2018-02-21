@@ -1,8 +1,22 @@
+import json
+import mimetypes
+import os
+from pprint import pformat
+from time import sleep
+
+import cherrypy
+import jinja2
 from pockets.autolog import log
 from sideboard.jsonrpc import _make_jsonrpc_handler
+from sideboard.lib import DaemonTask
 from sideboard.server import jsonrpc_reset
 
-from uber.common import *
+from uber.automated_emails_server import SendAllAutomatedEmailsJob
+from uber.config import c, Config
+from uber.badge_funcs import check_placeholders, check_unassigned, detect_duplicates
+from uber.decorators import all_renderable, render
+from uber.errors import HTTPRedirect
+from uber.utils import mount_site_sections, static_overrides
 
 
 mimetypes.init()
@@ -10,7 +24,9 @@ mimetypes.init()
 
 def _add_email():
     [body] = cherrypy.response.body
-    body = body.replace(b'<body>', b'''<body>Please contact us via <a href="CONTACT_URL">CONTACT_URL</a> if you're not sure why you're seeing this page.'''.replace(b'CONTACT_URL', c.CONTACT_URL.encode('utf-8')))
+    body = body.replace(b'<body>', (
+        b'<body>Please contact us via <a href="CONTACT_URL">CONTACT_URL</a> if you\'re not sure why '
+        b'you\'re seeing this page.').replace(b'CONTACT_URL', c.CONTACT_URL.encode('utf-8')))
     cherrypy.response.headers['Content-Length'] = len(body)
     cherrypy.response.body = [body]
 
@@ -26,6 +42,8 @@ def get_verbose_request_context():
     Returns:
 
     """
+    from uber.models.admin import AdminAccount
+
     page_location = 'Request: ' + cherrypy.request.request_line
 
     admin_name = AdminAccount.admin_name()
@@ -108,7 +126,7 @@ class AngularJavascript:
         for attr in dir(c):
             try:
                 consts[attr] = getattr(c, attr, None)
-            except:
+            except Exception:
                 pass
 
         js_consts = json.dumps({k: v for k, v in consts.items() if isinstance(v, (bool, int, str))}, indent=4)
@@ -174,7 +192,7 @@ def error_page_404(status, message, traceback, version):
 c.APPCONF['/']['error_page.404'] = error_page_404
 
 cherrypy.tree.mount(Root(), c.PATH, c.APPCONF)
-static_overrides(join(c.MODULE_ROOT, 'static'))
+static_overrides(os.path.join(c.MODULE_ROOT, 'static'))
 
 
 jsonrpc_services = {}
@@ -187,7 +205,7 @@ def register_jsonrpc(service, name=None):
 
 
 jsonrpc_handler = _make_jsonrpc_handler(jsonrpc_services, precall=jsonrpc_reset)
-cherrypy.tree.mount(jsonrpc_handler, join(c.PATH, 'jsonrpc'), c.APPCONF)
+cherrypy.tree.mount(jsonrpc_handler, os.path.join(c.PATH, 'jsonrpc'), c.APPCONF)
 
 
 def reg_checks():
@@ -209,6 +227,8 @@ DaemonTask(SendAllAutomatedEmailsJob.send_all_emails, interval=300, name="send e
 def mivs_assign_codes():
     if not c.PRE_CON:
         return
+
+    from uber.models import Session
 
     with Session() as session:
         for game in session.indie_games():

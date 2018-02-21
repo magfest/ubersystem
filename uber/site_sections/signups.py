@@ -1,7 +1,10 @@
-from pockets.autolog import log
+import cherrypy
 
-from uber.common import *
+from uber.config import c
 from uber.custom_tags import safe_string
+from uber.decorators import ajax, ajax_gettable, all_renderable, check_shutdown, csrf_protected, render, unrestricted
+from uber.errors import HTTPRedirect
+from uber.utils import check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, localized_now
 
 
 @all_renderable(c.SIGNUPS)
@@ -21,6 +24,7 @@ class Root:
 
     @check_shutdown
     def food_restrictions(self, session, message='', **params):
+        from uber.models.attendee import FoodRestrictions
         attendee = session.logged_in_volunteer()
         fr = attendee.food_restrictions or FoodRestrictions()
         if params:
@@ -64,7 +68,10 @@ class Root:
             check_csrf(csrf_token)
             attendee.staffing = True
             attendee.requested_depts_ids = requested_depts_ids
-            raise HTTPRedirect('login?message={}', "Thanks for signing up as a volunteer; you'll be emailed as soon as you are assigned to one or more departments.")
+            raise HTTPRedirect(
+                'login?message={}',
+                "Thanks for signing up as a volunteer; you'll be emailed as "
+                "soon as you are assigned to one or more departments.")
 
         return {
             'message': message,
@@ -86,7 +93,9 @@ class Root:
                 has_public_jobs = True
 
         has_setup = volunteer.can_work_setup or any(d.is_setup_approval_exempt for d in volunteer.assigned_depts)
-        has_teardown = volunteer.can_work_teardown or any(d.is_teardown_approval_exempt for d in volunteer.assigned_depts)
+        has_teardown = volunteer.can_work_teardown or any(
+            d.is_teardown_approval_exempt for d in volunteer.assigned_depts)
+
         if has_setup and has_teardown:
             cal_length = c.CON_TOTAL_LENGTH
         elif has_setup:
@@ -127,7 +136,7 @@ class Root:
             shift = session.shift(job_id=job_id, attendee_id=session.logged_in_volunteer().id)
             session.delete(shift)
             session.commit()
-        except:
+        except Exception:
             pass
         finally:
             return {'jobs': session.jobs_for_signups()}
@@ -140,9 +149,12 @@ class Root:
             try:
                 attendee = session.lookup_attendee(first_name.strip(), last_name.strip(), email, zip_code)
                 if not attendee.staffing:
-                    message = safe_string('You are not signed up as a volunteer.  <a href="volunteer?id={}">Click Here</a> to sign up.'.format(attendee.id))
+                    message = safe_string(
+                        'You are not signed up as a volunteer. '
+                        '<a href="volunteer?id={}">Click Here</a> to sign up.'.format(attendee.id))
                 elif not attendee.dept_memberships and not c.AT_THE_CON:
-                    message = 'You have not been assigned to any departments; an admin must assign you to a department before you can log in'
+                    message = 'You have not been assigned to any departments; ' \
+                        'an admin must assign you to a department before you can log in'
             except Exception as ex:
                 message = 'No attendee matches that name and email address and zip code'
 
@@ -166,7 +178,7 @@ class Root:
             'message': message,
             'attendee': attendee,
             'jobs': [job for job in attendee.possible_and_current
-                         if getattr(job, 'taken', False) or job.start_time > localized_now()]
+                     if getattr(job, 'taken', False) or job.start_time > localized_now()]
         }
 
     @csrf_protected

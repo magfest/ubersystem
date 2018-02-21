@@ -1,10 +1,18 @@
-import pytest
+from datetime import datetime
 
+import cherrypy
+import pytest
+import pytz
 from cherrypy import HTTPError
 
-from uber.common import *
-from tests.uber.conftest import csrf_token, cp_session
+from tests.uber.conftest import csrf_token
 from uber.api import auth_by_token, auth_by_session, api_auth, all_api_auth
+from uber.config import c
+from uber.models import AdminAccount, Attendee, ApiToken, Session
+from uber.utils import check
+
+
+assert csrf_token
 
 
 VALID_API_TOKEN = '39074db3-9295-447a-b831-8cbaa93a0522'
@@ -172,12 +180,13 @@ class TestAuthByToken(object):
 
     def test_success(self, monkeypatch, api_token):
         monkeypatch.setitem(cherrypy.request.headers, 'X-Auth-Token', api_token.token)
-        assert None == auth_by_token(set())
+        assert None is auth_by_token(set())
 
     @pytest.mark.parametrize('token,expected', [
         (None, (401, 'Missing X-Auth-Token header')),
         ('XXXX', (403, 'Invalid auth token, badly formed hexadecimal UUID string: XXXX')),
-        ('b6531a2b-eddf-4d08-9afe-0ced6376078c', (403, 'Auth token not recognized: b6531a2b-eddf-4d08-9afe-0ced6376078c')),
+        ('b6531a2b-eddf-4d08-9afe-0ced6376078c', (
+            403, 'Auth token not recognized: b6531a2b-eddf-4d08-9afe-0ced6376078c')),
     ])
     def test_failure(self, monkeypatch, token, expected):
         monkeypatch.setitem(cherrypy.request.headers, 'X-Auth-Token', token)
@@ -211,7 +220,7 @@ class TestAuthBySession(object):
     ACCESS_ERR = 'Insufficient access for admin account'
 
     def test_success(self, admin_account, csrf_token):
-        assert None == auth_by_session(set())
+        assert None is auth_by_session(set())
 
     def test_check_csrf_missing_from_headers(self):
         assert auth_by_session(set()) == (403, 'Your CSRF token is invalid. Please go back and try again.')
@@ -327,7 +336,8 @@ class TestAllApiAuth(object):
     ]
 
     @pytest.mark.parametrize('admin_access,required_access,expected', TEST_REQUIRED_ACCESS)
-    def test_all_api_auth_by_session(self, monkeypatch, session, admin_account, admin_access, required_access, expected):
+    def test_all_api_auth_by_session(
+            self, monkeypatch, session, admin_account, admin_access, required_access, expected):
 
         @all_api_auth(*required_access)
         class Service(object):

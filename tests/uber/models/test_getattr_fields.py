@@ -1,4 +1,10 @@
-from tests.uber import *
+from datetime import datetime
+
+import pytest
+from pytz import UTC
+
+from uber.config import c
+from uber.models import AdminAccount, Attendee
 
 
 def test_ints():

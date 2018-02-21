@@ -1,5 +1,17 @@
+import os
+
+import bcrypt
+import cherrypy
 from pockets import listify
-from uber.common import *
+from sqlalchemy import and_, or_
+from sqlalchemy.orm import joinedload
+
+from uber.config import c
+from uber.decorators import all_renderable, csrf_protected, csv_file, multifile_zipfile, render, xlsx_file
+from uber.errors import HTTPRedirect
+from uber.models import AdminAccount, Attendee, Group, IndieGame, IndieGameReview, IndieStudio
+from uber.notifications import send_email
+from uber.utils import check, genpasswd
 
 
 @all_renderable(c.INDIE_ADMIN)
@@ -120,10 +132,13 @@ class Root:
                 attendee = session.query(Attendee).filter_by(last_name=last_name, email=email).first()
                 if attendee and attendee.admin_account:
                     if attendee.admin_account.judge:
-                        raise HTTPRedirect('index?message={}{}', attendee.full_name, ' is already registered as a judge')
+                        raise HTTPRedirect(
+                            'index?message={}{}', attendee.full_name, ' is already registered as a judge')
                     else:
                         attendee.admin_account.judge = judge
-                        attendee.admin_account.access = ','.join(map(str, set(attendee.admin_account.access_ints + [c.INDIE_JUDGE])))
+                        attendee.admin_account.access = ','.join(map(str, set(
+                            attendee.admin_account.access_ints + [c.INDIE_JUDGE])))
+
                         raise HTTPRedirect('index?message={}{}', attendee.full_name, ' has been granted judge access')
 
                 if not attendee:
@@ -142,7 +157,8 @@ class Root:
                     'account': attendee.admin_account
                 })
                 send_email(c.MIVS_EMAIL, attendee.email, 'New ' + c.EVENT_NAME + ' Ubersystem Account', email_body)
-                raise HTTPRedirect('index?message={}{}', attendee.full_name, ' has been given an admin account as an Indie Judge')
+                raise HTTPRedirect(
+                    'index?message={}{}', attendee.full_name, ' has been given an admin account as an Indie Judge')
 
         return {
             'message': message,
@@ -166,19 +182,23 @@ class Root:
 
     def judges_owed_refunds(self, session):
         return {
-            'judges': [a for a in session.query(Attendee).outerjoin(Group, Attendee.group_id == Group.id)
-                .filter(or_(Attendee.paid == c.HAS_PAID, and_(Attendee.paid == c.PAID_BY_GROUP, Group.amount_paid > 0)))
-                .join(Attendee.admin_account)
-                .filter(AdminAccount.judge != None, AdminAccount.access.contains(str(c.INDIE_JUDGE)))
-                .options(joinedload(Attendee.group))
-                .order_by(Attendee.full_name)]
-        }
+            'judges': [
+                a for a in session.query(Attendee).outerjoin(Group, Attendee.group_id == Group.id)
+                    .filter(or_(
+                        Attendee.paid == c.HAS_PAID, and_(Attendee.paid == c.PAID_BY_GROUP, Group.amount_paid > 0)))
+                    .join(Attendee.admin_account)
+                    .filter(AdminAccount.judge != None, AdminAccount.access.contains(str(c.INDIE_JUDGE)))
+                    .options(joinedload(Attendee.group))
+                    .order_by(Attendee.full_name)
+            ]}  # noqa: E711
 
     def assign_games(self, session, judge_id, message=''):
         judge = session.indie_judge(judge_id)
-        unassigned_games = [g for g in session.indie_games() if g.video_submitted and judge.id not in (r.judge_id for r in g.reviews)]
+        unassigned_games = [
+            g for g in session.indie_games() if g.video_submitted and judge.id not in (r.judge_id for r in g.reviews)]
+        matching_genre = [
+            g for g in unassigned_games if judge.mivs_all_genres or set(judge.genres_ints).intersection(g.genres_ints)]
         matching = [g for g in unassigned_games if set(judge.platforms_ints).intersection(g.platforms_ints)]
-        matching_genre = [g for g in unassigned_games if judge.mivs_all_genres or set(judge.genres_ints).intersection(g.genres_ints)]
         nonmatching = [g for g in unassigned_games if g not in matching]
 
         return {
@@ -192,9 +212,11 @@ class Root:
     def assign_judges(self, session, game_id, message=''):
         game = session.indie_game(game_id)
         unassigned_judges = [j for j in session.indie_judges() if j.id not in (r.judge_id for r in game.reviews)]
+        matching_genre = [
+            j for j in unassigned_judges if j.mivs_all_genres or set(game.genres_ints).intersection(j.genres_ints)]
         matching = [j for j in unassigned_judges if set(game.platforms_ints).intersection(j.platforms_ints)]
-        matching_genre = [j for j in unassigned_judges if j.mivs_all_genres or set(game.genres_ints).intersection(j.genres_ints)]
         nonmatching = [j for j in unassigned_judges if j not in matching]
+
         return {
             'game': game,
             'message': message,
@@ -272,7 +294,8 @@ class Root:
                 send_email(c.MIVS_EMAIL, review.judge.email,
                            'MIVS: Game Problems Resolved for {}'.format(review.game.title), body)
                 review.game_status = c.PENDING
-        raise HTTPRedirect('index?message={}{}', review.game.title, ' has been marked as having its judging issues fixed')
+        raise HTTPRedirect(
+            'index?message={}{}', review.game.title, ' has been marked as having its judging issues fixed')
 
     @csv_file
     def presenters(self, out, session):

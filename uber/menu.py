@@ -1,7 +1,9 @@
+from urllib.parse import urlparse
+
 from pockets import listify
 from pockets.autolog import log
 
-from uber.common import *
+from uber.config import c
 
 
 class MenuItem:
@@ -108,10 +110,12 @@ if getattr(c, 'ALT_SCHEDULE_URL', ''):
     try:
         url = urlparse(c.ALT_SCHEDULE_URL)
         external_schedule_name = 'View Schedule on {}'.format(url.netloc)
-    except:
+    except Exception:
         log.warning('Unable to parse ALT_SCHEDULE_URL: "{}"', c.ALT_SCHEDULE_URL)
         external_schedule_name = 'View Schedule Externally'
-    c.MENU['Schedule'].append_menu_item(MenuItem(name='View Schedule Internally', access=c.STUFF, href='../schedule/internal'))
+    c.MENU['Schedule'].append_menu_item(
+        MenuItem(name='View Schedule Internally', access=c.STUFF, href='../schedule/internal'))
+
     c.MENU['Schedule'].append_menu_item(MenuItem(name=external_schedule_name, href='../schedule/'))
 else:
     c.MENU['Schedule'].append_menu_item(MenuItem(name='View Schedule', access=c.STUFF, href='../schedule/internal'))

@@ -1,7 +1,10 @@
 from pockets.autolog import log
+from sqlalchemy import func
 from sqlalchemy.sql.expression import literal
 
-from uber.common import *
+from uber.config import c
+from uber.decorators import all_renderable
+from uber.models import Attendee, Group
 
 
 class RegistrationDataOneYear:
@@ -52,7 +55,7 @@ class RegistrationDataOneYear:
             ) \
             .group_by(func.date_trunc(literal('day'), Attendee.registered)) \
             .order_by(func.date_trunc(literal('day'), Attendee.registered)) \
-            .all()
+            .all()  # noqa: E711
 
         # now, convert the query's data into the format we need.
         # SQL will skip days without registrations
@@ -69,7 +72,10 @@ class RegistrationDataOneYear:
             day_index = day_offset - 1
 
             if day_index < 0 or day_index >= self.num_days_to_report:
-                log.info('ignoring some analytics data because it\'s not in range of the year before c.ESCHATON. either c.ESCHATON is set incorrectly or you have registrations starting 1 year before ESCHATON, or occuring after ESCHATON. day_index=' + str(day_index))
+                log.info(
+                    "Ignoring some analytics data because it's not in range of the year before c.ESCHATON. "
+                    "Either c.ESCHATON is set incorrectly or you have registrations starting 1 year before ESCHATON, "
+                    "or occuring after ESCHATON. day_index=" + str(day_index))
                 continue
 
             self.registrations_per_day[day_index] = reg_count

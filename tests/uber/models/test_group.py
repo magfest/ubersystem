@@ -1,4 +1,12 @@
-from tests.uber import *
+from datetime import datetime
+
+import pytest
+from mock import Mock
+from pytz import UTC
+
+from uber.config import c
+from uber.models import Attendee, Group, Session
+from uber.utils import localized_now
 
 
 @pytest.fixture
@@ -102,7 +110,8 @@ def test_email():
     assert not Group(leader=Attendee()).email
     assert 'a@b.c' == Group(leader=Attendee(email='a@b.c')).email
     assert 'a@b.c' == Group(leader=Attendee(email='a@b.c'), attendees=[Attendee(email='d@e.f')]).email
-    assert 'a@b.c' == Group(leader=Attendee(email='a@b.c'), attendees=[Attendee(email='d@e.f'), Attendee(email='g@h.i')]).email
+    assert 'a@b.c' == Group(
+        leader=Attendee(email='a@b.c'), attendees=[Attendee(email='d@e.f'), Attendee(email='g@h.i')]).email
 
     assert 'd@e.f' == Group(leader=Attendee(), attendees=[Attendee(email='d@e.f')]).email
     assert not Group(leader=Attendee(), attendees=[Attendee(email='d@e.f'), Attendee(email='g@h.i')]).email
@@ -167,7 +176,11 @@ def test_assign_removing_too_many_badges(session):
 
 def test_assign_removing_badges(monkeypatch, session):
     monkeypatch.setattr(Attendee, 'registered', datetime.now(UTC))
-    attendees = [Attendee(paid=c.PAID_BY_GROUP), Attendee(first_name='x'), Attendee(paid=c.HAS_PAID), Attendee(paid=c.PAID_BY_GROUP)]
+    attendees = [
+        Attendee(paid=c.PAID_BY_GROUP),
+        Attendee(first_name='x'),
+        Attendee(paid=c.HAS_PAID),
+        Attendee(paid=c.PAID_BY_GROUP)]
     group = Group(attendees=attendees)
     session.assign_badges(group, 2)
     assert group.badges == 2
@@ -207,7 +220,8 @@ def test_existing_extra(monkeypatch):
 
 def test_group_badge_status_cascade():
     g = Group(cost=0, auto_recalc=False)
-    taken = Attendee(group_id=g.id, paid=c.PAID_BY_GROUP, badge_status=c.NEW_STATUS, first_name='Liam', last_name='Neeson')
+    taken = Attendee(
+        group_id=g.id, paid=c.PAID_BY_GROUP, badge_status=c.NEW_STATUS, first_name='Liam', last_name='Neeson')
     floating = Attendee(group_id=g.id, paid=c.PAID_BY_GROUP, badge_status=c.NEW_STATUS)
     g.attendees = [taken, floating]
     g.presave_adjustments()

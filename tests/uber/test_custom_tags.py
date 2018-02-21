@@ -1,10 +1,13 @@
-import pytest
+from datetime import datetime, timedelta
 
-from uber.common import *
-from uber.custom_tags import (jsonize, linebreaksbr, datetime_local_filter,
-    datetime_filter, full_datetime_local, hour_day_local, time_day_local,
-    timedelta_filter, timestamp, normalize_newlines, url_to_link, basename,
-    form_link, humanize_timedelta)
+import jinja2
+import pytest
+from markupsafe import Markup
+
+from uber.custom_tags import jsonize, linebreaksbr, datetime_local_filter, datetime_filter, full_datetime_local, \
+    hour_day_local, time_day_local, timedelta_filter, timestamp, url_to_link, basename, form_link, humanize_timedelta
+from uber.jinja import JinjaEnv
+from uber.models import WatchList
 
 
 class TestDatetimeFilters(object):
@@ -63,8 +66,7 @@ class TestFormLink(object):
 
     def test_watch_list(self):
         watch_list = WatchList(id='c4c29b35-a1cf-4662-a577-041d8be63edf')
-        assert form_link(watch_list) == \
-            "<WatchList id='c4c29b35-a1cf-4662-a577-041d8be63edf'>"
+        assert form_link(watch_list) == "<WatchList id='c4c29b35-a1cf-4662-a577-041d8be63edf'>"
 
 
 class TestHumanizeTimedelta(object):
@@ -139,22 +141,6 @@ class TestLinebreaksbr(object):
     def test_linebreaksbr(self, test_input, expected):
         assert expected == linebreaksbr(test_input)
 
-    @pytest.mark.parametrize('test_input,expected', [
-        (None, ''),
-        ('', ''),
-        ([], ''),
-        ({}, ''),
-        (jinja2.runtime.Undefined(), ''),
-        ('\n', '\n'),
-        ('\r', '\n'),
-        ('\r\n', '\n'),
-        ('asdf\nzxcv', 'asdf\nzxcv'),
-        ('asdf\rzxcv', 'asdf\nzxcv'),
-        ('asdf\r\nzxcv', 'asdf\nzxcv')
-    ])
-    def test_normalize_newlines(self, test_input, expected):
-        assert expected == normalize_newlines(test_input)
-
 
 class TestUrlToLink(object):
 
@@ -165,7 +151,11 @@ class TestUrlToLink(object):
         (['/regular/url', 'normaltext', '_blank'], {}, '<a href="/regular/url" target="_blank">normaltext</a>'),
         (['&<>"\'', 'normaltext'], {}, '<a href="&amp;&lt;&gt;&#34;&#39;">normaltext</a>'),
         (['/regular/url', '&<>"\''], {}, '<a href="/regular/url">&amp;&lt;&gt;&#34;&#39;</a>'),
-        (['/regular/url', 'normaltext', '&<>"\''], {}, '<a href="/regular/url" target="&amp;&lt;&gt;&#34;&#39;">normaltext</a>')
+        (
+            ['/regular/url', 'normaltext', '&<>"\''],
+            {},
+            '<a href="/regular/url" target="&amp;&lt;&gt;&#34;&#39;">normaltext</a>'
+        ),
     ])
     def test_urltolink(self, url_args, url_kwargs, expected):
         assert expected == url_to_link(*url_args, **url_kwargs)

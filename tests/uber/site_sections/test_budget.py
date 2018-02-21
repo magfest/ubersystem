@@ -1,13 +1,14 @@
-import re
 from datetime import datetime
 
-import cherrypy
-import pytest
-from uber.common import *
+from tests.uber.conftest import admin_attendee, extract_message_from_html, GET, POST
+from uber.config import c
+from uber.models import Session
 from uber.site_sections import budget
-from tests.uber.conftest import admin_attendee, extract_message_from_html, \
-    GET, POST
-from uber.utils import CSRFException
+
+
+assert admin_attendee
+assert GET
+assert POST
 
 
 class TestGeneratePromoCodes(object):
@@ -26,7 +27,7 @@ class TestGeneratePromoCodes(object):
         assert message == ''
 
     def test_POST_expiration_date(self, POST, csrf_token, admin_attendee):
-        response = self._generate_promo_codes_response(
+        self._generate_promo_codes_response(
             is_single_promo_code=1,
             count=1,
             use_words=False,

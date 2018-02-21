@@ -1,11 +1,22 @@
+import uuid
+from datetime import datetime
+from functools import wraps
+
+import cherrypy
+import pytz
+import six
 from cherrypy import HTTPError
 from dateutil import parser as dateparser
-
 from pockets import unwrap
+from sqlalchemy.orm import subqueryload
 
 from uber.barcode import get_badge_num_from_barcode
-from uber.common import *
+from uber.config import c
+from uber.decorators import department_id_adapter
+from uber.errors import CSRFException
+from uber.models import AdminAccount, ApiToken, Attendee, Job, Session, Shift
 from uber.server import register_jsonrpc
+from uber.utils import check_csrf
 
 
 __version__ = '0.1'
@@ -37,8 +48,7 @@ def _attendee_fields_and_query(full, query):
             subqueryload(Attendee.dept_memberships),
             subqueryload(Attendee.assigned_depts),
             subqueryload(Attendee.food_restrictions),
-            subqueryload(Attendee.shifts)
-                .subqueryload(Shift.job))
+            subqueryload(Attendee.shifts).subqueryload(Shift.job))
     else:
         fields = AttendeeLookup.fields
         query = query.options(subqueryload(Attendee.dept_memberships))
@@ -292,7 +302,7 @@ class JobLookup:
                 shift = session.shift(shift_id)
                 session.delete(shift)
                 session.commit()
-            except:
+            except Exception:
                 return {'error': 'Shift was already deleted'}
             else:
                 return session.job(shift.job_id).to_dict(self.fields)
@@ -316,14 +326,14 @@ class JobLookup:
         """
         try:
             status = int(status)
-            _ = c.WORKED_STATUS[status]
-        except:
+            assert c.WORKED_STATUS[status] is not None
+        except Exception:
             return {'error': 'Invalid status: {}'.format(status)}
 
         try:
             rating = int(rating)
-            _ = c.RATINGS[rating]
-        except:
+            assert c.RATINGS[rating] is not None
+        except Exception:
             return {'error': 'Invalid rating: {}'.format(rating)}
 
         if rating in (c.RATED_BAD, c.RATED_GREAT) and not comment:
@@ -337,7 +347,7 @@ class JobLookup:
                 shift.rating = rating
                 shift.comment = comment
                 session.commit()
-            except:
+            except Exception:
                 return {'error': 'Unexpected error setting status'}
             else:
                 return session.job(shift.job_id).to_dict(self.fields)
@@ -396,16 +406,16 @@ class BarcodeLookup:
         complete attendee record, including departments, shifts, and food
         restrictions.
         """
+        badge_num = -1
+        try:
+            result = get_badge_num_from_barcode(barcode_value)
+            badge_num = result['badge_num']
+        except Exception as e:
+            return {'error': "Couldn't look up barcode value: " + str(e)}
+
+        # Note: A decrypted barcode can yield a valid badge num,
+        # but that badge num may not be assigned to an attendee.
         with Session() as session:
-            badge_num = -1
-            try:
-                result = get_badge_num_from_barcode(barcode_value)
-                badge_num = result['badge_num']
-            except Exception as e:
-                return {'error': "Couldn't look up barcode value: " + str(e)}
-
-            # note: a descrypted barcode can yield to a valid badge#, but an attendee may not have that badge#
-
             query = session.query(Attendee).filter_by(badge_num=badge_num)
             fields, query = _attendee_fields_and_query(full, query)
             attendee = query.first()
@@ -420,12 +430,11 @@ class BarcodeLookup:
 
         Takes the (possibly encrypted) barcode value as a single parameter.
         """
-        with Session() as session:
-            try:
-                result = get_badge_num_from_barcode(barcode_value)
-                return {'badge_num': result['badge_num']}
-            except Exception as e:
-                return {'error': "Couldn't look up barcode value: " + str(e)}
+        try:
+            result = get_badge_num_from_barcode(barcode_value)
+            return {'badge_num': result['badge_num']}
+        except Exception as e:
+            return {'error': "Couldn't look up barcode value: " + str(e)}
 
 
 if c.API_ENABLED:

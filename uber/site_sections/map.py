@@ -1,7 +1,12 @@
-from uber.common import *
 from collections import Counter
-from uszipcode import ZipcodeSearchEngine
+
 from geopy.distance import VincentyDistance
+from uszipcode import ZipcodeSearchEngine
+
+from uber.config import c
+from uber.decorators import ajax, all_renderable, csv_file
+from uber.jinja import JinjaEnv
+from uber.models import Attendee, Choice, MultiChoice, UTCDateTime
 
 
 @JinjaEnv.jinja_filter
@@ -42,7 +47,9 @@ class Root:
     @csv_file
     def radial_zip_data(self, out, session, **params):
         if params.get('radius'):
-            res = ZipcodeSearchEngine().by_coordinate(self.center["Latitude"], self.center["Longitude"], radius=int(params['radius']), returns=0)
+            res = ZipcodeSearchEngine().by_coordinate(
+                self.center["Latitude"], self.center["Longitude"], radius=int(params['radius']), returns=0)
+
             out.writerow(['# of Attendees', 'City', 'State', 'Zipcode', 'Miles from Event', '% of Total Attendees'])
             if len(res) > 0:
                 keys = self.zips.keys()
@@ -58,14 +65,18 @@ class Root:
 
     @csv_file
     def attendees_can_email_in_radius_csv(self, out, session, radius, **params):
-        res = ZipcodeSearchEngine().by_coordinate(self.center["Latitude"], self.center["Longitude"], radius=int(radius),
-                                                  returns=0)
+        res = ZipcodeSearchEngine().by_coordinate(
+            self.center["Latitude"], self.center["Longitude"], radius=int(radius), returns=0)
+
         cols = [getattr(Attendee, col.name) for col in Attendee.__table__.columns]
         out.writerow([col.name for col in cols])
         if len(res) > 0:
             keys = [x.to_dict().get('Zipcode') for x in res]
-            filter = Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])
-            attendees = session.query(Attendee).filter(Attendee.zip_code.in_(keys)).filter(filter, Attendee.can_spam).all()
+            attendees = session.query(Attendee).filter(
+                Attendee.zip_code.in_(keys),
+                Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
+                Attendee.can_spam).all()
+
             for attendee in attendees:
                 row = []
                 for col in cols:

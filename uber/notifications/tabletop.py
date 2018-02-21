@@ -11,8 +11,7 @@ from uber.models.tabletop import TabletopSmsReply, TabletopSmsReminder
 from uber.utils import normalize_phone
 
 
-__all__ = [
-    'tabletop_check_notification_replies', 'tabletop_send_notifications']
+__all__ = ['tabletop_check_notification_replies', 'tabletop_send_notifications']
 
 
 TASK_INTERVAL = 180  # Check every three minutes
@@ -31,8 +30,7 @@ if c.SEND_SMS:
                 'Tabletop twilio SID and/or TOKEN is not in INI, not going to '
                 'try to start twilio for tabletop SMS messaging')
     except Exception:
-        log.error(
-            'twilio: unable to initialize twilio REST client', exc_info=True)
+        log.error('Twilio: unable to initialize twilio REST client', exc_info=True)
         twilio_client = None
 else:
     log.info('SMS DISABLED for tabletop')
@@ -43,9 +41,7 @@ def send_sms(to, body, from_=c.TABLETOP_TWILIO_NUMBER):
     if not twilio_client:
         log.error('no twilio client configured')
     elif c.DEV_BOX and to not in c.TESTING_PHONE_NUMBERS:
-        log.info(
-            'We are in dev box mode, so we are not sending {!r} to {!r}',
-            body, to)
+        log.info('We are in dev box mode, so we are not sending {!r} to {!r}', body, to)
     else:
         return twilio_client.messages.create(
             to=to,
@@ -70,8 +66,7 @@ def send_reminder(entrant):
         log.error('Unexpected error sending SMS', exc_info=True)
         raise
 
-    entrant.session.add(
-        TabletopSmsReminder(entrant=entrant, text=body, sid=sid))
+    entrant.session.add(TabletopSmsReminder(entrant=entrant, text=body, sid=sid))
     entrant.session.commit()
 
 

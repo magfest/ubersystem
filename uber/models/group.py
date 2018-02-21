@@ -3,16 +3,15 @@ from datetime import datetime
 from uuid import uuid4
 
 from pytz import UTC
-from sideboard.lib.sa import CoerceUTF8 as UnicodeText, \
-    UTCDateTime, UUID
+from sideboard.lib.sa import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer, Numeric
 
 from uber.config import c
 from uber.decorators import cost_property, presave_adjustment
 from uber.models import MagModel
-from uber.models.types import default_relationship as relationship, utcnow, \
-    Choice, DefaultColumn as Column, MultiChoice, TakesPaymentMixin
+from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
+    MultiChoice, TakesPaymentMixin
 from uber.utils import add_opt
 
 
@@ -41,17 +40,13 @@ class Group(MagModel, TakesPaymentMixin):
     auto_recalc = Column(Boolean, default=True, admin_only=True)
     can_add = Column(Boolean, default=False, admin_only=True)
     admin_notes = Column(UnicodeText, admin_only=True)
-    status = Column(
-        Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
+    status = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
     registered = Column(UTCDateTime, server_default=utcnow())
     approved = Column(UTCDateTime, nullable=True)
-    leader_id = Column(
-        UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader'),
-        nullable=True)
-    leader = relationship(
-        'Attendee', foreign_keys=leader_id, post_update=True, cascade='all')
-    studio = relationship('IndieStudio', uselist=False, backref='group')
+    leader_id = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader'), nullable=True)
 
+    leader = relationship('Attendee', foreign_keys=leader_id, post_update=True, cascade='all')
+    studio = relationship('IndieStudio', uselist=False, backref='group')
     guest = relationship('GuestGroup', backref='group', uselist=False)
 
     _repr_attr_names = ['name']
@@ -72,18 +67,14 @@ class Group(MagModel, TakesPaymentMixin):
         if self.status == c.APPROVED and not self.approved:
             self.approved = datetime.now(UTC)
         if self.leader and self.is_dealer:
-            self.leader.ribbon = add_opt(
-                self.leader.ribbon_ints, c.DEALER_RIBBON)
+            self.leader.ribbon = add_opt(self.leader.ribbon_ints, c.DEALER_RIBBON)
         if not self.is_unpaid:
             for a in self.attendees:
                 a.presave_adjustments()
 
     @property
     def sorted_attendees(self):
-        return list(sorted(self.attendees, key=lambda a: (
-            a.is_unassigned,
-            a.id != self.leader_id,
-            a.full_name)))
+        return list(sorted(self.attendees, key=lambda a: (a.is_unassigned, a.id != self.leader_id, a.full_name)))
 
     @property
     def unassigned(self):
@@ -104,9 +95,7 @@ class Group(MagModel, TakesPaymentMixin):
         care specifically about paid-by-group badges rather than all unassigned
         badges.
         """
-        return [
-            a for a in self.attendees
-            if a.is_unassigned and a.paid == c.PAID_BY_GROUP]
+        return [a for a in self.attendees if a.is_unassigned and a.paid == c.PAID_BY_GROUP]
 
     @property
     def new_ribbon(self):
@@ -125,10 +114,10 @@ class Group(MagModel, TakesPaymentMixin):
     @property
     def is_dealer(self):
         return bool(
-            self.tables and
-            self.tables != '0' and
-            self.tables != '0.0' and
-            (not self.registered or self.amount_paid or self.cost))
+            self.tables
+            and self.tables != '0'
+            and self.tables != '0.0'
+            and (not self.registered or self.amount_paid or self.cost))
 
     @property
     def is_unpaid(self):
@@ -178,9 +167,7 @@ class Group(MagModel, TakesPaymentMixin):
     @property
     def amount_extra(self):
         if self.is_new:
-            return sum(
-                a.total_cost - a.badge_cost for a in self.attendees
-                if a.paid == c.PAID_BY_GROUP)
+            return sum(a.total_cost - a.badge_cost for a in self.attendees if a.paid == c.PAID_BY_GROUP)
         else:
             return 0
 
@@ -212,8 +199,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def hours_remaining_in_grace_period(self):
-        return max(
-            0, c.GROUP_UPDATE_GRACE_PERIOD - self.hours_since_registered)
+        return max(0, c.GROUP_UPDATE_GRACE_PERIOD - self.hours_since_registered)
 
     @property
     def is_in_grace_period(self):

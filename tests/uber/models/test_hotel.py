@@ -1,7 +1,8 @@
 import pytest
 
-from uber.common import *
-from tests.uber.conftest import *
+from uber.config import c
+from uber.models import Attendee, HotelRequests
+from uber.utils import localized_now
 
 
 def test_hotel_shifts_required(monkeypatch):

@@ -1,27 +1,25 @@
-from uber.common import *
+from sqlalchemy.orm import joinedload, subqueryload
+
+from uber.config import c
+from uber.decorators import ajax, all_renderable, department_id_adapter
+from uber.models import Attendee, HotelRequests, RoomAssignment, Shift
 
 
 @all_renderable(c.PEOPLE)
 class Root:
     @department_id_adapter
     def index(self, session, department_id=None):
-        from uber.models.department import Department
-        attendee = session.admin_attendee()
         department_id = department_id or c.DEFAULT_DEPARTMENT_ID
         return {
             'department_id': department_id,
             'department_name': c.DEPARTMENTS[department_id],
-            'checklist': session.checklist_status(
-                'hotel_eligible', department_id),
-            'attendees': session.query(Attendee)
-                .filter(
-                    Attendee.hotel_eligible == True,
-                    Attendee.badge_status.in_(
-                        [c.NEW_STATUS, c.COMPLETED_STATUS]),
-                    Attendee.dept_memberships.any(
-                        department_id=department_id))
-                .order_by(Attendee.full_name).all()
-        }
+            'checklist': session.checklist_status('hotel_eligible', department_id),
+            'attendees': session.query(Attendee).filter(
+                Attendee.hotel_eligible == True,
+                Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
+                Attendee.dept_memberships.any(department_id=department_id)
+            ).order_by(Attendee.full_name).all()
+        }  # noqa: E712
 
     def mark_hotel_eligible(self, session, id):
         """
@@ -49,7 +47,8 @@ class Root:
                 *dept_filter) \
             .order_by(Attendee.full_name).all()
 
-        admin_has_room_access = bool(set([c.ADMIN, c.STAFF_ROOMS]).intersection(session.current_admin_account().access_ints))
+        room_access = set([c.ADMIN, c.STAFF_ROOMS])
+        admin_has_room_access = bool(room_access.intersection(session.current_admin_account().access_ints))
         return {
             'admin_has_room_access': admin_has_room_access,
             'requests': requests,
@@ -59,24 +58,22 @@ class Root:
             'checklist': session.checklist_status(
                 'approve_setup_teardown', department_id),
             'staffer_count': session.query(Attendee).filter(
-                Attendee.hotel_eligible == True, *dept_filter).count()
+                Attendee.hotel_eligible == True, *dept_filter).count()  # noqa: E712
         }
 
     def hours(self, session):
-        return {'staffers': [s for s in session.query(Attendee)
-                                               .filter(Attendee.hotel_eligible == True,
-                                                       Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]))
-                                               .options(joinedload(Attendee.hotel_requests),
-                                                        subqueryload(Attendee.shifts).subqueryload(Shift.job))
-                                               .order_by(Attendee.full_name).all()
-                               if s.hotel_shifts_required and s.weighted_hours < c.HOTEL_REQ_HOURS]}
+        staffers = session.query(Attendee) \
+            .filter(Attendee.hotel_eligible == True, Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])) \
+            .options(joinedload(Attendee.hotel_requests), subqueryload(Attendee.shifts).subqueryload(Shift.job)) \
+            .order_by(Attendee.full_name).all()  # noqa: E712
+
+        return {'staffers': [s for s in staffers if s.hotel_shifts_required and s.weighted_hours < c.HOTEL_REQ_HOURS]}
 
     def no_shows(self, session):
-        attendee_load = joinedload(RoomAssignment.attendee)
-        staffers = [ra.attendee for ra in session.query(RoomAssignment)
-                                                 .options(attendee_load.joinedload(Attendee.hotel_requests),
-                                                          attendee_load.subqueryload(Attendee.room_assignments))
-                                if not ra.attendee.checked_in]
+        room_assignments = session.query(RoomAssignment).options(
+            joinedload(RoomAssignment.attendee).joinedload(Attendee.hotel_requests),
+            joinedload(RoomAssignment.attendee).subqueryload(Attendee.room_assignments))
+        staffers = [ra.attendee for ra in room_assignments if not ra.attendee.checked_in]
         return {'staffers': sorted(staffers, key=lambda a: a.full_name)}
 
     @ajax

@@ -1,5 +1,4 @@
-from tests.uber import *
-from tests.uber.conftest import *
+from uber.models import Attendee, Email, Group, Session
 
 
 def test_get_fk_from_id():
@@ -13,11 +12,11 @@ def test_get_fk_from_id():
 
 
 def test_get_fk_no_id():
-    assert None == Email().fk
+    assert None is Email().fk
 
 
 def test_get_fk_fake_id():
-    assert None == Email(fk_id="blah").fk
+    assert None is Email(fk_id="blah").fk
 
 
 def test_group_name(monkeypatch):
@@ -31,7 +30,7 @@ def test_attendee_name(monkeypatch):
 
 
 def test_no_name():
-    assert None == Email().rcpt_name
+    assert None is Email().rcpt_name
 
 
 def test_group_email(monkeypatch):
@@ -45,7 +44,7 @@ def test_attendee_email(monkeypatch):
 
 
 def test_no_email():
-    assert None == Email().rcpt_email
+    assert None is Email().rcpt_email
 
 
 def test_email_from_dest():
@@ -53,11 +52,11 @@ def test_email_from_dest():
 
 
 def test_is_html():
-    assert True == Email(body="<body").is_html
+    assert Email(body="<body").is_html
 
 
 def test_is_not_html():
-    assert False == Email().is_html
+    assert not Email().is_html
 
 
 def test_html_from_html():

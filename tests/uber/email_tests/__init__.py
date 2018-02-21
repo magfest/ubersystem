@@ -1,4 +1,4 @@
-from uber.common import *
+from uber.models import Attendee
 
 
 class TestNormalizeEmail:

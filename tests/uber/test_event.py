@@ -1,13 +1,7 @@
-import pytest
-from sideboard.tests import patch_session
+from datetime import timedelta
 
-from uber.common import *
-
-
-@pytest.fixture(scope='session', autouse=True)
-def db_setup(request):
-    patch_session(Session, request)
-    initialize_db()
+from uber.config import c
+from uber.models import Event
 
 
 def test_minutes():

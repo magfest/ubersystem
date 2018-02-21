@@ -1,6 +1,10 @@
 from pockets.autolog import log
 
-from uber.common import *
+from sqlalchemy.orm import joinedload, subqueryload
+
+from uber.config import c
+from uber.decorators import ajax, all_renderable
+from uber.models import Attendee, Event, TabletopEntrant, TabletopTournament
 
 
 @all_renderable(c.CHECKINS)
@@ -17,7 +21,7 @@ class Root:
         try:
             session.add(TabletopTournament(name=name, event_id=event_id))
             session.commit()
-        except:
+        except Exception:
             session.rollback()
             return {'error': 'That tournament already exists'}
         else:
@@ -36,9 +40,10 @@ class Root:
             attendee.cellphone = cellphone
             session.add(TabletopEntrant(attendee_id=attendee_id, tournament_id=tournament_id))
             session.commit()
-        except:
+        except Exception:
             session.rollback()
-            log.error('unable to add tournament entrant tournament={} attendee={}', tournament_id, attendee_id, exc_info=True)
+            log.error(
+                'unable to add tournament entrant tournament={} attendee={}', tournament_id, attendee_id, exc_info=True)
             return {'error': 'That attendee is already signed up for that tournament'}
         else:
             return {
@@ -51,7 +56,7 @@ class Root:
         try:
             session.delete(session.tabletop_entrant(attendee_id=attendee_id, tournament_id=tournament_id))
             session.commit()
-        except:
+        except Exception:
             log.error('unable to drop tournament entrant', exc_info=True)
 
         return {
@@ -79,14 +84,15 @@ def _events(session):
 
 
 def _attendees(session):
+    attendees = session.query(Attendee.id, Attendee.full_name, Attendee.badge_num, Attendee.cellphone) \
+        .filter(Attendee.badge_num != 0).order_by(Attendee.badge_num).all()
+
     return [{
         'id': id,
         'name': name.title(),
         'badge': num,
         'cellphone': cellphone
-    } for (id, name, num, cellphone) in session.query(Attendee.id, Attendee.full_name, Attendee.badge_num, Attendee.cellphone)
-                                    .filter(Attendee.badge_num != 0)
-                                    .order_by(Attendee.badge_num).all()]
+    } for (id, name, num, cellphone) in attendees]
 
 
 def _tournaments(session):

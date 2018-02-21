@@ -1,6 +1,14 @@
+from collections import defaultdict
+from datetime import timedelta
+
+import cherrypy
 from pockets.autolog import log
 
-from uber.common import *
+from uber.config import c
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file
+from uber.errors import HTTPRedirect
+from uber.models import AssignedPanelist, Attendee, Event, EventFeedback, joinedload, PanelApplicant, PanelApplication
+from uber.utils import add_opt, check
 
 
 @all_renderable(c.PANEL_APPS)
@@ -88,16 +96,22 @@ class Root:
     def associate(self, session, message='', **params):
         app = session.panel_application(params)
         if app.status != c.ACCEPTED:
-            raise HTTPRedirect('index?message={}', 'You cannot associate a non-accepted panel application with an event')
+            raise HTTPRedirect(
+                'index?message={}', 'You cannot associate a non-accepted panel application with an event')
+
         elif app.event_id and cherrypy.request.method == 'GET':
-            raise HTTPRedirect('index?message={}{}', 'This panel application is already associated with the event ', app.event.name)
+            raise HTTPRedirect(
+                'index?message={}{}', 'This panel application is already associated with the event ', app.event.name)
 
         if cherrypy.request.method == 'POST':
             if not app.event_id:
                 message = 'You must select an event'
             else:
                 for attendee in app.matched_attendees:
-                    if not session.query(AssignedPanelist).filter_by(event_id=app.event_id, attendee_id=attendee.id).first():
+                    assigned_panelist = session.query(AssignedPanelist).filter_by(
+                        event_id=app.event_id, attendee_id=attendee.id).first()
+
+                    if not assigned_panelist:
                         app.event.assigned_panelists.append(AssignedPanelist(attendee=attendee))
                 raise HTTPRedirect('index?message={}{}{}', app.name, ' was associated with ', app.event.name)
 
@@ -129,12 +143,14 @@ class Root:
                 attendee.ribbon = add_opt(attendee.ribbon_ints, c.PANELIST_RIBBON)
 
             pa = session.panel_applicant(applicant_id)
-            for applicant in session.query(PanelApplicant).filter_by(first_name=pa.first_name, last_name=pa.last_name, email=pa.email):
+            applicants = session.query(PanelApplicant).filter_by(
+                first_name=pa.first_name, last_name=pa.last_name, email=pa.email)
+            for applicant in applicants:
                 ids.append(applicant.id)
                 applicant.attendee_id = attendee_id
 
             session.commit()
-        except:
+        except Exception:
             log.error('unexpected error linking panelist to a badge', exc_info=True)
             return {'error': 'Unexpected error: unable to link applicant to badge.'}
         else:
@@ -160,18 +176,21 @@ class Root:
             )
             session.add(attendee)
 
-            for applicant in session.query(PanelApplicant).filter_by(first_name=pa.first_name, last_name=pa.last_name, email=pa.email):
+            applicants = session.query(PanelApplicant).filter_by(
+                first_name=pa.first_name, last_name=pa.last_name, email=pa.email)
+            for applicant in applicants:
                 ids.append(applicant.id)
                 applicant.attendee_id = attendee.id
             session.commit()
-        except:
+        except Exception:
             log.error('unexpected error adding new panelist', exc_info=True)
             return {'error': 'Unexpected error: unable to add attendee'}
         else:
             return {'added': ids}
 
     def panel_feedback(self, session, event_id, **params):
-        feedback = session.query(EventFeedback).filter_by(event_id=event_id, attendee_id=session.admin_attendee().id).first()
+        feedback = session.query(EventFeedback).filter_by(
+            event_id=event_id, attendee_id=session.admin_attendee().id).first()
         if params or not feedback:
             feedback = session.event_feedback(params)
 
@@ -192,7 +211,9 @@ class Root:
 
     def feedback_report(self, session):
         feedback = defaultdict(list)
-        for fb in session.query(EventFeedback).options(joinedload(EventFeedback.event), joinedload(EventFeedback.attendee)):
+        all_feedback = session.query(EventFeedback).options(
+            joinedload(EventFeedback.event), joinedload(EventFeedback.attendee))
+        for fb in all_feedback:
             feedback[fb.event].append(fb)
 
         events = []
@@ -215,7 +236,7 @@ class Root:
                 getattr(app.event, 'status', app.status_label),
                 getattr(app.event, 'name', app.name),
                 getattr(app.event, 'location_label', '(not scheduled)'),
-                custom_tags.timespan.pretty(app.event, minute_increment=30) if app.event else '(not scheduled)',
+                app.event.timespan(minute_increment=30) if app.event else '(not scheduled)',
                 '\n'.join([
                     '{} ({}) {}'.format(
                         a.full_name,
@@ -227,7 +248,18 @@ class Root:
 
     @csv_file
     def everything(self, out, session):
-        out.writerow(['Panel Name', 'Description', 'Expected Length', 'Unavailability', 'Past Attendance', 'Affiliations', 'Type of Panel', 'Technical Needs', 'Applied', 'Panelists'])
+        out.writerow([
+            'Panel Name',
+            'Description',
+            'Expected Length',
+            'Unavailability',
+            'Past Attendance',
+            'Affiliations',
+            'Type of Panel',
+            'Technical Needs',
+            'Applied',
+            'Panelists'])
+
         for app in session.panel_apps():
             panelists = []
             for panelist in app.applicants:

@@ -1,7 +1,13 @@
-from pockets import sluggify
+import uuid
 
-from uber.common import *
-from uber.models.attraction import *
+import cherrypy
+from pockets import sluggify
+from sqlalchemy.orm import subqueryload
+
+from uber.config import c
+from uber.decorators import ajax, all_renderable
+from uber.errors import HTTPRedirect
+from uber.models.attraction import Attendee, Attraction, AttractionFeature, AttractionEvent, AttractionSignup
 from uber.site_sections.preregistration import check_post_con
 
 
@@ -26,7 +32,7 @@ def _attendee_for_info(session, first_name, last_name, email, zip_code):
 
     try:
         return session.lookup_attendee(first_name, last_name, email, zip_code)
-    except:
+    except Exception:
         return None
 
 
@@ -68,10 +74,9 @@ class Root:
         return {'attractions': attractions}
 
     def features(self, session, id=None, slug=None, **params):
-        filters = [Attraction.is_public == True]
+        filters = [Attraction.is_public == True]  # noqa: E712
         options = subqueryload(Attraction.public_features) \
-            .subqueryload(AttractionFeature.events) \
-                .subqueryload(AttractionEvent.attendees)
+            .subqueryload(AttractionFeature.events).subqueryload(AttractionEvent.attendees)
 
         if slug:
             attraction = session.query(Attraction) \
@@ -88,14 +93,14 @@ class Root:
             'show_all': params.get('show_all')}
 
     def events(self, session, id=None, slug=None, feature=None, **params):
-        filters = [AttractionFeature.is_public == True]
+        filters = [AttractionFeature.is_public == True]  # noqa: E712
         options = subqueryload(AttractionFeature.events) \
             .subqueryload(AttractionEvent.attendees)
 
         if slug and feature:
             attraction = session.query(Attraction).filter(
                 Attraction.is_public == True,
-                Attraction.slug.startswith(slug)).first()
+                Attraction.slug.startswith(slug)).first()  # noqa: E712
             if attraction:
                 feature = session.query(AttractionFeature).filter(
                     AttractionFeature.attraction_id == attraction.id,
@@ -117,9 +122,10 @@ class Root:
     def manage(self, session, id=None, **params):
         attendee = _model_for_id(session, Attendee, id, subqueryload(
             Attendee.attraction_signups)
-                .subqueryload(AttractionSignup.event)
-                    .subqueryload(AttractionEvent.feature)
-                        .subqueryload(AttractionFeature.attraction))
+            .subqueryload(AttractionSignup.event)
+            .subqueryload(AttractionEvent.feature)
+            .subqueryload(AttractionFeature.attraction))
+
         if not attendee:
             raise HTTPRedirect('index')
         if attendee.amount_unpaid:

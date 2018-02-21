@@ -1,69 +1,57 @@
+import importlib
+import math
+import os
+import random
+import re
+import string
+import traceback
+from collections import defaultdict, OrderedDict
+from datetime import date, datetime, timedelta
+from glob import glob
+from os.path import basename
+from random import randrange
+from urllib.parse import urlparse, urljoin
+from uuid import uuid4
+
+import cherrypy
 import phonenumbers
+import stripe
 from phonenumbers import PhoneNumberFormat
-from pockets import cached_property, classproperty, floor_datetime, is_listy, \
-    listify
+from pockets import cached_property, classproperty, floor_datetime, is_listy, listify
 from pockets.autolog import log
+from sideboard.lib import threadlocal
+from pytz import UTC
 
-from uber.common import *
+import uber
+from uber.config import c
+from uber.errors import CSRFException, HTTPRedirect
 
 
-class CSRFException(Exception):
+# ======================================================================
+# String manipulation
+# ======================================================================
+
+def filename_extension(s):
     """
-    This class will raise a custom exception to help catch a specific error in later functions.
+    Extract the extension portion of a filename, lowercased.
     """
-
-
-class HTTPRedirect(cherrypy.HTTPRedirect):
-    """
-    CherryPy uses exceptions to indicate things like HTTP 303 redirects.  This
-    subclasses the standard CherryPy exception to add string formatting and
-    automatic quoting.  So instead of saying
-        raise HTTPRedirect('foo?message={}'.format(quote(bar)))
-    we can say
-        raise HTTPRedirect('foo?message={}', bar)
-
-    EXTREMELY IMPORTANT: If you pass in a relative URL, this class will use the
-    current querystring to build an absolute URL.  Therefore it's EXTREMELY IMPORTANT
-    that the only time you create this class is in the context of a pageload.
-
-    Do not save copies this class, only create it on-demand when needed as part of a 'raise' statement.
-    """
-    def __init__(self, page, *args, **kwargs):
-        save_location = kwargs.pop('save_location', False)
-
-        args = [self.quote(s) for s in args]
-        kwargs = {k: self.quote(v) for k, v in kwargs.items()}
-        query = page.format(*args, **kwargs)
-
-        if save_location and cherrypy.request.method == 'GET':
-            # remember the original URI the user was trying to reach.
-            # useful if we want to redirect the user back to the same page after
-            # they complete an action, such as logging in
-            # example URI: '/uber/registration/form?id=786534'
-            original_location = cherrypy.request.wsgi_environ['REQUEST_URI']
-
-            # note: python does have utility functions for this. if this gets any more complex, use the urllib module
-            qs_char = '?' if '?' not in query else '&'
-            query += "{sep}original_location={loc}".format(sep=qs_char, loc=self.quote(original_location))
-
-        cherrypy.HTTPRedirect.__init__(self, query)
-
-    def quote(self, s):
-        return quote(s) if isinstance(s, str) else str(s)
+    return s.split('.')[-1].lower()
 
 
 def filename_safe(s):
     """
     Adapted from https://gist.github.com/seanh/93666
 
-    Take a string and return a valid filename constructed from the string.
-    Uses a whitelist approach: any characters not present in valid_chars are
-    removed. Also spaces are replaced with underscores.
+    Take a string and return a valid filename constructed from the
+    string. Uses a whitelist approach: any characters not present in
+    valid_chars are removed. Also spaces are replaced with underscores.
 
-    Note: this method may produce invalid filenames such as ``, `.` or `..`
-    When I use this method I prepend a date string like '2009_01_15_19_46_32_'
-    and append a file extension like '.txt', so I avoid the potential of using
-    an invalid filename.
+    Note:
+        This method may produce invalid filenames such as
+        ``, `.`, or `..`. When using this method on unknown data,
+        consider prepending a date string like '2009_01_15_19_46_32_',
+        and appending a file extension like '.txt', to avoid the
+        potential of generating an invalid filename.
 
     """
     valid_chars = '-_.() {}{}'.format(string.ascii_letters, string.digits)
@@ -71,81 +59,14 @@ def filename_safe(s):
     return filename.replace(' ', '_')
 
 
-def filename_extension(filename):
-    return filename.split('.')[-1].lower()
-
-
-def make_url(url):
-    return ('http://' + url) if url and not url.startswith('http') else url
-
-
-def url_domain(url):
-    url = url.strip().replace('//', '/')
-    url = re.sub(r'^https?:/', '', url)
-    url = re.sub(r'^www\.', '', url)
-    return url.split('/', 1)[0].strip('@#?=. ')
-
-
-def normalize_phone(phone_number, country='US'):
-    return phonenumbers.format_number(
-        phonenumbers.parse(phone_number, country),
-        PhoneNumberFormat.E164)
-
-
-def create_valid_user_supplied_redirect_url(url, default_url):
-    """
-    Create a valid redirect from user-supplied data.
-
-    If there is invalid data, or a security issue is detected, then ignore and redirect to the homepage
-
-    :param url: user-supplied URL that is being requested to redirect to
-    :param default_url: the name of the URL we should redirect to if there's an issue
-    :return: a secure and valid URL that we allow a redirect to be made to
-    """
-
-    # security: ignore cross-site redirects that aren't for local pages.
-    # i.e. if an attacker passes in 'original_location=https://badsite.com/stuff/" then just ignore it
-    parsed_url = urlparse(url)
-    security_issue = parsed_url.scheme or parsed_url.netloc
-
-    if not url or 'login' in url or security_issue:
-        return default_url
-
-    return url
-
-
-def localized_now():
-    """Returns datetime.now() but localized to the event's configured timezone."""
-    return localize_datetime(datetime.utcnow())
-
-
-def localize_datetime(dt):
-    return dt.replace(tzinfo=UTC).astimezone(c.EVENT_TIMEZONE)
-
-
-def hour_day_format(dt):
-    """
-    Accepts a localized datetime object and returns a formatted string showing
-    only the day and hour, e.g "7pm Thu" or "10am Sun".
-    """
-    return dt.astimezone(c.EVENT_TIMEZONE).strftime('%I%p ').strip('0').lower() + dt.astimezone(c.EVENT_TIMEZONE).strftime('%a')
-
-
-def noon_datetime(dt):
-    return floor_datetime(dt, timedelta(days=1)) + timedelta(hours=12)
-
-
-def evening_datetime(dt):
-    return floor_datetime(dt, timedelta(days=1)) + timedelta(hours=17)
-
-
 def mask_string(s, mask_char='*', min_unmask=1, max_unmask=2):
     """
     Masks the trailing portion of the given string with asterisks.
 
-    The number of unmasked characters will never be less than `min_unmask` or
-    greater than `max_unmask`. Within those bounds, the number of unmasked
-    characters always be smaller than half the length of `s`.
+    The number of unmasked characters will never be less than
+    `min_unmask` or greater than `max_unmask`. Within those bounds, the
+    number of unmasked characters always be smaller than half the
+    length of `s`.
 
     Example::
 
@@ -169,14 +90,17 @@ def mask_string(s, mask_char='*', min_unmask=1, max_unmask=2):
         s (str): The string to be masked.
         mask_char (str): The character that should be used as the mask.
             Defaults to an asterisk "*".
-        min_unmask (int): Defines the minimum number of characters that are
-            allowed to be unmasked. If the length of `s` is less than or equal
-            to `min_unmask`, then `s` is returned unmodified. Defaults to 1.
-        max_unmask (int): Defines the maximum number of characters that are
-            allowed to be unmasked. Defaults to 2.
+        min_unmask (int): Defines the minimum number of characters that
+            are allowed to be unmasked. If the length of `s` is less
+            than or equal to `min_unmask`, then `s` is returned
+            unmodified. Defaults to 1.
+        max_unmask (int): Defines the maximum number of characters that
+            are allowed to be unmasked. Defaults to 2.
 
     Returns:
-        str: A copy of `s` with a portion of the string masked by `mask_char`.
+        str: A copy of `s` with a portion of the string masked
+            by `mask_char`.
+
     """
     s_len = len(s)
     if s_len <= min_unmask:
@@ -187,426 +111,30 @@ def mask_string(s, mask_char='*', min_unmask=1, max_unmask=2):
     return s[:max_unmask] + (mask_char * (s_len - max_unmask))
 
 
-def check_csrf(csrf_token=None):
+def normalize_newlines(text):
     """
-    Accepts a csrf token (and checks the request headers if None is provided)
-    and compares it to the token stored in the session.  An exception is raised
-    if the values do not match or if no token is found.
+    Replaces instances of "\r\n" and "\r" with "\n" in the given string.
     """
-    if csrf_token is None:
-        csrf_token = cherrypy.request.headers.get('CSRF-Token')
-
-    if not csrf_token:
-        raise CSRFException("CSRF token missing")
-
-    session_csrf_token = cherrypy.session.get('csrf_token', None)
-    if csrf_token != session_csrf_token:
-        raise CSRFException("CSRF check failed: csrf tokens don't match: {!r} != {!r}"
-                            .format(csrf_token, session_csrf_token))
+    if text:
+        return re.sub(r'\r\n|\r|\n', '\n', str(text))
     else:
-        cherrypy.request.headers['CSRF-Token'] = csrf_token
-
-
-def ensure_csrf_token_exists():
-    """
-    Generate a new CSRF token if none exists in our session already.
-    """
-    if not cherrypy.session.get('csrf_token'):
-        cherrypy.session['csrf_token'] = uuid4().hex
-
-
-def check(model, *, prereg=False):
-    """
-    Runs all default validations against the supplied model instance.
-
-    Args:
-        model (sqlalchemy.Model): A single model instance.
-        prereg (bool): True if this is an ephemeral model used in the
-            preregistration workflow.
-
-    Returns:
-        str: None for success, or a failure message if any validation fails.
-    """
-    for field, name in model.required:
-        if not str(getattr(model, field)).strip():
-            return name + ' is a required field'
-
-    for v in [sa.validation.validations] + ([sa.prereg_validation.validations] if prereg else []):
-        for validator in v[model.__class__.__name__].values():
-            message = validator(model)
-            if message:
-                return message
-
-
-def check_all(models, *, prereg=False):
-    """
-    Runs all default validations against multiple model instances.
-
-    Args:
-        models (list): A single model instance or a list of model instances.
-        prereg (bool): True if this is an ephemeral model used in the
-            preregistration workflow.
-
-    Returns:
-        str: None for success, or the first failure message encountered.
-    """
-    models = listify(models) if models else []
-    for model in models:
-        message = check(model, prereg=prereg)
-        if message:
-            return message
-
-
-class Order:
-    def __init__(self, order):
-        self.order = order
-
-    def __getitem__(self, field):
-        return ('-' + field) if field == self.order else field
-
-    def __str__(self):
-        return self.order
-
-
-class Registry:
-    """
-    Base class for configurable registries such as the Dept Head Checklist and
-    event-specific features such as MAGFest Season Pass events.
-    """
-    @classmethod
-    def register(cls, slug, kwargs):
-        cls.instances[slug] = cls(slug, **kwargs)
-
-
-class DeptChecklistConf(Registry):
-    instances = OrderedDict()
-
-    def __init__(self, slug, description, deadline, name=None, path=None, email_post_con=False):
-        assert re.match('^[a-z0-9_]+$', slug), 'Dept Head checklist item sections must have separated_by_underscore names'
-        self.slug, self.description = slug, description
-        self.name = name or slug.replace('_', ' ').title()
-        self._path = path or '/dept_checklist/form?slug={slug}&department_id={department_id}'
-        self.email_post_con = email_post_con
-        self.deadline = c.EVENT_TIMEZONE.localize(datetime.strptime(deadline, '%Y-%m-%d')).replace(hour=23, minute=59)
-
-    def path(self, department_id):
-        from uber.models.department import Department
-        department_id = Department.to_id(department_id)
-        for arg in ('department_id', 'department', 'location'):
-            try:
-                return self._path.format(slug=self.slug, **{arg: department_id})
-            except KeyError:
-                pass
-        raise KeyError('department_id')
-
-
-for _slug, _conf in sorted(c.DEPT_HEAD_CHECKLIST.items(), key=lambda tup: tup[1]['deadline']):
-    DeptChecklistConf.register(_slug, _conf)
-
-
-def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=None, ident=None):
-    subject = subject.format(EVENT_NAME=c.EVENT_NAME)
-    to, cc, bcc = map(listify, [dest, cc, bcc])
-    ident = ident or subject
-    if c.DEV_BOX:
-        for xs in [to, cc, bcc]:
-            xs[:] = [email for email in xs if email.endswith('mailinator.com') or c.DEVELOPER_EMAIL in email]
-
-    if c.SEND_EMAILS and to:
-        message = EmailMessage(subject=subject, **{'bodyText' if format == 'text' else 'bodyHtml': body})
-        AmazonSES(c.AWS_ACCESS_KEY, c.AWS_SECRET_KEY).sendEmail(
-            source=source,
-            toAddresses=to,
-            ccAddresses=cc,
-            bccAddresses=bcc,
-            message=message
-        )
-        sleep(0.1)  # avoid hitting rate limit
-    else:
-        log.error('email sending turned off, so unable to send {}', locals())
-
-    if model and dest:
-        body = body.decode('utf-8') if isinstance(body, bytes) else body
-        fk = {'model': 'n/a'} if model == 'n/a' else {'fk_id': model.id, 'model': model.__class__.__name__}
-        _record_email_sent(sa.Email(subject=subject, dest=','.join(listify(dest)), body=body, ident=ident, **fk))
-
-
-def _record_email_sent(email):
-    """
-    Save in our database the contents of the Email model passed in.
-    We'll use this for history tracking, and to know that we shouldn't re-send this email because it already exists
-
-    note: This is in a separate function so we can unit test it
-    """
-    with sa.Session() as session:
-        session.add(email)
-
-
-class Charge:
-
-    def __init__(self, targets=(), amount=None, description=None, receipt_email=None):
-        self._targets = listify(targets)
-        self._amount = amount
-        self._description = description
-        self._receipt_email = receipt_email
-
-    @classproperty
-    def paid_preregs(cls):
-        return cherrypy.session.setdefault('paid_preregs', [])
-
-    @classproperty
-    def unpaid_preregs(cls):
-        return cherrypy.session.setdefault('unpaid_preregs', OrderedDict())
-
-    @classmethod
-    def get_unpaid_promo_code_uses_count(cls, id, already_counted_attendee_ids=None):
-        attendees_with_promo_code = set()
-        if already_counted_attendee_ids:
-            attendees_with_promo_code.update(listify(already_counted_attendee_ids))
-
-        promo_code_count = 0
-
-        targets = [t for t in cls.unpaid_preregs.values() if '_model' in t]
-        for target in targets:
-            if target['_model'] == 'Attendee':
-                if target.get('id') not in attendees_with_promo_code \
-                        and target.get('promo_code') \
-                        and target['promo_code'].get('id') == id:
-                    attendees_with_promo_code.add(target.get('id'))
-                    promo_code_count += 1
-
-            elif target['_model'] == 'Group':
-                for attendee in target.get('attendees', []):
-                    if attendee.get('id') not in attendees_with_promo_code \
-                            and attendee.get('promo_code') \
-                            and attendee['promo_code'].get('id') == id:
-                        attendees_with_promo_code.add(attendee.get('id'))
-                        promo_code_count += 1
-
-            elif target['_model'] == 'PromoCode' and target.get('id') == id:
-                # Should never get here
-                promo_code_count += 1
-
-        return promo_code_count
-
-    @classmethod
-    def to_sessionized(cls, m):
-        if is_listy(m):
-            return [cls.to_sessionized(t) for t in m]
-        elif isinstance(m, dict):
-            return m
-        elif isinstance(m, sa.Attendee):
-            return m.to_dict(sa.Attendee.to_dict_default_attrs
-                + ['promo_code']
-                + list(sa.Attendee._extra_apply_attrs_restricted))
-        elif isinstance(m, sa.Group):
-            return m.to_dict(sa.Group.to_dict_default_attrs
-                + ['attendees']
-                + list(sa.Group._extra_apply_attrs_restricted))
-        else:
-            raise AssertionError('{} is not an attendee or group'.format(m))
-
-    @classmethod
-    def from_sessionized(cls, d):
-        if is_listy(d):
-            return [cls.from_sessionized(t) for t in d]
-        elif isinstance(d, dict):
-            assert d['_model'] in {'Attendee', 'Group'}
-            if d['_model'] == 'Group':
-                return cls.from_sessionized_group(d)
-            else:
-                return cls.from_sessionized_attendee(d)
-        else:
-            return d
-
-    @classmethod
-    def from_sessionized_group(cls, d):
-        d = dict(d, attendees=[cls.from_sessionized_attendee(a) for a in d.get('attendees', [])])
-        return sa.Group(**d)
-
-    @classmethod
-    def from_sessionized_attendee(cls, d):
-        # Fix for attendees that were sessionized while the "requested_any_dept" column existed
-        if 'requested_any_dept' in d:
-            del d['requested_any_dept']
-
-        if d.get('promo_code'):
-            d = dict(d, promo_code=sa.PromoCode(**d['promo_code']))
-        return sa.Attendee(**d)
-
-    @classmethod
-    def get(cls, payment_id):
-        charge = cherrypy.session.pop(payment_id, None)
-        if charge:
-            return cls(**charge)
-        else:
-            raise HTTPRedirect('../preregistration/credit_card_retry')
-
-    def to_dict(self):
-        return {
-            'targets': self.targets,
-            'amount': self.amount,
-            'description': self.description,
-            'receipt_email': self.receipt_email
-        }
-
-    @property
-    def has_targets(self):
-        return not not self._targets
-
-    @cached_property
-    def total_cost(self):
-        return 100 * sum(m.amount_unpaid for m in self.models)
-
-    @cached_property
-    def dollar_amount(self):
-        return self.amount // 100
-
-    @cached_property
-    def amount(self):
-        return self._amount or self.total_cost or 0
-
-    @cached_property
-    def description(self):
-        return self._description or self.names
-
-    @cached_property
-    def receipt_email(self):
-        return self.models[0].email if self.models and self.models[0].email else self._receipt_email
-
-    @cached_property
-    def names(self):
-        return ', '.join(getattr(m, 'name', getattr(m, 'full_name', None)) for m in self.models)
-
-    @cached_property
-    def targets(self):
-        return self.to_sessionized(self._targets)
-
-    @cached_property
-    def models(self):
-        return self.from_sessionized(self._targets)
-
-    @cached_property
-    def attendees(self):
-        return [m for m in self.models if isinstance(m, sa.Attendee)]
-
-    @cached_property
-    def groups(self):
-        return [m for m in self.models if isinstance(m, sa.Group)]
-
-    def charge_cc(self, session, token):
-        try:
-            log.debug('PAYMENT: !!! attempting to charge stripeToken {} {} cents for {}',
-                      token, self.amount, self.description)
-
-            self.response = stripe.Charge.create(
-                card=token,
-                currency='usd',
-                amount=self.amount,
-                description=self.description,
-                receipt_email=self.receipt_email
-            )
-
-            log.info('PAYMENT: !!! SUCCESS: charged stripeToken {} {} cents for {}, responseID={}',
-                     token, self.amount, self.description, getattr(self.response, 'id', None))
-
-        except stripe.CardError as e:
-            msg = 'Your card was declined with the following error from our processor: ' + str(e)
-            log.error('PAYMENT: !!! FAIL: {}', msg)
-            return msg
-        except stripe.StripeError as e:
-            error_txt = 'Got an error while calling charge_cc(self, token={!r})'.format(token)
-            report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
-            return 'An unexpected problem occurred while processing your card: ' + str(e)
-        else:
-            if self.models:
-                session.add(self.stripe_transaction_from_charge())
-
-    def stripe_transaction_from_charge(self, type=c.PAYMENT):
-        return sa.StripeTransaction(
-            stripe_id=self.response.id or None,
-            amount=self.amount,
-            desc=self.description,
-            type=type,
-            who=sa.AdminAccount.admin_name() or 'non-admin',
-            fk_id=self.models[0].id,
-            fk_model=self.models[0].__class__.__name__
-        )
-
-
-def report_critical_exception(msg, subject="Critical Error"):
-    """
-    Report an exception to the loggers with as much context (request params/etc) as possible, and send an email.
-
-    Call this function when you really want to make some noise about something going really badly wrong.
-
-    :param msg: message to prepend to output
-    :param subject: optional: subject for emails going out
-    """
-
-    # log with lots of cherrypy context in here
-    uber.server.log_exception_with_verbose_context(msg)
-
-    # also attempt to email the admins
-    # TODO: Don't hardcode emails here.
-    send_email(c.ADMIN_EMAIL, [c.ADMIN_EMAIL], subject, msg + '\n{}'.format(traceback.format_exc()))
-
-
-def get_page(page, queryset):
-    return queryset[(int(page) - 1) * 100: int(page) * 100]
-
-
-def genpasswd():
-    """
-    Admin accounts have passwords auto-generated; this function tries to combine
-    three random dictionary words but returns a string of 8 random characters if
-    no dictionary is installed.
-    """
-    try:
-        with open('/usr/share/dict/words') as f:
-            words = [s.strip() for s in f.readlines() if "'" not in s and s.islower() and 3 < len(s) < 8]
-            return ' '.join(random.choice(words) for i in range(4))
-    except:
-        return ''.join(chr(randrange(33, 127)) for i in range(8))
-
-
-def static_overrides(dirname):
-    """
-    We want plugins to be able to specify their own static files to override the
-    ones which we provide by default.  The main files we expect to be overridden
-    are the theme image files, but theoretically a plugin can override anything
-    it wants by calling this method and passing its static directory.
-    """
-    appconf = cherrypy.tree.apps[c.PATH].config
-    basedir = os.path.abspath(dirname).rstrip('/')
-    for dpath, dirs, files in os.walk(basedir):
-        relpath = dpath[len(basedir):]
-        for fname in files:
-            appconf['/static' + relpath + '/' + fname] = {
-                'tools.staticfile.on': True,
-                'tools.staticfile.filename': os.path.join(dpath, fname)
-            }
-
-
-def mount_site_sections(module_root):
-    from uber.server import Root
-    sections = [path.split('/')[-1][:-3] for path in glob(os.path.join(module_root, 'site_sections', '*.py'))
-                                         if not path.endswith('__init__.py')]
-    for section in sections:
-        module = importlib.import_module(basename(module_root) + '.site_sections.' + section)
-        setattr(Root, section, module.Root())
+        return ''
 
 
 def convert_to_absolute_url(relative_uber_page_url):
     """
-    In ubersystem, we always use relative url's of the form "../{some_site_section}/{somepage}"
-    We use relative URLs so that no matter what proxy server we are behind on the web, it always works.
+    In ubersystem, we always use relative url's of the form
+    "../{some_site_section}/{somepage}". We use relative URLs so that no
+    matter what proxy server we are behind on the web, it always works.
 
-    We normally avoid using absolute URLs at al costs, but sometimes it's needed when creating URLs for
-    use with emails or CSV exports.  In that case, we need to take a relative URL and turn it into
+    We normally avoid using absolute URLs at all costs, but sometimes
+    it's needed when creating URLs for use with emails or CSV exports.
+    In that case, we need to take a relative URL and turn it into
     an absolute URL.
 
-    Do not use this function unless you absolutely need to, instead use relative URLs as much as possible.
+    Note:
+        Do not use this function unless you absolutely need to, instead
+        use relative URLs as much as possible.
     """
 
     if not relative_uber_page_url:
@@ -618,52 +146,114 @@ def convert_to_absolute_url(relative_uber_page_url):
     return urljoin(c.URL_BASE + "/", relative_uber_page_url[3:])
 
 
-def get_real_badge_type(badge_type):
-    return c.ATTENDEE_BADGE if badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE] else badge_type
-
-
-def add_opt(opts, other):
+def make_url(s):
     """
-    Add an option to an integer or list of integers, converting it to a comma-separated string.
-    This is for use with our MultiChoice columns.
+    Prepends "http://" to a string, if it doesn't already start with it.
+    """
+    return ('http://' + s) if s and not s.startswith('http') else s
+
+
+def url_domain(url):
+    """
+    Extract the domain portion of a URL.
+
+    Note:
+        Omits "www.", but does not omit other subdomains.
+
+    """
+    url = url.strip().replace('//', '/')
+    url = re.sub(r'^https?:/', '', url)
+    url = re.sub(r'^www\.', '', url)
+    return url.split('/', 1)[0].strip('@#?=. ')
+
+
+def create_valid_user_supplied_redirect_url(url, default_url):
+    """
+    Create a valid redirect from user-supplied data.
+
+    If there is invalid data, or a security issue is detected, then
+    ignore and redirect to the homepage.
+
+    Ignores cross-site redirects that aren't for local pages, i.e. if
+    an attacker passes in something like:
+    "original_location=https://badsite.com/stuff/".
 
     Args:
-        opts: An integer or list of integers, such as when using attendee.ribbon_ints
-        other: An integer to add, such as c.VOLUNTEER_RIBBON
+        url (str): User-supplied URL that is requested as a redirect.
+        default_url (str): The URL we should use if there's an issue
+            with `url`.
 
-    Returns: A comma-separated string representing all options in the list, with the new
-    option added.
-
-    """
-    other = listify(other) if other else []
-    opts.extend(other)
-    return ','.join(set(map(str, opts)))
-
-
-def remove_opt(opts, other):
-    """
-    Remove an option from an _ints property, converting it to a comma-separated string.
-    This is for use with our MultiChoice columns.
-
-    Args:
-        opts: An integer or list of integers, such as when using attendee.ribbon_ints
-        other: An integer to remove, such as c.VOLUNTEER_RIBBON
-
-    Returns: A comma-separated string representing all options in the list, with the option
-    removed.
+    Returns:
+        str: A secure and valid URL that we allow for redirects.
 
     """
-    other = listify(other) if other else []
+    parsed_url = urlparse(url)
+    security_issue = parsed_url.scheme or parsed_url.netloc
 
-    return ','.join(map(str, set(opts).difference(other)))
+    if not url or 'login' in url or security_issue:
+        return default_url
+
+    return url
+
+
+def normalize_phone(phone_number, country='US'):
+    return phonenumbers.format_number(
+        phonenumbers.parse(phone_number, country),
+        PhoneNumberFormat.E164)
+
+
+# ======================================================================
+# Datetime functions
+# ======================================================================
+
+def localized_now():
+    """
+    Returns datetime.now() but localized to the event's timezone.
+    """
+    return localize_datetime(datetime.utcnow())
+
+
+def localize_datetime(dt):
+    """
+    Converts `dt` to the event's timezone.
+    """
+    return dt.replace(tzinfo=UTC).astimezone(c.EVENT_TIMEZONE)
+
+
+def hour_day_format(dt):
+    """
+    Accepts a datetime object and returns a formatted string showing
+    only the localized day and hour, e.g "7pm Thu" or "10am Sun".
+    """
+    hour = dt.astimezone(c.EVENT_TIMEZONE).strftime('%I%p ').strip('0').lower()
+    day = dt.astimezone(c.EVENT_TIMEZONE).strftime('%a')
+    return hour + day
+
+
+def evening_datetime(dt):
+    """
+    Returns a datetime object for 5pm on the day specified by `dt`.
+    """
+    return floor_datetime(dt, timedelta(days=1)) + timedelta(hours=17)
+
+
+def noon_datetime(dt):
+    """
+    Returns a datetime object for noon on the day given by `dt`.
+    """
+    return floor_datetime(dt, timedelta(days=1)) + timedelta(hours=12)
 
 
 def get_age_from_birthday(birthdate, today=None):
     """
-    Determines a person's age in the US. DO NOT use this to find other timespans, like the duration of an event.
-    This function does not calculate a fully accurate timespan between two datetimes.
-    This function assumes that a person's age begins at zero, and increments when `today.day == birthdate.day`.
-    This will not be accurate for cultures which calculate age differently than the US, such as Korea.
+    Determines a person's age in the US.
+
+    DO NOT use this to find other timespans, like the duration of an
+    event. This function does not calculate a fully accurate timespan
+    between two datetimes. This function assumes that a person's age
+    begins at zero, and increments when `today.day == birthdate.day`.
+    This will not be accurate for cultures which calculate age
+    differently than the US, such as Korea.
 
     Args:
         birthdate: A date, should be earlier than the second parameter
@@ -673,11 +263,13 @@ def get_age_from_birthday(birthdate, today=None):
 
     """
 
-    if today == None:
+    if not today:
         today = date.today()
 
-    # Hint: int(True) == 1 and int(False) == 0
-    return today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
+    # int(True) == 1 and int(False) == 0
+    upcoming_birthday = int(
+        (today.month, today.day) < (birthdate.month, birthdate.day))
+    return today.year - birthdate.year - upcoming_birthday
 
 
 _when_dateformat = "%m/%d"
@@ -781,6 +373,240 @@ class days_after(DateBase):
         return 'after {}'.format(self.starting_date.strftime(_when_dateformat)) if self.starting_date else ''
 
 
+# ======================================================================
+# Security
+# ======================================================================
+
+def check(model, *, prereg=False):
+    """
+    Runs all default validations against the supplied model instance.
+
+    Args:
+        model (sqlalchemy.Model): A single model instance.
+        prereg (bool): True if this is an ephemeral model used in the
+            preregistration workflow.
+
+    Returns:
+        str: None for success, or a failure message if validation fails.
+    """
+    for field, name in model.required:
+        if not str(getattr(model, field)).strip():
+            return name + ' is a required field'
+
+    validations = [uber.model_checks.validation.validations]
+    prereg_validations = [uber.model_checks.prereg_validation.validations] if prereg else []
+    for v in validations + prereg_validations:
+        for validator in v[model.__class__.__name__].values():
+            message = validator(model)
+            if message:
+                return message
+
+
+def check_all(models, *, prereg=False):
+    """
+    Runs all default validations against multiple model instances.
+
+    Args:
+        models (list): A single model instance or a list of instances.
+        prereg (bool): True if this is an ephemeral model used in the
+            preregistration workflow.
+
+    Returns:
+        str: None for success, or the first failure message encountered.
+    """
+    models = listify(models) if models else []
+    for model in models:
+        message = check(model, prereg=prereg)
+        if message:
+            return message
+
+
+def check_csrf(csrf_token=None):
+    """
+    Accepts a csrf token (and checks the request headers if None is provided)
+    and compares it to the token stored in the session.  An exception is raised
+    if the values do not match or if no token is found.
+    """
+    if csrf_token is None:
+        csrf_token = cherrypy.request.headers.get('CSRF-Token')
+
+    if not csrf_token:
+        raise CSRFException("CSRF token missing")
+
+    session_csrf_token = cherrypy.session.get('csrf_token', None)
+    if csrf_token != session_csrf_token:
+        raise CSRFException(
+            "CSRF check failed: csrf tokens don't match: {!r} != {!r}".format(
+                csrf_token, session_csrf_token))
+    else:
+        cherrypy.request.headers['CSRF-Token'] = csrf_token
+
+
+def ensure_csrf_token_exists():
+    """
+    Generate a new CSRF token if none exists in our session already.
+    """
+    if not cherrypy.session.get('csrf_token'):
+        cherrypy.session['csrf_token'] = uuid4().hex
+
+
+def genpasswd():
+    """
+    Admin accounts have passwords auto-generated; this function tries to combine
+    three random dictionary words but returns a string of 8 random characters if
+    no dictionary is installed.
+    """
+    try:
+        with open('/usr/share/dict/words') as f:
+            words = [s.strip() for s in f.readlines() if "'" not in s and s.islower() and 3 < len(s) < 8]
+            return ' '.join(random.choice(words) for i in range(4))
+    except Exception:
+        return ''.join(chr(randrange(33, 127)) for i in range(8))
+
+
+# ======================================================================
+# Miscellaneous helpers
+# ======================================================================
+
+class Order:
+    def __init__(self, order):
+        self.order = order
+
+    def __getitem__(self, field):
+        return ('-' + field) if field == self.order else field
+
+    def __str__(self):
+        return self.order
+
+
+class Registry:
+    """
+    Base class for configurable registries such as the Dept Head Checklist and
+    event-specific features such as MAGFest Season Pass events.
+    """
+    @classmethod
+    def register(cls, slug, kwargs):
+        cls.instances[slug] = cls(slug, **kwargs)
+
+
+class DeptChecklistConf(Registry):
+    instances = OrderedDict()
+
+    def __init__(self, slug, description, deadline, name=None, path=None, email_post_con=False):
+        assert re.match('^[a-z0-9_]+$', slug), \
+            'Dept Head checklist item sections must have separated_by_underscore names'
+
+        self.slug, self.description = slug, description
+        self.name = name or slug.replace('_', ' ').title()
+        self._path = path or '/dept_checklist/form?slug={slug}&department_id={department_id}'
+        self.email_post_con = email_post_con
+        self.deadline = c.EVENT_TIMEZONE.localize(datetime.strptime(deadline, '%Y-%m-%d')).replace(hour=23, minute=59)
+
+    def path(self, department_id):
+        from uber.models.department import Department
+        department_id = Department.to_id(department_id)
+        for arg in ('department_id', 'department', 'location'):
+            try:
+                return self._path.format(slug=self.slug, **{arg: department_id})
+            except KeyError:
+                pass
+        raise KeyError('department_id')
+
+
+for _slug, _conf in sorted(c.DEPT_HEAD_CHECKLIST.items(), key=lambda tup: tup[1]['deadline']):
+    DeptChecklistConf.register(_slug, _conf)
+
+
+def report_critical_exception(msg, subject="Critical Error"):
+    """
+    Log an exception with as much context as possible and send an email.
+
+    Call this function when you really want to make some noise about
+    something going really badly wrong.
+
+    Args:
+        msg (str): Message to prepend to output.
+        subject (str): Subject for alert emails. Defaults
+            to "Critical Error".
+
+    """
+    from uber.notifications import send_email
+
+    # Log with lots of cherrypy context in here
+    uber.server.log_exception_with_verbose_context(msg)
+
+    # Also attempt to email the admins
+    send_email(c.ADMIN_EMAIL, [c.ADMIN_EMAIL], subject, msg + '\n{}'.format(traceback.format_exc()))
+
+
+def get_page(page, queryset):
+    return queryset[(int(page) - 1) * 100: int(page) * 100]
+
+
+def static_overrides(dirname):
+    """
+    We want plugins to be able to specify their own static files to override the
+    ones which we provide by default.  The main files we expect to be overridden
+    are the theme image files, but theoretically a plugin can override anything
+    it wants by calling this method and passing its static directory.
+    """
+    appconf = cherrypy.tree.apps[c.PATH].config
+    basedir = os.path.abspath(dirname).rstrip('/')
+    for dpath, dirs, files in os.walk(basedir):
+        relpath = dpath[len(basedir):]
+        for fname in files:
+            appconf['/static' + relpath + '/' + fname] = {
+                'tools.staticfile.on': True,
+                'tools.staticfile.filename': os.path.join(dpath, fname)
+            }
+
+
+def mount_site_sections(module_root):
+    from uber.server import Root
+
+    python_files = glob(os.path.join(module_root, 'site_sections', '*.py'))
+    site_sections = [path.split('/')[-1][:-3] for path in python_files if not path.endswith('__init__.py')]
+    for site_section in site_sections:
+        module = importlib.import_module(basename(module_root) + '.site_sections.' + site_section)
+        setattr(Root, site_section, module.Root())
+
+
+def add_opt(opts, other):
+    """
+    Add an option to an integer or list of integers, converting it to a comma-separated string.
+    This is for use with our MultiChoice columns.
+
+    Args:
+        opts: An integer or list of integers, such as when using attendee.ribbon_ints
+        other: An integer to add, such as c.VOLUNTEER_RIBBON
+
+    Returns: A comma-separated string representing all options in the list, with the new
+    option added.
+
+    """
+    other = listify(other) if other else []
+    opts.extend(other)
+    return ','.join(set(map(str, opts)))
+
+
+def remove_opt(opts, other):
+    """
+    Remove an option from an _ints property, converting it to a comma-separated string.
+    This is for use with our MultiChoice columns.
+
+    Args:
+        opts: An integer or list of integers, such as when using attendee.ribbon_ints
+        other: An integer to remove, such as c.VOLUNTEER_RIBBON
+
+    Returns: A comma-separated string representing all options in the list, with the option
+    removed.
+
+    """
+    other = listify(other) if other else []
+
+    return ','.join(map(str, set(opts).difference(other)))
+
+
 class request_cached_context:
     """
     We cache certain variables (like c.BADGES_SOLD) on a per-cherrypy.request basis.
@@ -868,3 +694,198 @@ class ExcelWorksheetStreamWriter:
             col += 1
 
         self.next_row += 1
+
+
+class Charge:
+
+    def __init__(self, targets=(), amount=None, description=None, receipt_email=None):
+        self._targets = listify(targets)
+        self._amount = amount
+        self._description = description
+        self._receipt_email = receipt_email
+
+    @classproperty
+    def paid_preregs(cls):
+        return cherrypy.session.setdefault('paid_preregs', [])
+
+    @classproperty
+    def unpaid_preregs(cls):
+        return cherrypy.session.setdefault('unpaid_preregs', OrderedDict())
+
+    @classmethod
+    def get_unpaid_promo_code_uses_count(cls, id, already_counted_attendee_ids=None):
+        attendees_with_promo_code = set()
+        if already_counted_attendee_ids:
+            attendees_with_promo_code.update(listify(already_counted_attendee_ids))
+
+        promo_code_count = 0
+
+        targets = [t for t in cls.unpaid_preregs.values() if '_model' in t]
+        for target in targets:
+            if target['_model'] == 'Attendee':
+                if target.get('id') not in attendees_with_promo_code \
+                        and target.get('promo_code') \
+                        and target['promo_code'].get('id') == id:
+                    attendees_with_promo_code.add(target.get('id'))
+                    promo_code_count += 1
+
+            elif target['_model'] == 'Group':
+                for attendee in target.get('attendees', []):
+                    if attendee.get('id') not in attendees_with_promo_code \
+                            and attendee.get('promo_code') \
+                            and attendee['promo_code'].get('id') == id:
+                        attendees_with_promo_code.add(attendee.get('id'))
+                        promo_code_count += 1
+
+            elif target['_model'] == 'PromoCode' and target.get('id') == id:
+                # Should never get here
+                promo_code_count += 1
+
+        return promo_code_count
+
+    @classmethod
+    def to_sessionized(cls, m):
+        from uber.models import Attendee, Group
+        if is_listy(m):
+            return [cls.to_sessionized(t) for t in m]
+        elif isinstance(m, dict):
+            return m
+        elif isinstance(m, Attendee):
+            return m.to_dict(
+                Attendee.to_dict_default_attrs
+                + ['promo_code']
+                + list(Attendee._extra_apply_attrs_restricted))
+        elif isinstance(m, Group):
+            return m.to_dict(
+                Group.to_dict_default_attrs
+                + ['attendees']
+                + list(Group._extra_apply_attrs_restricted))
+        else:
+            raise AssertionError('{} is not an attendee or group'.format(m))
+
+    @classmethod
+    def from_sessionized(cls, d):
+        if is_listy(d):
+            return [cls.from_sessionized(t) for t in d]
+        elif isinstance(d, dict):
+            assert d['_model'] in {'Attendee', 'Group'}
+            if d['_model'] == 'Group':
+                return cls.from_sessionized_group(d)
+            else:
+                return cls.from_sessionized_attendee(d)
+        else:
+            return d
+
+    @classmethod
+    def from_sessionized_group(cls, d):
+        d = dict(d, attendees=[cls.from_sessionized_attendee(a) for a in d.get('attendees', [])])
+        return uber.models.Group(**d)
+
+    @classmethod
+    def from_sessionized_attendee(cls, d):
+        # Fix for attendees that were sessionized while the "requested_any_dept" column existed
+        if 'requested_any_dept' in d:
+            del d['requested_any_dept']
+
+        if d.get('promo_code'):
+            d = dict(d, promo_code=uber.models.PromoCode(**d['promo_code']))
+        return uber.models.Attendee(**d)
+
+    @classmethod
+    def get(cls, payment_id):
+        charge = cherrypy.session.pop(payment_id, None)
+        if charge:
+            return cls(**charge)
+        else:
+            raise HTTPRedirect('../preregistration/credit_card_retry')
+
+    def to_dict(self):
+        return {
+            'targets': self.targets,
+            'amount': self.amount,
+            'description': self.description,
+            'receipt_email': self.receipt_email
+        }
+
+    @property
+    def has_targets(self):
+        return not not self._targets
+
+    @cached_property
+    def total_cost(self):
+        return 100 * sum(m.amount_unpaid for m in self.models)
+
+    @cached_property
+    def dollar_amount(self):
+        return self.amount // 100
+
+    @cached_property
+    def amount(self):
+        return self._amount or self.total_cost or 0
+
+    @cached_property
+    def description(self):
+        return self._description or self.names
+
+    @cached_property
+    def receipt_email(self):
+        return self.models[0].email if self.models and self.models[0].email else self._receipt_email
+
+    @cached_property
+    def names(self):
+        return ', '.join(getattr(m, 'name', getattr(m, 'full_name', None)) for m in self.models)
+
+    @cached_property
+    def targets(self):
+        return self.to_sessionized(self._targets)
+
+    @cached_property
+    def models(self):
+        return self.from_sessionized(self._targets)
+
+    @cached_property
+    def attendees(self):
+        return [m for m in self.models if isinstance(m, uber.models.Attendee)]
+
+    @cached_property
+    def groups(self):
+        return [m for m in self.models if isinstance(m, uber.models.Group)]
+
+    def charge_cc(self, session, token):
+        try:
+            log.debug('PAYMENT: !!! attempting to charge stripeToken {} {} cents for {}',
+                      token, self.amount, self.description)
+
+            self.response = stripe.Charge.create(
+                card=token,
+                currency='usd',
+                amount=self.amount,
+                description=self.description,
+                receipt_email=self.receipt_email
+            )
+
+            log.info('PAYMENT: !!! SUCCESS: charged stripeToken {} {} cents for {}, responseID={}',
+                     token, self.amount, self.description, getattr(self.response, 'id', None))
+
+        except stripe.CardError as e:
+            msg = 'Your card was declined with the following error from our processor: ' + str(e)
+            log.error('PAYMENT: !!! FAIL: {}', msg)
+            return msg
+        except stripe.StripeError as e:
+            error_txt = 'Got an error while calling charge_cc(self, token={!r})'.format(token)
+            report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
+            return 'An unexpected problem occurred while processing your card: ' + str(e)
+        else:
+            if self.models:
+                session.add(self.stripe_transaction_from_charge())
+
+    def stripe_transaction_from_charge(self, type=c.PAYMENT):
+        return uber.models.StripeTransaction(
+            stripe_id=self.response.id or None,
+            amount=self.amount,
+            desc=self.description,
+            type=type,
+            who=uber.models.AdminAccount.admin_name() or 'non-admin',
+            fk_id=self.models[0].id,
+            fk_model=self.models[0].__class__.__name__
+        )

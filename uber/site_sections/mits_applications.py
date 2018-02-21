@@ -1,7 +1,15 @@
+import shutil
+from datetime import datetime
+
+import cherrypy
 from cherrypy.lib.static import serve_file
 from pockets import listify
+from pytz import UTC
 
-from uber.common import *
+from uber.config import c
+from uber.decorators import all_renderable, csrf_protected
+from uber.errors import HTTPRedirect
+from uber.utils import check
 
 
 @all_renderable()
@@ -57,7 +65,8 @@ class Root:
     def applicant(self, session, message='', **params):
         applicant = session.mits_applicant(params, applicant=True)
         if applicant.attendee_id:
-            raise HTTPRedirect('../preregistration/confirm?id={}&return_to={}', applicant.attendee_id, '../mits_applications/')
+            raise HTTPRedirect(
+                '../preregistration/confirm?id={}&return_to={}', applicant.attendee_id, '../mits_applications/')
 
         if cherrypy.request.method == 'POST':
             message = check(applicant)
@@ -83,9 +92,13 @@ class Root:
     def delete_applicant(self, session, id):
         applicant = session.mits_applicant(id, applicant=True)
         if applicant.primary_contact and len(applicant.team.primary_contacts) == 1:
-            raise HTTPRedirect('index?message={}', 'You cannot delete the only team member designated to receive emails')
+            raise HTTPRedirect(
+                'index?message={}', 'You cannot delete the only team member designated to receive emails')
         elif applicant.attendee_id:
-            raise HTTPRedirect('../preregistration/confirm?id={}', 'Team members cannot be deleted after being granted a badge, but you may transfer this badge if you need to.')
+            raise HTTPRedirect(
+                '../preregistration/confirm?id={}',
+                'Team members cannot be deleted after being granted a badge, '
+                'but you may transfer this badge if you need to.')
         else:
             session.delete(applicant)
             raise HTTPRedirect('index?message={}', 'Team member deleted')
@@ -181,10 +194,12 @@ class Root:
                 applicant.declined_hotel_space = '{}-declined'.format(applicant.id) in params
                 applicant.requested_room_nights = ','.join(listify(params.get('{}-night'.format(applicant.id), [])))
                 if not applicant.declined_hotel_space and not applicant.requested_room_nights:
-                    message = '{} must either declined hotel space or indicate which room nights they need'.format(applicant.full_name)
+                    message = '{} must either declined hotel space or ' \
+                        'indicate which room nights they need'.format(applicant.full_name)
                     break
                 elif applicant.declined_hotel_space and applicant.requested_room_nights:
-                    message = '{} cannot both decline hotel space and request specific room nights'.format(applicant.full_name)
+                    message = '{} cannot both decline hotel space and ' \
+                        'request specific room nights'.format(applicant.full_name)
                     break
 
             if not message:

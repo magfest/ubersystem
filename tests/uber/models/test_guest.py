@@ -1,5 +1,3 @@
-import pytest
-
 from uber.models.group import Group
 from uber.models.guests import GuestGroup
 

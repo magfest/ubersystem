@@ -1,10 +1,18 @@
-from uber.common import *
+import cherrypy
+
+from uber.config import c
+from uber.decorators import all_renderable, render
+from uber.errors import HTTPRedirect
+from uber.notifications import send_email
+from uber.utils import check
 
 
 @all_renderable(c.INDIE_JUDGE)
 class Root:
     def index(self, session, message='', **params):
-        judge = session.indie_judge(params, checkgroups=['genres', 'platforms']) if 'id' in params else session.logged_in_judge()
+        judge = session.indie_judge(params, checkgroups=['genres', 'platforms']) if 'id' in params \
+            else session.logged_in_judge()
+
         if cherrypy.request.method == 'POST':
             message = check(judge)
             if not message:
@@ -46,7 +54,8 @@ class Root:
         review = session.indie_game_review(params, bools=['game_content_bad'])
         if cherrypy.request.method == 'POST':
             if review.game_status == c.PENDING:
-                message = 'You must select a Game Status to tell us whether or not you were able to download and run the game'
+                message = 'You must select a Game Status to tell us ' \
+                    'whether or not you were able to download and run the game'
             elif review.game_status == c.PLAYABLE and not review.game_score:
                 message = 'You must indicate whether or not you believe the game should be accepted'
             elif review.game_status != c.PLAYABLE and review.game_score:

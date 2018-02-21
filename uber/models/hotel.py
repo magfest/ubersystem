@@ -7,8 +7,7 @@ from sqlalchemy.types import Boolean
 from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.types import default_relationship as relationship, utcnow, \
-    DefaultColumn as Column, MultiChoice
+from uber.models.types import default_relationship as relationship, utcnow, DefaultColumn as Column, MultiChoice
 
 
 __all__ = ['NightsMixin', 'HotelRequests', 'Room', 'RoomAssignment']
@@ -19,6 +18,7 @@ def _night(name):
 
     def lookup(self):
         return day if day in self.nights_ints else ''
+
     lookup.__name__ = name
     lookup = property(lookup)
 
@@ -26,8 +26,7 @@ def _night(name):
         if val:
             self.nights = '{},{}'.format(self.nights, day).strip(',')
         else:
-            self.nights = ','.join(
-                [str(night) for night in self.nights_ints if night != day])
+            self.nights = ','.join([str(night) for night in self.nights_ints if night != day])
     setter.__name__ = name
 
     return lookup.setter(setter)

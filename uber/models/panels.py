@@ -6,13 +6,11 @@ from sqlalchemy.types import Boolean, Integer
 
 from uber.config import c
 from uber.models import MagModel
-from uber.models.types import default_relationship as relationship, utcnow, \
-    Choice, DefaultColumn as Column, MultiChoice, SocialMediaMixin
+from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
+    MultiChoice, SocialMediaMixin
 
 
-__all__ = [
-    'AssignedPanelist', 'Event', 'EventFeedback', 'PanelApplicant',
-    'PanelApplication']
+__all__ = ['AssignedPanelist', 'Event', 'EventFeedback', 'PanelApplicant', 'PanelApplication']
 
 
 class Event(MagModel):
@@ -25,10 +23,7 @@ class Event(MagModel):
     assigned_panelists = relationship('AssignedPanelist', backref='event')
     applications = relationship('PanelApplication', backref='event')
     panel_feedback = relationship('EventFeedback', backref='event')
-
-    tournaments = relationship(
-        'TabletopTournament', backref='event', uselist=False)
-
+    tournaments = relationship('TabletopTournament', backref='event', uselist=False)
     guest = relationship('GuestGroup', backref='event')
 
     @property
@@ -66,11 +61,8 @@ class AssignedPanelist(MagModel):
 
 
 class PanelApplication(MagModel):
-    event_id = Column(
-        UUID, ForeignKey('event.id', ondelete='SET NULL'), nullable=True)
-    poc_id = Column(
-        UUID, ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
-
+    event_id = Column(UUID, ForeignKey('event.id', ondelete='SET NULL'), nullable=True)
+    poc_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
     name = Column(UnicodeText)
     length = Column(Choice(c.PANEL_LENGTH_OPTS), default=c.SIXTY_MIN)
     length_text = Column(UnicodeText)
@@ -80,7 +72,6 @@ class PanelApplication(MagModel):
     available = Column(UnicodeText)
     affiliations = Column(UnicodeText)
     past_attendance = Column(UnicodeText)
-
     presentation = Column(Choice(c.PRESENTATION_OPTS))
     other_presentation = Column(UnicodeText)
     tech_needs = Column(MultiChoice(c.TECH_NEED_OPTS))
@@ -92,11 +83,8 @@ class PanelApplication(MagModel):
     livestream = Column(Choice(c.LIVESTREAM_OPTS), default=c.DONT_CARE)
     panelist_bringing = Column(UnicodeText)
     extra_info = Column(UnicodeText)
-
     applied = Column(UTCDateTime, server_default=utcnow())
-
-    status = Column(
-        Choice(c.PANEL_APP_STATUS_OPTS), default=c.PENDING, admin_only=True)
+    status = Column(Choice(c.PANEL_APP_STATUS_OPTS), default=c.PENDING, admin_only=True)
     comments = Column(UnicodeText, admin_only=True)
 
     applicants = relationship('PanelApplicant', backref='application')
@@ -128,11 +116,8 @@ class PanelApplication(MagModel):
 
 
 class PanelApplicant(SocialMediaMixin, MagModel):
-    app_id = Column(
-        UUID, ForeignKey('panel_application.id', ondelete='cascade'))
-    attendee_id = Column(
-        UUID, ForeignKey('attendee.id', ondelete='cascade'), nullable=True)
-
+    app_id = Column(UUID, ForeignKey('panel_application.id', ondelete='cascade'))
+    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='cascade'), nullable=True)
     submitter = Column(Boolean, default=False)
     first_name = Column(UnicodeText)
     last_name = Column(UnicodeText)
@@ -140,7 +125,6 @@ class PanelApplicant(SocialMediaMixin, MagModel):
     cellphone = Column(UnicodeText)
     communication_pref = Column(MultiChoice(c.COMMUNICATION_PREF_OPTS))
     other_communication_pref = Column(UnicodeText)
-
     occupation = Column(UnicodeText)
     website = Column(UnicodeText)
     other_credentials = Column(UnicodeText)

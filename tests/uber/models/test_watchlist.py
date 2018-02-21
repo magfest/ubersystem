@@ -1,4 +1,9 @@
-from tests.uber import *
+from datetime import date
+
+import pytest
+from dateutil import parser as dateparser
+
+from uber.models import Attendee, Session, WatchList
 
 
 @pytest.fixture()

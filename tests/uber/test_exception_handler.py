@@ -1,6 +1,12 @@
-from uber import config
-from tests.uber import *
+
+import cherrypy
+import pytest
 from cherrypy._cpreqbody import Part
+from mock import Mock
+
+from uber import server
+from uber.models import AdminAccount
+from uber.utils import localized_now
 
 
 class MockPart(Part):

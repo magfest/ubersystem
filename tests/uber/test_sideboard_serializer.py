@@ -1,8 +1,8 @@
+import json
 from decimal import Decimal
 
 import pytest
-
-from uber.common import *
+from sideboard.lib import serializer
 
 
 @pytest.mark.parametrize('test_input,expected', [

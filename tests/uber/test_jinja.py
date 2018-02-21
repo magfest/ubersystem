@@ -1,10 +1,10 @@
 import textwrap
+import os
 
+import jinja2
 import pytest
 from jinja2.exceptions import TemplateNotFound
 
-from uber.common import *
-from tests.uber.conftest import *
 from uber.jinja import AbsolutePathLoader, MultiPathEnvironment
 
 

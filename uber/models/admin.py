@@ -10,8 +10,7 @@ from sqlalchemy.types import Boolean, Date
 from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.types import default_relationship as relationship, utcnow, \
-    DefaultColumn as Column, MultiChoice
+from uber.models.types import default_relationship as relationship, utcnow, DefaultColumn as Column, MultiChoice
 
 
 __all__ = ['AdminAccount', 'PasswordReset', 'WatchList']
@@ -22,8 +21,7 @@ class AdminAccount(MagModel):
     hashed = Column(UnicodeText, private=True)
     access = Column(MultiChoice(c.ACCESS_OPTS))
 
-    password_reset = relationship(
-        'PasswordReset', backref='admin_account', uselist=False)
+    password_reset = relationship('PasswordReset', backref='admin_account', uselist=False)
 
     api_tokens = relationship('ApiToken', backref='admin_account')
     active_api_tokens = relationship(
@@ -90,8 +88,7 @@ class AdminAccount(MagModel):
     @presave_adjustment
     def _disable_api_access(self):
         new_access = set(int(s) for s in self.access.split(',') if s)
-        old_access = set(
-            int(s) for s in self.orig_value_of('access').split(',') if s)
+        old_access = set(int(s) for s in self.orig_value_of('access').split(',') if s)
         removed = old_access.difference(new_access)
         removed_api = set(a for a in c.API_ACCESS.keys() if a in removed)
         if removed_api:
@@ -119,8 +116,7 @@ class WatchList(MagModel):
     reason = Column(UnicodeText)
     action = Column(UnicodeText)
     active = Column(Boolean, default=True)
-    attendees = relationship(
-        'Attendee', backref=backref('watch_list', load_on_pending=True))
+    attendees = relationship('Attendee', backref=backref('watch_list', load_on_pending=True))
 
     @presave_adjustment
     def _fix_birthdate(self):

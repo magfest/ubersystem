@@ -1,4 +1,7 @@
-from tests.uber import *
+import pytest
+
+from uber.config import c
+from uber.models import Attendee
 
 
 @pytest.fixture(autouse=True)
@@ -142,7 +145,13 @@ class TestMerch:
     @pytest.fixture(autouse=True)
     def defaults(self, monkeypatch):
         monkeypatch.setattr(c, 'SEPARATE_STAFF_MERCH', True)
-        for attr in ['volunteer_event_shirt_eligible', 'paid_for_a_shirt', 'volunteer_event_shirt_earned', 'gets_staff_shirt']:
+        attrs = [
+            'volunteer_event_shirt_eligible',
+            'paid_for_a_shirt',
+            'volunteer_event_shirt_earned',
+            'gets_staff_shirt']
+
+        for attr in attrs:
             monkeypatch.setattr(Attendee, attr, False)
 
     @pytest.fixture
@@ -163,6 +172,7 @@ class TestMerch:
 
     def test_extra_merch(self):
         assert 'foo' == Attendee(extra_merch='foo').merch
+        assert 'more' == Attendee(extra_merch='more').merch
 
     def test_normal_kickins(self, monkeypatch):
         monkeypatch.setattr(Attendee, 'merch_items', ['some', 'stuff'])
@@ -175,9 +185,6 @@ class TestMerch:
     def test_comma_and(self, monkeypatch):
         monkeypatch.setattr(Attendee, 'merch_items', ['some', 'stuff', 'more'])
         assert 'some, stuff, and more' == Attendee().merch
-
-    def test_extra_merch(self):
-        assert 'more' == Attendee(extra_merch='more').merch
 
     def test_info_packet(self):
         assert '' == Attendee(staffing=True).merch

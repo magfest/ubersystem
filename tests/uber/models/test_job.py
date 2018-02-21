@@ -1,4 +1,9 @@
-from tests.uber import *
+from datetime import timedelta
+
+import pytest
+
+from uber.config import c
+from uber.models import Attendee, DeptMembership, Job, Session
 
 
 def test_hours():

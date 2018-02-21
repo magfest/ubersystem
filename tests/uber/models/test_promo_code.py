@@ -1,4 +1,12 @@
-from tests.uber import *
+from datetime import datetime, timedelta
+
+import pytest
+import pytz
+from mock import Mock
+
+from uber.models import Attendee, PromoCode, Session
+from uber.config import c
+from uber.utils import Charge, check
 
 
 next_week = datetime.now(pytz.UTC) + timedelta(days=7)
@@ -103,8 +111,7 @@ class TestPromoCodeModelChecks:
     def test_no_unlimited_free_badges(self, discount, uses_allowed):
         assert check(PromoCode(
             discount=discount,
-            uses_allowed=uses_allowed)) == \
-            'Unlimited-use, free-badge promo codes are not allowed.'
+            uses_allowed=uses_allowed)) == 'Unlimited-use, free-badge promo codes are not allowed.'
 
     @pytest.mark.parametrize('discount', [100, 101, 200])
     @pytest.mark.parametrize('uses_allowed', [None, 0, ''])
@@ -112,8 +119,7 @@ class TestPromoCodeModelChecks:
         assert check(PromoCode(
             discount=discount,
             discount_type=PromoCode._PERCENT_DISCOUNT,
-            uses_allowed=uses_allowed)) == \
-            'Unlimited-use, free-badge promo codes are not allowed.'
+            uses_allowed=uses_allowed)) == 'Unlimited-use, free-badge promo codes are not allowed.'
 
     @pytest.mark.parametrize('uses_allowed', [None, 0, ''])
     @pytest.mark.parametrize('discount', [c.BADGE_PRICE, c.BADGE_PRICE + 1])
@@ -121,8 +127,7 @@ class TestPromoCodeModelChecks:
         assert check(PromoCode(
             discount=discount,
             discount_type=PromoCode._FIXED_DISCOUNT,
-            uses_allowed=uses_allowed)) == \
-            'Unlimited-use, free-badge promo codes are not allowed.'
+            uses_allowed=uses_allowed)) == 'Unlimited-use, free-badge promo codes are not allowed.'
 
     @pytest.mark.parametrize('code', [
         'ten percent off',
@@ -135,8 +140,7 @@ class TestPromoCodeModelChecks:
         '  FREE   BADGE    '])
     def test_no_dupe_code(self, code):
         assert check(PromoCode(discount=1, code=code)) == \
-            'The code you entered already belongs to another ' \
-            'promo code. Note that promo codes are not case sensitive.'
+            'The code you entered already belongs to another promo code. Note that promo codes are not case sensitive.'
 
 
 class TestAttendeePromoCodeModelChecks:
@@ -150,8 +154,7 @@ class TestAttendeePromoCodeModelChecks:
             placeholder=True,
             first_name='First',
             last_name='Last')
-        assert check(attendee, prereg=True) == \
-            "You can't apply a promo code after you've paid or if you're in a group."
+        assert check(attendee, prereg=True) == "You can't apply a promo code after you've paid or if you're in a group."
 
     def test_promo_code_is_useful_overridden_price(self):
         promo_code = PromoCode(discount=1, expiration_date=next_week)
@@ -174,8 +177,7 @@ class TestAttendeePromoCodeModelChecks:
             first_name='First',
             last_name='Last')
         assert check(attendee, prereg=True) == \
-            "That promo code doesn't make your badge any cheaper. " \
-            "You may already have other discounts."
+            "That promo code doesn't make your badge any cheaper. You may already have other discounts."
 
     def test_promo_code_not_is_expired(self):
         expire = datetime.now(pytz.UTC) - timedelta(days=9)
@@ -205,8 +207,7 @@ class TestAttendeePromoCodeModelChecks:
             first_name='First',
             last_name='Last')
 
-        assert check(attendee, prereg=True) == \
-            'That promo code has been used too many times.'
+        assert check(attendee, prereg=True) == 'That promo code has been used too many times.'
 
 
 class TestPromoCodeSessionMixin:
@@ -215,14 +216,10 @@ class TestPromoCodeSessionMixin:
     @pytest.fixture
     def disambiguated_promo_code(self):
         with Session() as session:
-            session.add(PromoCode(
-                id=self.disambiguated_promo_code_id,
-                code='012568',
-                uses_allowed=100))
+            session.add(PromoCode(id=self.disambiguated_promo_code_id, code='012568', uses_allowed=100))
 
         with Session() as session:
-            promo_code = session.query(PromoCode).filter(
-                PromoCode.id == self.disambiguated_promo_code_id).one()
+            promo_code = session.query(PromoCode).filter(PromoCode.id == self.disambiguated_promo_code_id).one()
             yield promo_code
             session.delete(promo_code)
 

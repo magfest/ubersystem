@@ -1,6 +1,15 @@
+from datetime import datetime
+
+from sqlalchemy import func, or_
 from pockets import listify
 
-from uber.common import *
+from uber.automated_emails_server import AutomatedEmail, SendAllAutomatedEmailsJob
+from uber.config import c
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, render_empty
+from uber.errors import HTTPRedirect
+from uber.models import AdminAccount, ApprovedEmail, Attendee, Email, Group
+from uber.notifications import send_email
+from uber.utils import get_page
 
 
 @all_renderable(c.PEOPLE)
@@ -82,9 +91,10 @@ class Root:
 
         return {
             'from_address': from_address or c.STAFF_EMAIL,
-            'to_address': to_address or
-                          ("goldenaxe75t6489@mailinator.com" if c.DEV_BOX else AdminAccount.admin_email())
-                          or "",
+            'to_address': (
+                to_address or
+                ("goldenaxe75t6489@mailinator.com" if c.DEV_BOX else AdminAccount.admin_email())
+                or ""),
             'subject':  c.EVENT_NAME_AND_YEAR + " test email " + right_now,
             'body': body or "ignore this email, <b>it is a test</b> of the <u>RAMS email system</u> " + right_now,
             'message': output_msg,
@@ -111,7 +121,7 @@ class Root:
 
             try:
                 send_email(sender, email.rcpt_email, email.subject, body, model=email.fk, ident=email.ident)
-            except:
+            except Exception:
                 return {'success': False, 'message': 'Email not sent: unknown error.'}
             else:
                 return {'success': True, 'message': 'Email resent.'}
@@ -166,7 +176,7 @@ class Root:
         amount_extra = params['amount_extra']
 
         base_filter = Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])
-        email_filter = [Attendee.can_spam == True] if 'only_can_spam' in params else []
+        email_filter = [Attendee.can_spam == True] if 'only_can_spam' in params else []  # noqa: E712
         attendee_filter = Attendee.amount_extra >= amount_extra
         if 'include_staff' in params:
             attendee_filter = or_(attendee_filter, Attendee.badge_type == c.STAFF_BADGE)

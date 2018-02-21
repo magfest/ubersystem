@@ -3,8 +3,9 @@ import re
 import cherrypy
 import pytest
 
-from uber.common import *
-from uber.utils import CSRFException
+from uber.config import c
+from uber.errors import HTTPRedirect
+from uber.models import Attendee, Group, Session
 from uber.site_sections import guest_admin
 
 
@@ -81,7 +82,7 @@ class TestAddGuestGroup(object):
 
     def test_POST_creates_group(self, POST, csrf_token, admin_attendee):
         with pytest.raises(HTTPRedirect, match='Group1 has been uploaded'):
-            response = self._add_group_response(
+            self._add_group_response(
                 name='Group1',
                 admin_notes='Stuff',
                 first_name='Al',
@@ -93,13 +94,13 @@ class TestAddGuestGroup(object):
         with Session() as session:
             group = session.query(Group).filter(Group.name == 'Group1').first()
             assert group
-            assert group.auto_recalc == False
+            assert not group.auto_recalc
             assert group.admin_notes == 'Stuff'
             assert group.leader
             assert group.leader.first_name == 'Al'
             assert group.leader.last_name == 'Bert'
             assert group.leader.email == 'al@example.com'
-            assert group.leader.placeholder == True
+            assert group.leader.placeholder
             assert group.leader.paid == c.PAID_BY_GROUP
             assert group.guest
             assert group.badges == 4

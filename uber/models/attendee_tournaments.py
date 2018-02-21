@@ -30,8 +30,7 @@ class AttendeeTournament(MagModel):
     why = Column(UnicodeText)
     volunteering = Column(Boolean, default=False)
 
-    status = Column(
-        Choice(c.TOURNAMENT_STATUS_OPTS), default=c.NEW, admin_only=True)
+    status = Column(Choice(c.TOURNAMENT_STATUS_OPTS), default=c.NEW, admin_only=True)
 
     email_model_name = 'app'
 

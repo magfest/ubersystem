@@ -1,6 +1,13 @@
+import sys
 from glob import glob
-from os.path import exists, join
-from uber.common import *
+from os.path import join
+from pprint import pprint
+
+from sideboard.lib import entry_point
+from sqlalchemy.orm import subqueryload
+
+from uber.config import c
+from uber.models import Attendee, Group, Session
 
 
 @entry_point
@@ -30,9 +37,7 @@ def alembic(*args):
     """
     from alembic.config import CommandLine
     from sideboard.config import config as sideboard_config
-    from sideboard.internal.imports import plugin_dirs
-    from uber.migration import create_alembic_config, \
-        get_plugin_head_revision, version_locations
+    from uber.migration import create_alembic_config, get_plugin_head_revision, version_locations
 
     argv = args if args else sys.argv[1:]
 
@@ -97,7 +102,8 @@ def alembic(*args):
 def print_config():
     """
     print all config values to stdout, used for debugging / status checking
-    useful if you want to verify that Ubersystem has pulled in the INI values you think it has.
+    useful if you want to verify that Ubersystem has pulled in the INI values
+    you think it has.
     """
     from uber.config import _config
     pprint(_config.dict())
@@ -128,17 +134,20 @@ def resave_all_staffers():
     """
     Re-save all staffers in the database, and re-assign all badge numbers.
 
-    SAFETY: This -should- be safe to run at any time, but, for safety sake, recommend turning off
-    any running sideboard servers before running this command.
+    SAFETY: This -should- be safe to run at any time, but, for safety sake,
+    recommend turning off any running sideboard servers before running this
+    command.
     """
-    assert c.BEFORE_PRINTED_BADGE_DEADLINE, 'resave_all_staffers is only available before badge numbers have been sent to the printer'
+    assert c.BEFORE_PRINTED_BADGE_DEADLINE, \
+        'resave_all_staffers is only available before badge numbers have been sent to the printer'
     Session.initialize_db(modify_tables=False, drop=False, initialize=True)
     with Session() as session:
         staffers = session.query(Attendee).filter_by(badge_type=c.STAFF_BADGE).all()
 
         first_staff_badge_num = c.BADGE_RANGES[c.STAFF_BADGE][0]
         last_staff_badge_num = c.BADGE_RANGES[c.STAFF_BADGE][1]
-        assert len(staffers) < last_staff_badge_num - first_staff_badge_num + 1, 'not enough free staff badges, please increase limit'
+        assert len(staffers) < last_staff_badge_num - first_staff_badge_num + 1, \
+            'not enough free staff badges, please increase limit'
 
         badge_num = first_staff_badge_num
 
@@ -180,14 +189,11 @@ def decline_and_convert_dealer_groups():
     from uber.site_sections.groups import _decline_and_convert_dealer_group
     Session.initialize_db(initialize=True)
     with Session() as session:
-        groups = session.query(Group).filter(
-                Group.tables > 0,
-                Group.status == c.WAITLISTED) \
+        groups = session.query(Group) \
+            .filter(Group.tables > 0, Group.status == c.WAITLISTED) \
             .options(
-                subqueryload(Group.attendees)
-                    .subqueryload(Attendee.admin_account),
-                subqueryload(Group.attendees)
-                    .subqueryload(Attendee.shifts)) \
+                subqueryload(Group.attendees).subqueryload(Attendee.admin_account),
+                subqueryload(Group.attendees).subqueryload(Attendee.shifts)) \
             .order_by(Group.name, Group.id).all()
 
         for group in groups:
