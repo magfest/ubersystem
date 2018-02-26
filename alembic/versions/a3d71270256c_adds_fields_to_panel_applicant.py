@@ -15,7 +15,7 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import sideboard
+import residue
 
 
 
@@ -59,14 +59,14 @@ def upgrade():
             batch_op.add_column(sa.Column('occupation', sa.Unicode(), server_default='', nullable=False))
             batch_op.add_column(sa.Column('other_communication_pref', sa.Unicode(), server_default='', nullable=False))
             batch_op.add_column(sa.Column('other_credentials', sa.Unicode(), server_default='', nullable=False))
-            batch_op.add_column(sa.Column('social_media', sideboard.lib.sa.JSON(), server_default='{}', nullable=False))
+            batch_op.add_column(sa.Column('social_media', residue.JSON(), server_default='{}', nullable=False))
             batch_op.add_column(sa.Column('website', sa.Unicode(), server_default='', nullable=False))
     else:
         op.add_column('panel_applicant', sa.Column('communication_pref', sa.Unicode(), server_default='', nullable=False))
         op.add_column('panel_applicant', sa.Column('occupation', sa.Unicode(), server_default='', nullable=False))
         op.add_column('panel_applicant', sa.Column('other_communication_pref', sa.Unicode(), server_default='', nullable=False))
         op.add_column('panel_applicant', sa.Column('other_credentials', sa.Unicode(), server_default='', nullable=False))
-        op.add_column('panel_applicant', sa.Column('social_media', sideboard.lib.sa.JSON(), server_default='{}', nullable=False))
+        op.add_column('panel_applicant', sa.Column('social_media', residue.JSON(), server_default='{}', nullable=False))
         op.add_column('panel_applicant', sa.Column('website', sa.Unicode(), server_default='', nullable=False))
 
 

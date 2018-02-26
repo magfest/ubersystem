@@ -16,7 +16,7 @@ depends_on='29b1b9a4e601'
 import re
 from alembic import op
 import sqlalchemy as sa
-import sideboard.lib.sa
+import residue
 from sqlalchemy.sql import table
 from pockets import sluggify
 
@@ -56,7 +56,7 @@ sqlite_reflect_kwargs = {
 
 attraction_table = table(
     'attraction',
-    sa.Column('id', sideboard.lib.sa.UUID()),
+    sa.Column('id', residue.UUID()),
     sa.Column('name', sa.Unicode()),
     sa.Column('slug', sa.Boolean()),
 )
@@ -64,7 +64,7 @@ attraction_table = table(
 
 attraction_feature_table = table(
     'attraction_feature',
-    sa.Column('id', sideboard.lib.sa.UUID()),
+    sa.Column('id', residue.UUID()),
     sa.Column('name', sa.Unicode()),
     sa.Column('slug', sa.Boolean()),
 )

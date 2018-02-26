@@ -17,5 +17,6 @@ from uber import notifications  # noqa: F401
 from uber import sep_commands  # noqa: F401
 from uber import server  # noqa: F401
 
+
 # NOTE: this will decrease the precision of some serialized decimal.Decimals
 lib.serializer.register(Decimal, lambda n: float(n))
